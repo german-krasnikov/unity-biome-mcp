@@ -7,6 +7,16 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     internal sealed class IconCanvasTests
     {
+        private readonly System.Collections.Generic.List<Texture2D> _textures = new();
+
+        [TearDown]
+        public void TearDown()
+        {
+            foreach (var tex in _textures)
+                if (tex != null) Object.DestroyImmediate(tex);
+            _textures.Clear();
+        }
+
         // Horizontal line through center: each x column in [2..15] must have exactly 2 lit pixels.
         // Uses Bake() (before Apply) so GetPixel is valid.
         [Test]
@@ -66,6 +76,7 @@ namespace UnityMCP.Editor.Tests
         public void Build_TextureIsNonReadable()
         {
             var tex = IconCanvas.New().Line(3, 3, 14, 14).Build();
+            _textures.Add(tex);
             Assert.Throws<UnityException>(() => tex.GetPixel(0, 0));
         }
 
@@ -74,6 +85,7 @@ namespace UnityMCP.Editor.Tests
         public void Build_DefaultSize_Is18x18()
         {
             var tex = IconCanvas.New().Build();
+            _textures.Add(tex);
             Assert.AreEqual(18, tex.width);
             Assert.AreEqual(18, tex.height);
         }
@@ -83,6 +95,7 @@ namespace UnityMCP.Editor.Tests
         public void Build_Size16_Is16x16()
         {
             var tex = IconCanvas.New(16).Build();
+            _textures.Add(tex);
             Assert.AreEqual(16, tex.width);
             Assert.AreEqual(16, tex.height);
         }
@@ -92,6 +105,7 @@ namespace UnityMCP.Editor.Tests
         public void Build_HideFlags_HideAndDontSave()
         {
             var tex = IconCanvas.New().Line(1, 1, 16, 16).Build();
+            _textures.Add(tex);
             Assert.AreEqual(HideFlags.HideAndDontSave, tex.hideFlags);
         }
 

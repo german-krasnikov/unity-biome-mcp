@@ -2,6 +2,7 @@
 import json as _json
 from ..metrics import METRICS
 from ._annotations import RO as _RO
+from ._common import bind
 
 
 async def get_metrics(format: str = "text", reset: bool = False) -> str:
@@ -30,4 +31,5 @@ def _format_snapshot(snap: dict) -> str:
 
 
 def register(mcp, send, args):
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(get_metrics)

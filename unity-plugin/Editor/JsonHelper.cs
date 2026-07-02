@@ -157,6 +157,17 @@ namespace UnityMCP.Editor
         }
 
         /// <summary>
+        /// Extract an integer value from JSON (works for both numbers and quoted strings).
+        /// Returns <paramref name="defaultValue"/> if key not found or not parseable.
+        /// </summary>
+        public static int ExtractInt(string json, string key, int defaultValue = 0)
+        {
+            var raw = ExtractString(json, key);
+            if (string.IsNullOrEmpty(raw)) return defaultValue;
+            return int.TryParse(raw.Trim('"'), out var v) ? v : defaultValue;
+        }
+
+        /// <summary>
         /// Extract a numeric float value from JSON (works for both numbers and quoted strings).
         /// Returns 0f if key not found or not parseable.
         /// </summary>

@@ -1,5 +1,6 @@
 """UI authoring + visual asset tools: create_ui, set_rect, menu, shader."""
 from ._annotations import RW as _RW, RW_IDEM as _RW_IDEM
+from ._common import bind
 
 _send = None
 _args = None
@@ -76,9 +77,7 @@ async def shader(
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(create_ui)
     mcp.tool(annotations=_RW_IDEM)(set_rect)
     mcp.tool(annotations=_RW)(menu)

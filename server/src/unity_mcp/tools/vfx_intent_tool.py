@@ -1,9 +1,11 @@
 """vfx_intent — NL → VFX DSL → particle batch commands."""
 import re
 from typing import Optional
+from mcp.server.fastmcp.exceptions import ToolError
 from ..sampling import sampling_service as _sampling
 from .intent_common import strip_fences, build_batch_line, run_intent_pipeline
 from ._annotations import RW as _RW
+from ._common import bind
 
 _send = None
 
@@ -108,7 +110,7 @@ async def vfx_intent(target: str, intent: str, kind: str = "auto", dry_run: bool
     if preset is not None:
         batch_lines = build_vfx_batch(target, preset)
         if not batch_lines:
-            return "ERROR: DSL produced no commands"
+            raise ToolError("DSL produced no commands")
         if dry_run:
             return "\n".join(batch_lines)
         result = await _send("batch", {"commands": "\n".join(batch_lines)})
@@ -126,6 +128,5 @@ async def vfx_intent(target: str, intent: str, kind: str = "auto", dry_run: bool
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(vfx_intent)

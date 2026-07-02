@@ -18,6 +18,7 @@ Sends the diagnose TCP command, parses the text wire-format, applies the
 Priority order: first match wins (see _verdict).
 """
 from __future__ import annotations
+from ._common import bind
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -257,8 +258,16 @@ def _verdict(
 
     # 9. idle-failed — checked before MVID match; SessionState may wipe errors on reconnect
     if fields.compile == "idle-failed":
-        cs = _first_cs(fields.errors)
-        return f"FAILED:{cs}" if cs else "FAILED:unknown"
+        cs = _first_cs(fields.errors) or _first_cs_from_all(fields.all_errors)
+        if cs:
+            return f"FAILED:{cs}"
+        # No CS code found — idle-failed flag may be stale or from non-MCP assembly.
+        # Corroborate with dll freshness and log before declaring failure.
+        has_stale_dll = parsed_dlls and any(s == "stale" for _, s in parsed_dlls)
+        has_log_errors = fields.log not in ("clean", "absent", "")
+        if has_stale_dll or has_log_errors or fields.reload_failed:
+            return "FAILED:unknown"
+        # No corroborating evidence — fall through to remaining slots
 
     # 9.5. iscompiling + idle-never + stale-dlls = package-resolve transient state
     if fields.iscompiling and fields.compile == "idle-never" and \
@@ -325,7 +334,6 @@ async def diagnose(prev_mvid: str = "", expected_compile: bool = True) -> str:
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     from ._annotations import RO as _RO
     mcp.tool(annotations=_RO)(diagnose)

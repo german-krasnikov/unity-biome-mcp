@@ -41,10 +41,13 @@ namespace UnityMCP.Editor
             float testStart = Time.realtimeSinceStartup;
             int passed = 0, failed = 0;
             var state = new PlaytestState();
+            DateTime stepStartUtc = DateTime.Now;
 
             void AdvanceStep()
             {
+                CheckStepConsoleErrors(steps[stepIdx], stepIdx, stepStartUtc, results);
                 stepIdx++;
+                stepStartUtc = DateTime.Now;
                 phase = Phase.Ready;
                 if (stepIdx >= steps.Count)
                 {
@@ -241,7 +244,7 @@ namespace UnityMCP.Editor
             var header = $"PLAYTEST: {passed}/{passed + failed} ({elapsed.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)";
 
             bool hasMonitor = !string.IsNullOrEmpty(monitorReport);
-            if (failed == 0 && !results.Exists(r => r.Contains("SNAPSHOT") || r.Contains("ABORTED")))
+            if (failed == 0 && !results.Exists(r => r.Contains("SNAPSHOT") || r.Contains("ABORTED") || r.Contains("CONSOLE_ERR")))
                 return hasMonitor ? header + " OK\n" + monitorReport : header + " OK";
 
             var sb = new System.Text.StringBuilder();
@@ -252,6 +255,16 @@ namespace UnityMCP.Editor
                     sb.AppendLine(r);
             if (hasMonitor) sb.AppendLine(monitorReport);
             return sb.ToString().TrimEnd();
+        }
+
+        internal const int StepConsoleErrorMax = 3;
+
+        internal static void CheckStepConsoleErrors(PlaytestStep step, int stepIdx, DateTime stepStart, List<string> results)
+        {
+            if (step.Type == StepType.AssertConsoleClean) return;
+            var errors = ConsoleCapture.GetErrorsSince(stepStart, StepConsoleErrorMax);
+            if (errors != null)
+                results.Add($"[{stepIdx + 1}] CONSOLE_ERR during {step.Type}: {errors}");
         }
     }
 }

@@ -1,4 +1,7 @@
 """TDD tests for intent_common — shared DSL utilities."""
+import pytest
+from mcp.server.fastmcp.exceptions import ToolError
+
 # ---------------------------------------------------------------------------
 # 1. strip_fences
 # ---------------------------------------------------------------------------
@@ -119,16 +122,16 @@ def test_build_batch_line_no_extra_args():
 # ---------------------------------------------------------------------------
 
 async def test_run_intent_pipeline_haiku_unavailable():
-    """None from sampling.generate → ERROR message, no send/parse/build calls."""
+    """None from sampling.generate → ToolError raised, no send/parse/build calls."""
     from unittest.mock import AsyncMock, MagicMock
     from unity_mcp.tools.intent_common import run_intent_pipeline
     sampling = MagicMock()
     sampling.generate = AsyncMock(return_value=None)
-    result = await run_intent_pipeline(
-        send=AsyncMock(), sampling=sampling, prompt="p", feature="f",
-        parse_fn=MagicMock(), build_fn=MagicMock(), dry_run=False,
-    )
-    assert "ERROR" in result and "unavailable" in result.lower()
+    with pytest.raises(ToolError, match="unavailable"):
+        await run_intent_pipeline(
+            send=AsyncMock(), sampling=sampling, prompt="p", feature="f",
+            parse_fn=MagicMock(), build_fn=MagicMock(), dry_run=False,
+        )
 
 
 async def test_run_intent_pipeline_calls_parse_and_build():
@@ -168,14 +171,14 @@ async def test_run_intent_pipeline_dry_run_skips_send():
 
 
 async def test_run_intent_pipeline_empty_build_returns_error():
-    """build_fn returning [] → ERROR message."""
+    """build_fn returning [] → ToolError raised."""
     from unittest.mock import AsyncMock, MagicMock
     from unity_mcp.tools.intent_common import run_intent_pipeline
     sampling = MagicMock()
     sampling.generate = AsyncMock(return_value="DSL")
-    result = await run_intent_pipeline(
-        send=AsyncMock(), sampling=sampling, prompt="p", feature="f",
-        parse_fn=MagicMock(return_value=[]), build_fn=MagicMock(return_value=[]),
-        dry_run=False,
-    )
-    assert "ERROR" in result
+    with pytest.raises(ToolError, match="DSL produced no commands"):
+        await run_intent_pipeline(
+            send=AsyncMock(), sampling=sampling, prompt="p", feature="f",
+            parse_fn=MagicMock(return_value=[]), build_fn=MagicMock(return_value=[]),
+            dry_run=False,
+        )

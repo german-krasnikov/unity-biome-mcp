@@ -15,14 +15,14 @@ async def test_get_hierarchy_default_params(mock_bridge):
     """get_hierarchy uses depth=2, root=None by default."""
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Scene"})
     await get_hierarchy()
-    mock_bridge.send.assert_called_once_with("get_hierarchy", {"depth": 2}, timeout=30.0)
+    mock_bridge.send.assert_called_once_with("get_hierarchy", {"depth": 2}, timeout=15.0)
 
 
 async def test_get_hierarchy_filter_passed(mock_bridge):
     """filter parameter IS passed to bridge."""
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Scene"})
     await get_hierarchy(depth=5, root="/Root", filter="active")
-    mock_bridge.send.assert_called_once_with("get_hierarchy", {"depth": 5, "root": "/Root", "filter": "active"}, timeout=30.0)
+    mock_bridge.send.assert_called_once_with("get_hierarchy", {"depth": 5, "root": "/Root", "filter": "active"}, timeout=15.0)
 
 
 # --- get_component edge cases ---

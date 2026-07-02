@@ -89,7 +89,7 @@ errors=
 log=absent
 """
 
-# idle-failed + empty errors + same prev_mvid → must be FAILED (not shadowed by NO-OP/STALE-DOMAIN)
+# idle-failed + empty errors + log evidence + same prev_mvid → must be FAILED (not shadowed by STALE-DOMAIN)
 FAILED_EMPTY_ERRORS_PAYLOAD = """\
 mvid=bbbbbbbb-0000-0000-0000-000000000000
 stamp=bbbbbbbb-0000-0000-0000-000000000000:200
@@ -98,7 +98,7 @@ sync=ready  epoch=2
 iscompiling=false  cn_active=false  started=false  stamp_frozen=false
 dlls=UnityMCP.Editor:200:fresh
 errors=
-log=absent
+log=CS9999
 """
 
 
@@ -623,3 +623,67 @@ def test_all_errors_empty_no_impact():
     assert f.all_errors == "", f"Empty all_errors must parse to empty string, got: {f.all_errors!r}"
     v = _d._verdict(f)
     assert v == "CLEAN-LIVE", f"Empty all_errors + clean wire must yield CLEAN-LIVE, got {v!r}"
+
+
+# ------ Slot 9 corroboration: idle-failed + empty errors + no evidence ------
+
+IDLE_FAILED_NO_EVIDENCE_WIRE = """\
+mvid=60d2de34-f1b2-4c3d-a5e6-789012345678
+stamp=60d2de34-f1b2-4c3d-a5e6-789012345678:639169455305003280
+compile=idle-failed|6.0
+sync=ready  epoch=2
+iscompiling=false  cn_active=false  started=false  stamp_frozen=false
+dlls=UnityMCP.Editor:639169455305003280:fresh
+errors=
+log=clean
+all_errors=
+"""
+
+IDLE_FAILED_STALE_DLL_WIRE = """\
+mvid=60d2de34-f1b2-4c3d-a5e6-789012345678
+stamp=60d2de34-f1b2-4c3d-a5e6-789012345678:639169455305003280
+compile=idle-failed|6.0
+sync=ready  epoch=2
+iscompiling=false  cn_active=false  started=false  stamp_frozen=false
+dlls=UnityMCP.Editor:639169455305003280:stale
+errors=
+log=clean
+all_errors=
+"""
+
+IDLE_FAILED_ALL_ERRORS_CS_WIRE = """\
+mvid=60d2de34-f1b2-4c3d-a5e6-789012345678
+stamp=60d2de34-f1b2-4c3d-a5e6-789012345678:639169455305003280
+compile=idle-failed|6.0
+sync=ready  epoch=2
+iscompiling=false  cn_active=false  started=false  stamp_frozen=false
+dlls=UnityMCP.Editor:639169455305003280:fresh
+errors=
+log=clean
+all_errors=SomeAsm:CS0117:Foo.cs:1: error CS0117: blah
+"""
+
+
+def test_slot9_no_evidence_falls_through():
+    """idle-failed + empty errors + fresh dlls + clean log → NOT FAILED:unknown.
+
+    Corroboration: no stale dlls, no log errors, no reload_failed → stale flag,
+    fall through to remaining slots (CLEAN-LIVE in this wire).
+    """
+    f = _d._parse_diagnose(IDLE_FAILED_NO_EVIDENCE_WIRE)
+    v = _d._verdict(f)
+    assert v != "FAILED:unknown", f"No corroborating evidence → must not be FAILED:unknown, got {v!r}"
+
+
+def test_slot9_stale_dll_yields_failed_unknown():
+    """idle-failed + empty errors + stale dll → FAILED:unknown (corroborated)."""
+    f = _d._parse_diagnose(IDLE_FAILED_STALE_DLL_WIRE)
+    v = _d._verdict(f)
+    assert v == "FAILED:unknown", f"Stale dll corroborates idle-failed → FAILED:unknown, got {v!r}"
+
+
+def test_slot9_all_errors_cs_code():
+    """idle-failed + empty errors= + all_errors has CS0117 → FAILED:CS0117."""
+    f = _d._parse_diagnose(IDLE_FAILED_ALL_ERRORS_CS_WIRE)
+    v = _d._verdict(f)
+    assert v == "FAILED:CS0117", f"all_errors CS code should be extracted, got {v!r}"

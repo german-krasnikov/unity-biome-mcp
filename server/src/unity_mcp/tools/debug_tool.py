@@ -1,5 +1,6 @@
 """AI-assisted debugging: gather diagnostic context based on symptom."""
 from ._annotations import RO as _RO
+from ._common import bind
 
 _send = None
 
@@ -79,6 +80,5 @@ async def debug(symptom: str = "", path: str = "", gather: str = "") -> str:
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(debug)

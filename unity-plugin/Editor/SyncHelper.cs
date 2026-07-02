@@ -106,6 +106,7 @@ namespace UnityMCP.Editor
                 // never be reported as ready/green (force-green hole).
                 SessionState.SetString(StateKey, "ready");
                 SessionState.SetBool(CleanKey, true);
+                CompileNotifier.ClearFailed();
             }
             return $"sync_ack|epoch={epoch}|will_compile={willCompile.ToString().ToLower()}";
         }
@@ -134,6 +135,7 @@ namespace UnityMCP.Editor
                     // A FAILED build must not be self-healed to ready.
                     SessionState.SetString(StateKey, "ready");
                     SessionState.SetBool(CleanKey, true);
+                    CompileNotifier.ClearFailed();
                     return $"epoch={epoch}|state=ready|stamp={stamp}";
                 }
                 // Stamp self-heal: if domain stamp changed since TriggerSync AND no real
@@ -146,6 +148,7 @@ namespace UnityMCP.Editor
                 {
                     SessionState.SetString(StateKey, "ready");
                     SessionState.SetBool(CleanKey, true);
+                    CompileNotifier.ClearFailed();
                     return $"epoch={epoch}|state=ready|stamp={stamp}";
                 }
                 var dur = CompileNotifier.ElapsedSeconds;

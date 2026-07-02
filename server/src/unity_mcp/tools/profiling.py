@@ -1,5 +1,6 @@
 """AI profiling tools: get_frame_stats, profile sessions, get_memory (with include filter)."""
 from ._annotations import RO as _RO
+from ._common import bind
 
 _send = None
 _args = None
@@ -43,9 +44,7 @@ async def get_memory(include: str = "all") -> str:
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(get_frame_stats)
     mcp.tool(annotations=_RO)(profile)
     mcp.tool(annotations=_RO)(get_memory)

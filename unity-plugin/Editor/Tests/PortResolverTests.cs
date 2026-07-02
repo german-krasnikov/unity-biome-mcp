@@ -187,10 +187,13 @@ namespace UnityMCP.Editor.Tests
         public void SavePorts_WritesCorrectJson()
         {
             var path = Path.Combine(Path.GetTempPath(), "mcp_test_ports.json");
-            PortResolver.SavePorts(path, 9500, 9501);
-            var content = File.ReadAllText(path);
-            Assert.AreEqual("{\"port\":9500,\"chatPort\":9501}", content);
-            File.Delete(path);
+            try
+            {
+                PortResolver.SavePorts(path, 9500, 9501);
+                var content = File.ReadAllText(path);
+                Assert.AreEqual("{\"port\":9500,\"chatPort\":9501}", content);
+            }
+            finally { if (File.Exists(path)) File.Delete(path); }
         }
 
         [Test]
@@ -198,20 +201,26 @@ namespace UnityMCP.Editor.Tests
         {
             var dir = Path.Combine(Path.GetTempPath(), "mcp_test_dir_" + System.Guid.NewGuid().ToString("N"));
             var path = Path.Combine(dir, "ports.json");
-            PortResolver.SavePorts(path, 9500, 9501);
-            Assert.IsTrue(File.Exists(path));
-            Directory.Delete(dir, true);
+            try
+            {
+                PortResolver.SavePorts(path, 9500, 9501);
+                Assert.IsTrue(File.Exists(path));
+            }
+            finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
         }
 
         [Test]
         public void SavePorts_RoundTrip_ResolveReadsBackSavedValues()
         {
             var path = Path.Combine(Path.GetTempPath(), "mcp_roundtrip_" + System.Guid.NewGuid().ToString("N") + ".json");
-            PortResolver.SavePorts(path, 9510, 9511);
-            var json = File.ReadAllText(path);
-            Assert.AreEqual(9510, PortResolver.ResolvePort(null, json, 9500));
-            Assert.AreEqual(9511, PortResolver.ResolveChatPort(null, json, 9510, 9512));
-            File.Delete(path);
+            try
+            {
+                PortResolver.SavePorts(path, 9510, 9511);
+                var json = File.ReadAllText(path);
+                Assert.AreEqual(9510, PortResolver.ResolvePort(null, json, 9500));
+                Assert.AreEqual(9511, PortResolver.ResolveChatPort(null, json, 9510, 9512));
+            }
+            finally { if (File.Exists(path)) File.Delete(path); }
         }
 
         [Test]
@@ -220,17 +229,20 @@ namespace UnityMCP.Editor.Tests
             // If MCP_Port.json is corrupt, SavePorts must still produce valid JSON.
             // ParsePortFromJson uses regex — extracts reloadPort=9601 from corrupt string despite broken JSON.
             var path = Path.Combine(Path.GetTempPath(), "mcp_corrupt_" + System.Guid.NewGuid().ToString("N") + ".json");
-            File.WriteAllText(path, "{\"port\":9500,\"chatPort\":9501}\"reloadPort\":9601}");
+            try
+            {
+                File.WriteAllText(path, "{\"port\":9500,\"chatPort\":9501}\"reloadPort\":9601}");
 
-            PortResolver.SavePorts(path, 9500, 9501);
+                PortResolver.SavePorts(path, 9500, 9501);
 
-            var content = File.ReadAllText(path);
-            Assert.IsTrue(content.TrimStart().StartsWith("{"), "must be valid JSON object");
-            Assert.IsTrue(content.TrimEnd().EndsWith("}"), "must be valid JSON object");
-            // port and chatPort must be correct.
-            Assert.AreEqual(9500, PortResolver.ParsePortFromJson(content, "port"));
-            Assert.AreEqual(9501, PortResolver.ParsePortFromJson(content, "chatPort"));
-            File.Delete(path);
+                var content = File.ReadAllText(path);
+                Assert.IsTrue(content.TrimStart().StartsWith("{"), "must be valid JSON object");
+                Assert.IsTrue(content.TrimEnd().EndsWith("}"), "must be valid JSON object");
+                // port and chatPort must be correct.
+                Assert.AreEqual(9500, PortResolver.ParsePortFromJson(content, "port"));
+                Assert.AreEqual(9501, PortResolver.ParsePortFromJson(content, "chatPort"));
+            }
+            finally { if (File.Exists(path)) File.Delete(path); }
         }
 
         // ── ProjectSettings overrides ─────────────────────────────────────────
@@ -281,11 +293,14 @@ namespace UnityMCP.Editor.Tests
         public void SaveProjectSettings_RoundTrips()
         {
             var path = Path.Combine(Path.GetTempPath(), "test_mcp_settings_" + System.Guid.NewGuid().ToString("N") + ".json");
-            PortResolver.SaveProjectSettings(path, 9600, 9601);
-            var json = File.ReadAllText(path);
-            Assert.AreEqual(9600, PortResolver.ParsePortFromJson(json, "port"));
-            Assert.AreEqual(9601, PortResolver.ParsePortFromJson(json, "chatPort"));
-            File.Delete(path);
+            try
+            {
+                PortResolver.SaveProjectSettings(path, 9600, 9601);
+                var json = File.ReadAllText(path);
+                Assert.AreEqual(9600, PortResolver.ParsePortFromJson(json, "port"));
+                Assert.AreEqual(9601, PortResolver.ParsePortFromJson(json, "chatPort"));
+            }
+            finally { if (File.Exists(path)) File.Delete(path); }
         }
 
         // ── Port collision guard ──────────────────────────────────────────────

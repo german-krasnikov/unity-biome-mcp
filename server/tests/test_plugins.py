@@ -349,6 +349,9 @@ def test_plugin_tool_without_register_tools_is_auto_gated_hidden(tmp_path, monke
     finally:
         gating.CATEGORIES["plugins"].discard(name)
         gating._ALL_KNOWN.discard(name)
+        gating._THEMED_CATEGORIES["PLUGINS"] = [
+            n for n in gating._THEMED_CATEGORIES["PLUGINS"] if n != name
+        ]
 
 
 async def test_plugin_tool_visible_after_discover_tools_plugins_category(tmp_path, monkeypatch):
@@ -382,6 +385,9 @@ async def test_plugin_tool_visible_after_discover_tools_plugins_category(tmp_pat
     finally:
         gating.CATEGORIES["plugins"].discard(name)
         gating._ALL_KNOWN.discard(name)
+        gating._THEMED_CATEGORIES["PLUGINS"] = [
+            n for n in gating._THEMED_CATEGORIES["PLUGINS"] if n != name
+        ]
         gating.reset()
 
 
@@ -459,3 +465,25 @@ def test_auto_gate_diffs_per_plugin_not_across_all_plugins(tmp_path, monkeypatch
         gating.CATEGORIES["plugins"].discard(name_b)
         gating._ALL_KNOWN.discard(name_a)
         gating._ALL_KNOWN.discard(name_b)
+        gating._THEMED_CATEGORIES["PLUGINS"] = [
+            n for n in gating._THEMED_CATEGORIES["PLUGINS"] if n not in (name_a, name_b)
+        ]
+
+
+def test_auto_gate_cleanup_leaves_no_themed_plugins_residue(monkeypatch):
+    """Regression for C4: register_tools('plugins', ...) writes into
+    _THEMED_CATEGORIES['PLUGINS'] too; cleanup must mirror all 3 writes or
+    later tests (e.g. test_no_orphan_themed_tools) see phantom entries."""
+    from unity_mcp.tools import gating
+
+    before = list(gating._THEMED_CATEGORIES["PLUGINS"])
+    name = "plugin_c4_regression_tool"
+    gating.register_tools("plugins", {name})
+    assert name in gating._THEMED_CATEGORIES["PLUGINS"]
+    # --- simulate the (fixed) cleanup a well-behaved test/plugin unload would do ---
+    gating.CATEGORIES["plugins"].discard(name)
+    gating._ALL_KNOWN.discard(name)
+    gating._THEMED_CATEGORIES["PLUGINS"] = [
+        n for n in gating._THEMED_CATEGORIES["PLUGINS"] if n != name
+    ]
+    assert gating._THEMED_CATEGORIES["PLUGINS"] == before

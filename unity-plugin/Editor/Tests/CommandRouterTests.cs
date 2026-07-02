@@ -19,6 +19,9 @@ namespace UnityMCP.Editor.Tests
         [TestCase("compile_status",    ExpectedResult = true)]
         [TestCase("get_disabled_tools",ExpectedResult = true)]
         [TestCase("set_tool_catalog",  ExpectedResult = true)]
+        // M5 (ROI reliability sprint): "batch" must reach BatchHelper.Execute during compile
+        // so its own per-line guard can run — see Process_WhileCompiling_BatchReachesInnerGuard_*.
+        [TestCase("batch",             ExpectedResult = true)]
         public bool IsAllowedDuringCompile_AllowedCommands(string cmd)
             => CommandRouter.IsAllowedDuringCompile(cmd);
 
@@ -26,7 +29,6 @@ namespace UnityMCP.Editor.Tests
         [TestCase("set_property")]
         [TestCase("delete_object")]
         [TestCase("get_hierarchy")]
-        [TestCase("batch")]
         public void IsAllowedDuringCompile_BlockedCommands_ReturnFalse(string cmd)
             => Assert.IsFalse(CommandRouter.IsAllowedDuringCompile(cmd));
 
@@ -149,6 +151,38 @@ namespace UnityMCP.Editor.Tests
             finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
         }
 
+        // M5: "batch" must reach BatchHelper.Execute during compile so its own per-line guard
+        // (already correct) can run — the outer gate used to reject the whole batch, making the
+        // per-line compile guard dead code.
+        [Test]
+        public void Process_WhileCompiling_BatchReachesInnerGuard_BlocksMutatingCommand()
+        {
+            CommandRouter.IsCompiling = () => true;
+            try
+            {
+                var json = "{\"id\":\"5\",\"cmd\":\"batch\",\"args\":{\"commands\":\"set_active path=/X value=true\"}}";
+                var result = CommandRouter.Process(json);
+                Assert.IsTrue(result.Contains("\"ok\":true"), result); // outer gate did not reject the batch itself
+                StringAssert.Contains("BLOCKED", result); // inner per-line guard fired instead
+            }
+            finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
+        }
+
+        [Test]
+        public void Process_WhileCompiling_BatchAllowsReadOnlyAllowedCommand()
+        {
+            CommandRouter.IsCompiling = () => true;
+            try
+            {
+                var json = "{\"id\":\"6\",\"cmd\":\"batch\",\"args\":{\"commands\":\"get_console\"}}";
+                var result = CommandRouter.Process(json);
+                Assert.IsTrue(result.Contains("\"ok\":true"), result);
+                StringAssert.DoesNotContain("BLOCKED", result);
+                StringAssert.DoesNotContain("retry", result); // confirms outer gate did not reject
+            }
+            finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
+        }
+
         // ── Process: play-mode guard blocks mutating commands ─────────────────
 
         [Test]
@@ -212,6 +246,40 @@ namespace UnityMCP.Editor.Tests
                 CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
                 CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
             }
+        }
+
+        // ── BuildResponse (direct seam): truncation-ordering fix (Task 3.2) ────
+        // Bug: Truncate() used to run BEFORE the TEXT_THRESHOLD file-offload check, so a
+        // command with a maxResponseChars soft limit got its data cut down to that limit
+        // even when the full data should have been preserved via file offload instead.
+
+        [Test]
+        public void BuildResponse_LargeDataWithMaxResponseChars_WritesFullDataToFile_NotTruncated()
+        {
+            var bigData = new string('x', FileOutputHelper.TEXT_THRESHOLD + 1000);
+            var result = CommandRouter.BuildResponse("id1", bigData, maxResponseChars: 500);
+
+            Assert.IsTrue(result.Contains("\"file\""), result);
+            var filePath = JsonHelper.ExtractString(result, "file");
+            Assert.IsNotNull(filePath, result);
+            try
+            {
+                var written = System.IO.File.ReadAllText(filePath);
+                Assert.AreEqual(bigData.Length, written.Length,
+                    "file-offloaded data must be full, not soft-truncated to maxResponseChars");
+            }
+            finally { System.IO.File.Delete(filePath); }
+        }
+
+        [Test]
+        public void BuildResponse_SmallDataWithMaxResponseChars_StillTruncatesInline()
+        {
+            var data = new string('x', 1000);
+            var result = CommandRouter.BuildResponse("id2", data, maxResponseChars: 100);
+
+            // Under the file threshold: unchanged behavior — soft truncation still applies inline.
+            Assert.IsFalse(result.Contains("\"file\""), result);
+            Assert.IsTrue(result.Contains("TRUNCATED"), result);
         }
 
         // ── CommandValidator: all registered commands have a contract ─────────

@@ -14,6 +14,7 @@ unity-kiss-mcp/
 │   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
 │   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 120 registered MCP tools (v0.50.3)
+│   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
 │   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE)
 │   │   ├── connection_slot.py  # ConnectionSlot: dual connections (CLI + Chat agent)
 │   │   ├── chat_relay.py       # Chat relay TCP server: 5 backends, deferred spawn for single-turn, _TRANSFORM_FNS dispatch, EOF handling (v0.67.0: +output_format/reads_stdin, +close_stdin, role-aware ping)
@@ -92,8 +93,11 @@ unity-kiss-mcp/
 │   │   ├── debug/              # Debug subsystem (v0.59.0: state capture + watch system)
 │   │   │   ├── __init__.py
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
-│   │   ├── tools/              # Tool modules (34 files + __init__, v0.60.0: +profiling.py, rendering.py, v0.62.0: +auto_wire.py, scene_health.py)
+│   │   ├── tools/              # Tool modules (37 files + __init__, v0.60.0: +profiling.py, rendering.py, v0.62.0: +auto_wire.py, scene_health.py, v0.69.0: +tool_specs.py, _common.py, meta.py)
 │   │   │   ├── __init__.py     # Tool module registry
+│   │   │   ├── tool_specs.py   # Single source of truth: 128 ToolSpec entries with category/core/tier1/timeout_s metadata (v0.69.0, M8)
+│   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
+│   │   │   ├── meta.py         # Meta tools: discover_tools, doctor, resolve_tool_schema, set_llm_config in register(mcp, send, args) pattern (v0.69.0)
 │   │   │   ├── profiling.py    # Profile MCP tool: session-based profiling, frame stats, performance analysis (v0.60.0, 412 LOC)
 │   │   │   ├── rendering.py    # Render analysis MCP tools: draw calls, batching, lights, LOD culling (v0.60.0, 618 LOC)
 │   │   │   ├── auto_wire.py    # Auto-wiring tool: fill ObjectRef fields by semantic name/type matching (v0.62.0)
@@ -111,7 +115,7 @@ unity-kiss-mcp/
 │   │   │   ├── asset.py        # asset, material, prefab, scriptable_object, project_settings, validate_move (v0.30.4)
 │   │   │   ├── connection.py   # list_connections, reconnect_unity
 │   │   │   ├── autobatch.py    # setup_objects, set_properties, configure_objects (v0.55.10: _quote_if_spaces, _DOTTED_KV_RE lookahead)
-│   │   │   ├── gating.py       # TIER1 + category-based capability filtering (permission_prompt in CORE_TOOLS, v0.29.37)
+│   │   │   ├── gating.py       # TIER1 + category-based capability filtering (permission_prompt in CORE_TOOLS, v0.29.37; collections derived from tool_specs._SPECS v0.69.0)
 │   │   │   ├── do_tool.py      # NL intent → Haiku plan → batch execute
 │   │   │   ├── ask_tool.py     # NL read-only → route → Haiku summarize
 │   │   │   ├── ask_user_tool.py # ask_user MCP tool (ask_user AskUserCard routing, v0.29.11)
@@ -203,20 +207,22 @@ unity-kiss-mcp/
 │   ├── UnityMCP.Reload.asmdef                # Core assembly (no references)
 │   ├── package.json                          # v0.1.4, "com.unity-mcp.reload"
 │   └── package.json.meta
-├── unity-plugin/               # Unity Editor Plugin (190+ C# files, ~19200 LOC, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests)
+├── unity-plugin/               # Unity Editor Plugin (200+ C# files, ~19500 LOC, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests)
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
 │       ├── CommandRouter.cs                # RegisterAll(), guards, core dispatch (partial class)
 │       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class)
 │       ├── CommandRouter.MediaHandlers.cs  # Media/asset handlers (partial class)
+│       ├── Bootstrap.cs                    # [InitializeOnLoadMethod] breaks cyclic static-init: defers CommandRegistry.Clear/InitDefaults via delayCall (v0.69.0)
+│       ├── CommandOptions.cs               # Struct groups trailing Register() params: Mutating/Runtime/Required/Optional/AlwaysAllowed/AllowedDuringCompile/Description/MaxResponseChars (v0.69.0)
+│       ├── CommandRegistry.cs              # Command registration + runtime flag (v0.69.0: CommandOptions struct overloads for new registrations)
+│       ├── CommandValidator.cs             # Parameter validation via contract at Register() + fuzzy matching
 │       ├── IMCPPlugin.cs                   # Plugin interface (Name, CommandPrefix, RegisterCommands, OnDomainReload, GetToolSubcategory, DIMs: Description, HasSettingsUI, BuildSettingsUI)
-│       ├── PluginRegistry.cs               # Static plugin registry (Register, RegisterAllPlugins, OnDomainReload, GetCommandsForPlugin, BelongsToPlugin)
+│       ├── PluginRegistry.cs               # Static plugin registry (Register, RegisterAllPlugins with CallerIsPlugin gate v0.69.0, OnDomainReload, GetCommandsForPlugin, BelongsToPlugin)
 │       ├── PluginConfig.cs                 # Isolated EditorPrefs storage for plugins (GetString/SetString, GetBool/SetBool, GetInt/SetInt, GetFloat/SetFloat, Delete, namespace: MCPPlugin_{pluginId}_{key}, v0.65.1)
 │       ├── PluginUIHelpers.cs              # Convenience UI builders (MakeCard, InlineRow, AddTextField/Toggle/Slider/IntSlider/Dropdown with auto-persist, LoadStyles, v0.65.1)
 │       ├── PluginToolGrouping.cs           # Stateless grouping by subcategory (v0.55.10)
-│       ├── CommandRegistry.cs              # Command registration + runtime flag
-│       ├── CommandValidator.cs             # Parameter validation via contract at Register() + fuzzy matching
 │       ├── ObjectManager.cs                # CRUD + Undo + SetActive + WireEvent + SetParent
 │       ├── ObjectManager.Properties.cs     # Property setter + auto-redirect (v0.23.0: set_property("active") → SetActive)
 │       ├── ObjectManager.Transfer.cs       # Move/copy objects between scenes (v0.24.3: transfer_object)
@@ -261,6 +267,15 @@ unity-kiss-mcp/
 │       ├── ConsoleRingBuffer.cs            # Bounded in-memory log capture: init buffer (50, 5s window) + ring (450 entries)
 │       ├── ConsoleProblemPersistence.cs    # SessionState-persisted problem entries (Error/Exception/Assert) across domain reload
 │       ├── PrefKeys.cs                     # Central SessionState/EditorPrefs key literals (DRY)
+│       ├── ClientConnectionHandler.cs       # Handles TCP client connections (v0.69.0)
+│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0)
+│       ├── MainThreadDispatcher.cs          # Main-thread work queue for TCP callbacks (v0.69.0)
+│       ├── EnvironmentHelper.cs             # Unity environment detection + version checks (v0.69.0)
+│       ├── ErrorClassifier.cs               # Categorizes command failures for recovery (v0.69.0)
+│       ├── PortFileManager.cs               # Port file lifecycle + atomic writes (v0.69.0)
+│       ├── ResponseGovernance.cs            # Response size limiting + overflow handling (v0.69.0)
+│       ├── ConsoleStackParser.cs            # Console exception stack parsing (v0.69.0)
+│       ├── ColliderFitHelper.cs             # Collider bounds fitting helpers (v0.69.0)
 │       ├── CompileErrorCapture.cs + CompileNotifier.cs
 │       ├── FingerprintHelper.cs + ScanHelper.cs + SceneDiffHelper.cs
 │       ├── ChangeWatcher.cs + ColliderChecker.cs + SchemaHelper.cs

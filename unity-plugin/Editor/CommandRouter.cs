@@ -114,13 +114,13 @@ namespace UnityMCP.Editor
                     var suggestion = SuggestNext(cmd);
                     if (suggestion != null) data += $"\n[next: {suggestion}]";
                 }
-                return BuildResponse(id, data);
+                return BuildResponse(id, data, CommandRegistry.GetMaxResponseChars(cmd));
             }
             catch (Exception e)
             {
-                Debug.LogError($"[MCP] Command failed: {e.Message}");
+                Debug.LogError($"[MCP] Command failed: {ErrorClassifier.FormatError(e)}");
                 var id = JsonHelper.ExtractString(json, "id") ?? "unknown";
-                return JsonHelper.FormatResponse(id, false, null, e.Message);
+                return JsonHelper.FormatResponse(id, false, null, ErrorClassifier.FormatError(e));
             }
         }
 
@@ -146,9 +146,9 @@ namespace UnityMCP.Editor
             }
             catch (Exception e)
             {
-                Debug.LogError($"[MCP] Command failed: {e.Message}");
+                Debug.LogError($"[MCP] Command failed: {ErrorClassifier.FormatError(e)}");
                 var id = JsonHelper.ExtractString(json, "id") ?? "unknown";
-                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, e.Message));
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, ErrorClassifier.FormatError(e)));
             }
         }
 
@@ -254,6 +254,8 @@ namespace UnityMCP.Editor
             // C7: "get_version" fast-path is in MCPServer.cs:293 (emits MVID stamp).
             // The VersionTracker delegation here was dead code — MCPServer intercepts get_version
             // before it reaches CommandRouter. Removed so get_version unambiguously means MVID stamp.
+            CommandRegistry.Register("get_capabilities", _ => GetCapabilities(),
+                required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("get_enabled_tools", _ => ExecGetEnabledTools(), required: "", optional: "",
                 alwaysAllowed: true, allowedDuringCompile: true);
             CommandRegistry.Register("get_disabled_tools", _ => ExecGetDisabledTools(), required: "", optional: "",
@@ -267,7 +269,8 @@ namespace UnityMCP.Editor
 
             // Read (non-mutating)
             CommandRegistry.Register("get_hierarchy", ExecGetHierarchy,
-                required: "", optional: "depth,root,filter,components,summary,incremental,scene");
+                required: "", optional: "depth,root,filter,components,summary,incremental,scene",
+                maxResponseChars: 50000);
             CommandRegistry.Register("get_component", ExecGetComponent,
                 required: "path,type", optional: "");
             CommandRegistry.Register("get_components_list", ExecGetComponentsList,
@@ -277,7 +280,8 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("find_objects", ExecFindObjects,
                 required: "", optional: "name,tag,layer,component");
             CommandRegistry.Register("get_console", ExecGetConsole,
-                required: "", optional: "count,level,first,keyword,count_only", allowedDuringCompile: true);
+                required: "", optional: "count,level,first,keyword,count_only,since", allowedDuringCompile: true,
+                maxResponseChars: 20000);
             CommandRegistry.Register("clear_console", _ => { ConsoleCapture.Clear(); return "ok"; },
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("get_compile_errors", _ => CompileErrorCapture.GetErrors(),
@@ -319,13 +323,19 @@ namespace UnityMCP.Editor
                 int.TryParse(JsonHelper.ExtractString(args, "limit") ?? "50",
                     out var sl) ? sl : 50,
                 JsonHelper.ExtractString(args, "scene")),
-                required: "query", optional: "root,limit,scene");
+                required: "query", optional: "root,limit,scene",
+                maxResponseChars: 30000);
             CommandRegistry.Register("object_diff", args => ObjectDiffHelper.Diff(
                 JsonHelper.ExtractString(args, "pathA"),
                 JsonHelper.ExtractString(args, "pathB")),
                 required: "pathA,pathB", optional: "");
             CommandRegistry.Register("editor", ExecEditor,
                 required: "", optional: "action,path");
+            CommandRegistry.Register("ping_object", args =>
+                EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path")),
+                required: "path", optional: "");
+            CommandRegistry.Register("get_selection", _ => EditorStateHelper.GetSelection(),
+                required: "", optional: "");
             CommandRegistry.Register("inspect", ExecInspect,
                 required: "paths", optional: "components");
             CommandRegistry.Register("validate_references", args => ValidateReferencesHelper.Validate(
@@ -475,6 +485,8 @@ namespace UnityMCP.Editor
                 required: "path", optional: "dry_run");
             CommandRegistry.Register("manage_component", ExecManageComponent, mutating: true,
                 required: "path,type,action", optional: "");
+            CommandRegistry.Register("autofit_collider", ColliderFitHelper.Execute, mutating: true,
+                required: "path", optional: "type");
             // parent is optional: null/omitted unparents to scene root (ObjectManager.SetParent
             // tolerates a null newParent — this is a valid, intentional operation, not an error).
             CommandRegistry.Register("set_parent", args => ObjectManager.SetParent(
@@ -498,7 +510,8 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "commands"),
                     JsonHelper.ExtractString(args, "on_error") ?? "continue",
                     timeoutMs, atomic);
-            }, mutating: false, required: "commands", optional: "on_error,timeout_ms,atomic");
+            }, mutating: false, required: "commands", optional: "on_error,timeout_ms,atomic",
+               allowedDuringCompile: true);
             CommandRegistry.Register("scene", ExecScene, mutating: true,
                 required: "action", optional: "path,scene");
             CommandRegistry.Register("animation", ExecAnimationConsolidated, mutating: true,
@@ -512,7 +525,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("set_rect", ExecSetRect, mutating: true,
                 required: "path", optional: "anchor,pos,size,pivot,offsetMin,offsetMax");
             CommandRegistry.Register("animator", ExecAnimatorConsolidated, mutating: true,
-                required: "action,path", optional: "state,states,params,source,target,conditions,duration,exit_time,has_exit_time,type,name");
+                required: "action,path", optional: "state,states,params,source,target,conditions,duration,exit_time,has_exit_time,type,name,blend_type,param,param_y,children,edit_action");
             CommandRegistry.Register("particle", ExecParticleConsolidated, mutating: true,
                 required: "action,path", optional: "name,module,prop,value,preset");
             CommandRegistry.Register("shader", ExecShaderConsolidated, mutating: true,
@@ -528,11 +541,13 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAction("project_settings", ProjectSettingsHelper.Execute, mutating: true,
                 required: "target", optional: "prop,value,index");
             CommandRegistry.RegisterAction("material", MaterialHelper.Execute, mutating: true,
-                optional: "path,object_path,shader,prop,value,source,targets");
+                optional: "path,object_path,shader,prop,value,source,targets,slot");
             CommandRegistry.RegisterAction("prefab", PrefabHelper.Execute, mutating: true,
                 optional: "path,asset_path,base_path,variant_path,recursive,component,prop,value,add_component,remove_component");
             CommandRegistry.RegisterAction("scriptable_object", ScriptableObjectHelper.Execute, mutating: true,
                 optional: "path,type,prop,value,filter");
+            CommandRegistry.RegisterAction("scene_environment", EnvironmentHelper.Execute, mutating: true,
+                optional: "prop,value");
 
             // Spatial queries (read-only)
             CommandRegistry.Register("spatial_query", args => SpatialHelper.Execute(args),
@@ -565,7 +580,6 @@ namespace UnityMCP.Editor
             WatchCommandHandler.RegisterAll();
 
             PluginRegistry.RegisterAllPlugins();
-            AttributeScanner.ScanAndRegister();
 
             // Eager-populate after ALL tools are registered (including plugins).
             // This is the correct site: RegisterAll is the last step in CommandRegistry.InitDefaults
@@ -573,13 +587,19 @@ namespace UnityMCP.Editor
             _enabledToolsCache = ExecGetEnabledTools();
         }
 
-        private static string BuildResponse(string id, string data)
+        // internal (not private) so UnityMCP.Editor.Tests can call directly for seam tests.
+        // Task 3.2 (ROI reliability sprint): the hard TEXT_THRESHOLD file-offload check must
+        // run BEFORE Truncate() — otherwise a command with a maxResponseChars soft limit gets
+        // its data cut down to that limit even when it should have been preserved in full via
+        // file offload. Data under the threshold is unaffected: it still gets soft-truncated.
+        internal static string BuildResponse(string id, string data, int maxResponseChars = 0)
         {
             if (data != null && data.Length > FileOutputHelper.TEXT_THRESHOLD)
             {
                 var filePath = FileOutputHelper.WriteText(data);
                 return JsonHelper.FormatFileResponse(id, filePath);
             }
+            data = ResponseGovernance.Truncate(data, maxResponseChars);
             return JsonHelper.FormatResponse(id, true, data, null);
         }
 
@@ -607,6 +627,39 @@ namespace UnityMCP.Editor
             if (val == null) return defaultVal;
             return float.TryParse(val, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var result) ? result : defaultVal;
+        }
+
+        private static string GetCapabilities()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"unity:{Application.unityVersion}");
+            sb.AppendLine($"platform:{Application.platform}");
+            sb.AppendLine($"scriptingBackend:{UnityEditor.PlayerSettings.GetScriptingBackend(UnityEditor.EditorUserBuildSettings.selectedBuildTargetGroup)}");
+            sb.AppendLine("packages:");
+#if UNITYMCP_HAS_CINEMACHINE
+            sb.AppendLine("  cinemachine:true");
+#endif
+#if UNITYMCP_HAS_URP
+            sb.AppendLine("  urp:true");
+#endif
+#if UNITYMCP_HAS_HDRP
+            sb.AppendLine("  hdrp:true");
+#endif
+#if UNITYMCP_HAS_INPUT_SYSTEM
+            sb.AppendLine("  inputSystem:true");
+#endif
+#if UNITYMCP_HAS_POST_PROCESSING
+            sb.AppendLine("  postProcessing:true");
+#endif
+#if UNITYMCP_HAS_TMP
+            sb.AppendLine("  textMeshPro:true");
+#endif
+#if UNITYMCP_HAS_AI_NAVIGATION
+            sb.AppendLine("  aiNavigation:true");
+#endif
+            var rp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+            sb.AppendLine($"renderPipeline:{(rp != null ? rp.GetType().Name : "built-in")}");
+            return sb.ToString().TrimEnd();
         }
 
         [UnityEditor.InitializeOnLoadMethod]

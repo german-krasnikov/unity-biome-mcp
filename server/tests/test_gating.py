@@ -466,7 +466,7 @@ def test_tier1_residual_names_still_present():
     from unity_mcp.tools.gating import TIER1, _CORE_TOOLS
     residual_expected = {
         "screenshot", "run_tests", "setup_objects", "set_properties", "configure_objects",
-        "find_references", "compile_preflight", "semantic_at", "await_compile", "sync_unity",
+        "compile_preflight", "await_compile", "sync_unity",
         "invoke_method", "set_runtime_property", "wait_until", "move_to", "query_state",
         "test_step", "run_playtest", "fuzz_playtest",
     }
@@ -557,3 +557,17 @@ async def test_budget_status_visible_after_discover_advanced():
         assert gating.is_visible("budget_status")
     finally:
         gating.reset()
+
+
+# --- m1: drift-invariant — every registered tool must be known to gating ---
+
+def test_all_registered_tools_are_known_to_gating():
+    """Drift invariant: every tool FastMCP knows about must be classified
+    somewhere in gating.py (TIER1, a category, or _CORE_TOOLS). A tool that
+    slips through is invisible to discover_tools()/enable_category() and can
+    never be surfaced to a filtered client."""
+    from unity_mcp.tools import gating
+    from unity_mcp.server import mcp
+    registered = {t.name for t in mcp._tool_manager.list_tools()}
+    missing = registered - gating._ALL_KNOWN
+    assert not missing, f"Tools registered but unknown to gating: {sorted(missing)}"

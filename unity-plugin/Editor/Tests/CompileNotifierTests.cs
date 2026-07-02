@@ -92,6 +92,26 @@ namespace UnityMCP.Editor.Tests
                 $"G14: elapsed past ceiling must return idle-stale, got: {status}");
         }
 
+        // ClearFailed resets the FailedKey so GetStatus no longer returns idle-failed
+        [Test]
+        public void ClearFailed_ResetsFailedKey()
+        {
+            // Simulate a completed failed compile: StartKey=0, FailedKey=true, duration>0
+            UnityEditor.SessionState.EraseFloat("MCP_CompileStart");
+            UnityEditor.SessionState.SetFloat("MCP_LastDuration", 2.0f);
+            UnityEditor.SessionState.SetBool("MCP_CompileFailed", true);
+
+            // Precondition: status must be idle-failed
+            var before = CompileNotifier.GetStatus();
+            StringAssert.StartsWith("idle-failed", before, "precondition: must be idle-failed");
+
+            CompileNotifier.ClearFailed();
+
+            var after = CompileNotifier.GetStatus();
+            Assert.IsFalse(after.Contains("failed"),
+                $"After ClearFailed(), GetStatus must not contain 'failed', got: {after}");
+        }
+
         // G14: elapsed under ceiling → still reports compiling
         [Test]
         public void GetStatus_Returns_Compiling_WhenElapsedUnderCeiling()

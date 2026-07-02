@@ -76,6 +76,27 @@ namespace UnityMCP.Editor
             { "collisionDetection", "m_CollisionDetection" },
             { "interpolation", "m_Interpolate" },
             { "constraints", "m_Constraints" },
+
+            // AudioSource — verified against UnityCsReference AudioSourceInspector.cs
+            // (branch 6000.0, matching this package's min Unity version). Several
+            // fields have NO "m_" prefix — this is not a typo.
+            { "audioClip", "m_Resource" },
+            { "mute", "Mute" },
+            { "pitch", "m_Pitch" },
+            { "minDistance", "MinDistance" },
+            { "maxDistance", "MaxDistance" },
+            { "priority", "Priority" },
+            { "dopplerLevel", "DopplerLevel" },
+
+            // Light — verified against UnityCsReference LightEditor.cs (branch 6000.0).
+            // Shadow fields are nested under the "m_Shadows" struct.
+            { "shadowStrength", "m_Shadows.m_Strength" },
+            { "shadowBias", "m_Shadows.m_Bias" },
+            { "shadowNormalBias", "m_Shadows.m_NormalBias" },
+            { "lightType", "m_Type" },
+            { "bounceIntensity", "m_BounceIntensity" },
+            { "cookieSize", "m_CookieSize" },
+            { "innerSpotAngle", "m_InnerSpotAngle" },
         };
 
         // Value aliases: named constants → serialized format

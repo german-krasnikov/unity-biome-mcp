@@ -96,3 +96,22 @@ async def test_wrap_send_file_only_no_data():
     wrapped = wrap_send(fake_send)
     result = await wrapped("screenshot", {})
     assert result == "Data saved to: /tmp/mv.png"
+
+
+# --- C1: wrapped()'s own default must not shadow _send_raw's category guard ---
+
+
+async def test_wrap_send_forwards_zero_not_stale_thirty():
+    """wrapped() called with no explicit timeout must forward timeout=0 — the
+    sentinel _send_raw's `timeout <= 0` guard resolves via get_timeout(cmd) —
+    not a stale hardcoded 30.0 that would shadow the category lookup."""
+    received = {}
+
+    async def fake_send(cmd, args, timeout=30.0):
+        received["timeout"] = timeout
+        return {"ok": True, "data": "ok"}
+
+    wrapped = wrap_send(fake_send)
+    await wrapped("ping", {})
+
+    assert received["timeout"] == 0

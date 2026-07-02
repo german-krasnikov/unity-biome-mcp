@@ -1,5 +1,6 @@
 """auto_wire — fill null ObjectReference fields by name/type matching."""
 from ._annotations import RW as _RW
+from ._common import bind
 
 _send = None
 _args = None
@@ -12,6 +13,5 @@ async def auto_wire(path: str, dry_run: bool = False) -> str:
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send, _args = send, args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(auto_wire)

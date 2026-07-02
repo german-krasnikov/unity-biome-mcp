@@ -6,13 +6,14 @@ from .constants import DEFAULT_PORT
 
 
 class ConnectionSlot:
-    def __init__(self, port_discoverer=None, on_port_change=None):
+    def __init__(self, port_discoverer=None, on_port_change=None, is_retry_safe=None):
         self._bridge: Optional[UnityBridge] = None
         self._port: int = DEFAULT_PORT
         self._host: str = "127.0.0.1"
         self._reconnect_callbacks: list = []
         self._port_discoverer = port_discoverer
         self._on_port_change = on_port_change
+        self._is_retry_safe = is_retry_safe
 
     @property
     def bridge(self) -> Optional[UnityBridge]:
@@ -36,7 +37,8 @@ class ConnectionSlot:
         if self._bridge is not None:
             self._bridge.stop_heartbeat()
             await self._bridge.close()
-        self._bridge = UnityBridge(host, port, port_discoverer=self._port_discoverer)
+        self._bridge = UnityBridge(host, port, port_discoverer=self._port_discoverer,
+                                    is_retry_safe=self._is_retry_safe)
         self._port = port
         self._host = host
         for cb in self._reconnect_callbacks:

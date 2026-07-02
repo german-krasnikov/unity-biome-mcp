@@ -1,11 +1,13 @@
 """do() meta-tool: NL intent → Haiku plan → validate → batch execute."""
 from typing import Optional
+from mcp.server.fastmcp.exceptions import ToolError
 from ..sampling import sampling_service as _sampling
 from ..do_intent.planner import Planner
 from ..do_intent.validator import validate_plan
 from ..do_intent.executor import Executor
 from ._annotations import RW as _RW
 from .intent_common import sanitize_intent
+from ._common import bind
 
 # Module-level references — patched in tests
 _send = None
@@ -34,13 +36,13 @@ async def do(intent: str, dry_run: bool = False) -> str:
     plan = await planner.plan(intent, scene_brief)
 
     if not plan:
-        return "ERROR: Haiku planning unavailable (set UNITY_MCP_VISUAL_VERIFY=1)"
+        raise ToolError("Haiku planning unavailable (set UNITY_MCP_VISUAL_VERIFY=1)")
 
     # Extract scene paths from hierarchy for validator
     scene_paths = _extract_paths(scene_brief)
     err = validate_plan(plan, scene_paths)
     if err:
-        return f"INVALID PLAN: {err}"
+        raise ToolError(f"INVALID PLAN: {err}")
 
     if dry_run:
         return f"DRY RUN plan:\n{plan}"
@@ -64,6 +66,5 @@ def _extract_paths(hierarchy: str) -> set[str]:
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(do)

@@ -3,6 +3,7 @@
 render_analyze dispatches to RenderAnalyzer.cs on the Unity side.
 FrameDebugHelper.cs handles frame_debug action via reflection.
 """
+from ._common import bind
 from ._annotations import RO as _RO
 
 _send = None
@@ -31,7 +32,5 @@ async def render_analyze(
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(render_analyze)

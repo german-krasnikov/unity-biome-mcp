@@ -103,6 +103,33 @@ async def test_material_list_properties(mock_bridge):
     assert "_Smoothness" in result
 
 
+async def test_material_slot_sends_param(mock_bridge):
+    """slot param is forwarded to bridge when provided."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Shader: Standard"})
+    await material(action="get", object_path="/Cube", slot=1)
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["slot"] == 1
+    assert call_args[1]["object_path"] == "/Cube"
+
+
+async def test_material_slot_omitted_when_none(mock_bridge):
+    """slot param is excluded from args when None."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Shader: Standard"})
+    await material(action="get", object_path="/Cube")
+    call_args = mock_bridge.send.call_args[0]
+    assert "slot" not in call_args[1]
+
+
+async def test_material_list_slots(mock_bridge):
+    """list_slots action forwards object_path."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "[0] Mat0 (Standard)\n[1] Mat1 (Standard)"})
+    result = await material(action="list_slots", object_path="/Cube")
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["action"] == "list_slots"
+    assert call_args[1]["object_path"] == "/Cube"
+    assert "[0]" in result
+
+
 async def test_material_error(mock_bridge):
     """Bridge error raises ToolError."""
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Material not found"})

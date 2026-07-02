@@ -1,6 +1,7 @@
 import os
 import time
 from ._annotations import RW as _RW, RO as _RO
+from ._common import bind
 
 _send = None
 _args = None
@@ -80,9 +81,7 @@ async def screenshot_compare(name: str = "default", width: int = 640, height: in
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(save_session)
     mcp.tool(annotations=_RO)(load_session)
     mcp.tool(annotations=_RW)(screenshot_baseline)

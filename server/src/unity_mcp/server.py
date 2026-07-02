@@ -94,12 +94,7 @@ from .connection_slot import ConnectionSlot
 from .lockfile import acquire_lock, release_lock, cleanup_stale_locks
 from .plugins import load_plugins
 from .tools import register_all
-from mcp.server.fastmcp import Context
-from .tools.gating import discover_tools as _discover_tools_impl
-from .tools.schema_registry import _registry as _schema_registry
 from .server_filtering import (
-    _SCHEMA_KEEP_FULL,
-    _apply_gating,
     _strip_deferred_schemas,
     push_catalog as _push_catalog,
     filter_tools as _filter_tools_pure,
@@ -129,17 +124,18 @@ from .tools.animation import animation, timeline, animator, particle
 from .tools.batch import batch, references, validate_references
 from .tools.codegen import execute_code, get_schema, auto_fix, smart_build
 from .tools.skills import save_skill, use_skill, list_skills, apply_template, save_template, list_templates
-from .tools.spatial import validate_layout, get_spatial_context, scan_scene, check_colliders, spatial_query
+from .tools.spatial import validate_layout, get_spatial_context, scan_scene, check_colliders, autofit_collider, spatial_query
 from .tools.ui import create_ui, set_rect, menu, shader
 from .tools.connection import list_connections, reconnect_unity
 from .tools.runtime import invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, fuzz_playtest
 from .tools.watch import watch_add, get_watches, watch_remove, watch_clear, watch_reset
 from .tools.autobatch import setup_objects, set_properties, configure_objects
-from .tools.code_intel import find_references, compile_preflight, semantic_at
+from .tools.code_intel import compile_preflight
 from .tools.animator_intent_tool import animator_intent
 from .tools.vfx_intent_tool import vfx_intent
 from .tools.ui_intent_tool import ui_intent
 from .tools.metrics_tool import get_metrics
+from .tools.meta import discover_tools, doctor, resolve_tool_schema, set_llm_config
 from .middleware import wrap_send, Middleware
 
 from typing import Optional
@@ -189,14 +185,14 @@ async def _filter_tools(tools: list, bridge_) -> list:
     return _filter_tools_pure(tools, _disabled_tools_cache)
 
 
-COMMAND_TIMEOUTS: dict[str, float] = {
-    "run_tests": 10.0,
-    "run_playtest": 120.0,
-    "fuzz_playtest": 120.0,
-    "compile_preflight": 60.0,
-    "batch": 60.0,
-    "ask_user": 300.0,
-}
+from .timeout_categories import (
+    DEFAULT_TIMEOUT,
+    TIMEOUT_CATEGORIES,
+    get_timeout,
+)
+
+# Backward-compat alias used by tests that import COMMAND_TIMEOUTS from server.
+COMMAND_TIMEOUTS = TIMEOUT_CATEGORIES
 
 slot: Optional[ConnectionSlot] = None
 manager: Optional[ConnectionSlot] = None  # backward-compat alias for tests/conftest
@@ -213,7 +209,7 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     if bridge is None:
         raise ToolError("No Unity connection configured. Use reconnect_unity(port).")
     if timeout <= 0:
-        timeout = COMMAND_TIMEOUTS.get(cmd, 30.0)
+        timeout = get_timeout(cmd)
     probe = getattr(bridge, "_probe", None)
     try:
         result = await bridge.send(cmd, args, timeout=timeout)
@@ -246,7 +242,7 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     return data
 
 
-async def _send(cmd: str, args: dict, timeout: float = 30.0) -> str:
+async def _send(cmd: str, args: dict, timeout: float = 0) -> str:
     _touch_activity()
     if _wrapped_send is not None:
         return await _wrapped_send(cmd, args, timeout=timeout)
@@ -301,7 +297,13 @@ async def lifespan(app):
     threading.Thread(target=_bg_update_check, daemon=True).start()
 
     try:
-        slot = ConnectionSlot(port_discoverer=_read_unity_port, on_port_change=_on_port_change)
+        from .tools._annotations import retry_safe_cmds
+        _retry_safe = await retry_safe_cmds(mcp)
+        slot = ConnectionSlot(
+            port_discoverer=_read_unity_port,
+            on_port_change=_on_port_change,
+            is_retry_safe=lambda cmd: cmd in _retry_safe,
+        )
         manager = slot  # backward-compat alias
         _middleware = build_middleware(_send_raw)
         _budget_tracker, _budget_router = init_budget(_middleware)
@@ -371,50 +373,8 @@ register_all(mcp, _send, _args, get_slot=lambda: slot,
 load_plugins(mcp, _send, _args)
 
 
-@mcp.tool()
-async def discover_tools(category: str | None = None, enable: bool = True, ctx: Context = None) -> str:
-    """Find and enable tools by category.
-    Categories: object, animation, asset, advanced, ui, runtime, connection, session.
-    Pass enable=False to browse without enabling."""
-    result = await _discover_tools_impl(category, enable)
-    if enable and category and ctx:
-        await ctx.session.send_tool_list_changed()
-    return result
-
-
 from .resources import register as register_resources
 register_resources(mcp, _send, _args)
-
-
-@mcp.tool()
-async def doctor(fix: bool = False) -> str:
-    """Run health diagnostics. Use fix=True to auto-repair safe issues."""
-    from .doctor import run_doctor, format_report
-    results = await run_doctor(fix=fix)
-    return format_report(results)
-
-
-@mcp.tool()
-async def resolve_tool_schema(tools: str) -> str:
-    """Return full parameter schemas for deferred tools. tools=comma-separated names."""
-    names = [n.strip() for n in tools.split(",") if n.strip()]
-    text = _schema_registry.format_text(names)
-    if not text:
-        unknown = ", ".join(names)
-        return f"No schema found for: {unknown}"
-    return text
-
-
-@mcp.tool()
-async def set_llm_config(config: str) -> str:
-    """Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line).
-    Features: visual_verify, screenshot_describe, visual_diff, do_intent, summarize, distiller."""
-    from .llm_config import parse_tcp_config, apply_config
-    parsed = parse_tcp_config(config)
-    if not parsed:
-        return "err: no valid entries parsed"
-    apply_config(parsed)
-    return f"ok: updated {', '.join(parsed)}"
 
 
 # Install filtering handler — captures schemas + applies gating + disabled-set.

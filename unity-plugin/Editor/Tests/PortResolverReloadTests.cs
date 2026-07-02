@@ -7,18 +7,20 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class PortResolverReloadTests
     {
+        private TempDirScope _scope;
         private string _tmpFile;
 
         [SetUp]
         public void SetUp()
         {
-            _tmpFile = Path.Combine(Path.GetTempPath(), $"mcp_port_test_{System.Guid.NewGuid():N}.json");
+            _scope = new TempDirScope("mcp_port_test");
+            _tmpFile = Path.Combine(_scope.Path, "port.json");
         }
 
         [TearDown]
         public void TearDown()
         {
-            if (File.Exists(_tmpFile)) File.Delete(_tmpFile);
+            _scope.Dispose();
         }
 
         [Test]
@@ -71,18 +73,20 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class MCPServerReloadPortTests
     {
+        private TempDirScope _scope;
         private string _tmpFile;
 
         [SetUp]
         public void SetUp()
         {
-            _tmpFile = Path.Combine(Path.GetTempPath(), $"mcp_reload_test_{System.Guid.NewGuid():N}.json");
+            _scope = new TempDirScope("mcp_reload_test");
+            _tmpFile = Path.Combine(_scope.Path, "port.json");
         }
 
         [TearDown]
         public void TearDown()
         {
-            if (File.Exists(_tmpFile)) File.Delete(_tmpFile);
+            _scope.Dispose();
         }
 
         [Test]

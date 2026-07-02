@@ -12,6 +12,7 @@ namespace UnityMCP.Editor.Tests
     public class RenderAnalyzerTests
     {
         private readonly List<GameObject> _gos = new List<GameObject>();
+        private readonly List<Object> _assets = new List<Object>();
 
         [TearDown]
         public void TearDown()
@@ -19,17 +20,22 @@ namespace UnityMCP.Editor.Tests
             foreach (var go in _gos)
                 if (go != null) Object.DestroyImmediate(go);
             _gos.Clear();
+            foreach (var a in _assets)
+                if (a != null) Object.DestroyImmediate(a);
+            _assets.Clear();
             RenderAnalyzer.ClearBaselineForTest();
         }
 
         private GameObject MakeRendered(string name = "Obj", bool transparent = false)
         {
             var go = new GameObject(name);
-            go.AddComponent<MeshFilter>().sharedMesh = MakeQuad();
+            var mesh = MakeQuad();
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var r = go.AddComponent<MeshRenderer>();
             if (transparent)
             {
                 var mat = new Material(Shader.Find("Standard"));
+                _assets.Add(mat);
                 mat.SetOverrideTag("RenderType", "Transparent");
                 mat.renderQueue = (int)RenderQueue.Transparent;
                 r.sharedMaterial = mat;
@@ -38,12 +44,13 @@ namespace UnityMCP.Editor.Tests
             return go;
         }
 
-        private static Mesh MakeQuad()
+        private Mesh MakeQuad()
         {
             var m = new Mesh();
             m.vertices = new[] { Vector3.zero, Vector3.right, Vector3.up, Vector3.one };
             m.triangles = new[] { 0, 2, 1, 2, 3, 1 };
             m.RecalculateBounds();
+            _assets.Add(m);
             return m;
         }
 
@@ -151,6 +158,7 @@ namespace UnityMCP.Editor.Tests
         public void Materials_GroupsBySharedMaterial()
         {
             var mat = new Material(Shader.Find("Standard")) { name = "SharedMat" };
+            _assets.Add(mat);
             for (int i = 0; i < 3; i++)
                 MakeRendered($"Obj{i}").GetComponent<MeshRenderer>().sharedMaterial = mat;
             var result = RenderAnalyzer.Execute(A("materials"));
@@ -163,6 +171,7 @@ namespace UnityMCP.Editor.Tests
         public void Shaders_ListsUniqueShaders()
         {
             var mat = new Material(Shader.Find("Standard"));
+            _assets.Add(mat);
             MakeRendered("A").GetComponent<MeshRenderer>().sharedMaterial = mat;
             MakeRendered("B").GetComponent<MeshRenderer>().sharedMaterial = mat;
             var result = RenderAnalyzer.Execute(A("shaders"));
@@ -174,6 +183,7 @@ namespace UnityMCP.Editor.Tests
         public void Shaders_ReportsKeywordCount()
         {
             var mat = new Material(Shader.Find("Standard"));
+            _assets.Add(mat);
             MakeRendered("S").GetComponent<MeshRenderer>().sharedMaterial = mat;
             var result = RenderAnalyzer.Execute(A("shaders"));
             StringAssert.Contains("kw:", result);

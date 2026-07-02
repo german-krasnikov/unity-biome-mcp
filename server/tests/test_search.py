@@ -123,7 +123,7 @@ async def test_search_scene_tool_calls_bridge(mock_bridge):
     """Test search_scene MCP tool calls bridge with correct args"""
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Player #123 [Rigidbody]"})
     result = await search_scene(query="t:Rigidbody")
-    mock_bridge.send.assert_called_once_with("search_scene", {"query": "t:Rigidbody"}, timeout=30.0)
+    mock_bridge.send.assert_called_once_with("search_scene", {"query": "t:Rigidbody"}, timeout=15.0)
     assert "Player" in result
 
 

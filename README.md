@@ -46,7 +46,7 @@
 
 ### Two ways to work
 
-🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 120 MCP tools with 80–95% token compression.
+🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 124 MCP tools with 80–95% token compression.
 
 💬 **In-Unity Chat** — open `MCP → Chat` inside the editor. No API key needed — spawns the CLI directly. 5 backends: Claude, Antigravity, Kimi, Codex, OpenCode. Drag GameObjects, scripts, and materials into chat as typed context chips. Each AI turn gets its own undo group — one Ctrl+Z rolls back everything the AI changed. Domain-reload safe. Extensible chip-kind registry lets third-party plugins add new chip types with zero core edits.
 
@@ -233,7 +233,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="120 MCP Tools · 9826 Tests (3923 Python · 5619 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="124 MCP Tools · 9076 Tests (3976 Python · 4816 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -292,6 +292,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.69.1</b> — 2026-07-03 — **CallerIsPlugin Gate** — New `CommandRegistrar.CallerIsPlugin()` filter strips …</summary>
+
+**CallerIsPlugin Gate** — New `CommandRegistrar.CallerIsPlugin()` filter strips unsafe flags (e.g., `IsAlwaysAllowed`) from plugin-registered tools.
+
+</details>
+
+<details>
 <summary><b>v0.69.0</b> — 2026-07-02 — **Auto-Config on Editor Startup** — `ProjectConfigWriter` [InitializeOnLoad] …</summary>
 
 **Auto-Config on Editor Startup** — `ProjectConfigWriter` [InitializeOnLoad] auto-generates per-project MCP configs for 6 AI tools (Claude Code, …
@@ -320,15 +327,9 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 </details>
 
 <details>
-<summary><b>v0.66.0</b> — 2026-06-28 — **FIX-1: Cross-Assembly Compile Error Detection (diagnose tool)** — …</summary>
-
-**FIX-1: Cross-Assembly Compile Error Detection (diagnose tool)** — DiagnoseCommand now hooks `CompilationPipeline.assemblyCompilationFinished` …
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.66.0** — 2026-06-28 — **FIX-1: Cross-Assembly Compile Error Detection (diagnose tool)** — …
 - **v0.65.1** — 2026-06-27 — **Plugin Development Guide** — New `/docs/plugin-development.md` (2100+ lines).
 - **v0.65.0** — 2026-06-27 — **Python run_tests Pre-Flight Gate** — `diagnose(expected_compile=False)` …
 - **v0.64.0** — 2026-06-27 — **T1: Bare-Name Chip Detection** — `SceneObjectNormalizer._resolver?.Refresh()` …

@@ -1,8 +1,10 @@
 """ui_intent — NL → UI DSL → create_ui/set_rect batch commands."""
 from typing import Optional
+from mcp.server.fastmcp.exceptions import ToolError
 from ..sampling import sampling_service as _sampling
 from .intent_common import strip_fences, parse_indent_tree, parse_kv, build_batch_line, run_intent_pipeline
 from ._annotations import RW as _RW
+from ._common import bind
 
 _send = None
 
@@ -138,13 +140,13 @@ async def ui_intent(intent: str, parent: Optional[str] = None, template: Optiona
     if template:
         dsl = get_template_dsl(template)
         if dsl is None:
-            return f"ERROR: Unknown template '{template}'. Valid: {', '.join(_TEMPLATES)}"
+            raise ToolError(f"Unknown template '{template}'. Valid: {', '.join(_TEMPLATES)}")
         nodes = parse_ui_dsl(dsl)
         if not nodes:
-            return "ERROR: DSL produced no nodes"
+            raise ToolError("DSL produced no nodes")
         batch_lines = build_ui_batch(nodes, parent=parent)
         if not batch_lines:
-            return "ERROR: Builder produced no commands"
+            raise ToolError("Builder produced no commands")
         if dry_run:
             return "\n".join(batch_lines)
         result = await _send("batch", {"commands": "\n".join(batch_lines)})
@@ -165,6 +167,5 @@ async def ui_intent(intent: str, parent: Optional[str] = None, template: Optiona
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(ui_intent)

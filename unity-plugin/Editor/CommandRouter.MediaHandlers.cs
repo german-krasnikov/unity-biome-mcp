@@ -211,8 +211,24 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "type"),
                     JsonHelper.ExtractString(args, "name"), JsonHelper.ExtractString(args, "source"),
                     JsonHelper.ExtractString(args, "target")),
+                "add_blend_tree" => AnimatorControllerHelper.AddBlendTree(
+                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state"),
+                    JsonHelper.ExtractString(args, "blend_type"),
+                    JsonHelper.ExtractString(args, "param"),
+                    JsonHelper.ExtractString(args, "param_y"),
+                    JsonHelper.ExtractString(args, "children")),
+                "edit_blend_tree" => AnimatorControllerHelper.EditBlendTree(
+                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state"),
+                    JsonHelper.ExtractString(args, "edit_action"),
+                    JsonHelper.ExtractString(args, "children"),
+                    JsonHelper.ExtractString(args, "param"),
+                    JsonHelper.ExtractString(args, "param_y"),
+                    JsonHelper.ExtractString(args, "blend_type")),
+                "get_blend_tree" => AnimatorControllerHelper.GetBlendTreeDetail(
+                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state")),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "add_param", "add_state", "add_transition", "set_default", "remove" }))
+                    new[] { "get", "add_param", "add_state", "add_transition", "set_default", "remove",
+                            "add_blend_tree", "edit_blend_tree", "get_blend_tree" }))
             };
         }
 

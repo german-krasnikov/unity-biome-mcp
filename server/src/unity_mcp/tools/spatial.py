@@ -1,5 +1,6 @@
 """Spatial / scene-analysis queries: layout, context, scan, raycast, colliders."""
 from ._annotations import RO as _RO, RW as _RW
+from ._common import bind
 
 _send = None
 _args = None
@@ -23,6 +24,11 @@ async def scan_scene(bands: str | None = None) -> str:
 async def check_colliders(path: str | None = None) -> str:
     """Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."""
     return await _send("check_colliders", _args(path=path))
+
+
+async def autofit_collider(path: str, type: str = "box") -> str:
+    """Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."""
+    return await _send("autofit_collider", _args(path=path, type=type))
 
 
 def _validate_polygon(vertices: str | None) -> None:
@@ -98,10 +104,13 @@ async def region_clear(vertices: str, dry_run: bool = True,
 async def navmesh_query(action: str, center: str | None = None,
                         from_pos: str | None = None, to: str | None = None,
                         max_distance: float = 5.0, area_mask: int = -1) -> str:
-    """NavMesh queries. action: sample|path|raycast.
+    """NavMesh queries and management. action: sample|path|raycast|bake|status|clear.
     sample: find nearest walkable point to center.
     path: calculate path from from_pos to to.
-    raycast: NavMesh raycast from from_pos toward to."""
+    raycast: NavMesh raycast from from_pos toward to.
+    bake: build NavMesh (NavMeshSurface components or legacy NavMeshBuilder).
+    status: triangulation stats (triangles, vertices, areas).
+    clear: remove all baked NavMesh data."""
     d: dict = {"action": action, "area_mask": str(area_mask)}
     if center: d["center"] = center
     if from_pos: d["from"] = from_pos
@@ -120,14 +129,13 @@ async def analyze_lod_culling(focus: str | None = None) -> str:
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(validate_layout)
     mcp.tool(annotations=_RO)(get_spatial_context)
     mcp.tool(annotations=_RO)(scan_scene)
     mcp.tool(annotations=_RO)(check_colliders)
+    mcp.tool(annotations=_RW)(autofit_collider)
     mcp.tool(annotations=_RO)(spatial_query)
     mcp.tool(annotations=_RW)(region_clear)
-    mcp.tool(annotations=_RO)(navmesh_query)
+    mcp.tool(annotations=_RW)(navmesh_query)
     mcp.tool(annotations=_RO)(analyze_lod_culling)

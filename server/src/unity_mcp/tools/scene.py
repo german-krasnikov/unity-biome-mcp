@@ -1,5 +1,7 @@
+import asyncio
 import re
 from ._annotations import RO as _RO, RW as _RW, RW_IDEM as _RW_IDEM, DEL as _DEL
+from ._common import bind
 
 _RE_SLOT = re.compile(r'slot_\d+\s+\[\]\s+#')
 _RE_POINT = re.compile(r'point_\d+\s+\[\]\s+#')
@@ -68,13 +70,15 @@ async def get_hierarchy(depth: int = 2, root: str | None = None, filter: str | N
 
 
 async def get_console(count: int = 10, level: str | None = None, first: int = 0,
-                      keyword: str | None = None, count_only: bool = False) -> str:
-    """Recent console logs. keyword: case-insensitive substring filter. count_only: return N matches as string."""
+                      keyword: str | None = None, count_only: bool = False,
+                      since: float | None = None) -> str:
+    """Recent console logs. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds."""
     return await _send("get_console", _args(
         count=count, level=level,
         first=first if first > 0 else None,
         keyword=keyword,
         count_only="true" if count_only else None,
+        since=since,
     ))
 
 
@@ -154,11 +158,25 @@ _BLOCK_STARTS = (
 async def run_tests(mode: str = "EditMode", filter: str | None = None) -> str:
     """Start Unity tests (returns immediately). mode: EditMode or PlayMode. filter: pipe-separated test names. Poll get_test_results every 5s for results."""
     from mcp.server.fastmcp.exceptions import ToolError as _ToolError
+    _MAX_PREFLIGHT_RETRIES = 2
+    # Verdicts where force_refresh can help; everything else blocks immediately
+    _RECOVERABLE = ("FAILED:stale-dll", "FAILED:unknown", "STALE-CACHE", "STALE-TRANSIENT")
     try:
         from . import diagnose as _diag
-        verdict = await _diag.diagnose(prev_mvid="", expected_compile=False)
-        if verdict.startswith(_BLOCK_STARTS):
-            return f"BLOCKED: {verdict} — fix domain state before running tests"
+        for _attempt in range(_MAX_PREFLIGHT_RETRIES + 1):
+            verdict = await _diag.diagnose(prev_mvid="", expected_compile=False)
+            if not verdict.startswith(_BLOCK_STARTS):
+                break  # clean, proceed
+            if not verdict.startswith(_RECOVERABLE):
+                return f"BLOCKED: {verdict} — fix domain state before running tests"
+            if _attempt >= _MAX_PREFLIGHT_RETRIES:
+                return f"BLOCKED: {verdict} — auto-recovery exhausted after {_MAX_PREFLIGHT_RETRIES} attempts"
+            # Auto-recovery attempt
+            try:
+                await _send("force_refresh", {})
+            except Exception:
+                pass
+            await asyncio.sleep(10)
     except _ToolError:
         raise  # compile guard / connection-dead ToolErrors must propagate
     except Exception:
@@ -179,6 +197,11 @@ async def run_tests(mode: str = "EditMode", filter: str | None = None) -> str:
 async def get_test_results() -> str:
     """Poll for test results after PlayMode run. Returns results, 'pending', or 'none'."""
     return await _send("get_test_results", {})
+
+
+async def get_test_count() -> str:
+    """Number of edit-mode and play-mode tests in the project."""
+    return await _send("get_test_count", {})
 
 
 async def scene(action: str, path: str | None = None) -> str:
@@ -205,6 +228,16 @@ async def editor(action: str = "state", path: str | None = None) -> str:
     return await _send("editor", _args(action=action, path=path), timeout=t)
 
 
+async def ping_object(path: str) -> str:
+    """Highlight object in Hierarchy and Project, and select it."""
+    return await _send("ping_object", _args(path=path))
+
+
+async def get_selection() -> str:
+    """Currently selected GameObject: path and component list."""
+    return await _send("get_selection", {})
+
+
 async def checkpoint(label: str = "checkpoint") -> str:
     """Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity."""
     return await _send("checkpoint", _args(label=label))
@@ -220,6 +253,21 @@ async def fingerprint(path: str | None = None, depth: int = 3) -> str:
     return await _send("fingerprint", _args(path=path, depth=depth))
 
 
+async def get_capabilities() -> str:
+    """Unity version, platform, render pipeline, scripting backend, and optional packages available."""
+    return await _send("get_capabilities", {})
+
+
+async def scene_environment(action: str = "get", prop: str | None = None,
+                            value: str | None = None) -> str:
+    """Read/write scene environment: ambient light, fog, skybox, reflections.
+    action: get|set. set requires prop and value.
+    Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,
+    ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,
+    reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution."""
+    return await _send("scene_environment", _args(action=action, prop=prop, value=value))
+
+
 async def scene_diff() -> str:
     """Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines."""
     return await _send("scene_diff", {})
@@ -233,9 +281,7 @@ from .scene_session import (  # noqa: E402
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
     mcp.tool(annotations=_RO)(get_hierarchy)
@@ -245,12 +291,17 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW_IDEM)(recompile)
     mcp.tool(annotations=_RW_IDEM)(run_tests)
     mcp.tool(annotations=_RO)(get_test_results)
+    mcp.tool(annotations=_RO)(get_test_count)
     mcp.tool(annotations=_DEL)(scene)
     mcp.tool(annotations=_RO)(search_scene)
     mcp.tool(annotations=_RW)(editor)
+    mcp.tool(annotations=_RW)(ping_object)
+    mcp.tool(annotations=_RO)(get_selection)
     mcp.tool(annotations=_RW)(checkpoint)
     mcp.tool(annotations=_RW)(undo_last)
     mcp.tool(annotations=_RO)(fingerprint)
     mcp.tool(annotations=_RO)(scene_diff)
+    mcp.tool(annotations=_RW)(scene_environment)
+    mcp.tool(annotations=_RO)(get_capabilities)
     from . import scene_session
     scene_session.register(mcp, send, args)

@@ -48,6 +48,9 @@ namespace UnityMCP.Editor
 
         public static float LastDurationSeconds => SessionState.GetFloat(DurationKey, 0f);
 
+        /// <summary>Clear the stale FailedKey flag (self-heal after Bee cache-hit).</summary>
+        public static void ClearFailed() => SessionState.SetBool(FailedKey, false);
+
         public static string GetStatus()
         {
             if (IsCompiling)

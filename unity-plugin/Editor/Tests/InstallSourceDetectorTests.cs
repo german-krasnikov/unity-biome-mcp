@@ -11,38 +11,18 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void IsLocalRepoRoot_WithInstallPy_ReturnsTrue()
         {
-            // Arrange: temp dir with install.py
-            var dir = System.IO.Path.GetTempPath()
-                + "mcp_test_" + System.Guid.NewGuid().ToString("N");
-            System.IO.Directory.CreateDirectory(dir);
-            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "install.py"), "");
+            using var scope = new TempDirScope();
+            System.IO.File.WriteAllText(System.IO.Path.Combine(scope.Path, "install.py"), "");
 
-            try
-            {
-                // Act + Assert
-                Assert.IsTrue(InstallSourceDetector.IsLocalRepoRoot(dir));
-            }
-            finally
-            {
-                System.IO.Directory.Delete(dir, true);
-            }
+            Assert.IsTrue(InstallSourceDetector.IsLocalRepoRoot(scope.Path));
         }
 
         [Test]
         public void IsLocalRepoRoot_WithoutInstallPy_ReturnsFalse()
         {
-            var dir = System.IO.Path.GetTempPath()
-                + "mcp_test_" + System.Guid.NewGuid().ToString("N");
-            System.IO.Directory.CreateDirectory(dir);
+            using var scope = new TempDirScope();
 
-            try
-            {
-                Assert.IsFalse(InstallSourceDetector.IsLocalRepoRoot(dir));
-            }
-            finally
-            {
-                System.IO.Directory.Delete(dir, true);
-            }
+            Assert.IsFalse(InstallSourceDetector.IsLocalRepoRoot(scope.Path));
         }
 
         [Test]

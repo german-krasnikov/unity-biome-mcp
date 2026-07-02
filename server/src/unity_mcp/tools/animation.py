@@ -1,4 +1,5 @@
 from ._annotations import RW as _RW
+from ._common import bind
 
 _send = None
 _args = None
@@ -40,15 +41,25 @@ async def animator(action: str, path: str,
                    duration: float | None = None,
                    exit_time: float | None = None,
                    has_exit_time: bool | None = None,
-                   type: str | None = None, name: str | None = None) -> str:
-    """Animator Controller. action: get|add_param|add_state|add_transition|set_default|remove.
+                   type: str | None = None, name: str | None = None,
+                   blend_type: str | None = None,
+                   param: str | None = None,
+                   param_y: str | None = None,
+                   children: str | None = None,
+                   edit_action: str | None = None) -> str:
+    """Animator Controller. action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree.
     params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'.
-    conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState)."""
+    conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState).
+    blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct.
+    param/param_y: blend parameters (auto-created as float if missing).
+    children: '(1D) Idle:0; Walk:0.5; Run:1' or '(2D) Idle:0,0; Walk:0,1'.
+    edit_action: add_child|remove_child|set_thresholds|set_param|set_type."""
     return await _send("animator", _args(
         action=action, path=path, state=state, states=states, params=params,
         source=source, target=target, conditions=conditions,
         duration=duration, exit_time=exit_time, has_exit_time=has_exit_time,
-        type=type, name=name))
+        type=type, name=name, blend_type=blend_type, param=param,
+        param_y=param_y, children=children, edit_action=edit_action))
 
 
 async def particle(action: str, path: str,
@@ -64,9 +75,7 @@ async def particle(action: str, path: str,
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(animation)
     mcp.tool(annotations=_RW)(timeline)
     mcp.tool(annotations=_RW)(animator)

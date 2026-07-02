@@ -3,7 +3,8 @@ import json
 import socket
 
 from unity_mcp.config.clients import CLIENT_REGISTRY
-from unity_mcp.config.resolver import find_port
+from unity_mcp.constants import DEFAULT_PORT
+from unity_mcp.server_filtering import read_unity_port
 
 
 def _port_reachable(port: int) -> bool:
@@ -50,7 +51,7 @@ def validate_config(client_key: str) -> str:
     entry = servers["unity-mcp"]
     lines.append(f"unity-mcp entry: {entry}")
 
-    port = find_port()
+    port = read_unity_port(skip_probe=True) or DEFAULT_PORT
     reachable = _port_reachable(port)
     lines.append(f"Port {port}: {'reachable' if reachable else 'not reachable (Unity not running?)'}")
     return "\n".join(lines)

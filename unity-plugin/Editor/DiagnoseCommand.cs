@@ -152,7 +152,18 @@ namespace UnityMCP.Editor
             }
 
             if (maxCsMtime == DateTime.MinValue) return "fresh"; // no .cs files → dll is up-to-date by definition
-            return dllMtime < maxCsMtime ? "stale" : "fresh";
+            if (dllMtime < maxCsMtime)
+            {
+                // Before declaring stale, check if Bee decided no recompile was needed.
+                // compile="idle|X" (successful compile, not idle-failed) means Bee cache-hit:
+                // content unchanged despite mtime bump. idle-never is NOT a cache-hit
+                // (compilation never ran this session — cannot trust Bee).
+                var status = CompileNotifier.GetStatus();
+                if (status.StartsWith("idle|"))
+                    return "fresh";
+                return "stale";
+            }
+            return "fresh";
         }
 
         // Seam: resolves an asmdef filename to its directory via AssetDatabase Packages/ scan.

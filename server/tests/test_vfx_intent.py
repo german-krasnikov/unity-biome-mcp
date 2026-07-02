@@ -1,6 +1,9 @@
 """TDD tests for vfx_intent tool."""
 from unittest.mock import AsyncMock, patch
 
+import pytest
+from mcp.server.fastmcp.exceptions import ToolError
+
 
 # ---------------------------------------------------------------------------
 # 1. Preset bypass — no Haiku needed
@@ -165,8 +168,8 @@ async def test_vfx_intent_no_sampling_returns_error():
     with patch("unity_mcp.tools.vfx_intent_tool._send", new_callable=AsyncMock):
         with patch("unity_mcp.tools.vfx_intent_tool._sampling") as mock_svc:
             mock_svc.generate = AsyncMock(return_value=None)
-            result = await vfx_intent(target="/Fx", intent="big explosion effect")
-            assert "ERROR" in result
+            with pytest.raises(ToolError, match="Haiku unavailable"):
+                await vfx_intent(target="/Fx", intent="big explosion effect")
 
 
 async def test_vfx_intent_dry_run():

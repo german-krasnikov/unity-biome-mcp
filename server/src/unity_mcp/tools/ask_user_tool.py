@@ -1,5 +1,6 @@
 """ask_user — interactive question shown as Unity UI card; blocks until user submits."""
 from ._annotations import RO as _RO
+from ._common import bind
 
 _send = None
 
@@ -16,6 +17,5 @@ async def ask_user(questions: str) -> str:
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(ask_user)

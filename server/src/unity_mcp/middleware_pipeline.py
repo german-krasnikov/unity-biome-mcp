@@ -18,7 +18,7 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
     if mw is None:
         mw = _Middleware()
 
-    async def wrapped(cmd: str, args: dict, timeout: float = 30.0) -> str:
+    async def wrapped(cmd: str, args: dict, timeout: float = 0) -> str:
         # ToolHinter: adoption check at call start
         if mw.hinter is not None:
             mw.hinter.note_adoption(cmd)

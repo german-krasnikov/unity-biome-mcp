@@ -2,6 +2,7 @@
 import json
 import sys
 from ._annotations import RO as _RO
+from ._common import bind
 
 _send = None
 
@@ -29,6 +30,5 @@ async def permission_prompt(tool_name: str, input: dict, tool_use_id: str):
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(permission_prompt)

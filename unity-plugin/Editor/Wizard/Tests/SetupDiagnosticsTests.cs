@@ -93,11 +93,11 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ResolveRepoRoot_DelegatesToInstallSourceDetector_WhenOverrideSet()
         {
-            var tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "DiagTest_" + System.Guid.NewGuid().ToString("N"));
-            System.IO.Directory.CreateDirectory(tmp);
-            System.IO.File.WriteAllText(System.IO.Path.Combine(tmp, "install.py"), "# stub");
+            var scopePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"DiagTest_{System.Guid.NewGuid():N}");
+            System.IO.Directory.CreateDirectory(scopePath);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(scopePath, "install.py"), "# stub");
             InstallSourceDetector.SetSourceForTest(InstallSourceDetector.Source.Local);
-            InstallSourceDetector.SetLocalRepoRootForTest(tmp);
+            InstallSourceDetector.SetLocalRepoRootForTest(scopePath);
             try
             {
                 // ResolveRepoRoot must return whatever InstallSourceDetector.LocalRepoRoot() returns
@@ -108,7 +108,7 @@ namespace UnityMCP.Editor.Tests
             finally
             {
                 InstallSourceDetector.ClearTestOverride();
-                System.IO.Directory.Delete(tmp, recursive: true);
+                try { if (System.IO.Directory.Exists(scopePath)) System.IO.Directory.Delete(scopePath, true); } catch { }
             }
         }
     }

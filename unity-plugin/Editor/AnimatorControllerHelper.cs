@@ -169,6 +169,245 @@ namespace UnityMCP.Editor
             return $"removed: {type} {name}{(source != null ? $" ({source} → {target})" : "")}";
         }
 
+        // --- Blend Tree (path-based overloads for CommandRouter) ---
+
+        public static string AddBlendTree(string path, string stateName,
+            string blendType, string param, string paramY, string children)
+        {
+            return AddBlendTree(GetOrCreateController(path), stateName, blendType, param, paramY, children);
+        }
+
+        public static string EditBlendTree(string path, string stateName,
+            string editAction, string children, string param, string paramY, string blendType)
+        {
+            var ctrl = GetController(path);
+            if (ctrl == null) throw new ArgumentException($"no AnimatorController on '{path}'");
+            return EditBlendTree(ctrl, stateName, editAction, children, param, paramY, blendType);
+        }
+
+        public static string GetBlendTreeDetail(string path, string stateName)
+        {
+            var ctrl = GetController(path);
+            if (ctrl == null) throw new ArgumentException($"no AnimatorController on '{path}'");
+            var state = FindStateAcrossLayers(ctrl, stateName);
+            if (state == null) throw new InvalidOperationException($"state '{stateName}' not found");
+            var bt = state.motion as BlendTree;
+            if (bt == null) throw new InvalidOperationException($"state '{stateName}' is not a BlendTree");
+            return AnimatorControllerSerializer.SerializeBlendTree(bt);
+        }
+
+        private static AnimatorState FindStateAcrossLayers(AnimatorController ctrl, string name)
+        {
+            foreach (var layer in ctrl.layers)
+            {
+                var s = FindState(layer.stateMachine, name);
+                if (s != null) return s;
+            }
+            return null;
+        }
+
+        // --- Blend Tree (core implementation) ---
+
+        public static string AddBlendTree(AnimatorController ctrl, string stateName,
+            string blendType, string param, string paramY, string children)
+        {
+            var sm = GetStateMachine(ctrl);
+            if (FindState(sm, stateName) != null)
+                throw new ArgumentException($"state '{stateName}' already exists");
+
+            var btType = ParseBlendType(blendType);
+
+            // Validate BEFORE any mutation: resolve all child clips/thresholds up front so a bad
+            // entry (unknown clip, unparseable number) never leaves an orphaned state/sub-asset.
+            var parsedChildren = string.IsNullOrEmpty(children)
+                ? new List<(AnimationClip clip, float x, float y)>()
+                : ParseChildren(children, btType);
+
+            EnsureParameter(ctrl, param, AnimatorControllerParameterType.Float);
+            if (!string.IsNullOrEmpty(paramY))
+                EnsureParameter(ctrl, paramY, AnimatorControllerParameterType.Float);
+
+            var bt = new BlendTree { name = stateName, blendParameter = param, blendType = btType };
+            if (!string.IsNullOrEmpty(paramY))
+                bt.blendParameterY = paramY;
+
+            AssetDatabase.AddObjectToAsset(bt, ctrl);
+
+            Undo.RecordObject(ctrl, "Add BlendTree");
+            int index = sm.states.Length;
+            var state = sm.AddState(stateName, new Vector3(300, index * 80, 0));
+            state.motion = bt;
+
+            AddParsedChildren(bt, parsedChildren, btType);
+
+            SaveController(ctrl);
+            return $"blend_tree:{stateName} type:{btType} param:{param} children:{bt.children.Length}";
+        }
+
+        public static string EditBlendTree(AnimatorController ctrl, string stateName,
+            string editAction, string children, string param, string paramY, string blendType)
+        {
+            var sm = GetStateMachine(ctrl);
+            var state = FindState(sm, stateName);
+            if (state == null)
+                throw new InvalidOperationException($"state '{stateName}' not found");
+
+            var bt = state.motion as BlendTree;
+            if (bt == null)
+                throw new InvalidOperationException($"state '{stateName}' is not a BlendTree");
+
+            Undo.RecordObject(bt, "MCP Edit BlendTree");
+
+            switch (editAction)
+            {
+                case "add_child":
+                    // Validate before mutating: resolve all children first, then apply.
+                    var parsedChildren = ParseChildren(children, bt.blendType);
+                    AddParsedChildren(bt, parsedChildren, bt.blendType);
+                    break;
+                case "remove_child":
+                    RemoveBlendChild(bt, children);
+                    break;
+                case "set_thresholds":
+                    SetThresholds(bt, children);
+                    break;
+                case "set_param":
+                    bt.blendParameter = param;
+                    EnsureParameter(ctrl, param, AnimatorControllerParameterType.Float);
+                    if (!string.IsNullOrEmpty(paramY))
+                    {
+                        bt.blendParameterY = paramY;
+                        EnsureParameter(ctrl, paramY, AnimatorControllerParameterType.Float);
+                    }
+                    break;
+                case "set_type":
+                    bt.blendType = ParseBlendType(blendType);
+                    break;
+                default:
+                    throw new ArgumentException($"unknown edit_action '{editAction}'");
+            }
+
+            SaveController(ctrl);
+            return $"edited:{stateName} action:{editAction}";
+        }
+
+        private static BlendTreeType ParseBlendType(string blendType)
+        {
+            return (blendType ?? "1d").ToLowerInvariant() switch
+            {
+                "1d" or "simple1d" => BlendTreeType.Simple1D,
+                "2d_simple" or "simpledirectional2d" => BlendTreeType.SimpleDirectional2D,
+                "2d_freeform" or "freeformdirectional2d" => BlendTreeType.FreeformDirectional2D,
+                "2d_cartesian" or "freeformcartesian2d" => BlendTreeType.FreeformCartesian2D,
+                "direct" => BlendTreeType.Direct,
+                _ => throw new ArgumentException($"Unknown blend_type: {blendType}. Use 1d|2d_simple|2d_freeform|2d_cartesian|direct")
+            };
+        }
+
+        private static void EnsureParameter(AnimatorController ctrl, string name, AnimatorControllerParameterType type)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            if (HasParameter(ctrl, name)) return;
+            ctrl.AddParameter(name, type);
+        }
+
+        // Pure parse — resolves clip names + thresholds/coordinates with ZERO side effects.
+        // Throws on the first bad entry (missing clip, unparseable number) BEFORE any BlendTree
+        // is mutated, so a bad "children" string never leaves a half-built state behind.
+        private static List<(AnimationClip clip, float x, float y)> ParseChildren(string childrenStr, BlendTreeType btType)
+        {
+            var result = new List<(AnimationClip clip, float x, float y)>();
+            if (string.IsNullOrEmpty(childrenStr)) return result;
+
+            foreach (var part in childrenStr.Split(';'))
+            {
+                var trimmed = part.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+
+                var colonIdx = trimmed.IndexOf(':');
+                var clipName = colonIdx > 0 ? trimmed.Substring(0, colonIdx).Trim() : trimmed;
+                var clip = FindClipByName(clipName);
+                if (clip == null)
+                    throw new ArgumentException($"Clip not found: '{clipName}'");
+
+                if (btType == BlendTreeType.Simple1D)
+                {
+                    float threshold = colonIdx > 0
+                        ? ParseFloatOrThrow(trimmed.Substring(colonIdx + 1).Trim())
+                        : 0f;
+                    result.Add((clip, threshold, 0f));
+                }
+                else
+                {
+                    if (colonIdx < 0) { result.Add((clip, 0f, 0f)); continue; }
+                    var coords = trimmed.Substring(colonIdx + 1).Split(',');
+                    float x = ParseFloatOrThrow(coords[0].Trim());
+                    float y = coords.Length > 1 ? ParseFloatOrThrow(coords[1].Trim()) : 0f;
+                    result.Add((clip, x, y));
+                }
+            }
+            return result;
+        }
+
+        private static float ParseFloatOrThrow(string s)
+        {
+            if (!float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
+                throw new ArgumentException($"Invalid threshold/coordinate value: '{s}'");
+            return v;
+        }
+
+        // Pure mutation — input already validated by ParseChildren, cannot throw.
+        private static void AddParsedChildren(BlendTree bt, List<(AnimationClip clip, float x, float y)> parsed, BlendTreeType btType)
+        {
+            foreach (var (clip, x, y) in parsed)
+            {
+                if (btType == BlendTreeType.Simple1D)
+                    bt.AddChild(clip, x);
+                else
+                    bt.AddChild(clip, new Vector2(x, y));
+            }
+        }
+
+        private static AnimationClip FindClipByName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            var guids = AssetDatabase.FindAssets($"t:AnimationClip {name}");
+            foreach (var guid in guids)
+            {
+                var p = AssetDatabase.GUIDToAssetPath(guid);
+                var c = AssetDatabase.LoadAssetAtPath<AnimationClip>(p);
+                if (c != null && c.name == name) return c;
+            }
+            return null;
+        }
+
+        private static void RemoveBlendChild(BlendTree bt, string indexStr)
+        {
+            if (!int.TryParse(indexStr?.Trim(), out int idx)) return;
+            var list = new List<ChildMotion>(bt.children);
+            if (idx < 0 || idx >= list.Count) return;
+            list.RemoveAt(idx);
+            bt.children = list.ToArray();
+        }
+
+        private static void SetThresholds(BlendTree bt, string thresholdStr)
+        {
+            // Format: "index:value; index:value" e.g. "0:0; 1:0.3; 2:0.8"
+            bt.useAutomaticThresholds = false;
+            var arr = bt.children;
+            foreach (var part in thresholdStr.Split(';'))
+            {
+                var trimmed = part.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+                var tokens = trimmed.Split(':');
+                if (tokens.Length < 2) continue;
+                if (!int.TryParse(tokens[0].Trim(), out int idx)) continue;
+                if (idx < 0 || idx >= arr.Length) continue;
+                arr[idx].threshold = float.Parse(tokens[1].Trim(), CultureInfo.InvariantCulture);
+            }
+            bt.children = arr;
+        }
+
         // --- Internal helpers ---
 
         internal static AnimatorController GetController(string path)

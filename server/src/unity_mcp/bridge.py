@@ -96,7 +96,8 @@ class UnityBridge(HeartbeatMixin):
 
     def __init__(self, host: str = "127.0.0.1", port: Optional[int] = None,
                  probe: Optional[CompileStateProbe] = None,
-                 port_discoverer: Optional[Callable[[], int]] = None):
+                 port_discoverer: Optional[Callable[[], int]] = None,
+                 is_retry_safe: Optional[Callable[[str], bool]] = None):
         self._host = host
         try:
             self._port = port or int(os.environ.get("UNITY_MCP_PORT", str(DEFAULT_PORT)))
@@ -127,6 +128,7 @@ class UnityBridge(HeartbeatMixin):
         self._pinned_port: Optional[int] = None
         self._pinned_pid: Optional[int] = None
         self._bridge_id: str = f"br-{os.getpid():x}-{id(self) & 0xFFFF:04x}"
+        self._is_retry_safe: Callable[[str], bool] = is_retry_safe or (lambda cmd: False)
 
     @property
     def _startup_grace_expired(self) -> bool:
@@ -147,7 +149,8 @@ class UnityBridge(HeartbeatMixin):
         )
         _apply_socket_options(self._writer.get_extra_info("socket"))
 
-    def should_retry(self, error: Exception, attempt: int, session_deadline: float) -> tuple[bool, float, str]:
+    def should_retry(self, error: Exception, attempt: int, session_deadline: float,
+                      cmd: str = "") -> tuple[bool, float, str]:
         """Decide if send() should retry after error.
 
         Returns: (should_retry, delay_s, reason)
@@ -162,6 +165,15 @@ class UnityBridge(HeartbeatMixin):
             return False, 0.0, "max_retries"
         if time.monotonic() >= session_deadline:
             return False, 0.0, "deadline"
+
+        # C1 follow-through: a TimeoutError means the request may already have
+        # reached Unity and started executing before the client gave up waiting.
+        # Blindly retrying a non-idempotent command risks duplicate execution
+        # (e.g. execute_code running twice). ConnectionRefusedError/OSError are
+        # exempt — those mean the command never reached Unity, so retry is
+        # always safe for them regardless of idempotency.
+        if isinstance(error, (TimeoutError, asyncio.TimeoutError)) and not self._is_retry_safe(cmd):
+            return False, 0.0, "unsafe_to_retry"
 
         if isinstance(error, DomainReloadError):
             delay = min(2 ** (attempt + 1), 8.0)
@@ -241,7 +253,7 @@ class UnityBridge(HeartbeatMixin):
                     await self.close()
                 if self._first_failure_ts is None:
                     self._first_failure_ts = time.monotonic()
-                do_retry, delay, reason = self.should_retry(e, attempt, session_deadline)
+                do_retry, delay, reason = self.should_retry(e, attempt, session_deadline, cmd=cmd)
                 self._crash_log.log_disconnect(cmd=cmd, retry=attempt,
                                                error_type=type(e).__name__,
                                                unity_busy=reason in ("busy", "domain_reload"),

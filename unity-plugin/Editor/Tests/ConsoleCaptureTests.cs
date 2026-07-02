@@ -232,5 +232,50 @@ namespace UnityMCP.Editor.Tests
             StringAssert.DoesNotContain("NPC warning", result);
             StringAssert.DoesNotContain("player error", result);
         }
+
+        // ── S5: sinceSeconds param ──────────────────────────────────────────────
+
+        [Test]
+        public void GetLogs_SinceSeconds_FiltersOldEntries()
+        {
+            ConsoleCapture.InjectForTest("old entry", LogType.Log);
+
+            // sinceSeconds=9999 → wide window, includes all recent entries
+            var resultWide = ConsoleCapture.GetLogs(sinceSeconds: 9999f);
+            StringAssert.Contains("old entry", resultWide);
+
+            // sinceSeconds=0.001 → tiny window, entry is already older
+            System.Threading.Thread.Sleep(10);
+            var resultNarrow = ConsoleCapture.GetLogs(sinceSeconds: 0.001f);
+            StringAssert.DoesNotContain("old entry", resultNarrow);
+        }
+
+        [Test]
+        public void GetLogs_SinceZero_ReturnsAll()
+        {
+            ConsoleCapture.InjectForTest("a", LogType.Log);
+            ConsoleCapture.InjectForTest("b", LogType.Warning);
+            ConsoleCapture.InjectForTest("c", LogType.Error);
+
+            // sinceSeconds=0 means no time filtering
+            var result = ConsoleCapture.GetLogs(sinceSeconds: 0f);
+
+            StringAssert.Contains("a", result);
+            StringAssert.Contains("b", result);
+            StringAssert.Contains("c", result);
+        }
+
+        [Test]
+        public void GetLogs_Since_CombinesWithLevel()
+        {
+            ConsoleCapture.InjectForTest("err1", LogType.Error);
+            ConsoleCapture.InjectForTest("log1", LogType.Log);
+
+            // sinceSeconds=9999 + level=Error → only errors within window
+            var result = ConsoleCapture.GetLogs(sinceSeconds: 9999f, level: "Error");
+
+            StringAssert.Contains("err1", result);
+            StringAssert.DoesNotContain("log1", result);
+        }
     }
 }

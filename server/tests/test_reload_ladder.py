@@ -731,7 +731,7 @@ async def test_m2_mvid_delta_plus_idle_failed_is_not_healed():
             "iscompiling=false  cn_active=false  started=false  stamp_frozen=false\n"
             "compile=idle-failed\n"
             f"stamp={MVID_B}:999\n"
-            "errors=\nlog=clean\n"
+            "errors=\nlog=CS0000\n"
         )
 
     def _diag_baseline():
@@ -774,7 +774,7 @@ async def test_t5_broken_new_domain_after_play_stop_returns_reimport():
             "iscompiling=false  cn_active=false  started=false  stamp_frozen=false\n"
             "compile=idle-failed\n"
             f"stamp={MVID_B}:999\n"
-            "errors=CS0103 bad\nlog=clean\n"
+            "errors=Assets/Foo.cs(1,1): error CS0103: bad\nlog=CS0103\n"
         )
 
     send = MockSend([
@@ -1031,7 +1031,7 @@ async def test_stress_f9_scenario_2_broken_domain_uses_diagnose_not_get_compile_
             "iscompiling=false  cn_active=false  started=false  stamp_frozen=false\n"
             "compile=idle-failed\n"
             f"stamp={MVID_B}:999\n"
-            "errors=CS0103 undefined\nlog=clean\n"
+            "errors=Assets/Foo.cs(1,1): error CS0103: undefined\nlog=CS0103\n"
         )
 
     send = MockSend([

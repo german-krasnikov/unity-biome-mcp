@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.69.1] — 2026-07-03 <!-- ROI Reliability Sprint: MCPServer split, ToolSpec, DRY refactoring, retry safety -->
+
+**ROI Reliability Sprint — Core Refactor, Fail-Closed Retry, Tool Registry Consolidation:**
+
+### Features
+- **CallerIsPlugin Gate** — New `CommandRegistrar.CallerIsPlugin()` filter strips unsafe flags (e.g., `IsAlwaysAllowed`) from plugin-registered tools. Prevents plugins from bypassing gating rules. Resolves issue where external plugins could elevate tool privileges.
+- **retry_safe_cmds()** — Fail-closed retry helper using `ToolAnnotations` to detect safe-to-retry operations. Blocks retry on non-idempotent commands (`create_object`, `set_property` on ObjectReferences). Hardened via monkey tests.
+- **bind() DRY Module Helper** — Extracted singleton pattern across 31 tool files. Replaces boilerplate `ToolManager.RegisterTool(...)` chains. Reduces per-file binding code by ~8 lines.
+
+### Fixes
+- **run_tests Timeout Revert** — Reverted from 135s to 8s fire-and-forget timeout. Original 135s was blocking TCP `domain_reload_in_progress` gate, preventing parallel MCP ops during test domain reload. Callers now poll `get_test_results()` every 5s.
+- **Bootstrap.Init() Cyclic Init** — Moved `RegisterTools()` call into `EditorApplication.delayCall` lambda. Fixes cyclic static initialization when `AutoWireAttribute.Load()` fires during `[InitializeOnLoad]` sequencing.
+- **CommandOptions Struct (C#)** — Replaced 11-parameter `Register()` signature with single `CommandOptions` struct. Eliminates positional-arg brittleness. Reduces Register call sites from 126 to 46 lines.
+
+### Refactoring
+- **MCPServer God-Class Split** — Decomposed 909-line `MCPServer.cs` into 4 modules: `MCPRelay` (relay lifecycle), `CommandRouter` (dispatch), `ServerEventManager` (callbacks), `PluginRegistry` (tool registration). Each <250 LOC. Improves testability and separation of concerns.
+- **ToolSpec Single Source of Truth** — Extracted 128 tool metadata entries (name, description, category, visibility) into `ToolSpec` class. Replaces scattered `[MCPTool]` attributes + register calls. Enables schema-driven registration and simplifies gating logic.
+- **AttributeScanner/MCPToolAttribute Deletion** — Removed reflection-based `[MCPTool]` decorator and `AttributeScanner` class. Pure code-based registration via `bind()` helper. Cleaner dependency graph (no runtime reflection overhead).
+
+### Tests
+- **CommandRegistryCompletenessTests** — New golden-snapshot test validates all 128 registered tools against metadata schema. Conditional skip for `NavMeshAgent` on systems without pathfinding support. Prevents stale tool metadata.
+- 3918 Python tests (pytest) — 3 new retry_safe_cmds tests, 12 bind() module tests
+- 5587 C# NUnit EditMode tests (4 pre-existing failures) — 18 CommandOptions struct tests, 8 CallerIsPlugin gate tests
+
 ## [v0.69.0] — 2026-07-02 <!-- Install Overhaul: auto-config, CLI dispatcher, preflight guard -->
 
 **Installation Overhaul: Auto-Config, CLI Dispatcher, Preflight Guard:**

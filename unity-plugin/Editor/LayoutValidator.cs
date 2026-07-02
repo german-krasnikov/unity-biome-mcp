@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using UnityEngine;
 
@@ -6,6 +7,8 @@ namespace UnityMCP.Editor
 {
     internal static class LayoutValidator
     {
+        private static readonly CultureInfo IC = CultureInfo.InvariantCulture;
+
         public static string Validate(string root, float minDistance)
         {
             var rootGO = ComponentSerializer.FindObject(root);
@@ -31,7 +34,7 @@ namespace UnityMCP.Editor
                     var dist = Vector3.Distance(triggers[i].t.position, triggers[j].t.position);
                     if (dist < minDistance)
                     {
-                        sb.AppendLine($"WARNING: {triggers[i].name} <-> {triggers[j].name} dist={dist:F1}m < {minDistance}m");
+                        sb.AppendLine($"WARNING: {triggers[i].name} <-> {triggers[j].name} dist={dist.ToString("F1", IC)}m < {minDistance}m");
                         warnings++;
                     }
                 }
@@ -47,13 +50,13 @@ namespace UnityMCP.Editor
 
             var pos = go.transform.position;
             var sb = new StringBuilder();
-            sb.AppendLine($"Position: ({pos.x:F1},{pos.y:F1},{pos.z:F1})");
+            sb.AppendLine($"Position: ({pos.x.ToString("F1", IC)},{pos.y.ToString("F1", IC)},{pos.z.ToString("F1", IC)})");
 
             foreach (var col in go.GetComponentsInChildren<Collider>())
             {
                 var type = col.isTrigger ? "TRIGGER" : "SOLID";
                 var bounds = col.bounds;
-                sb.AppendLine($"  {col.gameObject.name} [{type}] center=({bounds.center.x:F1},{bounds.center.y:F1},{bounds.center.z:F1}) size=({bounds.size.x:F1},{bounds.size.y:F1},{bounds.size.z:F1})");
+                sb.AppendLine($"  {col.gameObject.name} [{type}] center=({bounds.center.x.ToString("F1", IC)},{bounds.center.y.ToString("F1", IC)},{bounds.center.z.ToString("F1", IC)}) size=({bounds.size.x.ToString("F1", IC)},{bounds.size.y.ToString("F1", IC)},{bounds.size.z.ToString("F1", IC)})");
             }
 
             Physics.SyncTransforms();
@@ -70,7 +73,7 @@ namespace UnityMCP.Editor
             {
                 var testPoint = pos + dir * radius;
                 var blocked = Physics.Linecast(testPoint, pos, out _);
-                sb.AppendLine($"  {name}: ({testPoint.x:F1},{testPoint.y:F1},{testPoint.z:F1}) {(blocked ? "BLOCKED" : "CLEAR")}");
+                sb.AppendLine($"  {name}: ({testPoint.x.ToString("F1", IC)},{testPoint.y.ToString("F1", IC)},{testPoint.z.ToString("F1", IC)}) {(blocked ? "BLOCKED" : "CLEAR")}");
             }
 
             var nearby = Physics.OverlapSphere(pos, radius);
@@ -81,7 +84,7 @@ namespace UnityMCP.Editor
                 {
                     if (col.transform.root == go.transform.root) continue;
                     var dist = Vector3.Distance(col.transform.position, pos);
-                    sb.AppendLine($"  {col.gameObject.name} dist={dist:F1}m {(col.isTrigger ? "TRIGGER" : "SOLID")}");
+                    sb.AppendLine($"  {col.gameObject.name} dist={dist.ToString("F1", IC)}m {(col.isTrigger ? "TRIGGER" : "SOLID")}");
                 }
             }
 

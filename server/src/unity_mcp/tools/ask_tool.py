@@ -4,6 +4,7 @@ from ..ask.router import route, is_mutating
 from ..ask.executor import AskExecutor
 from ..ask.summarizer import Summarizer
 from ._annotations import RO as _RO
+from ._common import bind
 
 # Module-level references — patched in tests
 _send = None
@@ -31,6 +32,5 @@ async def ask(question: str) -> str:
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(ask)

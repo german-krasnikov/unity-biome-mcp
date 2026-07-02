@@ -80,3 +80,11 @@ def test_run_tests_not_marked_read_only():
     ann = _get_annotation(scene, "run_tests")
     assert ann is not None, "run_tests: no annotation found"
     assert ann.readOnlyHint is not True, "run_tests causes domain reload — readOnlyHint must be False"
+
+
+async def test_retry_safe_cmds_includes_only_readonly_or_idempotent():
+    from unity_mcp.server import mcp
+    from unity_mcp.tools._annotations import retry_safe_cmds
+    safe = await retry_safe_cmds(mcp)
+    assert "get_console" in safe          # RO
+    assert "execute_code" not in safe     # RW, no idempotentHint

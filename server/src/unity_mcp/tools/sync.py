@@ -8,6 +8,7 @@ Sequence (ref §13):
   5. Reconnect transparently on DomainReloadError
   6. Return errors or "sync clean"
 """
+from ._common import bind
 import asyncio
 import time
 from pathlib import Path
@@ -232,8 +233,7 @@ async def _get_errors() -> str:
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     editor_log.init_corroboration()
     from ._annotations import RW as _RW
     mcp.tool(annotations=_RW)(sync_unity)

@@ -18,8 +18,37 @@ namespace UnityMCP.Editor
                 case "sample":  return SamplePosition(args);
                 case "path":    return CalculatePath(args);
                 case "raycast": return DoRaycast(args);
-                default:        return $"ERR unknown navmesh action: {action}";
+                case "bake":    return Bake();
+                case "status":  return Status();
+                case "clear":   return Clear();
+                default:        throw new System.ArgumentException($"unknown navmesh action: {action}");
             }
+        }
+
+        private static string Bake()
+        {
+#if UNITYMCP_HAS_AI_NAVIGATION
+            var surfaces = Object.FindObjectsOfType<Unity.AI.Navigation.NavMeshSurface>();
+            if (surfaces.Length > 0)
+            {
+                foreach (var s in surfaces) s.BuildNavMesh();
+                return $"baked {surfaces.Length} NavMeshSurface(s)";
+            }
+#endif
+            UnityEditor.AI.NavMeshBuilder.BuildNavMesh();
+            return "baked (legacy NavMeshBuilder)";
+        }
+
+        private static string Status()
+        {
+            var tri = NavMesh.CalculateTriangulation();
+            return $"triangles:{tri.indices.Length / 3}\nvertices:{tri.vertices.Length}\nareas:{tri.areas.Length}";
+        }
+
+        private static string Clear()
+        {
+            UnityEditor.AI.NavMeshBuilder.ClearAllNavMeshes();
+            return "cleared";
         }
 
         private static string SamplePosition(string args)

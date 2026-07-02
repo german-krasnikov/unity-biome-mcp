@@ -62,3 +62,30 @@ async def test_navmesh_error_raises_tool_error(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "NavMesh not baked"})
     with pytest.raises(ToolError, match="NavMesh not baked"):
         await navmesh_query(action="sample", center="0,0,0")
+
+
+async def test_navmesh_bake_sends_command(mock_bridge):
+    """bake action sends action=bake to Unity."""
+    mock_bridge.send.return_value = {"ok": True, "data": "baked (legacy NavMeshBuilder)"}
+    result = await navmesh_query(action="bake")
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["action"] == "bake"
+    assert "baked" in result
+
+
+async def test_navmesh_status_sends_command(mock_bridge):
+    """status action sends action=status to Unity."""
+    mock_bridge.send.return_value = {"ok": True, "data": "triangles:42\nvertices:128\nareas:42"}
+    result = await navmesh_query(action="status")
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["action"] == "status"
+    assert "triangles" in result
+
+
+async def test_navmesh_clear_sends_command(mock_bridge):
+    """clear action sends action=clear to Unity."""
+    mock_bridge.send.return_value = {"ok": True, "data": "cleared"}
+    result = await navmesh_query(action="clear")
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["action"] == "clear"
+    assert result == "cleared"

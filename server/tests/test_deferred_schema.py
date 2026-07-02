@@ -197,17 +197,20 @@ async def test_resolve_cold_start_empty_registry_returns_graceful_fallback():
     fallback string, NOT raise or return empty string."""
     from unity_mcp.tools.schema_registry import SchemaRegistry
     from unity_mcp.server import resolve_tool_schema
-    import unity_mcp.server as srv
+    # resolve_tool_schema now lives in tools/meta.py (M2) — patch its _schema_registry
+    # binding, not server.py's re-export (call-time global lookup resolves against
+    # the function's own defining module).
+    import unity_mcp.tools.meta as meta_mod
 
     # Temporarily replace the module-level registry with a fresh empty one
-    original = srv._schema_registry
+    original = meta_mod._schema_registry
     empty_reg = SchemaRegistry()
-    # Patch both the server reference and the module-level one
+    # Patch both the meta.py reference and the schema_registry module-level one
     import unity_mcp.tools.schema_registry as reg_mod
     old_singleton = reg_mod._registry
     try:
         reg_mod._registry = empty_reg
-        srv._schema_registry = empty_reg
+        meta_mod._schema_registry = empty_reg
         result = await resolve_tool_schema("animation")
         # Must return a non-empty string with "No schema found" message
         assert isinstance(result, str)
@@ -215,7 +218,7 @@ async def test_resolve_cold_start_empty_registry_returns_graceful_fallback():
         assert "No schema found" in result
     finally:
         reg_mod._registry = old_singleton
-        srv._schema_registry = original
+        meta_mod._schema_registry = original
 
 
 # --- resolve_tool_schema is in FORCE_VISIBLE + core ---

@@ -4,6 +4,7 @@ import re
 import json
 import time
 from ._annotations import RO as _RO, RW as _RW, RW_IDEM as _RW_IDEM
+from ._common import bind
 
 _send = None
 _args = None
@@ -119,9 +120,7 @@ async def list_templates() -> str:
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(save_skill)
     mcp.tool(annotations=_RW)(use_skill)
     mcp.tool(annotations=_RO)(list_skills)

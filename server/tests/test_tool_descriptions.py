@@ -4,7 +4,7 @@ Two-sided lock: a char budget prevents prose creep; required-substring asserts
 prevent a trim from silently dropping enum values the LLM needs to avoid hallucination.
 """
 from unity_mcp.tools.scene import screenshot
-from unity_mcp.tools.code_intel import find_references, compile_preflight, semantic_at
+from unity_mcp.tools.code_intel import compile_preflight
 from unity_mcp.tools.runtime import run_playtest
 
 
@@ -16,23 +16,10 @@ def test_screenshot_doc_terse_keeps_enums():
         assert token in doc, f"screenshot doc lost anti-hallucination token: {token}"
 
 
-def test_find_references_doc_terse_keeps_kind_enum():
-    doc = find_references.__doc__
-    assert len(doc) < 420, f"find_references doc bloat: {len(doc)} chars"
-    assert "class|field|method|property|param|local|namespace" in doc
-    assert "ROSLYN UNAVAILABLE" in doc
-
-
 def test_compile_preflight_doc_terse():
     doc = compile_preflight.__doc__
     assert len(doc) < 320, f"compile_preflight doc bloat: {len(doc)} chars"
     assert "ROSLYN UNAVAILABLE" in doc
-
-
-def test_semantic_at_doc_terse():
-    doc = semantic_at.__doc__
-    assert len(doc) < 320, f"semantic_at doc bloat: {len(doc)} chars"
-    assert "1-based" in doc
 
 
 def test_run_playtest_doc_keeps_full_dsl_grammar():

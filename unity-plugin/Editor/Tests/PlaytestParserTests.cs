@@ -134,31 +134,36 @@ namespace UnityMCP.Editor.Tests
         public void ResolveQuery_WithConfig_UsesAliasWhenFound()
         {
             var config = ScriptableObject.CreateInstance<PlaytestConfig>();
-            config.aliases.Add(new QueryAlias
+            try
             {
-                alias = "hp",
-                path = "/Player",
-                component = "Health",
-                field = "current"
-            });
+                config.aliases.Add(new QueryAlias
+                {
+                    alias = "hp",
+                    path = "/Player",
+                    component = "Health",
+                    field = "current"
+                });
 
-            var (path, comp, field) = PlaytestParser.ResolveQuery("hp", config);
-            Assert.AreEqual("/Player", path);
-            Assert.AreEqual("Health", comp);
-            Assert.AreEqual("current", field);
-
-            Object.DestroyImmediate(config);
+                var (path, comp, field) = PlaytestParser.ResolveQuery("hp", config);
+                Assert.AreEqual("/Player", path);
+                Assert.AreEqual("Health", comp);
+                Assert.AreEqual("current", field);
+            }
+            finally { Object.DestroyImmediate(config); }
         }
 
         [Test]
         public void ResolveQuery_WithConfig_FallsBackToPipeWhenAliasNotFound()
         {
             var config = ScriptableObject.CreateInstance<PlaytestConfig>();
-            var (path, comp, field) = PlaytestParser.ResolveQuery("/X|Y|Z", config);
-            Assert.AreEqual("/X", path);
-            Assert.AreEqual("Y", comp);
-            Assert.AreEqual("Z", field);
-            Object.DestroyImmediate(config);
+            try
+            {
+                var (path, comp, field) = PlaytestParser.ResolveQuery("/X|Y|Z", config);
+                Assert.AreEqual("/X", path);
+                Assert.AreEqual("Y", comp);
+                Assert.AreEqual("Z", field);
+            }
+            finally { Object.DestroyImmediate(config); }
         }
 
         // ── Parse: ASSERT line ───────────────────────────────────────────────────

@@ -6,7 +6,7 @@ from unity_mcp.server import fingerprint, scan_scene
 async def test_fingerprint_sends_command(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": "fp:ABCD1234"}
     result = await fingerprint()
-    mock_bridge.send.assert_called_once_with("fingerprint", {"depth": 3}, timeout=30.0)
+    mock_bridge.send.assert_called_once_with("fingerprint", {"depth": 3}, timeout=10.0)
     assert result == "fp:ABCD1234"
 
 
@@ -21,7 +21,7 @@ async def test_fingerprint_custom_path_and_depth(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": "fp:12345678"}
     await fingerprint(path="Player", depth=5)
     mock_bridge.send.assert_called_once_with(
-        "fingerprint", {"path": "Player", "depth": 5}, timeout=30.0
+        "fingerprint", {"path": "Player", "depth": 5}, timeout=10.0
     )
 
 

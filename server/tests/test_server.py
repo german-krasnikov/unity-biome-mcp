@@ -43,10 +43,10 @@ async def test_send_passes_timeout_to_bridge(mock_bridge, bridge_response):
 
 
 async def test_send_default_timeout(mock_bridge, bridge_response):
-    """_send without timeout uses default 30s."""
+    """_send without timeout resolves via get_timeout('ping') == 5s."""
     bridge_response()
     await _send("ping", {})
-    mock_bridge.send.assert_called_once_with("ping", {}, timeout=30.0)
+    mock_bridge.send.assert_called_once_with("ping", {}, timeout=5.0)
 
 
 async def test_send_returns_file_path_when_file_field_present(mock_bridge, bridge_response):
@@ -67,7 +67,7 @@ async def test_get_hierarchy_calls_bridge(mock_bridge, bridge_response):
     """get_hierarchy tool delegates to bridge.send."""
     bridge_response(data="Scene/GameObject")
     result = await get_hierarchy(depth=2, root="/Scene")
-    mock_bridge.send.assert_called_once_with("get_hierarchy", {"depth": 2, "root": "/Scene"}, timeout=30.0)
+    mock_bridge.send.assert_called_once_with("get_hierarchy", {"depth": 2, "root": "/Scene"}, timeout=15.0)
     assert result == "Scene/GameObject"
 
 
@@ -636,6 +636,60 @@ async def test_animator_none_params_excluded(mock_bridge):
     assert "conditions" not in call_args
 
 
+async def test_animator_add_blend_tree_sends_params(mock_bridge):
+    """animator add_blend_tree sends blend_type, param, children"""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "blend_tree:Locomotion type:Simple1D param:Speed children:3"})
+    result = await animator(action="add_blend_tree", path="/Player", state="Locomotion",
+                           blend_type="1d", param="Speed", children="Idle:0; Walk:0.5; Run:1")
+    mock_bridge.send.assert_called_once_with("animator", {
+        "action": "add_blend_tree", "path": "/Player", "state": "Locomotion",
+        "blend_type": "1d", "param": "Speed", "children": "Idle:0; Walk:0.5; Run:1"
+    }, timeout=30.0)
+    assert "blend_tree" in result
+
+
+async def test_animator_add_blend_tree_2d_sends_param_y(mock_bridge):
+    """animator add_blend_tree 2D sends param_y"""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "blend_tree:Move2D type:SimpleDirectional2D param:VelX children:3"})
+    result = await animator(action="add_blend_tree", path="/Player", state="Move2D",
+                           blend_type="2d_simple", param="VelX", param_y="VelY",
+                           children="Idle:0,0; Forward:0,1; Right:1,0")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["param_y"] == "VelY"
+    assert args["blend_type"] == "2d_simple"
+
+
+async def test_animator_edit_blend_tree_sends_edit_action(mock_bridge):
+    """animator edit_blend_tree sends edit_action and children"""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "edited:BT1 action:add_child"})
+    result = await animator(action="edit_blend_tree", path="/Player", state="BT1",
+                           edit_action="add_child", children="Walk:0.5")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["action"] == "edit_blend_tree"
+    assert args["edit_action"] == "add_child"
+    assert args["children"] == "Walk:0.5"
+
+
+async def test_animator_get_blend_tree_sends_command(mock_bridge):
+    """animator get_blend_tree sends state for detail"""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "type:Simple1D\nparam:Speed\nchildren:3"})
+    result = await animator(action="get_blend_tree", path="/Player", state="Locomotion")
+    mock_bridge.send.assert_called_once_with("animator", {
+        "action": "get_blend_tree", "path": "/Player", "state": "Locomotion"
+    }, timeout=30.0)
+    assert "Simple1D" in result
+
+
+async def test_animator_blend_tree_none_params_excluded(mock_bridge):
+    """animator blend tree params excluded when None"""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await animator(action="add_blend_tree", path="/P", state="BT", blend_type="1d", param="Speed")
+    args = mock_bridge.send.call_args[0][1]
+    assert "param_y" not in args
+    assert "children" not in args
+    assert "edit_action" not in args
+
+
 async def test_checkpoint_sends_label(mock_bridge):
     """checkpoint sends label to Unity."""
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Checkpoint: save"})
@@ -810,7 +864,7 @@ async def test_summary_sends_correct_args(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Scene (0 nodes)"})
     await get_hierarchy(summary=True)
     mock_bridge.send.assert_called_once_with(
-        "get_hierarchy", {"summary": "true"}, timeout=30.0
+        "get_hierarchy", {"summary": "true"}, timeout=15.0
     )
 
 
@@ -819,7 +873,7 @@ async def test_summary_with_root(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Scene (5 nodes)"})
     await get_hierarchy(summary=True, root="Environment")
     mock_bridge.send.assert_called_once_with(
-        "get_hierarchy", {"summary": "true", "root": "Environment"}, timeout=30.0
+        "get_hierarchy", {"summary": "true", "root": "Environment"}, timeout=15.0
     )
 
 

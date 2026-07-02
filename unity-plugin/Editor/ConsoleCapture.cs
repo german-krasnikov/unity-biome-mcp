@@ -16,6 +16,9 @@ namespace UnityMCP.Editor
 
         // Issue 27 (C1): logs worth surfacing as "a problem happened" — not just LogType.Error.
         // Unhandled C# exceptions arrive as LogType.Exception; failed asserts as LogType.Assert.
+        // Mirrors PROBLEM_LEVELS in server/src/unity_mcp/console_levels.py (ROI reliability
+        // sprint item m2). Keep both lists in sync manually; no automated cross-language
+        // contract test exists yet.
         private static readonly LogType[] ProblemTypes = { LogType.Error, LogType.Exception, LogType.Assert };
 
         // Issue 27 (C3/Step 4): count of problem-type entries evicted — either by ring overflow
@@ -63,13 +66,21 @@ namespace UnityMCP.Editor
         /// first=0: return last count from combined (init + ring in order).
         /// </summary>
         public static string GetLogs(int count = -1, string level = null, int first = 0,
-                                     string keyword = null, bool countOnly = false)
+                                     string keyword = null, bool countOnly = false,
+                                     float sinceSeconds = 0)
         {
             lock (_lock)
             {
                 // Issue 27 (C2 fix): fallback entries now flow through the SAME level/keyword/
                 // count filtering below as live entries — no more bypassing filters on reload.
                 var rawCombined = BuildCombinedWithFallback(DateTime.MinValue);
+
+                // S5: filter by time window before any other filtering
+                if (sinceSeconds > 0)
+                {
+                    var cutoff = DateTime.Now.AddSeconds(-sinceSeconds);
+                    rawCombined = rawCombined.FindAll(e => e.Timestamp >= cutoff);
+                }
 
                 var levelFilter = ConsoleRingBuffer.ParseLevels(level);
                 var combined = ConsoleRingBuffer.FilterByTypes(rawCombined, levelFilter);
@@ -102,7 +113,13 @@ namespace UnityMCP.Editor
 
                 var sb = new StringBuilder();
                 foreach (var e in selected)
-                    sb.AppendFormat("[{0}] {1:HH:mm:ss.fff} {2}\n", e.Type, e.Timestamp, e.Message);
+                {
+                    var fileLoc = ConsoleStackParser.ExtractFileLocation(e.StackTrace);
+                    if (fileLoc != null)
+                        sb.AppendFormat("[{0}] {1:HH:mm:ss.fff} {2} @ {3}\n", e.Type, e.Timestamp, e.Message, fileLoc);
+                    else
+                        sb.AppendFormat("[{0}] {1:HH:mm:ss.fff} {2}\n", e.Type, e.Timestamp, e.Message);
+                }
                 return AppendDroppedSuffix(sb.ToString().TrimEnd('\n'));
             }
         }
@@ -163,9 +180,9 @@ namespace UnityMCP.Editor
         }
 
 #if UNITY_INCLUDE_TESTS
-        internal static void InjectForTest(string message, LogType type)
+        internal static void InjectForTest(string message, LogType type, string stackTrace = null)
         {
-            OnLogReceived(message, null, type);
+            OnLogReceived(message, stackTrace, type);
         }
 
         /// <summary>Test seam: simulate domain reload — wipes in-memory state, leaves

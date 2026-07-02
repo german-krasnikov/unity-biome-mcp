@@ -2,92 +2,49 @@
 
 P1: Themed taxonomy + get_catalog() + is_core(). Single source of truth.
 Plugin tools are NOT in catalog — discovered dynamically via PluginRegistry.
+
+M8: _CORE_TOOLS/_THEMED_CATEGORIES/TIER1/_ALL_KNOWN are GENERATED from
+tool_specs._SPECS at import time (one ToolSpec entry per tool) instead of being
+4 independently hand-typed literals that could silently drift out of sync with
+each other. _CATEGORY_ALIAS (legacy category-name -> themed-group mapping) and
+FORCE_VISIBLE stay hand-typed — they are not per-tool attributes.
 """
+from .tool_specs import _SPECS
 
 # ---------------------------------------------------------------------------
-# Themed taxonomy (P1)
+# Themed category keys — includes categories with zero tools today (CONNECTION,
+# PLUGINS) so register_tools()/get_catalog() can still find/populate them. This
+# list of KEYS is category-level metadata, not per-tool — doesn't belong in
+# ToolSpec.
 # ---------------------------------------------------------------------------
 
-_CORE_TOOLS: frozenset[str] = frozenset({
-    # Essential read/scene
-    "get_hierarchy", "get_component", "inspect", "set_property",
-    "create_object", "delete_object", "manage_component", "batch",
-    "scene", "search_scene", "set_parent",
-    # Always-on meta / connection-hygiene
-    "get_console", "get_compile_errors", "get_enabled_tools", "discover_tools",
-    "editor", "do", "ask", "ask_user", "permission_prompt",
-    # FORCE_VISIBLE connection tools — always must be reachable
-    "reconnect_unity", "list_connections",
-    # F4: deferred schema resolution
-    "resolve_tool_schema",
-    # Repair tool — must be reachable even when things are broken
-    "doctor",
-})
+_THEMED_CATEGORY_KEYS: tuple[str, ...] = (
+    "SCENE_EDIT", "COMPONENTS", "ANIMATION", "SHADERS_MATERIAL", "VFX", "UI",
+    "SCREENSHOTS", "UNIT_TESTS", "RUNTIME", "DEBUG", "ASSETS", "ADVANCED_CODE",
+    "SESSION_SKILLS", "CONNECTION", "META", "PROFILING", "RENDERING", "PLUGINS",
+)
 
-# Themed categories (non-CORE tools only — each tool in exactly one)
-_THEMED_CATEGORIES: dict[str, list[str]] = {
-    "SCENE_EDIT": [
-        "find_objects", "get_object_detail", "get_components_list",
-        "set_active", "set_material", "set_property_delta",
-        "object_diff", "transfer_object",
-    ],
-    "COMPONENTS": [
-        "wire_event", "unwire_event", "auto_wire",
-    ],
-    "ANIMATION": [
-        "animation", "timeline", "animator", "particle",
-    ],
-    "SHADERS_MATERIAL": [
-        "shader", "material", "references", "material_audit",
-    ],
-    "VFX": [
-        "vfx_intent",
-    ],
-    "UI": [
-        "create_ui", "set_rect", "validate_layout", "get_spatial_context", "ui_intent",
-    ],
-    "SCREENSHOTS": [
-        "screenshot", "screenshot_baseline", "screenshot_compare",
-    ],
-    "UNIT_TESTS": [
-        "run_tests", "get_test_results", "run_playtest", "fuzz_playtest", "test_step",
-    ],
-    "RUNTIME": [
-        "invoke_method", "set_runtime_property", "wait_until", "move_to", "query_state",
-        "get_perf", "debug_animator", "debug_physics",
-    ],
-    "DEBUG": [
-        "debug", "snapshot", "watch_add", "get_watches", "watch_remove", "watch_clear",
-        "watch_reset", "get_metrics",
-    ],
-    "ASSETS": [
-        "asset", "prefab", "scriptable_object", "project_settings",
-    ],
-    "ADVANCED_CODE": [
-        "execute_code", "recompile", "sync_unity", "find_references", "semantic_at",
-        "compile_preflight", "await_compile", "get_schema", "auto_fix", "smart_build",
-        "checkpoint", "undo_last", "validate_references", "menu", "diagnose",
-    ],
-    "SESSION_SKILLS": [
-        "save_skill", "use_skill", "list_skills",
-        "apply_template", "save_template", "list_templates",
-        "fingerprint", "scene_diff", "get_changes", "save_session", "load_session",
-    ],
-    "CONNECTION": [],  # reconnect_unity + list_connections are in CORE (FORCE_VISIBLE) — not repeated here
-    "META": [
-        "animator_intent",
-        "setup_objects", "set_properties", "configure_objects",
-        "scan_scene", "check_colliders", "spatial_query", "region_clear", "navmesh_query", "scene_health",
-        "set_llm_config", "budget_status",
-    ],
-    "PROFILING": [
-        "get_frame_stats", "profile", "get_memory",
-    ],
-    "RENDERING": [
-        "render_analyze", "analyze_lod_culling",
-    ],
-    "PLUGINS": [],  # auto-gated plugin tools (Issue 26) — kept in sync by register_tools()
-}
+# ---------------------------------------------------------------------------
+# Derived from _SPECS (M8) — was 4 hand-typed literals, now generated once.
+# ---------------------------------------------------------------------------
+
+_CORE_TOOLS: frozenset[str] = frozenset(
+    name for name, spec in _SPECS.items() if spec.core
+)
+
+_THEMED_CATEGORIES: dict[str, list[str]] = {key: [] for key in _THEMED_CATEGORY_KEYS}
+for _name in sorted(_SPECS):
+    _spec = _SPECS[_name]
+    if _spec.category not in ("CORE", "_INTERNAL"):
+        _THEMED_CATEGORIES[_spec.category].append(_name)
+del _name, _spec
+
+# TIER1: always visible (CORE + themed tools individually promoted to tier1).
+TIER1: set[str] = {name for name, spec in _SPECS.items() if spec.core or spec.tier1}
+
+# All known tool names across all tiers (everything except _INTERNAL protocol
+# commands, which are not MCP tools).
+_ALL_KNOWN: set[str] = {name for name, spec in _SPECS.items() if spec.category != "_INTERNAL"}
 
 # ---------------------------------------------------------------------------
 # Backward-compat: CATEGORIES derived from _THEMED_CATEGORIES
@@ -113,25 +70,6 @@ CATEGORIES: dict[str, set[str]] = {
     alias: set().union(*(set(_THEMED_CATEGORIES[k]) for k in groups))
     for alias, groups in _CATEGORY_ALIAS.items()
 }
-
-# TIER1: always visible (CORE + the tools that are tier1 but NOT core).
-# Derived via union instead of retyping _CORE_TOOLS — a rename in _CORE_TOOLS can no
-# longer silently drift out of TIER1 (DRY audit issues-23-29 Cat.2).
-TIER1: set[str] = set(_CORE_TOOLS) | {
-    "screenshot", "run_tests", "get_test_results", "setup_objects", "set_properties", "configure_objects",
-    "find_references", "compile_preflight", "semantic_at", "await_compile", "sync_unity",
-    # runtime tools — always available in Play Mode
-    "invoke_method", "set_runtime_property", "wait_until", "move_to",
-    "query_state", "test_step", "run_playtest", "fuzz_playtest",
-}
-
-# All known tool names across all tiers
-_ALL_KNOWN: set[str] = (
-    TIER1
-    | {n for s in CATEGORIES.values() for n in s}
-    | {n for s in _THEMED_CATEGORIES.values() for n in s}
-    | _CORE_TOOLS
-)
 
 _session_enabled: set[str] = set()
 

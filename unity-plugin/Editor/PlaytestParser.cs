@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta }
+    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click }
 
     internal class PlaytestStep
     {
@@ -275,6 +275,19 @@ namespace UnityMCP.Editor
                         // ASSERT_CTA VISIBLE  OR  ASSERT_CTA CLICKABLE
                         step.Type = StepType.AssertCta;
                         step.Op = tokens.Length > 1 ? tokens[1].ToUpperInvariant() : "VISIBLE";
+                        break;
+                    }
+
+                    case "CLICK":
+                    case "TAP":
+                    {
+                        if (tokens.Length < 2)
+                            throw new ArgumentException("CLICK requires object path");
+                        step.Type = StepType.Click;
+                        step.Path = tokens[1];
+                        int waitIdx = Array.FindIndex(tokens, 2, t => t.ToUpperInvariant() == "WAIT");
+                        if (waitIdx >= 0 && waitIdx + 1 < tokens.Length)
+                            step.Delay = float.Parse(tokens[waitIdx + 1], CultureInfo.InvariantCulture);
                         break;
                     }
 

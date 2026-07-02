@@ -26,16 +26,36 @@ namespace UnityMCP.Editor
             public string[] Required;
             public string[] Optional;
             public string Description;
+            // Per-command soft limit for response truncation (0 = no limit).
+            public int MaxResponseChars;
         }
 
         // All mutations happen on Unity main thread (dispatched by MCPServer).
         private static readonly Dictionary<string, Entry> _commands = new Dictionary<string, Entry>();
 
-        static CommandRegistry() { InitDefaults(); }
-
+        // No static constructor here (M7, ROI reliability sprint) — CommandRegistry used to
+        // eagerly RegisterAll() on first touch, creating a cyclic static-init dependency with
+        // CommandRouter. Population now happens explicitly via Bootstrap.Init() (see Bootstrap.cs).
         internal static void InitDefaults()
         {
             CommandRouter.RegisterAll();
+        }
+
+        // Task 3.1 (ROI reliability sprint): set by PluginRegistry around each plugin's
+        // RegisterCommands() call. When true, Register/RegisterAction/RegisterAsync strip
+        // alwaysAllowed/allowedDuringCompile — these are core-only trust flags; a 3rd-party
+        // plugin claiming them could run mutating code during Unity's compile window, while
+        // the C# domain is in flux (stale-assembly read/write risk).
+        internal static bool CallerIsPlugin;
+
+        /// <summary>Strips core-only trust flags from a plugin's registration, logging a warning.</summary>
+        private static void DenyPluginCoreFlags(string cmd, ref CommandOptions options)
+        {
+            if (!CallerIsPlugin || (!options.AlwaysAllowed && !options.AllowedDuringCompile)) return;
+            UnityEngine.Debug.LogWarning(
+                $"[MCP] Plugin command '{cmd}' requested alwaysAllowed/allowedDuringCompile — denied (core-only flags).");
+            options.AlwaysAllowed = false;
+            options.AllowedDuringCompile = false;
         }
 
         /// <summary>CSV → string[]. null stays null (free-form marker); "" becomes empty array (zero-param).</summary>
@@ -50,34 +70,50 @@ namespace UnityMCP.Editor
             return true;
         }
 
-        public static void Register(string cmd, Func<string, string> handler, bool mutating = false, bool runtime = false,
-            string required = null, string optional = null, bool specialDispatch = false,
-            bool alwaysAllowed = false, bool allowedDuringCompile = false, string description = null)
+        public static void Register(string cmd, Func<string, string> handler, CommandOptions options)
         {
             if (AlreadyRegistered(cmd)) return;
+            DenyPluginCoreFlags(cmd, ref options);
             _commands[cmd] = new Entry
             {
                 Handler = handler,
-                Mutating = mutating,
-                Runtime = runtime,
-                SpecialDispatch = specialDispatch,
-                AlwaysAllowed = alwaysAllowed,
-                AllowedDuringCompile = allowedDuringCompile,
-                Required = Split(required),
-                Optional = Split(optional),
-                Description = description
+                Mutating = options.Mutating,
+                Runtime = options.Runtime,
+                SpecialDispatch = options.SpecialDispatch,
+                AlwaysAllowed = options.AlwaysAllowed,
+                AllowedDuringCompile = options.AllowedDuringCompile,
+                Required = Split(options.Required),
+                Optional = Split(options.Optional),
+                Description = options.Description,
+                MaxResponseChars = options.MaxResponseChars
             };
         }
 
+        public static void Register(string cmd, Func<string, string> handler, bool mutating = false, bool runtime = false,
+            string required = null, string optional = null, bool specialDispatch = false,
+            bool alwaysAllowed = false, bool allowedDuringCompile = false, string description = null,
+            int maxResponseChars = 0) =>
+            Register(cmd, handler, new CommandOptions
+            {
+                Mutating = mutating,
+                Runtime = runtime,
+                Required = required,
+                Optional = optional,
+                SpecialDispatch = specialDispatch,
+                AlwaysAllowed = alwaysAllowed,
+                AllowedDuringCompile = allowedDuringCompile,
+                Description = description,
+                MaxResponseChars = maxResponseChars
+            });
+
         // action is always required (enforced by the wrapper below) — callers only
-        // declare the REMAINING required params via `required`.
-        public static void RegisterAction(string cmd, Func<string, string, string> handler, bool mutating = false, bool runtime = false,
-            string required = null, string optional = null, bool alwaysAllowed = false, bool allowedDuringCompile = false,
-            string description = null)
+        // declare the REMAINING required params via `required`/`options.Required`.
+        public static void RegisterAction(string cmd, Func<string, string, string> handler, CommandOptions options)
         {
             if (AlreadyRegistered(cmd)) return;
+            DenyPluginCoreFlags(cmd, ref options);
             var req = new List<string> { "action" };
-            var extra = Split(required);
+            var extra = Split(options.Required);
             if (extra != null) req.AddRange(extra);
             _commands[cmd] = new Entry
             {
@@ -88,34 +124,67 @@ namespace UnityMCP.Editor
                         throw new ArgumentException($"'action' is required for command '{cmd}'");
                     return handler(action, args);
                 },
-                Mutating = mutating,
-                Runtime = runtime,
-                AlwaysAllowed = alwaysAllowed,
-                AllowedDuringCompile = allowedDuringCompile,
+                Mutating = options.Mutating,
+                Runtime = options.Runtime,
+                AlwaysAllowed = options.AlwaysAllowed,
+                AllowedDuringCompile = options.AllowedDuringCompile,
                 Required = req.ToArray(),
-                Optional = Split(optional),
-                Description = description
+                Optional = Split(options.Optional),
+                Description = options.Description,
+                MaxResponseChars = options.MaxResponseChars
             };
         }
 
+        public static void RegisterAction(string cmd, Func<string, string, string> handler, bool mutating = false, bool runtime = false,
+            string required = null, string optional = null, bool alwaysAllowed = false, bool allowedDuringCompile = false,
+            string description = null, int maxResponseChars = 0) =>
+            RegisterAction(cmd, handler, new CommandOptions
+            {
+                Mutating = mutating,
+                Runtime = runtime,
+                Required = required,
+                Optional = optional,
+                AlwaysAllowed = alwaysAllowed,
+                AllowedDuringCompile = allowedDuringCompile,
+                Description = description,
+                MaxResponseChars = maxResponseChars
+            });
+
         // handler signature: (id, argsJson, tcs)
         public static void RegisterAsync(string cmd, Action<string, string, TaskCompletionSource<string>> handler,
-            bool mutating = false, bool runtime = false, string required = null, string optional = null,
-            bool alwaysAllowed = false, bool allowedDuringCompile = false, string description = null)
+            CommandOptions options)
         {
             if (AlreadyRegistered(cmd)) return;
+            DenyPluginCoreFlags(cmd, ref options);
             _commands[cmd] = new Entry
             {
                 AsyncHandler = handler,
-                Mutating = mutating,
-                Runtime = runtime,
-                AlwaysAllowed = alwaysAllowed,
-                AllowedDuringCompile = allowedDuringCompile,
-                Required = Split(required),
-                Optional = Split(optional),
-                Description = description
+                Mutating = options.Mutating,
+                Runtime = options.Runtime,
+                AlwaysAllowed = options.AlwaysAllowed,
+                AllowedDuringCompile = options.AllowedDuringCompile,
+                Required = Split(options.Required),
+                Optional = Split(options.Optional),
+                Description = options.Description,
+                MaxResponseChars = options.MaxResponseChars
             };
         }
+
+        public static void RegisterAsync(string cmd, Action<string, string, TaskCompletionSource<string>> handler,
+            bool mutating = false, bool runtime = false, string required = null, string optional = null,
+            bool alwaysAllowed = false, bool allowedDuringCompile = false, string description = null,
+            int maxResponseChars = 0) =>
+            RegisterAsync(cmd, handler, new CommandOptions
+            {
+                Mutating = mutating,
+                Runtime = runtime,
+                Required = required,
+                Optional = optional,
+                AlwaysAllowed = alwaysAllowed,
+                AllowedDuringCompile = allowedDuringCompile,
+                Description = description,
+                MaxResponseChars = maxResponseChars
+            });
 
         public static bool IsRegistered(string cmd) => _commands.ContainsKey(cmd);
         internal static bool IsMutating(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Mutating;
@@ -124,6 +193,7 @@ namespace UnityMCP.Editor
         // with the registration. CommandRouter.IsAlwaysAllowed/IsAllowedDuringCompile delegate here.
         internal static bool IsAlwaysAllowed(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.AlwaysAllowed;
         internal static bool IsAllowedDuringCompile(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.AllowedDuringCompile;
+        internal static int GetMaxResponseChars(string cmd) => _commands.TryGetValue(cmd, out var entry) ? entry.MaxResponseChars : 0;
 
         // Structural batchability check — replaces a hand-maintained name list.
         // Unregistered commands are treated as "batchable" so they fall through to

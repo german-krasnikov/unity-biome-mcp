@@ -1,6 +1,9 @@
 """TDD tests for ui_intent tool."""
 from unittest.mock import AsyncMock, patch
 
+import pytest
+from mcp.server.fastmcp.exceptions import ToolError
+
 
 # ---------------------------------------------------------------------------
 # 1. DSL Parser — indent-based
@@ -130,8 +133,8 @@ async def test_ui_intent_no_sampling_returns_error():
     with patch("unity_mcp.tools.ui_intent_tool._send", new_callable=AsyncMock):
         with patch("unity_mcp.tools.ui_intent_tool._sampling") as mock_svc:
             mock_svc.generate = AsyncMock(return_value=None)
-            result = await ui_intent(intent="create a health bar UI")
-            assert "ERROR" in result
+            with pytest.raises(ToolError, match="Haiku unavailable"):
+                await ui_intent(intent="create a health bar UI")
 
 
 async def test_ui_intent_dry_run():
@@ -192,24 +195,23 @@ def test_ui_builder_nested_manage_component_uses_full_path():
 # ---------------------------------------------------------------------------
 
 async def test_ui_intent_unknown_template_returns_error():
-    """Unknown template name returns ERROR without calling bridge."""
+    """Unknown template name raises ToolError without calling bridge."""
     from unity_mcp.tools.ui_intent_tool import ui_intent
     with patch("unity_mcp.tools.ui_intent_tool._send", new_callable=AsyncMock) as mock_send:
-        result = await ui_intent(intent="anything", template="nonexistent_xyz")
+        with pytest.raises(ToolError, match="nonexistent_xyz"):
+            await ui_intent(intent="anything", template="nonexistent_xyz")
         mock_send.assert_not_called()
-        assert "ERROR" in result
-        assert "nonexistent_xyz" in result
 
 
 async def test_ui_intent_empty_dsl_from_llm_returns_error():
-    """Empty/whitespace DSL from LLM produces ERROR, no bridge call."""
+    """Empty/whitespace DSL from LLM (parses to zero nodes) raises ToolError, no bridge call."""
     from unity_mcp.tools.ui_intent_tool import ui_intent
     with patch("unity_mcp.tools.ui_intent_tool._send", new_callable=AsyncMock) as mock_send:
         with patch("unity_mcp.tools.ui_intent_tool._sampling") as mock_svc:
             mock_svc.generate = AsyncMock(return_value="   ")
-            result = await ui_intent(intent="make a HUD")
+            with pytest.raises(ToolError, match="DSL produced no commands"):
+                await ui_intent(intent="make a HUD")
             mock_send.assert_not_called()
-            assert "ERROR" in result
 
 
 def test_ui_builder_external_parent_applied_to_root_node():

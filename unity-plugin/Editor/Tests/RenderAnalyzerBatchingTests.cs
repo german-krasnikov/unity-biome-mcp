@@ -14,6 +14,7 @@ namespace UnityMCP.Editor.Tests
     public class RenderAnalyzerBatchingTests
     {
         private readonly List<GameObject> _gos = new List<GameObject>();
+        private readonly List<Object> _assets = new List<Object>();
 
         [TearDown]
         public void TearDown()
@@ -21,23 +22,28 @@ namespace UnityMCP.Editor.Tests
             foreach (var go in _gos)
                 if (go != null) Object.DestroyImmediate(go);
             _gos.Clear();
+            foreach (var a in _assets)
+                if (a != null) Object.DestroyImmediate(a);
+            _assets.Clear();
         }
 
         private GameObject MakeRendered(string name = "Obj")
         {
             var go = new GameObject(name);
-            go.AddComponent<MeshFilter>().sharedMesh = MakeQuad();
+            var mesh = MakeQuad();
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>();
             _gos.Add(go);
             return go;
         }
 
-        private static Mesh MakeQuad()
+        private Mesh MakeQuad()
         {
             var m = new Mesh();
             m.vertices = new[] { Vector3.zero, Vector3.right, Vector3.up, Vector3.one };
             m.triangles = new[] { 0, 2, 1, 2, 3, 1 };
             m.RecalculateBounds();
+            _assets.Add(m);
             return m;
         }
 
@@ -101,6 +107,7 @@ namespace UnityMCP.Editor.Tests
         {
             // Shared material without enableInstancing = candidate
             var mat = new Material(Shader.Find("Standard"));
+            _assets.Add(mat);
             mat.enableInstancing = false;
             for (int i = 0; i < 3; i++)
                 MakeRendered($"InstObj{i}").GetComponent<MeshRenderer>().sharedMaterial = mat;

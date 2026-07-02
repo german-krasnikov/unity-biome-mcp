@@ -14,15 +14,14 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
-            _tmpDir = Path.Combine(Path.GetTempPath(), "ProjectConfigWriterTests_" + Guid.NewGuid().ToString("N"));
+            _tmpDir = Path.Combine(Path.GetTempPath(), $"ProjectConfigWriterTests_{Guid.NewGuid():N}");
             Directory.CreateDirectory(_tmpDir);
         }
 
         [TearDown]
         public void TearDown()
         {
-            if (Directory.Exists(_tmpDir))
-                Directory.Delete(_tmpDir, recursive: true);
+            try { if (Directory.Exists(_tmpDir)) Directory.Delete(_tmpDir, true); } catch { }
         }
 
         [Test]

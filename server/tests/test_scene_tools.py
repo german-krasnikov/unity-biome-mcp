@@ -65,6 +65,26 @@ async def test_get_console_keyword_none_omitted(scene_mod, _patch_send):
     assert "keyword" not in call_args[0][1]
 
 
+# ── S5: get_console since ─────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_console_since_sends_param(scene_mod, _patch_send):
+    await scene_mod.get_console(count=10, since=30.0)
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "get_console"
+    assert call_args[0][1].get("since") == 30.0
+
+
+@pytest.mark.asyncio
+async def test_get_console_since_none_omitted(scene_mod, _patch_send):
+    """since=None should not appear in args (filtered by _args)."""
+    await scene_mod.get_console(count=5)
+
+    call_args = _patch_send.call_args
+    assert "since" not in call_args[0][1]
+
+
 # ── T5: undo_last ─────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -154,3 +174,63 @@ async def test_run_tests_propagates_tool_error(scene_mod, _patch_send, mock_diag
     with pytest.raises(ToolError, match="Unity connection dead"):
         await scene_mod.run_tests()
     _patch_send.assert_not_called()
+
+
+# ── get_test_count ─────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_test_count_sends_command(scene_mod, _patch_send):
+    await scene_mod.get_test_count()
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "get_test_count"
+    assert call_args[0][1] == {}
+
+
+@pytest.mark.asyncio
+async def test_get_test_count_returns_result(scene_mod, _patch_send):
+    _patch_send.return_value = "42|edit=30|play=12"
+
+    result = await scene_mod.get_test_count()
+
+    assert result == "42|edit=30|play=12"
+
+
+# ── ping_object / get_selection ──────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_ping_object_sends_command(scene_mod, _patch_send):
+    await scene_mod.ping_object(path="/Test")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "ping_object"
+    assert call_args[0][1] == {"path": "/Test"}
+
+
+@pytest.mark.asyncio
+async def test_get_selection_sends_command(scene_mod, _patch_send):
+    await scene_mod.get_selection()
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "get_selection"
+    assert call_args[0][1] == {}
+
+
+# ── scene_environment ────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_scene_environment_get_sends_command(scene_mod, _patch_send):
+    await scene_mod.scene_environment()
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "scene_environment"
+    assert call_args[0][1] == {"action": "get"}
+
+
+@pytest.mark.asyncio
+async def test_scene_environment_set_sends_params(scene_mod, _patch_send):
+    await scene_mod.scene_environment(action="set", prop="fog", value="true")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "scene_environment"
+    assert call_args[0][1] == {"action": "set", "prop": "fog", "value": "true"}

@@ -29,6 +29,25 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd();
         }
 
+        public static string PingObject(string path)
+        {
+            var go = ComponentSerializer.FindObject(path);
+            if (go == null)
+                throw new System.ArgumentException(ErrorHelper.ObjectNotFound(path));
+            EditorGUIUtility.PingObject(go);
+            Selection.activeGameObject = go;
+            return $"pinged:{ComponentSerializer.GetPath(go)}";
+        }
+
+        public static string GetSelection()
+        {
+            var go = Selection.activeGameObject;
+            if (go == null) return "none";
+            var path = ComponentSerializer.GetPath(go);
+            var comps = ComponentSerializer.ListComponents(path);
+            return string.IsNullOrEmpty(comps) ? $"path:{path}" : $"path:{path}\n{comps}";
+        }
+
         public static string Control(string action, string path)
         {
             switch (action)

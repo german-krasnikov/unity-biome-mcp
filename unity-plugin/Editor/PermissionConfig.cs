@@ -11,6 +11,9 @@ namespace UnityMCP.Editor
     {
         // Must match the mcp.json server key ("unity") — Claude names tools mcp__unity__<tool>.
         // Derived as MCP_BLANKET + "__" so blanket and per-tool prefix cannot drift.
+        // Mirrors MCP_BLANKET in server/src/unity_mcp/backend_def.py (ROI reliability sprint
+        // item m2). Keep both in sync manually; no automated cross-language contract test
+        // exists yet.
         public const string MCP_BLANKET    = "mcp__unity";
         public const string MCP_TOOL_PREFIX = MCP_BLANKET + "__";
 

@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
@@ -20,7 +21,9 @@ namespace UnityMCP.Editor.Tests
         [TearDown]
         public void TearDown()
         {
-            Object.DestroyImmediate(_cameraGo);
+            if (_cameraGo != null) Object.DestroyImmediate(_cameraGo);
+            // NoCameraInScene test destroys all cameras — replace dirty scene
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         }
 
         // ── FindCamera fallback to Camera.main ───────────────────────────────

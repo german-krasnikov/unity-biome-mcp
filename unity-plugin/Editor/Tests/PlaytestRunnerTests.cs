@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -31,8 +32,8 @@ namespace UnityMCP.Editor.Tests
             }
             finally
             {
-                Object.DestroyImmediate(go);
-                Object.DestroyImmediate(config);
+                UnityEngine.Object.DestroyImmediate(go);
+                UnityEngine.Object.DestroyImmediate(config);
             }
         }
 
@@ -47,7 +48,7 @@ namespace UnityMCP.Editor.Tests
             }
             finally
             {
-                Object.DestroyImmediate(go);
+                UnityEngine.Object.DestroyImmediate(go);
             }
         }
 
@@ -62,7 +63,7 @@ namespace UnityMCP.Editor.Tests
             }
             finally
             {
-                Object.DestroyImmediate(go);
+                UnityEngine.Object.DestroyImmediate(go);
             }
         }
 
@@ -79,8 +80,8 @@ namespace UnityMCP.Editor.Tests
             }
             finally
             {
-                Object.DestroyImmediate(go);
-                Object.DestroyImmediate(config);
+                UnityEngine.Object.DestroyImmediate(go);
+                UnityEngine.Object.DestroyImmediate(config);
             }
         }
 
@@ -136,6 +137,86 @@ namespace UnityMCP.Editor.Tests
             // Snapshot forces expanded format even with no failures
             var report = PlaytestRunner.BuildReport(results, 1, 0, Time.realtimeSinceStartup - 0.1f);
             StringAssert.Contains("SNAPSHOT", report);
+        }
+
+        // ── StepConsoleCheck ──────────────────────────────────────────────────
+
+        [SetUp]
+        public void SetUp() => ConsoleCapture.Clear();
+
+        [TearDown]
+        public void TearDown() => ConsoleCapture.Clear();
+
+        [Test]
+        public void StepConsoleCheck_ErrorDuringStep_CapturedInResult()
+        {
+            var before = DateTime.Now;
+            ConsoleCapture.InjectForTest("NullReferenceException: Object ref", LogType.Exception);
+            var step = new PlaytestStep { Type = StepType.Set };
+            var results = new List<string>();
+
+            PlaytestRunner.CheckStepConsoleErrors(step, 0, before, results);
+
+            Assert.AreEqual(1, results.Count);
+            StringAssert.Contains("CONSOLE_ERR", results[0]);
+            StringAssert.Contains("NullReferenceException", results[0]);
+            StringAssert.Contains("Set", results[0]);
+        }
+
+        [Test]
+        public void StepConsoleCheck_NoError_NoExtraOutput()
+        {
+            var before = DateTime.Now;
+            var step = new PlaytestStep { Type = StepType.Set };
+            var results = new List<string>();
+
+            PlaytestRunner.CheckStepConsoleErrors(step, 0, before, results);
+
+            Assert.AreEqual(0, results.Count);
+        }
+
+        [Test]
+        public void StepConsoleCheck_AssertConsoleClean_Skipped()
+        {
+            var before = DateTime.Now;
+            ConsoleCapture.InjectForTest("some error", LogType.Error);
+            var step = new PlaytestStep { Type = StepType.AssertConsoleClean };
+            var results = new List<string>();
+
+            PlaytestRunner.CheckStepConsoleErrors(step, 0, before, results);
+
+            Assert.AreEqual(0, results.Count, "AssertConsoleClean step should skip auto-check");
+        }
+
+        [Test]
+        public void StepConsoleCheck_MultipleErrors_CapsAtMax()
+        {
+            var before = DateTime.Now;
+            for (int i = 0; i < 10; i++)
+                ConsoleCapture.InjectForTest($"Error #{i}", LogType.Error);
+            var step = new PlaytestStep { Type = StepType.Invoke };
+            var results = new List<string>();
+
+            PlaytestRunner.CheckStepConsoleErrors(step, 0, before, results);
+
+            Assert.AreEqual(1, results.Count);
+            // Max 3 errors — verify first 3 present, 4th absent
+            StringAssert.Contains("Error #0", results[0]);
+            StringAssert.Contains("Error #2", results[0]);
+            Assert.IsFalse(results[0].Contains("Error #3"), "Should cap at StepConsoleErrorMax=3");
+        }
+
+        [Test]
+        public void BuildReport_WithConsoleErr_ForcesExpandedReport()
+        {
+            var results = new List<string>
+            {
+                "[1] SET ok",
+                "[1] CONSOLE_ERR during Set: NullRef"
+            };
+            var report = PlaytestRunner.BuildReport(results, 1, 0, Time.realtimeSinceStartup - 0.1f);
+            StringAssert.Contains("CONSOLE_ERR", report);
+            Assert.IsTrue(report.Contains('\n'), "CONSOLE_ERR should force expanded report");
         }
 
         // ── TraceFlow ────────────────────────────────────────────────────────

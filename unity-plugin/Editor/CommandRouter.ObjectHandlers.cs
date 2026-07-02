@@ -291,7 +291,8 @@ namespace UnityMCP.Editor
             var first     = ExtractInt(args, "first", 0);
             var keyword   = JsonHelper.ExtractString(args, "keyword");
             var countOnly = JsonHelper.ExtractString(args, "count_only") == "true";
-            return ConsoleCapture.GetLogs(count, level, first, keyword, countOnly);
+            var since     = ExtractFloat(args, "since", 0f);
+            return ConsoleCapture.GetLogs(count, level, first, keyword, countOnly, since);
         }
 
         private static string BuildScreenshotResponse(string id, string args)

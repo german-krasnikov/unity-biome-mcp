@@ -3,6 +3,7 @@ import re
 from ._annotations import RO as _RO, RW as _RW
 from ..console_levels import PROBLEM_LEVELS
 from ..metrics import METRICS
+from ._common import bind
 
 _send = None
 _args = None
@@ -80,9 +81,7 @@ async def smart_build(description: str, ctx: _Context) -> str:
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
     mcp.tool(annotations=_RW)(execute_code)

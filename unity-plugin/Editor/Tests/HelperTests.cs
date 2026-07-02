@@ -181,6 +181,8 @@ namespace UnityMCP.Editor.Tests
             finally
             {
                 AssetDatabase.DeleteAsset(tmpPath);
+                if (AssetDatabase.IsValidFolder("Assets/MCPTests"))
+                    AssetDatabase.DeleteAsset("Assets/MCPTests");
             }
         }
     }
@@ -192,6 +194,10 @@ namespace UnityMCP.Editor.Tests
     {
         [SetUp]
         public void SetUp() =>
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        [TearDown]
+        public void TearDown() =>
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         [Test]
@@ -226,6 +232,10 @@ namespace UnityMCP.Editor.Tests
     {
         [SetUp]
         public void SetUp() =>
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        [TearDown]
+        public void TearDown() =>
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         // SaveScene with no path on untitled scene throws
@@ -463,18 +473,19 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
-        // CP-7: _mainThreadQueue must be a ConcurrentQueue<Action> (drain-safe by design).
+        // CP-7: MainThreadDispatcher's queue must be a ConcurrentQueue<Action> (drain-safe by design).
         // Does NOT call Stop() — that kills the live TCP server and breaks subsequent tests.
+        // Phase 2 M1: queue moved from MCPServer._mainThreadQueue to MainThreadDispatcher._queue.
         [Test]
         public void MainThreadQueue_Exists_AndIsConcurrentQueue()
         {
-            var qField = typeof(MCPServer).GetField("_mainThreadQueue",
+            var qField = typeof(MainThreadDispatcher).GetField("_queue",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            Assert.IsNotNull(qField, "_mainThreadQueue field must exist");
+            Assert.IsNotNull(qField, "MainThreadDispatcher._queue field must exist");
 
             var queue = qField.GetValue(null)
                 as System.Collections.Concurrent.ConcurrentQueue<System.Action>;
-            Assert.IsNotNull(queue, "_mainThreadQueue must be ConcurrentQueue<Action>");
+            Assert.IsNotNull(queue, "MainThreadDispatcher._queue must be ConcurrentQueue<Action>");
         }
     }
 }

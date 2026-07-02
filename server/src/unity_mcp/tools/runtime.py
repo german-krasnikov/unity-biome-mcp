@@ -1,6 +1,7 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
 from ._annotations import RO as _RO, RW as _RW, RW_IDEM as _RW_IDEM
 from ..sampling import SamplingService
+from ._common import bind
 
 _send = None
 _args = None
@@ -119,9 +120,7 @@ fuzz_playtest.__test__ = False  # prevent pytest from collecting as test
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(invoke_method)
     mcp.tool(annotations=_RW_IDEM)(set_runtime_property)
     mcp.tool(annotations=_RW_IDEM)(wait_until)

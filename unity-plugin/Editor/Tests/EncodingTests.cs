@@ -10,19 +10,18 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class EncodingTests
     {
-        private string _tmpDir;
+        private TempDirScope _scope;
 
         [SetUp]
         public void SetUp()
         {
-            _tmpDir = Path.Combine(Path.GetTempPath(), $"unity-mcp-enc-test-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(_tmpDir);
+            _scope = new TempDirScope("unity-mcp-enc-test");
         }
 
         [TearDown]
         public void TearDown()
         {
-            try { Directory.Delete(_tmpDir, true); } catch { }
+            _scope.Dispose();
         }
 
         private static readonly byte[] CyrUtf8 = Encoding.UTF8.GetBytes("Привет");
@@ -32,7 +31,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Utf8NoBom_NoUtf8Bom()
         {
-            var path = Path.Combine(_tmpDir, "test.txt");
+            var path = Path.Combine(_scope.Path, "test.txt");
             File.WriteAllText(path, "// Тест", JsonHelper.Utf8NoBom);
 
             var bytes = File.ReadAllBytes(path);
@@ -43,7 +42,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Utf8NoBom_CyrillicRoundtrip()
         {
-            var path = Path.Combine(_tmpDir, "roundtrip.txt");
+            var path = Path.Combine(_scope.Path, "roundtrip.txt");
             var cyr  = "Shader \"Custom/Тест\" { }";
             File.WriteAllText(path, cyr, JsonHelper.Utf8NoBom);
 
@@ -54,7 +53,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Utf8NoBom_CyrillicBytesAreUtf8()
         {
-            var path = Path.Combine(_tmpDir, "bytes.txt");
+            var path = Path.Combine(_scope.Path, "bytes.txt");
             File.WriteAllText(path, "// Привет", JsonHelper.Utf8NoBom);
 
             var raw = File.ReadAllBytes(path);
@@ -67,7 +66,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ShaderHelper_WriteShaderFile_NoUtf8Bom()
         {
-            var path = Path.Combine(_tmpDir, "Test.shader");
+            var path = Path.Combine(_scope.Path, "Test.shader");
             ShaderHelper.WriteShaderFile(path, "// Привет шейдер");
             var bytes = File.ReadAllBytes(path);
             Assert.AreNotEqual(0xEF, bytes[0], "File must not start with UTF-8 BOM");

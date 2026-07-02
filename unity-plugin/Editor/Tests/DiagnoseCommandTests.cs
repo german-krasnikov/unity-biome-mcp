@@ -21,6 +21,11 @@ namespace UnityMCP.Editor.Tests
             SyncHelper.ResetForTest();
             SessionState.EraseString("MCP_DomainStamp");
             CompileErrorCapture.Clear();
+            // Clean CompileNotifier state so Bee cache-hit logic starts from idle-never
+            SessionState.EraseFloat("MCP_CompileStart");
+            SessionState.EraseFloat("MCP_LastDuration");
+            SessionState.EraseBool("MCP_CompileFailed");
+            CompileNotifier.NowSecondsFloat = () => (float)UnityEditor.EditorApplication.timeSinceStartup;
         }
 
         [TearDown]
@@ -28,6 +33,10 @@ namespace UnityMCP.Editor.Tests
         {
             SyncHelper.ResetForTest();
             CompileErrorCapture.Clear();
+            SessionState.EraseFloat("MCP_CompileStart");
+            SessionState.EraseFloat("MCP_LastDuration");
+            SessionState.EraseBool("MCP_CompileFailed");
+            CompileNotifier.NowSecondsFloat = () => (float)UnityEditor.EditorApplication.timeSinceStartup;
         }
 
         // C8 #1: Execute returns all required wire-format field prefixes
@@ -101,60 +110,47 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void GetDllFreshnessToken_Stale_WhenCsNewerThanDll()
         {
-            var tmp = Path.Combine(Path.GetTempPath(), "McpF3Test_" + Guid.NewGuid());
-            Directory.CreateDirectory(tmp);
-            try
-            {
-                var dllPath = Path.Combine(tmp, "Test.dll");
-                var csPath  = Path.Combine(tmp, "Code.cs");
+            using var scope = new TempDirScope("McpF3Test");
+            var tmp = scope.Path;
+            var dllPath = Path.Combine(tmp, "Test.dll");
+            var csPath  = Path.Combine(tmp, "Code.cs");
 
-                // dll older than .cs
-                File.WriteAllText(dllPath, "dll");
-                File.SetLastWriteTimeUtc(dllPath, DateTime.UtcNow.AddSeconds(-10));
-                File.WriteAllText(csPath, "// cs");
-                File.SetLastWriteTimeUtc(csPath, DateTime.UtcNow);
+            // dll older than .cs
+            File.WriteAllText(dllPath, "dll");
+            File.SetLastWriteTimeUtc(dllPath, DateTime.UtcNow.AddSeconds(-10));
+            File.WriteAllText(csPath, "// cs");
+            File.SetLastWriteTimeUtc(csPath, DateTime.UtcNow);
 
-                var token = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
-                Assert.AreEqual("stale", token, "stale when .cs is newer than dll");
-            }
-            finally { Directory.Delete(tmp, true); }
+            var token = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
+            Assert.AreEqual("stale", token, "stale when .cs is newer than dll");
         }
 
         // C8 #F3b: GetDllFreshnessToken — fresh when dll newer than all .cs
         [Test]
         public void GetDllFreshnessToken_Fresh_WhenDllNewerThanCs()
         {
-            var tmp = Path.Combine(Path.GetTempPath(), "McpF3Test_" + Guid.NewGuid());
-            Directory.CreateDirectory(tmp);
-            try
-            {
-                var dllPath = Path.Combine(tmp, "Test.dll");
-                var csPath  = Path.Combine(tmp, "Code.cs");
+            using var scope = new TempDirScope("McpF3Test");
+            var tmp = scope.Path;
+            var dllPath = Path.Combine(tmp, "Test.dll");
+            var csPath  = Path.Combine(tmp, "Code.cs");
 
-                File.WriteAllText(csPath, "// cs");
-                File.SetLastWriteTimeUtc(csPath, DateTime.UtcNow.AddSeconds(-10));
-                File.WriteAllText(dllPath, "dll");
-                File.SetLastWriteTimeUtc(dllPath, DateTime.UtcNow);
+            File.WriteAllText(csPath, "// cs");
+            File.SetLastWriteTimeUtc(csPath, DateTime.UtcNow.AddSeconds(-10));
+            File.WriteAllText(dllPath, "dll");
+            File.SetLastWriteTimeUtc(dllPath, DateTime.UtcNow);
 
-                var token = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
-                Assert.AreEqual("fresh", token, "fresh when dll is newer than all .cs");
-            }
-            finally { Directory.Delete(tmp, true); }
+            var token = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
+            Assert.AreEqual("fresh", token, "fresh when dll is newer than all .cs");
         }
 
         // C8 #F3c: GetDllFreshnessToken — unknown(missing) when dll doesn't exist
         [Test]
         public void GetDllFreshnessToken_Unknown_WhenDllMissing()
         {
-            var tmp = Path.Combine(Path.GetTempPath(), "McpF3Test_" + Guid.NewGuid());
-            Directory.CreateDirectory(tmp);
-            try
-            {
-                var dllPath = Path.Combine(tmp, "Missing.dll");
-                var token   = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
-                Assert.AreEqual("unknown(missing)", token, "unknown(missing) when dll absent");
-            }
-            finally { Directory.Delete(tmp, true); }
+            using var scope = new TempDirScope("McpF3Test");
+            var dllPath = Path.Combine(scope.Path, "Missing.dll");
+            var token   = DiagnoseCommand.GetDllFreshnessToken(dllPath, scope.Path);
+            Assert.AreEqual("unknown(missing)", token, "unknown(missing) when dll absent");
         }
 
         // C8 #5: diagnose is registered in CommandRegistry
@@ -242,6 +238,40 @@ namespace UnityMCP.Editor.Tests
                 "C10: Execute() must emit reload_failed= field in wire output");
         }
 
+        // Bee cache-hit: mtime stale + compile=idle → "fresh" (not "stale")
+        [Test]
+        public void GetDllFreshnessToken_StaleButIdleCompile_ReturnsFresh()
+        {
+            using var scope = new TempDirScope("McpBeeHit");
+            var tmp = scope.Path;
+            // Save and restore CompileNotifier state
+            var savedNow = CompileNotifier.NowSecondsFloat;
+            try
+            {
+                var dllPath = Path.Combine(tmp, "Test.dll");
+                var csPath  = Path.Combine(tmp, "Code.cs");
+
+                // dll older than .cs → mtime says stale
+                File.WriteAllText(dllPath, "dll");
+                File.SetLastWriteTimeUtc(dllPath, DateTime.UtcNow.AddSeconds(-10));
+                File.WriteAllText(csPath, "// cs");
+                File.SetLastWriteTimeUtc(csPath, DateTime.UtcNow);
+
+                // Simulate idle compile (Bee cache-hit): StartKey=0, duration>0, no fail
+                SessionState.EraseFloat("MCP_CompileStart");
+                SessionState.SetFloat("MCP_LastDuration", 1.5f);
+                SessionState.EraseBool("MCP_CompileFailed");
+
+                var token = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
+                Assert.AreEqual("fresh", token,
+                    "Bee cache-hit (idle compile, no failure) must override mtime-stale to fresh");
+            }
+            finally
+            {
+                CompileNotifier.NowSecondsFloat = savedNow;
+            }
+        }
+
         // C8 #6: stamp_frozen=true when DomainStamp matches StampAtTrigger
         [Test]
         public void DiagnoseCommand_StampFrozen_True_WhenStampsMatch()
@@ -259,25 +289,21 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void FindAsmdefDir_AssetsPath_StillWorks()
         {
-            var tmp = Path.Combine(Path.GetTempPath(), "McpFixC_" + Guid.NewGuid());
-            Directory.CreateDirectory(tmp);
-            try
-            {
-                File.WriteAllText(Path.Combine(tmp, "MyLib.asmdef"), "{}");
-                var result = DiagnoseCommand.FindAsmdefDir(tmp, "MyLib");
-                Assert.AreEqual(tmp, result, "Must find asmdef via Directory.GetFiles scan");
-            }
-            finally { Directory.Delete(tmp, true); }
+            using var scope = new TempDirScope("McpFixC");
+            var tmp = scope.Path;
+            File.WriteAllText(Path.Combine(tmp, "MyLib.asmdef"), "{}");
+            var result = DiagnoseCommand.FindAsmdefDir(tmp, "MyLib");
+            Assert.AreEqual(tmp, result, "Must find asmdef via Directory.GetFiles scan");
         }
 
         // Fix C #2: FindAsmdefDir falls back to FindInPackages when Assets/ empty
         [Test]
         public void FindAsmdefDir_FallsBackToPackages_WhenAssetsEmpty()
         {
-            var tmpDataPath = Path.Combine(Path.GetTempPath(), "McpFixCEmpty_" + Guid.NewGuid());
-            var tmpPkgDir   = Path.Combine(Path.GetTempPath(), "McpFixCPkg_" + Guid.NewGuid());
-            Directory.CreateDirectory(tmpDataPath);
-            Directory.CreateDirectory(tmpPkgDir);
+            using var dataScope = new TempDirScope("McpFixCEmpty");
+            using var pkgScope  = new TempDirScope("McpFixCPkg");
+            var tmpDataPath = dataScope.Path;
+            var tmpPkgDir   = pkgScope.Path;
             var originalSeam = DiagnoseCommand.FindInPackages;
             try
             {
@@ -289,8 +315,6 @@ namespace UnityMCP.Editor.Tests
             finally
             {
                 DiagnoseCommand.FindInPackages = originalSeam;
-                Directory.Delete(tmpDataPath, true);
-                Directory.Delete(tmpPkgDir, true);
             }
         }
 
@@ -298,8 +322,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BuildDllFreshness_ReturnsStale_ForUPMPackage_ViaSeam()
         {
-            var tmp = Path.Combine(Path.GetTempPath(), "McpFixCStale_" + Guid.NewGuid());
-            Directory.CreateDirectory(tmp);
+            using var scope = new TempDirScope("McpFixCStale");
+            var tmp = scope.Path;
             var originalSeam = DiagnoseCommand.FindInPackages;
             try
             {
@@ -320,7 +344,6 @@ namespace UnityMCP.Editor.Tests
             finally
             {
                 DiagnoseCommand.FindInPackages = originalSeam;
-                Directory.Delete(tmp, true);
             }
         }
     }

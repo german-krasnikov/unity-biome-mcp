@@ -470,6 +470,40 @@ def test_validate_ok_report(tmp_path, monkeypatch):
     assert "unity-mcp" in report.lower()
 
 
+def test_validate_config_uses_read_unity_port_not_naive_find_port(tmp_path, monkeypatch):
+    """M13: validate_config must resolve the port via server_filtering.read_unity_port
+    (env var -> CWD-scoped -> PID-liveness-pruned -> newest mtime), NOT the naive
+    config.resolver.find_port() (first-glob-match, no liveness check, no CWD scoping).
+    Prove it by making the two disagree and asserting the report reflects
+    read_unity_port's value."""
+    from unity_mcp.config import clients as c, validator
+    cfg = tmp_path / "cfg.json"
+    cfg.write_text(json.dumps({"mcpServers": {"unity-mcp": {"command": "uvx", "args": ["unity-mcp"]}}}), encoding="utf-8")
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
+    monkeypatch.setattr("unity_mcp.config.resolver.find_port", lambda: 1111)
+    monkeypatch.setattr("unity_mcp.config.validator.read_unity_port", lambda skip_probe=False: 2222)
+    with patch("unity_mcp.config.validator._port_reachable", return_value=False):
+        report = validator.validate_config("claude-desktop")
+    assert "2222" in report
+    assert "1111" not in report
+
+
+def test_validate_config_falls_back_to_default_port_when_read_unity_port_returns_none(tmp_path, monkeypatch):
+    """read_unity_port(skip_probe=True) returns None when no live candidates are found
+    (unlike find_port(), which always returns a port). validate_config must fall back
+    to DEFAULT_PORT rather than crash or print 'None'."""
+    from unity_mcp.config import clients as c, validator
+    from unity_mcp.constants import DEFAULT_PORT
+    cfg = tmp_path / "cfg.json"
+    cfg.write_text(json.dumps({"mcpServers": {"unity-mcp": {"command": "uvx", "args": ["unity-mcp"]}}}), encoding="utf-8")
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
+    monkeypatch.setattr("unity_mcp.config.validator.read_unity_port", lambda skip_probe=False: None)
+    with patch("unity_mcp.config.validator._port_reachable", return_value=False):
+        report = validator.validate_config("claude-desktop")
+    assert str(DEFAULT_PORT) in report
+    assert "None" not in report
+
+
 # ─── resolver.py ─────────────────────────────────────────────────────────────
 
 def test_find_server_command_prefers_uvx(monkeypatch):

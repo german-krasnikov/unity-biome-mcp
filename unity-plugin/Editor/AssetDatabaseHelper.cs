@@ -8,7 +8,7 @@ namespace UnityMCP.Editor
     internal static class AssetDatabaseHelper
     {
         const int MaxFindResults = 200;
-        static readonly string[] ValidActions = { "find", "get_info", "create", "move", "validate_move", "duplicate", "delete", "get_dependencies", "import_settings", "export_package", "import_package" };
+        static readonly string[] ValidActions = { "find", "get_info", "create", "move", "validate_move", "duplicate", "delete", "get_dependencies", "find_dependents", "import_settings", "export_package", "import_package" };
 
         internal static string Execute(string action, string argsJson)
         {
@@ -22,6 +22,7 @@ namespace UnityMCP.Editor
                 case "duplicate":       return Duplicate(argsJson);
                 case "delete":          return Delete(argsJson);
                 case "get_dependencies":return GetDependencies(argsJson);
+                case "find_dependents": return FindDependents(argsJson);
                 case "import_settings": return ImportSettings(argsJson);
                 case "export_package": return ExportPackage(argsJson);
                 case "import_package": return ImportPackage(argsJson);
@@ -253,6 +254,36 @@ namespace UnityMCP.Editor
             propInfo.SetValue(importer, parsed);
             importer.SaveAndReimport();
             return "ok";
+        }
+
+        static string FindDependents(string argsJson)
+        {
+            var path = JsonHelper.ExtractString(argsJson, "path");
+            if (string.IsNullOrEmpty(path)) throw new System.ArgumentException("path is required");
+            var guid = AssetDatabase.AssetPathToGUID(path);
+            if (string.IsNullOrEmpty(guid)) throw new System.ArgumentException($"asset not found: {path}");
+
+            const int MAX_RESULTS = 100;
+            var allPaths = AssetDatabase.GetAllAssetPaths();
+            var dependents = new System.Collections.Generic.List<string>();
+
+            foreach (var assetPath in allPaths)
+            {
+                if (assetPath == path) continue;
+                if (!assetPath.StartsWith("Assets/")) continue;
+                var deps = AssetDatabase.GetDependencies(assetPath, false);
+                if (System.Array.IndexOf(deps, path) >= 0)
+                {
+                    dependents.Add(assetPath);
+                    if (dependents.Count >= MAX_RESULTS) break;
+                }
+            }
+
+            if (dependents.Count == 0) return "no dependents found";
+            var sb = new StringBuilder();
+            sb.AppendLine($"dependents of {path}: {dependents.Count}" + (dependents.Count >= MAX_RESULTS ? " (capped)" : ""));
+            foreach (var d in dependents) sb.AppendLine(d);
+            return sb.ToString().TrimEnd();
         }
 
         static string ExportPackage(string argsJson)

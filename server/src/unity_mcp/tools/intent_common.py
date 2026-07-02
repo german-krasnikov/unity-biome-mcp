@@ -1,5 +1,6 @@
 """Shared DSL utilities for Tier B intent tools."""
 from typing import Callable, Optional
+from mcp.server.fastmcp.exceptions import ToolError
 from ..sampling_postproc import strip_fences  # backward-compat re-export
 from ..utils import parse_kv  # consolidated — was local copy
 
@@ -52,11 +53,11 @@ async def run_intent_pipeline(
     """Common tail shared by all intent tools: generate → strip → parse → build → execute."""
     dsl_raw = await sampling.generate(prompt, feature=feature)
     if not dsl_raw:
-        return "ERROR: Haiku unavailable (set UNITY_MCP_VISUAL_VERIFY=1)"
+        raise ToolError("Haiku unavailable (set UNITY_MCP_VISUAL_VERIFY=1)")
     parsed = parse_fn(strip_fences(dsl_raw))
     lines = build_fn(parsed)
     if not lines:
-        return "ERROR: DSL produced no commands"
+        raise ToolError("DSL produced no commands")
     batch_text = "\n".join(lines)
     if dry_run:
         return batch_text

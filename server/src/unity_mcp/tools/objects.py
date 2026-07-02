@@ -1,6 +1,7 @@
 from ._annotations import RO as _RO, RW as _RW, RW_IDEM as _RW_IDEM, DEL as _DEL
 from unity_mcp.input_normalizer import normalize_value as _normalize_value
 from unity_mcp.compressor import project_fields as _project_fields
+from ._common import bind
 
 _send = None
 _args = None
@@ -154,9 +155,7 @@ async def object_diff(path_a: str, path_b: str) -> str:
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(get_component)
     mcp.tool(annotations=_RO)(inspect)
     mcp.tool(annotations=_RO)(get_components_list)

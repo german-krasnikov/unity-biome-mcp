@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Tests
         public void StaticCtor_ContainsBatchModeGuard()
         {
             var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.plugin", "Editor", "MCPServer.cs"));
+                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "MCPServer.cs"));
             if (!File.Exists(src))
             {
                 Assert.Ignore($"MCPServer.cs not found at {src} — skip in CI");
@@ -42,9 +42,20 @@ namespace UnityMCP.Editor.Tests
         private static string LoadMCPServerSrc()
         {
             var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.plugin", "Editor", "MCPServer.cs"));
+                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "MCPServer.cs"));
             if (!File.Exists(src))
                 Assert.Ignore($"MCPServer.cs not found at {src} — skip in CI");
+            return File.ReadAllText(src);
+        }
+
+        // Phase 2 M1: RunAcceptLoop/HandleClientAsync/RoleToLabel moved from MCPServer
+        // to ClientConnectionHandler — source-text checks below repointed accordingly.
+        private static string LoadClientConnectionHandlerSrc()
+        {
+            var src = Path.GetFullPath(
+                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "ClientConnectionHandler.cs"));
+            if (!File.Exists(src))
+                Assert.Ignore($"ClientConnectionHandler.cs not found at {src} — skip in CI");
             return File.ReadAllText(src);
         }
 
@@ -55,7 +66,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void HandleClientAsync_DefersConnectedLog_UntilFirstMessage()
         {
-            var code = LoadMCPServerSrc();
+            var code = LoadClientConnectionHandlerSrc();
             StringAssert.Contains("receivedFirstMessage", code,
                 "HandleClientAsync must use receivedFirstMessage flag to defer 'connected' log");
         }
@@ -63,7 +74,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void HandleClientAsync_ContainsRoleToLabel()
         {
-            var code = LoadMCPServerSrc();
+            var code = LoadClientConnectionHandlerSrc();
             StringAssert.Contains("RoleToLabel", code,
                 "HandleClientAsync must call RoleToLabel to resolve role field from ping to human-readable label");
         }
@@ -71,7 +82,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void RoleToLabel_MapsChateRelayLabel()
         {
-            var code = LoadMCPServerSrc();
+            var code = LoadClientConnectionHandlerSrc();
             StringAssert.Contains("Chat relay", code,
                 "RoleToLabel must map 'chat-relay' to 'Chat relay'");
         }
@@ -79,7 +90,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void RoleToLabel_MapsClaudeCodeSessionLabel()
         {
-            var code = LoadMCPServerSrc();
+            var code = LoadClientConnectionHandlerSrc();
             StringAssert.Contains("Claude Code session", code,
                 "RoleToLabel must map 'mcp' to 'Claude Code session'");
         }

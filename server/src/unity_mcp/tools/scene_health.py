@@ -1,5 +1,6 @@
 """Scene hierarchy/health audit — F4."""
 from ._annotations import RO as _RO
+from ._common import bind
 
 _send = None
 _args = None
@@ -13,7 +14,5 @@ async def scene_health(focus: str = "all") -> str:
 
 
 def register(mcp, send, args):
-    global _send, _args
-    _send = send
-    _args = args
+    bind(globals(), send, args)
     mcp.tool(annotations=_RO)(scene_health)

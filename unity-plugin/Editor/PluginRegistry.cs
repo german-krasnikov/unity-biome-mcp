@@ -7,6 +7,12 @@ namespace UnityMCP.Editor
     {
         private static readonly List<IMCPPlugin> _plugins = new List<IMCPPlugin>();
 
+        // Task 3.1 (ROI reliability sprint): plugins whose RegisterCommands() threw on the
+        // most recent RegisterAllPlugins() pass, so a bad plugin doesn't silently vanish —
+        // queryable by doctor/diagnose instead of only visible in the console at the moment
+        // it happened.
+        private static readonly List<(string Name, string Error)> _failedPlugins = new List<(string Name, string Error)>();
+
         public static void Register(IMCPPlugin plugin)
         {
             if (_plugins.Any(p => p.Name == plugin.Name)) return;
@@ -16,12 +22,22 @@ namespace UnityMCP.Editor
 
         public static void RegisterAllPlugins()
         {
+            _failedPlugins.Clear();
             foreach (var plugin in _plugins)
             {
+                CommandRegistry.CallerIsPlugin = true;
                 try { plugin.RegisterCommands(); }
-                catch (System.Exception e) { UnityEngine.Debug.LogError($"[MCP] Plugin '{plugin.Name}' RegisterCommands failed: {e.Message}"); }
+                catch (System.Exception e)
+                {
+                    _failedPlugins.Add((plugin.Name, e.Message));
+                    UnityEngine.Debug.LogError($"[MCP] Plugin '{plugin.Name}' RegisterCommands failed: {e.Message}");
+                }
+                finally { CommandRegistry.CallerIsPlugin = false; }
             }
         }
+
+        /// <summary>Plugins whose RegisterCommands() threw on the most recent RegisterAllPlugins() pass.</summary>
+        public static IReadOnlyList<(string Name, string Error)> GetFailedPlugins() => _failedPlugins;
 
         public static void OnDomainReload()
         {
@@ -51,6 +67,10 @@ namespace UnityMCP.Editor
 
         public static IReadOnlyList<IMCPPlugin> All => _plugins;
 
-        internal static void Clear() => _plugins.Clear();
+        internal static void Clear()
+        {
+            _plugins.Clear();
+            _failedPlugins.Clear();
+        }
     }
 }

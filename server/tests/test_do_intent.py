@@ -1,6 +1,9 @@
 """TDD tests for do_intent package: catalog, validator, planner, executor, do tool."""
 from unittest.mock import AsyncMock, patch, MagicMock
 
+import pytest
+from mcp.server.fastmcp.exceptions import ToolError
+
 
 # ---------------------------------------------------------------------------
 # 1. Catalog — allowed commands
@@ -302,8 +305,8 @@ async def test_do_e2e_invalid_plan_blocked():
         mock_brief.return_value = ""
         mock_svc.generate = AsyncMock(return_value="delete_object path=/X")
 
-        result = await do("delete a cube")
-        assert result.startswith("INVALID PLAN:"), result
+        with pytest.raises(ToolError, match="INVALID PLAN"):
+            await do("delete a cube")
         mock_send.assert_not_called()
 
 
@@ -322,8 +325,8 @@ async def test_do_returns_error_when_haiku_unavailable():
         mock_brief.return_value = ""
         mock_svc.generate = AsyncMock(return_value=None)
 
-        result = await do("add a cube")
-        assert "ERROR" in result
+        with pytest.raises(ToolError, match="Haiku planning unavailable"):
+            await do("add a cube")
         mock_send.assert_not_called()
 
 

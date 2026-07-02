@@ -26,12 +26,19 @@ namespace UnityMCP.Editor.Tests
     public class AnimationSerializerTests
     {
         private GameObject _go;
+        private readonly System.Collections.Generic.List<UnityEngine.Object> _assets = new();
 
         [SetUp]
         public void SetUp() => _go = new GameObject("AnimSerTest");
 
         [TearDown]
-        public void TearDown() => UnityEngine.Object.DestroyImmediate(_go);
+        public void TearDown()
+        {
+            foreach (var a in _assets)
+                if (a != null) UnityEngine.Object.DestroyImmediate(a);
+            _assets.Clear();
+            UnityEngine.Object.DestroyImmediate(_go);
+        }
 
         [Test]
         public void GetAllClips_NoAnimatorNoAnimation_ReturnsNull()
@@ -44,6 +51,7 @@ namespace UnityMCP.Editor.Tests
         {
             var anim = _go.AddComponent<Animation>();
             var clip = new AnimationClip { name = "TestClip", legacy = true };
+            _assets.Add(clip);
             anim.AddClip(clip, clip.name);
 
             var result = AnimationSerializer.GetAllClips(_go);
@@ -66,6 +74,7 @@ namespace UnityMCP.Editor.Tests
         {
             var anim = _go.AddComponent<Animation>();
             var clip = new AnimationClip { name = "Walk", legacy = true };
+            _assets.Add(clip);
             anim.AddClip(clip, clip.name);
 
             var result = AnimationSerializer.FindClip(_go, "Walk");
@@ -79,6 +88,7 @@ namespace UnityMCP.Editor.Tests
         {
             var anim = _go.AddComponent<Animation>();
             var clip = new AnimationClip { name = "Walk", legacy = true };
+            _assets.Add(clip);
             anim.AddClip(clip, clip.name);
 
             Assert.IsNull(AnimationSerializer.FindClip(_go, "Run"));
@@ -99,6 +109,7 @@ namespace UnityMCP.Editor.Tests
         {
             var anim = _go.AddComponent<Animation>();
             var clip = new AnimationClip { name = "Jump", legacy = true };
+            _assets.Add(clip);
             // Add one curve so binding count is 1
             var curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
             AnimationUtility.SetEditorCurve(clip,
@@ -116,6 +127,7 @@ namespace UnityMCP.Editor.Tests
         {
             var anim = _go.AddComponent<Animation>();
             var clip = new AnimationClip { name = "Idle", legacy = true };
+            _assets.Add(clip);
             var curve = AnimationCurve.Linear(0f, 0f, 2f, 1f);
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("", typeof(Transform), "m_LocalPosition.y"), curve);
@@ -243,6 +255,7 @@ namespace UnityMCP.Editor.Tests
     public class ShaderSerializerTests
     {
         private GameObject _go;
+        private Material _mat;
 
         [SetUp]
         public void SetUp()
@@ -254,11 +267,18 @@ namespace UnityMCP.Editor.Tests
                          ?? Shader.Find("Standard")
                          ?? Shader.Find("Unlit/Color");
             if (shader != null)
-                renderer.sharedMaterial = new Material(shader);
+            {
+                _mat = new Material(shader);
+                renderer.sharedMaterial = _mat;
+            }
         }
 
         [TearDown]
-        public void TearDown() => UnityEngine.Object.DestroyImmediate(_go);
+        public void TearDown()
+        {
+            UnityEngine.Object.DestroyImmediate(_go);
+            if (_mat != null) UnityEngine.Object.DestroyImmediate(_mat);
+        }
 
         private string Path => "/" + _go.name;
 

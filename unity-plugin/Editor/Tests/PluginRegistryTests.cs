@@ -14,6 +14,7 @@ namespace UnityMCP.Editor.Tests
             public int RegisterCommandsCallCount;
             public int OnDomainReloadCallCount;
             public bool OnDomainReloadThrows;
+            public bool RegisterCommandsThrows;
 
             public FakePlugin(string name, string prefix = "fake")
             {
@@ -21,7 +22,11 @@ namespace UnityMCP.Editor.Tests
                 CommandPrefix = prefix;
             }
 
-            public void RegisterCommands() => RegisterCommandsCallCount++;
+            public void RegisterCommands()
+            {
+                RegisterCommandsCallCount++;
+                if (RegisterCommandsThrows) throw new InvalidOperationException("simulated");
+            }
 
             public void OnDomainReload()
             {
@@ -29,6 +34,19 @@ namespace UnityMCP.Editor.Tests
                 if (OnDomainReloadThrows) throw new InvalidOperationException("simulated");
             }
 
+            public IReadOnlyList<string> AdditionalCommands => Array.Empty<string>();
+        }
+
+        // Task 3.1 (ROI reliability sprint): a plugin trying to claim core-only trust flags
+        // (alwaysAllowed / allowedDuringCompile) via the legacy Register() overload.
+        private class PluginRequestingCoreFlags : IMCPPlugin
+        {
+            public string Name => "CoreFlagPlugin";
+            public string CommandPrefix => "plugin";
+            public void RegisterCommands() =>
+                CommandRegistry.Register("plugin_cmd", _ => "ok",
+                    alwaysAllowed: true, allowedDuringCompile: true);
+            public void OnDomainReload() { }
             public IReadOnlyList<string> AdditionalCommands => Array.Empty<string>();
         }
 
@@ -102,6 +120,51 @@ namespace UnityMCP.Editor.Tests
 
             Assert.DoesNotThrow(() => PluginRegistry.OnDomainReload(),
                 "OnDomainReload must swallow plugin exceptions");
+        }
+
+        // ── Task 3.1: CallerIsPlugin gate + failed-plugin tracking ─────────────
+
+        [Test]
+        public void RegisterAllPlugins_PluginRequestsAlwaysAllowed_FlagIsDenied()
+        {
+            CommandRegistry.Clear();
+            var plugin = new PluginRequestingCoreFlags();
+            PluginRegistry.Register(plugin);
+
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Warning,
+                new System.Text.RegularExpressions.Regex("core-only flags"));
+            PluginRegistry.RegisterAllPlugins();
+
+            Assert.IsFalse(CommandRegistry.IsAlwaysAllowed("plugin_cmd"));
+            Assert.IsFalse(CommandRegistry.IsAllowedDuringCompile("plugin_cmd"));
+        }
+
+        [Test]
+        public void RegisterAllPlugins_BuiltInCommands_KeepCoreFlags()
+        {
+            // Sanity check: the gate must not leak into RegisterAll()'s own trusted
+            // registrations. execute_code (CommandRouter.cs) is registered with
+            // allowedDuringCompile: true directly by RegisterAll(), entirely outside any
+            // RegisterAllPlugins() plugin iteration — must still read true afterward.
+            PluginRegistry.RegisterAllPlugins();
+
+            Assert.IsTrue(CommandRegistry.IsAllowedDuringCompile("execute_code"));
+        }
+
+        [Test]
+        public void RegisterAllPlugins_PluginThrows_RecordedInGetFailedPlugins()
+        {
+            CommandRegistry.Clear();
+            var plugin = new FakePlugin("BadPlugin") { RegisterCommandsThrows = true };
+            PluginRegistry.Register(plugin);
+
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error,
+                new System.Text.RegularExpressions.Regex("BadPlugin.*RegisterCommands failed"));
+            PluginRegistry.RegisterAllPlugins();
+
+            var failed = PluginRegistry.GetFailedPlugins();
+            Assert.AreEqual(1, failed.Count);
+            Assert.AreEqual("BadPlugin", failed[0].Name);
         }
 
         [Test]

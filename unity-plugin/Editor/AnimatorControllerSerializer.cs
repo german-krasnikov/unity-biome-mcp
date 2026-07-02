@@ -76,7 +76,9 @@ namespace UnityMCP.Editor
                     sb.Append("  ");
                     if (defaultState == st) sb.Append("* ");
                     sb.Append(st.name);
-                    if (st.motion != null)
+                    if (st.motion is BlendTree motionBt)
+                        sb.Append(" | [BT:").Append(motionBt.blendType).Append(' ').Append(motionBt.children.Length).Append("ch]");
+                    else if (st.motion != null)
                         sb.Append(" | ").Append(st.motion.name).Append(st.motion.name.EndsWith(".anim") ? "" : ".anim");
                     sb.Append(" | ").Append(st.speed.ToString("G4", CultureInfo.InvariantCulture)).Append("x");
                     if (!string.IsNullOrEmpty(st.tag))
@@ -101,10 +103,20 @@ namespace UnityMCP.Editor
 
             var sb = new StringBuilder();
             sb.Append("state: ").Append(state.name);
-            if (state.motion != null) sb.Append(" | ").Append(state.motion.name);
+            if (state.motion is BlendTree detailBt)
+                sb.Append(" | [BT:").Append(detailBt.blendType).Append(']');
+            else if (state.motion != null)
+                sb.Append(" | ").Append(state.motion.name);
             sb.Append(" | speed:").Append(state.speed.ToString("G4", CultureInfo.InvariantCulture));
             if (!string.IsNullOrEmpty(state.tag)) sb.Append(" | tag:").Append(state.tag);
             sb.AppendLine();
+
+            // BlendTree detail
+            if (state.motion is BlendTree stateBt)
+            {
+                sb.AppendLine("---");
+                sb.AppendLine(SerializeBlendTree(stateBt));
+            }
 
             // Outgoing transitions
             if (state.transitions.Length > 0)
@@ -155,6 +167,26 @@ namespace UnityMCP.Editor
                 sb.Append(" | ").Append(t.duration.ToString("G4", CultureInfo.InvariantCulture)).Append("s");
                 sb.AppendLine();
             }
+        }
+
+        public static string SerializeBlendTree(BlendTree bt)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"type:{bt.blendType}");
+            sb.AppendLine($"param:{bt.blendParameter}");
+            if (bt.blendType != BlendTreeType.Simple1D)
+                sb.AppendLine($"paramY:{bt.blendParameterY}");
+            sb.AppendLine($"children:{bt.children.Length}");
+            for (int i = 0; i < bt.children.Length; i++)
+            {
+                var c = bt.children[i];
+                var motionName = c.motion != null ? c.motion.name : "null";
+                if (bt.blendType == BlendTreeType.Simple1D)
+                    sb.AppendLine($"  [{i}] {motionName} threshold:{c.threshold.ToString("G4", CultureInfo.InvariantCulture)}");
+                else
+                    sb.AppendLine($"  [{i}] {motionName} pos:({c.position.x.ToString("G4", CultureInfo.InvariantCulture)},{c.position.y.ToString("G4", CultureInfo.InvariantCulture)})");
+            }
+            return sb.ToString().TrimEnd();
         }
 
         private static void AppendConditions(StringBuilder sb, AnimatorCondition[] conditions)

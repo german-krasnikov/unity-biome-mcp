@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
@@ -11,6 +10,9 @@ namespace UnityMCP.Editor
     /// <summary>Shared MCP action methods — used by status window and status bar widget.</summary>
     internal static class MCPActions
     {
+        // Test seam: override to isolate KillAll from real ~/.unity-mcp in tests.
+        internal static string OverrideLockDir;
+
         internal static void Restart()
         {
             MCPServer.Stop();
@@ -20,17 +22,17 @@ namespace UnityMCP.Editor
         internal static void RestartRelay()
         {
             InvokeRelay("Stop");
-            Task.Run(() => {
+            EditorApplication.delayCall += () => {
                 try { InvokeRelay("EnsureRunning"); }
                 catch { /* status bar reflects result on next PulseTick */ }
-            });
+            };
         }
 
         internal static void Kill() => KillAll();
 
         internal static void KillAll()
         {
-            var dir = System.IO.Path.Combine(
+            var dir = OverrideLockDir ?? System.IO.Path.Combine(
                 System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
                 ".unity-mcp");
             if (!Directory.Exists(dir))

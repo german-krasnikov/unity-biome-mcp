@@ -2,6 +2,7 @@
 
 Reduces multi-step setup to a single tool call.
 """
+from ._common import bind
 import re
 from ._annotations import RW as _RW
 from ..utils import parse_kv
@@ -136,8 +137,7 @@ async def configure_objects(config: str) -> str:
 
 
 def register(mcp, send, args):
-    global _send
-    _send = send
+    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(setup_objects)
     mcp.tool(annotations=_RW)(set_properties)
     mcp.tool(annotations=_RW)(configure_objects)

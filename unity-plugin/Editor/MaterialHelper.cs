@@ -18,8 +18,9 @@ namespace UnityMCP.Editor
                 "set" => Set(argsJson),
                 "copy" => Copy(argsJson),
                 "list_properties" => ListProperties(argsJson),
+                "list_slots" => ListSlots(argsJson),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "create", "get", "set", "copy", "list_properties" }))
+                    new[] { "create", "get", "set", "copy", "list_properties", "list_slots" }))
             };
         }
 
@@ -39,7 +40,7 @@ namespace UnityMCP.Editor
             return $"ok: {path}";
         }
 
-        private static Material ResolveMaterial(string args)
+        private static Material ResolveMaterial(string args, int slot = 0)
         {
             var path = JsonHelper.ExtractString(args, "path");
             var objectPath = JsonHelper.ExtractString(args, "object_path");
@@ -56,15 +57,19 @@ namespace UnityMCP.Editor
                 if (go == null) throw new InvalidOperationException(ErrorHelper.ObjectNotFound(objectPath));
                 var renderer = go.GetComponent<Renderer>();
                 if (renderer == null) throw new InvalidOperationException($"No Renderer on: {objectPath}");
-                if (renderer.sharedMaterial == null) throw new InvalidOperationException($"Renderer on '{objectPath}' has no material assigned");
-                return renderer.sharedMaterial;
+                var mats = renderer.sharedMaterials;
+                if (slot < 0 || slot >= mats.Length)
+                    throw new ArgumentException($"Slot {slot} out of range (0-{mats.Length - 1})");
+                if (mats[slot] == null) throw new InvalidOperationException($"Renderer on '{objectPath}' has no material assigned at slot {slot}");
+                return mats[slot];
             }
             throw new ArgumentException("path or object_path is required");
         }
 
         private static string Get(string args)
         {
-            var mat = ResolveMaterial(args);
+            var slot = JsonHelper.ExtractInt(args, "slot");
+            var mat = ResolveMaterial(args, slot);
             var sb = new StringBuilder();
             sb.AppendLine($"Shader: {mat.shader.name}");
 
@@ -96,7 +101,8 @@ namespace UnityMCP.Editor
 
         private static string Set(string args)
         {
-            var mat = ResolveMaterial(args);
+            var slot = JsonHelper.ExtractInt(args, "slot");
+            var mat = ResolveMaterial(args, slot);
             var prop = JsonHelper.ExtractString(args, "prop")
                 ?? throw new ArgumentException("prop is required");
             var value = JsonHelper.ExtractString(args, "value")
@@ -125,6 +131,7 @@ namespace UnityMCP.Editor
                 ?? throw new ArgumentException("source is required");
             var targets = JsonHelper.ExtractString(args, "targets")
                 ?? throw new ArgumentException("targets is required");
+            var slot = JsonHelper.ExtractInt(args, "slot");
 
             Material mat;
             if (sourcePath.StartsWith("Assets/", StringComparison.Ordinal) || sourcePath.StartsWith("Packages/", StringComparison.Ordinal))
@@ -138,7 +145,10 @@ namespace UnityMCP.Editor
                 if (sourceGo == null) throw new InvalidOperationException(ErrorHelper.ObjectNotFound(sourcePath));
                 var sourceRenderer = sourceGo.GetComponent<Renderer>();
                 if (sourceRenderer == null) throw new InvalidOperationException($"No Renderer on: {sourcePath}");
-                mat = sourceRenderer.sharedMaterial;
+                var sourceMats = sourceRenderer.sharedMaterials;
+                if (slot < 0 || slot >= sourceMats.Length)
+                    throw new ArgumentException($"Source slot {slot} out of range (0-{sourceMats.Length - 1})");
+                mat = sourceMats[slot];
             }
 
             int count = 0;
@@ -151,7 +161,16 @@ namespace UnityMCP.Editor
                 var r = go.GetComponent<Renderer>();
                 if (r == null) continue;
                 Undo.RecordObject(r, "Copy Material");
-                r.sharedMaterial = mat;
+                var mats = r.sharedMaterials;
+                if (slot < mats.Length)
+                {
+                    mats[slot] = mat;
+                    r.sharedMaterials = mats;
+                }
+                else
+                {
+                    r.sharedMaterial = mat;
+                }
                 EditorUtility.SetDirty(r);
                 count++;
             }
@@ -160,7 +179,8 @@ namespace UnityMCP.Editor
 
         private static string ListProperties(string args)
         {
-            var mat = ResolveMaterial(args);
+            var slot = JsonHelper.ExtractInt(args, "slot");
+            var mat = ResolveMaterial(args, slot);
             var sb = new StringBuilder();
             int count = mat.shader.GetPropertyCount();
             for (int i = 0; i < count; i++)
@@ -172,5 +192,23 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd();
         }
 
+        private static string ListSlots(string args)
+        {
+            var objectPath = JsonHelper.ExtractString(args, "object_path")
+                ?? throw new ArgumentException("object_path is required");
+            var go = ComponentSerializer.FindObject(objectPath);
+            if (go == null) throw new InvalidOperationException(ErrorHelper.ObjectNotFound(objectPath));
+            var renderer = go.GetComponent<Renderer>();
+            if (renderer == null) throw new InvalidOperationException($"No Renderer on: {objectPath}");
+
+            var mats = renderer.sharedMaterials;
+            var sb = new StringBuilder();
+            for (int i = 0; i < mats.Length; i++)
+            {
+                var m = mats[i];
+                sb.AppendLine($"[{i}] {(m != null ? m.name : "null")} ({(m != null ? m.shader.name : "none")})");
+            }
+            return sb.ToString().TrimEnd();
+        }
     }
 }

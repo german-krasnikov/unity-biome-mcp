@@ -31,7 +31,8 @@ namespace UnityMCP.Editor.Tests
     public class ConnectionStabilityTests
     {
         // T-C#1: THE internal-seam regression witness.
-        // Directly calls MCPServer.SendAsync (internal) under a NeverPumpingSyncContext.
+        // Directly calls ClientConnectionHandler.SendAsync (internal) under a NeverPumpingSyncContext.
+        // Phase 2 M1: SendAsync/ReadExactAsync moved from MCPServer to ClientConnectionHandler.
         // With ConfigureAwait(false): stream continuations run on ThreadPool → task completes.
         // Without it: continuations posted to stalled context → deadlock → Wait times out.
         //
@@ -48,7 +49,7 @@ namespace UnityMCP.Editor.Tests
             {
                 var stream = new AsyncYieldStream();
                 // BLOCKING wait — the test thread holds the stalled context but never pumps it.
-                Task t = MCPServer.SendAsync(stream, "{\"ok\":true,\"data\":\"pong\"}", CancellationToken.None);
+                Task t = ClientConnectionHandler.SendAsync(stream, "{\"ok\":true,\"data\":\"pong\"}", CancellationToken.None);
                 bool done = t.Wait(2000);
                 Assert.IsTrue(done,
                     "SendAsync deadlocked under stalled SynchronizationContext. " +
@@ -71,7 +72,7 @@ namespace UnityMCP.Editor.Tests
             {
                 var stream = new AsyncYieldStream();
                 var buffer = new byte[4];
-                Task<bool> t = MCPServer.ReadExactAsync(stream, buffer, CancellationToken.None);
+                Task<bool> t = ClientConnectionHandler.ReadExactAsync(stream, buffer, CancellationToken.None);
                 bool done = t.Wait(2000);
                 Assert.IsTrue(done,
                     "ReadExactAsync deadlocked under stalled SynchronizationContext. " +

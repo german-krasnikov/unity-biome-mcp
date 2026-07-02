@@ -9,6 +9,42 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.cinemachine",
+            "expression": "",
+            "define": "UNITYMCP_HAS_CINEMACHINE"
+        },
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "",
+            "define": "UNITYMCP_HAS_URP"
+        },
+        {
+            "name": "com.unity.render-pipelines.high-definition",
+            "expression": "",
+            "define": "UNITYMCP_HAS_HDRP"
+        },
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "",
+            "define": "UNITYMCP_HAS_INPUT_SYSTEM"
+        },
+        {
+            "name": "com.unity.postprocessing",
+            "expression": "",
+            "define": "UNITYMCP_HAS_POST_PROCESSING"
+        },
+        {
+            "name": "com.unity.textmeshpro",
+            "expression": "",
+            "define": "UNITYMCP_HAS_TMP"
+        },
+        {
+            "name": "com.unity.ai.navigation",
+            "expression": "",
+            "define": "UNITYMCP_HAS_AI_NAVIGATION"
+        }
+    ],
     "noEngineReferences": false
 }

@@ -1,6 +1,8 @@
 """TDD tests for animator_intent tool."""
-import re
 from unittest.mock import AsyncMock, patch
+
+import pytest
+from mcp.server.fastmcp.exceptions import ToolError
 
 
 # ---------------------------------------------------------------------------
@@ -185,9 +187,20 @@ async def test_animator_intent_no_sampling_returns_error():
     with patch("unity_mcp.tools.animator_intent_tool._send", new_callable=AsyncMock):
         with patch("unity_mcp.tools.animator_intent_tool._sampling") as mock_svc:
             mock_svc.generate = AsyncMock(return_value=None)
-            result = await animator_intent(target="/Player", intent="basic walk cycle")
-            # ERROR or unavailable are both legitimate responses when sampling disabled
-            assert re.search(r"ERROR|unavailable", result, re.IGNORECASE), result
+            with pytest.raises(ToolError, match="unavailable"):
+                await animator_intent(target="/Player", intent="basic walk cycle")
+
+
+async def test_animator_intent_no_commands_returns_error():
+    """DSL that parses cleanly (no validation error) but builds zero batch
+    lines must raise ToolError, not silently return an empty 'success'."""
+    from unity_mcp.tools.animator_intent_tool import animator_intent
+    with patch("unity_mcp.tools.animator_intent_tool._send", new_callable=AsyncMock) as mock_send:
+        with patch("unity_mcp.tools.animator_intent_tool._sampling") as mock_svc:
+            mock_svc.generate = AsyncMock(return_value="   ")
+            with pytest.raises(ToolError, match="DSL produced no commands"):
+                await animator_intent(target="/Player", intent="do nothing")
+    mock_send.assert_not_called()
 
 
 async def test_animator_intent_dry_run_returns_plan():
@@ -216,16 +229,16 @@ async def test_animator_intent_e2e_executes_batch():
 
 
 async def test_animator_intent_invalid_dsl_no_batch():
-    """LLM returns DSL with undeclared state in TRANS → result starts with 'INVALID DSL:', _send never called."""
+    """LLM returns DSL with undeclared state in TRANS → raises ToolError('INVALID DSL: ...'), _send never called."""
     from unity_mcp.tools.animator_intent_tool import animator_intent
     # Walk state is referenced in TRANS but never declared with STATE
     bad_dsl = "PARAM Speed float 0\nSTATE Idle Idle.anim\nDEFAULT Idle\nTRANS Idle -> Walk dur=0.15 if Speed>0.1"
     with patch("unity_mcp.tools.animator_intent_tool._send", new_callable=AsyncMock) as mock_send:
         with patch("unity_mcp.tools.animator_intent_tool._sampling") as mock_svc:
             mock_svc.generate = AsyncMock(return_value=bad_dsl)
-            result = await animator_intent(target="/Player", intent="basic walk cycle")
+            with pytest.raises(ToolError, match="INVALID DSL"):
+                await animator_intent(target="/Player", intent="basic walk cycle")
 
-    assert result.startswith("INVALID DSL:"), f"Expected 'INVALID DSL:' prefix, got: {result!r}"
     mock_send.assert_not_called()
 
 

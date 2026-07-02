@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace UnityMCP.Editor
 {
@@ -290,6 +291,64 @@ namespace UnityMCP.Editor
                     results.Add($"{label} ASSERT_CTA {step.Op} — {(ctaOk ? "PASS" : "FAIL")} ({ctaGo.name})");
                     if (ctaOk) passed++; else failed++;
                     phase = Phase.Done;
+                    break;
+                }
+
+                case StepType.Click:
+                {
+                    var go = ComponentSerializer.FindObject(step.Path);
+                    if (go == null)
+                    {
+                        results.Add($"{label} CLICK — ERR: object not found: {step.Path}");
+                        failed++;
+                        phase = Phase.Done;
+                        break;
+                    }
+                    if (!go.activeInHierarchy)
+                    {
+                        results.Add($"{label} CLICK — ERR: object inactive: {step.Path}");
+                        failed++;
+                        phase = Phase.Done;
+                        break;
+                    }
+                    var btn = go.GetComponent<UnityEngine.UI.Button>();
+                    if (btn != null)
+                    {
+                        if (!btn.interactable)
+                        {
+                            results.Add($"{label} CLICK — ERR: button not interactable: {step.Path}");
+                            failed++;
+                            phase = Phase.Done;
+                            break;
+                        }
+                        btn.onClick.Invoke();
+                        results.Add($"{label} CLICK button: {step.Path}");
+                        passed++;
+                    }
+                    else
+                    {
+                        var handler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(go);
+                        if (handler != null)
+                        {
+                            ExecuteEvents.Execute(handler, new PointerEventData(EventSystem.current), ExecuteEvents.pointerClickHandler);
+                            results.Add($"{label} CLICK handler: {step.Path}");
+                            passed++;
+                        }
+                        else
+                        {
+                            results.Add($"{label} CLICK — FAIL: no Button or IPointerClickHandler on {step.Path}");
+                            failed++;
+                        }
+                    }
+                    if (step.Delay > 0)
+                    {
+                        phase = Phase.WaitingDelay;
+                        phaseStart = Time.realtimeSinceStartup;
+                    }
+                    else
+                    {
+                        phase = Phase.Done;
+                    }
                     break;
                 }
             }
