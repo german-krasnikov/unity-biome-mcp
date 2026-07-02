@@ -1,125 +1,54 @@
 # Claude Code Setup
 
-Since v0.14.0 the in-Unity Chat window supports Claude Code as the primary backend. The plugin generates a temporary `--mcp-config` JSON file and invokes `claude` to isolate to only Unity's MCP tools. Works on **Windows, macOS, and Linux**.
+The plugin auto-configures Claude Code automatically when you add it to your project. Works on **Windows, macOS, and Linux**.
 
 ## Prerequisites
 
 - Claude Code CLI installed and authenticated
 - Unity 6000.0+ with the `unity-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or assigned by wizard) free
+- TCP port 9500 (or auto-assigned) free
 
-## 1. Quick Setup
+## Quick Setup
 
-The bootstrap script handles everything:
+### 1. Install Claude Code CLI
 
-**macOS/Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.sh | bash
-```
+Visit https://claude.com/download and install the native Claude Code app for your OS, or via npm:
 
-**Windows PowerShell:**
-```powershell
-iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.ps1).Content
-```
-
-Then open Unity and follow the Setup Wizard.
-
-## 2. Manual Setup
-
-### Install Claude Code CLI
-
-**Official installer (recommended):**
-Visit https://claude.com/download and install the native Claude Code app for your OS.
-
-**Or via npm:**
 ```bash
 npm install -g @anthropic-ai/claude-code
 claude --version
 ```
 
-### Install Python Server
-
-The Python MCP server runs on-demand via `uvx` — no installation needed. The setup wizard will auto-discover it.
-
-You can optionally verify it works:
-
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp --help
-```
-
-### Add Plugin to Unity
-
-1. Open Package Manager (Window → Package Manager)
-2. Click `+` → **Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
-4. Wait for import, then open any scene
-
-### Authenticate Claude Code
+Authenticate:
 
 ```bash
 claude auth login
-claude auth status
 ```
 
-## 3. Configure Claude Code (Automatic)
+### 2. Add Plugin to Unity
 
-Open Unity, then open the **Setup Wizard** via **MCP → Setup Wizard** menu. Select **Claude Code** and follow the prompts. It will:
+1. Open **Window → Package Manager**
+2. Click **+ → Add package from git URL**
+3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+4. Wait for import, then open any scene
 
-1. Verify Python 3.10+ is available
-2. Test MCP server connectivity
-3. Write your Claude Code MCP config file
-4. Show the TCP port number
+The plugin auto-generates your Claude Code MCP config on first load.
 
-**Manual configuration** (if wizard fails):
+### 3. Verify Installation (Optional)
 
-Edit your Claude Code `mcp_settings.json` file (usually `~/.config/claude/mcp_settings.json` on macOS/Linux or `%APPDATA%\Anthropic\Claude\mcp_settings.json` on Windows) and add:
-
-```json
-{
-  "mcpServers": {
-    "unity-mcp": {
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server", "unity-mcp"],
-      "env": { "UNITY_MCP_PORT": "9500" }
-    }
-  }
-}
-```
-
-Save the file, then restart Claude Code.
-
-<details>
-<summary><b>Alternative: Manual Installation (git clone)</b></summary>
+Run the diagnostic:
 
 ```bash
-git clone https://github.com/german-krasnikov/unity-kiss-mcp.git
-cd unity-kiss-mcp
-python install.py setup
+uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
 ```
 
-This clones the repository locally, creates a Python venv, and installs dependencies. After setup, verify:
+Or from Claude Code itself:
 
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp --help
+```python
+await doctor()
 ```
 
-Then configure your AI tool:
-
-```bash
-python install.py configure --tool claude-code
-# Or project-scoped:
-python install.py configure --tool claude-code --project-dir /path/to/unity/project
-```
-
-Verify installation:
-
-```bash
-python install.py doctor
-```
-
-</details>
-
-## 4. Use Claude Code From the Editor (Primary Workflow)
+## Use Claude Code From the Editor (Primary Workflow)
 
 1. Open Unity and wait for `[MCP] Server started on port <XXXX>` in the Console.
 2. Open **MCP → Chat**.

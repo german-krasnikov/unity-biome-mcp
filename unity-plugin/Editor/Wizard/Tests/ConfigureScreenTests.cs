@@ -98,7 +98,63 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(ContainsButton(root, "Project"), "Should have Project scope button");
         }
 
+        // ── Phase 1A: AutoProjectConfig / ManualInstructions branches ──────────
+
+        [Test]
+        public void RunConfigure_AutoProjectConfigBackend_LogsAutoConfiguredMessage()
+        {
+            var screen = new ConfigureScreen(null, null);
+            var backend = System.Array.Find(BackendDescriptor.All, b => b.Key == "cursor");
+            screen.SetBackend(backend);
+            var root = screen.Build();
+            screen.OnEnter();
+
+            // Project scope short-circuits before the existing install.py subprocess flow.
+            InvokeSetScope(screen, true);
+            InvokeRunConfigure(screen);
+
+            Assert.IsTrue(ContainsTextContaining(root, "auto-configured"),
+                "Should log an auto-configured message for AutoProjectConfig backends");
+        }
+
+        [Test]
+        public void RunConfigure_ManualInstructionsBackend_LogsInstructions()
+        {
+            var screen = new ConfigureScreen(null, null);
+            var backend = System.Array.Find(BackendDescriptor.All, b => b.Key == "rider-ai");
+            screen.SetBackend(backend);
+            var root = screen.Build();
+            screen.OnEnter();
+
+            InvokeRunConfigure(screen);
+
+            Assert.IsTrue(ContainsTextContaining(root, backend.Instructions),
+                "Should log the manual instructions text");
+        }
+
         // ── Helpers ──────────────────────────────────────────────────────────
+
+        private static void InvokeRunConfigure(ConfigureScreen screen)
+        {
+            var method = typeof(ConfigureScreen).GetMethod("RunConfigure",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            method.Invoke(screen, null);
+        }
+
+        private static void InvokeSetScope(ConfigureScreen screen, bool projectScope)
+        {
+            var method = typeof(ConfigureScreen).GetMethod("SetScope",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            method.Invoke(screen, new object[] { projectScope });
+        }
+
+        private static bool ContainsTextContaining(VisualElement root, string substring)
+        {
+            if (root is Label lbl && lbl.text.Contains(substring)) return true;
+            foreach (var child in root.Children())
+                if (ContainsTextContaining(child, substring)) return true;
+            return false;
+        }
 
         private static bool ContainsButton(VisualElement root, string text)
         {

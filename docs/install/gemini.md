@@ -1,6 +1,19 @@
-# Gemini Setup
+# Gemini Setup (Deprecated)
 
-Since v0.30.1. The in-Unity Chat window supports Gemini as a backend. The plugin spawns `gemini -p` per turn with stream-json output, auto-writing MCP config to `~/.gemini/settings.json` without clobbering other settings. Works on **macOS and Linux**.
+**Note: Gemini support has been deprecated as of v0.68.0. Please use one of the actively supported backends instead:**
+
+- [Claude Code](claude-code.md) — recommended
+- [Codex](codex.md)
+- [Cursor](cursor.md)
+- [Windsurf](windsurf.md)
+- [VS Code](vscode.md)
+- [Claude Desktop](claude-desktop.md)
+- [Kimi](kimi.md)
+- [OpenCode](opencode.md)
+
+---
+
+Since v0.30.1. The in-Unity Chat window previously supported Gemini as a backend (deprecated v0.68.0).
 
 ## Prerequisites
 

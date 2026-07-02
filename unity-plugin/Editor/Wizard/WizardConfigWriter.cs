@@ -39,28 +39,33 @@ namespace UnityMCP.Editor.Wizard
             }
         }
 
-        internal static string Fresh(int port) =>
-            "{\n" +
-            "  \"mcpServers\": {\n" +
-            "    " + Entry(port) + "\n" +
-            "  }\n" +
-            "}\n";
+        internal static string Fresh(int port) => Fresh(port, GitInstallUrl, "mcpServers");
 
-        internal static string Merge(string existing, int port)
+        internal static string Fresh(int port, string gitUrl, string rootKey) =>
+            FreshWithEntry(Entry(port, gitUrl), rootKey);
+
+        internal static string Merge(string existing, int port) =>
+            Merge(existing, port, GitInstallUrl, "mcpServers");
+
+        internal static string Merge(string existing, int port, string gitUrl, string rootKey) =>
+            MergeWithEntry(existing, Entry(port, gitUrl), rootKey);
+
+        // Shared brace-counting merge, parameterized on a pre-built entry string — reused by
+        // ProjectConfigFormats with a version-marker-aware entry (BuildEntry) instead of the
+        // plain one, so both writers share one merge algorithm (DRY).
+        internal static string MergeWithEntry(string existing, string entry, string rootKey)
         {
-            var entry = Entry(port);
-
             if (existing.Contains("\"unity-mcp\""))
             {
                 var freshValue = entry.Substring(entry.IndexOf('{'));
                 return ReplaceEntry(existing, "unity-mcp", freshValue) ?? existing;
             }
 
-            if (existing.Contains("\"mcpServers\""))
+            if (existing.Contains("\"" + rootKey + "\""))
             {
-                var idx      = existing.IndexOf("\"mcpServers\"", StringComparison.Ordinal);
-                var braceIdx = existing.IndexOf('{', idx + "\"mcpServers\"".Length);
-                if (braceIdx < 0) return Fresh(port);
+                var idx      = existing.IndexOf("\"" + rootKey + "\"", StringComparison.Ordinal);
+                var braceIdx = existing.IndexOf('{', idx + rootKey.Length + 2);
+                if (braceIdx < 0) return FreshWithEntry(entry, rootKey);
                 var after = existing.Substring(braceIdx + 1).TrimStart();
                 var sep   = after.StartsWith("}") ? "" : ",";
                 return existing.Substring(0, braceIdx + 1)
@@ -74,11 +79,18 @@ namespace UnityMCP.Editor.Wizard
                 var comma = existing.Substring(0, lastBrace).TrimEnd().EndsWith("{") ? "" : ",";
                 return existing.Substring(0, lastBrace)
                      + comma
-                     + "\n  \"mcpServers\": {\n    " + entry + "\n  }\n}";
+                     + "\n  \"" + rootKey + "\": {\n    " + entry + "\n  }\n}";
             }
 
-            return Fresh(port);
+            return FreshWithEntry(entry, rootKey);
         }
+
+        internal static string FreshWithEntry(string entry, string rootKey) =>
+            "{\n" +
+            "  \"" + rootKey + "\": {\n" +
+            "    " + entry + "\n" +
+            "  }\n" +
+            "}\n";
 
         public const string GitInstallUrl =
             "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server";
@@ -106,10 +118,12 @@ namespace UnityMCP.Editor.Wizard
             return true;
         }
 
-        private static string Entry(int port) =>
+        internal static string Entry(int port) => Entry(port, GitInstallUrl);
+
+        internal static string Entry(int port, string gitUrl) =>
             "\"unity-mcp\": {\n" +
             "      \"command\": \"uvx\",\n" +
-            $"      \"args\": [\"--from\", \"{GitInstallUrl}\", \"unity-mcp\"],\n" +
+            $"      \"args\": [\"--from\", \"{gitUrl}\", \"unity-mcp\"],\n" +
             $"      \"env\": {{ \"UNITY_MCP_PORT\": \"{port}\" }}\n" +
             "    }";
 
@@ -137,11 +151,23 @@ namespace UnityMCP.Editor.Wizard
 
         private static string ReplaceEntry(string json, string key, string newValue)
         {
-            if (string.IsNullOrEmpty(json)) return null;
+            if (!FindEntryBounds(json, key, out var start, out var end)) return null;
+            return json.Substring(0, start) + newValue + json.Substring(end);
+        }
+
+        // Locates the brace-delimited object value for "key": { ... } in a JSON string —
+        // shared by ReplaceEntry (merge) and ProjectConfigFormats (marker-regex scoping)
+        // so both consumers agree on where one entry ends and the next sibling begins.
+        // Returns false if key absent or braces unterminated (malformed JSON) — callers
+        // treat that as "can't safely touch it".
+        internal static bool FindEntryBounds(string json, string key, out int start, out int end)
+        {
+            start = end = -1;
+            if (string.IsNullOrEmpty(json)) return false;
             var keyIdx = json.IndexOf("\"" + key + "\"", StringComparison.Ordinal);
-            if (keyIdx < 0) return null;
+            if (keyIdx < 0) return false;
             var braceStart = json.IndexOf('{', keyIdx + key.Length + 2);
-            if (braceStart < 0) return null;
+            if (braceStart < 0) return false;
             int depth = 1, pos = braceStart + 1;
             while (pos < json.Length && depth > 0)
             {
@@ -149,7 +175,10 @@ namespace UnityMCP.Editor.Wizard
                 else if (json[pos] == '}') depth--;
                 pos++;
             }
-            return json.Substring(0, braceStart) + newValue + json.Substring(pos);
+            if (depth != 0) return false;
+            start = braceStart;
+            end = pos;
+            return true;
         }
     }
 }

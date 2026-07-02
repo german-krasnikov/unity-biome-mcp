@@ -1,26 +1,16 @@
 # Kimi Setup
 
-Since v0.34.0. The in-Unity Chat window supports Kimi K2 as a backend. The plugin spawns `kimi -p` per turn with stream-json output, auto-configuring MCP at `~/.kimi-code/mcp.json` and model presets at `~/.kimi-code/config.toml`. Works on **macOS and Linux**.
+The plugin auto-configures Kimi automatically when you add it to your project. Works on **macOS and Linux**.
 
 ## Prerequisites
 
 - Kimi CLI installed and authenticated
 - Unity 6000.0+ with the `unity-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or assigned by wizard) free
+- TCP port 9500 (or auto-assigned) free
 
-## 1. Quick Setup
+## Quick Setup
 
-Bootstrap script handles everything:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.sh | bash
-```
-
-Then open Unity and follow the Setup Wizard.
-
-## 2. Manual Setup
-
-### Install Kimi CLI
+### 1. Install Kimi CLI
 
 ```bash
 curl -fsSL https://kimi.ai/install.sh | bash
@@ -29,78 +19,30 @@ kimi --version
 
 The installer adds `~/.kimi-code/bin` to PATH via `~/.zshrc` (macOS) or `~/.bashrc` (Linux). **Restart your terminal** before continuing.
 
-### Install Python Server
+### 2. Add Plugin to Unity
 
-The Python MCP server runs on-demand via `uvx` — no installation needed. The setup wizard will auto-discover it.
-
-### Add Plugin to Unity
-
-1. Open Package Manager (Window → Package Manager)
-2. Click `+` → **Add package from git URL**
+1. Open **Window → Package Manager**
+2. Click **+ → Add package from git URL**
 3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+4. Wait for import, then open any scene
 
-### Authenticate Kimi
+Authenticate Kimi:
 
 ```bash
 kimi login
 ```
 
-Opens a browser for OAuth authorization. Credentials are stored in `~/.kimi-code/credentials/`.
+The plugin auto-generates your Kimi MCP config on first load.
 
-### Configure Kimi (Automatic)
+### 3. Verify Installation (Optional)
 
-Open Unity, then open the **Setup Wizard** via **MCP → Setup Wizard** menu. Select **Kimi** and follow the prompts. The wizard will write `~/.kimi-code/mcp.json` automatically.
-
-**Manual configuration:**
-
-Create or edit `~/.kimi-code/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "unity-mcp": {
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server", "unity-mcp"],
-      "env": { "UNITY_MCP_PORT": "9500" }
-    }
-  }
-}
-```
-
-Kimi will read this file automatically on the next startup.
-
-<details>
-<summary><b>Alternative: Manual Installation (git clone)</b></summary>
+Run the diagnostic:
 
 ```bash
-git clone https://github.com/german-krasnikov/unity-kiss-mcp.git
-cd unity-kiss-mcp
-python install.py setup
+uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
 ```
 
-This clones the repository locally, creates a Python venv, and installs dependencies. After setup, verify:
-
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp --help
-```
-
-Then configure your AI tool:
-
-```bash
-python install.py configure --tool kimi
-# Or project-scoped:
-python install.py configure --tool kimi --project-dir /path/to/unity/project
-```
-
-Verify installation:
-
-```bash
-python install.py doctor
-```
-
-</details>
-
-## 3. Use From the Editor (Primary Workflow)
+## Use From the Editor (Primary Workflow)
 
 1. Open Unity and wait for `[MCP] Server started on port <XXXX>` in the Console.
 2. Open **MCP → Chat**.

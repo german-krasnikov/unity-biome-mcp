@@ -141,6 +141,27 @@ namespace UnityMCP.Editor.Wizard.Screens
         {
             if (_backend == null) return;
 
+            if (_backend.AutoProjectConfig)
+            {
+                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                var relPath = ProjectConfigTargets.RelativePathFor(_backend.Key) ?? "";
+                var path = Path.Combine(projectRoot, relPath);
+                AppendLog($"✓ {_backend.DisplayName} is auto-configured per-project at {path}");
+                AppendLog("Regenerates automatically on port/version change — no action needed.");
+                if (_projectScope) return; // nothing else to do, ProjectConfigWriter already handled it
+                // else fall through to the existing install.py subprocess flow (Global scope)
+            }
+
+            if (_backend.Mechanism == InstallMechanism.ManualInstructions)
+            {
+                AppendLog(_backend.Instructions);
+                int manualPort = MCPServer.IsRunning ? MCPServer.ServerPort : 9500;
+                var uvxCmd = $"UNITY_MCP_PORT={manualPort} uvx --from {WizardConfigWriter.GitInstallUrl} unity-mcp";
+                GUIUtility.systemCopyBuffer = uvxCmd;
+                AppendLog("(uvx command copied to clipboard)");
+                return;
+            }
+
             if (_backend.Mechanism == InstallMechanism.ChatAuto)
             {
                 AppendLog($"✓ {_backend.DisplayName} is auto-configured at chat start — no extra steps needed.");

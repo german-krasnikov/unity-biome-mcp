@@ -1,0 +1,65 @@
+// Pure JSON entry build/merge/classify for per-project MCP config files.
+// No Unity API — plain string/int in, string/enum out (see Plans/Install/11-phase1a-design.md).
+using System.Text.RegularExpressions;
+
+namespace UnityMCP.Editor.Wizard
+{
+    // Shared by ProjectConfigFormats (JSON) and ProjectConfigToml (Codex TOML).
+    internal enum EntryState { Absent, Foreign, OwnedStale, OwnedCurrent }
+
+    internal static class ProjectConfigFormats
+    {
+        private static readonly Regex MarkerVersionRe = new Regex("\"_v\"\\s*:\\s*\"([^\"]+)\"");
+        private static readonly Regex MarkerPortRe = new Regex("\"UNITY_MCP_PORT\"\\s*:\\s*\"(\\d+)\"");
+
+        // Builds the full unity-mcp entry: WizardConfigWriter.Entry(port, gitUrl) plus a
+        // trailing "_v": version marker key, inserted just before the closing brace.
+        internal static string BuildEntry(int port, string gitUrl, string version)
+        {
+            var baseEntry = WizardConfigWriter.Entry(port, gitUrl);
+            var withoutClosingBrace = baseEntry.Substring(0, baseEntry.Length - 1).TrimEnd();
+            return withoutClosingBrace + ",\n      \"_v\": \"" + version + "\"\n    }";
+        }
+
+        internal static string BuildFresh(int port, string gitUrl, string version, string rootKey) =>
+            WizardConfigWriter.FreshWithEntry(BuildEntry(port, gitUrl, version), rootKey);
+
+        internal static string Merge(string existing, int port, string gitUrl, string version, string rootKey) =>
+            WizardConfigWriter.MergeWithEntry(existing, BuildEntry(port, gitUrl, version), rootKey);
+
+        // Scoped to the "unity-mcp" value's own brace span (via WizardConfigWriter's
+        // brace-counting), NOT the whole file — a sibling MCP server entry with its own
+        // "_v"/"UNITY_MCP_PORT" key must never leak into unity-mcp's classification
+        // (was a data-loss bug: a foreign sibling's marker made a hand-edited unity-mcp
+        // entry misclassify as OwnedStale and get overwritten).
+        internal static string ExtractMarkerVersion(string existingText)
+        {
+            if (!WizardConfigWriter.FindEntryBounds(existingText, "unity-mcp", out var start, out var end))
+                return null;
+            var m = MarkerVersionRe.Match(existingText, start, end - start);
+            return m.Success ? m.Groups[1].Value : null;
+        }
+
+        internal static int? ExtractMarkerPort(string existingText)
+        {
+            if (!WizardConfigWriter.FindEntryBounds(existingText, "unity-mcp", out var start, out var end))
+                return null;
+            var m = MarkerPortRe.Match(existingText, start, end - start);
+            return m.Success ? int.Parse(m.Groups[1].Value) : (int?)null;
+        }
+
+        internal static EntryState Classify(string existingText, int port, string version)
+        {
+            if (string.IsNullOrEmpty(existingText) || !existingText.Contains("\"unity-mcp\""))
+                return EntryState.Absent;
+
+            var markerVersion = ExtractMarkerVersion(existingText);
+            if (markerVersion == null) return EntryState.Foreign;
+
+            var markerPort = ExtractMarkerPort(existingText);
+            return markerVersion == version && markerPort == port
+                ? EntryState.OwnedCurrent
+                : EntryState.OwnedStale;
+        }
+    }
+}

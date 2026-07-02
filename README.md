@@ -93,10 +93,21 @@ set_property path=Enemy component=Health prop=maxHp value=100
 
 **Prerequisites:** <kbd>Python 3.10+</kbd> · <kbd>Unity 6000.0+</kbd> · <kbd>TCP port 9500</kbd> free
 
-**One-liner (macOS/Linux):**
+**Step 1: Add the plugin via Package Manager**
+
+1. Open **Window → Package Manager**
+2. Click **+ → Add package from git URL**
+3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+4. Wait for import, then open any scene
+
+The plugin auto-generates MCP configuration for your AI tool on first load.
+
+**Step 2: Configure your AI tool (if needed)**
+
+Run the diagnostic to verify everything is working:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.sh | bash
+uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
 ```
 
 **One-liner (Windows PowerShell):**
@@ -222,7 +233,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="120 MCP Tools · 4412 Tests (3898 Python · 230 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="120 MCP Tools · 9826 Tests (3923 Python · 5619 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -281,6 +292,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.69.0</b> — 2026-07-02 — **Auto-Config on Editor Startup** — `ProjectConfigWriter` [InitializeOnLoad] …</summary>
+
+**Auto-Config on Editor Startup** — `ProjectConfigWriter` [InitializeOnLoad] auto-generates per-project MCP configs for 6 AI tools (Claude Code, …
+
+</details>
+
+<details>
 <summary><b>v0.68.0</b> — 2026-07-01 — **Issue 23: Batch DSL with CommandValidator** — CommandValidator replaces …</summary>
 
 **Issue 23: Batch DSL with CommandValidator** — CommandValidator replaces CommandSchema as source of truth.
@@ -309,15 +327,9 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 </details>
 
 <details>
-<summary><b>v0.65.1</b> — 2026-06-27 — **Plugin Development Guide** — New `/docs/plugin-development.md` (2100+ lines).</summary>
-
-**Plugin Development Guide** — New `/docs/plugin-development.md` (2100+ lines).
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.65.1** — 2026-06-27 — **Plugin Development Guide** — New `/docs/plugin-development.md` (2100+ lines).
 - **v0.65.0** — 2026-06-27 — **Python run_tests Pre-Flight Gate** — `diagnose(expected_compile=False)` …
 - **v0.64.0** — 2026-06-27 — **T1: Bare-Name Chip Detection** — `SceneObjectNormalizer._resolver?.Refresh()` …
 - **v0.63.0** — 2026-06-27 — **IToolbarButtonProvider.MenuOnly DIM** — New default interface member `bool …

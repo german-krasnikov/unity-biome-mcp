@@ -1119,6 +1119,21 @@ async def test_t2_5_guard_wedged_with_consent_runs_t5():
 
 
 @pytest.mark.asyncio
+async def test_t2_5_guard_check_code_is_valid_statement():
+    """Regression: SessionState probe sent to execute_code must end with ';'.
+
+    A missing semicolon compiles fine in mocked tests (execute_code is stubbed) but
+    crashes for real against Roslyn with CS1002 (";" expected) — invisible to every
+    other test in this file since none of them exercise a live compiler.
+    """
+    send = MockSend([])
+    await _ladder._t2_5_guard_check(send)
+    code_calls = [args["code"] for cmd, args in send.calls if cmd == "execute_code"]
+    assert code_calls, "execute_code must be called"
+    assert code_calls[0].strip().endswith(";"), f"missing semicolon: {code_calls[0]!r}"
+
+
+@pytest.mark.asyncio
 async def test_t2_5_not_wedged_continues_t3():
     """T2.5: guard=False → run_ladder continues to T3 (sync called).
 

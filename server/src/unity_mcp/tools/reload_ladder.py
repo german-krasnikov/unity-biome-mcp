@@ -125,7 +125,7 @@ async def _t4(send, baseline: str,
 async def _t2_5_guard_check(send) -> "bool | None":
     """Probe SessionState to detect ReloadGuard wedge. Returns True=wedged, False=clear, None=unknown."""
     try:
-        code = 'UnityEditor.SessionState.GetBool("MCP_ReloadGuardLocked", false).ToString()'
+        code = 'UnityEditor.SessionState.GetBool("MCP_ReloadGuardLocked", false).ToString();'
         result = await send("execute_code", {"code": code})
         r = result.strip().lower()
         if r == "true": return True

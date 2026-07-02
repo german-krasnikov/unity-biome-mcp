@@ -3,6 +3,8 @@
 import argparse
 import json
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -32,7 +34,8 @@ try:
     from unity_mcp.config.clients import CLIENT_REGISTRY, detect_installed
     from unity_mcp.config.merger import merge_mcp_config, merge_toml_mcp
     from unity_mcp.config.backup import backup
-    from unity_mcp.config.resolver import build_server_entry
+    from unity_mcp.config.resolver import build_server_entry, GIT_INSTALL_URL
+    from unity_mcp.config.validator import validate_config
 except ImportError:
     CLIENT_REGISTRY = {}  # type: ignore[assignment]
     detect_installed = lambda: []  # type: ignore[assignment]
@@ -40,6 +43,8 @@ except ImportError:
     merge_toml_mcp = None  # type: ignore[assignment]
     backup = None  # type: ignore[assignment]
     build_server_entry = lambda port=0: {}  # type: ignore[assignment]
+    GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server"
+    validate_config = lambda key: "not configured"  # type: ignore[assignment]
 
 
 # ── thin wrappers (read module globals at call time so tests can patch) ───────
@@ -54,6 +59,40 @@ def _venv_stale() -> bool:
 
 def _setup_env(force_recreate: bool = False) -> None:
     _cmds.setup_env(SERVER_DIR, CODEX_DIR, CODEX_CONFIG, ui, force_recreate=force_recreate)
+
+
+def _has_uvx() -> bool:
+    return shutil.which("uvx") is not None
+
+
+def _reinstall_uvx() -> None:
+    subprocess.run(["uvx", "--reinstall", "--from", GIT_INSTALL_URL, "unity-mcp"], check=True)
+
+
+def _reconfigure_detected_clients() -> None:
+    """Re-assert MCP entry for AI tools already configured. Never adds a new tool,
+    never prompts — matches cmd_update's existing non-interactive contract."""
+    if merge_mcp_config is None:
+        return
+    entry = build_server_entry()
+    for key in detect_installed():
+        client = CLIENT_REGISTRY[key]
+        if client.stdout_only:
+            continue
+        report = validate_config(key)
+        if "not configured" in report or "not found" in report:
+            continue
+        try:
+            backup(client.config_path)
+            if client.is_toml:
+                merge_toml_mcp(client.config_path, entry)
+            else:
+                merge_mcp_config(client.config_path, entry, root_key=client.root_key,
+                                  entry_transformer=client.entry_transformer)
+        except ValueError as e:
+            ui.fail(f"{client.name}: {e}")
+            continue
+        ui.ok(f"Reconfigured {client.name}")
 
 
 # ── subcommands ───────────────────────────────────────────────────────────────
@@ -87,10 +126,21 @@ def cmd_update(_args: argparse.Namespace, _stop_fn=None) -> None:
     else:
         ui.info("No --port given; skipping server stop. Pass --port PORT to stop before update.")
 
-    stale = _venv_stale()
-    if stale:
-        ui.info("Stale venv detected (folder moved).")
-    _setup_env(force_recreate=stale)
+    if _has_uvx():
+        ui.info("uvx found — reinstalling from GitHub (invalidates cache) ...")
+        try:
+            _reinstall_uvx()
+            ui.ok("uvx cache refreshed.")
+        except subprocess.CalledProcessError as e:
+            ui.fail(f"uvx --reinstall failed: {e}")
+            sys.exit(1)
+    else:
+        stale = _venv_stale()
+        if stale:
+            ui.info("Stale venv detected (folder moved).")
+        _setup_env(force_recreate=stale)
+
+    _reconfigure_detected_clients()
     ui.ok("Done. To reconnect: run /mcp in your Claude session.")
 
 

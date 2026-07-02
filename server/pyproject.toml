@@ -1,6 +1,6 @@
 [project]
 name = "unity-mcp"
-version = "0.68.0"
+version = "0.69.0"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]
@@ -33,7 +33,7 @@ dev = [
 ]
 
 [project.scripts]
-unity-mcp = "unity_mcp.server:main"
+unity-mcp = "unity_mcp.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

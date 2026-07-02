@@ -1,0 +1,79 @@
+// Pure TOML entry build/merge/classify for .codex/config.toml.
+// Mirrors server/src/unity_mcp/config/merger.py:merge_toml_mcp (same section header,
+// same command/args/env sub-table shape) — ported rather than re-invented so the two
+// independent writers (Python global, C# per-project) produce byte-similar output.
+// No Unity API — plain string/int in, string/enum out.
+using System.Text.RegularExpressions;
+
+namespace UnityMCP.Editor.Wizard
+{
+    internal static class ProjectConfigToml
+    {
+        // Marker comment + section header + body are treated as one atomic replaceable
+        // unit, including any number of dotted subsections that follow (e.g. .env) —
+        // mirrors Python's _UNITY_MCP_SECTION_RE (merger.py) exactly, which matches
+        // zero-or-more `[mcp_servers.unity-mcp.<name>]` blocks, not just one hardcoded
+        // `.env`. Keeping both regexes structurally identical avoids the two independent
+        // writers (Python global, C# per-project) disagreeing on what "the unity-mcp
+        // block" spans, which would orphan stale dotted subsections on re-merge.
+        private static readonly Regex SectionRe = new Regex(
+            @"(?:^# unity-mcp generated v[\d.]+\r?\n)?" +
+            @"\[mcp_servers\.unity-mcp\]\r?\n" +
+            @"(?:(?!\[)[^\r\n]*\r?\n)*" +
+            @"(?:\[mcp_servers\.unity-mcp\.[^\]]+\]\r?\n(?:(?!\[)[^\r\n]*\r?\n)*)*",
+            RegexOptions.Multiline);
+
+        private static readonly Regex MarkerVersionRe = new Regex(
+            @"^# unity-mcp generated v([\d.]+)\r?\n\[mcp_servers\.unity-mcp\]", RegexOptions.Multiline);
+
+        private static readonly Regex MarkerPortRe = new Regex(@"UNITY_MCP_PORT\s*=\s*'(\d+)'");
+
+        internal static string BuildFresh(int port, string gitUrl, string version) =>
+            $"# unity-mcp generated v{version}\n" +
+            "[mcp_servers.unity-mcp]\n" +
+            "command = 'uvx'\n" +
+            $"args = ['--from', '{gitUrl}', 'unity-mcp']\n" +
+            "\n" +
+            "[mcp_servers.unity-mcp.env]\n" +
+            $"UNITY_MCP_PORT = '{port}'\n";
+
+        internal static string Merge(string existing, int port, string gitUrl, string version)
+        {
+            var fresh = BuildFresh(port, gitUrl, version);
+            if (SectionRe.IsMatch(existing))
+                return SectionRe.Replace(existing, m => fresh, 1);
+
+            var sep = existing.Length > 0 && !existing.EndsWith("\n") ? "\n" : "";
+            var blank = existing.Length > 0 ? "\n" : "";
+            return existing + sep + blank + fresh;
+        }
+
+        internal static string ExtractMarkerVersion(string existingText)
+        {
+            if (string.IsNullOrEmpty(existingText)) return null;
+            var m = MarkerVersionRe.Match(existingText);
+            return m.Success ? m.Groups[1].Value : null;
+        }
+
+        internal static int? ExtractMarkerPort(string existingText)
+        {
+            if (string.IsNullOrEmpty(existingText)) return null;
+            var m = MarkerPortRe.Match(existingText);
+            return m.Success ? int.Parse(m.Groups[1].Value) : (int?)null;
+        }
+
+        internal static EntryState Classify(string existingText, int port, string version)
+        {
+            if (string.IsNullOrEmpty(existingText) || !existingText.Contains("[mcp_servers.unity-mcp]"))
+                return EntryState.Absent;
+
+            var markerVersion = ExtractMarkerVersion(existingText);
+            if (markerVersion == null) return EntryState.Foreign;
+
+            var markerPort = ExtractMarkerPort(existingText);
+            return markerVersion == version && markerPort == port
+                ? EntryState.OwnedCurrent
+                : EntryState.OwnedStale;
+        }
+    }
+}

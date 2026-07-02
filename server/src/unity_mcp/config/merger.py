@@ -6,6 +6,15 @@ import re
 import shutil
 from typing import Callable, Optional
 
+# Matches [mcp_servers.unity-mcp] plus any dotted sub-sections (e.g. .env).
+# Shared by merge_toml_mcp (replace) and remove_toml_mcp_entry (delete) — one
+# definition, one source of truth for what counts as "the unity-mcp block".
+_UNITY_MCP_SECTION_RE = re.compile(
+    r'\[mcp_servers\.unity-mcp\]\n(?:(?!\[)[^\n]*\n)*'
+    r'(?:\[mcp_servers\.unity-mcp\.[^\]]+\]\n(?:(?!\[)[^\n]*\n)*)*',
+    re.MULTILINE,
+)
+
 
 def merge_mcp_config(
     config_path: pathlib.Path,
@@ -52,9 +61,6 @@ def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
     )
     text = stale_re.sub(lambda _: "", text)
 
-    section_re = re.compile(
-        r'\[mcp_servers\.unity-mcp\]\n(?:(?!\[)[^\n]*\n)*', re.MULTILINE
-    )
     cmd = server_entry["command"]
     args_list = server_entry.get("args", [])
     args_toml = "[" + ", ".join(f"'{a}'" for a in args_list) + "]"
@@ -64,11 +70,53 @@ def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
         env_lines = "\n".join(f"{k} = '{v}'" for k, v in env.items())
         block += f'\n[mcp_servers.unity-mcp.env]\n{env_lines}\n'
 
-    if section_re.search(text):
-        text = section_re.sub(lambda _: block, text)
+    if _UNITY_MCP_SECTION_RE.search(text):
+        text = _UNITY_MCP_SECTION_RE.sub(lambda _: block, text)
     else:
         text = text.rstrip() + "\n\n" + block
     config_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = config_path.with_suffix(".tmp")
     tmp.write_text(text, encoding="utf-8")
     os.replace(str(tmp), str(config_path))
+
+
+def remove_mcp_entry(config_path: pathlib.Path, root_key: str = "mcpServers") -> bool:
+    """Delete data[root_key]['unity-mcp'] if present.
+
+    Returns True if it was removed, False if the file/entry didn't exist.
+    Raises ValueError on corrupt JSON (same contract as merge_mcp_config).
+    """
+    if not config_path.exists():
+        return False
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Corrupt JSON in {config_path}: {e}") from e
+
+    servers = data.get(root_key, {})
+    if "unity-mcp" not in servers:
+        return False
+    del servers["unity-mcp"]
+
+    tmp = config_path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(str(tmp), str(config_path))
+    return True
+
+
+def remove_toml_mcp_entry(config_path: pathlib.Path) -> bool:
+    """Strip [mcp_servers.unity-mcp] (+ any dotted sub-sections) from a TOML config.
+
+    Returns True if a section was found and removed, False otherwise.
+    """
+    if not config_path.exists():
+        return False
+    text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    new_text, n = _UNITY_MCP_SECTION_RE.subn("", text)
+    if n == 0:
+        return False
+
+    tmp = config_path.with_suffix(".tmp")
+    tmp.write_text(new_text, encoding="utf-8")
+    os.replace(str(tmp), str(config_path))
+    return True

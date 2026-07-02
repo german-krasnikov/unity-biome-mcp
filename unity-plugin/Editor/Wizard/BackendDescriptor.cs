@@ -1,6 +1,6 @@
 namespace UnityMCP.Editor.Wizard
 {
-    public enum InstallMechanism { PythonConfig, CliCommand, ChatAuto }
+    public enum InstallMechanism { PythonConfig, CliCommand, ChatAuto, ManualInstructions }
 
     public sealed class BackendDescriptor
     {
@@ -11,6 +11,8 @@ namespace UnityMCP.Editor.Wizard
         public InstallMechanism Mechanism;
         public string BinaryName; // for PATH check via which/where
         public string ConfigDir;  // for dir existence check (~ expanded at runtime)
+        public bool AutoProjectConfig; // true when ProjectConfigWriter auto-generates a per-project file for this backend
+        public string Instructions;    // populated only for ManualInstructions entries
 
         public static readonly BackendDescriptor[] All = new[]
         {
@@ -19,7 +21,8 @@ namespace UnityMCP.Editor.Wizard
                 Key = "claude-code", DisplayName = "Claude Code", Icon = "◆",
                 Description = "Anthropic's CLI — writes ~/.claude.json",
                 Mechanism = InstallMechanism.PythonConfig,
-                BinaryName = "claude", ConfigDir = "~/.claude"
+                BinaryName = "claude", ConfigDir = "~/.claude",
+                AutoProjectConfig = true
             },
             new BackendDescriptor
             {
@@ -39,7 +42,8 @@ namespace UnityMCP.Editor.Wizard
                 Key = "cursor", DisplayName = "Cursor", Icon = "▶",
                 Description = "AI-first editor — writes ~/.cursor/mcp.json",
                 Mechanism = InstallMechanism.PythonConfig,
-                BinaryName = "cursor", ConfigDir = "~/.cursor"
+                BinaryName = "cursor", ConfigDir = "~/.cursor",
+                AutoProjectConfig = true
             },
             new BackendDescriptor
             {
@@ -48,24 +52,27 @@ namespace UnityMCP.Editor.Wizard
                 Mechanism = InstallMechanism.PythonConfig,
                 BinaryName = "windsurf",
 #if UNITY_EDITOR_WIN
-                ConfigDir = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "Codeium", "windsurf")
+                ConfigDir = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "Codeium", "windsurf"),
 #else
-                ConfigDir = "~/.codeium"
+                ConfigDir = "~/.codeium",
 #endif
+                AutoProjectConfig = true
             },
             new BackendDescriptor
             {
                 Key = "vscode", DisplayName = "VS Code", Icon = "◧",
                 Description = "Visual Studio Code with Copilot MCP",
                 Mechanism = InstallMechanism.PythonConfig,
-                BinaryName = "code"
+                BinaryName = "code",
+                AutoProjectConfig = true
             },
             new BackendDescriptor
             {
                 Key = "codex", DisplayName = "Codex", Icon = "◉",
                 Description = "OpenAI Codex CLI — writes MCP config file",
                 Mechanism = InstallMechanism.PythonConfig,
-                BinaryName = "codex"
+                BinaryName = "codex",
+                AutoProjectConfig = true
             },
             new BackendDescriptor
             {
@@ -85,6 +92,13 @@ namespace UnityMCP.Editor.Wizard
                 Key = "antigravity", DisplayName = "Antigravity", Icon = "◑",
                 Description = "In-Unity chat backend — auto-configured",
                 Mechanism = InstallMechanism.ChatAuto
+            },
+            new BackendDescriptor
+            {
+                Key = "rider-ai", DisplayName = "Rider AI Assistant", Icon = "◐",
+                Description = "JetBrains Rider — MCP configured via Settings UI, no config file",
+                Mechanism = InstallMechanism.ManualInstructions,
+                Instructions = "Settings → Tools → AI Assistant → MCP → + → paste command below"
             },
         };
     }

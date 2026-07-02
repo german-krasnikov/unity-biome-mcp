@@ -288,6 +288,118 @@ def test_merger_handles_crlf_toml(tmp_path):
     assert "/old" not in text
 
 
+# ─── merger.py: remove_mcp_entry / remove_toml_mcp_entry ────────────────────
+
+def test_remove_mcp_entry_deletes_existing_key(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({"mcpServers": {"unity-mcp": {"command": "x"}, "other": {"command": "y"}}}), encoding="utf-8")
+
+    result = merger.remove_mcp_entry(cfg)
+
+    assert result is True
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    assert "unity-mcp" not in data["mcpServers"]
+    assert "other" in data["mcpServers"]
+
+
+def test_remove_mcp_entry_missing_file_returns_false(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+
+    result = merger.remove_mcp_entry(cfg)
+
+    assert result is False
+    assert not cfg.exists()
+
+
+def test_remove_mcp_entry_missing_key_returns_false(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    original = json.dumps({"mcpServers": {"other": {"command": "y"}}})
+    cfg.write_text(original, encoding="utf-8")
+
+    result = merger.remove_mcp_entry(cfg)
+
+    assert result is False
+    assert cfg.read_text(encoding="utf-8") == original
+
+
+def test_remove_mcp_entry_corrupt_json_raises_valueerror(tmp_path):
+    from unity_mcp.config import merger
+    bad = tmp_path / "config.json"
+    bad.write_text("{ this is not json }", encoding="utf-8")
+    with pytest.raises(ValueError, match="Corrupt JSON"):
+        merger.remove_mcp_entry(bad)
+
+
+def test_remove_toml_mcp_entry_strips_section(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_text("[mcp_servers.unity-mcp]\ncommand = 'x'\nargs = []\n", encoding="utf-8")
+
+    result = merger.remove_toml_mcp_entry(cfg)
+
+    assert result is True
+    text = cfg.read_text(encoding="utf-8")
+    assert "[mcp_servers.unity-mcp]" not in text
+
+
+def test_remove_toml_mcp_entry_strips_env_subsection(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        "[mcp_servers.unity-mcp]\ncommand = 'x'\nargs = []\n"
+        "\n[mcp_servers.unity-mcp.env]\nFOO = 'bar'\n",
+        encoding="utf-8",
+    )
+
+    result = merger.remove_toml_mcp_entry(cfg)
+
+    assert result is True
+    text = cfg.read_text(encoding="utf-8")
+    assert "[mcp_servers.unity-mcp]" not in text
+    assert "[mcp_servers.unity-mcp.env]" not in text
+    assert "FOO = 'bar'" not in text
+
+
+def test_remove_toml_mcp_entry_missing_section_returns_false(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_text('model = "gpt-4"\n', encoding="utf-8")
+
+    result = merger.remove_toml_mcp_entry(cfg)
+
+    assert result is False
+
+
+def test_remove_toml_mcp_entry_preserves_other_tables(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        'model = "gpt-4"\n\n[projects.foo]\ntrust_level = "trusted"\n\n'
+        "[mcp_servers.unity-mcp]\ncommand = '/old'\nargs = []\n",
+        encoding="utf-8",
+    )
+
+    result = merger.remove_toml_mcp_entry(cfg)
+
+    assert result is True
+    text = cfg.read_text(encoding="utf-8")
+    assert 'model = "gpt-4"' in text
+    assert "[projects.foo]" in text
+    assert "[mcp_servers.unity-mcp]" not in text
+
+
+def test_remove_toml_mcp_entry_missing_file_returns_false(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+
+    result = merger.remove_toml_mcp_entry(cfg)
+
+    assert result is False
+
+
 # ─── backup.py ──────────────────────────────────────────────────────────────
 
 def test_backup_creates_timestamped_copy(tmp_path):

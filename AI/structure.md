@@ -2,15 +2,17 @@
 
 ```
 unity-kiss-mcp/
-├── install/                    # Installation & configuration CLI (v0.38.0+, v0.45.0: connect/disconnect/pull)
+├── install/                    # Installation & configuration CLI (v0.38.0+, v0.45.0: connect/disconnect/pull, v0.68.0: _reconfigure_detected_clients)
 │   ├── __init__.py
-│   ├── bootstrap.sh            # One-liner macOS/Linux: git clone + venv setup + config
-│   ├── bootstrap.ps1           # One-liner Windows: git clone + venv setup + config
+│   ├── bootstrap.sh            # One-liner macOS/Linux (legacy, deprecated v0.68.0)
+│   ├── bootstrap.ps1           # One-liner Windows (legacy, deprecated v0.68.0)
 │   ├── ui.py                   # Terminal UI (prompt, confirm, boxes, colors)
-│   ├── commands.py             # Subcommand implementations (setup, update, doctor, configure, uninstall, connect, disconnect, pull - v0.45.0)
+│   ├── commands.py             # Subcommand implementations (setup, update [uvx --reinstall + reconfigure], doctor, configure, uninstall, connect, disconnect, pull)
 │   └── tests/                  # Bootstrap + UI + install tests
 ├── server/                     # Python MCP Server (see CLAUDE.md Commands section for current test count; v0.66.0: +27 diagnose/reload stability tests; v0.65.0: +8 run_tests pre-flight gate tests; v0.64.0: +75 polyline/scene tests; v0.54.1: +54 connection/focus-loss stability tests; v0.47.1: +151 config validation tests)
 │   ├── src/unity_mcp/
+│   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
+│   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
 │   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 120 registered MCP tools (v0.50.3)
 │   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE)
 │   │   ├── connection_slot.py  # ConnectionSlot: dual connections (CLI + Chat agent)
@@ -355,7 +357,12 @@ unity-kiss-mcp/
 │       │   ├── PluginConfigTests.cs       # Isolated EditorPrefs storage tests (Get/Set String/Bool/Int/Float, Delete, namespacing, v0.65.1, 9 tests)
 │       │   ├── PluginUIHelpersTests.cs    # Convenience UI builder tests (MakeCard, InlineRow, Add* controls, auto-persist, LoadStyles, v0.65.1, 20 tests)
 │       │   ├── PluginSettingsPageTests.cs # Plugin UI registration + settings page rendering (v0.64.0, 29 tests)
-│       ├── Wizard/                        # Setup Wizard + Diagnostics (v0.38.0+, v0.42.0: 3-screen flow, 9 backends, asmdef split; v0.47.1: AiConfigScreen fallback, removed dead screens)
+│       ├── Wizard/                        # Setup Wizard + Auto-Config + Diagnostics (v0.38.0+, v0.68.0: ProjectConfigWriter auto-config, v0.42.0: 3-screen flow, 9 backends, asmdef split; v0.47.1: AiConfigScreen fallback, removed dead screens)
+│       │   ├── ProjectConfigWriter.cs     # [InitializeOnLoad] auto-config orchestrator: discovers port, version, writes per-project MCP configs for all targets (v0.68.0)
+│       │   ├── ProjectConfigFormats.cs    # Format registry: JSON, TOML, extensible (v0.68.0)
+│       │   ├── ProjectConfigToml.cs       # TOML parsing + merging for Codex config (v0.68.0)
+│       │   ├── ProjectConfigTargets.cs    # 6 AI tool targets: Claude Code, Codex, Cursor, Windsurf, VS Code, Claude Desktop (v0.68.0)
+│       │   ├── GitignorePatcher.cs        # Append per-project config paths to .gitignore (idempotent, v0.68.0)
 │       │   ├── SetupWizard.cs             # Auto-launch on first run, 3 screens (Welcome → PickBackend → Configure)
 │       │   ├── SetupWizard.uss            # Wizard stylesheet (layout, animations)
 │       │   ├── WizardScreen.cs            # Base class for wizard screens (lifecycle, navigation)
@@ -377,7 +384,12 @@ unity-kiss-mcp/
 │       │   │   ├── PickBackendScreenTests.cs
 │       │   │   ├── WizardConfigWriterTests.cs # Config backup/restore, merge safety, GitInstallUrl constant (9+8=17 tests, v0.44.0-v0.47.1)
 │       │   │   ├── AiToolCardFactoryTests.cs # Platform path methods + card rendering (20 tests, v0.47.1)
-│       │   │   └── ... (8 test files total)
+│       │   │   ├── ProjectConfigWriterTests.cs # Auto-config logic: port discovery, version, multi-target writes (v0.68.0)
+│       │   │   ├── ProjectConfigFormatsTests.cs # Format registry + serialization (v0.68.0)
+│       │   │   ├── ProjectConfigTomlTests.cs # TOML parsing edge cases (v0.68.0)
+│       │   │   ├── ProjectConfigTargetsTests.cs # Target definitions + path rendering (v0.68.0)
+│       │   │   ├── GitignorePatcherTests.cs # Append safety, idempotency, no-duplicates (v0.68.0)
+│       │   │   └── ... (13+ test files total)
 │       │   ├── UnityMCP.Editor.Wizard.asmdef # Separate compile unit, references core Editor asmdef
 │       │   └── WizardAssemblyInfo.cs      # AssemblyVersion + InternalsVisibleTo
 │       ├── Profiling/                      # Profiling & Performance Analysis (v0.60.0: 6 C# files; v0.61.0: +UI folder with 10 files)

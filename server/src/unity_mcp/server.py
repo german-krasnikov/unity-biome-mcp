@@ -1,3 +1,6 @@
+from unity_mcp._preflight import run_preflight
+run_preflight()
+
 import asyncio
 import logging
 import os

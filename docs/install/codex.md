@@ -1,119 +1,46 @@
 # Codex Setup
 
-Since v0.14.0 the primary Codex workflow is in-Unity Chat. The plugin spawns `codex exec` and injects MCP config via `-c` flags — no static config file needed. Works on **Windows, macOS, and Linux**.
+The plugin auto-configures Codex automatically when you add it to your project. Works on **Windows, macOS, and Linux**.
 
 ## Prerequisites
 
-- Codex CLI installed and authenticated
+- Codex CLI installed and authenticated  
 - Unity 6000.0+ with the `unity-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or assigned by wizard) free
+- TCP port 9500 (or auto-assigned) free
 
-## 1. Quick Setup
+## Quick Setup
 
-Bootstrap script handles everything:
-
-**macOS/Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.sh | bash
-```
-
-**Windows PowerShell:**
-```powershell
-iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.ps1).Content
-```
-
-Then open Unity and follow the Setup Wizard.
-
-## 2. Manual Setup
-
-### Install Codex CLI
+### 1. Install Codex CLI
 
 ```bash
 npm install -g @openai/codex
 codex --version
 ```
 
-**macOS alternative:**
-```bash
-brew install openai/tap/codex
-```
-
-### Install Python Server
-
-The Python MCP server runs on-demand via `uvx` — no installation needed. The setup wizard will auto-discover it.
-
-### Add Plugin to Unity
-
-1. Open Package Manager (Window → Package Manager)
-2. Click `+` → **Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
-
-### Authenticate Codex
+Authenticate:
 
 ```bash
-# Option A — browser
 codex login
-codex login status
-
-# Option B — API key
-printenv OPENAI_API_KEY | codex login --with-api-key
-codex login status
 ```
 
-### Configure Codex (Automatic)
+### 2. Add Plugin to Unity
 
-Open Unity, then open the **Setup Wizard** via **MCP → Setup Wizard** menu. Select **Codex** and follow the prompts. The wizard will configure Codex automatically.
+1. Open **Window → Package Manager**
+2. Click **+ → Add package from git URL**
+3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+4. Wait for import, then open any scene
 
-**Manual configuration:**
+The plugin auto-generates your Codex MCP config on first load.
 
-Edit your Codex config file and ensure the MCP section includes:
+### 3. Verify Installation (Optional)
 
-```json
-{
-  "mcpServers": {
-    "unity": {
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server", "unity-mcp"],
-      "env": { "UNITY_MCP_PORT": "9500" }
-    }
-  }
-}
-```
-
-Restart Codex for the changes to take effect.
-
-<details>
-<summary><b>Alternative: Manual Installation (git clone)</b></summary>
+Run the diagnostic:
 
 ```bash
-git clone https://github.com/german-krasnikov/unity-kiss-mcp.git
-cd unity-kiss-mcp
-python install.py setup
+uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
 ```
 
-This clones the repository locally, creates a Python venv, and installs dependencies. After setup, verify:
-
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp --help
-```
-
-Then configure your AI tool:
-
-```bash
-python install.py configure --tool codex
-# Or project-scoped:
-python install.py configure --tool codex --project-dir /path/to/unity/project
-```
-
-Verify installation:
-
-```bash
-python install.py doctor
-```
-
-</details>
-
-## 3. Use Codex From the Editor (Primary Workflow)
+## Use Codex From the Editor (Primary Workflow)
 
 1. Open Unity and wait for `[MCP] Server started on port <XXXX>` in the Console.
 2. Open **MCP → Chat**.

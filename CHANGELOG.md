@@ -5,10 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.69.0] — 2026-07-02 <!-- Install Overhaul: auto-config, CLI dispatcher, preflight guard -->
+
+**Installation Overhaul: Auto-Config, CLI Dispatcher, Preflight Guard:**
+
+- **Auto-Config on Editor Startup** — `ProjectConfigWriter` [InitializeOnLoad] auto-generates per-project MCP configs for 6 AI tools (Claude Code, Cursor, Windsurf, VS Code, Codex, Junie). SessionState-gated, marker-based staleness detection, atomic writes.
+- **CLI Dispatcher** — `unity-mcp configure/doctor/version/uninstall` via uvx (`cli.py`). Ships inside the package — works without repo clone.
+- **Preflight Guard** — `_preflight.py` one-line stderr + exit(2) on Python <3.10 or missing mcp SDK. Replaces cryptic tracebacks before MCP handshake.
+- **Update Fix** — `cmd_update` now runs `uvx --reinstall` + reconfigures all detected AI tools automatically.
+- **Uninstall** — `remove_mcp_entry`/`remove_toml_mcp_entry` properly clean configs on uninstall.
+- **Setup Wizard** — auto-config status for 5 tools + Rider AI Assistant manual-instructions entry.
+- **Docs** — golden path = 1 step (UPM add), 4 new install guides (Cursor, Windsurf, VS Code, Claude Desktop), deprecated Gemini.
+- **Fix** — `reload_ladder.py` missing semicolon in T2.5 guard-check execute_code.
+
 ## [v0.68.0] — 2026-07-01 <!-- Batch DSL, tool gating, console capture, DRY refactor (Issues 23-29) -->
 
-**Self-Describing Batch DSL, Tool Filter Reconnect Reset, Console Capture, DRY Consolidation:**
+**Batch DSL, Tool Filter Reset, Console Capture, DRY Consolidation:**
 
+### Features
 - **Issue 23: Batch DSL with CommandValidator** — CommandValidator replaces CommandSchema as source of truth. Introduces sigil grammar for parameter hints: `!param` (required), `?param` (optional suggestion). Entry flags (`IsAlwaysAllowed`, `IsAllowedDuringCompile`) replace hardcoded OR-chains. Enables schema-aware batch validation in bridge layer.
 
 - **Issue 24: Tool Filter Reconnect Reset** — `gating.reset()` now fires only on manual reconnect (via `set_connection`), not on bridge auto-reconnect. Preserves disabled tool cache across network transients. Reduces tool list spam on connection hiccups.

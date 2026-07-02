@@ -2,6 +2,7 @@
 import argparse
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -35,6 +36,9 @@ def _fake_registry(config_path: Path) -> dict:
     client.name = "Fake Tool"
     client.config_path = config_path
     client.stdout_only = False
+    client.is_toml = False
+    client.root_key = "mcpServers"
+    client.entry_transformer = None
     return {"fake-tool": client}
 
 
@@ -193,7 +197,9 @@ def test_cmd_update_stops_server_before_setup_env():
         call_order.append("setup")
 
     with patch.object(inst, "_setup_env", fake_setup), \
-         patch.object(inst, "_venv_stale", lambda: False):
+         patch.object(inst, "_venv_stale", lambda: False), \
+         patch.object(inst, "_has_uvx", lambda: False), \
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
         cmd_update(_args(port=9515), _stop_fn=fake_stop)
 
     assert call_order == ["stop", "setup"]
@@ -208,7 +214,9 @@ def test_cmd_update_no_port_skips_stop():
         return False
 
     with patch.object(inst, "_setup_env", lambda *a, **kw: None), \
-         patch.object(inst, "_venv_stale", lambda: False):
+         patch.object(inst, "_venv_stale", lambda: False), \
+         patch.object(inst, "_has_uvx", lambda: False), \
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
         cmd_update(_args(port=0), _stop_fn=fake_stop)
 
     assert stop_calls == []
@@ -225,7 +233,9 @@ def test_cmd_update_proceeds_when_server_not_found():
         setup_calls.append(True)
 
     with patch.object(inst, "_setup_env", fake_setup), \
-         patch.object(inst, "_venv_stale", lambda: False):
+         patch.object(inst, "_venv_stale", lambda: False), \
+         patch.object(inst, "_has_uvx", lambda: False), \
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
         cmd_update(_args(port=9515), _stop_fn=fake_stop)
 
     assert setup_calls == [True]
@@ -242,7 +252,9 @@ def test_cmd_update_proceeds_on_stop_exception():
         setup_calls.append(True)
 
     with patch.object(inst, "_setup_env", fake_setup), \
-         patch.object(inst, "_venv_stale", lambda: False):
+         patch.object(inst, "_venv_stale", lambda: False), \
+         patch.object(inst, "_has_uvx", lambda: False), \
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
         cmd_update(_args(port=9515), _stop_fn=bad_stop)
 
     assert setup_calls == [True]
@@ -251,7 +263,9 @@ def test_cmd_update_proceeds_on_stop_exception():
 def test_cmd_update_prints_reconnect_hint(capsys):
     """Output must mention /mcp so user knows how to reconnect."""
     with patch.object(inst, "_setup_env", lambda *a, **kw: None), \
-         patch.object(inst, "_venv_stale", lambda: False):
+         patch.object(inst, "_venv_stale", lambda: False), \
+         patch.object(inst, "_has_uvx", lambda: False), \
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
         cmd_update(_args(port=9515), _stop_fn=lambda port, **kw: True)
 
     out = capsys.readouterr().out
@@ -261,12 +275,113 @@ def test_cmd_update_prints_reconnect_hint(capsys):
 def test_cmd_update_no_running_server_still_prints_reconnect_hint(capsys):
     """Even when stop returns False, Done + /mcp should appear."""
     with patch.object(inst, "_setup_env", lambda *a, **kw: None), \
-         patch.object(inst, "_venv_stale", lambda: False):
+         patch.object(inst, "_venv_stale", lambda: False), \
+         patch.object(inst, "_has_uvx", lambda: False), \
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
         cmd_update(_args(port=9515), _stop_fn=lambda port, **kw: False)
 
     out = capsys.readouterr().out
     assert "Done" in out or "done" in out
     assert "/mcp" in out
+
+
+# ── cmd_update: uvx --reinstall path ─────────────────────────────────────────
+
+def test_cmd_update_uvx_present_calls_reinstall_not_setup_env():
+    """When uvx is available, reinstall via uvx --reinstall, never touch the venv."""
+    with patch.object(inst, "_has_uvx", lambda: True), \
+         patch.object(inst, "_reinstall_uvx") as fake_reinstall, \
+         patch.object(inst, "_setup_env") as fake_setup, \
+         patch.object(inst, "_venv_stale", lambda: False), \
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
+        cmd_update(_args(port=0))
+
+    fake_reinstall.assert_called_once()
+    fake_setup.assert_not_called()
+
+
+def test_cmd_update_uvx_absent_falls_back_to_setup_env():
+    """When uvx is NOT available, fall back to the venv setup path (existing behavior)."""
+    with patch.object(inst, "_has_uvx", lambda: False), \
+         patch.object(inst, "_setup_env") as fake_setup, \
+         patch.object(inst, "_venv_stale", lambda: False), \
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
+        cmd_update(_args(port=0))
+
+    fake_setup.assert_called_once()
+
+
+def test_cmd_update_reinstall_failure_exits_1_and_does_not_print_done(capsys):
+    """uvx --reinstall failing must abort with exit 1, not silently print Done."""
+    with patch.object(inst, "_has_uvx", lambda: True), \
+         patch.object(inst, "_reinstall_uvx",
+                       side_effect=subprocess.CalledProcessError(1, ["uvx"])), \
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
+        with pytest.raises(SystemExit) as exc_info:
+            cmd_update(_args(port=0))
+
+    assert exc_info.value.code == 1
+    out = capsys.readouterr().out
+    assert "Done" not in out
+
+
+def test_cmd_update_calls_reconfigure_detected_clients_after_reinstall():
+    """Reconfigure must run AFTER reinstall — order is the whole point."""
+    call_order = []
+
+    with patch.object(inst, "_has_uvx", lambda: True), \
+         patch.object(inst, "_reinstall_uvx", lambda: call_order.append("reinstall")), \
+         patch.object(inst, "_reconfigure_detected_clients",
+                       lambda: call_order.append("reconfigure")):
+        cmd_update(_args(port=0))
+
+    assert call_order == ["reinstall", "reconfigure"]
+
+
+# ── _reconfigure_detected_clients ─────────────────────────────────────────────
+
+def test_reconfigure_detected_clients_skips_unconfigured_tools(tmp_path):
+    """Only clients validate_config reports as configured get re-merged."""
+    cfg_claude = tmp_path / "claude.json"
+    cfg_cursor = tmp_path / "cursor.json"
+    registry = _fake_registry(cfg_claude)
+    cursor_client = _fake_registry(cfg_cursor)["fake-tool"]
+    registry = {"claude-code": registry["fake-tool"], "cursor": cursor_client}
+    entry = {"command": "uv", "args": []}
+    merge_calls = []
+
+    def fake_validate(key):
+        return "Status: not configured (unity-mcp missing)" if key == "cursor" else "Status: ok"
+
+    def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["claude-code", "cursor"]), \
+         patch.object(inst, "validate_config", fake_validate), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_mcp_config", fake_merge):
+        inst._reconfigure_detected_clients()
+
+    assert merge_calls == [cfg_claude]
+
+
+def test_reconfigure_detected_clients_never_prompts(tmp_path):
+    """Reconfigure must never call prompt_yn — it's a non-interactive re-assert."""
+    cfg = tmp_path / "claude.json"
+    registry = _fake_registry(cfg)
+    entry = {"command": "uv", "args": []}
+
+    def boom(*a, **kw):
+        raise AssertionError("prompt_yn must never be called by _reconfigure_detected_clients")
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_mcp_config", lambda *a, **kw: None), \
+         patch.object(inst, "prompt_yn", boom):
+        inst._reconfigure_detected_clients()  # must not raise
 
 
 # ── stop subcommand argparse wiring ──────────────────────────────────────────

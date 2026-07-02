@@ -1,32 +1,16 @@
 # OpenCode Setup
 
-Since v0.55.0. The in-Unity Chat window supports OpenCode as a backend. The plugin spawns `opencode run` per turn with JSON output, auto-injecting MCP config via `OPENCODE_CONFIG` environment variable. Works on **Windows, macOS, and Linux**.
+The plugin auto-configures OpenCode automatically when you add it to your project. Works on **Windows, macOS, and Linux**.
 
 ## Prerequisites
 
 - OpenCode CLI installed and authenticated
 - Unity 6000.0+ with the `unity-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or assigned by wizard) free
+- TCP port 9500 (or auto-assigned) free
 
-## 1. Quick Setup
+## Quick Setup
 
-Bootstrap script handles everything:
-
-**macOS/Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.sh | bash
-```
-
-**Windows PowerShell:**
-```powershell
-iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.ps1).Content
-```
-
-Then open Unity and follow the Setup Wizard.
-
-## 2. Manual Setup
-
-### Install OpenCode CLI
+### 1. Install OpenCode CLI
 
 **macOS/Linux:**
 ```bash
@@ -42,80 +26,30 @@ Visit https://github.com/opencode-ai/opencode/releases and download the binary f
 
 Download from https://github.com/opencode-ai/opencode/releases and add to PATH.
 
-### Install Python Server
+### 2. Add Plugin to Unity
 
-The Python MCP server runs on-demand via `uvx` — no installation needed. The setup wizard will auto-discover it.
-
-### Add Plugin to Unity
-
-1. Open Package Manager (Window → Package Manager)
-2. Click `+` → **Add package from git URL**
+1. Open **Window → Package Manager**
+2. Click **+ → Add package from git URL**
 3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+4. Wait for import, then open any scene
 
-### Authenticate OpenCode
+Authenticate OpenCode:
 
 ```bash
 opencode login
 ```
 
-OpenCode will guide you through authentication. Credentials are stored in `~/.opencode/config.json`.
+The plugin auto-generates your OpenCode MCP config on first load (temporary config, doesn't affect your global `~/.opencode/config.json`).
 
-### Configure OpenCode (Automatic)
+### 3. Verify Installation (Optional)
 
-Open Unity, then open the **Setup Wizard** via **MCP → Setup Wizard** menu. Select **OpenCode** and follow the prompts. The wizard will auto-configure OpenCode with the MCP server.
-
-**Note:** OpenCode uses exclusive MCP configuration — the plugin writes a temporary MCP config and injects it via `OPENCODE_CONFIG` without clobbering your global config.
-
-**Manual configuration (if wizard fails):**
-
-Edit your OpenCode config file (`~/.opencode/config.json` on macOS/Linux or `%APPDATA%\opencode\config.json` on Windows) and add:
-
-```json
-{
-  "mcpServers": {
-    "unity-mcp": {
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server", "unity-mcp"],
-      "env": { "UNITY_MCP_PORT": "9500" }
-    }
-  }
-}
-```
-
-Restart OpenCode for the changes to take effect.
-
-<details>
-<summary><b>Alternative: Manual Installation (git clone)</b></summary>
+Run the diagnostic:
 
 ```bash
-git clone https://github.com/german-krasnikov/unity-kiss-mcp.git
-cd unity-kiss-mcp
-python install.py setup
+uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
 ```
 
-This clones the repository locally, creates a Python venv, and installs dependencies. After setup, verify:
-
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp --help
-```
-
-Then configure your AI tool:
-
-```bash
-python install.py configure --tool opencode
-# Or project-scoped:
-python install.py configure --tool opencode --project-dir /path/to/unity/project
-```
-
-Verify installation:
-
-```bash
-python install.py doctor
-```
-
-</details>
-
-## 3. Use OpenCode From the Editor (Primary Workflow)
+## Use OpenCode From the Editor (Primary Workflow)
 
 1. Open Unity and wait for `[MCP] Server started on port <XXXX>` in the Console.
 2. Open **MCP → Chat**.

@@ -85,5 +85,35 @@ namespace UnityMCP.Editor.Tests
             Assert.GreaterOrEqual(BackendDescriptor.All.Length, 9);
         }
 
+        // ── Phase 1A: AutoProjectConfig / ManualInstructions ───────────────────
+
+        [Test]
+        public void ClaudeCode_HasAutoProjectConfig()
+        {
+            var found = System.Array.Find(BackendDescriptor.All, b => b.Key == "claude-code");
+            Assert.IsTrue(found.AutoProjectConfig);
+        }
+
+        [Test]
+        public void ClaudeDesktop_DoesNotHaveAutoProjectConfig()
+        {
+            var found = System.Array.Find(BackendDescriptor.All, b => b.Key == "claude-desktop");
+            Assert.IsFalse(found.AutoProjectConfig);
+        }
+
+        [Test]
+        public void RiderAi_IsManualInstructions()
+        {
+            var found = System.Array.Find(BackendDescriptor.All, b => b.Key == "rider-ai");
+            Assert.IsNotNull(found, "rider-ai backend not found");
+            Assert.AreEqual(InstallMechanism.ManualInstructions, found.Mechanism);
+        }
+
+        [Test]
+        public void RiderAi_HasNonEmptyInstructions()
+        {
+            var found = System.Array.Find(BackendDescriptor.All, b => b.Key == "rider-ai");
+            Assert.IsFalse(string.IsNullOrEmpty(found.Instructions));
+        }
     }
 }

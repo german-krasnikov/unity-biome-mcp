@@ -18,25 +18,26 @@ Welcome! This guide will help you set up and start using Unity MCP to control yo
 
 ## Installation
 
-Unity MCP provides a one-liner installer that handles everything: Python environment, MCP server, and the Unity plugin.
+Unity MCP auto-configures when you add the plugin to your project — no manual setup required.
 
-### macOS / Linux
+### Step 1: Add Plugin to Your Project
+
+1. Open **Window → Package Manager**
+2. Click **+ → Add package from git URL**
+3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+4. Wait for import, then open any scene
+
+The plugin auto-detects your AI tool (Claude Code, Codex, Cursor, Windsurf, VS Code, or Claude Desktop) and generates the necessary MCP configuration.
+
+### Step 2: Verify Installation (Optional)
+
+To verify everything works, run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.sh | bash
+uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
 ```
 
-### Windows (PowerShell)
-
-```powershell
-iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.ps1).Content
-```
-
-The installer will:
-1. Create a Python virtual environment
-2. Install the MCP server (`uvx unity-mcp`)
-3. Add the Unity plugin to your project
-4. Auto-configure Claude Code, Claude Desktop, Cursor, or Windsurf
+This checks Python version, TCP connectivity, and plugin status.
 
 ## First Steps
 
