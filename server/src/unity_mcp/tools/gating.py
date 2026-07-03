@@ -6,8 +6,8 @@ Plugin tools are NOT in catalog — discovered dynamically via PluginRegistry.
 M8: _CORE_TOOLS/_THEMED_CATEGORIES/TIER1/_ALL_KNOWN are GENERATED from
 tool_specs._SPECS at import time (one ToolSpec entry per tool) instead of being
 4 independently hand-typed literals that could silently drift out of sync with
-each other. _CATEGORY_ALIAS (legacy category-name -> themed-group mapping) and
-FORCE_VISIBLE stay hand-typed — they are not per-tool attributes.
+each other. _CATEGORY_ALIAS (legacy category-name -> themed-group mapping)
+stays hand-typed — it is category-level metadata, not a per-tool attribute.
 """
 from .tool_specs import _SPECS
 
@@ -66,21 +66,23 @@ _CATEGORY_ALIAS: dict[str, list[str]] = {
     "plugins":    ["PLUGINS"],
 }
 
-CATEGORIES: dict[str, set[str]] = {
-    alias: set().union(*(set(_THEMED_CATEGORIES[k]) for k in groups))
-    for alias, groups in _CATEGORY_ALIAS.items()
-}
+def _rebuild_categories() -> dict[str, set[str]]:
+    """Rebuild the alias->themed-group view, preserving ad-hoc categories a
+    plugin registered via the fallback branch (documented public API — a
+    themed-category registration by a DIFFERENT plugin must not wipe them)."""
+    rebuilt = {
+        alias: set().union(*(set(_THEMED_CATEGORIES[k]) for k in groups))
+        for alias, groups in _CATEGORY_ALIAS.items()
+    }
+    for key, tools in globals().get("CATEGORIES", {}).items():
+        if key not in _CATEGORY_ALIAS:
+            rebuilt[key] = tools
+    return rebuilt
+
+
+CATEGORIES: dict[str, set[str]] = _rebuild_categories()
 
 _session_enabled: set[str] = set()
-
-FORCE_VISIBLE: set[str] = {
-    "discover_tools", "get_enabled_tools",
-    "do", "ask", "editor",
-    "get_console", "get_compile_errors",
-    "reconnect_unity", "list_connections",
-    "resolve_tool_schema",
-    "doctor",
-}
 
 
 # ---------------------------------------------------------------------------
@@ -113,14 +115,21 @@ def register_tools(category: str, tools: set) -> None:
     Plugins do NOT control their own visibility — the platform does. There is no
     tier1= escape hatch: a plugin cannot promote its own tools into the always-on
     TIER1 budget. Registered tools are Tier2 (category-gated, hidden by default,
-    reachable via discover_tools())."""
-    CATEGORIES.setdefault(category, set()).update(tools)
+    reachable via discover_tools()).
+
+    CATEGORIES is a derived view of _THEMED_CATEGORIES (see _rebuild_categories) —
+    mutate _THEMED_CATEGORIES only, then re-derive, so the two can never drift.
+    """
+    global CATEGORIES
     _ALL_KNOWN.update(tools)
-    # M6: get_catalog() (Unity plugin catalog UI) reads _THEMED_CATEGORIES, not
-    # CATEGORIES — keep both in sync so registered tools become visible there too.
     themed_key = category.upper()
-    if themed_key in _THEMED_CATEGORIES:
-        _THEMED_CATEGORIES[themed_key] = list(set(_THEMED_CATEGORIES[themed_key]) | set(tools))
+    if themed_key not in _THEMED_CATEGORIES:
+        # category not a themed key (e.g. legacy alias not backed by a themed
+        # group) — fall back to direct CATEGORIES write, same as before.
+        CATEGORIES.setdefault(category, set()).update(tools)
+        return
+    _THEMED_CATEGORIES[themed_key] = list(set(_THEMED_CATEGORIES[themed_key]) | set(tools))
+    CATEGORIES = _rebuild_categories()
 
 
 def reset() -> None:
@@ -132,7 +141,7 @@ def get_categories() -> dict[str, set[str]]:
 
 
 def is_visible(name: str) -> bool:
-    if name in TIER1 or name in FORCE_VISIBLE:
+    if name in TIER1:
         return True
     return name in _session_enabled
 

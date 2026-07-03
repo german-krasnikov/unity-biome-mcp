@@ -12,7 +12,7 @@ vs. this frozen snapshot fails loudly.
 This test must stay GREEN both BEFORE and AFTER the M8 refactor — it characterizes
 externally-observable behavior, not internal representation.
 
-Exact-equality vs. subset: _CORE_TOOLS/TIER1/FORCE_VISIBLE/TIMEOUT_CATEGORIES are
+Exact-equality vs. subset: _CORE_TOOLS/TIER1/TIMEOUT_CATEGORIES are
 NEVER mutated by register_tools() (plugin self-registration) — real third-party
 plugins loaded via entry_points (e.g. an environment with a private plugin package
 installed) can only add to _ALL_KNOWN/CATEGORIES/_THEMED_CATEGORIES at runtime. So
@@ -37,7 +37,7 @@ _TIER1_SNAPSHOT = frozenset({
     "inspect", "invoke_method", "list_connections", "manage_component", "move_to",
     "permission_prompt", "query_state", "reconnect_unity", "resolve_tool_schema",
     "run_playtest", "run_tests", "scene", "screenshot", "search_scene", "set_parent",
-    "set_properties", "set_property", "set_runtime_property", "setup_objects",
+    "set_property", "set_runtime_property", "setup_objects",
     "sync_unity", "test_step", "wait_until",
 })
 
@@ -68,14 +68,7 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "setup_objects", "shader", "smart_build", "snapshot", "spatial_query",
     "sync_unity", "test_step", "timeline", "transfer_object", "ui_intent",
     "undo_last", "unwire_event", "use_skill", "validate_layout",
-    "validate_references", "vfx_intent", "wait_until", "watch_add", "watch_clear",
-    "watch_remove", "watch_reset", "wire_event",
-})
-
-_FORCE_VISIBLE_SNAPSHOT = frozenset({
-    "ask", "discover_tools", "do", "doctor", "editor", "get_compile_errors",
-    "get_console", "get_enabled_tools", "list_connections", "reconnect_unity",
-    "resolve_tool_schema",
+    "validate_references", "vfx_intent", "wait_until", "watch", "wire_event",
 })
 
 _THEMED_CATEGORIES_SNAPSHOT = {
@@ -86,8 +79,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
     "ASSETS": {"asset", "prefab", "project_settings", "scriptable_object"},
     "COMPONENTS": {"auto_wire", "unwire_event", "wire_event"},
     "CONNECTION": set(),
-    "DEBUG": {"debug", "get_metrics", "get_watches", "snapshot", "watch_add",
-              "watch_clear", "watch_remove", "watch_reset"},
+    "DEBUG": {"debug", "get_metrics", "get_watches", "snapshot", "watch"},
     "META": {"animator_intent", "autofit_collider", "budget_status", "check_colliders",
               "configure_objects", "get_capabilities", "navmesh_query", "region_clear",
               "scan_scene", "scene_environment", "scene_health", "set_llm_config",
@@ -112,7 +104,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
 }
 
 _CATEGORY_SIZES_SNAPSHOT = {
-    "advanced": 28, "animation": 4, "asset": 8, "connection": 0, "debug": 8,
+    "advanced": 28, "animation": 4, "asset": 8, "connection": 0, "debug": 5,
     "object": 13, "perf": 5, "plugins": 0, "profiling": 3, "rendering": 2,
     "runtime": 14, "session": 14, "ui": 6,
 }
@@ -142,11 +134,6 @@ def test_all_known_contains_snapshot():
     from unity_mcp.tools.gating import _ALL_KNOWN
     missing = _ALL_KNOWN_SNAPSHOT - set(_ALL_KNOWN)
     assert not missing, f"tools dropped from _ALL_KNOWN by refactor: {sorted(missing)}"
-
-
-def test_force_visible_exact_snapshot():
-    from unity_mcp.tools.gating import FORCE_VISIBLE
-    assert set(FORCE_VISIBLE) == set(_FORCE_VISIBLE_SNAPSHOT)
 
 
 def test_themed_categories_contains_snapshot():

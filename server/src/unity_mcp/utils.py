@@ -2,11 +2,11 @@
 import re
 
 # Paren group matches flat tuples: (1, 0, 0). Nested parens NOT supported.
-# Unquoted alt `(?:(?!\s+\w+=).)+` stops at next <space><identifier>= boundary.
-# Keys must be simple identifiers (no dots); for dotted keys use _DOTTED_KV_RE
-# (defined in autobatch.py).
+# Unquoted alt `(?:(?!\s+[\w.]+=).)+` stops at next <space><identifier>= boundary.
+# Keys allow dots (Component.prop=value) so this one regex serves both plain
+# key=value batch lines and dotted config lines (configure_objects).
 _KV_RE = re.compile(
-    r'(\w+)=("(?:[^"\\]|\\.)*"|\((?:[^)]*)\)|(?:(?!\s+\w+=).)+)'
+    r'([\w.]+)=("(?:[^"\\]|\\.)*"|\((?:[^)]*)\)|(?:(?!\s+[\w.]+=).)+)'
 )
 
 
@@ -21,7 +21,7 @@ def _kv_value(raw: str) -> str:
 
 def parse_kv(text: str) -> dict[str, str]:
     """Parse key=value pairs. Handles quotes and parens: value=(1, 0, 0).
-    Keys must be simple identifiers (no dots); for dotted keys use _DOTTED_KV_RE."""
+    Keys may contain dots (Component.prop=value)."""
     return {m.group(1): _kv_value(m.group(2)) for m in _KV_RE.finditer(text)}
 
 

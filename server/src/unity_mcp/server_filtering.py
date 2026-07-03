@@ -11,7 +11,7 @@ from pathlib import Path
 from .constants import DEFAULT_PORT
 
 from .paths import ports_dir as _ports_dir
-from .tools.gating import filter_by_tier, FORCE_VISIBLE, get_catalog, _CORE_TOOLS
+from .tools.gating import filter_by_tier, get_catalog, _CORE_TOOLS
 from .tools.schema_registry import _registry as _schema_registry, STUB_SCHEMA
 
 # Core tools keep full schemas; all others get stub schema on ListTools.
@@ -94,7 +94,7 @@ def filter_tools(tools: list, disabled: set | None) -> list:
     """
     result = _apply_gating(tools)
     if disabled is not None:
-        result = [t for t in result if t.name not in disabled or t.name in FORCE_VISIBLE]
+        result = [t for t in result if t.name not in disabled or t.name in _CORE_TOOLS]
     return _strip_deferred_schemas(result)
 
 

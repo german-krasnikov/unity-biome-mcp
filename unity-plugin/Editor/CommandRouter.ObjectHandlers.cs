@@ -328,24 +328,9 @@ namespace UnityMCP.Editor
                 var cellSize    = ExtractInt(args, "width", 512);
                 var supersample = ExtractInt(args, "supersample", 2);
                 var angles      = JsonHelper.ExtractString(args, "angles");
-                var zoomStr     = JsonHelper.ExtractString(args, "zoom");
-                float zoom = 1f;
-                if (zoomStr != null) float.TryParse(zoomStr, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out zoom);
-                var offsetStr = JsonHelper.ExtractString(args, "offset");
-                Vector3 offset = Vector3.zero;
-                if (offsetStr != null)
-                {
-                    var parts = offsetStr.Split(',');
-                    if (parts.Length == 3 &&
-                        float.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ox) &&
-                        float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var oy) &&
-                        float.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var oz))
-                        offset = new Vector3(ox, oy, oz);
-                }
-                var fixedSizeStr = JsonHelper.ExtractString(args, "fixed_size");
-                float fixedSize = 0f;
-                if (fixedSizeStr != null) float.TryParse(fixedSizeStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out fixedSize);
+                float zoom = ExtractFloat(args, "zoom", 1f);
+                Vector3 offset = ExtractVector3(args, "offset", Vector3.zero);
+                float fixedSize = ExtractFloat(args, "fixed_size", 0f);
                 var highlight = JsonHelper.ExtractString(args, "highlight");
                 var showColliders = JsonHelper.ExtractString(args, "show_colliders") == "true";
                 var filePath = MultiViewCapture.CaptureWithManifest(go, cellSize, supersample,
@@ -365,24 +350,9 @@ namespace UnityMCP.Editor
                 var size        = ExtractInt(args, "width", 512);
                 var supersample = ExtractInt(args, "supersample", 2);
                 var angle       = JsonHelper.ExtractString(args, "angle") ?? "front";
-                var zoomStr     = JsonHelper.ExtractString(args, "zoom");
-                float zoom = 1f;
-                if (zoomStr != null) float.TryParse(zoomStr, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out zoom);
-                var offsetStr = JsonHelper.ExtractString(args, "offset");
-                Vector3 offset = Vector3.zero;
-                if (offsetStr != null)
-                {
-                    var parts = offsetStr.Split(',');
-                    if (parts.Length == 3 &&
-                        float.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var svox) &&
-                        float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var svoy) &&
-                        float.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var svoz))
-                        offset = new Vector3(svox, svoy, svoz);
-                }
-                var fixedSizeStr = JsonHelper.ExtractString(args, "fixed_size");
-                float fixedSize = 0f;
-                if (fixedSizeStr != null) float.TryParse(fixedSizeStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out fixedSize);
+                float zoom = ExtractFloat(args, "zoom", 1f);
+                Vector3 offset = ExtractVector3(args, "offset", Vector3.zero);
+                float fixedSize = ExtractFloat(args, "fixed_size", 0f);
                 var highlight = JsonHelper.ExtractString(args, "highlight");
                 var showColliders = JsonHelper.ExtractString(args, "show_colliders") == "true";
                 var filePath = MultiViewCapture.CaptureSingleView(go, size, supersample,

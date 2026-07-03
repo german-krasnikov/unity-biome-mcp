@@ -1,9 +1,8 @@
 """animator_intent — NL → animator DSL → batch commands."""
 import re
 from typing import Optional
-from mcp.server.fastmcp.exceptions import ToolError
 from ..sampling import sampling_service as _sampling
-from .intent_common import strip_fences, build_batch_line
+from .intent_common import build_batch_line, run_intent_pipeline
 from ._annotations import RW as _RW
 from ._common import bind
 
@@ -99,26 +98,13 @@ async def animator_intent(target: str, intent: str, dry_run: bool = False) -> st
     """
     from .intent_common import sanitize_intent
     prompt = _PROMPT_TEMPLATE.format(target=sanitize_intent(target), intent=sanitize_intent(intent))
-    dsl_raw = await _sampling.generate(prompt, feature='animator_intent')
-    if not dsl_raw:
-        raise ToolError("Haiku unavailable (set UNITY_MCP_VISUAL_VERIFY=1)")
-
-    dsl = strip_fences(dsl_raw)
-    data = parse_animator_dsl(dsl)
-    err = validate_animator_dsl(data)
-    if err:
-        raise ToolError(f"INVALID DSL: {err}")
-
-    batch_lines = build_animator_batch(target, data)
-    if not batch_lines:
-        raise ToolError("DSL produced no commands")
-
-    if dry_run:
-        return "\n".join(batch_lines)
-
-    result = await _send("batch", {"commands": "\n".join(batch_lines)})
-    n = len(batch_lines)
-    return f"animator_intent: {n} ops\n{result}"
+    return await run_intent_pipeline(
+        send=_send, sampling=_sampling, prompt=prompt, feature="animator_intent",
+        parse_fn=parse_animator_dsl,
+        validate_fn=validate_animator_dsl,
+        build_fn=lambda d: build_animator_batch(target, d),
+        dry_run=dry_run,
+    )
 
 
 def register(mcp, send, args):

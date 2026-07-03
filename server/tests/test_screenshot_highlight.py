@@ -4,7 +4,7 @@ import pytest
 
 @pytest.fixture
 def screenshot_tool():
-    import unity_mcp.tools.scene as scene_mod
+    import unity_mcp.tools.screenshot as scene_mod
 
     def _args(**kwargs):
         return {k: v for k, v in kwargs.items() if v is not None}
@@ -27,7 +27,7 @@ def screenshot_tool():
 @pytest.fixture
 def screenshot_tool_with_manifest():
     """Screenshot fixture returning manifest+file combined response."""
-    import unity_mcp.tools.scene as scene_mod
+    import unity_mcp.tools.screenshot as scene_mod
 
     def _args(**kwargs):
         return {k: v for k, v in kwargs.items() if v is not None}

@@ -49,12 +49,17 @@ async def run_intent_pipeline(
     parse_fn: Callable,
     build_fn: Callable,
     dry_run: bool,
+    validate_fn: Optional[Callable[[dict], Optional[str]]] = None,
 ) -> str:
-    """Common tail shared by all intent tools: generate → strip → parse → build → execute."""
+    """Common tail shared by all intent tools: generate → strip → parse → [validate] → build → execute."""
     dsl_raw = await sampling.generate(prompt, feature=feature)
     if not dsl_raw:
         raise ToolError("Haiku unavailable (set UNITY_MCP_VISUAL_VERIFY=1)")
     parsed = parse_fn(strip_fences(dsl_raw))
+    if validate_fn is not None:
+        err = validate_fn(parsed)
+        if err:
+            raise ToolError(f"INVALID DSL: {err}")
     lines = build_fn(parsed)
     if not lines:
         raise ToolError("DSL produced no commands")

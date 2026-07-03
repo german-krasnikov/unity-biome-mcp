@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from .lockfile import is_pid_alive
-from .paths import ports_dir as _ports_dir_canonical
+from .paths import ports_dir as _ports_dir_canonical, unity_mcp_dir
 from .doctor_report import CheckResult, USER_MESSAGES, format_report  # re-exported
 from .constants import DEFAULT_PORT
 
@@ -21,7 +21,7 @@ def _ports_dir() -> Path:
 
 
 def _lock_dir() -> Path:
-    return Path.home() / ".unity-mcp"
+    return unity_mcp_dir()
 
 
 async def check_python_version() -> CheckResult:

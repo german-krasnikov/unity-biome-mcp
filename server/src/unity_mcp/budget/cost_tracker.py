@@ -8,6 +8,7 @@ from typing import Optional
 
 from ..metrics import HAIKU_IN_PER_MTOK, HAIKU_OUT_PER_MTOK
 from ._filelock import locked as _filelocked
+from ..paths import unity_mcp_dir
 
 IMAGE_TOKEN_OVERHEAD = 1500
 
@@ -15,7 +16,7 @@ IMAGE_TOKEN_OVERHEAD = 1500
 class CostTracker:
     def __init__(self, path: Optional[Path] = None,
                  session_cap: float = 0.50, day_cap: float = 5.00):
-        self._path = Path(path) if path else Path.home() / ".unity-mcp" / "budget.json"
+        self._path = Path(path) if path else unity_mcp_dir() / "budget.json"
         self._session_cap = session_cap
         self._day_cap = day_cap
         self._session_spent = 0.0

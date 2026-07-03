@@ -67,7 +67,8 @@ def write_codex_config(server_dir: Path, codex_dir: Path, codex_config: Path, ui
 
 def discover_port() -> int:
     """Return Unity MCP port from ~/.unity-mcp/ports/*.port, default 9500."""
-    ports = Path.home() / ".unity-mcp" / "ports"
+    from unity_mcp.paths import ports_dir
+    ports = ports_dir()
     if ports.exists():
         for f in ports.glob("*.port"):
             try:

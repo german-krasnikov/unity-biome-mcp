@@ -66,10 +66,19 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
 
 ### Components
 
-1. **MCP Server** (Python: 80+ modules total, including `server.py`, 23 tools modules + support, v0.42.0: +25 config/TOML tests, v0.47.1: +73+78 config validation tests, ROI sprint v0.69.0: +4 files for metadata DRY)
+1. **MCP Server** (Python: 90+ modules total, including `server.py`, 23+ tools modules + support, v0.42.0: +25 config/TOML tests, v0.47.1: +73+78 config validation tests, ROI sprint v0.69.0: +4 files for metadata DRY, review sprint v0.70.0: +4 tool files split + bridge_retry + bridge_result)
    - **Tool Metadata DRY (v0.69.0)**: `tools/tool_specs.py` single source of truth — 128 ToolSpec entries with category, core, tier1, timeout_s. Eliminates drift across 4 collections: gating._CORE_TOOLS, gating._THEMED_CATEGORIES, gating.TIER1, gating._ALL_KNOWN (now derived at import time). `timeout_categories.py` generates TIMEOUT_CATEGORIES dict + get_timeout(cmd) from _SPECS at import. `tools/_common.py` provides bind(module_globals, send, args) helper — uniform binding across all 23 tools/*.py register(mcp, send, args) functions.
+   - **Scene Tools Split (review sprint v0.70.0, B2)**: `tools/scene.py` SPLIT into 4 focused modules:
+     * **console.py**: get_console (keyword + count_only filters), clear_console
+     * **screenshot.py**: screenshot (camera modes, annotated frames, Haiku describe)
+     * **testing.py**: recompile (force reimport), await_compile (polling), compile health checks
+     * **editor_control.py**: editor (state/play/stop/pause/select/project_path)
+     * **scene.py** (residual): get_hierarchy, set_parent, search_scene, get_spatial_context
+     * **Rationale**: Reduces scene.py to <150 LOC (was 300+); each module serves distinct domain (console I/O vs. visual capture vs. build control vs. hierarchy). All 5 modules follow unified `register()` pattern via `bind()`.
    - **Meta Tools Refactored (v0.69.0)**: `tools/meta.py` extracts discover_tools, doctor, resolve_tool_schema, set_llm_config from server.py composition root into standard register() pattern — same signature as other tools modules, uses bind(). Improves composability and testability.
-   - **120 core MCP tools registered** (v0.50.3+). Gating: TIER1 + themed categories (derived from tool_specs._SPECS). External plugins can add more tools dynamically. `_UnstructuredMCP(FastMCP)` subclass forces `structured_output=False` on all tools. Ungated (always visible): `get_test_results`, `budget_status`, `diagnose`.
+   - **RetryPolicy Extraction (review sprint v0.70.0, C8)**: NEW `bridge_retry.py` module extracts retry decision logic from UnityBridge.should_retry() into unified **RetryPolicy** class. Consolidates exception-path retries + hint-path retries (Unity 'retry' JSON sentinel) behind single `is_retry_safe` gate, preventing bypass bugs.
+   - **BridgeResult Unwrapping (review sprint v0.70.0, C1)**: NEW `bridge_result.py` with `unwrap_bridge_result(dict) → (ok, data, err, file)` pure function. Eliminates inline unpacking & error handling scattered across 50+ call sites.
+   - **121 core MCP tools registered** (v0.70.0: scene split → +1 deduplicated register call, net +0 tools; tool count 124→121 via watch consolidation B4). Gating: TIER1 + themed categories (derived from tool_specs._SPECS). External plugins can add more tools dynamically. `_UnstructuredMCP(FastMCP)` subclass forces `structured_output=False` on all tools. Ungated (always visible): `get_test_results`, `budget_status`, `diagnose`.
    - **Config Module (v0.42.0+v0.44.0)**: `server/src/unity_mcp/config/` extended with TOML merger for Codex backend. `merge_toml_mcp(path, section)` merges MCP config into TOML with diff-based updates (preserves user settings). Python 3.9 compat: `Optional[X]` instead of `X | None`. ValueError raised on corrupt JSON. **Stale entry cleanup (v0.44.0)**: strips `[mcp_servers.unity]` duplicates on first write, creates .bak backup. **v0.47.1**: `validator.py` skips json.loads for TOML clients, checks string presence in configs. Adds 25 new tests (v0.42.0) + 9 new tests (v0.44.0) + 151 new tests (v0.47.1: 73 Python + 78 C# in test_config_gaps.py)
    - **CodeExecutor.SecurityScan (v0.31.0)**: Hardened pipeline — (1) strip C# comments via regex (2) whitespace densification (3) OrdinalIgnoreCase matching (4) 11 new blocked patterns (EditorApplication.Exit, Application.Quit, Environment.FailFast, ExportPackage, ImportPackage, OpenProject, ProjectWindowUtil, using-aliases for System.IO/Diagnostics/Net/Reflection)
    - **In-Unity Chat System (v0.66.6+)**: Unified RelayBackend on C# side communicates with Python chat_relay.py sidecar. Five backends managed server-side (Claude, Codex, Kimi, Agy, OpenCode) via `backend_def.py` with CLI arg builders + parsers. C# simply dispatches semantic commands (send turn, get events, set mode); relay handles all CLI protocol details, binary resolution, model selection, NDJSON/stream-json parsing, transport over pipe-format (60% token savings). See Chat Relay System section above for full architecture.
@@ -82,9 +91,9 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
    - Tool annotations: readOnlyHint, destructiveHint for MCP compliance
    - Dynamic tool filtering: patches `mcp._mcp_server.request_handlers[ListToolsRequest]` with gating + disabled-set subtraction (hide-disabled-set model, not allowlist)
 
-2. **TCP Bridge** (Python: `bridge.py` + `bridge_heartbeat.py` + `bridge_reload_state.py` + `connection_slot.py` + `lockfile.py` + `compile_state.py` + `server_filtering.py`)
+2. **TCP Bridge** (Python: `bridge.py` + `bridge_heartbeat.py` + `bridge_reload_state.py` + `bridge_retry.py` + `bridge_result.py` + `connection_slot.py` + `lockfile.py` + `compile_state.py` + `server_filtering.py`)
    - **ConnectionSlot**: dual per-project connections (CLI main + Chat agent-only) with project-based discovery
-   - **Port Discovery** (`server_filtering.py:read_unity_port`, v0.23.0, v0.36.0 chat-port fallback, v0.52.6 multi-CLI waterfall): Env waterfall (UNITY_MCP_PROJECT_DIR > CLAUDE_PROJECT_DIR > os.getcwd()) for multi-CLI project discovery → ~/.unity-mcp/ports/*.port files (or *.chat-port when UNITY_MCP_CHAT=1) → env UNITY_MCP_PORT → default 9500. **v0.23.0: TCP probe** filters stale discovery files (port written but not listening). **v0.36.0: Windows chat-port fallback** — when chat subprocess sets UNITY_MCP_CHAT=1 env var, reads *.chat-port files (written by C# MCPServer) instead of *.port. Candidates ranked by project path match (CWD), then mtime. PermissionError (cross-user processes) skipped gracefully, live .port files preserved. **v0.52.6: Multi-CLI project discovery** — UNITY_MCP_PROJECT_DIR env variable enables Cursor/Codex/Windsurf/OpenCode/Gemini to independently discover the same Unity instance while main CLI uses CLAUDE_PROJECT_DIR.
+   - **Port Discovery** (`server_filtering.py:read_unity_port`, v0.23.0, v0.36.0 chat-port fallback, v0.52.6 multi-CLI waterfall, v0.70.0: unity_mcp_dir() centralized): Env waterfall (UNITY_MCP_PROJECT_DIR > CLAUDE_PROJECT_DIR > os.getcwd()) for multi-CLI project discovery → ~/.unity-mcp/ports/*.port files (or *.chat-port when UNITY_MCP_CHAT=1) → env UNITY_MCP_PORT → default 9500. **v0.23.0: TCP probe** filters stale discovery files (port written but not listening). **v0.36.0: Windows chat-port fallback** — when chat subprocess sets UNITY_MCP_CHAT=1 env var, reads *.chat-port files (written by C# MCPServer) instead of *.port. Candidates ranked by project path match (CWD), then mtime. PermissionError (cross-user processes) skipped gracefully, live .port files preserved. **v0.52.6: Multi-CLI project discovery** — UNITY_MCP_PROJECT_DIR env variable enables Cursor/Codex/Windsurf/OpenCode/Gemini to independently discover the same Unity instance while main CLI uses CLAUDE_PROJECT_DIR. **C2 (v0.70.0): unity_mcp_dir() Centralized** — NEW `paths.py` module with single `unity_mcp_dir(project_dir: str) → Path` function. All port file reads routed through this one path (instead of inline `~/.unity-mcp/ports/` in 3+ places). DRY + testability.
    - **Port Persistence (v0.35.0, v0.36.0 chat-port)** — PortResolver discovery chain: env UNITY_MCP_PORT → ProjectSettings/MCPSettings.json (user intent, survives Library purge) → Library/MCP_Port.json (cache) → FindFreePort. MCPServer.cs calls SaveProjectSettings() to persist both main + chat port assignments at startup. **v0.36.0: MCPServer.WritePortFile()** now writes both {pid}.port (main) and {pid}.chat-port (chat) when dual ports active. DeletePortFile() cleans both. Backward compatible: nil ProjectSettings falls through to Library cache.
    - **Fail-Fast Lockfile** (`lockfile.py`): RuntimeError raised on live process (instead of SIGTERM) to let Python server handle reconnection logic cleanly. **v0.23.0: Zombie detection** — `_is_zombie(pid)` check prevents treating defunct processes as "live", allowing fast server startup without waiting for cleanup.
    - **UnityBridge (v0.36.0)**: AsyncIO TCP client, 4-byte BE length prefix JSON
@@ -94,6 +103,11 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
      * **Atomic reader/writer swap** (v0.36.0): In _reconnect(), both reader and writer closed atomically within lock to prevent zombie reads after close. Fixed CancelledError cleanup.
    - Socket: TCP_NODELAY, SO_KEEPALIVE (idle=60s, interval=10s, count=3 on macOS/Linux)
    - **Heartbeat**: 15s interval, raw ping, 3 consecutive failures → close, 2s polling when disconnected (5s when busy). Sole reconnect mechanism.
+   - **Retry Policy (v0.70.0, C8, A1)**: NEW `RetryPolicy` class in `bridge_retry.py` consolidates retry decisions:
+     * Exception-path: `decide(error, attempt, deadline, cmd) → (should_retry, delay_s, reason)`
+     * Hint-path: `allow_hint_retry(cmd) → bool` (Unity 'retry' JSON sentinel)
+     * Unified gate: `is_retry_safe` callback checks both surfaces, preventing bypass bugs (A1)
+     * Supports: DomainReloadError (immediate mark + 2^attempt backoff), TimeoutError (check is_retry_safe gate), busy (reload active or probe busy)
    - **Port Re-Discovery on Reconnect (v0.24.1, v0.52.6 pinning)** — `UnityBridge` accepts optional `port_discoverer` callable (typically `read_unity_port`), invoked during `_reconnect()` before TCP connect to detect if Unity moved to a new port. If discoverer returns different port, bridge updates `_port` and recreates CompileStateProbe. **v0.52.6: Reconnect pinning** — bridge caches `_pinned_port` and `_pinned_pid` to stick to the same Unity instance during domain reload cycles, preventing reconnection storms when multiple ports are available. Falls back to discovery if pinned instance dies. Gracefully handles discoverer exceptions (falls back to current port). ConnectionSlot threads discoverer through and adds `_sync_port()` callback to sync port back to slot + trigger server-side lockfile swap (`_on_port_change`). Backward-compatible: no discoverer → normal reconnect.
    - **CompileStateProbe**: heuristic compile/domain-reload detector (state file, PID check)
    - **Stale DLL Guards (v0.65.0)**:
@@ -102,6 +116,10 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
      * **UPM Fallback Detection** — DiagnoseCommand.FindAsmdefDir() uses `AssetDatabase.FindAssets()` for file: UPM packages (source unavailable). Enables stale detection for local packages (previously: unknown state).
      * **Cross-Assembly Compile Errors (v0.66.0)** — DiagnoseCommand now reports `all_errors=` field via `CompilationPipeline.assemblyCompilationFinished` callback (C# SyncHelper.cs), capturing compile errors across all UnityMCP.* assemblies. Python diagnose.py parses and validates all_errors block alongside main errors field. Enables detection of silent failures in plugin/Chat/Reload assemblies that may be broken while main assembly compiles clean.
    - **DomainReloadError**: on Unity `going_away` event → immediate close + busy flag. Heartbeat now calls `_reload.mark()` on DomainReloadError (v0.36.0) to extend retry window in send()
+   - **BridgeResult Unwrapping (v0.70.0, C1)**: NEW `bridge_result.py` module provides `unwrap_bridge_result(dict) → (ok, data, err, file)` pure function. Eliminates inline unpacking across 50+ call sites:
+     * Handles both text-result and structured-response formats
+     * Extracts file path when present (screenshots, exports)
+     * Centralizes error handling logic (reduces duplication)
    - **PID Lockfile**: `~/.unity-mcp/server-{port}.lock`, **cross-platform locking**:
      * **macOS/Linux**: `fcntl.flock` (advisory, whole-file lock)
      * **Windows**: `msvcrt.locking` on sentinel byte at offset 1024 (non-blocking, avoids mandatory lock of PID data at bytes 0-31)
@@ -109,13 +127,20 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
      * **v0.23.0: Zombie detection** via `_is_zombie()` prevents stale defunct processes from blocking reconnection
    - **SIGPIPE handling**: guarded with `hasattr(signal, "SIGPIPE")` since Windows lacks SIGPIPE. Suppressed on Unix to prevent server crash on client disconnect.
    - **Reconnect (v0.30.3, v0.52.7)**: exponential backoff throttling (MIN=5s → MAX=60s, reset on success, jitter ±10%). v0.52.7: cooldown re-armed on every attempt (not only success), preventing retry spam when port unavailable. Heartbeat debounce=30s. send() reconnect no longer fires callbacks (only heartbeat does) — breaks reconnect feedback loop. push_catalog skips if already locked.
-   - Max message: 10MB, timeouts: 30s default, 60s compile_preflight/batch, 120s run_tests/run_playtest/fuzz_playtest
+   - Max message: 10MB, timeouts: 30s default, 60s compile_preflight, **75s batch** (A4: v0.70.0 increased from 30s), 120s run_tests/run_playtest/fuzz_playtest
 
 3. **Unity Plugin** (C#: 165+ files, ~17800 LOC, v0.42.0: Wizard asmdef split, Updates folder, MarkdownInlineFormatter extraction, v0.44.0: LevelUp UX, v0.45.0: InstallSourceDetector + async updaters, v0.55.10: unified SceneMcpOverlay + IconCanvas + PluginToolGrouping, v0.59.0: Runtime Debug + Watch System + Chat field chips + Debug UI panel, ROI sprint v0.69.0: Bootstrap cyclic-init fix, CommandOptions struct, CallerIsPlugin gate)
    - **MCPServer.cs**: Dual TCP listeners (main port 9500-9599 + chat port auto-assigned, separate), 4-byte BE framing, 10MB max, SO_KEEPALIVE, **v0.23.0: SO_REUSEPORT** (macOS/Linux) for rapid reconnect recovery, auto-assigns free ports via `PortResolver.FindFreePort()`, persists to Library/MCP_Port.json, state file (`ready`/`compiling`/`reloading`), `going_away` event before domain reload, ClientSlot pattern isolates CLI and Chat connections. **v0.37.0: IsReallyCompiling** — managed flag replaces EditorApplication.isCompiling latching, 120s wedge guard prevents false-positive "backgrounded" state. **v0.36.0: WritePortFile** writes both {pid}.port (main) + {pid}.chat-port (Windows env fallback). **v0.52.6: ShouldStartServer guard** — static ctor checks `ShouldStartServer(isBatchMode)` to prevent AssetImportWorker from creating conflicting port files during batch asset reimports. Detects batch mode via `EditorApplication.isBatchMode` OR `-nographics` args.
    - **PortResolver.cs**: Pure testable helpers (ResolvePort, ResolveChatPort, FindFreePort, SavePorts, IsValidPort, ParsePortFromJson) with 25 NUnit tests. Validates 1024–65535 range, skips reserved ports, fallback to OS-assigned via port 0. **v0.52.6: Chat port collision guard** — ResolveChatPort ensures chat port ≠ main port (prevents accidental self-binding). FindFreePort ceiling raised 9599→9699 to accommodate dual-port scanning.
-   - **CommandRouter.cs** (v0.57.0 refactor): RegisterAll() → calls core commands + PluginRegistry.RegisterAllPlugins() for external plugins, data-driven IsMutating/IsRuntime. **v0.37.0: DefaultIsCompiling** — two-layer check (IsReallyCompiling + 120s wedge guard) prevents false-positive compile blocks. **v0.57.0: ProcessAsync simplified** — switch-based dispatch table via `CommandRegistry.HasAsyncHandler()` replaced inline if/else chains (148→27 lines, Open/Closed Principle). Extracted 6 async handlers: AsyncRunTests, AsyncWaitUntil, AsyncMoveTo, AsyncTestStep, AsyncRunPlaytest, AsyncAskUser.
-   - **CommandRegistry.cs** (v0.57.0 refactor, v0.69.0: CommandOptions struct): Func<string,string> handlers + `Action<string,string,TaskCompletionSource<string>>` AsyncHandler field. **v0.69.0 CommandOptions**: Groups rarely-changing trailing params (Mutating, Runtime, Required, Optional, SpecialDispatch, AlwaysAllowed, AllowedDuringCompile, Description, MaxResponseChars) into plain mutable struct. New preferred overloads: `Register(cmd, handler, CommandOptions)` + `RegisterAsync/RegisterAction` equivalents. Legacy bool-param overloads converted to forward to CommandOptions for backward compatibility. Duplicate registration guarded (warning log, skips). `HasAsyncHandler(cmd, out handler)` returns dispatch table entry. `Execute()` enforces Handler ≠ null, throws on async-only entries.
+   - **CommandRouter.cs** (v0.57.0 refactor, v0.70.0 B1: Registration split): RegisterAll() → calls core commands + PluginRegistry.RegisterAllPlugins() for external plugins, data-driven IsMutating/IsRuntime. **v0.37.0: DefaultIsCompiling** — two-layer check (IsReallyCompiling + 120s wedge guard) prevents false-positive compile blocks. **v0.57.0: ProcessAsync simplified** — switch-based dispatch table via `CommandRegistry.HasAsyncHandler()` replaced inline if/else chains (148→27 lines, Open/Closed Principle). Extracted 6 async handlers: AsyncRunTests, AsyncWaitUntil, AsyncMoveTo, AsyncTestStep, AsyncRunPlaytest, AsyncAskUser. **B1 (v0.70.0): Registration Split** — NEW `CommandRouter.Registration.cs` partial class splits ~340-line RegisterAll() into 4 themed methods matching guard-flag precedence:
+     * `RegisterMetaCommands()` — always-allowed + compile-safe (ping, get_enabled_tools, set_tool_catalog, diagnose, etc.)
+     * `RegisterReadCommands()` — non-mutating, read-only (get_hierarchy, get_component, get_console, search_scene, etc.)
+     * `RegisterWriteCommands()` — mutating, write-heavy (create_object, set_property, manage_component, batch, etc.)
+     * `RegisterRuntimeCommands()` — play-mode-only (invoke_method, query_state, move_to, run_playtest, etc.)
+     * Snapshot-tested by CommandRegistryCompletenessTests; per-bucket coverage in CommandRouterRegistrationTests.
+   - **CommandRegistry.cs** (v0.57.0 refactor, v0.69.0: CommandOptions struct, v0.70.0 B3: demoted to internal): Func<string,string> handlers + `Action<string,string,TaskCompletionSource<string>>` AsyncHandler field. **v0.69.0 CommandOptions**: Groups rarely-changing trailing params (Mutating, Runtime, Required, Optional, SpecialDispatch, AlwaysAllowed, AllowedDuringCompile, Description, MaxResponseChars) into plain mutable struct. New preferred overloads: `Register(cmd, handler, CommandOptions)` + `RegisterAsync/RegisterAction` equivalents. Legacy bool-param overloads converted to forward to CommandOptions for backward compatibility. Duplicate registration guarded (warning log, skips). `HasAsyncHandler(cmd, out handler)` returns dispatch table entry. `Execute()` enforces Handler ≠ null, throws on async-only entries. **B3 (v0.70.0): Demoted to internal** — Zero production call sites outside CommandRegistry.cs itself (grep-verified); every real registration uses legacy bool-params, which build CommandOptions internally. Now purely plumbing detail.
+   - **PendingAskRegistry.cs** (v0.70.0, C7 extraction): NEW class extracts Ask() method from CommandRouter. Manages GUID-keyed TaskCompletionSource registry for ask_user command responses. Isolated state machine: Register(requestId) → GetTcs(requestId) → await completion. Unidirectional: Plugin asks user → chat UI responds → TCS signals AI. Testable in isolation via PendingAskRegistryTests.
+   - **CommandRouter.ExtractVector3 (v0.70.0, C4)**: NEW static helper method parses "x,y,z" string to Vector3. Reduces scattered inline parsing across ~8 transform/movement/spatial commands. Pure function, no side effects.
    - **Bootstrap.cs** (v0.69.0 new): Breaks cyclic static-init dependency. `[InitializeOnLoadMethod] Init()` uses `EditorApplication.delayCall` to defer `CommandRegistry.Clear(); InitDefaults()` until after all [InitializeOnLoad] hooks complete. Prevents CommandRouter-CommandRegistry circular static ctor invocation (CommandRouter.RegisterAll → CommandRegistry.InitDefaults → PluginRegistry.RegisterAllPlugins → plugin assemblies [InitializeOnLoad], but some plugins might not have run yet at first access). Now guaranteed to run once per domain reload, in defined order.
    - **PluginRegistry.cs** (v0.69.0: CallerIsPlugin gate): Static registry for IMCPPlugin implementations. Plugins register via `[InitializeOnLoad]`. One-way asmdef dependency: external → public. **v0.69.0 CallerIsPlugin**: `RegisterAllPlugins()` strips AlwaysAllowed/AllowedDuringCompile from plugin-provided handlers (CallerIsPlugin=true) — plugins can't self-gate bypasses. Core tools keep flags for internal permission logic.
    - **IMCPPlugin.cs** (v0.64.0: DIMs for settings UI; v0.65.1: documentation): Interface — Name, CommandPrefix, RegisterCommands(), OnDomainReload(), AdditionalCommands (DIMs). **v0.64.0 DIMs**: `string Description` (plugin purpose), `bool HasSettingsUI` (default false), `VisualElement BuildSettingsUI()` (configurable settings). Enables plugin UI registration without breaking backward compatibility. **v0.65.1 complete guide**: `docs/plugins/quickstart.md` and `docs/plugins/api-reference.md` document IMCPPlugin contract, registration patterns, PluginConfig storage, UI building, PluginUIHelpers layer, testing patterns, best practices, troubleshooting.
@@ -662,9 +687,10 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 
 ## Key Systems
 
-### Capability Gating (Python: `tools/gating.py`)
+### Capability Gating (Python: `tools/gating.py`, v0.70.0: categories derived from _THEMED_CATEGORIES)
 - **CORE tools** (24): locked, always visible, can only be hidden via `FORCE_VISIBLE` escape hatches (discover_tools, get_enabled_tools, do, ask, editor, get_console, get_compile_errors, reconnect_unity, list_connections, resolve_tool_schema, doctor). Example: `is_core("get_hierarchy")` → True
   - **T4 (v0.64.0): get_console Filter Params** — `keyword` (substring match across all log lines) + `count_only` (return only count, no text). Token economy: 30x compression vs full log dump. Sample use: `get_console(keyword="Error", count_only=true)` → `"3 errors"`. Gating.py updated for tool filtering.
+  - **C6 (v0.70.0): Derived Categories** — `_THEMED_CATEGORIES` is now single source of truth. At import time, derived categories list computed (all categories minus internal ones). Eliminates manual enum-sync drift.
 - **Themed catalog** (single source of truth): `get_catalog()` returns dict with 14 categories (CORE as category, not separate key); public tools only, no NDA/plugin names. Format simplified for token economy (CORE → categories["CORE"]).
 - **Catalog serialization (v0.18.0+)**: Plain-text format sent to C# (`set_tool_catalog`): `CORE:tool1,tool2\nSCENE_EDIT:tool3,tool4\n...` via `CatalogParser.Parse()` (no JSON encoding). Reduces ~40% wire size vs JSON + eliminates C# JSON deserializer cost.
 - **Filtering pipeline**: (1) apply TIER1+session gating via `_apply_gating()`, (2) subtract disabled set from Unity MCPSettings via `_filter_tools()` (cache=None → gating-only fallback). Approach is "hide-disabled-set" (NOT allowlist — Python-only tools not in Unity's CSV wouldn't be wrongly hidden)
@@ -712,18 +738,19 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 22. SchemaGuard — pre-flight argument validation
 23. Asymmetric Reflection — compares write args vs read-back snapshot
 
-### Watch System (Python + C#, v0.59.0)
+### Watch System (Python + C#, v0.59.0; v0.70.0 B4: 5 tools → 1)
 
 **Play Mode Field Monitoring:**
 
-- **Python API** (`tools/watch.py`): 5 MCP tools registered via `watch` plugin
-  - `watch_add(path, component, field, condition="", action="log", interval_ms=500)` → watch ID (w1, w2, etc.)
-  - `get_watches()` → active watches + recent log entries
-  - `watch_remove(watch_id)` → delete by ID
-  - `watch_clear()` → remove all watches
-  - `watch_reset(watch_id)` → re-arm triggered watch
-  - **Conditions**: Optional comparison (e.g., `< 10`, `> 0`, `== null`) — if matched, action triggers
-  - **Actions**: `"log"` (default) prints value change to console; `"pause"` pauses editor on trigger
+- **Python API** (`tools/watch.py`): **B4 (v0.70.0): Consolidated to 1 MCP tool** — 5 separate watch tools (watch_add, watch_get, watch_remove, watch_clear, watch_reset) → single `watch(action, ...)` with action-dispatch:
+  - `watch(action="add", path, component, field, condition="", trigger="log", interval_ms=500)` → watch ID
+  - `watch(action="get")` → active watches + recent log entries
+  - `watch(action="remove", watch_id)` → delete by ID
+  - `watch(action="clear")` → remove all watches
+  - `watch(action="reset", watch_id)` → re-arm triggered watch
+  - **Rationale**: Token economy (1 tool in catalog, 1 schema definition). Symmetric with existing action-based tools (scene, animation, asset, etc.).
+  - **Conditions**: Optional comparison (e.g., `< 10`, `> 0`, `== null`) — if matched, trigger action
+  - **Trigger actions**: `"log"` (default) prints value change to console; `"pause"` pauses editor on trigger
   - **Interval**: Polling frequency in milliseconds (default 500ms, ~2 samples/sec)
 
 - **C# Runtime** (6 files + SessionState persistence):
@@ -1085,16 +1112,29 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
 
 ## Code Locations
 
-**Python** (80+ modules):
+**Python** (90+ modules):
 - `server/src/unity_mcp/server.py` — MCP server setup, lifespan, dynamic filtering
-- `server/src/unity_mcp/bridge.py` — UnityBridge TCP client, should_retry() decision logic, BridgeState enum (DISCONNECTED|CONNECTED|DOMAIN_RELOADING|FAILED)
+- `server/src/unity_mcp/bridge.py` — UnityBridge TCP client, BridgeState enum (DISCONNECTED|CONNECTED|DOMAIN_RELOADING|FAILED)
+- `server/src/unity_mcp/bridge_retry.py` — **NEW (v0.70.0, C8)** RetryPolicy class: unified retry decisions (exceptions + hints)
+- `server/src/unity_mcp/bridge_result.py` — **NEW (v0.70.0, C1)** unwrap_bridge_result() pure function for response unpacking
 - `server/src/unity_mcp/bridge_heartbeat.py` — HeartbeatMixin loop (15s ping, 2–5s reconnect polling, startup grace deadline)
 - `server/src/unity_mcp/bridge_reload_state.py` — DomainReloadTracker dataclass (30s expiry, marks domain reload state shared with send())
 - `server/src/unity_mcp/connection_slot.py` — ConnectionSlot: single connection management
 - `server/src/unity_mcp/lockfile.py` — PID lockfile with fcntl.flock
 - `server/src/unity_mcp/compile_state.py` — CompileStateProbe heuristic
+- `server/src/unity_mcp/paths.py` — **NEW (v0.70.0, C2)** unity_mcp_dir() function: centralized port file directory logic
+- `server/src/unity_mcp/utils.py` — **v0.70.0, C5**: unified KV regex supports dotted keys (Component.prop=value)
 - `server/src/unity_mcp/middleware.py` — 23-layer middleware pipeline (core)
 - `server/src/unity_mcp/middleware_paths.py` — PathResolverMixin extracted from middleware.py
+- **Tools** (split from scene.py in v0.70.0, B2):
+  - `server/src/unity_mcp/tools/scene.py` — get_hierarchy, set_parent, search_scene, get_spatial_context (residual)
+  - `server/src/unity_mcp/tools/console.py` — **NEW (v0.70.0)** get_console (keyword+count_only), clear_console
+  - `server/src/unity_mcp/tools/screenshot.py` — **NEW (v0.70.0)** screenshot (camera modes, Haiku describe)
+  - `server/src/unity_mcp/tools/testing.py` — **NEW (v0.70.0)** recompile, await_compile, health checks
+  - `server/src/unity_mcp/tools/editor_control.py` — **NEW (v0.70.0)** editor (state/play/stop/pause/select/project_path)
+  - `server/src/unity_mcp/tools/gating.py` — **v0.70.0, C6**: categories derived from _THEMED_CATEGORIES (single source of truth)
+  - `server/src/unity_mcp/tools/watch.py` — **v0.70.0, B4**: consolidated watch(action=...) tool (was 5 separate)
+  - `server/src/unity_mcp/tools/tool_specs.py` — ToolSpec metadata (tool specs, categories, tier1, timeouts) — single source of truth
 - `server/src/unity_mcp/metrics.py` — MetricsRegistry singleton
 - `server/src/unity_mcp/sampling.py` — SamplingService for visual verification
 - **Chat Relay System (v0.66.6+):**
@@ -1103,8 +1143,8 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
   - `server/src/unity_mcp/relay_buffer.py` — Reconnect-safe ring buffer (maxlen=500). Append-only log with monotonic seq IDs, long-poll via asyncio.Event, dropped counter.
   - `server/src/unity_mcp/stream_transform.py` — Pure NDJSON→pipe-format converter. Stateless _ToolCallAcc accumulator for multi-line tool args. Unknown input → empty list (never raises).
   - `server/src/unity_mcp/backend_def.py` — Backend definitions (Claude, Codex, Kimi, Agy, OpenCode) with arg builders, parsers, binary name, model config.
-- `server/src/unity_mcp/tools/` — 24 tool modules (scene, objects, asset, animation, batch, codegen, skills, spatial, ui, connection, runtime, gating, autobatch, intent tools, code_intel, watch, debug_tool, etc.)
-- `server/src/unity_mcp/tools/watch.py` — Watch system MCP tools (watch_add, get_watches, watch_remove, watch_clear, watch_reset)
+- `server/src/unity_mcp/tools/` — 24+ tool modules (scene, console, screenshot, testing, editor_control, objects, asset, animation, batch, codegen, skills, spatial, ui, connection, runtime, gating, autobatch, intent tools, code_intel, watch, debug_tool, etc.)
+- `server/src/unity_mcp/tools/watch.py` — **v0.70.0, B4**: unified `watch(action=...)` tool (was 5 separate: watch_add, get_watches, watch_remove, watch_clear, watch_reset)
 - `server/src/unity_mcp/tools/debug_tool.py` — Symptom classifier + batch command generator (debug_tool, get_perf, debug_animator, debug_physics, get_memory)
 - `server/src/unity_mcp/tools/runtime.py` — Play Mode tools (invoke_method with private/static support, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest)
 - `server/src/unity_mcp/debug/` — Debug subsystem (snapshots.py: state capture + diff)
@@ -1123,8 +1163,8 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
 - `server/src/unity_mcp/visual_diff.py` — visual regression testing
 - `server/src/unity_mcp/sampling_postproc.py` — Haiku output normalizer
 
-**C#** (165+ files, 17800+ LOC):
-- **Core** (55+ files): MCPServer, CommandRouter (3 partials), CommandRegistry/Validator, IMCPPlugin/PluginRegistry, ObjectManager, ValueParser, InputNormalizer, BatchHelper, HierarchySerializer, ComponentSerializer, RefManager, ErrorHelper, RuntimeHelper, PlaytestRunner (2 partials), PlaytestParser, MultiViewCapture, CodeExecutor, SearchHelper, SpatialHelper, AnimationHelper, TimelineHelper, AnimatorControllerHelper, ParticleHelper, ShaderHelper, ShaderGraphHelper, UIHelper, ReferenceHelper, AssetDatabaseHelper, ProjectSettingsHelper, MaterialHelper, PrefabHelper, ScriptableObjectHelper, MCPSettings (data class), MCPToolSettingsWindow, MCPPermissionsWindow, MCPConnectionWindow, MCPStatusWindow, MCPStatusModel, MCPStatusBarWidget, MCPActions, ChatSettingsHook (event hook)
+**C#** (165+ files, 17850+ LOC, review sprint v0.70.0: B1 CommandRouter.Registration split + C7 PendingAskRegistry + C4 ExtractVector3 + B3 CommandOptions demoted to internal):
+- **Core** (55+ files): MCPServer, CommandRouter (4 partials: main + **v0.70.0 B1: Registration** for themed split), **v0.70.0 C7: PendingAskRegistry** (isolated ask_user state machine), CommandRegistry/Validator, IMCPPlugin/PluginRegistry, ObjectManager, ValueParser, InputNormalizer, BatchHelper, HierarchySerializer, ComponentSerializer, RefManager, ErrorHelper, RuntimeHelper, PlaytestRunner (2 partials), PlaytestParser, MultiViewCapture, CodeExecutor, SearchHelper, SpatialHelper, AnimationHelper, TimelineHelper, AnimatorControllerHelper, ParticleHelper, ShaderHelper, ShaderGraphHelper, UIHelper, ReferenceHelper, AssetDatabaseHelper, ProjectSettingsHelper, MaterialHelper, PrefabHelper, ScriptableObjectHelper, MCPSettings (data class), MCPToolSettingsWindow, MCPPermissionsWindow, MCPConnectionWindow, MCPStatusWindow, MCPStatusModel, MCPStatusBarWidget, MCPActions, ChatSettingsHook (event hook)
 - **Debug Subsystem (v0.59.0)** (12 files): MCPDebugPanel, MCPDebugUI (5 partials: WatchRows, EvalBar, AddWatch, ConsolePreview), DebugOverlayDrawer, SparklineHelper, ProfilerHelper, MemoryHelper, AnimatorHelper, PhysicsHelper, WatchEntry, WatchCondition, WatchEvaluator, WatchRegistry, WatchScheduler, WatchCommandHandler (+ 10 test files: WatchEntryTests, WatchRegistryTests, ProfilerHelperTests, SparklineHelperTests, WatchEvaluatorTests, WatchCommandHandlerTests, MCPDebugUITests, WatchConditionTests, MemoryHelperTests, AnimatorHelperTests, PhysicsHelperTests). Stylesheet: MCPDebug.uss.
 - **Chat Module** (130+ files, optional behind UNITY_MCP_CHAT define, v0.29.2 split into CLI + View assemblies, v0.66.6 unified RelayBackend):
   - **CLI Assembly** (UnityMCP.Editor.Chat.CLI, protocol + single RelayBackend, compiles independently when main broken):

@@ -6,9 +6,11 @@ import traceback
 from pathlib import Path
 from typing import Optional
 
+from .paths import unity_mcp_dir
+
 
 def _crash_path(log_dir: Optional[Path] = None) -> Path:
-    return Path(log_dir or Path.home() / ".unity-mcp") / "crash.jsonl"
+    return Path(log_dir or unity_mcp_dir()) / "crash.jsonl"
 
 
 def log_crash(exc: BaseException, *, log_dir=None) -> None:

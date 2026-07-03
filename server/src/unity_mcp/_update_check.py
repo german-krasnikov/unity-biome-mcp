@@ -5,8 +5,9 @@ import time
 import urllib.request
 from unity_mcp import __version__
 from unity_mcp.config.resolver import GIT_INSTALL_URL
+from unity_mcp.paths import unity_mcp_dir
 
-CACHE_FILE = pathlib.Path.home() / ".unity-mcp" / "update_cache.json"
+CACHE_FILE = unity_mcp_dir() / "update_cache.json"
 CACHE_TTL = 86400  # 24 hours
 GITHUB_URL = "https://api.github.com/repos/german-krasnikov/unity-kiss-mcp/releases/latest"
 TIMEOUT = 3

@@ -115,3 +115,14 @@ async def test_wrap_send_forwards_zero_not_stale_thirty():
     await wrapped("ping", {})
 
     assert received["timeout"] == 0
+
+
+async def test_wrapped_send_unwraps_raw_dict_result_not_ok():
+    """wrapped() must surface the err message (not the raw dict) when ok=False,
+    and must classify it as a protocol error (drives dedup_error/recorder)."""
+    async def fake_send(cmd, args, timeout=30.0):
+        return {"ok": False, "err": "boom"}
+
+    wrapped = wrap_send(fake_send)
+    result = await wrapped("get_console", {})
+    assert result == "boom"

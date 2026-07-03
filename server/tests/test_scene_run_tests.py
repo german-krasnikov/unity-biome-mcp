@@ -1,7 +1,7 @@
 """Tests for run_tests — immediate return (no inline polling) + pre-flight recovery."""
 import asyncio
 from unittest.mock import AsyncMock
-import unity_mcp.tools.scene as scene_mod
+import unity_mcp.tools.testing as scene_mod
 
 
 async def test_run_tests_connection_error_returns_started(monkeypatch):

@@ -84,12 +84,6 @@ def test_is_core_returns_false_for_non_core():
         assert not is_core(tool), f"{tool!r} should NOT be core"
 
 
-def test_force_visible_subset_of_core():
-    from unity_mcp.tools.gating import FORCE_VISIBLE, is_core
-    for tool in FORCE_VISIBLE:
-        assert is_core(tool), f"FORCE_VISIBLE tool {tool!r} must be in CORE"
-
-
 # ---------------------------------------------------------------------------
 # Cycle 4: catalog holds only first-party (public) tools, no external plugins
 # ---------------------------------------------------------------------------

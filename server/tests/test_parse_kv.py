@@ -107,3 +107,10 @@ def test_parse_kv_quoted_preserves_internal_and_edge_spaces():
     # Quoted values: internal and trailing spaces inside quotes must be preserved
     result = parse_kv('value="hello   " other=x')
     assert result["value"] == "hello   ", f"got {result['value']!r}"
+
+
+# ── C5: unified regex handles dotted keys (was autobatch._DOTTED_KV_RE only) ─
+
+def test_parse_kv_dotted_key():
+    result = parse_kv("Transform.m_LocalPosition=(1,0,0) Health.maxHp=100")
+    assert result == {"Transform.m_LocalPosition": "(1,0,0)", "Health.maxHp": "100"}

@@ -10,11 +10,12 @@ from pathlib import Path
 from typing import Optional
 
 from .lockfile import is_pid_alive
+from .paths import unity_mcp_dir
 
 log = logging.getLogger("unity_mcp.server_control")
 
 _IS_WIN = sys.platform == "win32"
-_DEFAULT_LOCK_DIR = Path.home() / ".unity-mcp"
+_DEFAULT_LOCK_DIR = unity_mcp_dir()
 
 
 def _lock_dir_resolved(lock_dir: Optional[Path]) -> Path:

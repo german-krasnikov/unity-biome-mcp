@@ -168,7 +168,7 @@ async def test_describer_all_rungs_none_no_fallback_marker(monkeypatch):
 
 async def test_screenshot_default_describe_none_returns_path(mock_bridge):
     """CRITICAL backward compat: describe=None must not call Haiku."""
-    from unity_mcp.tools.scene import screenshot
+    from unity_mcp.tools.screenshot import screenshot
 
     mock_bridge.send.return_value = {"ok": True, "data": "Data saved to: /tmp/shot.png"}
 
@@ -178,14 +178,14 @@ async def test_screenshot_default_describe_none_returns_path(mock_bridge):
 
 
 async def test_screenshot_describe_auto_returns_text_with_img_suffix(mock_bridge):
-    from unity_mcp.tools.scene import screenshot
+    from unity_mcp.tools.screenshot import screenshot
 
     mock_bridge.send.return_value = {"ok": True, "data": "Data saved to: /tmp/shot.png"}
 
     mock_describer = MagicMock()
     mock_describer.describe = AsyncMock(return_value="A red cube in the center.")
 
-    with patch("unity_mcp.tools.scene._get_describer_safe",
+    with patch("unity_mcp.tools.screenshot._get_describer_safe",
                return_value=mock_describer):
         result = await screenshot(describe="auto")
 
@@ -194,7 +194,7 @@ async def test_screenshot_describe_auto_returns_text_with_img_suffix(mock_bridge
 
 
 async def test_screenshot_raw_true_forces_path_even_with_describe(mock_bridge):
-    from unity_mcp.tools.scene import screenshot
+    from unity_mcp.tools.screenshot import screenshot
 
     mock_bridge.send.return_value = {"ok": True, "data": "Data saved to: /tmp/shot.png"}
 
@@ -204,11 +204,11 @@ async def test_screenshot_raw_true_forces_path_even_with_describe(mock_bridge):
 
 
 async def test_screenshot_describe_sampling_unavailable_returns_path(mock_bridge):
-    from unity_mcp.tools.scene import screenshot
+    from unity_mcp.tools.screenshot import screenshot
 
     mock_bridge.send.return_value = {"ok": True, "data": "Data saved to: /tmp/shot.png"}
 
-    with patch("unity_mcp.tools.scene._get_describer_safe", return_value=None):
+    with patch("unity_mcp.tools.screenshot._get_describer_safe", return_value=None):
         result = await screenshot(describe="auto")
 
     assert "Data saved to:" in result

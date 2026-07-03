@@ -182,3 +182,59 @@ async def test_run_intent_pipeline_empty_build_returns_error():
             parse_fn=MagicMock(return_value=[]), build_fn=MagicMock(return_value=[]),
             dry_run=False,
         )
+
+
+# --- C3: optional validate_fn hook (generate -> strip -> parse -> [validate] -> build -> execute) ---
+
+async def test_run_intent_pipeline_calls_validate_fn_between_parse_and_build():
+    """validate_fn is called with parse_fn's return value, before build_fn."""
+    from unittest.mock import AsyncMock, MagicMock
+    from unity_mcp.tools.intent_common import run_intent_pipeline
+    sampling = MagicMock()
+    sampling.generate = AsyncMock(return_value="DSL")
+    parsed = {"states": []}
+    parse_fn = MagicMock(return_value=parsed)
+    validate_fn = MagicMock(return_value=None)
+    build_fn = MagicMock(return_value=["cmd1"])
+    send = AsyncMock(return_value="ok")
+    await run_intent_pipeline(
+        send=send, sampling=sampling, prompt="p", feature="f",
+        parse_fn=parse_fn, build_fn=build_fn, dry_run=False,
+        validate_fn=validate_fn,
+    )
+    validate_fn.assert_called_once_with(parsed)
+    build_fn.assert_called_once_with(parsed)
+
+
+async def test_run_intent_pipeline_validate_fn_error_raises_before_build():
+    """validate_fn returning an error string raises ToolError('INVALID DSL: <err>')
+    and build_fn/send must never be called."""
+    from unittest.mock import AsyncMock, MagicMock
+    from unity_mcp.tools.intent_common import run_intent_pipeline
+    sampling = MagicMock()
+    sampling.generate = AsyncMock(return_value="DSL")
+    build_fn = MagicMock(return_value=["cmd1"])
+    send = AsyncMock()
+    with pytest.raises(ToolError, match="INVALID DSL: bad state"):
+        await run_intent_pipeline(
+            send=send, sampling=sampling, prompt="p", feature="f",
+            parse_fn=MagicMock(return_value={}), build_fn=build_fn, dry_run=False,
+            validate_fn=MagicMock(return_value="bad state"),
+        )
+    build_fn.assert_not_called()
+    send.assert_not_called()
+
+
+async def test_run_intent_pipeline_no_validate_fn_backward_compatible():
+    """Omitting validate_fn (default None) must behave exactly as before —
+    vfx_intent_tool/ui_intent_tool don't pass it."""
+    from unittest.mock import AsyncMock, MagicMock
+    from unity_mcp.tools.intent_common import run_intent_pipeline
+    sampling = MagicMock()
+    sampling.generate = AsyncMock(return_value="DSL")
+    result = await run_intent_pipeline(
+        send=AsyncMock(return_value="ok"), sampling=sampling, prompt="p", feature="f",
+        parse_fn=MagicMock(return_value={}), build_fn=MagicMock(return_value=["cmd1"]),
+        dry_run=False,
+    )
+    assert "f:" in result and "1 ops" in result

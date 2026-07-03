@@ -61,6 +61,15 @@ class _StubBridge(UnityBridge):
         self._pinned_pid = None
         self._bridge_id = "br-test-0000"
         self._reconnect_count = 0
+        self._is_retry_safe = lambda cmd: False
+        # C8: should_retry() now delegates to RetryPolicy (bridge_retry.py) —
+        # mirrors UnityBridge.__init__'s construction (see maintenance note above).
+        from unity_mcp.bridge import MAX_RETRIES
+        from unity_mcp.bridge_retry import RetryPolicy
+        self._retry_policy = RetryPolicy(
+            probe=self._probe, reload=self._reload,
+            is_retry_safe=self._is_retry_safe, max_retries=MAX_RETRIES,
+        )
 
     @property
     def connected(self) -> bool:

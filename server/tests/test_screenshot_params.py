@@ -5,7 +5,7 @@ import pytest
 @pytest.fixture
 def screenshot_tool():
     """Import screenshot with a mock send/args."""
-    import unity_mcp.tools.scene as scene_mod
+    import unity_mcp.tools.screenshot as scene_mod
 
     # minimal _args impl (same as real one)
     def _args(**kwargs):

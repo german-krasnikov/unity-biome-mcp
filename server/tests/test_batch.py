@@ -11,10 +11,12 @@ async def test_batch_text_forwarded(mock_bridge, bridge_response):
     bridge_response(data="[0] ok: /A\n[1] ok")
     commands = "create_object name=A primitive=Cube\nset_material path=/A color=#FF0000"
     result = await batch(commands=commands)
+    # A4: default timeout=75.0 -> timeout_ms=70000, which no longer matches
+    # C#'s hardcoded 25000ms default, so it's now sent explicitly.
     mock_bridge.send.assert_called_once_with(
         "batch",
-        {"commands": commands},
-        timeout=30.0,
+        {"commands": commands, "timeout_ms": 70000},
+        timeout=75.0,
     )
     assert result == "[0] ok: /A\n[1] ok"
 
@@ -37,9 +39,15 @@ async def test_batch_non_default_timeout_sent(mock_bridge, bridge_response):
 
 
 async def test_batch_default_timeout_omitted(mock_bridge, bridge_response):
-    """Default timeout=30.0 → timeout_ms absent from args."""
+    """A4: timeout_ms is only omitted when it matches C#'s own hardcoded
+    internal batch-executor default (25000ms) -- NOT Python's local default.
+    Post-A4 the two deliberately diverge (75s client default -> 70000ms), so
+    timeout_ms is present at the default now; see
+    test_batch_timeout.py::test_batch_default_timeout_75s for the authoritative
+    coverage of that value. This test locks in the *mechanism*: a timeout that
+    genuinely resolves to 25000ms (Unity's own default) still omits the key."""
     bridge_response(data="[0] ok: /A")
-    await batch(commands="create_object name=A")
+    await batch(commands="create_object name=A", timeout=30.0)  # (30-5)*1000 == 25000
     call_args = mock_bridge.send.call_args[0]
     assert "timeout_ms" not in call_args[1]
 
@@ -82,10 +90,12 @@ async def test_batch_single_command(mock_bridge):
     """Single line command works."""
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "[0] ok: /A"})
     result = await batch(commands="create_object name=A primitive=Cube")
+    # A4: default timeout=75.0 -> timeout_ms=70000, no longer matches C#'s
+    # hardcoded 25000ms default, so it's now sent explicitly.
     mock_bridge.send.assert_called_once_with(
         "batch",
-        {"commands": "create_object name=A primitive=Cube"},
-        timeout=30.0,
+        {"commands": "create_object name=A primitive=Cube", "timeout_ms": 70000},
+        timeout=75.0,
     )
     assert result == "[0] ok: /A"
 

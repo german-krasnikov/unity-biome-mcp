@@ -10,9 +10,9 @@ _args = None
 _dsl_tools: set[str] = set()
 
 
-async def batch(commands: str, on_error: str = "continue", timeout: float = 30.0,
+async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
                 atomic: bool = False) -> str:
-    """Execute multiple commands in one call. Use for 2+ operations — reads AND writes. commands: one command per line (cmd key=value). on_error: continue|stop. timeout: seconds (default 30). atomic: when True, first failing op reverts ALL prior ops in this batch (uses Unity Undo). Note: file-system side-effects from execute_code are NOT reverted. Commands validated before execution: !param = missing required parameter, ?param→suggestion = unknown parameter (with did-you-mean suggestion when close enough), plus an auto-generated usage line. PREFER this over individual tool calls."""
+    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75, above Unity's 65s ceiling). atomic: True reverts ALL prior ops on first failure (Unity Undo; execute_code fs side-effects NOT reverted). Errors include auto-usage hints. PREFER over individual tool calls."""
     for line in commands.splitlines():
         cmd = line.strip().split()[0] if line.strip() else ""
         if cmd in _dsl_tools:
@@ -21,6 +21,12 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 30.0
     args = {"commands": commands}
     if on_error != "continue":
         args["on_error"] = on_error
+    # 25000 is C#'s own hardcoded internal batch-executor default (NOT Python's
+    # local default above) -- only omit timeout_ms when it happens to match
+    # what Unity would use anyway. Post-A4 the two deliberately diverge (75s
+    # client default -> 70000ms > Unity's old 25000ms floor), so timeout_ms is
+    # now sent on effectively every call; that's intentional, not a token-economy
+    # regression (see test_batch_timeout.py::test_batch_default_timeout_75s).
     if timeout_ms != 25000:
         args["timeout_ms"] = timeout_ms
     if atomic:

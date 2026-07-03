@@ -70,7 +70,9 @@ namespace UnityMCP.Editor
             return true;
         }
 
-        public static void Register(string cmd, Func<string, string> handler, CommandOptions options)
+        // B3 (review sprint v0.70): internal — CommandOptions itself is internal-only plumbing,
+        // used exclusively by the public legacy bool-params overload below.
+        internal static void Register(string cmd, Func<string, string> handler, CommandOptions options)
         {
             if (AlreadyRegistered(cmd)) return;
             DenyPluginCoreFlags(cmd, ref options);
@@ -108,7 +110,8 @@ namespace UnityMCP.Editor
 
         // action is always required (enforced by the wrapper below) — callers only
         // declare the REMAINING required params via `required`/`options.Required`.
-        public static void RegisterAction(string cmd, Func<string, string, string> handler, CommandOptions options)
+        // B3 (review sprint v0.70): internal — see Register(CommandOptions) above.
+        internal static void RegisterAction(string cmd, Func<string, string, string> handler, CommandOptions options)
         {
             if (AlreadyRegistered(cmd)) return;
             DenyPluginCoreFlags(cmd, ref options);
@@ -151,7 +154,8 @@ namespace UnityMCP.Editor
             });
 
         // handler signature: (id, argsJson, tcs)
-        public static void RegisterAsync(string cmd, Action<string, string, TaskCompletionSource<string>> handler,
+        // B3 (review sprint v0.70): internal — see Register(CommandOptions) above.
+        internal static void RegisterAsync(string cmd, Action<string, string, TaskCompletionSource<string>> handler,
             CommandOptions options)
         {
             if (AlreadyRegistered(cmd)) return;

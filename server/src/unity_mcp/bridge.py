@@ -23,6 +23,7 @@ from unity_mcp.bridge_socket import (
 )
 from unity_mcp.bridge_heartbeat import HeartbeatMixin, BACKOFF_MIN_S
 from unity_mcp.bridge_reload_state import DomainReloadTracker, DOMAIN_RELOAD_EXPIRY_S
+from unity_mcp.bridge_retry import RetryPolicy
 from unity_mcp.compile_state import CompileStateProbe
 from unity_mcp.crash_log import CrashLogger
 from unity_mcp.metrics import METRICS
@@ -129,6 +130,10 @@ class UnityBridge(HeartbeatMixin):
         self._pinned_pid: Optional[int] = None
         self._bridge_id: str = f"br-{os.getpid():x}-{id(self) & 0xFFFF:04x}"
         self._is_retry_safe: Callable[[str], bool] = is_retry_safe or (lambda cmd: False)
+        self._retry_policy = RetryPolicy(
+            probe=self._probe, reload=self._reload,
+            is_retry_safe=self._is_retry_safe, max_retries=MAX_RETRIES,
+        )
 
     @property
     def _startup_grace_expired(self) -> bool:
@@ -154,46 +159,20 @@ class UnityBridge(HeartbeatMixin):
         """Decide if send() should retry after error.
 
         Returns: (should_retry, delay_s, reason)
+
+        C8: thin backward-compat wrapper — the actual decision now lives in
+        RetryPolicy.decide() (bridge_retry.py). BridgeState is a connection
+        state-machine concern, not a retry-policy concern (SRP), so it's set
+        here rather than inside the policy object.
         """
         if isinstance(error, DomainReloadError):
-            # Always apply side effects regardless of retry decision
-            self._probe.mark_recompile_issued()
-            self._reload.mark()
             self._state = BridgeState.DOMAIN_RELOADING
-
-        if attempt >= MAX_RETRIES:
-            return False, 0.0, "max_retries"
-        if time.monotonic() >= session_deadline:
-            return False, 0.0, "deadline"
-
-        # C1 follow-through: a TimeoutError means the request may already have
-        # reached Unity and started executing before the client gave up waiting.
-        # Blindly retrying a non-idempotent command risks duplicate execution
-        # (e.g. execute_code running twice). ConnectionRefusedError/OSError are
-        # exempt — those mean the command never reached Unity, so retry is
-        # always safe for them regardless of idempotency.
-        if isinstance(error, (TimeoutError, asyncio.TimeoutError)) and not self._is_retry_safe(cmd):
-            return False, 0.0, "unsafe_to_retry"
-
-        if isinstance(error, DomainReloadError):
-            delay = min(2 ** (attempt + 1), 8.0)
-            return True, delay, "domain_reload"
-
-        busy = self._reload.is_active() or self._probe_busy()
-        if busy:
-            delay = min(2 ** (attempt + 1), 8.0)
-            return True, delay, "busy"
-
-        if attempt < 1:
-            return True, 1.0, "transient"
-
-        return False, 0.0, "grace_expired"
+        return self._retry_policy.decide(error, attempt, session_deadline, cmd=cmd)
 
     def _probe_busy(self) -> bool:
-        try:
-            return self._probe.has_strong_busy_signal()
-        except Exception:
-            return False
+        """Compat shim: bridge_heartbeat.py (HeartbeatMixin) calls self._probe_busy()
+        directly, outside the should_retry()/RetryPolicy decision path."""
+        return self._retry_policy.probe_busy()
 
     def _ensure_heartbeat(self) -> None:
         """Restart heartbeat if task died unexpectedly."""
@@ -286,6 +265,14 @@ class UnityBridge(HeartbeatMixin):
                         )}
                 except Exception:
                     pass
+                # A1/C8: the busy-hint retry is the same risk as a TimeoutError
+                # retry — the command may have already reached Unity's
+                # dispatcher. Gate it through RetryPolicy's same is_retry_safe
+                # fail-closed check (decide()'s TimeoutError branch and
+                # allow_hint_retry() now share one gate — the whole point of
+                # unifying the two retry surfaces).
+                if not self._retry_policy.allow_hint_retry(cmd):
+                    return result
                 if attempt < MAX_RETRIES:
                     await asyncio.sleep(result["retry"] / 1000)
                     attempt += 1
@@ -350,6 +337,10 @@ class UnityBridge(HeartbeatMixin):
                     self._port = new_port
                     self._probe = CompileStateProbe(
                         CompileStateProbe.autodetect_project_path(port=new_port), port=new_port)
+                    # C8: RetryPolicy holds probe by reference — keep it in sync
+                    # so a post-migration busy-check doesn't consult a stale probe
+                    # still pointed at the old port.
+                    self._retry_policy.probe = self._probe
             except Exception:
                 pass
         reader, writer = await asyncio.wait_for(

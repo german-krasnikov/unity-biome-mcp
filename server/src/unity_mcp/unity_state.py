@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 from .constants import SESSION_TIMEOUT as _STALE_SECONDS
+from .paths import unity_mcp_dir
 
 
 @dataclass
@@ -31,7 +32,7 @@ class UnityState:
 
 def read_state_for_port(port: int) -> Optional[UnityState]:
     """Read Unity state from ~/.unity-mcp/state/port-{port}.state."""
-    path = Path.home() / ".unity-mcp" / "state" / f"port-{port}.state"
+    path = unity_mcp_dir() / "state" / f"port-{port}.state"
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").strip().split("\n")
         if len(lines) < 2:

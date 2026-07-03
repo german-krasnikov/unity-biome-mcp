@@ -95,5 +95,53 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(tcsA.Task.IsCanceled);
             Assert.IsTrue(tcsB.Task.IsCanceled);
         }
+
+        // ── Ask (C7b, review sprint v0.70) ────────────────────────────────────
+        // Orchestration method extracted from CommandRouter.AsyncAskUser: generates the
+        // requestId, registers it, invokes the caller's listener, and returns a Task<string>
+        // that resolves to the answers JSON, or {"cancelled":true} on cancel/fault — never
+        // faults itself, so callers can wrap it directly with a plain success-formatting
+        // continuation (see CommandRouter.CompleteFromInner).
+
+        [Test]
+        public void Ask_InvokesOnAskEventWithGeneratedRequestId()
+        {
+            string capturedId = null;
+            string capturedQuestions = null;
+            PendingAskRegistry.Ask("[{\"q\":\"hi\"}]", (id, questions) =>
+            {
+                capturedId = id;
+                capturedQuestions = questions;
+                PendingAskRegistry.Complete(id, "{}");
+            });
+
+            Assert.IsNotNull(capturedId);
+            Assert.AreEqual(32, capturedId.Length, "requestId must be a GUID 'N' format (32 hex chars)");
+            Assert.AreEqual("[{\"q\":\"hi\"}]", capturedQuestions);
+        }
+
+        [Test]
+        public void Ask_TaskCancelled_ResolvesWithCancelledJson()
+        {
+            string requestId = null;
+            var task = PendingAskRegistry.Ask("[]", (id, _) => requestId = id);
+
+            PendingAskRegistry.Cancel(requestId);
+
+            Assert.IsTrue(task.IsCompleted);
+            Assert.AreEqual("{\"cancelled\":true}", task.Result);
+        }
+
+        [Test]
+        public void Ask_TaskCompleted_ResolvesWithAnswerJson()
+        {
+            string requestId = null;
+            var task = PendingAskRegistry.Ask("[]", (id, _) => requestId = id);
+
+            PendingAskRegistry.Complete(requestId, "{\"a\":1}");
+
+            Assert.IsTrue(task.IsCompleted);
+            Assert.AreEqual("{\"a\":1}", task.Result);
+        }
     }
 }

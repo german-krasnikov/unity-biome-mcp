@@ -91,7 +91,7 @@ async def run_playtest(script: str, timeout: float = 120.0) -> str:
     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f.
     Queries use aliases from PlaytestConfig.asset or pipe format: path|component|field"""
     raw = await _send("run_playtest", _args(script=script, timeout=str(timeout)),
-                      timeout=timeout + 10.0)
+                      timeout=timeout + 20.0)
     compressed = _compress_report(raw)
     if len(compressed) > 300:
         svc = SamplingService()

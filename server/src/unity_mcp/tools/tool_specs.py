@@ -38,10 +38,16 @@ _SPECS: dict[str, ToolSpec] = {
     'auto_wire': ToolSpec(category='COMPONENTS'),
     'autofit_collider': ToolSpec(category='META'),
     'await_compile': ToolSpec(category='ADVANCED_CODE', tier1=True),
+    # timeout_s live for 9 internal _send("batch",...) callers w/o explicit timeout
+    # (animator_intent_tool.py:119, skills.py:61, autobatch.py:69/98/136,
+    # ui_intent_tool.py:152, debug_tool.py:78, do_intent/executor.py:38/67).
+    # Public batch() tool always overrides -- see tools/batch.py timeout param.
     'batch': ToolSpec(category='CORE', core=True, timeout_s=120.0),
     'budget_status': ToolSpec(category='META'),
     'check_colliders': ToolSpec(category='META'),
     'checkpoint': ToolSpec(category='ADVANCED_CODE'),
+    # timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
+    # timeout=15.0 (fast-fail by design).
     'compile_preflight': ToolSpec(category='ADVANCED_CODE', tier1=True, timeout_s=60.0),
     'configure_objects': ToolSpec(category='META', tier1=True),
     'create_object': ToolSpec(category='CORE', core=True),
@@ -59,6 +65,8 @@ _SPECS: dict[str, ToolSpec] = {
     'export_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
     'find_objects': ToolSpec(category='SCENE_EDIT'),
     'fingerprint': ToolSpec(category='SESSION_SKILLS', timeout_s=10.0),
+    # timeout_s is unreachable by construction -- fuzz_playtest() sends wire-cmd
+    # "run_playtest" (tools/runtime.py), never this key.
     'fuzz_playtest': ToolSpec(category='UNIT_TESTS', tier1=True, timeout_s=300.0),
     'get_capabilities': ToolSpec(category='META'),
     'get_changes': ToolSpec(category='SESSION_SKILLS'),
@@ -108,7 +116,11 @@ _SPECS: dict[str, ToolSpec] = {
     'region_clear': ToolSpec(category='META'),
     'render_analyze': ToolSpec(category='RENDERING'),
     'resolve_tool_schema': ToolSpec(category='CORE', core=True),
+    # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
+    # timeout+20.0 explicitly.
     'run_playtest': ToolSpec(category='UNIT_TESTS', tier1=True, timeout_s=300.0),
+    # timeout_s is a fallback ceiling only -- scene.py:189 always passes
+    # timeout=8.0 (deliberate fire-and-forget).
     'run_tests': ToolSpec(category='UNIT_TESTS', tier1=True, timeout_s=300.0),
     'save_session': ToolSpec(category='SESSION_SKILLS'),
     'save_skill': ToolSpec(category='SESSION_SKILLS'),
@@ -127,7 +139,7 @@ _SPECS: dict[str, ToolSpec] = {
     'set_llm_config': ToolSpec(category='META'),
     'set_material': ToolSpec(category='SCENE_EDIT'),
     'set_parent': ToolSpec(category='CORE', core=True),
-    'set_properties': ToolSpec(category='META', tier1=True),
+    'set_properties': ToolSpec(category='META'),
     'set_property': ToolSpec(category='CORE', core=True),
     'set_property_delta': ToolSpec(category='SCENE_EDIT'),
     'set_rect': ToolSpec(category='UI'),
@@ -149,9 +161,6 @@ _SPECS: dict[str, ToolSpec] = {
     'validate_references': ToolSpec(category='ADVANCED_CODE'),
     'vfx_intent': ToolSpec(category='VFX'),
     'wait_until': ToolSpec(category='RUNTIME', tier1=True),
-    'watch_add': ToolSpec(category='DEBUG'),
-    'watch_clear': ToolSpec(category='DEBUG'),
-    'watch_remove': ToolSpec(category='DEBUG'),
-    'watch_reset': ToolSpec(category='DEBUG'),
+    'watch': ToolSpec(category='DEBUG'),
     'wire_event': ToolSpec(category='COMPONENTS'),
 }

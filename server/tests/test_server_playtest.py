@@ -12,7 +12,7 @@ async def test_run_playtest_sends_command(mock_bridge):
     mock_bridge.send.assert_called_once_with(
         "run_playtest",
         {"script": script, "timeout": "120.0"},
-        timeout=130.0,
+        timeout=140.0,
     )
     assert result == "PASS: 3 steps"
 
@@ -22,7 +22,7 @@ async def test_run_playtest_timeout_passthrough(mock_bridge):
     await run_playtest("WAIT 1", timeout=60.0)
     call = mock_bridge.send.call_args
     assert call[0][1]["timeout"] == "60.0"
-    assert call[1]["timeout"] == 70.0
+    assert call[1]["timeout"] == 80.0
 
 
 async def test_run_playtest_default_timeout(mock_bridge):
@@ -30,7 +30,16 @@ async def test_run_playtest_default_timeout(mock_bridge):
     await run_playtest("LOG hi")
     call = mock_bridge.send.call_args
     assert call[0][1]["timeout"] == "120.0"
-    assert call[1]["timeout"] == 130.0
+    assert call[1]["timeout"] == 140.0
+
+
+async def test_run_playtest_default_timeout_exceeds_csharp_ceiling(mock_bridge):
+    """Client timeout must exceed C#'s 130s run_playtest ceiling (MCPServer.cs)
+    with margin, not tie it exactly -- a tie is a race, not a guarantee."""
+    mock_bridge.send.return_value = {"ok": True, "data": "PASS"}
+    await run_playtest("LOG hi")
+    call = mock_bridge.send.call_args
+    assert call[1]["timeout"] > 130.0
 
 
 def test_compress_report_all_pass_returns_compact():

@@ -90,6 +90,7 @@ class _UnstructuredMCP(FastMCP):
 
 
 from mcp.server.fastmcp.exceptions import ToolError
+from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
 from .lockfile import acquire_lock, release_lock, cleanup_stale_locks
 from .plugins import load_plugins
@@ -105,11 +106,14 @@ from .server_lifespan import build_middleware, init_budget, wire_circuit_breaker
 
 # Re-export tool functions for test imports
 from .tools.scene import (
-    compress_hierarchy, get_hierarchy, get_console, get_compile_errors, screenshot,
-    recompile, run_tests, get_test_results, scene, search_scene, editor, checkpoint,
+    compress_hierarchy, get_hierarchy, scene, search_scene,
     fingerprint, get_changes, scene_diff, save_session, load_session,
     screenshot_baseline, screenshot_compare,
 )
+from .tools.console import get_console, get_compile_errors, recompile
+from .tools.screenshot import screenshot
+from .tools.testing import run_tests, get_test_results
+from .tools.editor_control import editor, checkpoint
 from .tools.objects import (
     get_component, inspect, get_components_list, find_objects,
     set_property, create_object, set_active, wire_event, unwire_event,
@@ -128,7 +132,7 @@ from .tools.spatial import validate_layout, get_spatial_context, scan_scene, che
 from .tools.ui import create_ui, set_rect, menu, shader
 from .tools.connection import list_connections, reconnect_unity
 from .tools.runtime import invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, fuzz_playtest
-from .tools.watch import watch_add, get_watches, watch_remove, watch_clear, watch_reset
+from .tools.watch import watch, get_watches
 from .tools.autobatch import setup_objects, set_properties, configure_objects
 from .tools.code_intel import compile_preflight
 from .tools.animator_intent_tool import animator_intent
@@ -233,13 +237,10 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
         raise ToolError(f"Unity connection lost: {e}. Retry or /mcp to reconnect.") from e
     except Exception as e:
         raise ToolError(f"Unexpected error: {type(e).__name__}: {e}") from e
-    if not result["ok"]:
-        raise ToolError(result["err"])
-    data = result.get("data", "")
-    if "file" in result:
-        file_msg = f"Data saved to: {result['file']}"
-        return f"{data}\n{file_msg}" if data else file_msg
-    return data
+    text, ok = unwrap_bridge_result(result)
+    if not ok:
+        raise ToolError(text)
+    return text
 
 
 async def _send(cmd: str, args: dict, timeout: float = 0) -> str:

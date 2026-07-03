@@ -267,7 +267,9 @@ class TestUnityBridge:
 
         with patch("unity_mcp.bridge.asyncio.open_connection", return_value=(reader, writer)):
             with patch("unity_mcp.bridge.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-                bridge = UnityBridge()
+                # A1: hint-path retry now respects is_retry_safe -- get_hierarchy
+                # is read-only so this test explicitly opts it in.
+                bridge = UnityBridge(is_retry_safe=lambda cmd: True)
                 await bridge.connect()
                 result = await bridge.send("get_hierarchy", {})
 
@@ -345,7 +347,9 @@ class TestUnityBridge:
 
         with patch("unity_mcp.bridge.asyncio.open_connection", return_value=(reader, writer)):
             with patch("unity_mcp.bridge.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-                bridge = UnityBridge()
+                # A1: hint-path retry now respects is_retry_safe -- get_hierarchy
+                # is read-only so this test explicitly opts it in.
+                bridge = UnityBridge(is_retry_safe=lambda cmd: True)
                 await bridge.connect()
                 result = await bridge.send("get_hierarchy", {})
 

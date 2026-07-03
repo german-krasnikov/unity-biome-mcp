@@ -9,13 +9,18 @@ unity-kiss-mcp/
 │   ├── ui.py                   # Terminal UI (prompt, confirm, boxes, colors)
 │   ├── commands.py             # Subcommand implementations (setup, update [uvx --reinstall + reconfigure], doctor, configure, uninstall, connect, disconnect, pull)
 │   └── tests/                  # Bootstrap + UI + install tests
-├── server/                     # Python MCP Server (see CLAUDE.md Commands section for current test count; v0.66.0: +27 diagnose/reload stability tests; v0.65.0: +8 run_tests pre-flight gate tests; v0.64.0: +75 polyline/scene tests; v0.54.1: +54 connection/focus-loss stability tests; v0.47.1: +151 config validation tests)
+├── server/                     # Python MCP Server (see CLAUDE.md Commands section for current test count; v0.70.0: tools/ split console/screenshot/testing/editor_control, bridge split retry/result; v0.66.0: +27 diagnose/reload stability tests; v0.65.0: +8 run_tests pre-flight gate tests; v0.64.0: +75 polyline/scene tests; v0.54.1: +54 connection/focus-loss stability tests; v0.47.1: +151 config validation tests)
 │   ├── src/unity_mcp/
 │   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
 │   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 120 registered MCP tools (v0.50.3)
 │   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
-│   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE)
+│   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0)
+│   │   ├── bridge_retry.py     # RetryPolicy class + unwrap_bridge_result() extracted (v0.70.0)
+│   │   ├── bridge_result.py    # unwrap_bridge_result() helper (v0.70.0)
+│   │   ├── bridge_heartbeat.py # Heartbeat management (extracted)
+│   │   ├── bridge_reload_state.py # Reload state tracking (extracted)
+│   │   ├── bridge_socket.py    # Socket management (extracted)
 │   │   ├── connection_slot.py  # ConnectionSlot: dual connections (CLI + Chat agent)
 │   │   ├── chat_relay.py       # Chat relay TCP server: 5 backends, deferred spawn for single-turn, _TRANSFORM_FNS dispatch, EOF handling (v0.67.0: +output_format/reads_stdin, +close_stdin, role-aware ping)
 │   │   ├── cli_session.py      # CLI session state tracking + history scanning + close_stdin (v0.66.0+)
@@ -93,7 +98,7 @@ unity-kiss-mcp/
 │   │   ├── debug/              # Debug subsystem (v0.59.0: state capture + watch system)
 │   │   │   ├── __init__.py
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
-│   │   ├── tools/              # Tool modules (37 files + __init__, v0.60.0: +profiling.py, rendering.py, v0.62.0: +auto_wire.py, scene_health.py, v0.69.0: +tool_specs.py, _common.py, meta.py)
+│   │   ├── tools/              # Tool modules (41 files + __init__, v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
 │   │   │   ├── tool_specs.py   # Single source of truth: 128 ToolSpec entries with category/core/tier1/timeout_s metadata (v0.69.0, M8)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
@@ -104,7 +109,11 @@ unity-kiss-mcp/
 │   │   │   ├── scene_health.py # Scene health audit: hierarchy depth, naming, duplicates, origins, missing scripts (v0.62.0)
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
 │   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/set_material
-│   │   │   ├── scene.py        # scene, editor, screenshot, search, spatial, scan, schema
+│   │   │   ├── scene.py        # scene, hierarchy, search (multi-scene support, v0.70.0: only scene_tools)
+│   │   │   ├── console.py      # get_console tool split from scene.py (v0.70.0)
+│   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)
+│   │   │   ├── testing.py      # run_playtest, run_tests split from scene.py (v0.70.0)
+│   │   │   ├── editor_control.py # editor control commands split from scene.py (v0.70.0)
 │   │   │   ├── runtime.py      # invoke_method, wait_until, move_to, run_playtest, fuzz_playtest
 │   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set
 │   │   │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
@@ -115,7 +124,7 @@ unity-kiss-mcp/
 │   │   │   ├── asset.py        # asset, material, prefab, scriptable_object, project_settings, validate_move (v0.30.4)
 │   │   │   ├── connection.py   # list_connections, reconnect_unity
 │   │   │   ├── autobatch.py    # setup_objects, set_properties, configure_objects (v0.55.10: _quote_if_spaces, _DOTTED_KV_RE lookahead)
-│   │   │   ├── gating.py       # TIER1 + category-based capability filtering (permission_prompt in CORE_TOOLS, v0.29.37; collections derived from tool_specs._SPECS v0.69.0)
+│   │   │   ├── gating.py       # TIER1 + category-based capability filtering (v0.29.37; CATEGORIES derived from tool_specs._SPECS v0.69.0; FORCE_VISIBLE removed v0.70.0)
 │   │   │   ├── do_tool.py      # NL intent → Haiku plan → batch execute
 │   │   │   ├── ask_tool.py     # NL read-only → route → Haiku summarize
 │   │   │   ├── ask_user_tool.py # ask_user MCP tool (ask_user AskUserCard routing, v0.29.11)
@@ -207,19 +216,21 @@ unity-kiss-mcp/
 │   ├── UnityMCP.Reload.asmdef                # Core assembly (no references)
 │   ├── package.json                          # v0.1.4, "com.unity-mcp.reload"
 │   └── package.json.meta
-├── unity-plugin/               # Unity Editor Plugin (200+ C# files, ~19500 LOC, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests)
+├── unity-plugin/               # Unity Editor Plugin (200+ C# files, ~19500 LOC, v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests)
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
 │       ├── CommandRouter.cs                # RegisterAll(), guards, core dispatch (partial class)
 │       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class)
 │       ├── CommandRouter.MediaHandlers.cs  # Media/asset handlers (partial class)
+│       ├── CommandRouter.Registration.cs   # 4 themed Register methods: RegisterSceneTools, RegisterRuntimeTools, RegisterMetaTools, RegisterEditorTools (partial class, v0.70.0)
 │       ├── Bootstrap.cs                    # [InitializeOnLoadMethod] breaks cyclic static-init: defers CommandRegistry.Clear/InitDefaults via delayCall (v0.69.0)
-│       ├── CommandOptions.cs               # Struct groups trailing Register() params: Mutating/Runtime/Required/Optional/AlwaysAllowed/AllowedDuringCompile/Description/MaxResponseChars (v0.69.0)
+│       ├── CommandOptions.cs               # Struct groups trailing Register() params: Mutating/Runtime/Required/Optional/AlwaysAllowed/AllowedDuringCompile/Description/MaxResponseChars (v0.69.0, refactored v0.70.0)
 │       ├── CommandRegistry.cs              # Command registration + runtime flag (v0.69.0: CommandOptions struct overloads for new registrations)
 │       ├── CommandValidator.cs             # Parameter validation via contract at Register() + fuzzy matching
 │       ├── IMCPPlugin.cs                   # Plugin interface (Name, CommandPrefix, RegisterCommands, OnDomainReload, GetToolSubcategory, DIMs: Description, HasSettingsUI, BuildSettingsUI)
 │       ├── PluginRegistry.cs               # Static plugin registry (Register, RegisterAllPlugins with CallerIsPlugin gate v0.69.0, OnDomainReload, GetCommandsForPlugin, BelongsToPlugin)
+│       ├── PendingAskRegistry.cs            # Ask() method + registry for pending asks during domain reload (v0.70.0 refactored)
 │       ├── PluginConfig.cs                 # Isolated EditorPrefs storage for plugins (GetString/SetString, GetBool/SetBool, GetInt/SetInt, GetFloat/SetFloat, Delete, namespace: MCPPlugin_{pluginId}_{key}, v0.65.1)
 │       ├── PluginUIHelpers.cs              # Convenience UI builders (MakeCard, InlineRow, AddTextField/Toggle/Slider/IntSlider/Dropdown with auto-persist, LoadStyles, v0.65.1)
 │       ├── PluginToolGrouping.cs           # Stateless grouping by subcategory (v0.55.10)
@@ -372,6 +383,8 @@ unity-kiss-mcp/
 │       │   ├── PluginConfigTests.cs       # Isolated EditorPrefs storage tests (Get/Set String/Bool/Int/Float, Delete, namespacing, v0.65.1, 9 tests)
 │       │   ├── PluginUIHelpersTests.cs    # Convenience UI builder tests (MakeCard, InlineRow, Add* controls, auto-persist, LoadStyles, v0.65.1, 20 tests)
 │       │   ├── PluginSettingsPageTests.cs # Plugin UI registration + settings page rendering (v0.64.0, 29 tests)
+│       │   ├── CommandRouterExtractHelperTests.cs # Extract helper unit tests (v0.70.0)
+│       │   ├── CommandRouterRegistrationTests.cs # Registration method tests (v0.70.0)
 │       ├── Wizard/                        # Setup Wizard + Auto-Config + Diagnostics (v0.38.0+, v0.68.0: ProjectConfigWriter auto-config, v0.42.0: 3-screen flow, 9 backends, asmdef split; v0.47.1: AiConfigScreen fallback, removed dead screens)
 │       │   ├── ProjectConfigWriter.cs     # [InitializeOnLoad] auto-config orchestrator: discovers port, version, writes per-project MCP configs for all targets (v0.68.0)
 │       │   ├── ProjectConfigFormats.cs    # Format registry: JSON, TOML, extensible (v0.68.0)

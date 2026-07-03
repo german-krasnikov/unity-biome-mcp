@@ -5,10 +5,13 @@ namespace UnityMCP.Editor
     // mirrors CommandRegistry.Entry's own style, no readonly/init-only (keeps object-initializer
     // syntax working without introducing a C# 9 feature unused elsewhere in this codebase).
     //
-    // The 3-arg Register(cmd, handler, CommandOptions) overloads are the new preferred entry
-    // point for NEW registrations. The legacy bool-params overloads stay untouched for the
-    // 60+ existing call sites and now just build a CommandOptions and forward.
-    public struct CommandOptions
+    // B3 (review sprint v0.70): demoted to internal. The 3-arg Register(cmd, handler,
+    // CommandOptions) overloads had zero production call sites outside CommandRegistry.cs
+    // itself (grep-confirmed) — every one of the 90+ real registrations goes through the
+    // legacy bool-params overloads, which build a CommandOptions internally and forward.
+    // CommandOptions is now purely an internal plumbing detail between CommandRegistry's
+    // own overloads, not a public API surface.
+    internal struct CommandOptions
     {
         public bool Mutating;
         public bool Runtime;

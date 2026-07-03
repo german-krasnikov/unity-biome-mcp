@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from .paths import ports_dir as _ports_dir
+from .paths import ports_dir as _ports_dir, unity_mcp_dir
 
 log = logging.getLogger("unity_mcp.lockfile")
 
@@ -84,7 +84,7 @@ def acquire_lock(lock_dir=None, port: int = DEFAULT_PORT) -> int:
     Raises RuntimeError if this PID already holds the lock (rapid restart race).
     """
     if lock_dir is None:
-        lock_dir = Path.home() / ".unity-mcp"
+        lock_dir = unity_mcp_dir()
     lock_dir = Path(lock_dir)
     lock_dir.mkdir(parents=True, exist_ok=True)
     lock_file = lock_dir / f"server-{port}-{os.getpid()}.lock"
@@ -119,7 +119,7 @@ def release_lock(fd: int) -> None:
 def cleanup_stale_locks(port: int, lock_dir: Path = None) -> int:
     """Delete lockfiles for dead PIDs. Returns count cleaned."""
     if lock_dir is None:
-        lock_dir = Path.home() / ".unity-mcp"
+        lock_dir = unity_mcp_dir()
     lock_dir = Path(lock_dir)
     if not lock_dir.exists():
         return 0

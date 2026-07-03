@@ -99,20 +99,27 @@ async def test_disabled_tier1_tool_hidden():
         gating.reset()
 
 
-async def test_force_visible_survives_disabled():
-    """FORCE_VISIBLE tools must never be hidden even if in disabled set."""
+async def test_core_tools_survive_disabled():
+    """_CORE_TOOLS must never be hidden even if in disabled set.
+
+    A2 regression: server_filtering.py:97 used to check the hand-typed
+    FORCE_VISIBLE (11 tools) instead of the generated _CORE_TOOLS (24 tools).
+    'create_object' is core but was NOT in FORCE_VISIBLE, so it was silently
+    disable-able -- this is the money assertion that catches that gap.
+    """
     import unity_mcp.server as srv
     import unity_mcp.tools.gating as gating
     gating.reset()
     orig = srv._disabled_tools_cache
     try:
-        srv._disabled_tools_cache = {"do", "discover_tools", "get_hierarchy"}
-        tools = [_tool("do"), _tool("discover_tools"), _tool("get_hierarchy")]
+        srv._disabled_tools_cache = {"do", "discover_tools", "create_object", "screenshot"}
+        tools = [_tool("do"), _tool("discover_tools"), _tool("create_object"), _tool("screenshot")]
         result = await _filter_tools(tools, None)
         names = {t.name for t in result}
-        assert "do" in names, "FORCE_VISIBLE 'do' must survive disabled set"
-        assert "discover_tools" in names, "FORCE_VISIBLE 'discover_tools' must survive disabled set"
-        assert "get_hierarchy" not in names, "Non-FORCE_VISIBLE disabled tool must be hidden"
+        assert "do" in names, "CORE 'do' must survive disabled set"
+        assert "discover_tools" in names, "CORE 'discover_tools' must survive disabled set"
+        assert "create_object" in names, "CORE 'create_object' (A2 gap) must survive disabled set"
+        assert "screenshot" not in names, "Non-CORE disabled tool must be hidden"
     finally:
         srv._disabled_tools_cache = orig
         gating.reset()
@@ -693,15 +700,15 @@ async def test_filter_tools_empty_disabled_set():
     gating.reset()
 
 
-async def test_filter_tools_disabled_set_hides_non_force_visible():
-    """Tool in disabled set and NOT in FORCE_VISIBLE must be hidden."""
+async def test_filter_tools_disabled_set_hides_non_core():
+    """Tool in disabled set and NOT in _CORE_TOOLS must be hidden."""
     from unity_mcp.server_filtering import filter_tools
     import unity_mcp.tools.gating as gating
     gating.reset()
     tools = [_tool("screenshot"), _tool("get_hierarchy")]
     result = filter_tools(tools, {"screenshot"})
     names = {t.name for t in result}
-    assert "screenshot" not in names, "disabled non-FORCE_VISIBLE tool must be hidden"
+    assert "screenshot" not in names, "disabled non-core tool must be hidden"
     assert "get_hierarchy" in names, "non-disabled tool must remain visible"
     gating.reset()
 

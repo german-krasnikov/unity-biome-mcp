@@ -68,6 +68,15 @@ namespace UnityMCP.Editor
             return string.IsNullOrEmpty(r) ? "none" : r;
         }
 
+        /// <summary>Parses a raw Execute() completion result into (ok, text) for the async
+        /// command router, ending the current undo group unconditionally first (C7a, review
+        /// sprint v0.70 — extracted from CommandRouter.AsyncRunTests' completion callback).</summary>
+        internal static (bool ok, string text) FinishRun(string result)
+        {
+            UndoGroupHelper.EndGroup();
+            return result.StartsWith("Error:") ? (false, result.Substring(7)) : (true, result);
+        }
+
 #if UNITY_INCLUDE_TESTS
         public static void Execute(string mode, Action<string> onComplete, string group = null, string filter = null)
         {

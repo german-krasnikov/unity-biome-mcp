@@ -1,6 +1,6 @@
 """TDD: run_tests fire-and-return-immediately (no inline polling)."""
 import asyncio
-import unity_mcp.tools.scene as scene_mod
+import unity_mcp.tools.testing as scene_mod
 
 
 def _make_send(responses: list):

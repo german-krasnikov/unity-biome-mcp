@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.70.0] — Unreleased <!-- 10-architect review sprint: RetryPolicy extraction, scene.py split, gating refactor, FORCE_VISIBLE fix, PendingAskRegistry extraction -->
+
+**10-Architect Review Sprint — Safety Hardening, Architecture Consolidation, Command Registration Cleanup:**
+
+### Safety & Correctness
+- **A1: Retry-Safety Hint-Path Bypass** — Fixed bridge.py retry handler incorrectly bypassing hint_path inspection gate on retries. Prevented malformed commands from reaching Unity via retry path.
+- **A2: FORCE_VISIBLE → _CORE_TOOLS Gap** — Fixed 13 core tools (get_*, watch_*, snapshot) silently disable-able due to missing `_CORE_TOOLS` set membership check. Tools now properly protected from gating removal.
+- **A3: readme_facts.py Test-Count Provenance** — Fixed stale test counts in README by locking provenance to live Python test suite. Script now auto-syncs test counts on each run (prevents manual drift).
+- **A4: Timeout Truth — Client Margin vs C# Ceiling** — Reconciled Python client 50ms margin against C# command-execution ceiling. Widened batch/run_playtest client timeouts to prevent false "timeout exceeded" errors on slow compiles.
+
+### Architecture (Python)
+- **C8: RetryPolicy Extraction** — Extracted retry policy logic from UnityBridge into standalone `bridge_retry.py:RetryPolicy` class. Enables SOLID Single Responsibility (bridge manages I/O, policy manages backoff). Configuration-driven retry behavior (exponential backoff, max attempts, jitter).
+- **C1: bridge_result Unwrap DRY** — Extracted `unwrap_bridge_result()` helper (new `bridge_result.py` module) shared by `_send_raw` and `wrap_send`. Eliminates duplicate error handling code (was 2 locations, now 1).
+- **C2: Centralized Paths** — Routed all `~/.unity-mcp` base-dir reads through `paths.unity_mcp_dir()` centralizer. Prevents accidental hardcoded path pollution across 9 files.
+- **C3: Animator Pipeline Refactor** — `animator_intent_tool` now uses `run_intent_pipeline(validate_fn=...)` DRY pipeline builder. Removes per-tool validation boilerplate.
+- **C4: ExtractVector3 DRY** — Consolidated screenshot zoom/offset/fixed_size parsing via shared `ExtractVector3()` helper in `intent_common.py`. Eliminates 3 duplicate parsing routines.
+- **C5: KV Regex Consolidation** — Unified duplicate KV-parsing regex across codebase. Dropped `autobatch._DOTTED_KV_RE`, now single source via centralized regex. Prevents inconsistent field-path parsing.
+- **C6: gating.CATEGORIES Derived View** — Refactored `gating.CATEGORIES` from hardcoded dict to derived view computed from `_CORE_TOOLS` set + theme categories. Fixes `register_tools()` dual-write bug (was caching + computing simultaneously).
+- **C7: TestRunner.FinishRun + PendingAskRegistry.Ask Extraction** — Extracted `TestRunner.FinishRun()` method and `PendingAskRegistry.Ask()` delegate from monolithic structures. Improves testability (extractable methods enable mocking); extracted to C# `PendingAskRegistry.cs` class.
+- **B2: scene.py Split** — Decomposed 184-line `scene.py` into 4 focused modules:
+  * `tools/console.py` — Console-related commands (get_console, clear_console)
+  * `tools/screenshot.py` — Screenshot capture + multi-view rendering
+  * `tools/testing.py` — Test execution (run_tests, run_playtest, get_test_results)
+  * `tools/editor_control.py` — Editor UI control (set_active, select_objects, set_scene_view_camera)
+  Each <100 LOC, single responsibility. Original `scene.py` reduced from 184 to core-only ops.
+
+### Architecture (C#)
+- **B1: CommandRouter.RegisterAll() Split** — Refactored 370-line `CommandRouter.RegisterAll()` into 4 themed methods in new `CommandRouter.Registration.cs` partial: `RegisterReadTools()`, `RegisterWriteTools()`, `RegisterPlayModeTools()`, `RegisterDynamicTools()`. Each <100 LOC, single concern. Enables incremental tool registration without touching monolithic file.
+- **B3: CommandOptions → Internal** — Demoted `CommandOptions` public struct to `internal` (was public for plugin use). Eliminated unused public overloads (11-parameter register signature removed). Reduces surface area, forces plugin authors through registration helpers.
+- **C7-C#: PendingAskRegistry ExecuteSynchronously Race Fix** — Extracted `PendingAskRegistry` into standalone `PendingAskRegistry.cs` class (was mixed into CommandRouter). Fixed race where `ExecuteSynchronously()` completed and cleared callback before registry delegate updated. Now uses lock-protected Enqueue pattern.
+
+### Token Optimization
+- **B4: Batch Docstring Trim** — Trimmed batch tool docstring (was 400+ tokens, now 120-char summary). `set_properties` demoted from TIER1 (read-heavy tools only). Collapsed 4 watch_* tools into single `watch()` operation (4→1 tools, −80 tokens/get_enabled_tools call).
+
+### Fixes & Quality
+- **Stale Timeout Assertions** — Fixed 30.0/25000ms timeout test assertions left over from A4 fix (tests asserted old unsafe values). Assertions now match new safe margins.
+
+### Tests
+- Python tests expanded: new suites for bridge_result unwrap, retry_policy, retry_safety, console_tools, editor_control_tools, intent_common, testing_tools, send_path_cooldown
+- C# tests expanded: CommandRouterExtractHelperTests, CommandRouterRegistrationTests, PendingAskRegistryTests, TestRunnerTests, CommandRegistryTests updates
+- All tests passing; pre-existing 4-failure baseline unchanged
+
+### Architecture Impact
+- Code simplicity: 81 files changed, 2155 insertions(+), 1133 deletions(−) = +1022 LOC net
+- Python focus: 9 extraction + consolidation changes (C1-C8, B2, B4)
+- C# focus: 3 registration cleanup changes (B1, B3, C7)
+- Safety focus: 4 correctness fixes (A1-A4)
+
 ## [v0.69.1] — 2026-07-03 <!-- ROI Reliability Sprint: MCPServer split, ToolSpec, DRY refactoring, retry safety -->
 
 **ROI Reliability Sprint — Core Refactor, Fail-Closed Retry, Tool Registry Consolidation:**

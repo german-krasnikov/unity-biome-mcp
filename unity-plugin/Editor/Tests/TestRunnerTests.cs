@@ -209,5 +209,43 @@ namespace UnityMCP.Editor.Tests
                 "Default seam must return SyncHelper.IsCompileClean which defaults to true");
         }
 
+        // ── 8. FinishRun (C7a, review sprint v0.70) ──────────────────────────
+        // Extracted from CommandRouter.AsyncRunTests' completion callback — parses the raw
+        // Execute() result into (ok, text), stripping the "Error:" prefix on failure.
+
+        private static FieldInfo UndoCurrentGroupField() =>
+            typeof(UndoGroupHelper).GetField("_currentGroup",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+        [Test]
+        public void FinishRun_ErrorPrefixedResult_ReturnsNotOkWithMessage()
+        {
+            var (ok, text) = TestRunner.FinishRun("Error: boom");
+            Assert.IsFalse(ok);
+            Assert.AreEqual("boom", text);
+        }
+
+        [Test]
+        public void FinishRun_SuccessResult_ReturnsOkWithText()
+        {
+            var (ok, text) = TestRunner.FinishRun("5 tests: 5 passed (1.0s)");
+            Assert.IsTrue(ok);
+            Assert.AreEqual("5 tests: 5 passed (1.0s)", text);
+        }
+
+        [TestCase("Error: boom")]
+        [TestCase("5 tests: 5 passed (1.0s)")]
+        public void FinishRun_AlwaysEndsUndoGroup_RegardlessOfBranch(string result)
+        {
+            UndoGroupHelper.BeginGroup("finish_run_test");
+            var field = UndoCurrentGroupField();
+            Assert.GreaterOrEqual((int)field.GetValue(null), 0,
+                "sanity: undo group must be open before FinishRun runs");
+
+            TestRunner.FinishRun(result);
+
+            Assert.AreEqual(-1, (int)field.GetValue(null),
+                "FinishRun must call UndoGroupHelper.EndGroup() regardless of ok/error branch");
+        }
     }
 }

@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import warnings
+from dataclasses import dataclass
 
 
 def _find_pytest_python(repo_root: pathlib.Path) -> str:
@@ -148,7 +149,19 @@ def _count_unity_tests_tcp() -> Optional[int]:
         return None
 
 
-def count_unity_tests(plugin_dir: pathlib.Path) -> int:
+@dataclass
+class TestCount:
+    """A3: count_unity_tests() result with provenance -- TCP-live and
+    static-grep are structurally different counting methods (static grep
+    undercounts anything not literally spelled [Test]/[UnityTest]/[TestCase(],
+    e.g. [TestCaseSource(...)] expands to N tests from 1 attribute). Callers
+    must be able to tell which method produced a given number.
+    """
+    count: int
+    source: str  # "tcp" | "static_grep" | "unavailable"
+
+
+def count_unity_tests(plugin_dir: pathlib.Path) -> TestCount:
     """Get NUnit test count from Unity TCP (accurate) or static grep (fallback).
 
     TCP reads the actual last-run result (handles TestCaseSource, Values, etc.).
@@ -156,9 +169,9 @@ def count_unity_tests(plugin_dir: pathlib.Path) -> int:
     """
     tcp_count = _count_unity_tests_tcp()
     if tcp_count is not None and tcp_count > 0:
-        return tcp_count
+        return TestCount(tcp_count, "tcp")
     if not plugin_dir.exists():
-        return 0
+        return TestCount(0, "unavailable")
     count = 0
     bare = re.compile(r"\[(?:Test|UnityTest)\]")
     case_attr = re.compile(r"\[TestCase\(")
@@ -168,7 +181,7 @@ def count_unity_tests(plugin_dir: pathlib.Path) -> int:
             count += len(case_attr.findall(text)) + len(bare.findall(text))
         except Exception:
             continue
-    return count
+    return TestCount(count, "static_grep")
 
 
 def read_server_version(pyproject: pathlib.Path) -> Optional[str]:
@@ -211,15 +224,16 @@ def collect_facts(repo_root: pathlib.Path) -> dict:
     tools = count_mcp_tools(repo_root / "server" / "src" / "unity_mcp") or 0
     python_tests = count_pytest_python(tests_dir)
     live_tests = count_pytest_live(tests_dir)
-    unity_tests = count_unity_tests(plugin_dir)
+    unity_result = count_unity_tests(plugin_dir)
     server_ver = read_server_version(repo_root / "server" / "pyproject.toml") or "?"
     plugin_ver = read_plugin_version(repo_root / "unity-plugin" / "package.json") or "?"
 
     return {
         "tools": tools,
-        "tests_total": python_tests + unity_tests + live_tests,
+        "tests_total": python_tests + unity_result.count + live_tests,
         "tests_python": python_tests,
-        "tests_unity": unity_tests,
+        "tests_unity": unity_result.count,
+        "tests_unity_source": unity_result.source,
         "tests_live": live_tests,
         "server_version": server_ver,
         "plugin_version": plugin_ver,

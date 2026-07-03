@@ -3,6 +3,7 @@ import pytest
 from typing import Optional
 from mcp.types import ToolAnnotations
 from unity_mcp.tools import objects, scene, asset, ui, connection, runtime
+from unity_mcp.tools import console, testing, editor_control
 
 
 def _get_annotation(module, fn_name: str) -> Optional[ToolAnnotations]:
@@ -41,7 +42,7 @@ IDEM_TOOLS = [
     (objects, "set_property"),
     (objects, "set_active"),
     (objects, "set_material"),
-    (scene, "recompile"),
+    (console, "recompile"),
     (asset, "project_settings"),
     (ui, "set_rect"),
     (connection, "reconnect_unity"),
@@ -56,7 +57,7 @@ NON_IDEM_TOOLS = [
     (objects, "wire_event"),
     (scene, "scene"),
     # editor mutates editor state (play/pause/stop) — not idempotent
-    (scene, "editor"),
+    (editor_control, "editor"),
 ]
 
 
@@ -77,7 +78,7 @@ def test_non_idempotent_tool_lacks_idempotentHint(mod, fn):
 
 def test_run_tests_not_marked_read_only():
     """run_tests triggers domain reload — must NOT have readOnlyHint=True."""
-    ann = _get_annotation(scene, "run_tests")
+    ann = _get_annotation(testing, "run_tests")
     assert ann is not None, "run_tests: no annotation found"
     assert ann.readOnlyHint is not True, "run_tests causes domain reload — readOnlyHint must be False"
 

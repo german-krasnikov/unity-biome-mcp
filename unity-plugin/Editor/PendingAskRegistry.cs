@@ -1,4 +1,5 @@
 // Thread-safe TCS store for ask_user — one entry per active ask_user TCP call.
+using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using UnityEditor;
@@ -50,6 +51,21 @@ namespace UnityMCP.Editor
         {
             _pending.TryGetValue(requestId, out var tcs);
             return tcs;
+        }
+
+        /// <summary>Registers a new ask, invokes the caller's listener, and returns a Task that
+        /// resolves to the answers JSON — or {"cancelled":true} if the ask was cancelled/faulted
+        /// (e.g. domain reload). Never faults itself, so callers can wrap the result directly
+        /// with a plain success-formatting continuation (C7b, review sprint v0.70 — extracted
+        /// from CommandRouter.AsyncAskUser).</summary>
+        public static Task<string> Ask(string questionsJson, Action<string, string> onAskEvent)
+        {
+            var requestId = Guid.NewGuid().ToString("N");
+            Register(requestId);
+            onAskEvent?.Invoke(requestId, questionsJson);
+            return GetTcs(requestId).Task.ContinueWith(t =>
+                t.IsFaulted || t.IsCanceled ? "{\"cancelled\":true}" : t.Result,
+                TaskContinuationOptions.ExecuteSynchronously);
         }
     }
 }

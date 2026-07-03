@@ -98,17 +98,17 @@ async def test_set_material_error_raises_tool_error(mock_bridge):
         await set_material(path="/Missing", color="#FF0000")
 
 
-# ── Fix 23: scene.py editor annotation ───────────────────────────────────────
+# ── Fix 23: editor_control.py editor annotation (B2: moved out of scene.py) ──
 
 def test_editor_tool_annotation_is_rw():
     """Fix 23: editor() must use _RW annotation, not _RW_IDEM (it mutates editor state)."""
     import inspect
-    import unity_mcp.tools.scene as scene_mod
-    register_src = inspect.getsource(scene_mod.register)
+    import unity_mcp.tools.editor_control as ec_mod
+    register_src = inspect.getsource(ec_mod.register)
     found = False
     for line in register_src.splitlines():
         if "editor" in line and "mcp.tool" in line:
             found = True
             assert "_RW_IDEM" not in line, "editor must use _RW not _RW_IDEM"
             break
-    assert found, "Could not find editor tool registration in scene.register()"
+    assert found, "Could not find editor tool registration in editor_control.register()"

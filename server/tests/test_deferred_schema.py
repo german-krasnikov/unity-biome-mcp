@@ -49,15 +49,13 @@ def test_stub_keeps_description_and_name():
     assert result[0].description == "Do animations"
 
 
-def test_force_visible_tools_survive_strip():
-    """FORCE_VISIBLE tools that are also core keep full schema."""
+def test_core_tools_survive_strip():
+    """CORE tools keep full schema through the strip pipeline."""
     from unity_mcp.server import _strip_deferred_schemas
-    from unity_mcp.tools.gating import FORCE_VISIBLE
-    # 'discover_tools' and 'get_enabled_tools' are in FORCE_VISIBLE
-    # resolve_tool_schema will be added to FORCE_VISIBLE
+    # 'discover_tools' is core (core=True in tool_specs.py)
     tool = _tool("discover_tools", "Discover", _full_schema())
     result = _strip_deferred_schemas([tool])
-    # discover_tools is in FORCE_VISIBLE — treated as core (always schema kept)
+    # discover_tools is core — schema always kept full
     assert result[0].inputSchema == _full_schema()
 
 
@@ -221,12 +219,7 @@ async def test_resolve_cold_start_empty_registry_returns_graceful_fallback():
         meta_mod._schema_registry = original
 
 
-# --- resolve_tool_schema is in FORCE_VISIBLE + core ---
-
-def test_resolve_tool_schema_in_force_visible():
-    from unity_mcp.tools.gating import FORCE_VISIBLE
-    assert "resolve_tool_schema" in FORCE_VISIBLE
-
+# --- resolve_tool_schema is core ---
 
 def test_resolve_tool_schema_keeps_full_schema_after_strip():
     from unity_mcp.server import _strip_deferred_schemas

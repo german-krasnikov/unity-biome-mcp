@@ -4,6 +4,7 @@ import os
 import time
 from typing import Optional, TYPE_CHECKING
 
+from .bridge_result import unwrap_bridge_result
 from .prefetch_cache import GATE_PRIORS
 from .compressor import strip_defaults
 from .middleware_types import WRITE_CMDS, _READ_CACHEABLE, _STRIP_CMDS
@@ -151,14 +152,8 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         # Extract string from dict response (when send_fn is raw bridge.send)
         protocol_err = False
         if isinstance(result, dict):
-            if not result.get("ok"):
-                protocol_err = True
-                result = result.get("err", "Unknown error")
-            elif "file" in result:
-                file_msg = f"Data saved to: {result['file']}"
-                result = f"{result.get('data', '')}\n{file_msg}" if result.get("data") else file_msg
-            else:
-                result = result.get("data", "")
+            result, ok = unwrap_bridge_result(result)
+            protocol_err = not ok
 
         # F08: strip defaults unconditionally for component reads
         if cmd in _STRIP_CMDS and not _no_strip:

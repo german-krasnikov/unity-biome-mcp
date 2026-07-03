@@ -223,6 +223,58 @@ def test_register_tools_unknown_category_does_not_touch_themed_categories():
 
 # --- Integration tests: plugin self-registration composability ---
 
+# --- C6: register_tools() dual-write → CATEGORIES becomes a derived view ---
+
+def test_register_tools_updates_categories_and_themed_categories_consistently():
+    """register_tools('debug', ...) must keep CATEGORIES and _THEMED_CATEGORIES
+    in agreement — CATEGORIES is now derived FROM _THEMED_CATEGORIES rather than
+    independently hand-synced, so drift between the two is structurally impossible."""
+    from unity_mcp.tools import gating
+    gating.register_tools("debug", {"my_plugin_tool"})
+    try:
+        assert "my_plugin_tool" in gating.CATEGORIES["debug"]
+        assert "my_plugin_tool" in gating._THEMED_CATEGORIES["DEBUG"]
+    finally:
+        gating._THEMED_CATEGORIES["DEBUG"].remove("my_plugin_tool")
+        gating.CATEGORIES = gating._rebuild_categories()
+        gating._ALL_KNOWN.discard("my_plugin_tool")
+
+
+def test_register_tools_themed_rebuild_preserves_other_plugins_custom_categories():
+    """Real-world scenario: plugin A registers into a custom category (documented
+    public API, docs/plugins/quickstart.md), then plugin B registers into a themed
+    category ('debug'). The CATEGORIES rebuild triggered by plugin B's themed
+    registration must NOT wipe plugin A's unrelated custom category."""
+    from unity_mcp.tools import gating
+    gating.register_tools("my_custom_plugin", {"plugin_a_tool"})
+    try:
+        gating.register_tools("debug", {"plugin_b_tool"})
+        try:
+            assert "plugin_a_tool" in gating.CATEGORIES["my_custom_plugin"], (
+                "themed-category rebuild wiped an unrelated custom plugin category"
+            )
+        finally:
+            gating._THEMED_CATEGORIES["DEBUG"].remove("plugin_b_tool")
+            gating.CATEGORIES = gating._rebuild_categories()
+            gating._ALL_KNOWN.discard("plugin_b_tool")
+    finally:
+        gating.CATEGORIES.pop("my_custom_plugin", None)
+        gating._ALL_KNOWN.discard("plugin_a_tool")
+
+
+def test_register_tools_unknown_category_falls_back_to_direct_categories_write():
+    """register_tools() for a category with no _THEMED_CATEGORIES counterpart must
+    still land in CATEGORIES (fallback branch) without creating a spurious themed entry."""
+    from unity_mcp.tools import gating
+    gating.register_tools("totally_new_category", {"x"})
+    try:
+        assert "x" in gating.CATEGORIES["totally_new_category"]
+        assert "TOTALLY_NEW_CATEGORY" not in gating._THEMED_CATEGORIES
+    finally:
+        del gating.CATEGORIES["totally_new_category"]
+        gating._ALL_KNOWN.discard("x")
+
+
 def test_register_tools_makes_unknown_tool_gated():
     """unknown tool passes filter; after register_tools without tier1 it becomes known+gated."""
     from unity_mcp.tools import gating
@@ -301,18 +353,6 @@ def test_is_deferred_returns_false_for_unknown_plugin_tool():
 
 # --- P1-2: connection tools survive filter_by_tier ---
 
-def test_reconnect_unity_in_force_visible():
-    """reconnect_unity is FORCE_VISIBLE — must be in FORCE_VISIBLE set."""
-    from unity_mcp.tools.gating import FORCE_VISIBLE
-    assert "reconnect_unity" in FORCE_VISIBLE
-
-
-def test_list_connections_in_force_visible():
-    """list_connections is FORCE_VISIBLE — must be in FORCE_VISIBLE set."""
-    from unity_mcp.tools.gating import FORCE_VISIBLE
-    assert "list_connections" in FORCE_VISIBLE
-
-
 def test_reconnect_unity_in_core_tools():
     """reconnect_unity is in _CORE_TOOLS (controls is_deferred, not visibility)."""
     from unity_mcp.tools.gating import _CORE_TOOLS
@@ -326,12 +366,8 @@ def test_list_connections_in_core_tools():
 
 
 def test_reconnect_unity_survives_filter_when_disabled_cache_cold():
-    """reconnect_unity is NOT in TIER1, so it would vanish unless _CORE_TOOLS saves it.
-
-    filter_by_tier keeps a tool when: in TIER1, session-enabled, OR unknown.
-    reconnect_unity is known (_ALL_KNOWN via CATEGORIES["connection"] or _CORE_TOOLS)
-    but absent from TIER1. This test verifies it still passes through because
-    is_visible() must return True via FORCE_VISIBLE / _CORE_TOOLS path.
+    """reconnect_unity is core, so is_visible()/TIER1 (which is a superset of
+    _CORE_TOOLS) keeps it visible even with a cold session-enable cache.
     """
     from unity_mcp.tools import gating
     gating.reset()
@@ -372,14 +408,14 @@ def test_orphaned_tools_are_in_ALL_KNOWN():
 # --- TDD audit PY3.test.3: resolve_tool_schema ---
 
 def test_resolve_tool_schema_in_ALL_KNOWN():
-    """resolve_tool_schema is FORCE_VISIBLE + _CORE_TOOLS; must also be in _ALL_KNOWN
-    so filter_by_tier exercises is_visible/FORCE_VISIBLE path, not unknown-plugin passthrough."""
+    """resolve_tool_schema is core; must also be in _ALL_KNOWN so filter_by_tier
+    exercises the is_visible/_CORE_TOOLS path, not unknown-plugin passthrough."""
     from unity_mcp.tools.gating import _ALL_KNOWN
     assert "resolve_tool_schema" in _ALL_KNOWN
 
 
 def test_resolve_tool_schema_survives_filter():
-    """resolve_tool_schema passes filter_by_tier via FORCE_VISIBLE, not unknown passthrough."""
+    """resolve_tool_schema passes filter_by_tier via TIER1/_CORE_TOOLS, not unknown passthrough."""
     from unity_mcp.tools import gating
     gating.reset()
     tool = _make_tool("resolve_tool_schema")
@@ -462,10 +498,11 @@ def test_tier1_residual_names_still_present():
     """Regression: the genuinely tier1-only names (not in _CORE_TOOLS) must survive the
     literal→union refactor untouched. animator_intent/vfx_intent/ui_intent are
     deliberately EXCLUDED — Fix 1 removed them from TIER1 (they are themed VFX/UI/META
-    tools, not always-on core)."""
+    tools, not always-on core). set_properties is ALSO deliberately excluded — B4b
+    demoted it to Tier2 (superseded by configure_objects)."""
     from unity_mcp.tools.gating import TIER1, _CORE_TOOLS
     residual_expected = {
-        "screenshot", "run_tests", "setup_objects", "set_properties", "configure_objects",
+        "screenshot", "run_tests", "setup_objects", "configure_objects",
         "compile_preflight", "await_compile", "sync_unity",
         "invoke_method", "set_runtime_property", "wait_until", "move_to", "query_state",
         "test_step", "run_playtest", "fuzz_playtest",
@@ -557,6 +594,15 @@ async def test_budget_status_visible_after_discover_advanced():
         assert gating.is_visible("budget_status")
     finally:
         gating.reset()
+
+
+# --- B4b: set_properties demoted out of TIER1 (superseded by configure_objects) ---
+
+def test_set_properties_not_in_tier1():
+    """set_properties duplicates configure_objects' capability — demote to Tier2
+    to cut always-on token cost. Discoverable via META category."""
+    from unity_mcp.tools import gating
+    assert "set_properties" not in gating.TIER1
 
 
 # --- m1: drift-invariant — every registered tool must be known to gating ---

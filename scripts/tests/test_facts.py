@@ -47,6 +47,32 @@ class TestCollectFacts:
         assert f1["server_version"] == f2["server_version"]
 
 
+class TestUnityTestProvenance:
+    """A3: count_unity_tests() silently switched between TCP-live and
+    static-grep counting with zero record of which one produced a given
+    number. These tests pin down the provenance-carrying return shape."""
+
+    def test_count_unity_tests_returns_provenance(self) -> None:
+        """count_unity_tests must report HOW it counted, not just how many --
+        the whole point of A3 is making the TCP-vs-static-grep fallback visible."""
+        result = rf.count_unity_tests(REPO_ROOT / "unity-plugin")
+        assert result.source in ("tcp", "static_grep", "unavailable")
+        assert isinstance(result.count, int) and result.count >= 0
+
+    def test_collect_facts_includes_tests_unity_source(self) -> None:
+        f = rf.collect_facts(REPO_ROOT)
+        assert "tests_unity_source" in f
+        assert f["tests_unity_source"] in ("tcp", "static_grep", "unavailable")
+
+    def test_static_grep_fallback_labeled_correctly(self, monkeypatch) -> None:
+        """When TCP is unavailable (Unity not running -- the common CI/local case),
+        the fallback path must self-report as static_grep, not silently masquerade
+        as an accurate count. Fails on unfixed code (bare int return, no label)."""
+        monkeypatch.setattr(rf, "_count_unity_tests_tcp", lambda: None)
+        result = rf.count_unity_tests(REPO_ROOT / "unity-plugin")
+        assert result.source == "static_grep"
+
+
 class TestMetaJson:
     def test_meta_json_exists(self) -> None:
         assert _META.exists(), "_meta.json not written yet — run --collect first"

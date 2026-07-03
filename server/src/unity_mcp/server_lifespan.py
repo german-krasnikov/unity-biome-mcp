@@ -41,8 +41,8 @@ def build_middleware(send_raw_fn) -> Optional[Middleware]:
 
     if os.environ.get("UNITY_MCP_LESSONS"):
         from .lessons import LessonStore, LessonRecorder
-        from pathlib import Path
-        store = LessonStore(Path.home() / ".unity-mcp" / "lessons.json")
+        from .paths import unity_mcp_dir
+        store = LessonStore(unity_mcp_dir() / "lessons.json")
         _mw().lessons = store
         _mw().recorder = LessonRecorder(store)
 

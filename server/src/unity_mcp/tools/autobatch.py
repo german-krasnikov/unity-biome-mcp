@@ -3,18 +3,10 @@
 Reduces multi-step setup to a single tool call.
 """
 from ._common import bind
-import re
 from ._annotations import RW as _RW
-from ..utils import parse_kv
+from ..utils import parse_kv, _KV_RE
 
 _send = None
-
-# Matches dotted keys like Component.prop — used in configure_objects where
-# keys contain dots (\w+ alone can't match "Transform.m_LocalPosition").
-# Value uses same lookahead as _KV_RE: stops at next <space><word>= boundary.
-_DOTTED_KV_RE = re.compile(
-    r'([\w.]+)=("(?:[^"\\]|\\.)*"|\((?:[^)]*)\)|(?:(?!\s+[\w.]+=).)+)'
-)
 
 
 def _quote_if_spaces(v: str) -> str:
@@ -70,7 +62,7 @@ async def setup_objects(specs: str) -> str:
 
 
 async def set_properties(path: str, props: str) -> str:
-    """Set multiple properties on one object.
+    """Set multiple properties on ONE object. For multiple objects, use configure_objects instead.
     Format: component.prop=value per line or semicolon-separated.
     Example: Transform.m_LocalPosition=(1,0,0);Rigidbody.mass=5"""
     lines = []
@@ -119,7 +111,7 @@ async def configure_objects(config: str) -> str:
             continue
         paths.add(obj_path)
         rest = line[first_space + 1:]
-        for m in _DOTTED_KV_RE.finditer(rest):
+        for m in _KV_RE.finditer(rest):
             key = m.group(1)
             value = m.group(2).strip('"')
             if "." not in key:

@@ -15,22 +15,35 @@ def _restore_tool_globals():
     """Restore module-level _send/_args after each test to avoid cross-test pollution.
 
     scene.register() also calls scene_session.register(), so both must be restored.
+    B2: console/screenshot/testing/editor_control added (split out of scene.py).
     """
     import unity_mcp.tools.objects as obj_mod
     import unity_mcp.tools.runtime as rt_mod
     import unity_mcp.tools.scene as sc_mod
     import unity_mcp.tools.scene_session as ss_mod
+    import unity_mcp.tools.console as con_mod
+    import unity_mcp.tools.screenshot as shot_mod
+    import unity_mcp.tools.testing as test_mod
+    import unity_mcp.tools.editor_control as ec_mod
     saved = {
         "obj": (obj_mod._send, obj_mod._args),
         "rt": (rt_mod._send, rt_mod._args),
         "sc": (sc_mod._send, sc_mod._args),
         "ss": (ss_mod._send, ss_mod._args),
+        "con": (con_mod._send, con_mod._args),
+        "shot": (shot_mod._send, shot_mod._args),
+        "test": (test_mod._send, test_mod._args),
+        "ec": (ec_mod._send, ec_mod._args),
     }
     yield
     obj_mod._send, obj_mod._args = saved["obj"]
     rt_mod._send, rt_mod._args = saved["rt"]
     sc_mod._send, sc_mod._args = saved["sc"]
     ss_mod._send, ss_mod._args = saved["ss"]
+    con_mod._send, con_mod._args = saved["con"]
+    shot_mod._send, shot_mod._args = saved["shot"]
+    test_mod._send, test_mod._args = saved["test"]
+    ec_mod._send, ec_mod._args = saved["ec"]
 
 
 def _make_mcp():
@@ -81,13 +94,11 @@ def test_objects_register_arg_order_guard():
     assert mod._send is sentinel_send
 
 
-# ── Part 2: scene.py ──────────────────────────────────────────────────────────
+# ── Part 2: scene.py (B2: slimmed — get_hierarchy/scene/search_scene/fingerprint/
+#    scene_diff/scene_environment + scene_session delegation only) ──────────────
 
-def test_scene_register_sets_send(monkeypatch):
+def test_scene_register_sets_send():
     import unity_mcp.tools.scene as mod
-    # register() calls editor_log.init_corroboration — stub it
-    monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)
-
     mod._send = None
     mod._args = None
 
@@ -101,21 +112,19 @@ def test_scene_register_sets_send(monkeypatch):
     assert mod._args is args
 
 
-def test_scene_register_wires_tools(monkeypatch):
+def test_scene_register_wires_tools():
     import unity_mcp.tools.scene as mod
-    monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)
-
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # get_hierarchy, get_console, get_compile_errors, screenshot, recompile,
-    # run_tests, get_test_results, scene, search_scene, editor = 10 tools
-    assert mcp.tool.call_count >= 10
+    # get_hierarchy, scene, search_scene, fingerprint, scene_diff, scene_environment (6)
+    # + scene_session delegation: save_session, load_session, screenshot_baseline,
+    # screenshot_compare, get_changes (5) = 11
+    assert mcp.tool.call_count >= 11
 
 
-def test_scene_register_arg_order_guard(monkeypatch):
+def test_scene_register_arg_order_guard():
     import unity_mcp.tools.scene as mod
-    monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)
     mod._send = None
 
     sentinel = AsyncMock(name="scene_send")
@@ -159,3 +168,141 @@ def test_runtime_register_arg_order_guard():
     mod.register(_make_mcp(), sentinel, MagicMock())
 
     assert mod._send is sentinel
+
+
+# ── Part 4: console.py / screenshot.py / testing.py / editor_control.py
+#    (B2: split out of scene.py) ──────────────────────────────────────────────
+
+def test_console_register_sets_send(monkeypatch):
+    import unity_mcp.tools.console as mod
+    # register() calls editor_log.init_corroboration — stub it (moved from scene.py's
+    # register(), same idempotent side effect, same reason to stub in unit tests)
+    monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)
+    mod._send = None
+    mod._args = None
+
+    send = AsyncMock()
+    args = MagicMock()
+    mcp = _make_mcp()
+
+    mod.register(mcp, send, args)
+
+    assert mod._send is send
+    assert mod._args is args
+
+
+def test_console_register_wires_tools(monkeypatch):
+    import unity_mcp.tools.console as mod
+    monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)
+    mcp = _make_mcp()
+    mod.register(mcp, AsyncMock(), MagicMock())
+
+    # get_console, get_compile_errors, recompile = 3 tools
+    assert mcp.tool.call_count >= 3
+
+
+def test_screenshot_register_sets_send():
+    import unity_mcp.tools.screenshot as mod
+    mod._send = None
+    mod._args = None
+
+    send = AsyncMock()
+    args = MagicMock()
+    mcp = _make_mcp()
+
+    mod.register(mcp, send, args)
+
+    assert mod._send is send
+    assert mod._args is args
+
+
+def test_screenshot_register_wires_tools():
+    import unity_mcp.tools.screenshot as mod
+    mcp = _make_mcp()
+    mod.register(mcp, AsyncMock(), MagicMock())
+
+    # screenshot = 1 tool
+    assert mcp.tool.call_count >= 1
+
+
+def test_testing_register_sets_send():
+    import unity_mcp.tools.testing as mod
+    mod._send = None
+    mod._args = None
+
+    send = AsyncMock()
+    args = MagicMock()
+    mcp = _make_mcp()
+
+    mod.register(mcp, send, args)
+
+    assert mod._send is send
+    assert mod._args is args
+
+
+def test_testing_register_wires_tools():
+    import unity_mcp.tools.testing as mod
+    mcp = _make_mcp()
+    mod.register(mcp, AsyncMock(), MagicMock())
+
+    # run_tests, get_test_results, get_test_count = 3 tools
+    assert mcp.tool.call_count >= 3
+
+
+def test_editor_control_register_sets_send():
+    import unity_mcp.tools.editor_control as mod
+    mod._send = None
+    mod._args = None
+
+    send = AsyncMock()
+    args = MagicMock()
+    mcp = _make_mcp()
+
+    mod.register(mcp, send, args)
+
+    assert mod._send is send
+    assert mod._args is args
+
+
+def test_editor_control_register_wires_tools():
+    import unity_mcp.tools.editor_control as mod
+    mcp = _make_mcp()
+    mod.register(mcp, AsyncMock(), MagicMock())
+
+    # editor, ping_object, get_selection, checkpoint, undo_last, get_capabilities = 6 tools
+    assert mcp.tool.call_count >= 6
+
+
+def test_b2_split_modules_wired_into_register_all():
+    """B2: scene.py split into console/screenshot/testing/editor_control — each
+    new module must actually be wired into register_all()'s module iteration list,
+    not just importable in isolation."""
+    import inspect
+    import unity_mcp.tools as tools_pkg
+    src = inspect.getsource(tools_pkg.register_all)
+    for name in ("console", "screenshot", "testing", "editor_control"):
+        assert name in src, f"{name} missing from register_all() module wiring"
+
+
+def test_b2_split_total_tool_count_unchanged(monkeypatch):
+    """The 19 tools formerly defined directly in scene.py must still total 19
+    across the 5 files (scene's own 6 + console's 3 + screenshot's 1 + testing's 3
+    + editor_control's 6), independent of scene.py's separate scene_session
+    delegation (5 tools, unaffected by this split)."""
+    monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)
+    import unity_mcp.tools.scene as scene_mod
+    import unity_mcp.tools.console as console_mod
+    import unity_mcp.tools.screenshot as screenshot_mod
+    import unity_mcp.tools.testing as testing_mod
+    import unity_mcp.tools.editor_control as ec_mod
+
+    def _own_count(mod):
+        mcp = _make_mcp()
+        mod.register(mcp, AsyncMock(), MagicMock())
+        return mcp.tool.call_count
+
+    scene_total = _own_count(scene_mod)  # includes scene_session's 5 delegated tools
+    scene_own = scene_total - 5
+    total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
+             + _own_count(testing_mod) + _own_count(ec_mod))
+    assert total == 19
