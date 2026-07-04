@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.70.1] — UPM Install Hotfix
+
+**Critical: GUID Collision Broke Plugin Install in Third-Party Projects:**
+
+- **BatchHelper.cs.meta placeholder GUID** — Replaced hand-written sequential placeholder GUID (`1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d`) with a real unique GUID. On projects that happened to own the same placeholder GUID (e.g. an `Assets/Game/Shaders` folder), Unity detected a collision and — since packages live in an immutable folder where GUIDs cannot be reassigned — **silently ignored `BatchHelper.cs`**. This caused `CS0103: The name 'BatchHelper' does not exist` in 4 call sites (`CommandRouter.ObjectHandlers.cs`, `CommandRouter.Registration.cs`, `ObjectManager.Properties.cs`) and a cascading Burst/Mono.Cecil `Failed to resolve assembly 'UnityMCP.Editor.Wizard'` error. Diagnosed via 5-architect review sprint.
+- **Orphan .meta cleanup** — Removed dangling `Chat/Markdown.meta` and `Chat/Viewers.meta` for empty (untracked) folders that triggered "meta file exists but folder can't be found" warnings on import.
+
 ## [v0.70.0] — Unreleased <!-- 10-architect review sprint: RetryPolicy extraction, scene.py split, gating refactor, FORCE_VISIBLE fix, PendingAskRegistry extraction -->
 
 **10-Architect Review Sprint — Safety Hardening, Architecture Consolidation, Command Registration Cleanup:**
