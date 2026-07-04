@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Auto-sync root CHANGELOG.md into the UPM package so it ships to consumers.
+# Root is the source of truth; unity-plugin/CHANGELOG.md is a generated mirror.
+set -e
+root="$(git rev-parse --show-toplevel)"
+src="$root/CHANGELOG.md"
+dst="$root/unity-plugin/CHANGELOG.md"
+if [ -f "$src" ]; then
+  if ! cmp -s "$src" "$dst" 2>/dev/null; then
+    cp "$src" "$dst"
+    git add "$dst"
+  fi
+fi
