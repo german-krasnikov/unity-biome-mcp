@@ -5,7 +5,7 @@
   "tests_unity": 5753,
   "tests_unity_source": "tcp",
   "tests_live": 284,
-  "server_version": "0.70.3",
-  "plugin_version": "0.70.3",
+  "server_version": "0.70.4",
+  "plugin_version": "0.70.4",
   "batch_savings": "80–95%"
 }

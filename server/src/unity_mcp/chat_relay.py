@@ -266,10 +266,13 @@ class ChatRelay:
         while session is self._session:
             line = await session.read_stdout_line()
             if line is None:
+                await session.wait()   # populate returncode before checking (EOF/exit race)
                 if session.exit_code not in (None, 0):
-                    name = os.path.basename(session._binary)
-                    msg  = f"Process {name} exited {session.exit_code}"
-                    raw  = f'{{"type":"result","is_error":true,"error":"{_esc(msg)}"}}'
+                    name   = os.path.basename(session._binary)
+                    stderr = await session.drain_stderr()
+                    detail = f": {stderr}" if stderr else ""
+                    msg    = f"{name} exited {session.exit_code}{detail}"
+                    raw    = f'{{"type":"result","is_error":true,"error":"{_esc(msg)}"}}'
                 else:
                     # B3: notify C# of clean exit so spinner clears
                     raw = '{"type":"result","subtype":"done","is_error":false}'

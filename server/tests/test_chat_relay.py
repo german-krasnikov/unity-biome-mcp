@@ -54,6 +54,8 @@ def mock_sess(pid=1234, alive=True, exit_code=None):
     sess.exit_code = exit_code
     sess.kill = AsyncMock()
     sess.write_line = AsyncMock()
+    sess.wait = AsyncMock()
+    sess.drain_stderr = AsyncMock(return_value="")
     sess._binary = "/bin/cli"
     sess._proc = MagicMock()
     sess._proc.stdin = MagicMock()

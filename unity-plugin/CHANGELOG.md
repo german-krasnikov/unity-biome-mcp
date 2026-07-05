@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.70.4] — Chat Backend Errors Now Visible
+
+- **Backend stderr surfaced to chat** — When a chat backend CLI (Codex, OpenCode, Kimi, …) failed, its stderr was discarded (`stderr=DEVNULL`), so a crash produced a silent disconnect with no message in the chat window. Claude writes errors to stdout (visible) but most CLIs write to stderr. Now `CliSession` captures stderr (`stderr=PIPE`) and, on a non-zero exit, the relay drains it into the chat error event — you see `"codex exited N: <reason>"` instead of nothing. Also fixed an EOF/returncode race (`await session.wait()` before checking exit code) that could report a crash as a clean "done".
+
 ## [v0.70.3] — Chat Relay Bootstrap, Cross-Platform & Multi-CLI Hardening
 
 **Built-in Chat now works after UPM install (uvx bootstrap):**

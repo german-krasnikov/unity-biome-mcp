@@ -47,7 +47,7 @@ class CliSession:
             self._binary, *self._argv,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,   # captured — surfaces backend crash reason to chat
             env=env,
         )
 
@@ -86,6 +86,24 @@ class CliSession:
     def close_stdin(self) -> None:
         if self._proc and self._proc.stdin:
             self._proc.stdin.close()
+
+    async def wait(self, timeout: float = 2.0) -> None:
+        """Wait for the process to exit so returncode is populated (avoids EOF/returncode race)."""
+        if self._proc is not None:
+            try:
+                await asyncio.wait_for(self._proc.wait(), timeout=timeout)
+            except asyncio.TimeoutError:
+                pass
+
+    async def drain_stderr(self, max_bytes: int = 2048, timeout: float = 1.0) -> str:
+        """Read captured stderr (backend crash reason). Empty string if none/unavailable."""
+        if self._proc is None or self._proc.stderr is None:
+            return ""
+        try:
+            data = await asyncio.wait_for(self._proc.stderr.read(max_bytes), timeout=timeout)
+            return data.decode("utf-8", errors="replace").strip()
+        except (asyncio.TimeoutError, Exception):
+            return ""
 
     @property
     def alive(self) -> bool:
