@@ -16,25 +16,28 @@ namespace UnityMCP.Editor.Wizard
         // `.env`. Keeping both regexes structurally identical avoids the two independent
         // writers (Python global, C# per-project) disagreeing on what "the unity-mcp
         // block" spans, which would orphan stale dotted subsections on re-merge.
+        // Server name is "unity-kiss" (one "mcp", distinct from the foreign bare
+        // [mcp_servers.unity]). Regexes accept the OLD "unity-mcp" name too so an
+        // existing install is migrated (replaced) rather than left as a duplicate.
         private static readonly Regex SectionRe = new Regex(
-            @"(?:^# unity-mcp generated v[\d.]+\r?\n)?" +
-            @"\[mcp_servers\.unity-mcp\]\r?\n" +
+            @"(?:^# unity-(?:kiss|mcp) generated v[\d.]+\r?\n)?" +
+            @"\[mcp_servers\.unity-(?:kiss|mcp)\]\r?\n" +
             @"(?:(?!\[)[^\r\n]*\r?\n)*" +
-            @"(?:\[mcp_servers\.unity-mcp\.[^\]]+\]\r?\n(?:(?!\[)[^\r\n]*\r?\n)*)*",
+            @"(?:\[mcp_servers\.unity-(?:kiss|mcp)\.[^\]]+\]\r?\n(?:(?!\[)[^\r\n]*\r?\n)*)*",
             RegexOptions.Multiline);
 
         private static readonly Regex MarkerVersionRe = new Regex(
-            @"^# unity-mcp generated v([\d.]+)\r?\n\[mcp_servers\.unity-mcp\]", RegexOptions.Multiline);
+            @"^# unity-(?:kiss|mcp) generated v([\d.]+)\r?\n\[mcp_servers\.unity-(?:kiss|mcp)\]", RegexOptions.Multiline);
 
         private static readonly Regex MarkerPortRe = new Regex(@"UNITY_MCP_PORT\s*=\s*'(\d+)'");
 
         internal static string BuildFresh(int port, string gitUrl, string version) =>
-            $"# unity-mcp generated v{version}\n" +
-            "[mcp_servers.unity-mcp]\n" +
+            $"# unity-kiss generated v{version}\n" +
+            "[mcp_servers.unity-kiss]\n" +
             "command = 'uvx'\n" +
-            $"args = ['--from', '{gitUrl}', 'unity-mcp']\n" +
+            $"args = ['--from', '{gitUrl}', 'unity-mcp']\n" +    // 'unity-mcp' = PyPI package name
             "\n" +
-            "[mcp_servers.unity-mcp.env]\n" +
+            "[mcp_servers.unity-kiss.env]\n" +
             $"UNITY_MCP_PORT = '{port}'\n";
 
         internal static string Merge(string existing, int port, string gitUrl, string version)
@@ -64,7 +67,8 @@ namespace UnityMCP.Editor.Wizard
 
         internal static EntryState Classify(string existingText, int port, string version)
         {
-            if (string.IsNullOrEmpty(existingText) || !existingText.Contains("[mcp_servers.unity-mcp]"))
+            if (string.IsNullOrEmpty(existingText) ||
+                !(existingText.Contains("[mcp_servers.unity-kiss]") || existingText.Contains("[mcp_servers.unity-mcp]")))
                 return EntryState.Absent;
 
             var markerVersion = ExtractMarkerVersion(existingText);

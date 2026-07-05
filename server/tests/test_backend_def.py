@@ -189,9 +189,9 @@ def test_codex_toml_mcp_flags_present():
                                        prompt="x")
     # Collect all -c values
     c_values = [argv[i + 1] for i, v in enumerate(argv) if v == "-c"]
-    assert any("mcp_servers.unity-mcp.command=" in v for v in c_values)
-    assert any("mcp_servers.unity-mcp.args=" in v for v in c_values)
-    assert any("mcp_servers.unity-mcp.startup_timeout_sec=30" in v for v in c_values)
+    assert any("mcp_servers.unity-kiss.command=" in v for v in c_values)
+    assert any("mcp_servers.unity-kiss.args=" in v for v in c_values)
+    assert any("mcp_servers.unity-kiss.startup_timeout_sec=30" in v for v in c_values)
 
 
 def test_codex_env_set_unity_mcp_port():
@@ -244,7 +244,7 @@ def test_kimi_writes_mcp_config(tmp_path):
     mcp_path = tmp_path / "mcp.json"
     assert mcp_path.exists()
     data = json.loads(mcp_path.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-mcp"]["env"]["UNITY_MCP_PORT"] == "9601"
+    assert data["mcpServers"]["unity-kiss"]["env"]["UNITY_MCP_PORT"] == "9601"
 
 
 def test_kimi_no_resume():
@@ -278,7 +278,7 @@ def test_agy_writes_settings_json(tmp_path):
     settings_path = tmp_path / "settings.json"
     assert settings_path.exists()
     data = json.loads(settings_path.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-mcp"]["env"]["UNITY_MCP_PORT"] == str(_TEST_PORT)
+    assert data["mcpServers"]["unity-kiss"]["env"]["UNITY_MCP_PORT"] == str(_TEST_PORT)
 
 
 # ─── OpenCode (4 tests) ─────────────────────────────────────────────────────
@@ -313,7 +313,7 @@ def test_opencode_writes_config_file(tmp_path):
     config_path = tmp_path / "opencode-unity-mcp-9603.json"
     assert config_path.exists()
     data = json.loads(config_path.read_text(encoding="utf-8"))
-    assert data["mcp"]["unity-mcp"]["environment"]["UNITY_MCP_PORT"] == "9603"
+    assert data["mcp"]["unity-kiss"]["environment"]["UNITY_MCP_PORT"] == "9603"
 
 
 # ─── M3: _sanitize_extra_args (7 tests) ─────────────────────────────────────

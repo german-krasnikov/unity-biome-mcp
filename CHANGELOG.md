@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.70.8] — MCP Server Renamed `unity-kiss` (no tautology, auto-migrated)
+
+- **Server name is now `unity-kiss`** — the config key was `unity-mcp`, which read as a tautology under Codex's `[mcp_servers.unity-mcp]` ("mcp" twice). Renamed to `unity-kiss` in **every** config writer — Codex TOML (project `.codex/config.toml` + relay inline `-c`), Claude/Cursor/Windsurf `.mcp.json`, Kimi `mcp.json`, Agy `settings.json`, OpenCode, and the Claude chat `--mcp-config`. Both writers of the Codex config (C# `ProjectConfigToml`, Python `backend_def` inline) use the same `unity-kiss` name, so they still deduplicate into one server (the v0.70.7 fix, kept).
+- **Existing installs auto-migrate** — every merge (JSON and TOML, Python `merger.py` and C# `WizardConfigWriter`/`ProjectConfigToml`) recognises the old `unity-mcp` entry and **replaces** it with `unity-kiss` (key and value), so a prior install is renamed on next write rather than left as a duplicate second server. The foreign bare `[mcp_servers.unity]` (CoplayDev) is still stripped. The PyPI package (`uvx … unity-mcp`), temp filenames, and the `com.unity-mcp.editor` package id are unchanged.
+
 ## [v0.70.7] — Codex Chat: SIGTRAP & Duplicate MCP Fixed
 
 Two remaining Codex-in-chat failures, both root-caused:

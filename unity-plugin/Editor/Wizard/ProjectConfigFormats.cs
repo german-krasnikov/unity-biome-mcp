@@ -32,9 +32,15 @@ namespace UnityMCP.Editor.Wizard
         // "_v"/"UNITY_MCP_PORT" key must never leak into unity-mcp's classification
         // (was a data-loss bug: a foreign sibling's marker made a hand-edited unity-mcp
         // entry misclassify as OwnedStale and get overwritten).
+        // Finds our entry by the new "unity-kiss" name, falling back to the old
+        // "unity-mcp" so an existing install still classifies (→ gets migrated).
+        private static bool FindOurEntry(string text, out int start, out int end) =>
+            WizardConfigWriter.FindEntryBounds(text, "unity-kiss", out start, out end) ||
+            WizardConfigWriter.FindEntryBounds(text, "unity-mcp", out start, out end);
+
         internal static string ExtractMarkerVersion(string existingText)
         {
-            if (!WizardConfigWriter.FindEntryBounds(existingText, "unity-mcp", out var start, out var end))
+            if (!FindOurEntry(existingText, out var start, out var end))
                 return null;
             var m = MarkerVersionRe.Match(existingText, start, end - start);
             return m.Success ? m.Groups[1].Value : null;
@@ -42,7 +48,7 @@ namespace UnityMCP.Editor.Wizard
 
         internal static int? ExtractMarkerPort(string existingText)
         {
-            if (!WizardConfigWriter.FindEntryBounds(existingText, "unity-mcp", out var start, out var end))
+            if (!FindOurEntry(existingText, out var start, out var end))
                 return null;
             var m = MarkerPortRe.Match(existingText, start, end - start);
             return m.Success ? int.Parse(m.Groups[1].Value) : (int?)null;
@@ -50,7 +56,8 @@ namespace UnityMCP.Editor.Wizard
 
         internal static EntryState Classify(string existingText, int port, string version)
         {
-            if (string.IsNullOrEmpty(existingText) || !existingText.Contains("\"unity-mcp\""))
+            if (string.IsNullOrEmpty(existingText) ||
+                !(existingText.Contains("\"unity-kiss\"") || existingText.Contains("\"unity-mcp\"")))
                 return EntryState.Absent;
 
             var markerVersion = ExtractMarkerVersion(existingText);

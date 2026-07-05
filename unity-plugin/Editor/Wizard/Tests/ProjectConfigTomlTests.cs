@@ -10,27 +10,30 @@ namespace UnityMCP.Editor.Tests
         public void BuildFresh_ContainsSectionHeader()
         {
             var result = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
-            StringAssert.Contains("[mcp_servers.unity-mcp]", result);
+            StringAssert.Contains("[mcp_servers.unity-kiss]", result);
         }
 
         [Test]
         public void BuildFresh_ContainsMarkerComment()
         {
             var result = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
-            StringAssert.Contains("# unity-mcp generated v", result);
+            StringAssert.Contains("# unity-kiss generated v", result);
         }
 
         [Test]
         public void BuildFresh_EnvTableHasPort()
         {
             var result = ProjectConfigToml.BuildFresh(9501, WizardConfigWriter.GitInstallUrl, "1.2.3");
-            StringAssert.Contains("[mcp_servers.unity-mcp.env]", result);
+            StringAssert.Contains("[mcp_servers.unity-kiss.env]", result);
             StringAssert.Contains("UNITY_MCP_PORT = '9501'", result);
         }
 
         [Test]
         public void Merge_ReplacesStaleSection_PreservesOtherTables()
         {
+            // Also covers migration: existing entry is the OLD "unity-mcp" section
+            // (pre-rename); Merge must rewrite it to the new "unity-kiss" name, never
+            // leave the old key behind as a duplicate.
             var existing =
                 "[some_other_tool]\n" +
                 "key = 'value'\n" +
@@ -48,7 +51,9 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("[some_other_tool]", result);
             StringAssert.Contains("key = 'value'", result);
             StringAssert.Contains("9502", result);
-            StringAssert.Contains("# unity-mcp generated v2.0.0", result);
+            StringAssert.Contains("# unity-kiss generated v2.0.0", result);
+            StringAssert.Contains("[mcp_servers.unity-kiss]", result);
+            StringAssert.DoesNotContain("[mcp_servers.unity-mcp]", result, "old key must be migrated, not duplicated");
             StringAssert.DoesNotContain("9000", result);
         }
 

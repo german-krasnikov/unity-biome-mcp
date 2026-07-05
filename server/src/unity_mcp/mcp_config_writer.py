@@ -43,7 +43,7 @@ def write_claude_config(config_dir: str, mcp_port: int) -> str:
     cmd, args = resolve_server_cmd()
     config = {
         "mcpServers": {
-            "unity": {
+            "unity-kiss": {
                 "command": cmd,
                 "args": args,
                 "env": {"UNITY_MCP_PORT": str(mcp_port), "UNITY_MCP_CHAT": "1"},
@@ -69,8 +69,9 @@ def write_kimi_mcp_config(config_dir: str, mcp_port: int) -> None:
             existing = {}
 
     servers = existing.get("mcpServers", {})
-    servers["unity-mcp"] = {"command": cmd, "args": args,
-                            "env": {"UNITY_MCP_PORT": str(mcp_port)}}
+    servers.pop("unity-mcp", None)          # migrate away from prior name
+    servers["unity-kiss"] = {"command": cmd, "args": args,
+                             "env": {"UNITY_MCP_PORT": str(mcp_port)}}
     existing["mcpServers"] = servers
     _atomic_write(path, json.dumps(existing, indent=2))
 
@@ -89,9 +90,10 @@ def write_agy_settings(settings_dir: str, mcp_port: int) -> None:
             existing = {}
 
     servers = existing.get("mcpServers", {})
-    servers["unity-mcp"] = {"command": cmd, "args": args,
-                            "env": {"UNITY_MCP_PORT": str(mcp_port)},
-                            "trust": True}
+    servers.pop("unity-mcp", None)          # migrate away from prior name
+    servers["unity-kiss"] = {"command": cmd, "args": args,
+                             "env": {"UNITY_MCP_PORT": str(mcp_port)},
+                             "trust": True}
     existing["mcpServers"] = servers
     _atomic_write(path, json.dumps(existing, indent=2))
 
@@ -102,7 +104,7 @@ def write_opencode_config(config_dir: str, mcp_port: int) -> str:
     cmd, args = resolve_server_cmd()
     config = {
         "mcp": {
-            "unity-mcp": {
+            "unity-kiss": {
                 "type": "local",
                 "command": [cmd] + args,
                 "environment": {"UNITY_MCP_PORT": str(mcp_port)},

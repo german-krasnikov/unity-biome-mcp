@@ -46,7 +46,7 @@ namespace UnityMCP.Editor.Chat
         public static string BuildClaudeConfigJson(string command, string[] args, int port = 0)
         {
             var sb = new StringBuilder();
-            sb.Append("{\"mcpServers\":{\"unity\":{\"command\":\"");
+            sb.Append("{\"mcpServers\":{\"unity-kiss\":{\"command\":\"");
             sb.Append(JsonHelper.EscapeJson(command));
             sb.Append("\",\"args\":[");
             for (int i = 0; i < args.Length; i++)

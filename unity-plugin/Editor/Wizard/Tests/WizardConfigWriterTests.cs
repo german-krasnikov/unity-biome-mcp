@@ -110,7 +110,7 @@ namespace UnityMCP.Editor.Tests
         {
             var result = WizardConfigWriter.Fresh(9500);
             StringAssert.Contains("mcpServers", result);
-            StringAssert.Contains("unity-mcp", result);
+            StringAssert.Contains("unity-kiss", result);
         }
 
         [Test]
@@ -119,7 +119,7 @@ namespace UnityMCP.Editor.Tests
             var existing = "{\"theme\":\"dark\",\"mcpServers\":{}}";
             var result = WizardConfigWriter.Merge(existing, 9500);
             StringAssert.Contains("theme", result);
-            StringAssert.Contains("unity-mcp", result);
+            StringAssert.Contains("unity-kiss", result);
         }
 
         // ── Fresh — port and key presence ─────────────────────────────────────
@@ -132,10 +132,10 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Fresh_ContainsUnityMcpKey()
+        public void Fresh_ContainsUnityKissKey()
         {
             var result = WizardConfigWriter.Fresh(9500);
-            StringAssert.Contains("unity-mcp", result, "Fresh should contain the unity-mcp key");
+            StringAssert.Contains("unity-kiss", result, "Fresh should contain the unity-kiss key");
         }
 
         [Test]

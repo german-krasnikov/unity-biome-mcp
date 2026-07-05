@@ -65,7 +65,8 @@ def test_build_server_entry_without_uvx():
     """When uvx is absent, fallback to sys.executable -m unity_mcp.server."""
     from unity_mcp.config import resolver
 
-    with patch.object(resolver, "_which", return_value=None):
+    with patch.object(resolver, "_which", return_value=None), \
+            patch.object(resolver.pathlib.Path, "exists", return_value=False):
         entry = resolver.build_server_entry(port=9500)
 
     assert entry["command"] == sys.executable

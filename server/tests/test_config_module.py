@@ -105,7 +105,7 @@ def test_merge_creates_new_config_file(tmp_path):
     entry = {"command": "uvx", "args": ["unity-mcp"]}
     merger.merge_mcp_config(cfg, entry)
     data = json.loads(cfg.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-mcp"] == entry
+    assert data["mcpServers"]["unity-kiss"] == entry
 
 
 def test_merge_preserves_other_servers(tmp_path):
@@ -117,10 +117,12 @@ def test_merge_preserves_other_servers(tmp_path):
     merger.merge_mcp_config(cfg, entry)
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "filesystem" in data["mcpServers"]
-    assert data["mcpServers"]["unity-mcp"] == entry
+    assert data["mcpServers"]["unity-kiss"] == entry
 
 
 def test_merge_updates_existing_unity_mcp(tmp_path):
+    """A prior-install entry under the OLD name 'unity-mcp' must be migrated to
+    'unity-kiss' on merge — no leftover duplicate under the old key."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.json"
     old = {"mcpServers": {"unity-mcp": {"command": "python", "args": ["-m", "old"]}}}
@@ -128,7 +130,8 @@ def test_merge_updates_existing_unity_mcp(tmp_path):
     new_entry = {"command": "uvx", "args": ["unity-mcp"]}
     merger.merge_mcp_config(cfg, new_entry)
     data = json.loads(cfg.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-mcp"] == new_entry
+    assert data["mcpServers"]["unity-kiss"] == new_entry
+    assert "unity-mcp" not in data["mcpServers"]  # old name migrated away
     assert len(data["mcpServers"]) == 1  # not duplicated
 
 
@@ -139,7 +142,7 @@ def test_merger_custom_root_key(tmp_path):
     merger.merge_mcp_config(cfg, entry, root_key="servers")
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "servers" in data
-    assert data["servers"]["unity-mcp"] == entry
+    assert data["servers"]["unity-kiss"] == entry
     assert "mcpServers" not in data
 
 
@@ -153,7 +156,7 @@ def test_merger_entry_transformer(tmp_path):
 
     merger.merge_mcp_config(cfg, base_entry, entry_transformer=transform)
     data = json.loads(cfg.read_text(encoding="utf-8"))
-    stored = data["mcpServers"]["unity-mcp"]
+    stored = data["mcpServers"]["unity-kiss"]
     assert stored["type"] == "local"
     assert stored["command"] == ["uvx", "unity-mcp"]
     assert stored["enabled"] is True
@@ -172,14 +175,14 @@ def test_merger_default_root_key_unchanged(tmp_path):
 
 
 def test_merge_toml_strips_stale_unity_entry(tmp_path):
-    """Stale [mcp_servers.unity] (bare) must be removed when writing unity-mcp."""
+    """Stale [mcp_servers.unity] (bare) must be removed when writing unity-kiss."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
     cfg.write_text('[mcp_servers.unity]\ncommand = "/old/python"\nargs = []\n', encoding="utf-8")
     merger.merge_toml_mcp(cfg, {"command": "/new/python", "args": ["-m", "unity_mcp.server"]})
     text = cfg.read_text(encoding="utf-8")
     assert "[mcp_servers.unity]\n" not in text
-    assert "[mcp_servers.unity-mcp]" in text
+    assert "[mcp_servers.unity-kiss]" in text
     assert "/new/python" in text
 
 
@@ -199,7 +202,7 @@ def test_merge_toml_includes_env(tmp_path):
     cfg = tmp_path / "config.toml"
     merger.merge_toml_mcp(cfg, {"command": "uvx", "args": ["unity-mcp"], "env": {"PYTHONUTF8": "1"}})
     text = cfg.read_text(encoding="utf-8")
-    assert "[mcp_servers.unity-mcp.env]" in text
+    assert "[mcp_servers.unity-kiss.env]" in text
     assert "PYTHONUTF8 = '1'" in text
 
 
@@ -207,14 +210,14 @@ def test_merge_toml_windows_path_no_regex_escape(tmp_path):
     """Windows paths with backslashes must not cause re.error on sub()."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
-    cfg.write_text('[mcp_servers.unity-mcp]\ncommand = "/old"\nargs = []\n', encoding="utf-8")
+    cfg.write_text('[mcp_servers.unity-kiss]\ncommand = "/old"\nargs = []\n', encoding="utf-8")
     merger.merge_toml_mcp(cfg, {
         "command": r"C:\Users\TestUser\Python\python.exe",
         "args": ["-m", "unity_mcp.server"],
     })
     text = cfg.read_text(encoding="utf-8")
     assert r"C:\Users\TestUser" in text
-    assert text.count("[mcp_servers.unity-mcp]") == 1
+    assert text.count("[mcp_servers.unity-kiss]") == 1
 
 
 def test_merge_toml_creates_backup(tmp_path):
@@ -234,17 +237,23 @@ def test_merge_toml_idempotent(tmp_path):
     merger.merge_toml_mcp(cfg, entry)
     merger.merge_toml_mcp(cfg, entry)
     text = cfg.read_text(encoding="utf-8")
-    assert text.count("[mcp_servers.unity-mcp]") == 1
+    assert text.count("[mcp_servers.unity-kiss]") == 1
 
 
 def test_merge_toml_does_not_strip_unity_mcp_entry(tmp_path):
-    """Regression: stale_re must NOT consume [mcp_servers.unity-mcp]."""
+    """Regression: stale_re must NOT consume our own [mcp_servers.unity-kiss] section,
+    while the foreign bare [mcp_servers.unity] (CoplayDev) is still stripped."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
-    cfg.write_text('[mcp_servers.unity-mcp]\ncommand = "/existing"\nargs = []\n', encoding="utf-8")
+    cfg.write_text(
+        '[mcp_servers.unity-kiss]\ncommand = "/existing"\nargs = []\n'
+        '\n[mcp_servers.unity]\ncommand = "/foreign"\nargs = []\n',
+        encoding="utf-8",
+    )
     merger.merge_toml_mcp(cfg, {"command": "/new", "args": []})
     text = cfg.read_text(encoding="utf-8")
-    assert text.count("[mcp_servers.unity-mcp]") == 1
+    assert text.count("[mcp_servers.unity-kiss]") == 1
+    assert "[mcp_servers.unity]\n" not in text
 
 
 def test_merge_toml_strips_stale_unity_env_subsection(tmp_path):
@@ -271,7 +280,7 @@ def test_merge_toml_strips_stale_no_trailing_newline(tmp_path):
     merger.merge_toml_mcp(cfg, {"command": "/new", "args": []})
     text = cfg.read_text(encoding="utf-8")
     assert "[mcp_servers.unity]\n" not in text
-    assert "[mcp_servers.unity-mcp]" in text
+    assert "[mcp_servers.unity-kiss]" in text
 
 
 def test_merge_toml_backup_not_overwritten_on_second_call(tmp_path):
@@ -285,7 +294,10 @@ def test_merge_toml_backup_not_overwritten_on_second_call(tmp_path):
 
 
 def test_merger_handles_crlf_toml(tmp_path):
-    """CRLF line endings (Windows) must not cause duplicate sections."""
+    """CRLF line endings (Windows) must not cause duplicate sections.
+
+    Also covers migration: an old-name section survives CRLF parsing and is
+    replaced by the new unity-kiss name (not left behind as a duplicate)."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
     # Write TOML with Windows CRLF line endings
@@ -294,7 +306,8 @@ def test_merger_handles_crlf_toml(tmp_path):
     )
     merger.merge_toml_mcp(cfg, {"command": "/new", "args": ["-m", "unity_mcp.server"]})
     text = cfg.read_text(encoding="utf-8")
-    assert text.count("[mcp_servers.unity-mcp]") == 1, "CRLF caused duplicate section"
+    assert text.count("[mcp_servers.unity-kiss]") == 1, "CRLF caused duplicate section"
+    assert "[mcp_servers.unity-mcp]" not in text  # old name migrated away
     assert "/new" in text
     assert "/old" not in text
 
@@ -628,21 +641,21 @@ def test_configure_project_dir_claude_code(tmp_path):
     target = _write_project_config(tmp_path, "claude-code", _ENTRY)
     assert target == tmp_path / ".mcp.json"
     data = json.loads(target.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-mcp"]["command"] == "uvx"
+    assert data["mcpServers"]["unity-kiss"]["command"] == "uvx"
 
 
 def test_configure_project_dir_cursor(tmp_path):
     target = _write_project_config(tmp_path, "cursor", _ENTRY)
     assert target == tmp_path / ".cursor" / "mcp.json"
     data = json.loads(target.read_text(encoding="utf-8"))
-    assert "unity-mcp" in data["mcpServers"]
+    assert "unity-kiss" in data["mcpServers"]
 
 
 def test_configure_project_dir_vscode(tmp_path):
     target = _write_project_config(tmp_path, "vscode", _ENTRY)
     assert target == tmp_path / ".vscode" / "mcp.json"
     data = json.loads(target.read_text(encoding="utf-8"))
-    assert "unity-mcp" in data["servers"]
+    assert "unity-kiss" in data["servers"]
 
 
 def test_project_merge_preserves_existing_servers(tmp_path):
@@ -652,4 +665,4 @@ def test_project_merge_preserves_existing_servers(tmp_path):
     _write_project_config(tmp_path, "claude-code", _ENTRY)
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "filesystem" in data["mcpServers"]
-    assert "unity-mcp" in data["mcpServers"]
+    assert "unity-kiss" in data["mcpServers"]

@@ -55,10 +55,15 @@ namespace UnityMCP.Editor.Wizard
         // plain one, so both writers share one merge algorithm (DRY).
         internal static string MergeWithEntry(string existing, string entry, string rootKey)
         {
-            if (existing.Contains("\"unity-mcp\""))
+            // Replace our existing entry (new name first, then the OLD "unity-mcp" name
+            // so a prior install is migrated — key AND value swapped for the fresh entry,
+            // never left as a duplicate second server).
+            foreach (var key in new[] { "unity-kiss", "unity-mcp" })
             {
-                var freshValue = entry.Substring(entry.IndexOf('{'));
-                return ReplaceEntry(existing, "unity-mcp", freshValue) ?? existing;
+                if (!FindEntryBounds(existing, key, out var bStart, out var bEnd)) continue;
+                var keyStart = existing.LastIndexOf("\"" + key + "\"", bStart, StringComparison.Ordinal);
+                if (keyStart < 0) continue;
+                return existing.Substring(0, keyStart) + entry + existing.Substring(bEnd);
             }
 
             if (existing.Contains("\"" + rootKey + "\""))
@@ -121,9 +126,9 @@ namespace UnityMCP.Editor.Wizard
         internal static string Entry(int port) => Entry(port, GitInstallUrl);
 
         internal static string Entry(int port, string gitUrl) =>
-            "\"unity-mcp\": {\n" +
+            "\"unity-kiss\": {\n" +                                     // server name (config key)
             "      \"command\": \"uvx\",\n" +
-            $"      \"args\": [\"--from\", \"{gitUrl}\", \"unity-mcp\"],\n" +
+            $"      \"args\": [\"--from\", \"{gitUrl}\", \"unity-mcp\"],\n" +   // 'unity-mcp' = PyPI package
             $"      \"env\": {{ \"UNITY_MCP_PORT\": \"{port}\" }}\n" +
             "    }";
 

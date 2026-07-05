@@ -1,4 +1,4 @@
-"""Patch only <root_key>['unity-mcp'] in an existing config file."""
+"""Patch only <root_key>[SERVER_NAME] in an existing config file."""
 import json
 import os
 import pathlib
@@ -6,12 +6,20 @@ import re
 import shutil
 from typing import Callable, Optional
 
-# Matches [mcp_servers.unity-mcp] plus any dotted sub-sections (e.g. .env).
-# Shared by merge_toml_mcp (replace) and remove_toml_mcp_entry (delete) — one
-# definition, one source of truth for what counts as "the unity-mcp block".
+# Our MCP server name (config key). "unity-kiss" — one "mcp", and distinct from
+# the foreign bare [mcp_servers.unity] (CoplayDev) that the TOML strip removes.
+SERVER_NAME = "unity-kiss"
+# Previous name we shipped — migrated away from (removed) on every write so a
+# rename never leaves an orphaned duplicate server behind.
+_OLD_NAMES = ("unity-mcp",)
+
+# Matches OUR section [mcp_servers.unity-kiss] AND the old [mcp_servers.unity-mcp],
+# plus any dotted sub-sections (e.g. .env). Shared by merge_toml_mcp (replace →
+# migrates old to new) and remove_toml_mcp_entry (delete). Does NOT match the
+# foreign bare [mcp_servers.unity] — that has its own stale_re strip.
 _UNITY_MCP_SECTION_RE = re.compile(
-    r'\[mcp_servers\.unity-mcp\]\n(?:(?!\[)[^\n]*\n)*'
-    r'(?:\[mcp_servers\.unity-mcp\.[^\]]+\]\n(?:(?!\[)[^\n]*\n)*)*',
+    r'\[mcp_servers\.unity-(?:kiss|mcp)\]\n(?:(?!\[)[^\n]*\n)*'
+    r'(?:\[mcp_servers\.unity-(?:kiss|mcp)\.[^\]]+\]\n(?:(?!\[)[^\n]*\n)*)*',
     re.MULTILINE,
 )
 
@@ -34,7 +42,9 @@ def merge_mcp_config(
 
     entry = entry_transformer(server_entry) if entry_transformer else server_entry
     data.setdefault(root_key, {})
-    data[root_key]["unity-mcp"] = entry
+    for old in _OLD_NAMES:                 # migrate: drop any prior-name entry
+        data[root_key].pop(old, None)
+    data[root_key][SERVER_NAME] = entry
 
     tmp = config_path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -64,11 +74,11 @@ def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
     cmd = server_entry["command"]
     args_list = server_entry.get("args", [])
     args_toml = "[" + ", ".join(f"'{a}'" for a in args_list) + "]"
-    block = f"[mcp_servers.unity-mcp]\ncommand = '{cmd}'\nargs = {args_toml}\n"
+    block = f"[mcp_servers.{SERVER_NAME}]\ncommand = '{cmd}'\nargs = {args_toml}\n"
     env = server_entry.get("env", {})
     if env:
         env_lines = "\n".join(f"{k} = '{v}'" for k, v in env.items())
-        block += f'\n[mcp_servers.unity-mcp.env]\n{env_lines}\n'
+        block += f'\n[mcp_servers.{SERVER_NAME}.env]\n{env_lines}\n'
 
     if _UNITY_MCP_SECTION_RE.search(text):
         text = _UNITY_MCP_SECTION_RE.sub(lambda _: block, text)
@@ -94,9 +104,9 @@ def remove_mcp_entry(config_path: pathlib.Path, root_key: str = "mcpServers") ->
         raise ValueError(f"Corrupt JSON in {config_path}: {e}") from e
 
     servers = data.get(root_key, {})
-    if "unity-mcp" not in servers:
+    removed = [n for n in (SERVER_NAME, *_OLD_NAMES) if servers.pop(n, None) is not None]
+    if not removed:
         return False
-    del servers["unity-mcp"]
 
     tmp = config_path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")

@@ -25,14 +25,14 @@ def test_write_claude_config_creates_file(tmp_path):
 def test_claude_config_has_unity_mcp_chat(tmp_path):
     path = write_claude_config(str(tmp_path), 9601)
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    env = data["mcpServers"]["unity"]["env"]
+    env = data["mcpServers"]["unity-kiss"]["env"]
     assert env.get("UNITY_MCP_CHAT") == "1"
 
 
 def test_claude_config_port_correct(tmp_path):
     path = write_claude_config(str(tmp_path), 9999)
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    env = data["mcpServers"]["unity"]["env"]
+    env = data["mcpServers"]["unity-kiss"]["env"]
     assert env.get("UNITY_MCP_PORT") == "9999"
 
 
