@@ -141,6 +141,50 @@ def test_doctor_checks_ai_configs(tmp_path, monkeypatch, capsys):
         f"Expected Claude Code config OK, got: {captured_ok}"
 
 
+# ─── Drift guard: cmd_doctor's .mcp.json key check must read SERVER_NAME ────
+
+def test_cmd_doctor_detects_configured_mcp_json(tmp_path, monkeypatch):
+    """cmd_doctor's '.mcp.json configured' check must be driven by SERVER_NAME,
+    not an independently-hardcoded 'unity-mcp' literal that merely happens to
+    agree with it today. Monkeypatch the shared merger.SERVER_NAME constant to a
+    throwaway probe value: a genuinely-wired doctor (lazy-importing SERVER_NAME
+    from merger on every call) recognizes an entry keyed under the probe value;
+    a hardcoded-literal doctor would report it as not configured instead."""
+    import install.commands as cmd
+    from unity_mcp.config import clients as c
+    from unity_mcp.config import merger
+
+    monkeypatch.setattr(merger, "SERVER_NAME", "probe-doctor")
+    monkeypatch.setattr(cmd, "discover_port", lambda: 0)
+
+    # Isolate from real user config files — only .mcp.json under test matters here.
+    missing = tmp_path / "nonexistent" / "file.json"
+    for key in list(c.CLIENT_REGISTRY):
+        monkeypatch.setattr(c.CLIENT_REGISTRY[key], "config_path", missing)
+
+    mcp_json = tmp_path / ".mcp.json"
+    mcp_json.write_text(json.dumps({"mcpServers": {"probe-doctor": {"command": "uvx"}}}),
+                         encoding="utf-8")
+
+    server_dir = tmp_path / "server"          # deliberately absent — importable check no-ops
+    codex_config = tmp_path / "config.toml"   # deliberately absent — toml check no-ops
+
+    captured_ok = []
+
+    class FakeUI:
+        def box(self, lines): pass
+        def ok(self, msg): captured_ok.append(msg)
+        def fail(self, msg): pass
+        def info(self, msg): pass
+        def error(self, msg): pass
+
+    with patch("install.commands.socket.create_connection", side_effect=OSError):
+        cmd.cmd_doctor(server_dir, codex_config, mcp_json, FakeUI(), None)
+
+    assert any(".mcp.json configured" in m for m in captured_ok), \
+        f"Expected .mcp.json configured OK, got: {captured_ok}"
+
+
 # ─── P2-C: Python version error message ──────────────────────────────────────
 
 def test_python_version_error_has_url(monkeypatch):

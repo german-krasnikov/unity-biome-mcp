@@ -32,7 +32,7 @@ def _add_server_to_path() -> None:
 try:
     _add_server_to_path()
     from unity_mcp.config.clients import CLIENT_REGISTRY, detect_installed
-    from unity_mcp.config.merger import merge_mcp_config, merge_toml_mcp
+    from unity_mcp.config.merger import merge_mcp_config, merge_toml_mcp, SERVER_NAME
     from unity_mcp.config.backup import backup
     from unity_mcp.config.resolver import build_server_entry, GIT_INSTALL_URL
     from unity_mcp.config.validator import validate_config
@@ -41,6 +41,7 @@ except ImportError:
     detect_installed = lambda: []  # type: ignore[assignment]
     merge_mcp_config = None  # type: ignore[assignment]
     merge_toml_mcp = None  # type: ignore[assignment]
+    SERVER_NAME = "unity-mcp"  # type: ignore[assignment]
     backup = None  # type: ignore[assignment]
     build_server_entry = lambda port=0: {}  # type: ignore[assignment]
     GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server"
@@ -186,7 +187,7 @@ def cmd_configure(args: argparse.Namespace) -> None:
     for tool in tools:
         client = CLIENT_REGISTRY[tool]
         if client.stdout_only:
-            print(json.dumps({"mcpServers": {"unity-mcp": entry}}, indent=2, ensure_ascii=False))
+            print(json.dumps({"mcpServers": {SERVER_NAME: entry}}, indent=2, ensure_ascii=False))
             continue
         backup(client.config_path)
         if client.is_toml:

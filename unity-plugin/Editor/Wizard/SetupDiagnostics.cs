@@ -103,7 +103,7 @@ namespace UnityMCP.Editor.Wizard
                 if (!File.Exists(p)) continue;
                 try
                 {
-                    if (File.ReadAllText(p).Contains("\"unity-mcp\""))
+                    if (File.ReadAllText(p).Contains($"\"{PermissionConfig.SERVER_NAME}\""))
                         return (true, p);
                 }
                 catch (IOException) { }

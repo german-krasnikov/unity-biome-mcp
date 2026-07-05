@@ -189,9 +189,9 @@ def test_codex_toml_mcp_flags_present():
                                        prompt="x")
     # Collect all -c values
     c_values = [argv[i + 1] for i, v in enumerate(argv) if v == "-c"]
-    assert any("mcp_servers.unity-kiss.command=" in v for v in c_values)
-    assert any("mcp_servers.unity-kiss.args=" in v for v in c_values)
-    assert any("mcp_servers.unity-kiss.startup_timeout_sec=30" in v for v in c_values)
+    assert any("mcp_servers.unity-mcp.command=" in v for v in c_values)
+    assert any("mcp_servers.unity-mcp.args=" in v for v in c_values)
+    assert any("mcp_servers.unity-mcp.startup_timeout_sec=30" in v for v in c_values)
 
 
 def test_codex_env_set_unity_mcp_port():
@@ -244,7 +244,7 @@ def test_kimi_writes_mcp_config(tmp_path):
     mcp_path = tmp_path / "mcp.json"
     assert mcp_path.exists()
     data = json.loads(mcp_path.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-kiss"]["env"]["UNITY_MCP_PORT"] == "9601"
+    assert data["mcpServers"]["unity-mcp"]["env"]["UNITY_MCP_PORT"] == "9601"
 
 
 def test_kimi_no_resume():
@@ -278,7 +278,7 @@ def test_agy_writes_settings_json(tmp_path):
     settings_path = tmp_path / "settings.json"
     assert settings_path.exists()
     data = json.loads(settings_path.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-kiss"]["env"]["UNITY_MCP_PORT"] == str(_TEST_PORT)
+    assert data["mcpServers"]["unity-mcp"]["env"]["UNITY_MCP_PORT"] == str(_TEST_PORT)
 
 
 # ─── OpenCode (4 tests) ─────────────────────────────────────────────────────
@@ -313,7 +313,7 @@ def test_opencode_writes_config_file(tmp_path):
     config_path = tmp_path / "opencode-unity-mcp-9603.json"
     assert config_path.exists()
     data = json.loads(config_path.read_text(encoding="utf-8"))
-    assert data["mcp"]["unity-kiss"]["environment"]["UNITY_MCP_PORT"] == "9603"
+    assert data["mcp"]["unity-mcp"]["environment"]["UNITY_MCP_PORT"] == "9603"
 
 
 # ─── M3: _sanitize_extra_args (7 tests) ─────────────────────────────────────
@@ -401,3 +401,65 @@ def test_kimi_argv_prompt_value(tmp_path):
                                        prompt="hello", config_dir=str(tmp_path))
     p_idx = argv.index("-p")
     assert argv[p_idx + 1] == "hello"
+
+
+# ─── login_shell_path (3 tests) ─────────────────────────────────────────────
+# Manual cache reset per test (no conftest fixture dependency — hermetic on its own).
+
+import subprocess as _subprocess  # noqa: E402  (for TimeoutExpired only)
+
+
+async def test_login_shell_path_success_caches_and_skips_second_spawn(monkeypatch):
+    from unity_mcp import backend_def
+    backend_def._LOGIN_PATH_CACHE = None
+    monkeypatch.setattr(backend_def.sys, "platform", "darwin")
+    run_mock = MagicMock(return_value=MagicMock(stdout="/usr/bin:/bin\n"))
+    monkeypatch.setattr(backend_def.subprocess, "run", run_mock)
+
+    first = await backend_def.login_shell_path()
+    second = await backend_def.login_shell_path()
+
+    assert first == second == "/usr/bin:/bin"
+    run_mock.assert_called_once()  # second call was a cache hit, no re-spawn
+
+
+async def test_login_shell_path_timeout_returns_empty(monkeypatch):
+    from unity_mcp import backend_def
+    backend_def._LOGIN_PATH_CACHE = None
+    monkeypatch.setattr(backend_def.sys, "platform", "darwin")
+    monkeypatch.setattr(
+        backend_def.subprocess, "run",
+        MagicMock(side_effect=_subprocess.TimeoutExpired(cmd="zsh", timeout=3)),
+    )
+
+    assert await backend_def.login_shell_path() == ""
+
+
+async def test_login_shell_path_retries_after_ttl_on_failure(monkeypatch):
+    from unity_mcp import backend_def
+    backend_def._LOGIN_PATH_CACHE = None
+    backend_def._LOGIN_PATH_CACHE_TS = 0.0
+    monkeypatch.setattr(backend_def.sys, "platform", "darwin")
+
+    calls = {"n": 0}
+
+    def _boom(*a, **kw):
+        calls["n"] += 1
+        raise _subprocess.TimeoutExpired(cmd="zsh", timeout=3)
+
+    monkeypatch.setattr(backend_def.subprocess, "run", _boom)
+
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(backend_def.time, "monotonic", lambda: clock["t"])
+
+    assert await backend_def.login_shell_path() == ""
+    assert calls["n"] == 1
+
+    # still within retry cooldown — must NOT re-spawn
+    assert await backend_def.login_shell_path() == ""
+    assert calls["n"] == 1
+
+    # cooldown elapsed — must retry
+    clock["t"] += backend_def._LOGIN_PATH_RETRY_TTL + 1
+    assert await backend_def.login_shell_path() == ""
+    assert calls["n"] == 2

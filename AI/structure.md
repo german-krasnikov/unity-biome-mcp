@@ -24,13 +24,13 @@ unity-kiss-mcp/
 │   │   ├── connection_slot.py  # ConnectionSlot: dual connections (CLI + Chat agent)
 │   │   ├── chat_relay.py       # Chat relay TCP server: 5 backends, deferred spawn for single-turn, _TRANSFORM_FNS dispatch, EOF handling (v0.67.0: +output_format/reads_stdin, +close_stdin, role-aware ping)
 │   │   ├── cli_session.py      # CLI session state tracking + history scanning + close_stdin (v0.66.0+)
-│   │   ├── backend_def.py      # 5 backend definitions: output_format enum (stream-json/codex-json/kimi-json/plain-text/opencode-json), reads_stdin flag, env_set UNITY_MCP_PORT (v0.67.0: output_format replaces uses_stream_json)
+│   │   ├── backend_def.py      # 5 backend definitions: output_format enum (stream-json/codex-json/kimi-json/plain-text/opencode-json), reads_stdin flag, env_set UNITY_MCP_PORT, _run_login_shell() helper, MCP_BLANKET derived from SERVER_NAME, TTL retry cache (v0.71.0: +_run_login_shell, MCP_BLANKET, retry cache; v0.67.0: output_format replaces uses_stream_json)
 │   │   ├── relay_buffer.py     # Message buffering + dequeuing for relay pipeline (v0.66.0+)
 │   │   ├── stream_transform.py # 4 transform functions: _transform_line (Claude), _transform_plain_text_line (Agy), _transform_codex_line, _transform_kimi_line, _transform_opencode_line (v0.67.0: +4 specialized transformers, selected via _TRANSFORM_FNS)
 │   │   ├── mcp_config_writer.py # Dynamic MCP config generation for relay (v0.66.0+)
 │   │   ├── config/             # Config module (v0.38.0+): client detection, MCP JSON merger, backup/restore; v0.47.1: GitHub-direct install, per-client root_key
 │   │   │   ├── clients.py      # CLIENT_REGISTRY (Claude Code/Desktop/Cursor/Windsurf), detect_installed(), platform-aware ConfigDir (v0.47.1)
-│   │   │   ├── merger.py       # merge_mcp_config(path, entry) — idempotent MCP server entry addition
+│   │   │   ├── merger.py       # merge_mcp_config(path, entry) — idempotent MCP server entry addition; SERVER_NAME = "unity-mcp" (canonical source), _OLD_NAMES for migration (v0.71.0)
 │   │   │   ├── backup.py       # Backup/restore config files before modifications
 │   │   │   ├── resolver.py     # build_server_entry(port) — MCP server entry generator; GIT_INSTALL_URL constant (v0.47.1: shared with C#)
 │   │   │   └── validator.py    # Config validation + path detection per tool; v0.47.1: skips json.loads for TOML clients, respects root_key
@@ -150,7 +150,8 @@ unity-kiss-mcp/
 │       ├── test_reload_ladder.py       # Reload recovery T0-T5 stages + verdict scenarios (20+ tests, v0.27.4)
 │       ├── test_middleware*.py          # Middleware layers (god-file split in v0.26.0)
 │       ├── test_batch*.py              # Batch + conflict + timeout
-│       ├── test_config_gaps.py         # Config validation: resolver.py + validator.py + update_check.py + doctor (73+78=151 tests, v0.47.1: GitHub API, git+URL, TOML clients, per-client root_key)
+│       ├── test_config_gaps.py         # Config validation: resolver.py + validator.py + update_check.py + doctor; SERVER_NAME drift guard (v0.71.0) (73+78=151 tests, v0.47.1: GitHub API, git+URL, TOML clients, per-client root_key)
+│       ├── test_server_name_consistency.py # Cross-language Python↔C# SERVER_NAME + MCP_BLANKET drift guard (v0.71.0)
 │       ├── test_multiscene.py          # Multi-scene CRUD, transfer, diff, bugs (305 tests, v0.24.3)
 │       ├── test_transfer_object.py     # transfer_object cross-scene operations (91 tests, v0.24.3)
 │       ├── test_schema_cache.py        # Schema caching + validation (17 tests, v0.26.0)
@@ -187,6 +188,7 @@ unity-kiss-mcp/
 │       ├── test_monkey_chat_focus.py     # Chat focus monkey tests (v0.66.0+)
 │       ├── test_build_args_contract.py   # Build args protocol validation + UNITY_MCP_PORT env_set (v0.67.0)
 │       ├── test_backend_def.py           # 5 backends: output_format/reads_stdin enums + detection (v0.67.0: output_format replaces uses_stream_json, +reads_stdin tests)
+│       ├── test_cli_session_spawn.py     # CliSession spawn kwargs characterization (v0.71.0)
 │       ├── test_mcp_config_writer.py     # Dynamic MCP config generation (v0.66.0+)
 │       ├── test_stream_transform.py      # 5 transform functions: plain-text, codex, kimi, opencode, claude stream-json (v0.67.0: +_transform_plain_text_line, +_transform_codex_line, +_transform_opencode_line, +_transform_kimi_line; 327+ new lines)
 │       ├── test_stream_transform_mute.py # Stream transformer muting behavior (v0.66.0+)
@@ -291,6 +293,7 @@ unity-kiss-mcp/
 │       ├── FingerprintHelper.cs + ScanHelper.cs + SceneDiffHelper.cs
 │       ├── ChangeWatcher.cs + ColliderChecker.cs + SchemaHelper.cs
 │       ├── MCPSettings.cs                 # Pure static data class (catalog, EnabledTools, no EditorWindow)
+│       ├── PermissionConfig.cs            # SERVER_NAME + MCP_BLANKET constants (C# side, cross-platform, v0.71.0)
 │       ├── CatalogParser.cs               # Plain-text catalog parser (v0.18.0+): "CORE:tool1,tool2\n..." format
 │       ├── SettingsNavController.cs       # iOS-style navigational stack + slide animations (v0.23.0 Block 1)
 │       ├── SettingsPageFactory.cs         # DRY builder for 5 settings pages (Tools/Permissions/Chat/Sampling/Updates) (v0.23.0 Block 1, v0.42.0: Updates page)

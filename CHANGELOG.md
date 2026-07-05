@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.71.0] — Revert MCP Config Key `unity-kiss` → `unity-mcp` (Chat Breakage Fix)
+
+**Breaking:** MCP server config key reverted from `unity-kiss` (v0.70.8) back to `unity-mcp` — the rename caused Chat to break in both Claude Code and Codex due to stale name references in relay + C# config writers.
+
+**Fixed:**
+- `MCP_BLANKET` / `--permission-prompt-tool` now correctly derives from `SERVER_NAME` constant (`mcp__unity-mcp`) — was hardcoded to wrong value `mcp__unity` since introduction, causing permission prompts to fail silently.
+- `config/validator.py` and `install/commands.py` doctor now use shared `SERVER_NAME` constant from `config/merger.py` — auto-migration and diagnostics work correctly across Python + C# config writers.
+- `login_shell_path()` retries after 30s TTL on failure instead of permanently caching empty PATH — fixes Node-based CLI (Codex, OpenCode) spawn failures when initial PATH probe fails transiently.
+
+**Added:**
+- Cross-language drift guard (`test_server_name_consistency.py`) — Python ↔ C# `SERVER_NAME` and `MCP_BLANKET` can never silently drift again (enforced at build/test time).
+- `CliSession` spawn kwargs characterization tests — pins stdin/stderr/limit/PATH contract for single-turn (Codex) vs multi-turn (Claude, Kimi) backends.
+- Shared `SERVER_NAME` constant in Python (`config/merger.py`) and C# (`PermissionConfig.cs`) — single source of truth, all config writers import.
+
+**Improved:**
+- Consolidated `login_shell_path()` + `_which_via_login_shell()` into shared `_run_login_shell()` helper (DRY) — one code path for login-shell PATH resolution.
+- All config writers (Python + C#) now derive server key from constants, not hardcoded literals — prevents accidental renames on future merges.
+
 ## [v0.70.8] — MCP Server Renamed `unity-kiss` (no tautology, auto-migrated)
 
 - **Server name is now `unity-kiss`** — the config key was `unity-mcp`, which read as a tautology under Codex's `[mcp_servers.unity-mcp]` ("mcp" twice). Renamed to `unity-kiss` in **every** config writer — Codex TOML (project `.codex/config.toml` + relay inline `-c`), Claude/Cursor/Windsurf `.mcp.json`, Kimi `mcp.json`, Agy `settings.json`, OpenCode, and the Claude chat `--mcp-config`. Both writers of the Codex config (C# `ProjectConfigToml`, Python `backend_def` inline) use the same `unity-kiss` name, so they still deduplicate into one server (the v0.70.7 fix, kept).

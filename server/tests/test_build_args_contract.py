@@ -397,3 +397,13 @@ def test_uses_stream_json_property_false_for_other_backends():
     assert CodexDef().uses_stream_json is False
     assert OpenCodeDef().uses_stream_json is False
     assert KimiDef().uses_stream_json is False
+
+
+# ── MCP_BLANKET must derive from SERVER_NAME, not a hardcoded literal ────────
+# Drift guard: a plain `assert MCP_BLANKET == "mcp__unity-mcp"` would pass even
+# if MCP_BLANKET were hardcoded independently of SERVER_NAME (as it was before
+# this fix — "mcp__unity", wrong under both the old AND new naming schemes).
+# Deriving the expected value FROM the shared constant proves the DRY coupling.
+def test_mcp_blanket_matches_server_name_exactly():
+    from unity_mcp.config.merger import SERVER_NAME
+    assert MCP_BLANKET == f"mcp__{SERVER_NAME}"

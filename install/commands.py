@@ -49,16 +49,17 @@ def create_venv(server_dir: Path) -> None:
 
 
 def write_codex_config(server_dir: Path, codex_dir: Path, codex_config: Path, ui) -> None:
+    from unity_mcp.config.merger import SERVER_NAME
     py = venv_python(server_dir)
     codex_dir.mkdir(exist_ok=True)
     codex_config.write_text(
-        "[mcp_servers.unity-mcp]\n"
+        f"[mcp_servers.{SERVER_NAME}]\n"
         f'command = "{py.as_posix()}"\n'
         'args = ["-m", "unity_mcp.server"]\n'
         "startup_timeout_sec = 10\n"
         "tool_timeout_sec = 120\n"
         "enabled = true\n"
-        "\n[mcp_servers.unity-mcp.env]\n"
+        f"\n[mcp_servers.{SERVER_NAME}.env]\n"
         'PYTHONUTF8 = "1"\n',
         encoding="utf-8",
     )
@@ -126,6 +127,8 @@ def cmd_update(server_dir: Path, codex_dir: Path, codex_config: Path, ui,
 
 def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
                _args: argparse.Namespace) -> None:
+    from unity_mcp.config.merger import SERVER_NAME
+
     def _check(label: str, result: bool, info: str = "") -> None:
         suffix = f" ({info})" if info else ""
         (ui.ok if result else ui.fail)(f"{label}{suffix}")
@@ -159,7 +162,7 @@ def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
     if mcp_json.exists():
         try:
             data = json.loads(mcp_json.read_text(encoding="utf-8"))
-            mcp_ok = "unity-mcp" in data.get("mcpServers", {})
+            mcp_ok = SERVER_NAME in data.get("mcpServers", {})
         except Exception:
             pass
     _check(".mcp.json configured", mcp_ok)
@@ -173,14 +176,14 @@ def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
         if info.config_path.exists():
             try:
                 content = info.config_path.read_text(encoding="utf-8")
-                has_entry = '"unity-mcp"' in content
+                has_entry = f'"{SERVER_NAME}"' in content
                 has_git_url = _GIT_URL in content
                 if has_entry and not has_git_url:
                     _check(f"{info.name} config", False,
                            f"stale PyPI config — run: install.py configure --tool {key}")
                 else:
                     _check(f"{info.name} config", has_entry,
-                           str(info.config_path) if has_entry else "unity-mcp missing")
+                           str(info.config_path) if has_entry else f"{SERVER_NAME} missing")
             except OSError:
                 pass
 

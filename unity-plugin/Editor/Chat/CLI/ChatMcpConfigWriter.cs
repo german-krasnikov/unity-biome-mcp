@@ -46,7 +46,9 @@ namespace UnityMCP.Editor.Chat
         public static string BuildClaudeConfigJson(string command, string[] args, int port = 0)
         {
             var sb = new StringBuilder();
-            sb.Append("{\"mcpServers\":{\"unity-kiss\":{\"command\":\"");
+            sb.Append("{\"mcpServers\":{\"");
+            sb.Append(PermissionConfig.SERVER_NAME);
+            sb.Append("\":{\"command\":\"");
             sb.Append(JsonHelper.EscapeJson(command));
             sb.Append("\",\"args\":[");
             for (int i = 0; i < args.Length; i++)
@@ -60,7 +62,7 @@ namespace UnityMCP.Editor.Chat
             if (port > 0)
             {
                 // UNITY_MCP_CHAT=1 here (not in CLI process env) ensures only THIS server
-                // gets it — prevents "unity-mcp" from ~/.mcp.json connecting to chat port.
+                // gets it — prevents "unity-kiss" from ~/.mcp.json connecting to chat port.
                 sb.Append(",\"env\":{\"UNITY_MCP_PORT\":\"");
                 sb.Append(port);
                 sb.Append("\",\"UNITY_MCP_CHAT\":\"1\"}");

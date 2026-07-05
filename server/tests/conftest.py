@@ -87,6 +87,18 @@ def _reset_sampling_semaphore():
 
 
 @pytest.fixture(autouse=True)
+def _reset_login_path_cache():
+    """Fresh login-shell PATH cache per test. Without this, the first test in the
+    session to exercise real CliSession.start() populates the module-global cache
+    (backend_def.py:108) and poisons every later test regardless of monkeypatching,
+    since login_shell_path() short-circuits on a non-None cache."""
+    import unity_mcp.backend_def as bd
+    bd._LOGIN_PATH_CACHE = None
+    yield
+    bd._LOGIN_PATH_CACHE = None
+
+
+@pytest.fixture(autouse=True)
 def _reset_diagnose_send():
     """Prevent diagnose._send from leaking between tests (set by server.register())."""
     import unity_mcp.tools.diagnose as _diag

@@ -3,6 +3,7 @@ import json
 import socket
 
 from unity_mcp.config.clients import CLIENT_REGISTRY
+from unity_mcp.config.merger import SERVER_NAME
 from unity_mcp.constants import DEFAULT_PORT
 from unity_mcp.server_filtering import read_unity_port
 
@@ -27,8 +28,8 @@ def validate_config(client_key: str) -> str:
 
     if info.is_toml:
         if path.exists():
-            has_entry = "unity-mcp" in path.read_text(encoding="utf-8")
-            lines.append(f"Status: {'configured' if has_entry else 'unity-mcp not found in TOML'}")
+            has_entry = SERVER_NAME in path.read_text(encoding="utf-8")
+            lines.append(f"Status: {'configured' if has_entry else f'{SERVER_NAME} not found in TOML'}")
         else:
             lines.append("Status: file not found")
         return "\n".join(lines)
@@ -44,12 +45,12 @@ def validate_config(client_key: str) -> str:
         return "\n".join(lines)
 
     servers = data.get(info.root_key, {})
-    if "unity-mcp" not in servers:
-        lines.append(f"Status: not configured (unity-mcp missing from {info.root_key!r})")
+    if SERVER_NAME not in servers:
+        lines.append(f"Status: not configured ({SERVER_NAME} missing from {info.root_key!r})")
         return "\n".join(lines)
 
-    entry = servers["unity-mcp"]
-    lines.append(f"unity-mcp entry: {entry}")
+    entry = servers[SERVER_NAME]
+    lines.append(f"{SERVER_NAME} entry: {entry}")
 
     port = read_unity_port(skip_probe=True) or DEFAULT_PORT
     reachable = _port_reachable(port)

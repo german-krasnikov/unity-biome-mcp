@@ -269,7 +269,7 @@ def test_install_configure_writes_utf8_no_bom(tmp_path):
     raw = target.read_bytes()
     assert raw[:3] != BOM, ".mcp.json must not start with UTF-8 BOM"
     data = json.loads(raw.decode("utf-8"))
-    assert "unity-kiss" in data["mcpServers"], "unity-kiss entry must be present"
+    assert "unity-mcp" in data["mcpServers"], "unity-mcp entry must be present"
 
 
 # ── bridge.py — ensure_ascii=False ────────────────────────────────────────

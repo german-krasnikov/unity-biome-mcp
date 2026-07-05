@@ -9,12 +9,15 @@ namespace UnityMCP.Editor
 {
     public class PermissionConfig
     {
-        // Must match the mcp.json server key ("unity") — Claude names tools mcp__unity__<tool>.
-        // Derived as MCP_BLANKET + "__" so blanket and per-tool prefix cannot drift.
-        // Mirrors MCP_BLANKET in server/src/unity_mcp/backend_def.py (ROI reliability sprint
-        // item m2). Keep both in sync manually; no automated cross-language contract test
-        // exists yet.
-        public const string MCP_BLANKET    = "mcp__unity";
+        // Must match the mcp.json server key — Claude names tools mcp__<SERVER_NAME>__<tool>.
+        // NOT SERVER_NAME.Replace('-', '_') — hyphens are legal in MCP tool-name
+        // segments and are never touched by Claude's sanitizer. MCP_TOOL_PREFIX is
+        // derived as MCP_BLANKET + "__" so blanket and per-tool prefix cannot drift.
+        // Mirrors SERVER_NAME/MCP_BLANKET in server/src/unity_mcp/config/merger.py
+        // and server/src/unity_mcp/backend_def.py. Keep both in sync manually.
+        // Cross-language drift guard: server/tests/test_server_name_consistency.py
+        public const string SERVER_NAME     = "unity-mcp";
+        public const string MCP_BLANKET     = "mcp__" + SERVER_NAME;
         public const string MCP_TOOL_PREFIX = MCP_BLANKET + "__";
 
         // EditorPrefs key prefix shared by all PermissionConfig instances using the default ctor.

@@ -32,11 +32,11 @@ namespace UnityMCP.Editor.Wizard
         // "_v"/"UNITY_MCP_PORT" key must never leak into unity-mcp's classification
         // (was a data-loss bug: a foreign sibling's marker made a hand-edited unity-mcp
         // entry misclassify as OwnedStale and get overwritten).
-        // Finds our entry by the new "unity-kiss" name, falling back to the old
-        // "unity-mcp" so an existing install still classifies (→ gets migrated).
+        // Finds our entry by the new "unity-mcp" name, falling back to the old
+        // "unity-kiss" so an existing install still classifies (→ gets migrated).
         private static bool FindOurEntry(string text, out int start, out int end) =>
-            WizardConfigWriter.FindEntryBounds(text, "unity-kiss", out start, out end) ||
-            WizardConfigWriter.FindEntryBounds(text, "unity-mcp", out start, out end);
+            WizardConfigWriter.FindEntryBounds(text, PermissionConfig.SERVER_NAME, out start, out end) ||
+            WizardConfigWriter.FindEntryBounds(text, "unity-kiss", out start, out end);
 
         internal static string ExtractMarkerVersion(string existingText)
         {
@@ -57,7 +57,7 @@ namespace UnityMCP.Editor.Wizard
         internal static EntryState Classify(string existingText, int port, string version)
         {
             if (string.IsNullOrEmpty(existingText) ||
-                !(existingText.Contains("\"unity-kiss\"") || existingText.Contains("\"unity-mcp\"")))
+                !(existingText.Contains("\"unity-kiss\"") || existingText.Contains($"\"{PermissionConfig.SERVER_NAME}\"")))
                 return EntryState.Absent;
 
             var markerVersion = ExtractMarkerVersion(existingText);

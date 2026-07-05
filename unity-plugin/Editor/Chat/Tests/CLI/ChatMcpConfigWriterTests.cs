@@ -132,7 +132,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 winPath, new[] { argWithQuote });
 
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
-            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-kiss");
+            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
             var command    = JsonHelper.ExtractString(unity, "command");
 
             Assert.AreEqual(winPath, command, "backslashes must survive the JSON round-trip");
@@ -150,7 +150,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 new[] { "run", "--directory", "/some/server", "unity-mcp" });
 
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
-            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-kiss");
+            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
             var command    = JsonHelper.ExtractString(unity, "command");
             var argsRaw    = JsonHelper.ExtractArray(unity, "args");
 
@@ -169,7 +169,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 new[] { "run", "--directory", "/path with spaces/server", "unity-mcp" });
 
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
-            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-kiss");
+            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
             var command    = JsonHelper.ExtractString(unity, "command");
 
             Assert.AreEqual("/path with spaces/bin/uv", command);
@@ -271,8 +271,8 @@ namespace UnityMCP.Editor.Chat.Tests
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
             Assert.AreNotEqual("{}", mcpServers, "mcpServers key must exist");
 
-            var unity = JsonHelper.ExtractObject(mcpServers, "unity-kiss");
-            Assert.AreNotEqual("{}", unity, "unity-kiss server key must exist");
+            var unity = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
+            Assert.AreNotEqual("{}", unity, "unity-mcp server key must exist");
 
             var command = JsonHelper.ExtractString(unity, "command");
             Assert.IsNotNull(command, "command field must exist");
@@ -288,7 +288,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 "/bin/uv", new[] { "run", "--directory", "/srv", "unity-mcp" }, port: 9501);
 
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
-            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-kiss");
+            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
             var env        = JsonHelper.ExtractObject(unity, "env");
             var portVal    = JsonHelper.ExtractString(env, "UNITY_MCP_PORT");
             Assert.AreEqual("9501", portVal);
@@ -298,11 +298,11 @@ namespace UnityMCP.Editor.Chat.Tests
         public void BuildClaudeConfigJson_WithPort_ContainsUnityMcpChatEnv()
         {
             // UNITY_MCP_CHAT must be in --mcp-config env (not CLI process env) so that
-            // only "unity-kiss" server gets it, not "unity-mcp" from ~/.mcp.json.
+            // only "unity-mcp" server gets it, not "unity-kiss" from ~/.mcp.json.
             var json = ChatMcpConfigWriter.BuildClaudeConfigJson(
                 "/bin/uv", new[] { "run", "--directory", "/srv", "unity-mcp" }, port: 9501);
 
-            var env      = JsonHelper.ExtractObject(JsonHelper.ExtractObject(json, "mcpServers"), "unity-kiss");
+            var env      = JsonHelper.ExtractObject(JsonHelper.ExtractObject(json, "mcpServers"), "unity-mcp");
             var chatFlag = JsonHelper.ExtractString(JsonHelper.ExtractObject(env, "env"), "UNITY_MCP_CHAT");
             Assert.AreEqual("1", chatFlag);
         }

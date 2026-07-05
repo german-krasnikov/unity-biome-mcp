@@ -13,9 +13,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 
 from . import mcp_config_writer
+from .config.merger import SERVER_NAME
 
 if sys.platform == "win32":
     import winreg
@@ -23,7 +25,10 @@ else:
     winreg = None  # type: ignore[assignment]  # seam for monkeypatching in tests on non-Windows CI
 
 # ── Permission constants (mirrors PermissionConfig.cs) ───────────────────────
-MCP_BLANKET        = "mcp__unity"
+# NOT SERVER_NAME.replace('-', '_') — hyphens are legal in MCP tool-name
+# segments and are never touched by Claude's sanitizer. Must match
+# PermissionConfig.MCP_BLANKET in the C# plugin exactly.
+MCP_BLANKET        = f"mcp__{SERVER_NAME}"
 
 # ── extra_args sanitizer ─────────────────────────────────────────────────────
 # Flags that would override security-critical argv already set by build_args.
@@ -103,6 +108,26 @@ def _which_windows_registry(binary: str) -> str | None:
 
 
 _LOGIN_PATH_CACHE: str | None = None
+_LOGIN_PATH_CACHE_TS: float = 0.0
+_LOGIN_PATH_RETRY_TTL = 30.0  # seconds — bounds re-spawn frequency while shell stays broken
+
+
+async def _run_login_shell(command: str, timeout: float = 3.0) -> str:
+    """Run `command` in the user's login shell (zsh/bash -lic), return raw stdout.
+    Empty string on any failure or unsupported platform (win32 handled by callers)."""
+    if sys.platform == "darwin":
+        shell, flag = "/bin/zsh", "-lic"
+    elif sys.platform.startswith("linux"):
+        shell, flag = "/bin/bash", "-lic"
+    else:
+        return ""
+    try:
+        return (await asyncio.to_thread(
+            subprocess.run, [shell, flag, command],
+            capture_output=True, text=True, timeout=timeout,
+        )).stdout
+    except Exception:
+        return ""
 
 
 async def login_shell_path() -> str:
@@ -111,52 +136,33 @@ async def login_shell_path() -> str:
     Unity launched from Finder gives child processes a minimal PATH, so node-based
     CLIs (codex is `#!/usr/bin/env node`) fail with exit 127 `env: node: not found`.
     Spawning backends with this PATH lets their interpreters/tools resolve.
+
+    A successful result is cached for the process lifetime (PATH doesn't change at
+    runtime). A failure (empty result) is only cached for `_LOGIN_PATH_RETRY_TTL`
+    seconds, then retried — a transient failure must not permanently disable PATH
+    prepending for the rest of the Unity session.
     """
-    global _LOGIN_PATH_CACHE
-    if _LOGIN_PATH_CACHE is not None:
+    global _LOGIN_PATH_CACHE, _LOGIN_PATH_CACHE_TS
+    if _LOGIN_PATH_CACHE:
         return _LOGIN_PATH_CACHE
-    if sys.platform == "darwin":
-        shell = "/bin/zsh"
-    elif sys.platform.startswith("linux"):
-        shell = "/bin/bash"
-    else:
-        _LOGIN_PATH_CACHE = ""
-        return ""
-    try:
-        out = (await asyncio.to_thread(
-            subprocess.run,
-            [shell, "-lic", "printf %s \"$PATH\""],
-            capture_output=True, text=True, timeout=3,
-        )).stdout
-        # login shells may print noise (history msgs); take the last line containing ':' path-list
-        cand = [ln for ln in out.splitlines() if "/" in ln and ":" in ln]
-        _LOGIN_PATH_CACHE = cand[-1].strip() if cand else out.strip()
-    except Exception:
-        _LOGIN_PATH_CACHE = ""
+    if _LOGIN_PATH_CACHE is not None and time.monotonic() - _LOGIN_PATH_CACHE_TS < _LOGIN_PATH_RETRY_TTL:
+        return _LOGIN_PATH_CACHE
+    out = await _run_login_shell('printf %s "$PATH"')
+    # login shells may print noise (history msgs); take the last line containing ':' path-list
+    cand = [ln for ln in out.splitlines() if "/" in ln and ":" in ln]
+    _LOGIN_PATH_CACHE = cand[-1].strip() if cand else out.strip()
+    _LOGIN_PATH_CACHE_TS = time.monotonic()
     return _LOGIN_PATH_CACHE
 
 
 async def _which_via_login_shell(binary: str) -> str | None:
     """Login-shell resolution for macOS/Linux (Unity has minimal PATH)."""
-    if sys.platform == "darwin":
-        shell, flag = "/bin/zsh", "-lic"
-    elif sys.platform.startswith("linux"):
-        shell, flag = "/bin/bash", "-lic"
-    elif sys.platform == "win32":
+    if sys.platform == "win32":
         return await asyncio.to_thread(_which_windows_registry, binary)
-    else:
-        return None
-    try:
-        out = (await asyncio.to_thread(
-            subprocess.run,
-            [shell, flag, f'command -v "{binary}"'],
-            capture_output=True, text=True, timeout=3,
-        )).stdout
-        for line in reversed(out.splitlines()):
-            if line.startswith("/"):
-                return line.strip()
-    except Exception:
-        pass
+    out = await _run_login_shell(f'command -v "{binary}"')
+    for line in reversed(out.splitlines()):
+        if line.startswith("/"):
+            return line.strip()
     return None
 
 
@@ -269,14 +275,14 @@ class CodexDef(BackendDef):
         def _toml_arr(items: list[str]) -> str:
             return ",".join(f'"{_toml_esc(i)}"' for i in items)
 
-        # Use the SAME server name the project .codex/config.toml uses ("unity-kiss"),
+        # Use the SAME server name the project .codex/config.toml uses ("unity-mcp"),
         # so this inline -c OVERRIDES the project entry instead of adding a duplicate
         # second Unity server (two servers on port 9500 → codex hangs).
         argv += [
-            "-c", f'mcp_servers.unity-kiss.command="{_toml_esc(cmd)}"',
-            "-c", f"mcp_servers.unity-kiss.args=[{_toml_arr(cmd_args)}]",
-            "-c", "mcp_servers.unity-kiss.startup_timeout_sec=30",
-            "-c", f'mcp_servers.unity-kiss.env.UNITY_MCP_PORT="{mcp_port}"',
+            "-c", f'mcp_servers.unity-mcp.command="{_toml_esc(cmd)}"',
+            "-c", f"mcp_servers.unity-mcp.args=[{_toml_arr(cmd_args)}]",
+            "-c", "mcp_servers.unity-mcp.startup_timeout_sec=30",
+            "-c", f'mcp_servers.unity-mcp.env.UNITY_MCP_PORT="{mcp_port}"',
         ]
 
         if model:
