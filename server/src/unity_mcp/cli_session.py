@@ -31,11 +31,12 @@ class CliSession:
     """One CLI subprocess. Lifecycle: spawn → write → drain → kill."""
 
     def __init__(self, binary: str, argv: list[str],
-                 env_set: dict, env_strip: list[str]):
-        self._binary    = binary
-        self._argv      = argv
-        self._env_set   = env_set
-        self._env_strip = env_strip
+                 env_set: dict, env_strip: list[str], reads_stdin: bool = True):
+        self._binary      = binary
+        self._argv        = argv
+        self._env_set     = env_set
+        self._env_strip   = env_strip
+        self._reads_stdin = reads_stdin
         self._proc: asyncio.subprocess.Process | None = None
 
     async def start(self) -> None:
@@ -49,9 +50,13 @@ class CliSession:
         if login_path:
             env["PATH"] = login_path + os.pathsep + env.get("PATH", "")
         env.update(self._env_set)
+        # Single-turn backends (codex, reads_stdin=False) get the prompt in argv and
+        # must NOT see a piped stdin — codex then blocks "Reading additional input from
+        # stdin..." and crashes with SIGTRAP (exit -5). DEVNULL gives an immediate EOF.
+        stdin_mode = asyncio.subprocess.PIPE if self._reads_stdin else asyncio.subprocess.DEVNULL
         self._proc = await asyncio.create_subprocess_exec(
             self._binary, *self._argv,
-            stdin=asyncio.subprocess.PIPE,
+            stdin=stdin_mode,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,   # captured — surfaces backend crash reason to chat
             # 16 MiB line limit: codex/CLI emit large single-line NDJSON tool results

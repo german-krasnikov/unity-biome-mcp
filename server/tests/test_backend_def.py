@@ -189,9 +189,9 @@ def test_codex_toml_mcp_flags_present():
                                        prompt="x")
     # Collect all -c values
     c_values = [argv[i + 1] for i, v in enumerate(argv) if v == "-c"]
-    assert any("mcp_servers.unity.command=" in v for v in c_values)
-    assert any("mcp_servers.unity.args=" in v for v in c_values)
-    assert any("mcp_servers.unity.startup_timeout_sec=30" in v for v in c_values)
+    assert any("mcp_servers.unity-mcp.command=" in v for v in c_values)
+    assert any("mcp_servers.unity-mcp.args=" in v for v in c_values)
+    assert any("mcp_servers.unity-mcp.startup_timeout_sec=30" in v for v in c_values)
 
 
 def test_codex_env_set_unity_mcp_port():

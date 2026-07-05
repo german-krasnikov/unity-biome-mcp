@@ -216,7 +216,8 @@ class ChatRelay:
 
         await self._kill_current()
         session = CliSession(binary=resolved, argv=argv,
-                             env_set=env_set, env_strip=env_strip)
+                             env_set=env_set, env_strip=env_strip,
+                             reads_stdin=backend.reads_stdin)
         try:
             await session.start()
         except Exception as e:

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.70.7] — Codex Chat: SIGTRAP & Duplicate MCP Fixed
+
+Two remaining Codex-in-chat failures, both root-caused:
+
+- **`codex exited -5` (SIGTRAP) — piped stdin** — Single-turn backends (Codex) take their prompt in argv and never read stdin, but the relay always spawned with `stdin=PIPE`. Codex saw a live-but-empty pipe, blocked on "Reading additional input from stdin…", then crashed with SIGTRAP (exit -5). `CliSession` now honours a per-backend `reads_stdin` flag and passes `stdin=DEVNULL` for single-turn backends, giving codex an immediate EOF. (Claude/Kimi still get `PIPE` — they stream turns over stdin.)
+- **Duplicate Unity MCP server → hang** — The project `.codex/config.toml` registers the Unity server as `[mcp_servers.unity-mcp]`, but the relay's inline `-c` overrides used a *different* name (`mcp_servers.unity`). Codex merged them into **two** servers both pointing at port 9500, and the second registration hung the session (chat timeout on scene queries). The inline `-c` flags now use the same `unity-mcp` name, so they override the project entry into a single server instead of adding a duplicate.
+
 ## [v0.70.6] — Large Backend Output Fixed (chat -5 crash)
 
 - **16 MiB stdout line limit** — Chat backends (Codex especially) emit large single-line NDJSON tool results — a full scene hierarchy is one line that can exceed 64 KiB. The relay's stdout reader used asyncio's default 64 KiB limit, so a big result raised `ValueError: Separator is not found, and chunk exceeds the limit`, killing the relay and the backend (surfaced in chat as `codex exited -5`). `CliSession` now reads with a 16 MiB line limit. Combined with v0.70.4's stderr surfacing and v0.70.5's login-shell PATH, this closes the Codex chat crash on scene queries.
