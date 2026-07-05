@@ -1,6 +1,7 @@
 """Tests for chat_relay.py — standalone CLI sidecar. All tests are not live (no Unity)."""
 import asyncio
 import gc
+import inspect
 import json
 import os
 import struct
@@ -11,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, ANY
 
 from unity_mcp.chat_relay import (
     BufLine, CliSession, ChatRelay, SessionMeta, BACKENDS,
-    _esc, _find_free_port,
+    _esc, _find_free_port, main,
     MAX_BUF, KILL_WAIT, PPID_POLL,
 )
 from unity_mcp.stream_transform import (
@@ -1871,3 +1872,21 @@ async def test_cli_session_env_set_overrides_inherited_port(monkeypatch):
         })
     env_arg = mock_exec.call_args.kwargs["env"]
     assert env_arg["UNITY_MCP_PORT"] == "9601"
+
+
+# ─── T5: main() — sync console-script entrypoint ────────────────────────────
+
+def test_main_is_not_a_coroutine_function():
+    """Console-script entrypoints must be plain sync functions."""
+    assert inspect.iscoroutinefunction(main) is False
+
+
+def test_main_invokes_asyncio_run_with_main_coroutine():
+    """main() should drive the async _main() coroutine via asyncio.run."""
+    with patch("unity_mcp.chat_relay.asyncio.run") as mock_run:
+        main()
+
+    mock_run.assert_called_once()
+    coro = mock_run.call_args.args[0]
+    assert inspect.iscoroutine(coro)
+    coro.close()  # avoid "coroutine was never awaited" warning

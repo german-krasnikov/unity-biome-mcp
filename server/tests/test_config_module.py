@@ -41,7 +41,7 @@ def test_client_paths_are_platform_specific():
 
 def test_all_expected_clients_registered():
     from unity_mcp.config import clients as c
-    for key in ("claude-desktop", "claude-code", "cursor", "windsurf", "kimi", "vscode", "opencode"):
+    for key in ("claude-desktop", "claude-code", "cursor", "windsurf", "kimi", "vscode", "opencode", "junie"):
         assert key in c.CLIENT_REGISTRY
 
 
@@ -50,6 +50,17 @@ def test_kimi_in_client_registry():
     info = c.CLIENT_REGISTRY["kimi"]
     assert "kimi-code" in str(info.config_path).lower()
     assert info.root_key == "mcpServers"
+
+
+def test_junie_in_client_registry():
+    """Junie is referenced by ProjectConfigTargets.cs (.junie/mcp/mcp.json) but was
+    missing from the Python registry — install.py configure --tool junie failed silently."""
+    from unity_mcp.config import clients as c
+    assert "junie" in c.CLIENT_REGISTRY
+    info = c.CLIENT_REGISTRY["junie"]
+    assert str(info.config_path).replace("\\", "/").endswith(".junie/mcp/mcp.json")
+    assert info.root_key == "mcpServers"
+    assert info.is_toml is False
 
 
 def test_vscode_in_client_registry():
@@ -568,10 +579,13 @@ def test_vscode_transform_passes_env():
 
 
 def test_opencode_transform_passes_env():
+    # OpenCode uses the key "environment" (not "env") per opencode.ai/docs/mcp-servers.
+    # Emitting "env" silently drops UNITY_MCP_PORT for OpenCode users.
     from unity_mcp.config.clients import _opencode_transform
     entry = {"command": "uvx", "args": ["unity-mcp"], "env": {"PORT": "9500"}}
     result = _opencode_transform(entry)
-    assert result["env"] == {"PORT": "9500"}
+    assert result["environment"] == {"PORT": "9500"}
+    assert "env" not in result
 
 
 # ─── merger.py: invalid JSON raises ─────────────────────────────────────────

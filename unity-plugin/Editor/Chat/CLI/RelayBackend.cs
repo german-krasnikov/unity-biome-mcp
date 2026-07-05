@@ -17,6 +17,12 @@ namespace UnityMCP.Editor.Chat
         private string           _mode;
         private RelayChatProcess _proc;
         private readonly ToolCallAccumulator _acc = new ToolCallAccumulator();
+#if !UNITY_INCLUDE_TESTS
+        // Production-only: turn text queued while RelaySpawnState.RequestSpawn() is cold-starting
+        // uvx (up to 45s). Flushed once the relay reports ready. Not used by the test seam path,
+        // where _proc is created synchronously and SendTurn can write immediately.
+        private string _queuedTurnJson;
+#endif
 
         public bool IsRunning => _proc?.IsRunning ?? false;
 
@@ -60,18 +66,49 @@ namespace UnityMCP.Editor.Chat
 #if UNITY_INCLUDE_TESTS
             var port = RelaySpawner.EnsureRunningOverride?.Invoke() ?? RelaySpawner.EnsureRunning();
             _proc = ProcessFactory?.Invoke() ?? new RelayChatProcess();
-#else
-            var port = RelaySpawner.EnsureRunning();
-            _proc = new RelayChatProcess();
-#endif
             _proc.StartViaRelay(port, _backendId, _mode, _model, _mcpPort,
                 SessionId ?? _resumeSessionId, _appendSystemPrompt);
+#else
+            // Tier 2 (chat-relay-upm-fix.md): don't block the main thread on a uvx cold start
+            // (up to 45s). RelaySpawnState hops to the ThreadPool only when actually needed;
+            // the "already running" fast path completes inline.
+            RelaySpawnState.RequestSpawn(OnRelayReady, OnRelayError);
+#endif
         }
+
+#if !UNITY_INCLUDE_TESTS
+        // Called back (on the main thread) once RelaySpawnState confirms the relay is up.
+        private void OnRelayReady(int port)
+        {
+            _proc = new RelayChatProcess();
+            _proc.StartViaRelay(port, _backendId, _mode, _model, _mcpPort,
+                SessionId ?? _resumeSessionId, _appendSystemPrompt);
+            if (_queuedTurnJson != null)
+            {
+                var turn = _queuedTurnJson;
+                _queuedTurnJson = null;
+                _proc.WriteLine(turn);
+            }
+        }
+
+        private void OnRelayError(string message) =>
+            UnityEngine.Debug.LogError($"[MCP Relay] {message}");
+#endif
 
         public void SendTurn(string turnJson)
         {
+#if UNITY_INCLUDE_TESTS
             if (!IsRunning) Start();
             _proc?.WriteLine(turnJson);
+#else
+            if (!IsRunning)
+            {
+                _queuedTurnJson = turnJson;
+                Start();
+                return;
+            }
+            _proc?.WriteLine(turnJson);
+#endif
         }
         public void SendControlResponse(string json) => _proc?.WriteLine(json);
 

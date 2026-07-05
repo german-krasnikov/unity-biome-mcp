@@ -19,6 +19,19 @@ namespace UnityMCP.Editor.Chat
         internal static void ClearPackageRootForTest() => _packageRootOverride = null;
 #endif
 
+        /// <summary>
+        /// Resolves the UPM package root, honouring the test override.
+        /// Shared by <see cref="GetOrCreateConfigPath(string, int)"/> and <c>RelaySpawner</c>
+        /// so both Python entrypoints agree on where "local install" lives.
+        /// </summary>
+        internal static string PackageRoot()
+        {
+#if UNITY_INCLUDE_TESTS
+            if (_packageRootOverride != null) return _packageRootOverride;
+#endif
+            return Path.GetFullPath($"Packages/{PackageId}");
+        }
+
         /// <summary>Returns per-port config filename. Port=0 falls back to legacy bare name.</summary>
         public static string ConfigFileName(int port) =>
             port > 0 ? $"unity-mcp-config-{port}.json" : "unity-mcp-config.json";
@@ -129,11 +142,7 @@ namespace UnityMCP.Editor.Chat
                 return uvxPath;
             }
 
-#if UNITY_INCLUDE_TESTS
-            var packageRoot = _packageRootOverride ?? Path.GetFullPath($"Packages/{PackageId}");
-#else
-            var packageRoot = Path.GetFullPath($"Packages/{PackageId}");
-#endif
+            var packageRoot = PackageRoot();
             var serverDir   = ResolveServerDir(packageRoot);
             if (serverDir == null)
             {

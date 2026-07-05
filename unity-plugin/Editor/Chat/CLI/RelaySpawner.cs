@@ -7,6 +7,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using UnityEditor;
+using UnityEngine;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -22,9 +23,11 @@ namespace UnityMCP.Editor.Chat
         internal static event Action OnAfterReloadResume;
 
         // Test seams — replace to inject mocks
-        internal static Func<ProcessStartInfo, Process> ProcessFactory = psi => Process.Start(psi);
-        internal static Func<string>                    PythonResolver = DefaultPythonResolver;
-        internal static TimeSpan                        ReadTimeout    = TimeSpan.FromSeconds(5);
+        internal static Func<ProcessStartInfo, Process>   ProcessFactory  = psi => Process.Start(psi);
+        // Returns (command, argv) as one unit so the args half can never be silently dropped
+        // (pre-existing bug: the old PythonResolver-only seam discarded args for Local+uv installs).
+        internal static Func<(string cmd, string[] argv)> CommandResolver = RelayCommandResolver.Resolve;
+        internal static TimeSpan                          ReadTimeout    = TimeSpan.FromSeconds(5);
 #if UNITY_INCLUDE_TESTS
         // Override EnsureRunning entirely in unit tests — prevents GetProcessById(selfPid)
         // from attaching _process to the Unity editor, which would cause Stop() to kill it.
@@ -90,30 +93,106 @@ namespace UnityMCP.Editor.Chat
 
         // ── Private helpers ───────────────────────────────────────────────────
 
+        // Immutable result of PrepareSpawn() — everything ExecuteSpawn() needs, with zero
+        // further Editor-API calls. Lets RelaySpawnState run the Editor-API resolution
+        // (CommandResolver → InstallSourceDetector/EditorPrefs/PackageInfo) on the main thread
+        // and hand only pure I/O (Process.Start + stdout read) to the ThreadPool.
+        internal readonly struct SpawnPlan
+        {
+            internal readonly string   Cmd;
+            internal readonly string[] Argv;
+            internal readonly bool     IsLocal;
+            internal readonly TimeSpan Timeout;
+
+            internal SpawnPlan(string cmd, string[] argv, bool isLocal, TimeSpan timeout)
+            {
+                Cmd = cmd; Argv = argv; IsLocal = isLocal; Timeout = timeout;
+            }
+        }
+
         private static int Spawn()
         {
-            var python = PythonResolver();
-            if (string.IsNullOrEmpty(python))
-                throw new InvalidOperationException(
-                    "[MCP Relay] Python not found. Run: python install.py setup");
+            var plan       = PrepareSpawn();
+            var (port, pid) = ExecuteSpawn(plan);
+            CommitSpawn(port, pid);
+            return port;
+        }
 
-            var psi = new ProcessStartInfo(python)
+        // MAIN THREAD ONLY — every call here touches an Editor API (CommandResolver goes
+        // through InstallSourceDetector.Detect()/PackageInfo and ChatBinaryResolver/EditorPrefs).
+        // Must run before any ThreadPool hop (see RelaySpawnState.RequestSpawn).
+        internal static SpawnPlan PrepareSpawn()
+        {
+            var (cmd, argv) = CommandResolver();
+            var isLocal     = InstallSourceDetector.Detect() == InstallSourceDetector.Source.Local;
+
+            if (string.IsNullOrEmpty(cmd))
             {
-                Arguments              = "-m unity_mcp.chat_relay",
+                var hint = isLocal
+                    ? "Python not found. Run: python install.py setup in the repo root."
+                    : SystemInfo.operatingSystemFamily == OperatingSystemFamily.Windows
+                        ? "uv not found. Install: winget install astral-sh.uv, then restart Unity."
+                        : "uv not found. Install: brew install uv, then restart Unity.";
+                throw new InvalidOperationException($"[MCP Relay] {hint}");
+            }
+
+            return new SpawnPlan(cmd, argv, isLocal, TimeoutFor(isLocal));
+        }
+
+        // Safe to run on the ThreadPool — Process.Start/StandardOutput/StandardError are plain
+        // .NET, not Unity Editor APIs. Must NOT touch SessionState/EditorPrefs/PackageInfo/Debug.
+        internal static (int port, int pid) ExecuteSpawn(SpawnPlan plan)
+        {
+            var psi = new ProcessStartInfo(plan.Cmd)
+            {
                 UseShellExecute        = false,
                 RedirectStandardOutput = true,
-                RedirectStandardError  = true,
+                RedirectStandardError  = true,   // capture uvx download noise
                 CreateNoWindow         = true,
             };
+            // ArgumentList (not the Arguments string) so spaces in serverDir paths are never
+            // mis-split — each argv element is passed through verbatim.
+            if (plan.Argv != null)
+                foreach (var a in plan.Argv) psi.ArgumentList.Add(a);
 
             _process = ProcessFactory(psi);
             if (_process == null)
                 throw new InvalidOperationException("[MCP Relay] Process.Start returned null");
 
-            var port = ReadRelayPortWithTimeout(_process.StandardOutput, ReadTimeout);
+            // Non-local: uvx download can take 15-60s on cold start. Log stderr as warnings
+            // (marshalled onto the main thread — Debug.Log is not thread-safe in Unity 6).
+            if (!plan.IsLocal)
+                Task.Run(() => DrainRelayStderr(_process));
+
+            var port = ReadRelayPortWithTimeout(_process.StandardOutput, plan.Timeout);
+            return (port, _process.Id);
+        }
+
+        // MAIN THREAD ONLY — SessionState is an Editor API.
+        internal static void CommitSpawn(int port, int pid)
+        {
             SessionState.SetInt(PortKey, port);
-            SessionState.SetInt(PidKey,  _process.Id);
-            return port;
+            SessionState.SetInt(PidKey,  pid);
+        }
+
+        // Pure — testable without waiting out the real timeout.
+        internal static TimeSpan TimeoutFor(bool isLocal) => isLocal ? ReadTimeout : TimeSpan.FromSeconds(45);
+
+        private static void DrainRelayStderr(Process p)
+        {
+            try
+            {
+                while (!p.HasExited)
+                {
+                    var line = p.StandardError.ReadLine();
+                    if (line == null) continue;
+                    var msg = $"[MCP Relay] {line}";
+                    // Marshal onto the main thread — Debug.Log is not thread-safe in Unity 6
+                    // (touches scene-repaint state internally) and this runs on the ThreadPool.
+                    MainThreadDispatcher.Enqueue(() => UnityEngine.Debug.Log(msg));
+                }
+            }
+            catch { /* process gone */ }
         }
 
         internal static int ParseRelayPort(string line)
@@ -156,7 +235,7 @@ namespace UnityMCP.Editor.Chat
             throw new TimeoutException("[MCP Relay] Timed out waiting for relay to report port");
         }
 
-        private static bool IsTcpAlive(int port)
+        internal static bool IsTcpAlive(int port)
         {
 #if UNITY_INCLUDE_TESTS
             if (TcpAliveOverride != null) return TcpAliveOverride(port);
@@ -171,16 +250,6 @@ namespace UnityMCP.Editor.Chat
             catch { _tcpAliveResult = false; }
             _tcpAliveExpiry = DateTime.UtcNow.AddSeconds(3);
             return _tcpAliveResult;
-        }
-
-        private static string DefaultPythonResolver()
-        {
-            const string packageId = "com.unity-mcp.editor";
-            var packageRoot = Path.GetFullPath($"Packages/{packageId}");
-            var serverDir   = ChatMcpConfigWriter.ResolveServerDir(packageRoot);
-            if (serverDir == null) return null;
-            var (command, _) = ChatMcpConfigWriter.ResolvePythonCommand(serverDir, null);
-            return command;
         }
     }
 }

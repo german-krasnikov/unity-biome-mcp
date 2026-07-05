@@ -63,8 +63,62 @@ def _atomic_write(path: Path, content: str) -> None:
     os.replace(str(tmp), str(path))
 
 
+def _artifact_paths(root: Path) -> dict:
+    return {
+        "pyproject.toml": root / "server" / "pyproject.toml",
+        "package.json": root / "unity-plugin" / "package.json",
+        "__version__.py": root / "server" / "src" / "unity_mcp" / "__version__.py",
+        "_meta.json": root / "docs" / "assets" / "_meta.json",
+        "MCPServer.cs": root / "unity-plugin" / "Editor" / "MCPServer.cs",
+    }
+
+
+def _read_version(name: str, path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    if name == "_meta.json":
+        return json.loads(text).get("server_version", "?")
+    patterns = {
+        "pyproject.toml": r'^version = "([^"]*)"',
+        "package.json": r'"version":\s*"([^"]*)"',
+        "__version__.py": r'__version__ = "([^"]*)"',
+        "MCPServer.cs": r'internal static string PluginVersion => "([^"]*)"',
+    }
+    m = re.search(patterns[name], text, re.MULTILINE)
+    return m.group(1) if m else "?"
+
+
+def _check(root: Path) -> None:
+    """Verify-only mode: compare version across all 5 artifacts, no writes."""
+    paths = _artifact_paths(root)
+    for path in paths.values():
+        if not path.exists():
+            print(f"Missing: {path}", file=sys.stderr)
+            sys.exit(1)
+    versions = {name: _read_version(name, path) for name, path in paths.items()}
+    if len(set(versions.values())) > 1:
+        print("version mismatch:", file=sys.stderr)
+        for name, v in sorted(versions.items()):
+            print(f"  {name}: {v}", file=sys.stderr)
+        sys.exit(1)
+    print(f"versions in sync: {next(iter(versions.values()))}")
+    sys.exit(0)
+
+
 def main() -> None:
     args = sys.argv[1:]
+
+    if args and args[0] == "--check":
+        rest = args[1:]
+        if not rest:
+            root = Path(__file__).parents[1]
+        elif len(rest) == 2 and rest[0] == "--root":
+            root = Path(rest[1])
+        else:
+            print("Usage: sync_versions.py --check [--root <path>]", file=sys.stderr)
+            sys.exit(1)
+        _check(root)
+        return
+
     if not args or len(args) > 3:
         print("Usage: sync_versions.py <version> [--root <path>]", file=sys.stderr)
         sys.exit(1)

@@ -34,6 +34,9 @@ namespace UnityMCP.Editor.Chat
         internal const int MaxResumeRetries = 30;
         private TextField          _input;
         private Label              _tokenReadout;
+        // Tier 2 (chat-relay-upm-fix.md): shown while RelaySpawnState.RequestSpawn() cold-starts
+        // uvx (first run after a UPM install can take ~30s). Updated in DrainAndRender.
+        private Label              _relayStatusLabel;
         private Button             _askBtn, _agentBtn;
         private VisualElement      _inputArea;
         private ScrollView         _scroll;

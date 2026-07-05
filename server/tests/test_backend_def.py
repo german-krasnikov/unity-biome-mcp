@@ -17,6 +17,7 @@ from unity_mcp.backend_def import (
     KimiDef,
     OpenCodeDef,
     _which_via_login_shell,
+    _which_windows_registry,
     _sanitize_extra_args,
     MCP_BLANKET,
     MCP_PERMISSION_TOOL,
@@ -45,6 +46,65 @@ async def test_resolve_binary_both_miss(monkeypatch):
     monkeypatch.setattr("unity_mcp.backend_def.shutil.which", lambda _: None)
     monkeypatch.setattr("unity_mcp.backend_def._which_via_login_shell", AsyncMock(return_value=None))
     assert await ClaudeDef().resolve_binary() is None
+
+
+# ─── Windows registry PATH resolution (4 tests) ─────────────────────────────
+
+def _fake_winreg(path_value: str):
+    """Build a fake winreg module returning path_value for both HKCU and HKLM keys."""
+    fake = MagicMock()
+    fake.HKEY_CURRENT_USER = "HKCU"
+    fake.HKEY_LOCAL_MACHINE = "HKLM"
+
+    class _Key:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def _open_key(root, subkey):
+        return _Key()
+
+    fake.OpenKey.side_effect = _open_key
+    fake.QueryValueEx.return_value = (path_value, 1)
+    return fake
+
+
+def test_which_windows_registry_finds_binary_in_path_dir(tmp_path, monkeypatch):
+    (tmp_path / "codex.exe").write_text("stub", encoding="utf-8")
+    monkeypatch.setattr("unity_mcp.backend_def.winreg", _fake_winreg(str(tmp_path)))
+    found = _which_windows_registry("codex")
+    assert found == str(tmp_path / "codex.exe")
+
+
+def test_which_windows_registry_finds_cmd_shim(tmp_path, monkeypatch):
+    (tmp_path / "opencode.cmd").write_text("stub", encoding="utf-8")
+    monkeypatch.setattr("unity_mcp.backend_def.winreg", _fake_winreg(str(tmp_path)))
+    found = _which_windows_registry("opencode")
+    assert found == str(tmp_path / "opencode.cmd")
+
+
+def test_which_windows_registry_no_match_returns_none(tmp_path, monkeypatch):
+    monkeypatch.setattr("unity_mcp.backend_def.winreg", _fake_winreg(str(tmp_path)))
+    assert _which_windows_registry("nonexistent-binary") is None
+
+
+def test_which_windows_registry_checks_fallback_dirs(tmp_path, monkeypatch):
+    npm_dir = tmp_path / "npm"
+    npm_dir.mkdir()
+    (npm_dir / "claude.cmd").write_text("stub", encoding="utf-8")
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    # registry PATH is empty/unrelated — only the %APPDATA%\npm fallback has it
+    monkeypatch.setattr("unity_mcp.backend_def.winreg", _fake_winreg(""))
+    found = _which_windows_registry("claude")
+    assert found == str(npm_dir / "claude.cmd")
+
+
+async def test_which_via_login_shell_dispatches_to_registry_on_windows(monkeypatch):
+    monkeypatch.setattr("unity_mcp.backend_def.sys.platform", "win32")
+    monkeypatch.setattr("unity_mcp.backend_def._which_windows_registry", lambda binary: f"C:\\{binary}.exe")
+    assert await _which_via_login_shell("codex") == "C:\\codex.exe"
 
 
 # ─── Claude (7 tests) ───────────────────────────────────────────────────────

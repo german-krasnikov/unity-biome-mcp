@@ -7,6 +7,7 @@ writes) is injectable via config_dir so unit tests never touch real FS paths.
 from __future__ import annotations
 import asyncio
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -15,6 +16,11 @@ import tempfile
 from dataclasses import dataclass
 
 from . import mcp_config_writer
+
+if sys.platform == "win32":
+    import winreg
+else:
+    winreg = None  # type: ignore[assignment]  # seam for monkeypatching in tests on non-Windows CI
 
 # ── Permission constants (mirrors PermissionConfig.cs) ───────────────────────
 MCP_BLANKET        = "mcp__unity"
@@ -57,14 +63,55 @@ OUTPUT_FORMAT_OPENCODE_JSON = "opencode-json"  # OpenCode run --format json
 OUTPUT_FORMAT_KIMI_JSON     = "kimi-json"      # Kimi -p --output-format stream-json
 
 
+_WIN_VAR_RE = re.compile(r"%(\w+)%")
+
+
+def _expand_win_vars(path: str) -> str:
+    """Expand '%VAR%' refs via os.environ. Regex-based (not ntpath.expandvars)
+    so this is testable on non-Windows hosts too — posixpath.expandvars ignores
+    %VAR% syntax entirely."""
+    return _WIN_VAR_RE.sub(lambda m: os.environ.get(m.group(1), m.group(0)), path)
+
+
+def _which_windows_registry(binary: str) -> str | None:
+    """Read HKCU/HKLM PATH from the registry, probe each dir + well-known
+    fallbacks for '<binary>.exe'/'.cmd'. Unity's Editor process doesn't
+    inherit a login-shell PATH on Windows (no equivalent of zsh/bash -lic),
+    so npm/cargo/uv global installs are otherwise invisible."""
+    raw_dirs: list[str] = []
+    for root, subkey in (
+        (winreg.HKEY_CURRENT_USER, "Environment"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+    ):
+        try:
+            with winreg.OpenKey(root, subkey) as key:
+                value, _ = winreg.QueryValueEx(key, "Path")
+                raw_dirs += value.split(";")
+        except OSError:
+            continue
+
+    fallbacks = ["%APPDATA%/npm", "%USERPROFILE%/.cargo/bin", "%LOCALAPPDATA%/uv/bin"]
+    for d in raw_dirs + fallbacks:
+        d = _expand_win_vars(d.strip())
+        if not d:
+            continue
+        for ext in (".exe", ".cmd"):
+            candidate = os.path.join(d, binary + ext)
+            if os.path.isfile(candidate):
+                return candidate
+    return None
+
+
 async def _which_via_login_shell(binary: str) -> str | None:
     """Login-shell resolution for macOS/Linux (Unity has minimal PATH)."""
     if sys.platform == "darwin":
         shell, flag = "/bin/zsh", "-lic"
     elif sys.platform.startswith("linux"):
         shell, flag = "/bin/bash", "-lic"
+    elif sys.platform == "win32":
+        return await asyncio.to_thread(_which_windows_registry, binary)
     else:
-        return None  # Windows: shutil.which handles .cmd/.exe
+        return None
     try:
         out = (await asyncio.to_thread(
             subprocess.run,

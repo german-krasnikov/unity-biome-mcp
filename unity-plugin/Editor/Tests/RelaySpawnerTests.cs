@@ -1,10 +1,11 @@
 // TDD tests for RelaySpawner — all process interactions injected via seams.
-// Uses ProcessFactory + PythonResolver to avoid requiring a real Python install.
+// Uses ProcessFactory + CommandResolver to avoid requiring a real Python install.
 #if UNITY_MCP_CHAT
 using System;
 using System.Diagnostics;
 using NUnit.Framework;
 using UnityEditor;
+using UnityMCP.Editor;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Tests
@@ -12,15 +13,15 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class RelaySpawnerTests
     {
-        private Func<ProcessStartInfo, Process> _origFactory;
-        private Func<string>                    _origResolver;
-        private TimeSpan                        _origTimeout;
+        private Func<ProcessStartInfo, Process>   _origFactory;
+        private Func<(string cmd, string[] argv)> _origResolver;
+        private TimeSpan                          _origTimeout;
 
         [SetUp]
         public void SetUp()
         {
             _origFactory  = RelaySpawner.ProcessFactory;
-            _origResolver = RelaySpawner.PythonResolver;
+            _origResolver = RelaySpawner.CommandResolver;
             _origTimeout  = RelaySpawner.ReadTimeout;
             RelaySpawner.Stop();
             ClearSessionState();
@@ -31,10 +32,11 @@ namespace UnityMCP.Editor.Tests
         {
             RelaySpawner.Stop();
             ClearSessionState();
-            RelaySpawner.ProcessFactory  = _origFactory;
-            RelaySpawner.PythonResolver  = _origResolver;
-            RelaySpawner.ReadTimeout     = _origTimeout;
+            RelaySpawner.ProcessFactory   = _origFactory;
+            RelaySpawner.CommandResolver  = _origResolver;
+            RelaySpawner.ReadTimeout      = _origTimeout;
             RelaySpawner.TcpAliveOverride = null;
+            InstallSourceDetector.ClearTestOverride();
         }
 
         // ── ParseRelayPort (pure unit, no process) ────────────────────────────
@@ -131,10 +133,10 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void EnsureRunning_CallsProcessFactory_WithPythonAsFileName()
+        public void EnsureRunning_CallsProcessFactory_WithCommandAsFileName()
         {
             ProcessStartInfo capturedPsi = null;
-            RelaySpawner.PythonResolver = () => "testpython3";
+            RelaySpawner.CommandResolver = () => ("testpython3", Array.Empty<string>());
             RelaySpawner.ProcessFactory = psi =>
             {
                 capturedPsi = psi;
@@ -146,13 +148,67 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void EnsureRunning_CallsProcessFactory_WithRelayModuleArgs()
+        public void EnsureRunning_CallsProcessFactory_WithRelayModuleArgumentList()
         {
             ProcessStartInfo capturedPsi = null;
-            RelaySpawner.PythonResolver = () => "python3";
+            RelaySpawner.CommandResolver = () => ("python3", new[] { "-m", "unity_mcp.chat_relay" });
             RelaySpawner.ProcessFactory = psi => { capturedPsi = psi; return SpawnFakeRelay(19705); };
             RelaySpawner.EnsureRunning();
-            Assert.That(capturedPsi.Arguments, Does.Contain("-m unity_mcp.chat_relay"));
+            CollectionAssert.AreEqual(new[] { "-m", "unity_mcp.chat_relay" }, capturedPsi.ArgumentList);
+        }
+
+        // ── Tier 1: non-local uvx invocation (ARCH-relay-upm-bootstrap.md Q2) ─
+
+        [Test]
+        public void EnsureRunning_NonLocalUvxCommand_BuildsExpectedArgumentList()
+        {
+            ProcessStartInfo capturedPsi = null;
+            RelaySpawner.CommandResolver = () => ("/usr/bin/uvx",
+                new[] { "--from", "git+https://example.com/repo.git#subdirectory=server", "unity-mcp-relay" });
+            RelaySpawner.ProcessFactory = psi => { capturedPsi = psi; return SpawnFakeRelay(19706); };
+
+            RelaySpawner.EnsureRunning();
+
+            Assert.AreEqual("/usr/bin/uvx", capturedPsi.FileName);
+            CollectionAssert.AreEqual(
+                new[] { "--from", "git+https://example.com/repo.git#subdirectory=server", "unity-mcp-relay" },
+                capturedPsi.ArgumentList);
+        }
+
+        [Test]
+        public void EnsureRunning_CommandResolverReturnsNull_NonLocal_ThrowsWithUvHint_NotInstallPy()
+        {
+            InstallSourceDetector.SetSourceForTest(InstallSourceDetector.Source.Git);
+            RelaySpawner.CommandResolver = () => (null, null);
+
+            var ex = Assert.Throws<InvalidOperationException>(() => RelaySpawner.EnsureRunning());
+            Assert.IsTrue(ex.Message.Contains("uv not found"), ex.Message);
+            Assert.IsFalse(ex.Message.Contains("install.py"), ex.Message);
+        }
+
+        [Test]
+        public void EnsureRunning_CommandResolverReturnsNull_Local_ThrowsWithInstallPyHint()
+        {
+            InstallSourceDetector.SetSourceForTest(InstallSourceDetector.Source.Local);
+            RelaySpawner.CommandResolver = () => (null, null);
+
+            var ex = Assert.Throws<InvalidOperationException>(() => RelaySpawner.EnsureRunning());
+            Assert.IsTrue(ex.Message.Contains("install.py"), ex.Message);
+        }
+
+        // ── Tier 1: timeout selection (pure helper — no real 45s wait) ────────
+
+        [Test]
+        public void TimeoutFor_Local_ReturnsReadTimeout()
+        {
+            RelaySpawner.ReadTimeout = TimeSpan.FromSeconds(5);
+            Assert.AreEqual(TimeSpan.FromSeconds(5), RelaySpawner.TimeoutFor(isLocal: true));
+        }
+
+        [Test]
+        public void TimeoutFor_NonLocal_Returns45Seconds()
+        {
+            Assert.AreEqual(TimeSpan.FromSeconds(45), RelaySpawner.TimeoutFor(isLocal: false));
         }
 
         // ── EnsureRunning — already running ───────────────────────────────────
@@ -171,7 +227,7 @@ namespace UnityMCP.Editor.Tests
                 RelaySpawner.TcpAliveOverride = port => true;
 
                 int spawnCount = 0;
-                RelaySpawner.PythonResolver = () => "python3";
+                RelaySpawner.CommandResolver = () => ("python3", Array.Empty<string>());
                 RelaySpawner.ProcessFactory = _ => { spawnCount++; return SpawnFakeRelay(19999); };
 
                 RelaySpawner.EnsureRunning();
@@ -199,7 +255,7 @@ namespace UnityMCP.Editor.Tests
                 // TcpAliveOverride: bypass real TCP probe (port 19801 has no listener in tests)
                 RelaySpawner.TcpAliveOverride = port => true;
 
-                RelaySpawner.PythonResolver = () => "python3";
+                RelaySpawner.CommandResolver = () => ("python3", Array.Empty<string>());
                 RelaySpawner.ProcessFactory = _ => SpawnFakeRelay(99999);
 
                 var port = RelaySpawner.EnsureRunning();
@@ -235,7 +291,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void EnsureRunning_NoiseLinesBeforePort_ParsesPortCorrectly()
         {
-            RelaySpawner.PythonResolver = () => "bash";
+            RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
             RelaySpawner.ProcessFactory = _ =>
             {
                 var psi = new ProcessStartInfo("bash")
@@ -255,7 +311,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void EnsureRunning_ManyNoiseLinesBeforePort_StillFinds()
         {
-            RelaySpawner.PythonResolver = () => "bash";
+            RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
             RelaySpawner.ProcessFactory = _ =>
             {
                 var psi = new ProcessStartInfo("bash")
@@ -276,7 +332,7 @@ namespace UnityMCP.Editor.Tests
         public void EnsureRunning_OnlyNoiseNoPort_ThrowsTimeout()
         {
             RelaySpawner.ReadTimeout    = TimeSpan.FromMilliseconds(200);
-            RelaySpawner.PythonResolver = () => "bash";
+            RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
             RelaySpawner.ProcessFactory = _ =>
             {
                 var psi = new ProcessStartInfo("bash")
@@ -336,7 +392,7 @@ namespace UnityMCP.Editor.Tests
                 RelaySpawner.TcpAliveOverride = port => true;
 
                 int spawnCount = 0;
-                RelaySpawner.PythonResolver = () => "python3";
+                RelaySpawner.CommandResolver = () => ("python3", Array.Empty<string>());
                 RelaySpawner.ProcessFactory = _ => { spawnCount++; return SpawnFakeRelay(99999); };
 
                 RelaySpawner.EnsureRunning();
@@ -351,19 +407,19 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
-        // ── EnsureRunning — python not found ─────────────────────────────────
+        // ── EnsureRunning — command not found ─────────────────────────────────
 
         [Test]
-        public void EnsureRunning_PythonNotFound_ThrowsInvalidOperation()
+        public void EnsureRunning_CommandNull_ThrowsInvalidOperation()
         {
-            RelaySpawner.PythonResolver = () => null;
+            RelaySpawner.CommandResolver = () => (null, null);
             Assert.Throws<InvalidOperationException>(() => RelaySpawner.EnsureRunning());
         }
 
         [Test]
-        public void EnsureRunning_PythonReturnsEmpty_ThrowsInvalidOperation()
+        public void EnsureRunning_CommandEmpty_ThrowsInvalidOperation()
         {
-            RelaySpawner.PythonResolver = () => "";
+            RelaySpawner.CommandResolver = () => ("", null);
             Assert.Throws<InvalidOperationException>(() => RelaySpawner.EnsureRunning());
         }
 
@@ -373,7 +429,7 @@ namespace UnityMCP.Editor.Tests
         public void EnsureRunning_RelayNoOutput_ThrowsTimeout()
         {
             RelaySpawner.ReadTimeout    = TimeSpan.FromMilliseconds(100); // fast timeout for tests
-            RelaySpawner.PythonResolver = () => "bash";
+            RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
             RelaySpawner.ProcessFactory = _ =>
             {
                 var psi = new ProcessStartInfo("bash")
@@ -461,9 +517,9 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void PythonResolver_DefaultValue_IsNotNull()
+        public void CommandResolver_DefaultValue_IsNotNull()
         {
-            Assert.IsNotNull(RelaySpawner.PythonResolver);
+            Assert.IsNotNull(RelaySpawner.CommandResolver);
         }
 
         [Test]
@@ -482,7 +538,7 @@ namespace UnityMCP.Editor.Tests
 
         private static void SetMockRelay(int port)
         {
-            RelaySpawner.PythonResolver = () => "bash";
+            RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
             RelaySpawner.ProcessFactory = _ => SpawnFakeRelay(port);
         }
 

@@ -13,16 +13,16 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class RelayReloadSurvivalTests
     {
-        private Func<ProcessStartInfo, Process> _origFactory;
-        private Func<string>                    _origResolver;
-        private TimeSpan                        _origTimeout;
-        private Func<int, bool>                 _origTcpAlive;
+        private Func<ProcessStartInfo, Process>   _origFactory;
+        private Func<(string cmd, string[] argv)> _origResolver;
+        private TimeSpan                          _origTimeout;
+        private Func<int, bool>                   _origTcpAlive;
 
         [SetUp]
         public void SetUp()
         {
             _origFactory  = RelaySpawner.ProcessFactory;
-            _origResolver = RelaySpawner.PythonResolver;
+            _origResolver = RelaySpawner.CommandResolver;
             _origTimeout  = RelaySpawner.ReadTimeout;
             _origTcpAlive = RelaySpawner.TcpAliveOverride;
             RelaySpawner.Stop();
@@ -38,7 +38,7 @@ namespace UnityMCP.Editor.Chat.Tests
             RelaySpawner.Stop();
             ClearRelaySession();
             RelaySpawner.ProcessFactory  = _origFactory;
-            RelaySpawner.PythonResolver  = _origResolver;
+            RelaySpawner.CommandResolver = _origResolver;
             RelaySpawner.ReadTimeout     = _origTimeout;
             RelaySpawner.TcpAliveOverride = _origTcpAlive;
             ReloadGuard.ClearPendingState();
@@ -339,7 +339,7 @@ namespace UnityMCP.Editor.Chat.Tests
 
         private void SetMockRelay(int port, Action onSpawn = null)
         {
-            RelaySpawner.PythonResolver   = () => "bash";
+            RelaySpawner.CommandResolver  = () => ("bash", Array.Empty<string>());
             RelaySpawner.TcpAliveOverride = _ => true;
             RelaySpawner.ProcessFactory   = _ =>
             {

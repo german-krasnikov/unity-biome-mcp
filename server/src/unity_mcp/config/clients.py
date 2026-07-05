@@ -58,7 +58,7 @@ def _opencode_transform(entry: dict) -> dict:
     cmd = [entry["command"]] + entry.get("args", [])
     result: dict = {"type": "local", "command": cmd, "enabled": True}
     if "env" in entry:
-        result["env"] = entry["env"]
+        result["environment"] = entry["env"]  # OpenCode's key is "environment", not "env"
     return result
 
 
@@ -94,6 +94,13 @@ CLIENT_REGISTRY: dict[str, ClientInfo] = {
     "kimi": ClientInfo(
         name="Kimi",
         config_path=pathlib.Path.home() / ".kimi-code" / "mcp.json",
+        scope="global",
+    ),
+    "junie": ClientInfo(
+        name="Junie",
+        # Mirrors ProjectConfigTargets.cs's ".junie/mcp/mcp.json" project-relative path,
+        # rooted at $HOME (same convention as codex: ".codex/config.toml" -> "~/.codex/config.toml").
+        config_path=pathlib.Path.home() / ".junie" / "mcp" / "mcp.json",
         scope="global",
     ),
     "vscode": ClientInfo(

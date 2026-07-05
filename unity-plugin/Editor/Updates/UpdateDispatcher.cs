@@ -11,6 +11,9 @@ namespace UnityMCP.Editor
             void OnDone(bool ok)
             {
                 if (ok) UpdateChecker.ClearCache();
+                // Server pin (.mcp.json @vX) re-syncs itself: the UPM update triggers a domain
+                // reload, and ProjectConfigWriter (Wizard assembly) rewrites the config for the
+                // new PackageInfo.version on that reload. No cross-assembly call needed here.
                 onComplete?.Invoke(ok);
             }
 

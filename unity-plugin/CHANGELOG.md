@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.70.3] — Chat Relay Bootstrap, Cross-Platform & Multi-CLI Hardening
+
+**Built-in Chat now works after UPM install (uvx bootstrap):**
+- **Relay via uvx** — The in-editor Chat relay (`unity_mcp.chat_relay`) failed with "Python not found" on UPM installs because `RelaySpawner` looked for a local `../server` dir that isn't shipped in the package. It now launches through the same self-contained `uvx --from git@vX unity-mcp-relay` path the MCP server already uses. Added a `unity-mcp-relay` console-script + sync `main()`, and a `RelayCommandResolver` that is install-source-aware (Local → python/uv; Git/Registry → uvx). Fixes a latent argv-discard bug for Local+uv installs.
+- **Async spawn + threading safety** — `RelaySpawner.Spawn()` split into main-thread `PrepareSpawn` / ThreadPool `ExecuteSpawn` / main-thread `CommitSpawn` so a cold `uvx` start (up to 45s) never freezes the editor and never touches Editor APIs off-thread. `RelaySpawnState` marshals results back via `MainThreadDispatcher`.
+- **uvx warmup** — `RelayWarmup` pre-fetches the relay package into `~/.cache/uv` on package import so the first real Chat spawn is 1-2s instead of 10-45s.
+
+**Cross-platform & multi-CLI:**
+- **Windows PATH parity** — Backend CLIs (codex/opencode/claude/kimi) and `uvx` now resolve on Windows via a Registry-PATH probe (`HKCU`/`HKLM` + npm/cargo/uv/scoop/WinGet well-known dirs), matching the Unix login-shell resolver. Fixes silent "binary not found" when Unity didn't inherit the user PATH. (`WindowsPathProbe.cs` + `backend_def.py`.)
+- **OpenCode env fix** — `_opencode_transform` emitted `"env"` but OpenCode's schema uses `"environment"`, silently dropping `UNITY_MCP_PORT` for OpenCode users. Corrected.
+- **`configure --all`** — `install.py configure --all` auto-detects every installed AI client and writes all their MCP configs in one command.
+- **Junie client** — Added the missing `junie` entry to `CLIENT_REGISTRY` (and project-config path map); `configure --tool junie` no longer fails.
+
+**Versioning & release automation:**
+- **Version-aware server pin** — After a plugin update, the per-project server pin (`.mcp.json @vX`) now re-syncs automatically on the post-update domain reload (`ProjectConfigWriter` uses a version-scoped session guard) — no cross-assembly coupling, no stale pin.
+- **CI auto-release** — `.github/workflows/release.yml` creates the GitHub Release from any pushed `v*` tag (fixes the "no updates available" bug where a tag existed but no Release did) with a version-sync gate. `scripts/release.sh` bumps all 5 version artifacts + tags + pushes in one command. `sync_versions.py --check` added.
+
+**Test debt cleanup:** Updated stale source-inspection/behavior tests that had drifted from earlier refactors (v0.67–v0.70: MainThreadDispatcher split, backend eager-init, ErrorClassifier prefix, `get_version` registry removal, `ClientConnectionHandler` split). Full EditMode suite: 5723 passed, 0 failed.
+
 ## [v0.70.2] — Changelog Ships With Package
 
 - **CHANGELOG.md now included in the UPM package** — The Updates page showed "Changelog not found" in consumer projects because `CHANGELOG.md` lived only in the repo root, outside the `unity-plugin/` package subtree, so it never reached `PackageCache`. Root `CHANGELOG.md` is now mirrored to `unity-plugin/CHANGELOG.md` (with a stable `.meta`) via a versioned `.githooks/pre-commit` hook — root stays the source of truth, the package copy auto-syncs on commit. Enable on fresh clones with `git config core.hooksPath .githooks`.

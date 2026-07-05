@@ -108,6 +108,12 @@ namespace UnityMCP.Editor.Chat
             _tokenReadout = new Label(""); _tokenReadout.AddToClassList("token-readout");
             bar.Add(_tokenReadout);
 
+            // Tier 2: relay cold-start status — hidden until RelaySpawnState.IsPending is true.
+            _relayStatusLabel = new Label("");
+            _relayStatusLabel.AddToClassList("token-readout");
+            _relayStatusLabel.style.display = DisplayStyle.None;
+            bar.Add(_relayStatusLabel);
+
             _contextBar = new ContextProgressBar();
             bar.Add(_contextBar);
 

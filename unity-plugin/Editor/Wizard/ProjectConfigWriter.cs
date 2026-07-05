@@ -17,22 +17,28 @@ namespace UnityMCP.Editor.Wizard
 
         static ProjectConfigWriter()
         {
-            // SessionState (NOT EditorPrefs) — project-scoped, per-Editor-session, survives
-            // domain reload, resets on Editor restart. Avoids EditorPrefs' cross-project
-            // leakage (EditorPrefs is a per-machine registry shared by every Unity project
-            // opened with this Editor install).
-            if (SessionState.GetBool(SessionKey, false)) return;
+            // Always schedule — the per-version guard lives in RunFromEditorState, where
+            // PackageInfo.version is available (it is not in the static ctor). A plugin update
+            // triggers a domain reload; the new version yields a fresh key, so the config is
+            // rewritten for the new version without any cross-assembly call from UpdateDispatcher.
             EditorApplication.delayCall += RunFromEditorState;
         }
 
         // Thin wrapper — supplies real Editor state to the testable core.
         internal static void RunFromEditorState()
         {
-            SessionState.SetBool(SessionKey, true);
-            var projectRoot = Path.GetDirectoryName(Application.dataPath);
-            var port = MCPServer.IsRunning ? MCPServer.ServerPort : 9500; // ConfigureScreen.cs pattern
             var version = UnityEditor.PackageManager.PackageInfo
                 .FindForAssembly(typeof(ProjectConfigWriter).Assembly)?.version ?? "";
+
+            // SessionState (NOT EditorPrefs) — project-scoped, per-Editor-session, resets on
+            // Editor restart. Key is version-scoped so an in-session plugin update re-syncs the
+            // server pin instead of being skipped as "already ran".
+            var key = SessionKey + ":" + version;
+            if (SessionState.GetBool(key, false)) return;
+            SessionState.SetBool(key, true);
+
+            var projectRoot = Path.GetDirectoryName(Application.dataPath);
+            var port = MCPServer.IsRunning ? MCPServer.ServerPort : 9500; // ConfigureScreen.cs pattern
             Run(projectRoot, port, version);
         }
 

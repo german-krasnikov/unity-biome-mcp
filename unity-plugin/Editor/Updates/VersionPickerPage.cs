@@ -101,10 +101,11 @@ namespace UnityMCP.Editor
         {
             bool ok = EditorUtility.DisplayDialog(
                 "Roll Back Plugin",
-                $"Install plugin v{version} via UPM?\n\nServer-side re-pin must be done via CLI:\n" +
-                $"  python install.py version --set {version}",
+                $"Install plugin v{version} via UPM?\n\nThe per-project server pin will be aligned to v{version} automatically.",
                 "Roll Back", "Cancel");
             if (!ok) return;
+            // Server pin re-syncs automatically: the UPM update triggers a domain reload and
+            // ProjectConfigWriter rewrites .mcp.json for the new version (version-scoped guard).
             UpmPluginUpdater.Update(version, success =>
             {
                 EditorUtility.DisplayDialog("Roll Back",
@@ -116,10 +117,11 @@ namespace UnityMCP.Editor
         {
             bool ok = EditorUtility.DisplayDialog(
                 "Align Both to v" + version,
-                $"Install plugin v{version} via UPM?\n\nAlso run CLI to re-pin server:\n" +
-                $"  python install.py version --set {version}",
-                "Align Plugin", "Cancel");
+                $"Install plugin v{version} via UPM and pin the per-project server to v{version}?",
+                "Align Both", "Cancel");
             if (!ok) return;
+            // Server pin re-syncs automatically on the post-update domain reload
+            // (ProjectConfigWriter, version-scoped guard).
             UpmPluginUpdater.Update(version);
         }
     }

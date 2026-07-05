@@ -140,6 +140,14 @@ namespace UnityMCP.Editor.Chat
 
                 int remaining = Math.Max(0, 3000 - (int)sw.ElapsedMilliseconds);
                 if (!p.WaitForExit(remaining)) { try { p.Kill(); } catch { } }
+
+                // where.exe only resolves binaries on Unity's INHERITED PATH, which usually
+                // lacks %APPDATA%\npm (codex/opencode/claude installed via `npm install -g`)
+                // since Unity isn't launched from a login shell on Windows. Fall back to a
+                // Registry PATH read for parity with the Unix login-shell resolver above.
+                if (string.IsNullOrEmpty(result) && SystemInfo.operatingSystemFamily == OperatingSystemFamily.Windows)
+                    result = WindowsPathProbe.Resolve(binary);
+
                 return string.IsNullOrEmpty(result) ? null : result;
             }
             catch

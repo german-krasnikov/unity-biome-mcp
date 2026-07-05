@@ -173,8 +173,25 @@ namespace UnityMCP.Editor.Chat
             }
         }
 
+        // Tier 2 (chat-relay-upm-fix.md): surfaces RelaySpawnState.IsPending — the async spawn
+        // path RelayBackend.Start() uses in production so a uvx cold start never freezes this tick.
+        private void UpdateRelayStatusLabel()
+        {
+            if (_relayStatusLabel == null) return;
+            if (RelaySpawnState.IsPending)
+            {
+                _relayStatusLabel.text = "Starting relay (first run ~30s)...";
+                _relayStatusLabel.style.display = DisplayStyle.Flex;
+            }
+            else
+            {
+                _relayStatusLabel.style.display = DisplayStyle.None;
+            }
+        }
+
         private void DrainAndRender()
         {
+            UpdateRelayStatusLabel();
             _evBuf.Clear(); _toolBuf.Clear();
             _backend?.DrainEvents(_evBuf, _toolBuf);
 

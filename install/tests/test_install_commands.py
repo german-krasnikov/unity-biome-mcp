@@ -134,6 +134,53 @@ def test_configure_auto_detect_user_skips(tmp_path):
     assert not cfg.exists()
 
 
+def test_configure_all_flag_configures_every_detected_client_without_prompting(tmp_path):
+    """--all: write config for every detect_installed() hit, no per-tool prompt."""
+    cfg_a = tmp_path / "a.json"
+    cfg_b = tmp_path / "b.json"
+    registry = {
+        "fake-a": _fake_registry(cfg_a)["fake-tool"],
+        "fake-b": _fake_registry(cfg_b)["fake-tool"],
+    }
+    entry = {"command": "uv", "args": []}
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-a", "fake-b"]), \
+         patch.object(inst, "prompt_yn") as mock_prompt, \
+         patch.object(inst, "build_server_entry", return_value=entry):
+        cmd_configure(_args(tool=None, all=True))
+
+    assert cfg_a.exists()
+    assert cfg_b.exists()
+    mock_prompt.assert_not_called()
+
+
+def test_configure_all_flag_ignored_tools_not_detected(tmp_path):
+    """--all only configures what detect_installed() returns, not the full registry."""
+    cfg_detected = tmp_path / "detected.json"
+    cfg_other = tmp_path / "other.json"
+    registry = {
+        "fake-detected": _fake_registry(cfg_detected)["fake-tool"],
+        "fake-other": _fake_registry(cfg_other)["fake-tool"],
+    }
+    entry = {"command": "uv", "args": []}
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-detected"]), \
+         patch.object(inst, "build_server_entry", return_value=entry):
+        cmd_configure(_args(tool=None, all=True))
+
+    assert cfg_detected.exists()
+    assert not cfg_other.exists()
+
+
+def test_project_config_path_junie_matches_junie_convention(tmp_path):
+    """--project-dir --tool junie must not silently fall back to .mcp.json —
+    matches ProjectConfigTargets.cs's '.junie/mcp/mcp.json' relative path."""
+    result = inst._project_config_path(tmp_path, "junie")
+    assert result == tmp_path / ".junie" / "mcp" / "mcp.json"
+
+
 # ── uninstall ─────────────────────────────────────────────────────────────────
 
 def test_uninstall_removes_venv(tmp_path):

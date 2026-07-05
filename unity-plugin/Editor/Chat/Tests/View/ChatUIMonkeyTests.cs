@@ -522,10 +522,13 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
-                // 100 toggles starting from false: ends at false (even count)
+                // SetMode(v) is a no-op when v == current state (i=0 passes false == initial
+                // false, so it doesn't count as a flip). That leaves 99 *effective* flips
+                // (i=1..99, alternating, all differing from the previous state) — an odd
+                // count, so starting from false the loop ends at true.
                 for (int i = 0; i < 100; i++)
                     SetMode(w, i % 2 == 1);
-                Assert.IsFalse(GetAgentMode(w));
+                Assert.IsTrue(GetAgentMode(w));
             }
             finally { Object.DestroyImmediate(w); }
         }
@@ -882,21 +885,17 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         /// <summary>
-        /// Documents null-guard bug: Error handler calls _transcript.AppendToolChip()
-        /// without null-check (unlike TextDelta/TurnDone which use ?.). Surfaces as NRE
-        /// when window created via ScriptableObject.CreateInstance (no CreateGUI, no transcript).
-        /// Fix: change to _transcript?.AppendToolChip().
+        /// Error handler already null-guards _transcript (MCPChatWindow.EventHandlers.cs:77
+        /// uses _transcript?.AppendToolChip, fixed in commit 8707c2d / v0.67.0) — no NRE when
+        /// window is created via ScriptableObject.CreateInstance (no CreateGUI, no transcript).
         /// </summary>
         [Test]
-        public void HandleEvent_Error_NullTranscript_Throws()
+        public void HandleEvent_Error_NullTranscript_DoesNotThrow()
         {
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
-                var ex = Assert.Throws<TargetInvocationException>(
-                    () => Fire(w, ChatEvent.Error("boom")));
-                Assert.IsInstanceOf<NullReferenceException>(ex.InnerException,
-                    "Error branch calls _transcript.AppendToolChip without null-check — fix: add ?.");
+                Assert.DoesNotThrow(() => Fire(w, ChatEvent.Error("boom")));
             }
             finally { Object.DestroyImmediate(w); }
         }

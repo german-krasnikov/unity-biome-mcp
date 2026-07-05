@@ -354,5 +354,10 @@ async def _main() -> None:
     await relay.serve(port)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Sync entrypoint for the `unity-mcp-relay` console script."""
     asyncio.run(_main())
+
+
+if __name__ == "__main__":
+    main()

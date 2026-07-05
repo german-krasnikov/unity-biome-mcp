@@ -86,10 +86,14 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void InitialBackend_IsNull()
+        public void InitialBackend_IsNotNull()
         {
+            // OnEnable() eagerly calls CreateBackend() (since v0.67.0 Chat Relay System,
+            // commit 8707c2d) so a RelayBackend instance exists immediately on window
+            // creation — it is never null after ScriptableObject.CreateInstance triggers
+            // OnEnable. The backend only becomes null again in OnDisable().
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
-            try   { Assert.IsNull(s_back.GetValue(w)); }
+            try   { Assert.IsNotNull(s_back.GetValue(w)); }
             finally { Object.DestroyImmediate(w); }
         }
 

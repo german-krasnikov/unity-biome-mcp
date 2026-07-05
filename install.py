@@ -173,7 +173,10 @@ def cmd_configure(args: argparse.Namespace) -> None:
         ui.ok(f"{client.name} configured at {target}")
         return
 
-    if tool_key:
+    if getattr(args, "all", False):
+        tools = detect_installed()
+        ui.info(f"Detected: {', '.join(tools) or 'none'}")
+    elif tool_key:
         tools = [tool_key]
     else:
         installed = detect_installed()
@@ -226,6 +229,7 @@ def _project_config_path(project: Path, tool_key: str) -> Path:
         "claude-code": project / ".mcp.json",
         "cursor": project / ".cursor" / "mcp.json",
         "vscode": project / ".vscode" / "mcp.json",
+        "junie": project / ".junie" / "mcp" / "mcp.json",
     }
     return paths.get(tool_key, project / ".mcp.json")
 
@@ -378,6 +382,7 @@ def main() -> None:
     cfg.add_argument("--project-dir", help="Unity project root — writes project-scope config")
     cfg.add_argument("--tool", choices=list(CLIENT_REGISTRY) or
                      ["claude-desktop", "claude-code", "cursor", "windsurf", "generic"])
+    cfg.add_argument("--all", action="store_true", help="Configure every detected AI tool, no prompts")
     cfg.add_argument("--port", type=int, default=0)
 
     p_ver = sub.add_parser("version", help="List or pin a specific release version")
