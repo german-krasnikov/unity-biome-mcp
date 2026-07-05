@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.70.6] — Large Backend Output Fixed (chat -5 crash)
+
+- **16 MiB stdout line limit** — Chat backends (Codex especially) emit large single-line NDJSON tool results — a full scene hierarchy is one line that can exceed 64 KiB. The relay's stdout reader used asyncio's default 64 KiB limit, so a big result raised `ValueError: Separator is not found, and chunk exceeds the limit`, killing the relay and the backend (surfaced in chat as `codex exited -5`). `CliSession` now reads with a 16 MiB line limit. Combined with v0.70.4's stderr surfacing and v0.70.5's login-shell PATH, this closes the Codex chat crash on scene queries.
+
 ## [v0.70.5] — Node-based Chat Backends Fixed (PATH)
 
 - **Backends spawn with login-shell PATH** — Node-based CLIs (Codex is `#!/usr/bin/env node`, also OpenCode) crashed with `exit 127: env: node: No such file or directory`. Unity launched from Finder gives child processes a minimal PATH without `node`, so even a correctly-resolved `codex` binary failed when its shebang looked for `node`. `CliSession` now prepends the user's full login-shell PATH (cached `login_shell_path()`) when spawning any backend, so node/npm and other user tools resolve. Combined with v0.70.4's stderr surfacing, this was diagnosed from the now-visible `codex exited 127` chat error.

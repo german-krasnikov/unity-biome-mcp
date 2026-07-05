@@ -54,6 +54,9 @@ class CliSession:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,   # captured — surfaces backend crash reason to chat
+            # 16 MiB line limit: codex/CLI emit large single-line NDJSON tool results
+            # (full scene hierarchy). Default 64 KiB overflows → readline ValueError.
+            limit=16 * 1024 * 1024,
             env=env,
         )
 
