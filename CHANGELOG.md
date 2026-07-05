@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.70.5] — Node-based Chat Backends Fixed (PATH)
+
+- **Backends spawn with login-shell PATH** — Node-based CLIs (Codex is `#!/usr/bin/env node`, also OpenCode) crashed with `exit 127: env: node: No such file or directory`. Unity launched from Finder gives child processes a minimal PATH without `node`, so even a correctly-resolved `codex` binary failed when its shebang looked for `node`. `CliSession` now prepends the user's full login-shell PATH (cached `login_shell_path()`) when spawning any backend, so node/npm and other user tools resolve. Combined with v0.70.4's stderr surfacing, this was diagnosed from the now-visible `codex exited 127` chat error.
+
 ## [v0.70.4] — Chat Backend Errors Now Visible
 
 - **Backend stderr surfaced to chat** — When a chat backend CLI (Codex, OpenCode, Kimi, …) failed, its stderr was discarded (`stderr=DEVNULL`), so a crash produced a silent disconnect with no message in the chat window. Claude writes errors to stdout (visible) but most CLIs write to stderr. Now `CliSession` captures stderr (`stderr=PIPE`) and, on a non-zero exit, the relay drains it into the chat error event — you see `"codex exited N: <reason>"` instead of nothing. Also fixed an EOF/returncode race (`await session.wait()` before checking exit code) that could report a crash as a clean "done".

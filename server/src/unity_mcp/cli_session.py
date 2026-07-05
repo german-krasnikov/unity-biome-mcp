@@ -42,6 +42,12 @@ class CliSession:
         env = os.environ.copy()
         for k in self._env_strip:
             env.pop(k, None)
+        # Prepend the login-shell PATH so node-based CLIs (codex = `env node`) and
+        # their child tools resolve — Unity's inherited PATH is minimal (no node).
+        from .backend_def import login_shell_path
+        login_path = await login_shell_path()
+        if login_path:
+            env["PATH"] = login_path + os.pathsep + env.get("PATH", "")
         env.update(self._env_set)
         self._proc = await asyncio.create_subprocess_exec(
             self._binary, *self._argv,

@@ -102,6 +102,40 @@ def _which_windows_registry(binary: str) -> str | None:
     return None
 
 
+_LOGIN_PATH_CACHE: str | None = None
+
+
+async def login_shell_path() -> str:
+    """The user's full login-shell PATH (cached). Empty on Windows / failure.
+
+    Unity launched from Finder gives child processes a minimal PATH, so node-based
+    CLIs (codex is `#!/usr/bin/env node`) fail with exit 127 `env: node: not found`.
+    Spawning backends with this PATH lets their interpreters/tools resolve.
+    """
+    global _LOGIN_PATH_CACHE
+    if _LOGIN_PATH_CACHE is not None:
+        return _LOGIN_PATH_CACHE
+    if sys.platform == "darwin":
+        shell = "/bin/zsh"
+    elif sys.platform.startswith("linux"):
+        shell = "/bin/bash"
+    else:
+        _LOGIN_PATH_CACHE = ""
+        return ""
+    try:
+        out = (await asyncio.to_thread(
+            subprocess.run,
+            [shell, "-lic", "printf %s \"$PATH\""],
+            capture_output=True, text=True, timeout=3,
+        )).stdout
+        # login shells may print noise (history msgs); take the last line containing ':' path-list
+        cand = [ln for ln in out.splitlines() if "/" in ln and ":" in ln]
+        _LOGIN_PATH_CACHE = cand[-1].strip() if cand else out.strip()
+    except Exception:
+        _LOGIN_PATH_CACHE = ""
+    return _LOGIN_PATH_CACHE
+
+
 async def _which_via_login_shell(binary: str) -> str | None:
     """Login-shell resolution for macOS/Linux (Unity has minimal PATH)."""
     if sys.platform == "darwin":
