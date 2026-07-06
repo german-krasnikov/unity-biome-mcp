@@ -31,13 +31,14 @@ namespace UnityMCP.Editor.Tests
                 "Cache must be non-null after InvalidateEnabledToolsCache (repopulate, not null)");
         }
 
-        // EnsureEnabledToolsCacheWarm triggers RegisterAll; cache must be non-null after the call.
+        // InitDefaults (called from StartAsync before TCP bind) warms the cache.
         [Test]
-        public void EnsureEnabledToolsCacheWarm_LeavesCacheNonNull()
+        public void InitDefaults_LeavesCacheNonNull()
         {
-            CommandRouter.EnsureEnabledToolsCacheWarm();
+            CommandRegistry.Clear();
+            CommandRegistry.InitDefaults();
             Assert.IsNotNull(CommandRouter.PeekEnabledToolsCache,
-                "Cache must be non-null after EnsureEnabledToolsCacheWarm");
+                "Cache must be non-null after InitDefaults");
         }
 
         // ExecGetEnabledToolsCached must never return null — the ?? "" fallback guarantees it.

@@ -154,7 +154,11 @@ namespace UnityMCP.Editor
             _starting = true;
             _shuttingDown = false;
             _domainStamp = SyncHelper.CurrentDomainStamp;  // cache on main thread — safe here, ThreadPool reads below
-            CommandRouter.EnsureEnabledToolsCacheWarm();  // #29: warm tool cache on main thread before serving the read-thread fast-path
+            // Ensure commands are registered BEFORE TCP bind.
+            // InitDefaults() → RegisterAll() → populates _enabledToolsCache atomically.
+            // Safe: runs on main thread after all [InitializeOnLoad] hooks (both delayCall
+            // and EditorApplication.update fire after the full InitializeOnLoad sweep).
+            CommandRegistry.InitDefaults();
             // Tier 0: re-register idempotently so restart after Stop() works
             EditorApplication.update -= MainThreadDispatcher.Drain;
             EditorApplication.update += MainThreadDispatcher.Drain;

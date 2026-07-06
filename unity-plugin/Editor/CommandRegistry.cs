@@ -33,9 +33,14 @@ namespace UnityMCP.Editor
         // All mutations happen on Unity main thread (dispatched by MCPServer).
         private static readonly Dictionary<string, Entry> _commands = new Dictionary<string, Entry>();
 
+        // True after RegisterAll() completes. volatile: written once on main thread (RegisterAll),
+        // read on TCP background thread. Reset by Clear() on each domain reload.
+        internal static volatile bool Ready;
+
         // No static constructor here (M7, ROI reliability sprint) — CommandRegistry used to
         // eagerly RegisterAll() on first touch, creating a cyclic static-init dependency with
-        // CommandRouter. Population now happens explicitly via Bootstrap.Init() (see Bootstrap.cs).
+        // CommandRouter. Population now happens explicitly via MCPServer.StartAsync() which calls
+        // InitDefaults() before binding the TCP listener (registration-race fix).
         internal static void InitDefaults()
         {
             CommandRouter.RegisterAll();
@@ -245,7 +250,12 @@ namespace UnityMCP.Editor
         }
 
         internal static IEnumerable<string> GetAllCommands() => _commands.Keys;
-        internal static void Clear() => _commands.Clear();
+
+        internal static void Clear()
+        {
+            _commands.Clear();
+            Ready = false;
+        }
 
         public static string GetDescription(string cmd) =>
             _commands.TryGetValue(cmd, out var e) ? e.Description : null;

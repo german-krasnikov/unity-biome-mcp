@@ -956,7 +956,7 @@ wheels = [
 
 [[package]]
 name = "unity-mcp"
-version = "0.69.1"
+version = "0.73.1"
 source = { editable = "." }
 dependencies = [
     { name = "mcp" },

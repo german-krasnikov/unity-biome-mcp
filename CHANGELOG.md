@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.73.1] — Command Registration Race Condition Fix
+
+**Fixed:**
+- **Command registration race condition** — `Bootstrap.cs` deleted. Registration moved from `[InitializeOnLoadMethod] Bootstrap.Init()` into `MCPServer.StartAsync()`, called before TCP bind. Commands are now guaranteed registered before the server accepts connections.
+- **`CommandRegistry.Ready` gate** — `volatile bool Ready` flag added; reset in `Clear()`, set at end of `RegisterAll()`. `CommandRouter.CheckGuards()` returns `retry-2000` when `!Ready`, preventing command dispatch before registration completes.
+- **Dead `EnsureEnabledToolsCacheWarm()` removed** — method deleted from `CommandRouter.ObjectHandlers.cs`; call site in `MCPServer.cs` replaced with `CommandRegistry.InitDefaults()`.
+
+**Tests:**
+- `RegistrationGateTests.cs` (6 new cases): `Ready` flag lifecycle, gate blocks dispatch before registration, gate unblocks after `RegisterAll`, `Clear` resets flag.
+- `BootstrapTests.cs`, `EnabledToolsCacheTests.cs` updated to reflect Bootstrap deletion.
+
 ## [v0.73.0] — Tool Disambiguation & Play Mode Fail-Fast
 
 **Fixed:**

@@ -59,6 +59,8 @@ namespace UnityMCP.Editor
         // Returns error response string if a guard blocks the command, null otherwise.
         private static string CheckGuards(string id, string cmd)
         {
+            if (!CommandRegistry.Ready)
+                return JsonHelper.FormatBusyResponse(id, "Server initializing. Retry in 2s.", 2000);
             if (IsCompiling() && !IsAllowedDuringCompile(cmd))
                 return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
             if (IsPlayMode() && IsMutatingCommand(cmd))
@@ -254,6 +256,8 @@ namespace UnityMCP.Editor
             // This is the correct site: RegisterAll is the last step in CommandRegistry.InitDefaults
             // and is always called on the main thread — safe to read EditorPrefs here.
             _enabledToolsCache = ExecGetEnabledTools();
+            // Signal that all commands are registered — CheckGuards uses this to gate dispatch.
+            CommandRegistry.Ready = true;
         }
 
         // internal (not private) so UnityMCP.Editor.Tests can call directly for seam tests.

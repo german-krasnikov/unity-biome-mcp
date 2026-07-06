@@ -1,10 +1,7 @@
-// TDD: Bootstrap.Init (M7, ROI reliability sprint).
-// CommandRegistry no longer eagerly populates itself via a static constructor — Bootstrap.Init
-// (an [InitializeOnLoadMethod]) now owns that responsibility. Behavior is covered end-to-end by
-// CommandRegistryCompletenessTests (which only passes if something already called InitDefaults()
-// by the time tests run — that "something" is Bootstrap.Init firing at domain load). This file
-// adds a source-text assertion verifying the wiring itself, since [InitializeOnLoadMethod] fires
-// once per domain reload and cannot be re-invoked/observed directly from a test.
+// TDD: Command registration init-order tests (formerly Bootstrap.Init, now MCPServer.StartAsync).
+// Bootstrap.cs was deleted in the registration-race fix: MCPServer.StartAsync now calls
+// CommandRegistry.InitDefaults() BEFORE _listener.Start() to guarantee commands are registered
+// before the first AcceptTcpClientAsync. This file verifies that wiring via source-text assertions.
 using System.IO;
 using NUnit.Framework;
 
@@ -14,56 +11,32 @@ namespace UnityMCP.Editor.Tests
     public class BootstrapTests
     {
         [Test]
-        public void Init_CallsClearThenInitDefaults()
+        public void MCPServer_CallsInitDefaults_BeforeTcpBind()
         {
             var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "Bootstrap.cs"));
+                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "MCPServer.cs"));
             if (!File.Exists(src))
             {
-                Assert.Ignore($"Bootstrap.cs not found at {src} — skip in CI");
+                Assert.Ignore($"MCPServer.cs not found at {src} — skip in CI");
                 return;
             }
             var code = File.ReadAllText(src);
-            var clearIndex = code.IndexOf("CommandRegistry.Clear()");
             var initIndex = code.IndexOf("CommandRegistry.InitDefaults()");
-            Assert.GreaterOrEqual(clearIndex, 0, "Init must call CommandRegistry.Clear()");
-            Assert.GreaterOrEqual(initIndex, 0, "Init must call CommandRegistry.InitDefaults()");
-            Assert.Less(clearIndex, initIndex, "Clear() must run before InitDefaults() to avoid duplicate-registration warnings");
+            var bindIndex = code.IndexOf("_listener.Start()");
+            Assert.GreaterOrEqual(initIndex, 0, "StartAsync must call CommandRegistry.InitDefaults()");
+            Assert.GreaterOrEqual(bindIndex, 0, "StartAsync must call _listener.Start()");
+            Assert.Less(initIndex, bindIndex, "InitDefaults() must appear before _listener.Start()");
         }
 
         [Test]
-        public void Init_IsMarkedInitializeOnLoadMethod()
+        public void Bootstrap_FileDeleted_NoLongerExists()
         {
+            // Bootstrap.cs was deleted in the registration-race fix (registration-gate sprint).
+            // If this file reappears, the double-registration risk returns.
             var src = Path.GetFullPath(
                 Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "Bootstrap.cs"));
-            if (!File.Exists(src))
-            {
-                Assert.Ignore($"Bootstrap.cs not found at {src} — skip in CI");
-                return;
-            }
-            var code = File.ReadAllText(src);
-            StringAssert.Contains("[InitializeOnLoadMethod]", code,
-                "Init must be wired via [InitializeOnLoadMethod] to run once per domain reload");
-        }
-
-        [Test]
-        public void Init_WrapsBodyInDelayCall()
-        {
-            var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "Bootstrap.cs"));
-            if (!File.Exists(src))
-            {
-                Assert.Ignore($"Bootstrap.cs not found at {src} — skip in CI");
-                return;
-            }
-            var code = File.ReadAllText(src);
-            var delayCallIndex = code.IndexOf("EditorApplication.delayCall");
-            var clearIndex = code.IndexOf("CommandRegistry.Clear()");
-            Assert.GreaterOrEqual(delayCallIndex, 0,
-                "Init must wrap its body in EditorApplication.delayCall so it runs after all " +
-                "[InitializeOnLoad] types (incl. plugin assemblies) have registered");
-            Assert.Less(delayCallIndex, clearIndex,
-                "delayCall wrapping must enclose the Clear()/InitDefaults() calls");
+            Assert.IsFalse(File.Exists(src),
+                "Bootstrap.cs must not exist — its responsibility was absorbed by MCPServer.StartAsync");
         }
 
         [Test]
@@ -78,7 +51,7 @@ namespace UnityMCP.Editor.Tests
             }
             var code = File.ReadAllText(src);
             StringAssert.DoesNotContain("static CommandRegistry()", code,
-                "CommandRegistry must not eagerly self-populate via a static ctor (M7) — Bootstrap.Init owns that now");
+                "CommandRegistry must not eagerly self-populate via a static ctor (M7) — MCPServer.StartAsync owns that now");
         }
     }
 }

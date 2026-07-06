@@ -231,9 +231,8 @@ unity-kiss-mcp/
 │       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class)
 │       ├── CommandRouter.MediaHandlers.cs  # Media/asset handlers (partial class)
 │       ├── CommandRouter.Registration.cs   # 4 themed Register methods: RegisterSceneTools, RegisterRuntimeTools, RegisterMetaTools, RegisterEditorTools (partial class, v0.70.0)
-│       ├── Bootstrap.cs                    # [InitializeOnLoadMethod] breaks cyclic static-init: defers CommandRegistry.Clear/InitDefaults via delayCall (v0.69.0)
 │       ├── CommandOptions.cs               # Struct groups trailing Register() params: Mutating/Runtime/Required/Optional/AlwaysAllowed/AllowedDuringCompile/Description/MaxResponseChars (v0.69.0, refactored v0.70.0)
-│       ├── CommandRegistry.cs              # Command registration + runtime flag (v0.69.0: CommandOptions struct overloads for new registrations)
+│       ├── CommandRegistry.cs              # Command registration + volatile Ready flag (reset in Clear, set in RegisterAll v0.73.1); CheckGuards returns retry-2000 when !Ready (v0.69.0: CommandOptions overloads)
 │       ├── CommandValidator.cs             # Parameter validation via contract at Register() + fuzzy matching
 │       ├── IMCPPlugin.cs                   # Plugin interface (Name, CommandPrefix, RegisterCommands, OnDomainReload, GetToolSubcategory, DIMs: Description, HasSettingsUI, BuildSettingsUI)
 │       ├── PluginRegistry.cs               # Static plugin registry (Register, RegisterAllPlugins with CallerIsPlugin gate v0.69.0, OnDomainReload, GetCommandsForPlugin, BelongsToPlugin)

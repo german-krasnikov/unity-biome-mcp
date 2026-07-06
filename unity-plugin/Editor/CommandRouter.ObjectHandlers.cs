@@ -63,15 +63,6 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd();
         }
 
-        // Forces CommandRegistry init (→ RegisterAll → eager-populate) on the MAIN thread,
-        // so the read thread's fast-path never returns "" before the registry is built (#29).
-        // Idempotent: CommandRegistry's static ctor runs exactly once; subsequent calls just
-        // confirm a warm cache.
-        internal static void EnsureEnabledToolsCacheWarm()
-        {
-            _ = CommandRegistry.GetAllCommands();   // triggers static ctor → InitDefaults → RegisterAll (which populates the cache)
-        }
-
         // Cache for fast-path get_enabled_tools (bypasses main thread dispatch).
         // Always kept WARM so the TCP read thread never computes it (no EditorPrefs off-thread).
         // Writes: InvalidateEnabledToolsCache (settings UI, main thread) + end of RegisterAll
