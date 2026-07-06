@@ -278,13 +278,14 @@ if (HasRpcId(line))  // top-level id present
 
 Retry Watchdog, Confidence Decay (gated <0.5), Taint Tracking, Periodic State Injection (staleness-gated), Path Cache, Dead Write Elimination, Starvation Monitor, Blast Radius Tags, Incremental Verification, Workflow Phase FSM, Visual Verification (Haiku), Play Mode Auto-Routing, find_objects Cache Bypass, Batch Conflict Scan, Post-mutation Snapshot, Component Cache, Console Error Categorization, PrefetchCache (TTL 12s), HierarchyDiff, Distiller, Disambiguator, SchemaGuard, Asymmetric Reflection
 
-**Middleware Pipeline Order (v0.57.0, commit 85c03bf):**
+**Middleware Pipeline Order (v0.57.0, commit 85c03bf; v0.72.x: play-mode fail-fast added):**
 
 Guard conditions and reroute logic have been reordered for correctness:
 
 1. **Cache-above-circuit check** (PrefetchCache, must run first even when circuit HALF_OPEN)
 2. **Circuit breaker check** (prevents requests during outage)
 3. **Pre-call checks first** (retry, taint, dead-write, blast-radius, verification, batch conflicts) — **guards see ORIGINAL cmd before reroute**
+3.5. **Play Mode fail-fast guard** (`check_play_mode_required` — blocks `_RUNTIME_ONLY_CMDS` when `_play_state_known=True` and `is_playing=False`; returns early before TCP)
 4. **Play mode auto-routing** (`reroute_cmd` — applied AFTER guards)
 5. **Tier C features** (speculation tracking, lessons, inference)
 6. **Command execution** (actual send to Unity)
@@ -361,6 +362,9 @@ Tests organized by module in `server/tests/`:
 - `test_lockfile.py` — exclusive lock, stale cleanup, PID liveness
 - `test_compile_state.py` — probe signals, estimated remaining
 - `test_middleware.py` — each middleware layer independently
+- `test_middleware_play_guard.py` — play mode fail-fast guard: state-unknown passthrough, edit-mode block, watch_remove exclusion
+- `test_tool_descriptions.py` — all TIER1 tools have `[Play Mode]` prefix where runtime=true
+- `test_docstring_crossrefs.py` — all `use \`tool\`` cross-references in docstrings name real tools in _SPECS
 - `test_gating.py` — tier filtering, category enable/disable
 - `test_plugins.py` — plugin loader, skip env, error handling
 - `test_tools_*.py` — per-tool argument validation and response parsing

@@ -40,7 +40,9 @@ unity-kiss-mcp/
 │   │   ├── diagnose.py         # Shared diagnose parser + verdict logic (_parse_diagnose, _verdict, _DiagnoseFields)
 │   │   ├── _update_check.py    # Version checker — GitHub releases API (v0.47.1: switched from PyPI), 24h cache, includes --reinstall flag in banner
 │   │   ├── compile_state.py    # CompileStateProbe (heuristic Unity compile detection)
-│   │   ├── middleware.py       # 23-layer middleware pipeline (env-gated UNITY_MCP_MIDDLEWARE=1)
+│   │   ├── middleware.py       # 23-layer middleware pipeline (env-gated UNITY_MCP_MIDDLEWARE=1); _play_state_known flag (feat/tool-disambiguation)
+│   │   ├── middleware_types.py # _RUNTIME_ONLY_CMDS frozenset: commands requiring Play Mode (invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, get_perf, get_frame_stats, debug_animator, debug_physics, watch_add, profile)
+│   │   ├── middleware_guards.py # check_play_mode_required(): fail-fast guard blocks _RUNTIME_ONLY_CMDS before TCP when edit mode confirmed
 │   │   ├── middleware_paths.py # PathResolverMixin extracted from middleware.py
 │   │   ├── plugin_api.py      # Stable public API for external plugins (RO, RW, SamplingService, strip_fences)
 │   │   ├── unity_state.py      # Unity state file reader
@@ -180,6 +182,9 @@ unity-kiss-mcp/
 │       ├── test_server_filtering.py     # Port discovery edge cases (v0.55.10)
 │       ├── test_auto_wire.py             # auto_wire tool: 3-priority matching, dry-run (v0.62.0, 5 tests)
 │       ├── test_scene_health.py          # scene_health tool: 7 checks, focus param (v0.62.0, 4 tests)
+│       ├── test_middleware_play_guard.py  # Play Mode fail-fast guard: state-unknown passthrough, edit-mode block, watch_remove exclusion (feat/tool-disambiguation)
+│       ├── test_tool_descriptions.py     # Regression: TIER1 runtime tools have [Play Mode] prefix in docstring (feat/tool-disambiguation)
+│       ├── test_docstring_crossrefs.py   # Regression: all 'use `tool`' cross-refs in docstrings name real tools in _SPECS (feat/tool-disambiguation)
 │       ├── test_chat_relay.py            # Chat relay deferred spawn, close_stdin, role ping (v0.67.0: +close_stdin test, role in SessionMeta)
 │       ├── test_relay_pipeline.py        # Relay pipeline integration + _TRANSFORM_FNS dispatch (v0.67.0)
 │       ├── test_relay_monkey.py          # Relay initialization monkey tests (v0.66.0+)
@@ -388,6 +393,7 @@ unity-kiss-mcp/
 │       │   ├── PluginSettingsPageTests.cs # Plugin UI registration + settings page rendering (v0.64.0, 29 tests)
 │       │   ├── CommandRouterExtractHelperTests.cs # Extract helper unit tests (v0.70.0)
 │       │   ├── CommandRouterRegistrationTests.cs # Registration method tests (v0.70.0)
+│       │   ├── BatchRejectionTests.cs            # Batch async/specialDispatch rejection + runtime guard + atomic rollback (feat/tool-disambiguation, 5 tests)
 │       ├── Wizard/                        # Setup Wizard + Auto-Config + Diagnostics (v0.38.0+, v0.68.0: ProjectConfigWriter auto-config, v0.42.0: 3-screen flow, 9 backends, asmdef split; v0.47.1: AiConfigScreen fallback, removed dead screens)
 │       │   ├── ProjectConfigWriter.cs     # [InitializeOnLoad] auto-config orchestrator: discovers port, version, writes per-project MCP configs for all targets (v0.68.0)
 │       │   ├── ProjectConfigFormats.cs    # Format registry: JSON, TOML, extensible (v0.68.0)

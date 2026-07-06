@@ -47,7 +47,7 @@ async def find_objects(
 
 
 async def set_property(path: str, component: str, prop: str, value, dry_run: bool = False) -> str:
-    """Set component property. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying."""
+    """Set component property (Edit Mode, SerializedObject — use `set_runtime_property` for Play Mode reflection). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying."""
     args = {"path": path, "component": component, "prop": prop, "value": _normalize_value(value)}
     if dry_run:
         args["dry_run"] = "true"
@@ -132,7 +132,7 @@ async def get_object_detail(id: int, full: bool = False) -> str:
 
 
 async def set_material(path: str, color: str, shader: str | None = None) -> str:
-    """Set object material color. color: hex (#FF0000). shader: URP/Standard auto."""
+    """Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."""
     return await _send("set_material", _args(path=path, color=color, shader=shader))
 
 

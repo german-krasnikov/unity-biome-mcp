@@ -12,7 +12,7 @@ _DEFAULT_INTERVAL_MS = 500
 async def watch(action: str, watch_id: str = "", path: str = "", component: str = "",
                 field: str = "", condition: str = "", trigger_action: str = "log",
                 interval_ms: int = _DEFAULT_INTERVAL_MS) -> str:
-    """Manage watches. Play Mode only. action: add|remove|clear|reset.
+    """[Play Mode] Manage watches. action: add|remove|clear|reset.
     add: needs path/component/field. condition: '< 10','> 0','== null'.
     trigger_action: 'log' or 'pause'. remove/reset: needs watch_id."""
     if action == "add":

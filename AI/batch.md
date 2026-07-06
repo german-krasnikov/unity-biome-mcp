@@ -57,6 +57,10 @@ ToolError: <tool_name> requires typed MCP tool (Python DSL expansion), not batch
 
 ### Constraints
 - No async commands allowed (wait_until, move_to, run_tests, test_step, run_playtest prohibited)
+- `screenshot` not allowed — uses specialDispatch path in CommandRouter and returns a file-path
+  response (not an "ok" string), which batch output format cannot represent
+- `ask_user` not allowed — blocks up to 300 s awaiting user input; incompatible with sequential
+  batch execution and the 75 s default timeout
 - No inter-command references (each op is independent)
 - Tool enable/disable checks apply to each command
 - Play Mode guard: mutating commands blocked in Play Mode (`BLOCKED` response)
@@ -86,6 +90,7 @@ ToolError: <tool_name> requires typed MCP tool (Python DSL expansion), not batch
 - Command dispatch: `unity-plugin/Editor/CommandRouter.cs` (batch case, timeout_ms support)
 - Python tests: `server/tests/test_batch.py`, `test_batch_conflict.py`, `test_batch_timeout.py`, `test_autobatch.py`
 - C# tests: `unity-test-project/Assets/Tests/Editor/MCPBatchTests.cs` (EditMode tests)
+- Batch rejection tests: `unity-plugin/Editor/Tests/BatchRejectionTests.cs` (async, specialDispatch, runtime-only, atomic rollback)
 - Validation tests: `unity-test-project/Assets/Tests/Editor/CommandValidatorOptionalParamsTests.cs`
 
 ## Atomic Mode (F27, Transactional Batches)
@@ -103,12 +108,12 @@ Opt-in `atomic=true` parameter enables transactional batch execution. On FIRST f
 **Example:**
 ```python
 batch(
-  commands="create_object name=A\nset_property path=/A value=X\ncreate_object name=BADCMD",
+  commands="create_object name=A\nset_material path=/A color=#FF0000\nUNKNOWNCMD",
   atomic=true
 )
 → [0] ok: created /A
-→ [1] ok: set value
-→ [2] err: Unknown command 'create_object'
+→ [1] ok
+→ [2] err: Unknown command 'UNKNOWNCMD'. Did you mean 'get_console'?
 → ATOMIC_ROLLBACK: reverted ops 0..1
 → err:1
 ```
@@ -131,7 +136,7 @@ batch(
 
 ```python
 batch(
-  commands="create_object name=A\nset_property path=/A color=#FF0000\nBADCMD",
+  commands="create_object name=A\nset_material path=/A color=#FF0000\nBADCMD",
   atomic=true
 )
 → ATOMIC_ROLLBACK: reverted ops 0..1

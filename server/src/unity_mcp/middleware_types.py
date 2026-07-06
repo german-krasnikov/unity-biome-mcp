@@ -33,6 +33,19 @@ _READ_CACHEABLE = frozenset({
     "get_component", "get_hierarchy", "get_components_list", "inspect", "get_compile_errors",
 })
 
+# Commands that require Play Mode. Blocked by fail-fast guard before TCP when
+# is_playing is confirmed False. Derived from CommandRouter registrations (runtime: true).
+# Note: fuzz_playtest sends TCP cmd "run_playtest" — not listed here directly.
+# Note: watch_remove/clear/reset/get_watches are intentionally excluded (safe outside Play Mode).
+_RUNTIME_ONLY_CMDS: frozenset[str] = frozenset({
+    "invoke_method", "set_runtime_property",
+    "wait_until", "move_to", "query_state", "test_step",
+    "run_playtest",
+    "get_perf", "get_frame_stats", "debug_animator", "debug_physics",
+    "watch_add",
+    "profile",
+})
+
 
 class CircuitBreaker:
     CLOSED, OPEN, HALF_OPEN = 0, 1, 2

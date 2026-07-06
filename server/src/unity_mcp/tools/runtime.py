@@ -8,7 +8,7 @@ _args = None
 
 
 async def invoke_method(path: str, component: str, method: str, args: str = "") -> str:
-    """Call public method on a component via reflection. Play Mode only.
+    """[Play Mode] Call public method on a component via reflection.
     args: comma-separated values matching method parameters.
     Example: invoke_method('/Player', 'PlayerController', 'MoveTo', '10,0,5')"""
     return await _send("invoke_method", _args(
@@ -16,14 +16,14 @@ async def invoke_method(path: str, component: str, method: str, args: str = "") 
 
 
 async def set_runtime_property(path: str, component: str, field: str, value: str) -> str:
-    """Set field/property via reflection. Play Mode only. Safe — doesn't use SerializedObject."""
+    """[Play Mode] Set field/property via reflection. Safe — doesn't use SerializedObject. For Edit Mode serialized mutations, use `set_property`."""
     return await _send("set_runtime_property", _args(
         path=path, component=component, field=field, value=value))
 
 
 async def wait_until(path: str, component: str, field: str, value: str,
                      timeout: float = 5.0, negate: bool = False) -> str:
-    """Poll field until it matches value (or timeout). Play Mode only.
+    """[Play Mode] Poll field until it matches value (or timeout).
     Python timeout = Unity timeout + 5s buffer."""
     return await _send("wait_until", _args(
         path=path, component=component, field=field, value=value,
@@ -32,7 +32,7 @@ async def wait_until(path: str, component: str, field: str, value: str,
 
 
 async def move_to(path: str, position: str, timeout: float = 15.0) -> str:
-    """Move character to position and wait for arrival. Play Mode only.
+    """[Play Mode] Move character to position and wait for arrival.
     path: scene path to GO with movement component.
     position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'."""
     return await _send("move_to", _args(
@@ -41,7 +41,7 @@ async def move_to(path: str, position: str, timeout: float = 15.0) -> str:
 
 
 async def query_state(queries: str) -> str:
-    """Snapshot multiple game values in one call. Play Mode only.
+    """[Play Mode] Snapshot multiple game values in one call.
     queries: comma-separated 'path|component|field_or_method' triplets.
     Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"""
     return await _send("query_state", _args(queries=queries), timeout=10.0)
@@ -50,7 +50,7 @@ async def query_state(queries: str) -> str:
 async def test_step(path: str, position: str,
                     checks_before: str = "", checks_after: str = "",
                     wait_after: float = 0.5, timeout: float = 15.0) -> str:
-    """Move character, snapshot state before/after, check console. Play Mode only.
+    """[Play Mode] Move character, snapshot state before/after, check console.
     checks_before/after: comma-separated 'path|component|field' triplets.
     Returns structured BEFORE/MOVE/AFTER/CONSOLE report."""
     return await _send("test_step", _args(
@@ -81,7 +81,7 @@ def _compress_report(report: str) -> str:
 
 
 async def run_playtest(script: str, timeout: float = 120.0) -> str:
-    """Execute a playtest DSL script in Play Mode. Returns structured report.
+    """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit test suite, use `run_tests`).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
     ASSERT_CONSOLE_CLEAN [IGNORE "pat1","pat2"] | SNAPSHOT queries | INVOKE path comp method args |
     SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |

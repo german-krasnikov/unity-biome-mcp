@@ -112,8 +112,10 @@ class MiddlewareReadsMixin:
             return
         lower = result.lower()
         if "state: playing" in lower or "state: paused" in lower:
+            self._play_state_known = True
             self.is_playing = True
         elif "state: stopped" in lower or "state: edit" in lower:
+            self._play_state_known = True
             self.is_playing = False
 
     def reroute_cmd(self, cmd: str, args: dict) -> tuple[str, dict]:

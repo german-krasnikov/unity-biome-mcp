@@ -11,7 +11,7 @@ _send = None
 
 
 async def ask(question: str) -> str:
-    """Answer a read-only question about the Unity scene.
+    """Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).
 
     Routes to deterministic tool plans for common patterns,
     uses Haiku summarization for complex multi-tool results.

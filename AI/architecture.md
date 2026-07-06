@@ -739,6 +739,8 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 22. SchemaGuard — pre-flight argument validation
 23. Asymmetric Reflection — compares write args vs read-back snapshot
 
+**Play Mode Fail-Fast Guard (middleware_guards.py, feat/tool-disambiguation):** `check_play_mode_required(cmd)` blocks `_RUNTIME_ONLY_CMDS` (frozenset in `middleware_types.py`: invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, get_perf, get_frame_stats, debug_animator, debug_physics, watch_add, profile) before TCP when `_play_state_known=True` and `is_playing=False`. State tracked via `_play_state_known` flag — set on first `track_editor_state()` parse. Returns early (`_early_return`) without dispatching to Unity.
+
 ### Watch System (Python + C#, v0.59.0; v0.70.0 B4: 5 tools → 1)
 
 **Play Mode Field Monitoring:**

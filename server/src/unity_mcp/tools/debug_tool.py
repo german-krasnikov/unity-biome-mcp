@@ -61,7 +61,7 @@ def format_diagnostic(result: str, symptom: str, path: str) -> str:
 
 
 async def debug(symptom: str = "", path: str = "", gather: str = "") -> str:
-    """AI-assisted debug: gather diagnostic context based on symptom.
+    """AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`).
 
     symptom: Natural language description ("enemy doesn't move", "button not clickable")
     path: Optional target object path ("/Enemy_01")

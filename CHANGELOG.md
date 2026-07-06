@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.73.0] — Tool Disambiguation & Play Mode Fail-Fast
+
+**Fixed:**
+- **`[Play Mode]` qualifier survives truncation** — `_short_description()` now preserves mode-qualifier prefixes during docstring truncation. Previously 11 runtime-only tools (`run_tests`, `get_test_results`, `set_runtime_property`, etc.) had their `[Play Mode]` marker stripped, making them appear mode-agnostic in the tool list.
+- **`AI/batch.md`** — Added `screenshot` and `ask_user` to the non-batchable tools list; removed invalid batch examples that referenced non-existent command formats.
+
+**Added:**
+- **Cross-reference docstrings** — 14 pairs of similarly-named tools now include `use \`<tool>\`` pointer in their docstring (e.g. `get_component` ↔ `get_components_list`, `run_tests` ↔ `get_test_results`). Reduces LLM tool-selection errors when tool names overlap.
+- **Fail-fast Play Mode guard** — Middleware layer blocks runtime-only commands (e.g. `set_runtime_property`, `get_runtime_property`) before the TCP round-trip when Edit Mode is confirmed, returning an immediate `[Play Mode required]` error. Saves one TCP call per misrouted invocation.
+
+**Tests:**
+- `BatchHelper` NUnit: 5 new cases covering async-command rejection, specialDispatch rejection, and runtime-command rejection in batch context.
+- Docstring regression suite: qualifier-survival tests for all 11 `[Play Mode]` tools + cross-reference pointer validation for all 14 disambiguated pairs.
+
 ## [v0.72.0] — Token Counting for Reasoning Models + Context Window Hardening
 
 **Fixed:**

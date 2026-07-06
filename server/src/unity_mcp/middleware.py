@@ -49,6 +49,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self.known_paths: set = set()
         self.path_to_scene: dict = {}
         self.is_playing: bool = False
+        self._play_state_known: bool = False
         self._last_writes: OrderedDict = OrderedDict()
         self._MAX_WRITES = 128
         self._circuit_ready_fn = None
@@ -117,6 +118,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._response_hashes.clear()
         self._last_writes.clear()
         self.is_playing = False
+        self._play_state_known = False
         self.circuit = CircuitBreaker(
             is_ready_fn=lambda: self._circuit_ready_fn and self._circuit_ready_fn()
         )

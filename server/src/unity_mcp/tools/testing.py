@@ -15,7 +15,7 @@ _BLOCK_STARTS = (
 
 
 async def run_tests(mode: str = "EditMode", filter: str | None = None) -> str:
-    """Start Unity tests (returns immediately). mode: EditMode or PlayMode. filter: pipe-separated test names. Poll get_test_results every 5s for results."""
+    """Start Unity tests — returns immediately (for Play Mode scenario testing use `run_playtest`). mode: EditMode or PlayMode. filter: pipe-separated test names. Poll get_test_results every 5s for results."""
     from mcp.server.fastmcp.exceptions import ToolError as _ToolError
     _MAX_PREFLIGHT_RETRIES = 2
     # Verdicts where force_refresh can help; everything else blocks immediately

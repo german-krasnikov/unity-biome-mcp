@@ -38,3 +38,41 @@ def test_batch_doc_terse_keeps_key_semantics():
     assert len(doc) < 400, f"batch doc creeping back to bloat: {len(doc)} chars"
     for token in ("continue|stop", "default 75", "atomic", "Undo", "PREFER"):
         assert token in doc, f"batch doc lost key token: {token}"
+
+
+# ── Phase A regression: [Play Mode] qualifier survives _short_description() ──
+
+import pytest
+from unity_mcp.server_filtering import _short_description
+from unity_mcp.tools import runtime, diagnostics, watch as watch_mod
+
+RUNTIME_TOOLS = [
+    (runtime.invoke_method,        "[Play Mode]"),
+    (runtime.set_runtime_property, "[Play Mode]"),
+    (runtime.wait_until,           "[Play Mode]"),
+    (runtime.move_to,              "[Play Mode]"),
+    (runtime.query_state,          "[Play Mode]"),
+    (runtime.test_step,            "[Play Mode]"),
+    (diagnostics.get_perf,         "[Play Mode]"),
+    (diagnostics.debug_animator,   "[Play Mode]"),
+    (diagnostics.debug_physics,    "[Play Mode]"),
+    (watch_mod.watch,              "[Play Mode]"),
+    (runtime.run_playtest,         "[Play Mode]"),
+]
+
+
+@pytest.mark.parametrize("fn,qualifier", RUNTIME_TOOLS, ids=[f[0].__name__ for f in RUNTIME_TOOLS])
+def test_runtime_qualifier_survives_short_description(fn, qualifier):
+    short = _short_description(fn.__doc__)
+    assert qualifier in short, (
+        f"{fn.__name__}: '{qualifier}' not in _short_description result: {short!r}"
+    )
+
+
+@pytest.mark.parametrize("fn,_", RUNTIME_TOOLS, ids=[f[0].__name__ for f in RUNTIME_TOOLS])
+def test_short_description_does_not_exceed_120(fn, _):
+    short = _short_description(fn.__doc__)
+    base = short.rstrip("…")
+    assert len(base) <= 120, (
+        f"{fn.__name__}: _short_description returned {len(base)} meaningful chars (max 120): {short!r}"
+    )

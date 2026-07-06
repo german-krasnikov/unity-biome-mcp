@@ -31,7 +31,7 @@ async def material(action: str, path: str | None = None, object_path: str | None
                    shader: str | None = None, prop: str | None = None, value: str | None = None,
                    source: str | None = None, targets: str | None = None,
                    slot: int | None = None) -> str:
-    """Material. action: create|get|set|copy|list_properties|list_slots. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path (lists all material slots)."""
+    """Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path (lists all material slots)."""
     return await _send("material", _args(
         action=action, path=path, object_path=object_path, shader=shader,
         prop=prop, value=value, source=source, targets=targets, slot=slot))

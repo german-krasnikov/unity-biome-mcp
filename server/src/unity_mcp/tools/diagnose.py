@@ -301,7 +301,7 @@ def _verdict(
 
 
 async def diagnose(prev_mvid: str = "", expected_compile: bool = True) -> str:
-    """Read all Unity compile/reload fact-signals atomically. Returns typed verdict.
+    """Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`.
 
     prev_mvid: MVID from before a sync operation. When provided, enables STALE-DOMAIN
     detection (unchanged MVID after intended recompile). Pass '' for standalone probing.

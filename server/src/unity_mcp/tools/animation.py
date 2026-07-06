@@ -47,7 +47,7 @@ async def animator(action: str, path: str,
                    param_y: str | None = None,
                    children: str | None = None,
                    edit_action: str | None = None) -> str:
-    """Animator Controller. action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree.
+    """Animator Controller — state machine (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree.
     params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'.
     conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState).
     blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct.

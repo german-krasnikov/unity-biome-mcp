@@ -6,7 +6,7 @@ _send = None
 
 
 async def ask_user(questions: str) -> str:
-    """Show a question card in Unity chat; wait for user answer.
+    """Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead).
 
     questions: JSON array matching AskUserQuestion schema:
       [{"question":"...","header":"...","options":[{"label":"..."}],"multiSelect":false}]

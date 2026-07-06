@@ -6,18 +6,18 @@ _send = None
 
 
 async def get_perf() -> str:
-    """Snapshot FPS, frame time, Mono memory, and GC stats. Play Mode only."""
+    """[Play Mode] Snapshot FPS, frame time, Mono memory, and GC stats."""
     return await _send("get_perf", {})
 
 
 async def debug_animator(path: str) -> str:
-    """Read Animator state: layers, transitions, parameters. Play Mode only.
+    """[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile).
     path: scene path to GameObject with Animator component."""
     return await _send("debug_animator", {"path": path})
 
 
 async def debug_physics(path: str, radius: float = 5.0) -> str:
-    """Read Rigidbody state, colliders, contacts, and nearby objects. Play Mode only.
+    """[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile).
     path: scene path to GameObject.
     radius: overlap sphere radius for nearby detection (default 5m)."""
     return await _send("debug_physics", {"path": path, "radius": radius})

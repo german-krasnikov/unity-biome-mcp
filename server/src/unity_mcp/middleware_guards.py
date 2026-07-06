@@ -3,7 +3,7 @@ import json
 import time
 from typing import Optional
 
-from .middleware_types import BLAST_RADIUS, WRITE_CMDS, READ_CMDS
+from .middleware_types import BLAST_RADIUS, WRITE_CMDS, READ_CMDS, _RUNTIME_ONLY_CMDS
 from .utils import parse_kv_line
 
 
@@ -81,6 +81,18 @@ class MiddlewareGuardsMixin:
             self._mutation_count += 1
             if self._mutation_count % 5 == 0:
                 return f"⚡ VERIFICATION CHECKPOINT ({self._mutation_count} mutations): verify state is consistent with goal before continuing."
+        return None
+
+    # ── Feature: Play Mode Required Guard ────────────────────────────────────
+
+    def check_play_mode_required(self, cmd: str) -> Optional[str]:
+        """Block runtime-only commands when editor is confirmed in edit mode."""
+        if not self._play_state_known:
+            return None  # state unknown — don't block
+        if self.is_playing:
+            return None  # playing — all good
+        if cmd in _RUNTIME_ONLY_CMDS:
+            return f"err: '{cmd}' requires Play Mode. Use editor(action='play') first."
         return None
 
     # ── Feature N: Starvation Monitor ────────────────────────────────────────

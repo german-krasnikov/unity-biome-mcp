@@ -70,6 +70,11 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         verif_warn = mw.check_verification_needed(cmd)
         batch_warn = mw.scan_batch_conflicts(args.get("commands", "")) if cmd == "batch" else None
 
+        # Fail-fast: block runtime-only commands when confirmed in edit mode (before TCP)
+        pm_block = mw.check_play_mode_required(cmd)
+        if pm_block:
+            return _early_return(pm_block)
+
         # Play mode auto-routing — AFTER guards so they see original cmd
         cmd, args = mw.reroute_cmd(cmd, args)
 
