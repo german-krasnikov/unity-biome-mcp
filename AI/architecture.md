@@ -571,9 +571,9 @@ Root cause: v0.42.0 asmdef split (7→9 assemblies) amplified 3 latent bugs into
 **Chat-Integrated Visual Tools:**
 
 1. **F1: Token Counter + Context Progress Bar** (replaces USD cost display)
-   - **ModelContextWindows.cs** — Context window size per LLM (hardcoded: Claude 200k, Opus 4.8 vs 4.6/4.7, Haiku 100k, Sonnet 400k, Codex/Gemini preset fallback)
+   - **ModelContextWindows.cs** — Context window size per LLM (hardcoded: Fable 5 → 1M, GPT-5/5.4 → 1M, GPT-4.1 → 1M, gpt-4 → 128k, o3/o3-pro/o4 → 200k, Claude/Opus/Sonnet/Haiku → 200k, Gemini → 1M, Kimi/Moonshot → 128k, Codex model → 192k, Codex fallback → 1M)
    - **TokenFormat.cs** — Extended `FormatReadout()` displays `↑input ↓output | ▓▓▓▓░░░░░░ 40%` (input+output count + progress fill as Unicode bar)
-   - **ContextProgressBar.cs** — UIToolkit visual bar (50px height, animated fill on token change, responsive layout)
+   - **ContextProgressBar.cs** — UIToolkit visual bar with 20% output reserve (OutputReserve = 0.8f); bar hits 100% at 80% input fill to account for model output tokens
    - **TokenResetTests** — Verify counter resets on backend/model/inactivity-timeout switch
 
 2. **F2: Component Field Chips** — Right-click Component header in Inspector → "Attach Field" dropdown
@@ -827,10 +827,10 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 
 - **relay_buffer.py**: Reconnect-safe ring buffer (maxlen=500, ~30s @ 15 lines/sec). Append-only log with monotonic seq IDs. `enqueue()` mutates lines (escape \n/\r). `cmd_events(after_seq, timeout_ms)` implements long-poll with asyncio.Event signaling. Status field tracks seq/buf/dropped counts.
 
-- **stream_transform.py**: Pure stateless CLI output → pipe-format converter. Four transform functions:
+- **stream_transform.py**: Pure stateless CLI output → pipe-format converter. Five transform functions:
   - `_transform_line`: Claude stream-json NDJSON → pipe-format (stateful tool accumulator)
   - `_transform_plain_text_line`: Agy stdout wrapping → `t|text` events (line 116)
-  - `_transform_codex_line`: Codex NDJSON → pipe-format (tool call / result dispatch, line 124)
+  - `_transform_codex_line`: Codex NDJSON → pipe-format (tool call / result dispatch, line 124). **v0.71.0: Aggregates output_tokens + reasoning_output_tokens** for o3/o3-pro reasoning token accounting
   - `_transform_opencode_line`: OpenCode NDJSON → pipe-format (text/step_finish/error/tool_start, line 181)
   - `_transform_kimi_line`: Kimi NDJSON → pipe-format (role dispatch: assistant=text, meta=session_hint, line 220)
   All handle EOF gracefully, never raise. Selected per backend via _TRANSFORM_FNS dict in chat_relay.py:26-32.

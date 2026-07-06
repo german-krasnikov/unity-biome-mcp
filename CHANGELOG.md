@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.72.0] — Token Counting for Reasoning Models + Context Window Hardening
+
+**Fixed:**
+- **Reasoning token output silently dropped** — `stream_transform.py` now includes `reasoning_output_tokens` in the total output token count for reasoning models (o3, o3-pro, GPT-5.5, Fable 5). Previously these tokens were read from the backend response but discarded, causing token budgets to underestimate actual consumption and context limits to be falsely reported as "clean".
+
+**Added:**
+- **Extended model detection** — `ModelContextWindows.cs` now recognizes latest models: GPT-5.5/5.4, Fable 5, gpt-4.1, o3/o3-pro, o4-mini with spec-compliant context window sizes. Codex fallback context window increased from 192k to 1M tokens (matches latest Claude).
+- **Visual output reserve on context progress bar** — `ContextProgressBar.cs` now enforces a 20% output safety margin: the bar hits 100% fill at 80% input consumption, giving visual warning before the actual context limit is reached. Prevents edge-case overflow on high-token replies.
+
 ## [v0.71.0] — Revert MCP Config Key `unity-kiss` → `unity-mcp` (Chat Breakage Fix)
 
 **Breaking:** MCP server config key reverted from `unity-kiss` (v0.70.8) back to `unity-mcp` — the rename caused Chat to break in both Claude Code and Codex due to stale name references in relay + C# config writers.

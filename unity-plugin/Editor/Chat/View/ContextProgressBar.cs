@@ -5,6 +5,8 @@ namespace UnityMCP.Editor.Chat
 {
     internal sealed class ContextProgressBar : VisualElement
     {
+        // Reserve 20% of context window for model output; bar hits 100% at 80% input fill.
+        internal const float OutputReserve = 0.8f;
         private readonly VisualElement _fill;
         private readonly Label         _label;
 
@@ -42,7 +44,7 @@ namespace UnityMCP.Editor.Chat
             if (contextWindow <= 0) { style.display = DisplayStyle.None; return; }
 
             style.display = DisplayStyle.Flex;
-            float pct = Mathf.Clamp01((float)inputTokens / contextWindow);
+            float pct = Mathf.Clamp01((float)inputTokens / (contextWindow * OutputReserve));
             _fill.style.width = new Length(pct * 100f, LengthUnit.Percent);
             _fill.style.backgroundColor = pct < 0.7f
                 ? new Color(0.3f, 0.7f, 1f)

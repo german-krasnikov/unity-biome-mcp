@@ -448,11 +448,43 @@ def test_codex_turn_completed_with_usage():
             "reasoning_output_tokens": 14,
         },
     })
-    assert _transform_codex_line(line, _ToolCallAcc()) == ["d||0|9724|22"]
+    assert _transform_codex_line(line, _ToolCallAcc()) == ["d||0|9724|36"]
 
 
 def test_codex_turn_completed_no_usage():
     line = json.dumps({"type": "turn.completed"})
+    assert _transform_codex_line(line, _ToolCallAcc()) == ["d||0|0|0"]
+
+
+def test_codex_turn_completed_includes_reasoning_tokens():
+    line = json.dumps({
+        "type": "turn.completed",
+        "usage": {
+            "input_tokens": 5000,
+            "output_tokens": 100,
+            "reasoning_output_tokens": 50,
+            "cached_input_tokens": 2000,
+        }
+    })
+    result = _transform_codex_line(line, _ToolCallAcc())
+    assert result == ["d||0|5000|150"]
+
+
+def test_codex_turn_completed_no_reasoning_field():
+    line = json.dumps({
+        "type": "turn.completed",
+        "usage": {"input_tokens": 5000, "output_tokens": 100}
+    })
+    result = _transform_codex_line(line, _ToolCallAcc())
+    assert result == ["d||0|5000|100"]
+
+
+def test_codex_turn_completed_null_tokens():
+    """or-0 guard prevents None + int crash when JSON has explicit null."""
+    line = json.dumps({
+        "type": "turn.completed",
+        "usage": {"input_tokens": None, "output_tokens": None, "reasoning_output_tokens": None},
+    })
     assert _transform_codex_line(line, _ToolCallAcc()) == ["d||0|0|0"]
 
 

@@ -168,8 +168,8 @@ def _transform_codex_line(line: str, acc: _ToolCallAcc) -> list[str]:
 
     if t == "turn.completed":
         usage = obj.get("usage") or {}
-        inp = usage.get("input_tokens", 0)
-        out = usage.get("output_tokens", 0)
+        inp = usage.get("input_tokens", 0) or 0
+        out = (usage.get("output_tokens", 0) or 0) + (usage.get("reasoning_output_tokens", 0) or 0)
         return [f"d||0|{inp}|{out}"]
 
     if t == "error":
