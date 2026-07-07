@@ -38,10 +38,10 @@ namespace UnityMCP.Editor.Chat.Tests
 
         static ChipData H(string path, string name, int id = 0) => ChipTestHelpers.H(path, name, id);
         static ChipData S(string path, string name) => ChipTestHelpers.S(path, name);
-        private void InsertChip(ChipData c) => ChipTestHelpers.InsertChip(_chipField, c);
-        private void SetCursor(int p) => ChipTestHelpers.SetCursor(_chipField, p);
-        private void Type(string t) => ChipTestHelpers.Type(_chipField, t);
-        private (string, string) SimulateSend() => ChipTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
+        private void InsertChip(ChipData c) => ChipViewTestHelpers.InsertChip(_chipField, c);
+        private void SetCursor(int p) => ChipViewTestHelpers.SetCursor(_chipField, p);
+        private void Type(string t) => ChipViewTestHelpers.Type(_chipField, t);
+        private (string, string) SimulateSend() => ChipViewTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
 
         // ── Multi-send (no reload) ─────────────────────────────────────────────
 

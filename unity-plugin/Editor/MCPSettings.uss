@@ -131,9 +131,6 @@
     margin-right: 4px;
 }
 
-.sampling-inline-row > *:last-child {
-    margin-right: 0;
-}
 
 .sampling-backend-dd,
 .sampling-model-dd {

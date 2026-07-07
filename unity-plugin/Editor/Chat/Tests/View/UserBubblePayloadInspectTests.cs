@@ -91,9 +91,9 @@ namespace UnityMCP.Editor.Chat.Tests
             var cfg        = new ChipConfig();
             var chip       = new ChipData(ChipKindKeys.Hierarchy, "/Env/Player", "Player", 1);
             chipField.AddChip(chip);
-            ChipTestHelpers.Type(chipField, "что");
+            ChipViewTestHelpers.Type(chipField, "что");
 
-            ChipTestHelpers.SimulateSendWithPayload(chipField, _transcript, cfg);
+            ChipViewTestHelpers.SimulateSendWithPayload(chipField, _transcript, cfg);
 
             var ud = Bubble().userData;
             Assert.IsInstanceOf<UserBubbleData>(ud);

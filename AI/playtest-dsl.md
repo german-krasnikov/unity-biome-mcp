@@ -1,6 +1,6 @@
-# Playtest DSL Reference (21 Steps + ALIAS Macro)
+# Playtest DSL Reference (26 Steps + ALIAS + MACRO)
 
-Run Play Mode scenarios with deterministic step-by-step assertions. Parser applies `ALIAS` substitutions, then executes steps sequentially.
+Run Play Mode scenarios with deterministic step-by-step assertions. Parser collects MACRO definitions, expands CALL directives, collects ALIAS substitutions, then executes steps sequentially.
 
 ## Step Types (Alphabetical)
 
@@ -17,6 +17,28 @@ MOVE player TO ${player_start}  → resolves to: MOVE player TO (100,50,0)
 
 ---
 
+### ABORT_ON_FAIL
+
+Global directive — stop Play Mode immediately when any WAIT_UNTIL times out.
+
+```
+ABORT_ON_FAIL
+WAIT_UNTIL /Player|HP|value > 0 TIMEOUT 3
+ASSERT /Player|HP|value == 100
+```
+
+Must appear as its own line anywhere in the script. Does not emit a step.
+
+**Syntax:** `ABORT_ON_FAIL`
+
+Per-step variant: add `ABORT` token to a single `WAIT_UNTIL` line.
+
+```
+WAIT_UNTIL /Enemy|AI|IsDead == true TIMEOUT 10 ABORT
+```
+
+---
+
 ### ASSERT
 
 Test single property value with comparison operator.
@@ -25,11 +47,14 @@ Test single property value with comparison operator.
 ASSERT Player/Health == 100
 ASSERT Player/Score > 50
 ASSERT Enemy/Status != active
+ASSERT /Player|HP|value > 0 AS "player must be alive"
 ```
 
-**Syntax:** `ASSERT path/component/field op value`  
-**Operators:** `==`, `!=`, `>`, `<`, `>=`, `<=`  
+**Syntax:** `ASSERT path/component/field op value [AS "description"]`  
+**Operators (numeric):** `==`, `!=`, `>`, `<`, `>=`, `<=`  
+**Operators (string):** `==` (case-insensitive), `!=`, `contains` (substring match)  
 **Float equality:** `==` uses 0.001f tolerance — no `~=` operator exists  
+**AS suffix:** inline label shown in report instead of raw query  
 **Timeout:** default 5s
 
 ---
@@ -104,12 +129,14 @@ ASSERT_CONSERVED SUM ammo_current + ammo_used == CONSTANT OVER 2
 Verify captured value matches condition.
 
 ```
-CAPTURE initial_pos
-MOVE Player TO (100,100,0)
-ASSERT_CAPTURED initial_pos != (100,100,0)
+CAPTURE initial_pos /Player|Transform|position
+MOVE Player TO 100,100,0
+ASSERT_CAPTURED initial_pos != 100,100,0
 ```
 
-**Syntax:** `ASSERT_CAPTURED capture_key op value`
+**Syntax:** `ASSERT_CAPTURED label op [subOp value]`  
+**3-token form:** `ASSERT_CAPTURED label op` — checks mode only (no value comparison)  
+**5-token form:** `ASSERT_CAPTURED label MODE subOp value` — MODE in Op, subOp in Args, value in Value
 
 ---
 
@@ -119,11 +146,11 @@ Verify no error/exception logs since last call.
 
 ```
 ASSERT_CONSOLE_CLEAN
-ASSERT_CONSOLE_CLEAN ignore="NullReferenceException,deprecation_warning"
+ASSERT_CONSOLE_CLEAN IGNORE "NullReferenceException,deprecation_warning"
 ```
 
-**Syntax:** `ASSERT_CONSOLE_CLEAN [ignore="pattern1,pattern2"]`  
-**Filters out:** comma-separated substring patterns from Console errors
+**Syntax:** `ASSERT_CONSOLE_CLEAN [IGNORE "pattern1,pattern2"]`  
+**Filters out:** comma-separated substring patterns (trimmed, quotes stripped) — all matched as substrings against Console error text
 
 ---
 
@@ -132,12 +159,48 @@ ASSERT_CONSOLE_CLEAN ignore="NullReferenceException,deprecation_warning"
 Snapshot current value for later comparison.
 
 ```
-CAPTURE health_before
-SET Player Health 50
+CAPTURE health_before /Player|Health|currentHealth
+SET Player Health currentHealth 50
 ASSERT_CAPTURED health_before != 50
 ```
 
-**Syntax:** `CAPTURE label query`
+**Syntax:** `CAPTURE label query`  
+**label:** key used later in ASSERT_CAPTURED  
+**query:** `path|Component|field` expression evaluated at capture time
+
+---
+
+### CLICK / TAP
+
+Simulate a click on a UI element or world object. `TAP` is a synonym for `CLICK`.
+
+```
+CLICK /UI/StartButton
+CLICK /WorldObject/Button WAIT 0.5
+TAP /UI/ResumeButton
+```
+
+**Syntax:** `CLICK path [WAIT delay]` or `TAP path [WAIT delay]`  
+**WAIT:** optional post-click delay in seconds before next step  
+**Priority:** tries `Button.onClick.Invoke()` first; falls back to `ExecuteEvents` with `IPointerClickHandler`  
+**ERR:** object not found, object inactive, or `Button.interactable == false`  
+**FAIL:** object has neither `Button` nor `IPointerClickHandler`
+
+---
+
+### DESC
+
+Label the next emitted step in the report. Does not emit a step itself. Complements `AS` on ASSERT when you want to label non-ASSERT steps.
+
+```
+DESC "move player to start position"
+TELEPORT Player 0,0,0
+DESC "check health after spawn"
+ASSERT /Player|Health|current == 100
+```
+
+**Syntax:** `DESC "label text"`  
+**Scope:** applies to the immediately following step only; label is cleared after use
 
 ---
 
@@ -159,11 +222,15 @@ MOVE Player TO (100,0,0)  # health must stay > 0 during move
 Call public method on component via reflection.
 
 ```
-INVOKE Player/Rigidbody AddForce 10,0,0
-INVOKE Enemy/HealthComponent TakeDamage 25
+INVOKE Player Rigidbody AddForce 10,0,0
+INVOKE Enemy HealthComponent TakeDamage 25
 ```
 
-**Syntax:** `INVOKE path/component method [arg1 arg2 ...]`  
+**Syntax:** `INVOKE path component method [args]`  
+**path:** GameObject path (token 1)  
+**component:** component type name (token 2)  
+**method:** method name (token 3)  
+**args:** single token of space-joined arguments (token 4, optional)  
 **Returns:** "PASS" if method executed, "ERR" if component/method not found
 
 ---
@@ -182,16 +249,40 @@ LOG Combat finished
 
 ---
 
+### MACRO / CALL
+
+Define reusable command blocks with positional parameters. Macros are collected in phase 0 (before ALIAS), expanded in place. Nesting up to 10 levels. Cannot nest MACRO definitions.
+
+```
+MACRO check_health $path $expected
+  ASSERT $path|HealthComponent|CurrentHealth == $expected
+END_MACRO
+
+CALL check_health /Player 100
+CALL check_health /Enemy 50
+```
+
+**Define syntax:** `MACRO name $param1 $param2 ... ` → body lines → `END_MACRO`  
+**Call syntax:** `CALL name arg1 arg2 ...`  
+**Parameters:** positional `$1`/`$param` style — whole-word substitution in body lines  
+**Forward references:** CALL may appear before MACRO definition in the script
+
+---
+
 ### MONITOR
 
-Watch expression value during next step, show graph in results.
+Watch expression value during the following steps, show graph in results. Data is collected until `MONITOR STOP` or end of script, then appended to the report.
 
 ```
 MONITOR Player/Health
 WAIT 3.0
+MOVE Player TO 100,0,0
+MONITOR STOP
 ```
 
-**Syntax:** `MONITOR query [interval=0.05]`
+**Syntax:** `MONITOR query` to start, `MONITOR STOP` to stop  
+**STOP:** emits a Monitor step with null query — stops all active monitors  
+**Report:** sampled values appended after main PLAYTEST summary
 
 ---
 
@@ -211,6 +302,22 @@ MOVE TO 0,0,0  # auto-detect Player path
 
 ---
 
+### MOVE_PATH
+
+Multi-waypoint movement — parser expands to N sequential `MOVE` steps.
+
+```
+MOVE_PATH 1,0,0 > 5,0,0 > 10,0,3
+MOVE_PATH 0,0,0 > 5,0,5 > 10,0,0 TIMEOUT 8
+```
+
+**Syntax:** `MOVE_PATH x1,y1,z1 > x2,y2,z2 [> ...] [TIMEOUT n]`  
+**Expansion:** each `x,y,z` segment between `>` separators becomes one `MOVE` step  
+**TIMEOUT:** applied to every expanded step  
+**Path:** uses auto-detect player path (no explicit path token supported)
+
+---
+
 ### SNAPSHOT
 
 Capture game view (optional visual verification).
@@ -221,6 +328,23 @@ SNAPSHOT width=1280 height=720 camera="MainCamera"
 
 **Syntax:** `SNAPSHOT [width=640] [height=480] [camera="name"]`  
 **Output:** `.png` path in result
+
+---
+
+### SECTION
+
+Group header shown in report regardless of pass/fail state. Use to divide a long script into named phases.
+
+```
+SECTION "Setup"
+TELEPORT Player 0,0,0
+SECTION "Combat"
+INVOKE Enemy Attack
+SECTION "Teardown"
+ASSERT_CONSOLE_CLEAN
+```
+
+**Syntax:** `SECTION "title"` (quotes optional but recommended for multi-word titles)
 
 ---
 
@@ -323,11 +447,29 @@ WAIT 0.1
 Poll condition with timeout, continue when true.
 
 ```
-WAIT_UNTIL Player/Health == 100 timeout=10
+WAIT_UNTIL Player/Health == 100 TIMEOUT 10
 WAIT_UNTIL Enemy/IsDead == true
 ```
 
-**Syntax:** `WAIT_UNTIL query op value [timeout=5]`  
+**Compound conditions — AND (all must be true):**
+```
+WAIT_UNTIL /Player|HP|value > 0 AND /Enemy|HP|value == 0 TIMEOUT 10
+```
+
+**Compound conditions — OR (any must be true):**
+```
+WAIT_UNTIL /Door|Door|IsOpen == true OR /Player|Player|IsDead == true TIMEOUT 15
+```
+
+**Per-step abort on timeout:**
+```
+WAIT_UNTIL /Enemy|AI|IsPatrolling == true TIMEOUT 5 ABORT
+```
+
+**Syntax:** `WAIT_UNTIL query op value [AND|OR query op value ...] [TIMEOUT n] [ABORT]`  
+**Operators (numeric):** `==`, `!=`, `>`, `<`, `>=`, `<=`  
+**Operators (string):** `==` (case-insensitive), `!=`, `contains` (substring)  
+**Constraint:** cannot mix AND and OR in the same step  
 **Default timeout:** 5s  
 **Poll interval:** 0.05s
 
@@ -335,36 +477,65 @@ WAIT_UNTIL Enemy/IsDead == true
 
 ## DSL Structure
 
-```csharp
-// First pass: collect ALIAS definitions
-ALIAS player_start (100,0,0)
-ALIAS enemy_patrol (50,0,50)
+```
+# Phase 0: MACRO definitions extracted (not emitted as steps)
+MACRO move_patrol $start $end
+  MOVE_PATH $start > $end > $start
+END_MACRO
 
-// Second pass: parse + execute with alias substitution
+# ALIAS collected in first pass
+ALIAS player_start 100,0,0
+ALIAS enemy_patrol 50,0,50
+
+ABORT_ON_FAIL
+
+SECTION "Patrol intercept"
 LOG Test: Enemy patrol intercept
 CAPTURE initial_pos Enemy
-MOVE Enemy TO ${enemy_patrol}       // substituted → (50,0,50)
-WAIT_UNTIL distance(Player, Enemy) < 5
+
+CALL move_patrol ${enemy_patrol} 80,0,80   # macro expanded to 2 MOVE steps
+
+WAIT_UNTIL /Player|HP|value > 0 AND /Enemy|AI|IsPatrolling == true TIMEOUT 8
+
+DESC "verify combat started"
+ASSERT /Player|Score|value > 0 AS "player scored during patrol"
 
 ASSERT_BATCH
   ASSERT Player/Health > 0
   ASSERT Enemy/IsDead == false
 END
 
-TELEPORT Player ${player_start}     // substituted → (100,0,0)
-ASSERT_CONSOLE_CLEAN ignore="warning"
+TELEPORT Player ${player_start}
+ASSERT_CONSOLE_CLEAN IGNORE "warning"
 SNAPSHOT
 LOG Test completed
 ```
 
+## Method Args in Field Queries
+
+Fields support method dispatch via `field(args)` syntax in query strings:
+
+```
+WAIT_UNTIL /Inventory|Inventory|HasItem(sword) == true
+ASSERT /Player|Movement|DistanceTo(5,0,3) < 1.0
+```
+
+**Syntax:** `path|Component|MethodName(arg1,arg2)` — reflection invoked with parsed args  
+**Vector3:** method taking Vector3 consumes 3 comma-separated values (smart grouping)  
+**Zero-arg:** `MethodName()` — invoked with no arguments
+
 ## Parsing Rules
 
-1. **Aliases first:** All `ALIAS name value` lines collected before execution
-2. **Substitution:** `${name}` replaced in all tokens of subsequent lines
-3. **Comments:** Lines starting with `#` ignored
-4. **Whitespace:** Leading/trailing trimmed; tokens split by space
-5. **Case-insensitive:** Commands (`MOVE`, `move`, `Move` equivalent)
-6. **Queries:** Path syntax = `Parent/Child/Component.field` or `Component.field` (scene root)
+1. **Phase 0 — MACROs:** All `MACRO … END_MACRO` blocks collected and removed
+2. **Phase 0.5 — CALL expansion:** `CALL name arg1 arg2` replaced with expanded body lines (recursive, max depth 10)
+3. **Aliases first:** All `ALIAS name value` lines collected before execution
+4. **Substitution:** whole-word replacement of alias keys in all tokens of subsequent lines
+5. **Comments:** Lines starting with `#` ignored
+6. **Whitespace:** Leading/trailing trimmed; tokens split by space
+7. **Case-insensitive:** Commands (`MOVE`, `move`, `Move` equivalent)
+8. **Queries:** Path syntax = `Parent/Child/Component.field` or `Component.field` (scene root)
+9. **DESC:** consumed and stored as pending label; applied to next step, not emitted itself
+10. **ABORT_ON_FAIL:** consumed as global directive; not emitted as step
 
 ## Verification Rules
 
@@ -373,6 +544,24 @@ LOG Test completed
 - **ERR:** exception during evaluation (e.g., path not found, component missing)
 - **Result format:** `[step_number] COMMAND ... — PASS/FAIL/ERR`
 
+## GD Integration (@label namespace)
+
+`GdSnapshotSerializer.ToPlaytestPreamble(snapshots)` converts GD region annotations to `ALIAS` preamble lines using the `@label` namespace:
+
+```
+# generated preamble
+ALIAS @spawn_zone 5.00,0.00,3.00
+ALIAS @patrol_start_0 1.00,0.00,0.00
+ALIAS @patrol_start_1 10.00,0.00,0.00
+
+# script uses them via alias substitution
+TELEPORT Player @spawn_zone
+MOVE_PATH @patrol_start_0 > @patrol_start_1
+```
+
+**Label format:** `@<sanitized_label>` — lowercase, underscores, stripped special chars  
+**Annotation types:** `Point` → single ALIAS; `Path` → `_start`/`_end` pair + vertex list `_0`, `_1`, …
+
 ---
 
-**See also:** `run_playtest`, `fuzz_playtest` in AI/tools-reference.md; `.claude/skills/playmode-verification.md` for assertion patterns.
+**See also:** `run_playtest`, `fuzz_playtest`, `run_scenario` in AI/tools-reference.md; `AI/runtime-playtest.md` for scenario tools; `AI/playtest-composer.md` for the visual editor; `.claude/skills/playmode-verification.md` for assertion patterns.

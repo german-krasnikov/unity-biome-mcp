@@ -13,6 +13,9 @@ namespace UnityMCP.Editor
     {
         private static readonly List<TaskCompletionSource<string>> _activeTcs = new();
 
+        // key: (declaring Type, stripped method name); cleared on domain reload
+        private static readonly Dictionary<(Type, string), MethodInfo> _methodCache = new();
+
         [InitializeOnLoadMethod]
         static void HookReload()
         {
@@ -24,6 +27,7 @@ namespace UnityMCP.Editor
                         t.TrySetResult("err:domain reload — operation aborted");
                     _activeTcs.Clear();
                 }
+                _methodCache.Clear();
             };
         }
 
@@ -92,7 +96,8 @@ namespace UnityMCP.Editor
         }
 
         public static void WaitUntil(string path, string componentType, string field,
-            string expectedValue, float timeout, bool negate, TaskCompletionSource<string> tcs)
+            string expectedValue, float timeout, bool negate, TaskCompletionSource<string> tcs,
+            bool abortOnFail = false)
         {
             lock (_activeTcs) _activeTcs.Add(tcs);
             float startTime = Time.realtimeSinceStartup;
@@ -119,6 +124,7 @@ namespace UnityMCP.Editor
 
                 if (now - startTime >= timeout)
                 {
+                    if (abortOnFail) EditorApplication.isPlaying = false;
                     Complete($"wait_until: timeout after {timeout}s — {field} never matched '{expectedValue}'");
                     return;
                 }
@@ -331,6 +337,27 @@ namespace UnityMCP.Editor
             {
                 if (current == null) throw new ArgumentException($"Null at '{part}' in path '{fieldName}'");
                 var t = current.GetType();
+                int lparen = part.IndexOf('(');
+                if (lparen >= 0 && part.EndsWith(")"))
+                {
+                    var mName = part.Substring(0, lparen);
+                    var argsStr = part.Substring(lparen + 1, part.Length - lparen - 2);
+                    int argCount = string.IsNullOrEmpty(argsStr) ? 0 : argsStr.Split(',').Length;
+                    var cacheKey = (t, mName + ":" + argCount);
+                    if (!_methodCache.TryGetValue(cacheKey, out var mi))
+                    {
+                        const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+                        mi = argCount == 0
+                            ? t.GetMethod(mName, flags, null, Type.EmptyTypes, null)
+                            : t.GetMethods(flags).FirstOrDefault(m => m.Name == mName && m.GetParameters().Length == argCount);
+                        _methodCache[cacheKey] = mi; // cache null too — avoids repeat reflection
+                    }
+                    if (mi == null) throw new ArgumentException($"Method '{mName}({argsStr})' not found on {t.Name}");
+                    current = argCount == 0
+                        ? mi.Invoke(current, null)
+                        : mi.Invoke(current, ParseArgs(argsStr, mi.GetParameters()));
+                    continue;
+                }
                 var prop = t.GetProperty(part, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
                 if (prop != null) { current = prop.GetValue(current); continue; }
                 var field = t.GetField(part, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);

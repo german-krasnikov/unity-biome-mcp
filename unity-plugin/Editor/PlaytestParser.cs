@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click }
+    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc }
 
     internal class PlaytestStep
     {
@@ -27,6 +27,9 @@ namespace UnityMCP.Editor
         public string[] BatchOps;
         public string[] BatchValues;
         public string SimulatorName;
+        public bool IsOr;        // true = OR logic for compound WAIT_UNTIL, false = AND
+        public bool AbortOnFail; // true = stop Play Mode on timeout
+        public string Label;     // set by preceding DESC line
     }
 
     internal static class PlaytestParser
@@ -34,7 +37,42 @@ namespace UnityMCP.Editor
         public static List<PlaytestStep> Parse(string script)
         {
             var steps = new List<PlaytestStep>();
-            var lines = script.Split('\n');
+            var rawLines = script.Split('\n');
+
+            // Phase 0: collect MACRO definitions
+            var macros = new Dictionary<string, (string[] paramNames, string[] body)>(StringComparer.OrdinalIgnoreCase);
+            var cleanLines = new List<string>();
+            for (int i = 0; i < rawLines.Length; i++)
+            {
+                var t = rawLines[i].Trim();
+                if (t.StartsWith("MACRO ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    var name = parts[1];
+                    var paramNames = parts.Skip(2).ToArray();
+                    var body = new List<string>();
+                    i++;
+                    bool foundEnd = false;
+                    while (i < rawLines.Length)
+                    {
+                        var bt = rawLines[i].Trim();
+                        if (bt.Equals("END_MACRO", StringComparison.OrdinalIgnoreCase)) { foundEnd = true; break; }
+                        if (bt.StartsWith("MACRO ", StringComparison.OrdinalIgnoreCase))
+                            throw new ArgumentException("Nested MACRO definitions are not supported");
+                        body.Add(rawLines[i]);
+                        i++;
+                    }
+                    if (!foundEnd) throw new ArgumentException($"MACRO '{name}' missing END_MACRO");
+                    macros[name] = (paramNames, body.ToArray());
+                    continue;
+                }
+                // skip stray END_MACRO (outside any MACRO block)
+                if (t.Equals("END_MACRO", StringComparison.OrdinalIgnoreCase)) continue;
+                cleanLines.Add(rawLines[i]);
+            }
+
+            // Phase 0.5: expand CALL directives (supports forward references and nesting)
+            var lines = ExpandCalls(cleanLines, macros, 0).ToArray();
 
             // First pass: collect ALIAS definitions
             var aliases = new Dictionary<string, string>();
@@ -47,6 +85,7 @@ namespace UnityMCP.Editor
             }
 
             // Second pass: parse commands, applying alias substitution
+            string pendingLabel = null;
             for (int i = 0; i < lines.Length; i++)
             {
                 var rawLine = lines[i];
@@ -82,15 +121,45 @@ namespace UnityMCP.Editor
                         break;
 
                     case "WAIT_UNTIL":
+                    {
                         step.Type = StepType.WaitUntil;
                         step.Query = tokens[1]; step.Op = tokens[2]; step.Value = tokens[3];
                         var tiIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "TIMEOUT");
                         if (tiIdx >= 0) step.Timeout = float.Parse(tokens[tiIdx + 1], CultureInfo.InvariantCulture);
+                        // AND/OR compound conditions + ABORT detection (inline, avoids false-positive on ABORT-as-value)
+                        var xQ = new List<string>(); var xOps = new List<string>(); var xVals = new List<string>();
+                        bool? isOr = null;
+                        int xi = 4;
+                        while (xi < tokens.Length)
+                        {
+                            var tk = tokens[xi].ToUpperInvariant();
+                            if (tk == "TIMEOUT") { xi += 2; continue; }
+                            if (tk == "ABORT") { step.AbortOnFail = true; xi++; continue; }
+                            if (tk == "AND" || tk == "OR")
+                            {
+                                bool thisOr = tk == "OR";
+                                if (isOr == null) isOr = thisOr;
+                                else if (isOr != thisOr) throw new ArgumentException("Cannot mix AND/OR in WAIT_UNTIL");
+                                if (xi + 3 >= tokens.Length) throw new ArgumentException($"{tk} requires query op value");
+                                xQ.Add(tokens[xi + 1]); xOps.Add(tokens[xi + 2]); xVals.Add(tokens[xi + 3]);
+                                xi += 4;
+                            }
+                            else xi++;
+                        }
+                        if (xQ.Count > 0)
+                        {
+                            step.Queries = xQ.ToArray(); step.BatchOps = xOps.ToArray(); step.BatchValues = xVals.ToArray();
+                            step.IsOr = isOr == true;
+                        }
                         break;
+                    }
 
                     case "ASSERT":
                         step.Type = StepType.Assert;
                         step.Query = tokens[1]; step.Op = tokens[2]; step.Value = tokens[3];
+                        var asIdx = Array.FindIndex(tokens, 4, t => t.ToUpperInvariant() == "AS");
+                        if (asIdx >= 0)
+                            step.Message = string.Join(" ", tokens, asIdx + 1, tokens.Length - asIdx - 1).Trim('"');
                         break;
 
                     case "ASSERT_CONSOLE_CLEAN":
@@ -291,12 +360,76 @@ namespace UnityMCP.Editor
                         break;
                     }
 
+                    case "MOVE_PATH":
+                    {
+                        // MOVE_PATH x1,y1,z1 > x2,y2,z2 [> ...] [TIMEOUT n]
+                        var tiIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "TIMEOUT");
+                        float pathTimeout = tiIdx >= 0 ? float.Parse(tokens[tiIdx + 1], CultureInfo.InvariantCulture) : 0f;
+                        int endIdx = tiIdx >= 0 ? tiIdx : tokens.Length;
+                        for (int ci = 1; ci < endIdx; ci++)
+                        {
+                            if (tokens[ci] == ">") continue;
+                            var cf = ValueParser.ParseFloats(tokens[ci], 3);
+                            var moveStep = new PlaytestStep
+                            {
+                                Type = StepType.Move,
+                                Position = new Vector3(cf[0], cf[1], cf[2]),
+                                Timeout = pathTimeout,
+                                RawLine = line
+                            };
+                            steps.Add(moveStep);
+                        }
+                        continue; // skip the outer steps.Add(step)
+                    }
+
+                    case "SECTION":
+                        step.Type = StepType.Section;
+                        step.Message = string.Join(" ", tokens, 1, tokens.Length - 1).Trim('"');
+                        break;
+
+                    case "DESC":
+                        pendingLabel = string.Join(" ", tokens, 1, tokens.Length - 1).Trim('"');
+                        continue; // no step emitted
+
+                    case "ABORT_ON_FAIL":
+                        continue; // global directive — not emitted as a step
+
                     default:
                         throw new ArgumentException($"Unknown command: {cmd}");
                 }
+                step.Label = pendingLabel;
+                pendingLabel = null;
                 steps.Add(step);
             }
             return steps;
+        }
+
+        static List<string> ExpandCalls(List<string> lines, Dictionary<string, (string[] paramNames, string[] body)> macros, int depth)
+        {
+            if (depth > 10) throw new ArgumentException("MACRO recursion depth exceeded (max 10)");
+            var result = new List<string>();
+            foreach (var line in lines)
+            {
+                var t = line.Trim();
+                if (!t.StartsWith("CALL ", StringComparison.OrdinalIgnoreCase)) { result.Add(line); continue; }
+                var parts = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var name = parts[1];
+                if (!macros.TryGetValue(name, out var macro))
+                    throw new ArgumentException($"Unknown macro: {name}");
+                var callArgs = parts.Skip(2).ToArray();
+                if (callArgs.Length < macro.paramNames.Length)
+                    throw new ArgumentException($"CALL {name}: expected {macro.paramNames.Length} args, got {callArgs.Length}");
+                var expanded = new List<string>();
+                foreach (var bodyLine in macro.body)
+                {
+                    var sub = bodyLine;
+                    for (int j = 0; j < macro.paramNames.Length; j++)
+                        sub = ReplaceWholeWord(sub, macro.paramNames[j], callArgs[j]);
+                    expanded.Add(sub);
+                }
+                result.AddRange(ExpandCalls(expanded, macros, depth + 1));
+            }
+            return result;
         }
 
         // Replace whole-word occurrences of 'word' in a line (avoids partial matches)
@@ -354,6 +487,18 @@ namespace UnityMCP.Editor
                 "contains" => actual?.Contains(expected) == true,
                 _ => throw new ArgumentException($"Operator '{op}' requires numeric values")
             };
+        }
+
+        /// <summary>Returns true if script contains a top-level ABORT_ON_FAIL directive.</summary>
+        internal static bool HasGlobalAbort(string script)
+        {
+            foreach (var line in script.Split('\n'))
+            {
+                var t = line.Trim();
+                if (string.IsNullOrEmpty(t) || t.StartsWith("#")) continue;
+                if (t.ToUpperInvariant() == "ABORT_ON_FAIL") return true;
+            }
+            return false;
         }
     }
 }

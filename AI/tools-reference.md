@@ -1,8 +1,8 @@
-# MCP Tools Reference (120 total)
+# MCP Tools Reference (124 total)
 
-All tools organized by category. TIER1 tools (43) are always visible. Themed categories (Tier2) require `discover_tools(category)` to enable. Plugin tools discovered dynamically via auto-gating.
+All tools organized by category. TIER1 tools (44) are always visible. Themed categories (Tier2) require `discover_tools(category)` to enable. Plugin tools discovered dynamically via auto-gating.
 
-## TIER1 Tools (Always Visible, 43 total)
+## TIER1 Tools (Always Visible, 44 total)
 
 Essential read/scene, meta, connection, repair, plus high-value tools for screenshots, testing, runtime, and code intelligence.
 
@@ -48,8 +48,9 @@ Essential read/scene, meta, connection, repair, plus high-value tools for screen
 | move_to | Pathfind + walk to position | path, dest_pos, speed, timeout | runtime |
 | query_state | Read runtime GameObject state | path, queries (CSV) | runtime |
 | test_step | Execute single DSL step | step (JSON), config | testing |
-| run_playtest | Run playtest DSL script | script (21-step DSL), config | testing |
+| run_playtest | Run playtest DSL script | script (27-step DSL), abort_on_fail | testing |
 | fuzz_playtest | Random input fuzzing | count, duration, seed | testing |
+| run_scenario | Load + run saved .playtest file | name, timeout, abort_on_fail | testing |
 
 ## SCENE_EDIT (8 tools)
 
@@ -129,7 +130,7 @@ Baseline diff and regression detection. Note: `screenshot` itself is TIER1 (see 
 
 ## UNIT_TESTS (1 Tier2 tool)
 
-Test result polling. Note: `run_tests`, `run_playtest`, `fuzz_playtest`, `test_step` are TIER1 (see TIER1 section above).
+Test result polling. Note: `run_tests`, `run_playtest`, `fuzz_playtest`, `test_step`, `run_scenario` are TIER1 (see TIER1 section above).
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -173,9 +174,9 @@ Code generation, refactoring, validation, and diagnostics. Note: `find_reference
 | menu | Execute Editor menu item | menu_path |
 | diagnose | Deep troubleshooting | system (compile/tcp/memory/reload) |
 
-## SESSION_SKILLS (11 tools)
+## SESSION_SKILLS (14 tools)
 
-Persistent reusable skills, templates, session snapshots, change tracking.
+Persistent reusable skills, templates, session snapshots, change tracking, scenario files.
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -190,6 +191,9 @@ Persistent reusable skills, templates, session snapshots, change tracking.
 | get_changes | Log editor events since last call | clear (bool) |
 | save_session | Snapshot hierarchy to .claude/session-context.json | — |
 | load_session | Load + diff previous session | — |
+| save_scenario | Save playtest DSL to named .playtest file | name, script |
+| load_scenario | Read named .playtest file | name |
+| list_scenarios | List saved .playtest files | — |
 
 ## META (8 Tier2 tools)
 

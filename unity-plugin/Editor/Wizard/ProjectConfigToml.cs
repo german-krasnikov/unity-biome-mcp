@@ -72,7 +72,8 @@ namespace UnityMCP.Editor.Wizard
                 return EntryState.Absent;
 
             var markerVersion = ExtractMarkerVersion(existingText);
-            if (markerVersion == null) return EntryState.Foreign;
+            if (markerVersion == null)
+                return existingText.Contains("command = 'uvx'") ? EntryState.OwnedStale : EntryState.Foreign;
 
             var markerPort = ExtractMarkerPort(existingText);
             return markerVersion == version && markerPort == port

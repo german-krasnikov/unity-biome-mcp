@@ -78,7 +78,7 @@ namespace UnityMCP.Editor.Chat
             {
                 EditorApplication.update -= OnUpdate;
                 AssetPreviewAssetPostprocessor.OnAssetsChanged -= OnAssetsChanged;
-                EditorApplication.projectWindowChanged -= OnProjectWindowChanged;
+                EditorApplication.projectChanged -= OnProjectWindowChanged;
                 _hooked = false;
             }
             Clear();
@@ -93,7 +93,7 @@ namespace UnityMCP.Editor.Chat
             if (AutoHookEditorUpdate)
                 EditorApplication.update += OnUpdate;
             AssetPreviewAssetPostprocessor.OnAssetsChanged += OnAssetsChanged;
-            EditorApplication.projectWindowChanged += OnProjectWindowChanged;
+            EditorApplication.projectChanged += OnProjectWindowChanged;
         }
 
         void OnProjectWindowChanged() => Clear();

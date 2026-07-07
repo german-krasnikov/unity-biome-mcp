@@ -24,7 +24,6 @@ namespace UnityMCP.Editor.Chat
             if (bytes == null || bytes.Length == 0) return; // no image → let default text paste proceed
 
             e.StopImmediatePropagation();
-            e.PreventDefault();
             var dest = ImageAttachmentStore.ImportBytes(bytes, baseName: "paste");
             InsertInlineChip(null, dest, "paste.png");
         }

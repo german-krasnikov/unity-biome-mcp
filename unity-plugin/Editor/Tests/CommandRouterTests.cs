@@ -570,11 +570,7 @@ namespace UnityMCP.Editor.Tests
         public void IsCompiling_WedgeCondition_ElapsedOver120s_ReturnsFalse()
         {
             // Simulate: EditorApplication says compiling but our tracker says >120s elapsed
-            CommandRouter.IsCompiling = () =>
-            {
-                if (!true) return false;  // would be EditorApplication.isCompiling = true
-                return 150.0 < 120.0;    // elapsed=150s → not a real compile → false
-            };
+            CommandRouter.IsCompiling = () => 150.0 < 120.0;
             try
             {
                 Assert.IsFalse(CommandRouter.IsCompiling(),

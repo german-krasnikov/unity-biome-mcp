@@ -242,6 +242,41 @@ RegionSnapshot
 }
 ```
 
+## GdSnapshotSerializer (Playtest Integration)
+
+**Purpose:** Convert `RegionSnapshot` instances to DSL `ALIAS` preamble lines for playtest scripts. Bridges the region annotation system with the playtest DSL.
+
+**API:**
+- `ToAliasLines(snap)` → one or more `ALIAS @label x,y,z` lines (no trailing newline)
+- `ToPlaytestPreamble(snapshots)` → full preamble block from a collection
+
+**Label format:** `@<sanitized_label>` — lowercase, underscores, stripped special chars; fallback to `gd_<id>` if label empty.
+
+**Annotation type mapping:**
+
+| AnnotationType | Output |
+|----------------|--------|
+| `point` / `region` | `ALIAS @label cx,cy,cz` (center) |
+| `polyline` | `ALIAS @label_0 x,y,z` … `ALIAS @label_N x,y,z` (per vertex) |
+| `measurement` | `ALIAS @label_start x,y,z` + `ALIAS @label_end x,y,z` |
+
+**Example output:**
+```
+ALIAS @spawn_zone 5.00,0.00,3.00
+ALIAS @patrol_0 1.00,0.00,0.00
+ALIAS @patrol_1 10.00,0.00,0.00
+```
+
+**Usage in playtest scripts:**
+```
+# Include preamble from GdSnapshotSerializer.ToPlaytestPreamble(regions)
+TELEPORT Player @spawn_zone
+MOVE_PATH @patrol_0 > @patrol_1
+```
+
+**File:** `unity-plugin/Editor/RegionTool/GdSnapshotSerializer.cs`  
+**Tests:** `unity-plugin/Editor/Tests/RegionTool/GdSnapshotSerializerTests.cs`
+
 ---
 
-**Related:** `AI/chat-view.md` (chip registration), `CLAUDE.md` § verification-gates (validate spatial queries), `.claude/skills/token-optimization.md` (query batching).
+**Related:** `AI/chat-view.md` (chip registration), `AI/playtest-dsl.md` (GD Integration section), `CLAUDE.md` § verification-gates (validate spatial queries), `.claude/skills/token-optimization.md` (query batching).

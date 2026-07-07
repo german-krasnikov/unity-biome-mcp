@@ -98,19 +98,15 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chip      = new ChipData(ChipKindKeys.Asset, "Assets/Foo.mat", "Foo.mat", 0);
             var pill      = ChipPillFactory.Build(chip);
-            var navigated = false;
+            bool navigated = false;
 
-            // DoesNotThrow verifies signature; navigate seam fire verifies item present
             Assert.DoesNotThrow(() =>
                 ChipPillFactory.AttachContextMenu(pill, chip,
                     onPreview: null,
                     onNavigate: () => navigated = true));
 
-            // Fire seam directly (no UI event loop in headless test)
             ChipPillFactory.AddToContextAction?.Invoke(chip);
-
-            // Navigate seam: confirm method is callable (item was added)
-            Assert.DoesNotThrow(() => navigated = true);
+            Assert.IsFalse(navigated, "navigate callback should not fire from AddToContext seam");
         }
     }
 }

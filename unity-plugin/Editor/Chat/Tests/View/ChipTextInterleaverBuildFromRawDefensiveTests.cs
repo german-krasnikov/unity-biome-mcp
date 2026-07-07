@@ -290,9 +290,9 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var field = new InlineChipField();
             field.AddChip(H("/Coll_1", "Collectible_1", 1));
-            ChipTestHelpers.Type(field, "что это ");
+            ChipViewTestHelpers.Type(field, "что это ");
             field.AddChip(H("/Coll_2", "Collectible_2", 2));
-            ChipTestHelpers.Type(field, "?");
+            ChipViewTestHelpers.Type(field, "?");
 
             var rawText = (field.Text ?? "").Trim();
             var positioned = new System.Collections.Generic.List<PositionedChip>(
@@ -363,7 +363,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var field = new InlineChipField();
             field.AddChip(new ChipData(ChipKindKeys.Hierarchy, "/Collectible_3", "Collectible_3", 1));
             // Simulate typing "test " after the chip
-            ChipTestHelpers.Type(field, " test ");
+            ChipViewTestHelpers.Type(field, " test ");
             field.AddChip(new ChipData(ChipKindKeys.Hierarchy, "/Collectible_2", "Collectible_2", 2));
 
             var rawText    = (field.Text ?? "").Trim();

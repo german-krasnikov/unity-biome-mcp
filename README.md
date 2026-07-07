@@ -46,7 +46,7 @@
 
 ### Two ways to work
 
-🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 121 MCP tools with 80–95% token compression.
+🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 125 MCP tools with 80–95% token compression.
 
 💬 **In-Unity Chat** — open `MCP → Chat` inside the editor. No API key needed — spawns the CLI directly. 5 backends: Claude, Antigravity, Kimi, Codex, OpenCode. Drag GameObjects, scripts, and materials into chat as typed context chips. Each AI turn gets its own undo group — one Ctrl+Z rolls back everything the AI changed. Domain-reload safe. Extensible chip-kind registry lets third-party plugins add new chip types with zero core edits.
 
@@ -233,7 +233,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="121 MCP Tools · 9262 Tests (4091 Python · 4887 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="125 MCP Tools · 9581 Tests (4110 Python · 5187 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -242,7 +242,8 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 - **Token Optimization** — `batch` compresses 5–20 calls into one (80–95% savings), deferred tool schemas, per-session cost analytics
 - **In-Unity Chat** — 5 CLI backends (Claude, Antigravity, Kimi, Codex, OpenCode), no API key needed, typed context chips (`[hierarchy:/Player]`, `[script:Health.cs]`), per-turn undo, domain-reload safe
 - **Code Intelligence** — Roslyn-powered `find_references`, `compile_preflight`, `semantic_at`
-- **PlayTest DSL** — 21 commands: `MOVE`, `ASSERT`, `WAIT_UNTIL`, `INVOKE`, `SNAPSHOT`, `SIMULATE`
+- **PlayTest DSL** — 24 commands: `MOVE`, `MOVE_PATH`, `ASSERT`, `WAIT_UNTIL`, `INVOKE`, `SNAPSHOT`, `SIMULATE`, `SECTION`, `MACRO/CALL`, AND/OR compounds, abort-on-fail, and more
+- **Playtest Composer** — visual drag-and-drop editor (UI Toolkit) for composing PlayMode test scripts; context-aware D&D from Hierarchy/Inspector; Smart Command NL→DSL via active CLI backend
 - **Multi-Scene Management** — Load multiple scenes, inspect/edit across scenes, move/copy objects between loaded scenes, unified `object_diff` for cross-scene comparison
 - **Scene CRUD & Tools** — `scene` actions (open_additive, close, set_active, list), hierarchy inspection, query syntax, diff tracking, checkpoint/restore
 - **Animation & Timeline** — clips, key management, Timeline assets, Animator states/transitions
@@ -507,14 +508,14 @@ Yes. Drop a Python file in `tools/`, add it to `__init__.py`, implement the `reg
 
 | Feature | Unity MCP | CoplayDev | IvanMurzak | CoderGamester |
 |---------|-----------|-----------|------------|---------------|
-| MCP Tools | 120 | ~40 | 70+ | 28 |
+| MCP Tools | 125 | ~40 | 70+ | 28 |
 | In-Editor Chat | ✅ 5 backends | ❌ | ❌ | ❌ |
 | Token Optimization | 80-95% batch savings | ❌ | ❌ | ❌ |
 | One-Liner Install | ✅ curl/iex | ❌ | ❌ | ❌ |
-| PlayTest DSL | ✅ 21 commands | ❌ | ❌ | ❌ |
+| PlayTest DSL | ✅ 24 commands | ❌ | ❌ | ❌ |
 | Multi-Scene Support | ✅ | ❌ | ✅ | ❌ |
 | AI Backends | 9 (Claude, Codex, Kimi, Antigravity, OpenCode, etc.) | 1 | 4 | 9 |
-| Tests | 8,743 | — | — | — |
+| Tests | 9,378 | — | — | — |
 | Code Intelligence | ✅ Roslyn-powered | ❌ | ❌ | ❌ |
 | Cross-Platform | ✅ Win/Mac/Linux | ✅ | ✅ | ✅ |
 | License | MIT | MIT | MIT | MIT |

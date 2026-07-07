@@ -42,7 +42,7 @@ await get_component("/Player", "PlayerController", query="Health")  # → Health
 
 **RW_IDEM Annotation:** Idempotent write; safe to retry.
 
-## wait_until(path, component, field, value, timeout=5.0, negate=False)
+## wait_until(path, component, field, value, timeout=5.0, negate=False, abort_on_fail=False)
 
 **Purpose:** Poll field until it matches value or timeout (Play Mode only).
 
@@ -52,11 +52,14 @@ await get_component("/Player", "PlayerController", query="Health")  # → Health
 
 **Negate:** If True, waits for field ≠ value.
 
+**abort_on_fail:** If True, Unity stops Play Mode on timeout instead of returning an error.
+
 **Errors:** Timeout → "timeout waiting for X" message.
 
 **Example:**
 ```python
 await wait_until("/Projectile", "Projectile", "Arrived", "true", timeout=3.0)
+await wait_until("/Enemy", "AI", "IsDead", "true", timeout=10.0, abort_on_fail=True)
 ```
 
 **RW_IDEM Annotation:** Idempotent; safe to call multiple times.
@@ -121,29 +124,36 @@ await query_state("/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX")
 
 **RW Annotation:** Mutating (movement + snapshots).
 
-## run_playtest(script, timeout=120.0)
+## run_playtest(script, timeout=120.0, abort_on_fail=False)
 
 **Purpose:** Execute playtest DSL script (fire-and-forget fire-and-poll pattern).
 
+**abort_on_fail:** If True, stops Play Mode when any WAIT_UNTIL times out. Equivalent to placing `ABORT_ON_FAIL` as first line of the script.
+
 **DSL Commands:**
-- `MOVE TO x,y,z` — move character
+- `MOVE [path] TO x,y,z` — move character
+- `MOVE_PATH x1,y1,z1 > x2,y2,z2 [> ...]` — multi-waypoint, expands to N MOVE steps
 - `WAIT n` — sleep n seconds
-- `WAIT_UNTIL query op value` — poll until condition (op: ==, !=, <, >, <=, >=)
-- `ASSERT query op value` — fail if condition false
+- `WAIT_UNTIL q op v [AND|OR q op v...] [TIMEOUT n] [ABORT]` — poll until condition; AND/OR compound; ABORT stops Play Mode on timeout
+- `ASSERT query op value [AS "label"]` — fail if condition false; AS adds inline report label
 - `ASSERT_CONSOLE_CLEAN [IGNORE "pat1","pat2"]` — verify no console errors (ignore patterns)
+- `ASSERT_BATCH...END` — multi-line assert block
+- `ASSERT_NEAR pathA pathB dist` — spatial proximity check
+- `ASSERT_CONSERVED SUM a+b OVER t` — physics invariant (e.g., energy conservation)
+- `ASSERT_CTA VISIBLE|CLICKABLE` — check UI reachability
+- `ASSERT_CAPTURED label INCREASED|DECREASED` — verify delta
+- `ALIAS name query` — bind query to name for later use
+- `MACRO name $p1 ... END_MACRO` / `CALL name arg1 ...` — reusable command blocks
+- `SECTION "title"` — group header always shown in report
+- `DESC "text"` — label next step in report (no step emitted)
+- `ABORT_ON_FAIL` — global directive: stop Play Mode when any WAIT_UNTIL times out
 - `SNAPSHOT queries` — capture state (comma-separated paths|component|field)
 - `INVOKE path comp method args` — call method
 - `SET path comp field value` — set field
 - `LOG msg` — log message
 - `TIMESCALE n` — set Time.timeScale
-- `ASSERT_CONSERVED SUM a+b OVER t` — physics invariant (e.g., energy conservation)
-- `ASSERT_CTA VISIBLE|CLICKABLE` — check UI reachability
-- `ALIAS name query` — bind query to name for later use
 - `TELEPORT path x,y,z` — instant move (no movement logic)
-- `ASSERT_BATCH...END` — multi-line assert block
-- `ASSERT_NEAR pathA pathB dist` — spatial proximity check
 - `CAPTURE label query` — save value for later comparison
-- `ASSERT_CAPTURED label INCREASED|DECREASED` — verify delta
 - `INVARIANT query op value` — always-true check (not per-step)
 - `SIMULATE name [DURATION n] [TIMESCALE n]` — run named scenario
 - `MONITOR name` — observe state continuously
@@ -173,6 +183,27 @@ await run_playtest(script, timeout=30.0)
 - Polling: Caller must poll get_test_results every 5s for up to 2min (see CLAUDE.md § run_tests)
 - Domain reload: Transparently reconnects mid-script if compilation detected
 
+## save_scenario(name, script) / load_scenario(name) / list_scenarios() / run_scenario(name, timeout=120.0, abort_on_fail=False)
+
+**Purpose:** Persist and replay named playtest scripts. Scripts stored in project-local directory.
+
+**Name rules:** alphanumeric + underscore only. Path traversal rejected.
+
+**run_scenario** = `load_scenario(name)` + `run_playtest(script)` in one call.
+
+**Example:**
+```python
+await save_scenario("smoke_combat", "INVOKE /Enemy Attack\nASSERT /Player|HP|value > 0")
+await list_scenarios()   # → "smoke_combat"
+await run_scenario("smoke_combat")
+```
+
+**Gating:** `save_scenario`, `load_scenario`, `list_scenarios` in `SESSION_SKILLS` category (require `discover_tools`). `run_scenario` is TIER1 (always visible).
+
+**RW Annotation:** `save_scenario`, `run_scenario` — mutating. `load_scenario`, `list_scenarios` — RO.
+
+---
+
 ## fuzz_playtest(steps=10, seed=None)
 
 **Purpose:** Property-based testing: generate random playtest script, run it to find hidden bugs.
@@ -200,6 +231,9 @@ await fuzz_playtest(steps=20, seed=42)  # reproducible 20-step scenario
 | Move + validate state | test_step | Atomic before/after with console check |
 | Complex scenario | run_playtest | DSL readable; compression saves tokens |
 | Regression hunting | fuzz_playtest | Property-based; finds edge cases |
+| Reusable test script | save_scenario + run_scenario | Persist DSL to .playtest file; replay by name |
+| Multi-phase fail-fast | run_playtest(abort_on_fail=True) | Stop Play Mode immediately on timeout |
+| Compound wait | WAIT_UNTIL … AND/OR … | Single poll for multi-condition gate |
 
 ## Errors & Recovery
 

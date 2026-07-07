@@ -116,7 +116,8 @@ unity-kiss-mcp/
 │   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)
 │   │   │   ├── testing.py      # run_playtest, run_tests split from scene.py (v0.70.0)
 │   │   │   ├── editor_control.py # editor control commands split from scene.py (v0.70.0)
-│   │   │   ├── runtime.py      # invoke_method, wait_until, move_to, run_playtest, fuzz_playtest
+│   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (abort_on_fail), fuzz_playtest
+│   │   │   ├── scenarios.py    # save_scenario, load_scenario, list_scenarios, run_scenario — .playtest file persistence (v0.74.0)
 │   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set
 │   │   │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
 │   │   │   ├── skills.py       # save/use/list_skill, apply/save/list_template + _skills_dir
@@ -182,6 +183,7 @@ unity-kiss-mcp/
 │       ├── test_server_filtering.py     # Port discovery edge cases (v0.55.10)
 │       ├── test_auto_wire.py             # auto_wire tool: 3-priority matching, dry-run (v0.62.0, 5 tests)
 │       ├── test_scene_health.py          # scene_health tool: 7 checks, focus param (v0.62.0, 4 tests)
+│       ├── test_scenarios.py             # save/load/list/run_scenario: path validation, project-path discovery (v0.74.0)
 │       ├── test_middleware_play_guard.py  # Play Mode fail-fast guard: state-unknown passthrough, edit-mode block, watch_remove exclusion (feat/tool-disambiguation)
 │       ├── test_tool_descriptions.py     # Regression: TIER1 runtime tools have [Play Mode] prefix in docstring (feat/tool-disambiguation)
 │       ├── test_docstring_crossrefs.py   # Regression: all 'use `tool`' cross-refs in docstrings name real tools in _SPECS (feat/tool-disambiguation)
@@ -223,7 +225,7 @@ unity-kiss-mcp/
 │   ├── UnityMCP.Reload.asmdef                # Core assembly (no references)
 │   ├── package.json                          # v0.1.4, "com.unity-mcp.reload"
 │   └── package.json.meta
-├── unity-plugin/               # Unity Editor Plugin (200+ C# files, ~19500 LOC, v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests)
+├── unity-plugin/               # Unity Editor Plugin (210+ C# files, ~20000 LOC, v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests)
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
@@ -254,13 +256,22 @@ unity-kiss-mcp/
 │       ├── BatchHelper.cs                  # Batch text parser + per-command guards + timeout
 │       ├── RefManager.cs                   # Ephemeral $a-$zz scene refs (702 slots)
 │       ├── ErrorHelper.cs                  # Contextual errors + "did you mean?"
-│       ├── RuntimeHelper.cs                # Reflection invoke + state read
-│       ├── PlaytestRunner.cs               # DSL playtest executor (partial class, core)
-│       ├── PlaytestRunner.Steps.cs         # ExecuteStep dispatch (partial class, 21 cases)
-│       ├── PlaytestParser.cs               # DSL parser
+│       ├── RuntimeHelper.cs                # Reflection invoke + state read; method dispatch cache + field(args) syntax (v0.74.0)
+│       ├── PlaytestRunner.cs               # DSL playtest executor (partial class, core); abort_on_fail, EvalCompound (v0.74.0)
+│       ├── PlaytestRunner.Steps.cs         # ExecuteStep dispatch (partial class, 23 cases: +Section v0.74.0)
+│       ├── PlaytestParser.cs               # DSL parser; MACRO/CALL, MOVE_PATH, SECTION, DESC, AND/OR WAIT_UNTIL (v0.74.0)
 │       ├── PlaytestState.cs + PlaytestConfig.cs
 │       ├── IPlaytestSimulator.cs + IPlaytestMonitor.cs
 │       ├── PlaytestMonitorRegistry.cs + SimulatorRegistry.cs  # Playtest type registries
+│       ├── VisualStep.cs                   # [Serializable] step data model: 14 fields, Clone() (v0.75.0)
+│       ├── ComposerStateStore.cs           # Library/PlaytestComposerState.json persistence + _testOverride seam (v0.75.0)
+│       ├── PlaytestDslExporter.cs          # Pure static: List<VisualStep> → DSL string, FromParsed roundtrip (v0.75.0)
+│       ├── PlaytestStepElement.cs          # UITK VisualElement per-row step editor, Bind/Unbind (v0.75.0, 282 LOC)
+│       ├── PlaytestSmartDrop.cs            # ShowActionMenu: 10 actions via GenericDropdownMenu (v0.75.0)
+│       ├── PlaytestDropHelper.cs           # AttachMultiDnD + ShowComponentPicker via GenericDropdownMenu (v0.75.0, 159 LOC)
+│       ├── PlaytestStepValidator.cs        # GetValidationError per StepType + IsScriptValid (v0.75.0)
+│       ├── PlaytestFileHelper.cs           # Save/Load .playtest files via OS dialog + DSL roundtrip (v0.75.0, 42 LOC)
+│       ├── PlaytestComposerWindow.cs       # UI Toolkit EditorWindow (MCP/Playtest Composer, Shift+Alt+P); rewritten from IMGUI v0.75.0
 │       ├── MultiViewCapture.cs + MultiViewOverlay.cs + OverlayDrawer.cs  # 4-panel screenshots
 │       ├── ScreenshotCapture.cs            # Camera modes: default, overview, multi_view
 │       ├── CodeExecutor.cs                 # Roslyn C# execution, 3-layer security (IsAllowedAssembly: private→internal v0.26.0)
@@ -393,6 +404,15 @@ unity-kiss-mcp/
 │       │   ├── CommandRouterExtractHelperTests.cs # Extract helper unit tests (v0.70.0)
 │       │   ├── CommandRouterRegistrationTests.cs # Registration method tests (v0.70.0)
 │       │   ├── BatchRejectionTests.cs            # Batch async/specialDispatch rejection + runtime guard + atomic rollback (feat/tool-disambiguation, 5 tests)
+│       │   ├── PlaytestDslExtensionTests.cs      # SECTION/DESC/MOVE_PATH/AS/abort-on-fail DSL integration (v0.74.0)
+│       │   ├── PlaytestMacroTests.cs             # MACRO/CALL expansion, recursion, param substitution (v0.74.0)
+│       │   ├── WaitConditionTests.cs             # AND/OR compound conditions + EvalCompound unit tests (v0.74.0)
+│       │   ├── PlaytestRunnerTests.cs            # Runner integration tests (+48 lines, v0.74.0)
+│       │   ├── PlaytestComposerTests.cs          # Composer window state + step lifecycle (~116 tests, v0.75.0)
+│       │   ├── ComposerStateStoreTests.cs        # State persistence to Library/ + path override (~98 tests, v0.75.0)
+│       │   ├── PlaytestDropHelperTests.cs        # Multi-drop + component/field/method pickers (~225 tests, v0.75.0)
+│       │   ├── PlaytestDslExporterTests.cs       # All 17 StepTypes + Export + FromParsed roundtrip (~412 tests, v0.75.0)
+│       │   ├── PlaytestStepValidatorTests.cs     # Per-type validation error rules (~305 tests, v0.75.0)
 │       ├── Wizard/                        # Setup Wizard + Auto-Config + Diagnostics (v0.38.0+, v0.68.0: ProjectConfigWriter auto-config, v0.42.0: 3-screen flow, 9 backends, asmdef split; v0.47.1: AiConfigScreen fallback, removed dead screens)
 │       │   ├── ProjectConfigWriter.cs     # [InitializeOnLoad] auto-config orchestrator: discovers port, version, writes per-project MCP configs for all targets (v0.68.0)
 │       │   ├── ProjectConfigFormats.cs    # Format registry: JSON, TOML, extensible (v0.68.0)
@@ -506,6 +526,7 @@ unity-kiss-mcp/
 │       │   ├── SceneAnnotationUtils.cs      # Common validation, snapping, formatting utilities (v0.51.0)
 │       │   ├── PolygonDetail.cs             # Detail level enum (High/Medium/Low) + RDP thresholds
 │       │   ├── PolygonDetailSettings.cs     # EditorPrefs toggle for detail level
+│       │   ├── GdSnapshotSerializer.cs      # RegionSnapshot → ALIAS lines for playtest preamble (v0.74.0)
 │       │   ├── Drawing/                     # Drawing mode implementations (IDrawingMode + IAnnotationMode v0.51.0)
 │       │   │   ├── IDrawingMode.cs          # Interface: Begin, Update, Finalize, IsActive, IsComplete, PreviewVertices (v0.51.0: +IAnnotationMode)
 │       │   │   ├── DrawingUtils.cs          # Grid snap, point distance calculation
@@ -521,7 +542,7 @@ unity-kiss-mcp/
 │       │   │   ├── RenderStyle.cs           # Color, alpha, line width configuration
 │       │   │   ├── RenderState.cs           # Active/Preview/Committed polygon states (v0.51.0: +3 annotation fields)
 │       │   │   └── RegionIcons.cs           # Procedural Painter2D vector icons for tool palette + overlay (v0.46.0, 128 LOC)
-│       │   └── Tests/                       # 171 NUnit tests (v0.46.0: 104 + v0.51.0: 67)
+│       │   └── Tests/                       # 171+ NUnit tests (v0.46.0: 104 + v0.51.0: 67 + v0.74.0: GdSnapshotSerializer)
 │       │       ├── Drawing/
 │       │       │   ├── LassoModeTests.cs
 │       │       │   ├── RectangleModeTests.cs
@@ -533,7 +554,8 @@ unity-kiss-mcp/
 │       │       ├── Rendering/
 │       │       │   ├── RegionRendererTests.cs
 │       │       │   └── RenderStateAnnotationTests.cs (v0.51.0)
-│       │       └── RegionSnapshotAnnotationTests.cs (v0.51.0: 27 tests for factory methods + type-specific ShortLabel)
+│       │       ├── RegionSnapshotAnnotationTests.cs (v0.51.0: 27 tests for factory methods + type-specific ShortLabel)
+│       │       └── GdSnapshotSerializerTests.cs (v0.74.0: serializer label/type tests)
 │       ├── Chat/CLI/RegionChipProvider.cs   # Region + annotation chip provider for chat (v0.46.0, v0.51.0: +3 format methods)
 │       ├── Chat/CLI/ComponentChipProvider.cs # Component field chip provider for chat context (v0.59.0)
 │       ├── Chat/CLI/ChipPropertyFormatter.cs # DRY component property formatting (v0.59.0)
@@ -605,6 +627,7 @@ unity-kiss-mcp/
 │       │   │   ├── IPanelProvider.cs          # Plugin interface for side panels (v0.34.0)
 │       │   │   ├── ChatTranscript.cs          # In-memory message history + streaming→finalize strategy
 │       │   │   ├── TranscriptSerializer.cs    # Serialize/deserialize chat history to plain-text (F21 reload survival, v0.63.0: Kind enum + 5-column format)
+│       │   │   ├── PlaytestComposerButton.cs  # IToolbarButtonProvider (MenuOnly=true, Order=20) → opens PlaytestComposerWindow (v0.75.0)
 │       │   │   ├── AssemblyInfo.cs            # AssemblyVersion + InternalsVisibleTo decorators (Chat.CLI)
 │       │   │   └── Tests/                     # CLI assembly tests (protocol, parsing, backends)
 │       │   │       ├── ChatStreamParserTests.cs # Parse stream-json events + control_request routing

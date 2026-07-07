@@ -18,7 +18,8 @@ namespace UnityMCP.Editor
             _activeSimulator = null;
         }
 
-        public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs)
+        public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
+            bool abortOnFail = false)
         {
             if (_isRunning) { tcs.TrySetResult("ERROR: Playtest already running. Wait for completion."); return; }
             _isRunning = true;
@@ -33,6 +34,8 @@ namespace UnityMCP.Editor
             catch (Exception e) { _isRunning = false; tcs.TrySetResult($"PARSE ERROR: {e.Message}"); return; }
 
             if (steps.Count == 0) { _isRunning = false; tcs.TrySetResult("PLAYTEST: 0 steps (0s)"); return; }
+
+            bool globalAbort = abortOnFail || PlaytestParser.HasGlobalAbort(script);
 
             var results = new List<string>();
             int stepIdx = 0;
@@ -77,6 +80,7 @@ namespace UnityMCP.Editor
                 {
                     EditorApplication.update -= Tick;
                     _isRunning = false;
+                    if (globalAbort) EditorApplication.isPlaying = false;
                     results.Add($"[{stepIdx + 1}] ABORTED: global timeout {globalTimeout}s");
                     tcs.TrySetResult(BuildReport(results, passed, failed, testStart));
                     return;
@@ -117,7 +121,11 @@ namespace UnityMCP.Editor
                         float now = Time.realtimeSinceStartup;
                         if (now - phaseStart > step.Timeout)
                         {
-                            results.Add($"[{stepIdx + 1}] WAIT_UNTIL {step.Query}{step.Op}{step.Value} — TIMEOUT after {step.Timeout}s");
+                            bool abortThis = step.AbortOnFail || globalAbort;
+                            if (abortThis) EditorApplication.isPlaying = false;
+                            string lastVal = "?";
+                            try { var (lp, lc, lf) = PlaytestParser.ResolveQuery(step.Query, config); lastVal = ReadValue(lp, lc, lf); } catch { }
+                            results.Add($"[{stepIdx + 1}] WAIT_UNTIL {step.Query}{step.Op}{step.Value} — TIMEOUT after {step.Timeout}s (last: {lastVal})");
                             failed++;
                             phase = Phase.Done;
                             AdvanceStep();
@@ -127,9 +135,14 @@ namespace UnityMCP.Editor
                         {
                             var (p, c, f) = PlaytestParser.ResolveQuery(step.Query, config);
                             var actual = ReadValue(p, c, f);
-                            if (PlaytestParser.Compare(actual, step.Op, step.Value))
+                            bool met = EvalCompound(
+                                PlaytestParser.Compare(actual, step.Op, step.Value),
+                                step.Queries, step.BatchOps, step.BatchValues, step.IsOr,
+                                q => { var (cp, cc, cf) = PlaytestParser.ResolveQuery(q, config); return ReadValue(cp, cc, cf); });
+                            if (met)
                             {
-                                results.Add($"[{stepIdx + 1}] WAIT_UNTIL {step.Query}{step.Op}{step.Value} — PASS ({(now - phaseStart).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)");
+                                var logic = step.Queries != null ? (step.IsOr ? " (OR)" : " (AND)") : "";
+                                results.Add($"[{stepIdx + 1}] WAIT_UNTIL {step.Query}{step.Op}{step.Value}{logic} — PASS ({(now - phaseStart).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)");
                                 passed++;
                                 phase = Phase.Done;
                                 AdvanceStep();
@@ -235,6 +248,24 @@ namespace UnityMCP.Editor
             Time.timeScale = scale;
         }
 
+        /// <summary>Evaluate primary + extra conditions with AND/OR reduction. Testable without runtime.</summary>
+        internal static bool EvalCompound(bool primary, string[] queries, string[] ops, string[] vals,
+            bool isOr, Func<string, string> readFn)
+        {
+            if (queries == null) return primary;
+            if (!isOr && !primary) return false;  // AND: primary false → done
+            if (isOr && primary) return true;      // OR: primary true → done
+            bool met = primary;
+            for (int i = 0; i < queries.Length; i++)
+            {
+                bool cond = PlaytestParser.Compare(readFn(queries[i]), ops[i], vals[i]);
+                met = isOr ? met || cond : met && cond;
+                if (!isOr && !met) return false;  // AND short-circuit
+                if (isOr && met) return true;      // OR short-circuit
+            }
+            return met;
+        }
+
         internal static string BuildReport(List<string> results, int passed, int failed, float startTime)
         {
             SetTimeScale(1f);
@@ -244,14 +275,15 @@ namespace UnityMCP.Editor
             var header = $"PLAYTEST: {passed}/{passed + failed} ({elapsed.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)";
 
             bool hasMonitor = !string.IsNullOrEmpty(monitorReport);
-            if (failed == 0 && !results.Exists(r => r.Contains("SNAPSHOT") || r.Contains("ABORTED") || r.Contains("CONSOLE_ERR")))
+            if (failed == 0 && !results.Exists(r => r.Contains("SNAPSHOT") || r.Contains("ABORTED") || r.Contains("CONSOLE_ERR") || r.StartsWith("---")))
                 return hasMonitor ? header + " OK\n" + monitorReport : header + " OK";
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine(header);
             foreach (var r in results)
                 if (r.Contains("FAIL") || r.Contains("ERR") || r.Contains("TIMEOUT") ||
-                    r.Contains("SNAPSHOT") || r.Contains("LOG") || r.Contains("ABORTED"))
+                    r.Contains("SNAPSHOT") || r.Contains("LOG") || r.Contains("ABORTED") ||
+                    r.StartsWith("---"))
                     sb.AppendLine(r);
             if (hasMonitor) sb.AppendLine(monitorReport);
             return sb.ToString().TrimEnd();

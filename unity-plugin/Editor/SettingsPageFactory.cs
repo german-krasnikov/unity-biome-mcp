@@ -170,6 +170,7 @@ namespace UnityMCP.Editor
                 ("Summarize",           "summarize",           cfg.Summarize,          null),
                 ("Do Intent",           "do_intent",           cfg.DoIntent,           null),
                 ("Distiller",           "distiller",           cfg.Distiller,          null),
+                ("NL Composer",         "nl_composer",         cfg.NlComposer,         null),
             };
 
             foreach (var (label, key, config, toolDep) in rows)

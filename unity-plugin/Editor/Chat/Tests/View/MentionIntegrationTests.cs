@@ -27,7 +27,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var field = new InlineChipField();
             field.Text = "@Camera";
-            ChipTestHelpers.SetCursor(field, field.Text.Length);
+            ChipViewTestHelpers.SetCursor(field, field.Text.Length);
 
             field.ReplaceMentionRangeWithChip(0, 6, Cam()); // '@'=0, query="Camera"(6 chars)
 
@@ -41,7 +41,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var field = new InlineChipField();
             field.Text = "@Camera rest";
-            ChipTestHelpers.SetCursor(field, 7); // cursor right after "Camera"
+            ChipViewTestHelpers.SetCursor(field, 7); // cursor right after "Camera"
 
             field.ReplaceMentionRangeWithChip(0, 6, Cam());
 
@@ -71,7 +71,7 @@ namespace UnityMCP.Editor.Chat.Tests
             // Type "@Camera" after the existing chip mention
             int atPos = field.Text.Length;
             field.Text = field.Text + "@Camera";
-            ChipTestHelpers.SetCursor(field, field.Text.Length);
+            ChipViewTestHelpers.SetCursor(field, field.Text.Length);
 
             field.ReplaceMentionRangeWithChip(atPos, 6, Cam());
 
@@ -99,7 +99,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var field = new InlineChipField();
             field.Text = "@Cam rest of text";
-            ChipTestHelpers.SetCursor(field, 4);
+            ChipViewTestHelpers.SetCursor(field, 4);
 
             field.ReplaceMentionRangeWithChip(0, 3, Cam()); // '@'=0, query="Cam"(3 chars)
 

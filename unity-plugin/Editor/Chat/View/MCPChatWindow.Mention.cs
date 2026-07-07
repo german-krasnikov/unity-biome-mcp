@@ -53,17 +53,17 @@ namespace UnityMCP.Editor.Chat
                 case KeyCode.DownArrow:
                     _mentionPopup.MoveDown();
                     ev.StopPropagation();
-                    ev.PreventDefault();
+                    ev.StopImmediatePropagation();
                     break;
                 case KeyCode.UpArrow:
                     _mentionPopup.MoveUp();
                     ev.StopPropagation();
-                    ev.PreventDefault();
+                    ev.StopImmediatePropagation();
                     break;
                 case KeyCode.Escape:
                     _mentionPopup.Dismiss();
                     ev.StopPropagation();
-                    ev.PreventDefault();
+                    ev.StopImmediatePropagation();
                     break;
                 case KeyCode.Return:
                 case KeyCode.KeypadEnter:
@@ -81,7 +81,7 @@ namespace UnityMCP.Editor.Chat
                         }
                     }
                     ev.StopPropagation();
-                    ev.PreventDefault();
+                    ev.StopImmediatePropagation();
                     break;
             }
         }

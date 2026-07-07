@@ -26,9 +26,9 @@ namespace UnityMCP.Editor.Chat.Tests
             ChipPillFactory.ColorResolver = null;
         }
 
-        private void InsertChip(ChipData c) => ChipTestHelpers.InsertChip(_chipField, c);
-        private void SetCursor(int p) => ChipTestHelpers.SetCursor(_chipField, p);
-        private void Type(string t) => ChipTestHelpers.Type(_chipField, t);
+        private void InsertChip(ChipData c) => ChipViewTestHelpers.InsertChip(_chipField, c);
+        private void SetCursor(int p) => ChipViewTestHelpers.SetCursor(_chipField, p);
+        private void Type(string t) => ChipViewTestHelpers.Type(_chipField, t);
 
         // ── Single chip insertion ─────────────────────────────────────────────
 

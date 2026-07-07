@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
 
         private (string turnJson, string rawText) Send()
-            => ChipTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
+            => ChipViewTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
 
         private static List<(string path, string name)> Collect(string rawPath)
         {

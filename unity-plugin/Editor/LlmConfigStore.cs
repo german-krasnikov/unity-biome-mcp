@@ -39,6 +39,7 @@ namespace UnityMCP.Editor
             AppendLine(sb, "summarize",           Config.Summarize);
             AppendLine(sb, "do_intent",           Config.DoIntent);
             AppendLine(sb, "distiller",           Config.Distiller);
+            AppendLine(sb, "nl_composer",         Config.NlComposer);
             return sb.ToString().TrimEnd();
         }
 

@@ -5,6 +5,71 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.75.0] — Playtest Composer UI Toolkit, DSL Macros, Scenario Persistence, ShellHelper, NlComposerBridge
+
+**Added — Playtest Composer (visual DSL editor):**
+- **PlaytestComposerWindow** (`PlaytestComposerWindow.cs`) — full rewrite from IMGUI/ReorderableList to UI Toolkit (CreateGUI + ListView + USS). Exports to DSL via `PlaytestDslExporter`; imports via `PlaytestParser`; domain-reload-safe via `[SerializeField]`. Chat toolbar button (`PlaytestComposerButton.cs`) opens the window.
+- **PlaytestStepElement** (`PlaytestStepElement.cs`) — per-row `VisualElement` with a dedicated sub-panel per step type: Move, Teleport, Wait, TimeScale, WaitUntil, Assert, Invoke, **Set**, **Click**, **Invariant**, **Capture**, **AssertCaptured**, **AssertNear**, **AssertConsoleClean**, Log, Section. Invalid steps render with a red tint.
+- **PlaytestComposer.uss** — USS stylesheet for the Composer window; theme-neutral.
+- **Context-aware drag & drop** (`PlaytestDropHelper.cs`) — drag a `GameObject` or `Component` from Hierarchy/Inspector onto a step row; `ShowComponentPicker` and `ShowFieldPicker` open `GenericDropdownMenu` pickers; `ApplyMember` fills `path/component/method` for both `Invoke` and `Set` step contexts. `StopPropagation()` on pointer-down prevents `TextField` from swallowing drag events.
+- **PlaytestSmartDrop** (`PlaytestSmartDrop.cs`) — bulk drop zone; dropping a multi-selection of GameObjects creates one `Move` step per object. `AttachMultiDnD` wires the zone to the window.
+- **PlaytestStepValidator** (`PlaytestStepValidator.cs`) — validates `VisualStep` fields per step type (required path, positive timeout/delay, non-empty query, etc.); run gate rejects scripts with any invalid step.
+- **ComposerStateStore** (`ComposerStateStore.cs`) — JSON persistence to `Playtests/` directory (outside `Assets/`); `Save`/`Load`/`Exists`/`List` API; all fields `[SerializeField]` for domain-reload survival.
+- **VisualStep.Clone()** — right-click context menu exposes Duplicate; deep-copies all fields.
+- **PlaytestFileHelper** (`PlaytestFileHelper.cs`) — extracted file-path helpers (normalize name, resolve `Playtests/` directory).
+
+**Added — DSL extensions:**
+- **MACRO/END_MACRO/CALL** (`PlaytestParser.cs`) — define reusable DSL blocks with positional parameters; CALL expands inline before parsing; nesting up to depth 10; missing END_MACRO or nested MACRO definitions throw `ArgumentException`.
+- **MOVE_PATH** (`PlaytestParser.cs`) — `MOVE_PATH x1,y1,z1 > x2,y2,z2 [> ...] [TIMEOUT n]` expands into multiple `Move` steps at parse time; `>` separates waypoints; optional TIMEOUT applies to each leg.
+- **SECTION** (`PlaytestParser.cs`) — emits a section-header step (`StepType.Section`) rendered as `--- label ---` in reports; separates logical phases in long scripts.
+- **DESC** (`PlaytestParser.cs`) — `DESC "text"` preceding any step attaches a human-readable label (`PlaytestStep.Label`) to that step; no step is emitted for DESC itself.
+- **AS "text" suffix on ASSERT** (`PlaytestParser.cs`) — inline description on any `ASSERT` line (`ASSERT /Obj|hp >= 100 AS "health full"`); stored in `PlaytestStep.Message` and surfaced in failure output.
+- **Scenario persistence** (`server/src/unity_mcp/tools/scenarios.py`) — four new MCP tools: `save_scenario` (writes DSL to `~/.unity-mcp/scenarios/<name>.dsl`), `load_scenario`, `list_scenarios`, `run_scenario` (load + run_playtest in one call). Registered as `SESSION_SKILLS` / `UNIT_TESTS` tier.
+- **GdSnapshotSerializer** (`unity-plugin/Editor/RegionTool/GdSnapshotSerializer.cs`) — converts `RegionSnapshot` GD annotations (point, region, polyline, measurement) into `ALIAS @label x,y,z` DSL lines. `ToPlaytestPreamble()` emits a complete preamble block from a snapshot collection.
+
+**Added — infrastructure:**
+- **ShellHelper** (`ShellHelper.cs`) — DRY extraction of shell primitives previously duplicated across `LoginShellCommand.cs` and `ChatBinaryResolver.cs`. Provides `ShellQuoteSingle`, `BuildLoginShellArgs`, `CreateLoginShellPsi` (cross-platform: `/bin/zsh` on macOS, `/bin/bash` or `/bin/sh` on Linux, null on Windows), and async `RunProcessAsync`. `EditorPrefsKeyPrefix` constant shared across all shell consumers. `LoginShellCommand` is now a thin wrapper with no logic of its own.
+- **NlComposerBridge** (`NlComposerBridge.cs`) — spawns the active CLI backend (claude/codex/etc.) as a subprocess to convert natural-language game test descriptions into PlayTest DSL. Ships an embedded system prompt with the full DSL command reference. Test seams via `RunProcessOverride` / `ResolveBinaryOverride`.
+- **NlCommandWindow** (`NlCommandWindow.cs`) + **NlStepParser** (`NlStepParser.cs`) — Smart Command panel: free-text NL input → `NlComposerBridge.Convert()` → parses response → appends new steps to the Composer.
+
+**Fixed:**
+- **Last observed value in WAIT_UNTIL timeout** (`PlaytestRunner.cs`) — timeout message now includes final read: `WAIT_UNTIL … — TIMEOUT after 5s (last: 12)` instead of a bare timeout.
+- **ABORT false-positive** (`PlaytestParser.cs`) — ABORT detection moved inside the AND/OR extra-token loop; previously a value containing the substring "ABORT" could erroneously set `AbortOnFail`.
+- **`GetMethod` AmbiguousMatchException** (`RuntimeHelper.cs`) — zero-arg path now uses `Type.GetMethod(name, flags, null, Type.EmptyTypes, null)`; with-arg path uses `GetMethods().FirstOrDefault(m => m.GetParameters().Length == argCount)`. Cache key includes arg count suffix to avoid cross-arity collisions.
+
+**Internal:**
+- **EvalCompound short-circuit** (`PlaytestRunner.cs`) — AND exits on first `false` condition; OR exits on first `true` condition, avoiding unnecessary reflection reads in compound wait steps.
+
+**Tests:**
+- `PlaytestDslExporterTests.cs` (23 NUnit cases): roundtrip export/parse for all step types.
+- `PlaytestDropHelperTests.cs` (87 NUnit cases): component picker, field picker, `ApplyMember` for Invoke + Set contexts, multi-drop, `StopPropagation` guard.
+- `PlaytestComposerTests.cs` (~36 NUnit cases): `Bind`, panel visibility per step type, description field, `Clone`.
+- `PlaytestStepValidatorTests.cs` (42 NUnit cases): per-type validation error messages, null guard, `IsScriptValid`.
+- `ComposerStateStoreTests.cs` (~35 NUnit cases): save/load/list/exists round-trips, bad name rejection, missing file.
+- `ShellHelperTests.cs`: shell quoting correctness, cross-platform PSI factory, `BuildLoginShellArgs` format.
+- `NlComposerBridgeTests.cs`: NL→DSL conversion via `RunProcessOverride` seam, system prompt embedding.
+- `PlaytestDslExtensionTests.cs` (7 NUnit cases): SECTION step type, DESC label attachment, AS message on ASSERT, MOVE_PATH waypoint expansion, section preservation in compress_report.
+- `PlaytestMacroTests.cs` (15 NUnit cases): MACRO definition, CALL expansion, positional args substitution, nesting depth guard, missing END_MACRO error, stray END_MACRO ignored.
+- `GdSnapshotSerializerTests.cs` (10 NUnit cases): point, region, polyline, measurement serialization; multi-snapshot preamble; unknown type comment fallback.
+- `test_scenarios.py` (13 new pytest cases): save/load/list/run round-trips, name validation, missing scenario error, run_scenario delegates to run_playtest.
+- `test_runtime.py` (2 new cases): MOVE_PATH script forwarded unchanged, `_compress_report` preserves SECTION lines.
+
+## [v0.74.0] — wait_until: Method Dispatch, AND/OR Conditions, Abort-on-Fail
+
+**Added:**
+- **Method dispatch via `()` convention** (`RuntimeHelper.cs`) — field path segments ending with `()` invoke a zero-arg method via reflection (e.g., `wait_until /Player|Health|IsFullHP() == True`). `MethodInfo` cached per `(Type, methodName)` pair; cache cleared on domain reload. Enforced as zero-arg only (throws on methods with parameters).
+- **AND/OR compound conditions in DSL** (`PlaytestParser.cs`) — `WAIT_UNTIL` now accepts flat `AND` / `OR` chains: `WAIT_UNTIL /Player|Health|hp >= 100 AND /Player|Mana|value >= 50`. AND and OR cannot be mixed in the same step (throws `ArgumentException`). Extra conditions stored in `PlaytestStep.Queries/BatchOps/BatchValues/IsOr`.
+- **`EvalCompound` static helper** (`PlaytestRunner.cs`) — `internal static bool EvalCompound(bool primary, string[] queries, string[] ops, string[] vals, bool isOr, Func<string,string> readFn)` reduces primary + extra conditions with AND/OR logic. Pure function, no Unity API calls — testable without runtime.
+- **Abort on fail** (`PlaytestRunner.cs`, `RuntimeHelper.cs`, `PlaytestParser.cs`) — three surfaces:
+  - `abort_on_fail=True` param on `wait_until` and `run_playtest` (Python `runtime.py`)
+  - `ABORT_ON_FAIL` global directive in DSL script (parsed by `PlaytestParser.HasGlobalAbort()`, applies to all steps)
+  - `ABORT` per-step token in `WAIT_UNTIL` line (sets `PlaytestStep.AbortOnFail`)
+  - On timeout: `EditorApplication.isPlaying = false` — stops Play Mode immediately.
+
+**Tests:**
+- `WaitConditionTests.cs` (27 new NUnit cases): method dispatch happy path, zero-arg enforcement, cache miss/hit, AND compound pass/fail, OR compound pass/fail, mixed-operator rejection, `ABORT_ON_FAIL` directive parsing, per-step `ABORT` token, `EvalCompound` unit tests, `HasGlobalAbort` unit tests.
+- `test_runtime.py` (4 new cases): `abort_on_fail=True` serialized to TCP args, `run_playtest` abort param forwarding, param omitted when `False`.
+
 ## [v0.73.1] — Command Registration Race Condition Fix
 
 **Fixed:**

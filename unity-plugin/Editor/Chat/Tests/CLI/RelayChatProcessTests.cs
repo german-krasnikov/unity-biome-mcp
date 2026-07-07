@@ -427,7 +427,6 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void PollLoop_SeqTracking_SecondPollUsesUpdatedAfterSeq()
         {
-            int pollCount = 0;
             var seqArgs   = new List<string>();
             bool spawnDone = false;
 

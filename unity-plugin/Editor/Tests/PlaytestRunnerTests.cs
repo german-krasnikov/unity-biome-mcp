@@ -219,6 +219,54 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(report.Contains('\n'), "CONSOLE_ERR should force expanded report");
         }
 
+        // ── EvalCompound short-circuit ────────────────────────────────────────
+
+        [Test]
+        public void EvalCompound_And_PrimaryFalse_ShortCircuitsWithoutCallingReadFn()
+        {
+            bool called = false;
+            bool result = PlaytestRunner.EvalCompound(
+                false, new[] { "q" }, new[] { "==" }, new[] { "1" },
+                isOr: false, q => { called = true; return "1"; });
+            Assert.IsFalse(result);
+            Assert.IsFalse(called, "readFn should not be called when AND primary=false");
+        }
+
+        [Test]
+        public void EvalCompound_Or_PrimaryTrue_ShortCircuitsWithoutCallingReadFn()
+        {
+            bool called = false;
+            bool result = PlaytestRunner.EvalCompound(
+                true, new[] { "q" }, new[] { "==" }, new[] { "0" },
+                isOr: true, q => { called = true; return "0"; });
+            Assert.IsTrue(result);
+            Assert.IsFalse(called, "readFn should not be called when OR primary=true");
+        }
+
+        [Test]
+        public void EvalCompound_And_InnerFalse_ShortCircuitsRemainingCalls()
+        {
+            int callCount = 0;
+            // queries[0] returns "0" → Compare("0","==","1") = false → should stop
+            bool result = PlaytestRunner.EvalCompound(
+                true, new[] { "q0", "q1" }, new[] { "==", "==" }, new[] { "1", "1" },
+                isOr: false, q => { callCount++; return "0"; }); // both would fail, but only first should run
+            Assert.IsFalse(result);
+            Assert.AreEqual(1, callCount, "AND should stop after first false");
+        }
+
+        [Test]
+        public void EvalCompound_Or_InnerTrue_ShortCircuitsRemainingCalls()
+        {
+            int callCount = 0;
+            // queries[0] returns "1" → Compare("1","==","1") = true → should stop
+            bool result = PlaytestRunner.EvalCompound(
+                false, new[] { "q0", "q1" }, new[] { "==", "==" }, new[] { "1", "1" },
+                isOr: true, q => { callCount++; return "1"; }); // both would pass, but only first should run
+            Assert.IsTrue(result);
+            Assert.AreEqual(1, callCount, "OR should stop after first true");
+        }
+
         // ── TraceFlow ────────────────────────────────────────────────────────
 
         [Test]

@@ -29,7 +29,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
 
         private (string turnJson, string rawText) Send()
-            => ChipTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
+            => ChipViewTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
 
         private static ChipData H(string path, string name, int id = 0)
             => new ChipData(ChipKindKeys.Hierarchy, path, name, id);

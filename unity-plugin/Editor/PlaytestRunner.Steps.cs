@@ -21,7 +21,8 @@ namespace UnityMCP.Editor
                     {
                         var actual = ReadValue(ap, ac, af);
                         var ok = PlaytestParser.Compare(actual, step.Op, step.Value);
-                        results.Add($"{label} ASSERT {step.Query}{step.Op}{step.Value} — {(ok ? "PASS" : "FAIL")} ({actual})");
+                        var asLabel = !string.IsNullOrEmpty(step.Message) ? $" [{step.Message}]" : "";
+                        results.Add($"{label} ASSERT {step.Query}{step.Op}{step.Value} — {(ok ? "PASS" : "FAIL")} ({actual}){asLabel}");
                         if (ok) passed++; else failed++;
                     }
                     catch (Exception e)
@@ -61,7 +62,8 @@ namespace UnityMCP.Editor
                     phase = Phase.Moving;
                     var charPath = step.Path ?? ResolveCharacterPath(config);
                     _moveTcs = new TaskCompletionSource<string>();
-                    RuntimeHelper.MoveTo(charPath, $"{step.Position.x},{step.Position.y},{step.Position.z}", 15f, _moveTcs, config);
+                    RuntimeHelper.MoveTo(charPath, $"{step.Position.x},{step.Position.y},{step.Position.z}",
+                        step.Timeout > 0 ? step.Timeout : 15f, _moveTcs, config);
                     break;
 
                 case StepType.Snapshot:
@@ -248,6 +250,11 @@ namespace UnityMCP.Editor
                         else
                             passed++;
                     }
+                    phase = Phase.Done;
+                    break;
+
+                case StepType.Section:
+                    results.Add($"--- {step.Message} ---");
                     phase = Phase.Done;
                     break;
 

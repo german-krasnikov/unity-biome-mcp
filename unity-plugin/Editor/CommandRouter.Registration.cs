@@ -352,13 +352,13 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "", optional: "questions",
                 alwaysAllowed: true, allowedDuringCompile: true);  // UI-only card, no assembly access
             CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, runtime: true,
-                required: "path,component,field,value", optional: "timeout,negate");
+                required: "path,component,field,value", optional: "timeout,negate,abort_on_fail");
             CommandRegistry.RegisterAsync("move_to", AsyncMoveTo, runtime: true,
                 required: "path,position", optional: "timeout");
             CommandRegistry.RegisterAsync("test_step", AsyncTestStep, runtime: true,
                 required: "path,position", optional: "checks_before,checks_after,wait_after,timeout");
             CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: true,
-                required: "script", optional: "timeout");
+                required: "script", optional: "timeout,abort_on_fail");
         }
     }
 }

@@ -38,6 +38,13 @@ namespace UnityMCP.Editor.Wizard
             WizardConfigWriter.FindEntryBounds(text, PermissionConfig.SERVER_NAME, out start, out end) ||
             WizardConfigWriter.FindEntryBounds(text, "unity-kiss", out start, out end);
 
+        private static bool LooksLikeOurs(string text)
+        {
+            if (!FindOurEntry(text, out var s, out var e)) return false;
+            var span = text.Substring(s, e - s);
+            return span.Contains("\"uvx\"") || span.Contains("\"unity-mcp\"");
+        }
+
         internal static string ExtractMarkerVersion(string existingText)
         {
             if (!FindOurEntry(existingText, out var start, out var end))
@@ -61,7 +68,8 @@ namespace UnityMCP.Editor.Wizard
                 return EntryState.Absent;
 
             var markerVersion = ExtractMarkerVersion(existingText);
-            if (markerVersion == null) return EntryState.Foreign;
+            if (markerVersion == null)
+                return LooksLikeOurs(existingText) ? EntryState.OwnedStale : EntryState.Foreign;
 
             var markerPort = ExtractMarkerPort(existingText);
             return markerVersion == version && markerPort == port

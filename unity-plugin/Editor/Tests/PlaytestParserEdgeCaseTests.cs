@@ -88,5 +88,30 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(StepType.AssertBatch, steps[0].Type);
             Assert.AreEqual(1, steps[0].Queries.Length);
         }
+
+        // ── ABORT token in WAIT_UNTIL ─────────────────────────────────────────
+
+        [Test]
+        public void Parse_WaitUntil_AbortStandaloneToken_SetsAbortOnFail()
+        {
+            var steps = PlaytestParser.Parse("WAIT_UNTIL /P|C|f == ok ABORT");
+            Assert.IsTrue(steps[0].AbortOnFail, "Standalone ABORT should set AbortOnFail");
+        }
+
+        [Test]
+        public void Parse_WaitUntil_AbortAsAndConditionValue_DoesNotSetAbortOnFail()
+        {
+            // "ABORT" is the VALUE of an AND condition, not a standalone token
+            var steps = PlaytestParser.Parse("WAIT_UNTIL /P|C|state == ok AND /Q|C|mode == ABORT");
+            Assert.IsFalse(steps[0].AbortOnFail, "ABORT as AND value must not set AbortOnFail");
+        }
+
+        [Test]
+        public void Parse_WaitUntil_AbortAfterAndBlock_SetsAbortOnFail()
+        {
+            // ABORT appears AFTER AND block as standalone
+            var steps = PlaytestParser.Parse("WAIT_UNTIL /P|C|state == ok AND /Q|C|mode == run ABORT");
+            Assert.IsTrue(steps[0].AbortOnFail, "Standalone ABORT after AND block should set AbortOnFail");
+        }
     }
 }

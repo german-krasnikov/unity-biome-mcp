@@ -39,7 +39,7 @@ namespace UnityMCP.Editor.Chat.Tests
             => new ChipData(ChipKindKeys.Script, path, name, 0);
 
         private (string turnJson, string rawText) SimulateSend()
-            => ChipTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
+            => ChipViewTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
 
         [Test]
         public void TextOnly_TurnJsonContainsText()

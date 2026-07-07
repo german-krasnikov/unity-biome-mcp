@@ -1,0 +1,120 @@
+// Pure static DSL builder — no Unity API calls, fully NUnit-testable.
+using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
+using UnityEngine;
+
+namespace UnityMCP.Editor
+{
+    internal static class PlaytestDslExporter
+    {
+        static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
+
+        /// <summary>Build a full DSL script from a list of visual steps.</summary>
+        public static string Export(List<VisualStep> steps, bool globalAbort)
+        {
+            var sb = new StringBuilder();
+            if (globalAbort) sb.AppendLine("ABORT_ON_FAIL");
+            foreach (var step in steps)
+            {
+                if (!IsSupportedType(step.type) && string.IsNullOrEmpty(step.message)) continue;
+                sb.AppendLine(StepToDsl(step));
+            }
+            return sb.ToString().TrimEnd();
+        }
+
+        /// <summary>Convert one VisualStep to its DSL line(s). Prepends DESC if description set.</summary>
+        public static string StepToDsl(VisualStep step)
+        {
+            var prefix = !string.IsNullOrEmpty(step.description) ? $"DESC {step.description}\n" : "";
+            return prefix + StepLine(step);
+        }
+
+        static string StepLine(VisualStep s) => s.type switch
+        {
+            StepType.Move         => string.IsNullOrEmpty(s.path)
+                                         ? $"MOVE TO {Vec(s.position)}"
+                                         : $"MOVE {s.path} TO {Vec(s.position)}",
+            StepType.Teleport     => $"TELEPORT {s.path} {Vec(s.position)}",
+            StepType.Wait         => $"WAIT {F(s.delay)}",
+            StepType.WaitUntil    => WaitUntilLine(s),
+            StepType.Assert       => $"ASSERT {s.query} {s.op} {QuoteIfSpace(s.value)}",
+            StepType.AssertConsoleClean => string.IsNullOrEmpty(s.message)
+                                               ? "ASSERT_CONSOLE_CLEAN"
+                                               : $"ASSERT_CONSOLE_CLEAN IGNORE \"{s.message}\"",
+            StepType.Log          => $"LOG {s.message}",
+            StepType.Section      => $"SECTION \"{s.message}\"",
+            StepType.Invoke       => InvokeLine(s),
+            StepType.TimeScale    => $"TIMESCALE {F(s.delay)}",
+            StepType.Monitor      => $"MONITOR {s.query}",
+            StepType.Set          => $"SET {s.path} {s.component} {s.method} {s.args}",
+            StepType.Click        => s.delay > 0
+                                         ? $"CLICK {s.path} WAIT {F(s.delay)}"
+                                         : $"CLICK {s.path}",
+            StepType.Invariant    => $"INVARIANT {s.query} {s.op} {QuoteIfSpace(s.value)}",
+            StepType.Capture      => $"CAPTURE {s.message} {s.query}",
+            StepType.AssertCaptured => AssertCapturedLine(s),
+            StepType.AssertNear   => $"ASSERT_NEAR {s.path} {s.value} {F(s.delay)}",
+            _                     => $"# (raw: {s.message})"
+        };
+
+        static string AssertCapturedLine(VisualStep s)
+        {
+            var line = $"ASSERT_CAPTURED {s.message} {s.op}";
+            if (!string.IsNullOrEmpty(s.args))  line += $" {s.args}";
+            if (!string.IsNullOrEmpty(s.value)) line += $" {s.value}";
+            return line;
+        }
+
+        static string WaitUntilLine(VisualStep s)
+        {
+            var line = $"WAIT_UNTIL {s.query} {s.op} {QuoteIfSpace(s.value)} TIMEOUT {F(s.timeout)}";
+            return s.abortOnFail ? line + " ABORT" : line;
+        }
+
+        static string QuoteIfSpace(string v) => v != null && v.Contains(' ') ? $"\"{v}\"" : v;
+
+        static string InvokeLine(VisualStep s)
+        {
+            var line = $"INVOKE {s.path} {s.component} {s.method}";
+            return string.IsNullOrEmpty(s.args) ? line : line + $" {s.args}";
+        }
+
+        static string Vec(Vector3 v) => $"{F(v.x)},{F(v.y)},{F(v.z)}";
+        static string F(float v)     => v.ToString("G", Inv);
+
+        /// <summary>Convert a parsed PlaytestStep back to a VisualStep (for Load roundtrip).</summary>
+        public static VisualStep FromParsed(PlaytestStep p)
+        {
+            bool supported = IsSupportedType(p.Type);
+            return new VisualStep
+            {
+                type        = p.Type,
+                description = p.Label     ?? "",
+                path        = p.Path      ?? "",
+                position    = p.Position,
+                delay       = p.Delay,
+                query       = p.Query     ?? "",
+                op          = p.Op        ?? "==",
+                value       = p.Value     ?? "",
+                timeout     = p.Timeout,
+                component   = p.Component ?? "",
+                method      = p.Method    ?? "",
+                args        = p.Args      ?? "",
+                message     = supported ? (p.Message ?? "") : (p.RawLine ?? p.Message ?? ""),
+                abortOnFail = p.AbortOnFail,
+            };
+        }
+
+        static bool IsSupportedType(StepType t) => t switch
+        {
+            StepType.Move or StepType.Teleport or StepType.Wait or StepType.WaitUntil
+            or StepType.Assert or StepType.AssertConsoleClean or StepType.Log
+            or StepType.Section or StepType.Invoke or StepType.TimeScale
+            or StepType.Monitor or StepType.Set or StepType.Click
+            or StepType.Invariant or StepType.Capture or StepType.AssertCaptured
+            or StepType.AssertNear => true,
+            _ => false
+        };
+    }
+}

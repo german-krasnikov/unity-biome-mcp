@@ -1,17 +1,11 @@
-// Shared test helpers for chip sequence / send flow tests.
+// View-layer test helpers extending the CLI ChipTestHelpers (H/S live in CLI assembly).
 using System.Collections.Generic;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
-    internal static class ChipTestHelpers
+    internal static class ChipViewTestHelpers
     {
-        internal static ChipData H(string path, string name, int id = 0)
-            => new ChipData(ChipKindKeys.Hierarchy, path, name, id);
-
-        internal static ChipData S(string path, string name)
-            => new ChipData(ChipKindKeys.Script, path, name, 0);
-
         // Delegates to AddChip — injects @DisplayName into TextField + tracks position.
         internal static void InsertChip(InlineChipField field, ChipData chip)
             => field.AddChip(chip);

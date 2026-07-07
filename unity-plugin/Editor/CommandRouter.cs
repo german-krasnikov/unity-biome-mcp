@@ -184,8 +184,9 @@ namespace UnityMCP.Editor
             var value = JsonHelper.ExtractString(argsJson, "value");
             var timeout = ExtractFloat(argsJson, "timeout", 5f);
             var negate = JsonHelper.ExtractString(argsJson, "negate") == "true";
+            var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
             var inner = new TaskCompletionSource<string>();
-            RuntimeHelper.WaitUntil(path, component, field, value, timeout, negate, inner);
+            RuntimeHelper.WaitUntil(path, component, field, value, timeout, negate, inner, abortOnFail);
             CompleteFromInner(id, inner.Task, tcs, "wait_until");
         }
 
@@ -217,8 +218,9 @@ namespace UnityMCP.Editor
             var script = JsonHelper.ExtractString(argsJson, "script");
             var timeout = ExtractFloat(argsJson, "timeout", 120f);
             if (timeout <= 0) timeout = 120f;
+            var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
             var inner = new TaskCompletionSource<string>();
-            PlaytestRunner.Run(script, timeout, inner);
+            PlaytestRunner.Run(script, timeout, inner, abortOnFail);
             CompleteFromInner(id, inner.Task, tcs, "run_playtest");
         }
 
@@ -324,7 +326,7 @@ namespace UnityMCP.Editor
             var sb = new StringBuilder();
             sb.AppendLine($"unity:{Application.unityVersion}");
             sb.AppendLine($"platform:{Application.platform}");
-            sb.AppendLine($"scriptingBackend:{UnityEditor.PlayerSettings.GetScriptingBackend(UnityEditor.EditorUserBuildSettings.selectedBuildTargetGroup)}");
+            sb.AppendLine($"scriptingBackend:{UnityEditor.PlayerSettings.GetScriptingBackend(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(UnityEditor.EditorUserBuildSettings.selectedBuildTargetGroup))}");
             sb.AppendLine("packages:");
 #if UNITYMCP_HAS_CINEMACHINE
             sb.AppendLine("  cinemachine:true");

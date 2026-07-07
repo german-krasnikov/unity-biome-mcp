@@ -33,7 +33,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         private (string turnJson, string rawText) SimulateSend()
-            => ChipTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
+            => ChipViewTestHelpers.SimulateSend(_chipField, _transcript, _cfg);
 
         // Dual-chip: hierarchy + script
         // turnJson must contain both full-path @-mentions AND both [kind:path] brackets.
@@ -43,7 +43,7 @@ namespace UnityMCP.Editor.Chat.Tests
             _chipField.AddChip(new ChipData(ChipKindKeys.Hierarchy, "/GridPlayer", "GridPlayer", 42));
             _chipField.AddChip(new ChipData(ChipKindKeys.Script,
                 "Assets/Tests/Editor/CommandRouterTests.cs", "CommandRouterTests", 0));
-            ChipTestHelpers.Type(_chipField, "что это?");
+            ChipViewTestHelpers.Type(_chipField, "что это?");
 
             var (tj, _) = SimulateSend();
 
@@ -63,7 +63,7 @@ namespace UnityMCP.Editor.Chat.Tests
             _chipField.AddChip(new ChipData(ChipKindKeys.Hierarchy, "/GridPlayer", "GridPlayer", 42));
             _chipField.AddChip(new ChipData(ChipKindKeys.Script,
                 "Assets/Tests/Editor/CommandRouterTests.cs", "CommandRouterTests", 0));
-            ChipTestHelpers.Type(_chipField, "что это?");
+            ChipViewTestHelpers.Type(_chipField, "что это?");
 
             var (tj, _) = SimulateSend();
             var textBlock = tj.Split('\n')[0]; // first line is the plain-text portion
@@ -79,7 +79,7 @@ namespace UnityMCP.Editor.Chat.Tests
             _chipField.AddChip(new ChipData(ChipKindKeys.Hierarchy, "/GridPlayer", "GridPlayer", 42));
             _chipField.AddChip(new ChipData(ChipKindKeys.Script,
                 "Assets/Tests/Editor/CommandRouterTests.cs", "CommandRouterTests", 0));
-            ChipTestHelpers.Type(_chipField, "что это?");
+            ChipViewTestHelpers.Type(_chipField, "что это?");
             SimulateSend();
 
             var bubble = ChatWindowAssertions.GetUserBubble(_container, 0);

@@ -169,6 +169,7 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
      * **SceneAnnotationTool (v0.51.0)**: Unified entry point (Shift+A) for all annotation modes. Mode switching via menu. SceneAnnotationShortcut wires hotkeys. SceneAnnotationUtils for common validation/snapping.
      * **Chat Integration**: RegionChipProvider for region+annotation selection in chat (format methods: FormatRegion, FormatPoint, FormatPolyline, FormatMeasurement). **T3 (v0.64.0): FormatPolyline Enrichment** — Extended with `type=polyline` tag, `start=` / `end=` Vec3 endpoints, YAML-style point list at full depth. MultiPoint annotation support (extends v0.51.0 capabilities). 75 tests in test_scene_tools.py.
      * **Tests**: 104 C# NUnit tests (v0.46.0) + 67 new annotation tests (v0.51.0): RegionSnapshotAnnotationTests (27), AnnotationDrawingModeTests (23), RegionChipProviderAnnotationTests (17)
+     * **GdSnapshotSerializer.cs (v0.74.0)**: Converts `RegionSnapshot` annotations to ALIAS DSL lines for playtest scripts. `ToAliasLines(snap)` → `ALIAS @label x,y,z` (point/region), numbered vertex aliases (polyline), `@label_start`/`@label_end` (measurement). `ToPlaytestPreamble(snapshots)` renders all snapshots as a block preamble. Labels sanitized (lowercase, underscores, alphanum only). Internal to `UnityMCP.Editor.RegionTool` namespace.
 
 ### Runtime Debug Subsystem (v0.59.0)
 
@@ -566,6 +567,48 @@ Root cause: v0.42.0 asmdef split (7→9 assemblies) amplified 3 latent bugs into
 - **Architecture:** All effects use CSS class toggles (schedule.Execute for delayed transitions). Single-source-of-truth color palette prevents hardcoded #RRGGBB drift. DRY consolidation across ~6 animation-heavy windows.
 - **Tests:** 23 NUnit tests (ArcadePaletteTests 7, ArcadeAnimTests 6, SamplingHeaderAnimTests 3, StatusAmbientAnimTests 5, WizardStepAnimTests 5)
 
+## Playtest Composer Subsystem (v0.75.0)
+
+**Visual DSL builder: drag GameObjects onto the Composer and auto-generate playtest scripts without writing DSL by hand.**
+
+Menu: `MCP/Playtest Composer` (Shift+Alt+P). Rewritten from IMGUI to UI Toolkit in v0.75.0.
+
+### Components
+
+- **PlaytestComposerWindow.cs**: UI Toolkit `EditorWindow`. `ListView` with `DynamicHeight` virtualization. Toolbar: Run / Save / Load / Copy DSL / Copy for AI / + Smart Command. DSL preview flushes every 400 ms via `schedule.Execute`. Delegates to: PlaytestDslExporter (build DSL), PlaytestStepValidator (gate Run button), ComposerStateStore + PlaytestFileHelper (persistence).
+
+- **VisualStep.cs** (`[Serializable]`): Single-step data model. 14 fields: `type` (StepType), `description`, `path`, `position`, `delay`, `query`, `op`, `value`, `timeout`, `component`, `method`, `args`, `message`, `abortOnFail`. `Clone()` for duplicate.
+
+- **PlaytestDslExporter.cs** (pure static, no Unity API — fully NUnit-testable): Converts `List<VisualStep>` → DSL string. `Export(steps, globalAbort)` prepends `ABORT_ON_FAIL` when set. `StepToDsl(step)` prepends `DESC …` when description is non-empty. `FromParsed(PlaytestStep)` provides roundtrip from parser (used by Load). Handles 17 `StepType` cases.
+
+- **PlaytestStepElement.cs** (UITK `VisualElement`, 282 LOC): Per-row visual editor for one `VisualStep`. `Bind(step, onDirty, onDuplicate, onDelete)` / `Unbind()` lifecycle. Shows inline validation error. Fields adapt to `StepType`.
+
+- **PlaytestStepValidator.cs** (pure static): `GetValidationError(step)` → string|null per type. `IsScriptValid(steps)` → bool (gates Run button).
+
+- **PlaytestSmartDrop.cs** (static): `ShowActionMenu(go, onCreated, onFinished, anchor)` — `GenericDropdownMenu` with 10 actions: Move, Teleport, Assert, WaitUntil, Invoke, Monitor, Set, Click, Capture, AssertNear. Uses `ComponentSerializer.GetPath` for scene path.
+
+- **PlaytestDropHelper.cs** (static, 159 LOC): `AttachMultiDnD(list, onDrop)` — multi-object drag-and-drop onto `ListView`. `ShowComponentPicker(go, step, type, onFinished, anchor)` — `GenericDropdownMenu` cascading component → field/method selection.
+
+- **ComposerStateStore.cs** (static): Persists/restores `ComposerState` (steps + globalTimeout + globalAbort + lastFilePath) to `Library/PlaytestComposerState.json` via `JsonUtility`. Survives domain reload. `_testOverride` seam for NUnit.
+
+- **PlaytestFileHelper.cs** (static, 42 LOC): Save/Load `.playtest` text files via OS file dialog. Load parses DSL → `VisualStep[]` via `PlaytestParser` + `PlaytestDslExporter.FromParsed`.
+
+- **PlaytestComposerButton.cs** (Chat.CLI): `IToolbarButtonProvider` (`MenuOnly=true`, `Order=20`). Registers "Composer" in MCPChatWindow hamburger menu (≡). Opens PlaytestComposerWindow.
+
+### Smart Command Window (NlCommandWindow)
+
+`NlCommandWindow.Show(steps, list, onDirty)` — modal `EditorWindow` for natural-language step entry. Text passed to `NlComposerBridge` → `NlStepParser` → VisualStep(s) appended to composer list.
+
+### Tests (v0.75.0)
+
+| File | Coverage |
+|------|----------|
+| PlaytestComposerTests.cs | Window state, step lifecycle (~116 tests) |
+| ComposerStateStoreTests.cs | Load/Save/path override (~98 tests) |
+| PlaytestDropHelperTests.cs | DnD + component/field pickers (~225 tests) |
+| PlaytestDslExporterTests.cs | All 17 StepTypes + roundtrip (~412 tests) |
+| PlaytestStepValidatorTests.cs | Per-type validation rules (~305 tests) |
+
 ## Level Design Toolkit (v0.46.0+, F1-F5)
 
 **Chat-Integrated Visual Tools:**
@@ -781,6 +824,14 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 - **scene.py**: `full: bool = False` parameter for scene tools
 - **middleware_async.py**: distill cache key collision fix (include full flag)
 
+### Scenario Persistence (Python: `tools/scenarios.py`, v0.74.0)
+- `save_scenario(name, script)` — writes `.playtest` file to `Assets/Tests/PlayMode/Scenarios/`; path traversal protection, mkdir on first write
+- `load_scenario(name)` — reads and returns DSL script content
+- `list_scenarios()` — lists all saved `.playtest` file names (no extension)
+- `run_scenario(name)` — load + `run_playtest` in one call (tier1, 300s timeout, category: UNIT_TESTS)
+- Other 3 tools: category SESSION_SKILLS (gated). Name validation: `^[a-zA-Z0-9_-]+$` regex guard.
+- Project path discovery: `UNITY_PROJECT_PATH` env → port file → `read_project_path_from_port_file`
+
 ### Auto-Batch (Python: `tools/autobatch.py`)
 - `setup_objects(specs)` — create+configure multiple objects (one per line DSL)
 - `set_properties(path, props)` — set multiple properties (component.prop=value)
@@ -800,11 +851,20 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 - **Compile Check Gate** (MANDATORY before NUnit): TCP `get_compile_errors` must pass before running NUnit tests. Unity runs stale DLL on compilation failure; tests invalid against old code. Editor.log unreliable. Implement as: `run_tests(mode="EditMode")` catches compile via early test failure, OR manual `await get_compile_errors()` in Python
 
 ### Playtest System (C#: PlaytestRunner + PlaytestParser)
-- DSL commands (21): MOVE, WAIT, WAIT_UNTIL, ASSERT, ASSERT_CONSOLE_CLEAN, ASSERT_BATCH, ASSERT_NEAR, TELEPORT, SNAPSHOT, INVOKE, SET, LOG, TIMESCALE, CAPTURE, ASSERT_CAPTURED, INVARIANT, ASSERT_CONSERVED, SIMULATE, MONITOR, TRACE_FLOW, ASSERT_CTA
+- DSL commands (23): MOVE, WAIT, WAIT_UNTIL, ASSERT, ASSERT_CONSOLE_CLEAN, ASSERT_BATCH, ASSERT_NEAR, TELEPORT, SNAPSHOT, INVOKE, SET, LOG, TIMESCALE, CAPTURE, ASSERT_CAPTURED, INVARIANT, ASSERT_CONSERVED, SIMULATE, MONITOR, TRACE_FLOW, ASSERT_CTA, MOVE_PATH, SECTION
+- DSL directives (not steps): ABORT_ON_FAIL (global abort flag), DESC "text" (sets label for next step, consumed by `PlaytestStep.Label`)
+- DSL modifiers: `AS "text"` suffix on ASSERT — inline description in report
 - PlaytestState tracks state across steps
 - PlaytestConfig ScriptableObject for project-specific config
 - Monitor/Simulator registries for extensibility
 - Global timeout 120s
+- **AND/OR compound WAIT_UNTIL (v0.74.0)**: `WAIT_UNTIL /path|Comp|field op val AND /path2|Comp2|field2 op2 val2` — flat chains only, AND and OR cannot be mixed in one step. Extra conditions stored in `PlaytestStep.Queries/BatchOps/BatchValues/IsOr`. Evaluated by `PlaytestRunner.EvalCompound()` (pure, testable without Unity).
+- **ABORT_ON_FAIL / ABORT (v0.74.0)**: global DSL directive `ABORT_ON_FAIL` (top-level line, parsed by `PlaytestParser.HasGlobalAbort()`) or per-step `ABORT` token on `WAIT_UNTIL`; also `abort_on_fail=True` Python param on `wait_until` and `run_playtest`. On step timeout: `EditorApplication.isPlaying = false`.
+- **Method dispatch via `()` (v0.74.0, RuntimeHelper.cs)**: field path segment ending with `()` (e.g., `IsFullHP()`) invokes a zero-arg method via reflection. Also supports method args: `HasItem(sword)`, `DistanceTo(5,0,3)` via `(args)` syntax. `MethodInfo` cached per `(Type, methodName)` pair; cache cleared on domain reload.
+- **WAIT_UNTIL last value (v0.74.0)**: timeout message includes last observed value: `(last: 12)`.
+- **MOVE_PATH (v0.74.0, PlaytestParser.cs)**: `MOVE_PATH x1,y1,z1 > x2,y2,z2 [> ...] [TIMEOUT n]` — parser expands waypoints into N sequential MOVE steps.
+- **SECTION / DESC (v0.74.0)**: `SECTION "title"` emits a label step (visible in test reports). `DESC "description"` sets `PlaytestStep.Label` on the NEXT emitted step (consumed, does not emit own step).
+- **MACRO / CALL (v0.74.0, preprocessor)**: `MACRO name $1 $2 ... END_MACRO` defines a named template; `CALL name arg1 arg2` expands inline before parsing. Positional substitution uses `ReplaceWholeWord` (no `$1`-in-`$10` collision). Guards: nested MACRO blocked, circular depth 10, arg count validated. Forward references and nested CALL supported.
 
 ### MultiView Screenshots (C#: MultiViewCapture)
 - Camera modes: default, overview, overview_game, multi_view, single_view

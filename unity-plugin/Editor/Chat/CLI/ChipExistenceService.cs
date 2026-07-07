@@ -97,7 +97,7 @@ namespace UnityMCP.Editor.Chat
             if (_hookInstalled || _disposed) return;
             _hookInstalled = true;
             EditorApplication.update += ProcessBatch;
-            EditorApplication.projectWindowChanged += OnProjectWindowChanged;
+            EditorApplication.projectChanged += OnProjectWindowChanged;
             EditorApplication.hierarchyChanged += OnHierarchyChanged;
             EditorSceneManager.sceneOpened += OnSceneOpened;
             ChipExistenceAssetPostprocessor.OnAssetsChanged += OnAssetsChanged;
@@ -108,7 +108,7 @@ namespace UnityMCP.Editor.Chat
             if (!_hookInstalled) return;
             _hookInstalled = false;
             EditorApplication.update -= ProcessBatch;
-            EditorApplication.projectWindowChanged -= OnProjectWindowChanged;
+            EditorApplication.projectChanged -= OnProjectWindowChanged;
             EditorApplication.hierarchyChanged -= OnHierarchyChanged;
             EditorSceneManager.sceneOpened -= OnSceneOpened;
             ChipExistenceAssetPostprocessor.OnAssetsChanged -= OnAssetsChanged;

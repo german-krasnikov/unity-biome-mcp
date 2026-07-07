@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 from mcp.server.fastmcp.exceptions import ToolError
 from unity_mcp.server import (
     invoke_method, set_runtime_property, wait_until, query_state, move_to, fuzz_playtest,
-    set_active, wire_event, unwire_event,
+    set_active, wire_event, unwire_event, run_playtest,
 )
 
 
@@ -63,6 +63,34 @@ async def test_wait_until_custom_timeout(mock_bridge):
     assert sent["timeout"] == "15.0"
     # Python timeout = Unity timeout + 5
     assert call_args[1]["timeout"] == 20.0
+
+
+async def test_wait_until_abort_on_fail_passes_arg(mock_bridge):
+    mock_bridge.send.return_value = {"ok": True, "data": "ok"}
+    await wait_until("/P", "C", "f", "v", abort_on_fail=True)
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["abort_on_fail"] == "true"
+
+
+async def test_wait_until_abort_on_fail_default_omits(mock_bridge):
+    mock_bridge.send.return_value = {"ok": True, "data": "ok"}
+    await wait_until("/P", "C", "f", "v", abort_on_fail=False)
+    sent = mock_bridge.send.call_args[0][1]
+    assert "abort_on_fail" not in sent
+
+
+async def test_run_playtest_abort_on_fail_passes_arg(mock_bridge):
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+    await run_playtest("ASSERT_CONSOLE_CLEAN", abort_on_fail=True)
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["abort_on_fail"] == "true"
+
+
+async def test_run_playtest_abort_on_fail_default_omits(mock_bridge):
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+    await run_playtest("ASSERT_CONSOLE_CLEAN")
+    sent = mock_bridge.send.call_args[0][1]
+    assert "abort_on_fail" not in sent
 
 
 async def test_query_state_sends_correct_command(mock_bridge):
@@ -154,3 +182,26 @@ async def test_unwire_event_error_raises_tool_error_runtime(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "No listeners to remove"})
     with pytest.raises(ToolError, match="No listeners to remove"):
         await unwire_event("/Btn", "Button", "onClick")
+
+
+# ─── Phase 1: Section/MOVE_PATH DSL extensions ───────────────────────────────
+
+def test_compress_report_preserves_section_lines():
+    from unity_mcp.tools.runtime import _compress_report
+    report = (
+        "PLAYTEST: 3/3 (1.0s)\n"
+        "[1] ASSERT x == 1 — PASS (1)\n"
+        "--- Movement Phase ---\n"
+        "[2] ASSERT y == 2 — PASS (2)"
+    )
+    result = _compress_report(report)
+    assert "--- Movement Phase ---" in result
+
+
+async def test_move_path_sends_script(mock_bridge):
+    """run_playtest passes MOVE_PATH script to bridge unchanged."""
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 3/3 (1.0s) OK"}
+    script = "MOVE_PATH 1,0,0 > 5,0,0 > 10,0,3"
+    await run_playtest(script)
+    sent = mock_bridge.send.call_args[0][1]
+    assert "MOVE_PATH" in sent["script"]

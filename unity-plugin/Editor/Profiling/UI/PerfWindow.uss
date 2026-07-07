@@ -63,7 +63,6 @@
 .perf-section-label {
     font-size: 9px;
     -unity-font-style: bold;
-    text-transform: uppercase;
     color: var(--unity-colors-label-text);
     opacity: 0.5;
     margin-top: 6px;
@@ -98,9 +97,6 @@
     border-radius: 4px;
 }
 
-.perf-bar-card:last-child {
-    margin-right: 0;
-}
 
 .perf-metric-label {
     font-size: 9px;
@@ -156,15 +152,11 @@
     border-color: var(--unity-colors-default-border);
 }
 
-.perf-stat-cell:last-child {
-    border-right-width: 0;
-}
 
 .perf-stat-key {
     font-size: 9px;
     color: var(--unity-colors-label-text);
     opacity: 0.5;
-    text-transform: uppercase;
     margin-bottom: 2px;
 }
 
@@ -183,11 +175,6 @@
     margin-top: 6px;
 }
 
-@keyframes perf-pulse {
-    0%   { opacity: 1; }
-    50%  { opacity: 0.15; }
-    100% { opacity: 1; }
-}
 
 .record-dot {
     width: 10px;
@@ -200,10 +187,6 @@
 
 .record-dot--active {
     background-color: #e94560;
-    animation-name: perf-pulse;
-    animation-duration: 900ms;
-    animation-iteration-count: infinite;
-    animation-timing-function: ease-in-out;
 }
 
 .perf-record-btn {
@@ -277,7 +260,6 @@
     font-size: 9px;
     color: var(--unity-colors-label-text);
     opacity: 0.55;
-    text-transform: uppercase;
     margin-bottom: 4px;
     -unity-text-align: middle-center;
 }
@@ -366,13 +348,6 @@
     margin-top: 2px;
 }
 
-@keyframes perf-gc-flash-anim {
-    0%   { background-color: rgba(233,69,96,0.35); }
-    100% { background-color: rgba(0,0,0,0); }
-}
-
 .perf-gc-flash {
-    animation-name: perf-gc-flash-anim;
-    animation-duration: 400ms;
-    animation-timing-function: ease-out;
+    background-color: rgba(233,69,96,0.35);
 }

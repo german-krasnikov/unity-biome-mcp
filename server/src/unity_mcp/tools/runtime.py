@@ -22,12 +22,16 @@ async def set_runtime_property(path: str, component: str, field: str, value: str
 
 
 async def wait_until(path: str, component: str, field: str, value: str,
-                     timeout: float = 5.0, negate: bool = False) -> str:
+                     timeout: float = 5.0, negate: bool = False,
+                     abort_on_fail: bool = False) -> str:
     """[Play Mode] Poll field until it matches value (or timeout).
-    Python timeout = Unity timeout + 5s buffer."""
+    Python timeout = Unity timeout + 5s buffer.
+    abort_on_fail=True: stops Play Mode on timeout."""
     return await _send("wait_until", _args(
         path=path, component=component, field=field, value=value,
-        timeout=str(timeout), negate="true" if negate else None),
+        timeout=str(timeout),
+        negate="true" if negate else None,
+        abort_on_fail="true" if abort_on_fail else None),
         timeout=timeout + 5.0)
 
 
@@ -80,7 +84,8 @@ def _compress_report(report: str) -> str:
     return '\n'.join(keep) if len(keep) > 1 else keep[0]
 
 
-async def run_playtest(script: str, timeout: float = 120.0) -> str:
+async def run_playtest(script: str, timeout: float = 120.0,
+                       abort_on_fail: bool = False) -> str:
     """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit test suite, use `run_tests`).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
     ASSERT_CONSOLE_CLEAN [IGNORE "pat1","pat2"] | SNAPSHOT queries | INVOKE path comp method args |
@@ -89,8 +94,11 @@ async def run_playtest(script: str, timeout: float = 120.0) -> str:
     ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | CAPTURE label query |
     ASSERT_CAPTURED label INCREASED|DECREASED | INVARIANT query op value |
     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f.
-    Queries use aliases from PlaytestConfig.asset or pipe format: path|component|field"""
-    raw = await _send("run_playtest", _args(script=script, timeout=str(timeout)),
+    Queries use aliases from PlaytestConfig.asset or pipe format: path|component|field
+    abort_on_fail=True: stops Play Mode on step timeout."""
+    raw = await _send("run_playtest", _args(
+        script=script, timeout=str(timeout),
+        abort_on_fail="true" if abort_on_fail else None),
                       timeout=timeout + 20.0)
     compressed = _compress_report(raw)
     if len(compressed) > 300:

@@ -19,7 +19,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void AddChip_AfterTextNoSpace_LeadingSpaceInserted()
         {
             var field = new InlineChipField();
-            ChipTestHelpers.Type(field, "fix");
+            ChipViewTestHelpers.Type(field, "fix");
             field.AddChip(Player());
             StringAssert.Contains(" @Player", field.Text);
         }
@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void AddChip_AfterSpace_NoDoubleSpace()
         {
             var field = new InlineChipField();
-            ChipTestHelpers.Type(field, "fix ");
+            ChipViewTestHelpers.Type(field, "fix ");
             field.AddChip(Player());
             Assert.IsFalse(field.Text.Contains("  @"), "Should not have double space before @");
         }
@@ -45,7 +45,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void AddChip_AfterTextNoSpace_TextNotGlued()
         {
             var field = new InlineChipField();
-            ChipTestHelpers.Type(field, "fix");
+            ChipViewTestHelpers.Type(field, "fix");
             field.AddChip(Player());
             // "fix@Player" must NOT appear — they must be separated by a space
             Assert.IsFalse(field.Text.Contains("fix@"), $"Text was glued: '{field.Text}'");
@@ -55,7 +55,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void InsertChipAt_MidTextNoSpace_LeadingSpaceInserted()
         {
             var field = new InlineChipField();
-            ChipTestHelpers.Type(field, "fixthis");
+            ChipViewTestHelpers.Type(field, "fixthis");
             // Insert at position 3 — after "fix", no space there
             field.InsertChipAt(3, Player());
             StringAssert.Contains(" @Player", field.Text);
@@ -65,7 +65,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void AddChip_AfterText_RemoveChip_TextRestored()
         {
             var field = new InlineChipField();
-            ChipTestHelpers.Type(field, "fix");
+            ChipViewTestHelpers.Type(field, "fix");
             field.AddChip(Player());
             Assert.AreEqual(1, field.Model.Count);
             field.RemoveChipAt(0);

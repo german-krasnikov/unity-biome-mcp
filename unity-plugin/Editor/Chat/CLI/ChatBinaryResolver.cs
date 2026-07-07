@@ -3,11 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
+using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -23,6 +23,9 @@ namespace UnityMCP.Editor.Chat
         // Per-binary negative cache: key = binary name, value = resolved path (null = not found).
         // Populated on first probe per binary; cleared by ResetCacheForTests.
         private static readonly Dictionary<string, string> _cache = new Dictionary<string, string>();
+
+        private const int WhichTimeoutMs     = 3000;
+        private const int WhichReadTimeoutMs = 2800;
 
 #if UNITY_INCLUDE_TESTS
         // Seam: inject in tests instead of spawning a shell (mirrors FindObjectOverride pattern)
@@ -95,25 +98,22 @@ namespace UnityMCP.Editor.Chat
                     case OperatingSystemFamily.Linux:
                         // -lic: login+interactive so ~/.bashrc (nvm/pyenv/mise) is sourced.
                         // bash -lc skips .bashrc due to non-interactive guard.
-                        var shell     = File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh";
-                        var shellName = Path.GetFileName(shell);
-                        var bashArgs  = $"-lic 'command -v \"$1\"' {shellName} {LoginShellCommand.ShellQuoteSingle(binary)}";
-                        psi = new ProcessStartInfo(shell, bashArgs)
+                        psi = ShellHelper.CreateLoginShellPsi("command -v \"$1\"", binary);
+                        if (psi != null)
                         {
-                            UseShellExecute        = false,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError  = true,  // suppress "no job control" warning
-                            CreateNoWindow         = true,
-                            StandardOutputEncoding = new UTF8Encoding(false),  // cp1251 safety
-                            StandardErrorEncoding  = new UTF8Encoding(false),
-                        };
+                            psi.RedirectStandardError = true;  // suppress "no job control" warning
+                            psi.StandardErrorEncoding = new UTF8Encoding(false);
+                        }
                         break;
 
                     case OperatingSystemFamily.MacOSX:
                         // -lic: login+interactive so ~/.zshrc (kimi/opencode PATH) is sourced automatically.
-                        psi = LoginShellCommand.Create("command -v \"$1\"", binary);
-                        psi.RedirectStandardError = true;
-                        psi.StandardErrorEncoding = new UTF8Encoding(false);
+                        psi = ShellHelper.CreateLoginShellPsi("command -v \"$1\"", binary);
+                        if (psi != null)
+                        {
+                            psi.RedirectStandardError = true;
+                            psi.StandardErrorEncoding = new UTF8Encoding(false);
+                        }
                         break;
 
                     default:
@@ -134,11 +134,11 @@ namespace UnityMCP.Editor.Chat
                     // Linux + macOS: parallel stdout+stderr read to avoid deadlock when stderr buffer fills.
                     var stdoutTask = p.StandardOutput.ReadToEndAsync();
                     var stderrTask = p.StandardError.ReadToEndAsync();
-                    Task.WhenAll(stdoutTask, stderrTask).Wait(2800);
+                    Task.WhenAll(stdoutTask, stderrTask).Wait(WhichReadTimeoutMs);
                     result = PickLinuxPath(stdoutTask.IsCompleted ? stdoutTask.Result : "");
                 }
 
-                int remaining = Math.Max(0, 3000 - (int)sw.ElapsedMilliseconds);
+                int remaining = Math.Max(0, WhichTimeoutMs - (int)sw.ElapsedMilliseconds);
                 if (!p.WaitForExit(remaining)) { try { p.Kill(); } catch { } }
 
                 // where.exe only resolves binaries on Unity's INHERITED PATH, which usually
