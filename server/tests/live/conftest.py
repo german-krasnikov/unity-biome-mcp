@@ -95,6 +95,24 @@ async def _ensure_gridtest_scene(_require_unity):
         await b.close()
 
 
+@pytest_asyncio.fixture(scope="session")
+async def _save_scene_before_play(_ensure_gridtest_scene):
+    """Save scene so Unity won't show 'Save Modified Scenes?' dialog on Play Mode entry."""
+    b = UnityBridge()
+    try:
+        await _connect_with_retry(b)
+        code = (
+            'var s = UnityEngine.SceneManagement.SceneManager.GetActiveScene(); '
+            'bool ok = UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s); '
+            'return ok ? "saved" : "save_failed";'
+        )
+        await b.send("execute_code", {"code": code})
+    except Exception:
+        pass
+    finally:
+        await b.close()
+
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def _cleanup_orphans():
     """Yield, then destroy any Live* orphans left in scene by interrupted sessions."""
@@ -115,6 +133,12 @@ async def _cleanup_orphans():
             'return count + " orphans cleaned";'
         )
         await b.send("execute_code", {"code": code})
+        save_code = (
+            'var s = UnityEngine.SceneManagement.SceneManager.GetActiveScene(); '
+            'UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s); '
+            'return "saved";'
+        )
+        await b.send("execute_code", {"code": save_code})
     except Exception:
         pass
     finally:
@@ -269,7 +293,7 @@ async def _clear_console(b: UnityBridge) -> None:
 # ---------------------------------------------------------------------------
 
 @pytest_asyncio.fixture(scope="session")
-async def _play_mode_session(_ensure_gridtest_scene):
+async def _play_mode_session(_save_scene_before_play):
     """Enter Play Mode ONCE for all play-mode tests in the session."""
     b = UnityBridge()
     try:
@@ -378,14 +402,21 @@ def cost_cap():
 async def wrapped_bridge(bridge):
     """Production-style bridge with middleware pipeline."""
     from unity_mcp.middleware import Middleware, wrap_send
+    from unity_mcp.timeout_categories import get_timeout
+
+    async def send_with_timeout(cmd, args, timeout=0):
+        if timeout <= 0:
+            timeout = get_timeout(cmd)
+        return await bridge.send(cmd, args, timeout=timeout)
 
     mw = Middleware()
-    wrapped_send = wrap_send(bridge.send, mw)
+    wrapped_send = wrap_send(send_with_timeout, mw)
 
     class WrappedBridge:
         def __init__(self):
             self.send = wrapped_send
             self.connected = bridge.connected
             self._raw = bridge
+            self._raw_send = send_with_timeout  # timeout-aware shim for custom wrap_send
 
     return WrappedBridge()

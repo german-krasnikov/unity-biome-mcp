@@ -13,7 +13,7 @@ unity-kiss-mcp/
 │   ├── src/unity_mcp/
 │   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
-│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 120 registered MCP tools (v0.50.3)
+│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 126 registered MCP tools
 │   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
 │   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0)
 │   │   ├── bridge_retry.py     # RetryPolicy class + unwrap_bridge_result() extracted (v0.70.0)
@@ -102,7 +102,7 @@ unity-kiss-mcp/
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
 │   │   ├── tools/              # Tool modules (41 files + __init__, v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
-│   │   │   ├── tool_specs.py   # Single source of truth: 128 ToolSpec entries with category/core/tier1/timeout_s metadata (v0.69.0, M8)
+│   │   │   ├── tool_specs.py   # Single source of truth: 129 ToolSpec entries with category/core/tier1/timeout_s metadata (v0.69.0, M8)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
 │   │   │   ├── meta.py         # Meta tools: discover_tools, doctor, resolve_tool_schema, set_llm_config in register(mcp, send, args) pattern (v0.69.0)
 │   │   │   ├── profiling.py    # Profile MCP tool: session-based profiling, frame stats, performance analysis (v0.60.0, 412 LOC)
@@ -110,7 +110,7 @@ unity-kiss-mcp/
 │   │   │   ├── auto_wire.py    # Auto-wiring tool: fill ObjectRef fields by semantic name/type matching (v0.62.0)
 │   │   │   ├── scene_health.py # Scene health audit: hierarchy depth, naming, duplicates, origins, missing scripts (v0.62.0)
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
-│   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/set_material
+│   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/set_material
 │   │   │   ├── scene.py        # scene, hierarchy, search (multi-scene support, v0.70.0: only scene_tools)
 │   │   │   ├── console.py      # get_console tool split from scene.py (v0.70.0)
 │   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)

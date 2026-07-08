@@ -121,3 +121,10 @@ async def test_get_test_results_sends_command(testing_mod, _patch_send):
     call_args = _patch_send.call_args
     assert call_args[0][0] == "get_test_results"
     assert call_args[0][1] == {}
+
+
+async def test_get_test_results_returns_pending_on_connection_error(testing_mod, _patch_send):
+    """get_test_results returns 'pending' when bridge is disconnected (domain reload)."""
+    _patch_send.side_effect = Exception("Connection lost")
+    result = await testing_mod.get_test_results()
+    assert result == "pending"

@@ -50,61 +50,7 @@ uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirecto
 4. Choose a model from the dropdown (K2.7 Code is the default).
 5. Type a prompt and press Send.
 
-## 4. How the Plugin Wires MCP
-
-Before each turn, the plugin writes `~/.kimi-code/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "unity-mcp": {
-      "command": "<python>",
-      "args": ["-m", "unity_mcp.server"],
-      "env": { "UNITY_MCP_PORT": "<port>" }
-    }
-  }
-}
-```
-
-Kimi reads this file automatically on startup.
-
-The plugin appends to `~/.kimi-code/config.toml` (append-only, skips existing entries):
-
-| Model | Model ID | Context |
-|-------|----------|---------|
-| K2.7 Code | `kimi-for-coding` | 262K tokens |
-| K2.6 | `k2p6` | 262K tokens |
-| K2.5 | `k2p5` | 262K tokens |
-
-The plugin spawns per-turn:
-
-```bash
-kimi -p "<prompt>" --output-format stream-json [--model <id>]
-```
-
-## 5. Verify Installation
-
-Open the **Setup Wizard** in Unity (**MCP → Setup Wizard**) and select **Diagnostics**.
-
-Or check manually:
-
-```bash
-# Verify kimi is in PATH
-which kimi
-kimi --version
-
-# Check MCP config
-cat ~/.kimi-code/mcp.json
-
-# Test connectivity (with Unity running)
-kimi -p "Call the mcp tool get_hierarchy and return the result" --output-format stream-json
-```
-
-## 6. Verify Connectivity (Manual CLI Test)
-
-Expected: NDJSON stream with `role:assistant` content, followed by `role:meta` line.
-
-## 7. Troubleshooting
+## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|

@@ -11,8 +11,9 @@ async def test_three_get_component_emits_hint(wrapped_bridge, sandbox, hinter_en
     """Three consecutive get_component calls via middleware must append [HINT:...inspect..."""
     mw = Middleware()
     mw.hinter = ToolHinter(enabled=True)
-    # Wrap the raw UnityBridge.send to avoid double-firing middleware side-effects.
-    wrapped = wrap_send(wrapped_bridge._raw.send, mw)
+    # Use the timeout-aware shim (not raw bridge.send) — timeout=0 passed by wrap_send
+    # would make asyncio.wait_for fire TimeoutError immediately on every TCP call.
+    wrapped = wrap_send(wrapped_bridge._raw_send, mw)
 
     # Use different component types to avoid retry-watchdog short-circuit,
     # while still triggering the inspect-loop hinter pattern (3× get_component).

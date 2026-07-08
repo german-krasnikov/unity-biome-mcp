@@ -8,6 +8,9 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class CapabilitiesTests
     {
+        [SetUp]
+        public void SetUp() => CommandRegistry.InitDefaults();
+
         [Test]
         public void GetCapabilities_IsRegistered()
         {

@@ -22,10 +22,6 @@ opencode --version
 
 Visit https://github.com/opencode-ai/opencode/releases and download the binary for your OS.
 
-**Windows:**
-
-Download from https://github.com/opencode-ai/opencode/releases and add to PATH.
-
 ### 2. Add Plugin to Unity
 
 1. Open **Window → Package Manager**
@@ -57,47 +53,7 @@ uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirecto
 4. Optionally select a model from the dropdown.
 5. Type a prompt and press Send.
 
-The plugin generates a temporary MCP config, injects it via `OPENCODE_CONFIG`, and spawns `opencode run`.
-
-## 4. How the Plugin Wires MCP
-
-Before each turn, the plugin writes a temporary MCP config to the system temp directory:
-
-```json
-{
-  "mcpServers": {
-    "unity-mcp": {
-      "command": "<python>",
-      "args": ["-m", "unity_mcp.server"],
-      "env": { "UNITY_MCP_PORT": "<port>" }
-    }
-  }
-}
-```
-
-Then spawns OpenCode with this config injected:
-
-```bash
-OPENCODE_CONFIG=/tmp/opencode-unity-mcp-<port>.json opencode run --format json <prompt>
-```
-
-The config is per-port and automatically cleaned up. OpenCode reads the config without affecting your global `~/.opencode/config.json`.
-
-## 5. Verify Installation
-
-Open the **Setup Wizard** in Unity (**MCP → Setup Wizard**) and select **Diagnostics**. It will check Python version, MCP server responsiveness, and TCP connectivity.
-
-Alternatively, check manually:
-
-```bash
-opencode --version
-cat ~/.opencode/config.json  # should contain unity-mcp entry (if manually configured)
-
-# Test (with Unity running)
-opencode run "Call the mcp tool get_hierarchy and return the result"
-```
-
-## 6. Troubleshooting
+## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|

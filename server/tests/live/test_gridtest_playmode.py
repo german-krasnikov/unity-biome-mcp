@@ -309,7 +309,7 @@ async def test_moveto_out_of_bounds_returns_error(play_session):
 # 8. Collectible pickup — full DSL with actual score assertion
 # ---------------------------------------------------------------------------
 
-async def test_collectible_pickup_full_dsl(play_session):
+async def test_collectible_pickup_full_dsl(fresh_scene):
     """Full DSL test: Reset, move to collectible, assert Score increased."""
     script = f"""
 TIMESCALE 10
@@ -324,7 +324,7 @@ TIMESCALE 1
 ASSERT_CONSOLE_CLEAN
 LOG Collectible DSL test done
 """
-    result = await play_session.send("run_playtest", {"script": script, "timeout": 30})
+    result = await fresh_scene.send("run_playtest", {"script": script, "timeout": 30})
     text = _data(result)
     assert "FAIL" not in text.upper() or "0 fail" in text.lower(), f"DSL collectible test failed: {text}"
 
@@ -356,10 +356,10 @@ async def test_run_playtest_failed_assert(play_session):
     assert "FAIL" in text, f"Expected FAIL in result: {text}"
 
 
-async def test_screenshot_returns_valid_file(bridge):
+async def test_screenshot_returns_valid_file(ensure_edit_mode):
     """Screenshot returns file path with non-trivial size (Edit Mode, no play_session needed)."""
     import os
-    result = await bridge.send("screenshot", {"width": "320", "height": "240"})
+    result = await ensure_edit_mode.send("screenshot", {"width": "320", "height": "240"})
     # Response uses 'file' key for the saved path
     path = result.get("file") or _data(result).replace("Data saved to: ", "").strip().split("\n")[0]
     assert path and path.endswith(".png"), f"No PNG path in result: {result}"

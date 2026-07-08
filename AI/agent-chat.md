@@ -2,7 +2,7 @@
 
 ## Overview
 
-An optional Editor window that brings agentic chat directly into Unity, spawning the user's local `claude` CLI as a child process. Zero new MCP tools — reuses all 120 existing tools via the spawn-the-CLI architecture.
+An optional Editor window that brings agentic chat directly into Unity, spawning the user's local `claude` CLI as a child process. Zero new MCP tools — reuses all 126 existing tools via the spawn-the-CLI architecture.
 
 **Isolation:** Behind the `UNITY_MCP_CHAT` scripting define in `UnityMCP.Editor.Chat.asmdef`. OFF by default; deleting the `Chat/` folder leaves core untouched.
 
@@ -18,7 +18,7 @@ Unity Editor Window (MCPChatWindow)
             └─ python -m unity_mcp.server
                 │
                 └─ TCP:9500 → Unity Editor Plugin
-                    └─ ~120 MCP tools (create, set_property, screenshot, etc.)
+                    └─ ~126 MCP tools (create, set_property, screenshot, etc.)
 ```
 
 ### Spawn Invocation (v0.36.0)

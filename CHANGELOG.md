@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.76.0] — rename_object, NUnit 159 fix, get_test_results resilience, batch SO multi-field
+
+**Added:**
+- **ScriptableObject multi-field set** (`ScriptableObjectCommand.cs`) — `scriptable_object action=set` accepts a `fields` parameter with `\n`-separated `prop=value` pairs; sets N properties in a single load/save cycle (~68% token savings vs N separate calls); atomic — if any field is missing, no fields are written.
+- **`rename_object` tool** (`objects.py`, `ObjectManager.RenameObject`, `CommandRouter.Registration.cs`) — renames a GameObject and returns the new scene path. Registered as `_RW_IDEM` (idempotent write). Undo-aware; marks scene dirty in Edit Mode. `set_property` docstring now cross-references `rename_object` for GO name changes. Added to `tool_specs.py` (129th ToolSpec, category `object`) and `CommandRegistryCompletenessTests` snapshot.
+
+**Fixed:**
+- **Batch quoting double-unescape** (`BatchHelper.cs`) — removed redundant `UnescapeJsonString` call in `ParseLines`; `ParseValue` now correctly handles `\"`, `\\`, `\n` inside quoted strings, fixing string values with embedded quotes in batch commands.
+- **NUnit 159 failures** (`TestAssemblySetup.cs`) — added `CommandRegistry.InitDefaults()` to `[OneTimeSetUp]`; tests that relied on the registry being pre-populated (BlendTree, Capabilities, ScenePill) no longer fail when run in isolation. `ScenePillPipelineTests` tears down EditorPrefs keys to prevent cross-test pollution.
+- **`get_test_results` domain-reload resilience** (`testing.py`) — wrapped TCP send in `try/except`; returns `"pending"` instead of raising `ToolError` when the domain reload drops the connection mid-poll.
+- **Live test scene isolation** (`conftest.py`) — saves the active scene before entering Play Mode to prevent `SaveCurrentModifiedScenesIfUserWantsTo` dialog blocking test fixture teardown.
+- **`timeout=0` sentinel shim** (`conftest.py`) — `wrapped_bridge` now resolves per-command timeout via `get_timeout(cmd)` instead of forwarding `0`; prevents instant-cancel on commands with no explicit timeout.
+- **Hinter live test raw bridge bypass** (`test_hinter_real.py`) — replaced direct `bridge.send` calls with the `wrapped_bridge` fixture so the timeout shim is applied correctly.
+- **`compile_status` regex** (`test_console_compile.py`) — pattern updated to also match `idle-failed` and `idle-stale` variants returned after a compile error.
+
 ## [v0.75.0] — Playtest Composer UI Toolkit, DSL Macros, Scenario Persistence, ShellHelper, NlComposerBridge
 
 **Added — Playtest Composer (visual DSL editor):**

@@ -55,7 +55,10 @@ async def run_tests(mode: str = "EditMode", filter: str | None = None) -> str:
 
 async def get_test_results() -> str:
     """Poll for test results after PlayMode run. Returns results, 'pending', or 'none'."""
-    return await _send("get_test_results", {})
+    try:
+        return await _send("get_test_results", {})
+    except Exception:
+        return "pending"
 
 
 async def get_test_count() -> str:

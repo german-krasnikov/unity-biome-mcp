@@ -57,10 +57,11 @@ async def prefab(action: str, path: str | None = None, asset_path: str | None = 
 
 async def scriptable_object(action: str, path: str | None = None, type: str | None = None,
                             prop: str | None = None, value: str | None = None,
+                            fields: str | None = None,
                             filter: str | None = None) -> str:
-    """ScriptableObject. action: create|get|set|list_types|find. create: type+path. get/set: path. find: type. list_types: filter."""
+    """ScriptableObject. action: create|get|set|list_types|find. create: type+path. get/set: path. set: prop+value | fields (\\n-separated prop=value pairs, 1 save). find: type. list_types: filter."""
     return await _send("scriptable_object", _args(
-        action=action, path=path, type=type, prop=prop, value=value, filter=filter))
+        action=action, path=path, type=type, prop=prop, value=value, fields=fields, filter=filter))
 
 
 async def get_enabled_tools() -> str:

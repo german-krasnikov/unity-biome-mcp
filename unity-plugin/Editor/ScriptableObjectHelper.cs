@@ -63,22 +63,60 @@ namespace UnityMCP.Editor
 
         private static string Set(string args)
         {
-            var path  = JsonHelper.ExtractString(args, "path");
-            var prop  = JsonHelper.ExtractString(args, "prop");
-            var value = JsonHelper.ExtractString(args, "value");
-            if (string.IsNullOrEmpty(prop))  throw new ArgumentException("prop is required");
-            if (string.IsNullOrEmpty(value)) throw new ArgumentException("value is required");
+            var path   = JsonHelper.ExtractString(args, "path");
+            var prop   = JsonHelper.ExtractString(args, "prop");
+            var value  = JsonHelper.ExtractString(args, "value");
+            var fields = JsonHelper.ExtractString(args, "fields");
+
+            bool hasSingle = !string.IsNullOrEmpty(prop) && !string.IsNullOrEmpty(value);
+            bool hasMulti  = !string.IsNullOrEmpty(fields);
+
+            if (!hasSingle && !hasMulti)
+                throw new ArgumentException("prop+value or fields is required");
+            if (hasSingle && hasMulti)
+                throw new ArgumentException("prop+value and fields are mutually exclusive");
 
             var asset = LoadAsset(path);
-            var so = new SerializedObject(asset);
-            var property = so.FindProperty(prop);
-            if (property == null) throw new ArgumentException($"Property not found: {prop}");
+            var so    = new SerializedObject(asset);
 
-            ValueParser.SetPropertyValue(property, value);
+            if (hasSingle)
+                SetSingleField(so, prop, value);
+            else
+                SetMultipleFields(so, fields);
+
             so.ApplyModifiedProperties();
             EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
             return "ok";
+        }
+
+        private static void SetSingleField(SerializedObject so, string prop, string value)
+        {
+            var property = so.FindProperty(prop);
+            if (property == null) throw new ArgumentException($"Property not found: {prop}");
+            ValueParser.SetPropertyValue(property, value);
+        }
+
+        private static void SetMultipleFields(SerializedObject so, string fields)
+        {
+            foreach (var line in fields.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+
+                var eqIdx = trimmed.IndexOf('=');
+                if (eqIdx < 0)
+                    throw new ArgumentException($"Invalid format (expected prop=value): {trimmed}");
+
+                var fieldProp = trimmed.Substring(0, eqIdx).Trim();
+                var fieldVal  = trimmed.Substring(eqIdx + 1).Trim();
+
+                var property = so.FindProperty(fieldProp);
+                if (property == null)
+                    throw new ArgumentException($"Property not found: {fieldProp}");
+
+                ValueParser.SetPropertyValue(property, fieldVal);
+            }
         }
 
         // ── list_types ────────────────────────────────────────────────────────

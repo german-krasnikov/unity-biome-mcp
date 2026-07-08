@@ -1,12 +1,12 @@
 # Unity MCP Documentation
 
-Documentation for Unity MCP v0.67.1 — MCP server for controlling Unity Editor from AI coding assistants.
+Documentation for Unity MCP v0.75.0 — MCP server for controlling Unity Editor from AI coding assistants.
 
 ## Getting Started
 - [Installation & First Steps](getting-started/index.md)
 
 ## Tools Reference
-- [All Tools (120)](tools/index.md)
+- [All Tools (125)](tools/index.md)
 - [Scene Tools](tools/scene.md)
 - [Object Tools](tools/objects.md)
 - [Batch Operations](tools/batch.md)
@@ -24,6 +24,8 @@ Documentation for Unity MCP v0.67.1 — MCP server for controlling Unity Editor 
 - [Prompting Tips](features/prompting-tips.md) — Get best results with AI assistants
 - [Intent Tools (NL → Actions)](features/intent-tools.md)
 - [PlayTest DSL](features/playtest.md)
+- [Playtest Composer](features/playtest-composer.md) — Visual panel for building playtests
+- [Wait Conditions](features/wait-conditions.md) — AND/OR conditions for wait_until
 - [Prefab Edit (v0.56.0)](features/prefab-edit.md)
 - [Region Selection](features/region-tool.md)
 - [Code Execution](features/code-execution.md)
@@ -40,6 +42,10 @@ Documentation for Unity MCP v0.67.1 — MCP server for controlling Unity Editor 
 
 ## Installation Guides
 - [Claude Code](install/claude-code.md)
+- [Claude Desktop](install/claude-desktop.md)
+- [Cursor](install/cursor.md)
+- [Windsurf](install/windsurf.md)
+- [VS Code](install/vscode.md)
 - [Codex](install/codex.md)
 - [Kimi](install/kimi.md)
 - [Gemini](install/gemini.md)

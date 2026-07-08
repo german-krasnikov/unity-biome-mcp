@@ -1,6 +1,6 @@
 # Tools Reference
 
-120 MCP tools organized by category. Every tool is documented with parameters, examples, and real-world usage patterns.
+126 MCP tools organized by category. Every tool is documented with parameters, examples, and real-world usage patterns.
 
 ## How Tools Work
 

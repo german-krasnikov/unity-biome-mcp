@@ -157,8 +157,6 @@ namespace UnityMCP.Editor
             var result = new List<(string, string)>();
             if (string.IsNullOrEmpty(text)) return result;
 
-            // ExtractString doesn't unescape JSON — do it here
-            text = JsonHelper.UnescapeJsonString(text);
             var lines = text.Split('\n');
             foreach (var line in lines)
             {
@@ -238,16 +236,28 @@ namespace UnityMCP.Editor
             if (text[i] == '"')
             {
                 i++; // skip opening quote
-                var qStart = i;
+                var sb = new StringBuilder();
                 while (i < text.Length && text[i] != '"')
                 {
-                    if (text[i] == '\\' && i + 1 < text.Length) i++; // skip escaped char
+                    if (text[i] == '\\' && i + 1 < text.Length)
+                    {
+                        i++;
+                        switch (text[i])
+                        {
+                            case '"':  sb.Append('"');  break;
+                            case '\\': sb.Append('\\'); break;
+                            case 'n':  sb.Append('\n'); break;
+                            case 'r':  sb.Append('\r'); break;
+                            case 't':  sb.Append('\t'); break;
+                            default:   sb.Append('\\'); sb.Append(text[i]); break;
+                        }
+                    }
+                    else sb.Append(text[i]);
                     i++;
                 }
-                var value = text.Substring(qStart, i - qStart);
                 if (i < text.Length) i++; // skip closing quote
                 while (i < text.Length && text[i] == ' ') i++; // skip trailing space
-                return value;
+                return sb.ToString();
             }
 
             // Parenthesized value e.g. (0, 6.8, 0)

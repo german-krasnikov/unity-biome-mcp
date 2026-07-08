@@ -86,3 +86,19 @@ async def test_so_error(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Asset not found: Assets/Missing.asset"})
     with pytest.raises(ToolError, match="Asset not found"):
         await scriptable_object(action="get", path="Assets/Missing.asset")
+
+
+async def test_so_set_fields_forwarded(mock_bridge):
+    """fields param is forwarded; no prop/value keys in payload."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await scriptable_object(action="set", path="Assets/X.asset", fields="speed=10\nhealth=100")
+    payload = mock_bridge.send.call_args[0][1]
+    assert payload == {"action": "set", "path": "Assets/X.asset", "fields": "speed=10\nhealth=100"}
+
+
+async def test_so_set_fields_none_not_sent(mock_bridge):
+    """When fields is None (default), it is not included in the payload."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await scriptable_object(action="set", path="Assets/X.asset", prop="speed", value="10")
+    payload = mock_bridge.send.call_args[0][1]
+    assert "fields" not in payload

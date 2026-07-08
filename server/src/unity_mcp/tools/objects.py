@@ -47,7 +47,7 @@ async def find_objects(
 
 
 async def set_property(path: str, component: str, prop: str, value, dry_run: bool = False) -> str:
-    """Set component property (Edit Mode, SerializedObject — use `set_runtime_property` for Play Mode reflection). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying."""
+    """Set component property (Edit Mode, SerializedObject — use `set_runtime_property` for Play Mode reflection). For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying."""
     args = {"path": path, "component": component, "prop": prop, "value": _normalize_value(value)}
     if dry_run:
         args["dry_run"] = "true"
@@ -149,6 +149,13 @@ async def set_parent(path: str, parent: str | None = None, world_position_stays:
     return await _send("set_parent", args)
 
 
+async def rename_object(path: str, name: str) -> str:
+    """Rename a GameObject. Returns new scene path after rename.
+    path: current scene path or #instanceID. name: new name (non-empty).
+    Note: all subsequent MCP calls must use the new path."""
+    return await _send("rename_object", {"path": path, "name": name})
+
+
 async def object_diff(path_a: str, path_b: str) -> str:
     """Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."""
     return await _send("object_diff", {"pathA": path_a, "pathB": path_b})
@@ -172,4 +179,5 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW_IDEM)(set_material)
     mcp.tool(annotations=_RW)(set_property_delta)
     mcp.tool(annotations=_RW_IDEM)(set_parent)
+    mcp.tool(annotations=_RW_IDEM)(rename_object)
     mcp.tool(annotations=_RO)(object_diff)

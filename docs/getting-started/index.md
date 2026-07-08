@@ -144,7 +144,7 @@ Learn more: [Batch Reference](../tools/batch.md)
 
 ## What's Next?
 
-- 📚 **[Tools Reference](../tools/index.md)** — Complete list of 120 MCP tools by category
+- 📚 **[Tools Reference](../tools/index.md)** — Complete list of 126 MCP tools by category
 - ⚙️ **[Scene Tools](../tools/scene.md)** — Inspect, modify, and query your scene
 - 🎮 **[Object Tools](../tools/objects.md)** — Create, edit, and manage GameObjects
 - 🧪 **[PlayTest Tools](../tools/runtime.md)** — Write automated test scenarios

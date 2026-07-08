@@ -10,7 +10,7 @@ async def test_compile_status_format(bridge):
     """compile_status returns 'idle|N' or 'compiling|N' format."""
     result = await bridge.send("compile_status", {})
     text = result.get("data", "") if isinstance(result, dict) else str(result)
-    assert re.match(r"(idle(-never)?|compiling)\|\d", text), f"Bad format: {text}"
+    assert re.match(r"(idle(-never|-failed|-stale)?|compiling)\|\d", text), f"Bad format: {text}"
 
 
 async def test_console_first_param_no_crash(bridge):

@@ -297,6 +297,10 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "parent"),
                 JsonHelper.ExtractString(args, "world_position_stays") != "false"), mutating: true,
                 required: "path", optional: "parent,world_position_stays");
+            CommandRegistry.Register("rename_object", args => ObjectManager.RenameObject(
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractString(args, "name")), mutating: true,
+                required: "path,name", optional: "");
             // color is optional: null/omitted leaves the material's existing color untouched
             // (ObjectManager.SetMaterial tolerates a null color, applying only shader if given).
             CommandRegistry.Register("set_material", args => ObjectManager.SetMaterial(
@@ -337,7 +341,7 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAction("prefab", PrefabHelper.Execute, mutating: true,
                 optional: "path,asset_path,base_path,variant_path,recursive,component,prop,value,add_component,remove_component");
             CommandRegistry.RegisterAction("scriptable_object", ScriptableObjectHelper.Execute, mutating: true,
-                optional: "path,type,prop,value,filter");
+                optional: "path,type,prop,value,filter,fields");
             CommandRegistry.RegisterAction("scene_environment", EnvironmentHelper.Execute, mutating: true,
                 optional: "prop,value");
 

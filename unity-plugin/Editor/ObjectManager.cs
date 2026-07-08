@@ -137,6 +137,19 @@ namespace UnityMCP.Editor
             return ComponentSerializer.GetPath(go);
         }
 
+        public static string RenameObject(string path, string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                throw new ArgumentException("rename_object: name cannot be empty");
+            var go = ComponentSerializer.FindObjectOrThrow(path);
+            Undo.RecordObject(go, $"Rename {go.name} → {name}");
+            go.name = name;
+            EditorUtility.SetDirty(go);
+            if (!EditorApplication.isPlaying)
+                EditorSceneManager.MarkSceneDirty(go.scene);
+            return ComponentSerializer.GetPath(go);
+        }
+
         public static void DeleteObject(string path, bool force = false)
         {
             var go = ComponentSerializer.FindObject(path, strict: true);

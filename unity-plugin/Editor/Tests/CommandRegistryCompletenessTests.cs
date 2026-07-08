@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Tests
             "get_test_results", "get_watches", "inspect", "invoke_method", "manage_component",
             "material", "material_audit", "menu", "move_to", "object_diff", "particle",
             "ping", "ping_object", "prefab", "profile", "project_settings", "query_state", "recompile",
-            "references", "region_clear", "render_analyze", "run_playtest", "run_tests", "scan_scene",
+            "references", "region_clear", "rename_object", "render_analyze", "run_playtest", "run_tests", "scan_scene",
             "scene", "scene_diff", "scene_environment", "scene_health", "screenshot",
             "scriptable_object", "search_scene", "set_active", "set_material", "set_parent",
             "set_property", "set_property_delta", "set_rect", "set_runtime_property",

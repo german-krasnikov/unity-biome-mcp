@@ -55,53 +55,7 @@ await doctor()
 3. Select **Claude** from the backend dropdown.
 4. Type a prompt and press Enter.
 
-The plugin generates a temporary MCP config on each turn, passes it via `--mcp-config`, and spawns `claude` with `--mcp-config` for isolation.
-
-## 5. How the Plugin Wires MCP
-
-For each turn, the plugin:
-
-1. **Resolves the Python command** (in order):
-   - `<project_root>/server/.venv/bin/python` (if exists on macOS/Linux)
-   - `<project_root>/server/.venv/Scripts/python.exe` (if exists on Windows)
-   - `uv` binary (if in PATH)
-   - System `python3` or `python` fallback
-
-2. **Generates a temporary JSON config:**
-   ```json
-   {
-     "mcpServers": {
-       "unity": {
-         "command": "<python>",
-         "args": ["-m", "unity_mcp.server"],
-         "env": {"UNITY_MCP_PORT": "<port>"}
-       }
-     }
-   }
-   ```
-
-3. **Spawns Claude Code:**
-   ```bash
-   claude --mcp-config <tempfile.json> "<prompt>"
-   ```
-
-
-## 6. Verify Installation
-
-Open the **Setup Wizard** in Unity (**MCP → Setup Wizard**) and select **Diagnostics**. It will check:
-
-- Python >= 3.10
-- TCP port connectivity to Unity
-- MCP server responsiveness
-- Plugin installation
-
-Alternatively, call the `doctor` tool from Claude Code:
-
-```
-@claude-code doctor
-```
-
-## 7. Troubleshooting
+## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
@@ -111,4 +65,3 @@ Alternatively, call the `doctor` tool from Claude Code:
 | MCP tools don't appear in Claude Code | (1) Confirm Setup Wizard configured Claude Code. (2) Restart Claude Code. (3) Check Console for MCP connection errors. |
 | Tools fail with "Connection refused" | (1) Ensure Unity is open with the plugin. (2) Run Setup Wizard → Diagnostics to check TCP port. (3) Restart Unity. |
 | Python path resolution fails in Chat Settings | Override manually: **Settings > Agent Chat > Claude Binary Path** — enter absolute path to `claude` binary. |
-

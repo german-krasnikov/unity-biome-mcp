@@ -46,7 +46,7 @@
 
 ### Two ways to work
 
-🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 125 MCP tools with 80–95% token compression.
+🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 126 MCP tools with 80–95% token compression.
 
 💬 **In-Unity Chat** — open `MCP → Chat` inside the editor. No API key needed — spawns the CLI directly. 5 backends: Claude, Antigravity, Kimi, Codex, OpenCode. Drag GameObjects, scripts, and materials into chat as typed context chips. Each AI turn gets its own undo group — one Ctrl+Z rolls back everything the AI changed. Domain-reload safe. Extensible chip-kind registry lets third-party plugins add new chip types with zero core edits.
 
@@ -97,7 +97,10 @@ set_property path=Enemy component=Health prop=maxHp value=100
 
 1. Open **Window → Package Manager**
 2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+3. Paste:
+   ```
+   https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin
+   ```
 4. Wait for import, then open any scene
 
 The plugin auto-generates MCP configuration for your AI tool on first load.
@@ -108,6 +111,12 @@ Run the diagnostic to verify everything is working:
 
 ```bash
 uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
+```
+
+**One-liner (macOS / Linux):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.sh | bash
 ```
 
 **One-liner (Windows PowerShell):**
@@ -233,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="125 MCP Tools · 9581 Tests (4110 Python · 5187 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="126 MCP Tools · 10531 Tests (4118 Python · 6129 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -457,7 +466,7 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 <details>
 <summary><b>How is this different from Unity 6.2's built-in AI assistant?</b></summary>
 
-Unity's built-in AI is limited to code generation. Unity MCP gives full editor control: scene CRUD, animation, VFX, playtesting, screenshots. 120 tools vs basic code completion.
+Unity's built-in AI is limited to code generation. Unity MCP gives full editor control: scene CRUD, animation, VFX, playtesting, screenshots. 126 tools vs basic code completion.
 
 </details>
 
@@ -515,7 +524,7 @@ Yes. Drop a Python file in `tools/`, add it to `__init__.py`, implement the `reg
 | PlayTest DSL | ✅ 24 commands | ❌ | ❌ | ❌ |
 | Multi-Scene Support | ✅ | ❌ | ✅ | ❌ |
 | AI Backends | 9 (Claude, Codex, Kimi, Antigravity, OpenCode, etc.) | 1 | 4 | 9 |
-| Tests | 9,378 | — | — | — |
+| Tests | 9,581 | — | — | — |
 | Code Intelligence | ✅ Roslyn-powered | ❌ | ❌ | ❌ |
 | Cross-Platform | ✅ Win/Mac/Linux | ✅ | ✅ | ✅ |
 | License | MIT | MIT | MIT | MIT |
@@ -527,10 +536,10 @@ Yes. Drop a Python file in `tools/`, add it to `__init__.py`, implement the `reg
 ## Contributing
 
 ```bash
-# Python unit tests (no Unity, 3845 tests)
+# Python unit tests (no Unity, 4110 tests)
 cd server && pytest -m "not live" -q
 
-# Python live integration tests (Unity running on :9500, 80 tests)
+# Python live integration tests (Unity running on :9500, 284 tests)
 pytest -m "live and not live_cli" -q
 
 # C# EditMode tests (no play mode)
@@ -538,8 +547,8 @@ pytest -m "live and not live_cli" -q
 ```
 
 **Test Tiers:**
-- **Tier 1 (Unit):** LLM-mocked Python (230 tests, $0) + C# EditMode (4614 tests, $0)
-- **Tier 2 (Integration):** Python live (80 tests, $0) + NUnit PlayMode (73 tests, $0) + reload stability (36 tests, $0)
+- **Tier 1 (Unit):** LLM-mocked Python (230 tests, $0) + C# EditMode (5187 tests, $0)
+- **Tier 2 (Integration):** Python live (284 tests, $0) + NUnit PlayMode (73 tests, $0) + reload stability (36 tests, $0)
 - **Tier 3 (CLI):** Real `claude` CLI with interactive I/O (4 tests, ~$0.004)
 
 Architecture overview: [`AI/architecture.md`](AI/architecture.md) · Full tool catalog: [`AI/mcp-server.md`](AI/mcp-server.md)

@@ -19,6 +19,7 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            CommandRegistry.InitDefaults();
             TestPaths.EnsureFolder(CtrlFolder);
             _ctrl = AnimatorController.CreateAnimatorControllerAtPath(CtrlPath);
         }

@@ -1,4 +1,4 @@
-# MCP Tools Reference (124 total)
+# MCP Tools Reference (126 total)
 
 All tools organized by category. TIER1 tools (44) are always visible. Themed categories (Tier2) require `discover_tools(category)` to enable. Plugin tools discovered dynamically via auto-gating.
 
@@ -52,9 +52,9 @@ Essential read/scene, meta, connection, repair, plus high-value tools for screen
 | fuzz_playtest | Random input fuzzing | count, duration, seed | testing |
 | run_scenario | Load + run saved .playtest file | name, timeout, abort_on_fail | testing |
 
-## SCENE_EDIT (8 tools)
+## SCENE_EDIT (9 tools)
 
-Scene object manipulation: find, detail, components, active, material, delta, diff, transfer.
+Scene object manipulation: find, detail, components, active, rename, material, delta, diff, transfer.
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -62,6 +62,7 @@ Scene object manipulation: find, detail, components, active, material, delta, di
 | get_object_detail | Get object state | path |
 | get_components_list | List components on object | path |
 | set_active | Toggle active flag | path, active |
+| rename_object | Rename GameObject, returns new path | path, name |
 | set_material | Assign material to object | path, material_path, slot |
 | set_property_delta | Relative property change | path, component, prop, delta |
 | object_diff | Compare two objects | path1, path2 |

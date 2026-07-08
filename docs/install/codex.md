@@ -4,7 +4,7 @@ The plugin auto-configures Codex automatically when you add it to your project. 
 
 ## Prerequisites
 
-- Codex CLI installed and authenticated  
+- Codex CLI installed and authenticated
 - Unity 6000.0+ with the `unity-mcp` plugin installed (via UPM git URL)
 - TCP port 9500 (or auto-assigned) free
 
@@ -47,34 +47,7 @@ uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirecto
 3. Select **Codex** from the backend dropdown.
 4. Type a prompt and press Enter.
 
-The plugin resolves the Python command, injects MCP config via `-c` flags, and spawns `codex exec`.
-
-## 4. How the Plugin Wires MCP
-
-On each turn, the plugin resolves the Python command (in order):
-
-1. **Windows:** `<project_root>/server/.venv/Scripts/python.exe` (if exists)
-2. **macOS / Linux:** `<project_root>/server/.venv/bin/python` (if exists)
-3. System `python3` or `python` fallback
-
-Then spawns `codex exec` with `-c` flags:
-
-```bash
-codex exec -c mcp_servers.unity.command="<python>" \
-           -c mcp_servers.unity.args=["-m","unity_mcp.server"] \
-           -c mcp_servers.unity.startup_timeout_sec=30 \
-           "<prompt>"
-```
-
-The server key is `unity` (not `unity-mcp`).
-
-## 5. Verify Installation
-
-Open the **Setup Wizard** in Unity (**MCP → Setup Wizard**) and select **Diagnostics**. It will check Python version, MCP server responsiveness, and TCP connectivity.
-
-Alternatively, call the `doctor` tool from Codex to verify the setup.
-
-## 6. Troubleshooting
+## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|

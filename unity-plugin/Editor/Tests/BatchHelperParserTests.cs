@@ -138,5 +138,71 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("\"Assets/a b c.png\"", args);
             StringAssert.Contains("\"SpriteRenderer\"", args);
         }
+
+        // ── Quote-fix tests ────────────────────────────────────────────────────
+
+        /// <summary>BUG B: ParseValue must unescape \" → " so EscapeJson produces one level of escaping.</summary>
+        [Test]
+        public void ParseValue_EmbeddedEscapedQuote_Unescaped()
+        {
+            // text as from ExtractString: value="He said \"Hello\""
+            // BUG B (old): raw Substring returns He said \"Hello\", EscapeJson triple-escapes → \\\"
+            // Fix: StringBuilder returns He said "Hello", EscapeJson → He said \"Hello\" in argsJson
+            var (_, args) = BatchHelper.ParseLine("cmd value=\"He said \\\"Hello\\\"\"");
+            StringAssert.Contains("He said \\\"Hello\\\"", args);
+        }
+
+        /// <summary>BUG B: ParseValue must unescape \\ → \ so EscapeJson produces double backslash.</summary>
+        [Test]
+        public void ParseValue_EscapedBackslash_Unescaped()
+        {
+            // text: path="C:\\Windows" (two backslash chars inside)
+            // BUG B (old): raw Substring raw-copies \\, EscapeJson → four backslashes
+            // Fix: StringBuilder returns C:\Windows, EscapeJson → C:\\Windows in argsJson
+            var (_, args) = BatchHelper.ParseLine("cmd path=\"C:\\\\Windows\"");
+            StringAssert.Contains("C:\\\\Windows", args);
+        }
+
+        /// <summary>BUG A: ParseLines must not call UnescapeJsonString a second time.</summary>
+        [Test]
+        public void ParseLines_EmbeddedQuoteInValue_Preserved()
+        {
+            // Simulate what ExtractString returns: already one unescape, so \" are actual chars.
+            // BUG A (old): 2nd UnescapeJsonString converts \" → ", corrupting the text to
+            //   cmd a="say "hi"" which makes ParseValue exit at the inner " → hi is lost.
+            var text = "cmd a=\"say \\\"hi\\\"\"";
+            var result = BatchHelper.ParseLines(text);
+            Assert.AreEqual(1, result.Count);
+            StringAssert.Contains("say \\\"hi\\\"", result[0].argsJson);
+        }
+
+        /// <summary>Regression guard: simple quoted value (no backslashes) still parses.</summary>
+        [Test]
+        public void ParseLines_SimpleQuotedValue_Unchanged()
+        {
+            var text = "create_object name=\"My Object\"";
+            var result = BatchHelper.ParseLines(text);
+            Assert.AreEqual(1, result.Count);
+            StringAssert.Contains("My Object", result[0].argsJson);
+        }
+
+        /// <summary>Regression guard: unquoted value still parses correctly.</summary>
+        [Test]
+        public void ParseLines_UnquotedValue_Unchanged()
+        {
+            var result = BatchHelper.ParseLines("set_active path=/Player value=true");
+            StringAssert.Contains("/Player", result[0].argsJson);
+            StringAssert.Contains("true", result[0].argsJson);
+        }
+
+        /// <summary>Regression guard: no-backslash text is unchanged by single unescape.</summary>
+        [Test]
+        public void ParseLines_DoesNotDoubleUnescape_SingleQuote()
+        {
+            var text = "set_property prop=x value=\"Player One\"";
+            var result = BatchHelper.ParseLines(text);
+            Assert.AreEqual(1, result.Count);
+            StringAssert.Contains("Player One", result[0].argsJson);
+        }
     }
 }

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Python MCP server with 120 MCP tools for controlling Unity Editor. `_UnstructuredMCP(FastMCP)` subclass (v0.50.3) + ConnectionSlot + capability gating + 23 middleware layers. External plugins can add more tools dynamically. Structured output disabled on all tools to eliminate duplicate `content` + `structuredContent` in MCP responses (reduces size & parsing overhead).
+Python MCP server with 126 MCP tools for controlling Unity Editor. `_UnstructuredMCP(FastMCP)` subclass (v0.50.3) + ConnectionSlot + capability gating + 23 middleware layers. External plugins can add more tools dynamically. Structured output disabled on all tools to eliminate duplicate `content` + `structuredContent` in MCP responses (reduces size & parsing overhead).
 
 ## Architecture (for Architect)
 
@@ -18,7 +18,7 @@ server/src/unity_mcp/
 ├── resources.py        # MCP Resources (4 URIs: hierarchy, console, editor, categories)
 ├── tools/
 │   ├── __init__.py     # Tool module registry
-│   ├── objects.py      # get_component/inspect/find/set_property/create/delete/manage_component/set_active/wire_event/unwire_event/set_material/set_parent/set_property_delta/transfer_object/object_diff
+│   ├── objects.py      # get_component/inspect/find/set_property/create/delete/manage_component/set_active/rename_object/wire_event/unwire_event/set_material/set_parent/set_property_delta/transfer_object/object_diff
 │   ├── scene.py        # hierarchy, console, compile_errors, screenshot(annotation_id), recompile, run_tests, get_test_results, scene (open_additive/close/set_active/list), search_scene, editor, checkpoint, fingerprint, scene_diff, save/load_session, screenshot_baseline/compare, get_changes
 │   ├── code_intel.py   # find_references, compile_preflight, semantic_at, await_compile
 │   ├── runtime.py      # invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, fuzz_playtest
@@ -45,7 +45,7 @@ server/src/unity_mcp/
     └── __init__.py              # 3-source auto-discovery (pkgutil, entry_points, UNITY_MCP_PLUGIN_DIRS)
 ```
 
-### Tools (120 total)
+### Tools (126 total)
 
 **TIER1 — always visible (42 tools):**
 
@@ -61,7 +61,7 @@ Other (18): screenshot, run_tests, setup_objects, set_properties, configure_obje
 
 | Category | Tools |
 |----------|-------|
-| object | find_objects, get_object_detail, get_components_list, set_active, set_material, wire_event, unwire_event, auto_wire, set_property_delta, object_diff, transfer_object |
+| object | find_objects, get_object_detail, get_components_list, set_active, rename_object, set_material, wire_event, unwire_event, auto_wire, set_property_delta, object_diff, transfer_object |
 | animation | animation, timeline, animator, particle |
 | asset | asset, material, prefab, scriptable_object, project_settings, shader, references, material_audit |
 | advanced | execute_code, recompile, get_schema, auto_fix, smart_build, checkpoint, undo_last, validate_references, menu, diagnose, scan_scene, check_colliders, spatial_query, region_clear, navmesh_query, scene_health, set_llm_config, budget_status |
