@@ -59,12 +59,29 @@ namespace UnityMCP.Editor
                     break;
 
                 case StepType.Move:
+                {
                     phase = Phase.Moving;
                     var charPath = step.Path ?? ResolveCharacterPath(config);
                     _moveTcs = new TaskCompletionSource<string>();
-                    RuntimeHelper.MoveTo(charPath, $"{step.Position.x},{step.Position.y},{step.Position.z}",
+                    Vector3 pos;
+                    try
+                    {
+                        pos = step.RawPosition != null
+                            ? PlaytestPositionResolver.Resolve(step.RawPosition)
+                            : step.Position;
+                    }
+                    catch (Exception e)
+                    {
+                        results.Add($"{label} MOVE — ERR: {e.Message}");
+                        failed++;
+                        _moveTcs = null;
+                        phase = Phase.Done;
+                        break;
+                    }
+                    RuntimeHelper.MoveTo(charPath, $"{pos.x},{pos.y},{pos.z}",
                         step.Timeout > 0 ? step.Timeout : 15f, _moveTcs, config);
                     break;
+                }
 
                 case StepType.Snapshot:
                     var queries = step.Queries?.Select(q => q.Trim()).Where(q => !string.IsNullOrEmpty(q));
@@ -114,7 +131,9 @@ namespace UnityMCP.Editor
                     {
                         var tgo = ComponentSerializer.FindObject(step.Path);
                         if (tgo == null) throw new ArgumentException($"Object not found: {step.Path}");
-                        tgo.transform.position = step.Position;
+                        tgo.transform.position = step.RawPosition != null
+                            ? PlaytestPositionResolver.Resolve(step.RawPosition)
+                            : step.Position;
                         Physics.SyncTransforms();
                         results.Add($"{label} TELEPORT {step.Path} → {step.Position}");
                         passed++;

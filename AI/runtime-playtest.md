@@ -124,11 +124,26 @@ await query_state("/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX")
 
 **RW Annotation:** Mutating (movement + snapshots).
 
-## run_playtest(script, timeout=120.0, abort_on_fail=False)
+## run_playtest(script, timeout=120.0, abort_on_fail=False, defs=None)
 
 **Purpose:** Execute playtest DSL script (fire-and-forget fire-and-poll pattern).
 
 **abort_on_fail:** If True, stops Play Mode when any WAIT_UNTIL times out. Equivalent to placing `ABORT_ON_FAIL` as first line of the script.
+
+**defs:** Optional inline VAL definitions prepended to the script. Format: one `VAL $name path|comp|field` line per entry. Use to inject aliases from `get_aliases()` or `PlaytestConfig.aliases` without modifying the script text.
+
+```python
+aliases = await get_aliases()   # → "$hp=/Player|Health|hp\n$pos=..."
+await run_playtest(script, defs=aliases)
+```
+
+**DSL Directives (processed before steps):**
+- `VAL $name value` — parse-time static substitution; `$name` sigil replaced in all following lines
+- `VAR $name @path|Comp|field` — runtime-resolved sigil; value read from Unity at each step that uses it
+- `INCLUDE filename` — inline-expand `Assets/PlaytestDefs/filename` at parse time (max depth 5)
+- `ALIAS name value` — deprecated (whole-word substitution, no sigil); use `VAL` instead
+- `MACRO name $p1 ... END_MACRO` / `CALL name arg1 ...` — reusable command blocks (Phase 0)
+- `ABORT_ON_FAIL` — global directive: stop Play Mode when any WAIT_UNTIL times out
 
 **DSL Commands:**
 - `MOVE [path] TO x,y,z` — move character
@@ -142,11 +157,8 @@ await query_state("/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX")
 - `ASSERT_CONSERVED SUM a+b OVER t` — physics invariant (e.g., energy conservation)
 - `ASSERT_CTA VISIBLE|CLICKABLE` — check UI reachability
 - `ASSERT_CAPTURED label INCREASED|DECREASED` — verify delta
-- `ALIAS name query` — bind query to name for later use
-- `MACRO name $p1 ... END_MACRO` / `CALL name arg1 ...` — reusable command blocks
 - `SECTION "title"` — group header always shown in report
 - `DESC "text"` — label next step in report (no step emitted)
-- `ABORT_ON_FAIL` — global directive: stop Play Mode when any WAIT_UNTIL times out
 - `SNAPSHOT queries` — capture state (comma-separated paths|component|field)
 - `INVOKE path comp method args` — call method
 - `SET path comp field value` — set field

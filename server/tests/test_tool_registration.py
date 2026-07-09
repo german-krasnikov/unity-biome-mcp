@@ -245,7 +245,7 @@ def test_testing_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # run_tests, get_test_results, get_test_count = 3 tools
+    # run_tests, get_test_results, get_test_count, get_test_progress = 4 tools
     assert mcp.tool.call_count >= 3
 
 
@@ -285,8 +285,8 @@ def test_b2_split_modules_wired_into_register_all():
 
 
 def test_b2_split_total_tool_count_unchanged(monkeypatch):
-    """The 19 tools formerly defined directly in scene.py must still total 19
-    across the 5 files (scene's own 6 + console's 3 + screenshot's 1 + testing's 3
+    """The 20 tools formerly defined directly in scene.py must still total 20
+    across the 5 files (scene's own 6 + console's 3 + screenshot's 1 + testing's 4
     + editor_control's 6), independent of scene.py's separate scene_session
     delegation (5 tools, unaffected by this split)."""
     monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)
@@ -305,4 +305,4 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
     scene_own = scene_total - 5
     total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    assert total == 19
+    assert total == 20

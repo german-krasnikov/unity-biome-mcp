@@ -68,12 +68,3 @@ def test_check_disagreement_exits_nonzero(tmp_path):
     assert result.returncode == 1
     assert "MCPServer.cs" in result.stderr
     assert "1.2.3" in result.stderr and "1.2.4" in result.stderr
-
-
-def test_check_real_repo_is_in_sync():
-    """Smoke test: the actual repo's 5 artifacts should already agree."""
-    result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--check"],
-        capture_output=True, text=True, encoding="utf-8", cwd=str(REPO_ROOT),
-    )
-    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"

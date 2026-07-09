@@ -28,14 +28,35 @@ namespace UnityMCP.Editor
             PlaytestConfig config = null;
             if (guids.Length > 0)
                 config = AssetDatabase.LoadAssetAtPath<PlaytestConfig>(AssetDatabase.GUIDToAssetPath(guids[0]));
+            _cachedConfig = config; // cache for SetTimeScale (avoids repeated AssetDatabase.FindAssets)
 
+            // Prepend Unity tags as VAL definitions (parse-time alias injection)
+            var tagLines = string.Join("\n",
+                UnityEditorInternal.InternalEditorUtility.tags
+                    .Select(tag => $"VAL ${tag.Replace(" ", "_")} {tag}"));
+            var resolvedScript = tagLines + "\n" + script;
+
+            ParseResult parseResult = null;
             List<PlaytestStep> steps;
-            try { steps = PlaytestParser.Parse(script); }
+            PlaytestVarRegistry varRegistry;
+            try
+            {
+                parseResult = PlaytestParser.Parse(resolvedScript);
+                steps = parseResult.Steps;
+                varRegistry = new PlaytestVarRegistry();
+                if (parseResult.VarDefs != null)
+                    foreach (var kv in parseResult.VarDefs)
+                        varRegistry.Register(kv.Key, kv.Value);
+            }
             catch (Exception e) { _isRunning = false; tcs.TrySetResult($"PARSE ERROR: {e.Message}"); return; }
+
+            if (parseResult.Warnings != null)
+                foreach (var w in parseResult.Warnings)
+                    Debug.LogWarning($"[Playtest] {w}");
 
             if (steps.Count == 0) { _isRunning = false; tcs.TrySetResult("PLAYTEST: 0 steps (0s)"); return; }
 
-            bool globalAbort = abortOnFail || PlaytestParser.HasGlobalAbort(script);
+            bool globalAbort = abortOnFail || parseResult.HasGlobalAbort;
 
             var results = new List<string>();
             int stepIdx = 0;
@@ -45,12 +66,14 @@ namespace UnityMCP.Editor
             int passed = 0, failed = 0;
             var state = new PlaytestState();
             DateTime stepStartUtc = DateTime.Now;
+            PlaytestStep currentExpanded = null; // VAR-expanded clone of current step
 
             void AdvanceStep()
             {
                 CheckStepConsoleErrors(steps[stepIdx], stepIdx, stepStartUtc, results);
                 stepIdx++;
                 stepStartUtc = DateTime.Now;
+                currentExpanded = null;
                 phase = Phase.Ready;
                 if (stepIdx >= steps.Count)
                 {
@@ -95,7 +118,8 @@ namespace UnityMCP.Editor
                 switch (phase)
                 {
                     case Phase.Ready:
-                        ExecuteStep(step, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state);
+                        currentExpanded = varRegistry.HasAny ? varRegistry.ExpandStep(step) : step;
+                        ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state);
                         if (phase == Phase.Done) AdvanceStep();
                         break;
 
@@ -119,13 +143,14 @@ namespace UnityMCP.Editor
 
                     case Phase.WaitingPoll:
                         float now = Time.realtimeSinceStartup;
-                        if (now - phaseStart > step.Timeout)
+                        var pollStep = currentExpanded ?? step; // use VAR-expanded version
+                        if (now - phaseStart > pollStep.Timeout)
                         {
-                            bool abortThis = step.AbortOnFail || globalAbort;
+                            bool abortThis = pollStep.AbortOnFail || globalAbort;
                             if (abortThis) EditorApplication.isPlaying = false;
                             string lastVal = "?";
-                            try { var (lp, lc, lf) = PlaytestParser.ResolveQuery(step.Query, config); lastVal = ReadValue(lp, lc, lf); } catch { }
-                            results.Add($"[{stepIdx + 1}] WAIT_UNTIL {step.Query}{step.Op}{step.Value} — TIMEOUT after {step.Timeout}s (last: {lastVal})");
+                            try { var (lp, lc, lf) = PlaytestParser.ResolveQuery(pollStep.Query, config); lastVal = ReadValue(lp, lc, lf); } catch { }
+                            results.Add($"[{stepIdx + 1}] WAIT_UNTIL {pollStep.Query}{pollStep.Op}{pollStep.Value} — TIMEOUT after {pollStep.Timeout}s (last: {lastVal})");
                             failed++;
                             phase = Phase.Done;
                             AdvanceStep();
@@ -133,16 +158,16 @@ namespace UnityMCP.Editor
                         }
                         try
                         {
-                            var (p, c, f) = PlaytestParser.ResolveQuery(step.Query, config);
+                            var (p, c, f) = PlaytestParser.ResolveQuery(pollStep.Query, config);
                             var actual = ReadValue(p, c, f);
                             bool met = EvalCompound(
-                                PlaytestParser.Compare(actual, step.Op, step.Value),
-                                step.Queries, step.BatchOps, step.BatchValues, step.IsOr,
+                                PlaytestParser.Compare(actual, pollStep.Op, pollStep.Value),
+                                pollStep.Queries, pollStep.BatchOps, pollStep.BatchValues, pollStep.IsOr,
                                 q => { var (cp, cc, cf) = PlaytestParser.ResolveQuery(q, config); return ReadValue(cp, cc, cf); });
                             if (met)
                             {
-                                var logic = step.Queries != null ? (step.IsOr ? " (OR)" : " (AND)") : "";
-                                results.Add($"[{stepIdx + 1}] WAIT_UNTIL {step.Query}{step.Op}{step.Value}{logic} — PASS ({(now - phaseStart).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)");
+                                var logic = pollStep.Queries != null ? (pollStep.IsOr ? " (OR)" : " (AND)") : "";
+                                results.Add($"[{stepIdx + 1}] WAIT_UNTIL {pollStep.Query}{pollStep.Op}{pollStep.Value}{logic} — PASS ({(now - phaseStart).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)");
                                 passed++;
                                 phase = Phase.Done;
                                 AdvanceStep();
@@ -181,6 +206,8 @@ namespace UnityMCP.Editor
         static TaskCompletionSource<string> _moveTcs;
         static IPlaytestSimulator _activeSimulator;
         static bool _isRunning;
+        // Cached once per Run() to avoid AssetDatabase.FindAssets on every SetTimeScale call
+        static PlaytestConfig _cachedConfig;
 
         /// <summary>Execute a single synchronous step. Returns true if step completed (phase=Done), false if async.</summary>
         internal static bool ExecuteSyncStep(PlaytestStep step, PlaytestConfig config, List<string> results,
@@ -229,20 +256,16 @@ namespace UnityMCP.Editor
 
         static void SetTimeScale(float scale)
         {
-            var guids = AssetDatabase.FindAssets("t:PlaytestConfig");
-            if (guids.Length > 0)
+            var cfg = _cachedConfig; // use config cached at Run() start — no AssetDatabase lookup
+            if (cfg != null && !string.IsNullOrEmpty(cfg.timeScaleClass) && !string.IsNullOrEmpty(cfg.timeScaleProperty))
             {
-                var cfg = AssetDatabase.LoadAssetAtPath<PlaytestConfig>(AssetDatabase.GUIDToAssetPath(guids[0]));
-                if (cfg != null && !string.IsNullOrEmpty(cfg.timeScaleClass) && !string.IsNullOrEmpty(cfg.timeScaleProperty))
+                foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
                 {
-                    foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
-                    {
-                        var type = asm.GetType(cfg.timeScaleClass);
-                        if (type == null) continue;
-                        var prop = type.GetProperty(cfg.timeScaleProperty,
-                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                        if (prop != null) { prop.SetValue(null, scale); return; }
-                    }
+                    var type = asm.GetType(cfg.timeScaleClass);
+                    if (type == null) continue;
+                    var prop = type.GetProperty(cfg.timeScaleProperty,
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                    if (prop != null) { prop.SetValue(null, scale); return; }
                 }
             }
             Time.timeScale = scale;

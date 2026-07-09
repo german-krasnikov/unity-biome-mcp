@@ -68,6 +68,21 @@ ToolError: <tool_name> requires typed MCP tool (Python DSL expansion), not batch
 - Compile guard: mutating commands blocked during compilation (unless explicitly allowed)
 - Main thread processing only (no concurrency)
 - DSL-expansion tools (registered via `register_dsl_tools()`) rejected with clear error message (Python-side check)
+- **`$alias` sigil not expanded in batch DSL** — batch executes on C# side before Python alias resolution runs. Middleware appends `[WARN] $alias in batch DSL not supported — use explicit paths instead`. Always use literal paths in batch commands.
+
+### C# Command Filtering Options
+
+`inspect` and `get_component` accept optional filtering params when used in batch DSL or direct TCP calls (applied C#-side via `ApplyFieldsCompress`):
+- `fields=field1,field2` — return only named fields from component output (`FieldProjector.Project`)
+- `compress=true` — strip default values from output (`DefaultStripper.Strip`)
+
+`fields` and `compress` are mutually exclusive; `fields` takes precedence.
+
+```
+# Batch examples
+get_component path=/Player type=Rigidbody fields=m_Mass,m_Drag
+inspect paths=/Player,/Enemy components=Rigidbody compress=true
+```
 
 ### Edge Cases
 - Empty text → returns `ok:0` (no operations, summary only)

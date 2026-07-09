@@ -60,7 +60,7 @@ namespace UnityMCP.Editor
                     sb.AppendLine(ComponentSerializer.SerializeAll(go.GetInstanceID()));
                 }
             }
-            return sb.ToString().TrimEnd();
+            return ApplyFieldsCompress(args, sb.ToString().TrimEnd());
         }
 
         // Cache for fast-path get_enabled_tools (bypasses main thread dispatch).
@@ -120,6 +120,54 @@ namespace UnityMCP.Editor
                 : HierarchySerializer.Serialize(depth, root, filter, components, scene);
         }
 
+        // Returns "--- ALIASES ---\nname=path|comp|field\n---" from PlaytestConfig,
+        // or null when no config / no aliases. Called on main thread (AssetDatabase safe).
+        internal static string BuildAliasSection(PlaytestConfig config = null)
+        {
+            if (config == null)
+            {
+                var guids = UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig");
+                if (guids.Length == 0) return null;
+                config = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(
+                    UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+            if (config?.aliases == null || config.aliases.Count == 0) return null;
+            var sb = new StringBuilder("--- ALIASES ---\n");
+            bool any = false;
+            foreach (var a in config.aliases)
+            {
+                if (a.type == AliasType.VarRuntime) continue;
+                any = true;
+                sb.Append(a.alias).Append('=');
+                if (a.type == AliasType.ValConst)
+                    sb.Append(a.constValue);
+                else
+                    sb.Append(a.path).Append('|').Append(a.component).Append('|').Append(a.field);
+                sb.Append('\n');
+            }
+            if (!any) return null;
+            sb.Append("---");
+            return sb.ToString();
+        }
+
+        // Strips the --- ALIASES --- header and --- footer, returns bare name=value lines.
+        private static string GetAliasesText()
+        {
+            var section = BuildAliasSection();
+            if (section == null) return "no aliases";
+            var sb = new StringBuilder();
+            foreach (var raw in section.Split('\n'))
+            {
+                var line = raw.TrimEnd('\r');
+                if (!line.StartsWith("---") && line.Length > 0)
+                {
+                    if (sb.Length > 0) sb.Append('\n');
+                    sb.Append(line);
+                }
+            }
+            return sb.Length > 0 ? sb.ToString() : "no aliases";
+        }
+
         private static string ExecGetComponent(string args)
         {
             var path = JsonHelper.ExtractString(args, "path");
@@ -135,6 +183,16 @@ namespace UnityMCP.Editor
             if (result == null)
                 throw new InvalidOperationException(ErrorHelper.ComponentNotFound(type, go));
 
+            return ApplyFieldsCompress(args, result);
+        }
+
+        private static string ApplyFieldsCompress(string args, string result)
+        {
+            var fields = JsonHelper.ExtractString(args, "fields");
+            if (!string.IsNullOrEmpty(fields))
+                return FieldProjector.Project(result, fields);
+            if (JsonHelper.ExtractString(args, "compress") == "true")
+                return DefaultStripper.Strip(result);
             return result;
         }
 

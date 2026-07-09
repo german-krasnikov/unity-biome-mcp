@@ -128,3 +128,24 @@ async def test_get_test_results_returns_pending_on_connection_error(testing_mod,
     _patch_send.side_effect = Exception("Connection lost")
     result = await testing_mod.get_test_results()
     assert result == "pending"
+
+
+# ── get_test_progress ─────────────────────────────────────────────────────────
+
+async def test_get_test_progress_returns_send_result(testing_mod, _patch_send):
+    _patch_send.return_value = "running|142|140|2|0|5864|18.3|eta=45s"
+
+    result = await testing_mod.get_test_progress()
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "get_test_progress"
+    assert call_args[0][1] == {}
+    assert result == "running|142|140|2|0|5864|18.3|eta=45s"
+
+
+async def test_get_test_progress_returns_pending_on_exception(testing_mod, _patch_send):
+    _patch_send.side_effect = Exception("Connection lost")
+
+    result = await testing_mod.get_test_progress()
+
+    assert result == "pending"

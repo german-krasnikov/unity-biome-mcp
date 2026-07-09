@@ -40,7 +40,8 @@ unity-kiss-mcp/
 │   │   ├── diagnose.py         # Shared diagnose parser + verdict logic (_parse_diagnose, _verdict, _DiagnoseFields)
 │   │   ├── _update_check.py    # Version checker — GitHub releases API (v0.47.1: switched from PyPI), 24h cache, includes --reinstall flag in banner
 │   │   ├── compile_state.py    # CompileStateProbe (heuristic Unity compile detection)
-│   │   ├── middleware.py       # 23-layer middleware pipeline (env-gated UNITY_MCP_MIDDLEWARE=1); _play_state_known flag (feat/tool-disambiguation)
+│   │   ├── middleware.py       # 23-layer middleware pipeline (env-gated UNITY_MCP_MIDDLEWARE=1); _play_state_known flag (feat/tool-disambiguation); _alias_cache dict (v0.78.x, cleared on reset_session)
+│   │   ├── middleware_alias.py # Pure alias functions: parse_aliases_from_hierarchy, resolve_aliases_in_args, strip_alias_block, parse_aliases_from_get_aliases (v0.78.x)
 │   │   ├── middleware_types.py # _RUNTIME_ONLY_CMDS frozenset: commands requiring Play Mode (invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, get_perf, get_frame_stats, debug_animator, debug_physics, watch_add, profile)
 │   │   ├── middleware_guards.py # check_play_mode_required(): fail-fast guard blocks _RUNTIME_ONLY_CMDS before TCP when edit mode confirmed
 │   │   ├── middleware_paths.py # PathResolverMixin extracted from middleware.py
@@ -146,12 +147,14 @@ unity-kiss-mcp/
 │   │   │   └── _annotations.py          # Tool annotations
 │   │   └── plugins/            # Plugin system — 3-source auto-discovery (auto-disabled via UNITY_MCP_SKIP_PLUGINS env)
 │   │       └── __init__.py     # load_plugins(mcp, send_fn, args_fn), 3-source discovery, UNITY_MCP_SKIP_PLUGINS filtering
-│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
+│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; v0.78.x: +alias middleware tests; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
 │       ├── helpers.py                  # DRY: make_mock_bridge() + shared test utilities (v0.26.0)
 │       ├── test_server*.py             # Core + edge cases + tools
 │       ├── test_bridge*.py             # TCP bridge + reconnect + resilience
 │       ├── test_reload_ladder.py       # Reload recovery T0-T5 stages + verdict scenarios (20+ tests, v0.27.4)
 │       ├── test_middleware*.py          # Middleware layers (god-file split in v0.26.0)
+│       ├── test_middleware_alias.py     # middleware_alias pure functions: parse/resolve/strip (v0.78.x)
+│       ├── test_middleware_alias_lifecycle.py # Alias cache lifecycle: seeding, reset, Hook 1+2 integration (v0.78.x)
 │       ├── test_batch*.py              # Batch + conflict + timeout
 │       ├── test_config_gaps.py         # Config validation: resolver.py + validator.py + update_check.py + doctor; SERVER_NAME drift guard (v0.71.0) (73+78=151 tests, v0.47.1: GitHub API, git+URL, TOML clients, per-client root_key)
 │       ├── test_server_name_consistency.py # Cross-language Python↔C# SERVER_NAME + MCP_BLANKET drift guard (v0.71.0)
@@ -238,7 +241,7 @@ unity-kiss-mcp/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
 │       ├── CommandRouter.cs                # RegisterAll(), guards, core dispatch (partial class)
-│       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class)
+│       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class); get_aliases command + BuildAliasSection/GetAliasesText; ApplyFieldsCompress(args, result) shared by inspect + get_component (v0.78.x)
 │       ├── CommandRouter.MediaHandlers.cs  # Media/asset handlers (partial class)
 │       ├── CommandRouter.Registration.cs   # 4 themed Register methods: RegisterSceneTools, RegisterRuntimeTools, RegisterMetaTools, RegisterEditorTools (partial class, v0.70.0)
 │       ├── CommandOptions.cs               # Struct groups trailing Register() params: Mutating/Runtime/Required/Optional/AlwaysAllowed/AllowedDuringCompile/Description/MaxResponseChars (v0.69.0, refactored v0.70.0)
@@ -262,12 +265,16 @@ unity-kiss-mcp/
 │       ├── ComponentSerializer.cs          # Component → key-value + ObjectReference + UnityEvent
 │       ├── ComponentSerializer.Finder.cs   # #instanceID in all path tools (v0.23.0)
 │       ├── BatchHelper.cs                  # Batch text parser + per-command guards + timeout
+│       ├── FieldProjector.cs               # Pure static: filter inspect/get_component output to requested fields (v0.78.x, 67 LOC)
+│       ├── DefaultStripper.cs              # Pure static: strip default/zero-value lines from component output (v0.78.x, 62 LOC)
 │       ├── RefManager.cs                   # Ephemeral $a-$zz scene refs (702 slots)
 │       ├── ErrorHelper.cs                  # Contextual errors + "did you mean?"
 │       ├── RuntimeHelper.cs                # Reflection invoke + state read; method dispatch cache + field(args) syntax (v0.74.0)
-│       ├── PlaytestRunner.cs               # DSL playtest executor (partial class, core); abort_on_fail, EvalCompound (v0.74.0)
+│       ├── PlaytestRunner.cs               # DSL playtest executor (partial class, core); abort_on_fail, EvalCompound (v0.74.0); VAR expansion via PlaytestVarRegistry, _cachedConfig (v0.78.x)
 │       ├── PlaytestRunner.Steps.cs         # ExecuteStep dispatch (partial class, 23 cases: +Section v0.74.0)
-│       ├── PlaytestParser.cs               # DSL parser; MACRO/CALL, MOVE_PATH, SECTION, DESC, AND/OR WAIT_UNTIL (v0.74.0)
+│       ├── PlaytestParser.cs               # DSL parser; MACRO/CALL, MOVE_PATH, SECTION, DESC, AND/OR WAIT_UNTIL (v0.74.0); INCLUDE (Phase -1), VAL (Phase 0.7), VAR, ParseResult, SigilRegex, _DSL_KEYWORDS (v0.78.x)
+│       ├── PlaytestVarRegistry.cs          # Runtime VAR resolve: Register(name, @path|comp|field), ExpandVars(text), ExpandStep(step); ReadValueFn delegate injection for testability (v0.78.x)
+│       ├── PlaytestPositionResolver.cs     # Position expression resolver: literal x,y,z or @/GoPath.position [± (dx,dy,dz)]; _findOverride seam for unit tests (v0.78.x)
 │       ├── PlaytestState.cs + PlaytestConfig.cs
 │       ├── IPlaytestSimulator.cs + IPlaytestMonitor.cs
 │       ├── PlaytestMonitorRegistry.cs + SimulatorRegistry.cs  # Playtest type registries
@@ -276,10 +283,14 @@ unity-kiss-mcp/
 │       ├── PlaytestDslExporter.cs          # Pure static: List<VisualStep> → DSL string, FromParsed roundtrip (v0.75.0)
 │       ├── PlaytestStepElement.cs          # UITK VisualElement per-row step editor, Bind/Unbind (v0.75.0, 282 LOC)
 │       ├── PlaytestSmartDrop.cs            # ShowActionMenu: 10 actions via GenericDropdownMenu (v0.75.0)
-│       ├── PlaytestDropHelper.cs           # AttachMultiDnD + ShowComponentPicker via GenericDropdownMenu (v0.75.0, 159 LOC)
+│       ├── PlaytestDropHelper.cs           # AttachMultiDnD + ShowComponentPicker via GenericDropdownMenu (v0.75.0); GetMemberNames(Type) → public fields+props, GetZeroArgMethodNames(Type) → void methods (v0.77.12)
 │       ├── PlaytestStepValidator.cs        # GetValidationError per StepType + IsScriptValid (v0.75.0)
 │       ├── PlaytestFileHelper.cs           # Save/Load .playtest files via OS dialog + DSL roundtrip (v0.75.0, 42 LOC)
 │       ├── PlaytestComposerWindow.cs       # UI Toolkit EditorWindow (MCP/Playtest Composer, Shift+Alt+P); rewritten from IMGUI v0.75.0
+│       ├── PlaytestAliasWindow.cs          # Alias Manager EditorWindow (MCP/Alias Manager, Shift+Alt+A); drag-drop GO → row, Export .defs, Copy VAL block; delegates card rendering to PlaytestAliasCardBuilder (v0.78.x)
+│       ├── PlaytestAliasCardBuilder.cs     # Static card builder: per-AliasType card layout (ValPath/ValConst/VarRuntime); cascading comp+field dropdowns, 8px status dot, DnD on path field (v0.77.12, 251 LOC)
+│       ├── PlaytestAliasHelpers.cs         # Pure static: FormatLine(alias) typed dispatch, FormatVALBlock, ExportToDefs, TokenSavingsEstimate, SuggestName (v0.78.x)
+│       ├── PlaytestAliasWindow.uss         # USS styles for Alias Manager (alias-drop-zone, alias-card--val-path/val-const/var CSS classes) (v0.78.x)
 │       ├── MultiViewCapture.cs + MultiViewOverlay.cs + OverlayDrawer.cs  # 4-panel screenshots
 │       ├── ScreenshotCapture.cs            # Camera modes: default, overview, multi_view
 │       ├── CodeExecutor.cs                 # Roslyn C# execution, 3-layer security (IsAllowedAssembly: private→internal v0.26.0)
@@ -421,6 +432,20 @@ unity-kiss-mcp/
 │       │   ├── PlaytestDropHelperTests.cs        # Multi-drop + component/field/method pickers (~225 tests, v0.75.0)
 │       │   ├── PlaytestDslExporterTests.cs       # All 17 StepTypes + Export + FromParsed roundtrip (~412 tests, v0.75.0)
 │       │   ├── PlaytestStepValidatorTests.cs     # Per-type validation error rules (~305 tests, v0.75.0)
+│       │   ├── PlaytestVarTests.cs               # PlaytestVarRegistry: Register, ExpandVars, ExpandStep, unknown sigil passthrough (v0.78.x)
+│       │   ├── PlaytestValComboTests.cs          # VAL+VAR+INCLUDE combos, circular ref detection (v0.78.x)
+│       │   ├── PlaytestValEdgeCaseTests.cs       # VAL edge cases: whitespace, duplicates, keyword injection guard (v0.78.x)
+│       │   ├── PlaytestPositionResolverTests.cs  # Literal, @-ref, offset +/-, missing object error (v0.78.x)
+│       │   ├── PlaytestAliasGridTestTests.cs     # AliasWindow row CRUD, token label, DSL preview (v0.78.x)
+│       │   ├── PlaytestAliasModularityTests.cs   # FormatVALLine/Block, ExportToDefs, SuggestName purity (v0.78.x)
+│       │   ├── PlaytestAliasRealWorldTests.cs    # End-to-end alias → DSL → run_playtest round-trip (v0.78.x)
+│       │   ├── PlaytestAliasStressTests.cs       # 100+ aliases, token savings boundary cases (v0.78.x)
+│       │   ├── GetAliasesTests.cs                # get_aliases command: C# handler + name=value line format (v0.78.x)
+│       │   ├── GetAliasesTypedTests.cs           # BuildAliasSection typed behavior: ValPath emits pipes, ValConst emits literal, VarRuntime skipped (v0.77.12)
+│       │   ├── PlaytestAliasTestHelpers.cs       # Shared test fixtures for alias test files (v0.78.x)
+│       │   ├── PlaytestAliasWindowTests.cs       # PlaytestAliasWindow UIElements: add/remove/rename, Export, Copy (v0.78.x)
+│       │   ├── PlaytestAliasHelperTypedTests.cs  # FormatLine type dispatch: ValPath pipes, ValConst no-pipe literal, VarRuntime @ prefix (v0.77.12)
+│       │   ├── PlaytestDropHelperMemberTests.cs  # GetMemberNames + GetZeroArgMethodNames: fields, props, methods reflection (v0.77.12)
 │       ├── Wizard/                        # Setup Wizard + Auto-Config + Diagnostics (v0.38.0+, v0.68.0: ProjectConfigWriter auto-config, v0.42.0: 3-screen flow, 9 backends, asmdef split; v0.47.1: AiConfigScreen fallback, removed dead screens)
 │       │   ├── ProjectConfigWriter.cs     # [InitializeOnLoad] auto-config orchestrator: discovers port, version, writes per-project MCP configs for all targets (v0.68.0)
 │       │   ├── ProjectConfigFormats.cs    # Format registry: JSON, TOML, extensible (v0.68.0)
@@ -636,6 +661,7 @@ unity-kiss-mcp/
 │       │   │   ├── ChatTranscript.cs          # In-memory message history + streaming→finalize strategy
 │       │   │   ├── TranscriptSerializer.cs    # Serialize/deserialize chat history to plain-text (F21 reload survival, v0.63.0: Kind enum + 5-column format)
 │       │   │   ├── PlaytestComposerButton.cs  # IToolbarButtonProvider (MenuOnly=true, Order=20) → opens PlaytestComposerWindow (v0.75.0)
+│       │   │   ├── PlaytestAliasButton.cs     # IToolbarButtonProvider (MenuOnly=true, Order=21, Key="playtest_alias") → opens PlaytestAliasWindow (v0.78.x)
 │       │   │   ├── AssemblyInfo.cs            # AssemblyVersion + InternalsVisibleTo decorators (Chat.CLI)
 │       │   │   └── Tests/                     # CLI assembly tests (protocol, parsing, backends)
 │       │   │       ├── ChatStreamParserTests.cs # Parse stream-json events + control_request routing

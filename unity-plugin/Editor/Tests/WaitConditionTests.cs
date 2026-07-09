@@ -176,13 +176,13 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void HasGlobalAbort_DirectivePresent_ReturnsTrue()
         {
-            Assert.IsTrue(PlaytestParser.HasGlobalAbort("ABORT_ON_FAIL\nWAIT_UNTIL /P|H|v > 0"));
+            Assert.IsTrue(PlaytestParser.Parse("ABORT_ON_FAIL\nWAIT_UNTIL /P|H|v > 0").HasGlobalAbort);
         }
 
         [Test]
         public void HasGlobalAbort_NoDirective_ReturnsFalse()
         {
-            Assert.IsFalse(PlaytestParser.HasGlobalAbort("WAIT_UNTIL /P|H|v > 0"));
+            Assert.IsFalse(PlaytestParser.Parse("WAIT_UNTIL /P|H|v > 0").HasGlobalAbort);
         }
 
         [Test]

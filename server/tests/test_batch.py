@@ -172,3 +172,27 @@ async def test_validate_references_ignore_optional_false_omitted(mock_bridge):
     await validate_references(path="/Root")
     call_args = mock_bridge.send.call_args[0][1]
     assert "ignore_optional" not in call_args
+
+
+async def test_batch_fields_forwarded_to_csharp(mock_bridge, bridge_response):
+    """fields= in batch DSL is forwarded as-is to C# (not consumed by Python)."""
+    bridge_response(data="[0] ok: m_Mass: 2")
+    await batch(commands="inspect paths=/Player fields=mass")
+    call_args = mock_bridge.send.call_args[0]
+    assert "fields=mass" in call_args[1]["commands"]
+
+
+async def test_batch_compress_forwarded_to_csharp(mock_bridge, bridge_response):
+    """compress= in batch DSL is forwarded as-is to C# (not consumed by Python)."""
+    bridge_response(data="[0] ok: m_Mass: 2")
+    await batch(commands="get_component path=/Player type=Rigidbody compress=true")
+    call_args = mock_bridge.send.call_args[0]
+    assert "compress=true" in call_args[1]["commands"]
+
+
+async def test_batch_no_python_postprocessing_for_fields(mock_bridge, bridge_response):
+    """batch() does NOT call project_fields or strip_defaults — C# handles it."""
+    bridge_response(data="[0] ok: m_Mass: 2\nm_Drag: 0")
+    result = await batch(commands="inspect paths=/Player fields=mass")
+    # Result returned as-is from bridge — Python didn't filter
+    assert "m_Drag: 0" in result

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace UnityMCP.Editor
@@ -13,6 +14,7 @@ namespace UnityMCP.Editor
         public StepType Type;
         public string Path;
         public Vector3 Position;
+        public string RawPosition; // null = literal in Position; non-null = deferred @-expression
         public float Delay;
         public string Query;
         public string Op;
@@ -30,14 +32,67 @@ namespace UnityMCP.Editor
         public bool IsOr;        // true = OR logic for compound WAIT_UNTIL, false = AND
         public bool AbortOnFail; // true = stop Play Mode on timeout
         public string Label;     // set by preceding DESC line
+
+        // Shallow copy — arrays share references with original (by design)
+        internal PlaytestStep ShallowClone() => new PlaytestStep
+        {
+            Type = Type, Path = Path, Position = Position, RawPosition = RawPosition, Delay = Delay,
+            Query = Query, Op = Op, Value = Value, Timeout = Timeout,
+            Component = Component, Method = Method, Args = Args,
+            Message = Message, Queries = Queries, RawLine = RawLine,
+            BatchOps = BatchOps, BatchValues = BatchValues,
+            SimulatorName = SimulatorName, IsOr = IsOr,
+            AbortOnFail = AbortOnFail, Label = Label
+        };
     }
+
+    // Carries both steps and var-bindings out of Parse() with zero breakage for existing callers.
+    internal class ParseResult : IEnumerable<PlaytestStep>
+    {
+        public List<PlaytestStep> Steps;
+        /// <summary>Raw @-query strings keyed by VAR name (without $). Null if none declared.</summary>
+        public Dictionary<string, string> VarDefs;
+        /// <summary>Non-fatal parse warnings (e.g. unresolved $sigil typos). Null if none.</summary>
+        public List<string> Warnings;
+        public bool HasGlobalAbort { get; set; }
+
+        public int Count => Steps.Count;
+        public PlaytestStep this[int i] => Steps[i];
+        public bool Exists(Predicate<PlaytestStep> match) => Steps.Exists(match);
+        public int IndexOf(PlaytestStep item) => Steps.IndexOf(item);
+        public IEnumerator<PlaytestStep> GetEnumerator() => Steps.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => Steps.GetEnumerator();
+
+        public static implicit operator List<PlaytestStep>(ParseResult r) => r.Steps;
+    }
+
+    /// <summary>Resolves INCLUDE directives — returns full file content as a string.</summary>
+    internal delegate string IncludeResolver(string filename);
 
     internal static class PlaytestParser
     {
-        public static List<PlaytestStep> Parse(string script)
+        // Matches $name sigils — ASCII-only names starting with letter or _
+        internal static readonly Regex SigilRegex = new Regex(
+            @"\$([A-Za-z_][A-Za-z0-9_]*)",
+            RegexOptions.Compiled);
+
+        // DSL keywords blocked as VAL values (prevent command injection via defs)
+        private static readonly HashSet<string> _DSL_KEYWORDS = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            var steps = new List<PlaytestStep>();
+            "INVOKE", "MOVE", "MOVE_PATH", "TELEPORT", "ASSERT", "ASSERT_CONSOLE_CLEAN",
+            "ASSERT_BATCH", "ASSERT_NEAR", "ASSERT_CAPTURED", "ASSERT_CONSERVED", "ASSERT_CTA",
+            "WAIT", "WAIT_UNTIL", "SNAPSHOT", "SET", "LOG", "TIMESCALE", "CAPTURE",
+            "INVARIANT", "SIMULATE", "MONITOR", "TRACE_FLOW", "CLICK", "TAP",
+            "SECTION", "DESC", "MACRO", "END_MACRO", "CALL", "INCLUDE", "ABORT_ON_FAIL",
+            "VAL", "VAR", "ALIAS"
+        };
+
+        public static ParseResult Parse(string script, IncludeResolver resolver = null)
+        {
             var rawLines = script.Split('\n');
+
+            // Phase -1: expand INCLUDE directives (before any other processing)
+            rawLines = ExpandIncludes(rawLines, 0, resolver);
 
             // Phase 0: collect MACRO definitions
             var macros = new Dictionary<string, (string[] paramNames, string[] body)>(StringComparer.OrdinalIgnoreCase);
@@ -74,22 +129,44 @@ namespace UnityMCP.Editor
             // Phase 0.5: expand CALL directives (supports forward references and nesting)
             var lines = ExpandCalls(cleanLines, macros, 0).ToArray();
 
-            // First pass: collect ALIAS definitions
+            // Phase 0.7: collect VAL definitions and expand $sigils in all lines
+            var vals = CollectVals(lines);
+            if (vals.Count > 0)
+                lines = lines.Select(l => {
+                    // For VAR declarations, preserve the $name token; only expand the @-query
+                    var t = l.TrimStart();
+                    if (t.StartsWith("VAR ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var tk = t.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                        if (tk.Length >= 3) return tk[0] + " " + tk[1] + " " + ExpandSigils(tk[2], vals);
+                    }
+                    return ExpandSigils(l, vals);
+                }).ToArray();
+
+            // Phase 1: collect ALIAS definitions (kept for backward compat — no sigil, whole-word)
             var aliases = new Dictionary<string, string>();
             foreach (var rawLine in lines)
             {
                 var trimmed = rawLine.Trim();
                 if (!trimmed.StartsWith("ALIAS ", StringComparison.OrdinalIgnoreCase)) continue;
                 var parts = trimmed.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 3) aliases[parts[1]] = parts[2];
+                if (parts.Length == 3)
+                {
+                    Debug.LogWarning($"[Playtest] ALIAS is deprecated — use VAL instead: VAL ${parts[1]} {parts[2]}");
+                    aliases[parts[1]] = parts[2];
+                }
             }
 
-            // Second pass: parse commands, applying alias substitution
+            // Phase 1.1 + Phase 2: parse commands; collect VAR definitions
+            var varDefs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var steps = new List<PlaytestStep>();
             string pendingLabel = null;
+            bool hasGlobalAbort = false;
+
             for (int i = 0; i < lines.Length; i++)
             {
                 var rawLine = lines[i];
-                // Apply alias substitutions
+                // Apply alias substitutions (ALIAS — whole-word, no sigil)
                 foreach (var kv in aliases)
                     rawLine = ReplaceWholeWord(rawLine, kv.Key, kv.Value);
 
@@ -99,6 +176,33 @@ namespace UnityMCP.Editor
                 var tokens = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 var cmd = tokens[0].ToUpperInvariant();
                 if (cmd == "ALIAS") continue; // skip alias definitions
+                if (cmd == "VAL") continue;   // skip VAL definitions (already processed in phase 0.7)
+
+                // Phase 1.1: collect VAR bindings
+                if (cmd == "VAR")
+                {
+                    if (tokens.Length < 3)
+                        throw new ArgumentException(
+                            "VAR syntax: VAR $name @path|Comp|field\n" +
+                            "Example: VAR $hp @/Player|Health|currentHp\n" +
+                            "Example: VAR $pos @/Enemy|Transform|position");
+                    var varName = tokens[1].TrimStart('$');
+                    var query = tokens[2];
+                    if (!query.StartsWith("@"))
+                        throw new ArgumentException(
+                            $"VAR '{tokens[1]}': query must start with '@'.\n" +
+                            $"  Format: VAR $name @/path|ComponentName|fieldName\n" +
+                            $"  Example: VAR $hp @/Player|Health|currentHp\n" +
+                            $"  (Not dot notation — use pipes to separate path, component, field)");
+                    // Validate pipe-separated format: @path|comp|field
+                    var varParts = query.Substring(1).Split('|');
+                    if (varParts.Length < 3)
+                        throw new ArgumentException(
+                            $"VAR '{tokens[1]}': needs 3 pipe-separated parts: path|comp|field (got {varParts.Length} in '{query}').\n" +
+                            $"  Example: VAR $hp @/Player|Health|currentHp");
+                    varDefs[varName] = query; // store raw @-query string
+                    continue;
+                }
 
                 var step = new PlaytestStep { RawLine = line };
 
@@ -110,9 +214,7 @@ namespace UnityMCP.Editor
                         if (toIdx < 0 || toIdx + 1 >= tokens.Length)
                             throw new ArgumentException("MOVE syntax: MOVE [path] TO x,y,z");
                         step.Path = toIdx > 1 ? tokens[1] : null;
-                        var posStr = tokens[toIdx + 1];
-                        var f = ValueParser.ParseFloats(posStr, 3);
-                        step.Position = new Vector3(f[0], f[1], f[2]);
+                        SetPosition(step, tokens[toIdx + 1]);
                         break;
 
                     case "WAIT":
@@ -122,6 +224,7 @@ namespace UnityMCP.Editor
 
                     case "WAIT_UNTIL":
                     {
+                        if (tokens.Length < 4) throw new ArgumentException($"WAIT_UNTIL requires path op value, got: '{line}'");
                         step.Type = StepType.WaitUntil;
                         step.Query = tokens[1]; step.Op = tokens[2]; step.Value = tokens[3];
                         var tiIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "TIMEOUT");
@@ -155,6 +258,7 @@ namespace UnityMCP.Editor
                     }
 
                     case "ASSERT":
+                        if (tokens.Length < 4) throw new ArgumentException($"ASSERT requires path op value, got: '{line}'");
                         step.Type = StepType.Assert;
                         step.Query = tokens[1]; step.Op = tokens[2]; step.Value = tokens[3];
                         var asIdx = Array.FindIndex(tokens, 4, t => t.ToUpperInvariant() == "AS");
@@ -217,11 +321,10 @@ namespace UnityMCP.Editor
                         break;
 
                     case "TELEPORT":
-                        // TELEPORT /path x,y,z
+                        // TELEPORT /path x,y,z  OR  TELEPORT /path @/Ref.position
                         step.Type = StepType.Teleport;
                         step.Path = tokens[1];
-                        var tf = ValueParser.ParseFloats(tokens[2], 3);
-                        step.Position = new Vector3(tf[0], tf[1], tf[2]);
+                        SetPosition(step, tokens[2]);
                         break;
 
                     case "SNAPSHOT":
@@ -366,19 +469,21 @@ namespace UnityMCP.Editor
                         var tiIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "TIMEOUT");
                         float pathTimeout = tiIdx >= 0 ? float.Parse(tokens[tiIdx + 1], CultureInfo.InvariantCulture) : 0f;
                         int endIdx = tiIdx >= 0 ? tiIdx : tokens.Length;
+                        bool firstMove = true;
                         for (int ci = 1; ci < endIdx; ci++)
                         {
                             if (tokens[ci] == ">") continue;
-                            var cf = ValueParser.ParseFloats(tokens[ci], 3);
                             var moveStep = new PlaytestStep
                             {
                                 Type = StepType.Move,
-                                Position = new Vector3(cf[0], cf[1], cf[2]),
                                 Timeout = pathTimeout,
                                 RawLine = line
                             };
+                            SetPosition(moveStep, tokens[ci]);
+                            if (firstMove) { moveStep.Label = pendingLabel; firstMove = false; }
                             steps.Add(moveStep);
                         }
+                        pendingLabel = null;
                         continue; // skip the outer steps.Add(step)
                     }
 
@@ -392,6 +497,7 @@ namespace UnityMCP.Editor
                         continue; // no step emitted
 
                     case "ABORT_ON_FAIL":
+                        hasGlobalAbort = true;
                         continue; // global directive — not emitted as a step
 
                     default:
@@ -401,7 +507,130 @@ namespace UnityMCP.Editor
                 pendingLabel = null;
                 steps.Add(step);
             }
-            return steps;
+
+            // Phase 0.8: warn on unresolved $sigils (likely typos) — only when sigils are used
+            List<string> warnings = null;
+            if (vals.Count > 0 || varDefs.Count > 0)
+            {
+                foreach (var expandedLine in lines)
+                {
+                    var lt = expandedLine.Trim();
+                    if (lt.StartsWith("#") || lt.StartsWith("VAR ", StringComparison.OrdinalIgnoreCase) ||
+                        lt.StartsWith("VAL ", StringComparison.OrdinalIgnoreCase)) continue;
+                    foreach (Match m in SigilRegex.Matches(expandedLine))
+                    {
+                        var sigil = m.Groups[1].Value;
+                        if (!vals.ContainsKey(sigil) && !varDefs.ContainsKey(sigil))
+                        {
+                            warnings = warnings ?? new List<string>();
+                            warnings.Add($"Unresolved $sigil: ${sigil} (typo in VAL/VAR name?)");
+                        }
+                    }
+                }
+            }
+
+            return new ParseResult
+            {
+                Steps = steps,
+                VarDefs = varDefs.Count > 0 ? varDefs : null,
+                Warnings = warnings,
+                HasGlobalAbort = hasGlobalAbort
+            };
+        }
+
+        // ── Phase helpers ──────────────────────────────────────────────────────────
+
+        // Phase -1: expand INCLUDE directives recursively
+        internal static string[] ExpandIncludes(string[] lines, int depth, IncludeResolver resolver)
+        {
+            if (depth > 5) throw new ArgumentException("INCLUDE depth exceeded (max 5)");
+            var result = new List<string>();
+            foreach (var line in lines)
+            {
+                var t = line.Trim();
+                if (!t.StartsWith("INCLUDE ", StringComparison.OrdinalIgnoreCase))
+                { result.Add(line); continue; }
+                var filename = t.Substring(8).Trim().Trim('"');
+                if (filename.Contains("..") || System.IO.Path.IsPathRooted(filename))
+                    throw new ArgumentException($"INCLUDE '{filename}': path traversal not allowed");
+                // Canonicalize to block symlink traversal outside PlaytestDefs/
+                if (resolver == null)
+                {
+                    var basePath = System.IO.Path.GetFullPath("Assets/PlaytestDefs/").TrimEnd(
+                        System.IO.Path.DirectorySeparatorChar) + System.IO.Path.DirectorySeparatorChar;
+                    var fullPath = System.IO.Path.GetFullPath(
+                        System.IO.Path.Combine("Assets/PlaytestDefs/", filename));
+                    if (!fullPath.StartsWith(basePath, StringComparison.OrdinalIgnoreCase))
+                        throw new ArgumentException($"INCLUDE '{filename}': path outside PlaytestDefs/");
+                }
+                string content;
+                try
+                {
+                    if (resolver != null)
+                        content = resolver(filename);
+                    else
+                        content = System.IO.File.ReadAllText($"Assets/PlaytestDefs/{filename}");
+                }
+                catch (Exception e) { throw new ArgumentException($"INCLUDE '{filename}': {e.Message}", e); }
+                var included = content.Split('\n');
+                result.AddRange(ExpandIncludes(included, depth + 1, resolver));
+            }
+            return result.ToArray();
+        }
+
+        // Phase 0.7: collect VAL definitions with topo-sort cycle detection
+        internal static Dictionary<string, string> CollectVals(string[] lines)
+        {
+            // First pass: gather raw unexpanded values
+            var raw = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var line in lines)
+            {
+                var t = line.Trim();
+                if (!t.StartsWith("VAL ", StringComparison.OrdinalIgnoreCase)) continue;
+                var parts = t.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 3)
+                    throw new ArgumentException($"VAL syntax: VAL $name value (got '{t}')");
+                var firstWord = parts[2].Split(new[] { ' ' }, 2)[0];
+                if (_DSL_KEYWORDS.Contains(firstWord))
+                    throw new ArgumentException(
+                        $"VAL '{parts[1]}': value cannot start with a DSL keyword (got '{firstWord}'). " +
+                        $"Tip: wrap in quotes if it's a literal string value.");
+                raw[parts[1].TrimStart('$')] = parts[2];
+            }
+            if (raw.Count == 0) return raw;
+
+            // Topo DFS: expand transitively, detect cycles
+            var expanded = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void Visit(string name)
+            {
+                if (expanded.ContainsKey(name)) return;
+                if (!visiting.Add(name))
+                    throw new ArgumentException($"VAL cycle detected: ${name}");
+                var val = raw[name];
+                val = SigilRegex.Replace(val, m => {
+                    var dep = m.Groups[1].Value;
+                    if (!raw.ContainsKey(dep)) return m.Value; // unknown sigil — leave intact
+                    Visit(dep);
+                    return expanded[dep];
+                });
+                expanded[name] = val;
+                visiting.Remove(name);
+            }
+
+            foreach (var name in raw.Keys) Visit(name);
+            return expanded;
+        }
+
+        // Phase 0.7: expand $sigils in a single line using collected vals
+        internal static string ExpandSigils(string line, Dictionary<string, string> vals)
+        {
+            if (vals == null || vals.Count == 0) return line;
+            return SigilRegex.Replace(line, m => {
+                var name = m.Groups[1].Value;
+                return vals.TryGetValue(name, out var v) ? v : m.Value; // unknown → leave for VAR
+            });
         }
 
         static List<string> ExpandCalls(List<string> lines, Dictionary<string, (string[] paramNames, string[] body)> macros, int depth)
@@ -432,13 +661,26 @@ namespace UnityMCP.Editor
             return result;
         }
 
-        // Replace whole-word occurrences of 'word' in a line (avoids partial matches)
-        static string ReplaceWholeWord(string line, string word, string replacement)
+        // Deferred position: @-expression stored as RawPosition; literal parsed into Position
+        static void SetPosition(PlaytestStep step, string token)
         {
+            if (token.StartsWith("@"))
+                step.RawPosition = token;
+            else
+            {
+                var f = ValueParser.ParseFloats(token, 3);
+                step.Position = new Vector3(f[0], f[1], f[2]);
+            }
+        }
+
+        // Replace whole-word occurrences of 'word' in a line (avoids partial matches)
+        internal static string ReplaceWholeWord(string line, string word, string replacement)
+        {
+            if (string.IsNullOrEmpty(word)) return line;
             int idx = 0;
             while ((idx = line.IndexOf(word, idx, StringComparison.Ordinal)) >= 0)
             {
-                bool startOk = idx == 0 || !char.IsLetterOrDigit(line[idx - 1]) && line[idx - 1] != '_';
+                bool startOk = idx == 0 || !char.IsLetterOrDigit(line[idx - 1]) && line[idx - 1] != '_' && line[idx - 1] != '$';
                 bool endOk = idx + word.Length >= line.Length ||
                              !char.IsLetterOrDigit(line[idx + word.Length]) && line[idx + word.Length] != '_';
                 if (startOk && endOk)
@@ -466,6 +708,7 @@ namespace UnityMCP.Editor
 
         internal static bool Compare(string actual, string op, string expected)
         {
+            op = op.ToLowerInvariant();
             if (float.TryParse(actual, NumberStyles.Float, CultureInfo.InvariantCulture, out var aF) &&
                 float.TryParse(expected, NumberStyles.Float, CultureInfo.InvariantCulture, out var eF))
             {
@@ -489,16 +732,5 @@ namespace UnityMCP.Editor
             };
         }
 
-        /// <summary>Returns true if script contains a top-level ABORT_ON_FAIL directive.</summary>
-        internal static bool HasGlobalAbort(string script)
-        {
-            foreach (var line in script.Split('\n'))
-            {
-                var t = line.Trim();
-                if (string.IsNullOrEmpty(t) || t.StartsWith("#")) continue;
-                if (t.ToUpperInvariant() == "ABORT_ON_FAIL") return true;
-            }
-            return false;
-        }
     }
 }

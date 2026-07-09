@@ -45,6 +45,22 @@ await reconnect_unity(port=9500)
 
 ---
 
+### get_aliases()
+
+**Read-only.** Return all alias definitions from the `PlaytestConfig` ScriptableObject.
+
+```python
+# Returns one "name=path|comp|field" line per alias, or "no aliases"
+await get_aliases()
+# → "hp=Player/Health|HealthComponent|m_HP\nspeed=/Player|Rigidbody|m_Velocity"
+```
+
+**Returns:** Bare `name=path|component|field` lines (no header/footer), or `"no aliases"` when no `PlaytestConfig` asset exists or alias list is empty.
+
+**Middleware behavior:** Python middleware auto-populates `_alias_cache` from this response. Subsequent tool calls with `$name` arg values auto-resolve against the cache. Also allowed during compile (`allowedDuringCompile=true`).
+
+---
+
 ### doctor(fix: bool = False)
 
 **Read-only / Write-idempotent.** Health diagnostics with optional auto-fix.

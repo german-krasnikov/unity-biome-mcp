@@ -13,7 +13,6 @@ namespace UnityMCP.Editor.Wizard
         private VisualElement    _progressBar;
 
         [MenuItem("MCP/Setup Wizard", priority = 2)]
-        [MenuItem("Window/Unity MCP/Setup Wizard", priority = 200)]
         public static void ShowWindow()
         {
             var w = GetWindow<SetupWizard>("MCP Setup");

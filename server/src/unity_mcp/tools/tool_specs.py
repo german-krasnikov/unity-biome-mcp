@@ -85,6 +85,7 @@ _SPECS: dict[str, ToolSpec] = {
     'get_selection': ToolSpec(category='SCENE_EDIT'),
     'get_spatial_context': ToolSpec(category='UI'),
     'get_test_count': ToolSpec(category='UNIT_TESTS', timeout_s=10.0),
+    'get_test_progress': ToolSpec(category='UNIT_TESTS', tier1=True),
     'get_test_results': ToolSpec(category='UNIT_TESTS', tier1=True),
     'get_version': ToolSpec(category='_INTERNAL', timeout_s=5.0),
     'get_watches': ToolSpec(category='DEBUG'),

@@ -13,7 +13,9 @@ server/src/unity_mcp/
 ├── connection_slot.py  # ConnectionSlot (single connection)
 ├── lockfile.py         # Exclusive fcntl.flock per port, stale server cleanup
 ├── compile_state.py    # CompileStateProbe (heuristic Unity compile detection)
-├── middleware.py        # 23 middleware layers (env-gated)
+├── middleware.py        # Middleware class: 23 layers (env-gated), holds _alias_cache (name→pipe_value, cleared on reset_session)
+├── middleware_alias.py  # Pure alias functions (stdlib only): parse_aliases_from_hierarchy, parse_aliases_from_get_aliases, resolve_aliases_in_args, strip_alias_block
+├── middleware_pipeline.py  # wrap_send() — assembles all hooks in order
 ├── plugin_api.py       # Stable public API for external plugins
 ├── resources.py        # MCP Resources (4 URIs: hierarchy, console, editor, categories)
 ├── tools/
@@ -277,6 +279,15 @@ if (HasRpcId(line))  // top-level id present
 ### Middleware (23 layers, `UNITY_MCP_MIDDLEWARE=1`)
 
 Retry Watchdog, Confidence Decay (gated <0.5), Taint Tracking, Periodic State Injection (staleness-gated), Path Cache, Dead Write Elimination, Starvation Monitor, Blast Radius Tags, Incremental Verification, Workflow Phase FSM, Visual Verification (Haiku), Play Mode Auto-Routing, find_objects Cache Bypass, Batch Conflict Scan, Post-mutation Snapshot, Component Cache, Console Error Categorization, PrefetchCache (TTL 12s), HierarchyDiff, Distiller, Disambiguator, SchemaGuard, Asymmetric Reflection
+
+**Alias Resolution (middleware_alias.py):**
+
+Two hooks wired into `wrap_send()` (middleware_pipeline.py):
+- **Hook 1 (pre-call):** resolve `$name` in arg values using `_alias_cache` before the call reaches Unity. Whole-value only: `"$hp"` resolves, `"/prefix/$hp"` does NOT (define a VAL alias for the full path instead). Per-key extraction from pipe format: `path`/`paths` → `segment[0]`, `component` → `segment[1]`, `field`/`prop` → `segment[2]`, all others → full pipe value. Comma-separated keys (`paths`, `queries`, `checks_before`, `checks_after`) are split, each token resolved, rejoined.
+- **Hook 2 (post-call):** after `get_hierarchy`, parse `--- ALIASES ---` block → populate `_alias_cache`; strip block from result (LLM never sees it). After `get_aliases`, populate `_alias_cache` from bare `name=value` lines.
+- Cache format: `{name: "path|comp|field"}` — keys WITHOUT `$` prefix.
+- Cache cleared on `reset_session()`.
+- **Batch $alias guard:** if `$` appears in batch DSL `commands`, pipeline appends `[WARN] $alias in batch DSL not supported — use explicit paths instead` (C# batch executes before Python alias resolution runs).
 
 **Middleware Pipeline Order (v0.57.0, commit 85c03bf; v0.72.x: play-mode fail-fast added):**
 

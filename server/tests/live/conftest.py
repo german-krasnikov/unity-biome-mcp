@@ -115,13 +115,33 @@ async def _save_scene_before_play(_ensure_gridtest_scene):
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def _cleanup_orphans():
-    """Yield, then destroy any Live* orphans left in scene by interrupted sessions."""
+    """Yield, then destroy any Live* orphans left in scene by interrupted sessions.
+
+    Also closes orphan additive scenes (LiveMS_*, LiveSS_*) that interrupted
+    multiscene tests may leave open — those trigger the "Save Scene?" dialog on
+    the next domain reload or NUnit run.
+    """
     yield
     if not _bridge_up():
         return
     b = UnityBridge()
     try:
         await b.connect()
+        # Close orphan additive scenes before touching root objects.
+        close_scenes_code = (
+            'int closed = 0; '
+            'var active = UnityEngine.SceneManagement.SceneManager.GetActiveScene(); '
+            'for (int i = UnityEngine.SceneManagement.SceneManager.sceneCount - 1; i >= 0; i--) { '
+            '  var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i); '
+            '  if (!s.IsValid() || !s.isLoaded) continue; '
+            '  if (s.handle == active.handle) continue; '
+            '  if (s.name.StartsWith("LiveMS_") || s.name.StartsWith("LiveSS_")) { '
+            '    UnityEditor.SceneManagement.EditorSceneManager.CloseScene(s, true); closed++; '
+            '  } '
+            '} '
+            'return closed + " orphan scenes closed";'
+        )
+        await b.send("execute_code", {"code": close_scenes_code})
         code = (
             'var roots = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects(); '
             'int count = 0; '

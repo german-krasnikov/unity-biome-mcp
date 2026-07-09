@@ -30,12 +30,21 @@ namespace UnityMCP.Editor
         public QueryAlias FindAlias(string name) => aliases.Find(a => a.alias == name);
     }
 
+    public enum AliasType
+    {
+        ValPath    = 0,  // VAL $name /path|Component|field  (backward-compat default)
+        ValConst   = 1,  // VAL $name some_literal_value
+        VarRuntime = 2,  // VAR $name @/path|Component|field (C#-DSL only)
+    }
+
     [Serializable]
     public class QueryAlias
     {
         public string alias;
+        public AliasType type = AliasType.ValPath;
         public string path;
         public string component;
         public string field;
+        public string constValue;
     }
 }

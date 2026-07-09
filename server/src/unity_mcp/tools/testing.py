@@ -61,6 +61,14 @@ async def get_test_results() -> str:
         return "pending"
 
 
+async def get_test_progress() -> str:
+    """Poll real-time test progress. Returns running|ran|passed|failed|skipped|total|elapsed|eta or 'idle'."""
+    try:
+        return await _send("get_test_progress", {})
+    except Exception:
+        return "pending"
+
+
 async def get_test_count() -> str:
     """Number of edit-mode and play-mode tests in the project."""
     return await _send("get_test_count", {})
@@ -70,4 +78,5 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RW_IDEM)(run_tests)
     mcp.tool(annotations=_RO)(get_test_results)
+    mcp.tool(annotations=_RO)(get_test_progress)
     mcp.tool(annotations=_RO)(get_test_count)

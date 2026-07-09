@@ -49,8 +49,10 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("get_hierarchy", ExecGetHierarchy,
                 required: "", optional: "depth,root,filter,components,summary,incremental,scene",
                 maxResponseChars: 50000);
+            CommandRegistry.Register("get_aliases", _ => GetAliasesText(),
+                required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("get_component", ExecGetComponent,
-                required: "path,type", optional: "");
+                required: "path,type", optional: "fields,compress");
             CommandRegistry.Register("get_components_list", ExecGetComponentsList,
                 required: "id", optional: "");
             CommandRegistry.Register("get_object_detail", ExecGetObjectDetail,
@@ -107,7 +109,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("get_selection", _ => EditorStateHelper.GetSelection(),
                 required: "", optional: "");
             CommandRegistry.Register("inspect", ExecInspect,
-                required: "paths", optional: "components");
+                required: "paths", optional: "components,fields,compress");
             CommandRegistry.Register("validate_references", args => ValidateReferencesHelper.Validate(
                 JsonHelper.ExtractString(args, "path"),
                 ExtractInt(args, "depth", 3),
@@ -161,6 +163,8 @@ namespace UnityMCP.Editor
                 required: "", optional: "clear");
             CommandRegistry.Register("get_test_results", _ => TestRunner.GetResults(),
                 required: "", optional: "", allowedDuringCompile: true);  // P1: SessionState-only read
+            CommandRegistry.Register("get_test_progress", _ => TestRunner.GetProgress(),
+                required: "", optional: "", allowedDuringCompile: true);  // SessionState-only read, safe during reload
             CommandRegistry.Register("get_test_count", _ => TestRunner.GetTestCount(),
                 required: "", optional: "", allowedDuringCompile: true);  // discovery-only, no test run
 

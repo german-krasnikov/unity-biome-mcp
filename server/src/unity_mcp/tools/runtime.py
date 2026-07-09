@@ -85,17 +85,31 @@ def _compress_report(report: str) -> str:
 
 
 async def run_playtest(script: str, timeout: float = 120.0,
-                       abort_on_fail: bool = False) -> str:
+                       abort_on_fail: bool = False,
+                       defs: "str | None" = None) -> str:
     """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit test suite, use `run_tests`).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
     ASSERT_CONSOLE_CLEAN [IGNORE "pat1","pat2"] | SNAPSHOT queries | INVOKE path comp method args |
     SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |
-    ASSERT_CTA VISIBLE|CLICKABLE | ALIAS name query | TELEPORT path x,y,z |
+    ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z |
     ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | CAPTURE label query |
     ASSERT_CAPTURED label INCREASED|DECREASED | INVARIANT query op value |
     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f.
     Queries use aliases from PlaytestConfig.asset or pipe format: path|component|field
+    defs: inline VAL definitions ('name path|comp|field' per line), prepended to script.
     abort_on_fail=True: stops Play Mode on step timeout."""
+    if defs:
+        alias_lines = []
+        for line in defs.strip().split("\n"):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if not stripped.upper().startswith("VAL "):
+                stripped = "VAL " + stripped
+            elif not stripped.startswith("VAL "):
+                stripped = "VAL " + stripped[4:]  # normalize to uppercase
+            alias_lines.append(stripped)
+        script = "\n".join(alias_lines) + "\n" + script
     raw = await _send("run_playtest", _args(
         script=script, timeout=str(timeout),
         abort_on_fail="true" if abort_on_fail else None),

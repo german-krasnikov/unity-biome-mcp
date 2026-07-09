@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
@@ -8,6 +9,13 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class PlaytestRunnerTests
     {
+        [TearDown]
+        public void TearDown()
+        {
+            ConsoleCapture.Clear();
+            EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects);
+        }
+
         // ── ResolveCharacterPath ──────────────────────────────────────────────
 
         [Test]
@@ -144,8 +152,6 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp() => ConsoleCapture.Clear();
 
-        [TearDown]
-        public void TearDown() => ConsoleCapture.Clear();
 
         [Test]
         public void StepConsoleCheck_ErrorDuringStep_CapturedInResult()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEditor;
@@ -16,8 +17,9 @@ namespace UnityMCP.Editor
     {
         private static int _isRunning;
         private static double _runStartedAt;
-        private const string KeyPending = "UnityMCP_tests_pending";
-        private const string KeyResults = "UnityMCP_test_results";
+        internal const string KeyPending = "UnityMCP_tests_pending";
+        internal const string KeyResults = "UnityMCP_test_results";
+        internal const string KeyProgress = "UnityMCP_test_progress";
         private const string KeyStartTime = "UnityMCP_tests_start";
         private const string KeyTestCount = "UnityMCP_test_count";
         private const string KeyCountDiscovering = "UnityMCP_count_discovering";
@@ -35,9 +37,9 @@ namespace UnityMCP.Editor
         private static void ResetOnReload()
         {
             _isRunning = 0;
-            // Clear stale results from previous run — after domain reload (e.g. added new test),
-            // old result string would be returned by get_test_results until next run completes.
-            SessionState.SetString(KeyResults, "");
+            // Restore persisted results instead of unconditionally clearing.
+            // Domain reload wipes volatile SessionState; file-backed results survive.
+            RestorePersistedResults();
             // Clear cached count — new assemblies may have been compiled.
             SessionState.SetString(KeyTestCount, "");
             SessionState.SetBool(KeyCountDiscovering, false);
@@ -66,6 +68,36 @@ namespace UnityMCP.Editor
             }
             var r = SessionState.GetString(KeyResults, "");
             return string.IsNullOrEmpty(r) ? "none" : r;
+        }
+
+        /// <summary>Returns real-time test progress: "idle", "pending|no-progress-yet", or "running|ran|passed|failed|skipped|total|elapsed|eta=Ns".</summary>
+        public static string GetProgress()
+        {
+            if (!SessionState.GetBool(KeyPending, false))
+                return "idle";
+            var p = SessionState.GetString(KeyProgress, "");
+            if (string.IsNullOrEmpty(p))
+                return "pending|no-progress-yet";
+            var parts = p.Split('|');
+            if (parts.Length >= 6
+                && int.TryParse(parts[0], out var ran)
+                && int.TryParse(parts[4], out var total)
+                && double.TryParse(parts[5], System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var elapsed)
+                && ran > 0 && total > 0)
+            {
+                var rate = elapsed / ran;
+                var remaining = (total - ran) * rate;
+                return $"running|{p}|eta={remaining:F0}s";
+            }
+            return $"running|{p}";
+        }
+
+        /// <summary>Restores last persisted test results into SessionState (called on domain reload).</summary>
+        internal static void RestorePersistedResults()
+        {
+            var persisted = TestResultPersistence.Load();
+            SessionState.SetString(KeyResults, persisted ?? "");
         }
 
         /// <summary>Parses a raw Execute() completion result into (ok, text) for the async
@@ -154,6 +186,7 @@ namespace UnityMCP.Editor
             private readonly bool _destroyApi;
             private readonly List<TestCaseResult> _results = new List<TestCaseResult>();
             private DateTime _startTime;
+            private int _totalCount;
 
             private struct TestCaseResult
             {
@@ -170,7 +203,12 @@ namespace UnityMCP.Editor
                 _destroyApi = destroyApi;
             }
 
-            public void RunStarted(ITestAdaptor testsToRun) => _startTime = DateTime.Now;
+            public void RunStarted(ITestAdaptor testsToRun)
+            {
+                _startTime = DateTime.Now;
+                _totalCount = testsToRun.TestCaseCount;
+                SessionState.SetString(KeyProgress, $"0|0|0|0|{_totalCount}|0.0");
+            }
 
             public void TestStarted(ITestAdaptor test) { }
 
@@ -185,6 +223,13 @@ namespace UnityMCP.Editor
                         Duration = result.Duration,
                         Message = result.Message
                     });
+                    var ran = _results.Count;
+                    var passed = _results.Count(r => r.Status == "Passed");
+                    var failed = _results.Count(r => r.Status == "Failed");
+                    var skipped = _results.Count(r => r.Status == "Skipped");
+                    var elapsed = (DateTime.Now - _startTime).TotalSeconds;
+                    SessionState.SetString(KeyProgress,
+                        $"{ran}|{passed}|{failed}|{skipped}|{_totalCount}|{elapsed:F1}");
                 }
             }
 
@@ -195,8 +240,10 @@ namespace UnityMCP.Editor
                 System.Threading.Interlocked.Exchange(ref _isRunning, 0);
                 var formatted = FormatResults();
                 SessionState.SetString(KeyResults, formatted);
+                SessionState.SetString(KeyProgress, "");
                 SessionState.SetBool(KeyPending, false);
                 SessionState.SetFloat(KeyStartTime, 0f);
+                TestResultPersistence.Save(formatted);
                 try { _onComplete?.Invoke(formatted); }
                 catch (Exception e) { Debug.LogException(e); }
             }
@@ -270,5 +317,42 @@ namespace UnityMCP.Editor
 
         public static string GetTestCount() => "0|edit=0|play=0";
 #endif
+
+        /// <summary>File-backed persistence for test results — survives domain reload.
+        /// Saves/loads from ~/.unity-mcp/test-results/port-{port}.txt.</summary>
+        internal static class TestResultPersistence
+        {
+            // Seam: redirect to temp dir in tests to avoid touching real ~/.unity-mcp/
+            internal static string FilePathOverride = null;
+
+            private static string FilePath => FilePathOverride ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".unity-mcp", "test-results",
+                $"port-{PortFileManager.Port}.txt");
+
+            internal static void Save(string results)
+            {
+                try
+                {
+                    var path = FilePath;
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    var tmp = path + ".tmp";
+                    File.WriteAllText(tmp, results);
+                    try { File.Delete(path); } catch { }
+                    File.Move(tmp, path);
+                }
+                catch { }
+            }
+
+            internal static string Load()
+            {
+                try
+                {
+                    var path = FilePath;
+                    return File.Exists(path) ? File.ReadAllText(path) : null;
+                }
+                catch { return null; }
+            }
+        }
     }
 }

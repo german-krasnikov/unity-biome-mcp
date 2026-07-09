@@ -34,6 +34,11 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
             "_no_reflect", "_no_distill", "_explicit_path", "_no_validate", "_no_strip"
         )}
 
+        # Alias resolution: $name → cached pipe value (Hook 1)
+        if mw._alias_cache:
+            from .middleware_alias import resolve_aliases_in_args
+            args = resolve_aliases_in_args(args, mw._alias_cache)
+
         # F05: Cache-above-circuit — serve cacheable reads from PrefetchCache even when OPEN
         if mw._prefetch_cache is not None and cmd in _READ_CACHEABLE:
             _pre_cached = mw._prefetch_cache.get(cmd, args)
@@ -69,6 +74,10 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         blast_warn = mw.check_blast_radius(cmd)
         verif_warn = mw.check_verification_needed(cmd)
         batch_warn = mw.scan_batch_conflicts(args.get("commands", "")) if cmd == "batch" else None
+        # 5.3: $alias inside batch DSL is not expanded — warn so LLM uses explicit paths
+        if cmd == "batch" and "$" in args.get("commands", ""):
+            _note = "[WARN] $alias in batch DSL not supported — use explicit paths instead"
+            batch_warn = (_note if not batch_warn else batch_warn + "\n" + _note)
 
         # Fail-fast: block runtime-only commands when confirmed in edit mode (before TCP)
         pm_block = mw.check_play_mode_required(cmd)
@@ -197,6 +206,17 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         mw.record_read(cmd, args, result)
         mw.clear_write_on_read(cmd, args)
         mw.update_path_cache(cmd, result)
+        # Populate alias cache from hierarchy response (Hook 2)
+        if cmd == "get_hierarchy":
+            from .middleware_alias import parse_aliases_from_hierarchy, strip_alias_block
+            _parsed = parse_aliases_from_hierarchy(result)
+            if _parsed is not None:
+                mw._alias_cache = _parsed
+                result = strip_alias_block(result)  # safety net: remove block from LLM context
+        # Populate alias cache from explicit get_aliases call
+        if cmd == "get_aliases":
+            from .middleware_alias import parse_aliases_from_get_aliases
+            mw._alias_cache = parse_aliases_from_get_aliases(result)
         # Track focus for distiller
         mw._track_focus(cmd, args, result)
         # HierarchyDiff: compress repeated get_hierarchy calls

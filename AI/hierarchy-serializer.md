@@ -264,6 +264,22 @@ public static class VersionTracker
 }
 ```
 
+### Alias System (PlaytestConfig Integration)
+
+`BuildAliasSection()` in `CommandRouter.ObjectHandlers.cs` reads aliases from the first `PlaytestConfig` ScriptableObject found via `AssetDatabase.FindAssets("t:PlaytestConfig")`:
+- Returns `--- ALIASES ---\nname=path|comp|field\n---` block, or `null` when no config / no aliases
+- Each alias line: `alias=path|component|field` (pipe-separated, no `$` prefix)
+
+**`get_hierarchy` does NOT prepend this block** — it was removed in Wave 3. Python `strip_alias_block()` in `middleware_alias.py` is a safety net only (strips if C# re-introduces it).
+
+**`get_aliases` TCP command** (read-only, `allowedDuringCompile=true`): returns bare `name=value` lines via `GetAliasesText()`. No header/footer, just one alias per line. Returns `"no aliases"` when config absent or alias list empty. Used by Python middleware to seed `_alias_cache` on demand without triggering a hierarchy call.
+
+```
+# get_aliases response example
+hp=Player/Health|HealthComponent|m_HP
+speed=/Player|Rigidbody|m_Velocity
+```
+
 ### Incremental Cache
 
 `SerializeIncremental()` stores last serialized result. Returns `"NO_CHANGE"` if hierarchy is identical.

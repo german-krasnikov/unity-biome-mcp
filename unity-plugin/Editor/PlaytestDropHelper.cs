@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
@@ -24,6 +25,35 @@ namespace UnityMCP.Editor
                 if (!f.IsPublic && f.GetCustomAttribute<SerializeField>() == null) continue;
                 yield return f;
             }
+        }
+
+        // Public fields + readable non-indexed properties (excludes base Unity types).
+        internal static List<string> GetMemberNames(Type t)
+        {
+            if (t == null) throw new ArgumentNullException(nameof(t));
+            var list = new List<string>();
+            foreach (var f in GetFilteredFields(t))
+                list.Add(f.Name);
+            foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (_baseTypes.Contains(p.DeclaringType) || !p.CanRead || p.GetIndexParameters().Length > 0)
+                    continue;
+                list.Add(p.Name);
+            }
+            return list;
+        }
+
+        // Zero-arg public instance methods (excludes special names and base Unity types).
+        internal static List<string> GetZeroArgMethodNames(Type t)
+        {
+            if (t == null) throw new ArgumentNullException(nameof(t));
+            return
+            t.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+             .Where(m => !_baseTypes.Contains(m.DeclaringType)
+                      && !m.IsSpecialName
+                      && m.GetParameters().Length == 0)
+             .Select(m => m.Name)
+             .ToList();
         }
 
         internal static string BuildQuery(string path, string comp, string member)

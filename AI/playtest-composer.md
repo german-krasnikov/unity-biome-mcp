@@ -186,4 +186,80 @@ Run button is disabled while any step fails validation.
 
 ---
 
+## Alias Manager (PlaytestAliasWindow)
+
+Visual manager for `PlaytestConfig.aliases` — maps short `$name` sigils to `path|component|field` tuples that expand in DSL scripts via `VAL`.
+
+### Opening
+
+- **Menu:** `MCP / Alias Manager` — shortcut `Shift+Alt+A`
+- **Chat toolbar:** "Aliases" button (order 21; visible when `UNITY_MCP_CHAT` define is active; `MenuOnly = true` so the button opens the window rather than inline)
+
+### Toolbar
+
+| Button | Action |
+|--------|--------|
+| **+ Add** | Insert empty alias row |
+| **Export .defs** | Write all aliases as VAL lines to `Assets/PlaytestDefs/aliases.defs` (auto-creates folder) |
+| **Copy VAL block** | Copy multi-line `VAL $name path|comp|field` block to clipboard |
+| Token label | Displays `~N tokens saved` — live estimate from `PlaytestAliasHelpers.TokenSavingsEstimate` |
+
+### Drop Zone
+
+Drag a **GameObject from the Hierarchy** onto the drop zone to auto-create an alias row:
+- `alias` ← `PlaytestAliasHelpers.SuggestName(go.name)` (lowercase, spaces→underscore)
+- `path` ← `ComponentSerializer.GetPath(go)` (scene-relative path)
+- `component` and `field` left blank (fill via **Pick…** or manually)
+
+### Typed Alias Cards (v0.77.12, PlaytestAliasCardBuilder)
+
+Card rendering is extracted from `PlaytestAliasWindow` into `PlaytestAliasCardBuilder` (static). Each card has a **TypeDropdown** (`AliasType` enum) that drives layout:
+
+| Type | Enum | Layout | DSL output |
+|------|------|--------|------------|
+| **VAL Path** | `ValPath` (0) | path + comp dropdown + field dropdown (cascading) | `VAL $name /path\|Comp\|field` |
+| **Constant** | `ValConst` (1) | single `constValue` text field | `VAL $name literal_value` (no pipes) |
+| **VAR** | `VarRuntime` (2) | same as VAL Path, path placeholder shows "runtime resolve" | `VAR $name @/path\|Comp\|field` |
+
+**Status dot** (8px circle, right of alias name field):
+- green (`alias-status-dot--valid`) — alias name + content all filled
+- yellow (`alias-status-dot--partial`) — alias name present, content incomplete
+- empty (`alias-status-dot--empty`) — no alias name
+
+**Cascading dropdowns:** comp dropdown lists all `Component` types on the GO at `path` (via `GetUserComponents`); selecting a comp refreshes field dropdown via `GetMemberNames(type)`. Both dropdowns disabled when path resolves to no GO.
+
+**DnD on path field:** dropping a `Component` auto-fills comp and opens field picker; dropping a `GameObject` opens comp picker.
+
+**`BuildAliasSection` skips `VarRuntime`** — VAR aliases are DSL-only; `get_aliases` response only includes ValPath and ValConst rows.
+
+| Control | Action |
+|---------|--------|
+| TypeDropdown | Switch card type; rebuilds row2 in-place |
+| **Copy** | Copy single `FormatLine(alias)` (type-dispatched: VAL Path/Const or VAR) via `PlaytestAliasHelpers.FormatLine` |
+| **X** | Delete alias row |
+
+### DSL Preview
+
+Below the list, a live preview shows the full `VAL` block that will be generated (`FormatVALBlock`).
+
+### PlaytestAliasHelpers (static, no Editor dependency except ExportToDefs)
+
+| Method | Purpose |
+|--------|---------|
+| `FormatLine(alias)` | Type-dispatched: ValPath → `"VAL $name path\|comp\|field"`, ValConst → `"VAL $name literal"`, VarRuntime → `"VAR $name @path\|comp\|field"` (no trailing pipes when comp/field empty) |
+| `FormatVALBlock(aliases)` | Newline-joined block of `FormatLine` calls; empty string when list is empty |
+| `ExportToDefs(aliases, filename="aliases")` | Write to `Assets/PlaytestDefs/<filename>.defs`; returns absolute path |
+| `TokenSavingsEstimate(aliases)` | Net tokens saved assuming ≥3 uses per alias; returns 0 when aliases don't pay off |
+| `SuggestName(goName)` | Lowercase + underscore + strip non-alphanum for drag-drop name hint |
+
+### Typical Workflow
+
+1. Open Alias Manager (`Shift+Alt+A`).
+2. Drag GameObjects from Hierarchy into the drop zone.
+3. Set `component` and `field` via **Pick…** or manually.
+4. Click **Copy VAL block** and paste at the top of the DSL script, OR click **Export .defs** and add `INCLUDE aliases.defs` to the script.
+5. Alternatively: pass the block as `defs` to `run_playtest(script, defs=block)` from Python.
+
+---
+
 **See also:** `AI/playtest-dsl.md` for full DSL syntax reference; `.claude/skills/playmode-verification.md` for assertion patterns.

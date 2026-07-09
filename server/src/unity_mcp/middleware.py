@@ -48,6 +48,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._last_hierarchy_call: int = 0
         self.known_paths: set = set()
         self.path_to_scene: dict = {}
+        self._alias_cache: dict = {}  # name → "path|comp|field" — cleared on reset_session; bounded by scene size
         self.is_playing: bool = False
         self._play_state_known: bool = False
         self._last_writes: OrderedDict = OrderedDict()
@@ -132,6 +133,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._last_hierarchy_full = None
         self._hierarchy_call_id = 0
         self._last_hierarchy_call = 0
+        self._alias_cache = {}
         for task in list(self._bg_tasks):
             task.cancel()
         self._bg_tasks.clear()

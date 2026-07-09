@@ -1,19 +1,21 @@
-# Playtest DSL Reference (26 Steps + ALIAS + MACRO)
+# Playtest DSL Reference (26 Steps + VAL/VAR/INCLUDE + MACRO)
 
-Run Play Mode scenarios with deterministic step-by-step assertions. Parser collects MACRO definitions, expands CALL directives, collects ALIAS substitutions, then executes steps sequentially.
+Run Play Mode scenarios with deterministic step-by-step assertions. Parser processes directives in phases: INCLUDE expansion → MACRO collection → CALL expansion → VAL substitution → VAR binding → step execution.
 
 ## Step Types (Alphabetical)
 
-### ALIAS
+### ALIAS (deprecated — use VAL)
 
-Define substitution macro for paths/values.
+Backward-compatible whole-word text substitution. No `$` sigil — uses whole-word replacement.
 
 ```
-ALIAS player_start "(100,50,0)"
-MOVE player TO ${player_start}  → resolves to: MOVE player TO (100,50,0)
+ALIAS player_start 100,50,0
+MOVE player TO player_start  → resolves to: MOVE player TO 100,50,0
 ```
 
 **Syntax:** `ALIAS name value`
+
+Parser emits `LogWarning` when ALIAS is used. Prefer `VAL $name value` instead.
 
 ---
 
@@ -204,6 +206,23 @@ ASSERT /Player|Health|current == 100
 
 ---
 
+### INCLUDE
+
+Load a `.defs` file from `Assets/PlaytestDefs/` and inline its content at parse time (Phase -1, before MACROs).
+
+```
+INCLUDE aliases.defs
+INCLUDE shared/combat.defs
+```
+
+**Syntax:** `INCLUDE filename`
+
+**Constraints:** filename may not contain `..` or be rooted (path traversal rejected). Resolved against `Assets/PlaytestDefs/` only. Max recursion depth 5.
+
+**Typical content:** `VAL` lines, reusable across multiple scripts.
+
+---
+
 ### INVARIANT
 
 Assert condition continuously through next phase.
@@ -292,10 +311,17 @@ Pathfind and walk character to world position.
 
 ```
 MOVE Player TO 100,50,0
-MOVE TO 0,0,0  # auto-detect Player path
+MOVE TO 0,0,0             # auto-detect Player path
+MOVE Player TO @/Enemy.position            # use enemy's current position
+MOVE Player TO @/Enemy.position + (5,0,0)  # offset from enemy
+MOVE Player TO @/Enemy.position - (0,0,3)  # negative offset
 ```
 
-**Syntax:** `MOVE [path] TO x,y,z`  
+**Syntax:** `MOVE [path] TO x,y,z | @/GoPath.position [+|- (dx,dy,dz)]`  
+**Position forms:**
+- Literal `x,y,z` — resolved at parse time
+- `@/GoPath.position` — resolved at runtime from the referenced GameObject's `transform.position`; optional `+` or `-` offset tuple appended
+
 **Speed:** 15 m/s default  
 **Timeout:** default 5s  
 **Returns:** "PASS" when within 0.1m of target
@@ -391,9 +417,12 @@ Instantly move GameObject to position (no pathfind).
 ```
 TELEPORT Player 100,50,0
 TELEPORT Boss 0,0,0
+TELEPORT Enemy @/Player.position + (2,0,0)  # spawn offset from player
 ```
 
-**Syntax:** `TELEPORT path x,y,z`
+**Syntax:** `TELEPORT path x,y,z | @/GoPath.position [+|- (dx,dy,dz)]`
+
+Position forms identical to MOVE: literal `x,y,z` or `@/GoPath.position` runtime-resolved with optional offset.
 
 ---
 
@@ -425,6 +454,57 @@ TRACE_FLOW FROM /Spawner TO /WaveManager FIELD waveCount TIMEOUT 10
 **TO:** destination GameObject path  
 **FIELD:** field name to observe  
 **TIMEOUT:** seconds (default 5)
+
+---
+
+### VAL
+
+Static text substitution at parse time (Phase 0.7). Uses `$name` sigil — not whole-word replacement.
+
+```
+VAL $player_start 100,50,0
+VAL $hp_path /Player|Health|currentHp
+
+MOVE Player TO $player_start       → expands to: MOVE Player TO 100,50,0
+ASSERT $hp_path > 0               → expands to: ASSERT /Player|Health|currentHp > 0
+```
+
+**Syntax:** `VAL $name value`
+
+**Rules:**
+- `$name` must match `[A-Za-z_][A-Za-z0-9_]*`
+- Value cannot start with a DSL keyword (e.g., `VAL $x MOVE …` is rejected — prevents command injection)
+- VAL values can reference earlier VALs: `VAL $base /Player`, `VAL $hp $base|Health|hp` → resolves chain via topo-sort
+- Circular references detected at parse time (error thrown)
+- Defined anywhere in the script; all VALs collected before expansion
+
+**vs ALIAS:** VAL uses `$sigil` substitution (regex-based); ALIAS uses whole-word replacement without sigil. Prefer VAL — ALIAS is deprecated.
+
+---
+
+### VAR
+
+Runtime-resolved sigil. Query executed via `ReadValue()` at each step that uses the variable (not at parse time).
+
+```
+VAR $hp @/Player|Health|currentHp
+VAR $pos @/Enemy|Transform|position
+
+ASSERT $hp > 0          → reads /Player|Health|currentHp at assertion time
+WAIT_UNTIL $hp < 50 TIMEOUT 10
+TELEPORT Boss $pos      → reads enemy position each time this step runs
+```
+
+**Syntax:** `VAR $name @path|Component|field`
+
+**Rules:**
+- Query must start with `@`
+- Must have pipe-separated `path|Component|field` format (3 parts minimum)
+- `$name` replaced by live Unity value each step it appears
+- VAL sigils in the `@query` are expanded at parse time (allows `VAR $hp @$base|Health|hp`)
+- Collected in Phase 1.1; `PlaytestVarRegistry` holds bindings and expands per-step
+
+**Use case:** values that change during the script (dynamic positions, live health values).
 
 ---
 
@@ -478,14 +558,21 @@ WAIT_UNTIL /Enemy|AI|IsPatrolling == true TIMEOUT 5 ABORT
 ## DSL Structure
 
 ```
+# Phase -1: INCLUDE inlines Assets/PlaytestDefs/ files before anything else
+INCLUDE shared_aliases.defs   # expands inline
+
 # Phase 0: MACRO definitions extracted (not emitted as steps)
 MACRO move_patrol $start $end
   MOVE_PATH $start > $end > $start
 END_MACRO
 
-# ALIAS collected in first pass
-ALIAS player_start 100,0,0
-ALIAS enemy_patrol 50,0,50
+# Phase 0.7: VAL = static substitution at parse time
+VAL $player_start 100,0,0
+VAL $hp_query /Player|Health|currentHp
+VAL $enemy_patrol 50,0,50
+
+# Phase 1.1: VAR = runtime-resolved per-step
+VAR $live_hp @/Player|Health|currentHp
 
 ABORT_ON_FAIL
 
@@ -493,19 +580,20 @@ SECTION "Patrol intercept"
 LOG Test: Enemy patrol intercept
 CAPTURE initial_pos Enemy
 
-CALL move_patrol ${enemy_patrol} 80,0,80   # macro expanded to 2 MOVE steps
+CALL move_patrol $enemy_patrol 80,0,80   # macro expanded to 2 MOVE steps
 
-WAIT_UNTIL /Player|HP|value > 0 AND /Enemy|AI|IsPatrolling == true TIMEOUT 8
+WAIT_UNTIL $hp_query > 0 AND /Enemy|AI|IsPatrolling == true TIMEOUT 8
 
 DESC "verify combat started"
 ASSERT /Player|Score|value > 0 AS "player scored during patrol"
 
 ASSERT_BATCH
-  ASSERT Player/Health > 0
+  ASSERT $hp_query > 0
   ASSERT Enemy/IsDead == false
 END
 
-TELEPORT Player ${player_start}
+TELEPORT Player $player_start
+ASSERT $live_hp > 0     # $live_hp resolved fresh from Unity each time
 ASSERT_CONSOLE_CLEAN IGNORE "warning"
 SNAPSHOT
 LOG Test completed
@@ -526,16 +614,19 @@ ASSERT /Player|Movement|DistanceTo(5,0,3) < 1.0
 
 ## Parsing Rules
 
-1. **Phase 0 — MACROs:** All `MACRO … END_MACRO` blocks collected and removed
-2. **Phase 0.5 — CALL expansion:** `CALL name arg1 arg2` replaced with expanded body lines (recursive, max depth 10)
-3. **Aliases first:** All `ALIAS name value` lines collected before execution
-4. **Substitution:** whole-word replacement of alias keys in all tokens of subsequent lines
-5. **Comments:** Lines starting with `#` ignored
-6. **Whitespace:** Leading/trailing trimmed; tokens split by space
-7. **Case-insensitive:** Commands (`MOVE`, `move`, `Move` equivalent)
-8. **Queries:** Path syntax = `Parent/Child/Component.field` or `Component.field` (scene root)
-9. **DESC:** consumed and stored as pending label; applied to next step, not emitted itself
-10. **ABORT_ON_FAIL:** consumed as global directive; not emitted as step
+1. **Phase -1 — INCLUDE:** `INCLUDE filename` replaced inline with content of `Assets/PlaytestDefs/filename`; recursive max depth 5; path traversal rejected
+2. **Phase 0 — MACROs:** All `MACRO … END_MACRO` blocks collected and removed
+3. **Phase 0.5 — CALL expansion:** `CALL name arg1 arg2` replaced with expanded body lines (recursive, max depth 10)
+4. **Phase 0.7 — VAL:** `VAL $name value` lines collected; `$sigil` regex substitution applied to all remaining lines; VAL-in-VAL chain resolved via topo-sort; cycles rejected at parse time
+5. **Phase 1 — ALIAS (deprecated):** `ALIAS name value` collected; whole-word substitution applied (no sigil); emits LogWarning
+6. **Phase 1.1 — VAR:** `VAR $name @path|Comp|field` collected into `PlaytestVarRegistry`; each step that contains a known sigil is expanded at runtime by `ReadValue()`
+7. **Comments:** Lines starting with `#` ignored
+8. **Whitespace:** Leading/trailing trimmed; tokens split by space
+9. **Case-insensitive:** Commands (`MOVE`, `move`, `Move` equivalent)
+10. **Queries:** Path syntax = `Parent/Child/Component.field` or `Component.field` (scene root)
+11. **Position resolver (MOVE/TELEPORT):** `@/GoPath.position` deferred until step execution; literal `x,y,z` parsed at step parse time. ParseResult stores deferred form in `step.RawPosition` (null for literals).
+11. **DESC:** consumed and stored as pending label; applied to next step, not emitted itself
+12. **ABORT_ON_FAIL:** consumed as global directive; not emitted as step
 
 ## Verification Rules
 

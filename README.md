@@ -46,7 +46,7 @@
 
 ### Two ways to work
 
-🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 127 MCP tools with 80–95% token compression.
+🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 128 MCP tools with 80–95% token compression.
 
 💬 **In-Unity Chat** — open `MCP → Chat` inside the editor. No API key needed — spawns the CLI directly. 5 backends: Claude, Antigravity, Kimi, Codex, OpenCode. Drag GameObjects, scripts, and materials into chat as typed context chips. Each AI turn gets its own undo group — one Ctrl+Z rolls back everything the AI changed. Domain-reload safe. Extensible chip-kind registry lets third-party plugins add new chip types with zero core edits.
 
@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="127 MCP Tools · 10607 Tests (4180 Python · 6143 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="128 MCP Tools · 10966 Tests (4268 Python · 6414 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -302,6 +302,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.78.0</b> — 2026-07-09 — **`AliasType` enum** (`PlaytestConfig.cs`) — `ValPath` / `ValConst` / …</summary>
+
+**`AliasType` enum** (`PlaytestConfig.cs`) — `ValPath` / `ValConst` / `VarRuntime`; drives per-card layout in the Alias Composer window
+
+</details>
+
+<details>
 <summary><b>v0.77.0</b> — 2026-07-09 — **M1: `reorder_track`** — move track to position index (reflection on …</summary>
 
 **M1: `reorder_track`** — move track to position index (reflection on `m_Tracks`, only permitted reflection hack)
@@ -330,15 +337,9 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 </details>
 
 <details>
-<summary><b>v0.67.1</b> — 2026-06-29 — **output_format Discriminator** — Replaces `uses_stream_json: bool` with typed …</summary>
-
-**output_format Discriminator** — Replaces `uses_stream_json: bool` with typed `output_format` enum (5 values: `stream-json`, `codex-json`, …
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.67.1** — 2026-06-29 — **output_format Discriminator** — Replaces `uses_stream_json: bool` with typed …
 - **v0.67.0** — 2026-06-29 — **ThinView Flag Removed** — Deleted MCPChat.ThinView conditional compilation …
 - **v0.66.0** — 2026-06-28 — **FIX-1: Cross-Assembly Compile Error Detection (diagnose tool)** — …
 - **v0.65.1** — 2026-06-27 — **Plugin Development Guide** — New `/docs/plugin-development.md` (2100+ lines).

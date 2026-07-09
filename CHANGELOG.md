@@ -5,6 +5,75 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.78.0] — 2026-07-09 — Typed alias cards, alias system (VAL/VAR/sigil/INCLUDE), batch DSL fields/compress
+
+**Added — Typed alias cards (Alias Composer UI):**
+- **`AliasType` enum** (`PlaytestConfig.cs`) — `ValPath` / `ValConst` / `VarRuntime`; drives per-card layout in the Alias Composer window
+- **`PlaytestAliasCardBuilder.cs`** (208 LOC) — extracted card rendering from `PlaytestAliasWindow`; per-type layouts: `ValPath` → path field + cascading component/field dropdowns; `ValConst` → single `constValue` text field; `VarRuntime` → path-based with `@` prefix in DSL output
+- **`BuildAliasSection`** (`PlaytestAliasHelpers.cs`) — skips `VarRuntime` cards (runtime-only, not emitted to DSL); emits `ValConst` without pipes; updated `FormatVALLine`/`FormatVARLine` accordingly
+- **`GetMemberNames` / `GetZeroArgMethodNames`** (`PlaytestAliasWindow.cs`) — reflection-based population of component/field/method dropdowns; cascades on component selection change
+- **Status dot** in Alias Composer window — visual connection indicator
+- **Removed duplicate Window menu entry** (`SetupWizard.cs` — stale `MenuItem` removed)
+
+**Added — Alias system (VAL/VAR/sigil/INCLUDE):**
+- **`middleware_alias.py`** — parse/resolve/strip alias blocks; `parse_alias_block`, `resolve_sigils`, `strip_alias_block`; plugged into `middleware_pipeline.py` before playtest dispatch
+- **VAL/VAR DSL keywords** (`PlaytestParser.cs`) — `VAL name /Path` for static aliases; `VAR name @/Path|Comp|field` for dynamic runtime aliases; `$name` sigil expansion at parse time (VAL) or step time (VAR)
+- **`PlaytestVarRegistry.cs`** — runtime sigil store; populated from `get_aliases` response; used by `PlaytestRunner` during step expansion
+- **INCLUDE directive** (`PlaytestParser.cs`) — `INCLUDE path/to/file.defs` imports VAL/VAR/MACRO defs from external file; symlink traversal hardened (max depth 4)
+- **`get_aliases` MCP command** (`CommandRouter.Registration.cs`) — session-init command that returns alias table keyed by object path; replaces per-hierarchy alias block
+- **`ParseResult.Warnings`** — non-fatal parse issues (unknown sigils, missing defs) returned alongside output; `HasGlobalAbort` moved into `ParseResult` flag (−11 LOC)
+- **`PlaytestPositionResolver.cs`** — `@path.position + offsets` expression; resolves WorldSpace position at runtime
+- **`PlaytestAliasWindow.cs`** — Alias Composer EditorWindow; drag-drop, Pick button, USS light/dark themes; accessible via MCP menu
+- **`PlaytestAliasHelpers.cs`** — `FormatVALLine` / `FormatVARLine` helpers; no trailing pipes on empty component/field
+- **`PlaytestAliasButton.cs`** — toolbar button to open Alias Composer from chat panel
+
+**Added — Batch DSL fields/compress (C#-side filtering):**
+- **`FieldProjector`** (`FieldProjector.cs`) — C# port of Python's `project_fields()`. Filters `inspect`/`get_component` response to only the named fields; dot-prefix syntax (`-fieldName`) excludes fields instead. Wired into `ExecInspect` and `ExecGetComponent` via `ApplyFieldsCompress` helper in `CommandRouter.ObjectHandlers.cs`.
+- **`DefaultStripper`** (`DefaultStripper.cs`) — C# port of Python's `strip_defaults()`. Removes fields whose values match Unity's type defaults (0, false, empty string, identity quaternion, zero vector, etc.); field-specific overrides for known noisy keys. Activated when batch DSL line carries `compress=true`.
+- **`fields` and `compress` optional params** (`CommandRouter.Registration.cs`) — registered as valid optional params so `CommandValidator` accepts them in batch DSL. `fields` wins over `compress` when both are present (matches Python no-strip semantics). Zero Python changes — `batch.py` passes DSL text through unmodified.
+
+**Added — Test infrastructure:**
+- **`get_test_progress` MCP tool** (`testing.py`, `TestRunner.cs`) — returns live running|ran|passed|failed|skipped|total|elapsed|eta snapshot while tests are in flight. Marked `allowedDuringCompile` so it can be polled across domain reloads.
+- **`TestResultPersistence`** (`TestRunner.cs`) — persists test results to `~/.unity-mcp/test-results/` as JSON; `ResetOnReload` restores from file on domain reload instead of clearing `SessionState`, preventing result loss across recompiles.
+- **`run_unity_tests.py`** (root) — self-contained TCP-based NUnit runner script. Auto-discovers Unity MCP port, reconnects across domain reloads, polls every 2s. Usage: `python run_unity_tests.py [EditMode|PlayMode]`.
+
+**Changed:**
+- Alias block removed from `get_hierarchy` response (session-init pattern via `get_aliases` instead)
+- `TokenSavingsEstimate` formula accounts for alias block overhead
+- `ALIAS` keyword marked deprecated with warning; `VAL` is canonical replacement
+- MOVE_PATH label leak fixed; RawPosition VAR expansion fixed
+
+**Fixed:**
+- INCLUDE symlink traversal hardening (loop prevention + depth cap)
+- Position resolver exception handling (null guard + fallback)
+- Token bounds checks for ASSERT/WAIT_UNTIL
+- SetTimeScale config caching
+- FormatVALLine trailing pipe on empty fields eliminated (10-architect audit, 37 findings across 6 waves)
+- **`ObjectComponentTests` TearDown** (`ObjectComponentTests.cs`) — adds `EditorSceneManager.NewScene` in `[TearDown]` to prevent Save Scene dialog blocking subsequent test runs
+
+**Tests (42 new NUnit + 3 new pytest on this sprint):**
+- `GetAliasesTypedTests.cs` (11 NUnit) — typed alias command wiring, AliasType response shape
+- `PlaytestAliasHelperTypedTests.cs` (19 NUnit) — FormatVALLine/FormatVARLine per type, BuildAliasSection skips VarRuntime
+- `PlaytestDropHelperMemberTests.cs` (12 NUnit) — GetMemberNames, GetZeroArgMethodNames, cascading dropdown population
+- `test_middleware_alias.py` (+3 pytest) — typed alias passthrough, sigil expansion with AliasType
+- `test_middleware_alias.py` (51 Python tests total) — parse, resolve, strip, pipeline wiring
+- `test_middleware_alias_lifecycle.py` (19 Python tests) — session lifecycle, defs param, warnings
+- `GetAliasesTests.cs` (10 NUnit) — command wiring, response shape
+- `PlaytestVarTests.cs` (40 NUnit) — VAL/VAR parse, sigil expansion, unknown sigil passthrough
+- `PlaytestValComboTests.cs` (10 NUnit) — combined VAL+VAR+INCLUDE scenarios
+- `PlaytestValEdgeCaseTests.cs` (17 NUnit) — malformed input, deep nesting, circular refs
+- `PlaytestAliasGridTestTests.cs` (30 NUnit) — grid coverage across all DSL combinations
+- `PlaytestAliasModularityTests.cs` (6 NUnit) — modular alias file loading
+- `PlaytestAliasRealWorldTests.cs` (4 NUnit) — end-to-end playtest scripts with aliases
+- `PlaytestAliasStressTests.cs` (5 NUnit) — large alias tables, performance bounds
+- `PlaytestAliasWindowTests.cs` (10 NUnit) — EditorWindow lifecycle
+- `PlaytestPositionResolverTests.cs` (15 NUnit) — expression parsing, offset math, null paths
+- `FieldProjectorTests.cs` (38 NUnit) — aliases, dot-prefix exclusion, structural passthrough, special chars `[]{}<>"`
+- `DefaultStripperTests.cs` (40 NUnit) — type defaults, field-specific overrides, structural lines, edge values
+- `TestProgressTests.cs` (6 NUnit) — GetProgress state machine, persistence round-trip
+- `test_batch.py` (+3 Python passthrough tests), `test_testing_tools.py` (+2 Python TDD tests)
+- C# NUnit: 6576 passed, 9 pre-existing failures (EditMode)
+
 ## [v0.77.0] — 2026-07-09 — tools gap sprint: 34 new actions across 7 domains
 
 **Added — Timeline (animation.py → timeline()):**

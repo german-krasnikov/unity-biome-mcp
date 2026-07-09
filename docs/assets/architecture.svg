@@ -72,7 +72,7 @@
   <rect x="245" y="70" width="220" height="100" rx="10" fill="#111125"/>
   <rect x="245" y="70" width="220" height="100" rx="10" fill="none" stroke="#3ad29f" stroke-width="1.5"/>
   <text x="355" y="103" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="12" font-weight="700" fill="#ffffff">Python MCP Server</text>
-  <text x="355" y="119" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899"><!-- STAT:TOOLS -->127<!-- /STAT --> Tools · Middleware</text>
+  <text x="355" y="119" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899"><!-- STAT:TOOLS -->128<!-- /STAT --> Tools · Middleware</text>
   <text x="355" y="133" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899">Filtering · Plugin System</text>
 
   <!-- ==== WIRE 2 ==== -->
