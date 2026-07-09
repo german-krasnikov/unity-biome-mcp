@@ -150,6 +150,16 @@ namespace UnityMCP.Editor
             return ComponentSerializer.GetPath(go);
         }
 
+        public static string SetSiblingIndex(string path, int index)
+        {
+            var go = ComponentSerializer.FindObjectOrThrow(path);
+            Undo.RecordObject(go.transform, "Set Sibling Index");
+            go.transform.SetSiblingIndex(index);
+            if (!EditorApplication.isPlaying)
+                EditorSceneManager.MarkSceneDirty(go.scene);
+            return $"ok: {ComponentSerializer.GetPath(go)} index={go.transform.GetSiblingIndex()}";
+        }
+
         public static void DeleteObject(string path, bool force = false)
         {
             var go = ComponentSerializer.FindObject(path, strict: true);

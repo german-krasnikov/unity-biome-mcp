@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock
 from mcp.server.fastmcp.exceptions import ToolError
 
-from unity_mcp.server import asset
+from unity_mcp.server import asset, material
 
 
 async def test_asset_find_by_type(mock_bridge):
@@ -165,3 +165,36 @@ async def test_asset_export_package_error(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "export_package requires 'path' and 'output'"})
     with pytest.raises(ToolError, match="requires 'path' and 'output'"):
         await asset(action="export_package", path="Assets/Foo", output=None)
+
+
+# ---------------------------------------------------------------------------
+# Q2 — material set shader
+# ---------------------------------------------------------------------------
+
+async def test_material_set_shader_sends_correct_args(mock_bridge):
+    """material(action=set, prop=shader, value=...) passes args to bridge unchanged."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await material(action="set", path="Assets/M.mat", prop="shader", value="Standard")
+    args = mock_bridge.send.call_args[0][1]
+    assert args == {"action": "set", "path": "Assets/M.mat", "prop": "shader", "value": "Standard"}
+
+
+# ---------------------------------------------------------------------------
+# Q5 — asset import_settings read path
+# ---------------------------------------------------------------------------
+
+async def test_asset_import_settings_read_no_value(mock_bridge):
+    """Omitting value reads the setting — bridge args must not include 'value' key."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "maxTextureSize: 2048"})
+    await asset(action="import_settings", path="Assets/T.png", prop="maxTextureSize")
+    args = mock_bridge.send.call_args[0][1]
+    assert "value" not in args
+    assert args == {"action": "import_settings", "path": "Assets/T.png", "prop": "maxTextureSize"}
+
+
+async def test_asset_import_settings_dump_all(mock_bridge):
+    """Omitting both prop and value dumps all settings — bridge args have only action+path."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "type: TextureImporter\nmaxTextureSize: 2048"})
+    await asset(action="import_settings", path="Assets/T.png")
+    args = mock_bridge.send.call_args[0][1]
+    assert args == {"action": "import_settings", "path": "Assets/T.png"}

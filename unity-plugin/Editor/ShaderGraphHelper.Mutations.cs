@@ -140,5 +140,115 @@ namespace UnityMCP.Editor
             var newRoot = root.Replace(arr, updated);
             return content.Replace(root, newRoot);
         }
+
+        public static string AddProperty(string path, string name, string type, string defaultValue, string referenceName)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                throw new FileNotFoundException($"ShaderGraph not found: {path}");
+            if (string.IsNullOrEmpty(name)) throw new ArgumentException("name is required");
+
+            var content = File.ReadAllText(path);
+            var blocks = SplitBlocks(content);
+            var root = FindRoot(blocks);
+            if (root == null) throw new InvalidOperationException("No GraphData block found");
+
+            // Guard: duplicate name check among existing properties
+            var byId = BuildIdMap(blocks);
+            foreach (var pid in ExtractIdArray(root, "m_Properties"))
+                if (byId.TryGetValue(pid, out var pb) && JsonHelper.ExtractString(pb, "m_Name") == name)
+                    throw new ArgumentException($"Property already exists: {name}");
+
+            var typeStr = type ?? "Float";
+            var newId = Guid.NewGuid().ToString("N");
+            var guidId = Guid.NewGuid().ToString("N");
+            var refName = string.IsNullOrEmpty(referenceName) ? "_" + name : referenceName;
+            name = name.Replace("\"", "\\\"");
+            refName = refName.Replace("\"", "\\\"");
+            var valueField = BuildValueField(typeStr, defaultValue);
+            var propBlock = $"{{\n  \"m_SGVersion\": 1,\n  \"m_Type\": \"{MapPropertyType(typeStr)}\",\n  \"m_ObjectId\": \"{newId}\",\n  \"m_Guid\": {{\"m_GuidSerialized\": \"{guidId}\"}},\n  \"m_Name\": \"{name}\",\n  \"m_DefaultRefNameVersion\": 0,\n  \"m_RefNameGeneratedByDisplayName\": \"\",\n  \"m_DefaultReferenceName\": \"{refName}\",\n  \"m_OverrideReferenceName\": \"\",\n  \"m_GeneratePropertyBlock\": true,\n  \"m_UseCustomSlotLabel\": false,\n  \"m_CustomSlotLabel\": \"\",\n  \"m_DismissedVersion\": 0,\n  \"m_Precision\": 0,\n  \"overrideHLSLDeclaration\": false,\n  \"hlslDeclarationOverride\": 0,\n  \"m_Hidden\": false{valueField}\n}}";
+
+            content = InsertIntoArray(content, root, "m_Properties", $"{{\"m_Id\": \"{newId}\"}}");
+            content = content.TrimEnd() + "\n\n" + propBlock + "\n";
+            File.WriteAllText(path, content);
+            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            catch (Exception ex) { Debug.LogWarning($"ShaderGraph import failed for '{path}': {ex.Message}"); }
+            return Get(path);
+        }
+
+        public static string RemoveProperty(string path, string name)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                throw new FileNotFoundException($"ShaderGraph not found: {path}");
+
+            var content = File.ReadAllText(path);
+            var blocks = SplitBlocks(content);
+            var root = FindRoot(blocks);
+            if (root == null) throw new InvalidOperationException("No GraphData block found");
+
+            var byId = BuildIdMap(blocks);
+            string propId = null;
+            foreach (var pid in ExtractIdArray(root, "m_Properties"))
+                if (byId.TryGetValue(pid, out var pb) && JsonHelper.ExtractString(pb, "m_Name") == name)
+                { propId = pid; break; }
+
+            if (propId == null) throw new InvalidOperationException($"Property not found: {name}");
+
+            content = RemoveNode(content, blocks, root, propId);
+            File.WriteAllText(path, content);
+            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            catch (Exception ex) { Debug.LogWarning($"ShaderGraph import failed for '{path}': {ex.Message}"); }
+            return $"property removed: {name}";
+        }
+
+        public static string RenameProperty(string path, string oldName, string newName)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                throw new FileNotFoundException($"ShaderGraph not found: {path}");
+            if (string.IsNullOrEmpty(oldName) || string.IsNullOrEmpty(newName))
+                throw new ArgumentException("name and new_name are required");
+
+            var content = File.ReadAllText(path);
+            var blocks = SplitBlocks(content);
+            var root = FindRoot(blocks);
+            if (root == null) throw new InvalidOperationException("No GraphData block found");
+
+            var byId = BuildIdMap(blocks);
+            string propBlock = null;
+            foreach (var pid in ExtractIdArray(root, "m_Properties"))
+                if (byId.TryGetValue(pid, out var pb) && JsonHelper.ExtractString(pb, "m_Name") == oldName)
+                { propBlock = pb; break; }
+
+            if (propBlock == null) throw new InvalidOperationException($"Property not found: {oldName}");
+
+            oldName = oldName.Replace("\"", "\\\"");
+            newName = newName.Replace("\"", "\\\"");
+            var updatedBlock = propBlock.Replace($"\"m_Name\": \"{oldName}\"", $"\"m_Name\": \"{newName}\"");
+            content = content.Replace(propBlock, updatedBlock);
+            File.WriteAllText(path, content);
+            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            catch (Exception ex) { Debug.LogWarning($"ShaderGraph import failed for '{path}': {ex.Message}"); }
+            return $"property renamed: {oldName} → {newName}";
+        }
+
+        static string MapPropertyType(string type) => type switch
+        {
+            "Float"     => "UnityEditor.ShaderGraph.Internal.Vector1ShaderProperty",
+            "Color"     => "UnityEditor.ShaderGraph.Internal.ColorShaderProperty",
+            "Vector"    => "UnityEditor.ShaderGraph.Internal.Vector4ShaderProperty",
+            "Texture2D" => "UnityEditor.ShaderGraph.Internal.Texture2DShaderProperty",
+            "Boolean"   => "UnityEditor.ShaderGraph.Internal.BooleanShaderProperty",
+            _ => throw new ArgumentException($"Unknown property type '{type}'. Use: Float, Color, Vector, Texture2D, Boolean")
+        };
+
+        static string BuildValueField(string type, string defaultValue)
+        {
+            if (defaultValue == null) return "";
+            return type switch
+            {
+                "Float"   => $",\n  \"m_Value\": {defaultValue}",
+                "Boolean" => $",\n  \"m_Value\": {(defaultValue == "true" ? "true" : "false")}",
+                _ => ""
+            };
+        }
     }
 }

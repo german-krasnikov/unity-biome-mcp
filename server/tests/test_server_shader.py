@@ -265,3 +265,49 @@ async def test_shader_set_missing_prop_and_value_raises_tool_error(mock_bridge):
         await shader(action="set", path="/Cube")
     call_args = mock_bridge.send.call_args[0]
     assert call_args[1] == {"action": "set", "path": "/Cube"}
+
+
+# L4: Shader Graph blackboard properties CRUD
+
+async def test_shader_graph_add_property_sends_name_type(mock_bridge):
+    """graph_add_property forwards name and type to bridge."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ShaderGraph: x.shadergraph\nproperties: 1\n  Speed: Float (_Speed)"})
+    result = await shader(action="graph_add_property", path="Assets/MyShader.shadergraph",
+                          name="Speed", type="Float")
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["action"] == "graph_add_property"
+    assert call_args[1]["name"] == "Speed"
+    assert call_args[1]["type"] == "Float"
+    assert "properties:" in result
+
+
+async def test_shader_graph_remove_property_sends_name(mock_bridge):
+    """graph_remove_property forwards name to bridge."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "property removed: Speed"})
+    result = await shader(action="graph_remove_property", path="Assets/MyShader.shadergraph",
+                          name="Speed")
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["action"] == "graph_remove_property"
+    assert call_args[1]["name"] == "Speed"
+    assert "removed" in result
+
+
+async def test_shader_graph_rename_property_sends_names(mock_bridge):
+    """graph_rename_property forwards name and new_name to bridge."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "property renamed: Speed → MovementSpeed"})
+    result = await shader(action="graph_rename_property", path="Assets/MyShader.shadergraph",
+                          name="Speed", new_name="MovementSpeed")
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["action"] == "graph_rename_property"
+    assert call_args[1]["name"] == "Speed"
+    assert call_args[1]["new_name"] == "MovementSpeed"
+    assert "MovementSpeed" in result
+
+
+async def test_shader_graph_add_property_default_type_omitted(mock_bridge):
+    """graph_add_property without type does not send type to bridge (C# defaults to Float)."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ShaderGraph: x.shadergraph\nproperties: 1"})
+    await shader(action="graph_add_property", path="Assets/MyShader.shadergraph", name="X")
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["name"] == "X"
+    assert "type" not in call_args[1]

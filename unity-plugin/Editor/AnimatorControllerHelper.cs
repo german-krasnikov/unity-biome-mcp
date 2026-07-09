@@ -46,10 +46,10 @@ namespace UnityMCP.Editor
             return $"added: {string.Join(", ", added)}";
         }
 
-        public static string AddStates(string path, string statesStr)
+        public static string AddStates(string path, string statesStr, int layer = 0)
         {
             var ctrl = GetOrCreateController(path);
-            var sm = GetStateMachine(ctrl);
+            var sm = GetStateMachine(ctrl, layer);
             var added = new List<string>();
 
             int index = sm.states.Length;
@@ -83,10 +83,10 @@ namespace UnityMCP.Editor
         }
 
         public static string AddTransition(string path, string source, string target,
-            string conditions, float? duration, float? exitTime, bool? hasExitTime)
+            string conditions, float? duration, float? exitTime, bool? hasExitTime, int layer = 0)
         {
             var ctrl = GetOrCreateController(path);
-            var sm = GetStateMachine(ctrl);
+            var sm = GetStateMachine(ctrl, layer);
 
             var targetState = FindState(sm, target);
             if (targetState == null) throw new InvalidOperationException($"Target state not found: {target}");
@@ -131,10 +131,10 @@ namespace UnityMCP.Editor
             return $"transition: {label} → {target}";
         }
 
-        public static string SetDefault(string path, string stateName)
+        public static string SetDefault(string path, string stateName, int layer = 0)
         {
             var ctrl = GetOrCreateController(path);
-            var sm = GetStateMachine(ctrl);
+            var sm = GetStateMachine(ctrl, layer);
             var state = FindState(sm, stateName);
             if (state == null) throw new InvalidOperationException($"State not found: {stateName}");
 
@@ -619,6 +619,210 @@ namespace UnityMCP.Editor
                 }
             }
             throw new InvalidOperationException($"Transition '{source} → {target}' not found");
+        }
+
+        // --- Layer CRUD ---
+
+        public static string AddLayer(string path, string name, float weight, string blending)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentException("Layer name cannot be empty");
+            var ctrl = GetOrCreateController(path);
+            foreach (var l in ctrl.layers)
+                if (l.name == name) throw new ArgumentException($"Layer already exists: {name}");
+
+            Undo.RecordObject(ctrl, "Add Layer");
+            ctrl.AddLayer(name);
+            var layers = ctrl.layers;
+            int idx = layers.Length - 1;
+            layers[idx].defaultWeight = Mathf.Clamp01(weight);
+            layers[idx].blendingMode = ParseBlendingMode(blending);
+            ctrl.layers = layers;
+            SaveController(ctrl);
+            return $"layer added: {name} (idx:{idx}) w:{weight} blend:{blending}";
+        }
+
+        public static string RemoveLayer(string path, string layer)
+        {
+            var ctrl = GetOrCreateController(path);
+            int idx = ResolveLayerIndex(ctrl, layer);
+            if (idx == 0) throw new ArgumentException("Cannot remove layer 0 (Base)");
+            string name = ctrl.layers[idx].name;
+            Undo.RecordObject(ctrl, "Remove Layer");
+            ctrl.RemoveLayer(idx);
+            SaveController(ctrl);
+            return $"layer removed: {name} (idx:{idx})";
+        }
+
+        public static string RenameLayer(string path, string oldName, string newName)
+        {
+            var ctrl = GetOrCreateController(path);
+            int idx = ResolveLayerIndex(ctrl, oldName);
+            Undo.RecordObject(ctrl, "Rename Layer");
+            var layers = ctrl.layers;
+            layers[idx].name = newName;
+            ctrl.layers = layers;
+            SaveController(ctrl);
+            return $"layer renamed: {oldName} → {newName} (idx:{idx})";
+        }
+
+        public static string SetLayerWeight(string path, string layer, float weight)
+        {
+            var ctrl = GetOrCreateController(path);
+            int idx = ResolveLayerIndex(ctrl, layer);
+            string name = ctrl.layers[idx].name;
+            Undo.RecordObject(ctrl, "Set Layer Weight");
+            var layers = ctrl.layers;
+            layers[idx].defaultWeight = Mathf.Clamp01(weight);
+            ctrl.layers = layers;
+            SaveController(ctrl);
+            return $"layer weight: {name} = {layers[idx].defaultWeight}";
+        }
+
+        public static string SetLayerBlending(string path, string layer, string mode)
+        {
+            var ctrl = GetOrCreateController(path);
+            int idx = ResolveLayerIndex(ctrl, layer);
+            string name = ctrl.layers[idx].name;
+            var parsed = ParseBlendingMode(mode);
+            Undo.RecordObject(ctrl, "Set Layer Blending");
+            var layers = ctrl.layers;
+            layers[idx].blendingMode = parsed;
+            ctrl.layers = layers;
+            SaveController(ctrl);
+            return $"layer blending: {name} = {parsed}";
+        }
+
+        private static int ResolveLayerIndex(AnimatorController ctrl, string layer)
+        {
+            if (int.TryParse(layer, out int idx))
+            {
+                if (idx < 0 || idx >= ctrl.layers.Length)
+                    throw new ArgumentOutOfRangeException(nameof(layer),
+                        $"Layer index {idx} out of range (0–{ctrl.layers.Length - 1})");
+                return idx;
+            }
+            for (int i = 0; i < ctrl.layers.Length; i++)
+                if (ctrl.layers[i].name == layer) return i;
+            throw new ArgumentException($"Layer not found: {layer}");
+        }
+
+        private static AnimatorLayerBlendingMode ParseBlendingMode(string mode)
+        {
+            return (mode ?? "Override").ToLowerInvariant() switch
+            {
+                "additive" => AnimatorLayerBlendingMode.Additive,
+                _ => AnimatorLayerBlendingMode.Override
+            };
+        }
+
+        // --- M7: Set State Speed ---
+
+        public static string SetStateSpeed(string path, string stateName, string value)
+        {
+            var ctrl = GetController(path);
+            if (ctrl == null) throw new ArgumentException($"no AnimatorController on '{path}'");
+            var state = FindStateAcrossLayers(ctrl, stateName);
+            if (state == null) throw new InvalidOperationException($"State not found: {stateName}");
+            Undo.RecordObject(state, "Set State Speed");
+            state.speed = float.Parse(value, CultureInfo.InvariantCulture);
+            SaveController(ctrl);
+            return $"state speed: {stateName} = {value}";
+        }
+
+        // --- M8: Update Transition ---
+
+        public static string UpdateTransition(string path, string source, string target,
+            float? duration, float? exitTime, bool? hasExitTime, string conditions, int layer = 0)
+        {
+            var ctrl = GetOrCreateController(path);
+            var sm = GetStateMachine(ctrl, layer);
+            var t = FindTransition(sm, source, target);
+            Undo.RecordObject(t, "Update Transition");
+            if (duration.HasValue) t.duration = duration.Value;
+            if (exitTime.HasValue) t.exitTime = exitTime.Value;
+            if (hasExitTime.HasValue) t.hasExitTime = hasExitTime.Value;
+            if (!string.IsNullOrEmpty(conditions))
+            {
+                t.conditions = Array.Empty<AnimatorCondition>();
+                foreach (var condStr in conditions.Split(';'))
+                {
+                    var c = condStr.Trim();
+                    if (string.IsNullOrEmpty(c)) continue;
+                    var cond = ParseCondition(c, ctrl);
+                    t.AddCondition(cond.mode, cond.threshold, cond.parameter);
+                }
+            }
+            SaveController(ctrl);
+            var label = source == "*" ? "[Any]" : source;
+            return $"transition updated: {label} → {target}";
+        }
+
+        private static AnimatorStateTransition FindTransition(AnimatorStateMachine sm, string source, string target)
+        {
+            if (source == "*")
+            {
+                foreach (var t in sm.anyStateTransitions)
+                    if (t.destinationState?.name == target) return t;
+                throw new InvalidOperationException($"AnyState transition to '{target}' not found");
+            }
+            var sourceState = FindState(sm, source);
+            if (sourceState == null) throw new InvalidOperationException($"Source state not found: {source}");
+            foreach (var t in sourceState.transitions)
+                if (t.destinationState?.name == target) return t;
+            throw new InvalidOperationException($"Transition '{source} → {target}' not found");
+        }
+
+        // --- M9: Set Avatar ---
+
+        public static string SetAvatar(string path, string avatarPath)
+        {
+            var go = ComponentSerializer.FindObject(path);
+            if (go == null) throw new InvalidOperationException(ErrorHelper.ObjectNotFound(path));
+            var anim = go.GetComponent<Animator>();
+            if (anim == null) throw new InvalidOperationException($"No Animator component on '{path}'");
+            Avatar avatar = null;
+            if (!string.IsNullOrEmpty(avatarPath))
+            {
+                avatar = AssetDatabase.LoadAssetAtPath<Avatar>(avatarPath);
+                if (avatar == null) throw new ArgumentException($"Avatar not found: {avatarPath}");
+            }
+            Undo.RecordObject(anim, "Set Avatar");
+            anim.avatar = avatar;
+            EditorUtility.SetDirty(anim);
+            return $"avatar set: {(avatar != null ? avatar.name : "none")}";
+        }
+
+        // --- M10: Rename State / Rename Parameter ---
+
+        public static string RenameState(string path, string oldName, string newName)
+        {
+            var ctrl = GetController(path);
+            if (ctrl == null) throw new ArgumentException($"no AnimatorController on '{path}'");
+            var state = FindStateAcrossLayers(ctrl, oldName);
+            if (state == null) throw new InvalidOperationException($"State not found: {oldName}");
+            Undo.RecordObject(state, "Rename State");
+            state.name = newName;
+            SaveController(ctrl);
+            return $"state renamed: {oldName} → {newName}";
+        }
+
+        public static string RenameParameter(string path, string oldName, string newName)
+        {
+            var ctrl = GetController(path);
+            if (ctrl == null) throw new ArgumentException($"no AnimatorController on '{path}'");
+            var parms = ctrl.parameters;
+            for (int i = 0; i < parms.Length; i++)
+            {
+                if (parms[i].name == oldName)
+                {
+                    Undo.RecordObject(ctrl, "Rename Parameter");
+                    parms[i].name = newName;
+                    ctrl.parameters = parms;
+                    SaveController(ctrl);
+                    return $"param renamed: {oldName} → {newName}";
+                }
+            }
+            throw new InvalidOperationException($"Parameter not found: {oldName}");
         }
 
         private static void SaveController(AnimatorController ctrl)

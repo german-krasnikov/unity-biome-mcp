@@ -26,6 +26,9 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 | `create` | Create empty ParticleSystem or with preset (name required, path optional, preset optional) |
 | `set` | Set single module property (module, prop, value required) |
 | `apply` | Apply preset to existing ParticleSystem (overrides current settings) |
+| `play` | Start particle system playback (calls `ParticleSystem.Play()`) |
+| `stop` | Stop particle system playback (calls `ParticleSystem.Stop()`) |
+| `pause` | Pause particle system playback (calls `ParticleSystem.Pause()`) |
 
 ## Modules (11 total)
 
@@ -39,7 +42,7 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 | `velocityOverLifetime` | Velocity | ✓ | ✓ | Speed/direction over lifetime |
 | `noise` | Noise | ✓ | ✓ | Turbulence, wind, randomness |
 | `renderer` | Rendering | ✓ | ✓ | Material, render mode, order |
-| `trails` | Trails | ✓ | ✓ | Particle trails (lifetime, material) |
+| `trails` | Trails | ✓ | ✓ | Particle trails — 9 settable props: lifetime, material, textureMode, colorOverLifetime, widthOverTrail, minVertexDistance, dieWithParticles, ratio, sizeAffectsWidth |
 | `collision` | Physics | ✓ | ✓ | Bounce, lifetime on hit |
 | `rotationOverLifetime` | Rotation | ✓ | ✓ | Angular velocity curves |
 
@@ -116,7 +119,7 @@ renderer: Billboard
 
 | Test Suite | Count | Coverage |
 |------------|-------|----------|
-| `test_server_particle.py` (Python) | 16 tests | get/create/set workflows, hex startcolor, noise strength+frequency, shape radius, startsize normalization |
+| `test_server_particle.py` (Python) | 18 tests | get/create/set workflows, hex startcolor, noise strength+frequency, shape radius, startsize normalization, play/stop/pause |
 | `MCPParticleTests.cs` (C#) | 29 tests | toggle modules (color/trails/size), workflow (create→set→get), presets, renderer stretch, shape collider |
 | Live scenarios (25-29) | 5 scenarios | Fire preset + variations, smoke with noise, sparks color override, rain shape config, snow trails |
 

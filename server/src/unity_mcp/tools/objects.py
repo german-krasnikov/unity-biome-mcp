@@ -156,6 +156,11 @@ async def rename_object(path: str, name: str) -> str:
     return await _send("rename_object", {"path": path, "name": name})
 
 
+async def set_sibling_index(path: str, index: int) -> str:
+    """Set sibling index of a GameObject within its parent. index=0 moves to first child."""
+    return await _send("set_sibling_index", {"path": path, "index": str(index)})
+
+
 async def object_diff(path_a: str, path_b: str) -> str:
     """Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."""
     return await _send("object_diff", {"pathA": path_a, "pathB": path_b})
@@ -180,4 +185,5 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW)(set_property_delta)
     mcp.tool(annotations=_RW_IDEM)(set_parent)
     mcp.tool(annotations=_RW_IDEM)(rename_object)
+    mcp.tool(annotations=_RW)(set_sibling_index)
     mcp.tool(annotations=_RO)(object_diff)

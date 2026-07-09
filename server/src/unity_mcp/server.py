@@ -118,7 +118,7 @@ from .tools.objects import (
     get_component, inspect, get_components_list, find_objects,
     set_property, create_object, set_active, wire_event, unwire_event,
     delete_object, manage_component, get_object_detail, set_material,
-    set_property_delta, set_parent, object_diff,
+    set_property_delta, set_parent, object_diff, set_sibling_index,
 )
 from .tools.asset import (
     asset, project_settings, material, prefab, scriptable_object, get_enabled_tools,

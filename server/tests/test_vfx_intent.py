@@ -163,6 +163,40 @@ async def test_vfx_intent_preset_bypass_no_haiku():
             assert "ok" in result
 
 
+# ---------------------------------------------------------------------------
+# 6. Bug fixes (Q1)
+# ---------------------------------------------------------------------------
+
+def test_vfx_batch_set_includes_module_main():
+    """SET lines must include module=main so C# ParticleHelper dispatches correctly."""
+    from unity_mcp.tools.vfx_intent_tool import build_vfx_batch, parse_vfx_dsl
+    data = parse_vfx_dsl("SET startColor = #FF2200")
+    lines = build_vfx_batch("/Obj", data)
+    assert any("module=main" in l for l in lines)
+
+
+def test_vfx_batch_gradient_emits_enabled_not_color():
+    """GRADIENT lines must emit prop=enabled + prop=gradient with value, not prop=color."""
+    from unity_mcp.tools.vfx_intent_tool import build_vfx_batch, parse_vfx_dsl
+    grad_value = "#FF8800@0;#FF2200@1"
+    data = parse_vfx_dsl(f"GRADIENT color = {grad_value}")
+    lines = build_vfx_batch("/Obj", data)
+    assert any("prop=enabled" in l for l in lines)
+    assert not any("prop=color" in l for l in lines)
+    gradient_lines = [l for l in lines if "prop=gradient" in l]
+    assert gradient_lines, "expected a line with prop=gradient"
+    assert grad_value in gradient_lines[0]
+
+
+def test_vfx_preset_fire_no_unsupported_color_props():
+    """fire_explosion preset gradient lines must not contain prop=color."""
+    from unity_mcp.tools.vfx_intent_tool import build_vfx_batch, get_preset_config
+    data = get_preset_config("fire_explosion")
+    lines = build_vfx_batch("/Fx", data)
+    gradient_lines = [l for l in lines if "colorOverLifetime" in l]
+    assert not any("prop=color" in l for l in gradient_lines)
+
+
 async def test_vfx_intent_no_sampling_returns_error():
     from unity_mcp.tools.vfx_intent_tool import vfx_intent
     with patch("unity_mcp.tools.vfx_intent_tool._send", new_callable=AsyncMock):

@@ -19,8 +19,11 @@ namespace UnityMCP.Editor
                 "copy" => Copy(argsJson),
                 "list_properties" => ListProperties(argsJson),
                 "list_slots" => ListSlots(argsJson),
+                "get_errors" => GetShaderErrors(argsJson),
+                "list_shaders" => ListShaders(argsJson),
+                "set_fields" => SetFields(argsJson),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "create", "get", "set", "copy", "list_properties", "list_slots" }))
+                    new[] { "create", "get", "set", "copy", "list_properties", "list_slots", "get_errors", "list_shaders", "set_fields" }))
             };
         }
 
@@ -72,6 +75,7 @@ namespace UnityMCP.Editor
             var mat = ResolveMaterial(args, slot);
             var sb = new StringBuilder();
             sb.AppendLine($"Shader: {mat.shader.name}");
+            sb.AppendLine($"renderQueue: {mat.renderQueue}");
 
             int count = mat.shader.GetPropertyCount();
             for (int i = 0; i < count; i++)
@@ -107,6 +111,28 @@ namespace UnityMCP.Editor
                 ?? throw new ArgumentException("prop is required");
             var value = JsonHelper.ExtractString(args, "value")
                 ?? throw new ArgumentException("value is required");
+
+            // Special case: renderQueue
+            if (prop == "renderQueue")
+            {
+                if (!int.TryParse(value, out int rq))
+                    throw new ArgumentException($"renderQueue must be an integer, got: {value}");
+                Undo.RecordObject(mat, "Set Render Queue");
+                mat.renderQueue = rq;
+                EditorUtility.SetDirty(mat);
+                return $"ok: renderQueue={rq}";
+            }
+
+            // Special case: change shader
+            if (prop == "shader")
+            {
+                var sh = Shader.Find(value)
+                    ?? throw new InvalidOperationException($"Shader not found: {value}");
+                Undo.RecordObject(mat, "Set Shader");
+                mat.shader = sh;
+                EditorUtility.SetDirty(mat);
+                return $"ok: shader={value}";
+            }
 
             int idx = mat.shader.FindPropertyIndex(prop);
 
@@ -209,6 +235,73 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"[{i}] {(m != null ? m.name : "null")} ({(m != null ? m.shader.name : "none")})");
             }
             return sb.ToString().TrimEnd();
+        }
+        private static string GetShaderErrors(string args)
+        {
+            var path = JsonHelper.ExtractString(args, "path")
+                ?? throw new ArgumentException("path (shader asset path) is required");
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(path);
+            if (shader == null) throw new InvalidOperationException($"Shader not found: {path}");
+            if (!ShaderUtil.ShaderHasError(shader)) return "ok: no errors";
+            var msgs = ShaderUtil.GetShaderMessages(shader);
+            var sb = new StringBuilder();
+            sb.AppendLine($"errors: {msgs.Length}");
+            foreach (var m in msgs)
+                sb.AppendLine($"L{m.line}: {m.message} [{m.severity}]");
+            return sb.ToString().TrimEnd();
+        }
+
+        private static string ListShaders(string args)
+        {
+            var filter = JsonHelper.ExtractString(args, "filter") ?? "";
+            var sb = new StringBuilder();
+            var guids = AssetDatabase.FindAssets("t:Shader" + (filter.Length > 0 ? " " + filter : ""));
+            foreach (var g in guids)
+            {
+                var p = AssetDatabase.GUIDToAssetPath(g);
+                var s = AssetDatabase.LoadAssetAtPath<Shader>(p);
+                sb.AppendLine(s != null ? $"{p} [{s.name}]" : p);
+            }
+            return sb.Length == 0 ? "(none)" : sb.ToString().TrimEnd();
+        }
+
+        private static string SetFields(string args)
+        {
+            var slot = JsonHelper.ExtractInt(args, "slot");
+            var mat = ResolveMaterial(args, slot);
+            var fieldsStr = JsonHelper.ExtractString(args, "value")
+                ?? throw new ArgumentException("value (newline-separated prop=val) is required");
+            Undo.RecordObject(mat, "Set Material Fields");
+            int count = 0;
+            foreach (var line in fieldsStr.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+                var eqIdx = trimmed.IndexOf('=');
+                if (eqIdx < 0) continue;
+                var pName = trimmed.Substring(0, eqIdx).Trim();
+                var pVal = trimmed.Substring(eqIdx + 1).Trim();
+
+                if (pName == "renderQueue")
+                {
+                    mat.renderQueue = int.Parse(pVal, CultureInfo.InvariantCulture);
+                    count++;
+                    continue;
+                }
+                if (pName == "shader")
+                {
+                    var sh = Shader.Find(pVal);
+                    if (sh != null) { mat.shader = sh; count++; }
+                    continue;
+                }
+
+                int idx = mat.shader.FindPropertyIndex(pName);
+                if (idx < 0) continue;
+                ShaderHelper.ApplyProperty(mat, pName, mat.shader.GetPropertyType(idx), pVal);
+                count++;
+            }
+            EditorUtility.SetDirty(mat);
+            return $"ok: {count} properties set";
         }
     }
 }

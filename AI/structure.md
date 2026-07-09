@@ -110,7 +110,7 @@ unity-kiss-mcp/
 │   │   │   ├── auto_wire.py    # Auto-wiring tool: fill ObjectRef fields by semantic name/type matching (v0.62.0)
 │   │   │   ├── scene_health.py # Scene health audit: hierarchy depth, naming, duplicates, origins, missing scripts (v0.62.0)
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
-│   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/set_material
+│   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/clone_object/set_material
 │   │   │   ├── scene.py        # scene, hierarchy, search (multi-scene support, v0.70.0: only scene_tools)
 │   │   │   ├── console.py      # get_console tool split from scene.py (v0.70.0)
 │   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)
@@ -146,7 +146,7 @@ unity-kiss-mcp/
 │   │   │   └── _annotations.py          # Tool annotations
 │   │   └── plugins/            # Plugin system — 3-source auto-discovery (auto-disabled via UNITY_MCP_SKIP_PLUGINS env)
 │   │       └── __init__.py     # load_plugins(mcp, send_fn, args_fn), 3-source discovery, UNITY_MCP_SKIP_PLUGINS filtering
-│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
+│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
 │       ├── helpers.py                  # DRY: make_mock_bridge() + shared test utilities (v0.26.0)
 │       ├── test_server*.py             # Core + edge cases + tools
 │       ├── test_bridge*.py             # TCP bridge + reconnect + resilience
@@ -184,6 +184,14 @@ unity-kiss-mcp/
 │       ├── test_auto_wire.py             # auto_wire tool: 3-priority matching, dry-run (v0.62.0, 5 tests)
 │       ├── test_scene_health.py          # scene_health tool: 7 checks, focus param (v0.62.0, 4 tests)
 │       ├── test_scenarios.py             # save/load/list/run_scenario: path validation, project-path discovery (v0.74.0)
+│       ├── test_server_timeline.py       # M1–M6 timeline actions: reorder_track, duplicate_clip, add/remove_marker, set_track_offset, set_duration, add_sub_track (10 tests)
+│       ├── test_server_animator.py       # M7–M10 animator actions: set_state_speed, update_transition, set_avatar, rename_state, rename_param (14 tests)
+│       ├── test_server_animation.py      # M11–M14 animation actions: color curves hex, set_wrap, set_framerate, get_clip_path (13 tests)
+│       ├── test_server_particle.py       # M16–M17 particle actions: trails module, play/stop/pause (18 tests)
+│       ├── test_server_material.py       # M19–M22 material actions: get_shader_errors, list_shaders, set_fields (17 tests)
+│       ├── test_server_shader.py         # ShaderGraphHelper mutations: graph_set_value, graph_connect, graph_add_node
+│       ├── test_server_objects_extra.py  # clone_object action tests
+│       ├── test_vfx_intent.py            # set_vfx_quality action tests
 │       ├── test_middleware_play_guard.py  # Play Mode fail-fast guard: state-unknown passthrough, edit-mode block, watch_remove exclusion (feat/tool-disambiguation)
 │       ├── test_tool_descriptions.py     # Regression: TIER1 runtime tools have [Play Mode] prefix in docstring (feat/tool-disambiguation)
 │       ├── test_docstring_crossrefs.py   # Regression: all 'use `tool`' cross-refs in docstrings name real tools in _SPECS (feat/tool-disambiguation)
@@ -282,7 +290,7 @@ unity-kiss-mcp/
 │       ├── AnimatorControllerHelper.cs + AnimatorControllerSerializer.cs
 │       ├── TimelineHelper.cs + TimelineSerializer.cs
 │       ├── ParticleHelper.cs + ParticleSerializer.cs  # 10 presets
-│       ├── ShaderHelper.cs + ShaderSerializer.cs + ShaderGraphHelper.cs
+│       ├── ShaderHelper.cs + ShaderSerializer.cs + ShaderGraphHelper.cs + ShaderGraphHelper.Mutations.cs  # +110 LOC: SetNodeValue, ConnectPorts, AddNode (v0.77.0)
 │       ├── UIHelper.cs + LayoutValidator.cs
 │       ├── AssetDatabaseHelper.cs + AssetHelper.cs
 │       ├── ReferenceHelper.cs + ValidateReferencesHelper.cs

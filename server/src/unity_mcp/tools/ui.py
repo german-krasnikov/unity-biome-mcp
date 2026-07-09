@@ -62,6 +62,11 @@ async def shader(
     input_node: str | None = None,
     input_slot: int | None = None,
     edge_action: str | None = None,
+    name: str | None = None,
+    type: str | None = None,
+    default_value: str | None = None,
+    reference_name: str | None = None,
+    new_name: str | None = None,
 ) -> str:
     """Read or write shader assets (.shader / .shadergraph). Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network.
     action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action).
@@ -73,7 +78,9 @@ async def shader(
         node_id=node_id, node_action=node_action,
         output_node=output_node, output_slot=output_slot,
         input_node=input_node, input_slot=input_slot,
-        edge_action=edge_action))
+        edge_action=edge_action, name=name, type=type,
+        default_value=default_value, reference_name=reference_name,
+        new_name=new_name))
 
 
 def register(mcp, send, args):

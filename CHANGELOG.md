@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.77.0] — 2026-07-09 — tools gap sprint: 34 new actions across 7 domains
+
+**Added — Timeline (animation.py → timeline()):**
+- **M1: `reorder_track`** — move track to position index (reflection on `m_Tracks`, only permitted reflection hack)
+- **M2: `duplicate_clip`** — duplicate clip on same track with configurable time offset
+- **M3: `add_marker` / `remove_marker`** — add/remove `SignalEmitter` markers on timeline tracks
+- **M4: `set_track_offset`** — set track offset mode (`auto`, `transform`, or `scene`)
+- **M5: `set_duration`** — set timeline asset duration
+- **M6: `add_sub_track`** — add a sub-track to a GroupTrack
+
+**Added — Animator (animation.py → animator()):**
+- **M7: `set_state_speed`** — set speed multiplier for an animator state
+- **M8: `update_transition`** — modify existing transition parameters (duration, exit_time, has_exit_time)
+- **M9: `set_avatar`** — assign avatar to Animator component from asset path
+- **M10: `rename_state`** — rename an existing animator state
+- **M10: `rename_param`** — rename an existing animator parameter
+
+**Added — Animation (animation.py → animation()):**
+- **M11: Color curve support** — `keys` accepts hex values (`#FF0000`) in Color property curves
+- **M12: `set_wrap`** — set clip wrap mode (`loop`, `once`, `pingpong`, `clamp`)
+- **M13: `set_framerate`** — set clip sample rate (frames per second)
+- **M14: `get_clip_path`** — return asset path for an animation clip
+
+**Added — Particle (animation.py → particle()):**
+- **M16: `trails` module** — 9 settable properties via `set` action (lifetime, material, textureMode, etc.)
+- **M17: `play` / `stop` / `pause`** — control particle system playback via new `action` values
+
+**Added — Material (asset.py → material()):**
+- **M19: `get_shader_errors`** — return shader compilation errors for a material
+- **M20: `list_shaders`** — list available shaders with optional name filter param
+- **M22: `set_fields`** — batch property setting (multiple `prop=value` pairs in one call)
+
+**Added — Objects (objects.py):**
+- **`clone_object`** — duplicate a GameObject with positional offset (`offset_x`, `offset_y`, `offset_z`)
+
+**Added — UI (ui.py):**
+- **`set_ui_style`** — apply USS inline styles to a UI element
+
+**Added — VFX (vfx_intent_tool.py):**
+- **`set_vfx_quality`** — set VFX quality level for a VFX Graph asset
+
+**Added — Shader Graph (ShaderGraphHelper.Mutations.cs):**
+- **`set_node_value`** — set input value on a Shader Graph node
+- **`connect_ports`** — connect two ports in a Shader Graph
+- **`add_node`** — add a new node to a Shader Graph
+
+**Added — Tool metadata:**
+- `shader` added to BATCHABLE set in `tool_specs.py`
+
+**Tests:**
+- `test_server_timeline.py` (10 tests) — M1–M6 timeline actions
+- `test_server_animator.py` (14 tests) — M7–M10 animator actions
+- `test_server_animation.py` (13 tests) — M11–M14 animation actions
+- `test_server_particle.py` (18 tests) — M16–M17 particle actions
+- `test_server_material.py` (17 tests) — M19–M22 material actions
+- `test_server_shader.py` (46 lines) — Shader Graph mutations
+- `test_server_objects_extra.py` (22 lines) — clone_object
+- `test_vfx_intent.py` (34 lines) — set_vfx_quality
+- Python unit: 4175 passed, 0 failed
+- C# NUnit: 6126 passed, 10 failed (all pre-existing), 7 skipped
+
 ## [v0.76.0] — rename_object, NUnit 159 fix, get_test_results resilience, batch SO multi-field
 
 **Added:**

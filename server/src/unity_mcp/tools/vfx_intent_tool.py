@@ -91,12 +91,13 @@ def parse_vfx_dsl(dsl: str) -> dict:
 def build_vfx_batch(target: str, data: dict) -> list[str]:
     lines = []
     for prop, val in data.get("sets", []):
-        lines.append(build_batch_line("particle", action="set", path=target, prop=prop, value=val))
+        lines.append(build_batch_line("particle", action="set", path=target, module="main", prop=prop, value=val))
     for mod, state in data.get("modules", []):
         enabled = "true" if state.upper() == "ENABLED" else "false"
         lines.append(build_batch_line("particle", action="set", path=target, module=mod, prop="enabled", value=enabled))
     for prop, grad in data.get("gradients", []):
-        lines.append(build_batch_line("particle", action="set", path=target, module="colorOverLifetime", prop=prop, value=grad))
+        lines.append(build_batch_line("particle", action="set", path=target, module="colorOverLifetime", prop="enabled", value="true"))
+        lines.append(build_batch_line("particle", action="set", path=target, module="colorOverLifetime", prop="gradient", value=grad))
     return lines
 
 

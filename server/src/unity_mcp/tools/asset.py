@@ -30,11 +30,12 @@ async def project_settings(action: str, target: str, prop: str | None = None,
 async def material(action: str, path: str | None = None, object_path: str | None = None,
                    shader: str | None = None, prop: str | None = None, value: str | None = None,
                    source: str | None = None, targets: str | None = None,
-                   slot: int | None = None) -> str:
-    """Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path (lists all material slots)."""
+                   slot: int | None = None, filter: str | None = None) -> str:
+    """Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val)."""
     return await _send("material", _args(
         action=action, path=path, object_path=object_path, shader=shader,
-        prop=prop, value=value, source=source, targets=targets, slot=slot))
+        prop=prop, value=value, source=source, targets=targets, slot=slot,
+        filter=filter))
 
 
 async def prefab(action: str, path: str | None = None, asset_path: str | None = None,

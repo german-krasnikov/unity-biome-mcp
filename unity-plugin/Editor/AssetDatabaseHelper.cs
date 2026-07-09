@@ -213,13 +213,20 @@ namespace UnityMCP.Editor
             var path  = JsonHelper.ExtractString(argsJson, "path");
             var prop  = JsonHelper.ExtractString(argsJson, "prop");
             var value = JsonHelper.ExtractString(argsJson, "value");
-            if (string.IsNullOrEmpty(path))  throw new System.Exception("path is required");
-            if (string.IsNullOrEmpty(prop))  throw new System.Exception("prop is required");
-            if (string.IsNullOrEmpty(value)) throw new System.Exception("value is required");
+            if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
 
             var importer = AssetImporter.GetAtPath(path);
             if (importer == null) throw new System.Exception($"No importer found for: {path}");
 
+            // READ path: no value → return current setting(s)
+            if (string.IsNullOrEmpty(value))
+            {
+                if (string.IsNullOrEmpty(prop))
+                    return DumpAllImportSettings(importer);
+                return ReadImportSetting(importer, prop);
+            }
+
+            // WRITE path: existing logic
             var propInfo = importer.GetType().GetProperty(prop,
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             if (propInfo == null)
@@ -254,6 +261,29 @@ namespace UnityMCP.Editor
             propInfo.SetValue(importer, parsed);
             importer.SaveAndReimport();
             return "ok";
+        }
+
+        static string ReadImportSetting(AssetImporter importer, string prop)
+        {
+            var propInfo = importer.GetType().GetProperty(prop,
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (propInfo == null)
+                throw new System.Exception($"Property '{prop}' not found on {importer.GetType().Name}");
+            return $"{prop}: {propInfo.GetValue(importer)}";
+        }
+
+        static string DumpAllImportSettings(AssetImporter importer)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"type: {importer.GetType().Name}");
+            foreach (var p in importer.GetType().GetProperties(
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (!p.CanRead) continue;
+                try { sb.AppendLine($"{p.Name}: {p.GetValue(importer)}"); }
+                catch (System.Exception) { sb.AppendLine($"{p.Name}: (read error)"); }
+            }
+            return sb.ToString().TrimEnd();
         }
 
         static string FindDependents(string argsJson)

@@ -32,6 +32,11 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 | `add_transition` | Add transition with conditions, duration, exit_time | `source`, `target`, `conditions`, `duration`, `exit_time`, `has_exit_time` |
 | `set_default` | Set default state | `state` |
 | `remove` | Remove param/state/transition | `type` (param\|state\|transition), `name`, `source`, `target` |
+| `set_state_speed` | Set speed multiplier for a state | `state`, `value` (float) |
+| `update_transition` | Modify existing transition params | `source`, `target`, `duration`, `exit_time`, `has_exit_time` |
+| `set_avatar` | Assign avatar from asset path | `path` (asset path to Avatar) |
+| `rename_state` | Rename an existing state | `name` (old name), `value` (new name) |
+| `rename_param` | Rename an existing parameter | `name` (old name), `value` (new name) |
 
 ## Condition Format
 
@@ -65,10 +70,11 @@ Output format uses ` & ` separator between conditions.
 | File | Lines | Role |
 |------|-------|------|
 | `unity-plugin/Editor/AnimatorControllerSerializer.cs` | ~187 | Read controller → text |
-| `unity-plugin/Editor/AnimatorControllerHelper.cs` | ~391 | CRUD operations |
+| `unity-plugin/Editor/AnimatorControllerHelper.cs` | ~606 | CRUD operations (+215 lines for M7–M10: SetStateSpeed, UpdateTransition, SetAvatar, RenameState, RenameParameter) |
 | `server/src/unity_mcp/tools/animation.py` | ~70 | Python `animator` tool definition |
 | `server/src/unity_mcp/tools/animator_intent_tool.py` | ~127 | NL → DSL → batch (uses sampling) |
 | `unity-plugin/Editor/CommandRouter.cs` | +35 | Routing + action handlers |
+| `server/tests/test_server_animator.py` | 166 | 14 Python tests for M7–M10 actions |
 
 ## Text Output Format
 

@@ -301,6 +301,10 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "name")), mutating: true,
                 required: "path,name", optional: "");
+            CommandRegistry.Register("set_sibling_index", args => ObjectManager.SetSiblingIndex(
+                JsonHelper.ExtractString(args, "path"),
+                int.Parse(JsonHelper.ExtractString(args, "index") ?? "0")), mutating: true,
+                required: "path,index", optional: "");
             // color is optional: null/omitted leaves the material's existing color untouched
             // (ObjectManager.SetMaterial tolerates a null color, applying only shader if given).
             CommandRegistry.Register("set_material", args => ObjectManager.SetMaterial(
@@ -311,9 +315,9 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("scene", ExecScene, mutating: true,
                 required: "action", optional: "path,scene");
             CommandRegistry.Register("animation", ExecAnimationConsolidated, mutating: true,
-                required: "action,path", optional: "clip,clip_name,property,keys,time,component_type");
+                required: "action,path", optional: "clip,clip_name,property,keys,time,component_type,binding_path,tangent,function_name,int_param,float_param,string_param");
             CommandRegistry.Register("timeline", ExecTimelineConsolidated, mutating: true,
-                required: "action", optional: "path,track,track_type,clip,binding,start,duration,blend_in,blend_out,asset_path,director_path,tracks,time");
+                required: "action", optional: "path,track,track_type,clip,binding,start,duration,blend_in,blend_out,asset_path,director_path,tracks,time,name,clip_in,index,offset,value");
             CommandRegistry.Register("references", ExecReferencesConsolidated, mutating: true,
                 required: "action", optional: "path,children,depth,source,target,mappings");
             CommandRegistry.Register("create_ui", ExecCreateUI, mutating: true,
@@ -321,11 +325,11 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("set_rect", ExecSetRect, mutating: true,
                 required: "path", optional: "anchor,pos,size,pivot,offsetMin,offsetMax");
             CommandRegistry.Register("animator", ExecAnimatorConsolidated, mutating: true,
-                required: "action,path", optional: "state,states,params,source,target,conditions,duration,exit_time,has_exit_time,type,name,blend_type,param,param_y,children,edit_action");
+                required: "action,path", optional: "state,states,params,source,target,conditions,duration,exit_time,has_exit_time,type,name,blend_type,param,param_y,children,edit_action,layer,weight,blending,value,avatar_path");
             CommandRegistry.Register("particle", ExecParticleConsolidated, mutating: true,
                 required: "action,path", optional: "name,module,prop,value,preset");
             CommandRegistry.Register("shader", ExecShaderConsolidated, mutating: true,
-                required: "action,path", optional: "target,preset,code,shader_name,prop,value,keyword,enabled,node_type,node_id,node_action,output_node,output_slot,input_node,input_slot,edge_action");
+                required: "action,path", optional: "target,preset,code,shader_name,prop,value,keyword,enabled,node_type,node_id,node_action,output_node,output_slot,input_node,input_slot,edge_action,name,type,default_value,reference_name,new_name");
             CommandRegistry.Register("menu", ExecMenu, mutating: true,
                 required: "action", optional: "path");
 
@@ -337,7 +341,7 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAction("project_settings", ProjectSettingsHelper.Execute, mutating: true,
                 required: "target", optional: "prop,value,index");
             CommandRegistry.RegisterAction("material", MaterialHelper.Execute, mutating: true,
-                optional: "path,object_path,shader,prop,value,source,targets,slot");
+                optional: "path,object_path,shader,prop,value,source,targets,slot,filter");
             CommandRegistry.RegisterAction("prefab", PrefabHelper.Execute, mutating: true,
                 optional: "path,asset_path,base_path,variant_path,recursive,component,prop,value,add_component,remove_component");
             CommandRegistry.RegisterAction("scriptable_object", ScriptableObjectHelper.Execute, mutating: true,

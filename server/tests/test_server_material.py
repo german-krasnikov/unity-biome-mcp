@@ -135,3 +135,58 @@ async def test_material_error(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Material not found"})
     with pytest.raises(ToolError, match="Material not found"):
         await material(action="get", path="Assets/Missing.mat")
+
+
+# M19: shader errors
+
+async def test_material_get_errors_forwards_path(mock_bridge):
+    """get_errors sends action and path."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok: no errors"})
+    result = await material(action="get_errors", path="Assets/Shaders/Custom.shader")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["action"] == "get_errors"
+    assert args["path"] == "Assets/Shaders/Custom.shader"
+
+
+# M20: list shaders
+
+async def test_material_list_shaders_sends_filter(mock_bridge):
+    """list_shaders forwards filter param."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Assets/Shaders/A.shader [Custom/A]"})
+    result = await material(action="list_shaders", filter="Custom")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["action"] == "list_shaders"
+    assert args["filter"] == "Custom"
+
+
+async def test_material_list_shaders_no_filter(mock_bridge):
+    """list_shaders without filter excludes filter param."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "(none)"})
+    await material(action="list_shaders")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["action"] == "list_shaders"
+    assert "filter" not in args
+
+
+# M22: batch set fields
+
+async def test_material_set_fields_forwards_value(mock_bridge):
+    """set_fields forwards value with newline-separated prop=val."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok: 2 properties set"})
+    result = await material(action="set_fields", path="Assets/M.mat",
+                            value="_Color=#FF0000\n_Metallic=0.5")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["action"] == "set_fields"
+    assert args["value"] == "_Color=#FF0000\n_Metallic=0.5"
+
+
+# Q2b: renderQueue
+
+async def test_material_set_render_queue_forwards(mock_bridge):
+    """set with prop=renderQueue forwards prop and value to bridge."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await material(action="set", path="Assets/M.mat", prop="renderQueue", value="3000")
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["action"] == "set"
+    assert call_args[1]["prop"] == "renderQueue"
+    assert call_args[1]["value"] == "3000"

@@ -18,7 +18,7 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 
 **Components:**
 - **TimelineSerializer.cs** (216 lines): Read timeline → text tree (tracks, clips, bindings, markers)
-- **TimelineHelper.cs** (272 lines): Create/edit/preview timelines via TimelineAsset + PlayableDirector API
+- **TimelineHelper.cs** (433 lines): Create/edit/preview timelines via TimelineAsset + PlayableDirector API (v0.77: +161 lines for M1–M6)
 - **CommandRouter.cs** (1053 lines): Consolidated tool case (timeline) with ExecTimelineConsolidated routing to Serializer/Helper
 - **MCPSettings.cs**: Tool name registered (timeline)
 
@@ -64,7 +64,7 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 5. SignalTrack — emits signals/events (no binding)
 6. GroupTrack — container (no clips, has child tracks)
 
-**Edit Sub-Actions (11):**
+**Edit Sub-Actions (18):**
 - add_track — create track (requires track_type + track name)
 - remove_track — delete track
 - add_clip — add clip to track (track + clip path required; start/duration optional)
@@ -76,6 +76,13 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 - lock — set track locked
 - unlock — unset track locked
 - preview — sample timeline at time T (requires time parameter; action=sample|start|stop)
+- reorder_track — move track to index position (uses reflection on `m_Tracks`; only permitted reflection hack)
+- duplicate_clip — duplicate clip on same track with time offset (requires track + clip name + optional offset)
+- add_marker — add SignalEmitter marker at time on track (requires track + time)
+- remove_marker — remove marker by time (requires track + time)
+- set_track_offset — set track offset mode: `auto`, `transform`, or `scene`
+- set_duration — set timeline asset total duration (seconds)
+- add_sub_track — add sub-track to a GroupTrack (requires parent track name + track_type + name)
 
 **Constraints:**
 - asmdef must reference `Unity.Timeline` and `Unity.Timeline.Editor` (from UPM)
@@ -110,6 +117,7 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 - **Tests**:
   - `server/tests/test_server.py` — 8 Python timeline tests
   - `server/tests/test_server_edge_cases.py` — 6 timeline tests with sub-action passthrough (Phase 16)
+  - `server/tests/test_server_timeline.py` — 10 Python tests for M1–M6 (reorder_track, duplicate_clip, add/remove_marker, set_track_offset, set_duration, add_sub_track)
   - `unity-test-project/Assets/Tests/Editor/MCPTimelineTests.cs` — 9 C# EditMode tests
 
 ## TDD Scenarios (for Developer)

@@ -61,7 +61,7 @@ Other (18): screenshot, run_tests, setup_objects, set_properties, configure_obje
 
 | Category | Tools |
 |----------|-------|
-| object | find_objects, get_object_detail, get_components_list, set_active, rename_object, set_material, wire_event, unwire_event, auto_wire, set_property_delta, object_diff, transfer_object |
+| object | find_objects, get_object_detail, get_components_list, set_active, rename_object, clone_object, set_material, wire_event, unwire_event, auto_wire, set_property_delta, object_diff, transfer_object |
 | animation | animation, timeline, animator, particle |
 | asset | asset, material, prefab, scriptable_object, project_settings, shader, references, material_audit |
 | advanced | execute_code, recompile, get_schema, auto_fix, smart_build, checkpoint, undo_last, validate_references, menu, diagnose, scan_scene, check_colliders, spatial_query, region_clear, navmesh_query, scene_health, set_llm_config, budget_status |

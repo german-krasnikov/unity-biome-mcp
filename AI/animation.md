@@ -50,7 +50,7 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 - Serializer: `unity-plugin/Editor/AnimationSerializer.cs`
 - Helper: `unity-plugin/Editor/AnimationHelper.cs`
 - Commands: `unity-plugin/Editor/CommandRouter.cs` (ExecAnimationConsolidated case)
-- Python tests: `server/tests/test_server.py` + `test_server_edge_cases.py`
+- Python tests: `server/tests/test_server.py` + `test_server_edge_cases.py` + `test_server_animation.py` (13 tests for M11–M14)
 - C# tests: `unity-test-project/Assets/Tests/Editor/MCPPluginTests.cs`
 
 ## MCP Tools
@@ -98,15 +98,18 @@ Key format: `t:<time> v:<value>` separated by `;`
 - Custom components — full type name or short name if in Assembly-CSharp
 - Error handling: non-existent component type returns "Component type not found" error
 
-#### action=edit (or sub-action directly: add_key|remove_key|remove_curve|set_keys|set_loop)
+#### action=edit (or sub-action directly: add_key|remove_key|remove_curve|set_keys|set_loop|set_wrap|set_framerate|get_clip_path)
 **Params:** `path`, `clip`, `action`, `property` (optional), `keys` (optional), `component_type` (optional, default="Transform")
 
 Modify existing clip. Sub-actions passed as `action` value:
-- `add_key` — insert keyframes (property + keys required)
+- `add_key` — insert keyframes (property + keys required); Color properties accept hex (`#FF0000`) as value
 - `remove_key` — delete keyframe at time (property + `t:0.5` required)
 - `remove_curve` — delete entire curve (property required)
 - `set_keys` — replace all keyframes (property + keys required)
 - `set_loop` — toggle clip looping (keys="false" to disable, anything else to enable)
+- `set_wrap` — set clip wrap mode: `loop`, `once`, `pingpong`, `clamp` (clip required)
+- `set_framerate` — set clip sample rate in frames per second (value required)
+- `get_clip_path` — return asset path for the specified clip (clip required)
 
 **component_type** (v0.57+): Required when editing non-Transform properties (e.g., Light.intensity). Must match the component type used when creating the clip. See create section for full list of examples.
 

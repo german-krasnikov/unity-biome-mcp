@@ -34,6 +34,9 @@ Consolidated `shader` MCP tool with 7 actions for ShaderLab code shaders, Shader
 | graph_create | ShaderGraphHelper | Create .shadergraph from Unity template |
 | graph_node | ShaderGraphHelper | Add/remove node in .shadergraph |
 | graph_edge | ShaderGraphHelper | Add/remove edge in .shadergraph |
+| graph_set_value | ShaderGraphHelper.Mutations | Set input value on a Shader Graph node by node name + port name |
+| graph_connect | ShaderGraphHelper.Mutations | Connect two ports in a Shader Graph (source nodeId/port → target nodeId/port) |
+| graph_add_node | ShaderGraphHelper.Mutations | Add a new node of specified type to a Shader Graph |
 
 ### Material Tool (MaterialHelper)
 | Action | Description |
@@ -41,12 +44,15 @@ Consolidated `shader` MCP tool with 7 actions for ShaderLab code shaders, Shader
 | create | Create new Material asset from shader template (default: Standard) |
 | get | Read material properties (from asset path or scene object) |
 | set | Set material property (Color, Float, Texture, Vector, Int) |
+| set_fields | Batch set multiple properties in one call (`\n`-separated `prop=value` pairs) |
 | copy | Copy material to new asset (with property preservation) |
 | list_properties | Enumerate all properties of a material |
+| list_shaders | List available shaders with optional name filter |
+| get_shader_errors | Return shader compilation errors for a material |
 
 ## Code Locations
 - Python: `server/src/unity_mcp/tools/ui.py` (shader tool)
-- C#: `unity-plugin/Editor/ShaderSerializer.cs`, `ShaderHelper.cs`, `ShaderGraphHelper.cs` (331 lines)
+- C#: `unity-plugin/Editor/ShaderSerializer.cs`, `ShaderHelper.cs`, `ShaderGraphHelper.cs` (331 lines), `ShaderGraphHelper.Mutations.cs` (+110 lines: SetNodeValue, ConnectPorts, AddNode)
 - C# Material: `unity-plugin/Editor/MaterialHelper.cs` — 5 actions (create, get, set, copy, list_properties)
 - Router: `unity-plugin/Editor/CommandRouter.cs` (1053 lines, ExecShaderConsolidated + UnescapeJsonString)
 - Tests: `server/tests/test_server_shader.py` (22), `unity-test-project/Assets/Tests/Editor/MCPShaderTests.cs` (41 tests incl. 2 regression)

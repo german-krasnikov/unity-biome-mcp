@@ -87,11 +87,11 @@ namespace UnityMCP.Editor
                 case "shape": SetShape(ps, prop, value); break;
                 case "noise": SetNoise(ps, prop, value); break;
                 case "renderer": SetRenderer(ps, prop, value); break;
-                case "coloroverlifetime":
-                case "sizeoverlifetime":
-                case "velocityoverlifetime":
+                case "coloroverlifetime": SetColorOverLifetime(ps, prop, value); break;
+                case "sizeoverlifetime": SetSizeOverLifetime(ps, prop, value); break;
+                case "velocityoverlifetime": SetVelocityOverLifetime(ps, prop, value); break;
+                case "trails": SetTrails(ps, prop, value); break;
                 case "rotationoverlifetime":
-                case "trails":
                 case "collision":
                     if (!string.Equals(prop, "enabled", StringComparison.OrdinalIgnoreCase))
                         throw new ArgumentException($"Module '{module}' only supports prop='enabled'. Got '{prop}'");
@@ -197,6 +197,131 @@ namespace UnityMCP.Editor
                 case "lengthscale": r.lengthScale = PF(value); break;
                 default: throw new ArgumentException($"Unknown renderer property '{prop}'.");
             }
+        }
+
+        // --- New module handlers (L2) ---
+
+        static void SetColorOverLifetime(ParticleSystem ps, string prop, string value)
+        {
+            var m = ps.colorOverLifetime;
+            switch (prop.ToLowerInvariant())
+            {
+                case "enabled": m.enabled = PB(value); break;
+                case "gradient": m.color = new ParticleSystem.MinMaxGradient(ParseGradient(value)); break;
+                default: throw new ArgumentException($"Unknown colorOverLifetime property '{prop}'. Valid: enabled, gradient.");
+            }
+        }
+
+        static void SetSizeOverLifetime(ParticleSystem ps, string prop, string value)
+        {
+            var m = ps.sizeOverLifetime;
+            switch (prop.ToLowerInvariant())
+            {
+                case "enabled": m.enabled = PB(value); break;
+                case "curve": m.size = new ParticleSystem.MinMaxCurve(1f, ParseCurve(value)); break;
+                default: throw new ArgumentException($"Unknown sizeOverLifetime property '{prop}'. Valid: enabled, curve.");
+            }
+        }
+
+        static void SetVelocityOverLifetime(ParticleSystem ps, string prop, string value)
+        {
+            var m = ps.velocityOverLifetime;
+            switch (prop.ToLowerInvariant())
+            {
+                case "enabled": m.enabled = PB(value); break;
+                case "x": m.x = new ParticleSystem.MinMaxCurve(1f, ParseCurve(value)); break;
+                case "y": m.y = new ParticleSystem.MinMaxCurve(1f, ParseCurve(value)); break;
+                case "z": m.z = new ParticleSystem.MinMaxCurve(1f, ParseCurve(value)); break;
+                case "space": m.space = PE<ParticleSystemSimulationSpace>(value); break;
+                default: throw new ArgumentException($"Unknown velocityOverLifetime property '{prop}'. Valid: enabled, x, y, z, space.");
+            }
+        }
+
+        static void SetTrails(ParticleSystem ps, string prop, string value)
+        {
+            var m = ps.trails;
+            switch (prop.ToLowerInvariant())
+            {
+                case "enabled": m.enabled = PB(value); break;
+                case "ratio": m.ratio = PF(value); break;
+                case "lifetime": m.lifetime = PMM(value); break;
+                case "minvertexdistance": m.minVertexDistance = PF(value); break;
+                case "worldspace": m.worldSpace = PB(value); break;
+                case "diewithparticles": m.dieWithParticles = PB(value); break;
+                case "widthovertrail": m.widthOverTrail = new ParticleSystem.MinMaxCurve(1f, ParseCurve(value)); break;
+                case "colorovertrail": m.colorOverTrail = new ParticleSystem.MinMaxGradient(ParseGradient(value)); break;
+                case "coloroverlifetime": m.colorOverLifetime = new ParticleSystem.MinMaxGradient(ParseGradient(value)); break;
+                default: throw new ArgumentException($"Unknown trails property '{prop}'. Valid: enabled, ratio, lifetime, minVertexDistance, worldSpace, dieWithParticles, widthOverTrail, colorOverTrail, colorOverLifetime.");
+            }
+        }
+
+        // --- Playback control ---
+
+        public static string Play(string path)
+        {
+            var ps = GetPS(path);
+            ps.Simulate(0, true, true);
+            ps.Play();
+            return "ok: playing";
+        }
+
+        public static string Stop(string path)
+        {
+            var ps = GetPS(path);
+            ps.Stop(true);
+            ps.Clear(true);
+            return "ok: stopped";
+        }
+
+        public static string Pause(string path)
+        {
+            var ps = GetPS(path);
+            ps.Pause(true);
+            return "ok: paused";
+        }
+
+        // Format: "#RRGGBB@t;#RRGGBB@t" — max 8 keys (Unity hard limit)
+        internal static Gradient ParseGradient(string value)
+        {
+            var tokens = value.Split(';');
+            if (tokens.Length > 8)
+                throw new ArgumentException($"Gradient exceeds Unity limit of 8 color keys. Got {tokens.Length}.");
+            var colorKeys = new GradientColorKey[tokens.Length];
+            var alphaKeys = new GradientAlphaKey[tokens.Length];
+            for (int i = 0; i < tokens.Length; i++)
+            {
+                var parts = tokens[i].Split('@');
+                if (parts.Length != 2)
+                    throw new ArgumentException($"Invalid gradient token '{tokens[i]}'. Expected 'hex@time'.");
+                var hex = parts[0].StartsWith("#") ? parts[0] : "#" + parts[0];
+                if (!ColorUtility.TryParseHtmlString(hex, out Color c))
+                    throw new ArgumentException($"Invalid color hex '{hex}'.");
+                float t = Mathf.Clamp01(float.Parse(parts[1], Inv));
+                colorKeys[i] = new GradientColorKey(c, t);
+                alphaKeys[i] = new GradientAlphaKey(c.a, t);
+            }
+            var g = new Gradient();
+            g.SetKeys(colorKeys, alphaKeys);
+            return g;
+        }
+
+        // Format: "t:v;t:v" — at least 1 key required
+        internal static AnimationCurve ParseCurve(string value)
+        {
+            var tokens = value.Split(';');
+            var keys = new Keyframe[tokens.Length];
+            for (int i = 0; i < tokens.Length; i++)
+            {
+                var parts = tokens[i].Split(':');
+                if (parts.Length != 2)
+                    throw new ArgumentException($"Invalid curve token '{tokens[i]}'. Expected 'time:value'.");
+                keys[i] = new Keyframe(float.Parse(parts[0], Inv), float.Parse(parts[1], Inv));
+            }
+            var curve = new AnimationCurve(keys);
+            if (keys.Length >= 2)
+                for (int i = 0; i < curve.length; i++)
+                    curve.SmoothTangents(i, 0f);
+            return curve;
         }
 
         // --- Helpers ---

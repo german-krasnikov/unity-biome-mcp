@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Playables;
@@ -86,7 +88,8 @@ namespace UnityMCP.Editor
         }
 
         public static string Edit(string path, string action, string trackName, string trackType,
-            string clipName, string binding, float? start, float? duration, float? blendIn, float? blendOut)
+            string clipName, string binding, float? start, float? duration, float? blendIn, float? blendOut,
+            string name = null, int? index = null, float? offset = null, string value = null)
         {
             var (director, timeline) = TimelineSerializer.Resolve(path);
             Undo.RecordObject(timeline, "Edit Timeline");
@@ -151,6 +154,110 @@ namespace UnityMCP.Editor
                     trackForLock.locked = (action == "lock");
                     result = $"edited: {action} [{TimelineSerializer.TrackTypeName(trackForLock)}] {trackName}";
                     break;
+
+                case "rename_track":
+                    if (string.IsNullOrEmpty(name))
+                        throw new ArgumentException("name is required for rename_track");
+                    var trackToRename = RequireTrack(timeline, trackName);
+                    trackToRename.name = name;
+                    result = $"edited: rename_track {trackName} → {name}";
+                    break;
+
+                case "reorder_track":
+                {
+                    var reorderField = typeof(TimelineAsset).GetField("m_Tracks",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (reorderField == null)
+                        throw new InvalidOperationException("m_Tracks field not found (Unity API changed)");
+                    var reorderList = (IList)reorderField.GetValue(timeline);
+                    var reorderTrack = RequireTrack(timeline, trackName);
+                    int oldIdx = reorderList.IndexOf(reorderTrack);
+                    reorderList.Remove(reorderTrack);
+                    int newIdx = Math.Clamp(index ?? 0, 0, reorderList.Count);
+                    reorderList.Insert(newIdx, reorderTrack);
+                    result = $"reordered: {trackName} {oldIdx} → {newIdx}";
+                    break;
+                }
+
+                case "duplicate_clip":
+                {
+                    var dupSrcTrack = RequireTrack(timeline, trackName);
+                    var dupSrcClip = FindClip(dupSrcTrack, clipName);
+                    var dupNewClip = dupSrcTrack.CreateDefaultClip();
+                    dupNewClip.displayName = clipName + "_copy";
+                    dupNewClip.start = dupSrcClip.start + (offset ?? dupSrcClip.duration);
+                    dupNewClip.duration = dupSrcClip.duration;
+                    dupNewClip.clipIn = dupSrcClip.clipIn;
+                    result = $"duplicated: {clipName} → {dupNewClip.displayName} @ {dupNewClip.start}s";
+                    break;
+                }
+
+                case "add_marker":
+                {
+                    var addMarkerTrack = RequireTrack(timeline, trackName);
+                    var addedMarker = addMarkerTrack.CreateMarker<SignalEmitter>(start ?? 0f);
+                    if (!string.IsNullOrEmpty(name))
+                        ((UnityEngine.Object)addedMarker).name = name;
+                    result = $"marker added: {((UnityEngine.Object)addedMarker).name} @ {addedMarker.time}s";
+                    break;
+                }
+
+                case "remove_marker":
+                {
+                    var rmMarkerTrack = RequireTrack(timeline, trackName);
+                    IMarker markerToRemove = null;
+                    foreach (var m in rmMarkerTrack.GetMarkers())
+                    {
+                        bool nameMatch = name == null || (m is UnityEngine.Object mObj && mObj.name == name);
+                        bool timeMatch = start == null || Mathf.Approximately((float)m.time, start.Value);
+                        if (nameMatch && timeMatch) { markerToRemove = m; break; }
+                    }
+                    if (markerToRemove == null) throw new ArgumentException("Marker not found");
+                    rmMarkerTrack.DeleteMarker(markerToRemove);
+                    result = $"marker removed @ {markerToRemove.time}s";
+                    break;
+                }
+
+                case "set_track_offset":
+                {
+                    var offsetTrackAsset = RequireTrack(timeline, trackName);
+                    if (!(offsetTrackAsset is AnimationTrack animTrackForOffset))
+                        throw new ArgumentException("set_track_offset only applies to AnimationTrack");
+                    animTrackForOffset.trackOffset = (value ?? "auto") switch
+                    {
+                        "auto"      => TrackOffset.Auto,
+                        "transform" => TrackOffset.ApplyTransformOffsets,
+                        "scene"     => TrackOffset.ApplySceneOffsets,
+                        _ => throw new ArgumentException($"Unknown offset mode: {value}. Valid: auto|transform|scene")
+                    };
+                    result = $"track offset: {trackName} = {value ?? "auto"}";
+                    break;
+                }
+
+                case "set_duration":
+                    if (duration.HasValue && duration.Value > 0)
+                    {
+                        timeline.fixedDuration = duration.Value;
+                        timeline.durationMode = TimelineAsset.DurationMode.FixedLength;
+                    }
+                    else
+                    {
+                        timeline.durationMode = TimelineAsset.DurationMode.BasedOnClips;
+                    }
+                    result = $"duration: {(duration.HasValue ? $"{duration.Value}s fixed" : "auto")}";
+                    break;
+
+                case "add_sub_track":
+                {
+                    var subGroup = RequireTrack(timeline, trackName) as GroupTrack;
+                    if (subGroup == null)
+                        throw new ArgumentException($"{trackName} is not a GroupTrack");
+                    if (string.IsNullOrEmpty(trackType) || !TrackTypes.TryGetValue(trackType, out var subTt))
+                        throw new ArgumentException($"Unknown track type: {trackType}. Valid: Animation|Audio|Activation|Signal|Control");
+                    var subNew = timeline.CreateTrack(subTt, subGroup, name ?? trackType);
+                    result = $"sub-track added: {subNew.name} in group {trackName}";
+                    break;
+                }
 
                 default:
                     throw new ArgumentException($"Unknown action: {action}");
@@ -262,6 +369,58 @@ namespace UnityMCP.Editor
             }
             throw new InvalidOperationException($"Clip not found: {clipName} on track {track.name}");
         }
+
+        public static string SetClipIn(string path, string trackName, string clipName, float clipIn)
+        {
+            if (clipIn < 0f)
+                throw new ArgumentException("clip_in must be >= 0");
+            var (_, timeline) = TimelineSerializer.Resolve(path);
+            var track = RequireTrack(timeline, trackName);
+            var clip = FindClip(track, clipName);
+            Undo.RecordObject(timeline, "Set Clip In");
+            clip.clipIn = (double)clipIn;
+            EditorUtility.SetDirty(timeline);
+            AssetDatabase.SaveAssets();
+            return $"set_clip_in: {clipName} clipIn:{clipIn.ToString("F2", CultureInfo.InvariantCulture)}s";
+        }
+
+        public static string GetBindings(string path)
+        {
+            var (director, timeline) = TimelineSerializer.Resolve(path);
+            if (director == null)
+                throw new InvalidOperationException("get_bindings requires a PlayableDirector (use GO path, not asset path)");
+            var sb = new StringBuilder("bindings:");
+            CollectBindings(director, timeline.GetRootTracks(), sb);
+            return sb.ToString();
+        }
+
+        private static void CollectBindings(PlayableDirector director, System.Collections.Generic.IEnumerable<TrackAsset> tracks, StringBuilder sb)
+        {
+            foreach (var track in tracks)
+            {
+                var bound = director.GetGenericBinding(track) as UnityEngine.Object;
+                string bindPath;
+                if (bound == null) bindPath = "(unbound)";
+                else if (bound is GameObject go) bindPath = ComponentSerializer.GetPath(go);
+                else if (bound is Component comp) bindPath = ComponentSerializer.GetPath(comp.gameObject);
+                else bindPath = bound.name;
+                sb.Append("\n  [").Append(TimelineSerializer.TrackTypeName(track)).Append("] ")
+                  .Append(track.name).Append(" -> ").Append(bindPath);
+                CollectBindings(director, track.GetChildTracks(), sb);
+            }
+        }
+
+        private static TimelineClip FindClip(TrackAsset track, string clipName)
+        {
+            foreach (var clip in track.GetClips())
+            {
+                if (string.Equals(clip.displayName, clipName, StringComparison.OrdinalIgnoreCase))
+                    return clip;
+            }
+            throw new InvalidOperationException($"Clip not found: {clipName} on track {track.name}");
+        }
+
+
 
     }
 }

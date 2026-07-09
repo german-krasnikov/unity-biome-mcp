@@ -34,7 +34,7 @@ await asset("get_dependencies", path="Assets/", recursive=True)
 
 ---
 
-## material(action, path=None, object_path=None, shader=None, prop=None, value=None, source=None, targets=None)
+## material(action, path=None, object_path=None, shader=None, prop=None, value=None, source=None, targets=None, filter=None, fields=None)
 
 **Write.** Material asset operations + runtime material assignment.
 
@@ -45,8 +45,11 @@ await asset("get_dependencies", path="Assets/", recursive=True)
 | create | Create material with shader | path, shader (name) | `material("create", path="Assets/NewMat.mat", shader="Standard")` |
 | get | Read material properties | path OR object_path | `material("get", path="Assets/PlayerMat.mat")` |
 | set | Modify material property | path OR object_path, prop, value | `material("set", path="Assets/Mat.mat", prop="_Color", value="1,0,0,1")` |
+| set_fields | Batch property setting — multiple `prop=value` pairs | path OR object_path, fields (`\n`-separated `prop=value`) | `material("set_fields", path="Assets/Mat.mat", fields="_Color=1,0,0,1\n_Glossiness=0.8")` |
 | copy | Clone + assign to scene objects | source (asset), targets (comma-sep scene paths) | `material("copy", source="Assets/Base.mat", targets="Player,Enemy")` |
 | list_properties | Enumerate all properties | path OR object_path | `material("list_properties", path="Assets/Mat.mat")` |
+| list_shaders | List available shaders with optional name filter | filter (optional substring) | `material("list_shaders", filter="URP")` |
+| get_shader_errors | Return shader compilation errors for a material | path OR object_path | `material("get_shader_errors", path="Assets/Mat.mat")` |
 
 **Shader lookup:**
 ```python

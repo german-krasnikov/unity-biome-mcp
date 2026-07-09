@@ -117,6 +117,7 @@ _SPECS: dict[str, ToolSpec] = {
     'references': ToolSpec(category='SHADERS_MATERIAL'),
     'region_clear': ToolSpec(category='META'),
     'rename_object': ToolSpec(category='SCENE_EDIT'),
+    'set_sibling_index': ToolSpec(category='SCENE_EDIT'),
     'render_analyze': ToolSpec(category='RENDERING'),
     'resolve_tool_schema': ToolSpec(category='CORE', core=True),
     # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
