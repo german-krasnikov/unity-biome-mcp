@@ -1,10 +1,14 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
 from ._annotations import RO as _RO, RW as _RW, RW_IDEM as _RW_IDEM
-from ..sampling import SamplingService
+from ..sampling import sampling_service as _sampling
 from ._common import bind
 
 _send = None
 _args = None
+
+_TCP_POLL_BUFFER = 5.0
+_TCP_STEP_BUFFER = 10.0
+_TCP_PLAYTEST_BUFFER = 20.0
 
 
 async def invoke_method(path: str, component: str, method: str, args: str = "") -> str:
@@ -32,7 +36,7 @@ async def wait_until(path: str, component: str, field: str, value: str,
         timeout=str(timeout),
         negate="true" if negate else None,
         abort_on_fail="true" if abort_on_fail else None),
-        timeout=timeout + 5.0)
+        timeout=timeout + _TCP_POLL_BUFFER)
 
 
 async def move_to(path: str, position: str, timeout: float = 15.0) -> str:
@@ -41,7 +45,7 @@ async def move_to(path: str, position: str, timeout: float = 15.0) -> str:
     position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'."""
     return await _send("move_to", _args(
         path=path, position=position, timeout=str(timeout)),
-        timeout=timeout + 5.0)
+        timeout=timeout + _TCP_POLL_BUFFER)
 
 
 async def query_state(queries: str) -> str:
@@ -62,10 +66,24 @@ async def test_step(path: str, position: str,
         checks_before=checks_before or None,
         checks_after=checks_after or None,
         wait_after=str(wait_after),
-        timeout=str(timeout)), timeout=timeout + 10.0)
+        timeout=str(timeout)), timeout=timeout + _TCP_STEP_BUFFER)
 
 
 test_step.__test__ = False  # prevent pytest from collecting as test
+
+
+def _normalize_defs(defs: "str | None") -> "str | None":
+    """Normalize defs: strip comments, ensure VAL prefix, return None if empty."""
+    if not defs:
+        return defs
+    lines = []
+    for line in defs.strip().split("\n"):
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        s = "VAL " + (s[4:] if s.upper().startswith("VAL ") else s)
+        lines.append(s)
+    return "\n".join(lines) if lines else None
 
 
 def _compress_report(report: str) -> str:
@@ -84,10 +102,13 @@ def _compress_report(report: str) -> str:
     return '\n'.join(keep) if len(keep) > 1 else keep[0]
 
 
-async def run_playtest(script: str, timeout: float = 120.0,
+async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
                        abort_on_fail: bool = False,
-                       defs: "str | None" = None) -> str:
+                       defs: "str | None" = None,
+                       path: "str | None" = None) -> str:
     """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit test suite, use `run_tests`).
+    script: inline DSL text (mutually exclusive with path).
+    path: Assets-relative path to a .playtest file (mutually exclusive with script).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
     ASSERT_CONSOLE_CLEAN [IGNORE "pat1","pat2"] | SNAPSHOT queries | INVOKE path comp method args |
     SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |
@@ -98,25 +119,28 @@ async def run_playtest(script: str, timeout: float = 120.0,
     Queries use aliases from PlaytestConfig.asset or pipe format: path|component|field
     defs: inline VAL definitions ('name path|comp|field' per line), prepended to script.
     abort_on_fail=True: stops Play Mode on step timeout."""
-    if defs:
-        alias_lines = []
-        for line in defs.strip().split("\n"):
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
-            if not stripped.upper().startswith("VAL "):
-                stripped = "VAL " + stripped
-            elif not stripped.startswith("VAL "):
-                stripped = "VAL " + stripped[4:]  # normalize to uppercase
-            alias_lines.append(stripped)
-        script = "\n".join(alias_lines) + "\n" + script
-    raw = await _send("run_playtest", _args(
-        script=script, timeout=str(timeout),
-        abort_on_fail="true" if abort_on_fail else None),
-                      timeout=timeout + 20.0)
+    if script and path:
+        raise ValueError("script and path are mutually exclusive")
+    if not script and not path:
+        raise ValueError("script or path required")
+    if path:
+        raw = await _send("run_playtest", _args(
+            path=path, timeout=str(timeout),
+            abort_on_fail="true" if abort_on_fail else None,
+            defs=_normalize_defs(defs), _explicit_path="true"),
+                          timeout=timeout + _TCP_PLAYTEST_BUFFER)
+    else:
+        if defs:
+            normalized = _normalize_defs(defs)
+            if normalized:
+                script = normalized + "\n" + script
+        raw = await _send("run_playtest", _args(
+            script=script, timeout=str(timeout),
+            abort_on_fail="true" if abort_on_fail else None),
+                          timeout=timeout + _TCP_PLAYTEST_BUFFER)
     compressed = _compress_report(raw)
     if len(compressed) > 300:
-        svc = SamplingService()
+        svc = _sampling
         if svc.enabled:
             summary = await svc.summarize(
                 compressed,
@@ -130,17 +154,6 @@ async def run_playtest(script: str, timeout: float = 120.0,
 run_playtest.__test__ = False  # prevent pytest from collecting as test
 
 
-async def fuzz_playtest(steps: int = 10, seed: int | None = None) -> str:
-    """Generate and run a random playtest DSL script. Finds hidden bugs via property-based testing.
-    steps: number of random actions to generate. seed: for reproducibility."""
-    from ..fuzzer import generate_script
-    script = generate_script(steps, seed)
-    return await _send("run_playtest", {"script": script, "timeout": "30"}, timeout=40.0)
-
-
-fuzz_playtest.__test__ = False  # prevent pytest from collecting as test
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RW)(invoke_method)
@@ -150,4 +163,3 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RO)(query_state)
     mcp.tool(annotations=_RW)(test_step)
     mcp.tool(annotations=_RW)(run_playtest)
-    mcp.tool(annotations=_RW)(fuzz_playtest)

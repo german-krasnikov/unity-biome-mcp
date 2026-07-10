@@ -48,8 +48,8 @@ READ_CMDS = {
     "get_schema", "get_changes",
     "compile_preflight", "await_compile", "auto_fix", "diagnose",
     # Session (listing / loading to memory, no scene mutation)
-    "list_scenarios", "list_skills", "list_templates",
-    "load_scenario", "load_session",
+    "list_skills", "list_templates",
+    "load_session",
     # LLM (no scene mutation)
     "ask", "ask_user",
 }
@@ -64,7 +64,6 @@ _READ_CACHEABLE = frozenset({
 
 # Commands that require Play Mode. Blocked by fail-fast guard before TCP when
 # is_playing is confirmed False. Derived from CommandRouter registrations (runtime: true).
-# Note: fuzz_playtest sends TCP cmd "run_playtest" — not listed here directly.
 # Note: watch_remove/clear/reset/get_watches are intentionally excluded (safe outside Play Mode).
 _RUNTIME_ONLY_CMDS: frozenset[str] = frozenset({
     "invoke_method", "set_runtime_property",

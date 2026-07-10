@@ -1,8 +1,8 @@
-# MCP Tools Reference (128 total)
+# MCP Tools Reference (123 total)
 
-All tools organized by category. TIER1 tools (46) are always visible. Themed categories (Tier2) require `discover_tools(category)` to enable. Plugin tools discovered dynamically via auto-gating.
+All tools organized by category. TIER1 tools (44) are always visible. Themed categories (Tier2) require `discover_tools(category)` to enable. Plugin tools discovered dynamically via auto-gating.
 
-## TIER1 Tools (Always Visible, 46 total)
+## TIER1 Tools (Always Visible, 44 total)
 
 Essential read/scene, meta, connection, repair, plus high-value tools for screenshots, testing, runtime, and code intelligence.
 
@@ -50,9 +50,7 @@ Essential read/scene, meta, connection, repair, plus high-value tools for screen
 | move_to | Pathfind + walk to position | path, dest_pos, speed, timeout | runtime |
 | query_state | Read runtime GameObject state | path, queries (CSV) | runtime |
 | test_step | Execute single DSL step | step (JSON), config | testing |
-| run_playtest | Run playtest DSL script | script (27-step DSL), abort_on_fail | testing |
-| fuzz_playtest | Random input fuzzing | count, duration, seed | testing |
-| run_scenario | Load + run saved .playtest file | name, timeout, abort_on_fail | testing |
+| run_playtest | Run playtest DSL script | script (DSL, mutually exclusive with path), path (file path relative to project root, optional), abort_on_fail | testing |
 
 ## SCENE_EDIT (9 tools)
 
@@ -133,7 +131,7 @@ Baseline diff and regression detection. Note: `screenshot` itself is TIER1 (see 
 
 ## UNIT_TESTS (1 Tier2 tool)
 
-Test result polling. Note: `run_tests`, `run_playtest`, `fuzz_playtest`, `test_step`, `run_scenario` are TIER1 (see TIER1 section above).
+Test result polling. Note: `run_tests`, `run_playtest`, `test_step` are TIER1 (see TIER1 section above).
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -177,14 +175,14 @@ Code generation, refactoring, validation, and diagnostics. Note: `find_reference
 | menu | Execute Editor menu item | menu_path |
 | diagnose | Deep troubleshooting | system (compile/tcp/memory/reload) |
 
-## SESSION_SKILLS (14 tools)
+## SESSION_SKILLS (11 tools)
 
 Persistent reusable skills, templates, session snapshots, change tracking, scenario files.
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
 | save_skill | Store reusable C# or batch | name, description, code (auto-detects kind) |
-| use_skill | Execute saved skill | name, params (key=value CSV) |
+| use_skill | Execute saved skill | name, params (key=value CSV; supports parenthesized values e.g. `pos=(0,5,0)`) |
 | list_skills | Show all skills + usage | — |
 | save_template | Store scene template | name, description, template_code |
 | apply_template | Instantiate template | name, params (key=value CSV) |
@@ -194,9 +192,6 @@ Persistent reusable skills, templates, session snapshots, change tracking, scena
 | get_changes | Log editor events since last call | clear (bool) |
 | save_session | Snapshot hierarchy to .claude/session-context.json | — |
 | load_session | Load + diff previous session | — |
-| save_scenario | Save playtest DSL to named .playtest file | name, script |
-| load_scenario | Read named .playtest file | name |
-| list_scenarios | List saved .playtest files | — |
 
 ## META (8 Tier2 tools)
 
@@ -205,7 +200,7 @@ Scene scanning, spatial queries, and config. Note: `setup_objects`, `set_propert
 | Tool | Purpose | Key Params |
 |------|---------|------------|
 | scan_scene | Audit for issues | checks (CSV: refs/colliders/physics/null_components) |
-| check_colliders | Collision layer conflicts | fix (bool) |
+| check_colliders | Collision layer conflicts | fix (bool), path (optional, scans whole scene if omitted) |
 | spatial_query | Radial/box search + filter | origin, radius, layer_mask, type_filter |
 | region_clear | Clear region of GameObjects | region, layer_mask |
 | navmesh_query | Pathfinding query | start_pos, end_pos, area_mask |

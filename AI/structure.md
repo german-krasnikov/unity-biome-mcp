@@ -53,7 +53,6 @@ unity-kiss-mcp/
 │   │   ├── compressor.py       # Response compression
 │   │   ├── clarifier.py        # Ambiguity resolution
 │   │   ├── errors.py           # Error types (DomainReloadError, etc.)
-│   │   ├── fuzzer.py           # Fuzz playtest generation
 │   │   ├── hinter.py           # Tool suggestions
 │   │   ├── inference.py        # Argument inference from context
 │   │   ├── input_normalizer.py # Component/property name normalization
@@ -101,7 +100,7 @@ unity-kiss-mcp/
 │   │   ├── debug/              # Debug subsystem (v0.59.0: state capture + watch system)
 │   │   │   ├── __init__.py
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
-│   │   ├── tools/              # Tool modules (41 files + __init__, v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
+│   │   ├── tools/              # Tool modules (39 files + __init__, v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
 │   │   │   ├── tool_specs.py   # Single source of truth: 129 ToolSpec entries with category/core/tier1/timeout_s metadata (v0.69.0, M8)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
@@ -112,17 +111,16 @@ unity-kiss-mcp/
 │   │   │   ├── scene_health.py # Scene health audit: hierarchy depth, naming, duplicates, origins, missing scripts (v0.62.0)
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
 │   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/clone_object/set_material; get_component+inspect accept compress=True (v0.78.9)
-│   │   │   ├── scene.py        # scene, hierarchy, search (multi-scene support, v0.70.0: only scene_tools)
+│   │   │   ├── scene.py        # scene, hierarchy, search + save_session/load_session/screenshot_baseline/screenshot_compare (merged from scene_session.py v0.79.1; multi-scene support)
 │   │   │   ├── console.py      # get_console tool split from scene.py (v0.70.0)
 │   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)
 │   │   │   ├── testing.py      # run_playtest, run_tests split from scene.py (v0.70.0)
 │   │   │   ├── editor_control.py # editor control commands split from scene.py (v0.70.0)
-│   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (abort_on_fail), fuzz_playtest
-│   │   │   ├── scenarios.py    # save_scenario, load_scenario, list_scenarios, run_scenario — .playtest file persistence (v0.74.0)
+│   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (script= OR path= mutually exclusive, abort_on_fail, defs; _TCP_POLL/STEP/PLAYTEST_BUFFER constants; module-level SamplingService singleton)
 │   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set; batch accepts validate_aliases=True for dry-run alias check (v0.78.9)
 │   │   │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
 │   │   │   ├── skills.py       # save/use/list_skill, apply/save/list_template + _skills_dir
-│   │   │   ├── spatial.py      # validate_layout, get_spatial_context, scan_scene, check_colliders, spatial_query, objects_in_polygon (v0.46.0: polygon validation + vertices param)
+│   │   │   ├── spatial.py      # validate_layout, get_spatial_context, scan_scene, check_colliders (path=optional, fixed v0.79.1), spatial_query, objects_in_polygon (v0.46.0: polygon validation + vertices param)
 │   │   │   ├── ui.py           # create_ui, set_rect, menu, shader
 │   │   │   ├── animation.py    # animation, timeline, animator, particle
 │   │   │   ├── asset.py        # asset, material, prefab, scriptable_object, project_settings, validate_move (v0.30.4)
@@ -140,7 +138,6 @@ unity-kiss-mcp/
 │   │   │   ├── budget_tool.py           # Haiku spend tracking
 │   │   │   ├── metrics_tool.py          # Performance metrics tool
 │   │   │   ├── code_intel.py            # find_references, compile_preflight, semantic_at
-│   │   │   ├── scene_session.py         # save_session, load_session, screenshot_baseline/compare (plain-text format v0.18.0+)
 │   │   │   ├── debug_tool.py            # Symptom classifier + runtime diagnostic tool (v0.59.0, 278 LOC)
 │   │   │   ├── diagnostics.py           # Performance/animator/physics/memory helpers (v0.59.0, 345 LOC)
 │   │   │   ├── watch.py                 # Watch system MCP tool interface (v0.59.0, 412 LOC)
@@ -191,7 +188,7 @@ unity-kiss-mcp/
 │       ├── test_server_filtering.py     # Port discovery edge cases (v0.55.10)
 │       ├── test_auto_wire.py             # auto_wire tool: 3-priority matching, dry-run (v0.62.0, 5 tests)
 │       ├── test_scene_health.py          # scene_health tool: 7 checks, focus param (v0.62.0, 4 tests)
-│       ├── test_scenarios.py             # save/load/list/run_scenario: path validation, project-path discovery (v0.74.0)
+│       ├── test_playtest_path.py         # run_playtest path= param: file-based execution, mutual exclusivity, defs combo (v0.79.1)
 │       ├── test_server_timeline.py       # M1–M6 timeline actions: reorder_track, duplicate_clip, add/remove_marker, set_track_offset, set_duration, add_sub_track (10 tests)
 │       ├── test_server_animator.py       # M7–M10 animator actions: set_state_speed, update_transition, set_avatar, rename_state, rename_param (14 tests)
 │       ├── test_server_animation.py      # M11–M14 animation actions: color curves hex, set_wrap, set_framerate, get_clip_path (13 tests)
@@ -241,7 +238,7 @@ unity-kiss-mcp/
 │   ├── UnityMCP.Reload.asmdef                # Core assembly (no references)
 │   ├── package.json                          # v0.1.4, "com.unity-mcp.reload"
 │   └── package.json.meta
-├── unity-plugin/               # Unity Editor Plugin (210+ C# files, ~20000 LOC, v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests)
+├── unity-plugin/               # Unity Editor Plugin (210+ C# files, ~20000 LOC, v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests, v0.79.1: +PlaytestPathTests.cs (run_playtest path= 8 tests), CommandRouter path= dispatch — 6452 C# NUnit green)
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
@@ -430,6 +427,7 @@ unity-kiss-mcp/
 │       │   ├── CommandRouterExtractHelperTests.cs # Extract helper unit tests (v0.70.0)
 │       │   ├── CommandRouterRegistrationTests.cs # Registration method tests (v0.70.0)
 │       │   ├── BatchRejectionTests.cs            # Batch async/specialDispatch rejection + runtime guard + atomic rollback (feat/tool-disambiguation, 5 tests)
+│       │   ├── PlaytestPathTests.cs              # run_playtest path= param: file read, traversal guard, mutual exclusivity (v0.79.1)
 │       │   ├── PlaytestDslExtensionTests.cs      # SECTION/DESC/MOVE_PATH/AS/abort-on-fail DSL integration (v0.74.0)
 │       │   ├── PlaytestMacroTests.cs             # MACRO/CALL expansion, recursion, param substitution (v0.74.0)
 │       │   ├── WaitConditionTests.cs             # AND/OR compound conditions + EvalCompound unit tests (v0.74.0)

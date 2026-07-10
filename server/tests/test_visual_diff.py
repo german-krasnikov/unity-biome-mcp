@@ -327,7 +327,7 @@ async def test_screenshot_compare_uses_visual_diff(tmp_path, mock_bridge):
     Image.new("RGB", (10, 10), (255, 0, 0)).save(current)
     mock_bridge.send.return_value = {"ok": True, "data": f"Data saved to: {current}"}
 
-    with patch("unity_mcp.tools.scene_session.os.getcwd", return_value=str(tmp_path)), \
+    with patch("unity_mcp.tools.scene.os.getcwd", return_value=str(tmp_path)), \
          patch("unity_mcp.visual_diff.visual_diff",
                new=AsyncMock(return_value="PIXEL: 0.0% | SEMANTIC (structural):\n- color changed")) as mock_vd:
         result = await screenshot_compare("default", mode="structural")

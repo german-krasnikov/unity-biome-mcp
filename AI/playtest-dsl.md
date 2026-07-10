@@ -659,4 +659,4 @@ MOVE_PATH @patrol_start_0 > @patrol_start_1
 
 ---
 
-**See also:** `run_playtest`, `fuzz_playtest`, `run_scenario` in AI/tools-reference.md; `AI/runtime-playtest.md` for scenario tools; `AI/playtest-composer.md` for the visual editor; `.claude/skills/playmode-verification.md` for assertion patterns.
+**See also:** `run_playtest` (inline `script=` or file `path=`) in `AI/runtime-playtest.md`; `AI/playtest-composer.md` for the visual editor; `.claude/skills/playmode-verification.md` for assertion patterns.

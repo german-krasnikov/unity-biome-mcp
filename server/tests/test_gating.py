@@ -123,7 +123,7 @@ async def test_discover_tools_browse_only():
 def test_runtime_tools_in_tier1():
     from unity_mcp.tools.gating import TIER1
     for name in ("invoke_method", "run_playtest", "query_state", "wait_until", "move_to",
-                 "set_runtime_property", "test_step", "fuzz_playtest"):
+                 "set_runtime_property", "test_step"):
         assert name in TIER1, f"{name} missing from TIER1"
 
 
@@ -505,7 +505,7 @@ def test_tier1_residual_names_still_present():
         "screenshot", "run_tests", "setup_objects", "configure_objects",
         "compile_preflight", "await_compile", "sync_unity",
         "invoke_method", "set_runtime_property", "wait_until", "move_to", "query_state",
-        "test_step", "run_playtest", "fuzz_playtest",
+        "test_step", "run_playtest",
     }
     missing = residual_expected - TIER1
     assert not missing, f"TIER1-only names dropped by refactor: {sorted(missing)}"

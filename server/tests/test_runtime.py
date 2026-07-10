@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from mcp.server.fastmcp.exceptions import ToolError
 from unity_mcp.server import (
-    invoke_method, set_runtime_property, wait_until, query_state, move_to, fuzz_playtest,
+    invoke_method, set_runtime_property, wait_until, query_state, move_to,
     set_active, wire_event, unwire_event, run_playtest,
 )
 
@@ -135,26 +135,6 @@ async def test_move_to_custom_timeout_offset(mock_bridge):
     sent = call_args[0][1]
     assert sent["timeout"] == "30.0"
     assert call_args[1]["timeout"] == 35.0    # 30 + 5
-
-
-# --- P1-4: fuzz_playtest hardcoded timeout ---
-
-async def test_fuzz_playtest_sends_run_playtest_cmd(mock_bridge):
-    """fuzz_playtest delegates to run_playtest command on the bridge."""
-    mock_bridge.send.return_value = {"ok": True, "data": "fuzz ok"}
-    await fuzz_playtest(steps=3, seed=42)
-    call_args = mock_bridge.send.call_args
-    assert call_args[0][0] == "run_playtest"
-
-
-async def test_fuzz_playtest_hardcoded_timeout_string(mock_bridge):
-    """fuzz_playtest passes args['timeout']='30' (string, not float) to bridge."""
-    mock_bridge.send.return_value = {"ok": True, "data": "fuzz ok"}
-    await fuzz_playtest(steps=3, seed=42)
-    call_args = mock_bridge.send.call_args
-    sent = call_args[0][1]
-    assert sent["timeout"] == "30"            # hardcoded string, not float
-    assert call_args[1]["timeout"] == 40.0    # Python-level timeout=40.0
 
 
 # ─── ok=False → ToolError (write tools) ──────────────────────────────────────

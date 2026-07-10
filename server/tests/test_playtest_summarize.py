@@ -7,10 +7,11 @@ async def test_playtest_short_result_not_summarized(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": "PASS: 3/3"}
     from unity_mcp.server import run_playtest
 
-    with patch("unity_mcp.tools.runtime.SamplingService") as MockSvc:
+    mock_svc = MagicMock(enabled=True, summarize=AsyncMock(return_value="summary"))
+    with patch("unity_mcp.tools.runtime._sampling", mock_svc):
         result = await run_playtest("LOG hi")
 
-    MockSvc.assert_not_called()
+    mock_svc.summarize.assert_not_called()
     assert "PASS: 3/3" in result
 
 
@@ -20,10 +21,8 @@ async def test_playtest_long_result_summarized_when_enabled(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": long_report}
     from unity_mcp.server import run_playtest
 
-    with patch("unity_mcp.tools.runtime.SamplingService") as MockSvc:
-        instance = MockSvc.return_value
-        instance.enabled = True
-        instance.summarize = AsyncMock(return_value="1/3 FAIL: assertion mismatch")
+    mock_svc = MagicMock(enabled=True, summarize=AsyncMock(return_value="1/3 FAIL: assertion mismatch"))
+    with patch("unity_mcp.tools.runtime._sampling", mock_svc):
         result = await run_playtest("LOG hi")
 
     assert result == "1/3 FAIL: assertion mismatch"
@@ -35,12 +34,11 @@ async def test_playtest_long_result_kept_when_disabled(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": long_report}
     from unity_mcp.server import run_playtest
 
-    with patch("unity_mcp.tools.runtime.SamplingService") as MockSvc:
-        instance = MockSvc.return_value
-        instance.enabled = False
+    mock_svc = MagicMock(enabled=False, summarize=AsyncMock())
+    with patch("unity_mcp.tools.runtime._sampling", mock_svc):
         result = await run_playtest("LOG hi")
 
-    instance.summarize.assert_not_called()
+    mock_svc.summarize.assert_not_called()
     assert "PLAYTEST" in result
 
 
@@ -50,10 +48,8 @@ async def test_playtest_summarize_fallback_on_none(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": long_report}
     from unity_mcp.server import run_playtest
 
-    with patch("unity_mcp.tools.runtime.SamplingService") as MockSvc:
-        instance = MockSvc.return_value
-        instance.enabled = True
-        instance.summarize = AsyncMock(return_value=None)
+    mock_svc = MagicMock(enabled=True, summarize=AsyncMock(return_value=None))
+    with patch("unity_mcp.tools.runtime._sampling", mock_svc):
         result = await run_playtest("LOG hi")
 
     assert "PLAYTEST" in result

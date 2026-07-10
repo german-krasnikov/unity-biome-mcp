@@ -47,7 +47,7 @@ async def use_skill(name: str, params: str | None = None) -> str:
         skill = json.load(f)
     code = skill["code"]
     if params:
-        for pair in params.split(","):
+        for pair in re.split(r",(?![^(]*\))", params):
             pair = pair.strip()
             if "=" in pair:
                 k, v = pair.split("=", 1)

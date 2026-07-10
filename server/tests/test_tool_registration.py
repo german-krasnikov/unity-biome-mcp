@@ -14,13 +14,11 @@ import importlib
 def _restore_tool_globals():
     """Restore module-level _send/_args after each test to avoid cross-test pollution.
 
-    scene.register() also calls scene_session.register(), so both must be restored.
     B2: console/screenshot/testing/editor_control added (split out of scene.py).
     """
     import unity_mcp.tools.objects as obj_mod
     import unity_mcp.tools.runtime as rt_mod
     import unity_mcp.tools.scene as sc_mod
-    import unity_mcp.tools.scene_session as ss_mod
     import unity_mcp.tools.console as con_mod
     import unity_mcp.tools.screenshot as shot_mod
     import unity_mcp.tools.testing as test_mod
@@ -29,7 +27,6 @@ def _restore_tool_globals():
         "obj": (obj_mod._send, obj_mod._args),
         "rt": (rt_mod._send, rt_mod._args),
         "sc": (sc_mod._send, sc_mod._args),
-        "ss": (ss_mod._send, ss_mod._args),
         "con": (con_mod._send, con_mod._args),
         "shot": (shot_mod._send, shot_mod._args),
         "test": (test_mod._send, test_mod._args),
@@ -39,7 +36,6 @@ def _restore_tool_globals():
     obj_mod._send, obj_mod._args = saved["obj"]
     rt_mod._send, rt_mod._args = saved["rt"]
     sc_mod._send, sc_mod._args = saved["sc"]
-    ss_mod._send, ss_mod._args = saved["ss"]
     con_mod._send, con_mod._args = saved["con"]
     shot_mod._send, shot_mod._args = saved["shot"]
     test_mod._send, test_mod._args = saved["test"]
@@ -95,7 +91,7 @@ def test_objects_register_arg_order_guard():
 
 
 # ── Part 2: scene.py (B2: slimmed — get_hierarchy/scene/search_scene/fingerprint/
-#    scene_diff/scene_environment + scene_session delegation only) ──────────────
+#    scene_diff/scene_environment + scene.py delegation only) ──────────────────
 
 def test_scene_register_sets_send():
     import unity_mcp.tools.scene as mod
@@ -118,7 +114,7 @@ def test_scene_register_wires_tools():
     mod.register(mcp, AsyncMock(), MagicMock())
 
     # get_hierarchy, scene, search_scene, fingerprint, scene_diff, scene_environment (6)
-    # + scene_session delegation: save_session, load_session, screenshot_baseline,
+    # + scene.py delegation: save_session, load_session, screenshot_baseline,
     # screenshot_compare, get_changes (5) = 11
     assert mcp.tool.call_count >= 11
 
@@ -156,8 +152,8 @@ def test_runtime_register_wires_tools():
     mod.register(mcp, AsyncMock(), MagicMock())
 
     # invoke_method, set_runtime_property, wait_until, move_to,
-    # query_state, test_step, run_playtest, fuzz_playtest = 8 tools
-    assert mcp.tool.call_count >= 8
+    # query_state, test_step, run_playtest = 7 tools
+    assert mcp.tool.call_count >= 7
 
 
 def test_runtime_register_arg_order_guard():
@@ -287,7 +283,7 @@ def test_b2_split_modules_wired_into_register_all():
 def test_b2_split_total_tool_count_unchanged(monkeypatch):
     """The 20 tools formerly defined directly in scene.py must still total 20
     across the 5 files (scene's own 6 + console's 3 + screenshot's 1 + testing's 4
-    + editor_control's 6), independent of scene.py's separate scene_session
+    + editor_control's 6), independent of scene.py's separate scene.py
     delegation (5 tools, unaffected by this split)."""
     monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)
     import unity_mcp.tools.scene as scene_mod
@@ -301,7 +297,7 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
         mod.register(mcp, AsyncMock(), MagicMock())
         return mcp.tool.call_count
 
-    scene_total = _own_count(scene_mod)  # includes scene_session's 5 delegated tools
+    scene_total = _own_count(scene_mod)  # includes scene.py's 5 delegated tools
     scene_own = scene_total - 5
     total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))

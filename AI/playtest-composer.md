@@ -258,7 +258,7 @@ Below the list, a live preview shows the full `VAL` block that will be generated
 2. Drag GameObjects from Hierarchy into the drop zone.
 3. Set `component` and `field` via **Pick…** or manually.
 4. Click **Copy VAL block** and paste at the top of the DSL script, OR click **Export .defs** and add `INCLUDE aliases.defs` to the script.
-5. Alternatively: pass the block as `defs` to `run_playtest(script, defs=block)` from Python.
+5. Alternatively: pass the block as `defs` to `run_playtest(script, defs=block)` from Python, or save the script to `Playtests/` and call `run_playtest(path="Playtests/x.playtest")` for minimal token cost.
 
 ---
 

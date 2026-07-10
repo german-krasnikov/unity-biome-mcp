@@ -30,9 +30,3 @@ async def test_scan_scene_sends_command(mock_bridge):
     result = await scan_scene()
     mock_bridge.send.assert_called_once_with("scan_scene", {}, timeout=30.0)
     assert "SCAN" in result
-
-
-async def test_scan_scene_with_bands(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "SCAN: 10 objects\n  lights: 1 (10%)"}
-    await scan_scene(bands="lights,audio")
-    mock_bridge.send.assert_called_once_with("scan_scene", {"bands": "lights,audio"}, timeout=30.0)

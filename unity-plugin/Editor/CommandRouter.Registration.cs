@@ -158,7 +158,7 @@ namespace UnityMCP.Editor
                 required: "", optional: "action,path,detail,baseline_id,max_events");
             CommandRegistry.Register("check_colliders", args => ColliderChecker.Check(
                 JsonHelper.ExtractString(args, "path")),
-                required: "path", optional: "");
+                required: "", optional: "path");
             CommandRegistry.Register("material_audit", args => MaterialAuditHelper.Execute(args),
                 required: "", optional: "action,platform");
             CommandRegistry.Register("scene_health", args =>
@@ -383,7 +383,7 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAsync("test_step", AsyncTestStep, runtime: true,
                 required: "path,position", optional: "checks_before,checks_after,wait_after,timeout");
             CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: true,
-                required: "script", optional: "timeout,abort_on_fail");
+                required: "", optional: "script,path,defs,timeout,abort_on_fail");
         }
     }
 }

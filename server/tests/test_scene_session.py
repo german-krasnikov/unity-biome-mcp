@@ -1,4 +1,4 @@
-"""Tests for scene_session.py — save_session / load_session.
+"""Tests for session functions in scene.py — save_session / load_session.
 
 Zero coverage identified in audit. Covers:
 - save_session happy path (calls bridge, writes file, returns path)
@@ -17,9 +17,9 @@ from unittest.mock import AsyncMock, MagicMock, patch, mock_open
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
-def _restore_scene_session_globals():
-    """Restore scene_session module globals after each test to avoid cross-test pollution."""
-    import unity_mcp.tools.scene_session as mod
+def _restore_scene_globals():
+    """Restore scene module globals after each test to avoid cross-test pollution."""
+    import unity_mcp.tools.scene as mod
     prev_send = mod._send
     prev_args = mod._args
     yield
@@ -28,8 +28,8 @@ def _restore_scene_session_globals():
 
 
 def _wire(send):
-    """Point scene_session._send at `send`."""
-    import unity_mcp.tools.scene_session as mod
+    """Point scene._send at `send`."""
+    import unity_mcp.tools.scene as mod
     mod._send = send
     mod._args = MagicMock()
 
@@ -122,8 +122,8 @@ async def test_load_session_corrupt_json_returns_error(tmp_path):
 
 # ── register() ────────────────────────────────────────────────────────────────
 
-def test_scene_session_register_sets_send():
-    import unity_mcp.tools.scene_session as mod
+def test_scene_register_sets_send():
+    import unity_mcp.tools.scene as mod
     mod._send = None
     mcp = MagicMock()
     mcp.tool.return_value = lambda fn: fn
@@ -140,10 +140,10 @@ def test_scene_session_register_sets_send():
 # ── internal helpers ──────────────────────────────────────────────────────────
 
 async def _invoke_save_session():
-    from unity_mcp.tools.scene_session import save_session
+    from unity_mcp.tools.scene import save_session
     return await save_session()
 
 
 async def _invoke_load_session():
-    from unity_mcp.tools.scene_session import load_session
+    from unity_mcp.tools.scene import load_session
     return await load_session()

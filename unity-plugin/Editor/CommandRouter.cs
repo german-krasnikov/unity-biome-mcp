@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -217,7 +218,45 @@ namespace UnityMCP.Editor
 
         private static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var script = JsonHelper.ExtractString(argsJson, "script");
+            var pathArg   = JsonHelper.ExtractString(argsJson, "path");
+            var scriptArg = JsonHelper.ExtractString(argsJson, "script");
+
+            if (pathArg != null && scriptArg != null)
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: use path or script, not both"));
+                return;
+            }
+
+            string script;
+            if (pathArg != null)
+            {
+                var fullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", pathArg));
+                var projectRootNoSlash = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                var projectRoot = projectRootNoSlash + Path.DirectorySeparatorChar;
+                if (fullPath != projectRootNoSlash && !fullPath.StartsWith(projectRoot, StringComparison.Ordinal))
+                {
+                    tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: path must be inside project"));
+                    return;
+                }
+                if (!File.Exists(fullPath))
+                {
+                    tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: file not found: " + pathArg));
+                    return;
+                }
+                script = File.ReadAllText(fullPath, Encoding.UTF8);
+                var defs = JsonHelper.ExtractString(argsJson, "defs");
+                if (defs != null) script = defs + "\n" + script;
+            }
+            else if (scriptArg != null)
+            {
+                script = scriptArg;
+            }
+            else
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: script or path required"));
+                return;
+            }
+
             var timeout = ExtractFloat(argsJson, "timeout", 120f);
             if (timeout <= 0) timeout = 120f;
             var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";

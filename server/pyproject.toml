@@ -1,6 +1,6 @@
 [project]
 name = "unity-mcp"
-version = "0.79.0"
+version = "0.79.1"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]

@@ -121,3 +121,12 @@ async def test_list_skills_includes_kind(skills_dir):
     await save_skill("tagged", "Tagged skill", "var x = 1;")
     result = await list_skills()
     assert "csharp" in result
+
+
+async def test_use_skill_vector_param(skills_dir, mock_bridge):
+    mock_bridge.send.return_value = {"ok": True, "data": "ok"}
+    await save_skill("spawn", "desc", "var go = new GameObject(\"${name}\"); go.transform.position = ${pos};")
+    await use_skill("spawn", params="pos=(0,5,0),name=Enemy")
+    code = mock_bridge.send.call_args[0][1]["code"]
+    assert "(0,5,0)" in code
+    assert "Enemy" in code

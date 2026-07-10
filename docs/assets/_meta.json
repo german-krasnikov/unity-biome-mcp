@@ -1,11 +1,11 @@
 {
-  "tools": 129,
-  "tests_total": 4702,
-  "tests_python": 4392,
+  "tools": 124,
+  "tests_total": 4685,
+  "tests_python": 4375,
   "tests_unity": 26,
   "tests_unity_source": "tcp",
   "tests_live": 284,
-  "server_version": "0.79.0",
-  "plugin_version": "0.79.0",
+  "server_version": "0.79.1",
+  "plugin_version": "0.79.1",
   "batch_savings": "80\u201395%"
 }

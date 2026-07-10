@@ -14,7 +14,7 @@ async def test_screenshot_baseline_creates_file(tmp_path, mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": f"Data saved to: {src_png}"}
 
     baseline_dir = tmp_path / ".claude" / "baselines"
-    with patch("unity_mcp.tools.scene_session.os.getcwd", return_value=str(tmp_path)):
+    with patch("unity_mcp.tools.scene.os.getcwd", return_value=str(tmp_path)):
         result = await screenshot_baseline("test_scene")
 
     assert "Baseline saved:" in result
@@ -32,7 +32,7 @@ async def test_screenshot_compare_identical(tmp_path, mock_bridge):
 
     mock_bridge.send.return_value = {"ok": True, "data": f"Data saved to: {src_png}"}
 
-    with patch("unity_mcp.tools.scene_session.os.getcwd", return_value=str(tmp_path)):
+    with patch("unity_mcp.tools.scene.os.getcwd", return_value=str(tmp_path)):
         result = await screenshot_compare("default")
 
     assert "IDENTICAL" in result
@@ -47,7 +47,7 @@ async def test_screenshot_compare_different(tmp_path, mock_bridge):
     Image.new("RGB", (10, 10), (255, 0, 0)).save(current_png)
     mock_bridge.send.return_value = {"ok": True, "data": f"Data saved to: {current_png}"}
 
-    with patch("unity_mcp.tools.scene_session.os.getcwd", return_value=str(tmp_path)):
+    with patch("unity_mcp.tools.scene.os.getcwd", return_value=str(tmp_path)):
         result = await screenshot_compare("default")
 
     # New format: pixel diff result, cached semantic, or semantic disabled
@@ -59,7 +59,7 @@ async def test_screenshot_compare_no_baseline(tmp_path, mock_bridge):
     current_png.write_bytes(b"\x89PNG\r\n\x1a\nDATA")
     mock_bridge.send.return_value = {"ok": True, "data": f"Data saved to: {current_png}"}
 
-    with patch("unity_mcp.tools.scene_session.os.getcwd", return_value=str(tmp_path)):
+    with patch("unity_mcp.tools.scene.os.getcwd", return_value=str(tmp_path)):
         result = await screenshot_compare("nonexistent")
 
     assert "No baseline" in result

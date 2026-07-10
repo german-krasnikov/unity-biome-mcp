@@ -2,7 +2,7 @@
 
 ## Overview
 
-Python MCP server with 126 MCP tools for controlling Unity Editor. `_UnstructuredMCP(FastMCP)` subclass (v0.50.3) + ConnectionSlot + capability gating + 23 middleware layers. External plugins can add more tools dynamically. Structured output disabled on all tools to eliminate duplicate `content` + `structuredContent` in MCP responses (reduces size & parsing overhead).
+Python MCP server with 121 MCP tools for controlling Unity Editor. `_UnstructuredMCP(FastMCP)` subclass (v0.50.3) + ConnectionSlot + capability gating + 23 middleware layers. External plugins can add more tools dynamically. Structured output disabled on all tools to eliminate duplicate `content` + `structuredContent` in MCP responses (reduces size & parsing overhead).
 
 ## Architecture (for Architect)
 
@@ -23,7 +23,7 @@ server/src/unity_mcp/
 │   ├── objects.py      # get_component/inspect/find/set_property/create/delete/manage_component/set_active/rename_object/wire_event/unwire_event/set_material/set_parent/set_property_delta/transfer_object/object_diff
 │   ├── scene.py        # hierarchy, console, compile_errors, screenshot(annotation_id), recompile, run_tests, get_test_results, scene (open_additive/close/set_active/list), search_scene, editor, checkpoint, fingerprint, scene_diff, save/load_session, screenshot_baseline/compare, get_changes
 │   ├── code_intel.py   # find_references, compile_preflight, semantic_at, await_compile
-│   ├── runtime.py      # invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, fuzz_playtest
+│   ├── runtime.py      # invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest (script|path)
 │   ├── batch.py        # batch, references, validate_references + DRY serialization
 │   ├── spatial.py      # spatial_query, validate_layout, get_spatial_context, scan_scene, check_colliders
 │   ├── ui.py           # create_ui, set_rect, menu, shader
@@ -47,13 +47,13 @@ server/src/unity_mcp/
     └── __init__.py              # 3-source auto-discovery (pkgutil, entry_points, UNITY_MCP_PLUGIN_DIRS)
 ```
 
-### Tools (126 total)
+### Tools (121 total)
 
-**TIER1 — always visible (43 tools):**
+**TIER1 — always visible (42 tools):**
 
 Core (25): get_hierarchy, get_component, inspect, set_property, create_object, delete_object, manage_component, batch, scene, search_scene, set_parent, get_console, get_compile_errors, get_enabled_tools, discover_tools, editor, do, ask, ask_user, permission_prompt, reconnect_unity, list_connections, resolve_tool_schema, doctor, alias_status
 
-Other (18): screenshot, run_tests, setup_objects, set_properties, configure_objects, find_references, compile_preflight, semantic_at, await_compile, sync_unity, invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, fuzz_playtest
+Other (17): screenshot, run_tests, setup_objects, set_properties, configure_objects, find_references, compile_preflight, semantic_at, await_compile, sync_unity, invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest
 
 ### Compile-Tool Corroboration (v0.7.0+)
 
@@ -317,7 +317,7 @@ Guard conditions and reroute logic have been reordered for correctness:
 6. **Command execution** (actual send to Unity)
 
 **READ_CMDS / WRITE_CMDS audit (v0.78.11, `middleware_types.py`):**
-- `READ_CMDS` expanded from 15 → 43 entries: added `screenshot_compare`, `get_selection`, `get_capabilities`, `alias_status`, `get_aliases`, `list_connections`, `get_enabled_tools`, `budget_status`, `permission_prompt`, `get_test_results`, `get_test_progress`, `get_test_count`, `get_frame_stats`, `get_memory`, `get_metrics`, `get_perf`, `get_watches`, `debug`, `debug_animator`, `debug_physics`, `profile`, `object_diff`, `scene_diff`, `scene_health`, `material_audit`, `analyze_lod_culling`, `render_analyze`, `fingerprint`, `validate_layout`, `check_colliders`, `spatial_query`, `get_schema`, `get_changes`, `compile_preflight`, `await_compile`, `auto_fix`, `diagnose`, `list_scenarios`, `list_skills`, `list_templates`, `load_scenario`, `load_session`, `ask`, `ask_user`
+- `READ_CMDS` expanded from 15 → 41 entries: added `screenshot_compare`, `get_selection`, `get_capabilities`, `alias_status`, `get_aliases`, `list_connections`, `get_enabled_tools`, `budget_status`, `permission_prompt`, `get_test_results`, `get_test_progress`, `get_test_count`, `get_frame_stats`, `get_memory`, `get_metrics`, `get_perf`, `get_watches`, `debug`, `debug_animator`, `debug_physics`, `profile`, `object_diff`, `scene_diff`, `scene_health`, `material_audit`, `analyze_lod_culling`, `render_analyze`, `fingerprint`, `validate_layout`, `check_colliders`, `spatial_query`, `get_schema`, `get_changes`, `compile_preflight`, `await_compile`, `auto_fix`, `diagnose`, `list_skills`, `list_templates`, `load_session`, `ask`, `ask_user`
 - `compress_hierarchy` removed from `READ_CMDS` (dead command — does not exist in Unity plugin)
 - `WRITE_CMDS` gains `rename_object` and `set_sibling_index`
 - `_EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})` — `editor` cmd is dual-use; only these two actions are reads; all others (play/stop/pause/step/select) are writes. Used by `_is_batch_readonly()` and `transition()` to avoid misclassifying editor state queries as mutations.
@@ -349,7 +349,7 @@ async def tool_name(arg1: str, arg2: int = 10) -> str:
     return await _send("cmd_name", {"arg1": arg1, "arg2": arg2})
 ```
 
-`_send()` helper: raises ToolError on `!ok`, returns `data` or file path. Routes through middleware pipeline when `UNITY_MCP_MIDDLEWARE=1`. Per-command timeouts via `COMMAND_TIMEOUTS` dict (run_tests/run_playtest/fuzz_playtest: 120s, compile_preflight: 60s, batch: 60s, default: 30s).
+`_send()` helper: raises ToolError on `!ok`, returns `data` or file path. Routes through middleware pipeline when `UNITY_MCP_MIDDLEWARE=1`. Per-command timeouts via `COMMAND_TIMEOUTS` dict (run_tests/run_playtest: 120s, compile_preflight: 60s, batch: 60s, default: 30s).
 
 ### Consolidated Tool Pattern (action-based)
 
@@ -395,7 +395,7 @@ Tests organized by module in `server/tests/`:
 - `test_compile_state.py` — probe signals, estimated remaining
 - `test_middleware.py` — each middleware layer independently
 - `test_middleware_play_guard.py` — play mode fail-fast guard: state-unknown passthrough, edit-mode block, watch_remove exclusion
-- `test_middleware_read_cmds.py` — 59 tests: READ_CMDS membership for all 43 entries, `_is_batch_readonly()` edge cases (empty, comments, editor dual-use, mixed read/write), readonly batch skips blast/verif/FSM guards
+- `test_middleware_read_cmds.py` — 57 tests: READ_CMDS membership for all 41 entries, `_is_batch_readonly()` edge cases (empty, comments, editor dual-use, mixed read/write), readonly batch skips blast/verif/FSM guards
 - `test_tool_descriptions.py` — all TIER1 tools have `[Play Mode]` prefix where runtime=true
 - `test_docstring_crossrefs.py` — all `use \`tool\`` cross-references in docstrings name real tools in _SPECS
 - `test_gating.py` — tier filtering, category enable/disable

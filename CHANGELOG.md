@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.79.1] — 2026-07-11 — run_playtest path= parameter, scenarios/fuzzer removal, scene_session merge
+
+**Added:**
+- `run_playtest(path="Playtests/farm.playtest")` — C# reads file server-side; ~15 tokens vs 300-800 inline. `path` and `script` are mutually exclusive. `defs` param works with both modes. `_explicit_path=True` bypasses middleware length check for file paths. Path traversal guard in C# (`GetFullPath` + `StartsWith` check).
+- `test_playtest_path.py` (Python) + `PlaytestPathTests.cs` (C#) — new tests for file-based playtest execution.
+
+**Removed:**
+- `scenarios.py` — `run_scenario`, `save_scenario`, `load_scenario`, `list_scenarios` deleted. `run_playtest(path=...)` covers the use case with fewer tokens.
+- `fuzzer.py` + `fuzz_playtest` tool — experimental property-based fuzzer removed.
+- `scan_scene` `bands` param — dead param C# never registered.
+
+**Fixed:**
+- `check_colliders` path registration — C# moved from required to optional (matching Python signature).
+- `use_skill` param split — naive `split(",")` replaced with regex handling parenthesized values like `pos=(0,5,0)`.
+- `SamplingService` singleton — `runtime.py` now uses module-level singleton instead of fresh instance per call.
+
+**Refactored:**
+- Timeout constants — `_TCP_POLL_BUFFER = 5.0`, `_TCP_STEP_BUFFER = 10.0`, `_TCP_PLAYTEST_BUFFER = 20.0` replace magic numbers in `runtime.py`.
+- `scene_session.py` merged into `scene.py` — 5 session functions (save_session, load_session, screenshot_baseline, screenshot_compare + helper) inlined; `scene_session.py` deleted.
+- `_normalize_defs` — 4-line if/elif → 1-line expression; added `None` guard for comment-only defs in script mode.
+
+**Tests:** 4375 Python passed (5 skipped) | 6452 C# NUnit passed (1 pre-existing failure, 8 skipped)
+
 ## [v0.79.0] — 2026-07-10 — TCP session persistence, alias pipe resolution, READ_CMDS audit
 
 **Fixed — TCP churn (4 root causes):**

@@ -16,9 +16,9 @@ async def get_spatial_context(path: str, radius: float = 5.0) -> str:
     return await _send("get_spatial_context", _args(path=path, radius=str(radius)))
 
 
-async def scan_scene(bands: str | None = None) -> str:
+async def scan_scene() -> str:
     """Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats."""
-    return await _send("scan_scene", _args(bands=bands))
+    return await _send("scan_scene", {})
 
 
 async def check_colliders(path: str | None = None) -> str:

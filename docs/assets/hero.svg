@@ -114,7 +114,7 @@
   <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" text-anchor="middle">
     <text x="600" y="176" text-anchor="middle" font-size="64" font-weight="700" fill="#3ad29f" opacity="0.45" filter="url(#softText)">Unity MCP</text>
     <text x="600" y="176" text-anchor="middle" font-size="64" font-weight="700" fill="url(#titleGrad)" letter-spacing="1.5">Unity MCP</text>
-    <text x="600" y="224" text-anchor="middle" font-size="19" font-weight="400" fill="#888899" letter-spacing="0.4">Control Unity from Claude with <!-- STAT:TOOLS -->129<!-- /STAT --> token-minimized tools and batch operations</text>
+    <text x="600" y="224" text-anchor="middle" font-size="19" font-weight="400" fill="#888899" letter-spacing="0.4">Control Unity from Claude with <!-- STAT:TOOLS -->124<!-- /STAT --> token-minimized tools and batch operations</text>
     <g>
       <rect x="560" y="246" width="80" height="2" rx="1" fill="#e94560" opacity="0.9"/>
       <animate attributeName="opacity" values="0.55;1;0.55" dur="3.6s" repeatCount="indefinite"/>

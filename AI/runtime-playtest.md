@@ -131,17 +131,25 @@ await query_state("$score,$posX")
 
 **RW Annotation:** Mutating (movement + snapshots).
 
-## run_playtest(script, timeout=120.0, abort_on_fail=False, defs=None)
+## run_playtest(script=None, timeout=120.0, abort_on_fail=False, defs=None, path=None)
 
 **Purpose:** Execute playtest DSL script (fire-and-forget fire-and-poll pattern).
 
+**Mutually exclusive:** `path` XOR `script` — exactly one must be provided.
+
+**path:** Assets-relative path to a `.playtest` file on disk (e.g. `"Playtests/farm.playtest"`). C# reads and executes the file directly — costs ~15 tokens instead of 300–800 for an inline script. Use when the script lives in the project's `Playtests/` folder. Internally sends `_explicit_path=true` to bypass middleware path resolution.
+
+**script:** Inline DSL text. Use for ad-hoc or generated scripts.
+
 **abort_on_fail:** If True, stops Play Mode when any WAIT_UNTIL times out. Equivalent to placing `ABORT_ON_FAIL` as first line of the script.
 
-**defs:** Optional inline VAL definitions prepended to the script. Format: one `VAL $name path|comp|field` line per entry. Use to inject aliases from `get_aliases()` without modifying the script text. Note: `PlaytestConfig.aliases` are auto-injected by `PlaytestRunner` (v0.78.9) — no need to pass them via `defs`.
+**defs:** Optional inline VAL definitions. Works with both `script` and `path`. Format: one `VAL $name path|comp|field` line per entry. Note: `PlaytestConfig.aliases` are auto-injected by `PlaytestRunner` (v0.78.9) — no need to pass them via `defs`.
 
 ```python
 aliases = await get_aliases()   # → "$hp=/Player|Health|hp\n$pos=..."
 await run_playtest(script, defs=aliases)
+# or from file:
+await run_playtest(path="Playtests/smoke.playtest")
 ```
 
 **DSL Directives (processed before steps):**
@@ -186,59 +194,33 @@ await run_playtest(script, defs=aliases)
 
 **Returns:** Compressed report (failures only) or full report if short.
 
-**Example:**
+**Examples:**
 ```python
+# inline script
 script = """MOVE TO 5,0,0
 WAIT 1
 ASSERT /Player|PlayerController|Health < 100
 ASSERT_CONSOLE_CLEAN"""
 await run_playtest(script, timeout=30.0)
+
+# file path — ~15 tokens vs 300-800 inline
+await run_playtest(path="Playtests/farm.playtest", timeout=60.0)
+
+# file path + runtime defs
+await run_playtest(path="Playtests/smoke.playtest", defs=aliases)
 ```
 
 **RW Annotation:** Mutating (movement, state changes, assertions).
+
+**Timeout buffers (internal constants):**
+- `wait_until`/`move_to`: `_TCP_POLL_BUFFER = 5.0` added to Unity timeout
+- `test_step`: `_TCP_STEP_BUFFER = 10.0` added
+- `run_playtest`: `_TCP_PLAYTEST_BUFFER = 20.0` added
 
 **Notes:**
 - Fire-and-forget: run_playtest sends script, returns immediately with status
 - Polling: Caller must poll get_test_results every 5s for up to 2min (see CLAUDE.md § run_tests)
 - Domain reload: Transparently reconnects mid-script if compilation detected
-
-## save_scenario(name, script) / load_scenario(name) / list_scenarios() / run_scenario(name, timeout=120.0, abort_on_fail=False)
-
-**Purpose:** Persist and replay named playtest scripts. Scripts stored in project-local directory.
-
-**Name rules:** alphanumeric + underscore only. Path traversal rejected.
-
-**run_scenario** = `load_scenario(name)` + `run_playtest(script)` in one call.
-
-**Example:**
-```python
-await save_scenario("smoke_combat", "INVOKE /Enemy Attack\nASSERT /Player|HP|value > 0")
-await list_scenarios()   # → "smoke_combat"
-await run_scenario("smoke_combat")
-```
-
-**Gating:** `save_scenario`, `load_scenario`, `list_scenarios` in `SESSION_SKILLS` category (require `discover_tools`). `run_scenario` is TIER1 (always visible).
-
-**RW Annotation:** `save_scenario`, `run_scenario` — mutating. `load_scenario`, `list_scenarios` — RO.
-
----
-
-## fuzz_playtest(steps=10, seed=None)
-
-**Purpose:** Property-based testing: generate random playtest script, run it to find hidden bugs.
-
-**Randomization:** Generates random MOVE/WAIT/ASSERT/SNAPSHOT commands.
-
-**Seed:** For reproducibility (same seed → same script).
-
-**Returns:** Playtest report with failures highlighted.
-
-**Example:**
-```python
-await fuzz_playtest(steps=20, seed=42)  # reproducible 20-step scenario
-```
-
-**RW Annotation:** Mutating (random movements + assertions).
 
 ## Common Patterns
 
@@ -248,9 +230,8 @@ await fuzz_playtest(steps=20, seed=42)  # reproducible 20-step scenario
 | Wait for event | wait_until | Avoids sleep; true blocking |
 | Multi-field snapshot | query_state | Batch; one TCP call instead of N |
 | Move + validate state | test_step | Atomic before/after with console check |
-| Complex scenario | run_playtest | DSL readable; compression saves tokens |
-| Regression hunting | fuzz_playtest | Property-based; finds edge cases |
-| Reusable test script | save_scenario + run_scenario | Persist DSL to .playtest file; replay by name |
+| Ad-hoc script | run_playtest(script=...) | DSL readable; compression saves tokens |
+| Saved script (token-efficient) | run_playtest(path="Playtests/x.playtest") | ~15 tokens; C# reads file directly |
 | Multi-phase fail-fast | run_playtest(abort_on_fail=True) | Stop Play Mode immediately on timeout |
 | Compound wait | WAIT_UNTIL … AND/OR … | Single poll for multi-condition gate |
 

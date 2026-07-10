@@ -66,9 +66,6 @@ _SPECS: dict[str, ToolSpec] = {
     'export_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
     'find_objects': ToolSpec(category='SCENE_EDIT'),
     'fingerprint': ToolSpec(category='SESSION_SKILLS', timeout_s=10.0),
-    # timeout_s is unreachable by construction -- fuzz_playtest() sends wire-cmd
-    # "run_playtest" (tools/runtime.py), never this key.
-    'fuzz_playtest': ToolSpec(category='UNIT_TESTS', tier1=True, timeout_s=300.0),
     'get_capabilities': ToolSpec(category='META'),
     'get_changes': ToolSpec(category='SESSION_SKILLS'),
     'get_compile_errors': ToolSpec(category='CORE', core=True),
@@ -94,10 +91,8 @@ _SPECS: dict[str, ToolSpec] = {
     'inspect': ToolSpec(category='CORE', core=True),
     'invoke_method': ToolSpec(category='RUNTIME', tier1=True),
     'list_connections': ToolSpec(category='CORE', core=True),
-    'list_scenarios': ToolSpec(category='SESSION_SKILLS'),
     'list_skills': ToolSpec(category='SESSION_SKILLS'),
     'list_templates': ToolSpec(category='SESSION_SKILLS'),
-    'load_scenario': ToolSpec(category='SESSION_SKILLS'),
     'load_session': ToolSpec(category='SESSION_SKILLS'),
     'manage_component': ToolSpec(category='CORE', core=True),
     'material': ToolSpec(category='SHADERS_MATERIAL'),
@@ -125,11 +120,7 @@ _SPECS: dict[str, ToolSpec] = {
     # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
     # timeout+20.0 explicitly.
     'run_playtest': ToolSpec(category='UNIT_TESTS', tier1=True, timeout_s=300.0),
-    # timeout_s is a fallback ceiling only -- scene.py:189 always passes
-    # timeout=8.0 (deliberate fire-and-forget).
-    'run_scenario': ToolSpec(category='UNIT_TESTS', tier1=True, timeout_s=300.0),
     'run_tests': ToolSpec(category='UNIT_TESTS', tier1=True, timeout_s=300.0),
-    'save_scenario': ToolSpec(category='SESSION_SKILLS'),
     'save_session': ToolSpec(category='SESSION_SKILLS'),
     'save_skill': ToolSpec(category='SESSION_SKILLS'),
     'save_template': ToolSpec(category='SESSION_SKILLS'),

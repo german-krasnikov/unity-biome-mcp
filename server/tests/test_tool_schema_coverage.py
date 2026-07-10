@@ -56,6 +56,12 @@ def test_fastmcp_batch_schema_has_validate_aliases():
         "FastMCP dropped 'validate_aliases' from batch JSON schema"
 
 
+def test_fastmcp_run_playtest_schema_has_path_defs_script():
+    props = _props("run_playtest")
+    for param in ("path", "defs", "script"):
+        assert param in props, f"FastMCP dropped '{param}' from run_playtest JSON schema"
+
+
 def test_fastmcp_alias_status_schema_exists():
     from unity_mcp.server import mcp
     assert "alias_status" in mcp._tool_manager._tools, \
