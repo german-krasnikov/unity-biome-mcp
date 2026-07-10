@@ -8,7 +8,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class LayoutValidatorTests
+    public class LayoutValidatorTests : SceneTestBase
     {
         [Test]
         public void GetSpatialContext_UnderCommaDecimalLocale_UsesDotSeparator()

@@ -49,9 +49,9 @@ server/src/unity_mcp/
 
 ### Tools (126 total)
 
-**TIER1 — always visible (42 tools):**
+**TIER1 — always visible (43 tools):**
 
-Core (24): get_hierarchy, get_component, inspect, set_property, create_object, delete_object, manage_component, batch, scene, search_scene, set_parent, get_console, get_compile_errors, get_enabled_tools, discover_tools, editor, do, ask, ask_user, permission_prompt, reconnect_unity, list_connections, resolve_tool_schema, doctor
+Core (25): get_hierarchy, get_component, inspect, set_property, create_object, delete_object, manage_component, batch, scene, search_scene, set_parent, get_console, get_compile_errors, get_enabled_tools, discover_tools, editor, do, ask, ask_user, permission_prompt, reconnect_unity, list_connections, resolve_tool_schema, doctor, alias_status
 
 Other (18): screenshot, run_tests, setup_objects, set_properties, configure_objects, find_references, compile_preflight, semantic_at, await_compile, sync_unity, invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, fuzz_playtest
 
@@ -89,6 +89,18 @@ Other (18): screenshot, run_tests, setup_objects, set_properties, configure_obje
 - Fixed: tool is hidden only if explicitly in disabled set (AND logic: visible = `name not in disabled`)
 - Impact: `is_visible=false` checkbox in MCPSettings now correctly hides tools
 - Implementation: `_apply_gating()` calls `filter_by_tier()` which respects disabled tool set correctly
+
+**InitializedNotification Hook (`install_initialized_hook`, server_filtering.py):**
+- Registers a `notification_handlers[InitializedNotification]` handler on the MCP server.
+- On MCP handshake completion, reads `session.client_params.clientInfo.name`.
+- If name is absent or equals `_DEFAULT_CLIENT_LABEL = "Claude Code"` (already the C# default), returns immediately — no TCP call.
+- Otherwise fires `bridge_.send("set_client_label", {"label": name}, timeout=3.0)` asynchronously via `asyncio.ensure_future`.
+- Send failures log at DEBUG level, never raise. Handler errors also swallowed at DEBUG.
+- Wired in `server.py` alongside `install_list_tools_filter`:
+  ```python
+  install_list_tools_filter(mcp, lambda: _disabled_tools_cache)
+  install_initialized_hook(mcp, lambda: slot.bridge if slot else None)
+  ```
 
 ### Server Startup
 
@@ -135,7 +147,9 @@ def main():
 
 - **ConnectionSlot**: single `UnityBridge` connection
   - `connect(port)`, `reconnect()`, `bridge` property
+  - `status` property (v0.78.10): delegates to `bridge.status`; returns `"disconnected"` when bridge is None
 - **UnityBridge**: single TCP connection
+  - `status` property (v0.78.10): `"connected"` / `"reconnecting"` / `"domain-reloading"` / `"disconnected"`. Used by `list_connections` (replaces binary connected/disconnected boolean)
   - Protocol: JSON over TCP, 4-byte big-endian length prefix
   - Socket: `TCP_NODELAY`, `SO_KEEPALIVE` (macOS: idle=60s, interval=10s, count=3)
   - Heartbeat: 15s interval, raw ping, 3 failures → close, 2s polling when disconnected (5s if compile busy)
@@ -287,7 +301,8 @@ Two hooks wired into `wrap_send()` (middleware_pipeline.py):
 - **Hook 2 (post-call):** after `get_hierarchy`, parse `--- ALIASES ---` block → populate `_alias_cache`; strip block from result (LLM never sees it). After `get_aliases`, populate `_alias_cache` from bare `name=value` lines.
 - Cache format: `{name: "path|comp|field"}` — keys WITHOUT `$` prefix.
 - Cache cleared on `reset_session()`.
-- **Batch $alias guard:** if `$` appears in batch DSL `commands`, pipeline appends `[WARN] $alias in batch DSL not supported — use explicit paths instead` (C# batch executes before Python alias resolution runs).
+- **Batch $alias guard (REMOVED v0.78.8):** `$alias` in batch DSL IS supported — `BatchHelper.cs` calls `AliasExpander.ExpandText()` C#-side before key=value parsing. No Python-side guard. Python pre-call alias hook still resolves `$name` in direct (non-batch) tool args.
+- **`AliasExpander.BuildPipePath` (v0.78.11):** `GetTable()` previously returned only `a.path` for `ValPath` aliases, dropping `|component|field`. Fixed via private helper `BuildPipePath(QueryAlias a)` that appends `|component` and `|field` when non-empty, so expansion in `ExpandText()` always delivers the full pipe-format value (`path|Comp|field`) needed for C#-side key extraction.
 
 **Middleware Pipeline Order (v0.57.0, commit 85c03bf; v0.72.x: play-mode fail-fast added):**
 
@@ -295,11 +310,17 @@ Guard conditions and reroute logic have been reordered for correctness:
 
 1. **Cache-above-circuit check** (PrefetchCache, must run first even when circuit HALF_OPEN)
 2. **Circuit breaker check** (prevents requests during outage)
-3. **Pre-call checks first** (retry, taint, dead-write, blast-radius, verification, batch conflicts) — **guards see ORIGINAL cmd before reroute**
+3. **Pre-call checks first** (retry, taint, dead-write, blast-radius, verification, batch conflicts) — **guards see ORIGINAL cmd before reroute**. Read-only batches (`_is_batch_readonly()`) skip blast-radius and verification checks entirely (v0.78.10).
 3.5. **Play Mode fail-fast guard** (`check_play_mode_required` — blocks `_RUNTIME_ONLY_CMDS` when `_play_state_known=True` and `is_playing=False`; returns early before TCP)
 4. **Play mode auto-routing** (`reroute_cmd` — applied AFTER guards)
 5. **Tier C features** (speculation tracking, lessons, inference)
 6. **Command execution** (actual send to Unity)
+
+**READ_CMDS / WRITE_CMDS audit (v0.78.11, `middleware_types.py`):**
+- `READ_CMDS` expanded from 15 → 43 entries: added `screenshot_compare`, `get_selection`, `get_capabilities`, `alias_status`, `get_aliases`, `list_connections`, `get_enabled_tools`, `budget_status`, `permission_prompt`, `get_test_results`, `get_test_progress`, `get_test_count`, `get_frame_stats`, `get_memory`, `get_metrics`, `get_perf`, `get_watches`, `debug`, `debug_animator`, `debug_physics`, `profile`, `object_diff`, `scene_diff`, `scene_health`, `material_audit`, `analyze_lod_culling`, `render_analyze`, `fingerprint`, `validate_layout`, `check_colliders`, `spatial_query`, `get_schema`, `get_changes`, `compile_preflight`, `await_compile`, `auto_fix`, `diagnose`, `list_scenarios`, `list_skills`, `list_templates`, `load_scenario`, `load_session`, `ask`, `ask_user`
+- `compress_hierarchy` removed from `READ_CMDS` (dead command — does not exist in Unity plugin)
+- `WRITE_CMDS` gains `rename_object` and `set_sibling_index`
+- `_EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})` — `editor` cmd is dual-use; only these two actions are reads; all others (play/stop/pause/step/select) are writes. Used by `_is_batch_readonly()` and `transition()` to avoid misclassifying editor state queries as mutations.
 
 **The fix:** Previously reroute was applied BEFORE guards, allowing Play Mode reroutes to bypass safety checks (taint, dead-write detection). Now guards check original command intent, then reroute applies. Example: `update_player_pos` in Play Mode would reroute to `set_runtime_property`, but taint checks now see `update_player_pos` intention first.
 
@@ -374,11 +395,16 @@ Tests organized by module in `server/tests/`:
 - `test_compile_state.py` — probe signals, estimated remaining
 - `test_middleware.py` — each middleware layer independently
 - `test_middleware_play_guard.py` — play mode fail-fast guard: state-unknown passthrough, edit-mode block, watch_remove exclusion
+- `test_middleware_read_cmds.py` — 59 tests: READ_CMDS membership for all 43 entries, `_is_batch_readonly()` edge cases (empty, comments, editor dual-use, mixed read/write), readonly batch skips blast/verif/FSM guards
 - `test_tool_descriptions.py` — all TIER1 tools have `[Play Mode]` prefix where runtime=true
 - `test_docstring_crossrefs.py` — all `use \`tool\`` cross-references in docstrings name real tools in _SPECS
 - `test_gating.py` — tier filtering, category enable/disable
+- `test_server_filtering.py` — `install_initialized_hook`: label sent for non-default client ("Cursor", "Codex"), skipped for "Claude Code", skipped when `client_params` is None
+- `test_tool_schema_coverage.py` — 7 FastMCP contract tests: validates actual JSON Schema generated by FastMCP for TIER1 tools (required params, type annotations, optional with defaults); catches schema drift between Python signatures and what MCP clients see
 - `test_plugins.py` — plugin loader, skip env, error handling
 - `test_tools_*.py` — per-tool argument validation and response parsing
+
+**C# TestRunner `DeleteTempScene` (v0.78.11):** `RunFinished` now schedules `EditorApplication.delayCall += DeleteTempScene`. The helper replaces the active scene with an empty one if it still points at the temp path (prevents dirty-scene dialog), then deletes the temp asset via `AssetDatabase.DeleteAsset`. Avoids leaving a dangling `__UnityMCP_Temp.unity` after every NUnit run.
 
 ## Review Checklist (for Reviewer)
 

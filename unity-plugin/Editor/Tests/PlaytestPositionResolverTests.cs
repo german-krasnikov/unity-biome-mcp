@@ -6,7 +6,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestPositionResolverTests
+    public class PlaytestPositionResolverTests : SceneTestBase
     {
         GameObject _stub;
 

@@ -33,7 +33,7 @@ namespace UnityMCP.Editor.Tests
         {
             NlComposerBridge.ResolveBinaryOverride = _ => "/usr/bin/claude";
             NlComposerBridge.RunProcessOverride = (_, __, ___) => Task.FromResult("WAIT 2");
-            var cfg = new SamplingConfig { Model = "" };
+            var cfg = new SamplingConfig { Model = "test" };
             var result = await NlComposerBridge.ParseAsync("wait 2", cfg);
             Assert.AreEqual("WAIT 2", result);
         }

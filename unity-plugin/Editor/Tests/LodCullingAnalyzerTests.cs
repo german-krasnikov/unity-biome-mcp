@@ -7,7 +7,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class LodCullingAnalyzerTests
+    public class LodCullingAnalyzerTests : SceneTestBase
     {
         readonly List<GameObject> _created = new List<GameObject>();
         readonly List<Object> _assets = new List<Object>();

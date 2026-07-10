@@ -6,6 +6,7 @@ from unity_mcp.middleware import (
     wrap_send,
     BLAST_RADIUS,
 )
+from unity_mcp.middleware_guards import _is_batch_readonly
 
 
 # ─── Feature 1: Retry Watchdog ────────────────────────────────────────────────
@@ -383,6 +384,54 @@ def test_blast_radius_table_has_entries():
     assert "delete_object" in BLAST_RADIUS
     assert BLAST_RADIUS["delete_object"] >= 3
     assert BLAST_RADIUS["get_hierarchy"] == 0
+
+
+# ─── P2: Readonly-batch blast-radius suppression ─────────────────────────────
+
+def test_is_batch_readonly_all_reads():
+    cmds = "get_component path=Foo type=Bar\nget_hierarchy root=Foo depth=1"
+    assert _is_batch_readonly(cmds) is True
+
+
+def test_is_batch_readonly_mixed():
+    cmds = "get_component path=Foo type=Bar\nset_property path=Foo prop=x value=1"
+    assert _is_batch_readonly(cmds) is False
+
+
+def test_is_batch_readonly_empty_string():
+    assert _is_batch_readonly("") is True
+
+
+def test_is_batch_readonly_blank_lines_only():
+    assert _is_batch_readonly("   \n  \n") is True
+
+
+def test_blast_radius_readonly_batch_no_warn(mw):
+    cmds = "get_component path=Foo type=Bar\nget_hierarchy root=Foo"
+    assert mw.check_blast_radius("batch", {"commands": cmds}) is None
+
+
+def test_blast_radius_write_batch_warns(mw):
+    cmds = "set_property path=Foo prop=x value=1"
+    assert mw.check_blast_radius("batch", {"commands": cmds}) is not None
+
+
+def test_blast_radius_no_args_still_warns(mw):
+    # backward compat: batch without args → conservative, warns
+    assert mw.check_blast_radius("batch") is not None
+
+
+def test_verification_readonly_batch_no_count(mw):
+    cmds = "get_component path=Foo type=Bar"
+    before = mw._mutation_count
+    mw.check_verification_needed("batch", {"commands": cmds})
+    assert mw._mutation_count == before
+
+
+def test_transition_readonly_batch_resets_consecutive_writes(mw):
+    mw._consecutive_writes = 2
+    mw.transition("batch", {"commands": "get_component path=Foo type=Bar"})
+    assert mw._consecutive_writes == 0
 
 
 # ─── Feature 6 (new): Incremental Verification ───────────────────────────────

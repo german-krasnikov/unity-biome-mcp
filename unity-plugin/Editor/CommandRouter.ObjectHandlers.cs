@@ -126,10 +126,13 @@ namespace UnityMCP.Editor
         {
             if (config == null)
             {
-                var guids = UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig");
-                if (guids.Length == 0) return null;
-                config = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(
-                    UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+                foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig"))
+                {
+                    var c = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(
+                        UnityEditor.AssetDatabase.GUIDToAssetPath(guid));
+                    if (c?.aliases?.Count > 0) { config = c; break; }
+                }
+                if (config == null) return null;
             }
             if (config?.aliases == null || config.aliases.Count == 0) return null;
             var sb = new StringBuilder("--- ALIASES ---\n");
@@ -166,6 +169,26 @@ namespace UnityMCP.Editor
                 }
             }
             return sb.Length > 0 ? sb.ToString() : "no aliases";
+        }
+
+        private static string ExecAliasStatus(string _)
+        {
+            var sources = new List<string>();
+            int count = 0;
+            foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig"))
+            {
+                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                var cfg = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(path);
+                if (cfg?.aliases == null) continue;
+                sources.Add(path);
+                count += cfg.aliases.Count;
+            }
+            var sb = new StringBuilder();
+            sb.AppendLine($"loaded: {(AliasExpander.IsStale ? "stale" : count > 0 ? "true" : "empty")}");
+            foreach (var s in sources) sb.AppendLine($"source: {s}");
+            sb.AppendLine($"count: {count}");
+            sb.Append($"stale: {AliasExpander.IsStale}");
+            return sb.ToString();
         }
 
         private static string ExecGetComponent(string args)

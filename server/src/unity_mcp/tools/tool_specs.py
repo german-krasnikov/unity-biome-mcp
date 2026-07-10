@@ -26,6 +26,7 @@ class ToolSpec:
 DEFAULT_TIMEOUT: float = 30.0
 
 _SPECS: dict[str, ToolSpec] = {
+    'alias_status': ToolSpec(category='META', tier1=True),
     'analyze_lod_culling': ToolSpec(category='RENDERING'),
     'animation': ToolSpec(category='ANIMATION'),
     'animator': ToolSpec(category='ANIMATION'),

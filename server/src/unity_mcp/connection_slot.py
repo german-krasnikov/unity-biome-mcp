@@ -24,6 +24,12 @@ class ConnectionSlot:
         return self._bridge is not None and self._bridge.connected
 
     @property
+    def status(self) -> str:
+        if self._bridge is None:
+            return "disconnected"
+        return self._bridge.status
+
+    @property
     def port(self) -> int:
         return self._port
 

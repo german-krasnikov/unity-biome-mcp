@@ -41,6 +41,16 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("diagnose", args => DiagnoseCommand.Execute(args),
                 required: "", optional: "",  // C8: read-only multi-signal snapshot
                 alwaysAllowed: true, allowedDuringCompile: true);
+            CommandRegistry.Register("set_client_label", args =>
+            {
+                var label = JsonHelper.ExtractString(args, "label");
+                if (!string.IsNullOrEmpty(label))
+                {
+                    MCPServer._mainSlot.Label = label;
+                    MainThreadDispatcher.Enqueue(() => Debug.Log($"[MCP] Client identified as: {label}"));
+                }
+                return "ok";
+            }, required: "label", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
 
         internal static void RegisterReadCommands()
@@ -50,6 +60,8 @@ namespace UnityMCP.Editor
                 required: "", optional: "depth,root,filter,components,summary,incremental,scene",
                 maxResponseChars: 50000);
             CommandRegistry.Register("get_aliases", _ => GetAliasesText(),
+                required: "", optional: "", allowedDuringCompile: true);
+            CommandRegistry.Register("alias_status", ExecAliasStatus,
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("get_component", ExecGetComponent,
                 required: "path,type", optional: "fields,compress");
@@ -203,11 +215,12 @@ namespace UnityMCP.Editor
                 int timeoutMs = 25000;
                 if (timeoutStr != null) int.TryParse(timeoutStr, out timeoutMs);
                 bool atomic = JsonHelper.ExtractString(args, "atomic") == "true";
+                bool validateAliases = JsonHelper.ExtractString(args, "validate_aliases") == "true";
                 return BatchHelper.Execute(
                     JsonHelper.ExtractString(args, "commands"),
                     JsonHelper.ExtractString(args, "on_error") ?? "continue",
-                    timeoutMs, atomic);
-            }, mutating: false, required: "commands", optional: "on_error,timeout_ms,atomic",
+                    timeoutMs, atomic, validateAliases);
+            }, mutating: false, required: "commands", optional: "on_error,timeout_ms,atomic,validate_aliases",
                allowedDuringCompile: true);
 
             // Spatial queries (read-only)

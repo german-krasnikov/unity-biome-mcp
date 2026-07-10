@@ -7,7 +7,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SceneHealthAnalyzerTests
+    public class SceneHealthAnalyzerTests : SceneTestBase
     {
         readonly List<GameObject> _created = new List<GameObject>();
 

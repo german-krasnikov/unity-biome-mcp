@@ -130,6 +130,7 @@ def mock_bridge():
     mock_slot = Mock()
     mock_slot.bridge = mock_b
     mock_slot.connected = True
+    mock_slot.status = "connected"
     mock_slot.port = 9500
     mock_slot.connect = AsyncMock(return_value="Connected to Unity on port 9500")
     mock_slot.close = AsyncMock()

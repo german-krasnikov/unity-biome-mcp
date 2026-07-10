@@ -322,10 +322,11 @@ async def test_pipeline_F3_hook_order(monkeypatch):
     assert "hp" in mw._alias_cache
 
 
-# ── Category G: Batch DSL $alias warning (5.3) ───────────────────────────────
+# ── Category G: Batch DSL $alias (5.3) ───────────────────────────────────────
+# $alias is now expanded C#-side in AliasExpander.ExpandText() — no middleware WARN.
 
-async def test_batch_G1_dollar_in_commands_warns(monkeypatch):
-    """5.3: batch with '$' in DSL string prepends WARN to result."""
+async def test_batch_G1_dollar_in_commands_no_warn(monkeypatch):
+    """$alias in batch DSL is expanded by C#; middleware no longer warns."""
     mw = _make_mw(monkeypatch)
     mw._alias_cache = {"player": "/GridPlayer"}
 
@@ -334,8 +335,8 @@ async def test_batch_G1_dollar_in_commands_warns(monkeypatch):
 
     wrapped = wrap_send(fake_send, mw)
     result = await wrapped("batch", {"commands": "get_component $player PlayerController"})
-    assert "[WARN]" in result
-    assert "$alias" in result or "batch DSL" in result
+    assert "[WARN] $alias" not in result
+    assert "batch DSL not supported" not in result
 
 
 async def test_batch_G2_no_dollar_no_warn(monkeypatch):
@@ -348,3 +349,42 @@ async def test_batch_G2_no_dollar_no_warn(monkeypatch):
     wrapped = wrap_send(fake_send, mw)
     result = await wrapped("batch", {"commands": "get_component /Player PlayerController"})
     assert "[WARN] $alias" not in result
+
+
+# ── Category H: _warm_alias_cache (S1 — auto-seed on connect) ─────────────────
+
+async def test_warm_alias_cache_seeds_on_connect():
+    """_warm_alias_cache sends get_aliases and populates _middleware._alias_cache."""
+    import types
+    from unittest.mock import AsyncMock, patch
+    import unity_mcp.server as srv
+
+    bridge = AsyncMock()
+    bridge.send = AsyncMock(return_value={
+        "ok": True,
+        "data": "player=/Player|PlayerController|\nhp=/Player|HP|health",
+    })
+
+    mw = types.SimpleNamespace(_alias_cache={})
+    with patch.object(srv, "_middleware", mw):
+        await srv._warm_alias_cache(bridge)
+
+    bridge.send.assert_awaited_once_with("get_aliases", {})
+    assert mw._alias_cache.get("player") == "/Player|PlayerController|"
+    assert mw._alias_cache.get("hp") == "/Player|HP|health"
+
+
+async def test_warm_alias_cache_silent_on_error():
+    """_warm_alias_cache does not raise when bridge.send raises."""
+    import types
+    from unittest.mock import AsyncMock, patch
+    import unity_mcp.server as srv
+
+    bridge = AsyncMock()
+    bridge.send = AsyncMock(side_effect=ConnectionError("no connection"))
+
+    mw = types.SimpleNamespace(_alias_cache={})
+    with patch.object(srv, "_middleware", mw):
+        await srv._warm_alias_cache(bridge)  # must not raise
+
+    assert mw._alias_cache == {}

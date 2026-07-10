@@ -90,11 +90,18 @@ await move_to("/Player", "10,0,5", timeout=20.0)
 
 **Query Format:** Comma-separated 'path|component|field_or_method' triplets.
 
+**$alias expansion (v0.78.11):** `$alias` sigils in the queries string are expanded by `AliasExpander.ExpandJson` on the C# side before execution. ValPath aliases now resolve to the full `path|component|field` pipe string (fix in v0.78.11 — before that, aliases with component+field set would expand to path-only). Aliases are auto-warmed from `PlaytestConfig` assets on connect.
+
 **Returns:** Structured text with one line per query (field value or method return).
 
 **Example:**
 ```python
 await query_state("/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX")
+# → Score: 150
+#   PosX: 5.2
+
+# With $alias (requires PlaytestConfig with alias "score" → /GridPlayer|GridPlayer|Score):
+await query_state("$score,$posX")
 # → Score: 150
 #   PosX: 5.2
 ```
@@ -130,7 +137,7 @@ await query_state("/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX")
 
 **abort_on_fail:** If True, stops Play Mode when any WAIT_UNTIL times out. Equivalent to placing `ABORT_ON_FAIL` as first line of the script.
 
-**defs:** Optional inline VAL definitions prepended to the script. Format: one `VAL $name path|comp|field` line per entry. Use to inject aliases from `get_aliases()` or `PlaytestConfig.aliases` without modifying the script text.
+**defs:** Optional inline VAL definitions prepended to the script. Format: one `VAL $name path|comp|field` line per entry. Use to inject aliases from `get_aliases()` without modifying the script text. Note: `PlaytestConfig.aliases` are auto-injected by `PlaytestRunner` (v0.78.9) — no need to pass them via `defs`.
 
 ```python
 aliases = await get_aliases()   # → "$hp=/Player|Health|hp\n$pos=..."

@@ -1,15 +1,19 @@
-"""Meta tools — discover_tools, doctor, resolve_tool_schema, set_llm_config.
+"""Meta tools — discover_tools, doctor, resolve_tool_schema, set_llm_config, alias_status.
 
 Moved out of server.py's composition root (M2) into the standard
 register(mcp, send, args) pattern used by every other tools/*.py module.
 """
 from mcp.server.fastmcp import Context
 
+from ._annotations import RO as _RO
 from ._common import bind
 from .gating import discover_tools as _discover_tools_impl
 from .schema_registry import _registry as _schema_registry
 from ..doctor import run_doctor, format_report
 from ..llm_config import parse_tcp_config, apply_config
+
+_send = None
+_args = None
 
 
 async def discover_tools(category: str | None = None, enable: bool = True, ctx: Context = None) -> str:
@@ -48,9 +52,15 @@ async def set_llm_config(config: str) -> str:
     return f"ok: updated {', '.join(parsed)}"
 
 
+async def alias_status() -> str:
+    """Check alias table health: loaded/empty/stale, sources, and total alias count."""
+    return await _send("alias_status", {})
+
+
 def register(mcp, send, args):
-    bind(globals(), send, args)  # unused by these 4 tools today, kept for M3 uniformity
+    bind(globals(), send, args)
     mcp.tool()(discover_tools)
     mcp.tool()(doctor)
     mcp.tool()(resolve_tool_schema)
     mcp.tool()(set_llm_config)
+    mcp.tool(annotations=_RO)(alias_status)

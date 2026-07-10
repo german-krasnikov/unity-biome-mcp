@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal class RegionClearTests
+    internal class RegionClearTests : SceneTestBase
     {
         private const string _Triangle = "{\"vertices\":\"0,0;10,0;5,10\"}";
 

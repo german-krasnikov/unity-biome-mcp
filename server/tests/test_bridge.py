@@ -724,13 +724,13 @@ async def test_heartbeat_immediate_close_on_domain_reload_error():
     assert closed_event.is_set()
 
 
-async def test_ensure_heartbeat_restarts_dead_task():
-    """_ensure_heartbeat() auto-restarts heartbeat if task died."""
+async def test_start_heartbeat_restarts_dead_task():
+    """start_heartbeat() starts a new task when old one is done."""
     bridge = UnityBridge(port=9500)
     bridge._heartbeat_task = asyncio.ensure_future(asyncio.sleep(0))
-    await asyncio.sleep(0.01)  # let it complete
+    await asyncio.sleep(0.01)
     assert bridge._heartbeat_task.done()
-    bridge._ensure_heartbeat()
+    bridge.start_heartbeat()
     assert bridge._heartbeat_task is not None
     assert not bridge._heartbeat_task.done()
     bridge.stop_heartbeat()
@@ -865,39 +865,6 @@ async def test_heartbeat_marks_recompile_on_domain_reload():
     idle_probe.mark_recompile_issued.assert_called()
 
 
-# ---------------------------------------------------------------------------
-# B8 — MSG_DONTWAIT removed from connected peek (cross-platform)
-# ---------------------------------------------------------------------------
-
-def test_connected_property_no_msg_dontwait():
-    """connected peek must NOT use MSG_DONTWAIT — the flag breaks on Windows.
-
-    Verifies that select.select gates the recv (no blocking) and that the
-    recv call uses only MSG_PEEK (not MSG_PEEK | MSG_DONTWAIT).
-    """
-    import socket
-
-    bridge = UnityBridge()
-
-    # Fake a writer with a mock socket that returns b"x" (connection alive)
-    mock_sock = Mock()
-    mock_sock.recv.return_value = b"x"
-
-    mock_writer = Mock()
-    mock_writer.is_closing.return_value = False
-    mock_writer.get_extra_info.return_value = mock_sock
-
-    bridge._writer = mock_writer
-
-    # select.select returns readable (data waiting)
-    with patch("select.select", return_value=([mock_sock], [], [])):
-        result = bridge.connected
-
-    assert result is True
-    # recv was called with exactly MSG_PEEK — no MSG_DONTWAIT
-    mock_sock.recv.assert_called_once_with(1, socket.MSG_PEEK)
-
-
 # ── PY1.test.2: lock-held skip-ping branch ───────────────────────────────────
 
 async def test_heartbeat_skips_ping_when_lock_held():
@@ -928,7 +895,11 @@ async def test_heartbeat_skips_ping_when_lock_held():
 # ── PY1.test.3: 3 consecutive ping failures without dead PID → close ─────────
 
 async def test_heartbeat_closes_after_3_ping_failures():
-    """3 consecutive OSError ping failures with live PID → close (no immediate close)."""
+    """3 consecutive TimeoutError ping failures with dead PID → close after 3rd failure.
+
+    TimeoutError = Unity unresponsive; 3 failures with dead process → close.
+    Non-timeout exceptions (OSError etc.) close immediately on first failure.
+    """
     reader = AsyncMock()
     writer = make_writer()
     close_calls = [0]
@@ -938,13 +909,13 @@ async def test_heartbeat_closes_after_3_ping_failures():
         await bridge.connect()
 
         async def failing_ping(timeout=5.0):
-            raise OSError("ping failed")
+            raise asyncio.TimeoutError("ping timed out")
 
         async def counting_close():
             close_calls[0] += 1
 
         bridge._raw_ping = failing_ping
-        with patch.object(bridge._probe, "is_process_dead", return_value=False), \
+        with patch.object(bridge._probe, "is_process_dead", return_value=True), \
              patch.object(bridge, "close", side_effect=counting_close):
             with patch("unity_mcp.bridge.asyncio.sleep", new_callable=AsyncMock):
                 # Tick 1 — failures=1, no close
@@ -955,7 +926,7 @@ async def test_heartbeat_closes_after_3_ping_failures():
                 assert close_calls[0] == 0
                 # Tick 3 — failures=3 >= 3 → close
                 await bridge._heartbeat_tick(0.01)
-                assert close_calls[0] == 1, "should close after 3rd consecutive failure"
+                assert close_calls[0] == 1, "should close after 3rd consecutive timeout"
 
 
 # ── Fix 24: bridge.py preserve exception type ────────────────────────────────

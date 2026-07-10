@@ -793,3 +793,176 @@ async def test_schema_registry_capture_stores_full_description_before_truncation
     assert tool.description != long_desc
     # ...but the registry still holds the ORIGINAL full text.
     assert registry.get_full("run_playtest")["description"] == long_desc
+
+
+# ---------------------------------------------------------------------------
+# install_initialized_hook — Option B client identification
+# ---------------------------------------------------------------------------
+
+async def test_initialized_hook_sends_label():
+    """Hook fires → bridge.send called with set_client_label + client name."""
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+    import mcp.types as mcp_types
+    from unity_mcp.server_filtering import install_initialized_hook
+
+    # Build mock session with clientInfo.name
+    client_info = SimpleNamespace(name="Cursor")
+    client_params = SimpleNamespace(clientInfo=client_info)
+    session = SimpleNamespace(client_params=client_params)
+    request_context = SimpleNamespace(session=session)
+
+    # Build mock MCP server hierarchy
+    mock_inner = MagicMock()
+    mock_inner.notification_handlers = {}
+    mock_inner.request_context = request_context
+
+    mock_mcp = MagicMock()
+    mock_mcp._mcp_server = mock_inner
+
+    # Bridge mock
+    mock_bridge = MagicMock()
+    mock_bridge.send = AsyncMock(return_value={"ok": True})
+
+    install_initialized_hook(mock_mcp, lambda: mock_bridge)
+
+    # Handler should be registered
+    assert mcp_types.InitializedNotification in mock_inner.notification_handlers
+    handler = mock_inner.notification_handlers[mcp_types.InitializedNotification]
+
+    # Fire handler (simulates InitializedNotification arrival)
+    notification = SimpleNamespace()
+    await handler(notification)
+    # Let ensure_future coroutines run
+    await asyncio.sleep(0)
+
+    mock_bridge.send.assert_called_once_with(
+        "set_client_label", {"label": "Cursor"}, timeout=3.0
+    )
+
+
+async def test_initialized_hook_skips_when_no_client_params():
+    """Hook gracefully skips when client_params is None (old MCP client)."""
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+    import mcp.types as mcp_types
+    from unity_mcp.server_filtering import install_initialized_hook
+
+    session = SimpleNamespace(client_params=None)
+    request_context = SimpleNamespace(session=session)
+
+    mock_inner = MagicMock()
+    mock_inner.notification_handlers = {}
+    mock_inner.request_context = request_context
+
+    mock_mcp = MagicMock()
+    mock_mcp._mcp_server = mock_inner
+
+    mock_bridge = MagicMock()
+    mock_bridge.send = AsyncMock()
+
+    install_initialized_hook(mock_mcp, lambda: mock_bridge)
+    handler = mock_inner.notification_handlers[mcp_types.InitializedNotification]
+
+    await handler(SimpleNamespace())
+    await asyncio.sleep(0)
+
+    mock_bridge.send.assert_not_called()
+
+
+async def test_initialized_hook_sends_correct_label_for_codex():
+    """'Codex' client → set_client_label sent with label='Codex'."""
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+    import mcp.types as mcp_types
+    from unity_mcp.server_filtering import install_initialized_hook
+
+    client_info = SimpleNamespace(name="Codex")
+    client_params = SimpleNamespace(clientInfo=client_info)
+    session = SimpleNamespace(client_params=client_params)
+    request_context = SimpleNamespace(session=session)
+
+    mock_inner = MagicMock()
+    mock_inner.notification_handlers = {}
+    mock_inner.request_context = request_context
+    mock_mcp = MagicMock()
+    mock_mcp._mcp_server = mock_inner
+
+    mock_bridge = MagicMock()
+    mock_bridge.send = AsyncMock(return_value={"ok": True})
+
+    install_initialized_hook(mock_mcp, lambda: mock_bridge)
+    handler = mock_inner.notification_handlers[mcp_types.InitializedNotification]
+    await handler(SimpleNamespace())
+    await asyncio.sleep(0)
+
+    mock_bridge.send.assert_called_once_with(
+        "set_client_label", {"label": "Codex"}, timeout=3.0
+    )
+
+
+async def test_initialized_hook_skips_for_claude_code():
+    """'Claude Code' is the default label — hook must NOT send set_client_label."""
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+    import mcp.types as mcp_types
+    from unity_mcp.server_filtering import install_initialized_hook
+
+    client_info = SimpleNamespace(name="Claude Code")
+    client_params = SimpleNamespace(clientInfo=client_info)
+    session = SimpleNamespace(client_params=client_params)
+    request_context = SimpleNamespace(session=session)
+
+    mock_inner = MagicMock()
+    mock_inner.notification_handlers = {}
+    mock_inner.request_context = request_context
+    mock_mcp = MagicMock()
+    mock_mcp._mcp_server = mock_inner
+
+    mock_bridge = MagicMock()
+    mock_bridge.send = AsyncMock()
+
+    install_initialized_hook(mock_mcp, lambda: mock_bridge)
+    handler = mock_inner.notification_handlers[mcp_types.InitializedNotification]
+    await handler(SimpleNamespace())
+    await asyncio.sleep(0)
+
+    mock_bridge.send.assert_not_called()
+
+
+async def test_initialized_hook_logs_on_failure():
+    """When bridge.send raises, the error is logged at DEBUG level (not silently dropped)."""
+    import asyncio
+    import logging
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock, patch
+    import mcp.types as mcp_types
+    from unity_mcp.server_filtering import install_initialized_hook
+
+    client_info = SimpleNamespace(name="Codex")
+    client_params = SimpleNamespace(clientInfo=client_info)
+    session = SimpleNamespace(client_params=client_params)
+    request_context = SimpleNamespace(session=session)
+
+    mock_inner = MagicMock()
+    mock_inner.notification_handlers = {}
+    mock_inner.request_context = request_context
+    mock_mcp = MagicMock()
+    mock_mcp._mcp_server = mock_inner
+
+    mock_bridge = MagicMock()
+    mock_bridge.send = AsyncMock(side_effect=RuntimeError("tcp down"))
+
+    install_initialized_hook(mock_mcp, lambda: mock_bridge)
+    handler = mock_inner.notification_handlers[mcp_types.InitializedNotification]
+
+    logger = logging.getLogger("unity_mcp")
+    with patch.object(logger, "debug") as mock_debug:
+        await handler(SimpleNamespace())
+        await asyncio.sleep(0)
+
+    mock_debug.assert_called()

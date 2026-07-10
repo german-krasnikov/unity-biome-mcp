@@ -11,7 +11,7 @@ using Object = UnityEngine.Object;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class RenderAnalyzerBatchingTests
+    public class RenderAnalyzerBatchingTests : SceneTestBase
     {
         private readonly List<GameObject> _gos = new List<GameObject>();
         private readonly List<Object> _assets = new List<Object>();

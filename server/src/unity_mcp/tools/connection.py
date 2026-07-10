@@ -12,7 +12,7 @@ async def list_connections() -> str:
     s = _get_slot() if _get_slot else None
     if s is None:
         return "No slot initialized"
-    status = "connected" if s.connected else "disconnected"
+    status = s.status
     return f"port {s.port} ({status})"
 
 

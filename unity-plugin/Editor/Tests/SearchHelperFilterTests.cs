@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SearchHelperFilterTests
+    public class SearchHelperFilterTests : SceneTestBase
     {
         private GameObject _tagged;
         private GameObject _layered;

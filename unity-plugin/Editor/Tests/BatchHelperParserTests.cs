@@ -204,5 +204,83 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(1, result.Count);
             StringAssert.Contains("Player One", result[0].argsJson);
         }
+
+        // ── Alias expansion integration ────────────────────────────────────────
+
+        [Test]
+        public void ParseLine_WithAliasPath_Expands()
+        {
+            AliasExpander._tableOverride = new System.Collections.Generic.Dictionary<string, string>
+                { ["julia"] = "/Characters/Julia" };
+            try
+            {
+                var (cmd, args) = BatchHelper.ParseLine("get_component path=$julia type=Rigidbody");
+                Assert.AreEqual("get_component", cmd);
+                StringAssert.Contains("/Characters/Julia", args);
+                StringAssert.DoesNotContain("$julia", args);
+            }
+            finally
+            {
+                AliasExpander._tableOverride = null;
+            }
+        }
+
+        // ── ValidateAliases ────────────────────────────────────────────────────
+
+        [Test]
+        public void BatchValidateAliases_AllResolved_ReturnsOk()
+        {
+            AliasExpander._tableOverride = new System.Collections.Generic.Dictionary<string, string>
+                { ["hero_path"] = "/Player" };
+            try
+            {
+                var result = BatchHelper.Execute(
+                    "ping\nset_property path=$hero_path value=1",
+                    "continue", validateAliases: true);
+                Assert.AreEqual("ok: all aliases resolved", result);
+            }
+            finally
+            {
+                AliasExpander._tableOverride = null;
+            }
+        }
+
+        [Test]
+        public void BatchValidateAliases_UnresolvedAlias_ReturnsUnresolved()
+        {
+            AliasExpander._tableOverride = new System.Collections.Generic.Dictionary<string, string>();
+            try
+            {
+                var result = BatchHelper.Execute(
+                    "set_property path=$unknown_path value=1",
+                    "continue", validateAliases: true);
+                StringAssert.StartsWith("unresolved:", result);
+                StringAssert.Contains("$unknown_path", result);
+            }
+            finally
+            {
+                AliasExpander._tableOverride = null;
+            }
+        }
+
+        [Test]
+        public void BatchValidateAliases_MixedResolved_ListsOnlyUnresolved()
+        {
+            AliasExpander._tableOverride = new System.Collections.Generic.Dictionary<string, string>
+                { ["known"] = "/A" };
+            try
+            {
+                var result = BatchHelper.Execute(
+                    "cmd path=$known other=$missing",
+                    "continue", validateAliases: true);
+                StringAssert.StartsWith("unresolved:", result);
+                StringAssert.Contains("$missing", result);
+                StringAssert.DoesNotContain("$known", result);
+            }
+            finally
+            {
+                AliasExpander._tableOverride = null;
+            }
+        }
     }
 }

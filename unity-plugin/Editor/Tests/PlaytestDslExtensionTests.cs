@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestDslExtensionTests
+    public class PlaytestDslExtensionTests : SceneTestBase
     {
         // ── 1.1 ReadField with method args ───────────────────────────────────────
 

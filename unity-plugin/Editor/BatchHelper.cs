@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
@@ -16,8 +17,13 @@ namespace UnityMCP.Editor
         // Testable seam — delegates to CommandRouter.IsCompiling so tests can inject false.
         internal static Func<bool> IsCompiling = () => CommandRouter.IsCompiling();
 
-        public static string Execute(string commandsText, string onError, int timeoutMs = 25000, bool atomic = false)
+        private static readonly Regex _sigilRe = new Regex(@"\$([A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
+
+        public static string Execute(string commandsText, string onError, int timeoutMs = 25000, bool atomic = false, bool validateAliases = false)
         {
+            if (validateAliases)
+                return ValidateAliases(commandsText);
+
             var commands = ParseLines(commandsText);
             var sb = new StringBuilder();
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -152,6 +158,28 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd('\n');
         }
 
+        private static string ValidateAliases(string commandsText)
+        {
+            var unresolved = new HashSet<string>();
+            foreach (var line in (commandsText ?? "").Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#")) continue;
+
+                var firstSpace = trimmed.IndexOf(' ');
+                if (firstSpace < 0) continue;
+                var rest = trimmed.Substring(firstSpace + 1);
+
+                var expanded = AliasExpander.ExpandText(rest);
+                foreach (Match m in _sigilRe.Matches(expanded))
+                    unresolved.Add("$" + m.Groups[1].Value);
+            }
+
+            return unresolved.Count == 0
+                ? "ok: all aliases resolved"
+                : "unresolved: " + string.Join(", ", unresolved);
+        }
+
         internal static List<(string cmd, string argsJson)> ParseLines(string text)
         {
             var result = new List<(string, string)>();
@@ -189,7 +217,7 @@ namespace UnityMCP.Editor
             var cmd = line.Substring(0, firstSpace);
             var rest = line.Substring(firstSpace + 1).Trim();
 
-            // Parse key=value pairs into JSON
+            rest = AliasExpander.ExpandText(rest);  // expand $sigils before key=value parsing
             var args = ParseKeyValuePairs(rest);
             var argsJson = BuildJsonObject(args);
 

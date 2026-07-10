@@ -8,7 +8,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class AutoWiringHelperTests
+    public class AutoWiringHelperTests : SceneTestBase
     {
         // Minimal MonoBehaviour with one ObjectReference field per component type tested.
         private class LightHolder : MonoBehaviour

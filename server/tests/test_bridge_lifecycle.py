@@ -6,11 +6,9 @@ Covers:
 - close() survives wait_closed timeout
 - _reconnect() only assigns self._reader/writer after ping succeeds
 - _reconnect() closes new socket on ping failure (no leak)
-- connected property detects CLOSE_WAIT via MSG_PEEK
-- connected property returns True for a live socket
+- connected property: True iff writer is not None and not is_closing()
 """
 import asyncio
-import select
 import socket
 import struct
 import json
@@ -127,47 +125,6 @@ async def test_reconnect_closes_new_socket_on_ping_failure():
     assert bridge._writer is None
 
 
-# ---------------------------------------------------------------------------
-# Fix 3: connected — CLOSE_WAIT detection via MSG_PEEK
-# ---------------------------------------------------------------------------
-
-def test_connected_false_on_close_wait():
-    """connected returns False when socket is readable but recv returns empty (CLOSE_WAIT)."""
-    mock_sock = Mock()
-    writer = make_writer()
-    writer.get_extra_info = Mock(return_value=mock_sock)
-    writer.is_closing = Mock(return_value=False)
-
-    bridge = UnityBridge()
-    bridge._writer = writer
-    bridge._reader = AsyncMock()
-
-    # Simulate CLOSE_WAIT: select says readable, recv(MSG_PEEK) returns b""
-    with patch("select.select", return_value=([mock_sock], [], [])), \
-         patch.object(mock_sock, "recv", return_value=b""):
-        result = bridge.connected
-
-    assert result is False
-
-
-def test_connected_true_when_alive():
-    """connected returns True when socket is not readable (no pending FIN)."""
-    mock_sock = Mock()
-    writer = make_writer()
-    writer.get_extra_info = Mock(return_value=mock_sock)
-    writer.is_closing = Mock(return_value=False)
-
-    bridge = UnityBridge()
-    bridge._writer = writer
-    bridge._reader = AsyncMock()
-
-    # Socket not readable = no FIN pending = alive
-    with patch("select.select", return_value=([], [], [])):
-        result = bridge.connected
-
-    assert result is True
-
-
 def test_connected_false_when_writer_none():
     """connected returns False when no writer (never connected)."""
     bridge = UnityBridge()
@@ -181,3 +138,102 @@ def test_connected_false_when_writer_closing():
     bridge = UnityBridge()
     bridge._writer = writer
     assert bridge.connected is False
+
+
+# ---------------------------------------------------------------------------
+# RC1 — new contract: writer not None + not is_closing()
+# ---------------------------------------------------------------------------
+
+def test_connected_true_with_live_writer():
+    """connected returns True iff writer is set and not closing.
+
+    RC1 bug: old code did select+MSG_PEEK; if asyncio drained bytes into
+    StreamReader the OS buffer looked empty → BlockingIOError → False negative.
+    New code: only checks is_closing(), no socket peek.
+    """
+    mock_sock = Mock()
+    mock_sock.recv.side_effect = BlockingIOError()  # would be False negative in old code
+    writer = make_writer()
+    writer.get_extra_info = Mock(return_value=mock_sock)
+    writer.is_closing = Mock(return_value=False)
+
+    bridge = UnityBridge()
+    bridge._writer = writer
+
+    with patch("select.select", return_value=([mock_sock], [], [])):
+        result = bridge.connected
+
+    assert result is True
+
+
+def test_connected_false_after_drain_eof():
+    """connected returns False once writer.is_closing() is True (CLOSE_WAIT via asyncio)."""
+    writer = make_writer()
+    writer.is_closing = Mock(return_value=True)
+    bridge = UnityBridge()
+    bridge._writer = writer
+    assert bridge.connected is False
+
+
+# ---------------------------------------------------------------------------
+# Heartbeat lifecycle: close() stops heartbeat, _reconnect() starts it
+# ---------------------------------------------------------------------------
+
+async def test_close_stops_heartbeat():
+    """close() must cancel and null the heartbeat task (leak fix)."""
+    bridge = UnityBridge()
+    bridge.start_heartbeat(interval=60.0)
+    task = bridge._heartbeat_task
+    assert task is not None and not task.done()
+
+    await bridge.close()
+    await asyncio.sleep(0)  # let CancelledError propagate through the loop
+
+    assert bridge._heartbeat_task is None
+    # The task must have been cancelled
+    assert task.cancelled() or task.done()
+
+
+async def test_reconnect_starts_heartbeat(mock_connection):
+    """_reconnect() must call start_heartbeat() so heartbeat runs after reconnect."""
+    from helpers import reconnect_preamble
+    mock_reader, mock_writer = mock_connection
+    mock_reader.readexactly = AsyncMock(side_effect=reconnect_preamble())
+
+    with patch("asyncio.open_connection", return_value=mock_connection):
+        bridge = UnityBridge()
+        assert bridge._heartbeat_task is None
+
+        await bridge._reconnect(fire_callbacks=False)
+
+        assert bridge._heartbeat_task is not None
+        bridge.stop_heartbeat()
+
+
+# ---------------------------------------------------------------------------
+# MAJOR #2: _ping_stall_failures must reset on reconnect
+# ---------------------------------------------------------------------------
+
+async def test_ping_stall_failures_reset_on_reconnect():
+    """_ping_stall_failures must be 0 after successful _reconnect().
+
+    Bug: stall budget leaks across sessions — accumulated stalls from a previous
+    connection cause premature force-close after reconnect.
+    """
+    from helpers import make_idle_probe, reconnect_preamble
+
+    probe = make_idle_probe()
+    bridge = UnityBridge(probe=probe)
+    bridge._ping_stall_failures = 5  # simulate accumulated stalls
+
+    reader = AsyncMock()
+    writer = make_writer()
+    reader.readexactly = AsyncMock(side_effect=reconnect_preamble())
+
+    with patch("asyncio.open_connection", return_value=(reader, writer)):
+        await bridge._reconnect(fire_callbacks=False)
+
+    assert bridge._ping_stall_failures == 0, (
+        f"_ping_stall_failures must be reset to 0 after _reconnect(), got {bridge._ping_stall_failures}"
+    )
+    bridge.stop_heartbeat()

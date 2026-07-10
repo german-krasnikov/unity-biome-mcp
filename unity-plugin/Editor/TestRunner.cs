@@ -23,6 +23,7 @@ namespace UnityMCP.Editor
         private const string KeyStartTime = "UnityMCP_tests_start";
         private const string KeyTestCount = "UnityMCP_test_count";
         private const string KeyCountDiscovering = "UnityMCP_count_discovering";
+        internal const string TempScenePath = "Assets/TestsTemp/__mcp_test_temp.unity";
         private const double StaleTimeoutSec = 600.0; // 10 min max test run
 
         // Testable seam — override in tests to avoid Editor-uptime dependency
@@ -146,7 +147,7 @@ namespace UnityMCP.Editor
                 {
                     if (!AssetDatabase.IsValidFolder("Assets/TestsTemp"))
                         AssetDatabase.CreateFolder("Assets", "TestsTemp");
-                    EditorSceneManager.SaveScene(scene, "Assets/TestsTemp/__mcp_test_temp.unity");
+                    EditorSceneManager.SaveScene(scene, TempScenePath);
                 }
                 else if (scene.isDirty)
                     EditorSceneManager.SaveScene(scene);
@@ -246,6 +247,17 @@ namespace UnityMCP.Editor
                 TestResultPersistence.Save(formatted);
                 try { _onComplete?.Invoke(formatted); }
                 catch (Exception e) { Debug.LogException(e); }
+                EditorApplication.delayCall += DeleteTempScene;
+            }
+
+            private static void DeleteTempScene()
+            {
+                // Replace active scene if still pointing at temp file (guard against dirty-scene dialog)
+                var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+                if (activeScene.path == TempScenePath)
+                    EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                if (AssetDatabase.AssetPathToGUID(TempScenePath) != "")
+                    AssetDatabase.DeleteAsset(TempScenePath);
             }
 
             private string FormatResults()

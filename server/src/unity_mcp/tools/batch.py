@@ -11,8 +11,8 @@ _dsl_tools: set[str] = set()
 
 
 async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
-                atomic: bool = False) -> str:
-    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75, above Unity's 65s ceiling). atomic: True reverts ALL prior ops on first failure (Unity Undo; execute_code fs side-effects NOT reverted). Errors include auto-usage hints. PREFER over individual tool calls."""
+                atomic: bool = False, validate_aliases: bool = False) -> str:
+    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: True reverts ALL prior ops on first failure (Unity Undo); execute_code fs side-effects NOT reverted. PREFER over individual tool calls."""
     for line in commands.splitlines():
         cmd = line.strip().split()[0] if line.strip() else ""
         if cmd in _dsl_tools:
@@ -31,6 +31,8 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
         args["timeout_ms"] = timeout_ms
     if atomic:
         args["atomic"] = "true"
+    if validate_aliases:
+        args["validate_aliases"] = "true"
     return await _send("batch", args, timeout=timeout)
 
 

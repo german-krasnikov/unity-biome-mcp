@@ -10,10 +10,20 @@ TCP connection management, port discovery, health checks.
 
 ```python
 await list_connections()
-# → "port 9500 (connected)" or "port 9500 (disconnected)"
+# → "port 9500 (connected)"
+# → "port 9500 (reconnecting)"
+# → "port 9500 (domain-reloading)"
+# → "port 9500 (disconnected)"
 ```
 
-**Returns:** Single-line status string with port + connection state.
+**Returns:** Single-line `"port {N} ({status})"`. Status comes from `ConnectionSlot.status → UnityBridge.status`:
+
+| Status | Meaning |
+|--------|---------|
+| `connected` | Writer open, not closing |
+| `reconnecting` | Heartbeat loop attempting reconnect |
+| `domain-reloading` | Unity domain reload in progress (`BridgeState.DOMAIN_RELOADING`) |
+| `disconnected` | Startup grace expired (`BridgeState.FAILED`) |
 
 ---
 
@@ -58,6 +68,35 @@ await get_aliases()
 **Returns:** Bare `name=path|component|field` lines (no header/footer), or `"no aliases"` when no `PlaytestConfig` asset exists or alias list is empty.
 
 **Middleware behavior:** Python middleware auto-populates `_alias_cache` from this response. Subsequent tool calls with `$name` arg values auto-resolve against the cache. Also allowed during compile (`allowedDuringCompile=true`).
+
+---
+
+### set_client_label(label: str)
+
+**Write.** Attach a human-readable label to the current connection slot.
+
+```python
+await set_client_label(label="Cursor session")
+```
+
+**Behavior:**
+- Sets `MCPServer._mainSlot.Label = label` on the C# side.
+- Always allowed: registered as `alwaysAllowed` + `allowedDuringCompile`.
+- Label appears in disconnect logs: `slot.Label ?? label`.
+- Cleared to `null` on the first message of each new connection (slot reset).
+
+**Called automatically** by the MCP `InitializedNotification` hook in `server_filtering.py:install_initialized_hook`. After the MCP handshake, the hook reads `session.client_params.clientInfo.name` and sends `set_client_label`. Skips "Claude Code" (default). Failures logged at DEBUG.
+
+**RoleToLabel mapping (C# `CommandRouter`):**
+
+| Role string | Label |
+|-------------|-------|
+| `codex` | Codex session |
+| `cursor` | Cursor session |
+| `windsurf` | Windsurf session |
+| `claude-desktop` | Claude Desktop session |
+
+**Returns:** `"ok"` or error string.
 
 ---
 
@@ -221,6 +260,8 @@ await reconnect_unity()
 - Auto-reconnect on disconnect (5s backoff, max 60s exponential backoff with ±10% jitter)
 - Heartbeat every 15s (via `_raw_ping()`) to detect stale connections; fast-path bypass of retry machinery
 - Graceful shutdown: closes socket + cleanup on MCP exit
+- `MaxClients`: 8 (raised from 4 in v0.79+)
+- `volatile string Label`: human-readable client name; set via `set_client_label`, cleared on slot reset, appears in disconnect logs
 
 **Blocking behavior:** All MCP tool calls block on socket I/O (TCP call-response).
 
@@ -243,5 +284,22 @@ result = await get_hierarchy()  # now connected
 ```
 
 ---
+
+---
+
+## Client Identification
+
+Two paths for labeling the active connection slot:
+
+| Path | Mechanism | When used |
+|------|-----------|-----------|
+| MCP hook | `install_initialized_hook` reads `clientInfo.name`, calls `set_client_label` | Cursor, Windsurf, Claude Desktop (any non-"Claude Code" MCP client) |
+| Env var | `UNITY_MCP_CLIENT` read in `bridge.py:_reconnect()`, sent as ping `role` field | Codex and other non-MCP tools that launch bridge directly |
+
+**`UNITY_MCP_CLIENT` flow:**
+```bash
+export UNITY_MCP_CLIENT=codex  # set before bridge launch
+```
+Bridge reads it in `_reconnect()` and includes `"role": "codex"` in the ping payload. C# `RoleToLabel` maps it to `"Codex session"` and stores on the slot.
 
 **See also:** CLAUDE.md § "Run MCP server", `.claude/skills/reload-recovery.md` (domain reload strategy).

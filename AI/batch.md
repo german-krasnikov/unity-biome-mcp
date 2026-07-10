@@ -68,7 +68,13 @@ ToolError: <tool_name> requires typed MCP tool (Python DSL expansion), not batch
 - Compile guard: mutating commands blocked during compilation (unless explicitly allowed)
 - Main thread processing only (no concurrency)
 - DSL-expansion tools (registered via `register_dsl_tools()`) rejected with clear error message (Python-side check)
-- **`$alias` sigil not expanded in batch DSL** — batch executes on C# side before Python alias resolution runs. Middleware appends `[WARN] $alias in batch DSL not supported — use explicit paths instead`. Always use literal paths in batch commands.
+- **`$alias` sigils expanded in batch DSL (v0.78.8):** `BatchHelper.cs` calls `AliasExpander.ExpandText()` per line before key=value parsing. Python alias resolution is NOT needed for batch; C# alias table is populated via `get_aliases` / auto-warmup.
+
+### Blast Radius Exemption for Read-Only Batches (v0.78.10)
+
+`_is_batch_readonly(commands)` helper (`middleware_guards.py`) checks if every non-blank, non-comment line in the batch text is a read command. When true, `check_blast_radius()`, `check_verification_needed()`, and `transition()` all return `None` immediately — no blast-radius warning, no verification nudge, no FSM write counter increment. Read-only batches (`get_hierarchy`, `get_component`, `inspect`, etc.) pass through middleware cleanly without any guard noise.
+
+`editor` is special-cased: only `action=state` and `action=project_path` count as reads (`_EDITOR_READ_ACTIONS` constant); absent or any other action (play/stop/pause/step/select) is treated conservatively as a write. All other commands are checked against `READ_CMDS` (43 entries as of v0.78.11; was 15 before the v0.78.11 audit).
 
 ### C# Command Filtering Options
 
@@ -136,7 +142,7 @@ batch(
 ## MCP Tool
 
 ### Tool: `batch`
-**Parameters:** `commands` (required, text), `on_error` (default="continue"), `atomic` (optional, boolean, default=false), `timeout` (optional, float seconds, default=30.0 — Python converts to `timeout_ms=(timeout-5)*1000` for C#, C# default=25000ms)
+**Parameters:** `commands` (required, text), `on_error` (default="continue"), `atomic` (optional, boolean, default=false), `timeout` (optional, float seconds, default=30.0 — Python converts to `timeout_ms=(timeout-5)*1000` for C#, C# default=25000ms), `validate_aliases` (optional, boolean, default=false — when true, forwards `validate_aliases=true` to C# for dry-run alias resolution check without executing commands)
 
 Executes multiple text-based commands. One command per line, format: `cmd key=value key=value`
 

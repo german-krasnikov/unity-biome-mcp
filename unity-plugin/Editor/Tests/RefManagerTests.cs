@@ -5,7 +5,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class RefManagerTests
+    public class RefManagerTests : SceneTestBase
     {
         [SetUp]
         public void SetUp() => RefManager.Invalidate();

@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SpatialHelperCenterTests
+    public class SpatialHelperCenterTests : SceneTestBase
     {
         private GameObject _anchor;
         private GameObject _nearby;

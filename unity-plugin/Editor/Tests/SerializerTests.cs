@@ -23,7 +23,7 @@ namespace UnityMCP.Editor.Tests
     // ─────────────────────────────────────────────────────────────────────────
 
     [TestFixture]
-    public class AnimationSerializerTests
+    public class AnimationSerializerTests : SceneTestBase
     {
         private GameObject _go;
         private readonly System.Collections.Generic.List<UnityEngine.Object> _assets = new();
@@ -146,7 +146,7 @@ namespace UnityMCP.Editor.Tests
     // ─────────────────────────────────────────────────────────────────────────
 
     [TestFixture]
-    public class ParticleSerializerTests
+    public class ParticleSerializerTests : SceneTestBase
     {
         private GameObject _go;
 
@@ -252,7 +252,7 @@ namespace UnityMCP.Editor.Tests
     // ─────────────────────────────────────────────────────────────────────────
 
     [TestFixture]
-    public class ShaderSerializerTests
+    public class ShaderSerializerTests : SceneTestBase
     {
         private GameObject _go;
         private Material _mat;

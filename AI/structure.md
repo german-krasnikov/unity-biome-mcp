@@ -42,8 +42,8 @@ unity-kiss-mcp/
 │   │   ├── compile_state.py    # CompileStateProbe (heuristic Unity compile detection)
 │   │   ├── middleware.py       # 23-layer middleware pipeline (env-gated UNITY_MCP_MIDDLEWARE=1); _play_state_known flag (feat/tool-disambiguation); _alias_cache dict (v0.78.x, cleared on reset_session)
 │   │   ├── middleware_alias.py # Pure alias functions: parse_aliases_from_hierarchy, resolve_aliases_in_args, strip_alias_block, parse_aliases_from_get_aliases (v0.78.x)
-│   │   ├── middleware_types.py # _RUNTIME_ONLY_CMDS frozenset: commands requiring Play Mode (invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, get_perf, get_frame_stats, debug_animator, debug_physics, watch_add, profile)
-│   │   ├── middleware_guards.py # check_play_mode_required(): fail-fast guard blocks _RUNTIME_ONLY_CMDS before TCP when edit mode confirmed
+│   │   ├── middleware_types.py # _RUNTIME_ONLY_CMDS frozenset: commands requiring Play Mode; READ_CMDS frozenset (v0.78.11: expanded 15→43 — covers scene inspection, console, screenshots, editor read-only actions, alias/connection/meta, testing, profiling/debug, diff/audit/health, assets/schema/code reads, session listing, LLM tools); _EDITOR_READ_ACTIONS = {"state", "project_path"} (v0.78.11: editor dual-use guard); WRITE_CMDS frozenset (+rename_object, +set_sibling_index; -compress_hierarchy, v0.78.11)
+│   │   ├── middleware_guards.py # check_play_mode_required(): fail-fast guard; _is_batch_readonly(): checks all batch lines are READ_CMDS; editor dual-use: action∈_EDITOR_READ_ACTIONS → read, absent/other → write (v0.78.11); check_blast_radius/check_verification_needed/transition accept args param — read-only batches skip guards (v0.78.10)
 │   │   ├── middleware_paths.py # PathResolverMixin extracted from middleware.py
 │   │   ├── plugin_api.py      # Stable public API for external plugins (RO, RW, SamplingService, strip_fences)
 │   │   ├── unity_state.py      # Unity state file reader
@@ -105,13 +105,13 @@ unity-kiss-mcp/
 │   │   │   ├── __init__.py     # Tool module registry
 │   │   │   ├── tool_specs.py   # Single source of truth: 129 ToolSpec entries with category/core/tier1/timeout_s metadata (v0.69.0, M8)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
-│   │   │   ├── meta.py         # Meta tools: discover_tools, doctor, resolve_tool_schema, set_llm_config in register(mcp, send, args) pattern (v0.69.0)
+│   │   │   ├── meta.py         # Meta tools: discover_tools, doctor, resolve_tool_schema, set_llm_config, alias_status in register(mcp, send, args) pattern (v0.69.0, v0.78.9: +alias_status)
 │   │   │   ├── profiling.py    # Profile MCP tool: session-based profiling, frame stats, performance analysis (v0.60.0, 412 LOC)
 │   │   │   ├── rendering.py    # Render analysis MCP tools: draw calls, batching, lights, LOD culling (v0.60.0, 618 LOC)
 │   │   │   ├── auto_wire.py    # Auto-wiring tool: fill ObjectRef fields by semantic name/type matching (v0.62.0)
 │   │   │   ├── scene_health.py # Scene health audit: hierarchy depth, naming, duplicates, origins, missing scripts (v0.62.0)
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
-│   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/clone_object/set_material
+│   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/clone_object/set_material; get_component+inspect accept compress=True (v0.78.9)
 │   │   │   ├── scene.py        # scene, hierarchy, search (multi-scene support, v0.70.0: only scene_tools)
 │   │   │   ├── console.py      # get_console tool split from scene.py (v0.70.0)
 │   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)
@@ -119,7 +119,7 @@ unity-kiss-mcp/
 │   │   │   ├── editor_control.py # editor control commands split from scene.py (v0.70.0)
 │   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (abort_on_fail), fuzz_playtest
 │   │   │   ├── scenarios.py    # save_scenario, load_scenario, list_scenarios, run_scenario — .playtest file persistence (v0.74.0)
-│   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set
+│   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set; batch accepts validate_aliases=True for dry-run alias check (v0.78.9)
 │   │   │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
 │   │   │   ├── skills.py       # save/use/list_skill, apply/save/list_template + _skills_dir
 │   │   │   ├── spatial.py      # validate_layout, get_spatial_context, scan_scene, check_colliders, spatial_query, objects_in_polygon (v0.46.0: polygon validation + vertices param)
@@ -147,7 +147,7 @@ unity-kiss-mcp/
 │   │   │   └── _annotations.py          # Tool annotations
 │   │   └── plugins/            # Plugin system — 3-source auto-discovery (auto-disabled via UNITY_MCP_SKIP_PLUGINS env)
 │   │       └── __init__.py     # load_plugins(mcp, send_fn, args_fn), 3-source discovery, UNITY_MCP_SKIP_PLUGINS filtering
-│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; v0.78.x: +alias middleware tests; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
+│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; v0.78.11: +test_middleware_read_cmds + test_tool_schema_coverage; v0.78.x: +alias middleware tests; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
 │       ├── helpers.py                  # DRY: make_mock_bridge() + shared test utilities (v0.26.0)
 │       ├── test_server*.py             # Core + edge cases + tools
 │       ├── test_bridge*.py             # TCP bridge + reconnect + resilience
@@ -155,6 +155,8 @@ unity-kiss-mcp/
 │       ├── test_middleware*.py          # Middleware layers (god-file split in v0.26.0)
 │       ├── test_middleware_alias.py     # middleware_alias pure functions: parse/resolve/strip (v0.78.x)
 │       ├── test_middleware_alias_lifecycle.py # Alias cache lifecycle: seeding, reset, Hook 1+2 integration (v0.78.x)
+│       ├── test_middleware_read_cmds.py    # READ_CMDS coverage: 59 tests verifying every cmd in READ_CMDS is flagged read-only + editor dual-use action parsing (v0.78.11)
+│       ├── test_tool_schema_coverage.py    # FastMCP contract tests: 7 tests verify JSON Schema emitted by FastMCP matches expected params (compress, validate_aliases, alias_status registration, core tool non-empty properties, v0.78.11)
 │       ├── test_batch*.py              # Batch + conflict + timeout
 │       ├── test_config_gaps.py         # Config validation: resolver.py + validator.py + update_check.py + doctor; SERVER_NAME drift guard (v0.71.0) (73+78=151 tests, v0.47.1: GitHub API, git+URL, TOML clients, per-client root_key)
 │       ├── test_server_name_consistency.py # Cross-language Python↔C# SERVER_NAME + MCP_BLANKET drift guard (v0.71.0)
@@ -179,6 +181,9 @@ unity-kiss-mcp/
 │       ├── test_region.py               # Region Selection spatial queries + polygon validation (20 tests, v0.46.0)
 │       ├── test_read_unity_port.py      # Port discovery waterfall + UNITY_MCP_PROJECT_DIR (7 tests, v0.52.6)
 │       ├── test_bridge_port_rediscovery.py # Bridge port pinning + reconnect stability (6 tests, v0.52.6)
+│       ├── test_bridge_reload_gate.py      # Reload gate (asyncio.Event): wakes on reconnect, replaces fixed sleep (5 tests, v0.78.5)
+│       ├── test_bridge_role.py             # Client role/identification: UNITY_MCP_CLIENT env, set_client_label, RoleToLabel (3 tests, v0.78.5)
+│       ├── test_connection_status.py       # Semantic connection status: connected/reconnecting/domain-reloading/disconnected (v0.78.10)
 │       ├── test_lockfile.py             # PID lockfile + cleanup_stale_port_files (additions, v0.52.6)
 │       ├── test_server_control.py       # list_servers, stop_server SIGTERM/taskkill (v0.55.10)
 │       ├── test_autobatch.py            # _quote_if_spaces, _DOTTED_KV_RE, setup/set/configure_objects (v0.55.10)
@@ -264,7 +269,8 @@ unity-kiss-mcp/
 │       ├── HierarchySerializer.cs          # Scene → text tree + MAX_NODES + summary + incremental
 │       ├── ComponentSerializer.cs          # Component → key-value + ObjectReference + UnityEvent
 │       ├── ComponentSerializer.Finder.cs   # #instanceID in all path tools (v0.23.0)
-│       ├── BatchHelper.cs                  # Batch text parser + per-command guards + timeout
+│       ├── BatchHelper.cs                  # Batch text parser + per-command guards + timeout; calls AliasExpander.ExpandText per line (v0.78.8)
+│       ├── AliasExpander.cs                # C#-side $sigil expansion: ExpandJson (args) + ExpandText (DSL); lazy PlaytestConfig cache, AliasConfigPostprocessor invalidation (v0.78.8); BuildPipePath(QueryAlias): preserves path|component|field for ValPath aliases (v0.78.11)
 │       ├── FieldProjector.cs               # Pure static: filter inspect/get_component output to requested fields (v0.78.x, 67 LOC)
 │       ├── DefaultStripper.cs              # Pure static: strip default/zero-value lines from component output (v0.78.x, 62 LOC)
 │       ├── RefManager.cs                   # Ephemeral $a-$zz scene refs (702 slots)
@@ -309,7 +315,7 @@ unity-kiss-mcp/
 │       ├── SceneHelper.cs                  # Scene management: open additive, close, set active, list (v0.24.3)
 │       ├── ProjectSettingsHelper.cs + MaterialHelper.cs
 │       ├── PrefabHelper.cs + ScriptableObjectHelper.cs
-│       ├── GameStateHelper.cs + TestRunner.cs # TestRunner v0.25.0: filter param (pipe-separated class names), SessionState-based pending tracking
+│       ├── GameStateHelper.cs + TestRunner.cs # TestRunner v0.25.0: filter param, SessionState-based pending tracking; v0.78.11: TempScenePath internal const + DeleteTempScene (delayCall cleanup after run: replaces active temp scene, deletes asset)
 │       ├── ConsoleCapture.cs               # Logs → text (Issue 27: orchestrates ring buffer + problem persistence)
 │       ├── ConsoleRingBuffer.cs            # Bounded in-memory log capture: init buffer (50, 5s window) + ring (450 entries)
 │       ├── ConsoleProblemPersistence.cs    # SessionState-persisted problem entries (Error/Exception/Assert) across domain reload
@@ -369,6 +375,7 @@ unity-kiss-mcp/
 │       │   ├── MarkdownInlineFormatterTests.cs # Rich-text formatting (bold, italic, code, links) (v0.42.0)
 │       │   ├── UpdatesPageTests.cs        # Changelog rendering + update check UI (v0.42.0)
 │       │   ├── LevelUpTests.cs            # LevelUp panel state machine, animation, release diff parsing (12 tests, v0.44.0)
+│       │   ├── SceneTestBase.cs           # Abstract TearDown base (v0.78.8): calls EditorSceneManager.NewScene in TearDown to prevent "Save Scene?" dialog across 36 test classes
 │       │   ├── MultiSceneTestBase.cs      # Base class for multi-scene tests (DRY consolidation v0.24.3+v0.25.0: saves additive scenes, captures main scene name before NewScene)
 │       │   ├── MultiSceneFinderTests.cs   # Object finding across scenes + reference scanning (v0.24.3)
 │       │   ├── PortResolverTests.cs       # 25+4 NUnit tests (port validation, fallback, dual-port edge cases, v0.52.6: chat collision guard)
@@ -446,6 +453,9 @@ unity-kiss-mcp/
 │       │   ├── PlaytestAliasWindowTests.cs       # PlaytestAliasWindow UIElements: add/remove/rename, Export, Copy (v0.78.x)
 │       │   ├── PlaytestAliasHelperTypedTests.cs  # FormatLine type dispatch: ValPath pipes, ValConst no-pipe literal, VarRuntime @ prefix (v0.77.12)
 │       │   ├── PlaytestDropHelperMemberTests.cs  # GetMemberNames + GetZeroArgMethodNames: fields, props, methods reflection (v0.77.12)
+│       │   ├── AliasExpanderTests.cs             # AliasExpander unit tests: ExpandJson escaping, ExpandText passthrough, unknown sigil intact, _tableOverride seam (v0.78.8); IsStale true/false scenarios (v0.78.9); +13 pipe tests: ValPath preserves component|field, ValConst no-pipe, unknown intact (v0.78.11)
+│       │   ├── AliasStatusTests.cs               # alias_status command: IsStale tracking, loaded/empty/stale states, ExecAliasStatus registration (v0.78.9)
+│       │   ├── PlaytestGlobalAliasTests.cs       # PlaytestConfig alias auto-injection: VAL block injected before user script, INCLUDE overrides, empty config no-op (v0.78.9); +6 tests: ValPath pipe format preserved in injection (v0.78.11)
 │       ├── Wizard/                        # Setup Wizard + Auto-Config + Diagnostics (v0.38.0+, v0.68.0: ProjectConfigWriter auto-config, v0.42.0: 3-screen flow, 9 backends, asmdef split; v0.47.1: AiConfigScreen fallback, removed dead screens)
 │       │   ├── ProjectConfigWriter.cs     # [InitializeOnLoad] auto-config orchestrator: discovers port, version, writes per-project MCP configs for all targets (v0.68.0)
 │       │   ├── ProjectConfigFormats.cs    # Format registry: JSON, TOML, extensible (v0.68.0)

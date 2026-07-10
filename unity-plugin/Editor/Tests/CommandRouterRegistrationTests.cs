@@ -16,7 +16,7 @@ namespace UnityMCP.Editor.Tests
         private static readonly string[] MetaCommands =
         {
             "ping", "get_capabilities", "get_enabled_tools", "get_disabled_tools",
-            "set_tool_catalog", "screenshot", "diagnose",
+            "set_tool_catalog", "set_client_label", "screenshot", "diagnose",
         };
 
         private static readonly string[] AsyncCommands =

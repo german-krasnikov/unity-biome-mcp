@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SearchHelperScopedTests
+    public class SearchHelperScopedTests : SceneTestBase
     {
         private GameObject _root;
         private GameObject _child1;

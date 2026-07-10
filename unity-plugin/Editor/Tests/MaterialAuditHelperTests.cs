@@ -9,7 +9,7 @@ using UnityEngine.Rendering;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MaterialAuditHelperTests
+    public class MaterialAuditHelperTests : SceneTestBase
     {
         readonly List<Object> _created = new List<Object>();
 

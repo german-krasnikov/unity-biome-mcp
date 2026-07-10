@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ClickStepTests
+    public class ClickStepTests : SceneTestBase
     {
         readonly List<GameObject> _cleanup = new List<GameObject>();
 

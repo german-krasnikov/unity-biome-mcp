@@ -9,19 +9,19 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void Humanize_KnownTool_ReturnsVerb()
         {
-            Assert.AreEqual("Reading scene",   ToolVerbMap.Humanize("mcp__unity__get_hierarchy"));
-            Assert.AreEqual("Editing",         ToolVerbMap.Humanize("mcp__unity__set_property"));
-            Assert.AreEqual("Creating",        ToolVerbMap.Humanize("mcp__unity__create_object"));
-            Assert.AreEqual("Deleting",        ToolVerbMap.Humanize("mcp__unity__delete_object"));
-            Assert.AreEqual("Playtesting",     ToolVerbMap.Humanize("mcp__unity__run_playtest"));
-            Assert.AreEqual("Running batch",   ToolVerbMap.Humanize("mcp__unity__batch"));
-            Assert.AreEqual("Checking refs",   ToolVerbMap.Humanize("mcp__unity__validate_references"));
+            Assert.AreEqual("Reading scene",   ToolVerbMap.Humanize("mcp__unity-mcp__get_hierarchy"));
+            Assert.AreEqual("Editing",         ToolVerbMap.Humanize("mcp__unity-mcp__set_property"));
+            Assert.AreEqual("Creating",        ToolVerbMap.Humanize("mcp__unity-mcp__create_object"));
+            Assert.AreEqual("Deleting",        ToolVerbMap.Humanize("mcp__unity-mcp__delete_object"));
+            Assert.AreEqual("Playtesting",     ToolVerbMap.Humanize("mcp__unity-mcp__run_playtest"));
+            Assert.AreEqual("Running batch",   ToolVerbMap.Humanize("mcp__unity-mcp__batch"));
+            Assert.AreEqual("Checking refs",   ToolVerbMap.Humanize("mcp__unity-mcp__validate_references"));
         }
 
         [Test]
         public void Humanize_UnknownTool_StripsPrefixAndReplaceUnderscores()
         {
-            var result = ToolVerbMap.Humanize("mcp__unity__some_custom_tool");
+            var result = ToolVerbMap.Humanize("mcp__unity-mcp__some_custom_tool");
             Assert.AreEqual("some custom tool", result);
         }
 

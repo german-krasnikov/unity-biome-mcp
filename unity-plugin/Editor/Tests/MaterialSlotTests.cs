@@ -5,7 +5,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MaterialSlotTests
+    public class MaterialSlotTests : SceneTestBase
     {
         private GameObject _go;
         private Material _mat0;

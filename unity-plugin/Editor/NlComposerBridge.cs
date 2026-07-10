@@ -74,6 +74,7 @@ namespace UnityMCP.Editor
         // Returns DSL string or null on any failure / empty result.
         internal static async Task<string> ParseAsync(string nlText, SamplingConfig cfg)
         {
+            if (string.IsNullOrEmpty(cfg?.Model)) return null;
             var binary = ResolveBinary(cfg);
             if (string.IsNullOrEmpty(binary)) return null;
 

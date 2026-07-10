@@ -34,7 +34,11 @@ namespace UnityMCP.Editor
             var tagLines = string.Join("\n",
                 UnityEditorInternal.InternalEditorUtility.tags
                     .Select(tag => $"VAL ${tag.Replace(" ", "_")} {tag}"));
-            var resolvedScript = tagLines + "\n" + script;
+            // Inject PlaytestConfig aliases before user script so INCLUDE/later VAL can override (last-write-wins)
+            var cfgBlock = config?.aliases?.Count > 0
+                ? PlaytestAliasHelpers.FormatVALBlock(config.aliases) + "\n"
+                : "";
+            var resolvedScript = tagLines + "\n" + cfgBlock + script;
 
             ParseResult parseResult = null;
             List<PlaytestStep> steps;

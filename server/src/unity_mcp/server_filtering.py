@@ -253,3 +253,39 @@ def install_list_tools_filter(mcp_server, get_disabled_cache_fn):
         return result
 
     mcp_server._mcp_server.request_handlers[mcp_types.ListToolsRequest] = _filtered_tools_handler
+
+
+_DEFAULT_CLIENT_LABEL = "Claude Code"
+
+
+def install_initialized_hook(mcp_server, get_slot):
+    """Register InitializedNotification handler to log MCP client name in Unity.
+
+    Skips "Claude Code" (already the default label on the C# side).
+    Logs at DEBUG on send failure instead of silently dropping the error.
+    """
+    import asyncio
+    import mcp.types as mcp_types
+    logger = logging.getLogger("unity_mcp")
+
+    async def _on_initialized(notification) -> None:
+        try:
+            session = mcp_server._mcp_server.request_context.session
+            name = session.client_params.clientInfo.name if session.client_params else None
+            if not name or name == _DEFAULT_CLIENT_LABEL:
+                return
+            bridge_ = get_slot()
+            if bridge_ is None:
+                return
+
+            async def _send():
+                try:
+                    await bridge_.send("set_client_label", {"label": name}, timeout=3.0)
+                except Exception as e:
+                    logger.debug("set_client_label failed for %r: %s", name, e)
+
+            asyncio.ensure_future(_send())
+        except Exception as e:
+            logger.debug("install_initialized_hook error: %s", e)
+
+    mcp_server._mcp_server.notification_handlers[mcp_types.InitializedNotification] = _on_initialized

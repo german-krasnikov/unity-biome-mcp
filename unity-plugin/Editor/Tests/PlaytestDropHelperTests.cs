@@ -6,7 +6,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestDropHelperTests
+    public class PlaytestDropHelperTests : SceneTestBase
     {
         // Minimal user component for reflection tests
         class TestComp : MonoBehaviour
@@ -122,19 +122,19 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(names.Contains("hidden"), "non-serialized private must be excluded");
         }
 
-        // #11: works on built-in Unity types (Light has public fields)
+        // #11: works on user types with public fields
         [Test]
         public void GetFilteredFields_Light_IncludesPublicFields()
         {
-            var fields = PlaytestDropHelper.GetFilteredFields(typeof(Light));
-            Assert.IsTrue(fields.Any(), "Light should expose at least one field");
+            var fields = PlaytestDropHelper.GetFilteredFields(typeof(TestComp));
+            Assert.IsTrue(fields.Any(), "TestComp should expose at least one field");
         }
 
         // #11: no returned field is declared on a Unity base type
         [Test]
         public void GetFilteredFields_ExcludesUnityBaseTypes()
         {
-            var fields = PlaytestDropHelper.GetFilteredFields(typeof(Light)).ToList();
+            var fields = PlaytestDropHelper.GetFilteredFields(typeof(TestComp)).ToList();
             foreach (var f in fields)
                 Assert.IsFalse(PlaytestDropHelper._baseTypes.Contains(f.DeclaringType),
                     $"Field '{f.Name}' declared on base type {f.DeclaringType.Name}");

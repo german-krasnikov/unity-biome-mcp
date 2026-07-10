@@ -62,7 +62,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var json = ChatMcpConfigWriter.BuildClaudeConfigJson("uv", new[] { "run", "unity-mcp" });
             Assert.IsTrue(json.StartsWith("{"), "Config JSON must start with '{'");
             Assert.IsTrue(json.Contains("\"mcpServers\""), "Must contain mcpServers key");
-            Assert.IsTrue(json.Contains("\"unity\""), "Must contain unity server key");
+            Assert.IsTrue(json.Contains("\"unity-mcp\""), "Must contain unity-mcp server key");
         }
     }
 }

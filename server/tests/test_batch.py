@@ -196,3 +196,19 @@ async def test_batch_no_python_postprocessing_for_fields(mock_bridge, bridge_res
     result = await batch(commands="inspect paths=/Player fields=mass")
     # Result returned as-is from bridge — Python didn't filter
     assert "m_Drag: 0" in result
+
+
+async def test_batch_validate_aliases_forwarded(mock_bridge, bridge_response):
+    """validate_aliases=True is forwarded as 'true' string in command dict."""
+    bridge_response(data="ok: all aliases resolved")
+    await batch(commands="ping\nset_property path=$hero value=1", validate_aliases=True)
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1].get("validate_aliases") == "true"
+
+
+async def test_batch_validate_aliases_false_not_sent(mock_bridge, bridge_response):
+    """validate_aliases=False (default) means key is absent from command dict."""
+    bridge_response(data="ok:1")
+    await batch(commands="ping")
+    call_args = mock_bridge.send.call_args[0]
+    assert "validate_aliases" not in call_args[1]

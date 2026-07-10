@@ -8,7 +8,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class RuntimeHelperFindComponentTests
+    public class RuntimeHelperFindComponentTests : SceneTestBase
     {
         private GameObject _go;
 

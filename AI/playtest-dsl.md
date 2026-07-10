@@ -614,6 +614,10 @@ ASSERT /Player|Movement|DistanceTo(5,0,3) < 1.0
 
 ## Parsing Rules
 
+**Preamble injection (v0.78.9):** Before Parse() is called, `PlaytestRunner` prepends two VAL blocks to the user script: (1) Unity Tag strings (spaces → underscores), always; (2) `PlaytestAliasHelpers.FormatVALBlock(config.aliases)` from the active `PlaytestConfig` asset (skipped when aliases list is empty). Because VAL resolution uses last-write-wins, any `VAL $name` or `INCLUDE` directive in the user script overrides the preamble defaults.
+
+**AliasExpander pipe fix (v0.78.11):** `AliasExpander.GetTable()` — the C#-side lookup used for `$sigil` expansion in batch DSL lines and direct MCP tool argsJson — now correctly builds `path|component|field` via `BuildPipePath`. Before this fix, ValPath aliases with a component+field set would expand to path-only, silently stripping the `|Comp|field` suffix. `FormatVALBlock` → `CollectVals` (playtest DSL parse path) was always correct; the regression only affected the `AliasExpander` table used outside the DSL parser.
+
 1. **Phase -1 — INCLUDE:** `INCLUDE filename` replaced inline with content of `Assets/PlaytestDefs/filename`; recursive max depth 5; path traversal rejected
 2. **Phase 0 — MACROs:** All `MACRO … END_MACRO` blocks collected and removed
 3. **Phase 0.5 — CALL expansion:** `CALL name arg1 arg2` replaced with expanded body lines (recursive, max depth 10)

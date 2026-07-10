@@ -6,7 +6,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class InputNormalizerAudioLightAliasTests
+    public class InputNormalizerAudioLightAliasTests : SceneTestBase
     {
         private GameObject _go;
 

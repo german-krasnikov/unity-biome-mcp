@@ -11,7 +11,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ObjectManagerTests
+    public class ObjectManagerTests : SceneTestBase
     {
         private GameObject _go;
         private List<GameObject> _toDestroy = new List<GameObject>();

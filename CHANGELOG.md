@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.79.0] — 2026-07-10 — TCP session persistence, alias pipe resolution, READ_CMDS audit
+
+**Fixed — TCP churn (4 root causes):**
+- `_ensure_heartbeat()` called on every send → duplicate tasks leaked → eliminated; tasks created only in `_reconnect()`, destroyed only in `close()`
+- `connected` property returned false-negative after socket established → churn loop
+- Fixed sleep during domain reload replaced by `asyncio.Event` reload gate (wakes immediately on reconnect)
+- Premature close on ping stall — threshold raised to 6 windows (~6 min); prevents disconnect during App Nap / heavy compile
+
+**Fixed — Heartbeat lifecycle:**
+- Self-cancel guard added; tasks no longer leak on concurrent reconnect
+
+**Added — Client identification:**
+- `UNITY_MCP_CLIENT` env var injected into ping messages
+- MCP `InitializedNotification` hook calls `set_client_label` automatically
+- `set_client_label` command (`alwaysAllowed`, `allowedDuringCompile`)
+- `RoleToLabel` expanded: codex, cursor, windsurf, claude-desktop
+- `MaxClients` increased 4 → 8
+
+**Fixed — AliasExpander pipe truncation (CRITICAL):**
+- `AliasExpander.GetTable()` used `a.path` only → query aliases lost `|component|field`
+- New `BuildPipePath(a)` helper preserves full pipe path for ValPath aliases
+- `query_state queries=$alias` now resolves to `path|component|field` correctly
+- `run_playtest` without `INCLUDE farm_core.defs` works with PlaytestConfig aliases
+
+**Fixed — Readonly batch blast radius false positive:**
+- `_is_batch_readonly()` in `middleware_guards.py` checks all batch commands against READ_CMDS
+- `editor` dual-use: `action=state` classified as read, other actions as write
+- `_EDITOR_READ_ACTIONS = frozenset({"state", "project_path"})` for precise classification
+
+**Fixed — READ_CMDS/WRITE_CMDS audit:**
+- READ_CMDS expanded 15→43 entries (alias_status, diagnose, editor, get_*, query_*, etc.)
+- WRITE_CMDS +`rename_object` +`set_sibling_index`, −`compress_hierarchy` (dead)
+- All command classifications validated against C# `_RO`/`_RW` markers
+
+**Added — Connection status:**
+- `UnityBridge.status` semantic property: `connected`/`reconnecting`/`domain-reloading`/`disconnected`
+- `list_connections` shows semantic status instead of binary connected/disconnected
+- `alias_status` promoted to tier1 (visible in tool listing without category gating)
+
+**Fixed — NUnit test failures (15 total, Unity 6 compat):**
+- `BoxCollider` → `TestComp` in bridge tests
+- `RenameObject_Undo` LogAssert fix
+- `ParseAsync` Model guard
+- `ToolVerbMap` / `ConfigWriter` prefix alignment
+- `BuildAliasSection` iteration guard
+- `TestRunner.DeleteTempScene()` cleanup via `delayCall` in `RunFinished()`
+- `SceneTestBase` for test isolation (32 test classes)
+
+**Tests (new):**
+- `test_bridge_reload_gate.py` (5 pytest) — reload gate (asyncio.Event) behavior
+- `test_bridge_role.py` (3 pytest) — client role / identification
+- `test_connection_status.py` (12 pytest) — semantic status property
+- `test_middleware_read_cmds.py` (59 pytest) — READ_CMDS/WRITE_CMDS classification
+- `test_tool_schema_coverage.py` (11 pytest) — tool schemas + FastMCP contract tests
+- `AliasExpanderTests.cs` (7+ NUnit) — pipe expansion, comma-separated, parentheses
+- `PlaytestGlobalAliasTests.cs` (6+ NUnit) — FormatVALBlock roundtrip, GetTable consistency
+- `AliasStatusTests.cs` (NUnit) — alias_status command wiring
+- `BatchHelperParserTests.cs` (NUnit) — batch parser edge cases
+
 ## [v0.78.0] — 2026-07-09 — Typed alias cards, alias system (VAL/VAR/sigil/INCLUDE), batch DSL fields/compress
 
 **Added — Typed alias cards (Alias Composer UI):**

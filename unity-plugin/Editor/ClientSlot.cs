@@ -9,7 +9,7 @@ namespace UnityMCP.Editor
     // mechanical move, zero logic changes.
     internal sealed class ClientSlot
     {
-        internal const int MaxClients = 4;
+        internal const int MaxClients = 8;
 
         private sealed class ClientEntry
         {
@@ -20,6 +20,9 @@ namespace UnityMCP.Editor
 
         private readonly ClientEntry[] _entries;
         private readonly object _lock = new object();
+
+        // Mutable label — updated by set_client_label command after identification.
+        internal volatile string Label;
 
         internal ClientSlot()
         {

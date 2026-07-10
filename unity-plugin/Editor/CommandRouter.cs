@@ -87,6 +87,7 @@ namespace UnityMCP.Editor
                 if (guard != null) return guard;
 
                 var argsJson = JsonHelper.ExtractObject(json, "args");
+                argsJson = AliasExpander.ExpandJson(argsJson);  // expand $sigils in args
 
                 UndoGroupHelper.SetCommandFallback(cmd);
 
@@ -140,6 +141,7 @@ namespace UnityMCP.Editor
                     if (guard != null) { tcs.TrySetResult(guard); return; }
                     UndoGroupHelper.SetCommandFallback(cmd);
                     var argsJson = JsonHelper.ExtractObject(json, "args");
+                    argsJson = AliasExpander.ExpandJson(argsJson);  // expand $sigils in args
                     asyncHandler(id, argsJson, tcs);
                     return;
                 }

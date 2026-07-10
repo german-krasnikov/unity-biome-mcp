@@ -5,7 +5,6 @@ import logging
 import os
 import random
 import re
-import select
 import socket
 import struct
 import time
@@ -120,11 +119,14 @@ class UnityBridge(HeartbeatMixin):
         self._heartbeat_task: Optional[asyncio.Task] = None
         self._heartbeat_interval: float = 15.0
         self._ping_failures: int = 0
+        self._ping_stall_failures: int = 0
         self._last_reconnect_at: float = 0.0
         self._min_reconnect_interval: float = MIN_RECONNECT_INTERVAL  # kept for compat
         self._reconnect_backoff: float = BACKOFF_MIN_S
         self._port_discoverer: Optional[Callable[[], int]] = port_discoverer
         self._reload: DomainReloadTracker = DomainReloadTracker()
+        self._reload_gate: asyncio.Event = asyncio.Event()
+        self._reload_gate.set()  # open by default; wait() returns immediately
         self._ppid_mismatch_count: int = 0
         self._pinned_port: Optional[int] = None
         self._pinned_pid: Optional[int] = None
@@ -174,11 +176,6 @@ class UnityBridge(HeartbeatMixin):
         directly, outside the should_retry()/RetryPolicy decision path."""
         return self._retry_policy.probe_busy()
 
-    def _ensure_heartbeat(self) -> None:
-        """Restart heartbeat if task died unexpectedly."""
-        if self._heartbeat_task is not None and self._heartbeat_task.done():
-            self._heartbeat_task = asyncio.ensure_future(self._heartbeat_loop(self._heartbeat_interval))
-
     async def send(self, cmd: str, args: dict, timeout: float = 30.0) -> dict:
         if self._state == BridgeState.FAILED:
             if not self._reconnect_cooldown_ok():
@@ -189,7 +186,6 @@ class UnityBridge(HeartbeatMixin):
                     await self._reconnect(fire_callbacks=False)
             except Exception:
                 raise ConnectionError(self._describe_failure(cmd, ConnectionRefusedError()))
-        self._ensure_heartbeat()
         self._counter += 1
         msg_id = f"{self._counter:04x}"
         payload = json.dumps({"id": msg_id, "cmd": cmd, "args": args}, ensure_ascii=False).encode("utf-8")
@@ -242,7 +238,16 @@ class UnityBridge(HeartbeatMixin):
                                                path="send")
                 if do_retry:
                     attempt += 1
-                    await asyncio.sleep(delay + random.uniform(0, delay * 0.1))
+                    jitter = random.uniform(0, delay * 0.1)
+                    if reason == "domain_reload":
+                        self._reload_gate.clear()
+                        try:
+                            await asyncio.wait_for(
+                                self._reload_gate.wait(), timeout=delay + jitter)
+                        except asyncio.TimeoutError:
+                            pass
+                    else:
+                        await asyncio.sleep(delay + jitter)
                     continue
                 raise ConnectionError(self._describe_failure(cmd, e)) from e
 
@@ -351,7 +356,8 @@ class UnityBridge(HeartbeatMixin):
         try:
             self._counter += 1
             ping_id = f"rc{self._counter:04x}"
-            _role = "chat-relay" if os.environ.get("UNITY_MCP_CHAT") == "1" else "mcp"
+            _client = os.environ.get("UNITY_MCP_CLIENT", "")
+            _role = "chat-relay" if os.environ.get("UNITY_MCP_CHAT") == "1" else (_client or "mcp")
             ping = json.dumps({"id": ping_id, "cmd": "ping", "role": _role, "args": {}}, ensure_ascii=False).encode("utf-8")
             writer.write(struct.pack("!I", len(ping)) + ping)
             await writer.drain()
@@ -400,6 +406,8 @@ class UnityBridge(HeartbeatMixin):
         self._hard_deadline_started_at = None
         self._state = BridgeState.CONNECTED
         self._reload.clear()
+        self._reload_gate.set()
+        self._ping_stall_failures = 0
         self._last_reconnect_at = time.monotonic()
         # Pin port+pid so future reconnects stay on same Unity instance while alive.
         self._pinned_port = self._port
@@ -408,6 +416,7 @@ class UnityBridge(HeartbeatMixin):
             self._pinned_pid = read_pid_from_port_file(self._port)
         except Exception:
             self._pinned_pid = None
+        self.start_heartbeat(self._heartbeat_interval)
         if fire_callbacks:
             for cb in self._on_reconnect_callbacks:
                 try:
@@ -417,24 +426,22 @@ class UnityBridge(HeartbeatMixin):
 
     @property
     def connected(self) -> bool:
-        if self._writer is None or self._writer.is_closing():
-            return False
-        sock = self._writer.get_extra_info("socket")
-        if sock is not None:
-            try:
-                r, _, _ = select.select([sock], [], [], 0)
-                if r:
-                    # TransportSocket (Python 3.12+) wraps raw socket in _sock;
-                    # use it if present and is a real socket, else call recv directly.
-                    raw = sock._sock if type(sock).__name__ == "TransportSocket" else sock
-                    data = raw.recv(1, socket.MSG_PEEK)
-                    if not data:
-                        return False
-            except (OSError, ValueError, BlockingIOError, AttributeError):
-                return False
-        return True
+        return self._writer is not None and not self._writer.is_closing()
+
+    @property
+    def status(self) -> str:
+        """Semantic connection status for user-facing display."""
+        if self._writer is not None and not self._writer.is_closing():
+            return "connected"
+        if self._state == BridgeState.FAILED:
+            return "disconnected"
+        if self._state == BridgeState.DOMAIN_RELOADING:
+            return "domain-reloading"
+        return "reconnecting"
 
     async def close(self):
+        if asyncio.current_task() is not self._heartbeat_task:
+            self.stop_heartbeat()
         w = self._writer
         self._writer = None
         self._reader = None

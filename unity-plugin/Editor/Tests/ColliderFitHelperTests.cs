@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ColliderFitHelperTests
+    public class ColliderFitHelperTests : SceneTestBase
     {
         private GameObject _go;
         private Mesh _mesh;

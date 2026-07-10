@@ -4,7 +4,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SceneContextTests
+    public class SceneContextTests : SceneTestBase
     {
         [Test]
         public void SingleScene_IsMulti_False()

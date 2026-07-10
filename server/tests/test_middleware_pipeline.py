@@ -25,9 +25,9 @@ async def test_guards_see_original_cmd_before_reroute(monkeypatch):
     blast_received = []
     original_blast = mw.check_blast_radius
 
-    def capturing_blast(cmd):
+    def capturing_blast(cmd, args=None):
         blast_received.append(cmd)
-        return original_blast(cmd)
+        return original_blast(cmd, args)
 
     mw.check_blast_radius = capturing_blast
 

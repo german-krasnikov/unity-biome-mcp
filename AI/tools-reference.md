@@ -1,21 +1,21 @@
-# MCP Tools Reference (126 total)
+# MCP Tools Reference (128 total)
 
-All tools organized by category. TIER1 tools (44) are always visible. Themed categories (Tier2) require `discover_tools(category)` to enable. Plugin tools discovered dynamically via auto-gating.
+All tools organized by category. TIER1 tools (46) are always visible. Themed categories (Tier2) require `discover_tools(category)` to enable. Plugin tools discovered dynamically via auto-gating.
 
-## TIER1 Tools (Always Visible, 44 total)
+## TIER1 Tools (Always Visible, 46 total)
 
 Essential read/scene, meta, connection, repair, plus high-value tools for screenshots, testing, runtime, and code intelligence.
 
 | Tool | Purpose | Key Params | Category |
 |------|---------|------------|----------|
 | get_hierarchy | Read scene tree | summary, depth | scene read |
-| get_component | Read component values | path, component | scene read |
-| inspect | Batch-read N objects' components | query, filter | scene read |
+| get_component | Read component values | path, component, compress (strip defaults) | scene read |
+| inspect | Batch-read N objects' components | query, filter, compress (strip defaults) | scene read |
 | set_property | Write component value | path, component, prop, value | scene write |
 | create_object | Spawn GameObject | name, parent, components | scene write |
 | delete_object | Remove GameObject | path | scene write |
 | manage_component | Add/remove components | path, action, component | scene write |
-| batch | Run 2+ ops atomically | commands (JSON array) | orchestration |
+| batch | Run 2+ ops atomically; readonly batches exempt from blast-radius warnings | commands (JSON array), validate_aliases (dry-run alias check) | orchestration |
 | scene | List/load/save scenes | action, name | scene meta |
 | search_scene | Find objects by pattern | query, type | scene read |
 | set_parent | Reparent GameObject | path, parent | scene write |
@@ -29,7 +29,9 @@ Essential read/scene, meta, connection, repair, plus high-value tools for screen
 | ask_user | Prompt human | question, options | human interaction |
 | permission_prompt | Gate sensitive ops | operation, details | security |
 | reconnect_unity | Reconnect TCP socket | port (auto-discover) | connection |
-| list_connections | Show connection status | — | connection |
+| list_connections | Show connection status with semantic states (connected/reconnecting/domain-reloading/disconnected) | — | connection |
+| alias_status | Returns alias cache state | — (returns loaded/count/source/stale) | connection |
+| set_client_label | Set human-readable label for this MCP client session | label | connection |
 | resolve_tool_schema | Deferred schema fetch | tool_name | meta |
 | doctor | Health diagnostics | fix (auto-fix stale PIDs) | diagnostics |
 | screenshot | Capture frame | width, height, camera, path (output) | visual |

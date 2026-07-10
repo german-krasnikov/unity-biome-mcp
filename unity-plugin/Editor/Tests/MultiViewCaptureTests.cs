@@ -7,7 +7,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal sealed class MultiViewCaptureTests
+    internal sealed class MultiViewCaptureTests : SceneTestBase
     {
         private GameObject _root;
 

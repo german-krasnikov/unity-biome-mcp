@@ -3,8 +3,29 @@ import json
 import time
 from typing import Optional
 
-from .middleware_types import BLAST_RADIUS, WRITE_CMDS, READ_CMDS, _RUNTIME_ONLY_CMDS
+from .middleware_types import BLAST_RADIUS, WRITE_CMDS, READ_CMDS, _RUNTIME_ONLY_CMDS, _EDITOR_READ_ACTIONS
 from .utils import parse_kv_line
+
+
+def _is_batch_readonly(commands: str) -> bool:
+    """True iff every non-blank command line in batch text is a read.
+
+    'editor' is special-cased: only action=state|project_path are reads;
+    absent action defaults to write (conservative).
+    """
+    if not commands:
+        return True
+    for line in commands.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        cmd, kv = parse_kv_line(line)
+        if cmd == "editor":
+            if kv.get("action", "") not in _EDITOR_READ_ACTIONS:
+                return False
+        elif cmd not in READ_CMDS:
+            return False
+    return True
 
 
 class MiddlewareGuardsMixin:
@@ -68,7 +89,9 @@ class MiddlewareGuardsMixin:
 
     # ── Feature N: Blast Radius Tags ─────────────────────────────────────────
 
-    def check_blast_radius(self, cmd: str) -> Optional[str]:
+    def check_blast_radius(self, cmd: str, args: dict | None = None) -> Optional[str]:
+        if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
+            return None
         radius = BLAST_RADIUS.get(cmd, 1)
         if radius >= 3:
             return f"⚠ HIGH BLAST RADIUS ({radius}): '{cmd}' affects multiple objects. Consider checkpoint first."
@@ -76,7 +99,9 @@ class MiddlewareGuardsMixin:
 
     # ── Feature N: Incremental Verification ──────────────────────────────────
 
-    def check_verification_needed(self, cmd: str) -> Optional[str]:
+    def check_verification_needed(self, cmd: str, args: dict | None = None) -> Optional[str]:
+        if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
+            return None
         if cmd in WRITE_CMDS:
             self._mutation_count += 1
             if self._mutation_count % 5 == 0:
@@ -124,8 +149,8 @@ class MiddlewareGuardsMixin:
 
     # ── Feature 12: Workflow Phase FSM ───────────────────────────────────────
 
-    def transition(self, cmd: str) -> Optional[str]:
-        if cmd in READ_CMDS:
+    def transition(self, cmd: str, args: dict | None = None) -> Optional[str]:
+        if cmd in READ_CMDS or (cmd == "batch" and args and _is_batch_readonly(args.get("commands", ""))):
             self._consecutive_writes = 0
             return None
         if cmd in WRITE_CMDS:

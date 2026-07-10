@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class EditorStateHelperTests
+    public class EditorStateHelperTests : SceneTestBase
     {
         private GameObject _go;
         private GameObject _prevSelection;

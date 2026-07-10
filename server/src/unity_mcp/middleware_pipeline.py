@@ -71,13 +71,9 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
             return _early_return(retry_warn)
         taint_warn = mw.check_taint(cmd, args)
         dead_warn = mw.check_dead_write(cmd, args)
-        blast_warn = mw.check_blast_radius(cmd)
-        verif_warn = mw.check_verification_needed(cmd)
+        blast_warn = mw.check_blast_radius(cmd, args)
+        verif_warn = mw.check_verification_needed(cmd, args)
         batch_warn = mw.scan_batch_conflicts(args.get("commands", "")) if cmd == "batch" else None
-        # 5.3: $alias inside batch DSL is not expanded — warn so LLM uses explicit paths
-        if cmd == "batch" and "$" in args.get("commands", ""):
-            _note = "[WARN] $alias in batch DSL not supported — use explicit paths instead"
-            batch_warn = (_note if not batch_warn else batch_warn + "\n" + _note)
 
         # Fail-fast: block runtime-only commands when confirmed in edit mode (before TCP)
         pm_block = mw.check_play_mode_required(cmd)
@@ -284,7 +280,7 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
             result = resolve_marker + "\n" + result
 
         # Prepend warnings
-        fsm_warn = mw.transition(cmd)
+        fsm_warn = mw.transition(cmd, args)
         warnings = [w for w in (taint_warn, dead_warn, blast_warn, verif_warn, fsm_warn, batch_warn) if w]
         prepend = [w for w in (watchdog_alert, lessons_hint) if w] + warnings
         if prepend:

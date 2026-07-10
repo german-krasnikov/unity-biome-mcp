@@ -6,7 +6,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ValueParserTests
+    public class ValueParserTests : SceneTestBase
     {
         // ── ParseBool ─────────────────────────────────────────────────────────
 

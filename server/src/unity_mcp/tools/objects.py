@@ -7,13 +7,15 @@ _send = None
 _args = None
 
 
-async def get_component(path: str, type: str, fields: str | None = None, full: bool = False) -> str:
+async def get_component(path: str, type: str, fields: str | None = None, full: bool = False, compress: bool = False) -> str:
     """Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.
     fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name.
-    full=True: bypass distillation, return raw response."""
+    full=True: bypass distillation, return raw response. compress=True: strip default values (C#-side) before transfer."""
     args: dict = {"path": path, "type": type}
     if full:
         args["_no_distill"] = True
+    if compress:
+        args["compress"] = "true"
     if fields:
         args["_no_strip"] = True
         result = await _send("get_component", args)
@@ -21,10 +23,12 @@ async def get_component(path: str, type: str, fields: str | None = None, full: b
     return await _send("get_component", args)
 
 
-async def inspect(paths: str, components: str | None = None, fields: str | None = None, full: bool = False) -> str:
+async def inspect(paths: str, components: str | None = None, fields: str | None = None, full: bool = False, compress: bool = False) -> str:
     """Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all).
-    fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation."""
+    fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values (C#-side) before transfer."""
     extra = {"_no_distill": True} if full else {}
+    if compress:
+        extra["compress"] = "true"
     if fields:
         result = await _send("inspect", _args(paths=paths, components=components, _no_strip=True, **extra))
         return _project_fields(result, fields)

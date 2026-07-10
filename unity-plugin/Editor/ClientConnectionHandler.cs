@@ -73,9 +73,13 @@ namespace UnityMCP.Editor
 
         private static string RoleToLabel(string role) => role switch
         {
-            "mcp"        => "Claude Code session",
-            "chat-relay" => "Chat relay",
-            _            => role,
+            "mcp"            => "Claude Code session",
+            "chat-relay"     => "Chat relay",
+            "codex"          => "Codex session",
+            "cursor"         => "Cursor session",
+            "windsurf"       => "Windsurf session",
+            "claude-desktop" => "Claude Desktop session",
+            _                => role,
         };
 
         private static async Task HandleClientAsync(TcpClient client, ClientSlot slot, int index, long generation,
@@ -111,6 +115,7 @@ namespace UnityMCP.Editor
                         // Log "connected" on first real message; probes (no data) stay silent.
                         if (!receivedFirstMessage)
                         {
+                            slot.Label = null;  // clear stale label from previous session
                             var role = JsonHelper.ExtractString(json, "role");
                             if (!string.IsNullOrEmpty(role)) label = RoleToLabel(role);
                             var ep0 = endPoint; var lbl0 = label;
@@ -203,7 +208,7 @@ namespace UnityMCP.Editor
                 slot.Clear(index, generation);
                 if (receivedFirstMessage)
                 {
-                    var lbl = label; var gen = generation;
+                    var lbl = slot.Label ?? label; var gen = generation;
                     MainThreadDispatcher.Enqueue(() => Debug.Log($"[MCP] {lbl} disconnected (gen={gen})"));
                 }
             }

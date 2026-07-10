@@ -10,7 +10,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ComponentSerializerGetPropertyValueTests
+    public class ComponentSerializerGetPropertyValueTests : SceneTestBase
     {
         private GameObject _go;
         private List<GameObject> _toDestroy = new List<GameObject>();
@@ -286,7 +286,7 @@ namespace UnityMCP.Editor.Tests
     // ──────────────────────────────────────────────────────────────────────────
 
     [TestFixture]
-    public class ComponentSerializerFinderTests
+    public class ComponentSerializerFinderTests : SceneTestBase
     {
         private GameObject _go;
         private List<GameObject> _toDestroy = new List<GameObject>();
@@ -457,7 +457,7 @@ namespace UnityMCP.Editor.Tests
     // ──────────────────────────────────────────────────────────────────────────
 
     [TestFixture]
-    public class HierarchySerializerFormatTests
+    public class HierarchySerializerFormatTests : SceneTestBase
     {
         private GameObject _root;
         private List<GameObject> _toDestroy = new List<GameObject>();

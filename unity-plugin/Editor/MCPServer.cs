@@ -18,7 +18,8 @@ namespace UnityMCP.Editor
         private static TcpListener _chatListener;
         // internal — read by ClientConnectionHandler.RunAcceptLoop to detect a StartAsync restart.
         internal static CancellationTokenSource _cts;
-        private static readonly ClientSlot _mainSlot = new ClientSlot();
+        // internal — set_client_label command updates Label for disconnect logging.
+        internal static readonly ClientSlot _mainSlot = new ClientSlot();
         private static readonly ClientSlot _chatSlot = new ClientSlot();
         // internal — read by ClientConnectionHandler (fast-path handlers run off-main-thread).
         internal static volatile bool _shuttingDown;

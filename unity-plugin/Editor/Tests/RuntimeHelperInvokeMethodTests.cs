@@ -8,7 +8,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class RuntimeHelperInvokeMethodTests
+    public class RuntimeHelperInvokeMethodTests : SceneTestBase
     {
         // Test component with private + static methods
         private class InvokeTestBehaviour : MonoBehaviour

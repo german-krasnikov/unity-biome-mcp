@@ -30,6 +30,7 @@ _CORE_TOOLS_SNAPSHOT = frozenset({
 })
 
 _TIER1_SNAPSHOT = frozenset({
+    "alias_status",
     "ask", "ask_user", "await_compile", "batch", "compile_preflight",
     "configure_objects", "create_object", "delete_object", "discover_tools", "do",
     "doctor", "editor", "fuzz_playtest", "get_compile_errors", "get_component",

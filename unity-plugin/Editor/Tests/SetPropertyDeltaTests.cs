@@ -5,7 +5,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SetPropertyDeltaTests
+    public class SetPropertyDeltaTests : SceneTestBase
     {
         private GameObject _go;
 

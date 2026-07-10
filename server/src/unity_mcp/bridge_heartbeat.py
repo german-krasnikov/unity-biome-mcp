@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import random
 import struct
@@ -7,6 +8,8 @@ import threading
 import time
 
 from unity_mcp.bridge_socket import DomainReloadError
+
+logger = logging.getLogger(__name__)
 
 # Exponential backoff bounds for reconnect attempts.
 BACKOFF_MIN_S: float = 5.0
@@ -148,30 +151,47 @@ class HeartbeatMixin:
         try:
             await self._raw_ping(timeout=5.0)
             self._ping_failures = 0
+            self._ping_stall_failures = 0
         except DomainReloadError:
             self._probe.mark_recompile_issued()
             self._reload.mark()          # FIX: mark so send() gets extended retry window
             async with self._lock:
                 await self.close()
             self._ping_failures = 0
+            self._ping_stall_failures = 0
         except ProtocolDesyncError:
             # ID mismatch = stream desync, not necessarily process death.
             # Drain and reconnect without voting the process dead.
             async with self._lock:
                 await self.close()
             self._ping_failures = 0
-        except Exception:
+            self._ping_stall_failures = 0
+        except asyncio.TimeoutError:
+            # Timeout = Unity alive but unresponsive (App Nap / heavy compile).
+            # Apply stall counter — don't close prematurely.
             self._ping_failures += 1
             if self._ping_failures >= 3:
                 if self._probe.is_process_dead():
-                    # Confirmed dead — close.
                     async with self._lock:
                         await self.close()
+                    self._ping_failures = 0
+                    self._ping_stall_failures = 0
                 else:
-                    # Still alive but ping failing — desync, not death; drain.
-                    async with self._lock:
-                        await self.close()
-                self._ping_failures = 0
+                    self._ping_stall_failures += 1
+                    logger.warning("Unity ping stall #%d (process alive)", self._ping_stall_failures)
+                    self._ping_failures = 0
+                    if self._ping_stall_failures >= 6:
+                        logger.error("Unity unreachable for 6 stall windows (~6 min) — closing")
+                        async with self._lock:
+                            await self.close()
+                        self._ping_stall_failures = 0
+        except Exception:
+            # Connection error (ConnectionReset, IncompleteRead, OSError, etc.)
+            # = dead TCP, not App Nap. Close immediately and reconnect.
+            async with self._lock:
+                await self.close()
+            self._ping_failures = 0
+            self._ping_stall_failures = 0
 
     def _reconnect_cooldown_ok(self) -> bool:
         """True if enough time elapsed since last reconnect attempt (success or failure)."""

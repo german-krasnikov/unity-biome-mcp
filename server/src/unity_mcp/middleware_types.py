@@ -18,15 +18,44 @@ WRITE_CMDS = {
     "batch", "animation", "timeline", "animator", "particle", "shader",
     "material", "prefab", "scriptable_object", "asset", "scene",
     "create_ui", "execute_code", "menu", "project_settings", "set_parent", "unwire_event",
-    "transfer_object",
+    "transfer_object", "rename_object", "set_sibling_index",
 }
 
 READ_CMDS = {
+    # Scene inspection
     "get_hierarchy", "get_component", "inspect", "get_object_detail",
-    "get_components_list", "find_objects", "search_scene", "compress_hierarchy",
+    "get_components_list", "find_objects", "search_scene",
     "query_state", "get_spatial_context", "scan_scene",
-    "get_console", "get_compile_errors", "validate_references", "screenshot",
+    # Console / compile
+    "get_console", "get_compile_errors", "validate_references",
+    # Screenshots
+    "screenshot", "screenshot_compare",
+    # Editor state (read-only actions; 'editor' itself handled specially)
+    "get_selection", "get_capabilities",
+    # Alias / connection / meta
+    "alias_status", "get_aliases", "list_connections", "get_enabled_tools",
+    "budget_status", "permission_prompt",
+    # Testing
+    "get_test_results", "get_test_progress", "get_test_count",
+    # Profiling / debug
+    "get_frame_stats", "get_memory", "get_metrics", "get_perf",
+    "get_watches", "debug", "debug_animator", "debug_physics", "profile",
+    # Diff / audit / health
+    "object_diff", "scene_diff", "scene_health", "material_audit",
+    "analyze_lod_culling", "render_analyze", "fingerprint",
+    "validate_layout", "check_colliders", "spatial_query",
+    # Assets / schema / code (read-only)
+    "get_schema", "get_changes",
+    "compile_preflight", "await_compile", "auto_fix", "diagnose",
+    # Session (listing / loading to memory, no scene mutation)
+    "list_scenarios", "list_skills", "list_templates",
+    "load_scenario", "load_session",
+    # LLM (no scene mutation)
+    "ask", "ask_user",
 }
+
+# editor actions that are reads; all others (play/stop/pause/step/select) are writes
+_EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})
 
 # Reads safe to serve from PrefetchCache (both above-circuit and pre-TCP paths).
 _READ_CACHEABLE = frozenset({

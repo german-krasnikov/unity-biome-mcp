@@ -100,6 +100,7 @@ from .server_filtering import (
     push_catalog as _push_catalog,
     filter_tools as _filter_tools_pure,
     install_list_tools_filter,
+    install_initialized_hook,
     read_unity_port as _read_unity_port,
 )
 from .server_lifespan import build_middleware, init_budget, wire_circuit_breaker
@@ -181,6 +182,19 @@ async def _refresh_tools_cache(bridge_) -> None:
                         await session.send_tool_list_changed()
         except Exception:
             pass
+
+
+async def _warm_alias_cache(bridge_) -> None:
+    """Seed _alias_cache from Unity alias table on connect/reconnect. Non-fatal."""
+    if bridge_ is None or _middleware is None:
+        return
+    try:
+        resp = await bridge_.send("get_aliases", {})
+        if resp and resp.get("ok"):
+            from .middleware_alias import parse_aliases_from_get_aliases
+            _middleware._alias_cache = parse_aliases_from_get_aliases(resp.get("data", ""))
+    except Exception:
+        pass
 
 
 async def _filter_tools(tools: list, bridge_) -> list:
@@ -321,6 +335,7 @@ async def lifespan(app):
         if active is not None:
             if active.connected:
                 await _refresh_tools_cache(active)
+                await _warm_alias_cache(active)
                 await _push_catalog(active)
             _last_refresh_ts: float = 0.0
 
@@ -337,6 +352,7 @@ async def lifespan(app):
                     return
                 _last_refresh_ts = now
                 asyncio.ensure_future(_refresh_tools_cache(slot.bridge))
+                asyncio.ensure_future(_warm_alias_cache(slot.bridge))
                 asyncio.ensure_future(_push_catalog(slot.bridge))
             slot.add_reconnect_callback(_on_reconnect)
             slot.add_reconnect_callback(_sync_reset_bump)
@@ -380,6 +396,8 @@ register_resources(mcp, _send, _args)
 
 # Install filtering handler — captures schemas + applies gating + disabled-set.
 install_list_tools_filter(mcp, lambda: _disabled_tools_cache)
+# Install initialized hook — sends client name to Unity on MCP handshake.
+install_initialized_hook(mcp, lambda: slot.bridge if slot else None)
 
 
 def main():

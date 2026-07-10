@@ -10,7 +10,7 @@ using Object = UnityEngine.Object;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class RenderAnalyzerLightsTests
+    public class RenderAnalyzerLightsTests : SceneTestBase
     {
         private readonly List<GameObject> _gos = new List<GameObject>();
 

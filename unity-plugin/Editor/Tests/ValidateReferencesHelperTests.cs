@@ -8,7 +8,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal sealed class ValidateReferencesHelperTests
+    internal sealed class ValidateReferencesHelperTests : SceneTestBase
     {
         private GameObject _go;
 

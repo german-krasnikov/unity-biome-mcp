@@ -4,7 +4,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MultiViewOverlayTests
+    public class MultiViewOverlayTests : SceneTestBase
     {
         // Helper: camera at (0,0,-10) looking toward origin (+Z direction), orthoSize=5.
         // This keeps local +X = world +X, making left/right tests intuitive.
