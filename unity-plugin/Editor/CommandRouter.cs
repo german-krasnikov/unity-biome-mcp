@@ -261,8 +261,9 @@ namespace UnityMCP.Editor
             var timeout = ExtractFloat(argsJson, "timeout", 120f);
             if (timeout <= 0) timeout = 120f;
             var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
+            var snapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true";
             var inner = new TaskCompletionSource<string>();
-            PlaytestRunner.Run(script, timeout, inner, abortOnFail);
+            PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure);
             CompleteFromInner(id, inner.Task, tcs, "run_playtest");
         }
 

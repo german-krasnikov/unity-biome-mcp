@@ -31,17 +31,22 @@ _CORE_TOOLS_SNAPSHOT = frozenset({
 
 _TIER1_SNAPSHOT = frozenset({
     "alias_status",
-    "ask", "ask_user", "await_compile", "batch", "compile_preflight",
-    "configure_objects", "create_object", "delete_object", "discover_tools", "do",
+    "apply_scene_change", "ask", "ask_user", "await_compile", "batch", "compile_preflight",
+    "configure_objects", "console_mark", "create_object", "delete_object", "discover_tools", "do",
     "doctor", "editor", "get_compile_errors", "get_component",
-    "get_console", "get_enabled_tools", "get_hierarchy", "get_test_progress",
+    "get_console", "get_console_since", "get_enabled_tools", "get_hierarchy", "get_test_progress",
     "get_test_results", "inspect", "invoke_method", "list_connections",
-    "manage_component", "move_to",
-    "permission_prompt", "query_state", "reconnect_unity", "resolve_tool_schema",
-    "run_playtest", "run_tests", "scene", "screenshot",
+    "manage_component", "mcp_status", "move_to",
+    "permission_prompt", "query_state", "reconnect_unity", "resolve_scene_refs", "resolve_tool_schema",
+    "export_playtest_aliases_to_defs",
+    "lint_playtest", "lint_playtest_suite", "lint_scene_refs",
+    "run_playtest", "run_playtest_file", "run_playtest_suite",
+    "run_tests", "run_tests_wait", "scene", "screenshot",
+    "sync_playtest_aliases_from_defs",
     "search_scene", "set_parent",
     "set_property", "set_runtime_property", "setup_objects",
-    "sync_unity", "test_step", "wait_until",
+    "scene_change_plan",
+    "sync_unity", "test_step", "validate_playtest_aliases", "verify_after_change", "wait_until",
 })
 
 _ALL_KNOWN_SNAPSHOT = frozenset({
@@ -63,23 +68,28 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "navmesh_query", "object_diff", "particle", "permission_prompt", "ping_object",
     "prefab", "profile", "project_settings", "query_state", "recompile",
     "reconnect_unity", "references", "region_clear", "render_analyze",
-    "resolve_tool_schema", "run_playtest", "run_tests",
+    "resolve_tool_schema", "run_playtest", "run_playtest_file", "run_playtest_suite", "run_tests",
     "save_session",
+    "export_playtest_aliases_to_defs",
+    "lint_playtest", "lint_playtest_suite", "lint_scene_refs",
     "save_skill", "save_template", "scan_scene", "scene", "scene_diff",
     "scene_environment", "scene_health", "screenshot", "screenshot_baseline",
     "screenshot_compare", "scriptable_object", "search_scene", "set_active",
     "set_llm_config", "set_material", "set_parent", "set_properties",
     "set_property", "set_property_delta", "set_rect", "set_runtime_property",
     "setup_objects", "shader", "smart_build", "snapshot", "spatial_query",
+    "sync_playtest_aliases_from_defs",
     "sync_unity", "test_step", "timeline", "transfer_object", "ui_intent",
     "undo_last", "unwire_event", "use_skill", "validate_layout",
-    "validate_references", "vfx_intent", "wait_until", "watch", "wire_event",
+    "validate_playtest_aliases", "validate_references", "verify_after_change", "vfx_intent",
+    "wait_until", "watch", "wire_event",
 })
 
 _THEMED_CATEGORIES_SNAPSHOT = {
     "ADVANCED_CODE": {"auto_fix", "await_compile", "checkpoint", "compile_preflight",
                        "diagnose", "execute_code", "get_schema", "menu", "recompile",
-                       "smart_build", "sync_unity", "undo_last", "validate_references"},
+                       "smart_build", "sync_unity", "undo_last", "validate_references",
+                       "verify_after_change"},
     "ANIMATION": {"animation", "animator", "particle", "timeline"},
     "ASSETS": {"asset", "prefab", "project_settings", "scriptable_object"},
     "COMPONENTS": {"auto_wire", "unwire_event", "wire_event"},
@@ -104,8 +114,12 @@ _THEMED_CATEGORIES_SNAPSHOT = {
                         "save_template", "scene_diff", "use_skill"},
     "SHADERS_MATERIAL": {"material", "material_audit", "references", "shader"},
     "UI": {"create_ui", "get_spatial_context", "set_rect", "ui_intent", "validate_layout"},
-    "UNIT_TESTS": {"get_test_count", "get_test_progress",
-                   "get_test_results", "run_playtest", "run_tests", "test_step"},
+    "UNIT_TESTS": {"export_playtest_aliases_to_defs", "get_test_count", "get_test_progress",
+                   "get_test_results", "lint_playtest", "lint_playtest_suite",
+                   "run_playtest", "run_playtest_file",
+                   "run_playtest_suite", "run_tests",
+                   "sync_playtest_aliases_from_defs", "test_step",
+                   "validate_playtest_aliases"},
     "VFX": {"vfx_intent"},
 }
 
@@ -116,12 +130,16 @@ _CATEGORY_SIZES_SNAPSHOT = {
 }
 
 _TIMEOUT_CATEGORIES_SNAPSHOT = {
+    "apply_scene_change": 120.0,
     "ask_user": 300.0, "batch": 120.0, "compile_preflight": 60.0,
     "execute_code": 60.0, "export_package": 120.0, "fingerprint": 10.0,
     "get_console": 10.0, "get_hierarchy": 15.0,
     "get_test_count": 10.0, "get_version": 5.0, "import_package": 120.0,
-    "ping": 5.0, "run_playtest": 300.0, "run_tests": 300.0,
-    "search_scene": 15.0,
+    "lint_playtest": 60.0, "lint_playtest_suite": 120.0,
+    "list_playtest_files": 10.0,
+    "ping": 5.0, "run_playtest": 300.0, "run_playtest_file": 300.0,
+    "run_playtest_suite": 3600.0, "run_tests": 300.0, "run_tests_wait": 300.0,
+    "resolve_scene_refs": 15.0, "search_scene": 15.0, "verify_after_change": 600.0,
 }
 
 

@@ -105,7 +105,8 @@ def _compress_report(report: str) -> str:
 async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
                        abort_on_fail: bool = False,
                        defs: "str | None" = None,
-                       path: "str | None" = None) -> str:
+                       path: "str | None" = None,
+                       snapshot_on_failure: bool = False) -> str:
     """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit test suite, use `run_tests`).
     script: inline DSL text (mutually exclusive with path).
     path: Assets-relative path to a .playtest file (mutually exclusive with script).
@@ -118,7 +119,8 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f.
     Queries use aliases from PlaytestConfig.asset or pipe format: path|component|field
     defs: inline VAL definitions ('name path|comp|field' per line), prepended to script.
-    abort_on_fail=True: stops Play Mode on step timeout."""
+    abort_on_fail=True: stops Play Mode on step timeout.
+    snapshot_on_failure=True: on assertion/timeout failure, appends current alias values and recent console errors."""
     if script and path:
         raise ValueError("script and path are mutually exclusive")
     if not script and not path:
@@ -127,6 +129,7 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
         raw = await _send("run_playtest", _args(
             path=path, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
+            snapshot_on_failure="true" if snapshot_on_failure else None,
             defs=_normalize_defs(defs), _explicit_path="true"),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
     else:
@@ -136,7 +139,8 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
                 script = normalized + "\n" + script
         raw = await _send("run_playtest", _args(
             script=script, timeout=str(timeout),
-            abort_on_fail="true" if abort_on_fail else None),
+            abort_on_fail="true" if abort_on_fail else None,
+            snapshot_on_failure="true" if snapshot_on_failure else None),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
     compressed = _compress_report(raw)
     if len(compressed) > 300:
@@ -154,8 +158,207 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
 run_playtest.__test__ = False  # prevent pytest from collecting as test
 
 
+async def run_playtest_file(
+    path: str,
+    timeout: float = 120.0,
+    abort_on_fail: bool = False,
+    defs: "str | None" = None,
+    snapshot_on_failure: bool = False,
+) -> str:
+    """[Play Mode] Run a .playtest file by project-relative path.
+    path: project-relative path to .playtest file (e.g. 'Playtests/farm_pipeline_early.playtest').
+    Mutually exclusive with run_playtest script= parameter.
+    Missing file returns a clear error. Path traversal (../) is rejected by Unity.
+    defs: optional inline VAL definitions prepended before the file script.
+    abort_on_fail=True: stops Play Mode on step timeout.
+    snapshot_on_failure=True: on failure, appends current alias values and recent console errors."""
+    raw = await _send("run_playtest", _args(
+        path=path,
+        timeout=str(timeout),
+        abort_on_fail="true" if abort_on_fail else None,
+        snapshot_on_failure="true" if snapshot_on_failure else None,
+        defs=_normalize_defs(defs)),
+        timeout=timeout + _TCP_PLAYTEST_BUFFER)
+    return _compress_report(raw)
+
+
+run_playtest_file.__test__ = False  # prevent pytest from collecting as test
+
+
+async def run_playtest_suite(
+    paths: str,
+    timeout_per_test: float = 120.0,
+    stop_on_fail: bool = False,
+    stop_after: bool = True,
+) -> str:
+    """[Play Mode] Run multiple .playtest files sequentially and return a compact matrix.
+    paths: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,
+           or newline-separated list of project-relative paths.
+    stop_on_fail=True: abort suite after first failure.
+    stop_after=True: exit Play Mode when suite completes.
+    Output: SUITE: X/Y passed (Zs) + per-file line + full failure details."""
+    if "*" in paths or "?" in paths:
+        file_list_raw = await _send("list_playtest_files", _args(pattern=paths), timeout=10.0)
+        if file_list_raw.startswith("err:") or file_list_raw == "no files":
+            return file_list_raw
+        file_list = [f.strip() for f in file_list_raw.strip().split("\n") if f.strip()]
+    else:
+        sep = "," if "," in paths else "\n"
+        file_list = [f.strip() for f in paths.split(sep) if f.strip()]
+
+    if not file_list:
+        return "SUITE: no files matched"
+
+    import time as _time
+    results = []
+    suite_start = _time.monotonic()
+
+    for filepath in file_list:
+        t0 = _time.monotonic()
+        raw = await _send("run_playtest", _args(
+            path=filepath,
+            timeout=str(timeout_per_test),
+            abort_on_fail=None),
+            timeout=timeout_per_test + _TCP_PLAYTEST_BUFFER)
+        elapsed = _time.monotonic() - t0
+        passed = raw.startswith("PLAYTEST:") and "FAIL" not in raw
+        results.append((filepath, raw, elapsed, passed))
+        if stop_on_fail and not passed:
+            break
+
+    if stop_after:
+        try:
+            await _send("editor", _args(action="stop"), timeout=10.0)
+        except Exception:
+            pass  # best-effort
+
+    return _format_suite_report(results, _time.monotonic() - suite_start)
+
+
+run_playtest_suite.__test__ = False  # prevent pytest from collecting as test
+
+
+def _format_suite_report(results, total_elapsed):
+    """Compact matrix: OK lines + full block for each failure."""
+    passed_count = sum(1 for _, _, _, ok in results if ok)
+    total = len(results)
+    lines = [f"SUITE: {passed_count}/{total} passed ({total_elapsed:.1f}s)"]
+    failures = []
+    for filepath, raw, elapsed, ok in results:
+        name = filepath.rsplit("/", 1)[-1]
+        first_line = raw.split("\n")[0] if raw else ""
+        step_part = ""
+        if "/" in first_line:
+            import re as _re
+            m = _re.search(r"(\d+/\d+)", first_line)
+            if m:
+                step_part = f"  {m.group(1)}"
+        status = "OK  " if ok else "FAIL"
+        lines.append(f"{status} {elapsed:5.1f}s  {name}{step_part}")
+        if not ok:
+            failures.append(f"\n--- {name} ---\n{raw}")
+    lines.extend(failures)
+    return "\n".join(lines)
+
+
+async def lint_playtest(
+    path: "str | None" = None,
+    script: "str | None" = None,
+) -> str:
+    """Read-only preflight check on a .playtest file or inline script.
+    Checks: unresolved $alias, deprecated ALIAS, TRACE_FLOW (unimplemented), CALL unknown macro,
+    mixed AND/OR, no evidence commands, missing ASSERT_CONSOLE_CLEAN at end.
+    path: project-relative path to .playtest file.
+    script: inline DSL to lint (mutually exclusive with path).
+    Returns: OK or severity-tagged issues (ERROR/WARN/INFO) with file:line."""
+    if path and script:
+        raise ValueError("path and script are mutually exclusive")
+    if not path and not script:
+        raise ValueError("path or script required")
+    return await _send("lint_playtest", _args(path=path, script=script), timeout=60.0)
+
+
+async def validate_playtest_aliases(
+    defs: str = "Assets/PlaytestDefs/farm_core.defs",
+    asset: str = "Assets/Configs/PlaytestConfig.asset",
+) -> str:
+    """Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed.
+    defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).
+    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).
+    Returns 'ok: N aliases in sync' when identical, or a diff report."""
+    return await _send("validate_playtest_aliases", _args(defs=defs, asset=asset))
+
+
+async def sync_playtest_aliases_from_defs(
+    defs: str = "Assets/PlaytestDefs/farm_core.defs",
+    asset: str = "Assets/Configs/PlaytestConfig.asset",
+) -> str:
+    """Overwrite PlaytestConfig.asset aliases from a .defs text file.
+    defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).
+    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).
+    Invalidates AliasExpander cache after sync. Not allowed in Play Mode."""
+    return await _send("sync_playtest_aliases_from_defs", _args(defs=defs, asset=asset))
+
+
+async def export_playtest_aliases_to_defs(
+    asset: str = "Assets/Configs/PlaytestConfig.asset",
+    defs: str = "Assets/PlaytestDefs/farm_core.defs",
+) -> str:
+    """Export PlaytestConfig.asset aliases to a readable .defs text file.
+    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).
+    defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs)."""
+    return await _send("export_playtest_aliases_to_defs", _args(asset=asset, defs=defs))
+
+
+async def lint_playtest_suite(paths: str) -> str:
+    """Read-only preflight check across multiple .playtest files.
+    paths: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list.
+    Returns: aggregated lint report, one block per file."""
+    if "*" in paths or "?" in paths:
+        file_list_raw = await _send("list_playtest_files", _args(pattern=paths), timeout=10.0)
+        if file_list_raw.startswith("err:") or file_list_raw == "no files":
+            return file_list_raw
+        file_list = [f.strip() for f in file_list_raw.strip().split("\n") if f.strip()]
+    else:
+        file_list = [f.strip() for f in paths.split(",") if f.strip()]
+
+    if not file_list:
+        return "LINT: no files matched"
+
+    results = []
+    for filepath in file_list:
+        result = await _send("lint_playtest", _args(path=filepath), timeout=60.0)
+        results.append(result)
+
+    ok_count = sum(1 for r in results if r.startswith("OK"))
+    return f"LINT: {ok_count}/{len(results)} clean\n" + "\n".join(results)
+
+
+async def resolve_scene_refs(refs: str, fields: str | None = None) -> str:
+    """Read-only scene reference resolver.
+    refs: comma-separated list of $alias, /path, or t:Type tokens.
+    fields: optional comma-separated field names to check existence on matched component.
+    Returns one tab-aligned line per ref: OK|MISS|AMB + path + details."""
+    return await _send("resolve_scene_refs", _args(refs=refs, fields=fields), timeout=15.0)
+
+
+async def lint_scene_refs(path: "str | None" = None, snippet: "str | None" = None) -> str:
+    """Read-only linter for scene references in DSL scripts or batch commands.
+    path: project-relative path to .playtest file.
+    snippet: inline DSL or batch commands to lint (mutually exclusive with path).
+    Checks: unresolved aliases, embedded aliases, missing objects, ambiguous names.
+    Returns: 'OK: no issues' or severity-tagged issues (ERROR/WARN) with file:line:token."""
+    if path and snippet:
+        raise ValueError("path and snippet are mutually exclusive")
+    if not path and not snippet:
+        raise ValueError("path or snippet required")
+    return await _send("lint_scene_refs", _args(path=path, snippet=snippet), timeout=30.0)
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
+    mcp.tool(annotations=_RO)(resolve_scene_refs)
+    mcp.tool(annotations=_RO)(lint_scene_refs)
     mcp.tool(annotations=_RW)(invoke_method)
     mcp.tool(annotations=_RW_IDEM)(set_runtime_property)
     mcp.tool(annotations=_RW_IDEM)(wait_until)
@@ -163,3 +366,10 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RO)(query_state)
     mcp.tool(annotations=_RW)(test_step)
     mcp.tool(annotations=_RW)(run_playtest)
+    mcp.tool(annotations=_RW)(run_playtest_file)
+    mcp.tool(annotations=_RW)(run_playtest_suite)
+    mcp.tool(annotations=_RO)(lint_playtest)
+    mcp.tool(annotations=_RO)(lint_playtest_suite)
+    mcp.tool(annotations=_RO)(validate_playtest_aliases)
+    mcp.tool(annotations=_RW)(sync_playtest_aliases_from_defs)
+    mcp.tool(annotations=_RW)(export_playtest_aliases_to_defs)

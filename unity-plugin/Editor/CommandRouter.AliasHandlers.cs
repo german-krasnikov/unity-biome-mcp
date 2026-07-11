@@ -1,5 +1,9 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
+using UnityEditor;
+using UnityEngine;
 
 namespace UnityMCP.Editor
 {
@@ -74,6 +78,130 @@ namespace UnityMCP.Editor
             sb.AppendLine($"count: {count}");
             sb.Append($"stale: {AliasExpander.IsStale}");
             return sb.ToString();
+        }
+
+        // Overwrite PlaytestConfig.asset aliases from .defs text file.
+        // defs: project-relative path to .defs file; asset: asset path to PlaytestConfig.
+        private static string ExecSyncFromDefs(string argsJson)
+        {
+            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/farm_core.defs";
+            var assetPath = JsonHelper.ExtractString(argsJson, "asset");
+
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var absDefsPath = Path.IsPathRooted(defsPath) ? defsPath : Path.Combine(projectRoot, defsPath);
+            if (!File.Exists(absDefsPath)) return $"err: defs file not found: {defsPath}";
+
+            PlaytestConfig cfg = null;
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                cfg = AssetDatabase.LoadAssetAtPath<PlaytestConfig>(assetPath);
+                if (cfg == null) return $"err: asset not found: {assetPath}";
+            }
+            else
+            {
+                foreach (var guid in AssetDatabase.FindAssets("t:PlaytestConfig"))
+                {
+                    var p = AssetDatabase.GUIDToAssetPath(guid);
+                    cfg = AssetDatabase.LoadAssetAtPath<PlaytestConfig>(p);
+                    if (cfg != null) { assetPath = p; break; }
+                }
+                if (cfg == null) return "err: no PlaytestConfig found";
+            }
+
+            try
+            {
+                var defsAliases = PlaytestAliasHelpers.ParseDefsToAliases(File.ReadAllText(absDefsPath));
+                cfg.aliases.Clear();
+                cfg.aliases.AddRange(defsAliases);
+                EditorUtility.SetDirty(cfg);
+                AssetDatabase.SaveAssets();
+                AliasExpander.Invalidate();
+                return $"synced: {defsAliases.Count} aliases -> {assetPath}";
+            }
+            catch (ArgumentException ex)
+            {
+                return $"err: parse error in {defsPath}: {ex.Message}";
+            }
+        }
+
+        // Export PlaytestConfig.asset aliases to a .defs text file.
+        // asset: asset path to PlaytestConfig; defs: project-relative output path.
+        private static string ExecExportToDefs(string argsJson)
+        {
+            var assetPath = JsonHelper.ExtractString(argsJson, "asset");
+            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/farm_core.defs";
+
+            PlaytestConfig cfg = null;
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                cfg = AssetDatabase.LoadAssetAtPath<PlaytestConfig>(assetPath);
+                if (cfg == null) return $"err: asset not found: {assetPath}";
+            }
+            else
+            {
+                foreach (var guid in AssetDatabase.FindAssets("t:PlaytestConfig"))
+                {
+                    var p = AssetDatabase.GUIDToAssetPath(guid);
+                    cfg = AssetDatabase.LoadAssetAtPath<PlaytestConfig>(p);
+                    if (cfg != null) break;
+                }
+                if (cfg == null) return "err: no PlaytestConfig found";
+            }
+
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var absDefsPath = Path.IsPathRooted(defsPath) ? defsPath : Path.Combine(projectRoot, defsPath);
+            var dir = Path.GetDirectoryName(absDefsPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+            var block = PlaytestAliasHelpers.FormatVALBlock(cfg.aliases);
+            File.WriteAllText(absDefsPath, block, Encoding.UTF8);
+            AssetDatabase.Refresh();
+            return $"exported: {cfg.aliases.Count} aliases -> {defsPath}";
+        }
+
+        // Compare alias .defs file vs PlaytestConfig.asset.
+        // defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).
+        // asset: asset path to PlaytestConfig (default: first found via FindAssets).
+        private static string ExecValidateAliases(string argsJson)
+        {
+            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/farm_core.defs";
+            var assetPath = JsonHelper.ExtractString(argsJson, "asset");
+
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var absDefsPath = Path.IsPathRooted(defsPath)
+                ? defsPath
+                : Path.Combine(projectRoot, defsPath);
+
+            if (!File.Exists(absDefsPath))
+                return $"err: defs file not found: {defsPath}";
+
+            PlaytestConfig cfg = null;
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                cfg = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(assetPath);
+                if (cfg == null) return $"err: asset not found: {assetPath}";
+            }
+            else
+            {
+                foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig"))
+                {
+                    var p = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                    cfg = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(p);
+                    if (cfg != null) { assetPath = p; break; }
+                }
+                if (cfg == null) return "err: no PlaytestConfig found";
+            }
+
+            try
+            {
+                var defsAliases = PlaytestAliasHelpers.ParseDefsToAliases(
+                    File.ReadAllText(absDefsPath));
+                return PlaytestAliasHelpers.ValidateAliases(defsAliases, cfg.aliases);
+            }
+            catch (ArgumentException ex)
+            {
+                return $"err: parse error in {defsPath}: {ex.Message}";
+            }
         }
     }
 }

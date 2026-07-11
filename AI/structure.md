@@ -108,7 +108,7 @@ unity-kiss-mcp/
 │   │   ├── debug/              # Debug subsystem (v0.59.0: state capture + watch system)
 │   │   │   ├── __init__.py
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
-│   │   ├── tools/              # Tool modules (39 files + __init__, v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
+│   │   ├── tools/              # Tool modules (42 files + __init__, playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
 │   │   │   ├── tool_specs.py   # Single source of truth: 129 ToolSpec entries with category/core/tier1/timeout_s metadata (v0.69.0, M8)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
@@ -118,13 +118,15 @@ unity-kiss-mcp/
 │   │   │   ├── auto_wire.py    # Auto-wiring tool: fill ObjectRef fields by semantic name/type matching (v0.62.0)
 │   │   │   ├── scene_health.py # Scene health audit: hierarchy depth, naming, duplicates, origins, missing scripts (v0.62.0)
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
+│   │   │   ├── transaction.py  # scene_change_plan + apply_scene_change: pre-flight (compile/console/resolve_scene_refs/checkpoint) → plan_id (TTL 600s) → guarded apply with verify + save (playtests ROI sprint)
+│   │   │   ├── verify.py       # verify_after_change: 5-gate additive pipeline (await_compile → get_compile_errors → console_since → run_tests_wait → run_playtest_suite); returns PASS or FAIL with skipped gates listed (playtests ROI sprint)
 │   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/clone_object/set_material; get_component+inspect accept compress=True (v0.78.9)
 │   │   │   ├── scene.py        # scene, hierarchy, search + save_session/load_session/screenshot_baseline/screenshot_compare (merged from scene_session.py v0.79.1; multi-scene support)
-│   │   │   ├── console.py      # get_console tool split from scene.py (v0.70.0)
+│   │   │   ├── console.py      # get_console, get_compile_errors split from scene.py (v0.70.0); playtests ROI sprint: +console_mark (timestamp watermark, pure Python), +get_console_since (logs after watermark)
 │   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)
-│   │   │   ├── testing.py      # run_playtest, run_tests split from scene.py (v0.70.0)
+│   │   │   ├── testing.py      # run_tests, recompile, await_compile split from scene.py (v0.70.0); playtests ROI sprint: +run_tests_wait (blocking run_tests + poll loop, returns final result or TIMEOUT)
 │   │   │   ├── editor_control.py # editor control commands split from scene.py (v0.70.0)
-│   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (script= OR path= mutually exclusive, abort_on_fail, defs; _TCP_POLL/STEP/PLAYTEST_BUFFER constants; module-level SamplingService singleton)
+│   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (script= OR path= mutually exclusive, abort_on_fail, defs, snapshot_on_failure; _TCP_POLL/STEP/PLAYTEST_BUFFER constants; module-level SamplingService singleton); playtests ROI sprint: +run_playtest_file (single .playtest by project-relative path), +run_playtest_suite (glob/comma/newline list → SUITE: X/Y matrix, stop_on_fail, stop_after)
 │   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set; batch accepts validate_aliases=True for dry-run alias check (v0.78.9)
 │   │   │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
 │   │   │   ├── skills.py       # save/use/list_skill, apply/save/list_template + _skills_dir
@@ -152,7 +154,7 @@ unity-kiss-mcp/
 │   │   │   └── _annotations.py          # Tool annotations
 │   │   └── plugins/            # Plugin system — 3-source auto-discovery (auto-disabled via UNITY_MCP_SKIP_PLUGINS env)
 │   │       └── __init__.py     # load_plugins(mcp, send_fn, args_fn), 3-source discovery, UNITY_MCP_SKIP_PLUGINS filtering
-│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; v0.78.11: +test_middleware_read_cmds + test_tool_schema_coverage; v0.78.x: +alias middleware tests; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
+│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; playtests ROI sprint: +11 new test files for transaction/verify/watermarks/suite runner/scene refs; v0.78.11: +test_middleware_read_cmds + test_tool_schema_coverage; v0.78.x: +alias middleware tests; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
 │       ├── helpers.py                  # DRY: make_mock_bridge() + shared test utilities (v0.26.0)
 │       ├── test_server*.py             # Core + edge cases + tools
 │       ├── test_bridge*.py             # TCP bridge + reconnect + resilience
@@ -246,7 +248,7 @@ unity-kiss-mcp/
 │   ├── UnityMCP.Reload.asmdef                # Core assembly (no references)
 │   ├── package.json                          # v0.1.4, "com.unity-mcp.reload"
 │   └── package.json.meta
-├── unity-plugin/               # Unity Editor Plugin (210+ C# files, ~20000 LOC, v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests, v0.79.1: +PlaytestPathTests.cs (run_playtest path= 8 tests), CommandRouter path= dispatch; v0.80.1: +SceneCleanTestBase.cs (leak-detection base), +force_play_stop command — 6455+ C# NUnit green)
+├── unity-plugin/               # Unity Editor Plugin (225+ C# files, ~22000 LOC, playtests ROI sprint: +PlaytestLinter.cs, +PlaytestRunner.Snapshot.cs, +SceneRefResolver.cs, +SceneRefLinter.cs, +9 test files (~1200 new NUnit tests); v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests, v0.79.1: +PlaytestPathTests.cs (run_playtest path= 8 tests), CommandRouter path= dispatch; v0.80.1: +SceneCleanTestBase.cs (leak-detection base), +force_play_stop command — 6455+ C# NUnit green (v0.79.1), ~7600+ with playtests ROI sprint)
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
@@ -284,9 +286,13 @@ unity-kiss-mcp/
 │       ├── RefManager.cs                   # Ephemeral $a-$zz scene refs (702 slots)
 │       ├── ErrorHelper.cs                  # Contextual errors + "did you mean?"
 │       ├── RuntimeHelper.cs                # Reflection invoke + state read; method dispatch cache + field(args) syntax (v0.74.0)
-│       ├── PlaytestRunner.cs               # DSL playtest executor (partial class, core); abort_on_fail, EvalCompound (v0.74.0); VAR expansion via PlaytestVarRegistry, _cachedConfig (v0.78.x)
-│       ├── PlaytestRunner.Steps.cs         # ExecuteStep dispatch (partial class, 23 cases: +Section v0.74.0)
-│       ├── PlaytestParser.cs               # DSL parser; MACRO/CALL, MOVE_PATH, SECTION, DESC, AND/OR WAIT_UNTIL (v0.74.0); INCLUDE (Phase -1), VAL (Phase 0.7), VAR, ParseResult, SigilRegex, _DSL_KEYWORDS (v0.78.x)
+│       ├── PlaytestRunner.cs               # DSL playtest executor (partial class, core); abort_on_fail, EvalCompound (v0.74.0); VAR expansion via PlaytestVarRegistry, _cachedConfig (v0.78.x); playtests ROI sprint: suite runner (list_playtest_files), snapshot_on_failure support
+│       ├── PlaytestRunner.Steps.cs         # ExecuteStep dispatch (partial class, 23 cases: +Section v0.74.0, +WAIT_CAPTURED, +SWEEP_PATH playtests ROI sprint)
+│       ├── PlaytestRunner.Snapshot.cs      # BuildFailureSnapshot(step, config): extracts $sigil names from RawLine, reads current values, appends recent console errors — called when snapshot_on_failure=true (playtests ROI sprint)
+│       ├── PlaytestParser.cs               # DSL parser; MACRO/CALL, MOVE_PATH, SECTION, DESC, AND/OR WAIT_UNTIL (v0.74.0); INCLUDE (Phase -1), VAL (Phase 0.7), VAR, ParseResult, SigilRegex, _DSL_KEYWORDS (v0.78.x); playtests ROI sprint: +WAIT_CAPTURED, +SWEEP_PATH, bool ASSERT, provenance (RawLine per step) (+329 lines)
+│       ├── PlaytestLinter.cs               # Static DSL linter (no Play Mode): 3-pass (raw scan → parse → semantic), LintFile/LintScript → ERROR/WARN/INFO issues with line numbers (playtests ROI sprint)
+│       ├── SceneRefResolver.cs             # Resolves reference tokens ($alias, /path, t:Type) against live scene; ResolveMany(refs, fields) → List<RefResult> (OK/MISS/AMB) (playtests ROI sprint)
+│       ├── SceneRefLinter.cs               # 3-pass read-only linter: extracts path tokens from DSL → validates via SceneRefResolver → ERROR/WARN issues (playtests ROI sprint)
 │       ├── PlaytestVarRegistry.cs          # Runtime VAR resolve: Register(name, @path|comp|field), ExpandVars(text), ExpandStep(step); ReadValueFn delegate injection for testability (v0.78.x)
 │       ├── PlaytestPositionResolver.cs     # Position expression resolver: literal x,y,z or @/GoPath.position [± (dx,dy,dz)]; _findOverride seam for unit tests (v0.78.x)
 │       ├── PlaytestState.cs + PlaytestConfig.cs
@@ -443,7 +449,15 @@ unity-kiss-mcp/
 │       │   ├── PlaytestDslExtensionTests.cs      # SECTION/DESC/MOVE_PATH/AS/abort-on-fail DSL integration (v0.74.0)
 │       │   ├── PlaytestMacroTests.cs             # MACRO/CALL expansion, recursion, param substitution (v0.74.0)
 │       │   ├── WaitConditionTests.cs             # AND/OR compound conditions + EvalCompound unit tests (v0.74.0)
-│       │   ├── PlaytestRunnerTests.cs            # Runner integration tests (+48 lines, v0.74.0)
+│       │   ├── PlaytestRunnerTests.cs            # Runner integration tests (+74 lines, v0.74.0; playtests ROI sprint: suite runner + snapshot support)
+│       │   ├── PlaytestSnapshotTests.cs          # BuildFailureSnapshot: sigil extraction, value capture, console append (211 tests, playtests ROI sprint)
+│       │   ├── PlaytestLintTests.cs              # PlaytestLinter 3-pass: raw scan, parse warnings, semantic checks (95 tests, playtests ROI sprint)
+│       │   ├── PlaytestProvenanceTests.cs        # RawLine provenance tracking in ParseResult + PlaytestStep (208 tests, playtests ROI sprint)
+│       │   ├── PlaytestDslExtensionTests.cs      # WAIT_CAPTURED + SWEEP_PATH + bool ASSERT DSL extensions (251 tests, playtests ROI sprint; previously v0.74.0 SECTION/DESC)
+│       │   ├── PlaytestAliasDefsTests.cs         # export/sync/validate_playtest_aliases round-trip (212 tests, playtests ROI sprint)
+│       │   ├── SceneRefResolverTests.cs          # ResolveMany: OK/MISS/AMB, field validation, multi-ref (106 tests, playtests ROI sprint)
+│       │   ├── SceneRefLinterTests.cs            # 3-pass DSL linting against live scene refs (93 tests, playtests ROI sprint)
+│       │   ├── McpStatusCommandTests.cs          # mcp_status command registration + output format (35 tests, playtests ROI sprint)
 │       │   ├── PlaytestComposerTests.cs          # Composer window state + step lifecycle (~116 tests, v0.75.0)
 │       │   ├── ComposerStateStoreTests.cs        # State persistence to Library/ + path override (~98 tests, v0.75.0)
 │       │   ├── PlaytestDropHelperTests.cs        # Multi-drop + component/field/method pickers (~225 tests, v0.75.0)

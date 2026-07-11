@@ -56,6 +56,7 @@ Each row has a **Type** dropdown (all `StepType` values) and a **Description** f
 | AssertCaptured | Label, Mode (`DELTA` / `RATIO` / `INCREASED` / `DECREASED` / `UNCHANGED` / `CHANGED`) |
 | AssertNear | Path A, Path B, Distance threshold |
 | AssertConsoleClean | Ignore pattern (comma-separated substrings) |
+| WaitCaptured | Label (capture key), Mode (`INCREASED`/`DECREASED`/`UNCHANGED`/`INCREASED_BY`/`DECREASED_BY`), optional sub-op + value, Timeout, OVER (stability window) |
 
 **Shared interactions on Path and Query text fields:**
 - **Double-click** — pings the GameObject in Hierarchy (`EditorGUIUtility.PingObject`)

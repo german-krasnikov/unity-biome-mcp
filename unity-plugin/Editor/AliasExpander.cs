@@ -19,6 +19,9 @@ namespace UnityMCP.Editor
         /// <summary>True when the table was previously loaded but is now invalidated (stale).</summary>
         internal static bool IsStale => _hasLoaded && _table == null && _tableOverride == null;
 
+        /// <summary>Count of cached alias entries (0 if not yet loaded).</summary>
+        internal static int CachedAliasCount => (_tableOverride ?? _table)?.Count ?? 0;
+
         /// <summary>Expand $sigils in a JSON args string. JSON-escapes replacement values.</summary>
         internal static string ExpandJson(string argsJson) => ExpandCore(argsJson, jsonEscape: true);
 

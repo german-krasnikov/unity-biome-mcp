@@ -46,7 +46,7 @@
 
 ### Two ways to work
 
-🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 124 MCP tools with 80–95% token compression.
+🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 140 MCP tools with 80–95% token compression.
 
 💬 **In-Unity Chat** — open `MCP → Chat` inside the editor. No API key needed — spawns the CLI directly. 5 backends: Claude, Antigravity, Kimi, Codex, OpenCode. Drag GameObjects, scripts, and materials into chat as typed context chips. Each AI turn gets its own undo group — one Ctrl+Z rolls back everything the AI changed. Domain-reload safe. Extensible chip-kind registry lets third-party plugins add new chip types with zero core edits.
 
@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="124 MCP Tools · 10199 Tests (4396 Python · 5519 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="140 MCP Tools · 11296 Tests (4462 Python · 6550 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -302,6 +302,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.82.0</b> — 2026-07-11 — `run_playtest_file` + `run_playtest_suite` — file-based and suite-level …</summary>
+
+`run_playtest_file` + `run_playtest_suite` — file-based and suite-level playtest runners.
+
+</details>
+
+<details>
 <summary><b>v0.81.0</b> — 2026-07-11 — NUnit: `RenameObject_Undo` — added `LogAssert.Expect` for expected undo log …</summary>
 
 NUnit: `RenameObject_Undo` — added `LogAssert.Expect` for expected undo log message.
@@ -330,15 +337,9 @@ NUnit: `RenameObject_Undo` — added `LogAssert.Expect` for expected undo log me
 </details>
 
 <details>
-<summary><b>v0.78.0</b> — 2026-07-09 — **`AliasType` enum** (`PlaytestConfig.cs`) — `ValPath` / `ValConst` / …</summary>
-
-**`AliasType` enum** (`PlaytestConfig.cs`) — `ValPath` / `ValConst` / `VarRuntime`; drives per-card layout in the Alias Composer window
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.78.0** — 2026-07-09 — **`AliasType` enum** (`PlaytestConfig.cs`) — `ValPath` / `ValConst` / …
 - **v0.77.0** — 2026-07-09 — **M1: `reorder_track`** — move track to position index (reflection on …
 - **v0.69.1** — 2026-07-03 — **CallerIsPlugin Gate** — New `CommandRegistrar.CallerIsPlugin()` filter strips …
 - **v0.69.0** — 2026-07-02 — **Auto-Config on Editor Startup** — `ProjectConfigWriter` [InitializeOnLoad] …

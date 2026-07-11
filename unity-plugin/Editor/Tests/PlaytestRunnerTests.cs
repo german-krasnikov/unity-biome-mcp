@@ -289,5 +289,79 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(1, results.Count);
             StringAssert.Contains("not yet implemented", results[0]);
         }
+
+        // ── EvalCapturedDelta (pure math, no Unity objects) ───────────────────
+
+        [Test]
+        public void EvalCapturedDelta_Increased_ReturnsFalse_WhenEqual()
+        {
+            float us = -1f;
+            Assert.IsFalse(PlaytestRunner.EvalCapturedDelta("INCREASED", null, null, 5f, 5f, ref us, 0f, 0f));
+        }
+
+        [Test]
+        public void EvalCapturedDelta_Increased_ReturnsTrue_WhenHigher()
+        {
+            float us = -1f;
+            Assert.IsTrue(PlaytestRunner.EvalCapturedDelta("INCREASED", null, null, 5f, 6f, ref us, 0f, 0f));
+        }
+
+        [Test]
+        public void EvalCapturedDelta_Decreased_ReturnsTrue_WhenLower()
+        {
+            float us = -1f;
+            Assert.IsTrue(PlaytestRunner.EvalCapturedDelta("DECREASED", null, null, 10f, 8f, ref us, 0f, 0f));
+        }
+
+        [Test]
+        public void EvalCapturedDelta_IncreasedBy_GreaterEqual_ReturnsTrueWhenThresholdMet()
+        {
+            float us = -1f;
+            // baseline=10, current=12 → delta=2, Compare("2.0000",">=","1") → true
+            Assert.IsTrue(PlaytestRunner.EvalCapturedDelta("INCREASED_BY", ">=", "1", 10f, 12f, ref us, 0f, 0f));
+        }
+
+        [Test]
+        public void EvalCapturedDelta_Unchanged_ReturnsFalse_BeforeDuration()
+        {
+            float us = -1f; // not yet tracking
+            // value unchanged (5==5), overDuration=2, now=0 → sets unchangedSince=0, but 0-0<2
+            bool result = PlaytestRunner.EvalCapturedDelta("UNCHANGED", null, null, 5f, 5f, ref us, 0f, 2f);
+            Assert.IsFalse(result);
+            Assert.AreEqual(0f, us, 0.001f, "unchangedSince should be set to now");
+        }
+
+        [Test]
+        public void EvalCapturedDelta_Unchanged_ReturnsTrue_AfterDuration()
+        {
+            float us = 0f; // tracking since time 0
+            // now=3, overDuration=2 → 3-0=3 >= 2 → true
+            bool result = PlaytestRunner.EvalCapturedDelta("UNCHANGED", null, null, 5f, 5f, ref us, 3f, 2f);
+            Assert.IsTrue(result);
+        }
+
+        [Test]
+        public void EvalCapturedDelta_Unchanged_ResetsWhenValueChanges()
+        {
+            float us = 1f; // was tracking
+            // current != baseline → reset and return false
+            bool result = PlaytestRunner.EvalCapturedDelta("UNCHANGED", null, null, 5f, 6f, ref us, 5f, 2f);
+            Assert.IsFalse(result);
+            Assert.AreEqual(-1f, us, 0.001f, "unchangedSince should reset to -1");
+        }
+
+        [Test]
+        public void EvalCapturedDelta_DecreasedBy_ReturnsTrueWhenThresholdMet()
+        {
+            float us = -1f;
+            Assert.IsTrue(PlaytestRunner.EvalCapturedDelta("DECREASED_BY", ">=", "1", 10f, 8f, ref us, 0f, 0f));
+        }
+
+        [Test]
+        public void EvalCapturedDelta_Unchanged_NoDuration_ReturnsTrueImmediately()
+        {
+            float us = -1f;
+            Assert.IsTrue(PlaytestRunner.EvalCapturedDelta("UNCHANGED", null, null, 5f, 5f, ref us, 0f, 0f));
+        }
     }
 }

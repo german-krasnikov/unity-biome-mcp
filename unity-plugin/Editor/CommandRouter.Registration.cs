@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEditorInternal;
@@ -70,6 +72,18 @@ namespace UnityMCP.Editor
                 }
                 return "ok";
             }, required: "label", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
+            CommandRegistry.Register("get_status", _ =>
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"scene={scene.name}");
+                sb.AppendLine($"dirty={scene.isDirty}");
+                sb.AppendLine($"playing={UnityEditor.EditorApplication.isPlaying}");
+                sb.AppendLine($"compiling={UnityEditor.EditorApplication.isCompiling}");
+                sb.AppendLine($"port={MCPServer.ServerPort}");
+                sb.AppendLine($"aliases={AliasExpander.CachedAliasCount}");
+                return sb.ToString().TrimEnd();
+            }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
 
         internal static void RegisterReadCommands()
@@ -80,8 +94,56 @@ namespace UnityMCP.Editor
                 maxResponseChars: 50000);
             CommandRegistry.Register("get_aliases", _ => GetAliasesText(),
                 required: "", optional: "", allowedDuringCompile: true);
+            CommandRegistry.Register("list_playtest_files", args =>
+            {
+                var pattern = JsonHelper.ExtractString(args, "pattern") ?? "Playtests/*.playtest";
+                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                var absDir = Path.GetFullPath(Path.Combine(projectRoot, Path.GetDirectoryName(pattern) ?? ""));
+                if (!absDir.StartsWith(projectRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                    && absDir != projectRoot)
+                    return "err: path must be inside project";
+                if (!Directory.Exists(absDir)) return "err: directory not found: " + absDir;
+                var files = Directory.GetFiles(absDir, Path.GetFileName(pattern))
+                    .Select(f => f.Substring(projectRoot.Length).TrimStart(Path.DirectorySeparatorChar)
+                                  .Replace(Path.DirectorySeparatorChar, '/'))
+                    .OrderBy(f => f)
+                    .ToArray();
+                return files.Length == 0 ? "no files" : string.Join("\n", files);
+            }, required: "", optional: "pattern", allowedDuringCompile: true);
+            CommandRegistry.Register("lint_playtest", args =>
+            {
+                var path   = JsonHelper.ExtractString(args, "path");
+                var script = JsonHelper.ExtractString(args, "script");
+                if (path != null && script != null) return "err: use path or script, not both";
+                if (path != null)   return PlaytestLinter.LintFile(path);
+                if (script != null) return PlaytestLinter.LintScript(script);
+                return "err: path or script required";
+            }, required: "", optional: "path,script", allowedDuringCompile: true);
+            CommandRegistry.Register("lint_scene_refs", args =>
+            {
+                var path    = JsonHelper.ExtractString(args, "path");
+                var snippet = JsonHelper.ExtractString(args, "snippet");
+                if (path != null && snippet != null) return "err: path and snippet are mutually exclusive";
+                string script;
+                if (path != null)
+                {
+                    var fullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", path));
+                    if (!File.Exists(fullPath)) return $"err: file not found: {path}";
+                    script = File.ReadAllText(fullPath, System.Text.Encoding.UTF8);
+                }
+                else if (snippet != null) script = snippet;
+                else return "err: path or snippet required";
+                var issues = SceneRefLinter.LintScript(script);
+                return issues.Count == 0 ? "OK: no issues" : SceneRefLinter.FormatReport(path ?? "<snippet>", issues);
+            }, required: "", optional: "path,snippet");
             CommandRegistry.Register("alias_status", ExecAliasStatus,
                 required: "", optional: "", allowedDuringCompile: true);
+            CommandRegistry.Register("validate_playtest_aliases", ExecValidateAliases,
+                required: "defs", optional: "asset", allowedDuringCompile: true);
+            CommandRegistry.Register("sync_playtest_aliases_from_defs", ExecSyncFromDefs,
+                required: "", optional: "defs,asset");
+            CommandRegistry.Register("export_playtest_aliases_to_defs", ExecExportToDefs,
+                required: "", optional: "asset,defs");
             CommandRegistry.Register("get_component", ExecGetComponent,
                 required: "path,type", optional: "fields,compress");
             CommandRegistry.Register("get_components_list", ExecGetComponentsList,
@@ -90,6 +152,13 @@ namespace UnityMCP.Editor
                 required: "id", optional: "");
             CommandRegistry.Register("find_objects", ExecFindObjects,
                 required: "", optional: "name,tag,layer,component");
+            CommandRegistry.Register("resolve_scene_refs", args =>
+            {
+                var refs = JsonHelper.ExtractString(args, "refs");
+                if (string.IsNullOrEmpty(refs)) return "err: refs required";
+                var results = SceneRefResolver.ResolveMany(refs, JsonHelper.ExtractString(args, "fields"));
+                return SceneRefResolver.FormatResults(results);
+            }, required: "refs", optional: "fields");
             CommandRegistry.Register("get_console", ExecGetConsole,
                 required: "", optional: "count,level,first,keyword,count_only,since", allowedDuringCompile: true,
                 maxResponseChars: 20000);
@@ -410,7 +479,7 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAsync("test_step", AsyncTestStep, runtime: true,
                 required: "path,position", optional: "checks_before,checks_after,wait_after,timeout");
             CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: true,
-                required: "", optional: "script,path,defs,timeout,abort_on_fail");
+                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure");
         }
     }
 }

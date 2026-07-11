@@ -7,7 +7,16 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc }
+    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured }
+
+    /// <summary>A script line with origin metadata (file, line number, macro call chain).</summary>
+    internal struct SourcedLine
+    {
+        public string Text;
+        public string File;        // null = main inline script
+        public int    Line;        // 0-based line number in File (or inline script)
+        public string[] MacroStack; // null = direct; ["outer","inner"] = nested call chain
+    }
 
     [Serializable]
     internal class PlaytestStep
@@ -34,6 +43,12 @@ namespace UnityMCP.Editor
         public bool AbortOnFail; // true = stop Play Mode on timeout
         public string Label;     // set by preceding DESC line
 
+        // Provenance — null when not tracked (inline scripts with no INCLUDE/MACRO)
+        public string   SourceFile;     // origin file path; null = main inline script
+        public int      SourceLine;     // 0-based line number in SourceFile (or inline script)
+        public string[] MacroStack;     // null = direct; non-null = macro call chain, outermost first
+        public string   SectionContext; // SECTION label active when this step was parsed; null = none
+
         // ── Semantic aliases — name the meaning per step type; no backing change ──
         internal float  WaitDuration     => Delay;
         internal float  TimeScaleValue   => Delay;
@@ -56,7 +71,9 @@ namespace UnityMCP.Editor
             Message = Message, Queries = Queries, RawLine = RawLine,
             BatchOps = BatchOps, BatchValues = BatchValues,
             SimulatorName = SimulatorName, IsOr = IsOr,
-            AbortOnFail = AbortOnFail, Label = Label
+            AbortOnFail = AbortOnFail, Label = Label,
+            SourceFile = SourceFile, SourceLine = SourceLine,
+            MacroStack = MacroStack, SectionContext = SectionContext
         };
     }
 
@@ -93,12 +110,13 @@ namespace UnityMCP.Editor
         // DSL keywords blocked as VAL values (prevent command injection via defs)
         private static readonly HashSet<string> _DSL_KEYWORDS = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "INVOKE", "MOVE", "MOVE_PATH", "TELEPORT", "ASSERT", "ASSERT_CONSOLE_CLEAN",
+            "INVOKE", "MOVE", "MOVE_PATH", "SWEEP_PATH", "TELEPORT", "ASSERT", "ASSERT_CONSOLE_CLEAN",
             "ASSERT_BATCH", "ASSERT_NEAR", "ASSERT_CAPTURED", "ASSERT_CONSERVED", "ASSERT_CTA",
             "WAIT", "WAIT_UNTIL", "SNAPSHOT", "SET", "LOG", "TIMESCALE", "CAPTURE",
             "INVARIANT", "SIMULATE", "MONITOR", "TRACE_FLOW", "CLICK", "TAP",
             "SECTION", "DESC", "MACRO", "END_MACRO", "CALL", "INCLUDE", "ABORT_ON_FAIL",
-            "VAL", "VAR", "ALIAS"
+            "VAL", "VAR", "ALIAS", "WAIT_CAPTURED",
+            "COMPLETE_PURCHASE", "INVOKE_REPEAT"
         };
 
         public static ParseResult Parse(string script, IncludeResolver resolver = null)
@@ -106,29 +124,29 @@ namespace UnityMCP.Editor
             var rawLines = script.Split('\n');
 
             // Phase -1: expand INCLUDE directives (before any other processing)
-            rawLines = ExpandIncludes(rawLines, 0, resolver);
+            var sourcedLines = ExpandIncludes(rawLines, 0, resolver);
 
             // Phase 0: collect MACRO definitions
-            var macros = new Dictionary<string, (string[] paramNames, string[] body)>(StringComparer.OrdinalIgnoreCase);
-            var cleanLines = new List<string>();
-            for (int i = 0; i < rawLines.Length; i++)
+            var macros = new Dictionary<string, (string[] paramNames, SourcedLine[] body)>(StringComparer.OrdinalIgnoreCase);
+            var cleanLines = new List<SourcedLine>();
+            for (int i = 0; i < sourcedLines.Length; i++)
             {
-                var t = rawLines[i].Trim();
+                var t = sourcedLines[i].Text.Trim();
                 if (t.StartsWith("MACRO ", StringComparison.OrdinalIgnoreCase))
                 {
                     var parts = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     var name = parts[1];
                     var paramNames = parts.Skip(2).ToArray();
-                    var body = new List<string>();
+                    var body = new List<SourcedLine>();
                     i++;
                     bool foundEnd = false;
-                    while (i < rawLines.Length)
+                    while (i < sourcedLines.Length)
                     {
-                        var bt = rawLines[i].Trim();
+                        var bt = sourcedLines[i].Text.Trim();
                         if (bt.Equals("END_MACRO", StringComparison.OrdinalIgnoreCase)) { foundEnd = true; break; }
                         if (bt.StartsWith("MACRO ", StringComparison.OrdinalIgnoreCase))
                             throw new ArgumentException("Nested MACRO definitions are not supported");
-                        body.Add(rawLines[i]);
+                        body.Add(sourcedLines[i]);
                         i++;
                     }
                     if (!foundEnd) throw new ArgumentException($"MACRO '{name}' missing END_MACRO");
@@ -137,11 +155,12 @@ namespace UnityMCP.Editor
                 }
                 // skip stray END_MACRO (outside any MACRO block)
                 if (t.Equals("END_MACRO", StringComparison.OrdinalIgnoreCase)) continue;
-                cleanLines.Add(rawLines[i]);
+                cleanLines.Add(sourcedLines[i]);
             }
 
             // Phase 0.5: expand CALL directives (supports forward references and nesting)
-            var lines = ExpandCalls(cleanLines, macros, 0).ToArray();
+            var expandedSourced = ExpandCalls(cleanLines, macros, 0);
+            var lines = expandedSourced.Select(sl => sl.Text).ToArray();
 
             // Phase 0.7: collect VAL definitions and expand $sigils in all lines
             var vals = CollectVals(lines);
@@ -176,9 +195,11 @@ namespace UnityMCP.Editor
             var steps = new List<PlaytestStep>();
             string pendingLabel = null;
             bool hasGlobalAbort = false;
+            string currentSection = null;
 
             for (int i = 0; i < lines.Length; i++)
             {
+                var sourced = expandedSourced[i]; // provenance for this line
                 var rawLine = lines[i];
                 // Apply alias substitutions (ALIAS — whole-word, no sigil)
                 foreach (var kv in aliases)
@@ -272,6 +293,35 @@ namespace UnityMCP.Editor
                     }
 
                     case "ASSERT":
+                    {
+                        // Bool sugar: ASSERT $name  or  ASSERT !$name  or  ASSERT ($a,$b)  or  ASSERT !($a,$b)
+                        if (tokens.Length == 2)
+                        {
+                            var t1 = tokens[1];
+                            bool negated = t1.StartsWith("!");
+                            var inner = negated ? t1.Substring(1) : t1;
+                            if (inner.StartsWith("(") && inner.EndsWith(")"))
+                            {
+                                var names = inner.Trim('(', ')').Split(',')
+                                    .Select(q => q.Trim()).Where(q => !string.IsNullOrEmpty(q)).ToArray();
+                                if (names.Length == 0) throw new ArgumentException("ASSERT group: empty list");
+                                step.Type = StepType.AssertBatch;
+                                step.Queries = names;
+                                step.BatchOps = Enumerable.Repeat("==", names.Length).ToArray();
+                                step.BatchValues = Enumerable.Repeat(negated ? "False" : "True", names.Length).ToArray();
+                                break;
+                            }
+                            if (t1.StartsWith("$") || t1.StartsWith("!$"))
+                            {
+                                step.Type = StepType.Assert;
+                                step.Query = negated ? t1.Substring(1) : t1;
+                                step.Op = "==";
+                                step.Value = negated ? "False" : "True";
+                                break;
+                            }
+                            throw new ArgumentException($"ASSERT: unrecognised single-token form '{t1}' (expected $name, !$name, or ($a,$b,...))");
+                        }
+                        // Standard form: ASSERT query op value [AS label]
                         if (tokens.Length < 4) throw new ArgumentException($"ASSERT requires path op value, got: '{line}'");
                         step.Type = StepType.Assert;
                         step.Query = tokens[1]; step.Op = tokens[2]; step.Value = tokens[3];
@@ -279,6 +329,7 @@ namespace UnityMCP.Editor
                         if (asIdx >= 0)
                             step.Message = string.Join(" ", tokens, asIdx + 1, tokens.Length - asIdx - 1).Trim('"');
                         break;
+                    }
 
                     case "ASSERT_CONSOLE_CLEAN":
                         step.Type = StepType.AssertConsoleClean;
@@ -381,6 +432,27 @@ namespace UnityMCP.Editor
                         step.Op = tokens[2];
                         if (tokens.Length >= 5) { step.Args = tokens[3]; step.Value = tokens[4]; }
                         break;
+
+                    case "WAIT_CAPTURED":
+                    {
+                        // WAIT_CAPTURED <label> INCREASED|DECREASED|UNCHANGED|INCREASED_BY|DECREASED_BY [subOp val] [TIMEOUT n] [OVER n]
+                        if (tokens.Length < 3)
+                            throw new ArgumentException("WAIT_CAPTURED syntax: WAIT_CAPTURED <label> INCREASED|DECREASED|UNCHANGED|INCREASED_BY|DECREASED_BY [subOp val] [TIMEOUT n] [OVER n]");
+                        step.Type = StepType.WaitCaptured;
+                        step.Message = tokens[1];
+                        step.Op = tokens[2].ToUpperInvariant();
+                        if ((step.Op == "INCREASED_BY" || step.Op == "DECREASED_BY") && tokens.Length >= 5
+                            && tokens[3].ToUpperInvariant() != "TIMEOUT" && tokens[3].ToUpperInvariant() != "OVER")
+                        {
+                            step.Args = tokens[3];
+                            step.Value = tokens[4];
+                        }
+                        var wcTiIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "TIMEOUT");
+                        if (wcTiIdx >= 0) step.Timeout = float.Parse(tokens[wcTiIdx + 1], CultureInfo.InvariantCulture);
+                        var wcOvIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "OVER");
+                        if (wcOvIdx >= 0) step.Delay = float.Parse(tokens[wcOvIdx + 1], CultureInfo.InvariantCulture);
+                        break;
+                    }
 
                     case "INVARIANT":
                         // INVARIANT query op value
@@ -501,9 +573,184 @@ namespace UnityMCP.Editor
                         continue; // skip the outer steps.Add(step)
                     }
 
+                    case "SWEEP_PATH":
+                    {
+                        // SWEEP_PATH <charPath> DWELL <n>
+                        //   x,y,z > x,y,z > ...
+                        // UNTIL <query> <op> <val> [TIMEOUT n]
+                        // Parse-time expansion → Move+Wait per waypoint, then WaitUntil
+                        if (tokens.Length < 4)
+                            throw new ArgumentException("SWEEP_PATH syntax: SWEEP_PATH <path> DWELL <n>");
+                        var sweepPath = tokens[1];
+                        var dwellIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "DWELL");
+                        if (dwellIdx < 0 || dwellIdx + 1 >= tokens.Length)
+                            throw new ArgumentException("SWEEP_PATH requires DWELL <seconds>");
+                        float dwell = float.Parse(tokens[dwellIdx + 1], CultureInfo.InvariantCulture);
+
+                        // Read waypoint lines until UNTIL or end-of-input
+                        var waypointTokens = new List<string>();
+                        string untilLine = null;
+                        while (i + 1 < lines.Length)
+                        {
+                            var nextRaw = lines[i + 1];
+                            foreach (var kv in aliases) nextRaw = ReplaceWholeWord(nextRaw, kv.Key, kv.Value);
+                            var nextTrimmed = nextRaw.Trim();
+                            if (string.IsNullOrEmpty(nextTrimmed) || nextTrimmed.StartsWith("#")) { i++; continue; }
+                            if (nextTrimmed.StartsWith("UNTIL ", StringComparison.OrdinalIgnoreCase))
+                            {
+                                untilLine = nextTrimmed; i++;
+                                break;
+                            }
+                            var firstWord = nextTrimmed.Split(new[] { ' ' }, 2, StringSplitOptions.None)[0].ToUpperInvariant();
+                            if (_DSL_KEYWORDS.Contains(firstWord)) break;
+                            waypointTokens.AddRange(nextTrimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries));
+                            i++;
+                        }
+                        if (waypointTokens.Count == 0)
+                            throw new ArgumentException("SWEEP_PATH: no waypoints found");
+
+                        // Emit Move+Wait per waypoint
+                        bool firstSweep = true;
+                        foreach (var wt in waypointTokens)
+                        {
+                            if (wt == ">") continue;
+                            var moveStep = new PlaytestStep { Type = StepType.Move, Path = sweepPath, RawLine = line };
+                            SetPosition(moveStep, wt);
+                            if (firstSweep) { moveStep.Label = pendingLabel; firstSweep = false; }
+                            steps.Add(moveStep);
+                            if (dwell > 0f)
+                                steps.Add(new PlaytestStep { Type = StepType.Wait, Delay = dwell, RawLine = line });
+                        }
+
+                        // Emit WaitUntil from UNTIL clause
+                        if (untilLine != null)
+                        {
+                            var ut = untilLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            // ut[0]="UNTIL" ut[1]=query ut[2]=op ut[3]=val [TIMEOUT n]
+                            if (ut.Length < 4)
+                                throw new ArgumentException("SWEEP_PATH UNTIL syntax: UNTIL <query> <op> <val> [TIMEOUT n]");
+                            var untilStep = new PlaytestStep { Type = StepType.WaitUntil, RawLine = untilLine };
+                            untilStep.Query = ut[1]; untilStep.Op = ut[2]; untilStep.Value = ut[3];
+                            var utTiIdx = Array.FindIndex(ut, t => t.ToUpperInvariant() == "TIMEOUT");
+                            if (utTiIdx >= 0) untilStep.Timeout = float.Parse(ut[utTiIdx + 1], CultureInfo.InvariantCulture);
+                            steps.Add(untilStep);
+                        }
+
+                        pendingLabel = null;
+                        continue; // skip outer steps.Add(step)
+                    }
+
+                    case "COMPLETE_PURCHASE":
+                    {
+                        // COMPLETE_PURCHASE <path> EXPECT
+                        //   <q1>,<q2>,...
+                        // TIMEOUT <n>
+                        // Parse-time expansion → Invoke + compound WaitUntil
+                        if (tokens.Length < 2) throw new ArgumentException("COMPLETE_PURCHASE syntax: COMPLETE_PURCHASE <path> EXPECT");
+                        var cpPath = tokens[1];
+                        steps.Add(new PlaytestStep
+                        {
+                            Type = StepType.Invoke, Path = cpPath,
+                            Component = "PlacementPurchase", Method = "CompletePurchase",
+                            Args = "", RawLine = line, Label = pendingLabel
+                        });
+                        pendingLabel = null;
+
+                        var expectQueries = new List<string>();
+                        float cpTimeout = 5f;
+                        while (i + 1 < lines.Length)
+                        {
+                            var nextRaw = lines[i + 1];
+                            foreach (var kv in aliases) nextRaw = ReplaceWholeWord(nextRaw, kv.Key, kv.Value);
+                            var nextT = nextRaw.Trim();
+                            if (string.IsNullOrEmpty(nextT) || nextT.StartsWith("#")) { i++; continue; }
+                            if (nextT.StartsWith("TIMEOUT ", StringComparison.OrdinalIgnoreCase))
+                            {
+                                cpTimeout = float.Parse(nextT.Split(new[] { ' ' }, 2)[1].Trim(), CultureInfo.InvariantCulture);
+                                i++;
+                                break;
+                            }
+                            if (nextT.StartsWith("EXPECT ", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var rest = nextT.Substring(7).Trim();
+                                expectQueries.AddRange(rest.Split(',').Select(q => q.Trim()).Where(q => !string.IsNullOrEmpty(q)));
+                                i++;
+                                continue;
+                            }
+                            // Plain comma-separated continuation line
+                            expectQueries.AddRange(nextT.Split(',').Select(q => q.Trim()).Where(q => !string.IsNullOrEmpty(q)));
+                            i++;
+                        }
+
+                        if (expectQueries.Count > 0)
+                        {
+                            var wu = new PlaytestStep { Type = StepType.WaitUntil, Timeout = cpTimeout, RawLine = line };
+                            wu.Query = expectQueries[0]; wu.Op = "=="; wu.Value = "True";
+                            if (expectQueries.Count > 1)
+                            {
+                                wu.Queries = expectQueries.Skip(1).ToArray();
+                                wu.BatchOps = Enumerable.Repeat("==", expectQueries.Count - 1).ToArray();
+                                wu.BatchValues = Enumerable.Repeat("True", expectQueries.Count - 1).ToArray();
+                                wu.IsOr = false;
+                            }
+                            steps.Add(wu);
+                        }
+                        continue; // skip outer steps.Add
+                    }
+
+                    case "INVOKE_REPEAT":
+                    {
+                        // INVOKE_REPEAT <count> <path> <comp> <method> [args]
+                        // [EXPECT <query> <op> <val> [TIMEOUT n]]
+                        // Parse-time expansion → N Invoke steps + optional WaitUntil
+                        if (tokens.Length < 5)
+                            throw new ArgumentException("INVOKE_REPEAT syntax: INVOKE_REPEAT <count> <path> <comp> <method> [args]");
+                        int repeatCount = int.Parse(tokens[1]);
+                        var irPath = tokens[2]; var irComp = tokens[3]; var irMethod = tokens[4];
+                        var irArgs = tokens.Length > 5 ? tokens[5] : "";
+
+                        bool firstInvoke = true;
+                        for (int ri = 0; ri < repeatCount; ri++)
+                        {
+                            var invStep = new PlaytestStep
+                            {
+                                Type = StepType.Invoke, Path = irPath, Component = irComp,
+                                Method = irMethod, Args = irArgs, RawLine = line
+                            };
+                            if (firstInvoke) { invStep.Label = pendingLabel; firstInvoke = false; }
+                            steps.Add(invStep);
+                        }
+                        pendingLabel = null;
+
+                        // Read optional EXPECT line
+                        while (i + 1 < lines.Length)
+                        {
+                            var nextRaw = lines[i + 1];
+                            foreach (var kv in aliases) nextRaw = ReplaceWholeWord(nextRaw, kv.Key, kv.Value);
+                            var nextT = nextRaw.Trim();
+                            if (string.IsNullOrEmpty(nextT) || nextT.StartsWith("#")) { i++; continue; }
+                            if (nextT.StartsWith("EXPECT ", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var et = nextT.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                                if (et.Length < 4) throw new ArgumentException("INVOKE_REPEAT EXPECT syntax: EXPECT <query> <op> <val> [TIMEOUT n]");
+                                var wu = new PlaytestStep
+                                {
+                                    Type = StepType.WaitUntil, Query = et[1], Op = et[2], Value = et[3], RawLine = nextT
+                                };
+                                var etTiIdx = Array.FindIndex(et, t => t.ToUpperInvariant() == "TIMEOUT");
+                                if (etTiIdx >= 0) wu.Timeout = float.Parse(et[etTiIdx + 1], CultureInfo.InvariantCulture);
+                                steps.Add(wu);
+                                i++;
+                            }
+                            break; // EXPECT is optional; stop after first non-blank non-comment line
+                        }
+                        continue; // skip outer steps.Add
+                    }
+
                     case "SECTION":
                         step.Type = StepType.Section;
                         step.Message = string.Join(" ", tokens, 1, tokens.Length - 1).Trim('"');
+                        currentSection = step.Message; // update so SECTION step and subsequent steps get this label
                         break;
 
                     case "DESC":
@@ -517,6 +764,10 @@ namespace UnityMCP.Editor
                     default:
                         throw new ArgumentException($"Unknown command: {cmd}");
                 }
+                step.SourceFile    = sourced.File;
+                step.SourceLine    = sourced.Line;
+                step.MacroStack    = sourced.MacroStack;
+                step.SectionContext = currentSection;
                 step.Label = pendingLabel;
                 pendingLabel = null;
                 steps.Add(step);
@@ -554,16 +805,20 @@ namespace UnityMCP.Editor
 
         // ── Phase helpers ──────────────────────────────────────────────────────────
 
-        // Phase -1: expand INCLUDE directives recursively
-        internal static string[] ExpandIncludes(string[] lines, int depth, IncludeResolver resolver)
+        // Phase -1: expand INCLUDE directives recursively; each line carries provenance (file, line number)
+        internal static SourcedLine[] ExpandIncludes(string[] lines, int depth, IncludeResolver resolver, string sourceFile = null)
         {
             if (depth > 5) throw new ArgumentException("INCLUDE depth exceeded (max 5)");
-            var result = new List<string>();
-            foreach (var line in lines)
+            var result = new List<SourcedLine>();
+            for (int idx = 0; idx < lines.Length; idx++)
             {
+                var line = lines[idx];
                 var t = line.Trim();
                 if (!t.StartsWith("INCLUDE ", StringComparison.OrdinalIgnoreCase))
-                { result.Add(line); continue; }
+                {
+                    result.Add(new SourcedLine { Text = line, File = sourceFile, Line = idx });
+                    continue;
+                }
                 var filename = t.Substring(8).Trim().Trim('"');
                 if (filename.Contains("..") || System.IO.Path.IsPathRooted(filename))
                     throw new ArgumentException($"INCLUDE '{filename}': path traversal not allowed");
@@ -587,7 +842,7 @@ namespace UnityMCP.Editor
                 }
                 catch (Exception e) { throw new ArgumentException($"INCLUDE '{filename}': {e.Message}", e); }
                 var included = content.Split('\n');
-                result.AddRange(ExpandIncludes(included, depth + 1, resolver));
+                result.AddRange(ExpandIncludes(included, depth + 1, resolver, filename));
             }
             return result.ToArray();
         }
@@ -647,14 +902,16 @@ namespace UnityMCP.Editor
             });
         }
 
-        static List<string> ExpandCalls(List<string> lines, Dictionary<string, (string[] paramNames, string[] body)> macros, int depth)
+        static List<SourcedLine> ExpandCalls(List<SourcedLine> lines,
+            Dictionary<string, (string[] paramNames, SourcedLine[] body)> macros,
+            int depth, string[] callStack = null)
         {
             if (depth > 10) throw new ArgumentException("MACRO recursion depth exceeded (max 10)");
-            var result = new List<string>();
-            foreach (var line in lines)
+            var result = new List<SourcedLine>();
+            foreach (var sourced in lines)
             {
-                var t = line.Trim();
-                if (!t.StartsWith("CALL ", StringComparison.OrdinalIgnoreCase)) { result.Add(line); continue; }
+                var t = sourced.Text.Trim();
+                if (!t.StartsWith("CALL ", StringComparison.OrdinalIgnoreCase)) { result.Add(sourced); continue; }
                 var parts = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 var name = parts[1];
                 if (!macros.TryGetValue(name, out var macro))
@@ -662,15 +919,27 @@ namespace UnityMCP.Editor
                 var callArgs = parts.Skip(2).ToArray();
                 if (callArgs.Length < macro.paramNames.Length)
                     throw new ArgumentException($"CALL {name}: expected {macro.paramNames.Length} args, got {callArgs.Length}");
-                var expanded = new List<string>();
+
+                // Build call stack: outermost first, this macro appended
+                var newStack = callStack == null
+                    ? new[] { name }
+                    : callStack.Concat(new[] { name }).ToArray();
+
+                var expanded = new List<SourcedLine>();
                 foreach (var bodyLine in macro.body)
                 {
-                    var sub = bodyLine;
+                    var sub = bodyLine.Text;
                     for (int j = 0; j < macro.paramNames.Length; j++)
                         sub = ReplaceWholeWord(sub, macro.paramNames[j], callArgs[j]);
-                    expanded.Add(sub);
+                    expanded.Add(new SourcedLine
+                    {
+                        Text = sub,
+                        File = bodyLine.File,
+                        Line = bodyLine.Line,
+                        MacroStack = newStack
+                    });
                 }
-                result.AddRange(ExpandCalls(expanded, macros, depth + 1));
+                result.AddRange(ExpandCalls(expanded, macros, depth + 1, newStack));
             }
             return result;
         }

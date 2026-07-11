@@ -1,8 +1,8 @@
-# MCP Tools Reference (123 total)
+# MCP Tools Reference (139 total)
 
-All tools organized by category. TIER1 tools (44) are always visible. Themed categories (Tier2) require `discover_tools(category)` to enable. Plugin tools discovered dynamically via auto-gating.
+All tools organized by category. TIER1 tools (59) are always visible. Themed categories (Tier2) require `discover_tools(category)` to enable. Plugin tools discovered dynamically via auto-gating.
 
-## TIER1 Tools (Always Visible, 44 total)
+## TIER1 Tools (Always Visible, 59 total)
 
 Essential read/scene, meta, connection, repair, plus high-value tools for screenshots, testing, runtime, and code intelligence.
 
@@ -20,6 +20,8 @@ Essential read/scene, meta, connection, repair, plus high-value tools for screen
 | search_scene | Find objects by pattern | query, type | scene read |
 | set_parent | Reparent GameObject | path, parent | scene write |
 | get_console | Read Editor.log tail | lines, severity | diagnostics |
+| console_mark | Create timestamp watermark for log slicing | label | diagnostics |
+| get_console_since | Console entries after a watermark | mark_id, level, count | diagnostics |
 | get_compile_errors | List C# compile errors | — | diagnostics |
 | get_enabled_tools | List visible tools | — | meta |
 | discover_tools | Get tool schemas | filter | meta |
@@ -51,10 +53,24 @@ Essential read/scene, meta, connection, repair, plus high-value tools for screen
 | query_state | Read runtime GameObject state | path, queries (CSV) | runtime |
 | test_step | Execute single DSL step | step (JSON), config | testing |
 | run_playtest | Run playtest DSL script | script (DSL, mutually exclusive with path), path (file path relative to project root, optional), abort_on_fail | testing |
+| run_playtest_file | Run single .playtest file by path | path, timeout, abort_on_fail, defs, snapshot_on_failure | testing |
+| run_playtest_suite | Run multiple .playtest files sequentially; returns pass matrix | paths (glob/CSV), timeout_per_test, stop_on_fail, stop_after | testing |
+| run_tests_wait | Synchronous NUnit test runner; blocks until done or timeout | mode, filter, timeout, poll_interval | testing |
+| lint_playtest | Static DSL preflight — no runtime needed | path or script | testing |
+| lint_playtest_suite | Lint all matched .playtest files; aggregated report | paths (glob/CSV) | testing |
+| validate_playtest_aliases | Diff .defs text file vs PlaytestConfig.asset | defs, asset | testing |
+| sync_playtest_aliases_from_defs | Import .defs → overwrite PlaytestConfig.asset aliases | defs, asset | testing |
+| export_playtest_aliases_to_defs | Export PlaytestConfig.asset aliases → .defs text file | asset, defs | testing |
+| resolve_scene_refs | Resolve $alias, /path, t:Type refs to scene paths | refs, fields | scene read |
+| lint_scene_refs | 3-pass linter for scene refs in DSL/batch commands | path or snippet | scene read |
+| scene_change_plan | Pre-flight gate + checkpoint before scene edits | goal, targets, dry_run | scene write |
+| apply_scene_change | Execute planned mutations with post-verify and save | plan_id, commands, verify, save | scene write |
+| verify_after_change | 5-gate pipeline: compile → errors → console → tests → playtests | changed_files, test_filter, run_tests_mode, playtests, mark_id, timeout | diagnostics |
+| mcp_status | Compact scene/compile/play-mode/alias status snapshot | — | meta |
 
 ## SCENE_EDIT (9 tools)
 
-Scene object manipulation: find, detail, components, active, rename, material, delta, diff, transfer.
+Scene object manipulation: find, detail, components, active, rename, material, delta, diff, transfer. Note: `scene_change_plan`, `apply_scene_change`, `resolve_scene_refs`, `lint_scene_refs` are TIER1 (see TIER1 section above).
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -131,7 +147,7 @@ Baseline diff and regression detection. Note: `screenshot` itself is TIER1 (see 
 
 ## UNIT_TESTS (1 Tier2 tool)
 
-Test result polling. Note: `run_tests`, `run_playtest`, `test_step` are TIER1 (see TIER1 section above).
+Test result polling. Note: `run_tests`, `run_tests_wait`, `run_playtest`, `run_playtest_file`, `run_playtest_suite`, `test_step`, `lint_playtest`, `lint_playtest_suite`, `validate_playtest_aliases`, `sync_playtest_aliases_from_defs`, `export_playtest_aliases_to_defs` are TIER1 (see TIER1 section above).
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -160,7 +176,7 @@ Asset database: import/export, prefab, ScriptableObject, project settings.
 
 ## ADVANCED_CODE (10 Tier2 tools)
 
-Code generation, refactoring, validation, and diagnostics. Note: `find_references`, `semantic_at`, `compile_preflight`, `await_compile`, `sync_unity` are TIER1 (see TIER1 section above).
+Code generation, refactoring, validation, and diagnostics. Note: `find_references`, `semantic_at`, `compile_preflight`, `await_compile`, `sync_unity`, `verify_after_change` are TIER1 (see TIER1 section above).
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -195,7 +211,7 @@ Persistent reusable skills, templates, session snapshots, change tracking, scena
 
 ## META (8 Tier2 tools)
 
-Scene scanning, spatial queries, and config. Note: `setup_objects`, `set_properties`, `configure_objects` are TIER1 (see TIER1 section above).
+Scene scanning, spatial queries, and config. Note: `setup_objects`, `set_properties`, `configure_objects`, `mcp_status` are TIER1 (see TIER1 section above).
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -210,7 +226,7 @@ Scene scanning, spatial queries, and config. Note: `setup_objects`, `set_propert
 
 ## DEBUG (8 Tier2 tools)
 
-Session debugging, breakpoints, metric snapshots.
+Session debugging, breakpoints, metric snapshots. Note: `console_mark`, `get_console_since`, `verify_after_change` are TIER1 (see TIER1 section above).
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|

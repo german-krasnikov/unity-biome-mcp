@@ -131,7 +131,7 @@ await query_state("$score,$posX")
 
 **RW Annotation:** Mutating (movement + snapshots).
 
-## run_playtest(script=None, timeout=120.0, abort_on_fail=False, defs=None, path=None)
+## run_playtest(script=None, timeout=120.0, abort_on_fail=False, defs=None, path=None, snapshot_on_failure=False)
 
 **Purpose:** Execute playtest DSL script (fire-and-forget fire-and-poll pattern).
 
@@ -144,6 +144,8 @@ await query_state("$score,$posX")
 **abort_on_fail:** If True, stops Play Mode when any WAIT_UNTIL times out. Equivalent to placing `ABORT_ON_FAIL` as first line of the script.
 
 **defs:** Optional inline VAL definitions. Works with both `script` and `path`. Format: one `VAL $name path|comp|field` line per entry. Note: `PlaytestConfig.aliases` are auto-injected by `PlaytestRunner` (v0.78.9) — no need to pass them via `defs`.
+
+**snapshot_on_failure:** If True, appends current `$sigil` values and recent console errors to each FAIL/ERR line in the report. Costs extra reads per failure but makes root-cause obvious without a follow-up `query_state`.
 
 ```python
 aliases = await get_aliases()   # → "$hp=/Player|Health|hp\n$pos=..."
@@ -184,7 +186,12 @@ await run_playtest(path="Playtests/smoke.playtest")
 - `INVARIANT query op value` — always-true check (not per-step)
 - `SIMULATE name [DURATION n] [TIMESCALE n]` — run named scenario
 - `MONITOR name` — observe state continuously
-- `TRACE_FLOW FROM a TO b FIELD f` — path tracing
+- `TRACE_FLOW FROM a TO b FIELD f` — path tracing (parsed but not executed)
+- `SWEEP_PATH <path> DWELL <n>\n  x,y,z > ...\n[UNTIL q op v TIMEOUT n]` — multi-waypoint with dwell + optional stop condition
+- `WAIT_CAPTURED <label> INCREASED|DECREASED|UNCHANGED|INCREASED_BY|DECREASED_BY [subOp val] [TIMEOUT n] [OVER n]` — poll captured delta
+- `ASSERT $sigil` / `ASSERT !$sigil` / `ASSERT ($a,$b)` — bool sugar; expands to Assert/AssertBatch
+- `COMPLETE_PURCHASE <path> EXPECT\n  query...\nTIMEOUT n` — invoke CompletePurchase + compound WaitUntil
+- `INVOKE_REPEAT <count> <path> <comp> <method> [args]\n[EXPECT q op v TIMEOUT n]` — N identical invokes + optional WaitUntil
 
 **Queries:** Use aliases from PlaytestConfig.asset or pipe format.
 
@@ -222,6 +229,253 @@ await run_playtest(path="Playtests/smoke.playtest", defs=aliases)
 - Polling: Caller must poll get_test_results every 5s for up to 2min (see CLAUDE.md § run_tests)
 - Domain reload: Transparently reconnects mid-script if compilation detected
 
+## run_playtest_file(path, timeout=120.0, abort_on_fail=False, defs=None, snapshot_on_failure=False)
+
+**Purpose:** Run a single `.playtest` file by project-relative path. Convenience wrapper around `run_playtest(path=...)`.
+
+**path:** Project-relative path, e.g. `"Playtests/farm_pipeline_early.playtest"`. Missing file returns a clear error; path traversal (`../`) is rejected by Unity.
+
+**snapshot_on_failure:** Same as `run_playtest` — appends `$sigil` values + console errors on FAIL.
+
+**Returns:** Same compressed report as `run_playtest`.
+
+**Example:**
+```python
+await run_playtest_file("Playtests/smoke.playtest", timeout=60.0)
+await run_playtest_file("Playtests/combat.playtest", snapshot_on_failure=True)
+```
+
+**RW Annotation:** Mutating.
+
+## run_playtest_suite(paths, timeout_per_test=120.0, stop_on_fail=False, stop_after=True)
+
+**Purpose:** Run multiple `.playtest` files sequentially; return a compact pass/fail matrix.
+
+**paths:**
+- Glob pattern: `"Playtests/*.playtest"` — Unity resolves via `list_playtest_files`
+- Comma-separated: `"Playtests/a.playtest,Playtests/b.playtest"`
+- Newline-separated list of project-relative paths
+
+**stop_on_fail:** Abort after first failure.
+
+**stop_after:** Exit Play Mode when suite finishes (default True).
+
+**Output format:**
+```
+SUITE: 3/4 passed (45.2s)
+OK    10.1s  smoke.playtest  5/5
+FAIL  12.3s  combat.playtest  2/5
+  [3] ASSERT ... — FAIL (...)
+OK     8.9s  ui.playtest  4/4
+```
+
+**RW Annotation:** Mutating.
+
+## lint_playtest(path=None, script=None)
+
+**Purpose:** Static preflight check on a `.playtest` file or inline DSL. Read-only — no Play Mode required.
+
+**Checks:**
+- `$sigil` unresolved (not defined in VAL/VAR or PlaytestConfig)
+- Deprecated `ALIAS` keyword
+- `TRACE_FLOW` (parsed but not executed)
+- `CALL` referencing unknown MACRO
+- Mixed `AND`/`OR` in `WAIT_UNTIL`
+- No evidence commands (ASSERT/WAIT_UNTIL/ASSERT_CONSOLE_CLEAN/ASSERT_BATCH/ASSERT_CAPTURED)
+- Missing `ASSERT_CONSOLE_CLEAN` at end
+
+**path / script:** Mutually exclusive; one required.
+
+**Returns:** `"OK  <file>  no issues"` or severity-tagged lines `ERROR/WARN/INFO  file:line  message`.
+
+**Example:**
+```python
+await lint_playtest(path="Playtests/farm.playtest")
+# → "OK  Playtests/farm.playtest  no issues"
+await lint_playtest(script="INVOKE /Player PC Heal\nASSERT /Player|PC|Health == 100")
+```
+
+**RO Annotation:** Read-only.
+
+## lint_playtest_suite(paths)
+
+**Purpose:** Batch preflight check across multiple `.playtest` files. Read-only — no Play Mode required.
+
+**paths:** Glob pattern (`"Playtests/*.playtest"`) or comma-separated list of project-relative paths.
+
+**Returns:** Aggregated report, one block per file. Summary line: `LINT: X/Y OK`.
+
+**Example:**
+```python
+await lint_playtest_suite("Playtests/*.playtest")
+# → LINT: 3/4 OK
+#   OK  Playtests/smoke.playtest  no issues
+#   WARN  Playtests/combat.playtest:5  deprecated ALIAS keyword
+```
+
+**RO Annotation:** Read-only.
+
+## validate_playtest_aliases(defs, asset)
+
+**Purpose:** Diff alias `.defs` file vs `PlaytestConfig.asset`. Reports missing/extra/changed entries.
+
+**defs:** Project-relative path to `.defs` file (default: `"Assets/PlaytestDefs/farm_core.defs"`).
+
+**asset:** Asset path to `PlaytestConfig` (default: first found via `FindAssets`).
+
+**Returns:** `"ok: N aliases in sync"` or a structured diff report with `missing:`, `extra:`, `changed:` sections.
+
+**RO Annotation:** Read-only.
+
+## sync_playtest_aliases_from_defs(defs, asset)
+
+**Purpose:** Overwrite `PlaytestConfig.asset` aliases from a `.defs` text file (bidirectional sync, defs → asset direction).
+
+**Returns:** `"synced: N aliases -> path/to/PlaytestConfig.asset"`
+
+**Effect:** Clears existing aliases, writes parsed `.defs` aliases, calls `SetDirty` + `SaveAssets`, invalidates `AliasExpander` cache.
+
+**RW Annotation:** Mutating (writes Unity asset).
+
+## export_playtest_aliases_to_defs(asset, defs)
+
+**Purpose:** Export `PlaytestConfig.asset` aliases to a `.defs` text file (bidirectional sync, asset → defs direction).
+
+**Returns:** `"exported: N aliases -> path/to/output.defs"`
+
+**Effect:** Writes `FormatVALBlock(aliases)` to the specified file; creates directory if missing; calls `AssetDatabase.Refresh`.
+
+**RW Annotation:** Mutating (writes file).
+
+## lint_playtest_suite(paths)
+
+**Purpose:** Lint all matching `.playtest` files without entering Play Mode. Aggregated report.
+
+**paths:** Glob pattern (e.g. `"Playtests/*.playtest"`) or comma-separated list of project-relative paths.
+
+**Returns:** `"LINT: X/Y clean"` + per-file lint blocks.
+
+**RO Annotation:** Read-only.
+
+## resolve_scene_refs(refs, fields=None)
+
+**Purpose:** Resolve `$alias`, `/path`, or `t:Type` tokens to scene paths in one batch call.
+
+**refs:** Comma-separated list of tokens to resolve.
+
+**fields:** Optional comma-separated field names to verify existence on the matched component.
+
+**Returns:** Tab-aligned lines per ref: `OK <path> <detail>`, `MISS <ref>`, or `AMB <ref> <matches>`.
+
+**RO Annotation:** Read-only.
+
+## lint_scene_refs(path=None, snippet=None)
+
+**Purpose:** 3-pass linter for scene references embedded in DSL scripts or batch commands.
+
+**path:** Project-relative path to `.playtest` file.
+
+**snippet:** Inline DSL or batch commands (mutually exclusive with `path`).
+
+**Checks:** Unresolved aliases, embedded alias paths, missing scene objects, ambiguous GameObject names.
+
+**Returns:** `"OK: no issues"` or severity-tagged issues `ERROR`/`WARN` with `file:line:token`.
+
+**RO Annotation:** Read-only.
+
+## run_tests_wait(mode="EditMode", filter="", timeout=180.0, poll_interval=5.0)
+
+**Purpose:** Synchronous NUnit test runner. Fires `run_tests` then polls `get_test_results` internally until done or timeout. Avoids the manual poll loop.
+
+**mode:** `"EditMode"` or `"PlayMode"`.
+
+**filter:** Pipe-separated test class names.
+
+**timeout:** Max wait in seconds (default 180).
+
+**poll_interval:** Seconds between polls (default 5).
+
+**Returns:** Final test result string, `"TIMEOUT: <last>"`, or `"BLOCKED: <reason>"`.
+
+**RW_IDEM Annotation:** Idempotent mutating.
+
+## console_mark(label="")
+
+**Purpose:** Create a timestamp watermark. Pure Python — no TCP call. Returns `mark_id` string encoding `time.time()`.
+
+Pass the returned `mark_id` to `get_console_since()` to retrieve only logs produced after this point.
+
+**Returns:** `"mark:<timestamp>"` or `"mark:<timestamp>:<label>"` if label provided.
+
+**RO Annotation:** Read-only.
+
+## get_console_since(mark_id, level=None, count=500)
+
+**Purpose:** Console entries produced after a watermark created by `console_mark()`.
+
+**mark_id:** String from `console_mark()`.
+
+**level:** Optional filter, e.g. `"error,exception,assert"`.
+
+**count:** Max entries to return (default 500).
+
+**Returns:** Same format as `get_console()` but scoped to the time window after the mark.
+
+**RO Annotation:** Read-only.
+
+## verify_after_change(changed_files="", test_filter="", run_tests_mode="", playtests="", mark_id="", timeout=300.0)
+
+**Purpose:** Single call verification pipeline after any code or scene change. Additive gates — only the ones you enable run.
+
+**Gates (always):**
+1. `await_compile` — wait for compilation to finish
+2. `get_compile_errors` — confirm zero errors
+
+**Gates (optional):**
+3. `get_console_since mark_id` — if `mark_id` provided
+4. `run_tests_wait mode filter` — if `run_tests_mode` provided
+5. `run_playtest_suite playtests` — if `playtests` provided
+
+**Returns:** `"PASS: gate1 + gate2 + ..."` or `"FAIL: <gate> gate failed\n  <detail>\nnext gates skipped: ..."`.
+
+**RW Annotation:** Mutating (runs tests/playtests may alter state).
+
+## mcp_status()
+
+**Purpose:** Compact snapshot of the current MCP/Unity connection state. One TCP call to `get_status`.
+
+**Returns:** Scene name, dirty flag, play/compile state, port, alias count.
+
+**RO Annotation:** Read-only.
+
+## scene_change_plan(goal, targets="", dry_run=True)
+
+**Purpose:** Pre-flight gate before a batch of scene mutations. Runs compile check, console error check, resolves target refs, takes a checkpoint. Returns a `plan_id` valid for 600s.
+
+**goal:** Human-readable intent string (stored in plan).
+
+**targets:** Comma-separated `$alias`/`/path`/`t:Type` tokens to pre-resolve. Returns `FAIL` immediately if any miss.
+
+**Returns:** `plan_id=<id>\ngoal=...\ncompile=clean\nconsole_errors=N` or `"FAIL: ..."`.
+
+**RW Annotation:** Mutating (takes checkpoint).
+
+## apply_scene_change(plan_id, commands, verify=True, save=True)
+
+**Purpose:** Execute a planned batch of scene mutations with built-in post-verification and optional save.
+
+**plan_id:** String from `scene_change_plan()`. Expires after 600s.
+
+**commands:** JSON batch commands (same format as `batch`).
+
+**verify:** If True, runs `validate_references` + console error check after mutations.
+
+**save:** If True, saves the scene after mutations.
+
+**Returns:** `"mutations=ok (...)\nrefs=ok (0 broken)\nconsole=clean\nsaved=true"` or error detail.
+
+**RW Annotation:** Mutating.
+
 ## Common Patterns
 
 | Pattern | Tool | Why |
@@ -232,8 +486,22 @@ await run_playtest(path="Playtests/smoke.playtest", defs=aliases)
 | Move + validate state | test_step | Atomic before/after with console check |
 | Ad-hoc script | run_playtest(script=...) | DSL readable; compression saves tokens |
 | Saved script (token-efficient) | run_playtest(path="Playtests/x.playtest") | ~15 tokens; C# reads file directly |
+| Single file explicit | run_playtest_file("Playtests/x.playtest") | Clearer intent; same token cost |
 | Multi-phase fail-fast | run_playtest(abort_on_fail=True) | Stop Play Mode immediately on timeout |
+| Suite of files | run_playtest_suite("Playtests/*.playtest") | One call; compact pass/fail matrix |
+| Lint before run | lint_playtest_suite("Playtests/*.playtest") | Catch errors without entering Play Mode |
 | Compound wait | WAIT_UNTIL … AND/OR … | Single poll for multi-condition gate |
+| Delta wait | WAIT_CAPTURED label DECREASED TIMEOUT 5 | Poll captured baseline vs live value |
+| Dwell patrol sweep | SWEEP_PATH /Player DWELL 1.0 | Move+wait at each waypoint |
+| Repeat invoke | INVOKE_REPEAT 3 /P PC Heal | N identical calls, one step sequence |
+| Preflight check | lint_playtest(path="Playtests/x.playtest") | Catch unresolved $sigil before Play |
+| Sync .defs → .asset | sync_playtest_aliases_from_defs(...) | Bidirectional alias sync |
+| Failure root cause | run_playtest_file(..., snapshot_on_failure=True) | Inline values + console at each FAIL |
+| Log-window slice | console_mark() → ... mutations ... → get_console_since(mark_id) | Only see errors from this change |
+| Post-change gate | verify_after_change(run_tests_mode="EditMode") | One call replaces compile+test loop |
+| Safe scene edit | scene_change_plan → apply_scene_change | Pre-flight + checkpoint + post-verify |
+| Ref preflight | resolve_scene_refs("$player,$enemy") | Confirm all targets exist before batch |
+| NUnit sync | run_tests_wait(mode="EditMode", filter="MyTest") | No manual poll loop |
 
 ## Errors & Recovery
 

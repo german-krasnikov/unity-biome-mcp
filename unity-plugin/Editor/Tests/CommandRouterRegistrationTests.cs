@@ -17,6 +17,7 @@ namespace UnityMCP.Editor.Tests
         {
             "ping", "get_capabilities", "get_enabled_tools", "get_disabled_tools",
             "set_tool_catalog", "set_client_label", "screenshot", "diagnose", "force_play_stop",
+            "get_status",
         };
 
         private static readonly string[] AsyncCommands =

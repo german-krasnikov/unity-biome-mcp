@@ -301,4 +301,4 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
     scene_own = scene_total - 5
     total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    assert total == 20
+    assert total == 23

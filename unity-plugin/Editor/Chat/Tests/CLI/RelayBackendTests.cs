@@ -367,11 +367,15 @@ namespace UnityMCP.Editor.Chat.Tests
 
             // Assert: set_mode JSON includes session_id
             bool found;
+            string sentDump;
             lock (sent2)
+            {
                 found = sent2.Exists(j => j.Contains("\"cmd\":\"set_mode\"") &&
                                           j.Contains("\"session_id\":\"sess-relay\""));
+                sentDump = string.Join("\n", sent2);
+            }
             Assert.IsTrue(found,
-                $"set_mode must include session_id=sess-relay\n{string.Join("\n", sent2)}");
+                $"set_mode must include session_id=sess-relay\n{sentDump}");
 
             b.Stop();
         }

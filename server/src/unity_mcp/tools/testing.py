@@ -53,6 +53,32 @@ async def run_tests(mode: str = "EditMode", filter: str | None = None) -> str:
     return f"tests-started|{mode}|poll get_test_results every 5s for up to 2min"
 
 
+async def run_tests_wait(
+    mode: str = "EditMode",
+    filter: str = "",
+    timeout: float = 180.0,
+    poll_interval: float = 5.0,
+) -> str:
+    """Start Unity tests and block until completion. Returns final result, 'TIMEOUT: <last>', or 'BLOCKED: <reason>'.
+    mode: 'EditMode' or 'PlayMode'. filter: pipe-separated test class names. timeout: max seconds. poll_interval: seconds between polls."""
+    result = await run_tests(mode, filter or None)
+    if not result.startswith("tests-started"):
+        return result
+
+    last = result
+    max_polls = max(1, int(timeout / poll_interval))
+    for _ in range(max_polls):
+        await asyncio.sleep(poll_interval)
+        try:
+            last = await get_test_results()
+        except Exception:
+            last = "pending"
+        if last not in ("pending", "none"):
+            return last
+
+    return f"TIMEOUT: {last}"
+
+
 async def get_test_results() -> str:
     """Poll for test results after PlayMode run. Returns results, 'pending', or 'none'."""
     try:
@@ -77,6 +103,7 @@ async def get_test_count() -> str:
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RW_IDEM)(run_tests)
+    mcp.tool(annotations=_RW_IDEM)(run_tests_wait)
     mcp.tool(annotations=_RO)(get_test_results)
     mcp.tool(annotations=_RO)(get_test_progress)
     mcp.tool(annotations=_RO)(get_test_count)

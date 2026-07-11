@@ -10,7 +10,7 @@ namespace UnityMCP.Editor
     [InitializeOnLoad]
     internal static partial class PlaytestRunner
     {
-        enum Phase { Ready, Moving, WaitingDelay, WaitingPoll, Simulating, Done }
+        enum Phase { Ready, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, Done }
 
         static PlaytestRunner()
         {
@@ -19,7 +19,7 @@ namespace UnityMCP.Editor
         }
 
         public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
-            bool abortOnFail = false)
+            bool abortOnFail = false, bool snapshotOnFailure = false)
         {
             if (_isRunning) { tcs.TrySetResult("ERROR: Playtest already running. Wait for completion."); return; }
             _isRunning = true;
@@ -61,6 +61,7 @@ namespace UnityMCP.Editor
             if (steps.Count == 0) { _isRunning = false; tcs.TrySetResult("PLAYTEST: 0 steps (0s)"); return; }
 
             bool globalAbort = abortOnFail || parseResult.HasGlobalAbort;
+            bool snapOnFail = snapshotOnFailure;
 
             var results = new List<string>();
             int stepIdx = 0;
@@ -123,7 +124,7 @@ namespace UnityMCP.Editor
                 {
                     case Phase.Ready:
                         currentExpanded = varRegistry.HasAny ? varRegistry.ExpandStep(step) : step;
-                        ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state);
+                        ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state, snapOnFail);
                         if (phase == Phase.Done) AdvanceStep();
                         break;
 
@@ -154,7 +155,9 @@ namespace UnityMCP.Editor
                             if (abortThis) EditorApplication.isPlaying = false;
                             string lastVal = "?";
                             try { var (lp, lc, lf) = PlaytestParser.ResolveQuery(pollStep.Query, config); lastVal = ReadValue(lp, lc, lf); } catch { }
-                            results.Add($"[{stepIdx + 1}] WAIT_UNTIL {pollStep.Query}{pollStep.Op}{pollStep.Value} — TIMEOUT after {pollStep.Timeout}s (last: {lastVal})");
+                            var waitLine = $"[{stepIdx + 1}] WAIT_UNTIL {pollStep.Query}{pollStep.Op}{pollStep.Value} — TIMEOUT after {pollStep.Timeout}s (last: {lastVal})" + FormatProvenance(pollStep);
+                            if (snapOnFail) waitLine += "\n" + BuildFailureSnapshot(pollStep, config);
+                            results.Add(waitLine);
                             failed++;
                             phase = Phase.Done;
                             AdvanceStep();
@@ -194,6 +197,44 @@ namespace UnityMCP.Editor
                             AdvanceStep();
                         }
                         break;
+
+                    case Phase.WaitingCapturedDelta:
+                    {
+                        float wcdNow = Time.realtimeSinceStartup;
+                        var wcdStep = currentExpanded ?? step;
+                        try
+                        {
+                            var capQuery = state.GetCapturedQuery(wcdStep.Message);
+                            var capBase = state.GetCapturedValue(wcdStep.Message);
+                            var (wp, wc, wf) = PlaytestParser.ResolveQuery(capQuery, config);
+                            var curStr = ReadValue(wp, wc, wf);
+                            float.TryParse(curStr, System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out var curFloat);
+                            bool met = EvalCapturedDelta(wcdStep.Op, wcdStep.Args, wcdStep.Value,
+                                capBase, curFloat, ref _unchangedSince, wcdNow, wcdStep.Delay);
+                            if (met)
+                            {
+                                results.Add($"[{stepIdx + 1}] WAIT_CAPTURED {wcdStep.Message} {wcdStep.Op} — PASS " +
+                                    $"({(wcdNow - phaseStart).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s, " +
+                                    $"was={capBase}, now={curStr})");
+                                passed++;
+                                phase = Phase.Done;
+                                AdvanceStep();
+                            }
+                            else if (wcdNow - phaseStart > wcdStep.Timeout)
+                            {
+                                var wcdLine = $"[{stepIdx + 1}] WAIT_CAPTURED {wcdStep.Message} {wcdStep.Op} — TIMEOUT after {wcdStep.Timeout}s " +
+                                    $"(was={capBase}, now={curStr})";
+                                if (snapOnFail) wcdLine += "\n" + BuildFailureSnapshot(wcdStep, config);
+                                results.Add(wcdLine);
+                                failed++;
+                                phase = Phase.Done;
+                                AdvanceStep();
+                            }
+                        }
+                        catch { /* keep polling */ }
+                        break;
+                    }
                 }
                 }
                 catch (Exception e)
@@ -212,14 +253,16 @@ namespace UnityMCP.Editor
         static bool _isRunning;
         // Cached once per Run() to avoid AssetDatabase.FindAssets on every SetTimeScale call
         static PlaytestConfig _cachedConfig;
+        // Tracks stable-start time for UNCHANGED OVER — reset each WaitingCapturedDelta entry
+        static float _unchangedSince = -1f;
 
         /// <summary>Execute a single synchronous step. Returns true if step completed (phase=Done), false if async.</summary>
         internal static bool ExecuteSyncStep(PlaytestStep step, PlaytestConfig config, List<string> results,
-            ref int passed, ref int failed, int stepIdx, PlaytestState state = null)
+            ref int passed, ref int failed, int stepIdx, PlaytestState state = null, bool snapshotOnFailure = false)
         {
             var phase = Phase.Done;
             float phaseStart = 0;
-            ExecuteStep(step, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state ?? new PlaytestState());
+            ExecuteStep(step, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state ?? new PlaytestState(), snapshotOnFailure);
             return phase == Phase.Done;
         }
 
@@ -291,6 +334,44 @@ namespace UnityMCP.Editor
                 if (isOr && met) return true;      // OR short-circuit
             }
             return met;
+        }
+
+        /// <summary>Pure delta evaluator for WAIT_CAPTURED. ref unchangedSince tracks stable duration for UNCHANGED OVER.</summary>
+        internal static bool EvalCapturedDelta(string mode, string subOp, string threshold,
+            float baseline, float current, ref float unchangedSince, float now, float overDuration)
+        {
+            switch (mode)
+            {
+                case "INCREASED":  return current > baseline;
+                case "DECREASED":  return current < baseline;
+                case "UNCHANGED":
+                    if (current != baseline) { unchangedSince = -1f; return false; }
+                    if (unchangedSince < 0f) unchangedSince = now;
+                    return overDuration > 0f ? (now - unchangedSince >= overDuration) : true;
+                case "INCREASED_BY":
+                case "DECREASED_BY":
+                    float delta = mode == "INCREASED_BY" ? (current - baseline) : (baseline - current);
+                    return !string.IsNullOrEmpty(threshold) && !string.IsNullOrEmpty(subOp)
+                        ? PlaytestParser.Compare(delta.ToString("F4", System.Globalization.CultureInfo.InvariantCulture), subOp, threshold)
+                        : delta > 0f;
+                default:
+                    throw new ArgumentException($"Unknown WAIT_CAPTURED mode: {mode}");
+            }
+        }
+
+        /// <summary>Formats provenance block for failure lines. Returns "" when no provenance is set.</summary>
+        internal static string FormatProvenance(PlaytestStep step)
+        {
+            if (step.SourceFile == null && step.MacroStack == null && step.SectionContext == null)
+                return "";
+            var sb = new System.Text.StringBuilder();
+            if (step.SourceFile != null)
+                sb.Append($"\nsource: {step.SourceFile}:{step.SourceLine + 1}");
+            if (step.MacroStack?.Length > 0)
+                sb.Append($"\nmacro: {string.Join(" -> ", step.MacroStack)}");
+            if (step.SectionContext != null)
+                sb.Append($"\nsection: {step.SectionContext}");
+            return sb.ToString();
         }
 
         internal static string BuildReport(List<string> results, int passed, int failed, float startTime)

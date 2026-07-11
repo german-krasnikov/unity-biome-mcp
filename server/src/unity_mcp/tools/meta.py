@@ -57,6 +57,11 @@ async def alias_status() -> str:
     return await _send("alias_status", {})
 
 
+async def mcp_status() -> str:
+    """Compact MCP status: scene, dirty, play/compile state, port, alias count."""
+    return await _send("get_status", {})
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool()(discover_tools)
@@ -64,3 +69,4 @@ def register(mcp, send, args):
     mcp.tool()(resolve_tool_schema)
     mcp.tool()(set_llm_config)
     mcp.tool(annotations=_RO)(alias_status)
+    mcp.tool(annotations=_RO)(mcp_status)

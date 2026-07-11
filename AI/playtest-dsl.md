@@ -59,6 +59,19 @@ ASSERT /Player|HP|value > 0 AS "player must be alive"
 **AS suffix:** inline label shown in report instead of raw query  
 **Timeout:** default 5s
 
+**Bool sugar (single-token form):** omit op and value when the field is boolean:
+
+```
+ASSERT $isAlive            # expands to: ASSERT $isAlive == True
+ASSERT !$isAlive           # expands to: ASSERT $isAlive == False
+ASSERT ($hp,$mana)         # batch: all listed $sigils must equal True
+ASSERT !($hp,$mana)        # batch: all listed $sigils must equal False
+```
+
+- Token must be a `$sigil` (or `!$sigil`); bare paths without `$` are rejected
+- Group form `($a,$b,...)` expands to an `ASSERT_BATCH` with `op=="==" value=="True"`
+- Standard 3-token form unchanged when operator is present
+
 ---
 
 ### ASSERT_BATCH...END
@@ -172,6 +185,32 @@ ASSERT_CAPTURED health_before != 50
 
 ---
 
+### COMPLETE_PURCHASE
+
+Parse-time expansion: invoke `PlacementPurchase.CompletePurchase()` then wait for all expected conditions.
+
+```
+COMPLETE_PURCHASE /Store/Item EXPECT
+  /Store|PlacementPurchase|IsPurchased
+  /Player|Currency|Coins > 0
+TIMEOUT 5
+```
+
+**Syntax:**
+```
+COMPLETE_PURCHASE <path> EXPECT
+  query1
+  query2,...
+TIMEOUT n
+```
+
+- Expands to one `Invoke` step + one `WaitUntil` (AND of all EXPECT queries, each `== True`)
+- EXPECT lines may be comma-separated; multiple EXPECT lines are merged
+- `TIMEOUT` line (optional) sets the WaitUntil timeout; default 5s
+- `component = "PlacementPurchase"`, `method = "CompletePurchase"` are hard-coded
+
+---
+
 ### CLICK / TAP
 
 Simulate a click on a UI element or world object. `TAP` is a synonym for `CLICK`.
@@ -251,6 +290,28 @@ INVOKE Enemy HealthComponent TakeDamage 25
 **method:** method name (token 3)  
 **args:** single token of space-joined arguments (token 4, optional)  
 **Returns:** "PASS" if method executed, "ERR" if component/method not found
+
+---
+
+### INVOKE_REPEAT
+
+Parse-time expansion: call the same method N times, then optionally wait for a condition.
+
+```
+INVOKE_REPEAT 3 /Player PlayerController TakeDamage 10
+EXPECT /Player|PlayerController|Health < 70 TIMEOUT 5
+```
+
+**Syntax:**
+```
+INVOKE_REPEAT <count> <path> <component> <method> [args]
+[EXPECT <query> <op> <value> [TIMEOUT n]]
+```
+
+- Expands to `count` Invoke steps with identical arguments
+- EXPECT line (optional) emits a single `WaitUntil` after the last Invoke
+- EXPECT line must immediately follow (blank/comment lines skipped); stops at first non-EXPECT non-blank line
+- Label (preceding `DESC`) is applied to the first Invoke step only
 
 ---
 
@@ -342,6 +403,8 @@ MOVE_PATH 0,0,0 > 5,0,5 > 10,0,0 TIMEOUT 8
 **TIMEOUT:** applied to every expanded step  
 **Path:** uses auto-detect player path (no explicit path token supported)
 
+**Need dwell at each waypoint or a stop condition?** Use `SWEEP_PATH` instead.
+
 ---
 
 ### SNAPSHOT
@@ -407,6 +470,37 @@ SET Enemy Health currentHealth 50
 **component:** component type name (token 2)  
 **field:** field/property name (token 3)  
 **value:** new value (token 4)
+
+---
+
+### SWEEP_PATH
+
+Multi-waypoint movement with a dwell wait at each waypoint, plus an optional termination condition.
+
+```
+SWEEP_PATH /Player DWELL 1.5
+  10,0,0 > 20,0,0 > 30,0,5
+UNTIL /Trigger|Sensor|Activated == true TIMEOUT 10
+```
+
+**Syntax:**
+```
+SWEEP_PATH <path> DWELL <seconds>
+  x,y,z > x,y,z [> ...]
+[UNTIL <query> <op> <value> [TIMEOUT n]]
+```
+
+**Expansion** (parse time):
+1. One `Move` step + one `Wait <dwell>` per waypoint
+2. Optional `WaitUntil` from the `UNTIL` line (reads TIMEOUT from that line; default none)
+
+- Waypoints on any number of following lines until `UNTIL` or next DSL keyword
+- `>` separator between coordinates (ignored as separator token)
+- `DWELL 0` emits Move steps only (no Wait)
+- Label (`DESC`) applied to the first Move step
+- `path` token must be explicit (no auto-detect like bare `MOVE_PATH`)
+
+**Difference from MOVE_PATH:** MOVE_PATH has no dwell and no UNTIL clause; SWEEP_PATH is the dwell+condition variant.
 
 ---
 
@@ -555,6 +649,36 @@ WAIT_UNTIL /Enemy|AI|IsPatrolling == true TIMEOUT 5 ABORT
 
 ---
 
+### WAIT_CAPTURED
+
+Poll until a CAPTURE delta condition is met (compare current value against captured baseline).
+
+```
+CAPTURE gold /Player|Wallet|Gold
+INVOKE /Store StoreFront BuyItem sword
+WAIT_CAPTURED gold DECREASED TIMEOUT 5
+WAIT_CAPTURED gold DECREASED_BY == 50 TIMEOUT 5
+WAIT_CAPTURED gold UNCHANGED OVER 2 TIMEOUT 8
+```
+
+**Syntax:** `WAIT_CAPTURED <label> <mode> [subOp value] [TIMEOUT n] [OVER n]`
+
+**Modes:**
+| Mode | Condition |
+|------|-----------|
+| `INCREASED` | current > captured |
+| `DECREASED` | current < captured |
+| `UNCHANGED` | current == captured |
+| `INCREASED_BY` | current − captured (subOp) value |
+| `DECREASED_BY` | captured − current (subOp) value |
+
+- `subOp value` (optional for `*_BY` modes): e.g., `== 50`, `>= 10`
+- `OVER n`: for `UNCHANGED`, requires condition stable for n seconds (window check)
+- `TIMEOUT n`: max wait in seconds (default 5s); TIMEOUT and OVER are independent keywords
+- The step polls the same query used in the original CAPTURE, reading its live value each tick
+
+---
+
 ## DSL Structure
 
 ```
@@ -632,12 +756,35 @@ ASSERT /Player|Movement|DistanceTo(5,0,3) < 1.0
 11. **DESC:** consumed and stored as pending label; applied to next step, not emitted itself
 12. **ABORT_ON_FAIL:** consumed as global directive; not emitted as step
 
+## Provenance Tracking
+
+Each parsed step carries four optional fields populated during parse:
+
+| Field | Content |
+|-------|---------|
+| `SourceFile` | Origin `.defs` or `.playtest` filename; null = inline script |
+| `SourceLine` | 0-based line index within `SourceFile` (or inline script) |
+| `MacroStack` | Non-null when step came from a MACRO CALL; outermost-first chain, e.g. `["outer_macro", "inner_macro"]` |
+| `SectionContext` | `SECTION` label active when the step was parsed; null = no enclosing section |
+
+On failure, the provenance is appended inline:
+
+```
+[3] ASSERT $hp == 100 — FAIL (75)  [source: combat.defs:12 | macro: check_hp | section: Combat]
+```
+
+- `source:` omitted when step is inline
+- `macro:` omitted when step is not inside a MACRO body
+- `section:` omitted when no enclosing SECTION
+
 ## Verification Rules
 
 - **PASS:** condition satisfied
 - **FAIL:** condition false or timeout expired
 - **ERR:** exception during evaluation (e.g., path not found, component missing)
 - **Result format:** `[step_number] COMMAND ... — PASS/FAIL/ERR`
+- **Failure provenance:** source file, line, macro chain, and section label appended on FAIL (see Provenance Tracking above)
+- **Failure snapshot** (`snapshot_on_failure=true`): on FAIL or ERR, appends current `$sigil` values and recent console errors inline — controlled by `run_playtest(snapshot_on_failure=True)` or `run_playtest_file(snapshot_on_failure=True)`
 
 ## GD Integration (@label namespace)
 

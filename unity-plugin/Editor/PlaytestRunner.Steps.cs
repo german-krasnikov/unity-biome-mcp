@@ -10,7 +10,8 @@ namespace UnityMCP.Editor
     internal static partial class PlaytestRunner
     {
         static void ExecuteStep(PlaytestStep step, PlaytestConfig config, List<string> results,
-            ref Phase phase, ref float phaseStart, ref int passed, ref int failed, int stepIdx, PlaytestState state)
+            ref Phase phase, ref float phaseStart, ref int passed, ref int failed, int stepIdx, PlaytestState state,
+            bool snapshotOnFailure = false)
         {
             var label = $"[{stepIdx + 1}]";
             switch (step.Type)
@@ -22,12 +23,20 @@ namespace UnityMCP.Editor
                         var actual = ReadValue(ap, ac, af);
                         var ok = PlaytestParser.Compare(actual, step.Op, step.Value);
                         var asLabel = !string.IsNullOrEmpty(step.Message) ? $" [{step.Message}]" : "";
-                        results.Add($"{label} ASSERT {step.Query}{step.Op}{step.Value} — {(ok ? "PASS" : "FAIL")} ({actual}){asLabel}");
+                        var assertLine = $"{label} ASSERT {step.Query}{step.Op}{step.Value} — {(ok ? "PASS" : "FAIL")} ({actual}){asLabel}";
+                        if (!ok)
+                        {
+                            assertLine += FormatProvenance(step);
+                            if (snapshotOnFailure) assertLine += "\n" + BuildFailureSnapshot(step, config);
+                        }
+                        results.Add(assertLine);
                         if (ok) passed++; else failed++;
                     }
                     catch (Exception e)
                     {
-                        results.Add($"{label} ASSERT {step.Query} — ERR: {e.Message}");
+                        var errLine = $"{label} ASSERT {step.Query} — ERR: {e.Message}" + FormatProvenance(step);
+                        if (snapshotOnFailure) errLine += "\n" + BuildFailureSnapshot(step, config);
+                        results.Add(errLine);
                         failed++;
                     }
                     phase = Phase.Done;
@@ -151,7 +160,13 @@ namespace UnityMCP.Editor
                         if (goB == null) throw new ArgumentException($"Object not found: {step.Value}");
                         var dist = Vector3.Distance(goA.transform.position, goB.transform.position);
                         var nearOk = dist <= step.Delay;
-                        results.Add($"{label} ASSERT_NEAR {step.Path} {step.Value} {step.Delay} — {(nearOk ? "PASS" : "FAIL")} (dist={dist.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)})");
+                        var nearLine = $"{label} ASSERT_NEAR {step.Path} {step.Value} {step.Delay} — {(nearOk ? "PASS" : "FAIL")} (dist={dist.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)})";
+                        if (!nearOk)
+                        {
+                            nearLine += FormatProvenance(step);
+                            if (snapshotOnFailure) nearLine += "\n" + BuildFailureSnapshot(step, config);
+                        }
+                        results.Add(nearLine);
                         if (nearOk) passed++; else failed++;
                     }
                     catch (Exception e) { results.Add($"{label} ASSERT_NEAR — ERR: {e.Message}"); failed++; }
@@ -176,7 +191,14 @@ namespace UnityMCP.Editor
                             catch (Exception e) { bFailed++; bDetails.AppendLine($"  {step.Queries[bi]} — ERR: {e.Message}"); }
                         }
                         int total = step.Queries.Length;
-                        var bResult = bFailed == 0 ? $"{label} ASSERT_BATCH {bPassed}/{total}" : $"{label} ASSERT_BATCH {bPassed}/{total}\n{bDetails.ToString().TrimEnd()}";
+                        string bResult;
+                        if (bFailed == 0)
+                            bResult = $"{label} ASSERT_BATCH {bPassed}/{total}";
+                        else
+                        {
+                            bResult = $"{label} ASSERT_BATCH {bPassed}/{total}\n{bDetails.ToString().TrimEnd()}" + FormatProvenance(step);
+                            if (snapshotOnFailure) bResult += "\n" + BuildFailureSnapshot(step, config);
+                        }
                         results.Add(bResult);
                         if (bFailed == 0) passed++; else failed++;
                     }
@@ -208,7 +230,13 @@ namespace UnityMCP.Editor
                         float.TryParse(curVal, System.Globalization.NumberStyles.Float,
                             System.Globalization.CultureInfo.InvariantCulture, out var curFloat);
                         var ok = state.EvaluateCaptured(step.Message, step.Op, step.Args, step.Value, curFloat);
-                        results.Add($"{label} ASSERT_CAPTURED {step.Message} {step.Op} — {(ok ? "PASS" : "FAIL")} (was={state.GetCapturedValue(step.Message)}, now={curVal})");
+                        var captLine = $"{label} ASSERT_CAPTURED {step.Message} {step.Op} — {(ok ? "PASS" : "FAIL")} (was={state.GetCapturedValue(step.Message)}, now={curVal})";
+                        if (!ok)
+                        {
+                            captLine += FormatProvenance(step);
+                            if (snapshotOnFailure) captLine += "\n" + BuildFailureSnapshot(step, config);
+                        }
+                        results.Add(captLine);
                         if (ok) passed++; else failed++;
                     }
                     catch (Exception e) { results.Add($"{label} ASSERT_CAPTURED {step.Message} — ERR: {e.Message}"); failed++; }
@@ -377,6 +405,12 @@ namespace UnityMCP.Editor
                     }
                     break;
                 }
+
+                case StepType.WaitCaptured:
+                    _unchangedSince = -1f; // reset stable-start tracker for UNCHANGED OVER
+                    phase = Phase.WaitingCapturedDelta;
+                    phaseStart = Time.realtimeSinceStartup;
+                    break;
             }
         }
     }

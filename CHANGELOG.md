@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.82.0] — 2026-07-11 — MCP Playtests ROI + Gameplay Workflow sprint
+
+**Phase 1 — MCP Playtests ROI (TZ #31):**
+
+- `run_playtest_file` + `run_playtest_suite` — file-based and suite-level playtest runners.
+- `lint_playtest` + `lint_playtest_suite` — static analysis for DSL scripts and suites.
+- `WAIT_CAPTURED` DSL keyword — delta-capture polling; waits until a field value changes.
+- `SWEEP_PATH` / `MOVE_PATH DWELL` — smooth path movement with configurable dwell time.
+- Bool ASSERT sugar — `ASSERT /path|Comp|boolField` without `== true`; bare field = truthy check.
+- `COMPLETE_PURCHASE` / `INVOKE_REPEAT` — action helper macros for common gameplay sequences.
+- `validate_aliases` / `sync_aliases` / `export_aliases` — bidirectional `.asset` ↔ `.defs` sync.
+- Macro stack provenance — `source:`, `macro:`, `section:` fields in assertion failure reports.
+- `snapshot_on_failure` — captures full data snapshot on assertion or timeout failure.
+- `PlaytestLinter.cs`, `PlaytestAliasHelpers.cs`, `PlaytestRunner.Snapshot.cs` — new C# modules.
+- `CommandRouter.AliasHandlers.cs` — alias commands extracted to dedicated partial class.
+
+**Phase 2 — MCP Gameplay Workflow (TZ #37):**
+
+- `run_tests_wait` — synchronous polling wrapper over `run_tests` fire-and-forget; polls `get_test_results` until done.
+- `console_mark` + `get_console_since` — timestamp watermarks for isolating log output per operation.
+- `verify_after_change` — 5-gate verification pipeline: compile → refs → console → playtest → screenshot.
+- `resolve_scene_refs` — resolves `$alias`, `/path`, `t:Type` references to canonical scene paths.
+- `lint_scene_refs` — 3-pass reference linter (existence, type, nullability); `SceneRefLinter.cs`.
+- `mcp_status` — returns connection/compile/alias cache state in one call; `McpStatusCommandTests.cs`.
+- `scene_change_plan` + `apply_scene_change` — transaction-style mutations with preview + atomic apply; `transaction.py`.
+- Schema/catalog parity gate — 5 regression tests in `test_schema_parity.py`.
+- `SceneRefResolver.cs`, `SceneRefLinter.cs` — new C# modules.
+- `verify.py`, `transaction.py` — new Python tool modules.
+
+**Fixed:**
+
+- `RelayBackend` test race condition — `string.Join` moved inside lock to prevent concurrent-access flicker.
+- `CommandRegistryCompletenessTests` updated for all new commands.
+
+**Stats:** 59 files changed, +4216/−72 LOC. 4462 pytest + 6550 NUnit green (1 pre-existing failure).
+
 ## [v0.81.0] — 2026-07-11 — NUnit fixes, isCompiling latch recovery, SceneCleanTestBase, orphan guard
 
 **Fixed:**
