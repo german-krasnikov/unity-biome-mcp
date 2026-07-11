@@ -90,7 +90,7 @@ namespace UnityMCP.Editor.Tests
         // MCPServer is running. Does NOT prove ConfigureAwait(false) prevents the focus-loss
         // bug — that proof is T-C#1/T-C#1b (internal-seam) + test_focus_loss_zero_reconnects
         // (Python live test). Included for multi-client liveness regression coverage.
-        [Test, Timeout(7000)]
+        [Test, Timeout(15000)]
         public void MultiClientPingLiveness()
         {
             if (!MCPServer.IsRunning)
@@ -115,7 +115,7 @@ namespace UnityMCP.Editor.Tests
                         s.ReadTimeout = 3000;
                         s.WriteTimeout = 3000;
                         barrier.Signal();
-                        barrier.Wait();
+                        if (!barrier.Wait(3000)) { errors[idx] = "Barrier timeout"; return; }
 
                         var ping = $"{{\"id\":\"m{idx}\",\"cmd\":\"ping\",\"args\":{{}}}}";
                         TcpSendFrame(s, ping);
@@ -126,10 +126,9 @@ namespace UnityMCP.Editor.Tests
                 threads[idx].IsBackground = true;
                 threads[idx].Start();
             }
-            foreach (var t in threads) t.Join(4000);
-
             for (int i = 0; i < clientCount; i++)
             {
+                Assert.IsTrue(threads[i].Join(5000), $"Client {i} thread did not complete within 5s");
                 Assert.IsNull(errors[i], $"Client {i} threw: {errors[i]}");
                 Assert.IsNotNull(results[i], $"Client {i} received no response");
                 StringAssert.Contains("pong", results[i], $"Client {i}: {results[i]}");

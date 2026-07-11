@@ -265,14 +265,20 @@ namespace UnityMCP.Editor
             return refList;
         }
 
-        internal static bool IsAllowedAssembly(Assembly a)
+        // Name-based check only — used directly by tests and delegated to from Assembly overload.
+        internal static bool IsAllowedAssembly(string name)
         {
-            var name = a.GetName().Name;
             if (string.IsNullOrEmpty(name)) return false;
-            if (name == "UnityMCP.Editor") return false;  // circular: executor lives here
+            if (name == "UnityMCP.Editor") return false;
             if (name.StartsWith("UnityMCP") && name.Contains(".Tests")) return false;
             if (name.StartsWith("Microsoft.CodeAnalysis")) return false;
             if (name.StartsWith("Mono.Cecil")) return false;
+            return true;
+        }
+
+        internal static bool IsAllowedAssembly(Assembly a)
+        {
+            if (!IsAllowedAssembly(a.GetName().Name)) return false;
             try { return !string.IsNullOrEmpty(a.Location); }
             catch { return false; }
         }

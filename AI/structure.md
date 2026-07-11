@@ -180,7 +180,7 @@ unity-kiss-mcp/
 │       ├── test_diagnostics.py          # Diagnostics helper tests (v0.59.0)
 │       ├── test_snapshots.py            # State capture + diff tests (v0.59.0)
 │       ├── test_watch.py                # Watch system tests (v0.59.0)
-│       ├── live/conftest.py            # Live test fixtures + _ok/_iid helpers (v0.26.0 DRY)
+│       ├── live/conftest.py            # Live test fixtures + _ok/_iid helpers (v0.26.0 DRY); _orphan_guard autouse fixture: root scene-object leak detection + cleanup (v0.80.1)
 │       ├── live/test_multiscene_live.py        # Multi-scene live integration (158 tests, v0.24.3)
 │       ├── live/test_multiscene_stress_live.py # Stress tests: large scenes, rapid operations (243 tests, v0.24.3)
 │       ├── test_region.py               # Region Selection spatial queries + polygon validation (20 tests, v0.46.0)
@@ -246,7 +246,7 @@ unity-kiss-mcp/
 │   ├── UnityMCP.Reload.asmdef                # Core assembly (no references)
 │   ├── package.json                          # v0.1.4, "com.unity-mcp.reload"
 │   └── package.json.meta
-├── unity-plugin/               # Unity Editor Plugin (210+ C# files, ~20000 LOC, v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests, v0.79.1: +PlaytestPathTests.cs (run_playtest path= 8 tests), CommandRouter path= dispatch — 6452 C# NUnit green)
+├── unity-plugin/               # Unity Editor Plugin (210+ C# files, ~20000 LOC, v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests, v0.79.1: +PlaytestPathTests.cs (run_playtest path= 8 tests), CommandRouter path= dispatch; v0.80.1: +SceneCleanTestBase.cs (leak-detection base), +force_play_stop command — 6455+ C# NUnit green)
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
@@ -384,6 +384,7 @@ unity-kiss-mcp/
 │       │   ├── UpdatesPageTests.cs        # Changelog rendering + update check UI (v0.42.0)
 │       │   ├── LevelUpTests.cs            # LevelUp panel state machine, animation, release diff parsing (12 tests, v0.44.0)
 │       │   ├── SceneTestBase.cs           # Abstract TearDown base (v0.78.8): calls EditorSceneManager.NewScene in TearDown to prevent "Save Scene?" dialog across 36 test classes
+│       │   ├── SceneCleanTestBase.cs      # Abstract leak-detection base (v0.80.1): snapshots root GameObject IDs in [SetUp], auto-destroys + fails on leaked objects in [TearDown]
 │       │   ├── MultiSceneTestBase.cs      # Base class for multi-scene tests (DRY consolidation v0.24.3+v0.25.0: saves additive scenes, captures main scene name before NewScene)
 │       │   ├── MultiSceneFinderTests.cs   # Object finding across scenes + reference scanning (v0.24.3)
 │       │   ├── PortResolverTests.cs       # 25+4 NUnit tests (port validation, fallback, dual-port edge cases, v0.52.6: chat collision guard)

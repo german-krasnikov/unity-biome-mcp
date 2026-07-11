@@ -71,6 +71,9 @@ namespace UnityMCP.Editor
                 $"  started={started.ToString().ToLower()}" +
                 $"  stamp_frozen={stampFrozen.ToString().ToLower()}");
 
+            // isReallyCompiling= — MCPServer event-driven flag (accurate; no stale post-reload latch)
+            sb.AppendLine($"isReallyCompiling={MCPServer.IsReallyCompiling.ToString().ToLower()}");
+
             // dlls= — per-asmdef dll mtime + freshness
             sb.AppendLine($"dlls={BuildDllFreshness()}");
 

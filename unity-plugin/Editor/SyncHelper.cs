@@ -338,7 +338,9 @@ namespace UnityMCP.Editor
             {
                 EditorApplication.QueuePlayerLoopUpdate();
                 remaining--;
-                if (EditorApplication.isCompiling || remaining <= 0)
+                // ponytail: removed isCompiling exit — when latch holds isCompiling=true
+                // the pump exited immediately on first tick; keep pumping to unstick Bee
+                if (remaining <= 0)
                     EditorApplication.update -= pump;
             };
             EditorApplication.update += pump;

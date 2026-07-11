@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.81.0] — 2026-07-11 — NUnit fixes, isCompiling latch recovery, SceneCleanTestBase, orphan guard
+
+**Fixed:**
+- NUnit: `RenameObject_Undo` — added `LogAssert.Expect` for expected undo log message.
+- NUnit: `MultiClientPingLiveness` — timeout tuning to reduce flakiness.
+- NUnit: `IsAllowedAssembly` (CodeExecutor) — added `internal` testability overload.
+- `ReloadGuard` static ctor: `delayCall` initialization order fix.
+- `SyncHelper.StartTickPump`: removed inverted-exit logic bug.
+
+**Added:**
+- `force_play_stop` command (`CommandRouter.Registration.cs`) — server-side play+stop via `delayCall`; `allowedDuringCompile=true`; safe to call in compile-latch state; returns immediately. Used by T5 reload ladder.
+- `SceneCleanTestBase.cs` — abstract NUnit base class; snapshots root `GameObject` instance IDs in `[SetUp]`, fails + auto-destroys leaked objects in `[TearDown]`.
+- `DiagnoseCommand`: new `isReallyCompiling` field — `MCPServer.IsReallyCompiling` event-driven flag; no stale post-reload latch.
+- `diagnose.py` `_DiagnoseFields.is_really_compiling` — parses `isReallyCompiling=` from C# diagnose output.
+- WEDGE-ENGINE detection enhanced: also fires when `iscompiling=true` + `is_really_compiling=false` + `stamp_frozen` — catches stale latch even when `CompileNotifier.IsCompiling=true`.
+- `_orphan_guard` autouse fixture (`server/tests/live/conftest.py`) — snapshots + diffs root scene objects per test; auto-destroys leaked objects and fails the test.
+
+**Changed:**
+- `force_refresh` enhanced: conditionally unlocks `ReloadGuard` (clears `MCP_ReloadGuardLocked`, calls `UnlockReloadAssemblies` + `AllowAutoRefresh`), adds `RequestScriptReload()` + `RepaintAllViews()` — resolves pending-reload stuck state.
+- `reload_ladder` T5: uses `force_play_stop` command instead of two separate `editor play` + `editor stop` calls + `asyncio.sleep`.
+
+**Stats:** 17 files changed, +183/−37 LOC. 4388+ Python unit + 280 live + 6455+ NUnit green.
+
 ## [v0.80.0] — 2026-07-11 — values-driven refactoring sprint (SOLID/DRY/KISS/OCP/SRP)
 
 **Added:**

@@ -150,12 +150,7 @@ namespace UnityMCP.Editor.Tests
 
         [Test]
         public void IsAllowedAssembly_RoslynBlocked_ReturnsFalse()
-        {
-            var asm = System.AppDomain.CurrentDomain.GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name.StartsWith("Microsoft.CodeAnalysis"));
-            if (asm == null) Assert.Ignore("Microsoft.CodeAnalysis not loaded in domain");
-            Assert.IsFalse(CodeExecutor.IsAllowedAssembly(asm), asm.GetName().Name);
-        }
+            => Assert.IsFalse(CodeExecutor.IsAllowedAssembly("Microsoft.CodeAnalysis.CSharp"));
 
         [Test]
         public void IsAllowedAssembly_CecilBlocked_ReturnsFalse()

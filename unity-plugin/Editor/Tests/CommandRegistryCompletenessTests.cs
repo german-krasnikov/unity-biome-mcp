@@ -21,7 +21,7 @@ namespace UnityMCP.Editor.Tests
             "autofit_collider", "batch", "check_colliders", "checkpoint", "clear_console",
             "compile_preflight", "compile_status", "create_object", "create_ui", "debug_animator",
             "debug_physics", "delete_object", "diagnose", "editor", "execute_code", "find_objects",
-            "fingerprint", "force_refresh", "get_capabilities", "get_changes", "get_compile_errors",
+            "fingerprint", "force_play_stop", "force_refresh", "get_capabilities", "get_changes", "get_compile_errors",
             "get_aliases", "get_component", "get_components_list", "get_console", "get_disabled_tools",
             "get_enabled_tools", "get_frame_stats", "get_hierarchy", "get_memory", "get_object_detail",
             "get_perf", "get_schema", "get_selection", "get_spatial_context", "get_test_count",

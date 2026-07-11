@@ -1,7 +1,8 @@
 using System;
+using UnityEditor;
 using UnityEditor.Compilation;
+using UnityEditorInternal;
 using UnityEngine;
-
 namespace UnityMCP.Editor
 {
     // RegisterAll() split into 4 themed bucket methods (B1, review sprint v0.70).
@@ -42,6 +43,23 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("diagnose", args => DiagnoseCommand.Execute(args),
                 required: "", optional: "",  // C8: read-only multi-signal snapshot
                 alwaysAllowed: true, allowedDuringCompile: true);
+            // T5 recovery: play+stop cycle forces domain reload without going through SecurityScan.
+            // allowedDuringCompile=true so it works in compile-latch state.
+            // play→stop queued via delayCall; command returns immediately.
+            CommandRegistry.Register("force_play_stop", _ =>
+            {
+                if (EditorApplication.isCompiling)
+                {
+                    EditorApplication.delayCall += () => {
+                        EditorApplication.isPlaying = true;
+                        EditorApplication.delayCall += () => { EditorApplication.isPlaying = false; };
+                    };
+                    return "play_stop queued (waiting for compile)";
+                }
+                EditorApplication.isPlaying = true;
+                EditorApplication.delayCall += () => { EditorApplication.isPlaying = false; };
+                return "play_stop triggered";
+            }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
             CommandRegistry.Register("set_client_label", args =>
             {
                 var label = JsonHelper.ExtractString(args, "label");
@@ -96,9 +114,17 @@ namespace UnityMCP.Editor
             // 4. StartTickPump: nudge backgrounded editor to start compiling.
             CommandRegistry.Register("force_refresh", _ =>
             {
+                if (SessionState.GetBool("MCP_ReloadGuardLocked", false))
+                {
+                    SessionState.EraseBool("MCP_ReloadGuardLocked");
+                    try { EditorApplication.UnlockReloadAssemblies(); } catch { }
+                    try { AssetDatabase.AllowAutoRefresh(); } catch { }
+                }
                 SyncHelper.Ops.ImportPackageSources();
                 SyncHelper.Ops.Refresh();
                 SyncHelper.Ops.RequestScriptCompilation(RequestScriptCompilationOptions.None);
+                EditorUtility.RequestScriptReload();  // trigger domain reload when compile is done but reload is pending
+                InternalEditorUtility.RepaintAllViews();  // pump native repaint to unstick editor loop
                 SyncHelper.Ops.StartTickPump();
                 return "force_refresh triggered";
             }, required: "", optional: "", allowedDuringCompile: true);  // G11: must work when wedged

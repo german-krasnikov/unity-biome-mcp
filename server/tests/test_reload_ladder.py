@@ -82,7 +82,7 @@ class MockSend:
                 return val
             except StopIteration:
                 return self._last_diag
-        if cmd in ("force_refresh", "recompile", "editor"):
+        if cmd in ("force_refresh", "recompile", "editor", "force_play_stop"):
             return f"{cmd} ok"
         if cmd == "sync":
             return "sync ok"
@@ -107,7 +107,6 @@ def _fast_timeouts(monkeypatch):
     monkeypatch.setattr(_ladder, "_T4_POLL_S", 0.0)   # expire immediately; T4/T5 heal via MVID delta not timeout
     monkeypatch.setattr(_ladder, "_POLL_INTERVAL_S", 0.0)
     monkeypatch.setattr(_ladder, "_T2_SLEEP_S", 0.0)
-    monkeypatch.setattr(_ladder, "_T5_PLAY_WAIT_S", 0.0)
     monkeypatch.setattr(_ladder, "_T1_MAX_POLLS", 1)    # exactly 1 diagnose per poll call
     monkeypatch.setattr(_ladder, "_T4_MAX_POLLS", 1)
 
@@ -258,11 +257,10 @@ async def test_tier5_play_stop_with_consent():
 
     assert result.startswith("HEALED: T5"), f"Got: {result!r}"
     assert MVID_B in result, f"New MVID not in T5 result: {result!r}"
-    # play and stop must be called
-    play_calls = [(cmd, args) for cmd, args in send.calls if cmd == "editor"]
-    actions = [args.get("action") for _, args in play_calls]
-    assert "play" in actions, f"play not called: {send.calls}"
-    assert "stop" in actions, f"stop not called: {send.calls}"
+    # force_play_stop handles play+stop cycle as single command
+    assert any(cmd == "force_play_stop" for cmd, _ in send.calls), (
+        f"force_play_stop must be called for T5 domain reload: {send.calls}"
+    )
 
 
 # ── Test 7b: all-fail + consent=False → MANUAL-REQUIRED ─────────────────────
@@ -1052,10 +1050,10 @@ async def test_stress_f9_scenario_2_broken_domain_uses_diagnose_not_get_compile_
 @pytest.mark.asyncio
 async def test_stress_f9_scenario_3_all_tiers_use_only_allowed_commands():
     """F9: across all tiers (T0-T5 exhausted), ladder must only call these TCP commands:
-    diagnose, force_refresh, recompile, sync, editor.
+    diagnose, force_refresh, recompile, sync, force_play_stop, execute_code.
     Any other command (esp. get_compile_errors) is an anti-pattern.
     """
-    ALLOWED_CMDS = frozenset({"diagnose", "force_refresh", "recompile", "sync", "editor", "execute_code"})
+    ALLOWED_CMDS = frozenset({"diagnose", "force_refresh", "recompile", "sync", "force_play_stop", "execute_code"})
 
     send = MockSend([_diag_frozen(MVID_A)])  # always frozen → all tiers exhaust
 
@@ -1115,7 +1113,7 @@ async def test_t2_5_guard_wedged_with_consent_runs_t5():
 
     assert result.startswith("HEALED: T5-guard"), f"Expected T5-guard heal, got: {result!r}"
     cmds = [cmd for cmd, _ in send.calls]
-    assert "editor" in cmds, f"T5 editor play must be called with consent: {cmds}"
+    assert "force_play_stop" in cmds, f"T5 force_play_stop must be called with consent: {cmds}"
 
 
 @pytest.mark.asyncio

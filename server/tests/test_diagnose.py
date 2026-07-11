@@ -687,3 +687,42 @@ def test_slot9_all_errors_cs_code():
     f = _d._parse_diagnose(IDLE_FAILED_ALL_ERRORS_CS_WIRE)
     v = _d._verdict(f)
     assert v == "FAILED:CS0117", f"all_errors CS code should be extracted, got {v!r}"
+
+
+# ---------------------------------------------------------------------------
+# isReallyCompiling field — Fix 2
+# ---------------------------------------------------------------------------
+
+def test_parse_is_really_compiling_true():
+    """isReallyCompiling=true line is parsed into is_really_compiling=True."""
+    wire = (
+        "mvid=abc\nstamp=abc:100\ncompile=idle\nsync=ready  epoch=1\n"
+        "iscompiling=false  cn_active=true  started=false  stamp_frozen=false\n"
+        "isReallyCompiling=true\n"
+        "dlls=UnityMCP.Editor:100:fresh\nerrors=\nlog=clean\n"
+    )
+    f = _d._parse_diagnose(wire)
+    assert f.is_really_compiling is True
+
+
+def test_parse_is_really_compiling_false_by_default():
+    """isReallyCompiling absent → is_really_compiling defaults to False."""
+    f = _d._parse_diagnose(CLEAN_PAYLOAD)
+    assert f.is_really_compiling is False
+
+
+def test_verdict_stale_latch_is_wedge_engine():
+    """iscompiling=true + is_really_compiling=false + cn_active=true + stamp_frozen
+    → WEDGE-ENGINE via is_really_compiling signal (cn_active=true bypasses old check)."""
+    wire = (
+        "mvid=abc\nstamp=abc:100\ncompile=compiling\nsync=ready  epoch=1\n"
+        "iscompiling=true  cn_active=true  started=false  stamp_frozen=true\n"
+        "isReallyCompiling=false\n"
+        "dlls=UnityMCP.Editor:100:fresh\nerrors=\nlog=clean\n"
+    )
+    f = _d._parse_diagnose(wire)
+    v = _d._verdict(f)
+    assert v == "WEDGE-ENGINE", (
+        f"Stale latch (iscompiling=true + IsReallyCompiling=false + cn_active=true) "
+        f"must be WEDGE-ENGINE, got {v!r}"
+    )

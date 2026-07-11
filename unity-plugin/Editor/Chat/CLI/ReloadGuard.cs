@@ -36,7 +36,9 @@ namespace UnityMCP.Editor.Chat
                 try
                 {
                     AssetDatabase.AllowAutoRefresh();
-                    AssetDatabase.Refresh();
+                    // ponytail: delayCall defers past [InitializeOnLoad] sweep —
+                    // inline Refresh() re-triggers compilationStarted → new latch
+                    EditorApplication.delayCall += () => { try { AssetDatabase.Refresh(); } catch { } };
                 }
                 catch { }
             }
@@ -87,7 +89,7 @@ namespace UnityMCP.Editor.Chat
                 ForceUnlock();
         }
 
-        private static void ForceUnlock()
+        internal static void ForceUnlock()
         {
             EditorApplication.update -= WatchdogTick;
             try { EditorApplication.UnlockReloadAssemblies(); } catch { }

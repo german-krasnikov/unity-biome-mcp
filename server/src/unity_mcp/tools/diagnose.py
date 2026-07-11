@@ -47,11 +47,12 @@ class _DiagnoseFields:
     reload_failed: bool = False    # C10: in-process reload failure (authoritative)
     main_mvid: str = ""        # F3/F5: main-asmdef MVID (absent=not loaded)
     all_errors: str = ""       # FIX-1: cross-asmdef compile errors with explicit CS codes
+    is_really_compiling: bool = False  # MCPServer event-driven flag (accurate, no stale latch)
 
 
 _KNOWN_KEYS = frozenset(
     ["mvid=", "stamp=", "compile=", "sync=", "iscompiling=", "dlls=", "errors=", "log=",
-     "main_mvid=", "reload_failed=", "all_errors="]
+     "main_mvid=", "reload_failed=", "all_errors=", "isReallyCompiling="]
 )
 
 # Guard-reject signal substrings (Unity is compiling, guard blocked the command)
@@ -125,6 +126,8 @@ def _parse_diagnose(text: str) -> _DiagnoseFields:
             f.main_mvid = line[10:].strip()
         elif line.startswith("reload_failed="):
             f.reload_failed = line[14:].strip().lower() == "true"
+        elif line.startswith("isReallyCompiling="):
+            f.is_really_compiling = line[18:].strip().lower() == "true"
         elif line.startswith("dlls="):
             f.dlls = line[5:].strip()
         elif line.startswith("errors="):
@@ -249,7 +252,10 @@ def _verdict(
             return "TESTS-INVISIBLE"
 
     # 7. Engine wedge: iscompiling=true + cn_active=false + stamp_frozen
-    if fields.iscompiling and not fields.cn_active and fields.stamp_frozen:
+    # Also fires when is_really_compiling=false (MCPServer never saw compilationStarted)
+    # — catches stale isCompiling latch even when CompileNotifier.IsCompiling=true.
+    stale_latch = fields.iscompiling and not fields.is_really_compiling and fields.stamp_frozen
+    if (fields.iscompiling and not fields.cn_active and fields.stamp_frozen) or stale_latch:
         return "WEDGE-ENGINE"
 
     # 8. State wedge: sync says compiling but compile=idle (real reload, not retry)

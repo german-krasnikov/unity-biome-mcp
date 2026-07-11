@@ -12,7 +12,6 @@ _T1_POLL_S: float = 40.0
 _T4_POLL_S: float = 45.0
 _POLL_INTERVAL_S: float = 1.0
 _T2_SLEEP_S: float = 8.0
-_T5_PLAY_WAIT_S: float = 2.0
 _T1_MAX_POLLS: "int | None" = None
 _T4_MAX_POLLS: "int | None" = None
 _BROKEN_DOMAIN = "_BROKEN_DOMAIN_"  # M2: delta but new domain is broken
@@ -138,9 +137,7 @@ async def _t2_5_guard_check(send) -> "bool | None":
 
 async def _t5(send, baseline: str) -> "str | None":
     try:
-        await send("editor", {"action": "play"})
-        await asyncio.sleep(_T5_PLAY_WAIT_S)
-        await send("editor", {"action": "stop"})
+        await send("force_play_stop", {})  # server-side play+stop via delayCall (allowedDuringCompile)
     except (ConnectionError, OSError):
         return None
     return await _poll_mvid_delta(send, baseline, _T4_POLL_S, max_polls=None)

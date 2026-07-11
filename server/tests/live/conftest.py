@@ -173,6 +173,44 @@ async def bridge():
     await b.close()
 
 
+_SNAP_CODE = (
+    'return string.Join(",", UnityEngine.SceneManagement.SceneManager'
+    '.GetActiveScene().GetRootGameObjects().Select(go => go.name));'
+)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _orphan_guard(bridge):
+    """Snapshot root object names before each test; destroy + fail if any leaked."""
+    try:
+        r = await bridge.send("execute_code", {"code": _SNAP_CODE})
+        raw = r.get("data", "").strip()
+        before = set(raw.split(",")) if raw else set()
+    except Exception:
+        yield
+        return
+    yield
+    try:
+        r = await bridge.send("execute_code", {"code": _SNAP_CODE})
+        raw = r.get("data", "").strip()
+        after_names = raw.split(",") if raw else []
+        leaked = [n for n in after_names if n not in before]
+        if not leaked:
+            return
+        for name in leaked:
+            escaped = name.replace('"', '\\"')
+            try:
+                await bridge.send("execute_code", {"code": (
+                    f'var go = GameObject.Find("{escaped}"); '
+                    f'if(go) UnityEngine.Object.DestroyImmediate(go); return "ok";'
+                )})
+            except Exception:
+                pass
+        pytest.fail(f"Test leaked {len(leaked)} root objects (cleaned up): {', '.join(leaked)}")
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Play Mode helpers (shared across test modules)
 # ---------------------------------------------------------------------------
