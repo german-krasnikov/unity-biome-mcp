@@ -19,6 +19,9 @@ from unity_mcp.bridge_socket import (
     _apply_socket_options,
     _TCP_KEEPALIVE_DARWIN,
     _TCP_KEEPINTVL_DARWIN,
+    frame_read,
+    frame_write,
+    frame_read_with_timeout,
 )
 from unity_mcp.bridge_heartbeat import HeartbeatMixin, BACKOFF_MIN_S
 from unity_mcp.bridge_reload_state import DomainReloadTracker, DOMAIN_RELOAD_EXPIRY_S
@@ -191,11 +194,10 @@ class UnityBridge(HeartbeatMixin):
         payload = json.dumps({"id": msg_id, "cmd": cmd, "args": args}, ensure_ascii=False).encode("utf-8")
         if len(payload) > 10_000_000:
             raise ConnectionError(f"Outbound payload too large: {len(payload)} bytes (max 10MB)")
-        header = struct.pack("!I", len(payload))
         session_deadline = time.monotonic() + SESSION_TIMEOUT
-        return await self._send_with_retry(cmd, header, payload, msg_id, timeout, session_deadline)
+        return await self._send_with_retry(cmd, payload, msg_id, timeout, session_deadline)
 
-    async def _send_with_retry(self, cmd: str, header: bytes, payload: bytes,
+    async def _send_with_retry(self, cmd: str, payload: bytes,
                                msg_id: str, timeout: float, session_deadline: float) -> dict:
         attempt = 0
         result = None
@@ -213,7 +215,7 @@ class UnityBridge(HeartbeatMixin):
                         self._last_reconnect_at = time.monotonic()
                         await self._reconnect(fire_callbacks=False)
                         METRICS.inc("reconnect.send_path")
-                    self._writer.write(header + payload)
+                    frame_write(self._writer, payload)
                     await self._writer.drain()
                     try:
                         result = await asyncio.wait_for(
@@ -357,17 +359,13 @@ class UnityBridge(HeartbeatMixin):
             self._counter += 1
             ping_id = f"rc{self._counter:04x}"
             _client = os.environ.get("UNITY_MCP_CLIENT", "")
-            _role = "chat-relay" if os.environ.get("UNITY_MCP_CHAT") == "1" else (_client or "mcp")
+            _role = _client or "mcp"
             ping = json.dumps({"id": ping_id, "cmd": "ping", "role": _role, "args": {}}, ensure_ascii=False).encode("utf-8")
-            writer.write(struct.pack("!I", len(ping)) + ping)
+            frame_write(writer, ping)
             await writer.drain()
             # Read ping response directly from local reader (not self._reader)
             # to avoid _reader/_writer desync during the await window.
-            hdr_bytes = await asyncio.wait_for(reader.readexactly(4), timeout=CONNECT_TIMEOUT)
-            length = struct.unpack("!I", hdr_bytes)[0]
-            if length == 0 or length > 10_000_000:
-                raise ConnectionError(f"Protocol desync on reconnect: length {length}")
-            pay_bytes = await asyncio.wait_for(reader.readexactly(length), timeout=CONNECT_TIMEOUT)
+            pay_bytes = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
             pong = json.loads(pay_bytes.decode("utf-8"))
             if pong.get("ev") == "going_away":
                 raise DomainReloadError("Unity going_away during reconnect")
@@ -384,11 +382,9 @@ class UnityBridge(HeartbeatMixin):
         try:
             ver_msg = json.dumps({"id": "ver", "cmd": "get_version", "args": {}},
                                  ensure_ascii=False).encode("utf-8")
-            writer.write(struct.pack("!I", len(ver_msg)) + ver_msg)
+            frame_write(writer, ver_msg)
             await writer.drain()
-            ver_hdr = await asyncio.wait_for(reader.readexactly(4), timeout=CONNECT_TIMEOUT)
-            ver_ln = struct.unpack("!I", ver_hdr)[0]
-            ver_pay = await asyncio.wait_for(reader.readexactly(ver_ln), timeout=CONNECT_TIMEOUT)
+            ver_pay = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
             ver_resp = json.loads(ver_pay.decode("utf-8"))
             if ver_resp.get("ok") and ver_resp.get("data"):
                 info = parse_version_string(ver_resp["data"])

@@ -453,12 +453,13 @@ def test_find_plugin_source_dir_returns_none_without_plugin(tmp_path):
     """When __file__ hierarchy has no unity-plugin sibling → None."""
     from unittest.mock import patch
     # Point __file__ at a deep path inside tmp_path where there's no unity-plugin
-    fake_file = tmp_path / "a" / "b" / "c" / "d" / "editor_log.py"
+    fake_file = tmp_path / "a" / "b" / "c" / "d" / "editor_log_freshness.py"
     fake_file.parent.mkdir(parents=True)
     fake_file.touch()
 
+    import unity_mcp.editor_log_freshness as freshness_mod
     import unity_mcp.editor_log as el_mod
-    with patch.object(el_mod, "__file__", str(fake_file)):
+    with patch.object(freshness_mod, "__file__", str(fake_file)):
         result = el_mod.find_plugin_source_dir()
     assert result is None
 

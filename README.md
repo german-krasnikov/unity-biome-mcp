@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="124 MCP Tools · 4685 Tests (4375 Python · 26 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="124 MCP Tools · 11146 Tests (4393 Python · 6469 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -302,6 +302,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.80.0</b> — 2026-07-11 — `middleware_hooks.py` — `POST_HOOKS` registry + `@register_post` decorator for …</summary>
+
+`middleware_hooks.py` — `POST_HOOKS` registry + `@register_post` decorator for OCP-compliant post-call hooks (C13).
+
+</details>
+
+<details>
 <summary><b>v0.79.1</b> — 2026-07-11 — `run_playtest(path="Playtests/farm.playtest")` — C# reads file server-side; ~15 …</summary>
 
 `run_playtest(path="Playtests/farm.playtest")` — C# reads file server-side; ~15 tokens vs 300-800 inline. `path` and `script` are mutually exclusive. …
@@ -330,15 +337,9 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 </details>
 
 <details>
-<summary><b>v0.69.1</b> — 2026-07-03 — **CallerIsPlugin Gate** — New `CommandRegistrar.CallerIsPlugin()` filter strips …</summary>
-
-**CallerIsPlugin Gate** — New `CommandRegistrar.CallerIsPlugin()` filter strips unsafe flags (e.g., `IsAlwaysAllowed`) from plugin-registered tools.
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.69.1** — 2026-07-03 — **CallerIsPlugin Gate** — New `CommandRegistrar.CallerIsPlugin()` filter strips …
 - **v0.69.0** — 2026-07-02 — **Auto-Config on Editor Startup** — `ProjectConfigWriter` [InitializeOnLoad] …
 - **v0.68.0** — 2026-07-01 — **Issue 23: Batch DSL with CommandValidator** — CommandValidator replaces …
 - **v0.67.1** — 2026-06-29 — **output_format Discriminator** — Replaces `uses_stream_json: bool` with typed …

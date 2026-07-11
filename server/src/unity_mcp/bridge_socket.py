@@ -1,4 +1,6 @@
+import asyncio
 import socket
+import struct
 import sys
 
 
@@ -46,3 +48,24 @@ def _apply_socket_options(sock) -> None:
             )
         except Exception:
             pass
+
+
+# ── TCP framing helpers ───────────────────────────────────────────────────────
+
+def frame_write(writer: asyncio.StreamWriter, payload: bytes) -> None:
+    """Write a 4-byte big-endian length prefix followed by payload."""
+    writer.write(struct.pack("!I", len(payload)) + payload)
+
+
+async def frame_read(reader: asyncio.StreamReader) -> bytes:
+    """Read a framed message: 4-byte length prefix then payload."""
+    header = await reader.readexactly(4)
+    length = struct.unpack("!I", header)[0]
+    return await reader.readexactly(length)
+
+
+async def frame_read_with_timeout(reader: asyncio.StreamReader, timeout: float) -> bytes:
+    """Read a framed message with per-read timeouts."""
+    header = await asyncio.wait_for(reader.readexactly(4), timeout=timeout)
+    length = struct.unpack("!I", header)[0]
+    return await asyncio.wait_for(reader.readexactly(length), timeout=timeout)

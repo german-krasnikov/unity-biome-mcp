@@ -5,7 +5,7 @@ Visual editor for building and running Playtest DSL scripts step-by-step, withou
 ## Opening
 
 - **Menu:** `MCP / Playtest Composer` — shortcut `Shift+Alt+P`
-- **Chat toolbar:** "Composer" button (visible when `UNITY_MCP_CHAT` define is active)
+- **Chat toolbar:** "Composer" button
 
 State persists across Unity sessions in `<ProjectRoot>/Library/PlaytestComposerState.json`.
 
@@ -193,7 +193,7 @@ Visual manager for `PlaytestConfig.aliases` — maps short `$name` sigils to `pa
 ### Opening
 
 - **Menu:** `MCP / Alias Manager` — shortcut `Shift+Alt+A`
-- **Chat toolbar:** "Aliases" button (order 21; visible when `UNITY_MCP_CHAT` define is active; `MenuOnly = true` so the button opens the window rather than inline)
+- **Chat toolbar:** "Aliases" button (order 21; `MenuOnly = true` so the button opens the window rather than inline)
 
 ### Toolbar
 

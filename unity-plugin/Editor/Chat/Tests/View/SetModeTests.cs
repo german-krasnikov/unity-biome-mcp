@@ -1,7 +1,6 @@
 // TDD — SetMode must be a pure UI state flip: no process kill/restart.
 // Agent mode = _agentMode bool; PermissionPrompt events are auto-approved in EventHandlers.
 // Backend instance must remain unchanged across Ask ↔ Agent switches.
-#if UNITY_MCP_CHAT
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -136,4 +135,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

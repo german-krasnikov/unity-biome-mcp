@@ -48,7 +48,7 @@ def write_claude_config(config_dir: str, mcp_port: int) -> str:
             SERVER_NAME: {
                 "command": cmd,
                 "args": args,
-                "env": {"UNITY_MCP_PORT": str(mcp_port), "UNITY_MCP_CHAT": "1"},
+                "env": {"UNITY_MCP_PORT": str(mcp_port)},
             }
         }
     }

@@ -75,6 +75,24 @@ namespace UnityMCP.Editor.Chat
             }
         }
 
+        /// <summary>Returns a new store with only the target backend's Model field changed.
+        /// Returns <c>this</c> if the model is a sentinel/empty or unchanged.</summary>
+        internal BackendConfigStore WithModel(BackendKind kind, string model)
+        {
+            if (string.IsNullOrEmpty(model) || model == "__custom__") return this;
+            BackendConfigStore Clone(ClaudeBackendConfig c, CodexBackendConfig co, AntigravityBackendConfig a, KimiBackendConfig k, OpenCodeBackendConfig oc)
+                => new BackendConfigStore { Claude = c, Codex = co, Antigravity = a, Kimi = k, OpenCode = oc, Chips = Chips, ModelPresets = ModelPresets, InactivityTimeoutSec = InactivityTimeoutSec };
+            switch (kind)
+            {
+                case BackendKind.Claude:      { var c = Claude.WithModel(model);      return ReferenceEquals(c, Claude)      ? this : Clone(c, Codex, Antigravity, Kimi, OpenCode); }
+                case BackendKind.Codex:       { var c = Codex.WithModel(model);       return ReferenceEquals(c, Codex)       ? this : Clone(Claude, c, Antigravity, Kimi, OpenCode); }
+                case BackendKind.Antigravity: { var c = Antigravity.WithModel(model); return ReferenceEquals(c, Antigravity) ? this : Clone(Claude, Codex, c, Kimi, OpenCode); }
+                case BackendKind.Kimi:        { var c = Kimi.WithModel(model);        return ReferenceEquals(c, Kimi)        ? this : Clone(Claude, Codex, Antigravity, c, OpenCode); }
+                case BackendKind.OpenCode:    { var c = OpenCode.WithModel(model);    return ReferenceEquals(c, OpenCode)    ? this : Clone(Claude, Codex, Antigravity, Kimi, c); }
+                default: return this;
+            }
+        }
+
         internal void Save(string path = null)
         {
             path = path ?? DefaultPath;

@@ -147,6 +147,31 @@ def test_is_pid_alive_permission_error_returns_true():
         assert is_pid_alive(12345) is True
 
 
+def test_is_pid_alive_win32_alive():
+    """Win32 path: OpenProcess non-zero handle → alive."""
+    import ctypes
+    import sys
+    from unittest.mock import MagicMock
+    mock_k = MagicMock()
+    mock_k.OpenProcess.return_value = 1  # non-zero = valid handle
+    with patch.object(sys, "platform", "win32"), \
+         patch.object(ctypes, "windll", MagicMock(kernel32=mock_k), create=True):
+        assert is_pid_alive(1234) is True
+    mock_k.CloseHandle.assert_called_once_with(1)
+
+
+def test_is_pid_alive_win32_dead():
+    """Win32 path: OpenProcess returns 0 → process not found."""
+    import ctypes
+    import sys
+    from unittest.mock import MagicMock
+    mock_k = MagicMock()
+    mock_k.OpenProcess.return_value = 0  # zero = not found
+    with patch.object(sys, "platform", "win32"), \
+         patch.object(ctypes, "windll", MagicMock(kernel32=mock_k), create=True):
+        assert is_pid_alive(99999) is False
+
+
 # ---------------------------------------------------------------------------
 # _read_pid_from_fd
 # ---------------------------------------------------------------------------

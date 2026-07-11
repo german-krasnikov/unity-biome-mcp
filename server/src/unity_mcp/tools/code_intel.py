@@ -13,6 +13,8 @@ import asyncio
 import time
 from typing import Any
 
+from unity_mcp.utils import parse_pipe_fields
+
 _send = None
 
 _STILL_BUSY_STATES = frozenset({"compiling", "reloading"})
@@ -45,7 +47,7 @@ def _parse_sync_status(status: str) -> tuple[int, str, str, str]:
     P4: adds stamp field to the return tuple so callers can compare MVIDs.
     """
     try:
-        parts = {p.split("=", 1)[0]: p.split("=", 1)[1] for p in status.split("|") if "=" in p}
+        parts = parse_pipe_fields(status)
         epoch = int(parts.get("epoch", "0"))
         state = parts.get("state", "idle")
         extra = parts.get("err", parts.get("dur", ""))

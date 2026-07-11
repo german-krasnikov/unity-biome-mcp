@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using UnityMCP.Editor.RegionTool;
 
 namespace UnityMCP.Editor
 {
@@ -63,43 +62,6 @@ namespace UnityMCP.Editor
             return ApplyFieldsCompress(args, sb.ToString().TrimEnd());
         }
 
-        // Cache for fast-path get_enabled_tools (bypasses main thread dispatch).
-        // Always kept WARM so the TCP read thread never computes it (no EditorPrefs off-thread).
-        // Writes: InvalidateEnabledToolsCache (settings UI, main thread) + end of RegisterAll
-        //         (post-registration, main thread). Read thread uses ?? "" safety fallback only.
-        private static volatile string _enabledToolsCache;
-
-        // Internal accessor for tests — never null after first populate.
-        internal static string PeekEnabledToolsCache => _enabledToolsCache;
-
-        /// <summary>Thread-safe fast-path — never computes on the read thread (no EditorPrefs off-thread).</summary>
-        internal static string ExecGetEnabledToolsCached() => _enabledToolsCache ?? "";
-
-        // Called from Settings UI (always main thread) — REPOPULATES instead of nulling
-        // so the read thread always sees a warm non-null value.
-        internal static void InvalidateEnabledToolsCache() => _enabledToolsCache = ExecGetEnabledTools();
-
-        private static string ExecGetEnabledTools()  => BuildToolList(enabled: true);
-        private static string ExecGetDisabledTools() => BuildToolList(enabled: false);
-
-        private static string BuildToolList(bool enabled)
-        {
-            var allTools = new System.Collections.Generic.HashSet<string>(MCPSettings.GetToolNames());
-            foreach (var cmd in CommandRegistry.GetAllCommands())
-                allTools.Add(cmd);
-            var sb = new StringBuilder();
-            bool first = true;
-            foreach (var tool in allTools)
-            {
-                if (MCPSettings.IsToolEnabled(tool) == enabled)
-                {
-                    if (!first) sb.Append(",");
-                    sb.Append(tool);
-                    first = false;
-                }
-            }
-            return sb.ToString();
-        }
 
         private static string ExecGetHierarchy(string args)
         {
@@ -120,76 +82,6 @@ namespace UnityMCP.Editor
                 : HierarchySerializer.Serialize(depth, root, filter, components, scene);
         }
 
-        // Returns "--- ALIASES ---\nname=path|comp|field\n---" from PlaytestConfig,
-        // or null when no config / no aliases. Called on main thread (AssetDatabase safe).
-        internal static string BuildAliasSection(PlaytestConfig config = null)
-        {
-            if (config == null)
-            {
-                foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig"))
-                {
-                    var c = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(
-                        UnityEditor.AssetDatabase.GUIDToAssetPath(guid));
-                    if (c?.aliases?.Count > 0) { config = c; break; }
-                }
-                if (config == null) return null;
-            }
-            if (config?.aliases == null || config.aliases.Count == 0) return null;
-            var sb = new StringBuilder("--- ALIASES ---\n");
-            bool any = false;
-            foreach (var a in config.aliases)
-            {
-                if (a.type == AliasType.VarRuntime) continue;
-                any = true;
-                sb.Append(a.alias).Append('=');
-                if (a.type == AliasType.ValConst)
-                    sb.Append(a.constValue);
-                else
-                    sb.Append(a.path).Append('|').Append(a.component).Append('|').Append(a.field);
-                sb.Append('\n');
-            }
-            if (!any) return null;
-            sb.Append("---");
-            return sb.ToString();
-        }
-
-        // Strips the --- ALIASES --- header and --- footer, returns bare name=value lines.
-        private static string GetAliasesText()
-        {
-            var section = BuildAliasSection();
-            if (section == null) return "no aliases";
-            var sb = new StringBuilder();
-            foreach (var raw in section.Split('\n'))
-            {
-                var line = raw.TrimEnd('\r');
-                if (!line.StartsWith("---") && line.Length > 0)
-                {
-                    if (sb.Length > 0) sb.Append('\n');
-                    sb.Append(line);
-                }
-            }
-            return sb.Length > 0 ? sb.ToString() : "no aliases";
-        }
-
-        private static string ExecAliasStatus(string _)
-        {
-            var sources = new List<string>();
-            int count = 0;
-            foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig"))
-            {
-                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
-                var cfg = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(path);
-                if (cfg?.aliases == null) continue;
-                sources.Add(path);
-                count += cfg.aliases.Count;
-            }
-            var sb = new StringBuilder();
-            sb.AppendLine($"loaded: {(AliasExpander.IsStale ? "stale" : count > 0 ? "true" : "empty")}");
-            foreach (var s in sources) sb.AppendLine($"source: {s}");
-            sb.AppendLine($"count: {count}");
-            sb.Append($"stale: {AliasExpander.IsStale}");
-            return sb.ToString();
-        }
 
         private static string ExecGetComponent(string args)
         {
@@ -367,78 +259,6 @@ namespace UnityMCP.Editor
             return ConsoleCapture.GetLogs(count, level, first, keyword, countOnly, since);
         }
 
-        private static string BuildScreenshotResponse(string id, string args)
-        {
-            var camera = JsonHelper.ExtractString(args, "camera");
-
-            if (camera == "annotation_frame")
-            {
-                var annotId = JsonHelper.ExtractString(args, "annotation_id");
-                if (!string.IsNullOrEmpty(annotId))
-                {
-                    var snap = SceneRegionState.GetById(annotId);
-                    if (snap != null) SceneRegionState.FrameRegion(snap.Id);
-                }
-                camera = "scene_view";
-            }
-
-            if (camera == "overview" || camera == "overview_game")
-            {
-                var w = ExtractInt(args, "width", 1280);
-                var h = ExtractInt(args, "height", 720);
-                var fp = MultiViewCapture.CaptureSceneOverview(w, h, topDown: camera == "overview");
-                return JsonHelper.FormatFileResponse(id, fp);
-            }
-
-            if (camera == "multi_view")
-            {
-                var path = JsonHelper.ExtractString(args, "path");
-                if (string.IsNullOrEmpty(path))
-                    throw new ArgumentException("multi_view requires 'path' — the object to capture");
-                var go = ComponentSerializer.FindObject(path);
-                if (go == null) throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
-                var cellSize    = ExtractInt(args, "width", 512);
-                var supersample = ExtractInt(args, "supersample", 2);
-                var angles      = JsonHelper.ExtractString(args, "angles");
-                float zoom = ExtractFloat(args, "zoom", 1f);
-                Vector3 offset = ExtractVector3(args, "offset", Vector3.zero);
-                float fixedSize = ExtractFloat(args, "fixed_size", 0f);
-                var highlight = JsonHelper.ExtractString(args, "highlight");
-                var showColliders = JsonHelper.ExtractString(args, "show_colliders") == "true";
-                var filePath = MultiViewCapture.CaptureWithManifest(go, cellSize, supersample,
-                    angles, zoom, offset, fixedSize, highlight, showColliders, out var manifest);
-                if (!string.IsNullOrEmpty(manifest))
-                    return JsonHelper.FormatFileResponseWithData(id, filePath, manifest);
-                return JsonHelper.FormatFileResponse(id, filePath);
-            }
-
-            if (camera == "single_view")
-            {
-                var path = JsonHelper.ExtractString(args, "path");
-                if (string.IsNullOrEmpty(path))
-                    throw new ArgumentException("single_view requires 'path' — the object to capture");
-                var go = ComponentSerializer.FindObject(path);
-                if (go == null) throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
-                var size        = ExtractInt(args, "width", 512);
-                var supersample = ExtractInt(args, "supersample", 2);
-                var angle       = JsonHelper.ExtractString(args, "angle") ?? "front";
-                float zoom = ExtractFloat(args, "zoom", 1f);
-                Vector3 offset = ExtractVector3(args, "offset", Vector3.zero);
-                float fixedSize = ExtractFloat(args, "fixed_size", 0f);
-                var highlight = JsonHelper.ExtractString(args, "highlight");
-                var showColliders = JsonHelper.ExtractString(args, "show_colliders") == "true";
-                var filePath = MultiViewCapture.CaptureSingleView(go, size, supersample,
-                    angle, zoom, offset, fixedSize, highlight, showColliders, out var manifest);
-                if (!string.IsNullOrEmpty(manifest))
-                    return JsonHelper.FormatFileResponseWithData(id, filePath, manifest);
-                return JsonHelper.FormatFileResponse(id, filePath);
-            }
-
-            var width  = ExtractInt(args, "width", 640);
-            var height = ExtractInt(args, "height", 480);
-            var fpath = ScreenshotCapture.CaptureToFile(width, height, camera);
-            return JsonHelper.FormatFileResponse(id, fpath);
-        }
 
         private static string ExecAutoWire(string args)
         {

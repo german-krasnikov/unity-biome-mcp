@@ -1,7 +1,6 @@
 // Monkey tests: RelayEventParser stress — payload extremes, embedded chars,
 // tc|/tr|/d| edge cases not covered in RelayEventParserTests or RelayMonkeyTests.
 // Pure static method — no Unity deps, no mocks required.
-#if UNITY_MCP_CHAT
 using System;
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
@@ -133,4 +132,3 @@ namespace UnityMCP.Editor.Chat.Tests
             => Assert.IsNull(RelayEventParser.Parse(" t|data"));
     }
 }
-#endif

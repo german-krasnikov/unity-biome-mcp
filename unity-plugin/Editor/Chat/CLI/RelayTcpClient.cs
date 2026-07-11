@@ -1,6 +1,5 @@
 // TCP client for chat_relay.py. 4-byte BE length prefix. Thread-safe via lock.
 // NO Debug.Log — called from background threads (Unity 6 not thread-safe for Debug.*).
-#if UNITY_MCP_CHAT
 using System;
 using System.Buffers.Binary;
 using System.IO;
@@ -135,4 +134,3 @@ namespace UnityMCP.Editor.Chat
         }
     }
 }
-#endif

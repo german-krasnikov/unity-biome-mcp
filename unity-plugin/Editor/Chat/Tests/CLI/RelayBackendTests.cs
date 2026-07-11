@@ -1,6 +1,5 @@
 // TDD: RelayBackend — thin IChatBackend that delegates to Python relay.
 // All tests use injected fake RelayChatProcess (no real TCP, no relay process).
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -392,4 +391,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

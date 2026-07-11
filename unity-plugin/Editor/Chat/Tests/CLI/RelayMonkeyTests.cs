@@ -1,7 +1,6 @@
 // Monkey / chaos tests for RelayBackend, RelayEventParser, RelaySpawner, RelayChatProcess.
 // Goal: find NullReferenceExceptions, resource leaks, and state corruption via edge-case inputs.
 // All tests are fully mocked — no real Python relay required.
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -508,4 +507,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

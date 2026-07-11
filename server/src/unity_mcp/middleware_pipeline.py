@@ -8,9 +8,17 @@ from .bridge_result import unwrap_bridge_result
 from .prefetch_cache import GATE_PRIORS
 from .compressor import strip_defaults
 from .middleware_types import WRITE_CMDS, _READ_CACHEABLE, _STRIP_CMDS
+from .middleware_hooks import run_post_hooks, register_post
+from . import middleware_alias as _alias_hooks  # noqa: F401 — trigger hook registration
 
 if TYPE_CHECKING:
     from .middleware import Middleware
+
+
+@register_post("get_hierarchy")
+def _hook_track_hierarchy_call(cmd: str, args: dict, result: str, mw) -> str:
+    mw._last_hierarchy_call = mw.call_count
+    return result
 
 
 def wrap_send(send_fn, mw: Optional["Middleware"] = None):
@@ -202,17 +210,8 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         mw.record_read(cmd, args, result)
         mw.clear_write_on_read(cmd, args)
         mw.update_path_cache(cmd, result)
-        # Populate alias cache from hierarchy response (Hook 2)
-        if cmd == "get_hierarchy":
-            from .middleware_alias import parse_aliases_from_hierarchy, strip_alias_block
-            _parsed = parse_aliases_from_hierarchy(result)
-            if _parsed is not None:
-                mw._alias_cache = _parsed
-                result = strip_alias_block(result)  # safety net: remove block from LLM context
-        # Populate alias cache from explicit get_aliases call
-        if cmd == "get_aliases":
-            from .middleware_alias import parse_aliases_from_get_aliases
-            mw._alias_cache = parse_aliases_from_get_aliases(result)
+        mw.call_count += 1
+        result = await run_post_hooks(cmd, args, result, mw)
         # Track focus for distiller
         mw._track_focus(cmd, args, result)
         # HierarchyDiff: compress repeated get_hierarchy calls
@@ -225,9 +224,6 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
                 and os.environ.get("UNITY_MCP_REFLECT", "1") == "0":
             result = mw.verify_snapshot(result, prop=args["prop"], value=args["value"])
         result = await mw.maybe_inject_state(send_fn, result)
-        # F12: track organic hierarchy reads so the staleness gate is meaningful
-        if cmd == "get_hierarchy":
-            mw._last_hierarchy_call = mw.call_count
         # P2: Scene Brief — ensure() first, then inject if ready
         if mw.scene_brief is not None and not mw.scene_brief._injected:
             await mw.scene_brief.ensure(send_fn)

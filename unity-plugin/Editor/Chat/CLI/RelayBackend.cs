@@ -1,6 +1,5 @@
 // Thin IChatBackend backed by Python chat_relay.py.
 // ZERO CLI-specific knowledge — semantic commands only.
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Generic;
 using UnityEditor;
@@ -188,4 +187,3 @@ namespace UnityMCP.Editor.Chat
         }
     }
 }
-#endif

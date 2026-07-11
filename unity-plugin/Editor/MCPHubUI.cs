@@ -59,12 +59,6 @@ namespace UnityMCP.Editor
             var section = new VisualElement();
             section.AddToClassList("hub-section");
 
-            var chatEnable = new Toggle("Enable Agent Chat")
-                { value = ChatSettingsHook.IsChatEnabled() };
-            chatEnable.tooltip = "Adds the UNITY_MCP_CHAT define — Unity recompiles on change.";
-            chatEnable.RegisterValueChangedCallback(e => ChatSettingsHook.SetChatEnabled(e.newValue));
-            section.Add(chatEnable);
-
             var portField = new IntegerField("Port") { value = MCPServer.ServerPort };
             portField.AddToClassList("hub-port-label");
             section.Add(portField);

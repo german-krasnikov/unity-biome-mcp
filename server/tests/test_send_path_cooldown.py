@@ -100,19 +100,18 @@ async def test_send_path_cooldown_prevents_burst_reconnects():
     bridge._last_reconnect_at = time.monotonic()  # just now — cooldown active
     bridge._reconnect_backoff = 5.0
 
-    header = b"\x00\x00\x00\x04"
     payload = b"test"
     deadline = time.monotonic() + 120.0
 
     # Immediate call: cooldown active → ConnectionError without calling _reconnect
     with pytest.raises(ConnectionError, match="cooldown"):
-        await bridge._send_with_retry("ping", header, payload, "0002", 5.0, deadline)
+        await bridge._send_with_retry("ping", payload, "0002", 5.0, deadline)
 
     assert bridge._reconnect_count == 0  # gate fired, no reconnect attempted
 
     # Another immediate call: still within cooldown
     with pytest.raises(ConnectionError, match="cooldown"):
-        await bridge._send_with_retry("ping", header, payload, "0003", 5.0, deadline)
+        await bridge._send_with_retry("ping", payload, "0003", 5.0, deadline)
 
     assert bridge._reconnect_count == 0  # still 0
 
@@ -128,13 +127,12 @@ async def test_send_path_cooldown_allows_after_backoff():
     bridge._last_reconnect_at = time.monotonic() - 100.0  # expired long ago
     bridge._reconnect_backoff = 5.0
 
-    header = b"\x00\x00\x00\x04"
     payload = b"test"
     deadline = time.monotonic() + 120.0
 
     # First call — cooldown expired, reconnect allowed (may internally retry, that's OK)
     with pytest.raises(ConnectionError):
-        await bridge._send_with_retry("ping", header, payload, "0001", 5.0, deadline)
+        await bridge._send_with_retry("ping", payload, "0001", 5.0, deadline)
     count_after_first = bridge._reconnect_count
     assert count_after_first >= 1  # at least one reconnect was attempted
 
@@ -144,7 +142,7 @@ async def test_send_path_cooldown_allows_after_backoff():
 
     # This call should be BLOCKED by cooldown
     with pytest.raises(ConnectionError, match="cooldown"):
-        await bridge._send_with_retry("ping", header, payload, "0002", 5.0, deadline)
+        await bridge._send_with_retry("ping", payload, "0002", 5.0, deadline)
     assert bridge._reconnect_count == count_before  # no additional reconnect
 
     # Now expire the cooldown again
@@ -153,7 +151,7 @@ async def test_send_path_cooldown_allows_after_backoff():
 
     # This call should be ALLOWED again
     with pytest.raises(ConnectionError):
-        await bridge._send_with_retry("ping", header, payload, "0003", 5.0, deadline)
+        await bridge._send_with_retry("ping", payload, "0003", 5.0, deadline)
     assert bridge._reconnect_count > count_before2  # reconnect was attempted
 
 

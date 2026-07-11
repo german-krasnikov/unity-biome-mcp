@@ -1,7 +1,6 @@
 // SceneGoDragTests — covers ProcessDraggedObject's scene-GO branch (first branch in Chips.cs:L43).
 // Gap: zero prior tests exercise 'obj is GameObject go && !AssetDatabase.Contains(go)'.
 // No window needed — ProcessDraggedObject is a static method.
-#if UNITY_MCP_CHAT
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -132,4 +131,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

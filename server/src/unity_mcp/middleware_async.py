@@ -15,7 +15,6 @@ class MiddlewareAsyncMixin:
         send_fn: Callable[..., Awaitable[str]],
         result: str,
     ) -> str:
-        self.call_count += 1
         if os.environ.get("UNITY_MCP_AUTO_STATE", "1") == "0":
             return result
         if self.call_count % 10 == 0 and (self.call_count - self._last_hierarchy_call) > 5:

@@ -20,7 +20,7 @@ unity-kiss-mcp/
 │   │   ├── bridge_result.py    # unwrap_bridge_result() helper (v0.70.0)
 │   │   ├── bridge_heartbeat.py # Heartbeat management (extracted)
 │   │   ├── bridge_reload_state.py # Reload state tracking (extracted)
-│   │   ├── bridge_socket.py    # Socket management (extracted)
+│   │   ├── bridge_socket.py    # Socket management + frame helpers (extracted; v0.80.0: frame_write(), frame_read(), frame_read_with_timeout() — shared by bridge, heartbeat, chat_relay, reload_ladder, doctor)
 │   │   ├── connection_slot.py  # ConnectionSlot: dual connections (CLI + Chat agent)
 │   │   ├── chat_relay.py       # Chat relay TCP server: 5 backends, deferred spawn for single-turn, _TRANSFORM_FNS dispatch, EOF handling (v0.67.0: +output_format/reads_stdin, +close_stdin, role-aware ping)
 │   │   ├── cli_session.py      # CLI session state tracking + history scanning + close_stdin (v0.66.0+)
@@ -34,14 +34,22 @@ unity-kiss-mcp/
 │   │   │   ├── backup.py       # Backup/restore config files before modifications
 │   │   │   ├── resolver.py     # build_server_entry(port) — MCP server entry generator; GIT_INSTALL_URL constant (v0.47.1: shared with C#)
 │   │   │   └── validator.py    # Config validation + path detection per tool; v0.47.1: skips json.loads for TOML clients, respects root_key
-│   │   ├── server_filtering.py # Port discovery + TCP probe (v0.23.0), chat-port fallback (v0.36.0), catalog push, tool filtering
+│   │   ├── server_filtering.py # Port discovery + TCP probe (v0.23.0), catalog push, tool filtering
 │   │   ├── server_control.py   # Graceful shutdown: list_servers, stop_server SIGTERM/taskkill (v0.55.10)
 │   │   ├── lockfile.py         # Cross-platform exclusive locking + zombie detection (v0.23.0)
 │   │   ├── diagnose.py         # Shared diagnose parser + verdict logic (_parse_diagnose, _verdict, _DiagnoseFields)
 │   │   ├── _update_check.py    # Version checker — GitHub releases API (v0.47.1: switched from PyPI), 24h cache, includes --reinstall flag in banner
 │   │   ├── compile_state.py    # CompileStateProbe (heuristic Unity compile detection)
+│   │   ├── editor_log.py       # High-level Editor.log corroboration: is_compiling_from_log(), dll_info() (148L after v0.80.0 split)
+│   │   ├── editor_log_parser.py # Log path discovery + build-failure parsing (get_editor_log_path, parse_cs_errors)
+│   │   ├── editor_log_freshness.py # Plugin source discovery + DLL freshness checks — pure stdlib, no intra-package imports (v0.80.0 split, 82L)
+│   │   ├── editor_log_wedge.py # WedgeReport dataclass + detect_wedge() — reload-wedge heuristics from log (v0.80.0 split, 155L)
 │   │   ├── middleware.py       # 23-layer middleware pipeline (env-gated UNITY_MCP_MIDDLEWARE=1); _play_state_known flag (feat/tool-disambiguation); _alias_cache dict (v0.78.x, cleared on reset_session)
-│   │   ├── middleware_alias.py # Pure alias functions: parse_aliases_from_hierarchy, resolve_aliases_in_args, strip_alias_block, parse_aliases_from_get_aliases (v0.78.x)
+│   │   ├── middleware_alias.py # Pure alias functions: parse_aliases_from_hierarchy, resolve_aliases_in_args, strip_alias_block, parse_aliases_from_get_aliases (v0.78.x); @register_post hooks for alias cache updates (v0.80.0)
+│   │   ├── middleware_hooks.py # POST_HOOKS dict + @register_post decorator + run_post_hooks() (v0.80.0: alias extraction moved from inline blocks in pipeline to registered hooks)
+│   │   ├── middleware_pipeline.py # wrap_send() full pipeline — pre/post hooks, blast-radius, verification, alias cache (v0.80.0: hooks extracted)
+│   │   ├── middleware_async.py # Async/background operations mixin for Middleware
+│   │   ├── middleware_reads.py # Read/cache methods mixin for Middleware
 │   │   ├── middleware_types.py # _RUNTIME_ONLY_CMDS frozenset: commands requiring Play Mode; READ_CMDS frozenset (v0.78.11: expanded 15→43 — covers scene inspection, console, screenshots, editor read-only actions, alias/connection/meta, testing, profiling/debug, diff/audit/health, assets/schema/code reads, session listing, LLM tools); _EDITOR_READ_ACTIONS = {"state", "project_path"} (v0.78.11: editor dual-use guard); WRITE_CMDS frozenset (+rename_object, +set_sibling_index; -compress_hierarchy, v0.78.11)
 │   │   ├── middleware_guards.py # check_play_mode_required(): fail-fast guard; _is_batch_readonly(): checks all batch lines are READ_CMDS; editor dual-use: action∈_EDITOR_READ_ACTIONS → read, absent/other → write (v0.78.11); check_blast_radius/check_verification_needed/transition accept args param — read-only batches skip guards (v0.78.10)
 │   │   ├── middleware_paths.py # PathResolverMixin extracted from middleware.py
@@ -243,7 +251,10 @@ unity-kiss-mcp/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
 │       ├── CommandRouter.cs                # RegisterAll(), guards, core dispatch (partial class)
-│       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class); get_aliases command + BuildAliasSection/GetAliasesText; ApplyFieldsCompress(args, result) shared by inspect + get_component (v0.78.x)
+│       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class, 274L after v0.80.0 SRP split); get_aliases command + BuildAliasSection/GetAliasesText; ApplyFieldsCompress(args, result) shared by inspect + get_component (v0.78.x)
+│       ├── CommandRouter.AliasHandlers.cs  # Alias-only commands: get_aliases, alias_status, BuildAliasSection (partial class, NEW v0.80.0, 68L)
+│       ├── CommandRouter.ScreenshotHandlers.cs # Screenshot dispatch via FileHandler delegate on CommandEntry (partial class, NEW v0.80.0, 72L)
+│       ├── CommandRouter.ToolsCache.cs     # get_enabled_tools cache management (partial class, NEW v0.80.0, 42L)
 │       ├── CommandRouter.MediaHandlers.cs  # Media/asset handlers (partial class)
 │       ├── CommandRouter.Registration.cs   # 4 themed Register methods: RegisterSceneTools, RegisterRuntimeTools, RegisterMetaTools, RegisterEditorTools (partial class, v0.70.0)
 │       ├── CommandOptions.cs               # Struct groups trailing Register() params: Mutating/Runtime/Required/Optional/AlwaysAllowed/AllowedDuringCompile/Description/MaxResponseChars (v0.69.0, refactored v0.70.0)
@@ -622,7 +633,7 @@ unity-kiss-mcp/
 │       │   └── Tests/
 │       ├── MCPDiagnosePanel.cs            # Unified diagnostics panel (moved to Wizard/ with other windows)
 │       ├── MCPDiagnoseWindow.cs           # Diagnostics UI window (moved to Wizard/)
-│       ├── Chat/                          # Optional in-Unity Agent Chat (v0.29.2: split into CLI + View, UNITY_MCP_CHAT define)
+│       ├── Chat/                          # In-Unity Agent Chat (v0.29.2: split into CLI + View assemblies)
 │       │   ├── Mentions/                     # @Mention autocomplete system (v0.41.4)
 │       │   │   ├── IMentionSource.cs          # MentionCandidate struct + IMentionSource interface
 │       │   │   ├── MentionTokenParser.cs      # Pure static backward scan from cursor (allocation-free)

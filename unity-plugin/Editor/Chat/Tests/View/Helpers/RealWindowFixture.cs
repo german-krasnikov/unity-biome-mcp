@@ -1,6 +1,5 @@
 // Reusable base class for UIToolkit tests that need a real MCPChatWindow.
 // Q<>() helpers for all standard UI elements. TearDown closes window + cleans prefs.
-#if UNITY_MCP_CHAT
 using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
@@ -41,4 +40,3 @@ namespace UnityMCP.Editor.Chat.Tests
         protected DropdownField AgentDrop()  => W.rootVisualElement.Q<DropdownField>(null, "agent-selector");
     }
 }
-#endif

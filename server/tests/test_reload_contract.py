@@ -34,7 +34,7 @@ def test_reload_port_offset():
 
 def test_wire_protocol_length_prefix_be():
     """Bridge must use big-endian (network order) 4-byte length prefix."""
-    bridge_src = _src("bridge.py")
+    bridge_src = _src("bridge_socket.py")
     # "!I" = network byte order (big-endian), unsigned int — equivalent to ">I"
     assert 'struct.pack("!I"' in bridge_src or 'struct.pack(">I"' in bridge_src
 

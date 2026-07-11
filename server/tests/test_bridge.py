@@ -1207,6 +1207,6 @@ async def test_send_with_retry_exhausted_raises():
                                       return_value=(True, 0.0, "domain_reload")):
                         with pytest.raises((RuntimeError, ConnectionError)):
                             await bridge._send_with_retry(
-                                "ping", header, payload, "0001", 5.0,
+                                "ping", payload, "0001", 5.0,
                                 asyncio.get_event_loop().time() + 30.0
                             )

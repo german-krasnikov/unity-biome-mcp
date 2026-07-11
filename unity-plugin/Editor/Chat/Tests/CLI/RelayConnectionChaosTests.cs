@@ -1,7 +1,6 @@
 // Monkey tests: RelaySpawner/RelayBackend connection lifecycle chaos.
 // Tests IsProcessAlive, ParseRelayPort, Stop idempotency, port cleanup,
 // TcpAliveOverride seam, and multi-backend isolation.
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -166,4 +165,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

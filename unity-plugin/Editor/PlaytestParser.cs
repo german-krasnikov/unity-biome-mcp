@@ -9,6 +9,7 @@ namespace UnityMCP.Editor
 {
     internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc }
 
+    [Serializable]
     internal class PlaytestStep
     {
         public StepType Type;
@@ -32,6 +33,19 @@ namespace UnityMCP.Editor
         public bool IsOr;        // true = OR logic for compound WAIT_UNTIL, false = AND
         public bool AbortOnFail; // true = stop Play Mode on timeout
         public string Label;     // set by preceding DESC line
+
+        // ── Semantic aliases — name the meaning per step type; no backing change ──
+        internal float  WaitDuration     => Delay;
+        internal float  TimeScaleValue   => Delay;
+        internal float  NearThreshold    => Delay;
+        internal string NearPath         => Value;
+        internal float  SimulateScale    => Delay;
+        internal float  SimulateDuration => Timeout;
+        internal float  SimulateFrequency =>
+            float.TryParse(Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : 0f;
+        internal float  ClickPostWait    => Delay;
+        internal string CaptureLabel     => Message;
+        internal string DisplayText      => Message;
 
         // Shallow copy — arrays share references with original (by design)
         internal PlaytestStep ShallowClone() => new PlaytestStep

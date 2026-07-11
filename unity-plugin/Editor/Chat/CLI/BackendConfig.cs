@@ -15,6 +15,9 @@ namespace UnityMCP.Editor.Chat
         public string PermissionMode = "plan";   // "plan" | "acceptEdits"
         public string Model          = "";        // empty = default
         public string ExtraArgs      = "";        // whitespace-split appended to argv
+
+        internal ClaudeBackendConfig WithModel(string m) =>
+            Model == m ? this : new ClaudeBackendConfig { PermissionMode = PermissionMode, Model = m, ExtraArgs = ExtraArgs };
     }
 
     [Serializable]
@@ -24,6 +27,9 @@ namespace UnityMCP.Editor.Chat
         public string PermissionMode    = "danger-full-access";
         public int    StartupTimeoutSec = 30;
         public string ExtraArgs         = "";
+
+        internal CodexBackendConfig WithModel(string m) =>
+            Model == m ? this : new CodexBackendConfig { Model = m, PermissionMode = PermissionMode, StartupTimeoutSec = StartupTimeoutSec, ExtraArgs = ExtraArgs };
     }
 
     [Serializable]
@@ -33,6 +39,9 @@ namespace UnityMCP.Editor.Chat
         public string ApprovalMode = ""; // "" | "yolo" (mapped to --dangerously-skip-permissions)
         public bool   Sandbox      = false;
         public string ExtraArgs    = "";
+
+        internal AntigravityBackendConfig WithModel(string m) =>
+            Model == m ? this : new AntigravityBackendConfig { Model = m, ApprovalMode = ApprovalMode, Sandbox = Sandbox, ExtraArgs = ExtraArgs };
     }
 
     [Serializable]
@@ -41,6 +50,9 @@ namespace UnityMCP.Editor.Chat
         public string Model        = ""; // empty = use kimi's config.toml default
         public string ApprovalMode = "";           // "" | "yolo" | "plan"
         public string ExtraArgs    = "";
+
+        internal KimiBackendConfig WithModel(string m) =>
+            Model == m ? this : new KimiBackendConfig { Model = m, ApprovalMode = ApprovalMode, ExtraArgs = ExtraArgs };
     }
 
     [Serializable]
@@ -49,6 +61,9 @@ namespace UnityMCP.Editor.Chat
         public string Model            = "";    // "anthropic/claude-sonnet-4" or empty = opencode default
         public bool   SkipPermissions  = true;  // --dangerously-skip-permissions
         public string ExtraArgs        = "";
+
+        internal OpenCodeBackendConfig WithModel(string m) =>
+            Model == m ? this : new OpenCodeBackendConfig { Model = m, SkipPermissions = SkipPermissions, ExtraArgs = ExtraArgs };
     }
 
     /// <summary>Per-kind user overrides. Null fields = use provider default.</summary>

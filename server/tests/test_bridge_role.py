@@ -37,7 +37,6 @@ def _make_open_connection(writer=None):
 async def test_bridge_role_default(monkeypatch):
     """No env vars → role is 'mcp'."""
     monkeypatch.delenv("UNITY_MCP_CLIENT", raising=False)
-    monkeypatch.delenv("UNITY_MCP_CHAT", raising=False)
     mock_open, writer = _make_open_connection()
 
     with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open):
@@ -50,7 +49,6 @@ async def test_bridge_role_default(monkeypatch):
 async def test_bridge_role_env_var(monkeypatch):
     """UNITY_MCP_CLIENT=codex → role is 'codex'."""
     monkeypatch.setenv("UNITY_MCP_CLIENT", "codex")
-    monkeypatch.delenv("UNITY_MCP_CHAT", raising=False)
     mock_open, writer = _make_open_connection()
 
     with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open):
@@ -59,15 +57,3 @@ async def test_bridge_role_env_var(monkeypatch):
 
     assert _role_from_writer(writer) == "codex"
 
-
-async def test_bridge_role_chat_relay_takes_precedence(monkeypatch):
-    """UNITY_MCP_CHAT=1 wins over UNITY_MCP_CLIENT=codex."""
-    monkeypatch.setenv("UNITY_MCP_CHAT", "1")
-    monkeypatch.setenv("UNITY_MCP_CLIENT", "codex")
-    mock_open, writer = _make_open_connection()
-
-    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open):
-        bridge = UnityBridge("127.0.0.1", 9999, probe=make_idle_probe())
-        await bridge.send("ping", {})
-
-    assert _role_from_writer(writer) == "chat-relay"

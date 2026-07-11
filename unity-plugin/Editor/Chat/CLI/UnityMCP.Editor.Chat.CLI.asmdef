@@ -8,7 +8,7 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": false,
-    "defineConstraints": ["UNITY_MCP_CHAT"],
+    "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false
 }

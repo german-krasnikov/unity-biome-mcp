@@ -68,11 +68,18 @@ def is_pid_alive(pid: Optional[int]) -> bool:
     """Return True if the process with given PID exists."""
     if pid is None:
         return False
+    if sys.platform == "win32":
+        import ctypes
+        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+        if handle:
+            ctypes.windll.kernel32.CloseHandle(handle)
+            return True
+        return False
     try:
         os.kill(pid, 0)
         return True
     except PermissionError:
-        return True  # exists but can't signal — common on Windows
+        return True  # alive but no permission (cross-user on Unix)
     except (OSError, ProcessLookupError):
         return False
 

@@ -17,6 +17,7 @@ namespace UnityMCP.Editor
             // intercepted in CommandRouter.Process for file-response formatting). Its Handler
             // here is a throwing stub, not a real implementation — must never be batchable.
             public bool SpecialDispatch;
+            public Func<string, string, string> FileHandler;  // (id, argsJson) → response; non-null = file response
             // Guard-list flags (DRY audit issues-23-29 Cat.1): travel with the registration
             // instead of being re-typed as a separate hardcoded OR-chain in CommandRouter.
             public bool AlwaysAllowed;
@@ -87,6 +88,7 @@ namespace UnityMCP.Editor
                 Mutating = options.Mutating,
                 Runtime = options.Runtime,
                 SpecialDispatch = options.SpecialDispatch,
+                FileHandler = options.FileHandler,
                 AlwaysAllowed = options.AlwaysAllowed,
                 AllowedDuringCompile = options.AllowedDuringCompile,
                 Required = Split(options.Required),
@@ -98,7 +100,8 @@ namespace UnityMCP.Editor
 
         public static void Register(string cmd, Func<string, string> handler, bool mutating = false, bool runtime = false,
             string required = null, string optional = null, bool specialDispatch = false,
-            bool alwaysAllowed = false, bool allowedDuringCompile = false, string description = null,
+            bool alwaysAllowed = false, bool allowedDuringCompile = false,
+            Func<string, string, string> fileHandler = null, string description = null,
             int maxResponseChars = 0) =>
             Register(cmd, handler, new CommandOptions
             {
@@ -107,6 +110,7 @@ namespace UnityMCP.Editor
                 Required = required,
                 Optional = optional,
                 SpecialDispatch = specialDispatch,
+                FileHandler = fileHandler,
                 AlwaysAllowed = alwaysAllowed,
                 AllowedDuringCompile = allowedDuringCompile,
                 Description = description,
@@ -211,7 +215,7 @@ namespace UnityMCP.Editor
         // OR marked SpecialDispatch (e.g. screenshot — its Handler is a throwing stub,
         // the real implementation runs outside CommandRegistry.Execute).
         internal static bool IsBatchable(string cmd) =>
-            !_commands.TryGetValue(cmd, out var e) || (e.AsyncHandler == null && !e.SpecialDispatch);
+            !_commands.TryGetValue(cmd, out var e) || (e.AsyncHandler == null && !e.SpecialDispatch && e.FileHandler == null);
 
         /// <summary>Read-only view of a command's contract for CommandValidator. Returns false if unregistered.</summary>
         internal static bool TryGetContract(string cmd, out string[] required, out string[] optional, out bool isFreeForm)
@@ -245,6 +249,14 @@ namespace UnityMCP.Editor
                 handler = entry.AsyncHandler;
                 return true;
             }
+            handler = null;
+            return false;
+        }
+
+        internal static bool TryGetFileHandler(string cmd, out Func<string, string, string> handler)
+        {
+            if (_commands.TryGetValue(cmd, out var e) && e.FileHandler != null)
+            { handler = e.FileHandler; return true; }
             handler = null;
             return false;
         }

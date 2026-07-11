@@ -122,3 +122,23 @@ def _resolve_one(val: str, key: str, cache: "dict[str, str]") -> str:
     if key in ("field", "prop"):
         return parts[2] if len(parts) > 2 else full
     return full  # query, queries, or any other key → full pipe value
+
+
+# --- Post-call hooks (registered at import time) ---
+
+from .middleware_hooks import register_post  # noqa: E402
+
+
+@register_post("get_hierarchy")
+def _hook_alias_from_hierarchy(cmd: str, args: dict, result: str, mw) -> str:
+    parsed = parse_aliases_from_hierarchy(result)
+    if parsed is not None:
+        mw._alias_cache = parsed
+        result = strip_alias_block(result)
+    return result
+
+
+@register_post("get_aliases")
+def _hook_alias_from_get_aliases(cmd: str, args: dict, result: str, mw) -> str:
+    mw._alias_cache = parse_aliases_from_get_aliases(result)
+    return result

@@ -108,7 +108,7 @@ def test_taint_allows_hash_ref(mw):
 
 async def test_state_injection_every_10_calls(mw):
     fake_send = AsyncMock(return_value="HierarchyData")
-    mw.call_count = 9
+    mw.call_count = 10  # pipeline already incremented; maybe_inject_state checks, not increments
     result = await mw.maybe_inject_state(fake_send, "original result")
     assert "AUTO STATE" in result
     assert "HierarchyData" in result
@@ -117,13 +117,13 @@ async def test_state_injection_every_10_calls(mw):
 async def test_auto_state_staleness_gate(mw):
     """Injects at call 10, then again at call 20 (gap > 5)."""
     fake_send = AsyncMock(return_value="H")
-    mw.call_count = 9
+    mw.call_count = 10  # pipeline already incremented
     mw._last_hierarchy_call = 0
     await mw.maybe_inject_state(fake_send, "r")
     assert mw._last_hierarchy_call == 10
     fake_send.reset_mock()
-    # second injection: call_count=19, gap=20-10=10 > 5
-    mw.call_count = 19
+    # second injection: call_count=20, gap=20-10=10 > 5
+    mw.call_count = 20
     await mw.maybe_inject_state(fake_send, "r")
     assert mw._last_hierarchy_call == 20
     fake_send.assert_called_once()
@@ -204,9 +204,11 @@ async def test_state_injection_not_before_10(mw):
 
 
 async def test_state_injection_increments_counter(mw):
+    """call_count is incremented by the pipeline (wrap_send), not maybe_inject_state."""
     fake_send = AsyncMock(return_value="HierarchyData")
+    wrapped = wrap_send(fake_send, mw)
     mw.call_count = 0
-    await mw.maybe_inject_state(fake_send, "r")
+    await wrapped("get_component", {"path": "/A", "type": "T"})
     assert mw.call_count == 1
 
 

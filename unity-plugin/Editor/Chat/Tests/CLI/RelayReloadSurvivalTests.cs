@@ -1,7 +1,6 @@
 // Tests: relay lifecycle across domain reload simulation.
 // Verifies that relay stays alive, sessions resume, and stale state is discarded.
 // Uses RelaySpawner seams — no real Python relay required.
-#if UNITY_MCP_CHAT
 using System;
 using System.Diagnostics;
 using NUnit.Framework;
@@ -362,4 +361,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

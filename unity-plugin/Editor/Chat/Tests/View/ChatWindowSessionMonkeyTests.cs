@@ -2,7 +2,6 @@
 // SessionAllowlist stress, activity chains, SentTextCache.
 // Does NOT duplicate: TokenResetTests, WindowStateMonkeyTests, HandleEventMonkeyTests,
 //                     SessionAllowlistMonkeyTests (first 12 in ChatUIMonkeyTests).
-#if UNITY_MCP_CHAT
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -154,4 +153,3 @@ namespace UnityMCP.Editor.Chat.Tests
             { var c = new SentTextCache(); c.Set("first"); c.Set("second"); Assert.AreEqual("second", c.Get()); }
     }
 }
-#endif

@@ -1,7 +1,6 @@
 // Monkey tests: model/kind field state, ModelPresetsPerKind, backend injection.
 // Does NOT duplicate: BackendModelMonkeyTests (ApplySelectedModel/CloneWithModel),
 //                     SetModeTests, WindowStateMonkeyTests initial-state tests.
-#if UNITY_MCP_CHAT
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -180,4 +179,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

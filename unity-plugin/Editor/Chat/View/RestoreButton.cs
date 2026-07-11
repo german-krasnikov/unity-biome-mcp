@@ -1,5 +1,4 @@
-// Amber "Restore" button injected into transcript after each turn (F6).
-// Chat-only (Chat asmdef, defineConstraint UNITY_MCP_CHAT).
+// Amber "Restore" button injected into transcript after each turn (F6). Chat asmdef only.
 using System;
 using UnityEngine.UIElements;
 

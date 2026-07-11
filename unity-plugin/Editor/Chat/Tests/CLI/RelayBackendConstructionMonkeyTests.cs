@@ -1,6 +1,5 @@
 // RelayBackendConstructionMonkeyTests — 25 ctor/SetMode/Stop edge-case tests.
 // Tests 101-125. No real relay process — tests stop before Start() or use null proc.
-#if UNITY_MCP_CHAT
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -166,4 +165,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

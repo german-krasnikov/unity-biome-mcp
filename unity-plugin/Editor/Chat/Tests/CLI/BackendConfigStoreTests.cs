@@ -298,6 +298,106 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("kimi-for-coding", store.Kimi.Model);
         }
 
+        // ── BackendConfigStore.WithModel (C10) ───────────────────────────────────
+
+        [Test]
+        public void WithModel_EmptyModel_ReturnsSelf()
+        {
+            var store = new BackendConfigStore();
+            Assert.AreSame(store, store.WithModel(BackendKind.Claude, ""));
+        }
+
+        [Test]
+        public void WithModel_CustomSentinel_ReturnsSelf()
+        {
+            var store = new BackendConfigStore();
+            Assert.AreSame(store, store.WithModel(BackendKind.Claude, "__custom__"));
+        }
+
+        [Test]
+        public void WithModel_Claude_SameModel_ReturnsSelf()
+        {
+            var store = new BackendConfigStore { Claude = new ClaudeBackendConfig { Model = "opus" } };
+            Assert.AreSame(store, store.WithModel(BackendKind.Claude, "opus"));
+        }
+
+        [Test]
+        public void WithModel_Claude_NewModel_ChangesOnlyClaude()
+        {
+            var store = new BackendConfigStore
+            {
+                Claude = new ClaudeBackendConfig { Model = "a", PermissionMode = "plan", ExtraArgs = "-x" },
+                Codex  = new CodexBackendConfig  { Model = "codex" },
+                InactivityTimeoutSec = 300,
+            };
+            var result = store.WithModel(BackendKind.Claude, "opus");
+            Assert.AreEqual("opus",  result.Claude.Model);
+            Assert.AreEqual("plan",  result.Claude.PermissionMode);
+            Assert.AreEqual("-x",    result.Claude.ExtraArgs);
+            Assert.AreSame(store.Codex, result.Codex);           // other backends untouched
+            Assert.AreEqual(300,     result.InactivityTimeoutSec);
+        }
+
+        [Test]
+        public void WithModel_Codex_NewModel_ChangesOnlyCodex()
+        {
+            var store = new BackendConfigStore
+            {
+                Codex = new CodexBackendConfig { Model = "old", PermissionMode = "danger-full-access", StartupTimeoutSec = 45, ExtraArgs = "" },
+                InactivityTimeoutSec = 99,
+            };
+            var result = store.WithModel(BackendKind.Codex, "o3");
+            Assert.AreEqual("o3",                result.Codex.Model);
+            Assert.AreEqual("danger-full-access", result.Codex.PermissionMode);
+            Assert.AreEqual(45,                  result.Codex.StartupTimeoutSec);
+            Assert.AreSame(store.Claude,         result.Claude);
+            Assert.AreEqual(99,                  result.InactivityTimeoutSec);
+        }
+
+        [Test]
+        public void WithModel_Antigravity_NewModel_ChangesOnlyAntigravity()
+        {
+            var store = new BackendConfigStore
+            {
+                Antigravity = new AntigravityBackendConfig { Model = "old", ApprovalMode = "yolo", Sandbox = true, ExtraArgs = "" },
+            };
+            var result = store.WithModel(BackendKind.Antigravity, "new-agy");
+            Assert.AreEqual("new-agy", result.Antigravity.Model);
+            Assert.AreEqual("yolo",    result.Antigravity.ApprovalMode);
+            Assert.AreEqual(true,      result.Antigravity.Sandbox);
+        }
+
+        [Test]
+        public void WithModel_Kimi_NewModel_ChangesOnlyKimi()
+        {
+            var store = new BackendConfigStore
+            {
+                Kimi = new KimiBackendConfig { Model = "old", ApprovalMode = "plan", ExtraArgs = "" },
+            };
+            var result = store.WithModel(BackendKind.Kimi, "kimi-k3");
+            Assert.AreEqual("kimi-k3", result.Kimi.Model);
+            Assert.AreEqual("plan",    result.Kimi.ApprovalMode);
+        }
+
+        [Test]
+        public void WithModel_OpenCode_NewModel_ChangesOnlyOpenCode()
+        {
+            var store = new BackendConfigStore
+            {
+                OpenCode = new OpenCodeBackendConfig { Model = "old", SkipPermissions = true, ExtraArgs = "" },
+            };
+            var result = store.WithModel(BackendKind.OpenCode, "anthropic/claude-opus-4");
+            Assert.AreEqual("anthropic/claude-opus-4", result.OpenCode.Model);
+            Assert.AreEqual(true,                      result.OpenCode.SkipPermissions);
+        }
+
+        [Test]
+        public void WithModel_UnknownKind_ReturnsSelf()
+        {
+            var store = new BackendConfigStore();
+            Assert.AreSame(store, store.WithModel((BackendKind)999, "model"));
+        }
+
         private sealed class FakeDepthProvider : IChipKindProvider
         {
             public string Key          => "custom_depth_test";

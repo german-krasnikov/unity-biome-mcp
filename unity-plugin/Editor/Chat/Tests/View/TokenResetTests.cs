@@ -1,6 +1,5 @@
 // TDD — Token counter reset on backend/mode switch (F1).
 // Uses reflection to drive MCPChatWindow without a live GUI panel.
-#if UNITY_MCP_CHAT
 using System.Reflection;
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
@@ -120,4 +119,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

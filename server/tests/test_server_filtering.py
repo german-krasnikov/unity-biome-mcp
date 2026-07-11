@@ -439,54 +439,6 @@ def test_read_unity_port_cyrillic_project_path_parses_correctly(tmp_path):
     assert result == 9501  # port parsed correctly despite Cyrillic
 
 
-# ---------------------------------------------------------------------------
-# chat-port discovery (UNITY_MCP_CHAT=1)
-# ---------------------------------------------------------------------------
-
-def test_read_unity_port_chat_flag_prefers_chat_port_file(tmp_path):
-    """UNITY_MCP_CHAT=1 → read_unity_port() scans *.chat-port, not *.port."""
-    from pathlib import Path
-
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    (ports_dir / "12345.chat-port").write_bytes(b"9502\n/some/project\nMyProject")
-    # *.port with different port — must NOT be returned when chat flag is set
-    (ports_dir / "12345.port").write_bytes(b"9501\n/some/project\nMyProject")
-
-    with (
-        patch("unity_mcp.server_filtering._tcp_probe", return_value=True),
-        patch("os.kill"),
-        patch.object(Path, "home", return_value=tmp_path),
-        patch.dict("os.environ", {"UNITY_MCP_CHAT": "1"}, clear=False),
-    ):
-        from unity_mcp import server_filtering
-        result = server_filtering.read_unity_port()
-
-    assert result == 9502
-
-
-def test_read_unity_port_no_chat_flag_ignores_chat_port_file(tmp_path):
-    """Without UNITY_MCP_CHAT, *.chat-port files are not scanned."""
-    from pathlib import Path
-
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    # Only a *.chat-port file exists — no *.port file
-    (ports_dir / "12345.chat-port").write_bytes(b"9502\n/some/project\nMyProject")
-
-    env = {k: v for k, v in os.environ.items() if k != "UNITY_MCP_CHAT"}
-    with (
-        patch("unity_mcp.server_filtering._tcp_probe", return_value=True),
-        patch("os.kill"),
-        patch.object(Path, "home", return_value=tmp_path),
-        patch.dict("os.environ", env, clear=True),
-    ):
-        from unity_mcp import server_filtering
-        result = server_filtering.read_unity_port()
-
-    assert result == 9500  # no *.port files → default
-
-
 def test_read_unity_port_never_calls_tcp_probe(tmp_path):
     """read_unity_port must not call _tcp_probe — removed to avoid Unity console spam.
     PID liveness check is sufficient; bridge heartbeat handles transient port unreadiness.

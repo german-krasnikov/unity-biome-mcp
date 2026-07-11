@@ -1,6 +1,5 @@
 // ChatWindowButtonStateTests — 25 tests for button/class state on real MCPChatWindow.
 // Tests 26-50. Extends RealWindowFixture from ChatWindowElementQueryTests.cs.
-#if UNITY_MCP_CHAT
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
@@ -184,4 +183,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

@@ -1,5 +1,5 @@
 // TDD — Issue #1: Model selector dropdown. GPT-5.x update.
-// Tests MCPChatWindow.ModelPresets, CloneWithModel, ModelPresetsPerKind, ApplySelectedModel.
+// Tests MCPChatWindow.ModelPresets, BackendConfigStore.WithModel, ModelPresetsPerKind, ApplySelectedModel.
 using NUnit.Framework;
 using UnityEditor;
 
@@ -299,14 +299,14 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("__custom__", last.modelId);
         }
 
-        // ── CloneWithModel backward-compat ────────────────────────────────────
+        // ── WithModel(BackendKind.Claude) ─────────────────────────────────────
 
         [Test]
         public void CloneWithModel_DifferentModel_ReturnsNewStore()
         {
             var src = new BackendConfigStore();
             src.Claude.Model = "old";
-            var cloned = MCPChatWindow.CloneWithModel(src, "new-model");
+            var cloned = src.WithModel(BackendKind.Claude, "new-model");
             Assert.AreEqual("new-model", cloned.Claude.Model);
             Assert.AreEqual(src.Claude.ExtraArgs, cloned.Claude.ExtraArgs);
         }
@@ -316,7 +316,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var src = new BackendConfigStore();
             src.Claude.Model = "same";
-            var result = MCPChatWindow.CloneWithModel(src, "same");
+            var result = src.WithModel(BackendKind.Claude, "same");
             Assert.AreSame(src, result);
         }
 
@@ -326,7 +326,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var src = new BackendConfigStore();
             src.Claude.PermissionMode = "acceptEdits";
             src.Claude.Model = "old";
-            var cloned = MCPChatWindow.CloneWithModel(src, "new-model");
+            var cloned = src.WithModel(BackendKind.Claude, "new-model");
             Assert.AreEqual("acceptEdits", cloned.Claude.PermissionMode);
         }
     }

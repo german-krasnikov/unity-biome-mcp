@@ -87,19 +87,10 @@ namespace UnityMCP.Editor
             var needle = $"\"{key}\"";
             var idx = FindKeyIndex(json, needle);
             if (idx == -1) return "{}";
-            var braceStart = json.IndexOf('{', idx + needle.Length);
-            if (braceStart == -1) return "{}";
-            int depth = 0; bool inStr = false, esc = false;
-            for (int i = braceStart; i < json.Length; i++)
-            {
-                char c = json[i];
-                if (esc) { esc = false; continue; }
-                if (inStr) { if (c == '\\') esc = true; else if (c == '"') inStr = false; continue; }
-                if (c == '"') { inStr = true; continue; }
-                if (c == '{') { depth++; continue; }
-                if (c == '}') { depth--; if (depth == 0) return json.Substring(braceStart, i - braceStart + 1); }
-            }
-            return "{}";
+            var start = json.IndexOf('{', idx + needle.Length);
+            if (start == -1) return "{}";
+            var end = ScanBalanced(json, start, '{', '}');
+            return end == -1 ? "{}" : json.Substring(start, end - start);
         }
 
         public static string ExtractArray(string json, string key)
@@ -108,19 +99,30 @@ namespace UnityMCP.Editor
             var needle = $"\"{key}\"";
             var idx = FindKeyIndex(json, needle);
             if (idx == -1) return "[]";
-            var bracketStart = json.IndexOf('[', idx + needle.Length);
-            if (bracketStart == -1) return "[]";
+            var start = json.IndexOf('[', idx + needle.Length);
+            if (start == -1) return "[]";
+            var end = ScanBalanced(json, start, '[', ']');
+            return end == -1 ? "[]" : json.Substring(start, end - start);
+        }
+
+        /// <summary>
+        /// Scan for a balanced open/close pair starting at <paramref name="start"/>.
+        /// Returns the exclusive-end index (close char index + 1), or -1 if not found.
+        /// Handles nesting and quoted strings with escape sequences.
+        /// </summary>
+        private static int ScanBalanced(string s, int start, char open, char close)
+        {
             int depth = 0; bool inStr = false, esc = false;
-            for (int i = bracketStart; i < json.Length; i++)
+            for (int i = start; i < s.Length; i++)
             {
-                char c = json[i];
-                if (esc) { esc = false; continue; }
+                char c = s[i];
+                if (esc)   { esc = false; continue; }
                 if (inStr) { if (c == '\\') esc = true; else if (c == '"') inStr = false; continue; }
-                if (c == '"') { inStr = true; continue; }
-                if (c == '[') { depth++; continue; }
-                if (c == ']') { depth--; if (depth == 0) return json.Substring(bracketStart, i - bracketStart + 1); }
+                if (c == '"')   { inStr = true; continue; }
+                if (c == open)  { depth++; continue; }
+                if (c == close) { depth--; if (depth == 0) return i + 1; }
             }
-            return "[]";
+            return -1;
         }
 
         public static string UnescapeJsonString(string s)
@@ -231,17 +233,8 @@ namespace UnityMCP.Editor
             if (string.IsNullOrEmpty(arrayJson)) return null;
             var start = arrayJson.IndexOf('{');
             if (start == -1) return null;
-            int depth = 0; bool inStr = false, esc = false;
-            for (int i = start; i < arrayJson.Length; i++)
-            {
-                char c = arrayJson[i];
-                if (esc) { esc = false; continue; }
-                if (inStr) { if (c == '\\') esc = true; else if (c == '"') inStr = false; continue; }
-                if (c == '"')  { inStr = true; continue; }
-                if (c == '{')  { depth++; continue; }
-                if (c == '}') { depth--; if (depth == 0) return arrayJson.Substring(start, i - start + 1); }
-            }
-            return null;
+            var end = ScanBalanced(arrayJson, start, '{', '}');
+            return end == -1 ? null : arrayJson.Substring(start, end - start);
         }
 
         /// <summary>
@@ -253,26 +246,10 @@ namespace UnityMCP.Editor
             if (string.IsNullOrEmpty(arrayJson)) return null;
             var start = arrayJson.IndexOf('{', pos);
             if (start == -1) { pos = arrayJson.Length; return null; }
-            int depth = 0; bool inStr = false, esc = false;
-            for (int i = start; i < arrayJson.Length; i++)
-            {
-                char c = arrayJson[i];
-                if (esc) { esc = false; continue; }
-                if (inStr) { if (c == '\\') esc = true; else if (c == '"') inStr = false; continue; }
-                if (c == '"')  { inStr = true; continue; }
-                if (c == '{')  { depth++; continue; }
-                if (c == '}')
-                {
-                    depth--;
-                    if (depth == 0)
-                    {
-                        pos = i + 1;
-                        return arrayJson.Substring(start, i - start + 1);
-                    }
-                }
-            }
-            pos = arrayJson.Length;
-            return null;
+            var end = ScanBalanced(arrayJson, start, '{', '}');
+            if (end == -1)   { pos = arrayJson.Length; return null; }
+            pos = end;
+            return arrayJson.Substring(start, end - start);
         }
     }
 }

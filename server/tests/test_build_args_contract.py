@@ -75,7 +75,7 @@ def test_claude_allowed_tools_subset_prefixed(tmp_path):
 def test_claude_env_strip_all_keys(tmp_path):
     _, _, strip = ClaudeDef().build_args(mode="ask", model=None, mcp_port=_TEST_PORT,
                                          config_dir=str(tmp_path))
-    for key in ("CLAUDECODE", "UNITY_MCP_PORT", "UNITY_MCP_CHAT"):
+    for key in ("CLAUDECODE", "UNITY_MCP_PORT"):
         assert key in strip, f"expected {key!r} in env_strip"
 
 

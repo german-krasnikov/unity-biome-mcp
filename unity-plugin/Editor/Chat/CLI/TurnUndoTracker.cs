@@ -1,4 +1,4 @@
-// Per-turn Undo rollback tracker (F6). Chat-only (Chat asmdef, defineConstraint UNITY_MCP_CHAT).
+// Per-turn Undo rollback tracker (F6). Chat asmdef only.
 using System.Collections.Generic;
 using UnityMCP.Editor;
 

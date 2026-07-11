@@ -1,8 +1,9 @@
 """reload_ladder — T0-T5 reload-recovery ladder. MVID-delta = only heal proof (A1)."""
-import asyncio, json, logging, struct, time  # noqa: E401
+import asyncio, json, logging, time  # noqa: E401
 from pathlib import Path
 from typing import Callable, Awaitable
 
+from unity_mcp.bridge_socket import frame_write, frame_read
 from unity_mcp.tools.diagnose import _parse_diagnose, _DiagnoseFields, _verdict
 
 log = logging.getLogger("unity_mcp.reload_ladder")
@@ -151,14 +152,12 @@ def make_reload_send(port: int, host: str = "127.0.0.1"):
         reader, writer = await asyncio.open_connection(host, port)
         try:
             msg = json.dumps({"cmd": cmd, "args": args, "id": "r"}).encode()
-            writer.write(struct.pack(">I", len(msg)) + msg)
+            frame_write(writer, msg)
             await writer.drain()
             try:
-                size = struct.unpack(">I", await reader.readexactly(4))[0]
-                resp = json.loads(await reader.readexactly(size))
+                resp = json.loads(await frame_read(reader))
                 return resp.get("data", "") or resp.get("err", "")
-            except (asyncio.IncompleteReadError, json.JSONDecodeError,
-                    struct.error, OSError) as e:
+            except (asyncio.IncompleteReadError, json.JSONDecodeError, OSError) as e:
                 raise ConnectionError(f"reload transport error: {e}") from e
         finally:
             writer.close()

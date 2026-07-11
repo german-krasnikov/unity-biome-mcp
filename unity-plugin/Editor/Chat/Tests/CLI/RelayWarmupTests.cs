@@ -10,7 +10,6 @@
 //   - The actual Process.Start/WaitForExit(90s)/ExitCode branch inside RunWarmup().
 //   - EditorPrefs.SetBool actually persisting across a real Unity restart.
 //   - MainThreadDispatcher.Enqueue actually draining on EditorApplication.update in a live editor.
-#if UNITY_MCP_CHAT
 using System;
 using NUnit.Framework;
 using UnityMCP.Editor;
@@ -172,4 +171,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

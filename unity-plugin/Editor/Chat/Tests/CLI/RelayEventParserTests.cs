@@ -1,6 +1,5 @@
 // TDD: RelayEventParser — text-format lines from chat_relay.py → ChatEvent.
 // One [Test] per event type. Parser is pure static (no Unity deps).
-#if UNITY_MCP_CHAT
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
 
@@ -222,4 +221,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

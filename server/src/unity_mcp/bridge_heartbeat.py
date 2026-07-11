@@ -3,11 +3,10 @@ import json
 import logging
 import os
 import random
-import struct
 import threading
 import time
 
-from unity_mcp.bridge_socket import DomainReloadError
+from unity_mcp.bridge_socket import DomainReloadError, frame_write
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +209,7 @@ class HeartbeatMixin:
             self._counter += 1
             ping_id = f"hb{self._counter:04x}"
             payload = json.dumps({"id": ping_id, "cmd": "ping", "args": {}}, ensure_ascii=False).encode("utf-8")
-            self._writer.write(struct.pack("!I", len(payload)) + payload)
+            frame_write(self._writer, payload)
             await self._writer.drain()
             resp = await asyncio.wait_for(self._read_response(), timeout=timeout)
             if resp.get("id") != ping_id:

@@ -43,20 +43,9 @@ namespace UnityMCP.Editor
             page.Add(ChatHeaderAnim.Build(page));
             var scroll = new ScrollView();
             scroll.style.flexGrow = 1;
-            if (ChatSettingsHook.IsChatEnabled())
-            {
-                ChatSettingsHook.InvokeConnection(scroll);
-                if (scroll.childCount == 0)
-                    ChatSettingsHook.InvokeConnectionViaReflection(scroll);
-            }
-            else
-            {
-                var msg = new Label("Agent Chat is disabled.\nEnable it in MCP/Settings.");
-                msg.style.whiteSpace = WhiteSpace.Normal;
-                msg.style.marginBottom = 8;
-                scroll.Add(msg);
-                scroll.Add(new Button(() => ChatSettingsHook.SetChatEnabled(true)) { text = "Enable Agent Chat" });
-            }
+            ChatSettingsHook.InvokeConnection(scroll);
+            if (scroll.childCount == 0)
+                ChatSettingsHook.InvokeConnectionViaReflection(scroll);
             page.Add(scroll);
             return page;
         }

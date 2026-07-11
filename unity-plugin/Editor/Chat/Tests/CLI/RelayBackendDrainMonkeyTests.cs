@@ -1,6 +1,5 @@
 // RelayBackendDrainMonkeyTests — 25 DrainEvents tests (tests 126-150).
 // Uses ProcessFactory seam + RelayChatProcess(Func) test ctor. Thread.Sleep(200) for poll.
-#if UNITY_MCP_CHAT
 using System.Collections.Generic;
 using System.Text;
 using NUnit.Framework;
@@ -105,4 +104,3 @@ namespace UnityMCP.Editor.Chat.Tests
             => Assert.AreEqual(1, D("au|req-99|[{\"label\":\"q\"}]").FindAll(e => e.Kind == ChatEventKind.AskUser).Count);
     }
 }
-#endif

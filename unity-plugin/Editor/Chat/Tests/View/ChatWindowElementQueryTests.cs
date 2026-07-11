@@ -1,6 +1,5 @@
 // ChatWindowElementQueryTests — 25 UIToolkit element-query tests on real MCPChatWindow.
 // Opens real window, queries elements via Q<>(). Does NOT send messages or invoke callbacks.
-#if UNITY_MCP_CHAT
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine.UIElements;
@@ -164,4 +163,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

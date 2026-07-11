@@ -1,7 +1,6 @@
 // ChatUIMonkeyTests.cs — ~116 monkey/edge-case tests for Chat View layer.
 // Focus: state machine violations, null crashes, boundary values.
 // MUST NOT duplicate: SetModeTests, TokenResetTests, ApproveFlowTests.
-#if UNITY_MCP_CHAT
 using System;
 using System.Reflection;
 using NUnit.Framework;
@@ -360,18 +359,18 @@ namespace UnityMCP.Editor.Chat.Tests
             => Assert.IsFalse(Invoke(new ToolCallRecord("edit", "id10", null)));
     }
 
-    // ── 4. CloneWithModel + ApplySelectedModel (15) ───────────────────────────
+    // ── 4. ApplySelectedModel (15) ───────────────────────────────────────────
 
     [TestFixture]
     public class BackendModelMonkeyTests
     {
-        // ── CloneWithModel (6) ────────────────────────────────────────────────
+        // ── WithModel(BackendKind.Claude) — replaces CloneWithModel (6) ──────
 
         [Test]
         public void CloneWithModel_SameModel_ReturnsSameInstance()
         {
             var src = new BackendConfigStore();
-            var result = MCPChatWindow.CloneWithModel(src, ""); // default model is ""
+            var result = src.WithModel(BackendKind.Claude, ""); // default model is ""
             Assert.AreSame(src, result);
         }
 
@@ -379,7 +378,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void CloneWithModel_DifferentModel_ReturnsNewInstance()
         {
             var src = new BackendConfigStore();
-            var result = MCPChatWindow.CloneWithModel(src, "claude-opus-4");
+            var result = src.WithModel(BackendKind.Claude, "claude-opus-4");
             Assert.AreNotSame(src, result);
         }
 
@@ -388,7 +387,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var src = new BackendConfigStore();
             src.Claude.PermissionMode = "acceptEdits";
-            var result = MCPChatWindow.CloneWithModel(src, "new-model");
+            var result = src.WithModel(BackendKind.Claude, "new-model");
             Assert.AreEqual("acceptEdits", result.Claude.PermissionMode);
         }
 
@@ -397,7 +396,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var src = new BackendConfigStore();
             src.Codex.StartupTimeoutSec = 99;
-            var result = MCPChatWindow.CloneWithModel(src, "new-model");
+            var result = src.WithModel(BackendKind.Claude, "new-model");
             Assert.AreSame(src.Codex, result.Codex);
         }
 
@@ -406,7 +405,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var src = new BackendConfigStore();
             src.Chips.HierarchyDepth = "full";
-            var result = MCPChatWindow.CloneWithModel(src, "new-model");
+            var result = src.WithModel(BackendKind.Claude, "new-model");
             Assert.AreSame(src.Chips, result.Chips);
         }
 
@@ -414,7 +413,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void CloneWithModel_NewInstance_NewModelApplied()
         {
             var src = new BackendConfigStore();
-            var result = MCPChatWindow.CloneWithModel(src, "claude-opus-4");
+            var result = src.WithModel(BackendKind.Claude, "claude-opus-4");
             Assert.AreEqual("claude-opus-4", result.Claude.Model);
         }
 
@@ -1148,4 +1147,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

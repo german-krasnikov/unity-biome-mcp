@@ -1,6 +1,5 @@
 // RelayFlowWindowTests — exercises backend → DrainAndRender → transcript pipeline.
 // Tier A: QueuedFakeBackend (no sleep). Tier B: ProcessFactory (300ms sleep).
-#if UNITY_MCP_CHAT
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
@@ -218,4 +217,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

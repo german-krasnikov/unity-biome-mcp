@@ -17,7 +17,6 @@
 // What is NOT covered by this file: the actual RelayBackend.Start()/SendTurn() wiring in the
 // `#if !UNITY_INCLUDE_TESTS` branch of RelayBackend.cs (that branch never compiles into test
 // assemblies) — that wiring requires manual/PlayMode verification against a real relay process.
-#if UNITY_MCP_CHAT
 using System;
 using System.Threading;
 using NUnit.Framework;
@@ -210,4 +209,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

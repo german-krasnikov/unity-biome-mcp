@@ -1,6 +1,5 @@
 // TDD: RelayTcpClient — 4-byte BE framing, lock safety, error handling.
 // Uses in-process loopback TcpListener; no Unity API required.
-#if UNITY_MCP_CHAT
 using System;
 using System.Buffers.Binary;
 using System.IO;
@@ -643,4 +642,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

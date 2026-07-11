@@ -503,14 +503,6 @@ async def _run_reconnect_and_capture_ping(monkeypatch, env_overrides=None):
 
 @pytest.mark.asyncio
 async def test_reconnect_ping_includes_role_mcp(monkeypatch):
-    """Without UNITY_MCP_CHAT, reconnect ping must include role='mcp'."""
-    monkeypatch.delenv("UNITY_MCP_CHAT", raising=False)
+    """Reconnect ping must include role='mcp' by default."""
     ping = await _run_reconnect_and_capture_ping(monkeypatch)
     assert ping.get("role") == "mcp", f"Expected role=mcp, got: {ping}"
-
-
-@pytest.mark.asyncio
-async def test_reconnect_ping_role_chat_relay_when_env_set(monkeypatch):
-    """UNITY_MCP_CHAT=1 → reconnect ping must include role='chat-relay'."""
-    ping = await _run_reconnect_and_capture_ping(monkeypatch, {"UNITY_MCP_CHAT": "1"})
-    assert ping.get("role") == "chat-relay", f"Expected role=chat-relay, got: {ping}"

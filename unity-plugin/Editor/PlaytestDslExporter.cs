@@ -86,24 +86,13 @@ namespace UnityMCP.Editor
         /// <summary>Convert a parsed PlaytestStep back to a VisualStep (for Load roundtrip).</summary>
         public static VisualStep FromParsed(PlaytestStep p)
         {
-            bool supported = IsSupportedType(p.Type);
-            return new VisualStep
+            if (!IsSupportedType(p.Type))
             {
-                type        = p.Type,
-                description = p.Label     ?? "",
-                path        = p.Path      ?? "",
-                position    = p.Position,
-                delay       = p.Delay,
-                query       = p.Query     ?? "",
-                op          = p.Op        ?? "==",
-                value       = p.Value     ?? "",
-                timeout     = p.Timeout,
-                component   = p.Component ?? "",
-                method      = p.Method    ?? "",
-                args        = p.Args      ?? "",
-                message     = supported ? (p.Message ?? "") : (p.RawLine ?? p.Message ?? ""),
-                abortOnFail = p.AbortOnFail,
-            };
+                var copy = p.ShallowClone();
+                copy.Message = p.RawLine ?? p.Message;
+                return new VisualStep(copy);
+            }
+            return new VisualStep(p);
         }
 
         static bool IsSupportedType(StepType t) => t switch

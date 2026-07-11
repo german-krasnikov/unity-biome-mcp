@@ -1,6 +1,5 @@
 // Monkey tests: RelayBackend.DrainEvents stress — large volumes, repeated drains,
 // accumulator invariants, null-safety. No real relay process — ProcessFactory seam.
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -182,4 +181,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

@@ -1,10 +1,11 @@
 """Health diagnostics tool — 5 checks, optional auto-fix."""
 import asyncio
 import json
-import struct
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
+from .bridge_socket import frame_write, frame_read_with_timeout
 from .lockfile import is_pid_alive
 from .paths import ports_dir as _ports_dir_canonical, unity_mcp_dir
 from .doctor_report import CheckResult, USER_MESSAGES, format_report  # re-exported
@@ -126,19 +127,28 @@ def _resolve_port(port: int) -> int:
         return DEFAULT_PORT
 
 
+@asynccontextmanager
+async def _tcp_connect(port: int, timeout: float = 3.0):
+    """Shared connect + close lifecycle for doctor probes."""
+    r, w = await asyncio.wait_for(
+        asyncio.open_connection("127.0.0.1", port), timeout=timeout
+    )
+    try:
+        yield r, w
+    finally:
+        w.close()
+        try:
+            await asyncio.wait_for(w.wait_closed(), timeout=1.0)
+        except Exception:
+            pass
+
+
 async def check_tcp_connection(port: int = 0) -> CheckResult:
     """TCP probe with 3s timeout."""
     port = _resolve_port(port)
     try:
-        _, writer = await asyncio.wait_for(
-            asyncio.open_connection("127.0.0.1", port), timeout=3.0
-        )
-        writer.close()
-        try:
-            await writer.wait_closed()
-        except Exception:
-            pass
-        return CheckResult("tcp_connection", True, f"Connected to :{port}")
+        async with _tcp_connect(port):
+            return CheckResult("tcp_connection", True, f"Connected to :{port}")
     except (ConnectionRefusedError, OSError):
         return CheckResult(
             "tcp_connection", False,
@@ -157,28 +167,14 @@ async def check_unity_state(port: int = 0) -> CheckResult:
     """Send 'diagnose' via TCP and parse response."""
     port = _resolve_port(port)
     try:
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection("127.0.0.1", port), timeout=3.0
-        )
-    except Exception:
-        return CheckResult("unity_state", False, USER_MESSAGES["disconnected"])
-
-    try:
-        msg = json.dumps({"cmd": "diagnose", "args": {}}).encode()
-        writer.write(struct.pack(">I", len(msg)) + msg)
-        await writer.drain()
-        length_bytes = await asyncio.wait_for(reader.readexactly(4), timeout=3.0)
-        length = struct.unpack(">I", length_bytes)[0]
-        data = await asyncio.wait_for(reader.readexactly(length), timeout=3.0)
-        resp = json.loads(data)
+        async with _tcp_connect(port) as (reader, writer):
+            msg = json.dumps({"cmd": "diagnose", "args": {}}).encode()
+            frame_write(writer, msg)
+            await writer.drain()
+            data = await frame_read_with_timeout(reader, 3.0)
+            resp = json.loads(data)
     except Exception as e:
         return CheckResult("unity_state", False, f"Diagnose failed: {e}")
-    finally:
-        writer.close()
-        try:
-            await writer.wait_closed()
-        except Exception:
-            pass
 
     if not resp.get("ok"):
         return CheckResult("unity_state", False, resp.get("err", "unknown error"))

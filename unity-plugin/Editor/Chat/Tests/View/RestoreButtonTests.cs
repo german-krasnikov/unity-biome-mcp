@@ -1,6 +1,4 @@
 // TDD — Tests for RestoreButton.RefreshEnabled last-only disable rule (F6 MAJOR 2).
-// Chat.Tests asmdef has defineConstraint UNITY_MCP_CHAT and references UnityMCP.Editor.Chat.
-#if UNITY_MCP_CHAT
 using NUnit.Framework;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
@@ -82,4 +80,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

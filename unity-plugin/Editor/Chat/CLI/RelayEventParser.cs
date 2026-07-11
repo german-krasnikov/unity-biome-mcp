@@ -1,7 +1,6 @@
 // Parser: text-format lines from chat_relay.py → ChatEvent.
 // Pure static — no Unity deps, no allocations beyond Split.
 // Each line: prefix|field1|field2|... (trailing fields may contain '|').
-#if UNITY_MCP_CHAT
 namespace UnityMCP.Editor.Chat
 {
     internal static class RelayEventParser
@@ -103,4 +102,3 @@ namespace UnityMCP.Editor.Chat
         }
     }
 }
-#endif

@@ -1,6 +1,4 @@
-// TDD — RED first. Tests for TurnUndoTracker (scenarios 7-14 + generation test,
-// Feature F6). Behind UNITY_MCP_CHAT — Chat.Tests asmdef has that define.
-#if UNITY_MCP_CHAT
+// TDD — RED first. Tests for TurnUndoTracker (scenarios 7-14 + generation test, Feature F6).
 using NUnit.Framework;
 using UnityEngine;
 using UnityEditor;
@@ -234,4 +232,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

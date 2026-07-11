@@ -1,5 +1,4 @@
 // Adds "Composer" button to the MCPChatWindow footer toolbar.
-// Registration is unconditional; the chat toolbar renders only when UNITY_MCP_CHAT is defined.
 using UnityEditor;
 
 namespace UnityMCP.Editor.Chat

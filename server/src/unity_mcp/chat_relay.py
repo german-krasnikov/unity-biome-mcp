@@ -15,6 +15,7 @@ from .backend_def import (
     OUTPUT_FORMAT_STREAM_JSON, OUTPUT_FORMAT_PLAIN_TEXT,
     OUTPUT_FORMAT_CODEX_JSON, OUTPUT_FORMAT_OPENCODE_JSON, OUTPUT_FORMAT_KIMI_JSON,
 )
+from .bridge_socket import frame_write
 from .cli_session import CliSession, SessionMeta, BufLine, KILL_WAIT, PPID_POLL, MAX_FRAME, _find_free_port
 from .relay_buffer import RelayBuffer, MAX_BUF
 from .stream_transform import (
@@ -76,7 +77,7 @@ class ChatRelay:
                 resp    = await self._dispatch(req)
                 resp["id"] = req.get("id", "?")
                 out = json.dumps(resp, ensure_ascii=False).encode("utf-8")
-                writer.write(struct.pack("!I", len(out)) + out)
+                frame_write(writer, out)
                 await writer.drain()
         except (asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError,
                 json.JSONDecodeError, AttributeError):

@@ -20,6 +20,7 @@ from unity_mcp import editor_log
 from unity_mcp.constants import SESSION_TIMEOUT as _DEFAULT_TIMEOUT
 from unity_mcp.lockfile import read_reload_port
 from unity_mcp.tools.reload_ladder import make_reload_send, _send_with_fallback, run_ladder as _run_ladder
+from unity_mcp.utils import parse_pipe_fields
 
 _send = None
 
@@ -74,7 +75,7 @@ def _package_json_path() -> "Path | None":
 
 def _parse_ack(ack: str) -> tuple[int, bool]:
     """Parse 'sync_ack|epoch=N|will_compile=bool' → (epoch, will_compile)."""
-    parts = {p.split("=", 1)[0]: p.split("=", 1)[1] for p in ack.split("|") if "=" in p}
+    parts = parse_pipe_fields(ack)
     epoch = int(parts.get("epoch", "0"))
     will_compile = parts.get("will_compile", "false").lower() == "true"
     return epoch, will_compile
@@ -82,7 +83,7 @@ def _parse_ack(ack: str) -> tuple[int, bool]:
 
 def _parse_status(status: str) -> tuple[int, str, str]:
     """Parse 'epoch=N|state=S[|err=...]' → (epoch, state, err)."""
-    parts = {p.split("=", 1)[0]: p.split("=", 1)[1] for p in status.split("|") if "=" in p}
+    parts = parse_pipe_fields(status)
     epoch = int(parts.get("epoch", "0"))
     state = parts.get("state", "idle")
     err   = parts.get("err", "")
@@ -91,8 +92,7 @@ def _parse_status(status: str) -> tuple[int, str, str]:
 
 def _parse_stamp(status: str) -> str:
     """Extract stamp= field from sync_status response. Returns '' if absent."""
-    parts = {p.split("=", 1)[0]: p.split("=", 1)[1] for p in status.split("|") if "=" in p}
-    return parts.get("stamp", "")
+    return parse_pipe_fields(status).get("stamp", "")
 
 
 async def sync_unity(

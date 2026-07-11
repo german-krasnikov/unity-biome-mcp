@@ -4,13 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine.UIElements;
+using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.Chat
 {
     public sealed class ChatTranscript
     {
-        // Local to this file — kill-switch EditorPrefs key for scene-name normalization.
-        private const string DisableSceneNameNormKey = "MCPChat.DisableSceneNameNorm";
 
         private readonly VisualElement             _container;
         private readonly ChatBlockRendererRegistry _registry;
@@ -124,46 +123,15 @@ namespace UnityMCP.Editor.Chat
         }
 
         /// <summary>Legacy overload — kept for TryResumePendingTurn and existing tests.
-        /// Pass llmPayload to store UserBubbleData (G1/G2/G3 payload inspector support).</summary>
+        /// Forwards to the multi-image overload.</summary>
         internal void AppendUserBubble(string text,
             IReadOnlyList<ChipData> chips = null, string imagePath = null,
             string llmPayload = null)
-        {
-            FinalizeAssistant();
-            object userData = llmPayload != null
-                ? (object)new UserBubbleData(text ?? "", llmPayload)
-                : (text ?? "");
-            var bubble    = MakeBubble(userData);
-            var row       = Row("msg-user");
-            bool hasChips = chips != null && chips.Count > 0;
-            if (hasChips)
-            {
-                var strip = new VisualElement(); strip.AddToClassList("user-chip-strip");
-                foreach (var c in chips)
-                {
-                    var p = ChipPillFactory.Build(c);
-                    ChipPillFactory.AttachReadOnlyBehavior(p, c);
-                    strip.Add(p);
-                }
-                bubble.Add(strip);
-            }
-            var dt = hasChips ? UserTextCleaner.Strip(text) : text;
-            if (!string.IsNullOrEmpty(dt))
-                bubble.Add(MixedParagraphRenderer.InlineElement(dt, "msg-text"));
-            AppendImage(bubble, imagePath);
-            row.Add(bubble); Append(row);
-            if (!_restoring)
-            {
-                _entries.Add(new TranscriptEntry {
-                    EntryKind  = TranscriptEntry.Kind.User,
-                    Text       = text ?? "",
-                    ChipsData  = TranscriptSerializer.SerializeChips(chips),
-                    LlmPayload = llmPayload,
-                    ImagePath  = imagePath,
-                });
-                if (_entries.Count > MaxMessages) _entries.RemoveAt(0);
-            }
-        }
+            => AppendUserBubble(text, chips,
+                string.IsNullOrEmpty(imagePath)
+                    ? (IReadOnlyList<string>)System.Array.Empty<string>()
+                    : new[] { imagePath },
+                llmPayload);
 
         internal void AppendOrExtendAssistant(string token)
         { if (_assistantBubble == null) BeginAssistant(); _assistantRaw.Append(token); _dirty = true; }
@@ -219,8 +187,8 @@ namespace UnityMCP.Editor.Chat
                 }
             }
             // Scene object normalization: convert bare names even when no chips were sent.
-            // Kill-switch: EditorPrefs.GetBool(DisableSceneNameNormKey, false) disables this pass.
-            if (!UnityEditor.EditorPrefs.GetBool(DisableSceneNameNormKey, false))
+            // Kill-switch: EditorPrefs.GetBool(PrefKeys.DisableSceneNameNorm, false) disables this pass.
+            if (!UnityEditor.EditorPrefs.GetBool(PrefKeys.DisableSceneNameNorm, false))
             {
                 var sceneMap = SceneObjects?.Invoke();
                 if (sceneMap != null && sceneMap.Count > 0)

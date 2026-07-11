@@ -5,7 +5,7 @@ Visual drag-and-drop panel for building Playtest DSL scripts without writing raw
 ## Opening the Panel
 
 - **Menu:** `MCP / Playtest Composer` — shortcut `Shift+Alt+P`
-- **Chat toolbar:** "Composer" button (when `UNITY_MCP_CHAT` define is active)
+- **Chat toolbar:** "Composer" button
 
 State persists across Unity sessions in `<ProjectRoot>/Library/PlaytestComposerState.json`.
 

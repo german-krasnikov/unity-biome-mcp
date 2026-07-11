@@ -243,7 +243,7 @@ class ClaudeDef(BackendDef):
         if extra_args:
             argv += _sanitize_extra_args(extra_args)
 
-        strip = ["CLAUDECODE", "UNITY_MCP_PORT", "UNITY_MCP_CHAT"]
+        strip = ["CLAUDECODE", "UNITY_MCP_PORT"]
         return argv, {}, strip
 
 

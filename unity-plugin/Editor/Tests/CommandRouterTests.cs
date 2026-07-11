@@ -495,6 +495,32 @@ namespace UnityMCP.Editor.Tests
             => Assert.IsFalse(CommandRouter.IsAllowedDuringCompile("recompile"),
                 "G11: recompile (AssetDatabase.Refresh no-op) must NOT be in the allowlist");
 
+        // ── C7: Process() dispatches to FileHandler when registered ──────────
+
+        [Test]
+        public void Process_FileHandler_IsDispatched()
+        {
+            var called = false;
+            CommandRegistry.Register("test_file_cmd",
+                _ => throw new System.Exception("should not reach here"),
+                fileHandler: (id, args) => { called = true; return $"{{\"id\":\"{id}\",\"file\":\"x.png\"}}"; },
+                specialDispatch: true, alwaysAllowed: true, allowedDuringCompile: true);
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode  = () => false;
+            try
+            {
+                var json = "{\"id\":\"r1\",\"cmd\":\"test_file_cmd\",\"args\":{}}";
+                CommandRouter.Process(json);
+                Assert.IsTrue(called, "FileHandler must be invoked by Process()");
+            }
+            finally
+            {
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
+                CommandRouter.RegisterAll();  // restore registry, removes test_file_cmd
+            }
+        }
+
         // ── WIN-1: post-reload stale isCompiling — MCPServer.IsReallyCompiling=false because
         //           compilationStarted never fired in this domain (Windows domain-reload artifact) ──
 

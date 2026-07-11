@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine.UIElements;
+using UnityMCP.Editor;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
@@ -19,7 +20,7 @@ namespace UnityMCP.Editor.Chat.Tests
             ChipKindRegistry.ResetToBuiltIns();
             ChipPillFactory.ColorResolver = null;
             // Ensure kill-switch is off — EditorPrefs persists across sessions.
-            UnityEditor.EditorPrefs.DeleteKey("MCPChat.DisableSceneNameNorm");
+            UnityEditor.EditorPrefs.DeleteKey(PrefKeys.DisableSceneNameNorm);
             _container  = new VisualElement();
             _transcript = new ChatTranscript(_container,
                 ChatBlockRendererFactory.CreateDefault(null, null));
@@ -31,7 +32,7 @@ namespace UnityMCP.Editor.Chat.Tests
             ChipKindRegistry.ResetToBuiltIns();
             ChipPillFactory.ColorResolver = null;
             ChipPillFactory.AddToContextAction = null;
-            UnityEditor.EditorPrefs.DeleteKey("MCPChat.DisableSceneNameNorm");
+            UnityEditor.EditorPrefs.DeleteKey(PrefKeys.DisableSceneNameNorm);
         }
 
         // F15b-C1: scene object name in LLM response → rendered as pill in assistant bubble

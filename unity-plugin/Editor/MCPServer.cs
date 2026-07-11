@@ -219,6 +219,9 @@ namespace UnityMCP.Editor
                         _chatListener.Server.ExclusiveAddressUse = true;
 #else
                         _chatListener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
+                        try { _chatListener.Server.SetSocketOption(SocketOptionLevel.Socket, (SocketOptionName)0x0200, true); } catch { }
+#endif
 #endif
                         _chatListener.Start();
                         if (bindPort != PortFileManager.ChatPort)

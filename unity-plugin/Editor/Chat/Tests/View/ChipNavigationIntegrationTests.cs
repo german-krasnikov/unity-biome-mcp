@@ -1,7 +1,6 @@
 // ChipNavigationIntegrationTests — direct tests for HierarchyChipProvider.Navigate + Create.
 // Gap: InputChipClickTests/UserBubblePillTests use SpyProvider; real Navigate never tested directly.
 // All tests use scene GOs (not assets) — no AssetDatabase.Contains check needed.
-#if UNITY_MCP_CHAT
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
@@ -110,4 +109,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

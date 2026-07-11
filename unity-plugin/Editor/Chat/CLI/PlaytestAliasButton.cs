@@ -1,5 +1,4 @@
 // Adds "Aliases" button to the MCPChatWindow footer toolbar.
-// Registration is unconditional; the chat toolbar renders only when UNITY_MCP_CHAT is defined.
 using UnityEditor;
 using UnityMCP.Editor;
 

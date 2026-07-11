@@ -1,7 +1,6 @@
 // Relay-backed ChatProcess replacement. Talks to chat_relay.py via TCP.
 // Background thread polls "events" every 100ms, queues stdout lines.
 // NO Debug.Log — called from background threads (Unity 6 not thread-safe for Debug.*).
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -230,4 +229,3 @@ namespace UnityMCP.Editor.Chat
             JsonHelper.ExtractString(resp, "err") ?? "unknown error";
     }
 }
-#endif

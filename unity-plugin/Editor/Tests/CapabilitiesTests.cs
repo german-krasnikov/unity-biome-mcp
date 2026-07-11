@@ -55,5 +55,21 @@ namespace UnityMCP.Editor.Tests
             var result = CommandRegistry.Execute("get_capabilities", "{}");
             StringAssert.Contains("scriptingBackend:", result);
         }
+
+        [Test]
+        public void GetCapabilities_ContainsMutatingCmds()
+        {
+            var result = CommandRegistry.Execute("get_capabilities", "{}");
+            StringAssert.Contains("mutating_cmds:", result, "mutating_cmds line missing");
+            StringAssert.Contains("auto_wire", result, "auto_wire must be mutating");
+        }
+
+        [Test]
+        public void GetCapabilities_ContainsRuntimeCmds()
+        {
+            var result = CommandRegistry.Execute("get_capabilities", "{}");
+            StringAssert.Contains("runtime_cmds:", result, "runtime_cmds line missing");
+            StringAssert.Contains("invoke_method", result, "invoke_method must be runtime");
+        }
     }
 }

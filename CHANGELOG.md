@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.80.0] — 2026-07-11 — values-driven refactoring sprint (SOLID/DRY/KISS/OCP/SRP)
+
+**Added:**
+- `middleware_hooks.py` — `POST_HOOKS` registry + `@register_post` decorator for OCP-compliant post-call hooks (C13). Alias extraction now via hooks instead of inline blocks.
+- `editor_log_freshness.py` (82L) + `editor_log_wedge.py` (155L) — SRP split from `editor_log.py` (391→148L core) (C9).
+- `bridge_socket.py` — `frame_write()`, `frame_read()`, `frame_read_with_timeout()` TCP framing helpers, used across 7 callsites in 5 files (M67).
+- `CommandRouter.AliasHandlers.cs`, `CommandRouter.ScreenshotHandlers.cs`, `CommandRouter.ToolsCache.cs` — SRP partial class split (C8). ObjectHandlers 454→274L.
+- `FileHandler` delegate on `CommandEntry` for OCP screenshot dispatch (C7).
+- `GetCapabilities` emits `mutating_cmds` + `runtime_cmds` sets; Python `_warm_cmd_flags()` syncs at connect/reconnect (C1/C2).
+- `BackendConfigStore.WithModel()` immutable clone pattern; `ApplySelectedModel` collapsed 110→1L (C10/C11).
+- `PlaytestStep` 10 semantic alias properties (ObjectPath, ComponentType, FieldName, etc.) (C5).
+- `VisualStep` composition: wraps `PlaytestStep` via `_step` backing field, 14 delegating properties (C6-A).
+- `parse_pipe_fields()` utility in `utils.py` — DRY for pipe-separated field parsing (M13).
+- `doctor.py` `_tcp_connect` async context manager — 2 TCP probes collapsed (M64).
+- `JsonHelper.ScanBalanced` private method — 4 JSON methods collapsed, −60L (M3).
+- `MCPServer` chat listener `SO_REUSEPORT` fix for macOS/Linux (M4).
+- `PrefKeys.DisableSceneNameNorm` constant (M20).
+
+**Changed:**
+- Chat is now always-on: removed `UNITY_MCP_CHAT` compile define and guards from 38+ files. No more `#if UNITY_MCP_CHAT`, no `ChatSettingsHook.IsChatEnabled()`, no env var toggle.
+- `_RUNTIME_ONLY_CMDS` changed from `frozenset` to `set` for contract sync.
+- `ChatTranscript.AppendUserBubble` single→list forwarding, −53L (M19).
+- `_is_pid_alive` deduplicated: `server_filtering.py` imports from `lockfile.py` (M9).
+- 4 asmdef files: `defineConstraints` cleared of `UNITY_MCP_CHAT` (test asmdefs keep `UNITY_INCLUDE_TESTS`).
+
+**Removed:**
+- `ChatSettingsHookTests.cs` — tested deleted production code.
+- `CloneWithModel` from `MCPChatWindow` — replaced by `BackendConfigStore.WithModel`.
+- `Enable Agent Chat` toggle from `MCPHubUI` — chat is unconditional.
+- 27 audit findings rejected as false positives after architect verification.
+
+**Stats:** 125 files changed, −669 LOC net. 4388 Python unit + 280 live + 6455 NUnit green, 0 new failures.
+
 ## [v0.79.1] — 2026-07-11 — run_playtest path= parameter, scenarios/fuzzer removal, scene_session merge
 
 **Added:**

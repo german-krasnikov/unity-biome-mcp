@@ -1,7 +1,6 @@
 // TDD: RelayChatProcess — relay-backed ChatProcess replacement.
 // sendCommand function injected via test constructor — no TCP required.
 // All log accesses are locked — poll thread writes concurrently.
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -667,4 +666,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

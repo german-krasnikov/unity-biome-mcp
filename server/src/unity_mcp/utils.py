@@ -37,6 +37,14 @@ def parse_kv_line(line: str) -> tuple[str, dict[str, str]]:
     return (cmd.split()[0] if cmd else ""), parse_kv(stripped[first_kv.start() :])
 
 
+def parse_pipe_fields(s: str) -> dict[str, str]:
+    """Parse 'key=val|key=val' pipe-delimited fields → dict.
+
+    Used for Unity TCP protocol responses like 'epoch=5|state=idle|err='.
+    """
+    return {k: v for p in s.split("|") if "=" in p for k, v in [p.split("=", 1)]}
+
+
 def _levenshtein(a: str, b: str) -> int:
     if a == b:
         return 0

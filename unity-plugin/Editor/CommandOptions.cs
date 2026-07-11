@@ -1,3 +1,5 @@
+using System;
+
 namespace UnityMCP.Editor
 {
     // Groups the rarely-varying trailing params of CommandRegistry.Register/RegisterAction/
@@ -21,6 +23,10 @@ namespace UnityMCP.Editor
         public string Optional;
         // Only meaningful for Register(); ignored by RegisterAction/RegisterAsync.
         public bool SpecialDispatch;
+        // File handler for commands that return file paths instead of text
+        // (e.g. screenshot). Set via Register(..., fileHandler: ...).
+        // When non-null, Process() calls it instead of ExecuteCommand().
+        public Func<string, string, string> FileHandler;  // (id, argsJson) → response
         public bool AlwaysAllowed;
         public bool AllowedDuringCompile;
         public string Description;

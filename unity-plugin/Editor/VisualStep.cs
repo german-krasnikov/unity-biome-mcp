@@ -6,26 +6,31 @@ namespace UnityMCP.Editor
     [Serializable]
     internal class VisualStep
     {
-        public StepType type;
-        public string description = "";  // DESC label shown above the step
-        public string path      = "";    // Move/Teleport/Invoke target
-        public Vector3 position;         // Move/Teleport coords
-        public float   delay;            // Wait/TimeScale duration
-        public string  query    = "";    // Assert/WaitUntil primary query
-        public string  op       = "==";  // comparison operator
-        public string  value    = "";    // expected value
-        public float   timeout  = 5f;    // WaitUntil timeout seconds
-        public string  component = "";   // Invoke component name
-        public string  method    = "";   // Invoke method name
-        public string  args      = "";   // Invoke arguments
-        public string  message   = "";   // Section/Log/raw text
-        public bool    abortOnFail;      // WaitUntil abort on timeout
+        // Single backing field — all data lives here
+        [SerializeField] internal PlaytestStep _step;
 
-        internal VisualStep Clone() => new VisualStep {
-            type = type, description = description, path = path, position = position,
-            delay = delay, query = query, op = op, value = value, timeout = timeout,
-            component = component, method = method, args = args,
-            message = message, abortOnFail = abortOnFail
-        };
+        // ── Delegating properties (camelCase preserved for test/UI/initializer compat) ──
+        public StepType type      { get => _step.Type;         set => _step.Type = value; }
+        public string description { get => _step.Label ?? "";  set => _step.Label = value; }
+        public string path        { get => _step.Path ?? "";   set => _step.Path = value; }
+        public Vector3 position   { get => _step.Position;     set => _step.Position = value; }
+        public float delay        { get => _step.Delay;        set => _step.Delay = value; }
+        public string query       { get => _step.Query ?? "";  set => _step.Query = value; }
+        public string op          { get => _step.Op ?? "==";   set => _step.Op = value; }
+        public string value       { get => _step.Value ?? "";  set => _step.Value = value; }
+        public float timeout      { get => _step.Timeout;      set => _step.Timeout = value; }
+        public string component   { get => _step.Component ?? ""; set => _step.Component = value; }
+        public string method      { get => _step.Method ?? "";    set => _step.Method = value; }
+        public string args        { get => _step.Args ?? "";      set => _step.Args = value; }
+        public string message     { get => _step.Message ?? "";   set => _step.Message = value; }
+        public bool abortOnFail   { get => _step.AbortOnFail;     set => _step.AbortOnFail = value; }
+
+        public VisualStep() { _step = new PlaytestStep { Timeout = 5f, Op = "==" }; }
+
+        internal VisualStep(PlaytestStep p) { _step = p; }
+
+        internal PlaytestStep ToStep() => _step;
+
+        internal VisualStep Clone() => new VisualStep(_step.ShallowClone());
     }
 }

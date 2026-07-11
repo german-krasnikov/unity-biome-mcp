@@ -6,10 +6,10 @@ lives in server.py so tests can mutate srv._disabled_tools_cache directly.
 import logging
 import os
 import socket
-import sys
 from pathlib import Path
 from .constants import DEFAULT_PORT
 
+from .lockfile import is_pid_alive as _is_pid_alive
 from .paths import ports_dir as _ports_dir
 from .tools.gating import filter_by_tier, get_catalog, _CORE_TOOLS
 from .tools.schema_registry import _registry as _schema_registry, STUB_SCHEMA
@@ -98,27 +98,6 @@ def filter_tools(tools: list, disabled: set | None) -> list:
     return _strip_deferred_schemas(result)
 
 
-def _is_pid_alive(pid: int) -> bool:
-    """Cross-platform PID liveness check.
-
-    os.kill(pid, 0) raises PermissionError on Windows for ALL same-user processes
-    (not just cross-user), so we use OpenProcess/CloseHandle on win32.
-    """
-    if sys.platform == "win32":
-        import ctypes
-        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
-        if handle:
-            ctypes.windll.kernel32.CloseHandle(handle)
-            return True
-        return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except PermissionError:
-        return True  # alive, no permission (cross-user on Unix)
-    except OSError:
-        return False
-
 
 def cleanup_stale_port_files() -> int:
     """Delete *.reload-port files whose PID is no longer alive. Returns count cleaned."""
@@ -155,8 +134,6 @@ def read_unity_port(skip_probe: bool = False) -> int | None:
     Returns None when skip_probe=True and no live candidates found (no silent 9500 drift).
     Returns 9500 when skip_probe=False and no candidates (cold-start backward compat).
     Priority: env var → CWD project match → newest mtime → 9500.
-    When UNITY_MCP_CHAT=1 (set by C# chat backend), scans *.chat-port files
-    as a Windows fallback when UNITY_MCP_PORT env propagation fails.
     skip_probe: if True, skip TCP connectivity check (useful during reconnect
                 when port may be transiently down due to domain reload).
     """
@@ -169,10 +146,7 @@ def read_unity_port(skip_probe: bool = False) -> int | None:
     if not ports_dir.exists():
         return DEFAULT_PORT
 
-    # Windows fallback: UNITY_MCP_CHAT=1 means we're the chat MCP instance.
-    # Scan *.chat-port files (written by C# with the chat port) instead of *.port.
-    is_chat = os.environ.get("UNITY_MCP_CHAT") == "1"
-    glob_pattern = "*.chat-port" if is_chat else "*.port"
+    glob_pattern = "*.port"
 
     candidates = []
     for f in ports_dir.glob(glob_pattern):

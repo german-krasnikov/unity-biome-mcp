@@ -123,7 +123,7 @@ Used by `list_connections` to replace the binary connected/disconnected boolean.
 
 Port discovery reads `~/.unity-mcp/ports/{pid}.port` files. **v0.23.0:** Adds `_tcp_probe(port, timeout=0.2)` — quick TCP handshake to verify port actually listens before returning. Filters out stale discovery files (port written but server not yet bound, or server crashed leaving orphan file). Candidates prioritized: env UNITY_MCP_PORT → CWD project path match → newest mtime → default 9500.
 
-**v0.36.0 Chat-Port Fallback:** When subprocess sets `UNITY_MCP_CHAT=1` env var, `read_unity_port()` switches glob pattern from `*.port` to `*.chat-port`. Windows chat subprocess fallback when UNITY_MCP_PORT env propagation fails (edge case with cross-user process inheritance). C# MCPServer writes both {pid}.port and {pid}.chat-port discovery files. `_is_pid_alive(pid)` cross-platform check (Windows: OpenProcess/CloseHandle, Unix: os.kill(pid,0)) replaces naive kill check.
+**v0.36.0:** `_is_pid_alive(pid)` cross-platform check (Windows: OpenProcess/CloseHandle, Unix: os.kill(pid,0)) replaces naive kill check. C# MCPServer writes `{pid}.port` discovery files.
 
 ### CompileStateProbe (compile_state.py)
 

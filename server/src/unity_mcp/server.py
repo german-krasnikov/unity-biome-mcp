@@ -197,6 +197,21 @@ async def _warm_alias_cache(bridge_) -> None:
         pass
 
 
+async def _warm_cmd_flags(bridge_) -> None:
+    """Augment WRITE_CMDS/_RUNTIME_ONLY_CMDS from C# capabilities. Non-fatal."""
+    try:
+        resp = await bridge_.send("get_capabilities", {}, timeout=5.0)
+    except Exception:
+        return  # TCP down — hardcoded baseline stays active
+    data = resp.get("data", "") if resp else ""
+    from .middleware_types import WRITE_CMDS, _RUNTIME_ONLY_CMDS
+    for line in data.splitlines():
+        if line.startswith("mutating_cmds:"):
+            WRITE_CMDS.update(c for c in line[14:].split(",") if c)
+        elif line.startswith("runtime_cmds:"):
+            _RUNTIME_ONLY_CMDS.update(c for c in line[13:].split(",") if c)
+
+
 async def _filter_tools(tools: list, bridge_) -> list:
     """Filter tools by gating then subtract disabled set (from Unity MCPSettings).
     Cache is None → gating-only fallback (no TCP call)."""
@@ -336,6 +351,7 @@ async def lifespan(app):
             if active.connected:
                 await _refresh_tools_cache(active)
                 await _warm_alias_cache(active)
+                await _warm_cmd_flags(active)
                 await _push_catalog(active)
             _last_refresh_ts: float = 0.0
 
@@ -353,6 +369,7 @@ async def lifespan(app):
                 _last_refresh_ts = now
                 asyncio.ensure_future(_refresh_tools_cache(slot.bridge))
                 asyncio.ensure_future(_warm_alias_cache(slot.bridge))
+                asyncio.ensure_future(_warm_cmd_flags(slot.bridge))
                 asyncio.ensure_future(_push_catalog(slot.bridge))
             slot.add_reconnect_callback(_on_reconnect)
             slot.add_reconnect_callback(_sync_reset_bump)

@@ -1,4 +1,3 @@
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -244,4 +243,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

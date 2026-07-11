@@ -12,15 +12,13 @@ Create a new `.asmdef` in your plugin folder:
 {
   "name": "MyPlugin.Chat",
   "references": ["UnityMCP.Editor.Chat"],
-  "defineConstraints": ["UNITY_MCP_CHAT"],
   "autoReferenced": false
 }
 ```
 
 **Key points:**
 - Reference `UnityMCP.Editor.Chat` (which provides `IChipKindProvider` + `ChipKindRegistry`)
-- Add `UNITY_MCP_CHAT` constraint so this only compiles when chat is enabled
-- Set `autoReferenced: false` to avoid interfering with projects that don't use chat
+- Set `autoReferenced: false` to avoid interfering with other assemblies
 
 ### 2. Implement IChipKindProvider
 
@@ -147,10 +145,6 @@ namespace MyPlugin.Chat
     }
 }
 ```
-
-### 3. Enable the Define Constraint
-
-In **Edit → Project Settings → Player → Other Settings → Scripting Define Symbols**, ensure `UNITY_MCP_CHAT` is present. (Or toggle via MCPChatWindow settings.)
 
 Your plugin will auto-register on domain load and appear in chip detection.
 
@@ -356,10 +350,9 @@ Two providers registered with the same `Key`. Check for name collisions across p
 
 **Plugin not appearing in chips**
 
-1. Verify `UNITY_MCP_CHAT` define is set (**Edit > Project Settings > Player > Scripting Define Symbols**)
-2. Ensure `[InitializeOnLoad]` static ctor calls `ChipKindRegistry.Register(this)` exactly once
-3. Check Console for warnings from ChipKindRegistry
-4. Verify `CanHandle()` logic is correct
+1. Ensure `[InitializeOnLoad]` static ctor calls `ChipKindRegistry.Register(this)` exactly once
+2. Check Console for warnings from ChipKindRegistry
+3. Verify `CanHandle()` logic is correct
 
 **Chip not navigating**
 

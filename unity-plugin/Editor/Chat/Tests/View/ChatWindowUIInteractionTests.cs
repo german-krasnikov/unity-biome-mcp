@@ -1,5 +1,4 @@
 // ChatWindowUIInteractionTests — 25 programmatic-value and callback tests (tests 76-100).
-#if UNITY_MCP_CHAT
 using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
@@ -71,4 +70,3 @@ namespace UnityMCP.Editor.Chat.Tests
         { var dd = AgentDrop(); if (dd == null) Assert.Ignore("AgentDropdown not found"); else Assert.DoesNotThrow(() => dd.SetValueWithoutNotify("__invalid__does_not_exist")); }
     }
 }
-#endif

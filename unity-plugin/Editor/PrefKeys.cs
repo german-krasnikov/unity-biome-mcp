@@ -27,6 +27,7 @@ namespace UnityMCP.Editor
         public const string ChatAuthStatus = "UnityMCP_Chat_AuthStatus";
 
         // Chat settings — EditorPrefs (shared: ChatSettingsSection writes, MCPChatWindow.Drain.cs reads)
-        public const string ChatAutoScroll = "MCPChat.AutoScroll";
+        public const string ChatAutoScroll          = "MCPChat.AutoScroll";
+        public const string DisableSceneNameNorm    = "MCPChat.DisableSceneNameNorm";
     }
 }

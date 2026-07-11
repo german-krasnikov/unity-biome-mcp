@@ -1,6 +1,5 @@
 // ChatWindowWindowLifecycleTests — 25 lifecycle tests (tests 51-75).
 // Each test manages its own window. No shared SetUp/TearDown.
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -112,4 +111,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

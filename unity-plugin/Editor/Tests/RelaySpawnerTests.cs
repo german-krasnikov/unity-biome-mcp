@@ -1,6 +1,5 @@
 // TDD tests for RelaySpawner — all process interactions injected via seams.
 // Uses ProcessFactory + CommandResolver to avoid requiring a real Python install.
-#if UNITY_MCP_CHAT
 using System;
 using System.Diagnostics;
 using NUnit.Framework;
@@ -562,4 +561,3 @@ namespace UnityMCP.Editor.Tests
         }
     }
 }
-#endif

@@ -1,6 +1,5 @@
 // Monkey tests: Chat UI flow, Unity tool-command parsing, mode switching, event accumulation.
 // No real Python relay required — all mocked via ProcessFactory seam.
-#if UNITY_MCP_CHAT
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -585,4 +584,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

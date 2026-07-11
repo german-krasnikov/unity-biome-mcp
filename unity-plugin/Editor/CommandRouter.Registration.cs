@@ -37,6 +37,7 @@ namespace UnityMCP.Editor
             // registered here only for IsRegistered/IsMutating queries
             CommandRegistry.Register("screenshot", _ => throw new InvalidOperationException("screenshot intercepted before ExecuteCommand"),
                 required: "", optional: "width,height,camera,path,supersample,angles,zoom,offset,fixed_size,highlight,show_colliders,angle,annotation_id",
+                fileHandler: BuildScreenshotResponse,
                 specialDispatch: true, allowedDuringCompile: true);
             CommandRegistry.Register("diagnose", args => DiagnoseCommand.Execute(args),
                 required: "", optional: "",  // C8: read-only multi-signal snapshot

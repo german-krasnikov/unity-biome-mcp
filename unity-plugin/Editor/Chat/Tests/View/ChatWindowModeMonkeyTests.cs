@@ -2,7 +2,6 @@
 // Focus: 1000x stress, activity + turn-flags + askPending interaction, session ID.
 // Does NOT duplicate: SetModeTests (4), WindowStateMonkeyTests SetMode (5),
 //                     TokenResetTests SetMode (2).
-#if UNITY_MCP_CHAT
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -197,4 +196,3 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
 }
-#endif

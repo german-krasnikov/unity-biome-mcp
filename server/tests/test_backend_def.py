@@ -135,7 +135,6 @@ def test_claude_env_strip_keys(tmp_path):
                                          config_dir=str(tmp_path))
     assert "CLAUDECODE"        in strip
     assert "UNITY_MCP_PORT"   in strip
-    assert "UNITY_MCP_CHAT"   in strip
 
 
 def test_claude_agent_name_flag(tmp_path):

@@ -1,6 +1,5 @@
 // TDD tests for RelayCommandResolver — the install-source-aware (cmd, argv) resolver
 // used by RelaySpawner.CommandResolver (ARCH-relay-upm-bootstrap.md Q2).
-#if UNITY_MCP_CHAT
 using System;
 using System.IO;
 using NUnit.Framework;
@@ -154,4 +153,3 @@ namespace UnityMCP.Editor.Tests
         }
     }
 }
-#endif
