@@ -17,6 +17,20 @@ _RUN_SUITE = "unity_mcp.tools.runtime.run_playtest_suite"
 MARK = "mark:1000.0"
 
 
+# ── _is_compile_clean unit tests ──────────────────────────────────────────────
+
+def test_is_compile_clean_variants():
+    from unity_mcp.tools.verify import _is_compile_clean
+    assert _is_compile_clean("compile clean (5.2s)")
+    assert _is_compile_clean("compile clean")
+    assert _is_compile_clean("")
+    assert _is_compile_clean("no errors")
+    assert _is_compile_clean("No compilation errors")   # C# sentinel
+    assert _is_compile_clean("No compilation errors.")  # period suffix
+    assert not _is_compile_clean("error CS0234: bad type")
+    assert not _is_compile_clean("1 compilation error(s):")
+
+
 def _patch_all(compile_result="compile clean (5s)", errors="",
                console="", tests="EditMode: 10/10 passed, 0 failed",
                suite="SUITE: 3/3 passed (12s)"):

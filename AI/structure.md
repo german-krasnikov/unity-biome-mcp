@@ -50,7 +50,7 @@ unity-kiss-mcp/
 │   │   ├── middleware_pipeline.py # wrap_send() full pipeline — pre/post hooks, blast-radius, verification, alias cache (v0.80.0: hooks extracted)
 │   │   ├── middleware_async.py # Async/background operations mixin for Middleware
 │   │   ├── middleware_reads.py # Read/cache methods mixin for Middleware
-│   │   ├── middleware_types.py # _RUNTIME_ONLY_CMDS frozenset: commands requiring Play Mode; READ_CMDS frozenset (v0.78.11: expanded 15→43 — covers scene inspection, console, screenshots, editor read-only actions, alias/connection/meta, testing, profiling/debug, diff/audit/health, assets/schema/code reads, session listing, LLM tools); _EDITOR_READ_ACTIONS = {"state", "project_path"} (v0.78.11: editor dual-use guard); WRITE_CMDS frozenset (+rename_object, +set_sibling_index; -compress_hierarchy, v0.78.11)
+│   │   ├── middleware_types.py # WRITE_CMDS/READ_CMDS/_RUNTIME_ONLY_CMDS derived from tool_specs._SPECS via ToolSpec.mutability/runtime_only fields (v0.83.0 — was hardcoded); ACTION_READS: dict[str, frozenset[str]] per-command read-action subsets; is_write(cmd, args) action-aware write check; _EDITOR_READ_ACTIONS = {"state", "project_path"} (v0.78.11: editor dual-use guard)
 │   │   ├── middleware_guards.py # check_play_mode_required(): fail-fast guard; _is_batch_readonly(): checks all batch lines are READ_CMDS; editor dual-use: action∈_EDITOR_READ_ACTIONS → read, absent/other → write (v0.78.11); check_blast_radius/check_verification_needed/transition accept args param — read-only batches skip guards (v0.78.10)
 │   │   ├── middleware_paths.py # PathResolverMixin extracted from middleware.py
 │   │   ├── plugin_api.py      # Stable public API for external plugins (RO, RW, SamplingService, strip_fences)
@@ -110,7 +110,7 @@ unity-kiss-mcp/
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
 │   │   ├── tools/              # Tool modules (42 files + __init__, playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
-│   │   │   ├── tool_specs.py   # Single source of truth: 129 ToolSpec entries with category/core/tier1/timeout_s metadata (v0.69.0, M8)
+│   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 146 entries (v0.69.0, M8)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
 │   │   │   ├── meta.py         # Meta tools: discover_tools, doctor, resolve_tool_schema, set_llm_config, alias_status in register(mcp, send, args) pattern (v0.69.0, v0.78.9: +alias_status)
 │   │   │   ├── profiling.py    # Profile MCP tool: session-based profiling, frame stats, performance analysis (v0.60.0, 412 LOC)
@@ -136,7 +136,7 @@ unity-kiss-mcp/
 │   │   │   ├── asset.py        # asset, material, prefab, scriptable_object, project_settings, validate_move (v0.30.4)
 │   │   │   ├── connection.py   # list_connections, reconnect_unity
 │   │   │   ├── autobatch.py    # setup_objects, set_properties, configure_objects (v0.55.10: _quote_if_spaces, _DOTTED_KV_RE lookahead)
-│   │   │   ├── gating.py       # TIER1 + category-based capability filtering (v0.29.37; CATEGORIES derived from tool_specs._SPECS v0.69.0; FORCE_VISIBLE removed v0.70.0)
+│   │   │   ├── gating.py       # TIER1 + category-based capability filtering (v0.29.37; v0.83.0: _THEMED_CATEGORY_KEYS reduced 18→8 — SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM; _CATEGORY_ALIAS dict for backward-compat legacy name mapping; register_tools() resolves aliases before populating themed groups; FORCE_VISIBLE removed v0.70.0)
 │   │   │   ├── do_tool.py      # NL intent → Haiku plan → batch execute
 │   │   │   ├── ask_tool.py     # NL read-only → route → Haiku summarize
 │   │   │   ├── ask_user_tool.py # ask_user MCP tool (ask_user AskUserCard routing, v0.29.11)

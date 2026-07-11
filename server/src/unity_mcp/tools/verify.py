@@ -23,7 +23,7 @@ _args = None
 
 def _is_compile_clean(result: str) -> bool:
     r = result.strip().lower()
-    return r.startswith("compile clean") or r in ("", "no errors")
+    return r.startswith("compile clean") or "no compilation errors" in r or r in ("", "no errors")
 
 
 def _is_errors_clean(result: str) -> bool:

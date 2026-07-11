@@ -47,9 +47,8 @@ def test_get_catalog_categories_are_dict_of_lists():
 # ---------------------------------------------------------------------------
 
 EXPECTED_CATEGORIES = [
-    "CORE", "SCENE_EDIT", "COMPONENTS", "ANIMATION", "SHADERS_MATERIAL",
-    "VFX", "UI", "SCREENSHOTS", "UNIT_TESTS", "RUNTIME", "ASSETS",
-    "ADVANCED_CODE", "SESSION_SKILLS", "CONNECTION",
+    "CORE", "SCENE", "COMPONENTS", "ASSETS", "MEDIA",
+    "VERIFY", "RUNTIME", "TESTS", "SYSTEM",
 ]
 
 

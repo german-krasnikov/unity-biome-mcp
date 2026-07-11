@@ -7,7 +7,7 @@ import time
 from typing import Optional, Callable
 
 from .console_levels import PROBLEM_LEVELS
-from .middleware import WRITE_CMDS
+from .middleware_types import is_write
 
 HIGH_BLAST_CMDS = {"delete_object", "scene", "batch"}
 
@@ -24,8 +24,8 @@ class ProactiveWatchdog:
         self._last_alert_time: float = 0.0
         self._task: Optional[asyncio.Task] = None
 
-    def maybe_trigger(self, cmd: str) -> None:
-        if cmd not in WRITE_CMDS:
+    def maybe_trigger(self, cmd: str, args: dict | None = None) -> None:
+        if not is_write(cmd, args):
             return
         threshold = 1 if cmd in HIGH_BLAST_CMDS else self.interval
         self._counter += 1

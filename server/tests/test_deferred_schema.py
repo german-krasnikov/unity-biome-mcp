@@ -52,10 +52,10 @@ def test_stub_keeps_description_and_name():
 def test_core_tools_survive_strip():
     """CORE tools keep full schema through the strip pipeline."""
     from unity_mcp.server import _strip_deferred_schemas
-    # 'discover_tools' is core (core=True in tool_specs.py)
-    tool = _tool("discover_tools", "Discover", _full_schema())
+    # 'batch' is core (core=True in tool_specs.py); discover_tools demoted to SYSTEM tier1 in Phase 2
+    tool = _tool("batch", "Batch", _full_schema())
     result = _strip_deferred_schemas([tool])
-    # discover_tools is core — schema always kept full
+    # batch is core — schema always kept full
     assert result[0].inputSchema == _full_schema()
 
 
@@ -219,14 +219,17 @@ async def test_resolve_cold_start_empty_registry_returns_graceful_fallback():
         meta_mod._schema_registry = original
 
 
-# --- resolve_tool_schema is core ---
+# --- resolve_tool_schema is SYSTEM tier1 (demoted from CORE in Phase 2) ---
 
-def test_resolve_tool_schema_keeps_full_schema_after_strip():
+def test_resolve_tool_schema_schema_is_stripped_after_demotion():
+    """resolve_tool_schema demoted from CORE to SYSTEM tier1 in Phase 2 —
+    now gets stub schema like other non-core tools."""
     from unity_mcp.server import _strip_deferred_schemas
+    from unity_mcp.tools.schema_registry import STUB_SCHEMA
     full = _full_schema()
     tool = _tool("resolve_tool_schema", "Resolve deferred schemas", full)
     result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == full
+    assert result[0].inputSchema == STUB_SCHEMA
 
 
 # --- stripping is applied in the handler ---

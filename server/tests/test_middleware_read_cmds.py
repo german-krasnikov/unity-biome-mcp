@@ -145,3 +145,240 @@ def test_blast_radius_skipped_for_readonly_editor_state_batch(tmp_path):
     args = {"commands": "editor action=state\nalias_status"}
     result = mw.check_blast_radius("batch", args)
     assert result is None
+
+
+# ── Phase 1a: ACTION_READS + is_write() ──────────────────────────────────────
+
+from unity_mcp.middleware_types import is_write, ACTION_READS  # noqa: E402
+
+
+# ── is_write: pure write cmds ─────────────────────────────────────────────────
+
+def test_is_write_set_property():
+    assert is_write("set_property", {}) is True
+
+def test_is_write_delete_object():
+    assert is_write("delete_object", {}) is True
+
+def test_is_write_create_object():
+    assert is_write("create_object", {}) is True
+
+# ── is_write: pure read cmds ──────────────────────────────────────────────────
+
+def test_is_write_get_hierarchy():
+    assert is_write("get_hierarchy", {}) is False
+
+def test_is_write_get_component():
+    assert is_write("get_component", {"path": "/X", "type": "T"}) is False
+
+def test_is_write_unknown_cmd_is_not_write():
+    assert is_write("nonexistent_cmd", {}) is False
+
+# ── is_write: animation ───────────────────────────────────────────────────────
+
+def test_is_write_animation_get_is_read():
+    assert is_write("animation", {"action": "get"}) is False
+
+def test_is_write_animation_get_events_is_read():
+    assert is_write("animation", {"action": "get_events"}) is False
+
+def test_is_write_animation_get_clip_path_is_read():
+    assert is_write("animation", {"action": "get_clip_path"}) is False
+
+def test_is_write_animation_create_is_write():
+    assert is_write("animation", {"action": "create"}) is True
+
+def test_is_write_animation_edit_is_write():
+    assert is_write("animation", {"action": "edit"}) is True
+
+def test_is_write_animation_no_action_is_write():
+    assert is_write("animation", {}) is True
+
+def test_is_write_animation_none_args_is_write():
+    assert is_write("animation", None) is True
+
+# ── is_write: timeline ────────────────────────────────────────────────────────
+
+def test_is_write_timeline_get_is_read():
+    assert is_write("timeline", {"action": "get"}) is False
+
+def test_is_write_timeline_get_bindings_is_read():
+    assert is_write("timeline", {"action": "get_bindings"}) is False
+
+def test_is_write_timeline_add_track_is_write():
+    assert is_write("timeline", {"action": "add_track"}) is True
+
+# ── is_write: animator ────────────────────────────────────────────────────────
+
+def test_is_write_animator_get_is_read():
+    assert is_write("animator", {"action": "get"}) is False
+
+def test_is_write_animator_get_blend_tree_is_read():
+    assert is_write("animator", {"action": "get_blend_tree"}) is False
+
+def test_is_write_animator_add_state_is_write():
+    assert is_write("animator", {"action": "add_state"}) is True
+
+# ── is_write: particle ────────────────────────────────────────────────────────
+
+def test_is_write_particle_get_is_read():
+    assert is_write("particle", {"action": "get"}) is False
+
+def test_is_write_particle_play_is_write():
+    assert is_write("particle", {"action": "play"}) is True
+
+# ── is_write: asset ───────────────────────────────────────────────────────────
+
+def test_is_write_asset_find_is_read():
+    assert is_write("asset", {"action": "find"}) is False
+
+def test_is_write_asset_validate_move_is_read():
+    assert is_write("asset", {"action": "validate_move"}) is False
+
+def test_is_write_asset_get_dependencies_is_read():
+    assert is_write("asset", {"action": "get_dependencies"}) is False
+
+def test_is_write_asset_find_dependents_is_read():
+    assert is_write("asset", {"action": "find_dependents"}) is False
+
+def test_is_write_asset_export_package_is_read():
+    assert is_write("asset", {"action": "export_package"}) is False
+
+def test_is_write_asset_delete_is_write():
+    assert is_write("asset", {"action": "delete"}) is True
+
+def test_is_write_asset_move_is_write():
+    assert is_write("asset", {"action": "move"}) is True
+
+# ── is_write: scene, project_settings, material, shader, prefab, scriptable_object, menu ──
+
+def test_is_write_scene_list_is_read():
+    assert is_write("scene", {"action": "list"}) is False
+
+def test_is_write_scene_open_is_write():
+    assert is_write("scene", {"action": "open"}) is True
+
+def test_is_write_project_settings_get_is_read():
+    assert is_write("project_settings", {"action": "get"}) is False
+
+def test_is_write_project_settings_set_is_write():
+    assert is_write("project_settings", {"action": "set"}) is True
+
+def test_is_write_material_list_shaders_is_read():
+    assert is_write("material", {"action": "list_shaders"}) is False
+
+def test_is_write_material_set_is_write():
+    assert is_write("material", {"action": "set"}) is True
+
+def test_is_write_shader_get_is_read():
+    assert is_write("shader", {"action": "get"}) is False
+
+def test_is_write_shader_graph_get_is_read():
+    assert is_write("shader", {"action": "graph_get"}) is False
+
+def test_is_write_shader_create_is_write():
+    assert is_write("shader", {"action": "create"}) is True
+
+def test_is_write_prefab_get_overrides_is_read():
+    assert is_write("prefab", {"action": "get_overrides"}) is False
+
+def test_is_write_prefab_save_is_write():
+    assert is_write("prefab", {"action": "save"}) is True
+
+def test_is_write_scriptable_object_find_is_read():
+    assert is_write("scriptable_object", {"action": "find"}) is False
+
+def test_is_write_scriptable_object_list_types_is_read():
+    assert is_write("scriptable_object", {"action": "list_types"}) is False
+
+def test_is_write_scriptable_object_create_is_write():
+    assert is_write("scriptable_object", {"action": "create"}) is True
+
+def test_is_write_menu_list_is_read():
+    assert is_write("menu", {"action": "list"}) is False
+
+def test_is_write_menu_execute_is_write():
+    assert is_write("menu", {"action": "execute"}) is True
+
+# ── _is_batch_readonly: action-based tools ────────────────────────────────────
+
+def test_batch_animation_get_is_readonly():
+    assert _is_batch_readonly("animation action=get path=/Player") is True
+
+def test_batch_animation_create_not_readonly():
+    assert _is_batch_readonly("animation action=create path=/Player clip=Walk") is False
+
+def test_batch_animation_no_action_not_readonly():
+    assert _is_batch_readonly("animation path=/Player") is False
+
+def test_batch_scene_list_is_readonly():
+    assert _is_batch_readonly("scene action=list") is True
+
+def test_batch_scene_open_not_readonly():
+    assert _is_batch_readonly("scene action=open path=Assets/Scenes/Main.unity") is False
+
+def test_batch_material_list_shaders_is_readonly():
+    assert _is_batch_readonly("material action=list_shaders") is True
+
+def test_batch_asset_find_is_readonly():
+    assert _is_batch_readonly("asset action=find type=Texture2D") is True
+
+def test_batch_asset_delete_not_readonly():
+    assert _is_batch_readonly("asset action=delete path=Assets/Old.mat") is False
+
+def test_batch_editor_state_is_readonly_1a():
+    assert _is_batch_readonly("editor action=state") is True
+
+def test_batch_editor_play_not_readonly_1a():
+    assert _is_batch_readonly("editor action=play") is False
+
+def test_batch_mixed_animation_get_and_hierarchy_is_readonly():
+    cmds = "get_hierarchy depth=2\nanimation action=get path=/Player"
+    assert _is_batch_readonly(cmds) is True
+
+def test_batch_mixed_animation_get_and_set_not_readonly():
+    cmds = "animation action=get path=/Player\nset_property path=/P component=T prop=x value=1"
+    assert _is_batch_readonly(cmds) is False
+
+# ── integration: check_verification_needed respects is_write ─────────────────
+
+def _make_mw():
+    from unity_mcp.middleware import Middleware
+    mw = Middleware.__new__(Middleware)
+    mw._consecutive_writes = 0
+    mw._mutation_count = 0
+    mw._response_hashes = []
+    mw._retry_cache = {}
+    mw._last_writes = {}
+    mw._clean_paths = {}
+    mw._error_dedup = {}
+    mw._mutation_log = None
+    mw._play_state_known = False
+    mw.is_playing = False
+    mw._RETRY_TTL = 30.0
+    mw._RETRY_MAX = 128
+    return mw
+
+
+def test_check_verification_not_triggered_for_animation_get():
+    mw = _make_mw()
+    result = mw.check_verification_needed("animation", {"action": "get"})
+    assert result is None
+    assert mw._mutation_count == 0
+
+
+def test_transition_resets_on_animation_get():
+    mw = _make_mw()
+    mw._consecutive_writes = 3
+    result = mw.transition("animation", {"action": "get"})
+    assert result is None
+    assert mw._consecutive_writes == 0
+
+
+def test_check_retry_skipped_for_scene_list():
+    from collections import OrderedDict
+    mw = _make_mw()
+    mw._retry_cache = OrderedDict()
+    mw.check_retry("scene", {"action": "list"})
+    result = mw.check_retry("scene", {"action": "list"})
+    assert result is None

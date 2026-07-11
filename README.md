@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="140 MCP Tools · 11296 Tests (4462 Python · 6550 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="140 MCP Tools · 11395 Tests (4549 Python · 6562 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -302,6 +302,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.83.0</b> — 2026-07-11 — `ToolSpec.mutability: Literal['read','write']` — single-source classification …</summary>
+
+`ToolSpec.mutability: Literal['read','write']` — single-source classification for all tools.
+
+</details>
+
+<details>
 <summary><b>v0.82.0</b> — 2026-07-11 — `run_playtest_file` + `run_playtest_suite` — file-based and suite-level …</summary>
 
 `run_playtest_file` + `run_playtest_suite` — file-based and suite-level playtest runners.
@@ -330,15 +337,9 @@ NUnit: `RenameObject_Undo` — added `LogAssert.Expect` for expected undo log me
 </details>
 
 <details>
-<summary><b>v0.79.0</b> — 2026-07-10 — `_ensure_heartbeat()` called on every send → duplicate tasks leaked → …</summary>
-
-`_ensure_heartbeat()` called on every send → duplicate tasks leaked → eliminated; tasks created only in `_reconnect()`, destroyed only in `close()`
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.79.0** — 2026-07-10 — `_ensure_heartbeat()` called on every send → duplicate tasks leaked → …
 - **v0.78.0** — 2026-07-09 — **`AliasType` enum** (`PlaytestConfig.cs`) — `ValPath` / `ValConst` / …
 - **v0.77.0** — 2026-07-09 — **M1: `reorder_track`** — move track to position index (reflection on …
 - **v0.69.1** — 2026-07-03 — **CallerIsPlugin Gate** — New `CommandRegistrar.CallerIsPlugin()` filter strips …

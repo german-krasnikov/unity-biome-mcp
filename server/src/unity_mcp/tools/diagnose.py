@@ -4,7 +4,7 @@ Sends the diagnose TCP command, parses the text wire-format, applies the
 §3 anti-hallucination protocol, and returns ONE typed verdict string:
 
   CLEAN-LIVE          — all signals green, MVID determined, no errors
-  FAILED:<CS>         — compile errors found (CS#### code or 'unknown')
+  FAIL:<CS>         — compile errors found (CS#### code or 'unknown')
   STALE-DOMAIN        — MVID unchanged after intended recompile (expected_compile=True)
   WEDGE-ENGINE        — iscompiling=true + cn_active=false + stamp_frozen
   WEDGE-STATE         — sync_state=compiling but compile=idle (state wedge)
@@ -187,7 +187,7 @@ def _verdict(
     """Apply §3 protocol priority order. Returns ONE verdict string.
 
     Priority (first match wins) — spec §2:
-      1.  errors= has CS codes                        → FAILED:<CS>           [ground truth, always wins]
+      1.  errors= has CS codes                        → FAIL:<CS>           [ground truth, always wins]
       2.  stamp UNDETERMINED                          → UNKNOWN
       3.  build-failed-wedge log                      → BUILD-FAILED-WEDGE    [before WEDGE-ENGINE: different remedy]
       4.  stale-cache log                             → STALE-CACHE
@@ -195,20 +195,20 @@ def _verdict(
       6.  ALL dlls unknown(missing)                   → REBUILDING
       7.  WEDGE-ENGINE fingerprint                    → WEDGE-ENGINE
       8.  WEDGE-STATE fingerprint                     → WEDGE-STATE
-      9.  idle-failed                                 → FAILED:<CS|unknown>
+      9.  idle-failed                                 → FAIL:<CS|unknown>
       9.5 iscompiling + idle-never + stale-dlls       → STALE-TRANSIENT       [package-resolve transient]
-      9.7 prod dll :stale                             → FAILED:stale-dll      [before idle-never to avoid masking]
+      9.7 prod dll :stale                             → FAIL:stale-dll      [before idle-never to avoid masking]
       10. idle-never / idle-stale                     → NO-OP
       11. prev_mvid + frozen + expected               → STALE-DOMAIN          [gated on expected_compile, A5]
       12. prev_mvid + frozen + !expected              → NO-OP                 [cache-hit is clean, A5]
-      13. log errors                                  → FAILED:<log>
+      13. log errors                                  → FAIL:<log>
       14. stamp set                                   → CLEAN-LIVE
       15. fallthrough                                 → UNKNOWN
     """
     # 1. Compile errors — in-memory C# capture, ground truth, always wins
     if "error CS" in fields.errors or fields.all_errors:
         cs = _first_cs(fields.errors) or _first_cs_from_all(fields.all_errors)
-        return f"FAILED:{cs}" if cs else "FAILED:unknown"
+        return f"FAIL:{cs}" if cs else "FAIL:unknown"
 
     # 2. Undetermined stamp → can't assert domain identity
     if fields.stamp == "UNDETERMINED":
@@ -266,13 +266,13 @@ def _verdict(
     if fields.compile == "idle-failed":
         cs = _first_cs(fields.errors) or _first_cs_from_all(fields.all_errors)
         if cs:
-            return f"FAILED:{cs}"
+            return f"FAIL:{cs}"
         # No CS code found — idle-failed flag may be stale or from non-MCP assembly.
         # Corroborate with dll freshness and log before declaring failure.
         has_stale_dll = parsed_dlls and any(s == "stale" for _, s in parsed_dlls)
         has_log_errors = fields.log not in ("clean", "absent", "")
         if has_stale_dll or has_log_errors or fields.reload_failed:
-            return "FAILED:unknown"
+            return "FAIL:unknown"
         # No corroborating evidence — fall through to remaining slots
 
     # 9.5. iscompiling + idle-never + stale-dlls = package-resolve transient state
@@ -282,7 +282,7 @@ def _verdict(
 
     # 9.7. Prod dll stale — must precede idle-never so stale is never masked by NO-OP
     if parsed_dlls and any(status == "stale" for _, status in parsed_dlls):
-        return "FAILED:stale-dll"
+        return "FAIL:stale-dll"
 
     # 10. Never compiled / self-cleared stale → NO-OP
     if fields.compile in ("idle-never", "idle-stale"):
@@ -297,7 +297,7 @@ def _verdict(
 
     # 13. Log errors
     if fields.log not in ("clean", "absent", ""):
-        return f"FAILED:{fields.log}"
+        return f"FAIL:{fields.log}"
 
     # 15. All green
     if fields.stamp and fields.stamp != "UNDETERMINED":
@@ -316,7 +316,7 @@ async def diagnose(prev_mvid: str = "", expected_compile: bool = True) -> str:
     False for Bee cache-hit / will_compile=false / reverted-edit probes — prevents
     false STALE-DOMAIN on legitimately-frozen MVID (A5/G27).
 
-    Returns: CLEAN-LIVE / FAILED:<CS> / STALE-DOMAIN / WEDGE-ENGINE / WEDGE-STATE /
+    Returns: CLEAN-LIVE / FAIL:<CS> / STALE-DOMAIN / WEDGE-ENGINE / WEDGE-STATE /
              BUILD-FAILED-WEDGE / STALE-CACHE / TESTS-INVISIBLE / REBUILDING /
              NO-OP / UNKNOWN
     """

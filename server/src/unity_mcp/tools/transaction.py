@@ -28,7 +28,7 @@ def _cleanup_expired() -> None:
 
 def _compile_clean(data: str) -> bool:
     d = data.strip().lower()
-    return not d or "compile clean" in d or d == "no errors"
+    return not d or "compile clean" in d or "no compilation errors" in d or d == "no errors"
 
 
 async def scene_change_plan(

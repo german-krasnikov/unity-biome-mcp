@@ -3,16 +3,12 @@ import json
 import time
 from typing import Optional
 
-from .middleware_types import BLAST_RADIUS, WRITE_CMDS, READ_CMDS, _RUNTIME_ONLY_CMDS, _EDITOR_READ_ACTIONS
+from .middleware_types import BLAST_RADIUS, WRITE_CMDS, READ_CMDS, _RUNTIME_ONLY_CMDS, ACTION_READS, is_write
 from .utils import parse_kv_line
 
 
 def _is_batch_readonly(commands: str) -> bool:
-    """True iff every non-blank command line in batch text is a read.
-
-    'editor' is special-cased: only action=state|project_path are reads;
-    absent action defaults to write (conservative).
-    """
+    """True iff every non-blank command line in batch text is a read."""
     if not commands:
         return True
     for line in commands.splitlines():
@@ -20,11 +16,14 @@ def _is_batch_readonly(commands: str) -> bool:
         if not line or line.startswith("#"):
             continue
         cmd, kv = parse_kv_line(line)
-        if cmd == "editor":
-            if kv.get("action", "") not in _EDITOR_READ_ACTIONS:
-                return False
-        elif cmd not in READ_CMDS:
-            return False
+        if cmd in READ_CMDS:
+            continue  # fast path: known read
+        reads = ACTION_READS.get(cmd)
+        if reads is not None:
+            if kv.get("action", "") in reads:
+                continue  # action-based read
+            return False   # write action or absent action → conservative
+        return False  # pure write cmd or unknown cmd → not readonly
     return True
 
 
@@ -34,7 +33,7 @@ class MiddlewareGuardsMixin:
     # ── Feature 1: Retry Watchdog ─────────────────────────────────────────
 
     def check_retry(self, cmd: str, args: dict) -> Optional[str]:
-        if cmd in READ_CMDS:
+        if not is_write(cmd, args):
             return None
         h = hash((cmd, json.dumps(args, sort_keys=True)))
         now = time.monotonic()
@@ -102,7 +101,7 @@ class MiddlewareGuardsMixin:
     def check_verification_needed(self, cmd: str, args: dict | None = None) -> Optional[str]:
         if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
             return None
-        if cmd in WRITE_CMDS:
+        if is_write(cmd, args):
             self._mutation_count += 1
             if self._mutation_count % 5 == 0:
                 return f"⚡ VERIFICATION CHECKPOINT ({self._mutation_count} mutations): verify state is consistent with goal before continuing."
@@ -150,10 +149,10 @@ class MiddlewareGuardsMixin:
     # ── Feature 12: Workflow Phase FSM ───────────────────────────────────────
 
     def transition(self, cmd: str, args: dict | None = None) -> Optional[str]:
-        if cmd in READ_CMDS or (cmd == "batch" and args and _is_batch_readonly(args.get("commands", ""))):
+        if not is_write(cmd, args) or (cmd == "batch" and args and _is_batch_readonly(args.get("commands", ""))):
             self._consecutive_writes = 0
             return None
-        if cmd in WRITE_CMDS:
+        if is_write(cmd, args):
             self._consecutive_writes += 1
             if self._consecutive_writes >= 3:
                 return f"⚡ {self._consecutive_writes} consecutive writes without reading. Consider verifying state."
@@ -224,7 +223,7 @@ class MiddlewareGuardsMixin:
         return result
 
     def log_mutation(self, cmd: str, args: dict, result: str) -> None:
-        if self._mutation_log and cmd in WRITE_CMDS:
+        if self._mutation_log and is_write(cmd, args):
             self._mutation_log.write(json.dumps({
                 "t": round(time.time(), 2), "cmd": cmd,
                 "args": {k: v for k, v in args.items() if v is not None},

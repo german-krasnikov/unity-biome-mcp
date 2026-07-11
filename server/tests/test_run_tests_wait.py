@@ -38,7 +38,7 @@ async def test_run_tests_wait_timeout():
 async def test_run_tests_wait_blocked_compile_errors():
     """run_tests BLOCKED → propagated immediately, no polling."""
     async def fake_run_tests(mode, filter=None):
-        return "BLOCKED: FAILED:CS0117 — fix domain state before running tests"
+        return "BLOCKED: FAIL:CS0117 — fix domain state before running tests"
 
     mock_poll = AsyncMock()
     with patch.object(_t, "run_tests", fake_run_tests), \

@@ -51,7 +51,7 @@ async def test_run_tests_pending_returns_started(monkeypatch):
 # ---------------------------------------------------------------------------
 
 async def test_preflight_recovery_retries_on_stale_dll(monkeypatch):
-    """FAILED:stale-dll → force_refresh → re-diagnose → CLEAN-LIVE → proceeds."""
+    """FAIL:stale-dll → force_refresh → re-diagnose → CLEAN-LIVE → proceeds."""
     import unity_mcp.tools.diagnose as diag_mod
 
     call_count = 0
@@ -59,7 +59,7 @@ async def test_preflight_recovery_retries_on_stale_dll(monkeypatch):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            return "FAILED:stale-dll"
+            return "FAIL:stale-dll"
         return "CLEAN-LIVE"
 
     force_refresh_called = False
@@ -79,16 +79,16 @@ async def test_preflight_recovery_retries_on_stale_dll(monkeypatch):
     monkeypatch.setattr(asyncio, "sleep", AsyncMock())
 
     result = await scene_mod.run_tests("EditMode")
-    assert force_refresh_called, "force_refresh must be called on FAILED:stale-dll"
+    assert force_refresh_called, "force_refresh must be called on FAIL:stale-dll"
     assert "BLOCKED" not in result
 
 
 async def test_preflight_real_compile_error_blocks_immediately(monkeypatch):
-    """FAILED:CS0117 → BLOCKED immediately, no recovery attempt."""
+    """FAIL:CS0117 → BLOCKED immediately, no recovery attempt."""
     import unity_mcp.tools.diagnose as diag_mod
 
     async def fake_diagnose(prev_mvid="", expected_compile=True):
-        return "FAILED:CS0117"
+        return "FAIL:CS0117"
 
     force_refresh_called = False
 
@@ -108,11 +108,11 @@ async def test_preflight_real_compile_error_blocks_immediately(monkeypatch):
 
 
 async def test_preflight_recovery_exhausted(monkeypatch):
-    """FAILED:unknown persists after retries → BLOCKED with exhausted message."""
+    """FAIL:unknown persists after retries → BLOCKED with exhausted message."""
     import unity_mcp.tools.diagnose as diag_mod
 
     async def fake_diagnose(prev_mvid="", expected_compile=True):
-        return "FAILED:unknown"
+        return "FAIL:unknown"
 
     async def fake_send(cmd, args={}, **kw):
         return "ok"

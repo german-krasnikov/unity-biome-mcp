@@ -92,5 +92,6 @@ class TestGetMemory:
 
 def test_profiling_category_has_correct_tools():
     from unity_mcp.tools.gating import _THEMED_CATEGORIES
-    assert "profile" in _THEMED_CATEGORIES["PROFILING"]
-    assert "get_frame_stats" in _THEMED_CATEGORIES["PROFILING"]
+    # Phase 2: PROFILING merged into RUNTIME
+    assert "profile" in _THEMED_CATEGORIES["RUNTIME"]
+    assert "get_frame_stats" in _THEMED_CATEGORIES["RUNTIME"]

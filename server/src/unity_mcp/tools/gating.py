@@ -19,9 +19,8 @@ from .tool_specs import _SPECS
 # ---------------------------------------------------------------------------
 
 _THEMED_CATEGORY_KEYS: tuple[str, ...] = (
-    "SCENE_EDIT", "COMPONENTS", "ANIMATION", "SHADERS_MATERIAL", "VFX", "UI",
-    "SCREENSHOTS", "UNIT_TESTS", "RUNTIME", "DEBUG", "ASSETS", "ADVANCED_CODE",
-    "SESSION_SKILLS", "CONNECTION", "META", "PROFILING", "RENDERING", "PLUGINS",
+    "SCENE", "COMPONENTS", "ASSETS", "MEDIA",
+    "VERIFY", "RUNTIME", "TESTS", "SYSTEM",
 )
 
 # ---------------------------------------------------------------------------
@@ -51,31 +50,55 @@ _ALL_KNOWN: set[str] = {name for name, spec in _SPECS.items() if spec.category !
 # ---------------------------------------------------------------------------
 
 _CATEGORY_ALIAS: dict[str, list[str]] = {
-    "object":     ["SCENE_EDIT", "COMPONENTS"],
-    "animation":  ["ANIMATION"],
-    "asset":      ["ASSETS", "SHADERS_MATERIAL"],
-    "advanced":   ["ADVANCED_CODE", "META"],
-    "ui":         ["UI", "VFX"],
-    "runtime":    ["RUNTIME", "UNIT_TESTS"],
-    "connection": ["CONNECTION"],
-    "session":    ["SESSION_SKILLS", "SCREENSHOTS"],
-    "profiling":  ["PROFILING"],
-    "rendering":  ["RENDERING"],
-    "debug":      ["DEBUG"],
-    "perf":       ["PROFILING", "RENDERING"],
-    "plugins":    ["PLUGINS"],
+    # --- legacy human aliases ---
+    "object":       ["SCENE", "COMPONENTS"],
+    "animation":    ["MEDIA"],
+    "asset":        ["ASSETS"],
+    "advanced":     ["SYSTEM"],
+    "ui":           ["MEDIA"],
+    "runtime":      ["RUNTIME", "TESTS"],
+    "connection":   ["SYSTEM"],
+    "session":      ["SYSTEM"],
+    "profiling":    ["RUNTIME"],
+    "rendering":    ["MEDIA"],
+    "debug":        ["RUNTIME"],
+    "perf":         ["RUNTIME"],
+    "plugins":      ["SYSTEM"],
+
+    # --- old themed keys → new keys (plugin compat) ---
+    "SCENE_EDIT":       ["SCENE"],
+    "ANIMATION":        ["MEDIA"],
+    "SHADERS_MATERIAL": ["ASSETS"],
+    "VFX":              ["MEDIA"],
+    "UI":               ["MEDIA"],
+    "SCREENSHOTS":      ["MEDIA"],
+    "UNIT_TESTS":       ["TESTS"],
+    "DEBUG":            ["RUNTIME"],
+    "ADVANCED_CODE":    ["SYSTEM"],
+    "SESSION_SKILLS":   ["SYSTEM"],
+    "CONNECTION":       ["SYSTEM"],
+    "META":             ["SYSTEM"],
+    "PROFILING":        ["RUNTIME"],
+    "RENDERING":        ["MEDIA"],
+    "PLUGINS":          ["SYSTEM"],
 }
 
 def _rebuild_categories() -> dict[str, set[str]]:
     """Rebuild the alias->themed-group view, preserving ad-hoc categories a
     plugin registered via the fallback branch (documented public API — a
-    themed-category registration by a DIFFERENT plugin must not wipe them)."""
+    themed-category registration by a DIFFERENT plugin must not wipe them).
+
+    Also includes the 8 themed keys directly so discover_tools("SCENE") etc. work.
+    """
     rebuilt = {
         alias: set().union(*(set(_THEMED_CATEGORIES[k]) for k in groups))
         for alias, groups in _CATEGORY_ALIAS.items()
     }
+    # Include each themed key directly so new-style category names work in CATEGORIES
+    for key in _THEMED_CATEGORIES:
+        rebuilt[key] = set(_THEMED_CATEGORIES[key])
     for key, tools in globals().get("CATEGORIES", {}).items():
-        if key not in _CATEGORY_ALIAS:
+        if key not in _CATEGORY_ALIAS and key not in _THEMED_CATEGORIES:
             rebuilt[key] = tools
     return rebuilt
 
@@ -123,9 +146,14 @@ def register_tools(category: str, tools: set) -> None:
     global CATEGORIES
     _ALL_KNOWN.update(tools)
     themed_key = category.upper()
+    # Resolve old themed key (e.g. "SCENE_EDIT", "PLUGINS") via alias to new key
+    if themed_key not in _THEMED_CATEGORIES and themed_key in _CATEGORY_ALIAS:
+        for mapped in _CATEGORY_ALIAS[themed_key]:
+            if mapped in _THEMED_CATEGORIES:
+                themed_key = mapped
+                break
     if themed_key not in _THEMED_CATEGORIES:
-        # category not a themed key (e.g. legacy alias not backed by a themed
-        # group) — fall back to direct CATEGORIES write, same as before.
+        # category not a themed key — fall back to direct CATEGORIES write.
         CATEGORIES.setdefault(category, set()).update(tools)
         return
     _THEMED_CATEGORIES[themed_key] = list(set(_THEMED_CATEGORIES[themed_key]) | set(tools))

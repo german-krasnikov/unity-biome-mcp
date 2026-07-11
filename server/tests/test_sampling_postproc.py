@@ -53,8 +53,8 @@ def test_normalize_verdict_first_line():
     assert refused is False
 
 def test_normalize_dsl_preserves_failed():
-    text, _ = normalize("```\nset_property /A x 1\nFAILED: invalid\n```", "dsl")
-    assert "FAILED:" in text
+    text, _ = normalize("```\nset_property /A x 1\nFAIL: invalid\n```", "dsl")
+    assert "FAIL:" in text
 
 def test_normalize_combo_strip_fences_and_conversational():
     text, _ = normalize("Sure! ```\nPASS\n```", "verdict")

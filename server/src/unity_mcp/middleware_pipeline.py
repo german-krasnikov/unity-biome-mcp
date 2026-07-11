@@ -223,7 +223,7 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         if cmd == "set_property" and args.get("prop") and args.get("value") \
                 and os.environ.get("UNITY_MCP_REFLECT", "1") == "0":
             result = mw.verify_snapshot(result, prop=args["prop"], value=args["value"])
-        result = await mw.maybe_inject_state(send_fn, result)
+        result = await mw.maybe_inject_state(send_fn, result, cmd, args)
         # P2: Scene Brief — ensure() first, then inject if ready
         if mw.scene_brief is not None and not mw.scene_brief._injected:
             await mw.scene_brief.ensure(send_fn)
@@ -231,7 +231,7 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
                 result = f"--- SCENE CONTEXT ---\n{mw.scene_brief.brief}\n---\n{result}"
                 mw.scene_brief.mark_injected()
         result = mw.check_starvation(result)
-        result = mw.update_confidence(cmd, result)
+        result = mw.update_confidence(cmd, args, result)
         result = await mw.maybe_verify_visual(cmd, args, result)
 
         # Tier C post-call
@@ -240,7 +240,7 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         if inferred_tags:
             result += f"\n[INFERRED: {', '.join(inferred_tags)}]"
         if mw.watchdog is not None:
-            mw.watchdog.maybe_trigger(cmd)
+            mw.watchdog.maybe_trigger(cmd, args)
         if mw.recorder is not None:
             # F16: classify on the protocol ok-flag, not a substring scan — a success
             # payload containing "Error" (e.g. get_console logs) must NOT count as a fail.

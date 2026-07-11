@@ -66,8 +66,8 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
 
 ### Components
 
-1. **MCP Server** (Python: 90+ modules total, including `server.py`, 23+ tools modules + support, v0.42.0: +25 config/TOML tests, v0.47.1: +73+78 config validation tests, ROI sprint v0.69.0: +4 files for metadata DRY, review sprint v0.70.0: +4 tool files split + bridge_retry + bridge_result, tools gap sprint v0.77.0: +8 domain test files, v0.78.8: +test_bridge_reload_gate + test_bridge_role + test_middleware_alias_lifecycle, v0.78.9: +alias_status tool + compress param + validate_aliases + _warm_alias_cache — 4300+ Python unit tests green, v0.78.10: +test_connection_status + readonly-batch blast-radius bypass + alias_status tier1 + semantic connection status, v0.78.11: +test_middleware_read_cmds (59 READ_CMDS tests) + test_tool_schema_coverage FastMCP contract tests — 4380+ Python unit tests green, v0.79.1: -scenarios.py -scene_session.py -fuzzer.py, +test_playtest_path.py, run_playtest path= param — 4375 Python unit tests green, v0.80.0: SOLID/DRY/KISS/OCP/SRP sprint — middleware_hooks.py POST_HOOKS registry, editor_log.py split into _freshness + _wedge, bridge_socket.py frame helpers, GetCapabilities mutating_cmds + runtime_cmds, −669 LOC net, v0.80.1: _DiagnoseFields.is_really_compiling + WEDGE-ENGINE stale-latch detection, reload_ladder T5 → force_play_stop, _orphan_guard autouse live fixture; playtests ROI sprint: +transaction.py (scene_change_plan+apply_scene_change), +verify.py (verify_after_change 5-gate pipeline), +console_mark/get_console_since watermarks, +run_tests_wait blocking poller, +run_playtest_file/run_playtest_suite multi-runner — 17 new ToolSpec entries, 11 new Python test files)
-   - **Tool Metadata DRY (v0.69.0)**: `tools/tool_specs.py` single source of truth — 129 ToolSpec entries with category, core, tier1, timeout_s. (v0.77.0: `shader` added to BATCHABLE set) Eliminates drift across 4 collections: gating._CORE_TOOLS, gating._THEMED_CATEGORIES, gating.TIER1, gating._ALL_KNOWN (now derived at import time). `timeout_categories.py` generates TIMEOUT_CATEGORIES dict + get_timeout(cmd) from _SPECS at import. `tools/_common.py` provides bind(module_globals, send, args) helper — uniform binding across all 23 tools/*.py register(mcp, send, args) functions.
+1. **MCP Server** (Python: 90+ modules total, including `server.py`, 23+ tools modules + support, v0.42.0: +25 config/TOML tests, v0.47.1: +73+78 config validation tests, ROI sprint v0.69.0: +4 files for metadata DRY, review sprint v0.70.0: +4 tool files split + bridge_retry + bridge_result, tools gap sprint v0.77.0: +8 domain test files, v0.78.8: +test_bridge_reload_gate + test_bridge_role + test_middleware_alias_lifecycle, v0.78.9: +alias_status tool + compress param + validate_aliases + _warm_alias_cache — 4300+ Python unit tests green, v0.78.10: +test_connection_status + readonly-batch blast-radius bypass + alias_status tier1 + semantic connection status, v0.78.11: +test_middleware_read_cmds (59 READ_CMDS tests) + test_tool_schema_coverage FastMCP contract tests — 4380+ Python unit tests green, v0.79.1: -scenarios.py -scene_session.py -fuzzer.py, +test_playtest_path.py, run_playtest path= param — 4375 Python unit tests green, v0.80.0: SOLID/DRY/KISS/OCP/SRP sprint — middleware_hooks.py POST_HOOKS registry, editor_log.py split into _freshness + _wedge, bridge_socket.py frame helpers, GetCapabilities mutating_cmds + runtime_cmds, −669 LOC net, v0.80.1: _DiagnoseFields.is_really_compiling + WEDGE-ENGINE stale-latch detection, reload_ladder T5 → force_play_stop, _orphan_guard autouse live fixture; playtests ROI sprint: +transaction.py (scene_change_plan+apply_scene_change), +verify.py (verify_after_change 5-gate pipeline), +console_mark/get_console_since watermarks, +run_tests_wait blocking poller, +run_playtest_file/run_playtest_suite multi-runner — 17 new ToolSpec entries, 11 new Python test files; v0.83.0: ToolSpec v2 mutability+runtime_only fields, 18→8 categories with alias layer, CORE 24→15, is_write(cmd,args) action-aware classification, diagnose FAILED:→FAIL:, AUTO STATE gated on writes only — 4544+ Python unit tests green)
+   - **Tool Metadata DRY (v0.69.0)**: `tools/tool_specs.py` single source of truth — 146 ToolSpec entries with category, core, tier1, timeout_s, mutability, runtime_only. (v0.77.0: `shader` added to BATCHABLE set; **v0.83.0: ToolSpec v2** — added `mutability: Literal['read','write']` and `runtime_only: bool` fields; WRITE_CMDS/READ_CMDS/_RUNTIME_ONLY_CMDS now derived from _SPECS at import, −67 LOC hardcoded sets; `is_write(cmd, args)` in `middleware_types.py` for per-call action-aware classification via `ACTION_READS` dict mapping 12 action-based tools to their read actions). Eliminates drift across 4 collections: gating._CORE_TOOLS, gating._THEMED_CATEGORIES, gating.TIER1, gating._ALL_KNOWN (now derived at import time). `timeout_categories.py` generates TIMEOUT_CATEGORIES dict + get_timeout(cmd) from _SPECS at import. `tools/_common.py` provides bind(module_globals, send, args) helper — uniform binding across all 23 tools/*.py register(mcp, send, args) functions.
    - **Scene Tools Split (review sprint v0.70.0, B2)**: `tools/scene.py` SPLIT into 4 focused modules:
      * **console.py**: get_console (keyword + count_only filters), clear_console
      * **screenshot.py**: screenshot (camera modes, annotated frames, Haiku describe)
@@ -254,7 +254,7 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
   - `summary` — total material count, memory usage, compression stats per platform
   - `materials` — per-material breakdown (name, shader, property count, instance count)
   - `duplicates` — fingerprint-based dedup (shader+keywords+properties, excluding textures)
-  - Category: SHADERS_MATERIAL
+  - Category: ASSETS
   
 - **analyze_lod_culling MCP Tool**:
   - LOD group analysis: coverage (% of high-poly objects with LOD), poly reduction ratio per level
@@ -674,48 +674,38 @@ Menu: `MCP/Playtest Composer` (Shift+Alt+P). Rewritten from IMGUI to UI Toolkit 
 
 ## Tool Categories
 
-**Update v0.30.4**: validate_move added to asset category (6 tools total). Test marker `live_haiku` → `live_cli` (v0.8.2+).
+**v0.83.0**: 18 legacy themed categories → 8 canonical keys. Old names remain as aliases in `_CATEGORY_ALIAS` (full backward compat). CORE shrank 24→15 (9 demoted to SYSTEM tier1). TIER1 = CORE + per-ToolSpec `tier1=True`. SOURCE OF TRUTH: `tool_specs._SPECS[name].category`.
 
-**Update v0.46.0**: ChipKind registry now includes Field + AnnotatedScreenshot. ModelContextWindows presets added per LLM.
+### CORE (15, always visible, full schema)
+batch, create_object, delete_object, do, editor, get_compile_errors, get_component, get_console, get_hierarchy, inspect, manage_component, scene, search_scene, set_parent, set_property
 
-**Update v0.60.0**: New categories PROFILING, RENDERING, DEBUG (aliases: 'profiling', 'rendering', 'debug', 'perf'). Debug tools moved from TIER1 → DEBUG: debug, snapshot, watch_add/get/remove/clear/reset, get_metrics. Saves ~1080 tokens/turn by hiding debug tools by default.
+### Category: SCENE (25)
+apply_scene_change†, autofit_collider, check_colliders, configure_objects†, find_objects, get_components_list, get_object_detail, get_selection, get_spatial_context, navmesh_query, object_diff, ping_object, region_clear, rename_object, scene_change_plan†, scene_diff, scene_environment, set_active, set_material, set_properties, set_property_delta, set_sibling_index, setup_objects†, spatial_query, transfer_object
 
-### TIER1 (always visible, 42 tools)
+### Category: COMPONENTS (4)
+auto_wire, references, unwire_event, wire_event
 
-Core (42): 25 CORE + 17 extras = get_hierarchy, get_component, inspect, set_property, create_object, delete_object, manage_component, batch, scene, search_scene, set_parent, get_console, get_compile_errors, get_enabled_tools, discover_tools, editor, do, ask, ask_user, permission_prompt, reconnect_unity, list_connections, resolve_tool_schema, doctor, alias_status, screenshot, run_tests, setup_objects, set_properties, configure_objects, find_references, compile_preflight, semantic_at, await_compile, sync_unity, invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest
+### Category: ASSETS (7)
+asset, material, material_audit, prefab, project_settings, scriptable_object, shader
 
-### Category: object (11, SCENE_EDIT + COMPONENTS)
-find_objects, get_object_detail, get_components_list, set_active, set_material, set_property_delta, object_diff, transfer_object, wire_event, unwire_event, auto_wire
+### Category: MEDIA (14)
+analyze_lod_culling, animation, animator, create_ui, particle, render_analyze, screenshot†, screenshot_baseline, screenshot_compare, set_rect, timeline, ui_intent, validate_layout, vfx_intent
 
-### Category: animation (4)
-animation, timeline, animator, particle
+### Category: VERIFY (9)
+await_compile†, compile_preflight†, diagnose, lint_scene_refs†, resolve_scene_refs†, scan_scene, scene_health, validate_references, verify_after_change†
 
-### Category: asset (8, ASSETS + SHADERS_MATERIAL)
-asset, prefab, scriptable_object, project_settings, shader, material, references, material_audit
+### Category: RUNTIME (18)
+console_mark†, debug, debug_animator, debug_physics, get_console_since†, get_frame_stats, get_memory, get_metrics, get_perf, get_watches, invoke_method†, move_to†, profile, query_state†, set_runtime_property†, snapshot, wait_until†, watch
 
-### Category: advanced (27, ADVANCED_CODE + META)
-execute_code, recompile, sync_unity, find_references, semantic_at, compile_preflight, await_compile, get_schema, auto_fix, smart_build, checkpoint, undo_last, validate_references, menu, diagnose, animator_intent, setup_objects, set_properties, configure_objects, scan_scene, check_colliders, spatial_query, region_clear, navmesh_query, scene_health, set_llm_config, budget_status
+### Category: TESTS (14)
+export_playtest_aliases_to_defs†, get_test_count, get_test_progress†, get_test_results†, lint_playtest†, lint_playtest_suite†, run_playtest†, run_playtest_file†, run_playtest_suite†, run_tests†, run_tests_wait†, sync_playtest_aliases_from_defs†, test_step†, validate_playtest_aliases†
 
-### Category: ui (6, UI + VFX)
-create_ui, set_rect, validate_layout, get_spatial_context, ui_intent, vfx_intent
+### Category: SYSTEM (34)
+alias_status†, animator_intent, apply_template, ask†, ask_user†, auto_fix, budget_status, checkpoint, discover_tools†, doctor†, execute_code, fingerprint, get_capabilities, get_changes, get_enabled_tools†, get_schema, list_connections†, list_skills, list_templates, load_session, mcp_status†, menu, permission_prompt†, recompile, reconnect_unity†, resolve_tool_schema†, save_session, save_skill, save_template, set_llm_config, smart_build, sync_unity†, undo_last, use_skill
 
-### Category: runtime (12, RUNTIME + UNIT_TESTS)
-invoke_method, set_runtime_property, wait_until, move_to, query_state, get_perf, debug_animator, debug_physics, run_tests, get_test_results, run_playtest, test_step
+† = tier1=True (always visible)
 
-### Category: connection (2)
-list_connections, reconnect_unity
-
-### Category: session (14, SESSION_SKILLS + SCREENSHOTS)
-save_skill, use_skill, list_skills, apply_template, save_template, list_templates, fingerprint, scene_diff, get_changes, save_session, load_session, screenshot, screenshot_baseline, screenshot_compare
-
-### Category: profiling (3, v0.60.0)
-get_frame_stats, profile, get_memory
-
-### Category: rendering (2, v0.60.0)
-render_analyze, analyze_lod_culling
-
-### Category: debug (8, v0.59.0+, moved from TIER1 v0.60.0)
-debug, snapshot, watch_add, get_watches, watch_remove, watch_clear, watch_reset, get_metrics
+**Backward-compat aliases** (`_CATEGORY_ALIAS`): object→[SCENE,COMPONENTS], animation→MEDIA, asset→ASSETS, advanced→SYSTEM, ui→MEDIA, runtime→[RUNTIME,TESTS], connection→SYSTEM, session→SYSTEM, profiling→RUNTIME, rendering→MEDIA, debug→RUNTIME, SCENE_EDIT→SCENE, ANIMATION→MEDIA, SHADERS_MATERIAL→ASSETS, VFX→MEDIA, UI→MEDIA, SCREENSHOTS→MEDIA, UNIT_TESTS→TESTS, DEBUG→RUNTIME, ADVANCED_CODE→SYSTEM, SESSION_SKILLS→SYSTEM, CONNECTION→SYSTEM, META→SYSTEM, PROFILING→RUNTIME, RENDERING→MEDIA, PLUGINS→SYSTEM
 
 ## C# Commands (CommandRouter)
 
@@ -737,11 +727,11 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 ## Key Systems
 
 ### Capability Gating (Python: `tools/gating.py`, v0.70.0: categories derived from _THEMED_CATEGORIES)
-- **CORE tools** (24): locked, always visible, can only be hidden via `FORCE_VISIBLE` escape hatches (discover_tools, get_enabled_tools, do, ask, editor, get_console, get_compile_errors, reconnect_unity, list_connections, resolve_tool_schema, doctor). Example: `is_core("get_hierarchy")` → True
+- **CORE tools** (15, v0.83.0: shrunk from 24 — 9 demoted to SYSTEM tier1): locked, always visible, can only be hidden via `FORCE_VISIBLE` escape hatches (discover_tools, get_enabled_tools, do, ask, editor, get_console, get_compile_errors, reconnect_unity, list_connections, resolve_tool_schema, doctor). Example: `is_core("get_hierarchy")` → True
   - **T4 (v0.64.0): get_console Filter Params** — `keyword` (substring match across all log lines) + `count_only` (return only count, no text). Token economy: 30x compression vs full log dump. Sample use: `get_console(keyword="Error", count_only=true)` → `"3 errors"`. Gating.py updated for tool filtering.
   - **C6 (v0.70.0): Derived Categories** — `_THEMED_CATEGORIES` is now single source of truth. At import time, derived categories list computed (all categories minus internal ones). Eliminates manual enum-sync drift.
-- **Themed catalog** (single source of truth): `get_catalog()` returns dict with 14 categories (CORE as category, not separate key); public tools only, no NDA/plugin names. Format simplified for token economy (CORE → categories["CORE"]).
-- **Catalog serialization (v0.18.0+)**: Plain-text format sent to C# (`set_tool_catalog`): `CORE:tool1,tool2\nSCENE_EDIT:tool3,tool4\n...` via `CatalogParser.Parse()` (no JSON encoding). Reduces ~40% wire size vs JSON + eliminates C# JSON deserializer cost.
+- **Themed catalog** (single source of truth): `get_catalog()` returns dict with 8 categories (v0.83.0: 18 themed → 8: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM — old names kept as aliases; CORE as category, not separate key); public tools only, no NDA/plugin names. Format simplified for token economy (CORE → categories["CORE"]).
+- **Catalog serialization (v0.18.0+)**: Plain-text format sent to C# (`set_tool_catalog`): `CORE:tool1,tool2\nSCENE:tool3,tool4\n...` via `CatalogParser.Parse()` (no JSON encoding). Reduces ~40% wire size vs JSON + eliminates C# JSON deserializer cost.
 - **Filtering pipeline**: (1) apply TIER1+session gating via `_apply_gating()`, (2) subtract disabled set from Unity MCPSettings via `_filter_tools()` (cache=None → gating-only fallback). Approach is "hide-disabled-set" (NOT allowlist — Python-only tools not in Unity's CSV wouldn't be wrongly hidden)
 - **Sessions**: session-enabled via `discover_tools(category, enable)` (legacy CATEGORIES dict still works for back-compat)
 - **Plugin self-registration**: `gating.register_tools("category", tools_set)` lets plugins add to CATEGORIES. Platform controls TIER1 membership (no tier1= escape hatch for plugins)
@@ -766,11 +756,11 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 1. Retry Watchdog — blocks identical write calls within 5s TTL
 2. Confidence Decay — decreases on writes (-0.08), increases on reads (+0.15)
 3. Taint Tracking — warns on ObjectReference write to unread paths
-4. Periodic State Injection — auto get_hierarchy every 10 calls
+4. Periodic State Injection — auto get_hierarchy every 10 write calls (v0.83.0: gated on `is_write()`, ~4000 tokens/session saved)
 5. Path Cache — hierarchy paths, fuzzy match via Levenshtein
 6. Dead Write Elimination — warns overwrite without read
 7. Starvation Monitor — detects 5 identical responses
-8. Blast Radius Tags — warns on high-blast commands; read-only batches exempt (v0.78.10: `_is_batch_readonly()` gate in `middleware_guards.py`; **v0.78.11**: `READ_CMDS` expanded 15→43 entries in `middleware_types.py` — adds scene inspection, console, screenshots, editor state/meta/testing/profiling/debug/diff/audit/assets/session/LLM reads; `_EDITOR_READ_ACTIONS` frozenset `{"state", "project_path"}` special-cases `editor` dual-use command; `WRITE_CMDS` +2: `rename_object`, `set_sibling_index`, removes dead `compress_hierarchy`)
+8. Blast Radius Tags — warns on high-blast commands; read-only batches exempt (v0.78.10: `_is_batch_readonly()` gate in `middleware_guards.py`; **v0.83.0**: WRITE_CMDS/READ_CMDS derived from `tool_specs._SPECS[name].mutability`; `is_write(cmd, args)` + `ACTION_READS` in `middleware_types.py` for per-call action-aware classification of 12 action-based tools)
 9. Incremental Verification — checkpoint every 5 mutations; read-only batches exempt (v0.78.10)
 10. Workflow Phase FSM — warns after 3+ consecutive writes; read-only batches treated as reads (v0.78.10)
 11. Visual Verification — Haiku-based screenshot verification (sampling)
@@ -787,7 +777,7 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 22. SchemaGuard — pre-flight argument validation
 23. Asymmetric Reflection — compares write args vs read-back snapshot
 
-**Play Mode Fail-Fast Guard (middleware_guards.py, feat/tool-disambiguation):** `check_play_mode_required(cmd)` blocks `_RUNTIME_ONLY_CMDS` (frozenset in `middleware_types.py`: invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest, get_perf, get_frame_stats, debug_animator, debug_physics, watch_add, profile) before TCP when `_play_state_known=True` and `is_playing=False`. State tracked via `_play_state_known` flag — set on first `track_editor_state()` parse. Returns early (`_early_return`) without dispatching to Unity.
+**Play Mode Fail-Fast Guard (middleware_guards.py, feat/tool-disambiguation):** `check_play_mode_required(cmd)` blocks `_RUNTIME_ONLY_CMDS` (derived from `tool_specs._SPECS[name].runtime_only=True`; `watch_add` C# sub-command added manually) before TCP when `_play_state_known=True` and `is_playing=False`. State tracked via `_play_state_known` flag — set on first `track_editor_state()` parse. Returns early (`_early_return`) without dispatching to Unity.
 
 ### Watch System (Python + C#, v0.59.0; v0.70.0 B4: 5 tools → 1)
 
@@ -913,7 +903,7 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 - **Transaction pattern** (`tools/transaction.py`): Two-step safe scene editing.
   - `scene_change_plan(goal, targets, dry_run)` — pre-flight: compile check → console errors → target resolution via `resolve_scene_refs` → checkpoint. Stores plan in-memory with TTL 600s. Returns `plan_id` + baseline status.
   - `apply_scene_change(plan_id, commands, verify, save)` — executes batch mutations, optionally validates references + console, optionally saves scene. Enforces plan_id TTL.
-  - Category: SCENE_EDIT tier1.
+  - Category: SCENE tier1.
 
 - **Verification pipeline** (`tools/verify.py`): `verify_after_change(changed_files, test_filter, run_tests_mode, playtests, mark_id, timeout)` — additive gate chain. Gates run in order; failure at any gate reports which gate failed + lists skipped gates:
   1. `await_compile` (always)
@@ -921,28 +911,28 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
   3. `get_console_since mark_id` (if mark_id provided)
   4. `run_tests_wait mode filter` (if run_tests_mode provided)
   5. `run_playtest_suite paths` (if playtests provided)
-  Returns `PASS: gate1 + gate2 + ...` or `FAIL: <gate> gate failed\n  <detail>\nnext gates skipped: ...`. Category: ADVANCED_CODE tier1.
+  Returns `PASS: gate1 + gate2 + ...` or `FAIL: <gate> gate failed\n  <detail>\nnext gates skipped: ...`. Category: SYSTEM tier1.
 
 - **Console watermarks** (`tools/console.py`): `console_mark(label)` — pure Python, no TCP, returns a `mark:<timestamp>[:<label>]` string. `get_console_since(mark_id, level, count)` — computes age from timestamp and passes `since=` to `get_console`. Pattern: mark before an operation, query after to see only new logs. Category: DEBUG tier1.
 
-- **run_tests_wait** (`tools/testing.py`): Blocking wrapper around fire-and-forget `run_tests`. Starts tests, polls `get_test_results()` every `poll_interval` seconds until result is not `pending`/`none`, returns final result or `TIMEOUT: <last>`. Category: UNIT_TESTS tier1.
+- **run_tests_wait** (`tools/testing.py`): Blocking wrapper around fire-and-forget `run_tests`. Starts tests, polls `get_test_results()` every `poll_interval` seconds until result is not `pending`/`none`, returns final result or `TIMEOUT: <last>`. Category: TESTS tier1.
 
 - **Playtest suite runner** (`tools/runtime.py`):
   - `run_playtest_file(path, ...)` — single `.playtest` file by project-relative path (distinct from `run_playtest` script= param).
   - `run_playtest_suite(paths, ...)` — multi-file runner. `paths` accepts glob pattern (resolves via `list_playtest_files` C# command), comma-separated list, or newline list. Returns compact `SUITE: X/Y passed (Zs)` header + per-file line + failure details. `stop_on_fail` aborts suite on first failure; `stop_after` exits Play Mode on completion.
   - `run_playtest` gains `snapshot_on_failure` param — on failure, delegates to `PlaytestRunner.Snapshot.BuildFailureSnapshot` for data snapshot.
-  - Both `run_playtest_file` and `run_playtest_suite` are UNIT_TESTS tier1.
+  - Both `run_playtest_file` and `run_playtest_suite` are TESTS tier1.
 
 - **Scene ref tools** (`CommandRouter.Registration.cs` + `SceneRefResolver.cs` + `SceneRefLinter.cs`):
-  - `resolve_scene_refs(refs, fields)` — validates reference tokens against live scene, returns OK/MISS/AMB per token. SCENE_EDIT tier1.
-  - `lint_scene_refs(script_or_path)` — extracts path tokens from DSL lines and validates them. SCENE_EDIT tier1.
+  - `resolve_scene_refs(refs, fields)` — validates reference tokens against live scene, returns OK/MISS/AMB per token. SCENE tier1.
+  - `lint_scene_refs(script_or_path)` — extracts path tokens from DSL lines and validates them. SCENE tier1.
 
 - **Playtest lint tools** (`CommandRouter.Registration.cs` + `PlaytestLinter.cs`):
-  - `lint_playtest(path)` — lint a single `.playtest` file (3-pass: structural → parse → semantic). UNIT_TESTS tier1.
-  - `lint_playtest_suite(pattern)` — lint multiple files matching a glob. UNIT_TESTS tier1.
+  - `lint_playtest(path)` — lint a single `.playtest` file (3-pass: structural → parse → semantic). TESTS tier1.
+  - `lint_playtest_suite(pattern)` — lint multiple files matching a glob. TESTS tier1.
 
 - **Alias defs sync tools** (new C# commands, CommandRouter.AliasHandlers.cs):
-  - `export_playtest_aliases_to_defs` / `sync_playtest_aliases_from_defs` / `validate_playtest_aliases` — round-trip alias DSL between PlaytestConfig and `.defs` files. UNIT_TESTS tier1.
+  - `export_playtest_aliases_to_defs` / `sync_playtest_aliases_from_defs` / `validate_playtest_aliases` — round-trip alias DSL between PlaytestConfig and `.defs` files. TESTS tier1.
 
 - **mcp_status** — Meta tool returning MCP server + connection health summary. Category: META tier1.
 
@@ -1217,7 +1207,7 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
 - **Why not allowlist**: Python-only tools aren't in Unity's CSV; allowlist would wrongly hide them
 
 **P1 — Python-Authoritative Catalog + UIToolkit Settings (gating.py + MCPSettings.cs + 3 new files):**
-- **Single Source of Truth**: `gating.get_catalog()` returns themed JSON with 14 categories (CORE, SCENE_EDIT, COMPONENTS, ANIMATION, SHADERS_MATERIAL, VFX, UI, SCREENSHOTS, UNIT_TESTS, RUNTIME, ASSETS, ADVANCED_CODE, SESSION_SKILLS, META) + public tools only
+- **Single Source of Truth**: `gating.get_catalog()` returns themed JSON with 8 categories (v0.83.0: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM — old names kept as aliases for back-compat) + public tools only
 - **Push Mechanism**: `_push_catalog()` sends catalog to Unity via `set_tool_catalog` on connect/reconnect (TCP-only, silent on failure)
 - **Persistence**: Unity saves to EditorPref `UnityMCP_Catalog`; MCPSettings queries via `GetCatalog()` / `SetCatalog(json)`
 - **UIToolkit Rewrite**: `MCPSettings.cs` now uses UIToolkit (foldout groups, tri-state group masters, search, presets Minimal/Full/No-visuals, CORE locked, separate Plugins section)
@@ -1294,7 +1284,7 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
   - `server/src/unity_mcp/tools/editor_control.py` — **NEW (v0.70.0)** editor (state/play/stop/pause/select/project_path)
   - `server/src/unity_mcp/tools/gating.py` — **v0.70.0, C6**: categories derived from _THEMED_CATEGORIES (single source of truth)
   - `server/src/unity_mcp/tools/watch.py` — **v0.70.0, B4**: consolidated watch(action=...) tool (was 5 separate)
-  - `server/src/unity_mcp/tools/tool_specs.py` — ToolSpec metadata (tool specs, categories, tier1, timeouts) — single source of truth
+  - `server/src/unity_mcp/tools/tool_specs.py` — ToolSpec v2 metadata (category, core, tier1, timeout_s, mutability, runtime_only) — single source of truth; derives WRITE_CMDS/READ_CMDS/_RUNTIME_ONLY_CMDS at import. `middleware_types.is_write(cmd, args)` uses ACTION_READS for per-call classification.
 - `server/src/unity_mcp/metrics.py` — MetricsRegistry singleton
 - `server/src/unity_mcp/sampling.py` — SamplingService for visual verification
 - **Chat Relay System (v0.66.6+):**

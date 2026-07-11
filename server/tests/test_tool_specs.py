@@ -32,7 +32,8 @@ def test_internal_commands_present_and_excluded_from_core_tier1():
 
 def test_core_tools_have_core_true_and_core_category():
     from unity_mcp.tools.tool_specs import _SPECS
-    for name in ("get_hierarchy", "batch", "resolve_tool_schema", "doctor"):
+    # 15 CORE tools after Phase 2 (discover_tools/doctor/reconnect_unity etc. demoted)
+    for name in ("get_hierarchy", "batch", "set_property", "scene"):
         spec = _SPECS[name]
         assert spec.core is True
         assert spec.category == "CORE"
@@ -45,13 +46,13 @@ def test_tier1_residual_tool_has_tier1_true_and_themed_category():
     spec = _SPECS["screenshot"]
     assert spec.tier1 is True
     assert spec.core is False
-    assert spec.category == "SCREENSHOTS"
+    assert spec.category == "MEDIA"  # Phase 2: SCREENSHOTS → MEDIA
 
 
 def test_themed_tool_has_no_core_or_tier1():
     from unity_mcp.tools.tool_specs import _SPECS
     spec = _SPECS["animation"]
-    assert spec.category == "ANIMATION"
+    assert spec.category == "MEDIA"  # Phase 2: ANIMATION → MEDIA
     assert spec.core is False
     assert spec.tier1 is False
     assert spec.timeout_s == 30.0

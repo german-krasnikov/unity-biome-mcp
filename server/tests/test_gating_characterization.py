@@ -1,32 +1,13 @@
 """M8 characterization test — golden snapshot of gating.py's derived collections.
 
-Captured from the LIVE pre-refactor gating.py (5-layer hand-typed chain:
-_CORE_TOOLS -> _THEMED_CATEGORIES -> _CATEGORY_ALIAS -> CATEGORIES -> TIER1 -> _ALL_KNOWN)
-before M8 flattens it to a single ToolSpec-seeded source of truth (tools/tool_specs.py).
-
-Purpose: exact-equality safety net. The existing test_gating.py only asserts membership
-("X in TIER1") which would NOT catch a stray extra/missing tool introduced by a buggy
-_SPECS-generation script. This test catches that: any drift in the generated collections
-vs. this frozen snapshot fails loudly.
-
-This test must stay GREEN both BEFORE and AFTER the M8 refactor — it characterizes
-externally-observable behavior, not internal representation.
-
-Exact-equality vs. subset: _CORE_TOOLS/TIER1/TIMEOUT_CATEGORIES are
-NEVER mutated by register_tools() (plugin self-registration) — real third-party
-plugins loaded via entry_points (e.g. an environment with a private plugin package
-installed) can only add to _ALL_KNOWN/CATEGORIES/_THEMED_CATEGORIES at runtime. So
-those three collections get exact-equality checks; the plugin-mutable ones get
-subset/lower-bound checks so this test isn't flaky across environments with extra
-installed plugins.
+Phase 2 update: CORE shrunk from 24 to 15 (9 tools demoted to SYSTEM tier1).
+18 themed categories replaced with 8 task-oriented ones.
 """
 
 _CORE_TOOLS_SNAPSHOT = frozenset({
-    "ask", "ask_user", "batch", "create_object", "delete_object", "discover_tools",
-    "do", "doctor", "editor", "get_compile_errors", "get_component", "get_console",
-    "get_enabled_tools", "get_hierarchy", "inspect", "list_connections",
-    "manage_component", "permission_prompt", "reconnect_unity", "resolve_tool_schema",
-    "scene", "search_scene", "set_parent", "set_property",
+    "batch", "create_object", "delete_object", "do", "editor",
+    "get_compile_errors", "get_component", "get_console", "get_hierarchy",
+    "inspect", "manage_component", "scene", "search_scene", "set_parent", "set_property",
 })
 
 _TIER1_SNAPSHOT = frozenset({
@@ -86,47 +67,57 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
 })
 
 _THEMED_CATEGORIES_SNAPSHOT = {
-    "ADVANCED_CODE": {"auto_fix", "await_compile", "checkpoint", "compile_preflight",
-                       "diagnose", "execute_code", "get_schema", "menu", "recompile",
-                       "smart_build", "sync_unity", "undo_last", "validate_references",
-                       "verify_after_change"},
-    "ANIMATION": {"animation", "animator", "particle", "timeline"},
-    "ASSETS": {"asset", "prefab", "project_settings", "scriptable_object"},
-    "COMPONENTS": {"auto_wire", "unwire_event", "wire_event"},
-    "CONNECTION": set(),
-    "DEBUG": {"debug", "get_metrics", "get_watches", "snapshot", "watch"},
-    "META": {"animator_intent", "autofit_collider", "budget_status", "check_colliders",
-              "configure_objects", "get_capabilities", "navmesh_query", "region_clear",
-              "scan_scene", "scene_environment", "scene_health", "set_llm_config",
-              "set_properties", "setup_objects", "spatial_query"},
-    "PLUGINS": set(),
-    "PROFILING": {"get_frame_stats", "get_memory", "profile"},
-    "RENDERING": {"analyze_lod_culling", "render_analyze"},
-    "RUNTIME": {"debug_animator", "debug_physics", "get_perf", "invoke_method",
-                "move_to", "query_state", "set_runtime_property", "wait_until"},
-    "SCENE_EDIT": {"find_objects", "get_components_list", "get_object_detail",
-                   "get_selection", "object_diff", "ping_object", "set_active",
-                   "set_material", "set_property_delta", "transfer_object"},
-    "SCREENSHOTS": {"screenshot", "screenshot_baseline", "screenshot_compare"},
-    "SESSION_SKILLS": {"apply_template", "fingerprint", "get_changes",
-                        "list_skills", "list_templates", "load_session",
-                        "save_session", "save_skill",
-                        "save_template", "scene_diff", "use_skill"},
-    "SHADERS_MATERIAL": {"material", "material_audit", "references", "shader"},
-    "UI": {"create_ui", "get_spatial_context", "set_rect", "ui_intent", "validate_layout"},
-    "UNIT_TESTS": {"export_playtest_aliases_to_defs", "get_test_count", "get_test_progress",
-                   "get_test_results", "lint_playtest", "lint_playtest_suite",
-                   "run_playtest", "run_playtest_file",
-                   "run_playtest_suite", "run_tests",
-                   "sync_playtest_aliases_from_defs", "test_step",
-                   "validate_playtest_aliases"},
-    "VFX": {"vfx_intent"},
+    "SCENE": {
+        "apply_scene_change", "autofit_collider", "check_colliders", "configure_objects",
+        "find_objects", "get_components_list", "get_object_detail", "get_selection",
+        "get_spatial_context", "navmesh_query", "object_diff", "ping_object",
+        "region_clear", "rename_object", "scene_change_plan", "scene_diff",
+        "scene_environment", "set_active", "set_material", "set_properties",
+        "set_property_delta", "set_sibling_index", "setup_objects", "spatial_query",
+        "transfer_object",
+    },
+    "COMPONENTS": {"auto_wire", "references", "unwire_event", "wire_event"},
+    "ASSETS": {"asset", "material", "material_audit", "prefab", "project_settings",
+               "scriptable_object", "shader"},
+    "MEDIA": {
+        "analyze_lod_culling", "animation", "animator", "create_ui", "particle",
+        "render_analyze", "screenshot", "screenshot_baseline", "screenshot_compare",
+        "set_rect", "timeline", "ui_intent", "validate_layout", "vfx_intent",
+    },
+    "VERIFY": {
+        "await_compile", "compile_preflight", "diagnose", "lint_scene_refs",
+        "resolve_scene_refs", "scan_scene", "scene_health", "validate_references",
+        "verify_after_change",
+    },
+    "RUNTIME": {
+        "console_mark", "debug", "debug_animator", "debug_physics", "get_console_since",
+        "get_frame_stats", "get_memory", "get_metrics", "get_perf", "get_watches",
+        "invoke_method", "move_to", "profile", "query_state", "set_runtime_property",
+        "snapshot", "wait_until", "watch",
+    },
+    "TESTS": {
+        "export_playtest_aliases_to_defs", "get_test_count", "get_test_progress",
+        "get_test_results", "lint_playtest", "lint_playtest_suite",
+        "run_playtest", "run_playtest_file", "run_playtest_suite", "run_tests",
+        "run_tests_wait", "sync_playtest_aliases_from_defs", "test_step",
+        "validate_playtest_aliases",
+    },
+    "SYSTEM": {
+        "alias_status", "animator_intent", "apply_template", "ask", "ask_user",
+        "auto_fix", "budget_status", "checkpoint", "discover_tools", "doctor",
+        "execute_code", "fingerprint", "get_capabilities", "get_changes",
+        "get_enabled_tools", "get_schema", "list_connections", "list_skills",
+        "list_templates", "load_session", "mcp_status", "menu", "permission_prompt",
+        "recompile", "reconnect_unity", "resolve_tool_schema", "save_session",
+        "save_skill", "save_template", "set_llm_config", "smart_build",
+        "sync_unity", "undo_last", "use_skill",
+    },
 }
 
 _CATEGORY_SIZES_SNAPSHOT = {
-    "advanced": 28, "animation": 4, "asset": 8, "connection": 0, "debug": 5,
-    "object": 13, "perf": 5, "plugins": 0, "profiling": 3, "rendering": 2,
-    "runtime": 14, "session": 14, "ui": 6,
+    "advanced": 34, "animation": 14, "asset": 7, "connection": 34, "debug": 18,
+    "object": 29, "perf": 18, "plugins": 34, "profiling": 18, "rendering": 14,
+    "runtime": 32, "session": 34, "ui": 14,
 }
 
 _TIMEOUT_CATEGORIES_SNAPSHOT = {
@@ -163,7 +154,7 @@ def test_all_known_contains_snapshot():
 
 def test_themed_categories_contains_snapshot():
     """Subset check per key, not exact — register_tools() can add plugin tools into
-    an existing themed key (e.g. 'CONNECTION') at runtime in plugin-loaded environments."""
+    an existing themed key at runtime in plugin-loaded environments."""
     from unity_mcp.tools.gating import _THEMED_CATEGORIES
     for key, expected_tools in _THEMED_CATEGORIES_SNAPSHOT.items():
         actual_tools = set(_THEMED_CATEGORIES.get(key, []))

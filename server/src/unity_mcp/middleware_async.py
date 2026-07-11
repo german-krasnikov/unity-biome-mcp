@@ -14,8 +14,13 @@ class MiddlewareAsyncMixin:
         self,
         send_fn: Callable[..., Awaitable[str]],
         result: str,
+        cmd: str = "",
+        args: dict | None = None,
     ) -> str:
+        from .middleware_types import is_write
         if os.environ.get("UNITY_MCP_AUTO_STATE", "1") == "0":
+            return result
+        if cmd and not is_write(cmd, args):
             return result
         if self.call_count % 10 == 0 and (self.call_count - self._last_hierarchy_call) > 5:
             try:
@@ -29,10 +34,10 @@ class MiddlewareAsyncMixin:
     # ── Feature: Visual Verification via MCP Sampling ────────────────────────────
 
     async def maybe_verify_visual(self, cmd: str, args: dict, result: str) -> str:
-        from .middleware_types import WRITE_CMDS
+        from .middleware_types import is_write
         if self.sampling is None or not self.sampling.enabled:
             return result
-        if cmd not in WRITE_CMDS:
+        if not is_write(cmd, args):
             return result
         if self.confidence >= 0.5:
             return result

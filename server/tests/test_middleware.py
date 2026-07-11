@@ -41,42 +41,42 @@ def test_retry_watchdog_allows_same_cmd_different_args(mw):
 
 def test_confidence_appended_to_response(mw):
     # Fresh mw has confidence 1.0 — after a read it stays 1.0 (capped), no suffix
-    result = mw.update_confidence("get_hierarchy", "some output")
+    result = mw.update_confidence("get_hierarchy", {}, "some output")
     assert "[confidence:" not in result
 
 
 def test_confidence_suffix_appears_when_low(mw):
     # 0.4 + 0.15 = 0.55 >= 0.5 → no suffix
     mw.confidence = 0.4
-    result = mw.update_confidence("get_hierarchy", "data")
+    result = mw.update_confidence("get_hierarchy", {}, "data")
     assert "[confidence:" not in result
     # 0.2 - 0.08 = 0.12 < 0.5 → suffix present
     mw.confidence = 0.2
-    result = mw.update_confidence("set_property", "data")
+    result = mw.update_confidence("set_property", {}, "data")
     assert "[confidence:" in result
 
 
 def test_confidence_decreases_on_write(mw):
     before = mw.confidence
-    mw.update_confidence("set_property", "ok")
+    mw.update_confidence("set_property", {}, "ok")
     assert mw.confidence < before
 
 
 def test_confidence_increases_on_read(mw):
     mw.confidence = 0.5
-    mw.update_confidence("get_hierarchy", "ok")
+    mw.update_confidence("get_hierarchy", {}, "ok")
     assert mw.confidence > 0.5
 
 
 def test_confidence_caps_at_1(mw):
     mw.confidence = 0.95
-    mw.update_confidence("get_hierarchy", "ok")
+    mw.update_confidence("get_hierarchy", {}, "ok")
     assert mw.confidence <= 1.0
 
 
 def test_confidence_low_warning(mw):
     mw.confidence = 0.15  # after write: 0.15 - 0.08 = 0.07 < 0.3
-    result = mw.update_confidence("set_property", "data")
+    result = mw.update_confidence("set_property", {}, "data")
     assert "LOW CONFIDENCE" in result
 
 
@@ -109,7 +109,7 @@ def test_taint_allows_hash_ref(mw):
 async def test_state_injection_every_10_calls(mw):
     fake_send = AsyncMock(return_value="HierarchyData")
     mw.call_count = 10  # pipeline already incremented; maybe_inject_state checks, not increments
-    result = await mw.maybe_inject_state(fake_send, "original result")
+    result = await mw.maybe_inject_state(fake_send, "original result", "set_property")
     assert "AUTO STATE" in result
     assert "HierarchyData" in result
 
@@ -119,12 +119,12 @@ async def test_auto_state_staleness_gate(mw):
     fake_send = AsyncMock(return_value="H")
     mw.call_count = 10  # pipeline already incremented
     mw._last_hierarchy_call = 0
-    await mw.maybe_inject_state(fake_send, "r")
+    await mw.maybe_inject_state(fake_send, "r", "set_property")
     assert mw._last_hierarchy_call == 10
     fake_send.reset_mock()
     # second injection: call_count=20, gap=20-10=10 > 5
     mw.call_count = 20
-    await mw.maybe_inject_state(fake_send, "r")
+    await mw.maybe_inject_state(fake_send, "r", "set_property")
     assert mw._last_hierarchy_call == 20
     fake_send.assert_called_once()
 
@@ -201,6 +201,27 @@ async def test_state_injection_not_before_10(mw):
     result = await mw.maybe_inject_state(fake_send, "original result")
     assert "AUTO STATE" not in result
     fake_send.assert_not_called()
+
+
+async def test_auto_state_skips_read_cmds(mw):
+    """Reads must never trigger AUTO STATE injection."""
+    fake_send = AsyncMock(return_value="HierarchyData")
+    mw.call_count = 10
+    mw._last_hierarchy_call = 0
+    for read_cmd in ("get_hierarchy", "get_component", "get_compile_errors", "screenshot"):
+        result = await mw.maybe_inject_state(fake_send, "original", read_cmd)
+        assert "AUTO STATE" not in result, f"AUTO STATE fired on read cmd '{read_cmd}'"
+    fake_send.assert_not_called()
+
+
+async def test_auto_state_fires_on_write_cmds(mw):
+    """Writes at the % 10 boundary must inject AUTO STATE."""
+    fake_send = AsyncMock(return_value="HierarchyData")
+    mw.call_count = 10
+    mw._last_hierarchy_call = 0
+    result = await mw.maybe_inject_state(fake_send, "original", "set_property")
+    assert "AUTO STATE" in result
+    fake_send.assert_called_once()
 
 
 async def test_state_injection_increments_counter(mw):

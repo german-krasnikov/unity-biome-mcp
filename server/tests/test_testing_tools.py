@@ -34,10 +34,10 @@ def mock_diagnose(monkeypatch):
 # ── Pre-flight gate — blocked verdicts ────────────────────────────────────────
 
 async def test_run_tests_blocked_by_compile_error(testing_mod, _patch_send, mock_diagnose):
-    mock_diagnose.return_value = "FAILED:CS0001"
+    mock_diagnose.return_value = "FAIL:CS0001"
     result = await testing_mod.run_tests()
     assert result.startswith("BLOCKED:")
-    assert "FAILED:CS0001" in result
+    assert "FAIL:CS0001" in result
     _patch_send.assert_not_called()
 
 

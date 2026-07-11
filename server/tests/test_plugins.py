@@ -310,12 +310,12 @@ def test_load_plugin_dirs_calls_check_api_version(tmp_path, monkeypatch):
 # ── Issue 26: plugin tools default OFF Tier1 (auto-gated hidden) ──────────────
 
 async def test_discover_tools_plugins_category_exists_with_zero_plugins_loaded():
-    """The 'plugins' pseudo-category is pre-declared — discover_tools never
-    raises even before any plugin auto-enrolls into it."""
+    """The 'plugins' alias works — discover_tools never raises for it.
+    Phase 2: 'plugins' maps to SYSTEM, so the result includes SYSTEM tools."""
     from unity_mcp.tools import gating
 
     result = await gating.discover_tools(category="plugins", enable=False)
-    assert result == "Category 'plugins': "
+    assert result.startswith("Category 'plugins':")
 
 
 def test_plugin_tool_without_register_tools_is_auto_gated_hidden(tmp_path, monkeypatch):
@@ -349,9 +349,10 @@ def test_plugin_tool_without_register_tools_is_auto_gated_hidden(tmp_path, monke
     finally:
         gating.CATEGORIES["plugins"].discard(name)
         gating._ALL_KNOWN.discard(name)
-        gating._THEMED_CATEGORIES["PLUGINS"] = [
-            n for n in gating._THEMED_CATEGORIES["PLUGINS"] if n != name
+        gating._THEMED_CATEGORIES["SYSTEM"] = [
+            n for n in gating._THEMED_CATEGORIES["SYSTEM"] if n != name
         ]
+        gating.CATEGORIES = gating._rebuild_categories()
 
 
 async def test_plugin_tool_visible_after_discover_tools_plugins_category(tmp_path, monkeypatch):
@@ -385,9 +386,10 @@ async def test_plugin_tool_visible_after_discover_tools_plugins_category(tmp_pat
     finally:
         gating.CATEGORIES["plugins"].discard(name)
         gating._ALL_KNOWN.discard(name)
-        gating._THEMED_CATEGORIES["PLUGINS"] = [
-            n for n in gating._THEMED_CATEGORIES["PLUGINS"] if n != name
+        gating._THEMED_CATEGORIES["SYSTEM"] = [
+            n for n in gating._THEMED_CATEGORIES["SYSTEM"] if n != name
         ]
+        gating.CATEGORIES = gating._rebuild_categories()
         gating.reset()
 
 
@@ -461,29 +463,29 @@ def test_auto_gate_diffs_per_plugin_not_across_all_plugins(tmp_path, monkeypatch
         assert name_a in gating.CATEGORIES["plugins"]
         assert name_b in gating.CATEGORIES["plugins"]
     finally:
-        gating.CATEGORIES["plugins"].discard(name_a)
-        gating.CATEGORIES["plugins"].discard(name_b)
         gating._ALL_KNOWN.discard(name_a)
         gating._ALL_KNOWN.discard(name_b)
-        gating._THEMED_CATEGORIES["PLUGINS"] = [
-            n for n in gating._THEMED_CATEGORIES["PLUGINS"] if n not in (name_a, name_b)
+        gating._THEMED_CATEGORIES["SYSTEM"] = [
+            n for n in gating._THEMED_CATEGORIES["SYSTEM"] if n not in (name_a, name_b)
         ]
+        gating.CATEGORIES = gating._rebuild_categories()
 
 
 def test_auto_gate_cleanup_leaves_no_themed_plugins_residue(monkeypatch):
     """Regression for C4: register_tools('plugins', ...) writes into
-    _THEMED_CATEGORIES['PLUGINS'] too; cleanup must mirror all 3 writes or
-    later tests (e.g. test_no_orphan_themed_tools) see phantom entries."""
+    _THEMED_CATEGORIES['SYSTEM'] (via alias) too; cleanup must mirror all writes or
+    later tests (e.g. test_no_orphan_themed_tools) see phantom entries.
+    Phase 2: 'plugins' alias resolves to SYSTEM."""
     from unity_mcp.tools import gating
 
-    before = list(gating._THEMED_CATEGORIES["PLUGINS"])
+    before = list(gating._THEMED_CATEGORIES["SYSTEM"])
     name = "plugin_c4_regression_tool"
     gating.register_tools("plugins", {name})
-    assert name in gating._THEMED_CATEGORIES["PLUGINS"]
+    assert name in gating._THEMED_CATEGORIES["SYSTEM"]
     # --- simulate the (fixed) cleanup a well-behaved test/plugin unload would do ---
-    gating.CATEGORIES["plugins"].discard(name)
     gating._ALL_KNOWN.discard(name)
-    gating._THEMED_CATEGORIES["PLUGINS"] = [
-        n for n in gating._THEMED_CATEGORIES["PLUGINS"] if n != name
+    gating._THEMED_CATEGORIES["SYSTEM"] = [
+        n for n in gating._THEMED_CATEGORIES["SYSTEM"] if n != name
     ]
-    assert gating._THEMED_CATEGORIES["PLUGINS"] == before
+    gating.CATEGORIES = gating._rebuild_categories()
+    assert sorted(gating._THEMED_CATEGORIES["SYSTEM"]) == sorted(before)

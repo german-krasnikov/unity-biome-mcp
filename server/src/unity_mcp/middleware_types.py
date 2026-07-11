@@ -1,5 +1,6 @@
 """Constants and CircuitBreaker for Unity MCP middleware."""
 import time
+from .tools.tool_specs import _SPECS as _TOOL_SPECS
 
 
 _STRIP_CMDS: frozenset = frozenset({"get_component", "inspect", "get_object_detail"})
@@ -12,67 +13,69 @@ BLAST_RADIUS = {
     "delete_object": 3, "scene": 3, "batch": 3,
 }
 
-WRITE_CMDS = {
-    "set_property", "set_property_delta", "create_object", "delete_object", "manage_component",
-    "wire_event", "set_active", "set_material", "set_runtime_property", "set_rect", "move_to",
-    "batch", "animation", "timeline", "animator", "particle", "shader",
-    "material", "prefab", "scriptable_object", "asset", "scene",
-    "create_ui", "execute_code", "menu", "project_settings", "set_parent", "unwire_event",
-    "transfer_object", "rename_object", "set_sibling_index",
+# Derived from _SPECS — tool_specs.py is now the single source of truth.
+# Kept as mutable set for:
+#   plugin_api.register_read_cmds / register_write_cmds (.update())
+#   server._warm_cmd_flags (.update() from C# get_capabilities)
+WRITE_CMDS: set[str] = {
+    n for n, s in _TOOL_SPECS.items()
+    if s.mutability == 'write' and s.category != '_INTERNAL'
 }
-
-READ_CMDS = {
-    # Scene inspection
-    "get_hierarchy", "get_component", "inspect", "get_object_detail",
-    "get_components_list", "find_objects", "search_scene",
-    "query_state", "get_spatial_context", "scan_scene",
-    # Console / compile
-    "get_console", "get_compile_errors", "validate_references",
-    # Screenshots
-    "screenshot", "screenshot_compare",
-    # Editor state (read-only actions; 'editor' itself handled specially)
-    "get_selection", "get_capabilities",
-    # Alias / connection / meta
-    "alias_status", "get_aliases", "list_connections", "get_enabled_tools",
-    "budget_status", "permission_prompt",
-    # Testing
-    "get_test_results", "get_test_progress", "get_test_count",
-    # Profiling / debug
-    "get_frame_stats", "get_memory", "get_metrics", "get_perf",
-    "get_watches", "debug", "debug_animator", "debug_physics", "profile",
-    # Diff / audit / health
-    "object_diff", "scene_diff", "scene_health", "material_audit",
-    "analyze_lod_culling", "render_analyze", "fingerprint",
-    "validate_layout", "check_colliders", "spatial_query",
-    # Assets / schema / code (read-only)
-    "get_schema", "get_changes",
-    "compile_preflight", "await_compile", "auto_fix", "diagnose",
-    # Session (listing / loading to memory, no scene mutation)
-    "list_skills", "list_templates",
-    "load_session",
-    # LLM (no scene mutation)
-    "ask", "ask_user",
+READ_CMDS: set[str] = {
+    n for n, s in _TOOL_SPECS.items()
+    if s.mutability == 'read'
 }
+_RUNTIME_ONLY_CMDS: set[str] = {
+    n for n, s in _TOOL_SPECS.items()
+    if s.runtime_only
+}
+# watch_add: raw C# sub-command (not an MCP tool, absent from _SPECS).
+# Must remain runtime-only for the play-mode pre-gate in middleware_guards.
+_RUNTIME_ONLY_CMDS.add("watch_add")
 
 # editor actions that are reads; all others (play/stop/pause/step/select) are writes
 _EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})
+
+# Per-cmd frozenset of action values that are reads.
+# Conservative: absent/unknown action → write.
+# "editor" included to absorb the _is_batch_readonly special-case.
+ACTION_READS: dict[str, frozenset[str]] = {
+    "animation":         frozenset({"get", "get_events", "get_clip_path"}),
+    "timeline":          frozenset({"get", "get_bindings"}),
+    "animator":          frozenset({"get", "get_blend_tree"}),
+    "particle":          frozenset({"get"}),
+    "shader":            frozenset({"get", "graph_get"}),
+    "material":          frozenset({"get", "list_properties", "list_slots", "get_errors", "list_shaders"}),
+    "prefab":            frozenset({"get_overrides"}),
+    "scriptable_object": frozenset({"get", "list_types", "find"}),
+    "asset":             frozenset({"find", "get_info", "validate_move", "get_dependencies",
+                                    "find_dependents", "export_package"}),
+    "scene":             frozenset({"list"}),
+    "project_settings":  frozenset({"get"}),
+    "menu":              frozenset({"list"}),
+    "editor":            _EDITOR_READ_ACTIONS,  # same object — no duplication
+}
+
+
+def is_write(cmd: str, args: dict | None = None) -> bool:
+    """Return True iff cmd+args represents a mutation.
+
+    For action-parameterised commands in WRITE_CMDS, check args["action"].
+    Unknown/absent action → True (conservative).
+    Commands not in WRITE_CMDS are never writes (returns False).
+    """
+    if cmd not in WRITE_CMDS:
+        return False
+    reads = ACTION_READS.get(cmd)
+    if reads is None:
+        return True  # plain write cmd, no action map
+    return (args or {}).get("action", "") not in reads
+
 
 # Reads safe to serve from PrefetchCache (both above-circuit and pre-TCP paths).
 _READ_CACHEABLE = frozenset({
     "get_component", "get_hierarchy", "get_components_list", "inspect", "get_compile_errors",
 })
-
-# Commands that require Play Mode. Blocked by fail-fast guard before TCP when
-# is_playing is confirmed False. Derived from CommandRouter registrations (runtime: true).
-# Note: watch_remove/clear/reset/get_watches are intentionally excluded (safe outside Play Mode).
-_RUNTIME_ONLY_CMDS: set[str] = {
-    "invoke_method", "set_runtime_property",
-    "wait_until", "move_to", "query_state", "test_step",
-    "run_playtest",
-    "get_perf", "get_frame_stats", "debug_animator", "debug_physics",
-    "watch_add",
-    "profile",
-}
 
 
 class CircuitBreaker:

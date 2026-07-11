@@ -195,17 +195,15 @@ def test_register_tools_idempotent():
 
 
 def test_register_tools_plugins_category_updates_themed_categories():
-    """M6: register_tools('plugins', ...) must also update _THEMED_CATEGORIES['PLUGINS']
-    so the auto-gated plugin tool shows up in get_catalog() (Unity plugin catalog UI),
-    not just in the legacy CATEGORIES dict."""
+    """plugins alias resolves to SYSTEM via _CATEGORY_ALIAS (Phase 2: PLUGINS folded into SYSTEM)."""
     from unity_mcp.tools import gating
     gating.register_tools("plugins", {"my_plugin_tool"})
     try:
-        assert "my_plugin_tool" in gating._THEMED_CATEGORIES["PLUGINS"]
-        assert "my_plugin_tool" in gating.get_catalog()["categories"]["PLUGINS"]
+        assert "my_plugin_tool" in gating._THEMED_CATEGORIES["SYSTEM"]
+        assert "my_plugin_tool" in gating.get_catalog()["categories"]["SYSTEM"]
     finally:
-        gating._THEMED_CATEGORIES["PLUGINS"].remove("my_plugin_tool")
-        gating.CATEGORIES["plugins"].discard("my_plugin_tool")
+        gating._THEMED_CATEGORIES["SYSTEM"].remove("my_plugin_tool")
+        gating.CATEGORIES = gating._rebuild_categories()
         gating._ALL_KNOWN.discard("my_plugin_tool")
 
 
@@ -226,16 +224,15 @@ def test_register_tools_unknown_category_does_not_touch_themed_categories():
 # --- C6: register_tools() dual-write → CATEGORIES becomes a derived view ---
 
 def test_register_tools_updates_categories_and_themed_categories_consistently():
-    """register_tools('debug', ...) must keep CATEGORIES and _THEMED_CATEGORIES
-    in agreement — CATEGORIES is now derived FROM _THEMED_CATEGORIES rather than
-    independently hand-synced, so drift between the two is structurally impossible."""
+    """register_tools('debug', ...) keeps CATEGORIES and _THEMED_CATEGORIES in agreement.
+    Phase 2: 'debug' alias resolves to RUNTIME via _CATEGORY_ALIAS."""
     from unity_mcp.tools import gating
     gating.register_tools("debug", {"my_plugin_tool"})
     try:
         assert "my_plugin_tool" in gating.CATEGORIES["debug"]
-        assert "my_plugin_tool" in gating._THEMED_CATEGORIES["DEBUG"]
+        assert "my_plugin_tool" in gating._THEMED_CATEGORIES["RUNTIME"]
     finally:
-        gating._THEMED_CATEGORIES["DEBUG"].remove("my_plugin_tool")
+        gating._THEMED_CATEGORIES["RUNTIME"].remove("my_plugin_tool")
         gating.CATEGORIES = gating._rebuild_categories()
         gating._ALL_KNOWN.discard("my_plugin_tool")
 
@@ -254,7 +251,7 @@ def test_register_tools_themed_rebuild_preserves_other_plugins_custom_categories
                 "themed-category rebuild wiped an unrelated custom plugin category"
             )
         finally:
-            gating._THEMED_CATEGORIES["DEBUG"].remove("plugin_b_tool")
+            gating._THEMED_CATEGORIES["RUNTIME"].remove("plugin_b_tool")
             gating.CATEGORIES = gating._rebuild_categories()
             gating._ALL_KNOWN.discard("plugin_b_tool")
     finally:
@@ -353,22 +350,22 @@ def test_is_deferred_returns_false_for_unknown_plugin_tool():
 
 # --- P1-2: connection tools survive filter_by_tier ---
 
-def test_reconnect_unity_in_core_tools():
-    """reconnect_unity is in _CORE_TOOLS (controls is_deferred, not visibility)."""
-    from unity_mcp.tools.gating import _CORE_TOOLS
-    assert "reconnect_unity" in _CORE_TOOLS
+def test_reconnect_unity_in_tier1_not_core():
+    """reconnect_unity demoted from CORE to SYSTEM tier1 (Phase 2)."""
+    from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
+    assert "reconnect_unity" not in _CORE_TOOLS
+    assert "reconnect_unity" in TIER1
 
 
-def test_list_connections_in_core_tools():
-    """list_connections is in _CORE_TOOLS (controls is_deferred, not visibility)."""
-    from unity_mcp.tools.gating import _CORE_TOOLS
-    assert "list_connections" in _CORE_TOOLS
+def test_list_connections_in_tier1_not_core():
+    """list_connections demoted from CORE to SYSTEM tier1 (Phase 2)."""
+    from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
+    assert "list_connections" not in _CORE_TOOLS
+    assert "list_connections" in TIER1
 
 
 def test_reconnect_unity_survives_filter_when_disabled_cache_cold():
-    """reconnect_unity is core, so is_visible()/TIER1 (which is a superset of
-    _CORE_TOOLS) keeps it visible even with a cold session-enable cache.
-    """
+    """reconnect_unity is tier1 — visible even with a cold session-enable cache."""
     from unity_mcp.tools import gating
     gating.reset()
     tool = _make_tool("reconnect_unity")
@@ -377,7 +374,7 @@ def test_reconnect_unity_survives_filter_when_disabled_cache_cold():
 
 
 def test_list_connections_survives_filter_when_disabled_cache_cold():
-    """list_connections is NOT in TIER1 but must survive filter_by_tier."""
+    """list_connections is tier1 — visible even with a cold session-enable cache."""
     from unity_mcp.tools import gating
     gating.reset()
     tool = _make_tool("list_connections")
@@ -473,14 +470,18 @@ def test_old_category_aliases_work():
 
 
 def test_category_alias_mapping_is_exhaustive():
-    """_CATEGORY_ALIAS must cover all non-empty themed groups."""
-    from unity_mcp.tools.gating import _CATEGORY_ALIAS, _THEMED_CATEGORIES
-    mapped_groups = set()
+    """Every non-empty themed group must be reachable via CATEGORIES (alias or direct key).
+    Phase 2: the 8 new themed keys are included in CATEGORIES directly by _rebuild_categories(),
+    so they need not appear in _CATEGORY_ALIAS values."""
+    from unity_mcp.tools.gating import _CATEGORY_ALIAS, _THEMED_CATEGORIES, CATEGORIES
+    mapped_via_alias = set()
     for groups in _CATEGORY_ALIAS.values():
-        mapped_groups.update(groups)
+        mapped_via_alias.update(groups)
     non_empty_themed = {k for k, v in _THEMED_CATEGORIES.items() if v}
-    assert non_empty_themed.issubset(mapped_groups), (
-        f"Themed groups not mapped to any alias: {non_empty_themed - mapped_groups}"
+    # Reachable = covered by an alias OR exposed directly as a CATEGORIES key
+    unreachable = non_empty_themed - mapped_via_alias - set(CATEGORIES.keys())
+    assert not unreachable, (
+        f"Themed groups not reachable via any CATEGORIES key: {unreachable}"
     )
 
 
@@ -617,3 +618,70 @@ def test_all_registered_tools_are_known_to_gating():
     registered = {t.name for t in mcp._tool_manager.list_tools()}
     missing = registered - gating._ALL_KNOWN
     assert not missing, f"Tools registered but unknown to gating: {sorted(missing)}"
+
+
+# --- Phase 2: new taxonomy tests ---
+
+def test_core_count_is_15():
+    from unity_mcp.tools.gating import _CORE_TOOLS
+    assert len(_CORE_TOOLS) == 15
+
+
+def test_no_orphan():
+    from unity_mcp.tools.gating import _THEMED_CATEGORIES, _CORE_TOOLS
+    from unity_mcp.tools.tool_specs import _SPECS
+    themed = set()
+    for tools in _THEMED_CATEGORIES.values():
+        themed.update(tools)
+    internal = {n for n, s in _SPECS.items() if s.category == "_INTERNAL"}
+    assert themed | _CORE_TOOLS | internal == set(_SPECS.keys())
+
+
+def test_each_tool_exactly_one_themed_category():
+    from unity_mcp.tools.gating import _THEMED_CATEGORIES
+    seen = set()
+    for tools in _THEMED_CATEGORIES.values():
+        for t in tools:
+            assert t not in seen, f"duplicate in _THEMED_CATEGORIES: {t}"
+            seen.add(t)
+
+
+def test_discover_old_aliases_still_work():
+    from unity_mcp.tools.gating import CATEGORIES
+    for alias in ["object", "animation", "asset", "advanced", "ui",
+                  "runtime", "session", "debug", "profiling"]:
+        assert alias in CATEGORIES
+
+
+def test_discover_new_categories_work():
+    from unity_mcp.tools.gating import CATEGORIES
+    for cat in ["SCENE", "COMPONENTS", "ASSETS", "MEDIA",
+                "VERIFY", "RUNTIME", "TESTS", "SYSTEM"]:
+        assert cat in CATEGORIES, f"New category {cat!r} must be directly in CATEGORIES"
+
+
+def test_catalog_has_8_themed_categories():
+    from unity_mcp.tools.gating import get_catalog
+    cats = get_catalog()["categories"]
+    themed = {k for k in cats if k != "CORE"}
+    assert themed == {"SCENE", "COMPONENTS", "ASSETS", "MEDIA", "VERIFY", "RUNTIME", "TESTS", "SYSTEM"}
+
+
+def test_demoted_tools_are_tier1_not_core():
+    from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
+    demoted = {"ask", "ask_user", "discover_tools", "doctor", "get_enabled_tools",
+               "list_connections", "permission_prompt", "reconnect_unity", "resolve_tool_schema"}
+    assert not any(t in _CORE_TOOLS for t in demoted)
+    assert all(t in TIER1 for t in demoted)
+
+
+def test_register_tools_old_key_compat():
+    """register_tools with an old themed key routes to the new category via alias."""
+    from unity_mcp.tools import gating
+    gating.register_tools("SCENE_EDIT", {"test_fake_tool_scene"})
+    try:
+        assert "test_fake_tool_scene" in gating._THEMED_CATEGORIES["SCENE"]
+    finally:
+        gating._THEMED_CATEGORIES["SCENE"].remove("test_fake_tool_scene")
+        gating._ALL_KNOWN.discard("test_fake_tool_scene")
+        gating.CATEGORIES = gating._rebuild_categories()

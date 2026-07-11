@@ -131,10 +131,10 @@ async def test_diagnose_clean_live_verdict():
 
 @pytest.mark.asyncio
 async def test_diagnose_failed_cs_verdict():
-    """idle-failed + error CS0117 → FAILED:CS0117."""
+    """idle-failed + error CS0117 → FAIL:CS0117."""
     _d._send = _make_send(FAILED_PAYLOAD)
     result = await _d.diagnose()
-    assert result.startswith("FAILED:CS0117"), f"Expected FAILED:CS0117, got: {result!r}"
+    assert result.startswith("FAIL:CS0117"), f"Expected FAIL:CS0117, got: {result!r}"
 
 
 @pytest.mark.asyncio
@@ -192,7 +192,7 @@ async def test_diagnose_failed_not_shadowed_by_stale_domain():
     """idle-failed + empty errors + matching prev_mvid → FAILED (idle-failed checked before MVID match)."""
     _d._send = _make_send(FAILED_EMPTY_ERRORS_PAYLOAD)
     result = await _d.diagnose(prev_mvid="bbbbbbbb-0000-0000-0000-000000000000")
-    assert result == "FAILED:unknown", f"idle-failed must not be shadowed by STALE-DOMAIN, got: {result!r}"
+    assert result == "FAIL:unknown", f"idle-failed must not be shadowed by STALE-DOMAIN, got: {result!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -335,13 +335,13 @@ log=clean
 """
 
 def test_stale_prod_dll_yields_failed_stale():
-    """dlls= has prod dll :stale → FAILED:stale-dll (not CLEAN-LIVE).
+    """dlls= has prod dll :stale → FAIL:stale-dll (not CLEAN-LIVE).
 
     Red-precondition: _verdict ignores dlls= → returns CLEAN-LIVE today.
     """
     f = _d._parse_diagnose(STALE_DLL_WIRE)
     v = _d._verdict(f)
-    assert v == "FAILED:stale-dll", f"Stale prod dll → FAILED:stale-dll, got {v!r}"
+    assert v == "FAIL:stale-dll", f"Stale prod dll → FAIL:stale-dll, got {v!r}"
 
 
 # Bug 2: idle-never + stale-dll must NOT be masked by NO-OP (priority inversion fix)
@@ -357,13 +357,13 @@ log=clean
 """
 
 def test_idle_never_with_stale_dll_yields_failed_not_noop():
-    """idle-never + stale dll → FAILED:stale-dll, not NO-OP.
+    """idle-never + stale dll → FAIL:stale-dll, not NO-OP.
 
     Bug 2 fix: stale-dll check must precede idle-never to avoid masking.
     """
     f = _d._parse_diagnose(IDLE_NEVER_STALE_DLL_WIRE)
     v = _d._verdict(f)
-    assert v == "FAILED:stale-dll", f"idle-never + stale-dll must be FAILED:stale-dll, got {v!r}"
+    assert v == "FAIL:stale-dll", f"idle-never + stale-dll must be FAIL:stale-dll, got {v!r}"
 
 
 # Bug 3: iscompiling + idle-never + stale-dlls = package-resolve transient → STALE-TRANSIENT
@@ -471,7 +471,7 @@ def test_guard_reject_field_is_parsed():
     assert f.guard_rejected is True, f"Guard-reject wire must parse guard_rejected=True, got {f.guard_rejected!r}"
 
 
-# ------ G9b : slot-1 FAILED:<CS> wins even when wedge is also present ------
+# ------ G9b : slot-1 FAIL:<CS> wins even when wedge is also present ------
 
 # Red-precondition: slot-1 already exists, but need to confirm it still wins
 # AFTER the new wedge slot is wired (regression guard / hallucination lock).
@@ -487,7 +487,7 @@ log=CS0103
 """
 
 def test_diagnose_live_cs_error_wins_over_wedge():
-    """errors= has CS0103 AND a build-failed wedge report → FAILED:CS0103 (slot-1 wins).
+    """errors= has CS0103 AND a build-failed wedge report → FAIL:CS0103 (slot-1 wins).
 
     Red-precondition: once slot 3 (BUILD-FAILED-WEDGE) is wired, it could shadow
     slot-1 if the order is wrong. This test locks the invariant.
@@ -496,7 +496,7 @@ def test_diagnose_live_cs_error_wins_over_wedge():
     wedge = WedgeReport(kind="build-failed-wedge", cs_errors=["CS0103: foo"])
     f = _d._parse_diagnose(LIVE_CS_ERROR_WIRE)
     v = _d._verdict(f, wedge=wedge)
-    assert v == "FAILED:CS0103", f"Slot-1 FAILED:<CS> must win over wedge, got {v!r}"
+    assert v == "FAIL:CS0103", f"Slot-1 FAIL:<CS> must win over wedge, got {v!r}"
 
 
 # ------ C10: reload_failed= in-process signal ------
@@ -543,7 +543,7 @@ def test_diagnose_reload_failed_true_no_log_evidence_yields_build_failed_wedge()
     → BUILD-FAILED-WEDGE (in-process signal alone fires).
 
     Red-precondition: _DiagnoseFields has no reload_failed field; _verdict ignores it
-    → returns FAILED:unknown today (idle-failed slot 9) instead of BUILD-FAILED-WEDGE.
+    → returns FAIL:unknown today (idle-failed slot 9) instead of BUILD-FAILED-WEDGE.
     """
     f = _d._parse_diagnose(RELOAD_FAILED_WIRE)
     v = _d._verdict(f, wedge=None)
@@ -553,15 +553,15 @@ def test_diagnose_reload_failed_true_no_log_evidence_yields_build_failed_wedge()
 
 
 def test_diagnose_reload_failed_true_cs_error_present_slot1_wins():
-    """C10b: reload_failed=true BUT errors= has CS0103 → slot-1 FAILED:CS0103 wins.
+    """C10b: reload_failed=true BUT errors= has CS0103 → slot-1 FAIL:CS0103 wins.
 
     Red-precondition: slot-1 already works; this is a regression guard to confirm
     reload_failed wiring does NOT shadow the ground-truth CS error.
     """
     f = _d._parse_diagnose(RELOAD_FAILED_WITH_CS_WIRE)
     v = _d._verdict(f, wedge=None)
-    assert v == "FAILED:CS0103", (
-        f"Slot-1 FAILED:<CS> must win over reload_failed=true, got {v!r}"
+    assert v == "FAIL:CS0103", (
+        f"Slot-1 FAIL:<CS> must win over reload_failed=true, got {v!r}"
     )
 
 
@@ -610,11 +610,11 @@ all_errors=
 
 
 def test_all_errors_yields_failed_cs():
-    """FIX-1: all_errors= with CS0246 + clean errors= → FAILED:CS0246."""
+    """FIX-1: all_errors= with CS0246 + clean errors= → FAIL:CS0246."""
     f = _d._parse_diagnose(ALL_ERRORS_PAYLOAD)
     assert "CS0246" in f.all_errors, f"all_errors field must contain CS0246, got: {f.all_errors!r}"
     v = _d._verdict(f)
-    assert v == "FAILED:CS0246", f"all_errors with CS0246 must yield FAILED:CS0246, got {v!r}"
+    assert v == "FAIL:CS0246", f"all_errors with CS0246 must yield FAIL:CS0246, got {v!r}"
 
 
 def test_all_errors_empty_no_impact():
@@ -665,28 +665,28 @@ all_errors=SomeAsm:CS0117:Foo.cs:1: error CS0117: blah
 
 
 def test_slot9_no_evidence_falls_through():
-    """idle-failed + empty errors + fresh dlls + clean log → NOT FAILED:unknown.
+    """idle-failed + empty errors + fresh dlls + clean log → NOT FAIL:unknown.
 
     Corroboration: no stale dlls, no log errors, no reload_failed → stale flag,
     fall through to remaining slots (CLEAN-LIVE in this wire).
     """
     f = _d._parse_diagnose(IDLE_FAILED_NO_EVIDENCE_WIRE)
     v = _d._verdict(f)
-    assert v != "FAILED:unknown", f"No corroborating evidence → must not be FAILED:unknown, got {v!r}"
+    assert v != "FAIL:unknown", f"No corroborating evidence → must not be FAIL:unknown, got {v!r}"
 
 
 def test_slot9_stale_dll_yields_failed_unknown():
-    """idle-failed + empty errors + stale dll → FAILED:unknown (corroborated)."""
+    """idle-failed + empty errors + stale dll → FAIL:unknown (corroborated)."""
     f = _d._parse_diagnose(IDLE_FAILED_STALE_DLL_WIRE)
     v = _d._verdict(f)
-    assert v == "FAILED:unknown", f"Stale dll corroborates idle-failed → FAILED:unknown, got {v!r}"
+    assert v == "FAIL:unknown", f"Stale dll corroborates idle-failed → FAIL:unknown, got {v!r}"
 
 
 def test_slot9_all_errors_cs_code():
-    """idle-failed + empty errors= + all_errors has CS0117 → FAILED:CS0117."""
+    """idle-failed + empty errors= + all_errors has CS0117 → FAIL:CS0117."""
     f = _d._parse_diagnose(IDLE_FAILED_ALL_ERRORS_CS_WIRE)
     v = _d._verdict(f)
-    assert v == "FAILED:CS0117", f"all_errors CS code should be extracted, got {v!r}"
+    assert v == "FAIL:CS0117", f"all_errors CS code should be extracted, got {v!r}"
 
 
 # ---------------------------------------------------------------------------

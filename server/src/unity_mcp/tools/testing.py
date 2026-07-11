@@ -8,7 +8,7 @@ _args = None
 
 # STALE-DOMAIN: defensive — unreachable with expected_compile=False, guards future callers
 _BLOCK_STARTS = (
-    "FAILED:", "BUILD-FAILED-WEDGE", "STALE-CACHE",
+    "FAIL:", "BUILD-FAILED-WEDGE", "STALE-CACHE",
     "STALE-DOMAIN", "STALE-TRANSIENT", "WEDGE-ENGINE", "WEDGE-STATE",
     "REBUILDING", "TESTS-INVISIBLE",
 )
@@ -19,7 +19,7 @@ async def run_tests(mode: str = "EditMode", filter: str | None = None) -> str:
     from mcp.server.fastmcp.exceptions import ToolError as _ToolError
     _MAX_PREFLIGHT_RETRIES = 2
     # Verdicts where force_refresh can help; everything else blocks immediately
-    _RECOVERABLE = ("FAILED:stale-dll", "FAILED:unknown", "STALE-CACHE", "STALE-TRANSIENT")
+    _RECOVERABLE = ("FAIL:stale-dll", "FAIL:unknown", "STALE-CACHE", "STALE-TRANSIENT")
     try:
         from . import diagnose as _diag
         for _attempt in range(_MAX_PREFLIGHT_RETRIES + 1):

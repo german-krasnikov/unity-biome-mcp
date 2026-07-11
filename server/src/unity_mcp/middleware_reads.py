@@ -1,7 +1,7 @@
 """Read/cache methods for Middleware (mixin)."""
 from typing import Optional
 
-from .middleware_types import WRITE_CMDS, READ_CMDS
+from .middleware_types import WRITE_CMDS, READ_CMDS, is_write
 
 
 class MiddlewareReadsMixin:
@@ -22,10 +22,10 @@ class MiddlewareReadsMixin:
 
     # ── Feature 2: Confidence Decay ───────────────────────────────────────
 
-    def update_confidence(self, cmd: str, result: str) -> str:
-        if cmd in WRITE_CMDS:
+    def update_confidence(self, cmd: str, args: dict, result: str) -> str:
+        if is_write(cmd, args):
             self.confidence = max(0.0, self.confidence - 0.08)
-        elif cmd in READ_CMDS:
+        else:
             self.confidence = min(1.0, self.confidence + 0.15)
         if self.confidence >= 0.5:
             return result

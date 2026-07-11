@@ -91,8 +91,8 @@ def test_material_audit_registered_readonly():
         m._send, m._args = orig_send, orig_args
 
 
-def test_material_audit_in_shaders_material_category():
+def test_material_audit_in_assets_category():
     from unity_mcp.tools.gating import _THEMED_CATEGORIES
-    assert "material_audit" in _THEMED_CATEGORIES["SHADERS_MATERIAL"], (
-        "material_audit must be in SHADERS_MATERIAL gating category"
+    assert "material_audit" in _THEMED_CATEGORIES["ASSETS"], (
+        "material_audit must be in ASSETS gating category"
     )

@@ -112,12 +112,13 @@ async def test_core_tools_survive_disabled():
     gating.reset()
     orig = srv._disabled_tools_cache
     try:
-        srv._disabled_tools_cache = {"do", "discover_tools", "create_object", "screenshot"}
-        tools = [_tool("do"), _tool("discover_tools"), _tool("create_object"), _tool("screenshot")]
+        # discover_tools demoted to SYSTEM tier1 in Phase 2; use set_property instead
+        srv._disabled_tools_cache = {"do", "set_property", "create_object", "screenshot"}
+        tools = [_tool("do"), _tool("set_property"), _tool("create_object"), _tool("screenshot")]
         result = await _filter_tools(tools, None)
         names = {t.name for t in result}
         assert "do" in names, "CORE 'do' must survive disabled set"
-        assert "discover_tools" in names, "CORE 'discover_tools' must survive disabled set"
+        assert "set_property" in names, "CORE 'set_property' must survive disabled set"
         assert "create_object" in names, "CORE 'create_object' (A2 gap) must survive disabled set"
         assert "screenshot" not in names, "Non-CORE disabled tool must be hidden"
     finally:

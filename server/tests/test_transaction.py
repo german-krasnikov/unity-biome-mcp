@@ -54,6 +54,31 @@ class TestSceneChangePlan:
         assert not tr._plans
 
 
+    async def test_compile_clean_csharp_sentinel(self, monkeypatch):
+        """C# sentinel 'No compilation errors' must not block plan creation."""
+        async def cs_send(cmd, args, **kw):
+            if cmd == "get_compile_errors": return "No compilation errors"
+            if cmd == "get_console": return ""
+            if cmd == "checkpoint": return "cp_ok"
+            return ""
+        monkeypatch.setattr(tr, "_send", cs_send)
+        result = await tr.scene_change_plan("test goal")
+        assert "plan_id=" in result, f"plan not created: {result}"
+        assert "compile=clean" in result
+
+    async def test_compile_clean_csharp_sentinel_with_period(self, monkeypatch):
+        """C# sentinel 'No compilation errors.' (period suffix) must also pass."""
+        async def cs_send(cmd, args, **kw):
+            if cmd == "get_compile_errors": return "No compilation errors."
+            if cmd == "get_console": return ""
+            if cmd == "checkpoint": return "cp_ok"
+            return ""
+        monkeypatch.setattr(tr, "_send", cs_send)
+        result = await tr.scene_change_plan("test goal")
+        assert "plan_id=" in result, f"plan not created: {result}"
+        assert "compile=clean" in result
+
+
 class TestApplySceneChange:
     def _insert_plan(self) -> str:
         plan_id = "t3st01"

@@ -60,7 +60,8 @@ async def test_render_analyze_max_events_forwarded(mock_bridge):
 # ── gating ───────────────────────────────────────────────────────────────────
 
 def test_render_analyze_in_rendering_category():
-    assert "render_analyze" in gating._THEMED_CATEGORIES["RENDERING"]
+    # Phase 2: RENDERING merged into MEDIA
+    assert "render_analyze" in gating._THEMED_CATEGORIES["MEDIA"]
 
 
 def test_render_analyze_registered_read_only():
@@ -254,6 +255,7 @@ def test_analyze_lod_culling_registered_readonly():
 
 def test_analyze_lod_culling_in_rendering_category():
     from unity_mcp.tools.gating import _THEMED_CATEGORIES
-    assert "analyze_lod_culling" in _THEMED_CATEGORIES["RENDERING"], (
-        "analyze_lod_culling must be in RENDERING gating category"
+    # Phase 2: RENDERING merged into MEDIA
+    assert "analyze_lod_culling" in _THEMED_CATEGORIES["MEDIA"], (
+        "analyze_lod_culling must be in MEDIA gating category"
     )

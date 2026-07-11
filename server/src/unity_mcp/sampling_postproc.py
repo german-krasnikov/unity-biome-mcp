@@ -76,7 +76,7 @@ def normalize(text: Optional[str], kind: OutputKind = "description") -> Tuple[Op
     Per-kind tail behavior:
     - 'verdict': collapse to first non-empty line (PASS/FAIL/short answer)
     - 'sentinel': return first non-empty word/token
-    - 'dsl': preserve full text (FAILED: lines must remain)
+    - 'dsl': preserve full text (FAIL: lines must remain)
     - 'description': preserve full cleaned text
     """
     if text is None:

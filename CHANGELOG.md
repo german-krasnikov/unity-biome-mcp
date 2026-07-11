@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.83.0] — 2026-07-11 — MCP tool restructuring: 8-category taxonomy + write classification
+
+**Added:**
+- `ToolSpec.mutability: Literal['read','write']` — single-source classification for all tools.
+- `ToolSpec.runtime_only: bool` — declares Play Mode requirement in metadata.
+- `ACTION_READS` dict — maps 12 action-based tools to their read-action sets.
+- `is_write(cmd, args)` function — per-call read/write classification (action-aware).
+- 8-category taxonomy: `SCENE`, `COMPONENTS`, `ASSETS`, `MEDIA`, `VERIFY`, `RUNTIME`, `TESTS`, `SYSTEM`.
+- Full backward-compat alias layer for old 18 category names; `register_tools()` resolves old plugin keys.
+- Bounding test for `WRITE_CMDS` size — prevents silent growth.
+- 97+ new unit tests across 3 new test files.
+
+**Changed:**
+- Core tools shrunk from 24 → 15; 9 infrastructure tools demoted to `SYSTEM` tier1 (always-visible).
+- `WRITE_CMDS` / `READ_CMDS` / `_RUNTIME_ONLY_CMDS` now derived from `_SPECS` (−67 LOC hardcoded sets).
+- AUTO STATE injection gated on writes only (~4000 tokens/session saved).
+- `_compile_clean()` now recognizes C# sentinel `"no compilation errors"`.
+- Response prefix unified: `FAILED:` → `FAIL:` in diagnose output.
+- Themed categories consolidated: 18 → 8 task-oriented groups.
+
+**Fixed:**
+- AUTO STATE hierarchy injected after read-only commands (wasted ~4000 tokens/session).
+- `_compile_clean()` missed C# `"no compilation errors"` sentinel.
+- `run_tests` / `run_playtest*` incorrectly classified as writes (caused false "consecutive writes" warnings).
+
 ## [v0.82.0] — 2026-07-11 — MCP Playtests ROI + Gameplay Workflow sprint
 
 **Phase 1 — MCP Playtests ROI (TZ #31):**

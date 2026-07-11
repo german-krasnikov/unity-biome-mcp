@@ -124,12 +124,13 @@ def test_retry_cache_evicts_oldest_not_newest(mw):
     """Fill _retry_cache to max+1 via check_retry; oldest entry evicted."""
     mw._RETRY_MAX = 3
     mw._retry_cache.clear()
-    mw.check_retry("cmd_a", {"p": "a"})
-    mw.check_retry("cmd_b", {"p": "b"})
-    mw.check_retry("cmd_c", {"p": "c"})
+    # Use real write cmds — unknown cmds are not-write and skip the cache
+    mw.check_retry("set_property", {"p": "a"})
+    mw.check_retry("create_object", {"p": "b"})
+    mw.check_retry("delete_object", {"p": "c"})
     assert len(mw._retry_cache) == 3
     oldest_key = next(iter(mw._retry_cache))
-    mw.check_retry("cmd_d", {"p": "d"})
+    mw.check_retry("manage_component", {"p": "d"})
     assert len(mw._retry_cache) == 3
     assert oldest_key not in mw._retry_cache
 
@@ -139,7 +140,7 @@ def test_retry_cache_evicts_oldest_not_newest(mw):
 def test_update_confidence_floor_at_zero(mw):
     """confidence can't go below 0.0 after repeated writes."""
     mw.confidence = 0.0
-    mw.update_confidence("set_property", "ok")
+    mw.update_confidence("set_property", {}, "ok")
     assert mw.confidence == 0.0
 
 
@@ -147,7 +148,7 @@ def test_update_confidence_floor_stays_zero_multiple_writes(mw):
     """Multiple writes at 0.0 keep confidence at exactly 0.0."""
     mw.confidence = 0.0
     for _ in range(5):
-        mw.update_confidence("set_property", "ok")
+        mw.update_confidence("set_property", {}, "ok")
     assert mw.confidence == 0.0
 
 
