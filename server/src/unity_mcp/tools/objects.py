@@ -10,13 +10,14 @@ _args = None
 async def get_component(path: str, type: str, fields: str | None = None, full: bool = False, compress: bool = False) -> str:
     """Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.
     fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name.
-    full=True: bypass distillation, return raw response. compress=True: strip default values (C#-side) before transfer."""
+    full=True: bypass distillation, return raw response. compress=True: strip default values before transfer."""
     args: dict = {"path": path, "type": type}
     if full:
         args["_no_distill"] = True
     if compress:
         args["compress"] = "true"
     if fields:
+        args["_no_distill"] = True
         args["_no_strip"] = True
         result = await _send("get_component", args)
         return _project_fields(result, fields)
@@ -25,11 +26,12 @@ async def get_component(path: str, type: str, fields: str | None = None, full: b
 
 async def inspect(paths: str, components: str | None = None, fields: str | None = None, full: bool = False, compress: bool = False) -> str:
     """Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all).
-    fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values (C#-side) before transfer."""
+    fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer."""
     extra = {"_no_distill": True} if full else {}
     if compress:
         extra["compress"] = "true"
     if fields:
+        extra["_no_distill"] = True
         result = await _send("inspect", _args(paths=paths, components=components, _no_strip=True, **extra))
         return _project_fields(result, fields)
     return await _send("inspect", _args(paths=paths, components=components, **extra))
@@ -63,7 +65,7 @@ async def create_object(
     primitive: str | None = None, prefab_path: str | None = None,
     scene: str | None = None,
 ) -> str:
-    """Create new GameObject. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."""
+    """Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."""
     return await _send("create_object", _args(name=name, parent=parent, components=components,
                                               primitive=primitive, prefab_path=prefab_path,
                                               scene=scene))
@@ -146,7 +148,7 @@ async def set_property_delta(path: str, component: str, prop: str, delta: str) -
 
 
 async def set_parent(path: str, parent: str | None = None, world_position_stays: bool = True) -> str:
-    """Reparent existing GameObject. parent=null → move to scene root."""
+    """Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."""
     args = {"path": path, "world_position_stays": "true" if world_position_stays else "false"}
     if parent is not None:
         args["parent"] = parent
@@ -167,7 +169,7 @@ async def set_sibling_index(path: str, index: int) -> str:
 
 async def object_diff(path_a: str, path_b: str) -> str:
     """Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."""
-    return await _send("object_diff", {"pathA": path_a, "pathB": path_b})
+    return await _send("object_diff", {"path_a": path_a, "path_b": path_b})
 
 
 def register(mcp, send, args):

@@ -1035,3 +1035,40 @@ def test_corroborated_prefix_is_ascii(tmp_path):
     # Extract the prefix line
     first_line = result.split("\n")[0]
     first_line.encode("ascii")  # raises UnicodeEncodeError if non-ASCII present
+
+
+# ---------------------------------------------------------------------------
+# Phase 3c: compile_status gate on soft-warn
+# ---------------------------------------------------------------------------
+
+def test_corroborate_stale_dll_compile_status_idle_suppresses_soft_warn(tmp_path):
+    """Stale dll + compile_status='idle' → no soft warn (Unity compiled clean this session)."""
+    base_t = 1000000.0
+    _make_dll(tmp_path, base_t)
+    src = tmp_path / "src"
+    _make_cs(src, base_t + 200)  # cs newer → stale
+    log = _write_log(tmp_path, _bee_block(exit_code=0, output_lines=[""]))
+
+    from unity_mcp.editor_log import corroborate_compile_status
+    result = corroborate_compile_status(
+        "No compilation errors.", project_path=tmp_path, log_path=log,
+        source_dirs=[src], compile_status="idle",
+    )
+    assert "warn" not in result.lower()
+    assert "stale" not in result.lower()
+
+
+def test_corroborate_stale_dll_compile_status_idle_failed_fires_soft_warn(tmp_path):
+    """Stale dll + compile_status='idle-failed' → soft warn fires."""
+    base_t = 1000000.0
+    _make_dll(tmp_path, base_t)
+    src = tmp_path / "src"
+    _make_cs(src, base_t + 200)
+    log = _write_log(tmp_path, _bee_block(exit_code=0, output_lines=[""]))
+
+    from unity_mcp.editor_log import corroborate_compile_status
+    result = corroborate_compile_status(
+        "No compilation errors.", project_path=tmp_path, log_path=log,
+        source_dirs=[src], compile_status="idle-failed",
+    )
+    assert "warn" in result.lower() or "stale" in result.lower()

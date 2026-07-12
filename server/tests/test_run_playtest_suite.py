@@ -132,3 +132,79 @@ async def test_format_suite_report_unit():
     assert "a.playtest" in report
     assert "b.playtest" in report
     assert "ASSERT x==1 — FAIL" in report  # failure details included
+
+
+# ── Phase 7b: step_part only for failures ─────────────────────────────────────
+
+def test_format_ok_line_has_no_step_info():
+    """Phase 7b: passing tests show pure matrix line (no step counter)."""
+    results = [("Playtests/a.playtest", "PLAYTEST: 3/3 (1.0s)", 1.0, True)]
+    report = _format_suite_report(results, 1.0)
+    ok_line = [l for l in report.splitlines() if "a.playtest" in l][0]
+    assert "3/3" not in ok_line, f"Step info should not appear on OK line: {ok_line!r}"
+
+
+def test_format_fail_line_includes_step_info():
+    """Phase 7b: failing tests show step counter on the per-test row."""
+    raw = "PLAYTEST: 1/3 (2.0s)\n[2] ASSERT score == 10 — FAIL got 5"
+    results = [("Playtests/b.playtest", raw, 2.0, False)]
+    report = _format_suite_report(results, 2.0)
+    fail_line = [l for l in report.splitlines() if "b.playtest" in l][0]
+    assert "1/3" in fail_line, f"Step info missing from FAIL line: {fail_line!r}"
+
+
+# ── Phase 3a: auto_play param ─────────────────────────────────────────────────
+
+async def test_auto_play_false_does_not_call_editor(mock_bridge):
+    """auto_play=False (default): no editor calls before suite runs."""
+    files = ["a.playtest"]
+    mock_bridge.send.side_effect = _make_dispatch(files)
+    await run_playtest_suite("a.playtest", auto_play=False, stop_after=False)
+    editor_calls = [c for c in mock_bridge.send.call_args_list if c[0][0] == "editor"]
+    assert not editor_calls, "auto_play=False must not call editor"
+
+
+async def test_auto_play_true_enters_play_when_not_playing(mock_bridge):
+    """auto_play=True: calls editor(play) when state does not contain 'state: playing'."""
+    files = ["a.playtest"]
+    call_log = []
+
+    async def dispatch(cmd, args, timeout=30.0):
+        call_log.append((cmd, dict(args)))
+        if cmd == "list_playtest_files":
+            return {"ok": True, "data": "\n".join(files)}
+        if cmd == "editor":
+            action = args.get("action", "")
+            if action == "state":
+                # After play is called, return playing; before, return edit
+                played = any(a == "play" for _, a in [(c, d.get("action", "")) for c, d in call_log])
+                return {"ok": True, "data": "state: playing" if played else "state: edit"}
+            return {"ok": True, "data": "ok"}
+        if cmd == "run_playtest":
+            return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+        return {"ok": True, "data": "ok"}
+
+    mock_bridge.send.side_effect = dispatch
+    await run_playtest_suite("a.playtest", auto_play=True, stop_after=False)
+    play_calls = [(c, d) for c, d in call_log if c == "editor" and d.get("action") == "play"]
+    assert play_calls, "auto_play=True must call editor(action=play) when not playing"
+
+
+async def test_auto_play_true_skips_play_when_already_playing(mock_bridge):
+    """auto_play=True: does NOT call play when already in play mode."""
+    files = ["a.playtest"]
+
+    async def dispatch(cmd, args, timeout=30.0):
+        if cmd == "list_playtest_files":
+            return {"ok": True, "data": "\n".join(files)}
+        if cmd == "editor":
+            return {"ok": True, "data": "state: playing"}
+        if cmd == "run_playtest":
+            return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+        return {"ok": True, "data": "ok"}
+
+    mock_bridge.send.side_effect = dispatch
+    await run_playtest_suite("a.playtest", auto_play=True, stop_after=False)
+    play_calls = [c for c in mock_bridge.send.call_args_list
+                  if c[0][0] == "editor" and c[0][1].get("action") == "play"]
+    assert not play_calls, "auto_play=True must not call play when already playing"

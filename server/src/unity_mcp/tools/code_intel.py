@@ -62,10 +62,10 @@ async def await_compile(timeout: float = 60.0) -> str:
     Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'.
     Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop.
     Epoch-aware via sync_status when available (+10 from MAJOR-1); falls back to compile_status."""
-    async def _get_errors() -> str:
+    async def _get_errors(compile_status: str = "") -> str:
         # Sentinel-strip lives in get_corroborated_errors (P3 DRY).
         from .. import editor_log
-        return await editor_log.get_corroborated_errors(_send)
+        return await editor_log.get_corroborated_errors(_send, compile_status=compile_status)
 
     # timeout=0: single check, no loop
     # G13: only active compile states are "still compiling"; terminal states (idle-failed,
@@ -120,10 +120,10 @@ async def await_compile(timeout: float = 60.0) -> str:
                                 "STALE-DOMAIN: stamp unchanged after reload"
                                 " — old code may be live"
                             )
-                    errors = await _get_errors()
+                    errors = await _get_errors(compile_status="idle")
                     return errors if errors else "compile clean (sync)"
                 if st == "failed":
-                    errors = await _get_errors()
+                    errors = await _get_errors(compile_status="idle-failed")
                     return errors if errors else f"compile failed: {err}"
             # still compiling/reloading or epoch mismatch — poll
             await asyncio.sleep(1)
@@ -140,16 +140,16 @@ async def await_compile(timeout: float = 60.0) -> str:
         state, duration = _parse_status(status)
 
         if state == "idle-failed":
-            errors = await _get_errors()
+            errors = await _get_errors(compile_status="idle-failed")
             return errors if errors else f"compile failed ({duration:.1f}s)"
 
         if state == "idle-never":
             # Cold session — Unity never compiled this session; return immediately
-            errors = await _get_errors()
+            errors = await _get_errors(compile_status="idle-never")
             return errors if errors else "compile clean (never ran this session — idle-never)"
 
         if state == "idle":
-            errors = await _get_errors()
+            errors = await _get_errors(compile_status="idle")
             return errors if errors else f"compile clean ({duration}s)"
 
         # still compiling — poll

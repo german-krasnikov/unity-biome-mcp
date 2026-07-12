@@ -15,12 +15,31 @@ namespace UnityMCP.Editor
 
         private static Dictionary<string, string> _table;
         private static bool _hasLoaded;
+        private static int _cachedConfigAliasCount = -1;
+
+        [InitializeOnLoadMethod]
+        static void ResetAliasCountCache() { _cachedConfigAliasCount = -1; }
 
         /// <summary>True when the table was previously loaded but is now invalidated (stale).</summary>
         internal static bool IsStale => _hasLoaded && _table == null && _tableOverride == null;
 
         /// <summary>Count of cached alias entries (0 if not yet loaded).</summary>
         internal static int CachedAliasCount => (_tableOverride ?? _table)?.Count ?? 0;
+
+        /// <summary>Count aliases from PlaytestConfig assets. Result is cached until domain reload.</summary>
+        internal static int CountConfigAliases()
+        {
+            if (_cachedConfigAliasCount >= 0) return _cachedConfigAliasCount;
+            int count = 0;
+            foreach (var guid in AssetDatabase.FindAssets("t:PlaytestConfig"))
+            {
+                var cfg = AssetDatabase.LoadAssetAtPath<PlaytestConfig>(
+                    AssetDatabase.GUIDToAssetPath(guid));
+                if (cfg?.aliases != null) count += cfg.aliases.Count;
+            }
+            _cachedConfigAliasCount = count;
+            return count;
+        }
 
         /// <summary>Expand $sigils in a JSON args string. JSON-escapes replacement values.</summary>
         internal static string ExpandJson(string argsJson) => ExpandCore(argsJson, jsonEscape: true);
@@ -29,7 +48,7 @@ namespace UnityMCP.Editor
         internal static string ExpandText(string text) => ExpandCore(text, jsonEscape: false);
 
         /// <summary>Force cache reload on next call (called by AliasConfigPostprocessor).</summary>
-        internal static void Invalidate() => _table = null;
+        internal static void Invalidate() { _table = null; _cachedConfigAliasCount = -1; }
 
         private static string ExpandCore(string text, bool jsonEscape)
         {

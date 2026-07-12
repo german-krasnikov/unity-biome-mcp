@@ -60,11 +60,14 @@ def test_all_expected_categories_present():
 
 
 def test_core_category_has_expected_tools():
+    """Phase 1a: delete_object/scene/search_scene moved to SCENE tier1 (not CORE)."""
     from unity_mcp.tools.gating import get_catalog
     core_tools = get_catalog()["categories"]["CORE"]
     for tool in ("get_hierarchy", "get_component", "inspect", "batch", "set_property",
-                 "create_object", "delete_object", "manage_component", "scene", "search_scene"):
+                 "create_object", "manage_component"):
         assert tool in core_tools, f"Expected {tool!r} in CORE"
+    for tool in ("delete_object", "scene", "search_scene"):
+        assert tool not in core_tools, f"{tool!r} should be SCENE tier1, not CORE"
 
 
 # ---------------------------------------------------------------------------

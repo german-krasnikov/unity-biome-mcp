@@ -28,3 +28,41 @@ async def test_alias_status_sends_correct_command(mock_bridge, bridge_response):
     assert call_args[0] == "alias_status"
     assert call_args[1] == {}
     assert "count: 0" in result
+
+
+# ── Phase 7a: release_smoke ───────────────────────────────────────────────────
+
+async def test_release_smoke_registered_as_mcp_tool():
+    from unity_mcp.server import mcp
+    names = {t.name for t in mcp._tool_manager.list_tools()}
+    assert "release_smoke" in names
+
+
+async def test_release_smoke_returns_pass_when_all_ok():
+    """release_smoke returns PASS; compile leg calls code_intel.await_compile, not TCP."""
+    from unittest.mock import AsyncMock, patch
+    import unity_mcp.tools.meta as mod
+    mod._send = AsyncMock(return_value="ok: healthy")
+    with patch("unity_mcp.tools.code_intel.await_compile", AsyncMock(return_value="compile clean (0s)")):
+        result = await mod.release_smoke()
+    assert result.startswith("PASS"), f"Expected PASS, got: {result!r}"
+    assert "status: ok" in result
+    assert "aliases: ok" in result
+    assert "compile: ok" in result
+
+
+async def test_release_smoke_returns_fail_on_error():
+    """release_smoke returns FAIL when a C# command returns an error."""
+    from unittest.mock import AsyncMock, patch
+    import unity_mcp.tools.meta as mod
+
+    async def side_effect(cmd, args, **kw):
+        if cmd == "get_status":
+            return "err: unity not connected"
+        return "ok: healthy"
+
+    mod._send = side_effect
+    with patch("unity_mcp.tools.code_intel.await_compile", AsyncMock(return_value="compile clean (0s)")):
+        result = await mod.release_smoke()
+    assert result.startswith("FAIL"), f"Expected FAIL, got: {result!r}"
+    assert "status: FAIL" in result

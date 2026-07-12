@@ -16,12 +16,12 @@ async def create_ui(
     pivot: str | None = None,
     color: str | None = None,
     text: str | None = None,
-    fontSize: str | None = None,
+    font_size: str | None = None,
 ) -> str:
     """Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Auto-creates Canvas if needed."""
     return await _send("create_ui", _args(type=type, name=name, parent=parent, anchor=anchor,
                                           pos=pos, size=size, pivot=pivot, color=color,
-                                          text=text, fontSize=fontSize))
+                                          text=text, font_size=font_size))
 
 
 async def set_rect(
@@ -30,12 +30,12 @@ async def set_rect(
     pos: str | None = None,
     size: str | None = None,
     pivot: str | None = None,
-    offsetMin: str | None = None,
-    offsetMax: str | None = None,
+    offset_min: str | None = None,
+    offset_max: str | None = None,
 ) -> str:
     """Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y)."""
     return await _send("set_rect", _args(path=path, anchor=anchor, pos=pos, size=size,
-                                         pivot=pivot, offsetMin=offsetMin, offsetMax=offsetMax))
+                                         pivot=pivot, offset_min=offset_min, offset_max=offset_max))
 
 
 async def menu(action: str, path: str | None = None) -> str:

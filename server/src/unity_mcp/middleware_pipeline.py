@@ -269,7 +269,15 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
                 METRICS.inc("hinter.error")
 
         # Distill large reads (before prepend so warnings aren't distilled away)
-        result = await mw._maybe_distill(cmd, args, result, no_distill=_no_distill)
+        # Guard: extract [REFLECT:] lines so distiller cannot strip them, then re-append.
+        _reflect_lines = [l for l in result.splitlines() if l.startswith("[REFLECT:")]
+        if _reflect_lines:
+            _reflect_block = "\n".join(_reflect_lines)
+            _body = "\n".join(l for l in result.splitlines() if not l.startswith("[REFLECT:"))
+            _body = await mw._maybe_distill(cmd, args, _body, no_distill=_no_distill)
+            result = "\n".join(filter(None, [_body, _reflect_block]))
+        else:
+            result = await mw._maybe_distill(cmd, args, result, no_distill=_no_distill)
 
         # Prepend resolve marker if path was auto-disambiguated
         if resolve_marker:

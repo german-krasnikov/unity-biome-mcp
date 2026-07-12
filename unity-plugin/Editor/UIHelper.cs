@@ -33,7 +33,7 @@ namespace UnityMCP.Editor
 
         public static string CreateUI(string type, string name, string parent,
             string anchor, string pos, string size, string pivot,
-            string color, string text, string fontSize)
+            string color, string text, string font_size)
         {
             if (string.IsNullOrEmpty(type))
                 throw new ArgumentException("type is required");
@@ -44,8 +44,8 @@ namespace UnityMCP.Editor
             {
                 case "canvas":  return CreateCanvas(name);
                 case "panel":   return CreateElement(name, parent, anchor ?? "stretch", pos, size, pivot, color, "Image");
-                case "button":  return CreateButton(name, parent, anchor ?? "center", pos, size ?? "(160,30)", pivot, color, text, fontSize);
-                case "text":    return CreateText(name, parent, anchor ?? "center", pos, size ?? "(200,50)", pivot, color, text, fontSize);
+                case "button":  return CreateButton(name, parent, anchor ?? "center", pos, size ?? "(160,30)", pivot, color, text, font_size);
+                case "text":    return CreateText(name, parent, anchor ?? "center", pos, size ?? "(200,50)", pivot, color, text, font_size);
                 case "image":   return CreateImage(name, parent, anchor ?? "center", pos, size ?? "(100,100)", pivot, color);
                 default:
                     throw new ArgumentException($"Unknown UI type '{type}'. Valid: Canvas, Panel, Button, Text, Image.");
@@ -53,7 +53,7 @@ namespace UnityMCP.Editor
         }
 
         public static string SetRect(string path, string anchor, string pos, string size,
-            string pivot, string offsetMin, string offsetMax)
+            string pivot, string offset_min, string offset_max)
         {
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("path is required");
@@ -67,7 +67,7 @@ namespace UnityMCP.Editor
                 throw new ArgumentException($"No RectTransform on '{path}'. Use create_ui to create UI elements.");
 
             Undo.RecordObject(rt, "SetRect");
-            ApplyRect(rt, anchor, pos, size, pivot, offsetMin, offsetMax);
+            ApplyRect(rt, anchor, pos, size, pivot, offset_min, offset_max);
             return $"rect:{path} updated";
         }
 
@@ -105,7 +105,7 @@ namespace UnityMCP.Editor
         }
 
         private static string CreateButton(string name, string parent, string anchor,
-            string pos, string size, string pivot, string color, string text, string fontSize)
+            string pos, string size, string pivot, string color, string text, string font_size)
         {
             var parentGo = ResolveParent(parent);
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
@@ -125,13 +125,13 @@ namespace UnityMCP.Editor
             var textRt = textGo.GetComponent<RectTransform>();
             ApplyRect(textRt, "stretch", null, null, null, null, null);
 
-            AddTextComponent(textGo, text ?? name, fontSize, null);
+            AddTextComponent(textGo, text ?? name, font_size, null);
 
             return FormatCreated(go);
         }
 
         private static string CreateText(string name, string parent, string anchor,
-            string pos, string size, string pivot, string color, string text, string fontSize)
+            string pos, string size, string pivot, string color, string text, string font_size)
         {
             var parentGo = ResolveParent(parent);
             var go = new GameObject(name, typeof(RectTransform));
@@ -141,7 +141,7 @@ namespace UnityMCP.Editor
             var rt = go.GetComponent<RectTransform>();
             ApplyRect(rt, anchor, pos, size, pivot, null, null);
 
-            AddTextComponent(go, text ?? name, fontSize, color);
+            AddTextComponent(go, text ?? name, font_size, color);
 
             return FormatCreated(go);
         }
@@ -193,22 +193,22 @@ namespace UnityMCP.Editor
             Undo.RegisterCreatedObjectUndo(es, "Create EventSystem");
         }
 
-        private static void AddTextComponent(GameObject go, string text, string fontSize, string color)
+        private static void AddTextComponent(GameObject go, string text, string font_size, string color)
         {
             // Try TMPro first
             var tmpType = FindTMPTextType();
             if (tmpType != null)
             {
                 var comp = Undo.AddComponent(go, tmpType);
-                SetTMPText(comp, text, fontSize, color);
+                SetTMPText(comp, text, font_size, color);
                 return;
             }
             // Fallback to legacy Text
             var t = Undo.AddComponent<Text>(go);
             t.text = text ?? "";
             t.alignment = TextAnchor.MiddleCenter;
-            if (!string.IsNullOrEmpty(fontSize))
-                t.fontSize = int.Parse(fontSize);
+            if (!string.IsNullOrEmpty(font_size))
+                t.fontSize = int.Parse(font_size);
             if (!string.IsNullOrEmpty(color))
                 t.color = ValueParser.ParseColor(color);
         }
@@ -224,14 +224,14 @@ namespace UnityMCP.Editor
             return null;
         }
 
-        private static void SetTMPText(Component comp, string text, string fontSize, string color)
+        private static void SetTMPText(Component comp, string text, string font_size, string color)
         {
             var type = comp.GetType();
             EnsureTMPFont(comp, type);
             type.GetProperty("text")?.SetValue(comp, text ?? "");
             type.GetProperty("alignment")?.SetValue(comp, 514); // TextAlignmentOptions.Center
             type.GetProperty("isOrthographic")?.SetValue(comp, true);
-            if (!string.IsNullOrEmpty(fontSize) && int.TryParse(fontSize, out var fs))
+            if (!string.IsNullOrEmpty(font_size) && int.TryParse(font_size, out var fs))
                 type.GetProperty("fontSize")?.SetValue(comp, (float)fs);
             if (!string.IsNullOrEmpty(color))
                 type.GetProperty("color")?.SetValue(comp, ValueParser.ParseColor(color));
@@ -263,7 +263,7 @@ namespace UnityMCP.Editor
         }
 
         private static void ApplyRect(RectTransform rt, string anchor, string pos, string size,
-            string pivot, string offsetMin, string offsetMax)
+            string pivot, string offset_min, string offset_max)
         {
             if (!string.IsNullOrEmpty(anchor))
             {
@@ -280,10 +280,10 @@ namespace UnityMCP.Editor
                 rt.anchoredPosition = ValueParser.ParseVector2(pos);
             if (!string.IsNullOrEmpty(size))
                 rt.sizeDelta = ValueParser.ParseVector2(size);
-            if (!string.IsNullOrEmpty(offsetMin))
-                rt.offsetMin = ValueParser.ParseVector2(offsetMin);
-            if (!string.IsNullOrEmpty(offsetMax))
-                rt.offsetMax = ValueParser.ParseVector2(offsetMax);
+            if (!string.IsNullOrEmpty(offset_min))
+                rt.offsetMin = ValueParser.ParseVector2(offset_min);
+            if (!string.IsNullOrEmpty(offset_max))
+                rt.offsetMax = ValueParser.ParseVector2(offset_max);
         }
 
         private static string FormatCreated(GameObject go)

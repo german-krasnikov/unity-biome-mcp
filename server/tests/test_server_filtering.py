@@ -19,6 +19,7 @@ ALL_TOOLS = [_tool("get_hierarchy"), _tool("scene"), _tool("shader"), _tool("get
 # --- test _filter_tools fallback (gating only, no Unity cache) ---
 
 async def test_filter_tools_fallback_when_bridge_none():
+    """Phase 1b: get_enabled_tools demoted from TIER1; scene promoted (Phase 1a)."""
     import unity_mcp.server as srv
     orig = srv._disabled_tools_cache
     try:
@@ -26,7 +27,8 @@ async def test_filter_tools_fallback_when_bridge_none():
         result = await _filter_tools(ALL_TOOLS, None)
         names = {t.name for t in result}
         assert "get_hierarchy" in names
-        assert "get_enabled_tools" in names
+        assert "scene" in names  # tier1 after Phase 1a
+        assert "get_enabled_tools" not in names  # demoted to Tier2 in Phase 1b
         assert "shader" not in names  # gated out (not in TIER1)
     finally:
         srv._disabled_tools_cache = orig

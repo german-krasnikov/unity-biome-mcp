@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.84.0] — 2026-07-12 — Release stabilization: CORE 15→11, tier restructure, P0 fixes, token economy
+
+**Phase 1 — CORE/TIER Restructuring:**
+- CORE shrunk from 15 → 11: `delete_object`, `set_parent`, `scene`, `search_scene` demoted to TIER1 SCENE.
+- TIER1 total: 46 always-visible tools (previously 59).
+- Promoted to TIER1: `set_active`, `validate_references`, `execute_code`, `undo_last`.
+- `run_playtest_file` deprecated (still functional; description says DEPRECATED — use `run_playtest path=`).
+- 8 categories preserved: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM.
+
+**Phase 2 — Description Standardization:**
+- 7 CORE tool descriptions rewritten with anti-hallucination cross-references.
+- 15 old uppercase alias keys (`SCENE_EDIT`, `ANIMATION`, `SHADERS_MATERIAL`, etc.) → `DeprecationWarning` on use.
+- Description template: `[Imperative verb]. [NOT for X — use Y]. [enum]: a|b|c. [non-obvious param].`
+
+**Phase 3 — P0 Fixes:**
+- `await_compile`: stale false-positive fixed — gated on `compile_status` before polling.
+- `mcp_status` alias count: now uses `CountConfigAliases()` (cached, O(1) on hot path).
+- `run_playtest_suite`: gained `auto_play=False` param — does not enter Play Mode by default.
+- Lint no-evidence severity: `WARN` → `ERROR`.
+- Schema drift guard test added (`test_schema_drift.py`).
+
+**Phase 4 — Parameter Consistency (BREAKING):**
+- `create_ui` / `set_rect`: `fontSize`→`font_size`, `offsetMin`→`offset_min`, `offsetMax`→`offset_max`.
+- `object_diff`: `pathA`/`pathB` → `path_a`/`path_b`.
+- Both Python tool signatures and C# command parsers updated.
+
+**Phase 5 — Middleware:**
+- `check_verification_needed` threshold: 5 → 10 (reduces spurious verification prompts).
+- `delete_object` blast_radius: 3 → 4 (wider safety net).
+- REFLECT lines excluded from distillation (bug fix — was polluting distilled output).
+
+**Phase 6 — Token Economy:**
+- `get_component` / `inspect`: `_no_distill=True` automatically set when `fields=` provided.
+- `get_perf` deprecated → redirects to `get_frame_stats` with a deprecation notice.
+- `get_frame_stats`: gained `include=` param for filtering returned fields.
+
+**Phase 7 — P1 Additions:**
+- New tool: `release_smoke` (TIER1, SYSTEM) — runs status + aliases + compile gates in one call.
+- `run_playtest_suite`: failure-only verbose report — matrix row for PASS, full block for FAIL.
+
 ## [v0.83.0] — 2026-07-11 — MCP tool restructuring: 8-category taxonomy + write classification
 
 **Added:**

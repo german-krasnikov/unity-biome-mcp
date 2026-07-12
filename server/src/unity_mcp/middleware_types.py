@@ -10,7 +10,7 @@ BLAST_RADIUS = {
     "query_state": 0, "get_object_detail": 0, "find_objects": 0,
     "set_property": 1, "set_active": 1, "set_material": 1, "set_runtime_property": 1,
     "create_object": 2, "manage_component": 2, "wire_event": 2,
-    "delete_object": 3, "scene": 3, "batch": 3,
+    "delete_object": 4, "scene": 3, "batch": 3,
 }
 
 # Derived from _SPECS — tool_specs.py is now the single source of truth.

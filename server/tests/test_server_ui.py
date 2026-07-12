@@ -15,14 +15,14 @@ async def test_create_ui_minimal(mock_bridge):
 async def test_create_ui_all_args(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Created /Canvas/Btn"})
     await create_ui(type="Button", name="Btn", parent="/Canvas", anchor="center",
-                    pos="(0,0)", size="(200,50)", color="#FF0000", text="GO", fontSize="24")
+                    pos="(0,0)", size="(200,50)", color="#FF0000", text="GO", font_size="24")
     args = mock_bridge.send.call_args[0][1]
     assert args["type"] == "Button"
     assert args["name"] == "Btn"
     assert args["parent"] == "/Canvas"
     assert args["anchor"] == "center"
     assert args["text"] == "GO"
-    assert args["fontSize"] == "24"
+    assert args["font_size"] == "24"
 
 
 async def test_create_ui_error(mock_bridge):
@@ -50,12 +50,12 @@ async def test_set_rect_minimal(mock_bridge):
 async def test_set_rect_all_args(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "rect:/X updated"})
     await set_rect(path="/X", anchor="top-left", pos="(10,20)", size="(100,50)",
-                   pivot="(0,1)", offsetMin="(5,5)", offsetMax="(-5,-5)")
+                   pivot="(0,1)", offset_min="(5,5)", offset_max="(-5,-5)")
     args = mock_bridge.send.call_args[0][1]
     assert args["path"] == "/X"
     assert args["anchor"] == "top-left"
-    assert args["offsetMin"] == "(5,5)"
-    assert args["offsetMax"] == "(-5,-5)"
+    assert args["offset_min"] == "(5,5)"
+    assert args["offset_max"] == "(-5,-5)"
 
 
 async def test_set_rect_error(mock_bridge):
@@ -70,7 +70,7 @@ async def test_set_rect_none_args_omitted(mock_bridge):
     args = mock_bridge.send.call_args[0][1]
     assert "anchor" not in args
     assert "size" not in args
-    assert "offsetMin" not in args
+    assert "offset_min" not in args
 
 
 async def test_set_material_success(mock_bridge):

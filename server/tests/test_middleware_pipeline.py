@@ -1,5 +1,6 @@
 """Tests for wrap_send dict-response extraction — specifically the file+data path."""
 import os
+import pytest
 from unittest.mock import AsyncMock, patch
 from unity_mcp.middleware_pipeline import wrap_send
 
@@ -126,3 +127,57 @@ async def test_wrapped_send_unwraps_raw_dict_result_not_ok():
     wrapped = wrap_send(fake_send)
     result = await wrapped("get_console", {})
     assert result == "boom"
+
+
+# ── Phase 5c: REFLECT lines survive distillation ─────────────────────────────
+
+async def test_reflect_lines_preserved_when_distill_strips(monkeypatch):
+    """[REFLECT:] annotation added after TCP call must survive _maybe_distill.
+
+    Regression guard: distiller previously received result containing [REFLECT:]
+    and could strip it as noise. Fix: extract before distill, re-append after.
+    """
+    monkeypatch.setenv("UNITY_MCP_VALIDATE", "0")
+    monkeypatch.setenv("UNITY_MCP_REFLECT", "1")
+    monkeypatch.setenv("UNITY_MCP_PREFETCH_CACHE", "0")
+
+    from unity_mcp.middleware import Middleware, wrap_send as mw_wrap_send
+
+    mw = Middleware()
+    mw._distiller_enabled = True
+
+    async def fake_send(cmd, args, timeout=30.0):
+        return "set_property result: ok"
+
+    # Distiller that strips everything
+    async def stripping_distill(cmd, args, result, no_distill=False):
+        return "distilled"
+
+    mw._maybe_distill = stripping_distill
+
+    # Reflect that always reports a mismatch
+    async def fake_reflect(cmd, args, result, send_fn):
+        from collections import namedtuple
+        Mismatch = namedtuple("Mismatch", ["msg"])
+        return Mismatch(msg="expected 5 got 3")
+
+    monkeypatch.setattr("unity_mcp.middleware_pipeline.WRITE_CMDS", {"set_property"})
+
+    import unity_mcp.middleware_pipeline as _pl
+    _orig_reflect_module = None
+    try:
+        import unity_mcp.reflect as _reflect_mod
+        _orig = _reflect_mod.reflect
+        _reflect_mod.reflect = fake_reflect
+    except Exception:
+        pytest.skip("reflect module not available")
+
+    try:
+        wrapped = mw_wrap_send(fake_send, mw)
+        result = await wrapped("set_property", {"path": "/A", "prop": "x", "value": "1",
+                                                 "_no_validate": True})
+        assert "[REFLECT:" in result, (
+            f"[REFLECT:] line was stripped by distiller. Got: {result!r}"
+        )
+    finally:
+        _reflect_mod.reflect = _orig

@@ -227,7 +227,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "pivot"),
                 JsonHelper.ExtractString(args, "color"),
                 JsonHelper.ExtractString(args, "text"),
-                JsonHelper.ExtractString(args, "fontSize"));
+                JsonHelper.ExtractString(args, "font_size"));
         }
 
         private static string ExecSetRect(string args)
@@ -238,8 +238,8 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "pos"),
                 JsonHelper.ExtractString(args, "size"),
                 JsonHelper.ExtractString(args, "pivot"),
-                JsonHelper.ExtractString(args, "offsetMin"),
-                JsonHelper.ExtractString(args, "offsetMax"));
+                JsonHelper.ExtractString(args, "offset_min"),
+                JsonHelper.ExtractString(args, "offset_max"));
         }
 
         private static string ExecEditor(string args)

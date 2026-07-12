@@ -98,7 +98,7 @@ namespace UnityMCP.Editor
 
                 bool hasEvidence = parsed.Steps.Any(s => _evidenceTypes.Contains(s.Type));
                 if (!hasEvidence)
-                    issues.Add(Issue("WARN", fileLabel, 0,
+                    issues.Add(Issue("ERROR", fileLabel, 0,
                         "no evidence commands (ASSERT/WAIT_UNTIL/ASSERT_CONSOLE_CLEAN/ASSERT_BATCH/ASSERT_CAPTURED)"));
 
                 if (hasEvidence && !HasCleanup(parsed))

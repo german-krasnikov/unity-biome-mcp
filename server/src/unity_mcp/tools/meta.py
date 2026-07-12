@@ -11,6 +11,7 @@ from .gating import discover_tools as _discover_tools_impl
 from .schema_registry import _registry as _schema_registry
 from ..doctor import run_doctor, format_report
 from ..llm_config import parse_tcp_config, apply_config
+from . import code_intel as _ci
 
 _send = None
 _args = None
@@ -62,6 +63,23 @@ async def mcp_status() -> str:
     return await _send("get_status", {})
 
 
+async def release_smoke() -> str:
+    """Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary."""
+    results = []
+
+    status = await _send("get_status", {})
+    results.append(f"status: {'ok' if 'err' not in status.lower() else 'FAIL'}")
+
+    aliases = await _send("alias_status", {})
+    results.append(f"aliases: {'ok' if 'err' not in aliases.lower() else 'FAIL'}")
+
+    compile_r = await _ci.await_compile(timeout=10.0)
+    results.append(f"compile: {'ok' if not compile_r or 'clean' in compile_r.lower() else 'FAIL'}")
+
+    passed = all("FAIL" not in r for r in results)
+    return f"{'PASS' if passed else 'FAIL'}\n" + "\n".join(results)
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool()(discover_tools)
@@ -70,3 +88,4 @@ def register(mcp, send, args):
     mcp.tool()(set_llm_config)
     mcp.tool(annotations=_RO)(alias_status)
     mcp.tool(annotations=_RO)(mcp_status)
+    mcp.tool(annotations=_RO)(release_smoke)

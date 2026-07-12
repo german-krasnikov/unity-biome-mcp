@@ -98,8 +98,9 @@ def corroborate_compile_status(
             # Both signals confirmed (+ optional idle-failed agreement) → genuine stale dll.
             return "[editor.log - dll stale]\n" + "\n".join(log_errors)
 
-    if fresh is False:
+    if fresh is False and compile_status != "idle":
         # Stale dll but no log errors → soft warn only.
+        # Suppressed when compile_status="idle": Unity compiled clean this session, log is stale.
         return csharp_response + "\n[warn: UnityMCP.Editor.dll may be stale - consider recompiling]"
 
     return csharp_response
@@ -120,27 +121,29 @@ def init_corroboration(port: "int | None" = None) -> None:
     _cor_source_files = find_plugin_source_files()
 
 
-def corroborate(csharp_response: str) -> str:
+def corroborate(csharp_response: str, compile_status: str = "") -> str:
     """Corroborate using cached project/log/source_files set by init_corroboration()."""
     return corroborate_compile_status(
         csharp_response,
         _cor_project_path,
         _cor_log_path,
         source_files=_cor_source_files,
+        compile_status=compile_status,
     )
 
 
-async def get_corroborated_errors(send) -> str:
+async def get_corroborated_errors(send, compile_status: str = "") -> str:
     """Shared helper: get compile errors from C#, corroborate, strip clean sentinel.
 
     Sentinel-strip lives in exactly one place (P3). Both sync.py and code_intel.py
     import this. Returns "" when C# says "No compilation errors" and log agrees.
+    compile_status: passed to corroborate to gate soft-warn (e.g. "idle" suppresses it).
     """
     try:
         csharp = await send("get_compile_errors", {})
     except ConnectionError:
         return ""
-    out = corroborate(csharp)
+    out = corroborate(csharp, compile_status=compile_status)
     # Strip the clean sentinel — it's not an error payload.
     if csharp.strip() == "No compilation errors" and out == csharp:
         return ""

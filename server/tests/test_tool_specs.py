@@ -32,8 +32,8 @@ def test_internal_commands_present_and_excluded_from_core_tier1():
 
 def test_core_tools_have_core_true_and_core_category():
     from unity_mcp.tools.tool_specs import _SPECS
-    # 15 CORE tools after Phase 2 (discover_tools/doctor/reconnect_unity etc. demoted)
-    for name in ("get_hierarchy", "batch", "set_property", "scene"):
+    # 11 CORE tools after Phase 1a (scene/search_scene/delete_object/set_parent moved to SCENE tier1)
+    for name in ("get_hierarchy", "batch", "set_property", "do"):
         spec = _SPECS[name]
         assert spec.core is True
         assert spec.category == "CORE"
@@ -63,3 +63,9 @@ def test_custom_timeout_preserved():
     assert _SPECS["run_tests"].timeout_s == 300.0
     assert _SPECS["ping"].timeout_s == 5.0
     assert _SPECS["get_console"].timeout_s == 10.0
+
+
+def test_core_count_is_11():
+    """Phase 1a: CORE shrunk from 15 to 11 (delete_object/set_parent/scene/search_scene demoted)."""
+    from unity_mcp.tools.tool_specs import _SPECS
+    assert sum(1 for s in _SPECS.values() if s.core) == 11

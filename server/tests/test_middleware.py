@@ -409,6 +409,13 @@ def test_blast_radius_table_has_entries():
     assert BLAST_RADIUS["get_hierarchy"] == 0
 
 
+def test_blast_radius_delete_object_is_4_scene_batch_still_3():
+    """Phase 5b: delete_object raised to 4; scene/batch stay at 3."""
+    assert BLAST_RADIUS["delete_object"] == 4
+    assert BLAST_RADIUS["scene"] == 3
+    assert BLAST_RADIUS["batch"] == 3
+
+
 # ─── P2: Readonly-batch blast-radius suppression ─────────────────────────────
 
 def test_is_batch_readonly_all_reads():
@@ -459,16 +466,16 @@ def test_transition_readonly_batch_resets_consecutive_writes(mw):
 
 # ─── Feature 6 (new): Incremental Verification ───────────────────────────────
 
-def test_verification_checkpoint_every_5(mw):
-    for _ in range(4):
+def test_verification_checkpoint_every_10(mw):
+    for _ in range(9):
         mw.check_verification_needed("set_property")
     result = mw.check_verification_needed("set_property")
     assert result is not None
     assert "VERIFICATION" in result
 
 
-def test_verification_no_warn_before_5(mw):
-    for _ in range(4):
+def test_verification_no_warn_before_10(mw):
+    for _ in range(9):
         result = mw.check_verification_needed("set_property")
     assert result is None
 

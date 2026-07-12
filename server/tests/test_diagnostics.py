@@ -8,7 +8,7 @@ async def test_get_perf_sends_correct_command():
     import unity_mcp.tools.diagnostics as mod
     mod._send = AsyncMock(return_value="fps=60 dt=16.7ms\nmono=12MB/32MB")
     result = await mod.get_perf()
-    mod._send.assert_called_once_with("get_perf", {})
+    mod._send.assert_called_once_with("get_frame_stats", {})
     assert isinstance(result, str)
 
 

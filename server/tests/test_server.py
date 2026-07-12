@@ -1039,7 +1039,7 @@ async def test_object_diff_sends_args(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "= (identical)"})
     result = await object_diff(path_a="/Alice", path_b="SceneB:/Alice")
     mock_bridge.send.assert_called_once_with(
-        "object_diff", {"pathA": "/Alice", "pathB": "SceneB:/Alice"}, timeout=30.0
+        "object_diff", {"path_a": "/Alice", "path_b": "SceneB:/Alice"}, timeout=30.0
     )
     assert "identical" in result
 

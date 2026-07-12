@@ -165,9 +165,8 @@ async def run_playtest_file(
     defs: "str | None" = None,
     snapshot_on_failure: bool = False,
 ) -> str:
-    """[Play Mode] Run a .playtest file by project-relative path.
+    """DEPRECATED: use run_playtest(path=...) instead. Runs a .playtest file by project-relative path.
     path: project-relative path to .playtest file (e.g. 'Playtests/farm_pipeline_early.playtest').
-    Mutually exclusive with run_playtest script= parameter.
     Missing file returns a clear error. Path traversal (../) is rejected by Unity.
     defs: optional inline VAL definitions prepended before the file script.
     abort_on_fail=True: stops Play Mode on step timeout.
@@ -190,13 +189,28 @@ async def run_playtest_suite(
     timeout_per_test: float = 120.0,
     stop_on_fail: bool = False,
     stop_after: bool = True,
+    auto_play: bool = False,
 ) -> str:
     """[Play Mode] Run multiple .playtest files sequentially and return a compact matrix.
     paths: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,
            or newline-separated list of project-relative paths.
     stop_on_fail=True: abort suite after first failure.
     stop_after=True: exit Play Mode when suite completes.
+    auto_play=True: enter Play Mode automatically if not already playing.
     Output: SUITE: X/Y passed (Zs) + per-file line + full failure details."""
+    if auto_play:
+        import asyncio as _asyncio
+        state = await _send("editor", _args(action="state"), timeout=5.0)
+        _lower = state.lower()
+        if "state: playing" not in _lower and "state: paused" not in _lower:
+            await _send("editor", _args(action="play"), timeout=5.0)
+            for _ in range(15):
+                await _asyncio.sleep(1.0)
+                state = await _send("editor", _args(action="state"), timeout=5.0)
+                _lower = state.lower()
+                if "state: playing" in _lower or "state: paused" in _lower:
+                    break
+
     if "*" in paths or "?" in paths:
         file_list_raw = await _send("list_playtest_files", _args(pattern=paths), timeout=10.0)
         if file_list_raw.startswith("err:") or file_list_raw == "no files":
@@ -239,23 +253,24 @@ run_playtest_suite.__test__ = False  # prevent pytest from collecting as test
 
 
 def _format_suite_report(results, total_elapsed):
-    """Compact matrix: OK lines + full block for each failure."""
+    """Compact matrix: OK → one line. FAIL → one line with step info + full block."""
+    import re as _re
     passed_count = sum(1 for _, _, _, ok in results if ok)
     total = len(results)
     lines = [f"SUITE: {passed_count}/{total} passed ({total_elapsed:.1f}s)"]
     failures = []
     for filepath, raw, elapsed, ok in results:
         name = filepath.rsplit("/", 1)[-1]
-        first_line = raw.split("\n")[0] if raw else ""
-        step_part = ""
-        if "/" in first_line:
-            import re as _re
-            m = _re.search(r"(\d+/\d+)", first_line)
-            if m:
-                step_part = f"  {m.group(1)}"
-        status = "OK  " if ok else "FAIL"
-        lines.append(f"{status} {elapsed:5.1f}s  {name}{step_part}")
-        if not ok:
+        if ok:
+            lines.append(f"OK   {elapsed:5.1f}s  {name}")
+        else:
+            first_line = raw.split("\n")[0] if raw else ""
+            step_part = ""
+            if "/" in first_line:
+                m = _re.search(r"(\d+/\d+)", first_line)
+                if m:
+                    step_part = f"  {m.group(1)}"
+            lines.append(f"FAIL {elapsed:5.1f}s  {name}{step_part}")
             failures.append(f"\n--- {name} ---\n{raw}")
     lines.extend(failures)
     return "\n".join(lines)
@@ -366,7 +381,7 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RO)(query_state)
     mcp.tool(annotations=_RW)(test_step)
     mcp.tool(annotations=_RW)(run_playtest)
-    mcp.tool(annotations=_RW)(run_playtest_file)
+    mcp.tool(annotations=_RW)(run_playtest_file)  # deprecated alias
     mcp.tool(annotations=_RW)(run_playtest_suite)
     mcp.tool(annotations=_RO)(lint_playtest)
     mcp.tool(annotations=_RO)(lint_playtest_suite)

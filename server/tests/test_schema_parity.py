@@ -70,6 +70,8 @@ _PYTHON_ONLY = {
     "verify_after_change",
     # Transaction orchestrators — pure Python, delegate to existing C# commands
     "scene_change_plan", "apply_scene_change",
+    # Release orchestrator — composite of C# reads, no C# registration
+    "release_smoke",
 }
 
 

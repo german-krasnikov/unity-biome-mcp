@@ -6,8 +6,8 @@ _send = None
 
 
 async def get_perf() -> str:
-    """[Play Mode] Snapshot FPS, frame time, Mono memory, and GC stats."""
-    return await _send("get_perf", {})
+    """[Play Mode] Deprecated — redirects to get_frame_stats. Use get_frame_stats directly."""
+    return await _send("get_frame_stats", {})
 
 
 async def debug_animator(path: str) -> str:

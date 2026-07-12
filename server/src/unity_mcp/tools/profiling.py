@@ -6,9 +6,11 @@ _send = None
 _args = None
 
 
-async def get_frame_stats() -> str:
-    """Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed."""
-    return await _send("get_frame_stats", {})
+async def get_frame_stats(include: str = "") -> str:
+    """Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed.
+    include: narrow output — e.g. 'gc' for GC stats only."""
+    extra = {"include": include} if include else {}
+    return await _send("get_frame_stats", extra)
 
 
 async def profile(

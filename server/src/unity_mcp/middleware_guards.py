@@ -103,7 +103,7 @@ class MiddlewareGuardsMixin:
             return None
         if is_write(cmd, args):
             self._mutation_count += 1
-            if self._mutation_count % 5 == 0:
+            if self._mutation_count % 10 == 0:
                 return f"⚡ VERIFICATION CHECKPOINT ({self._mutation_count} mutations): verify state is consistent with goal before continuing."
         return None
 

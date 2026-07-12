@@ -81,7 +81,7 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"playing={UnityEditor.EditorApplication.isPlaying}");
                 sb.AppendLine($"compiling={UnityEditor.EditorApplication.isCompiling}");
                 sb.AppendLine($"port={MCPServer.ServerPort}");
-                sb.AppendLine($"aliases={AliasExpander.CachedAliasCount}");
+                sb.AppendLine($"aliases={AliasExpander.CountConfigAliases()}");
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
@@ -206,9 +206,9 @@ namespace UnityMCP.Editor
                 required: "query", optional: "root,limit,scene",
                 maxResponseChars: 30000);
             CommandRegistry.Register("object_diff", args => ObjectDiffHelper.Diff(
-                JsonHelper.ExtractString(args, "pathA"),
-                JsonHelper.ExtractString(args, "pathB")),
-                required: "pathA,pathB", optional: "");
+                JsonHelper.ExtractString(args, "path_a"),
+                JsonHelper.ExtractString(args, "path_b")),
+                required: "path_a,path_b", optional: "");
             CommandRegistry.Register("editor", ExecEditor,
                 required: "", optional: "action,path");
             CommandRegistry.Register("ping_object", args =>
@@ -434,9 +434,9 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("references", ExecReferencesConsolidated, mutating: true,
                 required: "action", optional: "path,children,depth,source,target,mappings");
             CommandRegistry.Register("create_ui", ExecCreateUI, mutating: true,
-                required: "type", optional: "name,parent,anchor,pos,size,pivot,color,text,fontSize");
+                required: "type", optional: "name,parent,anchor,pos,size,pivot,color,text,font_size");
             CommandRegistry.Register("set_rect", ExecSetRect, mutating: true,
-                required: "path", optional: "anchor,pos,size,pivot,offsetMin,offsetMax");
+                required: "path", optional: "anchor,pos,size,pivot,offset_min,offset_max");
             CommandRegistry.Register("animator", ExecAnimatorConsolidated, mutating: true,
                 required: "action,path", optional: "state,states,params,source,target,conditions,duration,exit_time,has_exit_time,type,name,blend_type,param,param_y,children,edit_action,layer,weight,blending,value,avatar_path");
             CommandRegistry.Register("particle", ExecParticleConsolidated, mutating: true,

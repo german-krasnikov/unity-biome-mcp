@@ -121,10 +121,12 @@ async def test_discover_tools_browse_only():
 # --- TDD: runtime tools in TIER1 ---
 
 def test_runtime_tools_in_tier1():
+    """Phase 1b: runtime-only tools demoted from TIER1; only run_playtest stays."""
     from unity_mcp.tools.gating import TIER1
-    for name in ("invoke_method", "run_playtest", "query_state", "wait_until", "move_to",
+    assert "run_playtest" in TIER1
+    for name in ("invoke_method", "query_state", "wait_until", "move_to",
                  "set_runtime_property", "test_step"):
-        assert name in TIER1, f"{name} missing from TIER1"
+        assert name not in TIER1, f"{name} should be demoted from TIER1"
 
 
 def test_batch_allows_invoke_method():
@@ -357,11 +359,11 @@ def test_reconnect_unity_in_tier1_not_core():
     assert "reconnect_unity" in TIER1
 
 
-def test_list_connections_in_tier1_not_core():
-    """list_connections demoted from CORE to SYSTEM tier1 (Phase 2)."""
+def test_list_connections_not_core_not_tier1():
+    """list_connections demoted from CORE (Phase 2) then from TIER1 (Phase 1b)."""
     from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
     assert "list_connections" not in _CORE_TOOLS
-    assert "list_connections" in TIER1
+    assert "list_connections" not in TIER1
 
 
 def test_reconnect_unity_survives_filter_when_disabled_cache_cold():
@@ -373,13 +375,13 @@ def test_reconnect_unity_survives_filter_when_disabled_cache_cold():
     assert result == [tool], "reconnect_unity must survive filter_by_tier with cold session"
 
 
-def test_list_connections_survives_filter_when_disabled_cache_cold():
-    """list_connections is tier1 — visible even with a cold session-enable cache."""
+def test_list_connections_hidden_without_enable():
+    """list_connections demoted to Tier2 (Phase 1b) — hidden by default, requires category enable."""
     from unity_mcp.tools import gating
     gating.reset()
     tool = _make_tool("list_connections")
     result = gating.filter_by_tier([tool])
-    assert result == [tool], "list_connections must survive filter_by_tier with cold session"
+    assert result == [], "list_connections must be gated after Phase 1b demotion"
 
 
 # --- TDD audit PY3.test.1/2 + PY2.arch.2: themed tools hidden by default ---
@@ -496,22 +498,22 @@ def test_tier1_is_superset_of_core_tools():
 
 
 def test_tier1_residual_names_still_present():
-    """Regression: the genuinely tier1-only names (not in _CORE_TOOLS) must survive the
-    literal→union refactor untouched. animator_intent/vfx_intent/ui_intent are
-    deliberately EXCLUDED — Fix 1 removed them from TIER1 (they are themed VFX/UI/META
-    tools, not always-on core). set_properties is ALSO deliberately excluded — B4b
-    demoted it to Tier2 (superseded by configure_objects)."""
+    """Regression: tier1-only names (not in _CORE_TOOLS) must survive refactors.
+    Phase 1a: delete_object/set_parent/scene/search_scene demoted from CORE, now tier1-only.
+    Phase 1b: runtime tools (invoke_method etc.) demoted from TIER1 entirely;
+    set_active/validate_references/execute_code/undo_last promoted to tier1."""
     from unity_mcp.tools.gating import TIER1, _CORE_TOOLS
     residual_expected = {
         "screenshot", "run_tests", "setup_objects", "configure_objects",
-        "compile_preflight", "await_compile", "sync_unity",
-        "invoke_method", "set_runtime_property", "wait_until", "move_to", "query_state",
-        "test_step", "run_playtest",
+        "compile_preflight", "await_compile", "sync_unity", "run_playtest",
+        # Phase 1a demotions from CORE → now tier1-only
+        "delete_object", "set_parent", "scene", "search_scene",
+        # Phase 1b promotions
+        "set_active", "validate_references", "execute_code", "undo_last",
     }
     missing = residual_expected - TIER1
     assert not missing, f"TIER1-only names dropped by refactor: {sorted(missing)}"
-    # Sanity: none of the residual names were accidentally already in _CORE_TOOLS
-    # (that would mean they're not genuinely tier1-only information).
+    # Sanity: none of the residual names accidentally ended up back in _CORE_TOOLS
     assert not (residual_expected & _CORE_TOOLS)
 
 
@@ -622,9 +624,10 @@ def test_all_registered_tools_are_known_to_gating():
 
 # --- Phase 2: new taxonomy tests ---
 
-def test_core_count_is_15():
+def test_core_count_is_11():
+    """Phase 1a: CORE shrunk from 15 to 11 (delete_object/set_parent/scene/search_scene → tier1)."""
     from unity_mcp.tools.gating import _CORE_TOOLS
-    assert len(_CORE_TOOLS) == 15
+    assert len(_CORE_TOOLS) == 11
 
 
 def test_no_orphan():
@@ -668,9 +671,11 @@ def test_catalog_has_8_themed_categories():
 
 
 def test_demoted_tools_are_tier1_not_core():
+    """Phase 2: these tools moved from CORE to SYSTEM tier1. doctor/list_connections/get_enabled_tools
+    further demoted to Tier2 in Phase 1b — excluded from this set."""
     from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
-    demoted = {"ask", "ask_user", "discover_tools", "doctor", "get_enabled_tools",
-               "list_connections", "permission_prompt", "reconnect_unity", "resolve_tool_schema"}
+    demoted = {"ask", "ask_user", "discover_tools", "permission_prompt",
+               "reconnect_unity", "resolve_tool_schema"}
     assert not any(t in _CORE_TOOLS for t in demoted)
     assert all(t in TIER1 for t in demoted)
 

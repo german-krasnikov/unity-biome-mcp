@@ -103,7 +103,7 @@ def build_ui_batch(nodes: list[dict], parent: Optional[str]) -> list[str]:
         if "text" in attrs:
             create_args["text"] = attrs["text"]
         if "fontSize" in attrs:
-            create_args["fontSize"] = attrs["fontSize"]
+            create_args["font_size"] = attrs["fontSize"]
         lines.append(build_batch_line("create_ui", **create_args))
 
         # set_rect for anchor/pos/size

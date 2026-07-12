@@ -24,7 +24,7 @@ async def _get_scene_brief() -> str:
 
 
 async def do(intent: str, dry_run: bool = False) -> str:
-    """Convert natural language intent into Unity scene operations.
+    """Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly.
 
     Haiku generates a batch DSL plan, which is validated then executed.
     dry_run=True returns the plan without executing it.

@@ -1,33 +1,40 @@
 """M8 characterization test — golden snapshot of gating.py's derived collections.
 
 Phase 2 update: CORE shrunk from 24 to 15 (9 tools demoted to SYSTEM tier1).
+Phase 1a update: CORE shrunk from 15 to 11 (delete_object/set_parent/scene/search_scene → SCENE tier1).
+Phase 1b update: runtime tools demoted; set_active/validate_references/execute_code/undo_last promoted.
+Phase 1c update: run_playtest_file removed, then re-added in v0.84 as deprecated MCP alias.
 18 themed categories replaced with 8 task-oriented ones.
 """
 
 _CORE_TOOLS_SNAPSHOT = frozenset({
-    "batch", "create_object", "delete_object", "do", "editor",
+    # Phase 1a: delete_object/set_parent/scene/search_scene moved to SCENE tier1
+    "batch", "create_object", "do", "editor",
     "get_compile_errors", "get_component", "get_console", "get_hierarchy",
-    "inspect", "manage_component", "scene", "search_scene", "set_parent", "set_property",
+    "inspect", "manage_component", "set_property",
 })
 
 _TIER1_SNAPSHOT = frozenset({
-    "alias_status",
-    "apply_scene_change", "ask", "ask_user", "await_compile", "batch", "compile_preflight",
-    "configure_objects", "console_mark", "create_object", "delete_object", "discover_tools", "do",
-    "doctor", "editor", "get_compile_errors", "get_component",
-    "get_console", "get_console_since", "get_enabled_tools", "get_hierarchy", "get_test_progress",
-    "get_test_results", "inspect", "invoke_method", "list_connections",
-    "manage_component", "mcp_status", "move_to",
-    "permission_prompt", "query_state", "reconnect_unity", "resolve_scene_refs", "resolve_tool_schema",
-    "export_playtest_aliases_to_defs",
-    "lint_playtest", "lint_playtest_suite", "lint_scene_refs",
-    "run_playtest", "run_playtest_file", "run_playtest_suite",
-    "run_tests", "run_tests_wait", "scene", "screenshot",
-    "sync_playtest_aliases_from_defs",
-    "search_scene", "set_parent",
-    "set_property", "set_runtime_property", "setup_objects",
-    "scene_change_plan",
-    "sync_unity", "test_step", "validate_playtest_aliases", "verify_after_change", "wait_until",
+    # CORE 11
+    "batch", "create_object", "do", "editor",
+    "get_compile_errors", "get_component", "get_console", "get_hierarchy",
+    "inspect", "manage_component", "set_property",
+    # tier1=True non-core
+    # Phase 1a: delete_object/set_parent/scene/search_scene promoted from CORE to SCENE tier1
+    "alias_status", "apply_scene_change", "ask", "ask_user", "await_compile",
+    "compile_preflight", "configure_objects", "console_mark",
+    "delete_object", "discover_tools",
+    # Phase 1b: execute_code/set_active/validate_references/undo_last promoted
+    "execute_code",
+    "get_console_since", "get_test_results",
+    "lint_playtest", "lint_scene_refs",
+    "mcp_status", "permission_prompt", "reconnect_unity", "release_smoke",
+    "resolve_scene_refs", "resolve_tool_schema",
+    "run_playtest", "run_tests", "run_tests_wait",
+    "scene", "scene_change_plan", "screenshot",
+    "search_scene", "set_active", "set_parent",
+    "setup_objects", "sync_unity",
+    "undo_last", "validate_references", "verify_after_change",
 })
 
 _ALL_KNOWN_SNAPSHOT = frozenset({
@@ -49,7 +56,8 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "navmesh_query", "object_diff", "particle", "permission_prompt", "ping_object",
     "prefab", "profile", "project_settings", "query_state", "recompile",
     "reconnect_unity", "references", "region_clear", "render_analyze",
-    "resolve_tool_schema", "run_playtest", "run_playtest_file", "run_playtest_suite", "run_tests",
+    # Phase 1c: run_playtest_file removed
+    "resolve_tool_schema", "run_playtest", "run_playtest_suite", "run_tests",
     "save_session",
     "export_playtest_aliases_to_defs",
     "lint_playtest", "lint_playtest_suite", "lint_scene_refs",
@@ -68,6 +76,8 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
 
 _THEMED_CATEGORIES_SNAPSHOT = {
     "SCENE": {
+        # Phase 1a additions: demoted from CORE
+        "delete_object", "scene", "search_scene", "set_parent",
         "apply_scene_change", "autofit_collider", "check_colliders", "configure_objects",
         "find_objects", "get_components_list", "get_object_detail", "get_selection",
         "get_spatial_context", "navmesh_query", "object_diff", "ping_object",
@@ -96,9 +106,10 @@ _THEMED_CATEGORIES_SNAPSHOT = {
         "snapshot", "wait_until", "watch",
     },
     "TESTS": {
+        # Phase 1c: run_playtest_file removed
         "export_playtest_aliases_to_defs", "get_test_count", "get_test_progress",
         "get_test_results", "lint_playtest", "lint_playtest_suite",
-        "run_playtest", "run_playtest_file", "run_playtest_suite", "run_tests",
+        "run_playtest", "run_playtest_suite", "run_tests",
         "run_tests_wait", "sync_playtest_aliases_from_defs", "test_step",
         "validate_playtest_aliases",
     },
@@ -115,9 +126,11 @@ _THEMED_CATEGORIES_SNAPSHOT = {
 }
 
 _CATEGORY_SIZES_SNAPSHOT = {
+    # Phase 1a: object grows +4 (delete_object/set_parent/scene/search_scene added to SCENE)
+    # Phase 1c: runtime shrinks -1 (run_playtest_file removed from TESTS)
     "advanced": 34, "animation": 14, "asset": 7, "connection": 34, "debug": 18,
     "object": 29, "perf": 18, "plugins": 34, "profiling": 18, "rendering": 14,
-    "runtime": 32, "session": 34, "ui": 14,
+    "runtime": 31, "session": 34, "ui": 14,
 }
 
 _TIMEOUT_CATEGORIES_SNAPSHOT = {
@@ -128,7 +141,8 @@ _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "get_test_count": 10.0, "get_version": 5.0, "import_package": 120.0,
     "lint_playtest": 60.0, "lint_playtest_suite": 120.0,
     "list_playtest_files": 10.0,
-    "ping": 5.0, "run_playtest": 300.0, "run_playtest_file": 300.0,
+    "ping": 5.0, "run_playtest": 300.0,
+    "run_playtest_file": 300.0,
     "run_playtest_suite": 3600.0, "run_tests": 300.0, "run_tests_wait": 300.0,
     "resolve_scene_refs": 15.0, "search_scene": 15.0, "verify_after_change": 600.0,
 }
