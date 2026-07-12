@@ -46,13 +46,23 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 
 **Fix**: Replaced with `_batchDepth` int counter. `InBatch` property now returns `_batchDepth > 0`. `Physics.Sync` fires only at the outermost exit (`--_batchDepth == 0`). `finally` block still decrements on mid-batch exceptions, preventing leaks.
 
-### Python Batch Guard (DSL-Tool Enforcement)
+### Python Batch Guard (DSL-Tool + direct_only Enforcement)
 
 Plugins can register DSL-expansion tools via `register_dsl_tools()` from `plugin_api.py`. These tools are rejected by Python `batch()` with ToolError — they require Python-side processing before reaching C#. Always call them as typed MCP tools.
 
 When a registered DSL tool is called via batch, Python raises ToolError immediately:
 ```
 ToolError: <tool_name> requires typed MCP tool (Python DSL expansion), not batch
+```
+
+**direct_only tools (v0.87.0):** Tools with `direct_only=True` in ToolSpec are also rejected by `batch()`. These tools have complex return values or side-effects incompatible with batch's line-indexed output format. 21 tools are direct_only: `do`, `ask`, `doctor`, `debug`, `snapshot`, `watch`, `get_metrics`, `ui_intent`, `vfx_intent`, `animator_intent`, `set_properties`, `budget_status`, `list_connections`, `list_skills`, `list_templates`, `navmesh_query`, `lint_playtest_suite`, `run_playtest_suite`, `screenshot_baseline`, `screenshot_compare`, `validate_playtest_aliases`.
+
+With `on_error=continue` (the default), direct_only lines are filtered out before TCP dispatch. Their errors are prepended to the final result with original line numbers remapped correctly. With `on_error=stop`, a ToolError is raised immediately before any dispatch.
+
+```
+[1] err: 'do' is direct-only; call it as a typed MCP tool, not in batch
+[2] ok: /Player
+ok:1 err:1
 ```
 
 ### Constraints

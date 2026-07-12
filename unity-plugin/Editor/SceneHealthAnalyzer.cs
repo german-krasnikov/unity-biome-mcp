@@ -10,6 +10,8 @@ namespace UnityMCP.Editor
     /// </summary>
     internal static class SceneHealthAnalyzer
     {
+        const int ItemCap = 20;
+
         static readonly HashSet<string> _allChecks = new HashSet<string>
             { "hierarchy", "naming", "duplicates", "origins", "missing", "empty", "disabled" };
 
@@ -74,7 +76,8 @@ namespace UnityMCP.Editor
             }
             if (deep.Count == 0) return null;
             var sb = new StringBuilder("WARNING: hierarchy depth>5\n");
-            foreach (var d in deep) sb.AppendLine(d);
+            for (int i = 0; i < deep.Count && i < ItemCap; i++) sb.AppendLine(deep[i]);
+            if (deep.Count > ItemCap) sb.AppendLine($"  ... and {deep.Count - ItemCap} more");
             return sb.ToString().TrimEnd();
         }
 
@@ -167,7 +170,8 @@ namespace UnityMCP.Editor
             }
             if (findings.Count == 0) return null;
             var sb = new StringBuilder("WARNING: duplicate sibling names\n");
-            foreach (var f in findings) sb.AppendLine(f);
+            for (int i = 0; i < findings.Count && i < ItemCap; i++) sb.AppendLine(findings[i]);
+            if (findings.Count > ItemCap) sb.AppendLine($"  ... and {findings.Count - ItemCap} more");
             return sb.ToString().TrimEnd();
         }
 
@@ -184,7 +188,8 @@ namespace UnityMCP.Editor
             }
             if (missing.Count == 0) return null;
             var sb = new StringBuilder("CRITICAL: MissingScript\n");
-            foreach (var m in missing) sb.AppendLine(m);
+            for (int i = 0; i < missing.Count && i < ItemCap; i++) sb.AppendLine(missing[i]);
+            if (missing.Count > ItemCap) sb.AppendLine($"  ... and {missing.Count - ItemCap} more");
             return sb.ToString().TrimEnd();
         }
 

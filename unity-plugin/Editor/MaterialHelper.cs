@@ -139,8 +139,8 @@ namespace UnityMCP.Editor
             // Keyword (e.g. _EMISSION) — not in shader property block
             if (idx < 0)
             {
-                if (value == "true") { Undo.RecordObject(mat, "Enable Keyword"); mat.EnableKeyword(prop); EditorUtility.SetDirty(mat); return "ok"; }
-                if (value == "false") { Undo.RecordObject(mat, "Disable Keyword"); mat.DisableKeyword(prop); EditorUtility.SetDirty(mat); return "ok"; }
+                if (value == "true") { Undo.RecordObject(mat, "Enable Keyword"); mat.EnableKeyword(prop); EditorUtility.SetDirty(mat); return $"ok: {prop}=enabled"; }
+                if (value == "false") { Undo.RecordObject(mat, "Disable Keyword"); mat.DisableKeyword(prop); EditorUtility.SetDirty(mat); return $"ok: {prop}=disabled"; }
                 throw new InvalidOperationException($"Property not found: {prop}");
             }
 
@@ -148,7 +148,7 @@ namespace UnityMCP.Editor
             ShaderHelper.ApplyProperty(mat, prop, mat.shader.GetPropertyType(idx), value);
 
             EditorUtility.SetDirty(mat);
-            return "ok";
+            return $"ok: {prop}={value}";
         }
 
         private static string Copy(string args)

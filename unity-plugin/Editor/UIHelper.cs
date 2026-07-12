@@ -228,13 +228,19 @@ namespace UnityMCP.Editor
         {
             var type = comp.GetType();
             EnsureTMPFont(comp, type);
-            type.GetProperty("text")?.SetValue(comp, text ?? "");
-            type.GetProperty("alignment")?.SetValue(comp, 514); // TextAlignmentOptions.Center
-            type.GetProperty("isOrthographic")?.SetValue(comp, true);
+            TrySetProp(comp, type, "text", text ?? "");
+            TrySetProp(comp, type, "alignment", 514); // TextAlignmentOptions.Center
+            TrySetProp(comp, type, "isOrthographic", true);
             if (!string.IsNullOrEmpty(font_size) && int.TryParse(font_size, out var fs))
-                type.GetProperty("fontSize")?.SetValue(comp, (float)fs);
+                TrySetProp(comp, type, "fontSize", (float)fs);
             if (!string.IsNullOrEmpty(color))
-                type.GetProperty("color")?.SetValue(comp, ValueParser.ParseColor(color));
+                TrySetProp(comp, type, "color", ValueParser.ParseColor(color));
+        }
+
+        private static void TrySetProp(Component comp, System.Type type, string name, object value)
+        {
+            try { type.GetProperty(name)?.SetValue(comp, value); }
+            catch (System.Reflection.TargetInvocationException) { /* TMP styling is cosmetic */ }
         }
 
         private static void EnsureTMPFont(Component comp, Type textType)

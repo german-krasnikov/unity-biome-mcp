@@ -52,6 +52,8 @@ namespace UnityMCP.Editor
             var sm = GetStateMachine(ctrl, layer);
             var added = new List<string>();
 
+            if (string.IsNullOrEmpty(statesStr))
+                throw new ArgumentException("'states' is required for add_state");
             int index = sm.states.Length;
             foreach (var part in statesStr.Split(';'))
             {

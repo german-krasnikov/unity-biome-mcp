@@ -334,14 +334,15 @@ errors=
 log=clean
 """
 
-def test_stale_prod_dll_yields_failed_stale():
-    """dlls= has prod dll :stale → FAIL:stale-dll (not CLEAN-LIVE).
+def test_stale_prod_dll_with_idle_compile_is_clean():
+    """compile=idle + stale DLL → CLEAN-LIVE (domain reloaded clean; stale flag is transient).
 
-    Red-precondition: _verdict ignores dlls= → returns CLEAN-LIVE today.
+    Wave 2 gate: stale-dll only fires when compile != "idle" to eliminate false positives
+    after a successful domain reload (Unity writes DLL after compile=idle is set).
     """
     f = _d._parse_diagnose(STALE_DLL_WIRE)
     v = _d._verdict(f)
-    assert v == "FAIL:stale-dll", f"Stale prod dll → FAIL:stale-dll, got {v!r}"
+    assert v == "CLEAN-LIVE", f"idle+stale dll → CLEAN-LIVE (false-positive gate), got {v!r}"
 
 
 # Bug 2: idle-never + stale-dll must NOT be masked by NO-OP (priority inversion fix)

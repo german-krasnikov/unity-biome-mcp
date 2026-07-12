@@ -31,6 +31,9 @@ namespace UnityMCP.Editor
 
         public static string CreateClip(string path, string clipName, string property, string keysStr, string componentType = null, string bindingPath = null, string tangent = null)
         {
+            if (string.IsNullOrEmpty(clipName))
+                throw new ArgumentException("clip_name is required for animation create");
+
             var go = ComponentSerializer.FindObject(path);
             if (go == null) throw new InvalidOperationException(ErrorHelper.ObjectNotFound(path));
 

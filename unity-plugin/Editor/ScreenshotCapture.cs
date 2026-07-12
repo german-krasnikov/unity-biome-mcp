@@ -13,10 +13,10 @@ namespace UnityMCP.Editor
             return Convert.ToBase64String(pngData);
         }
 
-        public static string CaptureToFile(int width = 640, int height = 480, string cameraName = null)
+        public static string CaptureToFile(int width = 640, int height = 480, string cameraName = null, string outputPath = null)
         {
             var pngData = RenderPng(width, height, cameraName);
-            return FileOutputHelper.WritePng(pngData);
+            return FileOutputHelper.WritePng(pngData, outputPath: outputPath);
         }
 
         private static byte[] RenderPng(int width, int height, string cameraName)

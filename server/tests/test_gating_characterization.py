@@ -8,15 +8,15 @@ Phase 1c update: run_playtest_file removed, then re-added in v0.84 as deprecated
 """
 
 _CORE_TOOLS_SNAPSHOT = frozenset({
-    # Phase 1a: delete_object/set_parent/scene/search_scene moved to SCENE tier1
-    "batch", "create_object", "do", "editor",
+    # Wave 2: 'do' demoted from CORE to SYSTEM direct_only (10 tools now)
+    "batch", "create_object", "editor",
     "get_compile_errors", "get_component", "get_console", "get_hierarchy",
     "inspect", "manage_component", "set_property",
 })
 
 _TIER1_SNAPSHOT = frozenset({
-    # CORE 11
-    "batch", "create_object", "do", "editor",
+    # CORE 10 (Wave 2: 'do' demoted to SYSTEM direct_only)
+    "batch", "create_object", "editor",
     "get_compile_errors", "get_component", "get_console", "get_hierarchy",
     "inspect", "manage_component", "set_property",
     # tier1=True non-core

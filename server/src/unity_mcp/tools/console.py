@@ -24,7 +24,13 @@ async def get_console(count: int = 10, level: str | None = None, first: int = 0,
 async def get_compile_errors() -> str:
     """Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."""
     from .. import editor_log
-    return editor_log.corroborate(await _send("get_compile_errors", {}))
+    csharp = await _send("get_compile_errors", {})
+    try:
+        raw = await _send("compile_status", {})
+        state = raw.split("|")[0] if "|" in raw else raw
+    except Exception:
+        state = ""
+    return editor_log.corroborate(csharp, compile_status=state)
 
 
 async def recompile() -> str:

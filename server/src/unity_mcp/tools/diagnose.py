@@ -281,7 +281,10 @@ def _verdict(
         return "STALE-TRANSIENT"
 
     # 9.7. Prod dll stale — must precede idle-never so stale is never masked by NO-OP
-    if parsed_dlls and any(status == "stale" for _, status in parsed_dlls):
+    # Gate on compile != "idle": stale DLL during idle means domain just reloaded clean;
+    # only warn when something is actively wrong (compiling/failed/etc).
+    if parsed_dlls and any(status == "stale" for _, status in parsed_dlls) \
+            and fields.compile != "idle":
         return "FAIL:stale-dll"
 
     # 10. Never compiled / self-cleared stale → NO-OP

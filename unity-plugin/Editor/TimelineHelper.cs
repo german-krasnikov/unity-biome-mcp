@@ -77,7 +77,9 @@ namespace UnityMCP.Editor
                 if (director == null)
                     director = Undo.AddComponent<PlayableDirector>(go);
 
+                Undo.RecordObject(director, "Bind Timeline");
                 director.playableAsset = timeline;
+                EditorUtility.SetDirty(director);
                 sb.Append("director: ").AppendLine(directorPath);
             }
 

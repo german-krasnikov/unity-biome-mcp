@@ -46,8 +46,20 @@ namespace UnityMCP.Editor
             return path;
         }
 
-        public static string WritePng(byte[] pngData, string prefix = "screenshot")
+        public static string WritePng(byte[] pngData, string prefix = "screenshot", string outputPath = null)
         {
+            if (!string.IsNullOrEmpty(outputPath))
+            {
+                var fullPath = Path.GetFullPath(outputPath);
+                var projectRoot = Path.GetFullPath(".");
+                if (!fullPath.StartsWith(projectRoot))
+                    throw new ArgumentException($"outputPath must be within project: {outputPath}");
+                var dir = Path.GetDirectoryName(fullPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllBytes(fullPath, pngData);
+                return fullPath;
+            }
             CleanupScreenshots();
             var path = Path.Combine(ScreenshotsDir, $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{prefix}.png");
             File.WriteAllBytes(path, pngData);

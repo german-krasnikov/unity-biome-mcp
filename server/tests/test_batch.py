@@ -212,3 +212,34 @@ async def test_batch_validate_aliases_false_not_sent(mock_bridge, bridge_respons
     await batch(commands="ping")
     call_args = mock_bridge.send.call_args[0]
     assert "validate_aliases" not in call_args[1]
+
+
+# P0-2: direct_only rejection
+
+async def test_batch_rejects_direct_only_tool(mock_bridge):
+    """direct_only tools raise ToolError before any TCP call."""
+    with pytest.raises(ToolError, match="direct-only"):
+        await batch(commands="run_playtest_suite paths=Tests/MyTest.playtest")
+    mock_bridge.send.assert_not_called()
+
+
+async def test_batch_rejects_all_direct_only_tools(mock_bridge):
+    """Every direct_only=True tool in _SPECS raises ToolError in batch."""
+    from unity_mcp.tools.tool_specs import _SPECS
+    direct_only = [name for name, spec in _SPECS.items() if spec.direct_only]
+    assert direct_only, "Expected at least one direct_only tool"
+    for cmd in direct_only:
+        with pytest.raises(ToolError, match="direct-only"):
+            await batch(commands=f"{cmd} path=/foo")
+    mock_bridge.send.assert_not_called()
+
+
+async def test_batch_remaps_line_numbers_after_direct_only_filter(mock_bridge, bridge_response):
+    """C# result line numbers are remapped to original positions when direct_only lines are filtered."""
+    bridge_response(data="[1] ok: /A\n[2] ok: root")
+    # Line 1: valid, Line 2: direct_only (filtered out), Line 3: valid
+    result = await batch(commands="create_object name=A\nrun_playtest_suite paths=x\nget_hierarchy")
+    assert "[2] err:" in result          # pre_error at original line 2
+    assert "[1] ok: /A" in result        # C# [1] → original line 1 (unchanged)
+    assert "[3] ok: root" in result      # C# [2] → original line 3 (remapped)
+    assert "[2] ok:" not in result       # C# [2] was remapped away

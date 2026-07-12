@@ -21,7 +21,7 @@ namespace UnityMCP.Editor.Tests
 
             var result = BatchHelper.Execute("test_async_cmd", "continue");
 
-            StringAssert.Contains("requires async dispatch, not supported in batch", result);
+            StringAssert.Contains("async-only", result);
         }
 
         [Test]
@@ -31,7 +31,7 @@ namespace UnityMCP.Editor.Tests
 
             var result = BatchHelper.Execute("test_special_cmd", "continue");
 
-            StringAssert.Contains("requires async dispatch, not supported in batch", result);
+            StringAssert.Contains("async-only", result);
         }
 
         [Test]

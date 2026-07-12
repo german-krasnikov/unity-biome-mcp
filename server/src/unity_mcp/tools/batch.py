@@ -1,7 +1,9 @@
 """Bulk command execution + reference inspection/validation."""
+import re
 from mcp.server.fastmcp.exceptions import ToolError
 from ._annotations import RO as _RO, RW as _RW
 from ._common import bind
+from .tool_specs import _SPECS
 
 _send = None
 _args = None
@@ -13,10 +15,32 @@ _dsl_tools: set[str] = set()
 async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
                 atomic: bool = False, validate_aliases: bool = False) -> str:
     """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: True reverts ALL prior ops on first failure (Unity Undo); execute_code fs side-effects NOT reverted. PREFER over individual tool calls."""
-    for line in commands.splitlines():
-        cmd = line.strip().split()[0] if line.strip() else ""
-        if cmd in _dsl_tools:
-            raise ToolError(f"{cmd} requires typed MCP tool (Python DSL expansion), not batch")
+    pre_errors: list[str] = []
+    orig_indices: list[int] = []  # filtered-line j (1-based) → original line number
+    if on_error == "continue":
+        clean: list[str] = []
+        for i, line in enumerate(commands.splitlines(), 1):
+            cmd = line.strip().split()[0] if line.strip() else ""
+            if cmd in _dsl_tools:
+                pre_errors.append(f"[{i}] err: '{cmd}' requires typed MCP tool, not batch")
+                continue
+            spec = _SPECS.get(cmd)
+            if spec and spec.direct_only:
+                pre_errors.append(f"[{i}] err: '{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
+                continue
+            clean.append(line)
+            orig_indices.append(i)
+        if pre_errors and not clean:
+            raise ToolError("\n".join(pre_errors))
+        commands = "\n".join(clean)
+    else:
+        for line in commands.splitlines():
+            cmd = line.strip().split()[0] if line.strip() else ""
+            if cmd in _dsl_tools:
+                raise ToolError(f"{cmd} requires typed MCP tool (Python DSL expansion), not batch")
+            spec = _SPECS.get(cmd)
+            if spec and spec.direct_only:
+                raise ToolError(f"'{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
     timeout_ms = max(1000, int((timeout - 5) * 1000))
     args = {"commands": commands}
     if on_error != "continue":
@@ -33,7 +57,15 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
         args["atomic"] = "true"
     if validate_aliases:
         args["validate_aliases"] = "true"
-    return await _send("batch", args, timeout=timeout)
+    result = await _send("batch", args, timeout=timeout)
+    if pre_errors:
+        if orig_indices:
+            def _remap(m):
+                n = int(m.group(1))
+                return f"[{orig_indices[n-1]}]" if 1 <= n <= len(orig_indices) else m.group(0)
+            result = re.sub(r'\[(\d+)\]', _remap, result)
+        return "\n".join(pre_errors) + "\n" + result
+    return result
 
 
 async def references(action: str, path: str, children: bool = False, depth: int = 1,

@@ -1,12 +1,14 @@
 # MCP Tools Reference
 
-All tools organized by category. TIER1 tools (46 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools discovered dynamically.
+All tools organized by category. TIER1 tools (45 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools discovered dynamically.
+
+**direct_only tools** cannot be used inside `batch` commands — call them as typed MCP tools directly. Affects: `do`, `ask`, `doctor`, `debug`, `snapshot`, `watch`, `get_metrics`, `ui_intent`, `vfx_intent`, `animator_intent`, `set_properties`, `budget_status`, `list_connections`, `list_skills`, `list_templates`, `navmesh_query`, `lint_playtest_suite`, `run_playtest_suite`, `screenshot_baseline`, `screenshot_compare`, `validate_playtest_aliases`.
 
 **v0.84.0 breaking changes:** `create_ui`/`set_rect` params renamed (`fontSize`→`font_size`, `offsetMin`→`offset_min`, `offsetMax`→`offset_max`); `object_diff` params renamed (`pathA`→`path_a`, `pathB`→`path_b`).
 
-## CORE Tools (11 — always visible, zero setup)
+## CORE Tools (10 — always visible, zero setup)
 
-The minimum 11 tools needed for any Unity task. Always visible, no gating.
+The minimum 10 tools needed for any Unity task. Always visible, no gating.
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -20,11 +22,10 @@ The minimum 11 tools needed for any Unity task. Always visible, no gating.
 | get_console | Read Editor.log tail | lines, severity |
 | get_compile_errors | List C# compile errors | — |
 | editor | Open Editor windows / control play mode | window_type, path, action |
-| do | Execute arbitrary code via AI intent | prompt, context, action |
 
-## TIER1 Tools (46 total — always visible)
+## TIER1 Tools (45 total — always visible)
 
-Includes CORE (11) + individually promoted tools below.
+Includes CORE (10) + individually promoted tools below.
 
 | Tool | Purpose | Key Params | Category |
 |------|---------|------------|----------|
@@ -227,6 +228,7 @@ Meta, session skills, templates, config, code tools.
 | find_references | Locate usages of symbol | symbol_name, include_tests |
 | semantic_at | Language server: definition/hover | path, line, col, action |
 | animator_intent | AI animator description → controller | target, intent |
+| do | Execute arbitrary code via AI intent (direct_only — cannot use in batch) | prompt, context, action |
 
 *(Plus alias_status, release_smoke, ask, ask_user, permission_prompt, reconnect_unity, resolve_tool_schema, doctor, execute_code, discover_tools, get_enabled_tools, mcp_status, sync_unity, undo_last in TIER1)*
 

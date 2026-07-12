@@ -43,7 +43,8 @@ namespace UnityMCP.Editor
                 }
                 catch (System.Exception e)
                 {
-                    sb.AppendLine($"{compName}.{fieldName}=ERR:{e.Message}");
+                    var msg = e.Message.Length > 200 ? e.Message.Substring(0, 200) : e.Message;
+                    sb.AppendLine($"{compName}.{fieldName}=ERR:{msg}");
                 }
             }
 

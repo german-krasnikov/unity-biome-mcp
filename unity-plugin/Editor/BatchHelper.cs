@@ -81,7 +81,7 @@ namespace UnityMCP.Editor
                 // catches ask_user, which the old hardcoded name list here used to miss).
                 if (!CommandRegistry.IsBatchable(cmd))
                 {
-                    sb.AppendLine($"[{i}] err: '{cmd}' requires async dispatch, not supported in batch");
+                    sb.AppendLine($"[{i}] err: '{cmd}' is async-only; call it as a typed MCP tool instead of batch");
                     if (AtomicFail(i)) break; else continue;
                 }
 

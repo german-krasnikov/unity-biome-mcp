@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.87.0] — 2026-07-12 — MCP release stabilization: 5 P0 + 12 P1 fixes, direct_only gating, batch UX, media hardening
+
+**Python — Gating:**
+- `tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools marked `direct_only=True` (cannot be used inside `batch`): `do`, `ask`, `doctor`, `debug`, `snapshot`, `watch`, `get_metrics`, `ui_intent`, `vfx_intent`, `animator_intent`, `set_properties`, `budget_status`, `list_connections`, `list_skills`, `list_templates`, `navmesh_query`, `lint_playtest_suite`, `run_playtest_suite`, `screenshot_baseline`, `screenshot_compare`, `validate_playtest_aliases`.
+- `do` demoted from CORE to SYSTEM (CORE 11→10, TIER1 46→45).
+
+**Python — Batch:**
+- `batch.py`: `on_error=continue` now filters direct_only lines before TCP dispatch; original line numbers remapped in result; `on_error=stop` raises ToolError immediately; imports `_SPECS` for direct_only lookup.
+
+**Python — Compile / Diagnose:**
+- `console.py`: `get_compile_errors` fetches `compile_status` and forwards `compile_status=state` to `editor_log.corroborate()` — better stale-DLL corroboration.
+- `diagnose.py`: stale-dll verdict (`FAIL:stale-dll`) now gated on `compile != "idle"` to avoid false positives after a clean domain reload.
+
+**C# — P0 fixes:**
+- `UIHelper.cs`: `SetTMPText` wrapped in `try/catch TargetInvocationException` — TMP styling is cosmetic, swallowed silently.
+- `TimelineHelper.cs`: `Undo.RecordObject` + `EditorUtility.SetDirty` on `PlayableDirector` binding — change is now undoable and saved.
+- `ObjectManager.Events.cs`: `m_` + PascalCase normalization for `wire_event` AND `unwire_event` — both now fallback to `m_OnClick` style when bare field name not found.
+
+**C# — P1 fixes:**
+- `AnimationHelper.cs`: null guard on `clip_name` for animation create.
+- `AnimatorControllerHelper.cs`: null/empty guard on `states` param for `add_state`.
+- `MaterialHelper.cs`: all property set paths return `"ok: prop=value"` instead of bare `"ok"`.
+- `SceneHealthAnalyzer.cs`: `ItemCap=20` on 3 finding lists — truncates with `"... and N more"` to prevent runaway output.
+- `GameStateHelper.cs`: error message truncated to 200 chars.
+- `CommandRouter.ToolsCache.cs`: `_hiddenFromCatalog` set filters 13 internal commands from the tool catalog (ping, get_disabled_tools, set_tool_catalog, force_play_stop, watch_add/remove/clear/reset, get_version, get_capabilities, set_client_label, get_aliases, list_playtest_files).
+- `CommandRouter.ScreenshotHandlers.cs` + `ScreenshotCapture.cs` + `FileOutputHelper.cs`: `screenshot path=` param honored — writes PNG to the requested path; path traversal validation (must be within project root).
+- `BatchHelper.cs`: async-only error message improved (clearer wording).
+
+**Test counts:** Python unit 4630 (unchanged) | C# EditMode 6537 (1 pre-existing failure)
+
 ## [v0.86.0] — 2026-07-12 — Test quality review: 83 Python + 25 C# tests deleted, assertions hardened, RenderAnalyzer crash fix
 
 **Deleted (Python — vacuous/self-testing/duplicate):**

@@ -24,11 +24,22 @@ namespace UnityMCP.Editor
         private static string ExecGetEnabledTools()  => BuildToolList(enabled: true);
         private static string ExecGetDisabledTools() => BuildToolList(enabled: false);
 
+        private static readonly HashSet<string> _hiddenFromCatalog = new HashSet<string>
+        {
+            "ping", "get_disabled_tools", "set_tool_catalog", "force_play_stop",
+            "watch_add", "watch_remove", "watch_clear", "watch_reset",
+            "get_version", "get_capabilities", "set_client_label",
+            "get_aliases", "list_playtest_files"
+        };
+
         private static string BuildToolList(bool enabled)
         {
             var allTools = new HashSet<string>(MCPSettings.GetToolNames());
             foreach (var cmd in CommandRegistry.GetAllCommands())
-                allTools.Add(cmd);
+            {
+                if (!_hiddenFromCatalog.Contains(cmd))
+                    allTools.Add(cmd);
+            }
             var sb = new StringBuilder();
             bool first = true;
             foreach (var tool in allTools)

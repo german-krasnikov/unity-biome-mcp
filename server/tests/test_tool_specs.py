@@ -32,11 +32,19 @@ def test_internal_commands_present_and_excluded_from_core_tier1():
 
 def test_core_tools_have_core_true_and_core_category():
     from unity_mcp.tools.tool_specs import _SPECS
-    # 11 CORE tools after Phase 1a (scene/search_scene/delete_object/set_parent moved to SCENE tier1)
-    for name in ("get_hierarchy", "batch", "set_property", "do"):
+    # 'do' demoted from CORE to SYSTEM direct_only (Wave 2)
+    for name in ("get_hierarchy", "batch", "set_property"):
         spec = _SPECS[name]
         assert spec.core is True
         assert spec.category == "CORE"
+
+
+def test_do_demoted_to_system_direct_only():
+    from unity_mcp.tools.tool_specs import _SPECS
+    spec = _SPECS["do"]
+    assert spec.core is False
+    assert spec.category == "SYSTEM"
+    assert spec.direct_only is True
 
 
 def test_tier1_residual_tool_has_tier1_true_and_themed_category():
@@ -65,10 +73,10 @@ def test_custom_timeout_preserved():
     assert _SPECS["get_console"].timeout_s == 10.0
 
 
-def test_core_count_is_11():
-    """Phase 1a: CORE shrunk from 15 to 11 (delete_object/set_parent/scene/search_scene demoted)."""
+def test_core_count_is_10():
+    """Wave 2: CORE shrunk from 11 to 10 ('do' demoted to SYSTEM direct_only)."""
     from unity_mcp.tools.tool_specs import _SPECS
-    assert sum(1 for s in _SPECS.values() if s.core) == 11
+    assert sum(1 for s in _SPECS.values() if s.core) == 10
 
 
 def test_tier1_count_in_bounds():

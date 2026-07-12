@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="139 MCP Tools · 4945 Tests (4635 Python · 26 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="139 MCP Tools · 11473 Tests (4639 Python · 6550 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -302,6 +302,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.87.0</b> — 2026-07-12 — `tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools …</summary>
+
+`tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools marked `direct_only=True` (cannot be used inside `batch`): `do`, `ask`, …
+
+</details>
+
+<details>
 <summary><b>v0.86.0</b> — 2026-07-12 — 83 tests removed across 59 test files; `test_schema_cache.py` deleted entirely …</summary>
 
 83 tests removed across 59 test files; `test_schema_cache.py` deleted entirely (17 tests that only verified `dict` type and `is not None`).
@@ -330,15 +337,9 @@ CORE shrunk from 15 → 11: `delete_object`, `set_parent`, `scene`, `search_scen
 </details>
 
 <details>
-<summary><b>v0.82.0</b> — 2026-07-11 — `run_playtest_file` + `run_playtest_suite` — file-based and suite-level …</summary>
-
-`run_playtest_file` + `run_playtest_suite` — file-based and suite-level playtest runners.
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.82.0** — 2026-07-11 — `run_playtest_file` + `run_playtest_suite` — file-based and suite-level …
 - **v0.81.0** — 2026-07-11 — NUnit: `RenameObject_Undo` — added `LogAssert.Expect` for expected undo log …
 - **v0.80.0** — 2026-07-11 — `middleware_hooks.py` — `POST_HOOKS` registry + `@register_post` decorator for …
 - **v0.79.1** — 2026-07-11 — `run_playtest(path="Playtests/farm.playtest")` — C# reads file server-side; ~15 …

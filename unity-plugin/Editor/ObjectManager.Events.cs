@@ -14,8 +14,16 @@ namespace UnityMCP.Editor
             var (_, comp) = ResolveComponent(path, component);
 
             // Validate event field via SerializedProperty (more reliable than reflection)
+            if (string.IsNullOrEmpty(eventField))
+                throw new ArgumentException("event field name must not be empty");
             var soCheck = new SerializedObject(comp);
             var evtCheck = soCheck.FindProperty(eventField);
+            if (evtCheck == null)
+            {
+                var alt = "m_" + char.ToUpper(eventField[0]) + eventField.Substring(1);
+                evtCheck = soCheck.FindProperty(alt);
+                if (evtCheck != null) eventField = alt;
+            }
             if (evtCheck == null)
                 throw new ArgumentException($"Field '{eventField}' not found on {component}");
             if (evtCheck.FindPropertyRelative("m_PersistentCalls.m_Calls") == null)
@@ -127,7 +135,15 @@ namespace UnityMCP.Editor
             var (_, comp) = ResolveComponent(path, component);
 
             var so = new SerializedObject(comp);
+            if (string.IsNullOrEmpty(eventField))
+                throw new ArgumentException("event field name must not be empty");
             var evtProp = so.FindProperty(eventField);
+            if (evtProp == null)
+            {
+                var alt = "m_" + char.ToUpper(eventField[0]) + eventField.Substring(1);
+                if (so.FindProperty(alt) != null) eventField = alt;
+                evtProp = so.FindProperty(eventField);
+            }
             if (evtProp == null)
                 throw new ArgumentException($"Field '{eventField}' not found on {component}");
             var calls = evtProp.FindPropertyRelative("m_PersistentCalls.m_Calls");

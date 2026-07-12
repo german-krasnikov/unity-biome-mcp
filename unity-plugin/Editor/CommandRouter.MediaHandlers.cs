@@ -36,7 +36,7 @@ namespace UnityMCP.Editor
         {
             return AnimationHelper.CreateClip(
                 JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip_name"),
+                JsonHelper.ExtractString(args, "clip_name") ?? JsonHelper.ExtractString(args, "clip"),
                 JsonHelper.ExtractString(args, "property") ?? "localPosition",
                 JsonHelper.ExtractString(args, "keys") ?? "",
                 JsonHelper.ExtractString(args, "component_type"),
