@@ -51,7 +51,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void DisabledPluginTool_AppearsInDisabledCSV()
+        public void DisabledPluginTool_IsToolEnabled_ReturnsFalse()
         {
             // ExecGetDisabledTools is private; we use ExecGetEnabledToolsCached
             // for enabled check. For the disabled list, call InvalidateEnabledToolsCache

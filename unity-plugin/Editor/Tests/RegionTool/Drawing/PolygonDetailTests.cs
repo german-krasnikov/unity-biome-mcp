@@ -114,14 +114,5 @@ namespace UnityMCP.Editor.Tests.RegionTool
             Assert.AreEqual(PolygonDetailLevel.Detailed, PolygonDetailSettings.ForRegion(null));
         }
 
-        // ── Token estimation ──────────────────────────────────────────────────────
-
-        [Test]
-        public void TokenEstimate_18Verts_Returns72()
-            => Assert.AreEqual(72, 18 * PolygonDetailConfig.TokensPerVertex);
-
-        [Test]
-        public void TokenEstimate_128Verts_IsAtWarnThreshold()
-            => Assert.AreEqual(128, PolygonDetailConfig.WarnVertexCount);
     }
 }

@@ -303,25 +303,6 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void SafeGetTypes_WithReflectionTypeLoadException_YieldsNonNullTypes()
-        {
-            // Exception branch: use public constructor to inject a partial type list
-            var types = new System.Type[] { typeof(Rigidbody), null, typeof(Camera) };
-            var exceptions = new System.Exception[] { new System.Exception("broken"), null, null };
-            var rtle = new ReflectionTypeLoadException(types, exceptions);
-
-            // Call real SafeGetTypes — but we can't pass a fake Assembly.
-            // The exception-branch logic is: ex.Types.Where(t => t != null).
-            // We test it directly since SafeGetTypes is internal+visible, but we
-            // can't inject a broken assembly in EditMode. This test validates the
-            // null-filtering contract; the happy path is covered by SafeGetTypes_ValidAssembly above.
-            var result = rtle.Types.Where(t => t != null).ToList();
-            Assert.AreEqual(2, result.Count);
-            Assert.IsTrue(result.Contains(typeof(Rigidbody)));
-            Assert.IsTrue(result.Contains(typeof(Camera)));
-        }
-
-        [Test]
         public void FindType_AbstractShortName_ReturnsNull()
         {
             // MAJOR 2: CLR-abstract types must not be returned — AddComponent rejects them.

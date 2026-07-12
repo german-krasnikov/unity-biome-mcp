@@ -26,7 +26,7 @@ class TestGetFrameStats:
         from unity_mcp.tools.profiling import get_frame_stats
         result = await get_frame_stats()
         mock_send.assert_called_once_with("get_frame_stats", {})
-        assert "fps=" in result
+        assert result == mock_send.return_value
 
 
 # ── profile ────────────────────────────────────────────────────────────────────

@@ -6,7 +6,6 @@ from unity_mcp.sampling_postproc import (
 
 
 def test_strip_fences_idempotent():
-    assert strip_fences(strip_fences("```\ncode\n```")) == strip_fences("```\ncode\n```")
     assert strip_fences("```\ncode\n```") == "code"
 
 def test_strip_fences_with_lang():
@@ -82,11 +81,5 @@ def test_normalize_sentinel_strips_fences_then_first_token():
 
 def test_normalize_sentinel_empty_after_strip_returns_none():
     text, refused = normalize("```\n```", "sentinel")
-    assert text is None
-    assert refused is False
-
-
-def test_normalize_sentinel_none_input():
-    text, refused = normalize(None, "sentinel")
     assert text is None
     assert refused is False

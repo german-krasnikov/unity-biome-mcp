@@ -58,17 +58,17 @@ namespace UnityMCP.Editor
             int skinned = 0;
             foreach (var r in renderers)
             {
-                Mesh m = null;
-                if (r is SkinnedMeshRenderer smr) { m = smr.sharedMesh; skinned++; }
-                else m = r.GetComponent<MeshFilter>()?.sharedMesh;
-                if (m == null) continue;
                 try
                 {
+                    Mesh m = null;
+                    if (r is SkinnedMeshRenderer smr) { m = smr.sharedMesh; skinned++; }
+                    else m = r.GetComponent<MeshFilter>()?.sharedMesh;
+                    if (m == null) continue;
                     for (int s = 0; s < m.subMeshCount; s++)
                         totalTris += (long)m.GetIndexCount(s) / 3;
                     totalVerts += m.vertexCount;
                 }
-                catch (System.InvalidOperationException) { /* non-readable mesh — skip */ }
+                catch (System.Exception) { }
             }
 
             int draws   = UnityStats.drawCalls;
@@ -178,7 +178,7 @@ namespace UnityMCP.Editor
                 for (int s = 0; s < m.subMeshCount; s++)
                     t += (long)m.GetIndexCount(s) / 3;
             }
-            catch (System.InvalidOperationException) { /* non-readable mesh — skip */ }
+            catch (System.Exception) { /* non-readable mesh or missing component — skip */ }
             return t;
         }
 

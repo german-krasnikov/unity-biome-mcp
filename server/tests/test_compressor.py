@@ -228,7 +228,7 @@ def test_strip_defaults_removes_float_zero():
     assert "health: 50.0" in result
 
 
-def test_strip_defaults_removes_float_one():
+def test_strip_defaults_keeps_float_one():
     # Item 22: "1.0" removed from _DEFAULTS; plain "volume: 1.0" is now kept.
     data = "[C]\nvolume: 1.0\npitch: 2.0\n"
     result = strip_defaults(data)
@@ -276,11 +276,6 @@ def test_strip_defaults_preserves_multiple_blank_lines():
 def test_project_fields_none_fields_returns_all():
     result = project_fields(SAMPLE_COMPONENT, None)
     assert result == SAMPLE_COMPONENT
-
-
-# empty string input
-def test_strip_defaults_empty_string_returns_empty():
-    assert strip_defaults("") == ""
 
 
 # single-line input (no newlines)
@@ -388,14 +383,6 @@ def test_alias_case_insensitive():
 
 
 # ─── Item 22: context-aware strip_defaults ───────────────────────────────────
-
-def test_strip_defaults_keeps_mass_one():
-    """'mass: 1' must NOT be stripped — 'mass' is not a known-default field."""
-    data = "[C]\nmass: 1\ndrag: 5\n"
-    result = strip_defaults(data)
-    assert "mass: 1" in result
-    assert "drag: 5" in result
-
 
 def test_strip_defaults_strips_m_mass_default():
     """'m_mass: 1' IS stripped — m_mass Unity internal field defaults to 1."""

@@ -51,7 +51,7 @@ async def test_screenshot_compare_different(tmp_path, mock_bridge):
         result = await screenshot_compare("default")
 
     # New format: pixel diff result, cached semantic, or semantic disabled
-    assert any(k in result for k in ("PIXEL", "IDENTICAL", "SIZE_MISMATCH", "[cached]"))
+    assert any(k in result for k in ("PIXEL", "SIZE_MISMATCH", "[cached]"))
 
 
 async def test_screenshot_compare_no_baseline(tmp_path, mock_bridge):

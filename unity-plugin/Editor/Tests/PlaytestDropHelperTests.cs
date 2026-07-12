@@ -144,23 +144,13 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AttachDnD_Resolves_GameObjectPath()
         {
-            var go   = new GameObject("Mover");
-            var path = ComponentSerializer.GetPath(go);
-            Assert.IsFalse(path.Contains("SceneName:/"), "Must not hardcode scene prefix");
-            Object.DestroyImmediate(go);
-        }
-
-        // #31: VisualStep position round-trips from transform
-        [Test]
-        public void VisualStep_MoveDrop_PositionEqualsTransform()
-        {
-            var go   = new GameObject("T");
-            go.transform.position = new Vector3(1f, 2f, 3f);
-            var step = new VisualStep { type = StepType.Move };
-            step.path     = ComponentSerializer.GetPath(go);
-            step.position = go.transform.position;
-            Assert.AreEqual(new Vector3(1f, 2f, 3f), step.position);
-            Object.DestroyImmediate(go);
+            var go = new GameObject("Mover");
+            try
+            {
+                var path = ComponentSerializer.GetPath(go);
+                Assert.IsFalse(path.Contains("SceneName:/"), "Must not hardcode scene prefix");
+            }
+            finally { Object.DestroyImmediate(go); }
         }
 
         // #34: SmartDrop.CreateStep for Move fills position from transform
@@ -169,11 +159,14 @@ namespace UnityMCP.Editor.Tests
         {
             var go = new GameObject("Player");
             go.transform.position = new Vector3(5f, 0f, 3f);
-            var step = PlaytestSmartDrop.CreateStep(go, StepType.Move);
-            Assert.AreEqual(StepType.Move, step.type);
-            Assert.AreEqual(new Vector3(5f, 0f, 3f), step.position);
-            Assert.IsFalse(string.IsNullOrEmpty(step.path));
-            Object.DestroyImmediate(go);
+            try
+            {
+                var step = PlaytestSmartDrop.CreateStep(go, StepType.Move);
+                Assert.AreEqual(StepType.Move, step.type);
+                Assert.AreEqual(new Vector3(5f, 0f, 3f), step.position);
+                Assert.IsFalse(string.IsNullOrEmpty(step.path));
+            }
+            finally { Object.DestroyImmediate(go); }
         }
 
         // #34: SmartDrop.CreateStep for Assert leaves position at zero
@@ -181,10 +174,13 @@ namespace UnityMCP.Editor.Tests
         public void SmartDrop_CreateStep_Assert_NoPosition()
         {
             var go = new GameObject("Enemy");
-            var step = PlaytestSmartDrop.CreateStep(go, StepType.Assert);
-            Assert.AreEqual(StepType.Assert, step.type);
-            Assert.AreEqual(Vector3.zero, step.position);
-            Object.DestroyImmediate(go);
+            try
+            {
+                var step = PlaytestSmartDrop.CreateStep(go, StepType.Assert);
+                Assert.AreEqual(StepType.Assert, step.type);
+                Assert.AreEqual(Vector3.zero, step.position);
+            }
+            finally { Object.DestroyImmediate(go); }
         }
 
         // --- ApplyMember Set context ---

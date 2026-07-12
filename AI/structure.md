@@ -169,7 +169,6 @@ unity-kiss-mcp/
 │       ├── test_server_name_consistency.py # Cross-language Python↔C# SERVER_NAME + MCP_BLANKET drift guard (v0.71.0)
 │       ├── test_multiscene.py          # Multi-scene CRUD, transfer, diff, bugs (305 tests, v0.24.3)
 │       ├── test_transfer_object.py     # transfer_object cross-scene operations (91 tests, v0.24.3)
-│       ├── test_schema_cache.py        # Schema caching + validation (17 tests, v0.26.0)
 │       ├── test_*_intent.py            # Intent tools
 │       ├── test_sampling*.py           # Visual verification
 │       ├── test_visual_*.py            # Visual diff + regression

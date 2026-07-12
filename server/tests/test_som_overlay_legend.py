@@ -222,7 +222,6 @@ def test_load_font_fallback_size_param():
             font = _load_font(14)
     # Should not raise; font may be None or a valid font object
     # (None is acceptable as graceful degradation)
-    assert font is not None or font is None  # just verifies no exception raised
 
 
 # ── #8 Leaf-only path in legend ──────────────────────────────────────────────

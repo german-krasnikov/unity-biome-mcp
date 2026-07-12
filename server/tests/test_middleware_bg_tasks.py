@@ -24,18 +24,3 @@ async def test_background_task_tracked():
     assert t not in mw._bg_tasks
 
 
-@pytest.mark.asyncio
-async def test_background_task_cleaned_on_done():
-    """Set empties after task completes."""
-    mw = Middleware()
-
-    async def instant():
-        return 42
-
-    t = asyncio.create_task(instant())
-    mw._bg_tasks.add(t)
-    t.add_done_callback(mw._bg_tasks.discard)
-
-    await t
-    await asyncio.sleep(0)
-    assert len(mw._bg_tasks) == 0

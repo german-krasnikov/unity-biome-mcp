@@ -240,17 +240,6 @@ def test_ui_builder_manage_component_uses_type_key():
     assert not any("component=" in l for l in mc_lines), f"'component=' key found: {mc_lines}"
 
 
-def test_ui_builder_layout_group_type_key_not_component_key():
-    """Existing layout test strengthened: must have type= and no component=."""
-    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
-    dsl = "canvas Canvas\n  layout Menu dir=vertical spacing=10"
-    nodes = parse_ui_dsl(dsl)
-    lines = build_ui_batch(nodes, parent=None)
-    mc_lines = [l for l in lines if "manage_component" in l]
-    assert not any("component=" in l for l in mc_lines), f"Wrong key: {mc_lines}"
-    assert any("type=VerticalLayoutGroup" in l for l in mc_lines), mc_lines
-
-
 # ---------------------------------------------------------------------------
 # 8. FIX-17: spacing emits set_property, not manage_component arg
 # ---------------------------------------------------------------------------

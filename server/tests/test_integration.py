@@ -95,7 +95,6 @@ async def test_large_payload(mock_unity_server):
 
     assert response["ok"] is True
     assert response["data"] == large_data
-    assert len(json.dumps(response["data"])) > 10000
 
     await bridge.close()
 

@@ -10,12 +10,6 @@ async def test_fingerprint_sends_command(mock_bridge):
     assert result == "fp:ABCD1234"
 
 
-async def test_fingerprint_default_depth(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "fp:00000000"}
-    await fingerprint()
-    call_args = mock_bridge.send.call_args[0][1]
-    assert call_args["depth"] == 3
-
 
 async def test_fingerprint_custom_path_and_depth(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": "fp:12345678"}

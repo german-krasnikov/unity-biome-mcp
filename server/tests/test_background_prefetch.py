@@ -61,6 +61,7 @@ async def test_background_prefetch_cache_none_no_crash():
 
     # Must not raise
     await m._background_prefetch("get_hierarchy", {}, send_fn)
+    send_fn.assert_awaited_once()
 
 
 # ── error handling ────────────────────────────────────────────────────────────
@@ -86,3 +87,4 @@ async def test_background_prefetch_send_raises_no_crash():
 
     # Exception swallowed — background task must not propagate
     await m._background_prefetch("get_hierarchy", {}, send_fn)
+    send_fn.assert_awaited_once()

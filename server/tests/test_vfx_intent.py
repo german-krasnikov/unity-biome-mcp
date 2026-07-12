@@ -45,31 +45,6 @@ def test_vfx_preset_unknown_returns_none():
 # 2. Auto-detect kind from keywords
 # ---------------------------------------------------------------------------
 
-def test_vfx_detect_kind_particle_from_explosion():
-    from unity_mcp.tools.vfx_intent_tool import detect_kind
-    assert detect_kind("big explosion with embers") == "particle"
-
-
-def test_vfx_detect_kind_particle_from_emit():
-    from unity_mcp.tools.vfx_intent_tool import detect_kind
-    assert detect_kind("emit sparks from engine") == "particle"
-
-
-def test_vfx_detect_kind_particle_from_dissolve():
-    from unity_mcp.tools.vfx_intent_tool import detect_kind
-    assert detect_kind("dissolve effect on death") == "particle"
-
-
-def test_vfx_detect_kind_particle_from_glow():
-    from unity_mcp.tools.vfx_intent_tool import detect_kind
-    assert detect_kind("glow outline on selection") == "particle"
-
-
-def test_vfx_detect_kind_default_particle():
-    from unity_mcp.tools.vfx_intent_tool import detect_kind
-    assert detect_kind("some generic vfx") == "particle"
-
-
 def test_detect_kind_always_particle():
     """All inputs, including shader keywords, return particle."""
     from unity_mcp.tools.vfx_intent_tool import detect_kind

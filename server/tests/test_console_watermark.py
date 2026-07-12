@@ -98,4 +98,4 @@ async def test_roundtrip_mark_then_since(mod, monkeypatch):
     await mod.get_console_since(mark)
 
     assert len(since_values) == 1
-    assert since_values[0] >= 0.0
+    assert 0 < since_values[0] < 5  # elapsed seconds since mark: positive and recent

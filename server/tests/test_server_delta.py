@@ -37,10 +37,3 @@ async def test_scene_diff_error_raises_tool_error(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "No snapshot available"})
     with pytest.raises(ToolError, match="No snapshot available"):
         await scene_diff()
-
-
-async def test_scene_diff_empty_diff(mock_bridge):
-    """scene_diff returns NO CHANGES when scene is identical to snapshot."""
-    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "NO CHANGES"})
-    result = await scene_diff()
-    assert result == "NO CHANGES"

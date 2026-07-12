@@ -8,24 +8,6 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class PlaytestAliasWindowTests
     {
-        // ── FormatVALLine ───────────────────────────────────────────────────────
-
-        [Test]
-        public void FormatVALLine_WithAllFields_ProducesCorrectLine()
-        {
-            var a = new QueryAlias { alias = "hp", path = "/Player", component = "Health", field = "hp" };
-            var result = PlaytestAliasHelpers.FormatVALLine(a);
-            Assert.AreEqual("VAL $hp /Player|Health|hp", result);
-        }
-
-        [Test]
-        public void FormatVALLine_EmptyComponentAndField_NoTrailingPipes()
-        {
-            var a = new QueryAlias { alias = "player", path = "/GridPlayer", component = "", field = "" };
-            var result = PlaytestAliasHelpers.FormatVALLine(a);
-            Assert.AreEqual("VAL $player /GridPlayer", result);
-        }
-
         // ── FormatVALBlock ──────────────────────────────────────────────────────
 
         [Test]

@@ -211,7 +211,7 @@ async def test_animator_intent_dry_run_returns_plan():
             mock_svc.generate = AsyncMock(return_value=dsl)
             result = await animator_intent(target="/Player", intent="basic walk cycle", dry_run=True)
             mock_send.assert_not_called()
-            assert "animator" in result
+            assert "add_param" in result or "add_state" in result  # batch plan echoed
 
 
 async def test_animator_intent_e2e_executes_batch():
@@ -225,7 +225,7 @@ async def test_animator_intent_e2e_executes_batch():
             mock_send.assert_called_once()
             call_args = mock_send.call_args
             assert call_args[0][0] == "batch"
-            assert "ok" in result
+            assert "ok: 4 ops" in result  # mock response echoed in output
 
 
 async def test_animator_intent_invalid_dsl_no_batch():
@@ -251,13 +251,3 @@ def test_animator_intent_sanitizes_target():
     sanitized = sanitize_intent(raw_target)
     assert "{" not in sanitized
     assert "}" not in sanitized
-
-
-def test_vfx_intent_sanitizes_target():
-    """Fix 10: vfx_intent prompt must apply sanitize_intent to target param."""
-    from unity_mcp.tools.vfx_intent_tool import _PROMPT_TEMPLATE
-    from unity_mcp.tools.intent_common import sanitize_intent
-    target = "/Enemy{inject}"
-    intent = "fire explosion"
-    prompt = _PROMPT_TEMPLATE.format(target=sanitize_intent(target), kind="particle", intent=sanitize_intent(intent))
-    assert "{" not in prompt

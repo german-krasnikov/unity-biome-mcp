@@ -104,13 +104,6 @@ async def test_query_state_sends_correct_command(mock_bridge):
     assert "GridPlayer.Score=5" in result
 
 
-async def test_query_state_multiple_objects(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "Health.hp=80\nAmmo.count=5"}
-    result = await query_state("/Player|Health|hp,/Player|Ammo|count")
-    sent = mock_bridge.send.call_args[0][1]
-    assert sent["queries"] == "/Player|Health|hp,/Player|Ammo|count"
-    assert result == "Health.hp=80\nAmmo.count=5"
-
 
 # --- P1-4: move_to bridge call shape ---
 

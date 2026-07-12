@@ -16,10 +16,11 @@ def _bridge_down():
 
 
 @pytest.mark.asyncio
-async def test_warm_cmd_flags_adds_mutating():
+async def test_warm_cmd_flags_adds_mutating(monkeypatch):
     from unity_mcp import middleware_types as mt
     from unity_mcp.server import _warm_cmd_flags
 
+    monkeypatch.setattr(mt, "WRITE_CMDS", set(mt.WRITE_CMDS))
     bridge = _bridge("mutating_cmds:auto_wire,autofit_collider,references")
     await _warm_cmd_flags(bridge)
 
@@ -29,15 +30,15 @@ async def test_warm_cmd_flags_adds_mutating():
 
 
 @pytest.mark.asyncio
-async def test_warm_cmd_flags_adds_runtime():
+async def test_warm_cmd_flags_adds_runtime(monkeypatch):
     from unity_mcp import middleware_types as mt
     from unity_mcp.server import _warm_cmd_flags
 
+    monkeypatch.setattr(mt, "_RUNTIME_ONLY_CMDS", set(mt._RUNTIME_ONLY_CMDS))
     bridge = _bridge("runtime_cmds:new_future_cmd")
     await _warm_cmd_flags(bridge)
 
     assert "new_future_cmd" in mt._RUNTIME_ONLY_CMDS
-    mt._RUNTIME_ONLY_CMDS.discard("new_future_cmd")  # cleanup
 
 
 @pytest.mark.asyncio
@@ -49,6 +50,3 @@ async def test_warm_cmd_flags_tcp_down_keeps_baseline():
     assert "invoke_method" in mt._RUNTIME_ONLY_CMDS  # hardcoded baseline intact
 
 
-def test_runtime_only_cmds_is_mutable():
-    from unity_mcp.middleware_types import _RUNTIME_ONLY_CMDS
-    assert isinstance(_RUNTIME_ONLY_CMDS, set)

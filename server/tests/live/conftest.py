@@ -1,5 +1,6 @@
 """Live test fixtures. All live tests skip automatically when Unity bridge is down."""
 import asyncio
+import logging
 import os
 import re
 import socket
@@ -124,43 +125,48 @@ async def _cleanup_orphans():
     yield
     if not _bridge_up():
         return
+    close_scenes_code = (
+        'int closed = 0; '
+        'var active = UnityEngine.SceneManagement.SceneManager.GetActiveScene(); '
+        'for (int i = UnityEngine.SceneManagement.SceneManager.sceneCount - 1; i >= 0; i--) { '
+        '  var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i); '
+        '  if (!s.IsValid() || !s.isLoaded) continue; '
+        '  if (s.handle == active.handle) continue; '
+        '  if (s.name.StartsWith("LiveMS_") || s.name.StartsWith("LiveSS_")) { '
+        '    UnityEditor.SceneManagement.EditorSceneManager.CloseScene(s, true); closed++; '
+        '  } '
+        '} '
+        'return closed + " orphan scenes closed";'
+    )
+    destroy_code = (
+        'var roots = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects(); '
+        'int count = 0; '
+        'foreach(var go in roots) { '
+        '  if(go.name.StartsWith("Live")) { '
+        '    UnityEngine.Object.DestroyImmediate(go); count++; '
+        '  } '
+        '} '
+        'return count + " orphans cleaned";'
+    )
+    save_code = (
+        'var s = UnityEngine.SceneManagement.SceneManager.GetActiveScene(); '
+        'UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s); '
+        'return "saved";'
+    )
     b = UnityBridge()
     try:
-        await b.connect()
-        # Close orphan additive scenes before touching root objects.
-        close_scenes_code = (
-            'int closed = 0; '
-            'var active = UnityEngine.SceneManagement.SceneManager.GetActiveScene(); '
-            'for (int i = UnityEngine.SceneManagement.SceneManager.sceneCount - 1; i >= 0; i--) { '
-            '  var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i); '
-            '  if (!s.IsValid() || !s.isLoaded) continue; '
-            '  if (s.handle == active.handle) continue; '
-            '  if (s.name.StartsWith("LiveMS_") || s.name.StartsWith("LiveSS_")) { '
-            '    UnityEditor.SceneManagement.EditorSceneManager.CloseScene(s, true); closed++; '
-            '  } '
-            '} '
-            'return closed + " orphan scenes closed";'
-        )
-        await b.send("execute_code", {"code": close_scenes_code})
-        code = (
-            'var roots = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects(); '
-            'int count = 0; '
-            'foreach(var go in roots) { '
-            '  if(go.name.StartsWith("Live")) { '
-            '    UnityEngine.Object.DestroyImmediate(go); count++; '
-            '  } '
-            '} '
-            'return count + " orphans cleaned";'
-        )
-        await b.send("execute_code", {"code": code})
-        save_code = (
-            'var s = UnityEngine.SceneManagement.SceneManager.GetActiveScene(); '
-            'UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s); '
-            'return "saved";'
-        )
-        await b.send("execute_code", {"code": save_code})
-    except Exception:
-        pass
+        for attempt in range(2):
+            try:
+                await b.connect()
+                # Close orphan additive scenes before touching root objects.
+                await b.send("execute_code", {"code": close_scenes_code})
+                await b.send("execute_code", {"code": destroy_code})
+                await b.send("execute_code", {"code": save_code})
+                break
+            except Exception as e:
+                logging.warning(f"cleanup failed (attempt {attempt + 1}): {e}")
+                if attempt == 0:
+                    await asyncio.sleep(2)
     finally:
         await b.close()
 

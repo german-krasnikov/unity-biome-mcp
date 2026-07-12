@@ -463,8 +463,8 @@ async def test_heartbeat_reconnect_fires_callbacks():
                     with patch.object(bridge, "_probe_busy", return_value=False):
                         await bridge._heartbeat_tick(15.0)
 
-    assert True in calls_to_reconnect, \
-        "Heartbeat must call _reconnect(fire_callbacks=True)"
+    assert calls_to_reconnect[-1] == True, \
+        "Heartbeat must call _reconnect(fire_callbacks=True) as final call"
     callback.assert_called_once()
 
 

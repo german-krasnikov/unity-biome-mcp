@@ -182,24 +182,12 @@ namespace UnityMCP.Editor.Tests
 
         [Test]
         public void IsAllowedAssembly_NullName_ReturnsFalse()
-        {
-            // AssemblyName.Name can be null for in-memory assemblies; simulate via a stub
-            // We can't easily create a real Assembly with null name in NUnit,
-            // so verify the guard by reflection: if a.GetName().Name is null, method returns false.
-            // Use a real assembly that exposes this path via the production code path.
-            // The guard is at line 1 — verified by code inspection + the ordering fix itself.
-            // Best achievable without Moq: confirm the guard exists via source-level test of
-            // the exact string.IsNullOrEmpty(null) => true contract.
-            Assert.IsTrue(string.IsNullOrEmpty(null), "Null guard precondition");
-            Assert.IsTrue(string.IsNullOrEmpty(""),   "Empty guard precondition");
-        }
+            => Assert.IsFalse(CodeExecutor.IsAllowedAssembly((string)null),
+                "null assembly name must be blocked");
 
         [Test]
         public void IsAllowedAssembly_EmptyName_ReturnsFalse()
-        {
-            // Guards string.IsNullOrEmpty — same reasoning as NullName test above.
-            // Both null and "" hit the early-return before any StartsWith (ordering fix).
-            Assert.IsTrue(string.IsNullOrEmpty(""), "IsNullOrEmpty(\"\") must be true");
-        }
+            => Assert.IsFalse(CodeExecutor.IsAllowedAssembly(""),
+                "empty assembly name must be blocked");
     }
 }

@@ -79,17 +79,6 @@ def test_objects_register_wires_tools():
     assert mcp.tool.call_count >= 8
 
 
-def test_objects_register_arg_order_guard():
-    """Swapping send/args positions would leave _send pointing at args callable."""
-    import unity_mcp.tools.objects as mod
-    mod._send = None
-
-    sentinel_send = AsyncMock(name="the_send")
-    mod.register(_make_mcp(), sentinel_send, MagicMock())
-
-    assert mod._send is sentinel_send
-
-
 # ── Part 2: scene.py (B2: slimmed — get_hierarchy/scene/search_scene/fingerprint/
 #    scene_diff/scene_environment + scene.py delegation only) ──────────────────
 
@@ -119,16 +108,6 @@ def test_scene_register_wires_tools():
     assert mcp.tool.call_count >= 11
 
 
-def test_scene_register_arg_order_guard():
-    import unity_mcp.tools.scene as mod
-    mod._send = None
-
-    sentinel = AsyncMock(name="scene_send")
-    mod.register(_make_mcp(), sentinel, MagicMock())
-
-    assert mod._send is sentinel
-
-
 # ── Part 3: runtime.py ────────────────────────────────────────────────────────
 
 def test_runtime_register_sets_send():
@@ -154,16 +133,6 @@ def test_runtime_register_wires_tools():
     # invoke_method, set_runtime_property, wait_until, move_to,
     # query_state, test_step, run_playtest = 7 tools
     assert mcp.tool.call_count >= 7
-
-
-def test_runtime_register_arg_order_guard():
-    import unity_mcp.tools.runtime as mod
-    mod._send = None
-
-    sentinel = AsyncMock(name="runtime_send")
-    mod.register(_make_mcp(), sentinel, MagicMock())
-
-    assert mod._send is sentinel
 
 
 # ── Part 4: console.py / screenshot.py / testing.py / editor_control.py
@@ -218,7 +187,7 @@ def test_screenshot_register_wires_tools():
     mod.register(mcp, AsyncMock(), MagicMock())
 
     # screenshot = 1 tool
-    assert mcp.tool.call_count >= 1
+    assert mcp.tool.call_count == 1
 
 
 def test_testing_register_sets_send():

@@ -144,7 +144,7 @@ def test_decision_reason_descriptive(tmp_path):
     exhaust_session(t, 0.97)
     r = make_router(t)
     d = r.should_run("summarize", 0.2)
-    assert len(d.reason) > 3
+    assert "budget" in d.reason or "skip" in d.reason
     assert d.reason != "ok"
 
 

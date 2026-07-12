@@ -753,20 +753,3 @@ async def test_edge_unknown_cmd_returns_err() -> None:
     assert stat["ok"] is True
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Sanity: parametrize matrices sum to 200 monkey tests
-# ══════════════════════════════════════════════════════════════════════════════
-
-def test_parametrize_count_sanity_chat_focus() -> None:
-    """Verify all section matrices sum to 200 monkey-marked tests."""
-    a = len(ALL_6) * 6    # 36
-    b = 6 * 5              # 30
-    c = len(ALL_6) * 6    # 36
-    d = len(BASE_5) * 8   # 40
-    e = 6 * len(BASE_5)   # 30
-    f = 6 * len(RELOAD_3) # 18
-    g = 10                 # 10
-    assert a + b + c + d + e + f + g == 200
-    assert len(ALL_6) == 6
-    assert len(BASE_5) == 5
-    assert len(RELOAD_3) == 3

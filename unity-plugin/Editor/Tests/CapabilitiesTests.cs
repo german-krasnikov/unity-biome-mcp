@@ -11,6 +11,9 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp() => CommandRegistry.InitDefaults();
 
+        [TearDown]
+        public void TearDown() => CommandRegistry.Clear();
+
         [Test]
         public void GetCapabilities_IsRegistered()
         {

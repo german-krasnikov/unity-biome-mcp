@@ -181,7 +181,7 @@ async def test_executor_no_failure_returns_summary():
     send = AsyncMock(return_value="ok: 3 ops")
     ex = Executor(send)
     result = await ex.execute("create_object name=Cube\nset_active path=/Cube active=true")
-    assert "ok" in result or "2" in result or "ops" in result
+    assert result == "ok: 3 ops"
     send.assert_called_once()
 
 
@@ -260,7 +260,7 @@ async def test_do_e2e_happy_path():
         mock_send.return_value = "ok: 1 ops"
 
         result = await do("add a cube")
-        assert "ok" in result.lower() or "1" in result
+        assert result == "do: 1 ops\nok: 1 ops"
 
 
 async def test_do_dry_run_e2e():
@@ -276,7 +276,7 @@ async def test_do_dry_run_e2e():
 
         result = await do("add a cube", dry_run=True)
         mock_send.assert_not_called()
-        assert "create_object" in result or "dry" in result.lower() or "plan" in result.lower()
+        assert result == "DRY RUN plan:\ncreate_object name=Cube"
 
 
 # ---------------------------------------------------------------------------

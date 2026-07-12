@@ -14,6 +14,7 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            CommandRegistry.InitDefaults();
             _go = new GameObject("CFit_TestObj");
             var mf = _go.AddComponent<MeshFilter>();
             _mesh = CreateUnitCube();
@@ -26,6 +27,7 @@ namespace UnityMCP.Editor.Tests
         {
             if (_go != null) UnityEngine.Object.DestroyImmediate(_go);
             if (_mesh != null) UnityEngine.Object.DestroyImmediate(_mesh);
+            CommandRegistry.Clear();
         }
 
         [Test]

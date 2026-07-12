@@ -38,8 +38,3 @@ class TestSceneHealth:
         from unity_mcp.tools.scene_health import scene_health
         result = await scene_health()
         assert result == "CRITICAL: /Player — MissingScript (x2)"
-
-    async def test_cmd_name(self, mock_send):
-        from unity_mcp.tools.scene_health import scene_health
-        await scene_health()
-        assert mock_send.call_args[0][0] == "scene_health"

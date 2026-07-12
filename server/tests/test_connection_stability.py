@@ -220,22 +220,6 @@ async def test_exponential_backoff_storm():
     print(f"\nStorm test: {attempts} reconnect attempts in {DURATION}s (naive baseline: ~300)")
 
 
-def test_backoff_doubles_on_each_failure():
-    """B1: _reconnect_backoff doubles on consecutive failures."""
-    from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, BACKOFF_MAX_S
-
-    current = BACKOFF_MIN_S
-    for _ in range(10):
-        next_backoff = min(current * 2, BACKOFF_MAX_S)
-        if current < BACKOFF_MAX_S:
-            assert next_backoff > current
-        else:
-            assert next_backoff == BACKOFF_MAX_S
-        current = next_backoff
-
-    assert BACKOFF_MIN_S == 5.0
-    assert BACKOFF_MAX_S == 60.0
-
 
 async def test_backoff_resets_on_success():
     """M1: backoff resets to BACKOFF_MIN_S after successful _heartbeat_tick reconnect.

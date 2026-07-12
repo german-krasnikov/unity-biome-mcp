@@ -140,7 +140,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void LightOptimize_BakeStatic_Detected()
+        public void LightOptimize_RealtimePoint_NoError()
         {
             MakeLight(LightType.Point, "RealTimePoint").lightmapBakeType = LightmapBakeType.Realtime;
             var result = RenderAnalyzer.Execute(A("light_optimize"));

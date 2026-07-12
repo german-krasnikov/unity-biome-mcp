@@ -44,16 +44,6 @@ async def test_non_ask_user_returns_allow(monkeypatch):
     send.assert_not_awaited()
 
 
-async def test_input_as_dict(monkeypatch):
-    """Claude CLI always sends input as dict (object type in schema)."""
-    import unity_mcp.tools.permission_prompt_tool as mod
-    questions = [{"question": "Ready?"}]
-    monkeypatch.setattr(mod, "_send", AsyncMock(return_value=json.dumps({"Ready?": "Yes"})))
-    result = await mod.permission_prompt("AskUserQuestion", {"questions": questions}, "tu-4")
-    data = json.loads(result)
-    assert data["behavior"] == "allow"
-    assert data["updatedInput"]["questions"] == questions
-
 
 async def test_send_raises_returns_deny_sanitized(monkeypatch):
     import unity_mcp.tools.permission_prompt_tool as mod

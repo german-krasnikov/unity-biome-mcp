@@ -1,9 +1,5 @@
 """Unit tests for code_intel tools — mock_bridge with canned C# response format."""
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
-
-
-FIXTURES = Path(__file__).parent / "fixtures" / "roslyn_responses.txt"
 
 
 # --- compile_preflight ---
@@ -80,10 +76,3 @@ def test_live_tools_registered_in_tier1():
     assert "semantic_at" not in TIER1
 
 
-def test_fixture_file_exists():
-    """roslyn_responses.txt fixture exists and has expected sections."""
-    text = FIXTURES.read_text(encoding="utf-8")
-    assert "find_references" in text
-    assert "compile_preflight" in text
-    assert "semantic_at" in text
-    assert "ROSLYN UNAVAILABLE" in text

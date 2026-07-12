@@ -4,7 +4,3 @@ from unity_mcp.constants import DEFAULT_PORT
 
 def test_default_port_value():
     assert DEFAULT_PORT == 9500
-
-
-def test_default_port_type():
-    assert isinstance(DEFAULT_PORT, int)

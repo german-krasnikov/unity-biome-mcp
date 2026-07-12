@@ -26,7 +26,6 @@ def test_retry_watchdog_blocks_duplicate(mw):
     # Use write cmd — read cmds (get_hierarchy) are never blocked by design
     mw.check_retry("set_property", {"path": "/A", "prop": "x", "value": "1"})
     result = mw.check_retry("set_property", {"path": "/A", "prop": "x", "value": "1"})
-    assert result is not None
     assert "RETRY" in result
 
 
@@ -84,7 +83,6 @@ def test_confidence_low_warning(mw):
 
 def test_taint_warns_unverified_reference(mw):
     result = mw.check_taint("set_property", {"path": "/A", "component": "C", "prop": "targetReference", "value": "/Enemy"})
-    assert result is not None
     assert "TAINT" in result
 
 
@@ -263,7 +261,6 @@ def test_path_cache_warns_unknown_path(mw):
     hierarchy = "SampleScene\n├─ Player $[Transform]"
     mw.update_path_cache("get_hierarchy", hierarchy)
     result = mw.validate_path("/NonExistent")
-    assert result is not None
     assert "PATH WARNING" in result
 
 
@@ -286,7 +283,6 @@ def test_path_cache_allows_ref_syntax(mw):
 def test_dead_write_warns_overwrite(mw):
     mw.check_dead_write("set_property", {"path": "/A", "component": "C", "prop": "x", "value": "1"})
     result = mw.check_dead_write("set_property", {"path": "/A", "component": "C", "prop": "x", "value": "2"})
-    assert result is not None
     assert "OVERWRITE" in result
 
 
@@ -358,7 +354,7 @@ async def test_wrap_send_circuit_open_returns_error():
     fake_send = AsyncMock(return_value="ok")
     wrapped = wrap_send(fake_send, mw)
     result = await wrapped("get_hierarchy", {})
-    assert "Circuit" in result or "circuit" in result.lower()
+    assert "circuit" in result.lower()
     fake_send.assert_not_called()
 
 
@@ -494,7 +490,6 @@ def test_verification_checkpoint_every_10(mw):
     for _ in range(9):
         mw.check_verification_needed("set_property")
     result = mw.check_verification_needed("set_property")
-    assert result is not None
     assert "VERIFICATION" in result
 
 
@@ -528,7 +523,6 @@ def test_workflow_fsm_warns_after_3_writes(mw):
     mw.transition("set_property")
     mw.transition("set_property")
     result = mw.transition("set_property")
-    assert result is not None
     assert "write" in result.lower() or "verif" in result.lower()
 
 

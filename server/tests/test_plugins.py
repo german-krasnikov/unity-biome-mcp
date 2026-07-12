@@ -48,7 +48,7 @@ def test_load_plugins_calls_register():
         with patch("unity_mcp.plugins.import_module", return_value=fake_mod):
             load_plugins(MagicMock(), MagicMock(), MagicMock())
 
-    assert len(called) > 0
+    assert called == ["test"]
 
 
 # no-assert: crash guard

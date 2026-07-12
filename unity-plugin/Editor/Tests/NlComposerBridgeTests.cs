@@ -29,7 +29,7 @@ namespace UnityMCP.Editor.Tests
         // ── ParseAsync gating ──────────────────────────────────────────────
 
         [Test]
-        public async Task ParseAsync_ModelEmpty_StillRuns()
+        public async Task ParseAsync_ModelSet_CallsRunProcess()
         {
             NlComposerBridge.ResolveBinaryOverride = _ => "/usr/bin/claude";
             NlComposerBridge.RunProcessOverride = (_, __, ___) => Task.FromResult("WAIT 2");

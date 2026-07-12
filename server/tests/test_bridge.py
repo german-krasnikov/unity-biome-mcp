@@ -225,26 +225,6 @@ class TestUnityBridge:
             with pytest.raises(ConnectionError):
                 await bridge.send("test", {})
 
-    async def test_send_raises_on_connection_error(self):
-        """Circuit breaker: raises ConnectionError on write failure."""
-        from unittest.mock import MagicMock
-
-        idle_probe = make_idle_probe()
-
-        def create_failing_mock():
-            reader = AsyncMock()
-            writer = make_writer()
-            writer.write = Mock(side_effect=ConnectionError("Connection lost"))
-            return (reader, writer)
-
-        with patch("unity_mcp.bridge.asyncio.open_connection",
-                   return_value=create_failing_mock()):
-            bridge = UnityBridge(probe=idle_probe)
-            await bridge.connect()
-
-            with pytest.raises(ConnectionError):
-                await bridge.send("test", {})
-
     async def test_bridge_auto_retry_on_retry_hint(self):
         """Bridge auto-waits and retries on retry hint."""
         reader = AsyncMock()
@@ -952,13 +932,23 @@ def test_raw_ping_default_timeout_is_5s():
     assert sig.parameters["timeout"].default == 5.0
 
 
-def test_heartbeat_tick_calls_raw_ping_with_5s_timeout():
-    """F01: _heartbeat_tick must call _raw_ping with timeout=5 (not 20)."""
-    import inspect
-    from unity_mcp.bridge import UnityBridge
-    src = inspect.getsource(UnityBridge._heartbeat_tick)
-    assert "timeout=5" in src, "heartbeat must use timeout=5"
-    assert "timeout=20" not in src, "timeout=20 must be removed"
+async def test_heartbeat_tick_calls_raw_ping_with_5s_timeout():
+    """F01: _heartbeat_tick must call _raw_ping(timeout=5.0) when connected."""
+    writer = make_writer()
+    with patch("unity_mcp.bridge.asyncio.open_connection", return_value=(AsyncMock(), writer)):
+        bridge = UnityBridge()
+        await bridge.connect()
+
+        raw_ping_calls: list = []
+
+        async def fake_raw_ping(timeout=5.0):
+            raw_ping_calls.append(timeout)
+
+        with patch.object(bridge, "_raw_ping", side_effect=fake_raw_ping):
+            with patch("unity_mcp.bridge_heartbeat.asyncio.sleep", new_callable=AsyncMock):
+                await bridge._heartbeat_tick(5.0)
+
+    assert raw_ping_calls == [5.0], f"_raw_ping must be called with timeout=5.0, got {raw_ping_calls}"
 
 
 async def test_concurrent_sends_use_unique_message_ids():
@@ -1089,13 +1079,6 @@ async def test_bridge_state_domain_reloading(monkeypatch):
 
     assert bridge._state == BridgeState.DOMAIN_RELOADING
 
-
-async def test_bridge_state_failed_on_grace_expired():
-    """_startup_grace_expired=True maps to FAILED state."""
-    from unity_mcp.bridge import BridgeState
-    bridge = UnityBridge()
-    bridge._state = BridgeState.FAILED
-    assert bridge._state == BridgeState.FAILED
 
 
 async def test_bridge_state_connected_clears_failed():

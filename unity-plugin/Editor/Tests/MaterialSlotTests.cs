@@ -59,7 +59,6 @@ namespace UnityMCP.Editor.Tests
         {
             _go.name = "SlotOne";
             _go.transform.SetParent(null);
-            // Set different shader name to distinguish
             var result = MaterialHelper.Execute("get",
                 "{\"object_path\":\"/SlotOne\",\"slot\":1}");
 

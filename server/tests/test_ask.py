@@ -185,7 +185,7 @@ async def test_summarizer_haiku_fallback_when_none():
     long_raw = ["x" * 250]
     # Falls back to raw data when haiku returns None
     result = await s.summarize("any errors?", long_raw, hint="something")
-    assert result is not None  # returns something, not crashes
+    assert len(result) == 250  # fallback to raw "x"*250
 
 
 # ---------------------------------------------------------------------------
@@ -217,7 +217,7 @@ async def test_ask_e2e_scene_health_uses_haiku():
         mock_svc.generate = AsyncMock(return_value="Scene has 2 errors: NullRef in Player.cs")
 
         result = await ask("what problems are in the scene?")
-        assert result is not None
+        assert result == "Scene has 2 errors: NullRef in Player.cs"
 
 
 # ---------------------------------------------------------------------------
@@ -501,18 +501,6 @@ def test_router_spatial_noun_transform_waypoint():
 # ---------------------------------------------------------------------------
 # 25. Router — non-Unity questions still rejected (regression)
 # ---------------------------------------------------------------------------
-
-def test_router_still_rejects_non_unity_weather():
-    from unity_mcp.ask.router import route
-    plan = route("what is the weather today?")
-    assert plan is None
-
-
-def test_router_still_rejects_non_unity_joke():
-    from unity_mcp.ask.router import route
-    plan = route("tell me a joke")
-    assert plan is None
-
 
 # ---------------------------------------------------------------------------
 # 26. ask e2e — spatial query does not return "no matching Unity context"

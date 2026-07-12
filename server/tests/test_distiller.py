@@ -140,7 +140,6 @@ async def test_distill_haiku_accepts_valid_subset():
     d = ResponseDistiller(sampling=sampling)
     text = "/Player\n/Enemy\n/Camera\n" * 100  # > 1500 chars
     result = await d.distill_haiku("get_hierarchy", text, ("/Player",))
-    assert result is not None
     assert result.method == "haiku"
     assert result.distilled_size < result.original_size
 
@@ -162,12 +161,22 @@ async def test_distill_haiku_cli_args_include_max_tokens():
     assert "--max-tokens" in args, "distiller profile must include --max-tokens"
 
 
-def test_distill_haiku_input_capped_at_4000():
-    """distill_haiku must cap input to 4000 chars, not 8000."""
-    import inspect
-    from unity_mcp import distiller as mod
-    src = inspect.getsource(mod.ResponseDistiller.distill_haiku)
-    # 8000 must not appear; 4000 must
-    assert "8000" not in src, "input cap must be 4000, not 8000"
-    assert "4000" in src, "input must be capped at 4000"
+async def test_distill_haiku_input_capped_at_4000():
+    """distill_haiku must cap input to 4000 chars before passing to sampling."""
+    from unittest.mock import MagicMock
+    captured: dict = {}
+
+    sampling = MagicMock()
+    async def fake_generate(prompt, **kw):
+        captured["prompt"] = prompt
+        return None  # triggers early return (None result)
+    sampling.generate = fake_generate
+
+    d = ResponseDistiller(sampling=sampling)
+    await d.distill_haiku("get_hierarchy", "x" * 5000, ("/Player",))
+
+    assert "prompt" in captured, "sampling.generate must have been called"
+    prompt = captured["prompt"]
+    idx = prompt.index("Input:\n") + len("Input:\n")
+    assert len(prompt[idx:]) <= 4000, f"Input passed to sampling must be ≤ 4000 chars, got {len(prompt[idx:])}"
 

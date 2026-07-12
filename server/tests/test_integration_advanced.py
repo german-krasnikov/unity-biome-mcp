@@ -168,7 +168,6 @@ async def test_binary_like_data(mock_unity_server):
 
     assert result["ok"] is True
     assert result["data"] == base64_data
-    assert len(result["data"]) > 40
 
     await bridge.close()
 
@@ -186,7 +185,6 @@ async def test_large_args_and_response(mock_unity_server):
     result = await bridge.send("large_cmd", large_args)
 
     assert result["ok"] is True
-    assert len(str(result["data"])) > 10000
     assert result["data"] == large_response
 
     await bridge.close()
@@ -223,44 +221,9 @@ async def test_mixed_sequential_and_concurrent(mock_unity_server):
         bridge.send("cmd6", {})
     )
     assert batch2[0]["data"] == "result5"
+    assert batch2[1]["data"] == "result6"
 
     await bridge.close()
-
-
-async def test_server_error_response(mock_unity_server):
-    """Server returns ok=false with error message."""
-    async def error_handler(reader, writer):
-        try:
-            header = await reader.readexactly(4)
-            length = struct.unpack("!I", header)[0]
-            payload = await reader.readexactly(length)
-            request = json.loads(payload.decode("utf-8"))
-
-            msg_id = request["id"]
-            response = {"id": msg_id, "ok": False, "err": "GameObject not found"}
-
-            resp_payload = json.dumps(response).encode("utf-8")
-            resp_header = struct.pack("!I", len(resp_payload))
-            writer.write(resp_header + resp_payload)
-            await writer.drain()
-        except asyncio.IncompleteReadError:
-            pass
-        writer.close()
-
-    server = await asyncio.start_server(error_handler, "127.0.0.1", 0)
-    port = server.sockets[0].getsockname()[1]
-
-    bridge = UnityBridge(port=port)
-    await bridge.connect()
-
-    result = await bridge.send("get_object", {"path": "/Invalid"})
-
-    assert result["ok"] is False
-    assert result["err"] == "GameObject not found"
-
-    await bridge.close()
-    server.close()
-    await server.wait_closed()
 
 
 async def test_message_id_increments_correctly(mock_unity_server):

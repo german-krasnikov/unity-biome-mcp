@@ -138,14 +138,6 @@ def test_batch_allows_invoke_method():
     assert 'cmd == "invoke_method"' not in src, "invoke_method must not be hardcoded in blocklist"
 
 
-def test_batch_blocks_run_playtest():
-    """run_playtest is async (RegisterAsync) — IsBatchable returns false for it."""
-    from pathlib import Path
-    path = str(Path(__file__).parents[2] / "unity-plugin" / "Editor" / "BatchHelper.cs")
-    src = open(path, encoding="utf-8").read()
-    assert "IsBatchable" in src, "BatchHelper must use CommandRegistry.IsBatchable()"
-
-
 # --- TDD Phase 2: register_tools() self-registration ---
 
 def test_register_tools_adds_to_category():
@@ -623,12 +615,6 @@ def test_all_registered_tools_are_known_to_gating():
 
 
 # --- Phase 2: new taxonomy tests ---
-
-def test_core_count_is_11():
-    """Phase 1a: CORE shrunk from 15 to 11 (delete_object/set_parent/scene/search_scene → tier1)."""
-    from unity_mcp.tools.gating import _CORE_TOOLS
-    assert len(_CORE_TOOLS) == 11
-
 
 def test_no_orphan():
     from unity_mcp.tools.gating import _THEMED_CATEGORIES, _CORE_TOOLS

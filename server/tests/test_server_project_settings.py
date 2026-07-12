@@ -88,7 +88,7 @@ async def test_get_quality(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "levels: Low, Medium, High\ncurrent: 2"})
     result = await project_settings(action="get", target="quality")
     mock_bridge.send.assert_called_once_with("project_settings", {"action": "get", "target": "quality"}, timeout=30.0)
-    assert "levels" in result or "Low" in result
+    assert "levels" in result
 
 
 async def test_error_from_unity(mock_bridge):

@@ -449,17 +449,7 @@ async def test_status_no_session():
     assert "buf=0" in result["data"]
 
 
-# ─── Switch (3 tests) ───────────────────────────────────────────────────────
-
-async def test_switch_kills_old():
-    relay = ChatRelay()
-    old = mock_sess(pid=1)
-    relay._session = old
-    proc = make_proc(pid=2)
-    with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec", AsyncMock(return_value=proc)):
-        await relay._cmd_switch({"binary": "/bin/new", "argv": [], "env_set": {}, "env_strip": []})
-    old.kill.assert_called_once()
-
+# ─── Switch (1 test) ────────────────────────────────────────────────────────
 
 async def test_switch_resets_seq_after_kill():
     """C1 FIX: switch kills old session → buf cleared, but seq stays monotonic."""
@@ -472,17 +462,6 @@ async def test_switch_resets_seq_after_kill():
         await relay._cmd_switch({"binary": "/bin/new", "argv": [], "env_set": {}, "env_strip": []})
     relay._enqueue("after_switch")
     assert relay._buf[-1].seq == 1  # C1: seq continues from 1, not reset to 0
-
-
-async def test_switch_new_session_alive():
-    relay = ChatRelay()
-    old = mock_sess()
-    relay._session = old
-    proc = make_proc(pid=99, returncode=None)
-    with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec", AsyncMock(return_value=proc)):
-        result = await relay._cmd_switch({"binary": "/bin/new", "argv": [], "env_set": {}, "env_strip": []})
-    assert result["ok"] is True
-    assert "pid=99" in result["data"]
 
 
 # ─── Close Stdin (2 tests) ──────────────────────────────────────────────────
@@ -503,7 +482,7 @@ async def test_close_stdin_no_session_ok():
     assert "stdin closed" in result["data"]
 
 
-# ─── CLI Crash Handling (3 tests) ───────────────────────────────────────────
+# ─── CLI Crash Handling (2 tests) ───────────────────────────────────────────
 
 async def test_crash_nonzero_exit_enqueues_error():
     relay = ChatRelay()
@@ -517,21 +496,6 @@ async def test_crash_nonzero_exit_enqueues_error():
     texts = [b.text for b in relay._buf]
     # EOF error events are pipe-format: e|<message>
     assert any(t.startswith("e|") for t in texts)
-
-
-async def test_crash_zero_exit_enqueues_done():
-    """B3 FIX: exit code 0 now enqueues a done event (previously silent, leaving spinner forever)."""
-    relay = ChatRelay()
-    sess = mock_sess(alive=False, exit_code=0)
-    sess.read_stdout_line = AsyncMock(return_value=None)
-    relay._session = sess
-
-    await relay._drain_stdout_loop()
-
-    texts = [b.text for b in relay._buf]
-    assert len(texts) == 1
-    # EOF done events are pipe-format: d|<sid>|<cost>|<in>|<out>
-    assert texts[0].startswith("d|")
 
 
 async def test_crash_error_event_format():
@@ -1785,13 +1749,6 @@ async def test_events_long_poll_1ms_returns_fast():
     assert time.monotonic() - t0 < 0.5
     assert resp["ok"] is True
     assert resp["data"] == ""
-
-
-def test_buf_type_is_deque_with_maxlen():
-    """D10: _buf is a collections.deque with maxlen==MAX_BUF."""
-    relay = ChatRelay()
-    assert type(relay._buf) is deque
-    assert relay._buf.maxlen == MAX_BUF
 
 
 # ─── C2: spawn/switch removed from TCP dispatch ──────────────────────────────

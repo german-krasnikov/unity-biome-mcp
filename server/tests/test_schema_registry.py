@@ -88,7 +88,8 @@ def test_capture_idempotent():
     reg.capture("dup_tool", schema2, "Second")
     # Second capture updates (idempotent means no crash, latest wins)
     result = reg.get_full("dup_tool")
-    assert result is not None
+    assert result["inputSchema"] == schema2
+    assert result["description"] == "Second"
 
 
 def test_format_text_plain_not_json():

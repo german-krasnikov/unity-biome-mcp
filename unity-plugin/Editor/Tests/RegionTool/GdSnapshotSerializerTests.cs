@@ -16,7 +16,7 @@ namespace UnityMCP.Editor.Tests.RegionTool
         {
             var snap = RegionSnapshot.CreatePoint("a1b2c3d4", new Vector2(1.5f, 2.5f), Array.Empty<string>(), "S", "spawn");
             var lines = GdSnapshotSerializer.ToAliasLines(snap);
-            Assert.AreEqual(1, lines.Split('\n').Length);
+            Assert.AreEqual(1, lines.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
             StringAssert.StartsWith("ALIAS @spawn", lines);
             StringAssert.Contains("1.50", lines);
             StringAssert.Contains("0.00", lines); // PlaneY

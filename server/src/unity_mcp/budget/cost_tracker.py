@@ -95,7 +95,7 @@ class CostTracker:
     def day_spent(self) -> float:
         if self._daily_state.get("date") != self._today():
             return 0.0
-        return self._daily_state.get("spent", 0.0)
+        return self._daily_state.get("spent") or 0.0
 
     def day_cap_exceeded(self) -> bool:
         return self._day_cap > 0 and self.day_spent() >= self._day_cap

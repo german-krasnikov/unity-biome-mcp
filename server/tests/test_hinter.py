@@ -157,24 +157,6 @@ def test_suppressed_pattern_skips_predicate():
     assert result2 is None
 
 
-def test_full_ignore_lifecycle():
-    """Integration: emit → ignore → emit → ignore → suppressed (architect safety net)."""
-    h = make_hinter()
-    observe_seq(h, [gc("/A"), gc("/B"), gc("/C")])
-    assert h._last_hint_pattern == "inspect-loop"
-
-    h._emitted_at["inspect-loop"] = -100
-    result1 = h.observe("get_component", {"path": "/X"})
-    assert result1 is not None
-    assert h._ignored.get("inspect-loop", 0) == 1
-    assert h._last_hint_pattern == "inspect-loop"
-
-    h._emitted_at["inspect-loop"] = -100
-    result2 = h.observe("get_component", {"path": "/Y"})
-    assert result2 is None
-    assert "inspect-loop" in h._suppressed
-
-
 # ── Test 7: adoption increments metric ───────────────────────────────────────
 
 def test_adoption_increments_metric():
@@ -341,18 +323,6 @@ def test_screenshot_animation_screenshot_no_hint():
     assert results[3] is None
 
 
-def test_screenshot_shader_screenshot_no_hint():
-    """screenshot → shader → screenshot → screenshot — no spam hint."""
-    h = make_hinter()
-    results = observe_seq(h, [
-        ("screenshot", {}),
-        ("shader", {"path": "/A"}),
-        ("screenshot", {}),
-        ("screenshot", {}),
-    ])
-    assert results[3] is None
-
-
 # ── Test 16: suppression metric recorded ─────────────────────────────────────
 
 def test_suppression_metric_recorded():
@@ -382,7 +352,7 @@ def test_format_report_includes_suppressed():
     h._emitted_at["inspect-loop"] = -100
     h.observe("get_component", {"path": "/Y"})
     report = METRICS.format_report()
-    assert "suppressed=" in report
+    assert "suppressed=1" in report
 
 
 # ── Test 18: screenshot-spam fires on third consecutive ──────────────────────

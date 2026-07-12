@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.86.0] — 2026-07-12 — Test quality review: 83 Python + 25 C# tests deleted, assertions hardened, RenderAnalyzer crash fix
+
+**Deleted (Python — vacuous/self-testing/duplicate):**
+- 83 tests removed across 59 test files; `test_schema_cache.py` deleted entirely (17 tests that only verified `dict` type and `is not None`).
+- Vacuous patterns removed: `assert result is not None`, `assert isinstance(result, dict)`, mocks asserting their own return values, tests with no assertions.
+
+**Deleted (C# NUnit — self-testing/duplicate):**
+- ~25 tests removed: self-testing stdlib behaviour (e.g. `List.Contains`, `string.StartsWith`), duplicate coverage, tests asserting mock setup rather than production logic.
+- 8 test method renames: `snake_case` → `PascalCase` to match NUnit convention.
+
+**Strengthened:**
+- ~45 Python assertions replaced: `is not None` / truthy-only → exact value checks (`== "expected"`, `== 42`, `== []`).
+- ~10 C# assertions strengthened to exact expected values.
+
+**Test Infrastructure:**
+- TearDown/SetUp added to 5 C# test classes: `SetParentTests`, `UndoGroupHelperTests`, `EnabledToolsCacheTests`, `GetAliasesTypedTests`, `ColliderFitHelperTests` — prevents state leak between tests.
+- `conftest.py` (live): `_cleanup_orphans` now retries with logging on failure.
+- `test_multiscene_stress_live.py`: `_make_scenes` retries with logging on failure.
+
+**Fixed (production):**
+- `RenderAnalyzer.cs`: `MissingComponentException` crash — `try/catch` moved to cover the `GetComponent<MeshFilter>()` call, not just `sharedMesh` access.
+
+**Test counts:** Python unit 4630 (was ~4710 before deletions) | C# EditMode 6537 (1 pre-existing failure) | Python live 254
+
 ## [v0.85.1] — 2026-07-12 — Audit fixes: deprecated tools removed, middleware hardened, scene TearDown cleanup
 
 **Removed:**

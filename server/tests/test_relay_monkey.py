@@ -5,6 +5,7 @@ Run: pytest tests/test_relay_monkey.py -m monkey -v --timeout=60
 """
 import asyncio
 import json
+import logging
 import os
 import signal
 import struct
@@ -232,37 +233,6 @@ async def test_sigint_kills_children():
     proc.send_signal(signal.SIGINT)
     await asyncio.wait_for(proc.wait(), timeout=5)
     assert proc.returncode is not None, "relay did not exit after SIGINT"
-
-
-# ─── M7: SIGKILL Census ──────────────────────────────────────────────────────
-
-@pytest.mark.monkey
-async def test_sigkill_orphan_census():
-    """SIGKILL relay — document whether child is orphaned (always passes, census only)."""
-    env = {**os.environ, "PYTHONPATH": _SRC_DIR}
-    proc = await asyncio.create_subprocess_exec(
-        sys.executable, "-m", "unity_mcp.chat_relay",
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
-        cwd=_SERVER_DIR, env=env,
-    )
-    line = await asyncio.wait_for(proc.stdout.readline(), timeout=5)
-    port = int(line.decode().strip().split(":")[1])
-
-    resp = await tcp_send(port, "spawn", {"binary": "cat", "argv": [], "env_set": {}, "env_strip": []})
-    child_pid = _pid(resp.get("data", "")) if resp.get("ok") else None
-
-    proc.send_signal(signal.SIGKILL)
-    await asyncio.wait_for(proc.wait(), timeout=5)
-    await asyncio.sleep(0.3)
-
-    if child_pid:
-        try:
-            os.kill(child_pid, 0)
-            print(f"\n[M7 CENSUS] ORPHAN: child {child_pid} survived relay SIGKILL")
-            try: os.kill(child_pid, signal.SIGKILL)  # clean up
-            except ProcessLookupError: pass
-        except ProcessLookupError:
-            print(f"\n[M7 CENSUS] OK: child {child_pid} died with relay")
 
 
 # ─── M8: Protocol Torture ─────────────────────────────────────────────────────

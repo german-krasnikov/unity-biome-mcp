@@ -299,32 +299,6 @@ def full_project_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_meta_json_version_sync(full_project_root):
-    result = run_sync("0.99.0", full_project_root)
-    assert result.returncode == 0, result.stderr
-
-    meta = json.loads((full_project_root / "docs" / "assets" / "_meta.json").read_text(encoding="utf-8"))
-    assert meta["server_version"] == "0.99.0"
-    assert meta["plugin_version"] == "0.99.0"
-
-
-def test_meta_json_preserves_other_fields(full_project_root):
-    result = run_sync("0.99.0", full_project_root)
-    assert result.returncode == 0
-
-    meta = json.loads((full_project_root / "docs" / "assets" / "_meta.json").read_text(encoding="utf-8"))
-    assert meta["tools"] == 99
-    assert meta["batch_savings"] == "80–95%"
-
-
-def test_plugin_version_cs_sync(full_project_root):
-    result = run_sync("0.99.0", full_project_root)
-    assert result.returncode == 0, result.stderr
-
-    cs = (full_project_root / "unity-plugin" / "Editor" / "MCPServer.cs").read_text(encoding="utf-8")
-    assert 'PluginVersion => "0.99.0"' in cs
-
-
 def test_plugin_version_cs_pattern_not_found(tmp_path):
     """Fails fast if MCPServer.cs has no PluginVersion pattern."""
     (tmp_path / "server" / "src" / "unity_mcp").mkdir(parents=True)

@@ -175,15 +175,15 @@ async def test_init_corroboration_called_on_reconnect(monkeypatch):
     if on_reconnect_cb is None and reconnect_callbacks:
         on_reconnect_cb = reconnect_callbacks[0]
 
-    if on_reconnect_cb is not None:
-        try:
-            on_reconnect_cb()
-        except (AttributeError, Exception):
-            pass  # other parts of callback may fail outside lifespan context
-        # init_corroboration must have been called with port kwarg
-        assert any("port" in call for call in init_corroboration_calls), (
-            "P9: init_corroboration must be called with port= in _on_reconnect"
-        )
+    assert on_reconnect_cb is not None, "no _on_reconnect callback was registered"
+    try:
+        on_reconnect_cb()
+    except AttributeError:
+        pass  # other parts of callback may fail outside lifespan context
+    # init_corroboration must have been called with port kwarg
+    assert any("port" in call for call in init_corroboration_calls), (
+        "P9: init_corroboration must be called with port= in _on_reconnect"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -61,9 +61,9 @@ async def test_maybe_distill_audit_footer(monkeypatch):
     # Build a hierarchy text where Player is a small fraction
     text = "Scene Total: 50\n/Player\n" + "/Other{}\n".format(0) * 200
     result = await mw._maybe_distill("get_hierarchy", {}, text)
-    if "DISTILLED" in result:
-        assert "full=true" in result
-        assert "→" in result
+    assert "DISTILLED" in result
+    assert "full=true" in result
+    assert "→" in result
 
 
 async def test_wrap_send_no_distill_arg_bypasses_through_pipeline(monkeypatch):
@@ -112,48 +112,6 @@ def test_seed_preimage_no_snapshot_skips():
     mw._seed_preimage("set_property", {"path": "/A", "component": "X"}, result)
     cached = mw._prefetch_cache.get("get_component", {"path": "/A", "type": "X"})
     assert cached is None
-
-
-# ── D6: Cache key collision fix ───────────────────────────────────────────────
-
-async def test_distill_cache_key_includes_all_args(monkeypatch):
-    """get_component('/P','Transform') and get_component('/P','Rigidbody') must NOT share cache key."""
-    monkeypatch.setenv("UNITY_MCP_DISTILL", "1")
-    mw = Middleware()
-    mw._recent_focus.append("/P")
-
-    # Prime cache with a fake distilled entry for Transform
-    focus = tuple(mw._recent_focus)
-    sig_args_transform = {"path": "/P", "type": "Transform"}
-    key_transform = ("get_component", __import__("json").dumps(dict(sorted(sig_args_transform.items())), sort_keys=True), focus)
-    mw._distill_cache[key_transform] = "CACHED_TRANSFORM"
-
-    # Now simulate a call for Rigidbody — should NOT get Transform's cached result
-    text = "[Rigidbody]\nmass: 5\ndrag: 0.1\n" * 100
-    # We need the cache lookup to miss for Rigidbody
-    sig_args_rb = {"path": "/P", "type": "Rigidbody"}
-    key_rb = ("get_component", __import__("json").dumps(dict(sorted(sig_args_rb.items())), sort_keys=True), focus)
-    # Ensure keys are different
-    assert key_transform != key_rb, "Cache keys for different types must differ"
-
-
-async def test_distill_cache_key_uses_all_args_not_just_path(monkeypatch):
-    """Old bug: when path exists, type was excluded from key → collision."""
-    monkeypatch.setenv("UNITY_MCP_DISTILL", "1")
-    mw = Middleware()
-    mw._recent_focus.append("/P")
-    focus = tuple(mw._recent_focus)
-
-    import json
-
-    # Simulate what _maybe_distill now computes
-    args_a = {"path": "/P", "type": "Transform"}
-    args_b = {"path": "/P", "type": "Rigidbody"}
-    sig_a = {k: v for k, v in sorted(args_a.items()) if not k.startswith("_")}
-    sig_b = {k: v for k, v in sorted(args_b.items()) if not k.startswith("_")}
-    key_a = ("get_component", json.dumps(sig_a, sort_keys=True), focus)
-    key_b = ("get_component", json.dumps(sig_b, sort_keys=True), focus)
-    assert key_a != key_b
 
 
 # ── D4: full= parameter + distill footer update ───────────────────────────────

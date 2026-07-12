@@ -577,18 +577,3 @@ async def test_multiturn_whitespace_only_turns() -> None:
     assert relay._session.write_line.call_count == 5
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Sanity count
-# ══════════════════════════════════════════════════════════════════════════════
-
-def test_parametrize_count_sanity_askmode() -> None:
-    """Verify parametrize math: 36 + 30 + 24 + 10 = 100."""
-    section_a = len(ALL_6) * 6          # 36
-    section_b = len(TOOL_LINES) * 3     # 30
-    section_c = len(ALL_6) * 4          # 24
-    section_d = 10
-    assert section_a == 36
-    assert section_b == 30
-    assert section_c == 24
-    assert section_d == 10
-    assert section_a + section_b + section_c + section_d == 100

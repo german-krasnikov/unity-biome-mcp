@@ -12,14 +12,14 @@ namespace UnityMCP.Editor.Tests
             "ASSERT_CONSOLE_CLEAN";
 
         [Test]
-        public void test_clean_script_returns_ok()
+        public void CleanScript_ReturnsOk()
         {
             var result = PlaytestLinter.LintScript(CleanScript, "test");
             Assert.That(result, Does.StartWith("OK"));
         }
 
         [Test]
-        public void test_deprecated_alias_detected()
+        public void DeprecatedAlias_Detected()
         {
             var script = "ALIAS $foo bar\n" + CleanScript;
             var result = PlaytestLinter.LintScript(script, "test");
@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void test_trace_flow_detected()
+        public void TraceFlow_Detected()
         {
             var script =
                 "TRACE_FLOW FROM /Player TO /Enemy\n" +
@@ -40,7 +40,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void test_no_evidence_commands_errors()
+        public void NoEvidenceCommands_Errors()
         {
             var script = "WAIT 1\nWAIT 2";
             var result = PlaytestLinter.LintScript(script, "test");
@@ -49,7 +49,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void test_no_assert_console_clean_warns()
+        public void NoAssertConsoleClean_Warns()
         {
             var script = "ASSERT /Player|Transform|localPosition.x > 0\nWAIT 1";
             var result = PlaytestLinter.LintScript(script, "test");
@@ -58,7 +58,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void test_finish_clean_call_satisfies_cleanup()
+        public void FinishCleanCall_SatisfiesCleanup()
         {
             // MACRO defined inline so test is self-contained; finish_clean expands to
             // TIMESCALE 1 + ASSERT_CONSOLE_CLEAN → last meaningful step = AssertConsoleClean.
@@ -74,7 +74,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void test_unknown_macro_returns_error()
+        public void UnknownMacro_ReturnsError()
         {
             var script = "CALL nonexistent_macro_xyz";
             var result = PlaytestLinter.LintScript(script, "test");
@@ -82,7 +82,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void test_mixed_and_or_warns()
+        public void MixedAndOr_Warns()
         {
             var script =
                 "WAIT_UNTIL /A|Transform|localPosition.x > 0 AND /B|Transform|localPosition.x > 0 OR /C|Transform|localPosition.x > 0\n" +

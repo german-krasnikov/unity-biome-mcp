@@ -40,7 +40,6 @@ namespace UnityMCP.Editor.Tests
         [TearDown]
         public void TearDown()
         {
-            UnityEngine.Object.DestroyImmediate(_go);
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         }
 
@@ -52,7 +51,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ReadField_MethodSuffix_CachesOnSecondCall_ReturnsSameValue()
+        public void ReadField_MethodSuffix_IsIdempotent()
         {
             var r1 = RuntimeHelper.ReadFieldInternal(_comp, "GetScore()");
             var r2 = RuntimeHelper.ReadFieldInternal(_comp, "GetScore()");

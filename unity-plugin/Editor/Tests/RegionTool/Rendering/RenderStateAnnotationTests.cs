@@ -7,36 +7,6 @@ namespace UnityMCP.Editor.Tests.RegionTool
     internal class RenderStateAnnotationTests
     {
         [Test]
-        public void RenderState_NewFields_DefaultNull()
-        {
-            var state = new RenderState();
-            Assert.IsNull(state.AnnotationType);
-            Assert.IsNull(state.Label);
-            Assert.AreEqual(0f, state.Length, 1e-5f);
-        }
-
-        [Test]
-        public void RenderState_AnnotationType_CanBeSet()
-        {
-            var state = new RenderState { AnnotationType = "point" };
-            Assert.AreEqual("point", state.AnnotationType);
-        }
-
-        [Test]
-        public void RenderState_Label_CanBeSet()
-        {
-            var state = new RenderState { Label = "SpawnPoint" };
-            Assert.AreEqual("SpawnPoint", state.Label);
-        }
-
-        [Test]
-        public void RenderState_Length_CanBeSet()
-        {
-            var state = new RenderState { Length = 42.5f };
-            Assert.AreEqual(42.5f, state.Length, 1e-5f);
-        }
-
-        [Test]
         public void DrawAnnotation_NullAnnotationType_DoesNotThrow()
         {
             var state = new RenderState { AnnotationType = null };

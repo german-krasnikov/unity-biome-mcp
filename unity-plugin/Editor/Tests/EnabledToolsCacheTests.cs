@@ -7,6 +7,8 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class EnabledToolsCacheTests
     {
+        [TearDown] public void TearDown() => CommandRegistry.InitDefaults();
+
         // After RegisterAll (called by CommandRegistry static ctor, triggered on any registry access),
         // the cache must already be populated — PeekEnabledToolsCache must be non-null.
         [Test]

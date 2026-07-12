@@ -104,7 +104,7 @@ def test_idle_watchdog_thread_is_daemon():
     assert captured.get("daemon") is True, "Watchdog thread must be started with daemon=True"
 
 
-def test_idle_watchdog_env_override():
+def test_idle_watchdog_nonzero_env_starts_thread():
     """UNITY_MCP_IDLE_TIMEOUT env var is actually read by _start_idle_watchdog."""
     started_timeouts = []
     original_thread_cls = threading.Thread
@@ -127,18 +127,6 @@ def test_idle_watchdog_env_override():
 
     assert result is not None
     assert len(started_timeouts) == 1
-
-
-def test_idle_watchdog_default_timeout():
-    """Default timeout is 300s when env var not set."""
-    env = {k: v for k, v in os.environ.items() if k != "UNITY_MCP_IDLE_TIMEOUT"}
-    with patch.dict(os.environ, env, clear=True):
-        # With default 300s timeout, watchdog should start (return thread, not None)
-        with patch("unity_mcp.server.threading.Thread") as mock_thread:
-            mock_instance = MagicMock()
-            mock_thread.return_value = mock_instance
-            result = srv_module._start_idle_watchdog()
-        assert result is not None
 
 
 def test_touch_activity_updates_timestamp():

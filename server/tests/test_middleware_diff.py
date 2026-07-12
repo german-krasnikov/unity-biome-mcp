@@ -40,7 +40,7 @@ def test_call_id_increments():
     mw = Middleware()
     mw._maybe_diff_hierarchy("/A")
     mw._maybe_diff_hierarchy("/A\n/B")
-    assert mw._hierarchy_call_id >= 2
+    assert mw._hierarchy_call_id == 2
 
 
 async def test_no_distill_bypasses_diff():

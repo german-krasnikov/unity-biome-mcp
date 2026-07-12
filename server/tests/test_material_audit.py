@@ -36,7 +36,6 @@ def _call_material_audit(action="summary", platform=None):
 
 def test_material_audit_default_action_summary():
     mock_send = _call_material_audit()
-    assert mock_send.called
     cmd, sent = mock_send.call_args[0]
     assert cmd == "material_audit"
     assert sent.get("action") == "summary"

@@ -139,8 +139,8 @@ def test_null_spent_in_file_does_not_crash(tmp_path):
     f = tmp_path / "budget.json"
     f.write_text('{"date": "' + date.today().isoformat() + '", "spent": null}', encoding="utf-8")
     tracker = CostTracker(path=f)
-    tracker.record("screenshot_describe", in_tok=100, out_tok=50, has_image=False)
-    assert tracker.day_spent() >= 0
+    assert tracker.day_spent() == 0.0  # null loaded as 0
+    tracker.record("screenshot_describe", in_tok=100, out_tok=50, has_image=False)  # must not crash
 
 
 def test_budget_save_failure_increments_metric(tmp_path, monkeypatch):

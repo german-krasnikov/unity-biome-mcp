@@ -1,4 +1,6 @@
 """Live stress tests for multi-scene support — N scenes, large object counts, edge cases."""
+import asyncio
+import logging
 import uuid
 from contextlib import asynccontextmanager
 
@@ -34,16 +36,20 @@ async def _make_scenes(bridge, n: int):
         yield names
     finally:
         for name, path in zip(names, paths):
-            try:
-                code = (
-                    f'var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneByName("{name}");'
-                    'if(s.IsValid()) UnityEditor.SceneManagement.EditorSceneManager.CloseScene(s, true);'
-                    f'UnityEditor.AssetDatabase.DeleteAsset("{path}");'
-                    'return "ok";'
-                )
-                await bridge.send("execute_code", {"code": code})
-            except Exception:
-                pass
+            code = (
+                f'var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneByName("{name}");'
+                'if(s.IsValid()) UnityEditor.SceneManagement.EditorSceneManager.CloseScene(s, true);'
+                f'UnityEditor.AssetDatabase.DeleteAsset("{path}");'
+                'return "ok";'
+            )
+            for attempt in range(2):
+                try:
+                    await bridge.send("execute_code", {"code": code})
+                    break
+                except Exception as e:
+                    logging.warning(f"cleanup failed for scene {name} (attempt {attempt + 1}): {e}")
+                    if attempt == 0:
+                        await asyncio.sleep(2)
 
 
 async def _create_objects(bridge, scene_name: str, prefix: str, count: int) -> list[str]:

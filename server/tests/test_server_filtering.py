@@ -396,27 +396,6 @@ def test_read_unity_port_pid_alive_candidate_always_included(tmp_path):
     assert result == 9501  # candidate included — no probe skipping
 
 
-def test_read_unity_port_includes_candidate_if_tcp_probe_succeeds(tmp_path):
-    """PID alive and TCP connects → include candidate, return its port."""
-    from pathlib import Path
-    from unittest.mock import patch
-
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    port_file = ports_dir / "12345.port"
-    port_file.write_text("9501\n/some/project\nMyProject", encoding="utf-8")
-
-    with (
-        patch("unity_mcp.server_filtering._tcp_probe", return_value=True),
-        patch("os.kill"),  # PID alive
-        patch.object(Path, "home", return_value=tmp_path),
-    ):
-        from unity_mcp import server_filtering
-        result = server_filtering.read_unity_port()
-
-    assert result == 9501
-
-
 def test_read_unity_port_cyrillic_project_path_parses_correctly(tmp_path):
     """Cyrillic project path in .port file must parse without mojibake.
     Discriminating: remove encoding= from server_filtering.py and this test fails
@@ -825,38 +804,6 @@ async def test_initialized_hook_skips_when_no_client_params():
     await asyncio.sleep(0)
 
     mock_bridge.send.assert_not_called()
-
-
-async def test_initialized_hook_sends_correct_label_for_codex():
-    """'Codex' client → set_client_label sent with label='Codex'."""
-    import asyncio
-    from types import SimpleNamespace
-    from unittest.mock import AsyncMock, MagicMock
-    import mcp.types as mcp_types
-    from unity_mcp.server_filtering import install_initialized_hook
-
-    client_info = SimpleNamespace(name="Codex")
-    client_params = SimpleNamespace(clientInfo=client_info)
-    session = SimpleNamespace(client_params=client_params)
-    request_context = SimpleNamespace(session=session)
-
-    mock_inner = MagicMock()
-    mock_inner.notification_handlers = {}
-    mock_inner.request_context = request_context
-    mock_mcp = MagicMock()
-    mock_mcp._mcp_server = mock_inner
-
-    mock_bridge = MagicMock()
-    mock_bridge.send = AsyncMock(return_value={"ok": True})
-
-    install_initialized_hook(mock_mcp, lambda: mock_bridge)
-    handler = mock_inner.notification_handlers[mcp_types.InitializedNotification]
-    await handler(SimpleNamespace())
-    await asyncio.sleep(0)
-
-    mock_bridge.send.assert_called_once_with(
-        "set_client_label", {"label": "Codex"}, timeout=3.0
-    )
 
 
 async def test_initialized_hook_skips_for_claude_code():

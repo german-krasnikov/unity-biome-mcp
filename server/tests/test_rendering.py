@@ -111,13 +111,6 @@ async def test_render_analyze_error_raises_tool_error(mock_bridge):
 
 # ── batching action ──────────────────────────────────────────────────────────
 
-async def test_batching_forwards_action(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "BATCHING:"}
-    await render_analyze(action="batching")
-    sent = mock_bridge.send.call_args[0][1]
-    assert sent["action"] == "batching"
-
-
 async def test_batching_detail_forwarded(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": "BATCHING:"}
     await render_analyze(action="batching", detail="full")
@@ -133,41 +126,6 @@ async def test_batching_path_scoped(mock_bridge):
 
 
 # ── lights actions ───────────────────────────────────────────────────────────
-
-async def test_lights_forwards_action(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "LIGHTS:"}
-    await render_analyze(action="lights")
-    sent = mock_bridge.send.call_args[0][1]
-    assert sent["action"] == "lights"
-
-
-async def test_shadow_audit_forwards_action(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "SHADOW AUDIT:"}
-    await render_analyze(action="shadow_audit")
-    sent = mock_bridge.send.call_args[0][1]
-    assert sent["action"] == "shadow_audit"
-
-
-async def test_probe_audit_forwards_action(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "PROBE AUDIT:"}
-    await render_analyze(action="probe_audit")
-    sent = mock_bridge.send.call_args[0][1]
-    assert sent["action"] == "probe_audit"
-
-
-async def test_light_optimize_forwards_action(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "LIGHT OPTIMIZE:"}
-    await render_analyze(action="light_optimize")
-    sent = mock_bridge.send.call_args[0][1]
-    assert sent["action"] == "light_optimize"
-
-
-async def test_lights_detail_defaults_brief(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "LIGHTS:"}
-    await render_analyze(action="lights")
-    sent = mock_bridge.send.call_args[0][1]
-    assert sent["detail"] == "brief"
-
 
 # ── frame_debug action (Phase 6) ─────────────────────────────────────────────
 
@@ -210,19 +168,6 @@ def test_analyze_lod_culling_null_focus_not_in_args():
         _run(m.analyze_lod_culling())
         _, sent = m._send.call_args[0]
         assert "focus" not in sent
-    finally:
-        m._send, m._args = orig_send, orig_args
-
-
-def test_analyze_lod_culling_culling_focus():
-    import unity_mcp.tools.spatial as m
-    orig_send, orig_args = m._send, m._args
-    m._args = _ARGS
-    m._send = AsyncMock(return_value="ok")
-    try:
-        _run(m.analyze_lod_culling(focus="culling"))
-        _, sent = m._send.call_args[0]
-        assert sent.get("focus") == "culling"
     finally:
         m._send, m._args = orig_send, orig_args
 

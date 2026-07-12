@@ -8,7 +8,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestSnapshotTests
+    public class PlaytestSnapshotTests : SceneTestBase
     {
         [SetUp]
         public void SetUp() => ConsoleCapture.Clear();

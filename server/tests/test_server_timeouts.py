@@ -14,4 +14,4 @@ def test_command_timeouts_dict_has_slow_commands():
 
 def test_default_timeout_is_30s():
     assert COMMAND_TIMEOUTS.get("get_hierarchy", 30.0) == 15.0
-    assert COMMAND_TIMEOUTS.get("inspect", 30.0) == 30.0
+    assert "inspect" not in COMMAND_TIMEOUTS

@@ -11,6 +11,13 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class UndoGroupHelperTests
     {
+        [SetUp]
+        public void SetUp()
+        {
+            Undo.ClearAll();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        }
+
         [TearDown]
         public void TearDown()
         {

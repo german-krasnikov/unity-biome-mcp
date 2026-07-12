@@ -248,32 +248,6 @@ async def test_error_E1_unknown_dollar_name_passthrough(monkeypatch):
     assert captured["get_component"]["path"] == "$ghost"   # unchanged
 
 
-def test_error_E2_unclosed_block_no_crash():
-    """P1: No '---' footer in ALIASES block → must not crash."""
-    from unity_mcp.middleware_alias import parse_aliases_from_hierarchy
-    result = "--- ALIASES ---\nhp=/Player|HP|health\n[Scene]\n├── Player"
-    cache = parse_aliases_from_hierarchy(result)
-    assert isinstance(cache, dict)
-
-
-def test_error_E3_list_arg_not_resolved():
-    """P1: List-typed arg values are not resolved (only str whole-value match)."""
-    from unity_mcp.middleware_alias import resolve_aliases_in_args
-    cache = {"hp": "/Player|HP|health"}
-    args = {"paths": ["$hp", "$player"], "timeout": 5.0}
-    result = resolve_aliases_in_args(args, cache)
-    assert result["paths"] == ["$hp", "$player"]
-    assert result["timeout"] == 5.0
-
-
-def test_error_E4_empty_cache_noop():
-    """P0: Empty cache: resolve is a no-op, returns args unchanged."""
-    from unity_mcp.middleware_alias import resolve_aliases_in_args
-    args = {"path": "$player", "component": "$hp"}
-    result = resolve_aliases_in_args(args, {})
-    assert result == args
-
-
 # ── Category F: Pipeline Integration Order ────────────────────────────────────
 
 async def test_pipeline_F1_resolve_before_path_guard(monkeypatch):
@@ -337,18 +311,6 @@ async def test_batch_G1_dollar_in_commands_no_warn(monkeypatch):
     result = await wrapped("batch", {"commands": "get_component $player PlayerController"})
     assert "[WARN] $alias" not in result
     assert "batch DSL not supported" not in result
-
-
-async def test_batch_G2_no_dollar_no_warn(monkeypatch):
-    """5.3: batch without '$' does NOT get the dollar warning."""
-    mw = _make_mw(monkeypatch)
-
-    async def fake_send(cmd, args, timeout=0):
-        return "ok"
-
-    wrapped = wrap_send(fake_send, mw)
-    result = await wrapped("batch", {"commands": "get_component /Player PlayerController"})
-    assert "[WARN] $alias" not in result
 
 
 # ── Category H: _warm_alias_cache (S1 — auto-seed on connect) ─────────────────

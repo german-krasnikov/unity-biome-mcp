@@ -214,7 +214,7 @@ def test_kimi_env_set_unity_mcp_port(tmp_path):
     assert "UNITY_MCP_PORT" not in strip
 
 
-def test_kimi_uses_stream_json_flag():
+def test_kimi_not_stream_json():
     assert KimiDef().uses_stream_json is False
 
 

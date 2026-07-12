@@ -606,7 +606,7 @@ def test_corroborate_stale_dll_warning(tmp_path):
         "No compilation errors.", project_path=tmp_path, log_path=log,
         source_dirs=[src],
     )
-    assert "stale" in result.lower() or "warn" in result.lower() or result == "No compilation errors."
+    assert "stale" in result.lower() or "warn" in result.lower()
     assert "error CS" not in result
 
 

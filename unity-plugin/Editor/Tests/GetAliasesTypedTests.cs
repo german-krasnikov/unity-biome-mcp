@@ -9,10 +9,20 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class GetAliasesTypedTests
     {
-        static PlaytestConfig MakeConfig(List<QueryAlias> aliases)
+        private readonly List<Object> _created = new List<Object>();
+
+        [TearDown]
+        public void TearDown()
+        {
+            foreach (var obj in _created) Object.DestroyImmediate(obj);
+            _created.Clear();
+        }
+
+        PlaytestConfig MakeConfig(List<QueryAlias> aliases)
         {
             var config = ScriptableObject.CreateInstance<PlaytestConfig>();
             config.aliases = aliases;
+            _created.Add(config);
             return config;
         }
 

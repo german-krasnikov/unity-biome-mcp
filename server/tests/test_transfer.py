@@ -19,21 +19,3 @@ async def test_reconnect_unity_no_slot_raises():
         from unity_mcp.tools.connection import reconnect_unity
         with pytest.raises(ToolError, match="Server not initialized"):
             await reconnect_unity(9500)
-
-
-async def test_transfer_asset_removed():
-    """transfer_asset no longer exists — dead code removed."""
-    import unity_mcp.server as srv
-    assert not hasattr(srv, "transfer_asset"), "transfer_asset must be removed"
-
-
-async def test_copy_asset_removed():
-    """copy_asset no longer exists — dead code removed."""
-    import unity_mcp.server as srv
-    assert not hasattr(srv, "copy_asset"), "copy_asset must be removed"
-
-
-async def test_connect_unity_removed():
-    """connect_unity no longer exists — replaced by reconnect_unity."""
-    import unity_mcp.server as srv
-    assert not hasattr(srv, "connect_unity"), "connect_unity must be removed"

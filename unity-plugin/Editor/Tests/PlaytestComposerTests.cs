@@ -91,26 +91,5 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("x|Y|z", s.query);
         }
 
-        // #32: Duplicate inserts clone immediately after the original
-        [Test]
-        public void DuplicateStep_InsertsCloneAfterOriginal()
-        {
-            var steps = new List<VisualStep> {
-                new VisualStep { type = StepType.Wait, delay = 1f },
-                new VisualStep { type = StepType.Assert, query = "a|B|c" }
-            };
-            var target = steps[0];
-            var clone = target.Clone();
-            var idx = steps.IndexOf(target);
-            Assert.IsTrue(idx >= 0, "target must exist in list");
-            steps.Insert(idx + 1, clone);
-            Assert.AreEqual(3, steps.Count);
-            Assert.AreEqual(StepType.Wait, steps[1].type);
-            Assert.AreEqual(1f, steps[1].delay);
-            Assert.AreNotSame(steps[0], steps[1], "must be different instances");
-            // Verify independence
-            steps[1].delay = 99f;
-            Assert.AreEqual(1f, steps[0].delay, "original must be unchanged after clone mutation");
-        }
     }
 }

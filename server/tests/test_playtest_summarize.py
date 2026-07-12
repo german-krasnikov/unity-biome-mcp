@@ -39,7 +39,7 @@ async def test_playtest_long_result_kept_when_disabled(mock_bridge):
         result = await run_playtest("LOG hi")
 
     mock_svc.summarize.assert_not_called()
-    assert "PLAYTEST" in result
+    assert long_report in result
 
 
 async def test_playtest_summarize_fallback_on_none(mock_bridge):
@@ -52,4 +52,4 @@ async def test_playtest_summarize_fallback_on_none(mock_bridge):
     with patch("unity_mcp.tools.runtime._sampling", mock_svc):
         result = await run_playtest("LOG hi")
 
-    assert "PLAYTEST" in result
+    assert long_report in result

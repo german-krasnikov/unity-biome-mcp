@@ -17,9 +17,3 @@ async def test_execute_code_with_undo_label(mock_bridge):
     await execute_code("var go = new GameObject();", undo_label="create_test_object")
     call = mock_bridge.send.call_args
     assert call[0][1]["undo_label"] == "create_test_object"
-
-
-async def test_execute_code_registered(mock_bridge):
-    """Tool must be importable and callable via MCP."""
-    from unity_mcp import server as srv
-    assert hasattr(srv, "execute_code"), "execute_code must be registered as MCP tool"

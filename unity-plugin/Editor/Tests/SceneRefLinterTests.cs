@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
+    [TestFixture]
     public class SceneRefLinterTests
     {
         [SetUp]

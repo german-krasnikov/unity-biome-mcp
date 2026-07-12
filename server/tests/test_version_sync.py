@@ -52,20 +52,6 @@ def project_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_sync_versions_updates_all_files(project_root: Path):
-    result = run_sync("1.2.3", project_root)
-    assert result.returncode == 0, result.stderr
-
-    pyproject = (project_root / "server" / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "1.2.3"' in pyproject
-
-    pkg = (project_root / "unity-plugin" / "package.json").read_text(encoding="utf-8")
-    assert '"version": "1.2.3"' in pkg
-
-    ver_py = (project_root / "server" / "src" / "unity_mcp" / "__version__.py").read_text(encoding="utf-8")
-    assert '__version__ = "1.2.3"' in ver_py
-
-
 def test_sync_versions_preserves_other_content(project_root: Path):
     result = run_sync("2.0.0", project_root)
     assert result.returncode == 0, result.stderr

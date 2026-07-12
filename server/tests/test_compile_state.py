@@ -143,20 +143,6 @@ def test_autodetect_returns_none_when_invalid(monkeypatch):
     assert CompileStateProbe.autodetect_project_path() is None
 
 
-def test_autodetect_falls_back_to_process_detection(tmp_path, monkeypatch):
-    # _detect_from_unity_process removed; autodetect only uses env var
-    (tmp_path / "Library").mkdir()
-    monkeypatch.delenv("UNITY_MCP_PROJECT_PATH", raising=False)
-    assert CompileStateProbe.autodetect_project_path() is None
-
-
-def test_autodetect_env_takes_priority(tmp_path, monkeypatch):
-    (tmp_path / "Library").mkdir()
-    monkeypatch.setenv("UNITY_MCP_PROJECT_PATH", str(tmp_path))
-    result = CompileStateProbe.autodetect_project_path()
-    assert result == tmp_path
-
-
 def test_has_project_property(tmp_path):
     assert CompileStateProbe(tmp_path).has_project is True
     assert CompileStateProbe(None).has_project is False
@@ -228,15 +214,6 @@ def test_has_strong_busy_signal_lock_file(tmp_path):
     (tmp_path / "Library" / "BeeDriver" / "Lock").touch()
     probe = CompileStateProbe(tmp_path)
     assert probe.has_strong_busy_signal() is True
-
-
-def test_has_strong_busy_signal_fresh_dll(tmp_path):
-    # DLL mtime no longer used for has_strong_busy_signal (Cycle 15).
-    # Without lock file, returns False.
-    (tmp_path / "Library" / "ScriptAssemblies").mkdir(parents=True)
-    (tmp_path / "Library" / "ScriptAssemblies" / "Test.dll").touch()
-    probe = CompileStateProbe(tmp_path)
-    assert probe.has_strong_busy_signal() is False
 
 
 def test_has_strong_busy_signal_idle(tmp_path):

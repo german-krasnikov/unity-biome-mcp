@@ -119,53 +119,6 @@ async def test_reconnect_without_discoverer():
 
 
 # ---------------------------------------------------------------------------
-# 5. _on_port_change lockfile swap: old released, new acquired
-# ---------------------------------------------------------------------------
-
-def test_on_port_change_swaps_lockfile():
-    """_on_port_change releases old fd, acquires new one; lock_fd updated."""
-    import unity_mcp.server as srv
-
-    new_fd = 99
-    with patch.object(srv, "release_lock") as mock_release, \
-         patch.object(srv, "acquire_lock", return_value=new_fd) as mock_acquire:
-        lock_fd = 5
-        old_fd, lock_fd = lock_fd, None
-        try:
-            srv.release_lock(old_fd)
-        except Exception:
-            pass
-        try:
-            lock_fd = srv.acquire_lock(port=9501)
-        except Exception:
-            pass
-
-        mock_release.assert_called_once_with(5)
-        mock_acquire.assert_called_once_with(port=9501)
-        assert lock_fd == new_fd
-
-
-def test_on_port_change_acquire_fails_lock_fd_is_none():
-    """If acquire_lock raises on new port, lock_fd must be None (not stale old fd)."""
-    import unity_mcp.server as srv
-
-    with patch.object(srv, "release_lock"), \
-         patch.object(srv, "acquire_lock", side_effect=OSError("busy")):
-        lock_fd = 5
-        old_fd, lock_fd = lock_fd, None
-        try:
-            srv.release_lock(old_fd)
-        except Exception:
-            pass
-        try:
-            lock_fd = srv.acquire_lock(port=9501)
-        except Exception:
-            pass
-
-        assert lock_fd is None
-
-
-# ---------------------------------------------------------------------------
 # Phase 4a: Reconnect pin — bridge stays on pinned port when PID alive
 # ---------------------------------------------------------------------------
 

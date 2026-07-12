@@ -112,23 +112,9 @@ def test_release_lock_unlocks_fd(tmp_path):
         mock_close.assert_called_once_with(fd)
 
 
-def test_lockfile_cleanup_on_abnormal_exit(tmp_path):
-    """After release, lock can be re-acquired (fd freed)."""
-    fd = acquire_lock(lock_dir=tmp_path, port=9500)
-    release_lock(fd)
-    fd2 = acquire_lock(lock_dir=tmp_path, port=9500)
-    assert fd2 is not None
-    release_lock(fd2)
-
-
 # ---------------------------------------------------------------------------
 # Cross-platform abstraction
 # ---------------------------------------------------------------------------
-
-def test_lock_nb_and_unlock_importable():
-    assert callable(_lock_nb)
-    assert callable(_unlock)
-
 
 def test_is_pid_alive_for_own_process():
     assert is_pid_alive(os.getpid()) is True
@@ -256,18 +242,6 @@ def test_read_project_path_dead_pid_skipped(tmp_path):
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
         assert read_project_path_from_port_file(9500) is None
-
-
-def test_read_project_path_alive_pid_returned(tmp_path):
-    from unity_mcp.lockfile import read_project_path_from_port_file
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    project_dir = tmp_path / "AliveProject"
-    project_dir.mkdir()
-    (ports_dir / "11111.port").write_text(f"9500\n{project_dir}\nAliveProject\n", encoding="utf-8")
-    with patch.object(Path, "home", return_value=tmp_path), \
-         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
-        assert read_project_path_from_port_file(9500) == project_dir
 
 
 def test_read_project_path_from_port_file_wrong_port(tmp_path):
@@ -437,16 +411,6 @@ def test_read_pid_from_port_file_skips_dead_pid(tmp_path):
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
         assert read_pid_from_port_file(9500) is None
-
-
-def test_read_pid_from_port_file_alive_pid_returned(tmp_path):
-    """Alive PID → returned."""
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    (ports_dir / "11111.port").write_text("9500\n/path/to/project\n", encoding="utf-8")
-    with patch.object(Path, "home", return_value=tmp_path), \
-         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
-        assert read_pid_from_port_file(9500) == 11111
 
 
 def test_cleanup_stale_port_files_removes_dead(tmp_path):

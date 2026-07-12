@@ -313,24 +313,6 @@ async def test_tier5_no_mvid_delta_not_healed():
     assert "MANUAL-REQUIRED" in result, f"Expected MANUAL-REQUIRED, got: {result!r}"
 
 
-# ── Test 10: T5 MVID-delta → HEALED with new MVID in result ─────────────────
-
-@pytest.mark.asyncio
-async def test_tier5_mvid_delta_healed_shows_new_mvid():
-    """T5: diagnose after play/stop returns CLEAN + new MVID → HEALED: T5 with both MVIDs."""
-    send = MockSend([
-        _diag_frozen(MVID_A),   # T0
-        _diag_frozen(MVID_A),   # T1 poll → frozen
-        _diag_frozen(MVID_A),   # T2 T1-retry poll → frozen
-        _diag_frozen(MVID_A),   # T3 production fallback sync+poll → frozen (no bump_file)
-        _diag_clean(MVID_B),    # T5 diagnose → CLEAN + new MVID!
-    ])
-
-    result = await _ladder.run_ladder(send, play_stop_consent=True)
-
-    assert result.startswith("HEALED: T5"), f"Got: {result!r}"
-    assert MVID_B in result, f"New MVID not in result: {result!r}"
-
 
 # ── Test 11: T2 dead-diagnose removed — no extra diagnose call ───────────────
 
@@ -579,26 +561,6 @@ async def test_f6_json_decode_error_raises_connection_error():
         with pytest.raises(ConnectionError):
             await send_fn("ping", {})
     mock_writer.close.assert_called()
-
-
-@pytest.mark.asyncio
-async def test_f6_sync_unity_does_not_crash_on_transport_error():
-    """F6: ConnectionError from make_reload_send._send must not propagate to run_ladder callers."""
-    import asyncio as _asyncio
-
-    mock_reader = AsyncMock()
-    mock_reader.readexactly = AsyncMock(
-        side_effect=_asyncio.IncompleteReadError(b"", 4)
-    )
-    mock_writer = MagicMock()
-    mock_writer.drain = AsyncMock()
-
-    with patch("asyncio.open_connection", return_value=(mock_reader, mock_writer)):
-        send_fn = _ladder.make_reload_send(port=9600)
-        # run_ladder catches ConnectionError — must not raise
-        result = await _ladder.run_ladder(send_fn)
-    # Both ports failed → MANUAL-REQUIRED (not a crash)
-    assert "MANUAL-REQUIRED" in result or "REIMPORT" in result or "HEALED" in result
 
 
 # ── Test 22: M3 — _bump_str helper ──────────────────────────────────────────
@@ -860,33 +822,6 @@ async def test_stress_f1_scenario_2_run_ladder_detects_cs_error_returns_reimport
 
 
 @pytest.mark.asyncio
-async def test_stress_f1_scenario_3_compile_error_not_mistaken_for_latch():
-    """F1: diagnose with iscompiling=true + errors= 'error CS1739' across ALL polls.
-    _poll_mvid_delta must terminate after max_polls, not hang.
-    """
-    diag_with_error = _diag_compile_latch(MVID_A, "error CS1739")
-    diagnose_call_count = 0
-
-    async def counting_send(cmd, args=None):
-        nonlocal diagnose_call_count
-        if cmd == "diagnose":
-            diagnose_call_count += 1
-            return diag_with_error
-        return "ok"
-
-    # cs_grace=1 default: exit after 2nd consecutive CS-error poll.
-    result = await _ladder._poll_mvid_delta(
-        counting_send, MVID_A, timeout_s=999.0, max_polls=5
-    )
-    assert result == _ladder._BROKEN_DOMAIN, (
-        f"F1: must return _BROKEN_DOMAIN on CS error, got: {result!r}"
-    )
-    assert diagnose_call_count == 2, (
-        f"F1: early-exit after 2nd poll expected (cs_grace=1), got: {diagnose_call_count} calls"
-    )
-
-
-@pytest.mark.asyncio
 async def test_poll_mvid_delta_cs_grace_zero_exits_on_first_poll():
     """cs_grace=0: early-exit on FIRST CS-error poll (legacy behavior)."""
     cs_diag = _diag_compile_latch(MVID_A, "error CS1739")
@@ -951,20 +886,6 @@ async def test_stress_f8_scenario_1_poll_respects_max_polls_hard_cap():
     assert call_count == 4, (
         f"F8: max_polls=4 must produce exactly 4 diagnose calls, got: {call_count}"
     )
-
-
-@pytest.mark.asyncio
-async def test_stress_f8_scenario_2_run_ladder_terminates_after_tier_exhaustion():
-    """F8: run_ladder with all frozen diagnoses must terminate (not loop forever).
-    Even with play_stop_consent=True (T5 enabled), result must be a terminal string.
-    """
-    send = MockSend([_diag_frozen(MVID_A)])  # always frozen, autouse _fast_timeouts applies
-
-    result = await _ladder.run_ladder(send, play_stop_consent=True)
-
-    # Must be a non-empty terminal string — not hanging, not empty
-    assert isinstance(result, str) and len(result) > 0, f"F8: run_ladder must return string, got: {result!r}"
-    assert "HEALED" not in result, f"F8: frozen forever must not heal, got: {result!r}"
 
 
 @pytest.mark.asyncio

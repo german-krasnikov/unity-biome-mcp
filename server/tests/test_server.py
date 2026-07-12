@@ -447,13 +447,6 @@ async def test_timeline_preview_no_time(mock_bridge):
     assert "0.0" in result
 
 
-async def test_get_hierarchy_tool_description_exists():
-    """Verify get_hierarchy tool has a docstring mentioning max nodes."""
-    assert get_hierarchy.__doc__ is not None
-    assert "3000" in get_hierarchy.__doc__
-    assert "narrow" in get_hierarchy.__doc__.lower() or "filter" in get_hierarchy.__doc__.lower()
-
-
 async def test_get_enabled_tools_calls_bridge(mock_bridge):
     """get_enabled_tools calls bridge with correct command."""
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "get_hierarchy,get_component,screenshot"})
@@ -1472,16 +1465,3 @@ async def test_lifespan_releases_lock_on_normal_exit(monkeypatch):
     assert released == [fake_fd]
 
 
-# ── globals declaration ────────────────────────────────────────────────────────
-
-def test_lifespan_global_budget_tracker_declared():
-    """_budget_tracker and _budget_router must be declared in server module globals."""
-    import unity_mcp.server as srv
-    import inspect
-    assert hasattr(srv, "_budget_tracker")
-    src = inspect.getsource(srv.lifespan)
-    assert "_budget_tracker" in src
-    assert "_budget_router" in src
-    global_line = next(l for l in src.splitlines() if l.strip().startswith("global "))
-    assert "_budget_tracker" in global_line
-    assert "_budget_router" in global_line

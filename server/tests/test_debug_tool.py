@@ -26,15 +26,6 @@ def test_classify_symptom_attack_keyword():
     assert "inspect" in tools
 
 
-def test_classify_symptom_returns_tuple_of_lists():
-    from unity_mcp.tools.debug_tool import classify_symptom
-    result = classify_symptom("collision problem")
-    assert isinstance(result, tuple)
-    tools, components = result
-    assert isinstance(tools, list)
-    assert isinstance(components, list)
-    assert len(tools) >= 1
-
 
 def test_classify_symptom_multiple_keywords():
     from unity_mcp.tools.debug_tool import classify_symptom
@@ -88,11 +79,6 @@ def test_build_commands_screenshot_when_in_tools():
     assert "screenshot" in cmds
 
 
-def test_build_commands_returns_string():
-    from unity_mcp.tools.debug_tool import build_commands
-    result = build_commands([], "")
-    assert isinstance(result, str)
-
 
 def test_build_commands_includes_components_when_given():
     from unity_mcp.tools.debug_tool import build_commands
@@ -115,12 +101,6 @@ def test_format_diagnostic_contains_path():
     result = format_diagnostic("data", "symptom", "/Player")
     assert "/Player" in result
 
-
-def test_format_diagnostic_returns_string():
-    from unity_mcp.tools.debug_tool import format_diagnostic
-    result = format_diagnostic("field1: val", "", "")
-    assert isinstance(result, str)
-    assert len(result) > 0
 
 
 def test_format_diagnostic_empty_inputs():

@@ -56,17 +56,6 @@ def test_reset_session_clears_state(mw):
     assert mw.check_retry("set_property", {"path": "/X"}) is None
 
 
-# ── Test 8: same as 3 but phrased per spec ────────────────────────────────────
-
-def test_check_retry_does_not_block_after_reset(mw):
-    """check_retry: call A, call A (blocked), reset_session, call A → passes."""
-    args = {"path": "/Foo", "component": "Transform", "prop": "x", "value": "1"}
-    assert mw.check_retry("set_property", args) is None
-    assert mw.check_retry("set_property", args) is not None  # blocked
-    mw.reset_session()
-    assert mw.check_retry("set_property", args) is None  # passes after reset
-
-
 # ── Test: RETRY_CACHE max size eviction ──────────────────────────────────────
 
 def test_retry_cache_max_size_eviction(mw):
@@ -91,16 +80,6 @@ def test_write_commands_blocked_on_repeat(mw):
 def test_no_hashes_field(mw):
     """_hashes was write-only dead code — must no longer exist."""
     assert not hasattr(mw, "_hashes")
-
-
-# ── Test: get_console and others from extended set never blocked ──────────────
-
-def test_extended_read_cmds_in_READ_CMDS_set():
-    """Verify spec-required cmds are in READ_CMDS."""
-    required = {"get_console", "get_compile_errors", "validate_references",
-                "screenshot"}
-    missing = required - READ_CMDS
-    assert not missing, f"Missing from READ_CMDS: {missing}"
 
 
 # ── Test: reset_session clears both response_hashes and last_writes ───────────
@@ -141,14 +120,6 @@ def test_update_confidence_floor_at_zero(mw):
     """confidence can't go below 0.0 after repeated writes."""
     mw.confidence = 0.0
     mw.update_confidence("set_property", {}, "ok")
-    assert mw.confidence == 0.0
-
-
-def test_update_confidence_floor_stays_zero_multiple_writes(mw):
-    """Multiple writes at 0.0 keep confidence at exactly 0.0."""
-    mw.confidence = 0.0
-    for _ in range(5):
-        mw.update_confidence("set_property", {}, "ok")
     assert mw.confidence == 0.0
 
 

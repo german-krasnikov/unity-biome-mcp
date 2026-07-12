@@ -33,15 +33,6 @@ async def test_run_playtest_default_timeout(mock_bridge):
     assert call[1]["timeout"] == 140.0
 
 
-async def test_run_playtest_default_timeout_exceeds_csharp_ceiling(mock_bridge):
-    """Client timeout must exceed C#'s 130s run_playtest ceiling (MCPServer.cs)
-    with margin, not tie it exactly -- a tie is a race, not a guarantee."""
-    mock_bridge.send.return_value = {"ok": True, "data": "PASS"}
-    await run_playtest("LOG hi")
-    call = mock_bridge.send.call_args
-    assert call[1]["timeout"] > 130.0
-
-
 def test_compress_report_all_pass_returns_compact():
     report = "PLAYTEST: 3/3 (1.2s) OK"
     assert _compress_report(report) == report
@@ -157,30 +148,6 @@ async def test_defs_val_prefix_normalized_to_uppercase(mock_bridge):
     sent = mock_bridge.send.call_args[0][1]["script"]
     assert "VAL foo = bar" in sent
     assert sent.count("val ") == 0, f"Lowercase val remains: {sent!r}"
-
-
-async def test_defs_gridtest_collectibles(mock_bridge):
-    """GridTest scenario: 4 defs + multi-step script all sent correctly."""
-    mock_bridge.send.return_value = {"ok": True, "data": "PASS: 4 steps"}
-    defs = (
-        "player /GridPlayer\n"
-        "c1 /Collectible_1\n"
-        "c2 /Collectible_2\n"
-        "c3 /Collectible_3\n"
-    )
-    script = (
-        "INVOKE $player GridPlayer ResetState\n"
-        "INVOKE $player GridPlayer MoveTo 3,3\n"
-        "WAIT_UNTIL $player|GridPlayer|IsMoving == False TIMEOUT 5\n"
-        "ASSERT $player|GridPlayer|Score == 1\n"
-    )
-    result = await run_playtest(script, defs=defs)
-    assert "PASS" in result
-    sent = mock_bridge.send.call_args[0][1]["script"]
-    assert "VAL player /GridPlayer" in sent
-    assert "INVOKE $player GridPlayer MoveTo 3,3" in sent
-    val_lines = [ln for ln in sent.splitlines() if ln.startswith("VAL")]
-    assert len(val_lines) == 4
 
 
 # ── Wave 6.8: defs comment lines ignored ─────────────────────────────────────

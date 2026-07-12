@@ -199,7 +199,7 @@ async def test_diagnose_failed_not_shadowed_by_stale_domain():
 # Proof: OLD broken parser would return wrong verdict on WEDGE-STATE
 # ---------------------------------------------------------------------------
 
-def test_wedge_state_old_broken_parser_would_fail():
+def test_wedge_state_parser_strips_pipe_suffix():
     """Prove the pipe format is the canon — old 'compile == idle' would miss WEDGE-STATE.
 
     The old parser did fields.compile == "idle" which fails on "idle|5.0".

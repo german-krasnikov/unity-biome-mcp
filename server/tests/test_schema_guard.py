@@ -100,34 +100,6 @@ async def test_invalid_prop_block():
     assert "[BYPASS:" in result
 
 
-# ── 5. _no_validate bypass ────────────────────────────────────────────────────
-
-async def test_no_validate_arg_bypass():
-    """args['_no_validate']=True → None even with bad input."""
-    mw, cache, guard = make_guard()
-    mw._component_cache["/Player"] = {"Health"}
-
-    # Guard itself doesn't strip _no_validate — middleware does that before calling guard
-    # So guard always sees args without _no_validate; test via middleware wrap_send:
-    from unity_mcp.middleware import wrap_send
-    mw2 = Middleware()
-    mw2._component_cache["/Player"] = {"Health"}
-    mw2.schema_cache = SchemaCache()
-    mw2.schema_guard = SchemaGuard(mw2, mw2.schema_cache)
-
-    calls = []
-    async def tracked_send(cmd, args, timeout=30.0):
-        calls.append(cmd)
-        return "ok"
-
-    wrapped = wrap_send(tracked_send, mw2)
-    result = await wrapped(
-        "set_property",
-        {"path": "/Player", "component": "Healt", "prop": "hp", "value": "50", "_no_validate": True},
-    )
-    # Should NOT be blocked
-    assert "[INVALID:" not in result
-
 
 # ── 6. UNITY_MCP_VALIDATE=0 → guard not instantiated ─────────────────────────
 

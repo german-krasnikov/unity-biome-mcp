@@ -14,7 +14,7 @@ namespace UnityMCP.Editor.Tests
         [TearDown]
         public void TearDown()
         {
-            EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects);
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         }
 
         // ── Category A: VAL on Real GridTest Paths (parse-time) ─────────────────
@@ -300,6 +300,7 @@ ASSERT $score == 0
             var result = PlaytestParser.Parse(script, f => { callCount++; return defs; });
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("/GridPlayer|GridPlayer|Score", result[0].Query);
+            Assert.AreEqual(2, callCount);
         }
 
         // ── Category D: Combinatorial real-world scenarios ───────────────────────

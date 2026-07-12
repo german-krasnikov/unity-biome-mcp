@@ -199,64 +199,6 @@ async def test_shader_create_with_shader_name(mock_bridge):
     assert "Glow" in result
 
 
-async def test_shader_set_vector_property(mock_bridge):
-    """shader set with vector value forwards prop and value correctly."""
-    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "_Vec=(1,2,3,4) on /Cube"})
-    result = await shader(action="set", path="/Cube", prop="_Vec", value="(1,2,3,4)")
-    call_args = mock_bridge.send.call_args[0]
-    assert call_args[1]["action"] == "set"
-    assert call_args[1]["prop"] == "_Vec"
-    assert call_args[1]["value"] == "(1,2,3,4)"
-    assert "_Vec" in result
-
-
-async def test_shader_graph_full_pipeline(mock_bridge):
-    """Sequential graph_create → graph_node add x2 → graph_edge add → graph_get."""
-    path = "Assets/Shaders/Pipeline.shadergraph"
-    mock_bridge.send = AsyncMock(side_effect=[
-        {"ok": True, "data": "ShaderGraph: Pipeline.shadergraph\nnodes: 2\nedges: 0"},
-        {"ok": True, "data": "ShaderGraph: Pipeline.shadergraph\nnodes: 3\n  [n1] ColorNode"},
-        {"ok": True, "data": "ShaderGraph: Pipeline.shadergraph\nnodes: 4\n  [n2] MultiplyNode"},
-        {"ok": True, "data": "ShaderGraph: Pipeline.shadergraph\nnodes: 4\nedges: 1"},
-        {"ok": True, "data": "ShaderGraph: Pipeline.shadergraph\nnodes: 4\nedges: 1\n  [n1] ColorNode\n  [n2] MultiplyNode"},
-    ])
-
-    r1 = await shader(action="graph_create", path=path, preset="lit_graph")
-    assert mock_bridge.send.call_args_list[0][0][1]["action"] == "graph_create"
-    assert "ShaderGraph:" in r1
-
-    r2 = await shader(action="graph_node", path=path, node_type="ColorNode", node_action="add")
-    assert mock_bridge.send.call_args_list[1][0][1]["node_type"] == "ColorNode"
-    assert mock_bridge.send.call_args_list[1][0][1]["node_action"] == "add"
-
-    r3 = await shader(action="graph_node", path=path, node_type="MultiplyNode", node_action="add")
-    assert mock_bridge.send.call_args_list[2][0][1]["node_type"] == "MultiplyNode"
-
-    r4 = await shader(action="graph_edge", path=path,
-                      output_node="n1", output_slot=0, input_node="n2", input_slot=0, edge_action="add")
-    edge_args = mock_bridge.send.call_args_list[3][0][1]
-    assert edge_args["output_node"] == "n1"
-    assert edge_args["input_node"] == "n2"
-    assert edge_args["edge_action"] == "add"
-
-    r5 = await shader(action="graph_get", path=path)
-    assert mock_bridge.send.call_args_list[4][0][1]["action"] == "graph_get"
-    assert "ColorNode" in r5
-
-    assert mock_bridge.send.call_count == 5
-
-
-async def test_shader_graph_node_remove_cascade(mock_bridge):
-    """graph_node remove with node_id sends node_action=remove and node_id, no node_type."""
-    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ShaderGraph: test.shadergraph\nnodes: 4"})
-    result = await shader(action="graph_node", path="Assets/Test.shadergraph",
-                          node_id="dead-beef", node_action="remove")
-    call_args = mock_bridge.send.call_args[0]
-    assert call_args[1]["node_action"] == "remove"
-    assert call_args[1]["node_id"] == "dead-beef"
-    assert "node_type" not in call_args[1]
-    assert "nodes:" in result
-
 
 async def test_shader_set_missing_prop_and_value_raises_tool_error(mock_bridge):
     """set without prop/value and without keyword/enabled raises ToolError from bridge."""

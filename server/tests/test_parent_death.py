@@ -126,8 +126,8 @@ async def test_parent_alive_no_exit():
 
     real_ppid = os.getppid()
     with patch.object(hb_module, "_ORIGINAL_PPID", real_ppid), \
-         patch("os.getppid", return_value=real_ppid), \
-         patch("os._exit") as mock_exit, \
+         patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=real_ppid), \
+         patch("unity_mcp.bridge_heartbeat.os._exit") as mock_exit, \
          patch("asyncio.sleep", new=AsyncMock()):
         await bridge._heartbeat_tick(15.0)
         mock_exit.assert_not_called()

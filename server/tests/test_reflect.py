@@ -166,16 +166,7 @@ async def test_rule_crashed():
 # ── 14. batch dispatch — one failing sub-op ──────────────────────────────────
 
 async def test_batch_dispatch():
-    batch_resp = (
-        "[1] set_property: ok\n"
-        "---\n"
-        "health: 100\n"
-        "[2] set_property: ok\n"
-        "---\n"
-        "health: 50\n"
-    )
     # Two sub-ops: first has matching health=100, second has health=50 but expected 99
-    # We'll use a simpler batch response structure
     batch_resp2 = (
         "[1] ok set_property health=100\n"
         "---\n"
@@ -363,15 +354,15 @@ async def test_mismatch_msg_with_bracket(monkeypatch):
 
     wrapped = wrap_send(fake_send)
     result = await wrapped("set_property", {"prop": "health", "value": "100"})
-    if "[REFLECT:" in result:
-        # Find the reflect block and check no unmatched ]
-        start = result.index("[REFLECT:")
-        segment = result[start:]
-        # The ] that closes [REFLECT: should be the last one; no extra ] inside msg
-        inner = segment[len("[REFLECT:"):]
-        close = inner.index("]")
-        msg_content = inner[:close]
-        assert "]" not in msg_content
+    assert "[REFLECT:" in result
+    # Find the reflect block and check no unmatched ]
+    start = result.index("[REFLECT:")
+    segment = result[start:]
+    # The ] that closes [REFLECT: should be the last one; no extra ] inside msg
+    inner = segment[len("[REFLECT:"):]
+    close = inner.index("]")
+    msg_content = inner[:close]
+    assert "]" not in msg_content
 
 
 # ── 27. wire_event — no confirmation → mismatch ──────────────────────────────

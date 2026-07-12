@@ -102,24 +102,6 @@ async def test_describer_cache_miss_calls_sampling_and_stores():
     assert cache.get("fp_xyz", resolved_prompt) == "Fresh description."
 
 
-async def test_describer_sampling_returns_none_no_cache_write():
-    from unity_mcp.screenshot_describe.cache import FingerprintCache
-    from unity_mcp.screenshot_describe.describer import ScreenshotDescriber
-    from unity_mcp.screenshot_describe.prompts import resolve
-
-    cache = FingerprintCache()
-    mock_sampling = MagicMock()
-    mock_sampling.describe_image = AsyncMock(return_value=None)
-
-    d = ScreenshotDescriber(mock_sampling, cache)
-    result = await d.describe("/fake/path.png", "auto", "fp_none")
-
-    # After degrade() wiring: returns degraded marker, not None
-    assert result is not None
-    assert "[DEGRADED:screenshot_describe:" in result
-    resolved_prompt, _ = resolve("auto")
-    assert cache.get("fp_none", resolved_prompt) is None
-
 
 # ── degrade() wiring for describer ────────────────────────────────────────────
 
@@ -313,29 +295,6 @@ async def test_describe_no_mark_uses_plain_prompt():
     assert "Legend:" not in plain_prompt
     assert cache.get("fp_nomark", plain_prompt) == "A sky with clouds."
 
-
-# ── P2: cache miss then hit ───────────────────────────────────────────────────
-
-async def test_cache_miss_then_hit_basic_contract():
-    """First call → miss (sampling invoked). Second call → hit (sampling NOT invoked)."""
-    from unity_mcp.screenshot_describe.cache import FingerprintCache
-    from unity_mcp.screenshot_describe.describer import ScreenshotDescriber
-
-    cache = FingerprintCache()
-    mock_sampling = MagicMock()
-    mock_sampling.describe_image = AsyncMock(return_value="A player character.")
-
-    d = ScreenshotDescriber(mock_sampling, cache)
-
-    # First call — cache miss
-    result1 = await d.describe("/fake/path.png", "auto", "fp_miss_hit")
-    assert result1 == "A player character."
-    assert mock_sampling.describe_image.call_count == 1
-
-    # Second call — cache hit, no new sampling call
-    result2 = await d.describe("/fake/path.png", "auto", "fp_miss_hit")
-    assert result2 == "A player character."
-    assert mock_sampling.describe_image.call_count == 1  # still 1
 
 
 # ── P2: partial viewport overlap — mark=True, legend present ─────────────────

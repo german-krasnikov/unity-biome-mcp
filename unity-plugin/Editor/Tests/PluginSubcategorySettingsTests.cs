@@ -4,8 +4,7 @@ using UnityEditor;
 namespace UnityMCP.Editor.Tests
 {
     /// <summary>
-    /// Tests that per-tool EditorPrefs keys follow the "UnityMCP_Tool_{name}" contract
-    /// and that toggling one tool does not affect its siblings.
+    /// Tests that MCPSettings.IsToolEnabled reads the correct EditorPrefs key.
     /// No UI instantiation — tests the key convention directly.
     /// </summary>
     [TestFixture]
@@ -26,21 +25,6 @@ namespace UnityMCP.Editor.Tests
         {
             EditorPrefs.DeleteKey(KeyA);
             EditorPrefs.DeleteKey(KeyB);
-        }
-
-        [Test]
-        public void TogglingOneTool_WritesCorrectPrefKey()
-        {
-            EditorPrefs.SetBool(KeyA, false);
-            Assert.IsFalse(EditorPrefs.GetBool(KeyA, true));
-        }
-
-        [Test]
-        public void TogglingOneTool_SiblingStaysEnabled()
-        {
-            EditorPrefs.SetBool(KeyA, false);
-            Assert.IsTrue(EditorPrefs.GetBool(KeyB, true),
-                "Sibling tool_b must remain enabled when tool_a is disabled");
         }
 
         [Test]

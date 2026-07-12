@@ -201,40 +201,6 @@ async def test_on_reconnect_callback_failure_does_not_cascade():
 
 
 # ---------------------------------------------------------------------------
-# E4: 30s-dedup throttle
-# ---------------------------------------------------------------------------
-
-def test_on_reconnect_dedup_30s_throttle():
-    """_on_reconnect closure calls _refresh_tools_cache at most once within 30s."""
-    refresh_calls = []
-
-    async def _mock_refresh(bridge):
-        refresh_calls.append(time.monotonic())
-
-    async def _mock_push(bridge):
-        pass
-
-    # Simulate the closure from server.py
-    _last_refresh_ts = 0.0
-
-    def _on_reconnect():
-        nonlocal _last_refresh_ts
-        now = time.monotonic()
-        if now - _last_refresh_ts < 30.0:
-            return
-        _last_refresh_ts = now
-        refresh_calls.append(now)
-
-    # First call — should refresh
-    _on_reconnect()
-    assert len(refresh_calls) == 1
-
-    # Second call immediately — should be deduplicated
-    _on_reconnect()
-    assert len(refresh_calls) == 1  # still 1
-
-
-# ---------------------------------------------------------------------------
 # E5: FAILED-state cooldown
 # ---------------------------------------------------------------------------
 

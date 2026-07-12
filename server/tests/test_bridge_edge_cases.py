@@ -96,12 +96,13 @@ async def test_read_response_zero_length(mock_connection, monkeypatch):
 
 
 async def test_read_response_exactly_10mb(mock_connection):
-    """_read_response accepts exactly 10MB (boundary)."""
+    """_read_response accepts a ~10MB payload (at size limit boundary)."""
     mock_reader, mock_writer = mock_connection
 
-    response = {"id": "0001", "ok": True, "data": "OK"}
+    filler = "x" * (10_000_000 - 40)
+    response = {"id": "0001", "ok": True, "data": filler}
     resp_payload = json.dumps(response).encode("utf-8")
-    header = struct.pack("!I", 10_000_000)
+    header = struct.pack("!I", len(resp_payload))
 
     mock_reader.readexactly = AsyncMock(side_effect=[header, resp_payload])
 

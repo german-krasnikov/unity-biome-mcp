@@ -325,12 +325,6 @@ def test_batch_asset_find_is_readonly():
 def test_batch_asset_delete_not_readonly():
     assert _is_batch_readonly("asset action=delete path=Assets/Old.mat") is False
 
-def test_batch_editor_state_is_readonly_1a():
-    assert _is_batch_readonly("editor action=state") is True
-
-def test_batch_editor_play_not_readonly_1a():
-    assert _is_batch_readonly("editor action=play") is False
-
 def test_batch_mixed_animation_get_and_hierarchy_is_readonly():
     cmds = "get_hierarchy depth=2\nanimation action=get path=/Player"
     assert _is_batch_readonly(cmds) is True

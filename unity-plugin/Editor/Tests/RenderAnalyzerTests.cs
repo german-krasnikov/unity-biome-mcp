@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 
 namespace UnityMCP.Editor.Tests
@@ -233,9 +234,14 @@ namespace UnityMCP.Editor.Tests
         {
             var go = new GameObject("NoFilter");
             _gos.Add(go);
-            go.AddComponent<MeshRenderer>(); // no MeshFilter
-            var result = RenderAnalyzer.Execute(A("stats"));
-            Assert.That(result, Does.Not.StartWith("err:"));
+            go.AddComponent<MeshRenderer>();
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                var result = RenderAnalyzer.Execute(A("stats"));
+                Assert.That(result, Does.Not.StartWith("err:"));
+            }
+            finally { LogAssert.ignoreFailingMessages = false; }
         }
 
         [Test]

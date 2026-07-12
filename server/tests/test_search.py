@@ -89,35 +89,6 @@ async def test_search_scene_combined_query(mock_connection):
     assert sent_json["args"]["query"] == "t:Light active=true"
 
 
-async def test_search_scene_multiple_results(mock_connection):
-    mock_reader, mock_writer = mock_connection
-    data = "Obj1 #100 [BoxCollider]\nObj2 #200 [BoxCollider,Rigidbody]\nObj3 #300 [BoxCollider]"
-    header, payload = make_response(data)
-    mock_reader.readexactly = AsyncMock(side_effect=[header, payload])
-
-    with patch("asyncio.open_connection", return_value=mock_connection):
-        bridge = UnityBridge()
-        await bridge.connect()
-        result = await bridge.send("search_scene", {"query": "t:BoxCollider"})
-
-    assert result["ok"] is True
-    lines = result["data"].strip().split("\n")
-    assert len(lines) == 3
-
-
-async def test_search_scene_inactive_objects(mock_connection):
-    mock_reader, mock_writer = mock_connection
-    header, payload = make_response("HiddenObj #555 ! ")
-    mock_reader.readexactly = AsyncMock(side_effect=[header, payload])
-
-    with patch("asyncio.open_connection", return_value=mock_connection):
-        bridge = UnityBridge()
-        await bridge.connect()
-        result = await bridge.send("search_scene", {"query": "active=false"})
-
-    assert result["ok"] is True
-    assert "!" in result["data"]
-
 
 async def test_search_scene_tool_calls_bridge(mock_bridge):
     """Test search_scene MCP tool calls bridge with correct args"""

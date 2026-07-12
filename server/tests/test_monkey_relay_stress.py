@@ -596,24 +596,3 @@ async def test_concurrent_ops_chaos(pattern: int, backend_name: str) -> None:
             ), f"some status calls failed: {results}"
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Extra: sanity test count guard
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def test_parametrize_count_sanity() -> None:
-    """Verify parametrize matrices produce expected test counts.
-
-    A:40 + B:30 + C:30 + D:20 + E:30 + F:25 + G:25 = 200 monkey tests.
-    This non-monkey sentinel just checks combinatorics haven't drifted.
-    """
-    assert len(ALL_BACKENDS) == 5
-    assert len(ALL_MODES) == 2
-    assert len(_WRITER_KEYS) == 5
-    a = 5 * 2 * 4
-    b = 5 * 2 * 3
-    c = 5 * 6
-    d = 5 * 4
-    e = 6 * 5
-    f = 5 * 5
-    g = 5 * 5
-    assert a + b + c + d + e + f + g == 200

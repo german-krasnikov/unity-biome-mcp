@@ -374,27 +374,6 @@ async def test_stamp_unchanged_is_noop():
     assert "REIMPORT-NEEDED" in result, f"Frozen MVID after compile → REIMPORT-NEEDED, got {result!r}"
 
 
-# P5 NEW (G18): same MVID different mtime, will_compile=true → REIMPORT-NEEDED
-@pytest.mark.asyncio
-async def test_same_mvid_with_will_compile_yields_reimport():
-    """G18: MVID unchanged (mtime-only change) + will_compile=true → REIMPORT-NEEDED.
-
-    Assumes Unity emits will_compile=true for CleanBuildCache mtime-touch; the
-    will_compile=false branch is covered by the companion below
-    (live-verify in Phase D).
-
-    IN-93874: CleanBuildCache touches dll mtime without IL change → MVID stays same.
-    Correct verdict: REIMPORT-NEEDED (not 'sync clean'), because compile was expected.
-    """
-    mvid = "aabbccdd-1122-3344-5566-778899aabbcc"
-    _sync._send = _make_send_with_stamp(
-        pre_status=f"epoch=0|state=ready|stamp={mvid}:100000000000",
-        ack="sync_ack|epoch=1|will_compile=true",
-        status_seq=[f"epoch=1|state=ready|stamp={mvid}:999999999999"],
-    )
-    result = await _sync.sync_unity(timeout=60.0)
-    assert "REIMPORT-NEEDED" in result, f"Same MVID + compile expected → REIMPORT-NEEDED, got {result!r}"
-
 
 # A5: frozen MVID + will_compile=false → fast-path CLEAN (no compile expected)
 @pytest.mark.asyncio
@@ -430,7 +409,7 @@ async def test_expected_compile_mvid_unchanged_is_stop():
     result = await _sync.sync_unity(timeout=60.0)
     # MVID unchanged after expected compile → must NOT be "sync clean"
     # G18: now returns REIMPORT-NEEDED (formerly "sync clean (no-op, domain unchanged)")
-    assert "no-op" in result or "STOP" in result or "REIMPORT-NEEDED" in result, (
+    assert "REIMPORT-NEEDED" in result, (
         f"unchanged MVID after expected compile must not return clean: {result!r}"
     )
 
@@ -530,28 +509,6 @@ async def test_sync_sentinel_stripped(_patch_corroborate):
     assert "No compilation errors" not in result
     assert "sync clean" in result
 
-
-# #41 (RC-10): focus-hint return must contain re-run instruction, NOT "sleep"
-@pytest.mark.asyncio
-async def test_focus_hint_contains_rerun_not_sleep(monkeypatch):
-    """After _FOCUS_HINT_AFTER iters of dur=0.0, hint must say re-run sync_unity
-    and must NOT instruct agents to sleep (protocol lock: poll loop IS the wait)."""
-    monkeypatch.setattr(_sync, "_FOCUS_HINT_AFTER", 0.0)
-
-    async def _backgrounded(cmd, args=None, **kwargs):
-        if cmd == "sync":
-            return "sync_ack|epoch=1|will_compile=true"
-        if cmd == "sync_status":
-            return "epoch=1|state=compiling|dur=0.0"
-        return ""
-
-    _sync._send = _backgrounded
-    result = await _sync.sync_unity(timeout=60.0)
-
-    # G12 retarget: prose surrender → machine-readable verdict.
-    # run_ladder escalation may produce REIMPORT-NEEDED (main_mvid absent) or MANUAL-REQUIRED.
-    assert ("REIMPORT-NEEDED" in result or "MANUAL-REQUIRED" in result), \
-        f"Expected REIMPORT-NEEDED or MANUAL-REQUIRED, got {result!r}"
 
 
 # G18: ready arm MVID unchanged after expected compile → REIMPORT-NEEDED

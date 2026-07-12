@@ -47,41 +47,6 @@ def test_load_meta_returns_all_keys(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_check_facts_detects_drift(tmp_path, monkeypatch):
-    """When stored _meta.json differs from fresh collect, exit code should be 1."""
-    stored = {"tests_unity": 50, "tools": 10}
-    (tmp_path / "docs" / "assets").mkdir(parents=True)
-    (tmp_path / "docs" / "assets" / "_meta.json").write_text(json.dumps(stored), encoding="utf-8")
-
-    # Monkeypatch collect_facts to return different values
-    import readme_facts as rf
-    monkeypatch.setattr(rf, "collect_facts", lambda root: {"tests_unity": 100, "tools": 10})
-
-    # Import the check-facts logic inline (same as update_readme does)
-    fresh = rf.collect_facts(tmp_path)
-    stored_loaded = rf.load_meta(tmp_path)
-    drifted = {k: (stored_loaded.get(k), fresh[k]) for k in fresh if stored_loaded.get(k) != fresh[k]}
-
-    assert "tests_unity" in drifted
-    assert drifted["tests_unity"] == (50, 100)
-
-
-def test_check_facts_no_drift(tmp_path, monkeypatch):
-    """When stored matches fresh, drifted dict is empty."""
-    stored = {"tests_unity": 100, "tools": 10}
-    (tmp_path / "docs" / "assets").mkdir(parents=True)
-    (tmp_path / "docs" / "assets" / "_meta.json").write_text(json.dumps(stored), encoding="utf-8")
-
-    import readme_facts as rf
-    monkeypatch.setattr(rf, "collect_facts", lambda root: {"tests_unity": 100, "tools": 10})
-
-    fresh = rf.collect_facts(tmp_path)
-    stored_loaded = rf.load_meta(tmp_path)
-    drifted = {k: (stored_loaded.get(k), fresh[k]) for k in fresh if stored_loaded.get(k) != fresh[k]}
-
-    assert drifted == {}
-
-
 def test_check_facts_cli_exits_1_on_drift(tmp_path):
     """--check-facts exits 1 when stored _meta.json has wrong unity count."""
     # Write stale meta to a temp location, then override REPO_ROOT in subprocess via env

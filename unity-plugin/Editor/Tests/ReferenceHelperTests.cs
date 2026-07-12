@@ -14,7 +14,7 @@ namespace UnityMCP.Editor.Tests
         // ── Single-scene ClassifyRef via GetReferences ────────────────────────
 
         [Test]
-        public void GetReferences_ChildRef_ClassifiedAsChild()
+        public void GetReferences_DoesNotThrow_ReturnsNonNull()
         {
             var parent = new GameObject("RH_Parent");
             var child = new GameObject("RH_Child");
@@ -32,14 +32,14 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void FindReferencesTo_ExistingObject_FindsSelf()
+        public void FindReferencesTo_NoIncomingRefs_ContainsFoundLabel()
         {
             var go = new GameObject("RH_Target");
             _toDestroy.Add(go);
 
             // No refs point to it — result contains "found: 0"
             var result = ReferenceHelper.FindReferencesTo("/RH_Target");
-            StringAssert.Contains("found:", result);
+            StringAssert.Contains("found: 0", result);
         }
 
         // ── Multi-scene ClassifyRef (CS2.arch.2 regression) ──────────────────
