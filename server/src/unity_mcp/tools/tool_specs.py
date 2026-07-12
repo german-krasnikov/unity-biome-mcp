@@ -88,7 +88,6 @@ _SPECS: dict[str, ToolSpec] = {
     'get_memory': ToolSpec(category='RUNTIME', mutability='read'),
     'get_metrics': ToolSpec(category='RUNTIME', mutability='read'),
     'get_object_detail': ToolSpec(category='SCENE', mutability='read'),
-    'get_perf': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
     'get_schema': ToolSpec(category='SYSTEM', mutability='read'),
     'get_selection': ToolSpec(category='SCENE', mutability='read'),
     'get_spatial_context': ToolSpec(category='SCENE', mutability='read'),
@@ -132,12 +131,11 @@ _SPECS: dict[str, ToolSpec] = {
     'rename_object': ToolSpec(category='SCENE'),
     'set_sibling_index': ToolSpec(category='SCENE'),
     'render_analyze': ToolSpec(category='MEDIA', mutability='read'),
-    'resolve_scene_refs': ToolSpec(category='VERIFY', tier1=True, timeout_s=15.0),
+    'resolve_scene_refs': ToolSpec(category='VERIFY', tier1=True, timeout_s=15.0, mutability='read'),
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read'),
     # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
     # timeout+20.0 explicitly.
     'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, runtime_only=True, mutability='read'),
-    'run_playtest_file': ToolSpec(category='TESTS', timeout_s=300.0, runtime_only=True, mutability='read'),
     'run_playtest_suite': ToolSpec(category='TESTS', timeout_s=3600.0, mutability='read'),
     'run_tests': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, mutability='read'),
     'run_tests_wait': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, mutability='read'),

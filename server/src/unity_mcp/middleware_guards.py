@@ -89,9 +89,21 @@ class MiddlewareGuardsMixin:
     # ── Feature N: Blast Radius Tags ─────────────────────────────────────────
 
     def check_blast_radius(self, cmd: str, args: dict | None = None) -> Optional[str]:
-        if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
-            return None
-        radius = BLAST_RADIUS.get(cmd, 1)
+        if cmd == "batch" and args:
+            cmds_text = args.get("commands", "")
+            if _is_batch_readonly(cmds_text):
+                return None
+            write_radii = []
+            for l in cmds_text.splitlines():
+                s = l.strip()
+                if not s or s.startswith("#"):
+                    continue
+                cmd_name = parse_kv_line(s)[0]
+                if cmd_name not in READ_CMDS:
+                    write_radii.append(BLAST_RADIUS.get(cmd_name, 1))
+            radius = max(write_radii) if write_radii else 1
+        else:
+            radius = BLAST_RADIUS.get(cmd, 1)
         if radius >= 3:
             return f"⚠ HIGH BLAST RADIUS ({radius}): '{cmd}' affects multiple objects. Consider checkpoint first."
         return None

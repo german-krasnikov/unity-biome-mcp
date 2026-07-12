@@ -201,6 +201,14 @@ def test_project_fields_keeps_error_lines():
     assert "err: not found" in result
 
 
+def test_project_fields_no_match_returns_available():
+    """When requested field doesn't match, report available keys."""
+    data = "[Rigidbody]\nm_Mass: 1.0\nm_Drag: 0.0\n"
+    result = project_fields(data, "velocity")
+    assert "0 fields matched" in result
+    assert "m_mass" in result or "m_drag" in result
+
+
 def test_project_fields_empty_fields_returns_all():
     assert project_fields(SAMPLE_COMPONENT, "") == SAMPLE_COMPONENT
     assert project_fields(SAMPLE_COMPONENT, "  ,  ") == SAMPLE_COMPONENT

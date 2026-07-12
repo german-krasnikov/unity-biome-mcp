@@ -224,6 +224,17 @@ async def test_auto_state_fires_on_write_cmds(mw):
     fake_send.assert_called_once()
 
 
+async def test_auto_state_skips_readonly_batch(mw):
+    """batch of read-only tools must NOT trigger AUTO STATE injection."""
+    fake_send = AsyncMock(return_value="HierarchyData")
+    mw.call_count = 10
+    mw._last_hierarchy_call = 0
+    cmds = "diagnose\nscene_health\nvalidate_references\nresolve_scene_refs"
+    result = await mw.maybe_inject_state(fake_send, "original", "batch", {"commands": cmds})
+    assert "AUTO STATE" not in result
+    fake_send.assert_not_called()
+
+
 async def test_state_injection_increments_counter(mw):
     """call_count is incremented by the pipeline (wrap_send), not maybe_inject_state."""
     fake_send = AsyncMock(return_value="HierarchyData")
@@ -441,9 +452,22 @@ def test_blast_radius_readonly_batch_no_warn(mw):
     assert mw.check_blast_radius("batch", {"commands": cmds}) is None
 
 
+def test_blast_radius_resolve_scene_refs_batch_no_warn(mw):
+    """resolve_scene_refs is read-only — a batch of verify tools must not warn."""
+    cmds = "diagnose\nscene_health\nvalidate_references\nresolve_scene_refs"
+    assert mw.check_blast_radius("batch", {"commands": cmds}) is None
+
+
 def test_blast_radius_write_batch_warns(mw):
-    cmds = "set_property path=Foo prop=x value=1"
+    """High-blast write (delete_object=4) in batch must still warn."""
+    cmds = "delete_object path=Foo"
     assert mw.check_blast_radius("batch", {"commands": cmds}) is not None
+
+
+def test_blast_radius_low_write_batch_no_warn(mw):
+    """Low-blast write (set_property=1) in batch does NOT warn."""
+    cmds = "set_property path=Foo prop=x value=1"
+    assert mw.check_blast_radius("batch", {"commands": cmds}) is None
 
 
 def test_blast_radius_no_args_still_warns(mw):

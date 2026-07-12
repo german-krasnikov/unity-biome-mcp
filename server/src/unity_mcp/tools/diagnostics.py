@@ -5,11 +5,6 @@ from ._common import bind
 _send = None
 
 
-async def get_perf() -> str:
-    """[Play Mode] Deprecated — redirects to get_frame_stats. Use get_frame_stats directly."""
-    return await _send("get_frame_stats", {})
-
-
 async def debug_animator(path: str) -> str:
     """[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile).
     path: scene path to GameObject with Animator component."""
@@ -25,6 +20,5 @@ async def debug_physics(path: str, radius: float = 5.0) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(get_perf)
     mcp.tool(annotations=_RO)(debug_animator)
     mcp.tool(annotations=_RO)(debug_physics)

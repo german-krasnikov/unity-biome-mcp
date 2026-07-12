@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.85.1] — 2026-07-12 — Audit fixes: deprecated tools removed, middleware hardened, scene TearDown cleanup
+
+**Removed:**
+- `get_perf` — fully removed from Python (`diagnostics.py`) and C# (`CommandRouter.Registration.cs`); use `get_frame_stats` instead.
+- `run_playtest_file` — removed from Python (`runtime.py`) and `test_run_playtest_file.py`; use `run_playtest(path=...)` instead.
+
+**Fixed:**
+- `middleware_guards.py`: batch `blast_radius` now dynamic — scans inner commands instead of using a fixed value.
+- `middleware_async.py`: batch read-only guard added in `maybe_inject_state`.
+- `tool_specs.py`: `resolve_scene_refs` mutability corrected to `'read'` (was `'write'`).
+- `RenderAnalyzer.cs`: try/catch `InvalidOperationException` on non-readable meshes (2 sites).
+- `PlaytestLinter.cs`: no-evidence commands now `ERROR` (was `WARN`).
+- `compressor.py`: `project_fields()` returns helpful message when 0 fields matched.
+
+**Test Infrastructure:**
+- `SceneTestBase.cs`: added `Undo.ClearAll()` after `NewScene` to fix dirty scene state.
+- `PlaytestRunnerTests.cs`: `DefaultGameObjects` replaced with `EmptyScene, Single` fixture.
+- `HelperTests.cs`: `SpatialHelperEdgeCaseTests` now inherits `SceneTestBase`.
+- `RenderAnalyzerTests.cs`: 3 new NUnit tests for non-readable mesh exception handling.
+- New `test_registration_parity.py`: zero-drift guard between `tool_specs` and registered MCP tools (3 tests).
+- `test_schema_drift.py`: 2 new tests for tier1 description quality and no implementation leakage.
+
 ## [v0.84.0] — 2026-07-12 — Release stabilization: CORE 15→11, tier restructure, P0 fixes, token economy
 
 **Phase 1 — CORE/TIER Restructuring:**

@@ -298,7 +298,7 @@ namespace UnityMCP.Editor.Tests
     // ── SpatialHelper — path-not-found and truncation ───────────────────────
 
     [TestFixture]
-    public class SpatialHelperEdgeCaseTests
+    public class SpatialHelperEdgeCaseTests : SceneTestBase
     {
         private readonly List<GameObject> _created = new List<GameObject>();
 

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 from mcp.server.fastmcp.exceptions import ToolError
 from unity_mcp.server import (
     invoke_method, set_runtime_property, wait_until, query_state, move_to,
-    set_active, wire_event, unwire_event, run_playtest, run_playtest_file,
+    set_active, wire_event, unwire_event, run_playtest,
 )
 
 
@@ -203,15 +203,3 @@ async def test_run_playtest_snapshot_on_failure_default_omits(mock_bridge):
     assert "snapshot_on_failure" not in sent
 
 
-async def test_run_playtest_file_snapshot_on_failure_passes_true(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
-    await run_playtest_file("Playtests/test.playtest", snapshot_on_failure=True)
-    sent = mock_bridge.send.call_args[0][1]
-    assert sent["snapshot_on_failure"] == "true"
-
-
-async def test_run_playtest_file_snapshot_on_failure_default_omits(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
-    await run_playtest_file("Playtests/test.playtest")
-    sent = mock_bridge.send.call_args[0][1]
-    assert "snapshot_on_failure" not in sent

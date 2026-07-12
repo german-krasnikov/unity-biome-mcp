@@ -158,32 +158,6 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
 run_playtest.__test__ = False  # prevent pytest from collecting as test
 
 
-async def run_playtest_file(
-    path: str,
-    timeout: float = 120.0,
-    abort_on_fail: bool = False,
-    defs: "str | None" = None,
-    snapshot_on_failure: bool = False,
-) -> str:
-    """DEPRECATED: use run_playtest(path=...) instead. Runs a .playtest file by project-relative path.
-    path: project-relative path to .playtest file (e.g. 'Playtests/farm_pipeline_early.playtest').
-    Missing file returns a clear error. Path traversal (../) is rejected by Unity.
-    defs: optional inline VAL definitions prepended before the file script.
-    abort_on_fail=True: stops Play Mode on step timeout.
-    snapshot_on_failure=True: on failure, appends current alias values and recent console errors."""
-    raw = await _send("run_playtest", _args(
-        path=path,
-        timeout=str(timeout),
-        abort_on_fail="true" if abort_on_fail else None,
-        snapshot_on_failure="true" if snapshot_on_failure else None,
-        defs=_normalize_defs(defs)),
-        timeout=timeout + _TCP_PLAYTEST_BUFFER)
-    return _compress_report(raw)
-
-
-run_playtest_file.__test__ = False  # prevent pytest from collecting as test
-
-
 async def run_playtest_suite(
     paths: str,
     timeout_per_test: float = 120.0,
@@ -381,7 +355,6 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RO)(query_state)
     mcp.tool(annotations=_RW)(test_step)
     mcp.tool(annotations=_RW)(run_playtest)
-    mcp.tool(annotations=_RW)(run_playtest_file)  # deprecated alias
     mcp.tool(annotations=_RW)(run_playtest_suite)
     mcp.tool(annotations=_RO)(lint_playtest)
     mcp.tool(annotations=_RO)(lint_playtest_suite)

@@ -40,11 +40,11 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void test_no_evidence_commands_warns()
+        public void test_no_evidence_commands_errors()
         {
             var script = "WAIT 1\nWAIT 2";
             var result = PlaytestLinter.LintScript(script, "test");
-            Assert.That(result, Does.Contain("WARN"));
+            Assert.That(result, Does.Contain("ERROR"));
             Assert.That(result, Does.Contain("evidence"));
         }
 

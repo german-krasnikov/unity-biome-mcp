@@ -44,7 +44,7 @@ _PYTHON_ONLY = {
     # Compile / sync orchestration (poll C# commands internally)
     "await_compile", "sync_unity", "run_tests_wait",
     # Playtest orchestration (reads files, delegates to run_playtest C#)
-    "run_playtest_file", "run_playtest_suite", "lint_playtest_suite",
+    "run_playtest_suite", "lint_playtest_suite",
     # Screenshot comparison (uses screenshot C# internally, adds Python logic)
     "screenshot_baseline", "screenshot_compare",
     # Metrics / debug / snapshot (Python-side aggregators)

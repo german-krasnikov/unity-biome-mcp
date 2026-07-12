@@ -22,7 +22,7 @@ _OLD_READ_CMDS = {
     "alias_status", "get_aliases", "list_connections", "get_enabled_tools",
     "budget_status", "permission_prompt",
     "get_test_results", "get_test_progress", "get_test_count",
-    "get_frame_stats", "get_memory", "get_metrics", "get_perf",
+    "get_frame_stats", "get_memory", "get_metrics",
     "get_watches", "debug", "debug_animator", "debug_physics", "profile",
     "object_diff", "scene_diff", "scene_health", "material_audit",
     "analyze_lod_culling", "render_analyze", "fingerprint",
@@ -36,7 +36,7 @@ _OLD_RUNTIME_ONLY = {
     "invoke_method", "set_runtime_property",
     "wait_until", "move_to", "query_state", "test_step",
     "run_playtest",
-    "get_perf", "get_frame_stats", "debug_animator", "debug_physics",
+    "get_frame_stats", "debug_animator", "debug_physics",
     "watch_add",
     "profile",
 }
@@ -90,13 +90,13 @@ def test_spec_runtime_only_matches_runtime_cmds():
                 f"{cmd} in _RUNTIME_ONLY_CMDS but _SPECS[{cmd}].runtime_only=False"
 
 
-def test_runtime_only_12_known_tools():
-    """All 12 known runtime-only MCP tools are present."""
+def test_runtime_only_11_known_tools():
+    """All 11 known runtime-only MCP tools are present."""
     from unity_mcp.middleware_types import _RUNTIME_ONLY_CMDS
     expected = {
         "invoke_method", "set_runtime_property", "wait_until", "move_to",
         "query_state", "test_step", "run_playtest",
-        "get_perf", "get_frame_stats", "debug_animator", "debug_physics", "profile",
+        "get_frame_stats", "debug_animator", "debug_physics", "profile",
     }
     missing = expected - _RUNTIME_ONLY_CMDS
     assert not missing, f"runtime_only tools missing: {missing}"

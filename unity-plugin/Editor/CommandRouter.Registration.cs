@@ -280,8 +280,6 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("query_state", args => GameStateHelper.Snapshot(
                 JsonHelper.ExtractString(args, "queries")), runtime: true,
                 required: "queries", optional: "");
-            CommandRegistry.Register("get_perf", _ => ProfilerHelper.GetSnapshot(), runtime: true,
-                required: "", optional: "");
             CommandRegistry.Register("get_frame_stats", _ => ProfilerHelper.GetFrameStats(), runtime: true,
                 required: "", optional: "");
             CommandRegistry.RegisterAction("profile", Profiling.ProfileRecorder.Dispatch, runtime: true,

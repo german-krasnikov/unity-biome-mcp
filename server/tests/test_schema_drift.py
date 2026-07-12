@@ -8,17 +8,32 @@ import pkgutil
 import pytest
 import unity_mcp.tools as _tools_pkg
 from unity_mcp.tools.gating import _CORE_TOOLS
+from unity_mcp.tools.tool_specs import _SPECS
 
-# Build tool_name → function map by scanning all tool submodules once at import time.
+_ALL_MCP_NAMES = frozenset(n for n, s in _SPECS.items() if s.category != "_INTERNAL")
+
+# Build tool_name → function map by scanning tool submodules + known extra packages.
+_SCAN_MODULES = [f"unity_mcp.tools.{i.name}" for i in pkgutil.iter_modules(_tools_pkg.__path__)]
+_SCAN_MODULES.append("unity_mcp.debug.snapshots")  # snapshot lives outside tools/
+
 _TOOL_FN: dict = {}
-for _info in pkgutil.iter_modules(_tools_pkg.__path__):
+_ALL_TOOL_FN: dict = {}
+for _mod_name in _SCAN_MODULES:
     try:
-        mod = importlib.import_module(f"unity_mcp.tools.{_info.name}")
+        mod = importlib.import_module(_mod_name)
         for _name in dir(mod):
-            if _name in _CORE_TOOLS and callable(getattr(mod, _name)):
-                _TOOL_FN[_name] = getattr(mod, _name)
+            fn = getattr(mod, _name)
+            if not callable(fn):
+                continue
+            if _name in _CORE_TOOLS:
+                _TOOL_FN[_name] = fn
+            if _name in _ALL_MCP_NAMES:
+                _ALL_TOOL_FN[_name] = fn
     except Exception:
         pass
+
+_TIER1_NAMES = sorted(n for n, s in _SPECS.items() if s.tier1 and not s.core)
+_IMPL_LEAK_TOKENS = ("C#-side", "bridge.send", "TCP command", "sent over wire", "internal")
 
 
 @pytest.mark.parametrize("tool_name", sorted(_CORE_TOOLS))
@@ -52,3 +67,24 @@ def test_do_cross_refs_batch():
     assert "batch" in (do.__doc__ or "").lower(), (
         "do docstring must mention 'batch' to distinguish from direct tool calls"
     )
+
+
+@pytest.mark.parametrize("tool_name", _TIER1_NAMES)
+def test_tier1_tools_have_descriptions(tool_name):
+    """Every TIER1 (non-core) tool must have a non-trivial description (len > 20)."""
+    fn = _ALL_TOOL_FN.get(tool_name)
+    assert fn is not None, f"No function found for TIER1 tool '{tool_name}'"
+    doc = fn.__doc__ or ""
+    assert len(doc) > 20, f"'{tool_name}' description too short ({len(doc)} chars): {doc!r}"
+
+
+@pytest.mark.parametrize("tool_name", sorted(_ALL_MCP_NAMES))
+def test_no_implementation_leakage_in_descriptions(tool_name):
+    """Tool descriptions must not expose internal implementation details to the LLM."""
+    fn = _ALL_TOOL_FN.get(tool_name)
+    assert fn is not None, f"No function found for tool '{tool_name}' — add its module to _SCAN_MODULES"
+    doc = fn.__doc__ or ""
+    for token in _IMPL_LEAK_TOKENS:
+        assert token not in doc, (
+            f"'{tool_name}' description leaks implementation detail '{token}': {doc[:120]!r}"
+        )

@@ -126,7 +126,7 @@ unity-kiss-mcp/
 │   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)
 │   │   │   ├── testing.py      # run_tests, recompile, await_compile split from scene.py (v0.70.0); playtests ROI sprint: +run_tests_wait (blocking run_tests + poll loop, returns final result or TIMEOUT)
 │   │   │   ├── editor_control.py # editor control commands split from scene.py (v0.70.0)
-│   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (script= OR path= mutually exclusive, abort_on_fail, defs, snapshot_on_failure; _TCP_POLL/STEP/PLAYTEST_BUFFER constants; module-level SamplingService singleton); playtests ROI sprint: +run_playtest_file (single .playtest by project-relative path), +run_playtest_suite (glob/comma/newline list → SUITE: X/Y matrix, stop_on_fail, stop_after)
+│   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (script= OR path= mutually exclusive, abort_on_fail, defs, snapshot_on_failure; _TCP_POLL/STEP/PLAYTEST_BUFFER constants; module-level SamplingService singleton); playtests ROI sprint: +run_playtest_suite (glob/comma/newline list → SUITE: X/Y matrix, stop_on_fail, stop_after); v0.85.1: -run_playtest_file removed (use run_playtest path=)
 │   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set; batch accepts validate_aliases=True for dry-run alias check (v0.78.9)
 │   │   │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
 │   │   │   ├── skills.py       # save/use/list_skill, apply/save/list_template + _skills_dir

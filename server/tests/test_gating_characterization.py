@@ -47,7 +47,7 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "execute_code", "find_objects", "fingerprint",
     "get_capabilities", "get_changes", "get_compile_errors", "get_component",
     "get_components_list", "get_console", "get_enabled_tools", "get_frame_stats",
-    "get_hierarchy", "get_memory", "get_metrics", "get_object_detail", "get_perf",
+    "get_hierarchy", "get_memory", "get_metrics", "get_object_detail",
     "get_schema", "get_selection", "get_spatial_context", "get_test_count",
     "get_test_progress", "get_test_results", "get_watches", "inspect", "invoke_method",
     "list_connections", "list_skills", "list_templates",
@@ -101,7 +101,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
     },
     "RUNTIME": {
         "console_mark", "debug", "debug_animator", "debug_physics", "get_console_since",
-        "get_frame_stats", "get_memory", "get_metrics", "get_perf", "get_watches",
+        "get_frame_stats", "get_memory", "get_metrics", "get_watches",
         "invoke_method", "move_to", "profile", "query_state", "set_runtime_property",
         "snapshot", "wait_until", "watch",
     },
@@ -128,9 +128,9 @@ _THEMED_CATEGORIES_SNAPSHOT = {
 _CATEGORY_SIZES_SNAPSHOT = {
     # Phase 1a: object grows +4 (delete_object/set_parent/scene/search_scene added to SCENE)
     # Phase 1c: runtime shrinks -1 (run_playtest_file removed from TESTS)
-    "advanced": 34, "animation": 14, "asset": 7, "connection": 34, "debug": 18,
-    "object": 29, "perf": 18, "plugins": 34, "profiling": 18, "rendering": 14,
-    "runtime": 31, "session": 34, "ui": 14,
+    "advanced": 34, "animation": 14, "asset": 7, "connection": 34, "debug": 17,
+    "object": 29, "perf": 17, "plugins": 34, "profiling": 17, "rendering": 14,
+    "runtime": 30, "session": 34, "ui": 14,
 }
 
 _TIMEOUT_CATEGORIES_SNAPSHOT = {
@@ -142,7 +142,6 @@ _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "lint_playtest": 60.0, "lint_playtest_suite": 120.0,
     "list_playtest_files": 10.0,
     "ping": 5.0, "run_playtest": 300.0,
-    "run_playtest_file": 300.0,
     "run_playtest_suite": 3600.0, "run_tests": 300.0, "run_tests_wait": 300.0,
     "resolve_scene_refs": 15.0, "search_scene": 15.0, "verify_after_change": 600.0,
 }

@@ -167,7 +167,7 @@ Play Mode operations, performance, debugging, watches.
 | move_to | Pathfind + walk to position | path, dest_pos, speed, timeout |
 | query_state | Read runtime GameObject state | path, queries (CSV) |
 | get_frame_stats | Instant performance snapshot | include= (field filter) |
-| get_perf | **DEPRECATED** — use get_frame_stats | filter |
+| get_perf | **REMOVED** (v0.85.1) — use get_frame_stats | filter |
 | profile | CPU/GPU profiler control | action (start/stop/dump/analyze/compare), target |
 | get_memory | Memory profiling | detailed (bool) |
 | debug_animator | Animator state inspection | path |
@@ -186,7 +186,7 @@ NUnit, playtest suites, alias sync.
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
-| run_playtest_file | **DEPRECATED** — use `run_playtest path=` | path, timeout, abort_on_fail, defs, snapshot_on_failure |
+| run_playtest_file | **REMOVED** (v0.85.1) — use `run_playtest(path=...)` | path, timeout, abort_on_fail, defs, snapshot_on_failure |
 | run_playtest_suite | Run multiple .playtest files sequentially | paths (glob/CSV), timeout_per_test, stop_on_fail, auto_play |
 | test_step | Execute single DSL step | step (JSON), config |
 | lint_playtest_suite | Lint all matched .playtest files; aggregated report | paths (glob/CSV) |

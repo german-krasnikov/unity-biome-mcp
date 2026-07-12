@@ -26,7 +26,7 @@ namespace UnityMCP.Editor.Tests
             "get_aliases", "get_component", "get_components_list", "get_console", "get_disabled_tools",
             "get_enabled_tools", "get_frame_stats", "get_hierarchy", "get_memory", "get_object_detail",
             "get_status",
-            "get_perf", "get_schema", "get_selection", "get_spatial_context", "get_test_count",
+            "get_schema", "get_selection", "get_spatial_context", "get_test_count",
             "get_test_progress", "get_test_results", "get_watches", "inspect", "invoke_method", "lint_playtest",
             "lint_scene_refs", "list_playtest_files", "manage_component",
             "material", "material_audit", "menu", "move_to", "object_diff", "particle",

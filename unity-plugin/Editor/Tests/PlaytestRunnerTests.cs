@@ -13,7 +13,7 @@ namespace UnityMCP.Editor.Tests
         public void TearDown()
         {
             ConsoleCapture.Clear();
-            EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects);
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         }
 
         // ── ResolveCharacterPath ──────────────────────────────────────────────

@@ -53,7 +53,6 @@ RUNTIME_TOOLS = [
     (runtime.move_to,              "[Play Mode]"),
     (runtime.query_state,          "[Play Mode]"),
     (runtime.test_step,            "[Play Mode]"),
-    (diagnostics.get_perf,         "[Play Mode]"),
     (diagnostics.debug_animator,   "[Play Mode]"),
     (diagnostics.debug_physics,    "[Play Mode]"),
     (watch_mod.watch,              "[Play Mode]"),

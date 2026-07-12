@@ -45,15 +45,23 @@ def project_fields(text: str, fields: str) -> str:
     if not wanted:
         return text
     out = []
+    available: list[str] = []
+    matched = False
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("[") or stripped == "---" or stripped.startswith("err:"):
             out.append(line)
             continue
         key = (stripped.split(": ", 1)[0] if ": " in stripped else stripped).strip().lower()
+        available.append(key)
         if any(key == w or key.startswith(w + ".") for w in wanted):
             out.append(line)
-    return "\n".join(out)
+            matched = True
+    result = "\n".join(out)
+    if not matched and available:
+        note = f"0 fields matched. Available: {', '.join(dict.fromkeys(available))}"
+        return (result + "\n" + note).strip()
+    return result
 
 
 def strip_defaults(text: str) -> str:

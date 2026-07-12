@@ -69,3 +69,13 @@ def test_core_count_is_11():
     """Phase 1a: CORE shrunk from 15 to 11 (delete_object/set_parent/scene/search_scene demoted)."""
     from unity_mcp.tools.tool_specs import _SPECS
     assert sum(1 for s in _SPECS.values() if s.core) == 11
+
+
+def test_tier1_count_in_bounds():
+    """Tier1 (non-core) count: prevents silent creep past 55; floor 30 guards against mass removal."""
+    from unity_mcp.tools.tool_specs import _SPECS
+    count = sum(1 for s in _SPECS.values() if s.tier1 and not s.core)
+    assert 30 <= count <= 55, (
+        f"Tier1 non-core count is {count} — outside [30, 55] bounds. "
+        "Update this range intentionally if the tier1 set changed."
+    )

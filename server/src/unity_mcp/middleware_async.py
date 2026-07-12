@@ -18,9 +18,12 @@ class MiddlewareAsyncMixin:
         args: dict | None = None,
     ) -> str:
         from .middleware_types import is_write
+        from .middleware_guards import _is_batch_readonly
         if os.environ.get("UNITY_MCP_AUTO_STATE", "1") == "0":
             return result
         if cmd and not is_write(cmd, args):
+            return result
+        if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
             return result
         if self.call_count % 10 == 0 and (self.call_count - self._last_hierarchy_call) > 5:
             try:

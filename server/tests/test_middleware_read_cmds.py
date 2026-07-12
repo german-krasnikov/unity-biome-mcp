@@ -34,7 +34,6 @@ def test_set_sibling_index_in_write_cmds():
     "get_frame_stats",
     "get_memory",
     "get_metrics",
-    "get_perf",
     "get_schema",
     "get_selection",
     "get_test_count",

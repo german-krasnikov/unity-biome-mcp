@@ -226,6 +226,46 @@ namespace UnityMCP.Editor.Tests
 
         // ── Execute dispatch ─────────────────────────────────────────────────
 
+        // ── Null-safety / non-readable meshes ───────────────────────────────
+
+        [Test]
+        public void Stats_MeshRendererWithoutMeshFilter_DoesNotCrash()
+        {
+            var go = new GameObject("NoFilter");
+            _gos.Add(go);
+            go.AddComponent<MeshRenderer>(); // no MeshFilter
+            var result = RenderAnalyzer.Execute(A("stats"));
+            Assert.That(result, Does.Not.StartWith("err:"));
+        }
+
+        [Test]
+        public void Stats_NonReadableMesh_DoesNotCrash()
+        {
+            // NOTE: UploadMeshData(true) only restricts access at runtime, not in Editor.
+            // This test documents intent; real coverage comes from live smoke audit.
+            var go = new GameObject("NonReadable");
+            _gos.Add(go);
+            var mesh = MakeQuad();
+            mesh.UploadMeshData(true);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>();
+            var result = RenderAnalyzer.Execute(A("stats"));
+            StringAssert.Contains("tris=", result);
+        }
+
+        [Test]
+        public void Overdraw_NonReadableMesh_DoesNotCrash()
+        {
+            var go = new GameObject("NonReadableOD");
+            _gos.Add(go);
+            var mesh = MakeQuad();
+            mesh.UploadMeshData(true);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>();
+            var result = RenderAnalyzer.Execute(A("overdraw"));
+            Assert.That(result, Does.Not.StartWith("err:"));
+        }
+
         [Test]
         public void Execute_UnknownAction_ReturnsErr()
         {
