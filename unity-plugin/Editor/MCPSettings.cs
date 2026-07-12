@@ -21,23 +21,19 @@ namespace UnityMCP.Editor
             EditorPrefs.GetString(KeyCatalog, null);
 
         // Minimal built-in default — used when no Python catalog received yet.
+        // Generated from tool_specs._SPECS — categories and tool lists match get_catalog() output.
         private static readonly Dictionary<string, string[]> _defaultCatalog =
             new Dictionary<string, string[]>
             {
-                { "CORE",       new[] { "get_hierarchy","get_component","inspect","batch","set_property","create_object","delete_object","manage_component","scene","search_scene","set_parent","get_console","get_compile_errors","get_enabled_tools","discover_tools","editor","do","ask","reconnect_unity","list_connections" } },
-                { "SCENE_EDIT", new[] { "find_objects","get_object_detail","get_components_list","set_active","set_material","set_property_delta" } },
-                { "COMPONENTS", new[] { "wire_event","unwire_event" } },
-                { "ANIMATION",  new[] { "animation","timeline","animator","particle" } },
-                { "SHADERS_MATERIAL", new[] { "shader","material","references" } },
-                { "VFX",        new[] { "vfx_intent" } },
-                { "UI",         new[] { "create_ui","set_rect","validate_layout","get_spatial_context","ui_intent" } },
-                { "SCREENSHOTS",new[] { "screenshot","screenshot_baseline","screenshot_compare" } },
-                { "UNIT_TESTS", new[] { "run_tests","get_test_results","run_playtest","test_step" } },
-                { "RUNTIME",    new[] { "invoke_method","set_runtime_property","wait_until","move_to","query_state" } },
-                { "ASSETS",     new[] { "asset","prefab","scriptable_object","project_settings" } },
-                { "ADVANCED_CODE", new[] { "execute_code","recompile","find_references","semantic_at","compile_preflight","get_schema","auto_fix","smart_build","checkpoint","validate_references","menu" } },
-                { "SESSION_SKILLS", new[] { "save_skill","use_skill","list_skills","apply_template","save_template","list_templates","fingerprint","scene_diff","get_changes","save_session","load_session" } },
-                { "META",       new[] { "animator_intent","get_metrics","setup_objects","set_properties","configure_objects","scan_scene","check_colliders","spatial_query" } },
+                { "CORE",       new[] { "batch","create_object","editor","get_compile_errors","get_component","get_console","get_hierarchy","inspect","manage_component","set_property" } },
+                { "SCENE",      new[] { "apply_scene_change","autofit_collider","check_colliders","configure_objects","delete_object","find_objects","get_components_list","get_object_detail","get_selection","get_spatial_context","navmesh_query","object_diff","ping_object","region_clear","rename_object","scene","scene_change_plan","scene_diff","scene_environment","search_scene","set_active","set_material","set_parent","set_properties","set_property_delta","set_sibling_index","setup_objects","spatial_query","transfer_object" } },
+                { "COMPONENTS", new[] { "auto_wire","references","unwire_event","wire_event" } },
+                { "ASSETS",     new[] { "asset","material","material_audit","prefab","project_settings","scriptable_object","shader" } },
+                { "MEDIA",      new[] { "analyze_lod_culling","animation","animator","create_ui","particle","render_analyze","screenshot","screenshot_baseline","screenshot_compare","set_rect","timeline","ui_intent","validate_layout","vfx_intent" } },
+                { "VERIFY",     new[] { "await_compile","compile_preflight","diagnose","lint_scene_refs","resolve_scene_refs","scan_scene","scene_health","validate_references","verify_after_change" } },
+                { "RUNTIME",    new[] { "console_mark","debug","debug_animator","debug_physics","get_console_since","get_frame_stats","get_memory","get_metrics","get_watches","invoke_method","move_to","profile","query_state","set_runtime_property","snapshot","wait_until","watch" } },
+                { "TESTS",      new[] { "export_playtest_aliases_to_defs","get_test_count","get_test_progress","get_test_results","lint_playtest","lint_playtest_suite","run_playtest","run_playtest_suite","run_tests","run_tests_wait","sync_playtest_aliases_from_defs","test_step","validate_playtest_aliases" } },
+                { "SYSTEM",     new[] { "alias_status","animator_intent","apply_template","ask","ask_user","auto_fix","budget_status","checkpoint","discover_tools","do","doctor","execute_code","fingerprint","get_capabilities","get_changes","get_enabled_tools","get_schema","list_connections","list_skills","list_templates","load_session","mcp_status","menu","permission_prompt","recompile","reconnect_unity","release_smoke","resolve_tool_schema","save_session","save_skill","save_template","set_llm_config","smart_build","sync_unity","undo_last","use_skill" } },
             };
 
         // Returns catalog categories (from EditorPrefs JSON or built-in default).

@@ -331,7 +331,7 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
   * **Focus modes**: all | hierarchy (>10 depth) | naming (CamelCase/reserved) | duplicates (sibling names) | origins (>5000 units away) | missing (scripts) | empty (GameObjects) | disabled (roots)
   * **Severity tags**: CRITICAL (blocking) | WARNING (performance) | INFO (conventions) | OK (clean)
   * **SceneHealthAnalyzer.cs** (C# helper): 7 static check methods — CheckMissingScripts, CheckDeepHierarchy, CheckBadNaming, CheckDuplicateSiblings, CheckEmptyObjects, CheckWorldOrigin, CheckDisabledRoots. Returns formatted output with path + issue description per check
-  * Category: META (gated)
+  * Category: VERIFY (gated)
   
 - **auto_wire MCP Tool** — Semantic ObjectReference field filling:
   * **3-Priority Matching Logic**: (1) exact field name match in scene, (2) contains field name (substring), (3) type-only match
@@ -346,7 +346,7 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
   * **RoslynLoader.cs** (C# helper): Extracted Roslyn assembly loading from CodeExecutor. Reflects mscorlib + UnityEngine via System.Runtime.InteropServices.RuntimeEnvironment
   * **RoslynWorkspace.cs** (C# helper): SyntaxTree → Compilation → Diagnostics pipeline. Creates Compilation with references, filters to CS errors/warnings
   * **RoslynFormat.cs** (C# helper): OK/ERR formatter — returns summary + line:col:message per diagnostic
-  * Category: META (allowed during compile, zero side effects)
+  * Category: VERIFY (allowed during compile, zero side effects)
 
 4. **Guards (C#)**
    - **Compile guard**: blocks all except ping, get_version, get_console, clear_console, screenshot, get_enabled_tools, compile_status
@@ -937,7 +937,7 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 - **Alias defs sync tools** (new C# commands, CommandRouter.AliasHandlers.cs):
   - `export_playtest_aliases_to_defs` / `sync_playtest_aliases_from_defs` / `validate_playtest_aliases` — round-trip alias DSL between PlaytestConfig and `.defs` files. TESTS tier1.
 
-- **mcp_status** — Meta tool returning MCP server + connection health summary. Category: META tier1.
+- **mcp_status** — Meta tool returning MCP server + connection health summary. Category: SYSTEM tier1.
 
 ### batch fields/compress Filtering (v0.78.x, C#: FieldProjector + DefaultStripper)
 

@@ -230,3 +230,42 @@ def test_get_categories_still_works():
     assert len(cats) >= 8  # at least the original 8 categories
 
 
+# ---------------------------------------------------------------------------
+# Cycle 8: _SPECS-based consistency (no server import required)
+# ---------------------------------------------------------------------------
+
+def test_all_spec_tools_in_catalog():
+    """Every non-_INTERNAL tool in _SPECS must appear in the catalog."""
+    from unity_mcp.tools.gating import get_catalog
+    from unity_mcp.tools.tool_specs import _SPECS
+    catalog_tools = {t for tools in get_catalog()["categories"].values() for t in tools}
+    missing = {
+        name for name, spec in _SPECS.items()
+        if spec.category != "_INTERNAL" and name not in catalog_tools
+    }
+    assert not missing, f"Tools in _SPECS missing from catalog: {sorted(missing)}"
+
+
+def test_spec_tools_in_exactly_one_category():
+    """Every non-_INTERNAL tool in _SPECS appears in exactly one catalog category."""
+    from unity_mcp.tools.gating import get_catalog
+    from unity_mcp.tools.tool_specs import _SPECS
+    public_names = {n for n, s in _SPECS.items() if s.category != "_INTERNAL"}
+    counts: dict[str, int] = {name: 0 for name in public_names}
+    for tools in get_catalog()["categories"].values():
+        for t in tools:
+            if t in counts:
+                counts[t] += 1
+    duplicates = {n for n, c in counts.items() if c > 1}
+    assert not duplicates, f"Tools in multiple categories: {sorted(duplicates)}"
+
+
+def test_no_phantom_tools_in_catalog():
+    """Every tool in the catalog must have a matching _SPECS entry."""
+    from unity_mcp.tools.gating import get_catalog
+    from unity_mcp.tools.tool_specs import _SPECS
+    catalog_tools = {t for tools in get_catalog()["categories"].values() for t in tools}
+    phantoms = catalog_tools - set(_SPECS)
+    assert not phantoms, f"Phantom tools in catalog (no _SPECS entry): {sorted(phantoms)}"
+
+

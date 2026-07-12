@@ -356,4 +356,4 @@ after = await get_changes(clear=False)
 
 ---
 
-**See also:** AI/tools-reference.md (SESSION_SKILLS), `.claude/skills/playmode-verification.md` (regression patterns), CLAUDE.md § Verification Gates.
+**See also:** AI/tools-reference.md (SYSTEM category — session tools), `.claude/skills/playmode-verification.md` (regression patterns), CLAUDE.md § Verification Gates.

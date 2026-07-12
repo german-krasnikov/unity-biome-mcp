@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.88.0] — 2026-07-13 — C# settings panel sync with ToolSpec v2 8-category taxonomy
+
+**C# — Settings Panel:**
+- `MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories to 8 canonical categories (CORE, SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM) matching `get_catalog()` output from `tool_specs._SPECS`.
+- `MCPSettingsUI.cs`: `_noVisualsOff` set simplified from 4 entries (`SCREENSHOTS`, `ANIMATION`, `SHADERS_MATERIAL`, `VFX`) to 1 (`MEDIA`).
+- `CatalogParser.cs`: doc comments updated to reflect new category names (SCENE, SYSTEM).
+
+**Python — Tests:**
+- `test_catalog.py`: 3 new _SPECS↔catalog consistency tests: `test_all_spec_tools_in_catalog`, `test_spec_tools_in_exactly_one_category`, `test_no_phantom_tools_in_catalog`.
+
 ## [v0.87.0] — 2026-07-12 — MCP release stabilization: 5 P0 + 12 P1 fixes, direct_only gating, batch UX, media hardening
 
 **Python — Gating:**

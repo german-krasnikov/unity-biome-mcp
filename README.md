@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="139 MCP Tools · 11473 Tests (4639 Python · 6550 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="139 MCP Tools · 4952 Tests (4642 Python · 26 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -302,6 +302,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.88.0</b> — 2026-07-13 — `MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories …</summary>
+
+`MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories to 8 canonical categories (CORE, SCENE, COMPONENTS, ASSETS, MEDIA, …
+
+</details>
+
+<details>
 <summary><b>v0.87.0</b> — 2026-07-12 — `tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools …</summary>
 
 `tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools marked `direct_only=True` (cannot be used inside `batch`): `do`, `ask`, …
@@ -330,15 +337,9 @@ CORE shrunk from 15 → 11: `delete_object`, `set_parent`, `scene`, `search_scen
 </details>
 
 <details>
-<summary><b>v0.83.0</b> — 2026-07-11 — `ToolSpec.mutability: Literal['read','write']` — single-source classification …</summary>
-
-`ToolSpec.mutability: Literal['read','write']` — single-source classification for all tools.
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.83.0** — 2026-07-11 — `ToolSpec.mutability: Literal['read','write']` — single-source classification …
 - **v0.82.0** — 2026-07-11 — `run_playtest_file` + `run_playtest_suite` — file-based and suite-level …
 - **v0.81.0** — 2026-07-11 — NUnit: `RenameObject_Undo` — added `LogAssert.Expect` for expected undo log …
 - **v0.80.0** — 2026-07-11 — `middleware_hooks.py` — `POST_HOOKS` registry + `@register_post` decorator for …

@@ -81,7 +81,7 @@ namespace UnityMCP.Editor
         }
 
         private static readonly HashSet<string> _noVisualsOff =
-            new HashSet<string> { "SCREENSHOTS", "ANIMATION", "SHADERS_MATERIAL", "VFX" };
+            new HashSet<string> { "MEDIA" };
 
         private static void ApplyNoVisuals()
         {

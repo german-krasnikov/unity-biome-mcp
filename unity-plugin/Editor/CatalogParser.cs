@@ -8,8 +8,8 @@ namespace UnityMCP.Editor
     ///
     /// Wire format (one line per category):
     ///   CORE:get_hierarchy,batch,inspect
-    ///   SCENE_EDIT:find_objects,set_active
-    ///   CONNECTION:
+    ///   SCENE:delete_object,find_objects,set_active
+    ///   SYSTEM:
     /// </summary>
     internal static class CatalogParser
     {
