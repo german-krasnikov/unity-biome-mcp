@@ -217,7 +217,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("get_selection", _ => EditorStateHelper.GetSelection(),
                 required: "", optional: "");
             CommandRegistry.Register("inspect", ExecInspect,
-                required: "paths", optional: "components,fields,compress");
+                required: "paths", optional: "components,fields,compress,type");
             CommandRegistry.Register("validate_references", args => ValidateReferencesHelper.Validate(
                 JsonHelper.ExtractString(args, "path"),
                 ExtractInt(args, "depth", 3),

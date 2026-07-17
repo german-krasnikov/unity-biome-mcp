@@ -298,8 +298,8 @@ async def lifespan(app):
         from .constants import DEFAULT_PORT
         unity_port = DEFAULT_PORT
     cleanup_stale_locks(port=unity_port)
-    from .server_filtering import cleanup_stale_port_files as _cleanup_ports
-    _cleanup_ports()
+    from .lockfile import cleanup_stale_port_files as _cleanup_ports
+    _cleanup_ports(tcp_probe=True)
     lock_fd = acquire_lock(port=unity_port)  # raises on failure — do not swallow
     _sigterm_state["lock_fd"] = lock_fd  # expose for SIGTERM synchronous release
 

@@ -26,7 +26,8 @@ _SCENE_HEADER_RE = re.compile(r"^\[.+\]$")
 
 # Commands too small or destructive to distill
 _SKIP_CMDS = frozenset({"set_property", "ping", "batch", "wire_event", "set_active",
-                         "create_object", "delete_object", "manage_component", "recompile"})
+                         "create_object", "delete_object", "manage_component", "recompile",
+                         "execute_code"})
 
 
 class ResponseDistiller:

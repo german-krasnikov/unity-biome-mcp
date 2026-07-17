@@ -363,5 +363,132 @@ namespace UnityMCP.Editor.Tests
             float us = -1f;
             Assert.IsTrue(PlaytestRunner.EvalCapturedDelta("UNCHANGED", null, null, 5f, 5f, ref us, 0f, 0f));
         }
+
+        // ── Fix #10: ReadValue — GameObject property shorthands ───────────────
+
+        [Test]
+        public void ReadValue_activeSelf_ReturnsTrue_WhenActive()
+        {
+            var go = new GameObject("RVTest_P1");
+            go.SetActive(true);
+            try { Assert.AreEqual("true", PlaytestRunner.ReadValue("/RVTest_P1", "activeSelf", "")); }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ReadValue_activeSelf_ReturnsFalse_WhenInactive()
+        {
+            var go = new GameObject("RVTest_P2");
+            go.SetActive(false);
+            try { Assert.AreEqual("false", PlaytestRunner.ReadValue("/RVTest_P2", "activeSelf", "")); }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ReadValue_active_Alias_Works()
+        {
+            var go = new GameObject("RVTest_P3");
+            go.SetActive(true);
+            try { Assert.AreEqual("true", PlaytestRunner.ReadValue("/RVTest_P3", "active", "")); }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ReadValue_GameObjectActiveSelf_Form2_Works()
+        {
+            var go = new GameObject("RVTest_P4");
+            go.SetActive(false);
+            try { Assert.AreEqual("false", PlaytestRunner.ReadValue("/RVTest_P4", "GameObject", "activeSelf")); }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ReadValue_tag_ReturnsTag()
+        {
+            var go = new GameObject("RVTest_P5");
+            try { Assert.AreEqual("Untagged", PlaytestRunner.ReadValue("/RVTest_P5", "tag", "")); }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ReadValue_layer_ReturnsLayerInt()
+        {
+            var go = new GameObject("RVTest_P6");
+            go.layer = 3;
+            try { Assert.AreEqual("3", PlaytestRunner.ReadValue("/RVTest_P6", "layer", "")); }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ReadValue_activeInHierarchy_ReturnsFalse_WhenParentInactive()
+        {
+            var parent = new GameObject("RVTest_Parent7");
+            var child = new GameObject("RVTest_Child7");
+            child.transform.SetParent(parent.transform);
+            parent.SetActive(false);
+            try
+            {
+                Assert.AreEqual("false", PlaytestRunner.ReadValue("/RVTest_Parent7/RVTest_Child7", "activeInHierarchy", ""));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(parent); }
+        }
+
+        // ── ResolveVirtualField (Wave 3 #11) ────────────────────────────────
+
+        [Test]
+        public void ResolveVirtualField_RigidbodySpeed_ReturnsParsableFloat()
+        {
+            var go = new GameObject("VF_RB");
+            go.AddComponent<Rigidbody>();
+            try
+            {
+                var result = PlaytestRunner.ReadValue("/VF_RB", "Rigidbody", "speed");
+                Assert.DoesNotThrow(() => float.Parse(result, System.Globalization.CultureInfo.InvariantCulture),
+                    $"speed must be a parseable float, got: {result}");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ResolveVirtualField_Rigidbody2DSpeed_ReturnsParsableFloat()
+        {
+            var go = new GameObject("VF_RB2D");
+            go.AddComponent<Rigidbody2D>();
+            try
+            {
+                var result = PlaytestRunner.ReadValue("/VF_RB2D", "Rigidbody2D", "speed");
+                Assert.DoesNotThrow(() => float.Parse(result, System.Globalization.CultureInfo.InvariantCulture),
+                    $"speed must be a parseable float, got: {result}");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ResolveVirtualField_AnimatorCurrentState_NoneWhenNotPlaying()
+        {
+            var go = new GameObject("VF_ANIM");
+            go.AddComponent<Animator>(); // no controller — GetCurrentAnimatorClipInfo returns empty
+            try
+            {
+                var result = PlaytestRunner.ReadValue("/VF_ANIM", "Animator", "currentState");
+                Assert.AreEqual("none", result);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ResolveVirtualField_UnknownField_FallsThroughToRealProperty()
+        {
+            var go = new GameObject("VF_FALLTHROUGH");
+            go.AddComponent<Rigidbody>();
+            try
+            {
+                // 'useGravity' is a real Rigidbody property — must not be swallowed by virtual resolver
+                var result = PlaytestRunner.ReadValue("/VF_FALLTHROUGH", "Rigidbody", "useGravity");
+                Assert.IsNotNull(result);
+                StringAssert.IsMatch("(?i)true|false", result);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
     }
 }

@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="139 MCP Tools · 4952 Tests (4642 Python · 26 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="139 MCP Tools · 11520 Tests (4643 Python · 6593 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -302,6 +302,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.89.0</b> — 2026-07-17 — `SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in …</summary>
+
+`SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in MCPSettings + MCPHubUI; three-tier blocked-pattern sets computed at class …
+
+</details>
+
+<details>
 <summary><b>v0.88.0</b> — 2026-07-13 — `MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories …</summary>
 
 `MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories to 8 canonical categories (CORE, SCENE, COMPONENTS, ASSETS, MEDIA, …
@@ -330,15 +337,9 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 </details>
 
 <details>
-<summary><b>v0.84.0</b> — 2026-07-12 — CORE shrunk from 15 → 11: `delete_object`, `set_parent`, `scene`, …</summary>
-
-CORE shrunk from 15 → 11: `delete_object`, `set_parent`, `scene`, `search_scene` demoted to TIER1 SCENE.
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.84.0** — 2026-07-12 — CORE shrunk from 15 → 11: `delete_object`, `set_parent`, `scene`, …
 - **v0.83.0** — 2026-07-11 — `ToolSpec.mutability: Literal['read','write']` — single-source classification …
 - **v0.82.0** — 2026-07-11 — `run_playtest_file` + `run_playtest_suite` — file-based and suite-level …
 - **v0.81.0** — 2026-07-11 — NUnit: `RenameObject_Undo` — added `LogAssert.Expect` for expected undo log …

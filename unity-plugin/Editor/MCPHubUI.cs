@@ -76,6 +76,14 @@ namespace UnityMCP.Editor
                 section.Add(reloadPortField);
             }
 
+            var levelNames = new List<string> { "Normal", "Permissive", "Strict" };
+            var secLevel = new DropdownField("Security Level", levelNames, (int)MCPSettings.GetSecurityLevel());
+            secLevel.tooltip = "Normal: type-info reflection allowed. Permissive: all reflection. Strict: no reflection.";
+            secLevel.AddToClassList("hub-port-label");
+            secLevel.RegisterValueChangedCallback(e =>
+                MCPSettings.SetSecurityLevel((SecurityLevel)System.Enum.Parse(typeof(SecurityLevel), e.newValue)));
+            section.Add(secLevel);
+
             var restartWarning = new Label("Restart required to apply") { visible = false };
             restartWarning.AddToClassList("hub-port-restart-warning");
             section.Add(restartWarning);

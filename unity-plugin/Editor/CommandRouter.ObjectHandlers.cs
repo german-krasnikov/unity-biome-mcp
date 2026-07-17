@@ -14,7 +14,8 @@ namespace UnityMCP.Editor
             if (string.IsNullOrEmpty(pathsStr))
                 throw new ArgumentException("paths is required");
 
-            var componentsFilter = JsonHelper.ExtractString(args, "components");
+            var componentsFilter = JsonHelper.ExtractString(args, "components")
+                                ?? JsonHelper.ExtractString(args, "type");
             HashSet<string> filterSet = null;
             if (!string.IsNullOrEmpty(componentsFilter))
             {

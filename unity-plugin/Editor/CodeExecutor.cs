@@ -7,51 +7,73 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
+    public enum SecurityLevel { Normal = 0, Permissive = 1, Strict = 2 }
+
     internal static class CodeExecutor
     {
-        private static readonly string[] Blocked = {
+        // ── Security tier 1: always blocked regardless of level ───────────────
+        private static readonly string[] BlockedAlways = {
             "System.Diagnostics.Process", "System.IO.File", "System.IO.Directory",
             "System.IO.Stream", "FileStream", "StreamWriter", "StreamReader",
             "System.IO.Path", "System.Net.", "WebClient", "HttpClient",
             "Assembly.Load", "AppDomain", "DllImport", "extern ", "unsafe ",
             "System.Reflection.Assembly", "Type.GetType", ".GetMethod(",
             "GetRuntimeMethod", "DynamicInvoke",
-            ".Invoke(", "System.Threading", "System.Runtime.InteropServices",
+            "System.Threading", "System.Runtime.InteropServices",
             "Environment.GetEnvironmentVariable",
             "System.Reflection.Emit", "DynamicMethod", "ILGenerator", "OpCodes",
             "Activator", "System.Linq.Expressions.Expression",
             "GetMethods(", "CreateDelegate", "GetTypes(", "GetMembers(",
-            "GetProperties(", "GetFields(", "GetConstructors(", ".Assembly",
-            // Singular reflection accessors (bypass via exact field/property name)
-            "GetField(", "GetProperty(", "GetValue(", "SetValue(",
-            // Block short-name bypass via using-directives and Environment.Exit (auto-using System)
+            "GetConstructors(", ".Assembly",
             "Environment.Exit", "Environment.SetEnvironmentVariable",
             "using System.Diagnostics", "using System.IO", "using System.Net",
             "using System.Reflection",
-            // Terminate/crash
             "EditorApplication.Exit", "Application.Quit", "Environment.FailFast",
-            // Data exfiltration / untrusted import
             "AssetDatabase.ExportPackage", "AssetDatabase.ImportPackage",
-            // Project switching / arbitrary asset creation
             "EditorApplication.OpenProject", "ProjectWindowUtil",
-            // Using-alias bypass (= NS form not caught by "using NS" entries)
             "= System.IO", "= System.Diagnostics", "= System.Net", "= System.Reflection",
-            // Dynamic compilation bypass — attacker could compile+exec arbitrary code
             "CSharpCodeProvider", "CodeDomProvider", "CompileAssemblyFrom",
-            // Reflection method dispatch by name — bypasses allowlist
             "InvokeMember(",
-            // Play-mode kill switch — could terminate the active session
             "EditorApplication.isPlaying", "EditorApplication.isPaused",
-            // UnityEditor file API — bypasses System.IO block
             "FileUtil.",
         };
 
-        // Pre-densified blocked patterns (whitespace stripped) for O(1) SecurityScan matching
-        private static readonly string[] BlockedDense =
-            Blocked.Select(b => System.Text.RegularExpressions.Regex.Replace(b, @"\s+", "")).ToArray();
+        // ── Security tier 2: blocked in Normal and Strict, allowed in Permissive
+        private static readonly string[] BlockedReflectionAccess = {
+            ".GetValue(", ".SetValue(", ".Invoke(",
+        };
+
+        // ── Security tier 3: blocked in Strict only ───────────────────────────
+        private static readonly string[] BlockedStrictReflection = {
+            "GetField(", "GetProperty(", "GetFields(", "GetProperties(",
+        };
+
+        // Pre-computed per-level arrays (avoid allocation per call)
+        private static readonly string[] _scanNormal      = BlockedAlways.Concat(BlockedReflectionAccess).ToArray();
+        private static readonly string[] _scanPermissive  = BlockedAlways;
+        private static readonly string[] _scanStrict      = _scanNormal.Concat(BlockedStrictReflection).ToArray();
+        private static readonly string[] _scanNormalDense     = Densify(_scanNormal);
+        private static readonly string[] _scanPermissiveDense = Densify(_scanPermissive);
+        private static readonly string[] _scanStrictDense     = Densify(_scanStrict);
+
+        private static string[] Densify(string[] arr) =>
+            arr.Select(b => System.Text.RegularExpressions.Regex.Replace(b, @"\s+", "")).ToArray();
+
+        private static readonly System.Collections.Generic.Dictionary<string, string> _securityHints =
+            new System.Collections.Generic.Dictionary<string, string>
+            {
+                { ".GetValue(",       "Use SerializedObject.FindProperty().floatValue / stringValue / etc." },
+                { ".SetValue(",       "Use sp.floatValue = v; sp.serializedObject.ApplyModifiedProperties()" },
+                { "GetField(",        "Use SerializedObject.FindProperty(\"fieldName\") instead" },
+                { "GetProperty(",     "Use SerializedObject or typeof(T).GetProperties() (plural, allowed)" },
+                { "System.Threading", "Use EditorCoroutineUtility or async void for deferred work" },
+                { "System.Net.",      "Network access not allowed in execute_code" },
+                { "System.IO.File",   "File access not allowed — use AssetDatabase APIs instead" },
+            };
 
         private const string Usings =
-            "using UnityEngine; using UnityEditor; using System; using System.Linq; using System.Collections.Generic;";
+            "using UnityEngine; using UnityEditor; using System; using System.Linq; using System.Collections.Generic;" +
+            " using Object = UnityEngine.Object;";
 
         // Delegates to RoslynLoader — single source for Roslyn DLL state.
         private static Assembly _roslynCompiler => RoslynLoader.RoslynCompiler;
@@ -76,10 +98,30 @@ namespace UnityMCP.Editor
             if (code.Contains("class ") || code.Contains("namespace "))
                 return code;
 
+            // bare `return;` is void syntax — replace with `return null;` for object Run()
+            // ponytail: mutates return; inside string literals too; strip-strings pass if this causes real issues
+            code = System.Text.RegularExpressions.Regex.Replace(code, @"\breturn\s*;", "return null;");
+
+            // Wave 2 #5: hoist namespace using directives above the class wrapper.
+            // Matches `using System.Text;` (uppercase first char after `using `, no `=` before `;`).
+            // Does NOT match: `using var x = ...` (lowercase v), `using (x)` (lowercase v + parens),
+            // `using Object = UnityEngine.Object;` (has `=` — already in Usings, user shouldn't write it).
+            // SecurityScan already blocked `using System.IO/Net/Reflection/Diagnostics`.
+            var usingPattern = new System.Text.RegularExpressions.Regex(
+                @"^\s*using\s+[A-Z][\w.]+\s*;",
+                System.Text.RegularExpressions.RegexOptions.Multiline);
+            var extraUsings = string.Join(" ",
+                usingPattern.Matches(code)
+                            .Cast<System.Text.RegularExpressions.Match>()
+                            .Select(m => m.Value.Trim()));
+            if (extraUsings.Length > 0)
+                code = usingPattern.Replace(code, "");
+            var allUsings = extraUsings.Length > 0 ? $"{Usings} {extraUsings}" : Usings;
+
             // Trailing "return null;" guarantees every code path returns (fixes CS0161 for
             // bare statements with no return). #pragma suppresses the resulting CS0162
             // "unreachable code" warning when the user's snippet already has its own return.
-            return $"{Usings}\n" +
+            return $"{allUsings}\n" +
                    "public static class __MCPScript { public static object Run() {\n" +
                    "#pragma warning disable 162\n" +
                    $"{code}\n" +
@@ -88,16 +130,28 @@ namespace UnityMCP.Editor
                    "} }";
         }
 
-        internal static void SecurityScan(string code)
+        internal static void SecurityScan(string code) =>
+            SecurityScan(code, MCPSettings.GetSecurityLevel());
+
+        internal static void SecurityScan(string code, SecurityLevel level)
         {
             var stripped = StripComments(code);
-            // Remove all whitespace so comment-split and newline-split bypasses are caught
             var dense = System.Text.RegularExpressions.Regex.Replace(stripped, @"\s+", "");
-            for (int i = 0; i < Blocked.Length; i++)
+            var (patterns, densePatterns) = level switch
             {
-                if (dense.IndexOf(BlockedDense[i], StringComparison.OrdinalIgnoreCase) >= 0)
+                SecurityLevel.Permissive => (_scanPermissive, _scanPermissiveDense),
+                SecurityLevel.Strict     => (_scanStrict,     _scanStrictDense),
+                _                        => (_scanNormal,      _scanNormalDense),
+            };
+            for (int i = 0; i < patterns.Length; i++)
+            {
+                if (dense.IndexOf(densePatterns[i], StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    _securityHints.TryGetValue(patterns[i], out var hint);
+                    var suffix = hint != null ? $" Suggestion: {hint}" : " Only UnityEngine/UnityEditor APIs allowed.";
                     throw new InvalidOperationException(
-                        $"Security: blocked pattern '{Blocked[i]}'. Only UnityEngine/UnityEditor APIs allowed.");
+                        $"Security [{level}]: blocked pattern '{patterns[i]}'.{suffix}");
+                }
             }
         }
 
@@ -313,7 +367,8 @@ namespace UnityMCP.Editor
             Undo.SetCurrentGroupName(undoLabel);
             var groupId = Undo.GetCurrentGroup();
             if (method == null)
-                throw new InvalidOperationException($"No public/private static Run() method found in {type.FullName}");
+                throw new InvalidOperationException(
+                    $"No static Run() in {type.FullName}. Add: public static object Run() {{ ... return result; }}");
             try
             {
                 var result = method.Invoke(null, null);

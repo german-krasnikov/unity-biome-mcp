@@ -58,8 +58,6 @@ namespace UnityMCP.Editor.Tests
         [TestCase("typeof(Foo).CreateDelegate(null,null);")]
         [TestCase("asm.GetTypes();")]
         [TestCase("typeof(Foo).GetMembers();")]
-        [TestCase("typeof(Foo).GetProperties();")]
-        [TestCase("typeof(Foo).GetFields();")]
         [TestCase("typeof(Foo).GetConstructors();")]
         [TestCase("var x = obj.Assembly;")]
         [TestCase("Environment.SetEnvironmentVariable(\"X\",\"Y\");")]
@@ -189,5 +187,220 @@ namespace UnityMCP.Editor.Tests
         public void IsAllowedAssembly_EmptyName_ReturnsFalse()
             => Assert.IsFalse(CodeExecutor.IsAllowedAssembly(""),
                 "empty assembly name must be blocked");
+
+        // ── Fix #1: TryGetValue false positive ───────────────────────────────
+
+        [Test]
+        public void SecurityScan_TryGetValue_DoesNotThrow()
+            => Assert.DoesNotThrow(
+                () => CodeExecutor.SecurityScan(
+                    "var d = new System.Collections.Generic.Dictionary<string,int>(); d.TryGetValue(\"k\", out var v);"),
+                "TryGetValue is a dict method, not reflection — must not be blocked");
+
+        [Test]
+        public void SecurityScan_DotGetValue_StillBlocked()
+            => Assert.Throws<System.InvalidOperationException>(
+                () => CodeExecutor.SecurityScan("fieldInfo.GetValue(null);"),
+                ".GetValue() must be blocked");
+
+        // ── Fix #2: GetFields/GetProperties plural unblocked ─────────────────
+
+        [Test]
+        public void SecurityScan_GetFields_Plural_DoesNotThrow()
+            => Assert.DoesNotThrow(
+                () => CodeExecutor.SecurityScan("var fields = typeof(MyComp).GetFields();"),
+                "GetFields() is read-only type introspection — must not be blocked");
+
+        [Test]
+        public void SecurityScan_GetProperties_Plural_DoesNotThrow()
+            => Assert.DoesNotThrow(
+                () => CodeExecutor.SecurityScan("var props = typeof(MyComp).GetProperties();"),
+                "GetProperties() is read-only type introspection — must not be blocked");
+
+        [Test]
+        public void SecurityScan_GetField_Singular_StillBlocked_InStrictMode()
+            => Assert.Throws<System.InvalidOperationException>(
+                () => CodeExecutor.SecurityScan("typeof(MyComp).GetField(\"secret\");", SecurityLevel.Strict),
+                "GetField() singular must be blocked in Strict mode");
+
+        [Test]
+        public void SecurityScan_GetProperty_Singular_StillBlocked_InStrictMode()
+            => Assert.Throws<System.InvalidOperationException>(
+                () => CodeExecutor.SecurityScan("typeof(MyComp).GetProperty(\"secret\");", SecurityLevel.Strict),
+                "GetProperty() singular must be blocked in Strict mode");
+
+        // ── Fix #7: WrapIfBareCode bare return ───────────────────────────────
+
+        [Test]
+        public void WrapIfBareCode_BareReturn_ReplacedWithReturnNull()
+        {
+            var wrapped = CodeExecutor.WrapIfBareCode("if (x) return;");
+            Assert.IsFalse(wrapped.Contains("return;"),
+                "bare 'return;' must be replaced before wrapping");
+            Assert.IsTrue(wrapped.Contains("return null;"),
+                "replacement must be 'return null;'");
+        }
+
+        [Test]
+        public void WrapIfBareCode_ReturnValue_Unchanged()
+        {
+            var wrapped = CodeExecutor.WrapIfBareCode("return 42;");
+            Assert.IsTrue(wrapped.Contains("return 42;"),
+                "'return 42;' must not be modified");
+        }
+
+        [Test]
+        public void WrapIfBareCode_ReturnNull_Unchanged()
+        {
+            var wrapped = CodeExecutor.WrapIfBareCode("return null;");
+            Assert.IsTrue(wrapped.Contains("return null;"));
+            Assert.IsFalse(wrapped.Contains("return null null;"));
+        }
+
+        // ── Fix #8: Object alias ─────────────────────────────────────────────
+
+        [Test]
+        public void WrapIfBareCode_UsingsContainObjectAlias()
+        {
+            var wrapped = CodeExecutor.WrapIfBareCode("return null;");
+            Assert.IsTrue(wrapped.Contains("using Object = UnityEngine.Object;"),
+                "Usings must alias Object to UnityEngine.Object to resolve ambiguity");
+        }
+
+        // ── Fix #17: Security hints ──────────────────────────────────────────
+
+        [Test]
+        public void SecurityScan_GetValue_ExceptionContainsHint()
+        {
+            var ex = Assert.Throws<System.InvalidOperationException>(
+                () => CodeExecutor.SecurityScan("field.GetValue(obj);"));
+            Assert.IsTrue(ex.Message.Contains("Suggestion:"),
+                "blocked pattern with hint must include 'Suggestion:' in message");
+            Assert.IsTrue(ex.Message.Contains("SerializedObject"),
+                "GetValue hint must mention SerializedObject");
+        }
+
+        // ── SecurityLevel enum tests (Wave 3 #3/#4) ──────────────────────────
+
+        [Test]
+        public void Normal_GetField_IsAllowed()
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
+                "var f = typeof(Rigidbody).GetField(\"mass\");", SecurityLevel.Normal));
+
+        [Test]
+        public void Normal_GetProperty_IsAllowed()
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
+                "var p = typeof(Rigidbody).GetProperty(\"mass\");", SecurityLevel.Normal));
+
+        [Test]
+        public void Normal_GetValue_IsBlocked()
+            => Assert.Throws<System.InvalidOperationException>(() => CodeExecutor.SecurityScan(
+                "f.GetValue(obj);", SecurityLevel.Normal));
+
+        [Test]
+        public void Normal_Invoke_IsBlocked()
+            => Assert.Throws<System.InvalidOperationException>(() => CodeExecutor.SecurityScan(
+                "m.Invoke(null, null);", SecurityLevel.Normal));
+
+        [Test]
+        public void Permissive_GetValue_IsAllowed()
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
+                "var v = field.GetValue(obj);", SecurityLevel.Permissive));
+
+        [Test]
+        public void Permissive_Invoke_IsAllowed()
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
+                "method.Invoke(null, null);", SecurityLevel.Permissive));
+
+        [Test]
+        public void Permissive_FileIO_IsStillBlocked()
+            => Assert.Throws<System.InvalidOperationException>(() => CodeExecutor.SecurityScan(
+                "System.IO.File.Delete(\"x\");", SecurityLevel.Permissive));
+
+        [Test]
+        public void Strict_GetFields_IsBlocked()
+            => Assert.Throws<System.InvalidOperationException>(() => CodeExecutor.SecurityScan(
+                "typeof(Rigidbody).GetFields();", SecurityLevel.Strict));
+
+        [Test]
+        public void Strict_GetField_IsBlocked()
+            => Assert.Throws<System.InvalidOperationException>(() => CodeExecutor.SecurityScan(
+                "typeof(Rigidbody).GetField(\"mass\");", SecurityLevel.Strict));
+
+        [Test]
+        public void ErrorMessage_IncludesLevelName()
+        {
+            var ex = Assert.Throws<System.InvalidOperationException>(() =>
+                CodeExecutor.SecurityScan("System.IO.File.Delete(\"x\");", SecurityLevel.Normal));
+            StringAssert.Contains("Normal", ex.Message);
+        }
+
+        [Test]
+        public void SecurityScan_UnknownBlockedPattern_FallsBackToGenericMessage()
+        {
+            var ex = Assert.Throws<System.InvalidOperationException>(
+                () => CodeExecutor.SecurityScan("FileUtil.CopyFileOrDirectory(\"a\",\"b\");"));
+            Assert.IsTrue(ex.Message.Contains("Security ["),
+                "message must identify the security level");
+            Assert.IsTrue(ex.Message.Contains("blocked pattern"),
+                "message must identify the blocked pattern");
+            Assert.IsTrue(ex.Message.Contains("Only UnityEngine/UnityEditor APIs allowed."),
+                "fallback must include generic guidance");
+        }
+
+        // ── Fix #5: WrapIfBareCode using-directive hoisting ──────────────────
+
+        [Test]
+        public void WrapIfBareCode_UsingNamespace_IsHoisted_NotWrappedInMethod()
+        {
+            var code = "using System.Text;\nvar sb = new StringBuilder(); return sb.ToString();";
+            var wrapped = CodeExecutor.WrapIfBareCode(code);
+            var classIdx = wrapped.IndexOf("public static class");
+            var usingIdx = wrapped.IndexOf("using System.Text;");
+            Assert.Greater(classIdx, -1, "class wrapper missing");
+            Assert.Greater(usingIdx, -1, "using directive missing from output");
+            Assert.Less(usingIdx, classIdx, "using must appear before class wrapper");
+        }
+
+        [Test]
+        public void WrapIfBareCode_UsingVar_IsNotHoisted_StaysInMethod()
+        {
+            var code = "using var x = new System.Text.StringBuilder(); return x.ToString();";
+            var wrapped = CodeExecutor.WrapIfBareCode(code);
+            var methodIdx = wrapped.IndexOf("public static object Run()");
+            var usingVarIdx = wrapped.IndexOf("using var x");
+            Assert.Greater(usingVarIdx, methodIdx, "using var must stay inside method body");
+        }
+
+        [Test]
+        public void WrapIfBareCode_UsingBlock_IsNotHoisted()
+        {
+            var code = "using (var ms = new System.Text.StringBuilder()) { }";
+            var wrapped = CodeExecutor.WrapIfBareCode(code);
+            var methodIdx = wrapped.IndexOf("public static object Run()");
+            var usingBlockIdx = wrapped.IndexOf("using (var");
+            Assert.Greater(usingBlockIdx, methodIdx, "using-block must stay inside method body");
+        }
+
+        [Test]
+        public void WrapIfBareCode_MultipleUsings_AllHoisted()
+        {
+            var code = "using System.Text;\nusing System.Collections;\nvar sb = new StringBuilder();";
+            var wrapped = CodeExecutor.WrapIfBareCode(code);
+            var classIdx = wrapped.IndexOf("public static class");
+            Assert.Less(wrapped.IndexOf("using System.Text;"), classIdx,
+                "System.Text using must be before class");
+            Assert.Less(wrapped.IndexOf("using System.Collections;"), classIdx,
+                "System.Collections using must be before class");
+        }
+
+        [Test]
+        public void WrapIfBareCode_UsingAlias_IsNotHoisted_StaysInCode()
+        {
+            // `using Alias = Some.Type;` has = before ; — regex won't match [A-Z][\w.]+\s*;
+            var code = "using MyType = System.Text.StringBuilder; return null;";
+            var wrapped = CodeExecutor.WrapIfBareCode(code);
+            StringAssert.Contains("using MyType = System.Text.StringBuilder", wrapped);
+        }
     }
 }

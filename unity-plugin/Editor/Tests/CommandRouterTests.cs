@@ -623,5 +623,73 @@ namespace UnityMCP.Editor.Tests
                 CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
             }
         }
+
+        // ── Fix #13: inspect accepts type= as alias for components= ──────────
+
+        [Test]
+        public void Inspect_TypeAliasForComponents_FiltersCorrectly()
+        {
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode = () => false;
+            var go = new UnityEngine.GameObject("InspectTypeTest1");
+            go.AddComponent<UnityEngine.BoxCollider>();
+            try
+            {
+                var result = CommandRouter.Process(
+                    "{\"id\":\"i1\",\"cmd\":\"inspect\",\"args\":{\"paths\":\"/InspectTypeTest1\",\"type\":\"BoxCollider\"}}");
+                StringAssert.Contains("BoxCollider", result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+            }
+        }
+
+        [Test]
+        public void Inspect_ComponentsParamStillWorks()
+        {
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode = () => false;
+            var go = new UnityEngine.GameObject("InspectTypeTest2");
+            go.AddComponent<UnityEngine.BoxCollider>();
+            try
+            {
+                var result = CommandRouter.Process(
+                    "{\"id\":\"i2\",\"cmd\":\"inspect\",\"args\":{\"paths\":\"/InspectTypeTest2\",\"components\":\"BoxCollider\"}}");
+                StringAssert.Contains("BoxCollider", result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+            }
+        }
+
+        [Test]
+        public void Inspect_ComponentsWinsOverType_WhenBothProvided()
+        {
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode = () => false;
+            var go = new UnityEngine.GameObject("InspectTypeTest3");
+            go.AddComponent<UnityEngine.BoxCollider>();
+            go.AddComponent<UnityEngine.SphereCollider>();
+            try
+            {
+                // components=BoxCollider, type=SphereCollider → BoxCollider wins (type is fallback)
+                var result = CommandRouter.Process(
+                    "{\"id\":\"i3\",\"cmd\":\"inspect\",\"args\":{\"paths\":\"/InspectTypeTest3\",\"components\":\"BoxCollider\",\"type\":\"SphereCollider\"}}");
+                StringAssert.Contains("BoxCollider", result);
+                StringAssert.DoesNotContain("SphereCollider", result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+            }
+        }
     }
 }

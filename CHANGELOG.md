@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.89.0] — 2026-07-17 — Gamedev friction sprint: security levels, execute_code improvements, DSL extensions
+
+**C# — CodeExecutor:**
+- `SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in MCPSettings + MCPHubUI; three-tier blocked-pattern sets computed at class init.
+- `using Object = UnityEngine.Object;` added to auto-injected usings — no more ambiguity errors.
+- `GetFields(` / `GetProperties(` unblocked in Normal mode (moved to Strict-only tier).
+- `.GetValue(` / `.SetValue(` / `.Invoke(` moved to Normal+Strict tier (allowed in Permissive) — `TryGetValue` was never blocked (dot-prefix requirement added).
+- Security error messages include actionable `Suggestion:` hints for common blocked patterns.
+- `return;` (bare void) auto-replaced with `return null;` in `WrapIfBareCode` — no more CS0161 for void-style snippets.
+- User-written namespace `using` directives (e.g. `using System.Text;`) are hoisted above the generated class wrapper automatically.
+- Error message on missing `Run()` method improved with explicit fix hint.
+
+**C# — PlaytestRunner:**
+- DSL `ASSERT` supports `activeSelf`, `activeInHierarchy`, `tag`, `layer`, `name` directly on the path (no component lookup required).
+- `ResolveVirtualField`: `Animator.currentState` (returns active clip name), `Rigidbody.speed`, `Rigidbody2D.speed` (velocity magnitude) — no C# property exists for these, now synthetic.
+
+**C# — ScriptableObjectHelper:**
+- `create_scriptable_object` accepts `fields=` param — sets multiple fields in one call with orphan rollback on failure.
+
+**C# — CommandRouter:**
+- `inspect` accepts `type=` as alias for `components=` param.
+
+**Python — Distiller:**
+- `execute_code` added to `_SKIP_CMDS` — results never distilled (code output is always complete).
+
+**Python — Server:**
+- Stale port cleanup on startup now uses `tcp_probe=True` — actively probes ports before removing `.port` files.
+
+**Test counts:** Python unit 4630 (unchanged) | C# EditMode: +217 security tests + 68 router tests + 127 playtest tests + 34 SO tests (pre-existing 1 failure)
+
 ## [v0.88.0] — 2026-07-13 — C# settings panel sync with ToolSpec v2 8-category taxonomy
 
 **C# — Settings Panel:**

@@ -295,10 +295,60 @@ namespace UnityMCP.Editor
         {
             var go = ComponentSerializer.FindObject(path);
             if (go == null) throw new ArgumentException($"Object not found: {path}");
+
+            // GameObject property shorthands — no component lookup needed.
+            // Form 1: /Path|activeSelf       → comp=activeSelf, field=""
+            // Form 2: /Path|GameObject|activeSelf → comp=GameObject, field=activeSelf
+            var goProp = (comp == "GameObject") ? field : comp;
+            switch (goProp)
+            {
+                case "activeSelf":
+                case "active":            return go.activeSelf.ToString().ToLowerInvariant();
+                case "activeInHierarchy": return go.activeInHierarchy.ToString().ToLowerInvariant();
+                case "tag":               return go.tag;
+                case "layer":             return go.layer.ToString();
+                case "name":              return go.name;
+            }
+
             var c = RuntimeHelper.FindComponentInternal(go, comp);
             if (c == null) throw new ArgumentException($"Component not found: {comp}");
+            var virt = ResolveVirtualField(c, field);
+            if (virt != null) return virt;
             try { return RuntimeHelper.ReadFieldInternal(c, field); }
             catch { return RuntimeHelper.InvokeMethod(path, comp, field, ""); }
+        }
+
+        // Virtual "synthetic fields" on well-known components that have no matching C# property.
+        private static string ResolveVirtualField(UnityEngine.Component comp, string field)
+        {
+            if (comp is UnityEngine.Animator anim)
+            {
+                if (field == "currentState" || field == "stateName")
+                {
+                    // ponytail: returns active clip name, not state machine node name; rename to currentClip if users confuse them
+                    var clips = anim.GetCurrentAnimatorClipInfo(0);
+                    return clips.Length > 0 ? clips[0].clip.name : "none";
+                }
+            }
+            if (comp is UnityEngine.Rigidbody rb)
+            {
+                if (field == "speed")
+#if UNITY_6000_0_OR_NEWER
+                    return rb.linearVelocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
+#else
+                    return rb.velocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
+#endif
+            }
+            if (comp is UnityEngine.Rigidbody2D rb2d)
+            {
+                if (field == "speed")
+#if UNITY_6000_0_OR_NEWER
+                    return rb2d.linearVelocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
+#else
+                    return rb2d.velocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
+#endif
+            }
+            return null; // not a virtual field — fall through to ReadFieldInternal
         }
 
         static void SetTimeScale(float scale)

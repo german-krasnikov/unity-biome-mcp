@@ -28,7 +28,8 @@ namespace UnityMCP.Editor
         private static string Create(string args)
         {
             var typeName = JsonHelper.ExtractString(args, "type");
-            var path = JsonHelper.ExtractString(args, "path");
+            var path     = JsonHelper.ExtractString(args, "path");
+            var fields   = JsonHelper.ExtractString(args, "fields");
             if (string.IsNullOrEmpty(typeName)) throw new ArgumentException("type is required");
             if (string.IsNullOrEmpty(path))     throw new ArgumentException("path is required");
 
@@ -38,8 +39,23 @@ namespace UnityMCP.Editor
             AssetHelper.EnsureDirectory(path);
             var asset = ScriptableObject.CreateInstance(type);
             AssetDatabase.CreateAsset(asset, path);
-            AssetDatabase.SaveAssets();
-            return $"Created: {path}";
+            try
+            {
+                if (!string.IsNullOrEmpty(fields))
+                {
+                    var so = new SerializedObject(asset);
+                    SetMultipleFields(so, fields);
+                    so.ApplyModifiedProperties();
+                    EditorUtility.SetDirty(asset);
+                }
+                AssetDatabase.SaveAssets();
+                return $"Created: {path}";
+            }
+            catch
+            {
+                AssetDatabase.DeleteAsset(path);
+                throw;
+            }
         }
 
         // ── get ───────────────────────────────────────────────────────────────

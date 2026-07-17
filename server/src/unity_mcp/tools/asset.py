@@ -60,7 +60,7 @@ async def scriptable_object(action: str, path: str | None = None, type: str | No
                             prop: str | None = None, value: str | None = None,
                             fields: str | None = None,
                             filter: str | None = None) -> str:
-    """ScriptableObject. action: create|get|set|list_types|find. create: type+path. get/set: path. set: prop+value | fields (\\n-separated prop=value pairs, 1 save). find: type. list_types: filter."""
+    """ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. find: type. list_types: filter."""
     return await _send("scriptable_object", _args(
         action=action, path=path, type=type, prop=prop, value=value, fields=fields, filter=filter))
 

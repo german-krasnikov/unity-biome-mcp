@@ -109,6 +109,15 @@ def test_paths_overlap_no_false_positive_on_prefix():
     assert d._paths_overlap("/A", "/A")
 
 
+def test_heuristic_skip_execute_code():
+    """execute_code output must never be distilled regardless of size."""
+    d = ResponseDistiller(min_size=10)
+    text = "x" * 2000  # large enough to normally trigger distillation
+    result = d.distill_heuristic("execute_code", text, ("/Player",))
+    assert result.method == "skip"
+    assert result.text == text
+
+
 async def test_distill_haiku_returns_none_when_sampling_disabled():
     d = ResponseDistiller(sampling=None)
     result = await d.distill_haiku("get_hierarchy", "x" * 2000, ("/Player",))

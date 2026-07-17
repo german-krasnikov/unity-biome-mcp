@@ -20,6 +20,15 @@ namespace UnityMCP.Editor
         public static string GetCatalog() =>
             EditorPrefs.GetString(KeyCatalog, null);
 
+        // ── Security level ───────────────────────────────────────────────────
+        private const string KeySecurityLevel = "UnityMCP_SecurityLevel";
+
+        public static SecurityLevel GetSecurityLevel() =>
+            (SecurityLevel)EditorPrefs.GetInt(KeySecurityLevel, (int)SecurityLevel.Normal);
+
+        public static void SetSecurityLevel(SecurityLevel level) =>
+            EditorPrefs.SetInt(KeySecurityLevel, (int)level);
+
         // Minimal built-in default — used when no Python catalog received yet.
         // Generated from tool_specs._SPECS — categories and tool lists match get_catalog() output.
         private static readonly Dictionary<string, string[]> _defaultCatalog =
