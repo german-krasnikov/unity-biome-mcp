@@ -16,7 +16,7 @@ namespace UnityMCP.Editor
             "System.Diagnostics.Process", "System.IO.File", "System.IO.Directory",
             "System.IO.Stream", "FileStream", "StreamWriter", "StreamReader",
             "System.IO.Path", "System.Net.", "WebClient", "HttpClient",
-            "Assembly.Load", "AppDomain", "DllImport", "extern ", "unsafe ",
+            "Assembly.Load", "AppDomain", "DllImport",
             "System.Reflection.Assembly", "Type.GetType", ".GetMethod(",
             "GetRuntimeMethod", "DynamicInvoke",
             "System.Threading", "System.Runtime.InteropServices",
@@ -55,6 +55,12 @@ namespace UnityMCP.Editor
         private static readonly string[] _scanNormalDense     = Densify(_scanNormal);
         private static readonly string[] _scanPermissiveDense = Densify(_scanPermissive);
         private static readonly string[] _scanStrictDense     = Densify(_scanStrict);
+
+        // Word-boundary check for extern/unsafe — substring scan would block identifiers like "externalRef"
+        private static readonly System.Text.RegularExpressions.Regex _wordBoundaryBlocked =
+            new System.Text.RegularExpressions.Regex(
+                @"\bextern\b|\bunsafe\b",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
 
         private static string[] Densify(string[] arr) =>
             arr.Select(b => System.Text.RegularExpressions.Regex.Replace(b, @"\s+", "")).ToArray();
@@ -153,6 +159,11 @@ namespace UnityMCP.Editor
                         $"Security [{level}]: blocked pattern '{patterns[i]}'.{suffix}");
                 }
             }
+            // Word-boundary check for keywords that substring scan cannot handle safely
+            var wbMatch = _wordBoundaryBlocked.Match(stripped);
+            if (wbMatch.Success)
+                throw new InvalidOperationException(
+                    $"Security [{level}]: blocked keyword '{wbMatch.Value}'. Only UnityEngine/UnityEditor APIs allowed.");
         }
 
         private static string StripComments(string code)

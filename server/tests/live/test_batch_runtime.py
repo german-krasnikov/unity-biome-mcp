@@ -50,9 +50,15 @@ async def test_batch_async_commands_blocked_not_unknown(ensure_edit_mode, bridge
 async def test_delete_object_by_path_in_batch(ensure_edit_mode, bridge):
     """delete_object with path= works in batch (was rejected by schema)."""
     await bridge.send("create_object", {"name": "Live_DelPath"})
-    result = await bridge.send("batch", {
-        "commands": "delete_object path=/Live_DelPath"
-    })
-    text = result.get("data", "") if isinstance(result, dict) else str(result)
-    assert "Unknown param" not in text, f"path param rejected: {text}"
-    assert "Deleted" in text or "ok:1" in text, f"Delete failed: {text}"
+    try:
+        result = await bridge.send("batch", {
+            "commands": "delete_object path=/Live_DelPath"
+        })
+        text = result.get("data", "") if isinstance(result, dict) else str(result)
+        assert "Unknown param" not in text, f"path param rejected: {text}"
+        assert "Deleted" in text or "ok:1" in text, f"Delete failed: {text}"
+    finally:
+        try:
+            await bridge.send("delete_object", {"path": "/Live_DelPath"})
+        except Exception:
+            pass

@@ -196,3 +196,184 @@ async def test_run_playtest_snapshot_on_failure_default_omits(mock_bridge):
     assert "snapshot_on_failure" not in sent
 
 
+# ── #14A: fresh mode ──────────────────────────────────────────────────────────
+
+async def test_run_playtest_fresh_passes_param(mock_bridge):
+    """fresh=True passes fresh=true to C# bridge."""
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+    await run_playtest("ASSERT_CONSOLE_CLEAN", fresh=True)
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent.get("fresh") == "true"
+
+
+async def test_run_playtest_fresh_default_omits(mock_bridge):
+    """fresh omitted by default."""
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+    await run_playtest("ASSERT_CONSOLE_CLEAN")
+    sent = mock_bridge.send.call_args[0][1]
+    assert "fresh" not in sent
+
+
+# ── #14B: restart_between ──────────────────────────────────────────────────────
+
+async def test_run_playtest_suite_restart_between(monkeypatch):
+    """restart_between=True issues editor stop+play between files."""
+    from unity_mcp.tools import runtime
+    calls = []
+
+    async def fake_send(cmd, args, **kw):
+        calls.append((cmd, args))
+        if cmd == "list_playtest_files":
+            return "a.playtest\nb.playtest"
+        if cmd == "run_playtest":
+            return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "editor":
+            return "state: playing"
+        return "ok"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    await runtime.run_playtest_suite("Playtests/*.playtest", restart_between=True, stop_after=False, auto_play=False)
+
+    editor_cmds = [(c, a.get("action")) for c, a in calls if c == "editor"]
+    assert ("editor", "stop") in editor_cmds
+    assert ("editor", "play") in editor_cmds
+
+
+async def test_run_playtest_suite_restart_between_false_no_editor_cmds(monkeypatch):
+    """restart_between=False (default) — no stop/play calls between files."""
+    from unity_mcp.tools import runtime
+    calls = []
+
+    async def fake_send(cmd, args, **kw):
+        calls.append((cmd, args))
+        if cmd == "list_playtest_files":
+            return "a.playtest\nb.playtest"
+        return "PLAYTEST: 1/1 (0.1s) OK"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    await runtime.run_playtest_suite("Playtests/*.playtest", restart_between=False, stop_after=False, auto_play=False)
+
+    editor_cmds = [c for c, _ in calls if c == "editor"]
+    assert not editor_cmds
+
+
+# ── #17: runtime_snapshot ──────────────────────────────────────────────────────
+
+async def test_runtime_snapshot_passes_type(monkeypatch):
+    """runtime_snapshot(type=) sends type param to bridge."""
+    from unity_mcp.tools import runtime
+    calls = []
+
+    async def fake_send(cmd, args, **kw):
+        calls.append((cmd, args))
+        return "runtime_snapshot: Rigidbody\n---\ntotal: 2"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    result = await runtime.runtime_snapshot(type="Rigidbody")
+    assert calls[0][0] == "runtime_snapshot"
+    assert calls[0][1]["type"] == "Rigidbody"
+    assert "Rigidbody" in result
+
+
+async def test_runtime_snapshot_compress_passes_true(monkeypatch):
+    """compress=True sends compress=true string to bridge."""
+    from unity_mcp.tools import runtime
+    calls = []
+
+    async def fake_send(cmd, args, **kw):
+        calls.append((cmd, args))
+        return "total: 0"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    await runtime.runtime_snapshot(type="Rigidbody", compress=True)
+    assert calls[0][1].get("compress") == "true"
+
+
+async def test_runtime_snapshot_name_filter_passed(monkeypatch):
+    """name param is forwarded when provided."""
+    from unity_mcp.tools import runtime
+    calls = []
+
+    async def fake_send(cmd, args, **kw):
+        calls.append((cmd, args))
+        return "total: 1"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    await runtime.runtime_snapshot(type="Rigidbody", name="Enemy")
+    assert calls[0][1].get("name") == "Enemy"
+
+
+
+
+# ── #9 .suite files ────────────────────────────────────────────────────────────
+
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_run_playtest_suite_suite_path_reads_file_and_runs(tmp_path, monkeypatch):
+    """suite_path reads .suite file, runs each listed .playtest."""
+    from unity_mcp.tools import runtime
+    suite = tmp_path / "combat.suite"
+    suite.write_text("Playtests/a.playtest\n# comment\nPlaytests/b.playtest\n", encoding="utf-8")
+    calls = []
+
+    async def fake_send(cmd, args, **kw):
+        calls.append((cmd, args))
+        return "PLAYTEST: 1/1 (0.1s) OK"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    result = await runtime.run_playtest_suite(suite_path=str(suite), stop_after=False, auto_play=False)
+    assert "SUITE:" in result
+    run_calls = [c for c in calls if c[0] == "run_playtest"]
+    assert len(run_calls) == 2
+    assert run_calls[0][1]["path"] == "Playtests/a.playtest"
+    assert run_calls[1][1]["path"] == "Playtests/b.playtest"
+
+
+@pytest.mark.asyncio
+async def test_run_playtest_suite_paths_and_suite_path_raises(monkeypatch):
+    """paths and suite_path are mutually exclusive."""
+    from unity_mcp.tools import runtime
+    monkeypatch.setattr(runtime, "_send", AsyncMock())
+    monkeypatch.setattr(runtime, "_args", dict)
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        await runtime.run_playtest_suite(paths="Playtests/*.playtest", suite_path="/tmp/x.suite")
+
+
+@pytest.mark.asyncio
+async def test_run_playtest_suite_empty_suite_file(tmp_path, monkeypatch):
+    """Empty .suite file (only comments) returns early with no files message."""
+    from unity_mcp.tools import runtime
+    suite = tmp_path / "empty.suite"
+    suite.write_text("# just a comment\n\n", encoding="utf-8")
+
+    async def fake_send(cmd, args, **kw):
+        return "PLAYTEST: 1/1 OK"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", dict)
+    result = await runtime.run_playtest_suite(suite_path=str(suite), stop_after=False, auto_play=False)
+    assert "no files" in result
+
+
+@pytest.mark.asyncio
+async def test_lint_playtest_suite_suite_path_reads_file(tmp_path, monkeypatch):
+    """lint_playtest_suite suite_path reads .suite file and lints each."""
+    from unity_mcp.tools import runtime
+    suite = tmp_path / "test.suite"
+    suite.write_text("Playtests/health.playtest\n", encoding="utf-8")
+
+    async def fake_send(cmd, args, **kw):
+        return "OK  Playtests/health.playtest  no issues"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    result = await runtime.lint_playtest_suite(suite_path=str(suite))
+    assert "LINT: 1/1 clean" in result

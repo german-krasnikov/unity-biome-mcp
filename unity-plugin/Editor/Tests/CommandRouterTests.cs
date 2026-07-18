@@ -691,5 +691,21 @@ namespace UnityMCP.Editor.Tests
                 CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
             }
         }
+
+        // ── #09: compile_status includes reload= suffix ───────────────────────
+
+        [Test]
+        public void CompileStatus_ResponseContains_ReloadSuffix()
+        {
+            CommandRouter.IsCompiling = () => false;
+            try
+            {
+                var json = "{\"id\":\"cs1\",\"cmd\":\"compile_status\",\"args\":{}}";
+                var result = CommandRouter.Process(json);
+                Assert.IsTrue(result.Contains("\"ok\":true"), result);
+                StringAssert.Contains("|reload=", result);
+            }
+            finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
+        }
     }
 }

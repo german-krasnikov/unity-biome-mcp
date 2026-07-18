@@ -120,9 +120,12 @@ def get_catalog() -> dict:
     """Return catalog dict: {categories: {CAT: [tools]}}.
 
     PUBLIC tools only — never includes plugin/NDA tool names.
-    CORE tools appear only in categories["CORE"].
+    CORE tools appear only in categories["CORE"], not in their category bucket.
     """
-    categories = {cat: list(tools) for cat, tools in _THEMED_CATEGORIES.items()}
+    categories = {
+        cat: [t for t in tools if t not in _CORE_TOOLS]
+        for cat, tools in _THEMED_CATEGORIES.items()
+    }
     categories["CORE"] = sorted(_CORE_TOOLS)
     return {"categories": categories}
 

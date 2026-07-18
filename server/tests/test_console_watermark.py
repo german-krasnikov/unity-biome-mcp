@@ -56,7 +56,7 @@ async def test_get_console_since_future_mark(mod):
 async def test_get_console_since_valid_mark(mod, monkeypatch):
     captured = {}
 
-    async def fake_get_console(count, level, since):
+    async def fake_get_console(count, level, since, keyword=None, count_only=False):
         captured["since"] = since
         captured["count"] = count
         return "logs"
@@ -74,7 +74,7 @@ async def test_get_console_since_valid_mark(mod, monkeypatch):
 async def test_get_console_since_with_level(mod, monkeypatch):
     captured = {}
 
-    async def fake_get_console(count, level, since):
+    async def fake_get_console(count, level, since, keyword=None, count_only=False):
         captured["level"] = level
         return "err logs"
 
@@ -88,7 +88,7 @@ async def test_get_console_since_with_level(mod, monkeypatch):
 async def test_roundtrip_mark_then_since(mod, monkeypatch):
     since_values = []
 
-    async def fake_get_console(count, level, since):
+    async def fake_get_console(count, level, since, keyword=None, count_only=False):
         since_values.append(since)
         return "ok"
 

@@ -11,9 +11,11 @@ namespace UnityMCP.Editor
 {
     internal static class PlaytestLinter
     {
-        static readonly HashSet<StepType> _evidenceTypes = new HashSet<StepType> {
+        internal static readonly HashSet<StepType> _evidenceTypes = new HashSet<StepType> {
             StepType.Assert, StepType.WaitUntil, StepType.AssertConsoleClean,
-            StepType.AssertBatch, StepType.AssertCaptured, StepType.Capture
+            StepType.AssertBatch, StepType.AssertCaptured, StepType.Capture,
+            StepType.AssertOneActive, StepType.AssertChanged,
+            StepType.AssertFramesDiffer, StepType.AssertFramesStatic
         };
 
         internal struct LintIssue
@@ -55,10 +57,17 @@ namespace UnityMCP.Editor
             var fullScript = tagLines + "\n" + cfgBlock + script;
 
             // Pass 1: raw line scans (syntactic, no parse needed)
+            bool inComment = false;
             for (int i = 0; i < rawLines.Length; i++)
             {
                 var trimmed = rawLines[i].Trim();
                 if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#")) continue;
+                if (trimmed.Equals("COMMENT", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("COMMENT ", StringComparison.OrdinalIgnoreCase))
+                { inComment = true; continue; }
+                if (trimmed.Equals("END_COMMENT", StringComparison.OrdinalIgnoreCase))
+                { inComment = false; continue; }
+                if (inComment) continue;
                 var lineNo = i + 1;
 
                 if (trimmed.StartsWith("ALIAS ", StringComparison.OrdinalIgnoreCase))
@@ -72,6 +81,14 @@ namespace UnityMCP.Editor
                     && trimmed.Contains(" AND ") && trimmed.Contains(" OR "))
                     issues.Add(Issue("WARN", fileLabel, lineNo,
                         "WAIT_UNTIL mixes AND and OR — behaviour is AND-only (last one wins)"));
+
+                if (trimmed.StartsWith("ASSERT_ONE_ACTIVE ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length < 3)
+                        issues.Add(Issue("ERROR", fileLabel, lineNo,
+                            "ASSERT_ONE_ACTIVE requires at least 2 paths"));
+                }
             }
 
             // Pass 2: try parse (catches unknown macros, wrong arg counts)
@@ -99,11 +116,11 @@ namespace UnityMCP.Editor
                 bool hasEvidence = parsed.Steps.Any(s => _evidenceTypes.Contains(s.Type));
                 if (!hasEvidence)
                     issues.Add(Issue("ERROR", fileLabel, 0,
-                        "no evidence commands (ASSERT/WAIT_UNTIL/ASSERT_CONSOLE_CLEAN/ASSERT_BATCH/ASSERT_CAPTURED)"));
+                        "no evidence commands (ASSERT/WAIT_UNTIL/ASSERT_CONSOLE_CLEAN/ASSERT_BATCH/ASSERT_CAPTURED/ASSERT_CHANGED/ASSERT_ONE_ACTIVE/ASSERT_FRAMES_DIFFER/ASSERT_FRAMES_STATIC)"));
 
                 if (hasEvidence && !HasCleanup(parsed))
-                    issues.Add(Issue("WARN", fileLabel, 0,
-                        "no ASSERT_CONSOLE_CLEAN at end; consider adding 'CALL finish_clean'"));
+                    issues.Add(Issue("ERROR", fileLabel, 0,
+                        "no ASSERT_CONSOLE_CLEAN at end; add ASSERT_CONSOLE_CLEAN or 'CALL finish_clean'"));
             }
 
             return FormatReport(fileLabel, issues);

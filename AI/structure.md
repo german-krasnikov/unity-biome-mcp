@@ -189,6 +189,7 @@ unity-kiss-mcp/
 │       ├── test_bridge_port_rediscovery.py # Bridge port pinning + reconnect stability (6 tests, v0.52.6)
 │       ├── test_bridge_reload_gate.py      # Reload gate (asyncio.Event): wakes on reconnect, replaces fixed sleep (5 tests, v0.78.5)
 │       ├── test_bridge_role.py             # Client role/identification: UNITY_MCP_CLIENT env, set_client_label, RoleToLabel (3 tests, v0.78.5)
+│       ├── test_bridge_retry.py            # RetryPolicy unit tests: decide(), allow_hint_retry, is_retry_safe gate (v0.90.0)
 │       ├── test_connection_status.py       # Semantic connection status: connected/reconnecting/domain-reloading/disconnected (v0.78.10)
 │       ├── test_lockfile.py             # PID lockfile + cleanup_stale_port_files (additions, v0.52.6)
 │       ├── test_server_control.py       # list_servers, stop_server SIGTERM/taskkill (v0.55.10)
@@ -205,6 +206,8 @@ unity-kiss-mcp/
 │       ├── test_server_material.py       # M19–M22 material actions: get_shader_errors, list_shaders, set_fields (17 tests)
 │       ├── test_server_shader.py         # ShaderGraphHelper mutations: graph_set_value, graph_connect, graph_add_node
 │       ├── test_server_objects_extra.py  # clone_object action tests
+│       ├── test_objects.py               # objects tool: find_type param, IsNullOrEmpty guard (v0.90.0)
+│       ├── test_console.py               # console tool: get_console watermark, get_console_since keyword/count_only (v0.90.0)
 │       ├── test_vfx_intent.py            # set_vfx_quality action tests
 │       ├── test_middleware_play_guard.py  # Play Mode fail-fast guard: state-unknown passthrough, edit-mode block, watch_remove exclusion (feat/tool-disambiguation)
 │       ├── test_tool_descriptions.py     # Regression: TIER1 runtime tools have [Play Mode] prefix in docstring (feat/tool-disambiguation)
@@ -247,7 +250,7 @@ unity-kiss-mcp/
 │   ├── UnityMCP.Reload.asmdef                # Core assembly (no references)
 │   ├── package.json                          # v0.1.4, "com.unity-mcp.reload"
 │   └── package.json.meta
-├── unity-plugin/               # Unity Editor Plugin (225+ C# files, ~22000 LOC, playtests ROI sprint: +PlaytestLinter.cs, +PlaytestRunner.Snapshot.cs, +SceneRefResolver.cs, +SceneRefLinter.cs, +9 test files (~1200 new NUnit tests); v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests, v0.79.1: +PlaytestPathTests.cs (run_playtest path= 8 tests), CommandRouter path= dispatch; v0.80.1: +SceneCleanTestBase.cs (leak-detection base), +force_play_stop command — 6455+ C# NUnit green (v0.79.1), ~7600+ with playtests ROI sprint)
+├── unity-plugin/               # Unity Editor Plugin (225+ C# files, ~22000 LOC, v0.90.0: +PlaytestRunner.FrameCapture.cs, +PlaytestLaunchWindow.cs, +6 test files (~150 NUnit tests), SyncHelper singleton guard, TestRunner dirty-scene save; playtests ROI sprint: +PlaytestLinter.cs, +PlaytestRunner.Snapshot.cs, +SceneRefResolver.cs, +SceneRefLinter.cs, +9 test files (~1200 new NUnit tests); v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests, v0.79.1: +PlaytestPathTests.cs (run_playtest path= 8 tests), CommandRouter path= dispatch; v0.80.1: +SceneCleanTestBase.cs (leak-detection base), +force_play_stop command — 6687 C# NUnit green (v0.90.0, 1 pre-existing failure))
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
@@ -286,9 +289,11 @@ unity-kiss-mcp/
 │       ├── ErrorHelper.cs                  # Contextual errors + "did you mean?"
 │       ├── RuntimeHelper.cs                # Reflection invoke + state read; method dispatch cache + field(args) syntax (v0.74.0)
 │       ├── PlaytestRunner.cs               # DSL playtest executor (partial class, core); abort_on_fail, EvalCompound (v0.74.0); VAR expansion via PlaytestVarRegistry, _cachedConfig (v0.78.x); playtests ROI sprint: suite runner (list_playtest_files), snapshot_on_failure support
-│       ├── PlaytestRunner.Steps.cs         # ExecuteStep dispatch (partial class, 23 cases: +Section v0.74.0, +WAIT_CAPTURED, +SWEEP_PATH playtests ROI sprint)
+│       ├── PlaytestRunner.Steps.cs         # ExecuteStep dispatch (partial class, 23 cases: +Section v0.74.0, +WAIT_CAPTURED, +SWEEP_PATH playtests ROI sprint; +CAPTURE_FRAMES, +ASSERT_CHANGED v0.90.0)
 │       ├── PlaytestRunner.Snapshot.cs      # BuildFailureSnapshot(step, config): extracts $sigil names from RawLine, reads current values, appends recent console errors — called when snapshot_on_failure=true (playtests ROI sprint)
-│       ├── PlaytestParser.cs               # DSL parser; MACRO/CALL, MOVE_PATH, SECTION, DESC, AND/OR WAIT_UNTIL (v0.74.0); INCLUDE (Phase -1), VAL (Phase 0.7), VAR, ParseResult, SigilRegex, _DSL_KEYWORDS (v0.78.x); playtests ROI sprint: +WAIT_CAPTURED, +SWEEP_PATH, bool ASSERT, provenance (RawLine per step) (+329 lines)
+│       ├── PlaytestRunner.FrameCapture.cs  # CAPTURE_FRAMES execution: screenshot sequence at fixed intervals, pixel-hash comparison for ASSERT_FRAMES_DIFFER/STATIC (v0.90.0)
+│       ├── PlaytestLaunchWindow.cs         # MCP/Playtest Launcher EditorWindow: run .playtest files from Edit/Play Mode, file picker + output log (v0.90.0)
+│       ├── PlaytestParser.cs               # DSL parser; MACRO/CALL, MOVE_PATH, SECTION, DESC, AND/OR WAIT_UNTIL (v0.74.0); INCLUDE (Phase -1), VAL (Phase 0.7), VAR, ParseResult, SigilRegex, _DSL_KEYWORDS (v0.78.x); playtests ROI sprint: +WAIT_CAPTURED, +SWEEP_PATH, bool ASSERT, provenance (RawLine per step); v0.90.0: +PATH_PREFIX (Phase 0.7.1), +FOR/$var IN start..end/END_FOR loop unrolling, +CAPTURE_FRAMES, +ASSERT_FRAMES_DIFFER, +ASSERT_FRAMES_STATIC, +ASSERT_CHANGED
 │       ├── PlaytestLinter.cs               # Static DSL linter (no Play Mode): 3-pass (raw scan → parse → semantic), LintFile/LintScript → ERROR/WARN/INFO issues with line numbers (playtests ROI sprint)
 │       ├── SceneRefResolver.cs             # Resolves reference tokens ($alias, /path, t:Type) against live scene; ResolveMany(refs, fields) → List<RefResult> (OK/MISS/AMB) (playtests ROI sprint)
 │       ├── SceneRefLinter.cs               # 3-pass read-only linter: extracts path tokens from DSL → validates via SceneRefResolver → ERROR/WARN issues (playtests ROI sprint)
@@ -445,6 +450,12 @@ unity-kiss-mcp/
 │       │   ├── CommandRouterRegistrationTests.cs # Registration method tests (v0.70.0)
 │       │   ├── BatchRejectionTests.cs            # Batch async/specialDispatch rejection + runtime guard + atomic rollback (feat/tool-disambiguation, 5 tests)
 │       │   ├── PlaytestPathTests.cs              # run_playtest path= param: file read, traversal guard, mutual exclusivity (v0.79.1)
+│       │   ├── PlaytestForLoopTests.cs           # FOR $var IN start..end / END_FOR: range expansion, nesting, max-iterations guard (v0.90.0)
+│       │   ├── PlaytestFrameCaptureTests.cs      # CAPTURE_FRAMES parser + ASSERT_FRAMES_DIFFER / ASSERT_FRAMES_STATIC (v0.90.0)
+│       │   ├── PlaytestPathPrefixTests.cs        # PATH_PREFIX directive: prefix applied to VAL path values, first-occurrence-wins (v0.90.0)
+│       │   ├── PlaytestCaptureStringTests.cs     # CAPTURE / ASSERT_CHANGED step types (v0.90.0)
+│       │   ├── Sprint3FrictionTests.cs           # Integration tests for v0.90.0 friction sprint DSL features (v0.90.0)
+│       │   ├── RuntimeHelperInvokeTests.cs       # RuntimeHelper reflection invoke: private/static methods, field(args) syntax (v0.90.0)
 │       │   ├── PlaytestDslExtensionTests.cs      # SECTION/DESC/MOVE_PATH/AS/abort-on-fail DSL integration (v0.74.0)
 │       │   ├── PlaytestMacroTests.cs             # MACRO/CALL expansion, recursion, param substitution (v0.74.0)
 │       │   ├── WaitConditionTests.cs             # AND/OR compound conditions + EvalCompound unit tests (v0.74.0)

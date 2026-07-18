@@ -8,10 +8,13 @@ Phase 1c update: run_playtest_file removed, then re-added in v0.84 as deprecated
 """
 
 _CORE_TOOLS_SNAPSHOT = frozenset({
-    # Wave 2: 'do' demoted from CORE to SYSTEM direct_only (10 tools now)
+    # Wave 2: 'do' demoted from CORE to SYSTEM direct_only (10 tools)
     "batch", "create_object", "editor",
     "get_compile_errors", "get_component", "get_console", "get_hierarchy",
     "inspect", "manage_component", "set_property",
+    # sprint1-2: 5 tools promoted tier1→core (#04 execute_code, #15 scene/verify tools)
+    "execute_code",
+    "apply_scene_change", "resolve_scene_refs", "scene_change_plan", "verify_after_change",
 })
 
 _TIER1_SNAPSHOT = frozenset({

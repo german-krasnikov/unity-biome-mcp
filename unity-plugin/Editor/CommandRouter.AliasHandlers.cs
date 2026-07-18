@@ -84,7 +84,7 @@ namespace UnityMCP.Editor
         // defs: project-relative path to .defs file; asset: asset path to PlaytestConfig.
         private static string ExecSyncFromDefs(string argsJson)
         {
-            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/farm_core.defs";
+            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/game_core.defs";
             var assetPath = JsonHelper.ExtractString(argsJson, "asset");
 
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
@@ -129,7 +129,7 @@ namespace UnityMCP.Editor
         private static string ExecExportToDefs(string argsJson)
         {
             var assetPath = JsonHelper.ExtractString(argsJson, "asset");
-            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/farm_core.defs";
+            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/game_core.defs";
 
             PlaytestConfig cfg = null;
             if (!string.IsNullOrEmpty(assetPath))
@@ -160,11 +160,11 @@ namespace UnityMCP.Editor
         }
 
         // Compare alias .defs file vs PlaytestConfig.asset.
-        // defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).
+        // defs: project-relative path to .defs file (default: Assets/PlaytestDefs/game_core.defs).
         // asset: asset path to PlaytestConfig (default: first found via FindAssets).
         private static string ExecValidateAliases(string argsJson)
         {
-            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/farm_core.defs";
+            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/game_core.defs";
             var assetPath = JsonHelper.ExtractString(argsJson, "asset");
 
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));

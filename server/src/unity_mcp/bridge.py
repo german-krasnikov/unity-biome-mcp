@@ -226,6 +226,8 @@ class UnityBridge(HeartbeatMixin):
             except (ConnectionRefusedError, asyncio.TimeoutError, ConnectionError,
                     asyncio.IncompleteReadError, OSError, json.JSONDecodeError,
                     RuntimeError) as e:
+                if isinstance(e, DomainReloadError):
+                    self._reload.mark()
                 async with self._lock:
                     await self.close()
                 if self._first_failure_ts is None:
@@ -311,6 +313,9 @@ class UnityBridge(HeartbeatMixin):
                         f"(~{rem:.0f}s left). Retry in a moment.")
         except Exception:
             pass
+        if isinstance(exc, ConnectionRefusedError):
+            return (f"Unity TCP refused connection — likely mid domain-reload. "
+                    f"Wait 5-10s and retry. Port :{self._port}")
         return f"Unity not responding (process dead? port wrong?). Check :{self._port}."
 
     async def _read_response(self) -> dict:

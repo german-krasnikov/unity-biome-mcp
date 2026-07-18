@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.90.0] — 2026-07-18 — Playtest DSL Sprint P0-P3: FOR loops, PATH_PREFIX, CAPTURE_FRAMES, ASSERT_CHANGED; reload stability hardening
+
+**C# — PlaytestParser (DSL Sprint P0-P3):**
+- `PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases in the script; first occurrence wins, applied after `INCLUDE` expansion.
+- `FOR $var IN start..end` / `END_FOR` — integer loop unrolling at parse time; max 10000 iterations; nested `FOR` supported.
+- `CAPTURE_FRAMES n INTERVAL s [CAMERA name] [MODE strip|list] [LABEL name]` — captures N screenshots at fixed intervals (n≥2); grouped under `LABEL` for subsequent frame assertions.
+- `ASSERT_FRAMES_DIFFER label` — asserts consecutive captured frames differ (motion/animation check).
+- `ASSERT_FRAMES_STATIC label` — asserts all captured frames are identical (stability check).
+- `ASSERT_CHANGED $name` — asserts value captured by `CAPTURE $name /path|Comp|field` has changed since capture.
+
+**C# — New files:**
+- `PlaytestRunner.FrameCapture.cs` — partial class: `CAPTURE_FRAMES` + frame assertion step execution, screenshot sequence + pixel-hash comparison.
+- `PlaytestLaunchWindow.cs` — `MCP / Playtest Launcher` EditorWindow: run `.playtest` files without the Composer; file picker + output log.
+
+**C# — Reload stability:**
+- `SyncHelper.cs`: `_pumpActive` singleton guard prevents multiple concurrent `StartTickPump` coroutines (was N×300 pump accumulation on rapid reconnects). `isCompiling` early-exit in pump. `RequestScriptReload()` gated on `!isCompiling`. `Refresh()` called after `AllowAutoRefresh`.
+- `TestRunner.cs`: dirty temp scene saved silently before `NewScene` in `RunFinished` — suppresses "Save modified scenes?" dialog during suite teardown.
+- `SceneCleanTestBase.cs`: leaked object error message now includes object names.
+
+**Python — Reload stability:**
+- `bridge.py`: `DomainReloadError` in `send()` calls `self._reload.mark()` — tracks reload window from the connect path, not only from heartbeat.
+- `bridge_heartbeat.py`: heartbeat skips reconnect when `_reload.is_active()` — prevents reconnect storm during domain reload window.
+
+**New test files:**
+- `PlaytestForLoopTests.cs` — FOR loop DSL: range expansion, nesting, max-iterations guard
+- `PlaytestFrameCaptureTests.cs` — CAPTURE_FRAMES parser + ASSERT_FRAMES_DIFFER/STATIC
+- `PlaytestPathPrefixTests.cs` — PATH_PREFIX applied to VAL path values
+- `PlaytestCaptureStringTests.cs` — CAPTURE / ASSERT_CHANGED step types
+- `Sprint3FrictionTests.cs` — integration tests for friction sprint features
+- `RuntimeHelperInvokeTests.cs` — RuntimeHelper reflection invoke coverage
+- `server/tests/test_bridge_retry.py` — RetryPolicy unit tests
+- `server/tests/test_console.py` — console watermark + get_console_since tests
+- `server/tests/test_objects.py` — objects tool (find_type, IsNullOrEmpty guard) tests
+
+**Test counts:** Python unit 4681 | C# EditMode 6687 (1 pre-existing failure)
+
 ## [v0.89.0] — 2026-07-17 — Gamedev friction sprint: security levels, execute_code improvements, DSL extensions
 
 **C# — CodeExecutor:**

@@ -62,7 +62,9 @@ namespace UnityMCP.Editor
             }
             catch (TargetInvocationException e)
             {
-                throw new Exception(e.InnerException?.Message ?? e.Message);
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                    .Capture(e.InnerException ?? e).Throw();
+                throw; // unreachable — satisfies compiler
             }
         }
 

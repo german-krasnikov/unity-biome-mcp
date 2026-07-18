@@ -211,13 +211,13 @@ namespace UnityMCP.Editor.Tests
         public void ParseLine_WithAliasPath_Expands()
         {
             AliasExpander._tableOverride = new System.Collections.Generic.Dictionary<string, string>
-                { ["julia"] = "/Characters/Julia" };
+                { ["player"] = "/Characters/Player" };
             try
             {
-                var (cmd, args) = BatchHelper.ParseLine("get_component path=$julia type=Rigidbody");
+                var (cmd, args) = BatchHelper.ParseLine("get_component path=$player type=Rigidbody");
                 Assert.AreEqual("get_component", cmd);
-                StringAssert.Contains("/Characters/Julia", args);
-                StringAssert.DoesNotContain("$julia", args);
+                StringAssert.Contains("/Characters/Player", args);
+                StringAssert.DoesNotContain("$player", args);
             }
             finally
             {

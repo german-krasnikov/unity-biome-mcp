@@ -23,11 +23,12 @@ namespace UnityMCP.Editor.Tests
         {
             var after = SceneManager.GetActiveScene().GetRootGameObjects();
             var leaked = after.Where(go => go && !_rootsBefore.Contains(go.GetInstanceID())).ToList();
+            var leakedNames = leaked.Select(g => g.name).ToList();
             foreach (var go in leaked)
                 Object.DestroyImmediate(go);
-            if (leaked.Count > 0)
-                Assert.Fail($"Test leaked {leaked.Count} root objects (cleaned up): " +
-                    string.Join(", ", leaked.Select(g => g.name)));
+            if (leakedNames.Count > 0)
+                Assert.Fail($"Test leaked {leakedNames.Count} root objects (cleaned up): " +
+                    string.Join(", ", leakedNames));
         }
     }
 }

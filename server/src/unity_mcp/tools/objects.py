@@ -14,27 +14,28 @@ async def get_component(path: str, type: str, fields: str | None = None, full: b
     args: dict = {"path": path, "type": type}
     if full:
         args["_no_distill"] = True
-    if compress:
-        args["compress"] = "true"
     if fields:
         args["_no_distill"] = True
         args["_no_strip"] = True
         result = await _send("get_component", args)
         return _project_fields(result, fields)
+    if compress:
+        args["compress"] = "true"
     return await _send("get_component", args)
 
 
-async def inspect(paths: str, components: str | None = None, fields: str | None = None, full: bool = False, compress: bool = False) -> str:
+async def inspect(paths: str | None = None, components: str | None = None, fields: str | None = None, full: bool = False, compress: bool = False, find_type: str | None = None) -> str:
     """Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all).
+    find_type: component type to find — populates paths automatically (replaces explicit paths).
     fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer."""
     extra = {"_no_distill": True} if full else {}
-    if compress:
-        extra["compress"] = "true"
     if fields:
         extra["_no_distill"] = True
-        result = await _send("inspect", _args(paths=paths, components=components, _no_strip=True, **extra))
+        result = await _send("inspect", _args(paths=paths, find_type=find_type, components=components, _no_strip=True, **extra))
         return _project_fields(result, fields)
-    return await _send("inspect", _args(paths=paths, components=components, **extra))
+    if compress:
+        extra["compress"] = "true"
+    return await _send("inspect", _args(paths=paths, find_type=find_type, components=components, **extra))
 
 
 async def get_components_list(id: int) -> str:
@@ -52,9 +53,13 @@ async def find_objects(
     return await _send("find_objects", _args(name=name, tag=tag, layer=layer, component=component))
 
 
-async def set_property(path: str, component: str, prop: str, value, dry_run: bool = False) -> str:
-    """Set component property (Edit Mode, SerializedObject — use `set_runtime_property` for Play Mode reflection). For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying."""
-    args = {"path": path, "component": component, "prop": prop, "value": _normalize_value(value)}
+async def set_property(path: str | None = None, component: str = "", prop: str = "", value=None,
+                       dry_run: bool = False, find_type: str | None = None) -> str:
+    """Set component property (Edit Mode, SerializedObject — use `set_runtime_property` for Play Mode reflection).
+    find_type: component type — bulk-sets prop on all matching objects without specifying paths.
+    For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying."""
+    args = _args(path=path, find_type=find_type, component=component or None,
+                 prop=prop or None, value=_normalize_value(value) if value is not None else None)
     if dry_run:
         args["dry_run"] = "true"
     return await _send("set_property", args)
@@ -172,6 +177,12 @@ async def object_diff(path_a: str, path_b: str) -> str:
     return await _send("object_diff", {"path_a": path_a, "path_b": path_b})
 
 
+async def get_unity_events(path: str | None = None) -> str:
+    """List all UnityEvent persistent listeners in the active scene.
+    path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree)."""
+    return await _send("get_unity_events", _args(path=path))
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RO)(get_component)
@@ -193,3 +204,4 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW_IDEM)(rename_object)
     mcp.tool(annotations=_RW)(set_sibling_index)
     mcp.tool(annotations=_RO)(object_diff)
+    mcp.tool(annotations=_RO)(get_unity_events)

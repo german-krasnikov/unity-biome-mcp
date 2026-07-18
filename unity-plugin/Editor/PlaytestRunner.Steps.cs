@@ -17,6 +17,14 @@ namespace UnityMCP.Editor
             switch (step.Type)
             {
                 case StepType.Assert:
+                    // Polling path: ASSERT ... TIMEOUT n → reuse WaitingPoll infrastructure
+                    if (step.HasExplicitTimeout)
+                    {
+                        phase = Phase.WaitingPoll;
+                        phaseStart = Time.realtimeSinceStartup;
+                        _waitPollErrors = 0;
+                        break;
+                    }
                     var (ap, ac, af) = PlaytestParser.ResolveQuery(step.Query, config);
                     try
                     {
@@ -65,6 +73,7 @@ namespace UnityMCP.Editor
                 case StepType.WaitUntil:
                     phase = Phase.WaitingPoll;
                     phaseStart = Time.realtimeSinceStartup;
+                    _waitPollErrors = 0;
                     break;
 
                 case StepType.Move:
@@ -213,7 +222,7 @@ namespace UnityMCP.Editor
                         var capVal = ReadValue(cp, cc, cf);
                         float.TryParse(capVal, System.Globalization.NumberStyles.Float,
                             System.Globalization.CultureInfo.InvariantCulture, out var capFloat);
-                        state.Capture(step.Message, step.Query, capFloat);
+                        state.Capture(step.Message, step.Query, capVal, capFloat);
                         results.Add($"{label} CAPTURE {step.Message}={capVal}");
                         passed++;
                     }
@@ -240,6 +249,27 @@ namespace UnityMCP.Editor
                         if (ok) passed++; else failed++;
                     }
                     catch (Exception e) { results.Add($"{label} ASSERT_CAPTURED {step.Message} — ERR: {e.Message}"); failed++; }
+                    phase = Phase.Done;
+                    break;
+
+                case StepType.AssertChanged:
+                    try
+                    {
+                        var changedQuery = state.GetCapturedQuery(step.Message);
+                        var (chP, chC, chF) = PlaytestParser.ResolveQuery(changedQuery, config);
+                        var currentRaw = ReadValue(chP, chC, chF);
+                        var changed = state.IsChanged(step.Message, currentRaw);
+                        var chLine = $"{label} ASSERT_CHANGED {step.Message} — {(changed ? "PASS" : "FAIL")}" +
+                                     $" (was={state.GetCapturedRaw(step.Message)}, now={currentRaw})";
+                        if (!changed)
+                        {
+                            chLine += FormatProvenance(step);
+                            if (snapshotOnFailure) chLine += "\n" + BuildFailureSnapshot(step, config);
+                        }
+                        results.Add(chLine);
+                        if (changed) passed++; else failed++;
+                    }
+                    catch (Exception e) { results.Add($"{label} ASSERT_CHANGED {step.Message} — ERR: {e.Message}"); failed++; }
                     phase = Phase.Done;
                     break;
 
@@ -406,11 +436,89 @@ namespace UnityMCP.Editor
                     break;
                 }
 
+                case StepType.AssertOneActive:
+                    try
+                    {
+                        int activeCount = 0;
+                        string firstActive = null;
+                        foreach (var qPath in step.Queries)
+                        {
+                            var go = ComponentSerializer.FindObject(qPath);
+                            if (go != null && go.activeSelf)
+                            {
+                                activeCount++;
+                                firstActive = firstActive ?? qPath;
+                            }
+                        }
+                        bool oneActive = activeCount == 1;
+                        var detail = oneActive
+                            ? firstActive
+                            : $"{activeCount}/{step.Queries.Length} active";
+                        var aoaLine = $"{label} ASSERT_ONE_ACTIVE — {(oneActive ? "PASS" : "FAIL")} ({detail})";
+                        if (!oneActive)
+                        {
+                            aoaLine += FormatProvenance(step);
+                            if (snapshotOnFailure) aoaLine += "\n" + BuildFailureSnapshot(step, config);
+                        }
+                        results.Add(aoaLine);
+                        if (oneActive) passed++; else failed++;
+                    }
+                    catch (Exception e)
+                    {
+                        results.Add($"{label} ASSERT_ONE_ACTIVE — ERR: {e.Message}");
+                        failed++;
+                    }
+                    phase = Phase.Done;
+                    break;
+
                 case StepType.WaitCaptured:
                     _unchangedSince = -1f; // reset stable-start tracker for UNCHANGED OVER
                     phase = Phase.WaitingCapturedDelta;
                     phaseStart = Time.realtimeSinceStartup;
                     break;
+
+                case StepType.CaptureFrames:
+                    _captureLabel = step.Message ?? $"frames_{stepIdx + 1}";
+                    _captureInterval = Mathf.Max(0.016f, step.Delay);
+                    _captureTarget = (int)step.Timeout;
+                    _captureCamera = step.Component ?? "game";
+                    _captureMode = step.Op ?? "strip";
+                    state.InitFrames(_captureLabel);
+                    _captureLastTime = -999f;
+                    phase = Phase.CapturingFrames;
+                    break;
+
+                case StepType.AssertFramesDiffer:
+                {
+                    var frames = state.GetFrames(step.Message);
+                    if (frames == null || frames.Count < 2)
+                    {
+                        results.Add($"{label} ASSERT_FRAMES_DIFFER {step.Message} — ERR: need ≥2 frames");
+                        failed++; phase = Phase.Done; break;
+                    }
+                    var ok = FrameStitcher.AreFramesDifferent(frames);
+                    results.Add($"{label} ASSERT_FRAMES_DIFFER {step.Message} — {(ok ? "PASS" : "FAIL")} ({frames.Count} frames)");
+                    if (ok) passed++;
+                    else { failed++; if (snapshotOnFailure) results.Add(BuildFailureSnapshot(step, config)); }
+                    phase = Phase.Done;
+                    break;
+                }
+
+                case StepType.AssertFramesStatic:
+                {
+                    var frames = state.GetFrames(step.Message);
+                    if (frames == null || frames.Count < 2)
+                    {
+                        results.Add($"{label} ASSERT_FRAMES_STATIC {step.Message} — ERR: need ≥2 frames");
+                        failed++; phase = Phase.Done; break;
+                    }
+                    var ok = !FrameStitcher.AreFramesDifferent(frames);
+                    results.Add($"{label} ASSERT_FRAMES_STATIC {step.Message} — {(ok ? "PASS" : "FAIL")} ({frames.Count} frames)");
+                    if (ok) passed++;
+                    else { failed++; if (snapshotOnFailure) results.Add(BuildFailureSnapshot(step, config)); }
+                    phase = Phase.Done;
+                    break;
+                }
             }
         }
     }

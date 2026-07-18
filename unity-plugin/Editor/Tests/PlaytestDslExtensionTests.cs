@@ -108,10 +108,10 @@ namespace UnityMCP.Editor.Tests
         public void Parse_SweepPath_ThreeWaypoints_EmitsSixMoveWaitPlusWaitUntil()
         {
             var steps = PlaytestParser.Parse(
-                "SWEEP_PATH /Julia DWELL 0.4\n  1,0,0 > 2,0,0 > 3,0,0\nUNTIL /q|C|f >= 2 TIMEOUT 5");
+                "SWEEP_PATH /Player DWELL 0.4\n  1,0,0 > 2,0,0 > 3,0,0\nUNTIL /q|C|f >= 2 TIMEOUT 5");
             Assert.AreEqual(7, steps.Count);
             Assert.AreEqual(StepType.Move,      steps[0].Type);
-            Assert.AreEqual("/Julia",            steps[0].Path);
+            Assert.AreEqual("/Player",            steps[0].Path);
             Assert.AreEqual(new Vector3(1,0,0), steps[0].Position);
             Assert.AreEqual(StepType.Wait,      steps[1].Type);
             Assert.AreEqual(0.4f,               steps[1].Delay, 0.001f);
@@ -129,7 +129,7 @@ namespace UnityMCP.Editor.Tests
         public void Parse_SweepPath_NoDwell_EmitsMovesAndWaitUntilOnly()
         {
             var steps = PlaytestParser.Parse(
-                "SWEEP_PATH /Julia DWELL 0\n  1,0,0 > 2,0,0\nUNTIL /q|C|f == 1 TIMEOUT 3");
+                "SWEEP_PATH /Player DWELL 0\n  1,0,0 > 2,0,0\nUNTIL /q|C|f == 1 TIMEOUT 3");
             Assert.AreEqual(3, steps.Count);
             Assert.AreEqual(StepType.Move,      steps[0].Type);
             Assert.AreEqual(StepType.Move,      steps[1].Type);
@@ -141,7 +141,7 @@ namespace UnityMCP.Editor.Tests
         public void Parse_SweepPath_NoUntil_EmitsMoveWaitPairsOnly()
         {
             var steps = PlaytestParser.Parse(
-                "SWEEP_PATH /Julia DWELL 0.2\n  1,0,0 > 2,0,0");
+                "SWEEP_PATH /Player DWELL 0.2\n  1,0,0 > 2,0,0");
             Assert.AreEqual(4, steps.Count);
             Assert.AreEqual(StepType.Move, steps[0].Type);
             Assert.AreEqual(StepType.Wait, steps[1].Type);
@@ -155,7 +155,7 @@ namespace UnityMCP.Editor.Tests
         public void Parse_SweepPath_MissingDwell_Throws()
         {
             var ex = Assert.Throws<System.ArgumentException>(
-                () => PlaytestParser.Parse("SWEEP_PATH /Julia 0.4"));
+                () => PlaytestParser.Parse("SWEEP_PATH /Player 0.4"));
             StringAssert.Contains("DWELL", ex.Message);
         }
 
@@ -163,7 +163,7 @@ namespace UnityMCP.Editor.Tests
         public void Parse_SweepPath_DslCommandAfterWaypoints_NotSwallowed()
         {
             var steps = PlaytestParser.Parse(
-                "SWEEP_PATH /Julia DWELL 0.2\n  1,0,0 > 2,0,0\nASSERT /X|C|f == 1");
+                "SWEEP_PATH /Player DWELL 0.2\n  1,0,0 > 2,0,0\nASSERT /X|C|f == 1");
             Assert.IsTrue(steps.Exists(s => s.Type == StepType.Assert), "ASSERT must not be swallowed by SWEEP_PATH");
         }
 
@@ -195,7 +195,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Parse_WaitCaptured_Unchanged_ParsesOverDuration()
         {
-            var steps = PlaytestParser.Parse("WAIT_CAPTURED eggs UNCHANGED OVER 1");
+            var steps = PlaytestParser.Parse("WAIT_CAPTURED items UNCHANGED OVER 1");
             Assert.AreEqual(1, steps.Count);
             Assert.AreEqual(StepType.WaitCaptured, steps[0].Type);
             Assert.AreEqual("UNCHANGED", steps[0].Op);
@@ -229,10 +229,10 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Parse_Assert_BoolSugar_SingleFalse_EmitsAssertEqualsFalse()
         {
-            var steps = PlaytestParser.Parse("ASSERT !$tractor_active");
+            var steps = PlaytestParser.Parse("ASSERT !$door_open");
             Assert.AreEqual(1, steps.Count);
             Assert.AreEqual(StepType.Assert, steps[0].Type);
-            Assert.AreEqual("$tractor_active", steps[0].Query);
+            Assert.AreEqual("$door_open", steps[0].Query);
             Assert.AreEqual("==", steps[0].Op);
             Assert.AreEqual("False", steps[0].Value);
         }
@@ -284,11 +284,11 @@ namespace UnityMCP.Editor.Tests
         public void Parse_CompletePurchase_EmitsInvokeAndWaitUntilCompound()
         {
             var steps = PlaytestParser.Parse(
-                "COMPLETE_PURCHASE $buy_silo_pipe EXPECT\n  $a,$b,$c\nTIMEOUT 2");
+                "COMPLETE_PURCHASE $buy_item_pipe EXPECT\n  $a,$b,$c\nTIMEOUT 2");
             Assert.AreEqual(2, steps.Count);
             // step 0: INVOKE
             Assert.AreEqual(StepType.Invoke, steps[0].Type);
-            Assert.AreEqual("$buy_silo_pipe", steps[0].Path);
+            Assert.AreEqual("$buy_item_pipe", steps[0].Path);
             Assert.AreEqual("PlacementPurchase", steps[0].Component);
             Assert.AreEqual("CompletePurchase", steps[0].Method);
             // step 1: compound WAIT_UNTIL
@@ -306,11 +306,11 @@ namespace UnityMCP.Editor.Tests
         public void Parse_CompletePurchase_SingleExpect_EmitsInvokeAndSimpleWaitUntil()
         {
             var steps = PlaytestParser.Parse(
-                "COMPLETE_PURCHASE $buy_coop EXPECT\n  $buy_coop_completed\nTIMEOUT 2");
+                "COMPLETE_PURCHASE $buy_gate EXPECT\n  $buy_gate_completed\nTIMEOUT 2");
             Assert.AreEqual(2, steps.Count);
             Assert.AreEqual(StepType.Invoke, steps[0].Type);
             Assert.AreEqual(StepType.WaitUntil, steps[1].Type);
-            Assert.AreEqual("$buy_coop_completed", steps[1].Query);
+            Assert.AreEqual("$buy_gate_completed", steps[1].Query);
             Assert.IsNull(steps[1].Queries, "No compound for single EXPECT");
         }
 
@@ -318,12 +318,12 @@ namespace UnityMCP.Editor.Tests
         public void Parse_InvokeRepeat_SixTimes_EmitsSixInvokes()
         {
             var steps = PlaytestParser.Parse(
-                "INVOKE_REPEAT 6 $coop ClearingZoneCounter OnBoardDestroyed");
+                "INVOKE_REPEAT 6 $gate ClearingZoneCounter OnBoardDestroyed");
             Assert.AreEqual(6, steps.Count);
             foreach (var s in steps)
             {
                 Assert.AreEqual(StepType.Invoke, s.Type);
-                Assert.AreEqual("$coop", s.Path);
+                Assert.AreEqual("$gate", s.Path);
                 Assert.AreEqual("ClearingZoneCounter", s.Component);
                 Assert.AreEqual("OnBoardDestroyed", s.Method);
             }
@@ -333,13 +333,13 @@ namespace UnityMCP.Editor.Tests
         public void Parse_InvokeRepeat_WithExpect_EmitsInvokesAndWaitUntil()
         {
             var steps = PlaytestParser.Parse(
-                "INVOKE_REPEAT 3 $coop ClearingZoneCounter OnBoardDestroyed\nEXPECT $coop_remaining == 0 TIMEOUT 2");
+                "INVOKE_REPEAT 3 $gate ClearingZoneCounter OnBoardDestroyed\nEXPECT $gate_remaining == 0 TIMEOUT 2");
             Assert.AreEqual(4, steps.Count);
             Assert.AreEqual(StepType.Invoke, steps[0].Type);
             Assert.AreEqual(StepType.Invoke, steps[1].Type);
             Assert.AreEqual(StepType.Invoke, steps[2].Type);
             Assert.AreEqual(StepType.WaitUntil, steps[3].Type);
-            Assert.AreEqual("$coop_remaining", steps[3].Query);
+            Assert.AreEqual("$gate_remaining", steps[3].Query);
             Assert.AreEqual("==", steps[3].Op);
             Assert.AreEqual("0", steps[3].Value);
             Assert.AreEqual(2f, steps[3].Timeout, 0.001f);
@@ -349,7 +349,7 @@ namespace UnityMCP.Editor.Tests
         public void Parse_InvokeRepeat_ZeroCount_EmitsNoInvokes()
         {
             var steps = PlaytestParser.Parse(
-                "INVOKE_REPEAT 0 $coop ClearingZoneCounter OnBoardDestroyed");
+                "INVOKE_REPEAT 0 $gate ClearingZoneCounter OnBoardDestroyed");
             Assert.AreEqual(0, steps.Count);
         }
     }

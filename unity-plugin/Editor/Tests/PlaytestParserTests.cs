@@ -1,5 +1,6 @@
 // TDD: PlaytestParser pure-logic tests — no Unity API, EditMode safe.
 // Compare drives every ASSERT in playtests; a bug silently passes all assertions.
+using System;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor;
@@ -149,7 +150,7 @@ namespace UnityMCP.Editor.Tests
                 Assert.AreEqual("Health", comp);
                 Assert.AreEqual("current", field);
             }
-            finally { Object.DestroyImmediate(config); }
+            finally { UnityEngine.Object.DestroyImmediate(config); }
         }
 
         [Test]
@@ -163,7 +164,7 @@ namespace UnityMCP.Editor.Tests
                 Assert.AreEqual("Y", comp);
                 Assert.AreEqual("Z", field);
             }
-            finally { Object.DestroyImmediate(config); }
+            finally { UnityEngine.Object.DestroyImmediate(config); }
         }
 
         // ── Parse: ASSERT line ───────────────────────────────────────────────────
@@ -230,6 +231,192 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("/P|C|f", s.Query);
             Assert.AreEqual("==", s.Op);
             Assert.AreEqual("1", s.Value);
+        }
+
+        // ── #3: WAIT_UNTIL bool shorthand ────────────────────────────────────────
+
+        [Test]
+        public void WaitUntil_BoolSugar_Positive()
+        {
+            var steps = PlaytestParser.Parse("WAIT_UNTIL $door_open");
+            Assert.AreEqual(1, steps.Count);
+            Assert.AreEqual(StepType.WaitUntil, steps[0].Type);
+            Assert.AreEqual("$door_open", steps[0].Query);
+            Assert.AreEqual("==", steps[0].Op);
+            Assert.AreEqual("True", steps[0].Value);
+        }
+
+        [Test]
+        public void WaitUntil_BoolSugar_Negated()
+        {
+            var steps = PlaytestParser.Parse("WAIT_UNTIL !$door_open");
+            Assert.AreEqual(1, steps.Count);
+            Assert.AreEqual(StepType.WaitUntil, steps[0].Type);
+            Assert.AreEqual("$door_open", steps[0].Query);
+            Assert.AreEqual("==", steps[0].Op);
+            Assert.AreEqual("False", steps[0].Value);
+        }
+
+        [Test]
+        public void WaitUntil_StandardForm_UnchangedByFix()
+        {
+            var steps = PlaytestParser.Parse("WAIT_UNTIL /Player|Health|value > 0 TIMEOUT 5");
+            var s = steps[0];
+            Assert.AreEqual(StepType.WaitUntil, s.Type);
+            Assert.AreEqual("/Player|Health|value", s.Query);
+            Assert.AreEqual(">", s.Op);
+            Assert.AreEqual("0", s.Value);
+        }
+
+        [Test]
+        public void WaitUntil_BoolSugar_RawPath_Throws()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                PlaytestParser.Parse("WAIT_UNTIL /Player|Health|ready"));
+        }
+
+        // ── #1: Unconditional $sigil warning ─────────────────────────────────────
+
+        [Test]
+        public void Parse_UnresolvedSigil_WarnedEvenWithNoDefs()
+        {
+            var result = PlaytestParser.Parse("ASSERT $health == 100");
+            Assert.IsNotNull(result.Warnings, "expected warning for $health");
+            StringAssert.Contains("$health", result.Warnings[0]);
+        }
+
+        [Test]
+        public void Parse_ResolvedSigil_NoWarning()
+        {
+            var result = PlaytestParser.Parse("VAL $health /Player|Health|value\nASSERT $health == 100");
+            Assert.IsNull(result.Warnings);
+        }
+
+        // ── #5: Levenshtein "Did you mean?" ─────────────────────────────────────
+
+        [Test]
+        public void Parse_UnresolvedSigil_SuggestsClosestMatch()
+        {
+            var result = PlaytestParser.Parse(
+                "VAL $health /Player|Health|value\nASSERT $healt == 100");
+            Assert.IsNotNull(result.Warnings);
+            StringAssert.Contains("Did you mean $health", result.Warnings[0]);
+        }
+
+        [Test]
+        public void Parse_UnresolvedSigil_NoSuggestion_FallsBackToHint()
+        {
+            var result = PlaytestParser.Parse(
+                "VAL $health /Player|Health|value\nASSERT $xyz == 1");
+            Assert.IsNotNull(result.Warnings);
+            StringAssert.Contains("typo in VAL/VAR name", result.Warnings[0]);
+            StringAssert.DoesNotContain("Did you mean", result.Warnings[0]);
+        }
+
+        [Test]
+        public void Parse_UnresolvedSigil_NoDefs_NoSuggestion()
+        {
+            var result = PlaytestParser.Parse("ASSERT $health == 100");
+            Assert.IsNotNull(result.Warnings);
+            StringAssert.Contains("$health", result.Warnings[0]);
+            StringAssert.DoesNotContain("Did you mean", result.Warnings[0]);
+        }
+
+        // ── #7 SET_DEFAULT_TIMEOUT ───────────────────────────────────────────────
+
+        [Test]
+        public void Parse_SetDefaultTimeout_SetsParseResultDefaultTimeout()
+        {
+            var r = PlaytestParser.Parse("SET_DEFAULT_TIMEOUT 3\nWAIT_UNTIL /Player|Health|hp > 0");
+            Assert.AreEqual(3f, r.DefaultTimeout, 0.001f);
+        }
+
+        [Test]
+        public void Parse_NoSetDefaultTimeout_DefaultTimeoutIsZero()
+        {
+            var r = PlaytestParser.Parse("ASSERT /Player|Health|hp == 100");
+            Assert.AreEqual(0f, r.DefaultTimeout, 0.001f);
+        }
+
+        [Test]
+        public void Parse_SetDefaultTimeout_MissingValue_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => PlaytestParser.Parse("SET_DEFAULT_TIMEOUT"));
+        }
+
+        [Test]
+        public void Parse_WaitUntilWithTimeout_HasExplicitTimeoutTrue()
+        {
+            var r = PlaytestParser.Parse("WAIT_UNTIL /Enemy|Health|hp == 0 TIMEOUT 7");
+            Assert.IsTrue(r[0].HasExplicitTimeout);
+            Assert.AreEqual(7f, r[0].Timeout, 0.001f);
+        }
+
+        [Test]
+        public void Parse_WaitUntilWithoutTimeout_HasExplicitTimeoutFalse()
+        {
+            var r = PlaytestParser.Parse("WAIT_UNTIL /Enemy|Health|hp == 0");
+            Assert.IsFalse(r[0].HasExplicitTimeout);
+        }
+
+        // ── #6 ASSERT TIMEOUT ────────────────────────────────────────────────────
+
+        [Test]
+        public void Parse_AssertWithTimeout_HasExplicitTimeoutTrueAndTimeoutSet()
+        {
+            var r = PlaytestParser.Parse("ASSERT /Player|Health|hp > 0 TIMEOUT 5");
+            Assert.IsTrue(r[0].HasExplicitTimeout);
+            Assert.AreEqual(5f, r[0].Timeout, 0.001f);
+            Assert.AreEqual(StepType.Assert, r[0].Type);
+        }
+
+        [Test]
+        public void Parse_AssertWithoutTimeout_HasExplicitTimeoutFalse()
+        {
+            var r = PlaytestParser.Parse("ASSERT /Player|Health|hp > 0");
+            Assert.IsFalse(r[0].HasExplicitTimeout);
+            Assert.AreEqual(StepType.Assert, r[0].Type);
+        }
+
+        [Test]
+        public void Parse_AssertWithTimeoutAndAs_BothParsed()
+        {
+            var r = PlaytestParser.Parse("ASSERT /Enemy|Health|hp == 0 TIMEOUT 3 AS enemy dead");
+            Assert.IsTrue(r[0].HasExplicitTimeout);
+            Assert.AreEqual(3f, r[0].Timeout, 0.001f);
+            Assert.AreEqual("enemy dead", r[0].Message);
+        }
+
+        // ── #8 ASSERT_ONE_ACTIVE ─────────────────────────────────────────────────
+
+        [Test]
+        public void Parse_AssertOneActive_ParsesQueryArray()
+        {
+            var r = PlaytestParser.Parse("ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu /Cam_Game");
+            Assert.AreEqual(StepType.AssertOneActive, r[0].Type);
+            CollectionAssert.AreEqual(new[] { "/Cam_Intro", "/Cam_Menu", "/Cam_Game" }, r[0].Queries);
+        }
+
+        [Test]
+        public void Parse_AssertOneActive_OnePath_Throws()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                PlaytestParser.Parse("ASSERT_ONE_ACTIVE /Cam_Intro"));
+        }
+
+        [Test]
+        public void Parse_AssertOneActive_ZeroPaths_Throws()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                PlaytestParser.Parse("ASSERT_ONE_ACTIVE"));
+        }
+
+        [Test]
+        public void Assert_AsLabel_WithTimeout_LabelClean()
+        {
+            var r = PlaytestParser.Parse("ASSERT /Obj|Comp|f == 1 AS my_label TIMEOUT 3");
+            Assert.AreEqual("my_label", r.Steps[0].Message);
+            Assert.AreEqual(3f, r.Steps[0].Timeout);
         }
     }
 }

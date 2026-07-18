@@ -490,5 +490,129 @@ namespace UnityMCP.Editor.Tests
             }
             finally { UnityEngine.Object.DestroyImmediate(go); }
         }
+
+        // TODO: WAIT_UNTIL _waitPollErrors counter needs a tick harness to test properly;
+        // covered by integration tests. This smoke-test only verifies missing-path ERR reporting.
+        [Test]
+        public void ExecuteSyncStep_MissingPath_ReportsErr()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.Assert,
+                Query = "/NonExistent__P0Fix__|Missing|field",
+                Op = "==", Value = "1",
+                RawLine = "ASSERT /NonExistent__P0Fix__|Missing|field == 1"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            Assert.AreEqual(1, failed);
+            StringAssert.Contains("ERR", results[0]);
+        }
+
+        // ── #8 ASSERT_ONE_ACTIVE ─────────────────────────────────────────────────
+
+        [Test]
+        public void AssertOneActive_ExactlyOneActive_Passes()
+        {
+            var a = new GameObject("OAA_A"); a.SetActive(true);
+            var b = new GameObject("OAA_B"); b.SetActive(false);
+            var c = new GameObject("OAA_C"); c.SetActive(false);
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.AssertOneActive,
+                    Queries = new[] { "/OAA_A", "/OAA_B", "/OAA_C" },
+                    RawLine = "ASSERT_ONE_ACTIVE /OAA_A /OAA_B /OAA_C"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+                Assert.AreEqual(1, passed);
+                Assert.AreEqual(0, failed);
+                StringAssert.Contains("PASS", results[0]);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(a);
+                UnityEngine.Object.DestroyImmediate(b);
+                UnityEngine.Object.DestroyImmediate(c);
+            }
+        }
+
+        [Test]
+        public void AssertOneActive_TwoActive_Fails()
+        {
+            var a = new GameObject("OAB_A"); a.SetActive(true);
+            var b = new GameObject("OAB_B"); b.SetActive(true);
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.AssertOneActive,
+                    Queries = new[] { "/OAB_A", "/OAB_B" },
+                    RawLine = "ASSERT_ONE_ACTIVE /OAB_A /OAB_B"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+                Assert.AreEqual(0, passed);
+                Assert.AreEqual(1, failed);
+                StringAssert.Contains("FAIL", results[0]);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(a);
+                UnityEngine.Object.DestroyImmediate(b);
+            }
+        }
+
+        [Test]
+        public void AssertOneActive_AllInactive_Fails()
+        {
+            var a = new GameObject("OAC_A"); a.SetActive(false);
+            var b = new GameObject("OAC_B"); b.SetActive(false);
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.AssertOneActive,
+                    Queries = new[] { "/OAC_A", "/OAC_B" },
+                    RawLine = "ASSERT_ONE_ACTIVE /OAC_A /OAC_B"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+                Assert.AreEqual(0, passed);
+                Assert.AreEqual(1, failed);
+                StringAssert.Contains("FAIL", results[0]);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(a);
+                UnityEngine.Object.DestroyImmediate(b);
+            }
+        }
+
+        [Test]
+        public void Assert_WithExplicitTimeout_EntersWaitingPoll_NotDone()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.Assert,
+                Query = "/SomeObject|Health|hp",
+                Op = ">",
+                Value = "0",
+                HasExplicitTimeout = true,
+                Timeout = 3f,
+                RawLine = "ASSERT /SomeObject|Health|hp > 0 TIMEOUT 3"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+            bool done = PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            Assert.IsFalse(done, "Polling ASSERT must not complete synchronously");
+            Assert.AreEqual(0, results.Count, "No result before polling resolves");
+        }
     }
 }

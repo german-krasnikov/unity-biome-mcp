@@ -46,7 +46,7 @@
 
 ### Two ways to work
 
-🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 139 MCP tools with 80–95% token compression.
+🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 141 MCP tools with 80–95% token compression.
 
 💬 **In-Unity Chat** — open `MCP → Chat` inside the editor. No API key needed — spawns the CLI directly. 5 backends: Claude, Antigravity, Kimi, Codex, OpenCode. Drag GameObjects, scripts, and materials into chat as typed context chips. Each AI turn gets its own undo group — one Ctrl+Z rolls back everything the AI changed. Domain-reload safe. Extensible chip-kind registry lets third-party plugins add new chip types with zero core edits.
 
@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="139 MCP Tools · 11520 Tests (4643 Python · 6593 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="141 MCP Tools · 11669 Tests (4686 Python · 6699 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -302,6 +302,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.90.0</b> — 2026-07-18 — `PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases …</summary>
+
+`PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases in the script; first occurrence wins, applied after `INCLUDE` expansion.
+
+</details>
+
+<details>
 <summary><b>v0.89.0</b> — 2026-07-17 — `SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in …</summary>
 
 `SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in MCPSettings + MCPHubUI; three-tier blocked-pattern sets computed at class …
@@ -330,15 +337,9 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 </details>
 
 <details>
-<summary><b>v0.85.1</b> — 2026-07-12 — `get_perf` — fully removed from Python (`diagnostics.py`) and C# …</summary>
-
-`get_perf` — fully removed from Python (`diagnostics.py`) and C# (`CommandRouter.Registration.cs`); use `get_frame_stats` instead.
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.85.1** — 2026-07-12 — `get_perf` — fully removed from Python (`diagnostics.py`) and C# …
 - **v0.84.0** — 2026-07-12 — CORE shrunk from 15 → 11: `delete_object`, `set_parent`, `scene`, …
 - **v0.83.0** — 2026-07-11 — `ToolSpec.mutability: Literal['read','write']` — single-source classification …
 - **v0.82.0** — 2026-07-11 — `run_playtest_file` + `run_playtest_suite` — file-based and suite-level …

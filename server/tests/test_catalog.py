@@ -82,7 +82,8 @@ def test_is_core_returns_true_for_core_tools():
 
 def test_is_core_returns_false_for_non_core():
     from unity_mcp.tools.gating import is_core
-    for tool in ("animation", "shader", "execute_code", "save_skill"):
+    # execute_code promoted to core in sprint1-2 #04; removed from this list
+    for tool in ("animation", "shader", "save_skill"):
         assert not is_core(tool), f"{tool!r} should NOT be core"
 
 

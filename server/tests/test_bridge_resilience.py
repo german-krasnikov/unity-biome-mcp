@@ -70,33 +70,38 @@ async def test_connect_timeout_fast_fail(monkeypatch):
     assert 0.3 < elapsed < 1.5, f"connect() took {elapsed:.2f}s, expected ~0.5s"
 
 
-# ── Test 6: ECONNREFUSED fast backoff ────────────────────────────────────────
+# ── Test 6: ECONNREFUSED retries with backoff (#05) ──────────────────────────
 
-async def test_econnrefused_fails_fast(monkeypatch):
-    """ConnectionRefusedError → circuit breaker trips, raises immediately (no backoff sleep)."""
+async def test_econnrefused_retries_with_backoff(monkeypatch):
+    """#05: ConnectionRefusedError → retries with exponential backoff (domain reload),
+    eventually raises after max_retries. Sleep mocked to avoid actual delays."""
     import unity_mcp.bridge as bridge_mod
 
     call_count = 0
+    sleep_calls = []
 
     async def mock_open_connection(host, port):
         nonlocal call_count
         call_count += 1
         raise ConnectionRefusedError("mock: connection refused")
 
+    async def mock_sleep(delay):
+        sleep_calls.append(delay)
+
     monkeypatch.setattr(bridge_mod.asyncio, "open_connection", mock_open_connection)
+    monkeypatch.setattr(bridge_mod.asyncio, "sleep", mock_sleep)
 
     from helpers import make_idle_probe
     bridge = bridge_mod.UnityBridge("127.0.0.1", 9999, probe=make_idle_probe())
 
-    start = time.monotonic()
     with pytest.raises((ConnectionError, OSError)):
         await bridge.send("ping", {})
-    elapsed = time.monotonic() - start
 
-    # Grace retry on first attempt + circuit breaker on second
-    assert elapsed < 3.0, f"idle probe should fail fast, took {elapsed:.2f}s"
-    # open_connection called once (in _reconnect inside send's lock block)
-    assert call_count >= 1
+    # Should have retried (backoff delays recorded)
+    assert call_count >= 2, "bridge must retry on ConnectionRefused (domain reload)"
+    assert len(sleep_calls) >= 1, "backoff sleep must be called"
+    # First backoff is ~2s (2^(0+1)=2 + up to 10% jitter)
+    assert 2.0 <= sleep_calls[0] <= 2.25, f"first backoff must be ~2s, got {sleep_calls[0]}s"
 
 
 # ── Test 7: reconnect invokes callbacks ──────────────────────────────────────

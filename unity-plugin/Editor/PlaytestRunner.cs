@@ -10,7 +10,7 @@ namespace UnityMCP.Editor
     [InitializeOnLoad]
     internal static partial class PlaytestRunner
     {
-        enum Phase { Ready, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, Done }
+        enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, Done }
 
         static PlaytestRunner()
         {
@@ -19,9 +19,11 @@ namespace UnityMCP.Editor
         }
 
         public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
-            bool abortOnFail = false, bool snapshotOnFailure = false)
+            bool abortOnFail = false, bool snapshotOnFailure = false, bool fresh = false)
         {
             if (_isRunning) { tcs.TrySetResult("ERROR: Playtest already running. Wait for completion."); return; }
+            _freshMode = fresh;
+            _freshReloadDone = false;
             _isRunning = true;
 
             var guids = AssetDatabase.FindAssets("t:PlaytestConfig");
@@ -62,6 +64,7 @@ namespace UnityMCP.Editor
 
             bool globalAbort = abortOnFail || parseResult.HasGlobalAbort;
             bool snapOnFail = snapshotOnFailure;
+            float defaultTimeout = parseResult.DefaultTimeout > 0 ? parseResult.DefaultTimeout : 5f;
 
             var results = new List<string>();
             int stepIdx = 0;
@@ -114,6 +117,25 @@ namespace UnityMCP.Editor
                     return;
                 }
 
+                // fresh mode: reload active scene before first step
+                if (_freshMode && phase == Phase.Ready && stepIdx == 0 && !_freshReloadDone)
+                {
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(
+                        UnityEngine.SceneManagement.SceneManager.GetActiveScene().name,
+                        UnityEngine.SceneManagement.LoadSceneMode.Single);
+                    phase = Phase.LoadingFresh;
+                    phaseStart = Time.realtimeSinceStartup;
+                    return;
+                }
+                if (phase == Phase.LoadingFresh)
+                {
+                    if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().isLoaded)
+                    { phase = Phase.Ready; _freshReloadDone = true; }
+                    else if (Time.realtimeSinceStartup - phaseStart > 10f)
+                    { phase = Phase.Ready; _freshReloadDone = true; }  // timeout — continue anyway
+                    return;
+                }
+
                 // Check invariants and conserved constraints every tick
                 state.CheckInvariants(config, Time.frameCount, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
                 state.CheckConserved(config, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
@@ -149,13 +171,16 @@ namespace UnityMCP.Editor
                     case Phase.WaitingPoll:
                         float now = Time.realtimeSinceStartup;
                         var pollStep = currentExpanded ?? step; // use VAR-expanded version
-                        if (now - phaseStart > pollStep.Timeout)
+                        var pollLabel = pollStep.Type == StepType.Assert ? "ASSERT" : "WAIT_UNTIL";
+                        float effectiveTimeout = pollStep.HasExplicitTimeout ? pollStep.Timeout : defaultTimeout;
+                        if (effectiveTimeout <= 0f) effectiveTimeout = 5f; // guard: SET_DEFAULT_TIMEOUT 0
+                        if (now - phaseStart > effectiveTimeout)
                         {
                             bool abortThis = pollStep.AbortOnFail || globalAbort;
                             if (abortThis) EditorApplication.isPlaying = false;
                             string lastVal = "?";
                             try { var (lp, lc, lf) = PlaytestParser.ResolveQuery(pollStep.Query, config); lastVal = ReadValue(lp, lc, lf); } catch { }
-                            var waitLine = $"[{stepIdx + 1}] WAIT_UNTIL {pollStep.Query}{pollStep.Op}{pollStep.Value} — TIMEOUT after {pollStep.Timeout}s (last: {lastVal})" + FormatProvenance(pollStep);
+                            var waitLine = $"[{stepIdx + 1}] {pollLabel} {pollStep.Query}{pollStep.Op}{pollStep.Value} — TIMEOUT after {effectiveTimeout}s (last: {lastVal})" + FormatProvenance(pollStep);
                             if (snapOnFail) waitLine += "\n" + BuildFailureSnapshot(pollStep, config);
                             results.Add(waitLine);
                             failed++;
@@ -173,14 +198,25 @@ namespace UnityMCP.Editor
                                 q => { var (cp, cc, cf) = PlaytestParser.ResolveQuery(q, config); return ReadValue(cp, cc, cf); });
                             if (met)
                             {
+                                _waitPollErrors = 0;
                                 var logic = pollStep.Queries != null ? (pollStep.IsOr ? " (OR)" : " (AND)") : "";
-                                results.Add($"[{stepIdx + 1}] WAIT_UNTIL {pollStep.Query}{pollStep.Op}{pollStep.Value}{logic} — PASS ({(now - phaseStart).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)");
+                                results.Add($"[{stepIdx + 1}] {pollLabel} {pollStep.Query}{pollStep.Op}{pollStep.Value}{logic} — PASS ({(now - phaseStart).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)");
                                 passed++;
                                 phase = Phase.Done;
                                 AdvanceStep();
                             }
                         }
-                        catch { /* keep polling */ }
+                        catch (Exception ex)
+                        {
+                            if (++_waitPollErrors >= 3)
+                            {
+                                var msg = ex.Message.Length > 120 ? ex.Message.Substring(0, 120) + "..." : ex.Message;
+                                results.Add($"[{stepIdx + 1}] {pollLabel} {pollStep.Query}{pollStep.Op}{pollStep.Value} — ERROR after 3 consecutive exceptions: {ex.GetType().Name}: {msg}" + FormatProvenance(pollStep));
+                                failed++;
+                                phase = Phase.Done;
+                                AdvanceStep();
+                            }
+                        }
                         break;
 
                     case Phase.Simulating:
@@ -235,6 +271,32 @@ namespace UnityMCP.Editor
                         catch { /* keep polling */ }
                         break;
                     }
+
+                    case Phase.CapturingFrames:
+                    {
+                        float cfNow = Time.realtimeSinceStartup;
+                        int captured = state.GetFrameCount(_captureLabel);
+                        bool firstFrame = captured == 0;
+                        if (firstFrame || cfNow - _captureLastTime >= _captureInterval)
+                        {
+                            var path = ScreenshotCapture.CaptureToFile(cameraName: _captureCamera);
+                            state.AddFrame(_captureLabel, path);
+                            _captureLastTime = cfNow;
+                            captured++;
+                        }
+                        if (captured >= _captureTarget)
+                        {
+                            var allPaths = state.GetFrames(_captureLabel);
+                            string output = _captureMode == "strip"
+                                ? FrameStitcher.StitchHorizontal(allPaths)
+                                : string.Join(", ", allPaths);
+                            results.Add($"[{stepIdx + 1}] CAPTURE_FRAMES {_captureLabel} ({_captureTarget}x{_captureInterval}s) → {output}");
+                            passed++;
+                            phase = Phase.Done;
+                            AdvanceStep();
+                        }
+                        break;
+                    }
                 }
                 }
                 catch (Exception e)
@@ -251,10 +313,22 @@ namespace UnityMCP.Editor
         static TaskCompletionSource<string> _moveTcs;
         static IPlaytestSimulator _activeSimulator;
         static bool _isRunning;
+        // CAPTURE_FRAMES state
+        static string _captureLabel;
+        static float  _captureInterval;
+        static int    _captureTarget;
+        static float  _captureLastTime;
+        static string _captureCamera;
+        static string _captureMode;
         // Cached once per Run() to avoid AssetDatabase.FindAssets on every SetTimeScale call
         static PlaytestConfig _cachedConfig;
         // Tracks stable-start time for UNCHANGED OVER — reset each WaitingCapturedDelta entry
         static float _unchangedSince = -1f;
+        // fresh mode — reload active scene before first step
+        static bool _freshMode;
+        static bool _freshReloadDone;
+        // consecutive exceptions during WAIT_UNTIL polling — reset on success or new step
+        static int _waitPollErrors;
 
         /// <summary>Execute a single synchronous step. Returns true if step completed (phase=Done), false if async.</summary>
         internal static bool ExecuteSyncStep(PlaytestStep step, PlaytestConfig config, List<string> results,

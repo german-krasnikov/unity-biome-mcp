@@ -175,6 +175,10 @@ namespace UnityMCP.Editor
         private static string ExecTimelineConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
+            // Read-only actions allowed in Play Mode; mutating actions are not.
+            if (action != "get" && action != "get_bindings" && action != "preview"
+                && UnityEditor.EditorApplication.isPlaying)
+                return "err: timeline write actions not allowed in Play Mode";
             return action switch
             {
                 "get" => ExecGetTimeline(args),

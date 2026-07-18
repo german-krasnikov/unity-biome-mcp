@@ -90,7 +90,7 @@ namespace UnityMCP.Editor
         {
             // Read (non-mutating)
             CommandRegistry.Register("get_hierarchy", ExecGetHierarchy,
-                required: "", optional: "depth,root,filter,components,summary,incremental,scene",
+                required: "", optional: "depth,root,filter,components,summary,incremental,scene,compress",
                 maxResponseChars: 50000);
             CommandRegistry.Register("get_aliases", _ => GetAliasesText(),
                 required: "", optional: "", allowedDuringCompile: true);
@@ -166,7 +166,8 @@ namespace UnityMCP.Editor
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("get_compile_errors", _ => CompileErrorCapture.GetErrors(),
                 required: "", optional: "", allowedDuringCompile: true);
-            CommandRegistry.Register("compile_status", _ => CompileNotifier.GetStatus(),
+            CommandRegistry.Register("compile_status",
+                _ => $"{CompileNotifier.GetStatus()}|reload={SyncHelper.SyncState}",
                 required: "", optional: "", allowedDuringCompile: true);
             // sync/sync_status: unified reload API (v0.21)
             CommandRegistry.Register("sync",        args => SyncHelper.TriggerSync(
@@ -188,12 +189,14 @@ namespace UnityMCP.Editor
                     SessionState.EraseBool("MCP_ReloadGuardLocked");
                     try { EditorApplication.UnlockReloadAssemblies(); } catch { }
                     try { AssetDatabase.AllowAutoRefresh(); } catch { }
+                    try { AssetDatabase.Refresh(); } catch { }
                 }
                 SyncHelper.Ops.ImportPackageSources();
                 SyncHelper.Ops.Refresh();
                 SyncHelper.Ops.RequestScriptCompilation(RequestScriptCompilationOptions.None);
-                EditorUtility.RequestScriptReload();  // trigger domain reload when compile is done but reload is pending
-                InternalEditorUtility.RepaintAllViews();  // pump native repaint to unstick editor loop
+                if (!EditorApplication.isCompiling)
+                    EditorUtility.RequestScriptReload();
+                InternalEditorUtility.RepaintAllViews();
                 SyncHelper.Ops.StartTickPump();
                 return "force_refresh triggered";
             }, required: "", optional: "", allowedDuringCompile: true);  // G11: must work when wedged
@@ -217,7 +220,12 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("get_selection", _ => EditorStateHelper.GetSelection(),
                 required: "", optional: "");
             CommandRegistry.Register("inspect", ExecInspect,
-                required: "paths", optional: "components,fields,compress,type");
+                required: "", optional: "paths,find_type,components,fields,compress,type");
+            CommandRegistry.Register("get_unity_events", ExecGetUnityEvents,
+                required: "", optional: "path");
+            CommandRegistry.Register("runtime_snapshot", ExecRuntimeSnapshot,
+                required: "type", optional: "name,component,compress",
+                maxResponseChars: 50000);
             CommandRegistry.Register("validate_references", args => ValidateReferencesHelper.Validate(
                 JsonHelper.ExtractString(args, "path"),
                 ExtractInt(args, "depth", 3),
@@ -373,7 +381,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("delete_object", ExecDeleteObject, mutating: true,
                 required: "", optional: "id,path,force");
             CommandRegistry.Register("set_property", ExecSetProperty, mutating: true,
-                required: "path,component,prop,value", optional: "dry_run");
+                required: "", optional: "path,find_type,component,prop,value,dry_run");
             CommandRegistry.Register("set_property_delta", ExecSetPropertyDelta, mutating: true,
                 required: "path,component,prop,delta", optional: "");
             CommandRegistry.Register("set_active", args => ObjectManager.SetActive(
@@ -427,7 +435,7 @@ namespace UnityMCP.Editor
                 required: "action", optional: "path,scene");
             CommandRegistry.Register("animation", ExecAnimationConsolidated, mutating: true,
                 required: "action,path", optional: "clip,clip_name,property,keys,time,component_type,binding_path,tangent,function_name,int_param,float_param,string_param");
-            CommandRegistry.Register("timeline", ExecTimelineConsolidated, mutating: true,
+            CommandRegistry.Register("timeline", ExecTimelineConsolidated, mutating: false,
                 required: "action", optional: "path,track,track_type,clip,binding,start,duration,blend_in,blend_out,asset_path,director_path,tracks,time,name,clip_in,index,offset,value");
             CommandRegistry.Register("references", ExecReferencesConsolidated, mutating: true,
                 required: "action", optional: "path,children,depth,source,target,mappings");
@@ -477,7 +485,7 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAsync("test_step", AsyncTestStep, runtime: true,
                 required: "path,position", optional: "checks_before,checks_after,wait_after,timeout");
             CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: true,
-                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure");
+                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh");
         }
     }
 }

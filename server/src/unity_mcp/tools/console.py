@@ -47,19 +47,26 @@ async def console_mark(label: str = "") -> str:
 
 
 async def get_console_since(mark_id: str, level: str | None = None,
-                             count: int = 500) -> str:
+                             count: int = 500,
+                             keyword: str | None = None,
+                             count_only: bool = False) -> str:
     """Console entries after the watermark created by console_mark().
-    mark_id: string from console_mark().
+    mark_id: string from console_mark() or bare float timestamp.
     level: optional filter ('error,exception,assert').
+    keyword: case-insensitive substring filter.
+    count_only: return match count as string.
     count: max entries to return (default 500)."""
     try:
-        ts = float(mark_id.split(":")[1])
+        # Support "mark:ts[:label]" format and bare float
+        part = mark_id.split(":")[1] if mark_id.startswith("mark:") else mark_id
+        ts = float(part)
     except (IndexError, ValueError):
         return "err: invalid mark_id"
     since_s = _time.time() - ts
     if since_s < 0:
         return "err: mark_id timestamp in future"
-    return await get_console(count=count, level=level, since=since_s)
+    return await get_console(count=count, level=level, since=since_s,
+                             keyword=keyword, count_only=count_only)
 
 
 def register(mcp, send, args):

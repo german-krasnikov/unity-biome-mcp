@@ -38,6 +38,7 @@ namespace UnityMCP.Editor
         // RC-1/RC-5: build fingerprint = MVID:mtime, captured only in afterAssemblyReload.
         // Empty string means "no reload has happened in this Unity session yet".
         public static string CurrentDomainStamp => SessionState.GetString(StampKey, "");
+        public static string SyncState          => SessionState.GetString(StateKey, "idle");
 
         // --- Events ---
         public static event Action         OnSyncComplete;
@@ -319,7 +320,6 @@ namespace UnityMCP.Editor
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
         }
 
-        // Tier-0: ForceUpdate defeats Bee "inputs unchanged" gate; ForceSynchronousImport blocks until done.
         public void Refresh()                  => AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
         public void Resolve()                  => UnityEditor.PackageManager.Client.Resolve();
         // None instead of CleanBuildCache: Unity 6.x regression — CleanBuildCache fires
@@ -327,21 +327,23 @@ namespace UnityMCP.Editor
         // (in ImportPackageSources) already defeats Bee's "inputs unchanged" gate.
         public void RequestScriptCompilation(RequestScriptCompilationOptions opts) => CompilationPipeline.RequestScriptCompilation(opts);
 
-        // Self-re-arming tick-pump: keeps nudging QueuePlayerLoopUpdate every editor tick
-        // until IsCompiling becomes true (backgrounded editor started compiling) OR the
-        // tick budget is exhausted (anti-runaway). Unsubscribes itself on stop condition.
+        private static bool _pumpActive;
+
         public void StartTickPump()
         {
+            if (_pumpActive) return;
+            _pumpActive = true;
             int remaining = TickBudget;
             EditorApplication.CallbackFunction pump = null;
             pump = () =>
             {
                 EditorApplication.QueuePlayerLoopUpdate();
                 remaining--;
-                // ponytail: removed isCompiling exit — when latch holds isCompiling=true
-                // the pump exited immediately on first tick; keep pumping to unstick Bee
-                if (remaining <= 0)
+                if (remaining <= 0 || EditorApplication.isCompiling)
+                {
                     EditorApplication.update -= pump;
+                    _pumpActive = false;
+                }
             };
             EditorApplication.update += pump;
         }

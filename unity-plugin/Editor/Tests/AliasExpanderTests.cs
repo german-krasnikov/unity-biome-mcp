@@ -10,7 +10,7 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void Setup() => AliasExpander._tableOverride = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
         {
-            ["julia"]  = "/World/Characters/Julia",
+            ["player"]  = "/World/Characters/Player",
             ["max_hp"] = "100",
         };
 
@@ -20,16 +20,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ExpandJson_NoDollar_ReturnsUnchanged()
         {
-            const string input = "{\"path\":\"/World/Characters/Julia\",\"type\":\"MeshRenderer\"}";
+            const string input = "{\"path\":\"/World/Characters/Player\",\"type\":\"MeshRenderer\"}";
             Assert.AreEqual(input, AliasExpander.ExpandJson(input));
         }
 
         [Test]
         public void ExpandJson_KnownAlias_Replaces()
         {
-            var result = AliasExpander.ExpandJson("{\"path\":\"$julia\",\"type\":\"MeshRenderer\"}");
-            StringAssert.Contains("/World/Characters/Julia", result);
-            StringAssert.DoesNotContain("$julia", result);
+            var result = AliasExpander.ExpandJson("{\"path\":\"$player\",\"type\":\"MeshRenderer\"}");
+            StringAssert.Contains("/World/Characters/Player", result);
+            StringAssert.DoesNotContain("$player", result);
         }
 
         [Test]
@@ -65,9 +65,9 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ExpandText_KnownAlias_Replaces()
         {
-            var result = AliasExpander.ExpandText("get_component path=$julia type=MeshRenderer");
-            StringAssert.Contains("/World/Characters/Julia", result);
-            StringAssert.DoesNotContain("$julia", result);
+            var result = AliasExpander.ExpandText("get_component path=$player type=MeshRenderer");
+            StringAssert.Contains("/World/Characters/Player", result);
+            StringAssert.DoesNotContain("$player", result);
         }
 
         [Test]
@@ -98,7 +98,7 @@ namespace UnityMCP.Editor.Tests
         public void ExpandText_EmptyTable_ReturnsUnchanged()
         {
             AliasExpander._tableOverride = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
-            const string input = "get_component path=$julia";
+            const string input = "get_component path=$player";
             Assert.AreEqual(input, AliasExpander.ExpandText(input));
         }
 
@@ -117,27 +117,27 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ExpandText_BareWord_NotExpanded()
         {
-            // "julia" is in the table but bare word (no $) must never expand
-            var result = AliasExpander.ExpandText("get_component path=julia type=MeshRenderer");
-            StringAssert.Contains("path=julia", result);
+            // "player" is in the table but bare word (no $) must never expand
+            var result = AliasExpander.ExpandText("get_component path=player type=MeshRenderer");
+            StringAssert.Contains("path=player", result);
         }
 
         // P4: $alias embedded inside a longer path string expands correctly
         [Test]
         public void ExpandText_EmbeddedAlias_Expands()
         {
-            var result = AliasExpander.ExpandText("get_hierarchy root=/Scenes/$julia");
-            StringAssert.Contains("/Scenes//World/Characters/Julia", result);
-            StringAssert.DoesNotContain("$julia", result);
+            var result = AliasExpander.ExpandText("get_hierarchy root=/Scenes/$player");
+            StringAssert.Contains("/Scenes//World/Characters/Player", result);
+            StringAssert.DoesNotContain("$player", result);
         }
 
         // P4: $alias embedded in JSON value expands with proper JSON escaping
         [Test]
         public void ExpandJson_EmbeddedAlias_Expands()
         {
-            var result = AliasExpander.ExpandJson("{\"root\":\"/Scenes/$julia\"}");
-            StringAssert.Contains("/Scenes//World/Characters/Julia", result);
-            StringAssert.DoesNotContain("$julia", result);
+            var result = AliasExpander.ExpandJson("{\"root\":\"/Scenes/$player\"}");
+            StringAssert.Contains("/Scenes//World/Characters/Player", result);
+            StringAssert.DoesNotContain("$player", result);
         }
 
         // P4: Multiple $aliases in one value — all expand
@@ -209,11 +209,11 @@ namespace UnityMCP.Editor.Tests
         {
             AliasExpander._tableOverride = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
             {
-                ["eggs"] = "/Storage|CargoVDemo|Count(false)",
+                ["items"] = "/Storage|CargoVDemo|Count(false)",
             };
-            var result = AliasExpander.ExpandJson("{\"queries\":\"$eggs\"}");
+            var result = AliasExpander.ExpandJson("{\"queries\":\"$items\"}");
             StringAssert.Contains("Count(false)", result);
-            StringAssert.DoesNotContain("$eggs", result);
+            StringAssert.DoesNotContain("$items", result);
         }
 
         [Test]

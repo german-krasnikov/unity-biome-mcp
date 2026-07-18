@@ -493,19 +493,20 @@ def test_tier1_residual_names_still_present():
     """Regression: tier1-only names (not in _CORE_TOOLS) must survive refactors.
     Phase 1a: delete_object/set_parent/scene/search_scene demoted from CORE, now tier1-only.
     Phase 1b: runtime tools (invoke_method etc.) demoted from TIER1 entirely;
-    set_active/validate_references/execute_code/undo_last promoted to tier1."""
+    set_active/validate_references/undo_last promoted to tier1.
+    Phase sprint1-2: execute_code promoted from tier1 → core (#04)."""
     from unity_mcp.tools.gating import TIER1, _CORE_TOOLS
     residual_expected = {
         "screenshot", "run_tests", "setup_objects", "configure_objects",
         "compile_preflight", "await_compile", "sync_unity", "run_playtest",
         # Phase 1a demotions from CORE → now tier1-only
         "delete_object", "set_parent", "scene", "search_scene",
-        # Phase 1b promotions
-        "set_active", "validate_references", "execute_code", "undo_last",
+        # Phase 1b promotions (execute_code removed: promoted to CORE in sprint1-2 #04)
+        "set_active", "validate_references", "undo_last",
     }
     missing = residual_expected - TIER1
     assert not missing, f"TIER1-only names dropped by refactor: {sorted(missing)}"
-    # Sanity: none of the residual names accidentally ended up back in _CORE_TOOLS
+    # Sanity: none of the tier1-only names accidentally ended up back in _CORE_TOOLS
     assert not (residual_expected & _CORE_TOOLS)
 
 
@@ -676,3 +677,37 @@ def test_register_tools_old_key_compat():
         gating._THEMED_CATEGORIES["SCENE"].remove("test_fake_tool_scene")
         gating._ALL_KNOWN.discard("test_fake_tool_scene")
         gating.CATEGORIES = gating._rebuild_categories()
+
+
+# --- #04: execute_code promoted to core ---
+
+def test_execute_code_in_core():
+    """#04: execute_code must be in _CORE_TOOLS so Codex sees it by default."""
+    from unity_mcp.tools.gating import _CORE_TOOLS
+    assert "execute_code" in _CORE_TOOLS
+
+
+# --- #15: verify/scene tools promoted to core ---
+
+def test_verify_after_change_in_core():
+    """#15: verify_after_change must be in _CORE_TOOLS."""
+    from unity_mcp.tools.gating import _CORE_TOOLS
+    assert "verify_after_change" in _CORE_TOOLS
+
+
+def test_apply_scene_change_in_core():
+    """#15: apply_scene_change must be in _CORE_TOOLS."""
+    from unity_mcp.tools.gating import _CORE_TOOLS
+    assert "apply_scene_change" in _CORE_TOOLS
+
+
+def test_scene_change_plan_in_core():
+    """#15: scene_change_plan must be in _CORE_TOOLS."""
+    from unity_mcp.tools.gating import _CORE_TOOLS
+    assert "scene_change_plan" in _CORE_TOOLS
+
+
+def test_resolve_scene_refs_in_core():
+    """#15: resolve_scene_refs must be in _CORE_TOOLS."""
+    from unity_mcp.tools.gating import _CORE_TOOLS
+    assert "resolve_scene_refs" in _CORE_TOOLS

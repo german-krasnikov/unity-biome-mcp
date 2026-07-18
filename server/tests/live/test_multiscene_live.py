@@ -1,4 +1,5 @@
 """Live integration tests for multi-scene support."""
+import logging
 import uuid
 
 import pytest
@@ -40,8 +41,8 @@ async def additive_scene(bridge):
             'return "closed";'
         )
         await bridge.send("execute_code", {"code": close_code})
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("additive_scene cleanup failed for %r: %s", name, e)
 
 
 @pytest_asyncio.fixture

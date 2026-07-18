@@ -46,6 +46,7 @@ from tests.live.chat_ui_helpers import (
     get_pref,
     set_pref,
     set_pref_bool,
+    get_pref_bool,
     is_image_ext,
 )
 
@@ -306,9 +307,17 @@ async def test_editorpref_selected_backend_readable(w, n):
 @pytest.mark.parametrize("val", ["claude", "codex", "kimi", "gemini", "opencode"])
 async def test_editorpref_set_backend(bridge, val):
     """Writing and reading MCPChat.SelectedBackend EditorPref round-trips."""
-    await exec_ok(bridge, set_pref("MCPChat.SelectedBackend", val))
-    got = await exec_ok(bridge, get_pref("MCPChat.SelectedBackend"))
-    assert got == val, f"EditorPref round-trip failed: wrote {val!r}, got {got!r}"
+    original = await exec_ok(bridge, get_pref("MCPChat.SelectedBackend"))
+    try:
+        await exec_ok(bridge, set_pref("MCPChat.SelectedBackend", val))
+        got = await exec_ok(bridge, get_pref("MCPChat.SelectedBackend"))
+        assert got == val, f"EditorPref round-trip failed: wrote {val!r}, got {got!r}"
+    finally:
+        restore = original if original != "MISSING" else ""
+        try:
+            await exec_ok(bridge, set_pref("MCPChat.SelectedBackend", restore))
+        except Exception:
+            pass
 
 
 @pytest.mark.parametrize("n", [0, 1, 2, 3, 4])
@@ -398,9 +407,15 @@ _SESSION_VALS = ["alpha", "bb", "ccc", "d" * 100, "simple"]
 async def test_session_transcript_key_writable(bridge, val):
     """Writing a test session key and reading it back round-trips correctly."""
     key = "MCPChat_TestMonkey"
-    await exec_ok(bridge, set_session(key, val))
-    got = await exec_ok(bridge, get_session(key))
-    assert got == val, f"session round-trip: wrote {val!r}, got {got!r}"
+    try:
+        await exec_ok(bridge, set_session(key, val))
+        got = await exec_ok(bridge, get_session(key))
+        assert got == val, f"session round-trip: wrote {val!r}, got {got!r}"
+    finally:
+        try:
+            await exec_ok(bridge, erase_session(key))
+        except Exception:
+            pass
 
 
 @pytest.mark.parametrize("val", _SESSION_VALS)
@@ -491,9 +506,16 @@ _SESSION_PERSIST_VALS = ["abc", "", "{json}", "line\n2", "unicode:мир"]
 @pytest.mark.parametrize("val", _BOOL_VALS)
 async def test_editorpref_autoscroll_bool(bridge, val):
     """MCPChat.AutoScroll bool EditorPref round-trips correctly."""
-    result = await exec_ok(bridge, set_pref_bool("MCPChat.AutoScroll", val))
-    expected = str(val)
-    assert result == expected, f"AutoScroll pref: set {val}, got {result!r}"
+    original = await exec_ok(bridge, get_pref_bool("MCPChat.AutoScroll"))
+    try:
+        result = await exec_ok(bridge, set_pref_bool("MCPChat.AutoScroll", val))
+        expected = str(val)
+        assert result == expected, f"AutoScroll pref: set {val}, got {result!r}"
+    finally:
+        try:
+            await exec_ok(bridge, set_pref_bool("MCPChat.AutoScroll", original == "True"))
+        except Exception:
+            pass
 
 
 @pytest.mark.parametrize("val", _PREF_BACKENDS)
@@ -507,27 +529,46 @@ async def test_editorpref_selected_backend_roundtrip(bridge, val):
 @pytest.mark.parametrize("val", _BOOL_VALS)
 async def test_editorpref_disable_scene_norm_bool(bridge, val):
     """MCPChat.DisableSceneNameNorm bool EditorPref round-trips correctly."""
-    result = await exec_ok(bridge, set_pref_bool("MCPChat.DisableSceneNameNorm", val))
-    expected = str(val)
-    assert result == expected, f"DisableSceneNameNorm: set {val}, got {result!r}"
+    original = await exec_ok(bridge, get_pref_bool("MCPChat.DisableSceneNameNorm"))
+    try:
+        result = await exec_ok(bridge, set_pref_bool("MCPChat.DisableSceneNameNorm", val))
+        expected = str(val)
+        assert result == expected, f"DisableSceneNameNorm: set {val}, got {result!r}"
+    finally:
+        try:
+            await exec_ok(bridge, set_pref_bool("MCPChat.DisableSceneNameNorm", original == "True"))
+        except Exception:
+            pass
 
 
 @pytest.mark.parametrize("val", _SESSION_PERSIST_VALS)
 async def test_session_state_roundtrip(bridge, val):
     """SessionState.SetString + GetString round-trips arbitrary values."""
     key = "MCPChat_MonkeyPersist"
-    got = await exec_ok(bridge, set_and_get_session(key, val))
-    assert got == val, f"session roundtrip: wrote {val!r}, got {got!r}"
+    try:
+        got = await exec_ok(bridge, set_and_get_session(key, val))
+        assert got == val, f"session roundtrip: wrote {val!r}, got {got!r}"
+    finally:
+        try:
+            await exec_ok(bridge, erase_session(key))
+        except Exception:
+            pass
 
 
 @pytest.mark.parametrize("val", ["v1", "v2", "v3", "v4", "v5"])
 async def test_window_reopen_session_state_survives(bridge, val):
     """SessionState key survives MCPChatWindow close + reopen (process-scoped)."""
     key = "MCPChat_MonkeyReopen"
-    await exec_ok(bridge, set_session(key, val))
-    # Close then reopen window
-    await exec_ok(bridge, CLOSE_WINDOW)
-    await exec_ok(bridge, OPEN_WINDOW)
-    # SessionState is process-scoped — survives window lifecycle
-    got = await exec_ok(bridge, get_session(key))
-    assert got == val, f"session lost after reopen: wrote {val!r}, got {got!r}"
+    try:
+        await exec_ok(bridge, set_session(key, val))
+        # Close then reopen window
+        await exec_ok(bridge, CLOSE_WINDOW)
+        await exec_ok(bridge, OPEN_WINDOW)
+        # SessionState is process-scoped — survives window lifecycle
+        got = await exec_ok(bridge, get_session(key))
+        assert got == val, f"session lost after reopen: wrote {val!r}, got {got!r}"
+    finally:
+        try:
+            await exec_ok(bridge, erase_session(key))
+        except Exception:
+            pass

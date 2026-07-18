@@ -348,6 +348,23 @@ namespace UnityMCP.Editor.Tests
                 "fallback must include generic guidance");
         }
 
+        // ── #08: word-boundary false-positive tests ───────────────────────────
+
+        [TestCase("var externalRef = go.transform;")]
+        [TestCase("bool isSafeGuarded = true;")]
+        [TestCase("string externally = \"ok\";")]
+        public void SecurityScan_ExternUnsafe_IdentifierContaining_DoesNotBlock(string code)
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(code),
+                $"Identifier containing extern/unsafe must not be blocked: {code}");
+
+        [TestCase("[DllImport(\"lib\")] static extern void Foo();")]
+        [TestCase("unsafe void Foo() {}")]
+        [TestCase("static extern void Foo();")] // word-boundary regex only (no DllImport)
+        public void SecurityScan_ExternUnsafeKeyword_StillBlocked(string code)
+            => Assert.Throws<System.InvalidOperationException>(
+                () => CodeExecutor.SecurityScan(code),
+                $"extern/unsafe keyword must be blocked: {code}");
+
         // ── Fix #5: WrapIfBareCode using-directive hoisting ──────────────────
 
         [Test]

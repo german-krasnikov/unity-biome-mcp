@@ -47,13 +47,13 @@ server/src/unity_mcp/
     └── __init__.py              # 3-source auto-discovery (pkgutil, entry_points, UNITY_MCP_PLUGIN_DIRS)
 ```
 
-### Tools (121 total)
+### Tools (145 total)
 
-**TIER1 — always visible (42 tools):**
+**TIER1 — always visible (45 tools):**
 
-Core (25): get_hierarchy, get_component, inspect, set_property, create_object, delete_object, manage_component, batch, scene, search_scene, set_parent, get_console, get_compile_errors, get_enabled_tools, discover_tools, editor, do, ask, ask_user, permission_prompt, reconnect_unity, list_connections, resolve_tool_schema, doctor, alias_status
+Core (15): apply_scene_change, batch, create_object, editor, execute_code, get_compile_errors, get_component, get_console, get_hierarchy, inspect, manage_component, resolve_scene_refs, scene_change_plan, set_property, verify_after_change
 
-Other (17): screenshot, run_tests, setup_objects, set_properties, configure_objects, find_references, compile_preflight, semantic_at, await_compile, sync_unity, invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest
+Other tier1 (30): alias_status, ask, ask_user, await_compile, compile_preflight, configure_objects, console_mark, delete_object, discover_tools, get_console_since, get_test_results, lint_playtest, lint_scene_refs, mcp_status, permission_prompt, reconnect_unity, release_smoke, resolve_tool_schema, run_playtest, run_tests, run_tests_wait, scene, screenshot, search_scene, set_active, set_parent, setup_objects, sync_unity, undo_last, validate_references
 
 ### Compile-Tool Corroboration (v0.7.0+)
 
@@ -63,10 +63,10 @@ Other (17): screenshot, run_tests, setup_objects, set_properties, configure_obje
 
 | Category | Tools |
 |----------|-------|
-| object | find_objects, get_object_detail, get_components_list, set_active, rename_object, clone_object, set_material, wire_event, unwire_event, auto_wire, set_property_delta, object_diff, transfer_object |
+| object | find_objects, get_object_detail, get_components_list, set_active, rename_object, clone_object, set_material, wire_event, unwire_event, auto_wire, get_unity_events, set_property_delta, object_diff, transfer_object |
 | animation | animation, timeline, animator, particle |
 | asset | asset, material, prefab, scriptable_object, project_settings, shader, references, material_audit |
-| advanced | execute_code, recompile, get_schema, auto_fix, smart_build, checkpoint, undo_last, validate_references, menu, diagnose, scan_scene, check_colliders, spatial_query, region_clear, navmesh_query, scene_health, set_llm_config, budget_status |
+| advanced | recompile, get_schema, auto_fix, smart_build, checkpoint, undo_last, validate_references, menu, diagnose, scan_scene, check_colliders, spatial_query, region_clear, navmesh_query, scene_health, set_llm_config, budget_status |
 | ui | create_ui, set_rect, validate_layout, get_spatial_context, ui_intent, vfx_intent |
 | runtime | get_test_results, get_perf, debug_animator, debug_physics |
 | session | fingerprint, scene_diff, get_changes, save_session, load_session, screenshot_baseline, screenshot_compare, save_skill, use_skill, list_skills, apply_template, save_template, list_templates |
@@ -75,6 +75,9 @@ Other (17): screenshot, run_tests, setup_objects, set_properties, configure_obje
 | rendering | render_analyze, analyze_lod_culling |
 | plugins | (auto-gated: tools registered without register_tools() call) |
 | connection | (empty — list_connections and reconnect_unity are in TIER1/CORE) |
+
+**get_unity_events:** Returns all UnityEvent fields on a component with fully-qualified
+target paths. Replaces manual `get_component` + parsing when auditing event wiring.
 
 ### Capability Gating (gating.py)
 
@@ -155,6 +158,11 @@ def main():
   - Heartbeat: 15s interval, raw ping, 3 failures → close, 2s polling when disconnected (5s if compile busy)
   - Reconnect backoff (v0.52.7): exponential (5s→60s, reset on success, ±10% jitter), cooldown re-armed on every attempt. Ping verification, fires callbacks
   - DomainReloadError on Unity `going_away` event frame
+  - **ConnectionRefused on domain reload:** When Unity closes the TCP port during a domain
+    reload, `bridge.send()` receives a `ConnectionRefusedError`. The bridge retries with
+    the same exponential backoff (5s→60s) instead of surfacing the error immediately.
+    Commands issued during a reload (`execute_code`, `get_compile_errors`, etc.) naturally
+    recover without caller retries.
 
 ### Server Control (server_control.py)
 
@@ -166,6 +174,32 @@ def main():
 Simplified detector for Unity C# compile/domain-reload:
 - **State file**: reads `~/.unity-mcp/state/port-{port}.state` (ready/compiling/reloading)
 - `is_process_dead()`: PID cross-check from port file
+
+**compile_status** response format (v0.89.x):
+
+```
+idle                     # compile finished, domain-reload complete
+compiling|2.3            # compiling, elapsed seconds
+idle-stale               # isCompiling=false but no compilationFinished — wedge suspected
+reloading|ready          # domain reload in progress, assembly side ready
+reloading|compiling      # domain reload in progress, compile still running
+```
+
+`|reload=` suffix is appended by `SyncHelper` when a domain reload is tracked.
+Use `compile_status` polling instead of a sleep loop to detect reload completion.
+
+**console mark_id format (v0.89.x):** `console_mark()` accepts any non-empty string as
+label. `get_console_since(mark)` uses tolerant parsing — leading `mark:`, timestamps,
+and label suffixes are all handled. `keyword` and `count_only` params are forwarded
+to the underlying `get_console` call.
+
+```python
+# All equivalent:
+mark = await console_mark()                      # → "mark:1720000000.0"
+mark = await console_mark(label="before_spawn")  # → "mark:1720000000.0:before_spawn"
+errors = await get_console_since(mark, keyword="NullRef", count_only=True)
+# → "3"  (count of matching errors since mark)
+```
 
 ### Auto-Batch (autobatch.py)
 

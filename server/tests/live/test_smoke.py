@@ -23,7 +23,12 @@ async def test_destroy_object_cleans_up(wrapped_bridge):
     import uuid
     name = f"LiveDel_{uuid.uuid4().hex[:6]}"
     await wrapped_bridge.send("create_object", {"name": name})
-    await wrapped_bridge.send("delete_object", {"path": f"/{name}"})
-
-    r2 = await wrapped_bridge.send("find_objects", {"name": name})
-    assert not strip_markers(r2).strip(), f"Object still exists after destroy: {r2}"
+    try:
+        await wrapped_bridge.send("delete_object", {"path": f"/{name}"})
+        r2 = await wrapped_bridge.send("find_objects", {"name": name})
+        assert not strip_markers(r2).strip(), f"Object still exists after destroy: {r2}"
+    finally:
+        try:
+            await wrapped_bridge.send("delete_object", {"path": f"/{name}"})
+        except Exception:
+            pass

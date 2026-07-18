@@ -7,8 +7,16 @@ namespace UnityMCP.Editor
 {
     internal class PlaytestState
     {
-        // label → (query, capturedValue)
-        readonly Dictionary<string, (string query, float value)> _captures = new();
+        // label → (query, raw string value, numeric value)
+        readonly Dictionary<string, (string query, string raw, float value)> _captures = new();
+
+        // ─── FrameSets (CAPTURE_FRAMES) ───
+        readonly Dictionary<string, List<string>> _frameSets = new();
+
+        public void InitFrames(string label) => _frameSets[label] = new List<string>();
+        public void AddFrame(string label, string path) => _frameSets[label].Add(path);
+        public int GetFrameCount(string label) => _frameSets.TryGetValue(label, out var l) ? l.Count : 0;
+        public List<string> GetFrames(string label) => _frameSets.TryGetValue(label, out var l) ? l : null;
 
         // invariants: list of (query, op, expected, rawLine)
         readonly List<(string query, string op, string expected, string rawLine)> _invariants = new();
@@ -20,12 +28,17 @@ namespace UnityMCP.Editor
 
         // ─── Capture ───
 
-        public void Capture(string label, string query, float value)
-            => _captures[label] = (query, value);
+        public void Capture(string label, string query, string rawValue, float floatValue)
+            => _captures[label] = (query, rawValue, floatValue);
 
         public float GetCapturedValue(string label) => _captures[label].value;
 
         public string GetCapturedQuery(string label) => _captures[label].query;
+
+        public string GetCapturedRaw(string label) => _captures[label].raw;
+
+        public bool IsChanged(string label, string currentRaw)
+            => !string.Equals(GetCapturedRaw(label), currentRaw, StringComparison.OrdinalIgnoreCase);
 
         // ─── AssertCaptured ───
 

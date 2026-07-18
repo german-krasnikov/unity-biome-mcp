@@ -106,10 +106,12 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
                        abort_on_fail: bool = False,
                        defs: "str | None" = None,
                        path: "str | None" = None,
-                       snapshot_on_failure: bool = False) -> str:
+                       snapshot_on_failure: bool = False,
+                       fresh: bool = False) -> str:
     """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit test suite, use `run_tests`).
+    Use path= to load a .playtest file from disk (Assets-relative or project-root-relative). script and path are mutually exclusive.
     script: inline DSL text (mutually exclusive with path).
-    path: Assets-relative path to a .playtest file (mutually exclusive with script).
+    path: Assets-relative or project-root-relative path to a .playtest file (mutually exclusive with script).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
     ASSERT_CONSOLE_CLEAN [IGNORE "pat1","pat2"] | SNAPSHOT queries | INVOKE path comp method args |
     SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |
@@ -125,11 +127,13 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
         raise ValueError("script and path are mutually exclusive")
     if not script and not path:
         raise ValueError("script or path required")
+    _fresh = "true" if fresh else None
     if path:
         raw = await _send("run_playtest", _args(
             path=path, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
+            fresh=_fresh,
             defs=_normalize_defs(defs), _explicit_path="true"),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
     else:
@@ -140,7 +144,8 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
         raw = await _send("run_playtest", _args(
             script=script, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
-            snapshot_on_failure="true" if snapshot_on_failure else None),
+            snapshot_on_failure="true" if snapshot_on_failure else None,
+            fresh=_fresh),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
     compressed = _compress_report(raw)
     if len(compressed) > 300:
@@ -159,19 +164,26 @@ run_playtest.__test__ = False  # prevent pytest from collecting as test
 
 
 async def run_playtest_suite(
-    paths: str,
+    paths: "str | None" = None,
+    suite_path: "str | None" = None,
     timeout_per_test: float = 120.0,
     stop_on_fail: bool = False,
     stop_after: bool = True,
     auto_play: bool = False,
+    restart_between: bool = False,
 ) -> str:
     """[Play Mode] Run multiple .playtest files sequentially and return a compact matrix.
     paths: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,
            or newline-separated list of project-relative paths.
+    suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).
+    Exactly one of paths or suite_path must be provided.
     stop_on_fail=True: abort suite after first failure.
     stop_after=True: exit Play Mode when suite completes.
     auto_play=True: enter Play Mode automatically if not already playing.
+    restart_between=True: stop+play between each file to reset runtime state.
     Output: SUITE: X/Y passed (Zs) + per-file line + full failure details."""
+    if paths and suite_path:
+        raise ValueError("paths and suite_path are mutually exclusive")
     if auto_play:
         import asyncio as _asyncio
         state = await _send("editor", _args(action="state"), timeout=5.0)
@@ -185,7 +197,16 @@ async def run_playtest_suite(
                 if "state: playing" in _lower or "state: paused" in _lower:
                     break
 
-    if "*" in paths or "?" in paths:
+    if suite_path:
+        import pathlib as _pathlib
+        file_list = [l.strip() for l in
+                     _pathlib.Path(suite_path).read_text(encoding="utf-8").splitlines()
+                     if l.strip() and not l.strip().startswith("#")]
+        if not file_list:
+            return "SUITE: no files in suite"
+    elif not paths:
+        raise ValueError("paths or suite_path required")
+    elif "*" in paths or "?" in paths:
         file_list_raw = await _send("list_playtest_files", _args(pattern=paths), timeout=10.0)
         if file_list_raw.startswith("err:") or file_list_raw == "no files":
             return file_list_raw
@@ -202,6 +223,19 @@ async def run_playtest_suite(
     suite_start = _time.monotonic()
 
     for filepath in file_list:
+        if restart_between and results:  # not before first file
+            import asyncio as _asyncio
+            try:
+                await _send("editor", _args(action="stop"), timeout=10.0)
+                await _asyncio.sleep(1.0)
+                await _send("editor", _args(action="play"), timeout=5.0)
+                for _ in range(15):
+                    await _asyncio.sleep(1.0)
+                    s = await _send("editor", _args(action="state"), timeout=5.0)
+                    if "state: playing" in s.lower():
+                        break
+            except Exception:
+                pass  # best-effort
         t0 = _time.monotonic()
         raw = await _send("run_playtest", _args(
             path=filepath,
@@ -299,11 +333,20 @@ async def export_playtest_aliases_to_defs(
     return await _send("export_playtest_aliases_to_defs", _args(asset=asset, defs=defs))
 
 
-async def lint_playtest_suite(paths: str) -> str:
+async def lint_playtest_suite(paths: "str | None" = None,
+                              suite_path: "str | None" = None) -> str:
     """Read-only preflight check across multiple .playtest files.
     paths: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list.
+    suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).
     Returns: aggregated lint report, one block per file."""
-    if "*" in paths or "?" in paths:
+    if suite_path:
+        import pathlib as _pathlib
+        file_list = [l.strip() for l in
+                     _pathlib.Path(suite_path).read_text(encoding="utf-8").splitlines()
+                     if l.strip() and not l.strip().startswith("#")]
+    elif not paths:
+        raise ValueError("paths or suite_path required")
+    elif "*" in paths or "?" in paths:
         file_list_raw = await _send("list_playtest_files", _args(pattern=paths), timeout=10.0)
         if file_list_raw.startswith("err:") or file_list_raw == "no files":
             return file_list_raw
@@ -344,6 +387,18 @@ async def lint_scene_refs(path: "str | None" = None, snippet: "str | None" = Non
     return await _send("lint_scene_refs", _args(path=path, snippet=snippet), timeout=30.0)
 
 
+async def runtime_snapshot(type: str, name: "str | None" = None,
+                           component: "str | None" = None, compress: bool = False) -> str:
+    """Snapshot all runtime objects of a given component type. Returns per-object field dump.
+    type: component type name (e.g. 'Rigidbody', 'EnemyController').
+    name: optional name substring filter.
+    component: component type to serialize (defaults to type).
+    compress: strip default-value fields to reduce response size."""
+    return await _send("runtime_snapshot", _args(
+        type=type, name=name, component=component,
+        compress="true" if compress else None))
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RO)(resolve_scene_refs)
@@ -361,3 +416,4 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RO)(validate_playtest_aliases)
     mcp.tool(annotations=_RW)(sync_playtest_aliases_from_defs)
     mcp.tool(annotations=_RW)(export_playtest_aliases_to_defs)
+    mcp.tool(annotations=_RO)(runtime_snapshot)

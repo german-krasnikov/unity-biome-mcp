@@ -252,10 +252,14 @@ namespace UnityMCP.Editor
 
             private static void DeleteTempScene()
             {
-                // Replace active scene if still pointing at temp file (guard against dirty-scene dialog)
                 var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
                 if (activeScene.path == TempScenePath)
+                {
+                    // Save silently before NewScene to suppress "Save modified scenes?" dialog
+                    if (activeScene.isDirty)
+                        EditorSceneManager.SaveScene(activeScene);
                     EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                }
                 if (AssetDatabase.AssetPathToGUID(TempScenePath) != "")
                     AssetDatabase.DeleteAsset(TempScenePath);
             }

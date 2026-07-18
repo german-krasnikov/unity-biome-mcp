@@ -42,11 +42,16 @@ async def test_delete_object_no_false_positive(bridge):
     """delete_object on freshly created object — rule must not false-positive."""
     name = f"LiveDel_{uuid.uuid4().hex[:6]}"
     await bridge.send("create_object", {"name": name})
-    resp = await bridge.send("delete_object", {"path": f"/{name}"})
-    text = resp.get("data", "") if isinstance(resp, dict) else str(resp)
-    assert "[REFLECT:" not in text or "ok" in text.lower(), (
-        f"Spurious [REFLECT: in real delete_object response: {text[:300]}"
-    )
+    try:
+        resp = await bridge.send("delete_object", {"path": f"/{name}"})
+        text = resp.get("data", "") if isinstance(resp, dict) else str(resp)
+        assert "[REFLECT:" not in text or "ok" in text.lower(), (
+            f"Spurious [REFLECT: in real delete_object response: {text[:300]}"
+        )
+    except Exception:
+        from tests.live.conftest import _destroy
+        await _destroy(bridge, name)
+        raise
 
 
 async def test_reflect_run_against_real_get_component(bridge, sandbox):
@@ -97,8 +102,13 @@ async def test_reflect_run_against_real_delete_object(bridge):
     """
     name = f"LiveDel_{uuid.uuid4().hex[:6]}"
     await bridge.send("create_object", {"name": name})
-    resp = await bridge.send("delete_object", {"path": f"/{name}"})
-    real_text = resp.get("data", "") if isinstance(resp, dict) else str(resp)
+    try:
+        resp = await bridge.send("delete_object", {"path": f"/{name}"})
+        real_text = resp.get("data", "") if isinstance(resp, dict) else str(resp)
+    except Exception:
+        from tests.live.conftest import _destroy
+        await _destroy(bridge, name)
+        raise
 
     mismatch = await reflect(
         "delete_object",

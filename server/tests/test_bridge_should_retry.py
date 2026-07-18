@@ -53,31 +53,32 @@ def test_should_retry_busy_probe_returns_true():
     assert delay > 0
 
 
-# ── Test 3: first attempt (attempt=0) → grace retry ──────────────────────────
+# ── Test 3: ConnectionRefused at attempt=0 → backoff retry (#05) ─────────────
 
-def test_should_retry_grace_on_first_attempt():
-    """First attempt failure (idle probe): one grace retry with delay=1.0."""
+def test_should_retry_connection_refused_attempt0():
+    """#05: ConnectionRefused at attempt=0 → retry with 2s backoff (domain reload)."""
     bridge = _make_bridge()
     err = ConnectionRefusedError("refused")
 
     do_retry, delay, reason = bridge.should_retry(err, attempt=0, session_deadline=_far_deadline())
 
     assert do_retry is True
-    assert delay == 1.0
-    assert reason == "transient"
+    assert delay == 2.0
+    assert reason == "connection_refused"
 
 
-# ── Test 4: attempt=1, idle probe → no grace, stop ───────────────────────────
+# ── Test 4: ConnectionRefused at attempt=1 → exponential backoff ─────────────
 
-def test_should_retry_no_grace_after_first():
-    """attempt=1 with idle probe: grace expired, should_retry returns False."""
+def test_should_retry_connection_refused_attempt1():
+    """#05: ConnectionRefused at attempt=1 → 4s backoff."""
     bridge = _make_bridge()
     err = ConnectionRefusedError("refused")
 
     do_retry, delay, reason = bridge.should_retry(err, attempt=1, session_deadline=_far_deadline())
 
-    assert do_retry is False
-    assert reason == "grace_expired"
+    assert do_retry is True
+    assert delay == 4.0
+    assert reason == "connection_refused"
 
 
 # ── Test 5: attempt >= MAX_RETRIES → stop regardless ─────────────────────────

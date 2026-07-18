@@ -48,6 +48,15 @@ class RetryPolicy:
             delay = min(2 ** (attempt + 1), 8.0)
             return True, delay, "busy"
 
+        # ConnectionRefused during domain reload: Unity TCP server is briefly down.
+        # Treat like a busy state with exponential backoff.
+        # Early bail: if the process is confirmed dead, retrying 14s is wasteful.
+        if isinstance(error, ConnectionRefusedError):
+            if self.probe.is_process_dead():
+                return False, 0.0, "process_dead"
+            delay = min(2 ** (attempt + 1), 8.0)  # 2 / 4 / 8s
+            return True, delay, "connection_refused"
+
         if attempt < 1:
             return True, 1.0, "transient"
 

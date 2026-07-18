@@ -73,10 +73,10 @@ def test_custom_timeout_preserved():
     assert _SPECS["get_console"].timeout_s == 10.0
 
 
-def test_core_count_is_10():
-    """Wave 2: CORE shrunk from 11 to 10 ('do' demoted to SYSTEM direct_only)."""
+def test_core_count_is_15():
+    """Sprint1-2: CORE expanded from 10 to 15 (execute_code + 4 verify/scene tools promoted)."""
     from unity_mcp.tools.tool_specs import _SPECS
-    assert sum(1 for s in _SPECS.values() if s.core) == 10
+    assert sum(1 for s in _SPECS.values() if s.core) == 15
 
 
 def test_tier1_count_in_bounds():

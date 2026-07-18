@@ -13,11 +13,11 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ParseDefsToAliases_ValPath_SimpleObject()
         {
-            var result = PlaytestAliasHelpers.ParseDefsToAliases("VAL $julia /Julia");
+            var result = PlaytestAliasHelpers.ParseDefsToAliases("VAL $player /Player");
             Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("julia", result[0].alias);
+            Assert.AreEqual("player", result[0].alias);
             Assert.AreEqual(AliasType.ValPath, result[0].type);
-            Assert.AreEqual("/Julia", result[0].path);
+            Assert.AreEqual("/Player", result[0].path);
             Assert.IsEmpty(result[0].component);
             Assert.IsEmpty(result[0].field);
         }
@@ -25,7 +25,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ParseDefsToAliases_ValPath_WithComponentAndField()
         {
-            var result = PlaytestAliasHelpers.ParseDefsToAliases("VAL $build_coop /Path|Comp|Field");
+            var result = PlaytestAliasHelpers.ParseDefsToAliases("VAL $build_gate /Path|Comp|Field");
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(AliasType.ValPath, result[0].type);
             Assert.AreEqual("/Path", result[0].path);
@@ -36,11 +36,11 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ParseDefsToAliases_ValConst_Literal()
         {
-            var result = PlaytestAliasHelpers.ParseDefsToAliases("VAL $silo_load_pos -1.18,0,-5.36");
+            var result = PlaytestAliasHelpers.ParseDefsToAliases("VAL $spawn_pos -1.18,0,-5.36");
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(AliasType.ValConst, result[0].type);
             Assert.AreEqual("-1.18,0,-5.36", result[0].constValue);
-            Assert.AreEqual("silo_load_pos", result[0].alias);
+            Assert.AreEqual("spawn_pos", result[0].alias);
         }
 
         [Test]
@@ -167,8 +167,8 @@ namespace UnityMCP.Editor.Tests
         {
             var aliases = new List<QueryAlias>
             {
-                new QueryAlias { alias = "julia",  type = AliasType.ValPath,
-                    path = "/Julia", component = "", field = "" },
+                new QueryAlias { alias = "player",  type = AliasType.ValPath,
+                    path = "/Player", component = "", field = "" },
                 new QueryAlias { alias = "pos",    type = AliasType.ValConst,
                     constValue = "-1.18,0,-5.36" },
                 new QueryAlias { alias = "step",   type = AliasType.VarRuntime,

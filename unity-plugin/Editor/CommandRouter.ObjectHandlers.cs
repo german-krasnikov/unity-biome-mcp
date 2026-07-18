@@ -11,8 +11,16 @@ namespace UnityMCP.Editor
         private static string ExecInspect(string args)
         {
             var pathsStr = JsonHelper.ExtractString(args, "paths");
+            var findType = JsonHelper.ExtractString(args, "find_type");
+            if (string.IsNullOrEmpty(pathsStr) && !string.IsNullOrEmpty(findType))
+            {
+                var found = ObjectManager.FindObjects(null, null, null, findType);
+                if (string.IsNullOrEmpty(found)) return "none";
+                if (found.StartsWith("err:") || found == "none") return found;
+                pathsStr = string.Join(",", found.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+            }
             if (string.IsNullOrEmpty(pathsStr))
-                throw new ArgumentException("paths is required");
+                throw new ArgumentException("paths or find_type is required");
 
             var componentsFilter = JsonHelper.ExtractString(args, "components")
                                 ?? JsonHelper.ExtractString(args, "type");
@@ -78,9 +86,10 @@ namespace UnityMCP.Editor
             var filter = JsonHelper.ExtractString(args, "filter");
             var components = JsonHelper.ExtractString(args, "components") == "true";
             var incremental = JsonHelper.ExtractString(args, "incremental") == "true";
-            return incremental
+            var raw = incremental
                 ? HierarchySerializer.SerializeIncremental(depth, root, filter, components, scene)
                 : HierarchySerializer.Serialize(depth, root, filter, components, scene);
+            return ApplyFieldsCompress(args, raw);
         }
 
 
@@ -143,25 +152,43 @@ namespace UnityMCP.Editor
 
         private static string ExecSetProperty(string args)
         {
+            var findType = JsonHelper.ExtractString(args, "find_type");
+            if (!string.IsNullOrEmpty(findType))
+            {
+                var found = ObjectManager.FindObjects(null, null, null, findType);
+                if (string.IsNullOrEmpty(found)) return "none";
+                if (found.StartsWith("err:") || found == "none") return found;
+                var paths = found.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                var component = JsonHelper.ExtractString(args, "component");
+                var prop = JsonHelper.ExtractString(args, "prop");
+                var value = JsonHelper.ExtractString(args, "value");
+                int ok = 0; int fail = 0;
+                foreach (var p in paths)
+                {
+                    try { ObjectManager.SetProperty(p.Trim(), component, prop, value, false); ok++; }
+                    catch { fail++; }
+                }
+                return $"bulk set {prop}={value}: {ok} ok, {fail} failed / {paths.Length} {findType}";
+            }
             var path = JsonHelper.ExtractString(args, "path");
-            var component = JsonHelper.ExtractString(args, "component");
-            var prop = JsonHelper.ExtractString(args, "prop");
-            var value = JsonHelper.ExtractString(args, "value");
+            var comp = JsonHelper.ExtractString(args, "component");
+            var prp = JsonHelper.ExtractString(args, "prop");
+            var val = JsonHelper.ExtractString(args, "value");
             var dryRun = JsonHelper.ExtractString(args, "dry_run") == "true";
-            var actual = ObjectManager.SetProperty(path, component, prop, value, dryRun);
+            var actual = ObjectManager.SetProperty(path, comp, prp, val, dryRun);
             if (dryRun) return actual;
             // F11: skip snapshot serialization inside batch (deferred Physics.Sync handles it)
-            if (BatchHelper.InBatch) return $"{prop} = {actual}";
+            if (BatchHelper.InBatch) return $"{prp} = {actual}";
             var go = ComponentSerializer.FindObject(path);
             if (go != null)
             {
                 var normComp = InputNormalizer.NormalizeComponent(
-                    ComponentSerializer.StripNamespace(component), go);
+                    ComponentSerializer.StripNamespace(comp), go);
                 var snapshot = ComponentSerializer.Serialize(path, normComp);
                 if (snapshot != null)
-                    return $"{prop} = {actual}\n---\n{snapshot}";
+                    return $"{prp} = {actual}\n---\n{snapshot}";
             }
-            return $"{prop} = {actual}";
+            return $"{prp} = {actual}";
         }
 
         private static string ExecTransferObject(string args)
@@ -269,6 +296,79 @@ namespace UnityMCP.Editor
             var (wired, skipped) = AutoWiringHelper.Scan(go);
             if (!dryRun) AutoWiringHelper.Apply(wired);
             return AutoWiringHelper.Format(wired, skipped, dryRun);
+        }
+
+        private static string ExecGetUnityEvents(string args)
+        {
+            var pathFilter = JsonHelper.ExtractString(args, "path");
+            var sb = new StringBuilder();
+            int found = 0;
+            foreach (var go in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                ScanForEvents(go, pathFilter, sb, ref found);
+            return found == 0 ? "no UnityEvents found" : sb.ToString().TrimEnd();
+        }
+
+        private static void ScanForEvents(UnityEngine.GameObject go, string pathFilter, StringBuilder sb, ref int found)
+        {
+            var path = ComponentSerializer.GetPath(go);
+            if (pathFilter != null
+                && !path.Equals(pathFilter, StringComparison.OrdinalIgnoreCase)
+                && !path.StartsWith(pathFilter + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (UnityEngine.Transform child in go.transform)
+                    ScanForEvents(child.gameObject, pathFilter, sb, ref found);
+                return;
+            }
+            foreach (var comp in go.GetComponents<UnityEngine.Component>())
+            {
+                if (comp == null) continue;
+                try
+                {
+                    var cso = new UnityEditor.SerializedObject(comp);
+                    var prop = cso.GetIterator();
+                    while (prop.NextVisible(true))
+                    {
+                        if (prop.propertyType != UnityEditor.SerializedPropertyType.Generic) continue;
+                        var calls = prop.FindPropertyRelative("m_PersistentCalls.m_Calls");
+                        if (calls == null || calls.arraySize == 0) continue;
+                        sb.Append(path).Append("|").Append(comp.GetType().Name)
+                          .Append("|").Append(prop.name).Append(": ")
+                          .Append("UnityEvent[").Append(calls.arraySize).AppendLine("]");
+                        found++;
+                    }
+                }
+                catch { continue; }
+            }
+            foreach (UnityEngine.Transform child in go.transform)
+                ScanForEvents(child.gameObject, pathFilter, sb, ref found);
+        }
+
+        private static string ExecRuntimeSnapshot(string args)
+        {
+            var typeName  = JsonHelper.ExtractString(args, "type");
+            var nameMatch = JsonHelper.ExtractString(args, "name");
+            var component = JsonHelper.ExtractString(args, "component") ?? typeName;
+            if (string.IsNullOrEmpty(typeName))
+                throw new ArgumentException("type is required");
+
+            var foundPaths = ObjectManager.FindObjects(nameMatch, null, null, typeName);
+            if (foundPaths == "none" || foundPaths.StartsWith("err:")) return foundPaths;
+
+            var sb = new StringBuilder();
+            sb.Append("runtime_snapshot: ").AppendLine(typeName);
+            sb.AppendLine("---");
+            int count = 0;
+            foreach (var p in foundPaths.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var serialized = ComponentSerializer.Serialize(p.Trim(), component);
+                if (serialized == null) continue;
+                sb.Append("### ").AppendLine(p.Trim());
+                sb.AppendLine(serialized);
+                count++;
+                if (count >= 50) { sb.AppendLine("... (truncated at 50)"); break; }
+            }
+            sb.Append("total: ").Append(count);
+            return ApplyFieldsCompress(args, sb.ToString().TrimEnd());
         }
     }
 }

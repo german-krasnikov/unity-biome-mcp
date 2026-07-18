@@ -49,11 +49,11 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void NoAssertConsoleClean_Warns()
+        public void NoAssertConsoleClean_IsError()
         {
             var script = "ASSERT /Player|Transform|localPosition.x > 0\nWAIT 1";
             var result = PlaytestLinter.LintScript(script, "test");
-            Assert.That(result, Does.Contain("WARN"));
+            Assert.That(result, Does.Contain("ERROR"));
             Assert.That(result, Does.Contain("ASSERT_CONSOLE_CLEAN"));
         }
 

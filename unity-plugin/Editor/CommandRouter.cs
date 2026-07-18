@@ -110,9 +110,7 @@ namespace UnityMCP.Editor
                 var before = DateTime.Now;
                 var data = ExecuteCommand(cmd, argsJson);
                 UndoGroupHelper.EndGroup();
-                // Issue 27 (Step 6): execute_code is non-mutating by registration but can still
-                // throw/log a runtime exception inside Roslyn-executed code — surface it too.
-                if (IsMutatingCommand(cmd) || cmd == "execute_code")
+                if (IsMutatingCommand(cmd))
                 {
                     var errors = ConsoleCapture.GetErrorsSince(before);
                     if (errors != null) data += "\n⚠ CONSOLE ERRORS:\n" + errors;
@@ -262,8 +260,9 @@ namespace UnityMCP.Editor
             if (timeout <= 0) timeout = 120f;
             var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
             var snapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true";
+            var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
             var inner = new TaskCompletionSource<string>();
-            PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure);
+            PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh);
             CompleteFromInner(id, inner.Task, tcs, "run_playtest");
         }
 

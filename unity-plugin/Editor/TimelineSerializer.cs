@@ -86,6 +86,16 @@ namespace UnityMCP.Editor
             if (track.locked) sb.Append(" | locked");
 
             sb.AppendLine();
+
+            // Inline clip listing (capped at 10 to keep tokens tight)
+            int ci = 0;
+            foreach (var clip in track.GetClips())
+            {
+                if (ci >= 10) { sb.AppendLine("  ..."); break; }
+                sb.Append("  ");
+                AppendClip(sb, clip);
+                ci++;
+            }
         }
 
         private static string SerializeTrackDetail(PlayableDirector director, TimelineAsset timeline, string trackName)

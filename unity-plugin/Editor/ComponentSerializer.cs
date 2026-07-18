@@ -222,7 +222,12 @@ namespace UnityMCP.Editor
                 var target = call.FindPropertyRelative("m_Target")?.objectReferenceValue;
                 var method = call.FindPropertyRelative("m_MethodName")?.stringValue ?? "?";
                 var mode = call.FindPropertyRelative("m_Mode")?.enumValueIndex ?? 0;
-                sb.Append(target != null ? target.name : "null");
+                string tPath = target switch {
+                    UnityEngine.Component tc   => GetPath(tc.gameObject),
+                    UnityEngine.GameObject tgo => GetPath(tgo),
+                    _                          => target != null ? target.name : "null"
+                };
+                sb.Append(tPath);
                 sb.Append('.').Append(method).Append('(');
                 var args = call.FindPropertyRelative("m_Arguments");
                 switch (mode)

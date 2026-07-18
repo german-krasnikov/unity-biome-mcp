@@ -38,9 +38,9 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Parse_SectionLabel_SetsContextOnSubsequentSteps()
         {
-            var result = PlaytestParser.Parse("SECTION Coop\nLOG hello");
+            var result = PlaytestParser.Parse("SECTION Zone\nLOG hello");
             Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("Coop", result[1].SectionContext);
+            Assert.AreEqual("Zone", result[1].SectionContext);
         }
 
         // ── 4. SECTION step itself gets its own label as SectionContext ───────────
@@ -48,9 +48,9 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Parse_SectionStep_SectionContextIsOwnLabel()
         {
-            var result = PlaytestParser.Parse("SECTION Coop phase");
+            var result = PlaytestParser.Parse("SECTION Zone phase");
             Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("Coop phase", result[0].SectionContext);
+            Assert.AreEqual("Zone phase", result[0].SectionContext);
         }
 
         // ── 5. Steps before any SECTION have null SectionContext ──────────────────
@@ -69,12 +69,12 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Parse_CallMacro_StepsHaveMacroStack()
         {
-            var script = "MACRO clear_coop\n  LOG clear\nEND_MACRO\nCALL clear_coop";
+            var script = "MACRO clear_zone\n  LOG clear\nEND_MACRO\nCALL clear_zone";
             var result = PlaytestParser.Parse(script);
             Assert.AreEqual(1, result.Count);
             Assert.IsNotNull(result[0].MacroStack);
             Assert.AreEqual(1, result[0].MacroStack.Length);
-            Assert.AreEqual("clear_coop", result[0].MacroStack[0]);
+            Assert.AreEqual("clear_zone", result[0].MacroStack[0]);
         }
 
         // ── 7. Direct steps (not from CALL) have null MacroStack ─────────────────
@@ -93,11 +93,11 @@ namespace UnityMCP.Editor.Tests
         public void Parse_NestedCallMacro_FullCallStack()
         {
             var script =
-                "MACRO clear_coop\n" +
+                "MACRO clear_zone\n" +
                 "  LOG clearing\n" +
                 "END_MACRO\n" +
                 "MACRO clear_and_build\n" +
-                "  CALL clear_coop\n" +
+                "  CALL clear_zone\n" +
                 "END_MACRO\n" +
                 "CALL clear_and_build";
             var result = PlaytestParser.Parse(script);
@@ -105,7 +105,7 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNotNull(result[0].MacroStack);
             Assert.AreEqual(2, result[0].MacroStack.Length);
             Assert.AreEqual("clear_and_build", result[0].MacroStack[0]);
-            Assert.AreEqual("clear_coop", result[0].MacroStack[1]);
+            Assert.AreEqual("clear_zone", result[0].MacroStack[1]);
         }
 
         // ── 9. ShallowClone copies provenance fields ──────────────────────────────
@@ -142,9 +142,9 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void FormatProvenance_MacroStackOnly_ReturnsMacroLine()
         {
-            var step = new PlaytestStep { MacroStack = new[] { "clear_coop" } };
+            var step = new PlaytestStep { MacroStack = new[] { "clear_zone" } };
             var result = PlaytestRunner.FormatProvenance(step);
-            StringAssert.Contains("macro: clear_coop", result);
+            StringAssert.Contains("macro: clear_zone", result);
         }
 
         // ── 12. FormatProvenance: nested MacroStack uses arrow separator ──────────
@@ -164,15 +164,15 @@ namespace UnityMCP.Editor.Tests
         {
             var step = new PlaytestStep
             {
-                SourceFile = "Playtests/farm.playtest",
+                SourceFile = "Playtests/game.playtest",
                 SourceLine = 4,   // 0-based → displayed as line 5
-                MacroStack = new[] { "clear_and_build", "clear_coop" },
-                SectionContext = "Coop phase"
+                MacroStack = new[] { "clear_and_build", "clear_zone" },
+                SectionContext = "Zone phase"
             };
             var result = PlaytestRunner.FormatProvenance(step);
-            StringAssert.Contains("source: Playtests/farm.playtest:5", result);
-            StringAssert.Contains("macro: clear_and_build -> clear_coop", result);
-            StringAssert.Contains("section: Coop phase", result);
+            StringAssert.Contains("source: Playtests/game.playtest:5", result);
+            StringAssert.Contains("macro: clear_and_build -> clear_zone", result);
+            StringAssert.Contains("section: Zone phase", result);
         }
 
         // ── 14. ExecuteSyncStep Assert ERR includes provenance in result ──────────
@@ -186,7 +186,7 @@ namespace UnityMCP.Editor.Tests
                 Query = "/NonExistent__Provenance__|SomeComp|field",
                 Op = "==",
                 Value = "True",
-                MacroStack = new[] { "clear_coop" },
+                MacroStack = new[] { "clear_zone" },
                 SectionContext = "Build phase",
                 RawLine = "ASSERT /NonExistent__Provenance__|SomeComp|field == True"
             };
@@ -195,7 +195,7 @@ namespace UnityMCP.Editor.Tests
             PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
             Assert.AreEqual(1, results.Count);
             StringAssert.Contains("ERR", results[0]);
-            StringAssert.Contains("macro: clear_coop", results[0]);
+            StringAssert.Contains("macro: clear_zone", results[0]);
             StringAssert.Contains("section: Build phase", results[0]);
         }
 

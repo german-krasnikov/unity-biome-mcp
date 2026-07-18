@@ -124,6 +124,8 @@ class HeartbeatMixin:
                 return
 
             if self._reconnect_cooldown_ok():
+                if self._reload.is_active():
+                    return
                 # A2: arm cooldown BEFORE attempt — success and failure both count.
                 self._last_reconnect_at = time.monotonic()
                 async with self._lock:

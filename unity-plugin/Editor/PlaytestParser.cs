@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured }
+    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic }
 
     /// <summary>A script line with origin metadata (file, line number, macro call chain).</summary>
     internal struct SourcedLine
@@ -30,6 +30,7 @@ namespace UnityMCP.Editor
         public string Op;
         public string Value;
         public float Timeout = 5f;
+        public bool HasExplicitTimeout;   // true when TIMEOUT token was present in DSL
         public string Component;
         public string Method;
         public string Args;
@@ -66,7 +67,7 @@ namespace UnityMCP.Editor
         internal PlaytestStep ShallowClone() => new PlaytestStep
         {
             Type = Type, Path = Path, Position = Position, RawPosition = RawPosition, Delay = Delay,
-            Query = Query, Op = Op, Value = Value, Timeout = Timeout,
+            Query = Query, Op = Op, Value = Value, Timeout = Timeout, HasExplicitTimeout = HasExplicitTimeout,
             Component = Component, Method = Method, Args = Args,
             Message = Message, Queries = Queries, RawLine = RawLine,
             BatchOps = BatchOps, BatchValues = BatchValues,
@@ -86,6 +87,8 @@ namespace UnityMCP.Editor
         /// <summary>Non-fatal parse warnings (e.g. unresolved $sigil typos). Null if none.</summary>
         public List<string> Warnings;
         public bool HasGlobalAbort { get; set; }
+        /// <summary>SET_DEFAULT_TIMEOUT value in seconds. 0 = not set (runner uses 5f fallback).</summary>
+        public float DefaultTimeout { get; set; }
 
         public int Count => Steps.Count;
         public PlaytestStep this[int i] => Steps[i];
@@ -108,7 +111,7 @@ namespace UnityMCP.Editor
             RegexOptions.Compiled);
 
         // DSL keywords blocked as VAL values (prevent command injection via defs)
-        private static readonly HashSet<string> _DSL_KEYWORDS = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        internal static readonly HashSet<string> _DSL_KEYWORDS = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "INVOKE", "MOVE", "MOVE_PATH", "SWEEP_PATH", "TELEPORT", "ASSERT", "ASSERT_CONSOLE_CLEAN",
             "ASSERT_BATCH", "ASSERT_NEAR", "ASSERT_CAPTURED", "ASSERT_CONSERVED", "ASSERT_CTA",
@@ -116,7 +119,11 @@ namespace UnityMCP.Editor
             "INVARIANT", "SIMULATE", "MONITOR", "TRACE_FLOW", "CLICK", "TAP",
             "SECTION", "DESC", "MACRO", "END_MACRO", "CALL", "INCLUDE", "ABORT_ON_FAIL",
             "VAL", "VAR", "ALIAS", "WAIT_CAPTURED",
-            "COMPLETE_PURCHASE", "INVOKE_REPEAT"
+            "COMPLETE_PURCHASE", "INVOKE_REPEAT",
+            "SET_DEFAULT_TIMEOUT", "ASSERT_ONE_ACTIVE",
+            "PATH_PREFIX", "FOR", "END_FOR", "ASSERT_CHANGED",
+            "CAPTURE_FRAMES", "ASSERT_FRAMES_DIFFER", "ASSERT_FRAMES_STATIC",
+            "COMMENT", "END_COMMENT"
         };
 
         public static ParseResult Parse(string script, IncludeResolver resolver = null)
@@ -146,6 +153,22 @@ namespace UnityMCP.Editor
                         if (bt.Equals("END_MACRO", StringComparison.OrdinalIgnoreCase)) { foundEnd = true; break; }
                         if (bt.StartsWith("MACRO ", StringComparison.OrdinalIgnoreCase))
                             throw new ArgumentException("Nested MACRO definitions are not supported");
+                        // Strip COMMENT blocks from macro body
+                        if (bt.Equals("COMMENT", StringComparison.OrdinalIgnoreCase) ||
+                            bt.StartsWith("COMMENT ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            i++;
+                            bool foundCEnd = false;
+                            while (i < sourcedLines.Length)
+                            {
+                                if (sourcedLines[i].Text.Trim().Equals("END_COMMENT", StringComparison.OrdinalIgnoreCase)) { foundCEnd = true; break; }
+                                i++;
+                            }
+                            if (!foundCEnd) throw new ArgumentException("COMMENT block missing END_COMMENT");
+                            i++; // skip END_COMMENT line
+                            continue;
+                        }
+                        if (bt.Equals("END_COMMENT", StringComparison.OrdinalIgnoreCase)) { i++; continue; }
                         body.Add(sourcedLines[i]);
                         i++;
                     }
@@ -155,6 +178,21 @@ namespace UnityMCP.Editor
                 }
                 // skip stray END_MACRO (outside any MACRO block)
                 if (t.Equals("END_MACRO", StringComparison.OrdinalIgnoreCase)) continue;
+                // Strip COMMENT blocks (top-level)
+                if (t.Equals("COMMENT", StringComparison.OrdinalIgnoreCase) ||
+                    t.StartsWith("COMMENT ", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool foundCEnd = false;
+                    i++;
+                    while (i < sourcedLines.Length)
+                    {
+                        if (sourcedLines[i].Text.Trim().Equals("END_COMMENT", StringComparison.OrdinalIgnoreCase)) { foundCEnd = true; break; }
+                        i++;
+                    }
+                    if (!foundCEnd) throw new ArgumentException("COMMENT block missing END_COMMENT");
+                    continue; // outer for i++ moves past END_COMMENT
+                }
+                if (t.Equals("END_COMMENT", StringComparison.OrdinalIgnoreCase)) continue;
                 cleanLines.Add(sourcedLines[i]);
             }
 
@@ -195,6 +233,7 @@ namespace UnityMCP.Editor
             var steps = new List<PlaytestStep>();
             string pendingLabel = null;
             bool hasGlobalAbort = false;
+            float defaultTimeout = 0f;
             string currentSection = null;
 
             for (int i = 0; i < lines.Length; i++)
@@ -212,6 +251,7 @@ namespace UnityMCP.Editor
                 var cmd = tokens[0].ToUpperInvariant();
                 if (cmd == "ALIAS") continue; // skip alias definitions
                 if (cmd == "VAL") continue;   // skip VAL definitions (already processed in phase 0.7)
+                if (cmd == "PATH_PREFIX") continue; // skip PATH_PREFIX directive (processed in phase 0.7)
 
                 // Phase 1.1: collect VAR bindings
                 if (cmd == "VAR")
@@ -259,11 +299,24 @@ namespace UnityMCP.Editor
 
                     case "WAIT_UNTIL":
                     {
+                        // Bool sugar: WAIT_UNTIL $flag  or  WAIT_UNTIL !$flag
+                        if (tokens.Length == 2)
+                        {
+                            var t1 = tokens[1];
+                            if (!t1.StartsWith("$") && !t1.StartsWith("!$"))
+                                throw new ArgumentException($"WAIT_UNTIL: unrecognised single-token form '{t1}' (expected $flag or !$flag)");
+                            bool negated = t1.StartsWith("!");
+                            step.Type = StepType.WaitUntil;
+                            step.Query = negated ? t1.Substring(1) : t1;
+                            step.Op = "==";
+                            step.Value = negated ? "False" : "True";
+                            break;
+                        }
                         if (tokens.Length < 4) throw new ArgumentException($"WAIT_UNTIL requires path op value, got: '{line}'");
                         step.Type = StepType.WaitUntil;
                         step.Query = tokens[1]; step.Op = tokens[2]; step.Value = tokens[3];
                         var tiIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "TIMEOUT");
-                        if (tiIdx >= 0) step.Timeout = float.Parse(tokens[tiIdx + 1], CultureInfo.InvariantCulture);
+                        if (tiIdx >= 0) { step.Timeout = float.Parse(tokens[tiIdx + 1], CultureInfo.InvariantCulture); step.HasExplicitTimeout = true; }
                         // AND/OR compound conditions + ABORT detection (inline, avoids false-positive on ABORT-as-value)
                         var xQ = new List<string>(); var xOps = new List<string>(); var xVals = new List<string>();
                         bool? isOr = null;
@@ -321,13 +374,18 @@ namespace UnityMCP.Editor
                             }
                             throw new ArgumentException($"ASSERT: unrecognised single-token form '{t1}' (expected $name, !$name, or ($a,$b,...))");
                         }
-                        // Standard form: ASSERT query op value [AS label]
+                        // Standard form: ASSERT query op value [TIMEOUT n] [AS label]
                         if (tokens.Length < 4) throw new ArgumentException($"ASSERT requires path op value, got: '{line}'");
                         step.Type = StepType.Assert;
                         step.Query = tokens[1]; step.Op = tokens[2]; step.Value = tokens[3];
+                        var tiIdxA = Array.FindIndex(tokens, 4, t => t.ToUpperInvariant() == "TIMEOUT");
+                        if (tiIdxA >= 0) { step.Timeout = float.Parse(tokens[tiIdxA + 1], CultureInfo.InvariantCulture); step.HasExplicitTimeout = true; }
                         var asIdx = Array.FindIndex(tokens, 4, t => t.ToUpperInvariant() == "AS");
                         if (asIdx >= 0)
-                            step.Message = string.Join(" ", tokens, asIdx + 1, tokens.Length - asIdx - 1).Trim('"');
+                        {
+                            var labelEnd = (tiIdxA >= 0 && tiIdxA > asIdx) ? tiIdxA : tokens.Length;
+                            step.Message = string.Join(" ", tokens, asIdx + 1, labelEnd - asIdx - 1).Trim('"');
+                        }
                         break;
                     }
 
@@ -425,12 +483,50 @@ namespace UnityMCP.Editor
                         step.Query = tokens[2];
                         break;
 
+                    case "CAPTURE_FRAMES":
+                    {
+                        // CAPTURE_FRAMES n INTERVAL s [CAMERA name] [MODE strip|list] [LABEL name]
+                        step.Type = StepType.CaptureFrames;
+                        var cfCount = (int)float.Parse(tokens[1], CultureInfo.InvariantCulture);
+                        if (cfCount < 2) throw new ArgumentException($"CAPTURE_FRAMES: n must be >= 2, got {cfCount}");
+                        step.Timeout = cfCount;
+                        var ivIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "INTERVAL");
+                        if (ivIdx < 0 || ivIdx + 1 >= tokens.Length)
+                            throw new ArgumentException("CAPTURE_FRAMES requires INTERVAL parameter");
+                        step.Delay = float.Parse(tokens[ivIdx + 1], CultureInfo.InvariantCulture);
+                        var cfCamIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "CAMERA");
+                        step.Component = cfCamIdx >= 0 ? tokens[cfCamIdx + 1] : "game";
+                        var cfModeIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "MODE");
+                        step.Op = cfModeIdx >= 0 ? tokens[cfModeIdx + 1].ToLowerInvariant() : "strip";
+                        var cfLblIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "LABEL");
+                        step.Message = cfLblIdx >= 0 ? tokens[cfLblIdx + 1] : null;
+                        break;
+                    }
+
+                    case "ASSERT_FRAMES_DIFFER":
+                        // ASSERT_FRAMES_DIFFER label
+                        step.Type = StepType.AssertFramesDiffer;
+                        step.Message = tokens[1];
+                        break;
+
+                    case "ASSERT_FRAMES_STATIC":
+                        // ASSERT_FRAMES_STATIC label
+                        step.Type = StepType.AssertFramesStatic;
+                        step.Message = tokens[1];
+                        break;
+
                     case "ASSERT_CAPTURED":
                         // ASSERT_CAPTURED label MODE [subOp value]
                         step.Type = StepType.AssertCaptured;
                         step.Message = tokens[1];
                         step.Op = tokens[2];
                         if (tokens.Length >= 5) { step.Args = tokens[3]; step.Value = tokens[4]; }
+                        break;
+
+                    case "ASSERT_CHANGED":
+                        // ASSERT_CHANGED $label
+                        step.Type = StepType.AssertChanged;
+                        step.Message = tokens[1];
                         break;
 
                     case "WAIT_CAPTURED":
@@ -761,6 +857,38 @@ namespace UnityMCP.Editor
                         hasGlobalAbort = true;
                         continue; // global directive — not emitted as a step
 
+                    case "SET_DEFAULT_TIMEOUT":
+                        if (tokens.Length < 2)
+                            throw new ArgumentException("SET_DEFAULT_TIMEOUT requires a value (seconds)");
+                        defaultTimeout = float.Parse(tokens[1], CultureInfo.InvariantCulture);
+                        continue; // global directive — not emitted as a step
+
+                    case "ASSERT_ONE_ACTIVE":
+                        if (tokens.Length < 3)
+                            throw new ArgumentException(
+                                "ASSERT_ONE_ACTIVE requires at least 2 paths, e.g.:\n" +
+                                "ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu /Cam_Game");
+                        step.Type = StepType.AssertOneActive;
+                        step.Queries = tokens.Skip(1).ToArray();
+                        break;
+
+                    case "COMMENT":
+                    {
+                        // Block comment expanded from MACRO/FOR — skip until END_COMMENT
+                        bool foundCEnd = false;
+                        i++;
+                        while (i < lines.Length)
+                        {
+                            if (lines[i].Trim().Equals("END_COMMENT", StringComparison.OrdinalIgnoreCase)) { foundCEnd = true; break; }
+                            i++;
+                        }
+                        if (!foundCEnd) throw new ArgumentException("COMMENT block missing END_COMMENT");
+                        continue;
+                    }
+
+                    case "END_COMMENT":
+                        continue; // stray END_COMMENT — silently skip
+
                     default:
                         throw new ArgumentException($"Unknown command: {cmd}");
                 }
@@ -773,23 +901,23 @@ namespace UnityMCP.Editor
                 steps.Add(step);
             }
 
-            // Phase 0.8: warn on unresolved $sigils (likely typos) — only when sigils are used
+            // Phase 0.8: warn on unresolved $sigils (always — even without any VAL/VAR defs)
             List<string> warnings = null;
-            if (vals.Count > 0 || varDefs.Count > 0)
+            foreach (var expandedLine in lines)
             {
-                foreach (var expandedLine in lines)
+                var lt = expandedLine.Trim();
+                if (lt.StartsWith("#") || lt.StartsWith("VAR ", StringComparison.OrdinalIgnoreCase) ||
+                    lt.StartsWith("VAL ", StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (Match m in SigilRegex.Matches(expandedLine))
                 {
-                    var lt = expandedLine.Trim();
-                    if (lt.StartsWith("#") || lt.StartsWith("VAR ", StringComparison.OrdinalIgnoreCase) ||
-                        lt.StartsWith("VAL ", StringComparison.OrdinalIgnoreCase)) continue;
-                    foreach (Match m in SigilRegex.Matches(expandedLine))
+                    var sigil = m.Groups[1].Value;
+                    if (!vals.ContainsKey(sigil) && !varDefs.ContainsKey(sigil))
                     {
-                        var sigil = m.Groups[1].Value;
-                        if (!vals.ContainsKey(sigil) && !varDefs.ContainsKey(sigil))
-                        {
-                            warnings = warnings ?? new List<string>();
-                            warnings.Add($"Unresolved $sigil: ${sigil} (typo in VAL/VAR name?)");
-                        }
+                        warnings = warnings ?? new List<string>();
+                        var _candidates = vals.Keys.Concat(varDefs.Keys);
+                        var _suggestion = StringDistance.ClosestMatch(sigil, _candidates);
+                        var _hint = _suggestion != null ? $" Did you mean ${_suggestion}?" : " (typo in VAL/VAR name?)";
+                        warnings.Add($"Unresolved $sigil: ${sigil}{_hint}");
                     }
                 }
             }
@@ -799,7 +927,8 @@ namespace UnityMCP.Editor
                 Steps = steps,
                 VarDefs = varDefs.Count > 0 ? varDefs : null,
                 Warnings = warnings,
-                HasGlobalAbort = hasGlobalAbort
+                HasGlobalAbort = hasGlobalAbort,
+                DefaultTimeout = defaultTimeout
             };
         }
 
@@ -868,6 +997,25 @@ namespace UnityMCP.Editor
             }
             if (raw.Count == 0) return raw;
 
+            // Phase 0.7.1: collect PATH_PREFIX (first occurrence wins), apply to path VAL values
+            // PATH_PREFIX applies across all INCLUDE-expanded lines; first occurrence wins.
+            string pathPrefix = null;
+            foreach (var line in lines)
+            {
+                var t = line.Trim();
+                if (!t.StartsWith("PATH_PREFIX ", StringComparison.OrdinalIgnoreCase)) continue;
+                pathPrefix = t.Substring("PATH_PREFIX ".Length).Trim().TrimEnd('/');
+                break;
+            }
+            if (pathPrefix != null)
+            {
+                foreach (var key in raw.Keys.ToList())
+                {
+                    if (raw[key].StartsWith("/"))
+                        raw[key] = pathPrefix + raw[key];
+                }
+            }
+
             // Topo DFS: expand transitively, detect cycles
             var expanded = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -908,38 +1056,98 @@ namespace UnityMCP.Editor
         {
             if (depth > 10) throw new ArgumentException("MACRO recursion depth exceeded (max 10)");
             var result = new List<SourcedLine>();
-            foreach (var sourced in lines)
+            for (int ei = 0; ei < lines.Count; ei++)
             {
+                var sourced = lines[ei];
                 var t = sourced.Text.Trim();
-                if (!t.StartsWith("CALL ", StringComparison.OrdinalIgnoreCase)) { result.Add(sourced); continue; }
-                var parts = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                var name = parts[1];
-                if (!macros.TryGetValue(name, out var macro))
-                    throw new ArgumentException($"Unknown macro: {name}");
-                var callArgs = parts.Skip(2).ToArray();
-                if (callArgs.Length < macro.paramNames.Length)
-                    throw new ArgumentException($"CALL {name}: expected {macro.paramNames.Length} args, got {callArgs.Length}");
 
-                // Build call stack: outermost first, this macro appended
-                var newStack = callStack == null
-                    ? new[] { name }
-                    : callStack.Concat(new[] { name }).ToArray();
-
-                var expanded = new List<SourcedLine>();
-                foreach (var bodyLine in macro.body)
+                // ── FOR $var IN start..end ──────────────────────────────────────
+                if (t.StartsWith("FOR ", StringComparison.OrdinalIgnoreCase))
                 {
-                    var sub = bodyLine.Text;
-                    for (int j = 0; j < macro.paramNames.Length; j++)
-                        sub = ReplaceWholeWord(sub, macro.paramNames[j], callArgs[j]);
-                    expanded.Add(new SourcedLine
+                    var forParts = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (forParts.Length < 4 || !forParts[2].Equals("IN", StringComparison.OrdinalIgnoreCase))
+                        throw new ArgumentException($"FOR syntax: FOR $var IN start..end (got '{t}')");
+                    var iterVar = forParts[1];
+                    var rangeParts = forParts[3].Split(new[] { ".." }, StringSplitOptions.None);
+                    if (rangeParts.Length != 2 ||
+                        !int.TryParse(rangeParts[0], out int rangeStart) ||
+                        !int.TryParse(rangeParts[1], out int rangeEnd))
+                        throw new ArgumentException($"FOR range must be integer..integer (got '{forParts[3]}')");
+                    if ((long)rangeEnd - (long)rangeStart > 10000)
+                        throw new ArgumentException($"FOR range too large (max 10000 iterations)");
+
+                    // Collect body until matching END_FOR (handle nested FOR)
+                    var forBody = new List<SourcedLine>();
+                    ei++;
+                    bool foundEndFor = false;
+                    int nestDepth = 0;
+                    while (ei < lines.Count)
                     {
-                        Text = sub,
-                        File = bodyLine.File,
-                        Line = bodyLine.Line,
-                        MacroStack = newStack
-                    });
+                        var bt = lines[ei].Text.Trim()
+                            .Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries)[0];
+                        if (bt.Equals("FOR", StringComparison.OrdinalIgnoreCase)) nestDepth++;
+                        else if (bt.Equals("END_FOR", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (nestDepth == 0) { foundEndFor = true; break; }
+                            nestDepth--;
+                        }
+                        forBody.Add(lines[ei]);
+                        ei++;
+                    }
+                    if (!foundEndFor) throw new ArgumentException("FOR block missing END_FOR");
+
+                    for (int iter = rangeStart; iter < rangeEnd; iter++)
+                    {
+                        var forExpanded = new List<SourcedLine>();
+                        foreach (var bodyLine in forBody)
+                        {
+                            var sub = ReplaceWholeWord(bodyLine.Text, iterVar, iter.ToString());
+                            forExpanded.Add(new SourcedLine
+                            {
+                                Text = sub,
+                                File = bodyLine.File,
+                                Line = bodyLine.Line,
+                                MacroStack = bodyLine.MacroStack == null
+                                    ? new[] { $"FOR:{iter}" }
+                                    : bodyLine.MacroStack.Concat(new[] { $"FOR:{iter}" }).ToArray()
+                            });
+                        }
+                        result.AddRange(ExpandCalls(forExpanded, macros, depth + 1, callStack));
+                    }
+                    continue;
                 }
-                result.AddRange(ExpandCalls(expanded, macros, depth + 1, newStack));
+
+                // ── CALL macroName [args...] ────────────────────────────────────
+                if (!t.StartsWith("CALL ", StringComparison.OrdinalIgnoreCase)) { result.Add(sourced); continue; }
+                {
+                    var parts = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    var name = parts[1];
+                    if (!macros.TryGetValue(name, out var macro))
+                        throw new ArgumentException($"Unknown macro: {name}");
+                    var callArgs = parts.Skip(2).ToArray();
+                    if (callArgs.Length < macro.paramNames.Length)
+                        throw new ArgumentException($"CALL {name}: expected {macro.paramNames.Length} args, got {callArgs.Length}");
+
+                    var newStack = callStack == null
+                        ? new[] { name }
+                        : callStack.Concat(new[] { name }).ToArray();
+
+                    var expanded = new List<SourcedLine>();
+                    foreach (var bodyLine in macro.body)
+                    {
+                        var sub = bodyLine.Text;
+                        for (int j = 0; j < macro.paramNames.Length; j++)
+                            sub = ReplaceWholeWord(sub, macro.paramNames[j], callArgs[j]);
+                        expanded.Add(new SourcedLine
+                        {
+                            Text = sub,
+                            File = bodyLine.File,
+                            Line = bodyLine.Line,
+                            MacroStack = newStack
+                        });
+                    }
+                    result.AddRange(ExpandCalls(expanded, macros, depth + 1, newStack));
+                }
             }
             return result;
         }
@@ -963,7 +1171,9 @@ namespace UnityMCP.Editor
             int idx = 0;
             while ((idx = line.IndexOf(word, idx, StringComparison.Ordinal)) >= 0)
             {
-                bool startOk = idx == 0 || !char.IsLetterOrDigit(line[idx - 1]) && line[idx - 1] != '_' && line[idx - 1] != '$';
+                char prevCh = idx > 0 ? line[idx - 1] : '\0';
+                bool startOk = idx == 0 || !char.IsLetterOrDigit(prevCh) && prevCh != '$'
+                    && (prevCh != '_' || word.Length > 0 && word[0] == '$');
                 bool endOk = idx + word.Length >= line.Length ||
                              !char.IsLetterOrDigit(line[idx + word.Length]) && line[idx + word.Length] != '_';
                 if (startOk && endOk)

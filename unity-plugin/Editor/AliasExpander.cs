@@ -87,6 +87,29 @@ namespace UnityMCP.Editor
                     if (value != null) table[a.alias] = value;
                 }
             }
+
+            // Scan .defs files in Assets/PlaytestDefs/
+            var defsDir = System.IO.Path.Combine(UnityEngine.Application.dataPath, "PlaytestDefs");
+            if (System.IO.Directory.Exists(defsDir))
+            {
+                foreach (var f in System.IO.Directory.GetFiles(defsDir, "*.defs"))
+                {
+                    var defsAliases = PlaytestAliasHelpers.ParseDefsToAliases(
+                        System.IO.File.ReadAllText(f, System.Text.Encoding.UTF8));
+                    foreach (var a in defsAliases)
+                    {
+                        if (string.IsNullOrEmpty(a.alias)) continue;
+                        string value = a.type switch
+                        {
+                            AliasType.ValConst   => a.constValue ?? "",
+                            AliasType.VarRuntime => null,
+                            _                    => BuildPipePath(a),
+                        };
+                        if (value != null) table[a.alias] = value;
+                    }
+                }
+            }
+
             return table;
         }
 
@@ -105,9 +128,9 @@ namespace UnityMCP.Editor
             string[] imported, string[] deleted, string[] moved, string[] movedFrom)
         {
             foreach (var p in imported)
-                if (p.EndsWith(".asset")) { AliasExpander.Invalidate(); return; }
+                if (p.EndsWith(".asset") || p.EndsWith(".defs")) { AliasExpander.Invalidate(); return; }
             foreach (var p in deleted)
-                if (p.EndsWith(".asset")) { AliasExpander.Invalidate(); return; }
+                if (p.EndsWith(".asset") || p.EndsWith(".defs")) { AliasExpander.Invalidate(); return; }
         }
     }
 }
