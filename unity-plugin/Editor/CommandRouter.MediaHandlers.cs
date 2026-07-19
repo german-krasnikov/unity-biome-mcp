@@ -77,7 +77,7 @@ namespace UnityMCP.Editor
         {
             return TimelineHelper.CreateTimeline(
                 JsonHelper.ExtractString(args, "asset_path"),
-                JsonHelper.ExtractString(args, "director_path"),
+                JsonHelper.ExtractString(args, "director_path") ?? JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "tracks"));
         }
 
@@ -264,9 +264,9 @@ namespace UnityMCP.Editor
                 "get" => AnimatorControllerSerializer.Serialize(
                     JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state")),
                 "add_param" => AnimatorControllerHelper.AddParameters(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "params")),
+                    JsonHelper.ExtractString(args, "path"), AnimatorParamSpec(args)),
                 "add_state" => AnimatorControllerHelper.AddStates(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "states"), layer),
+                    JsonHelper.ExtractString(args, "path"), AnimatorStatesSpec(args), layer),
                 "add_transition" => ExecAddTransition(args, layer),
                 "set_default" => AnimatorControllerHelper.SetDefault(
                     JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state"), layer),
@@ -339,6 +339,26 @@ namespace UnityMCP.Editor
                             "add_layer", "remove_layer", "rename_layer", "set_layer_weight", "set_layer_blending",
                             "set_state_speed", "update_transition", "set_avatar", "rename_state", "rename_param" }))
             };
+        }
+
+        private static string AnimatorParamSpec(string args)
+        {
+            var spec = JsonHelper.ExtractString(args, "params");
+            if (!string.IsNullOrEmpty(spec)) return spec;
+
+            var name = JsonHelper.ExtractString(args, "name");
+            if (string.IsNullOrEmpty(name)) return spec;
+
+            var type = JsonHelper.ExtractString(args, "type") ?? "float";
+            var value = JsonHelper.ExtractString(args, "value");
+            return value == null ? $"{name}:{type}" : $"{name}:{type}:{value}";
+        }
+
+        private static string AnimatorStatesSpec(string args)
+        {
+            var spec = JsonHelper.ExtractString(args, "states");
+            if (!string.IsNullOrEmpty(spec)) return spec;
+            return JsonHelper.ExtractString(args, "state");
         }
 
         private static string ExecCreateParticle(string args)

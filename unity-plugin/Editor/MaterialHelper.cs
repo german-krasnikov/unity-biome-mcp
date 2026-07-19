@@ -110,16 +110,7 @@ namespace UnityMCP.Editor
             Material mat;
             if (target == "instance")
             {
-                var objectPath = JsonHelper.ExtractString(args, "object_path")
-                    ?? throw new ArgumentException("object_path is required for target=instance");
-                var go = ComponentSerializer.FindObject(objectPath)
-                    ?? throw new InvalidOperationException(ErrorHelper.ObjectNotFound(objectPath));
-                var renderer = go.GetComponent<Renderer>();
-                if (renderer == null) throw new InvalidOperationException($"No Renderer on: {objectPath}");
-                var mats = renderer.materials;
-                if (slot < 0 || slot >= mats.Length)
-                    throw new ArgumentException($"Slot {slot} out of range (0-{mats.Length - 1})");
-                mat = mats[slot];
+                mat = ResolveRendererInstanceMaterial(args, slot);
             }
             else
             {
@@ -167,6 +158,28 @@ namespace UnityMCP.Editor
 
             EditorUtility.SetDirty(mat);
             return $"ok: {prop}={value}\nmutated: {(target == "instance" ? "renderer_instance" : "shared_asset")}\nasset_modified: {(target != "instance" ? "true" : "false")}";
+        }
+
+        private static Material ResolveRendererInstanceMaterial(string args, int slot)
+        {
+            var objectPath = JsonHelper.ExtractString(args, "object_path")
+                ?? throw new ArgumentException("object_path is required for target=instance");
+            var go = ComponentSerializer.FindObject(objectPath)
+                ?? throw new InvalidOperationException(ErrorHelper.ObjectNotFound(objectPath));
+            var renderer = go.GetComponent<Renderer>();
+            if (renderer == null) throw new InvalidOperationException($"No Renderer on: {objectPath}");
+            var mats = renderer.sharedMaterials;
+            if (slot < 0 || slot >= mats.Length)
+                throw new ArgumentException($"Slot {slot} out of range (0-{mats.Length - 1})");
+            if (mats[slot] == null)
+                throw new InvalidOperationException($"Renderer on '{objectPath}' has no material assigned at slot {slot}");
+
+            var clone = new Material(mats[slot]) { name = mats[slot].name + " (Instance)" };
+            Undo.RecordObject(renderer, "Create Renderer Material Instance");
+            mats[slot] = clone;
+            renderer.sharedMaterials = mats;
+            EditorUtility.SetDirty(renderer);
+            return clone;
         }
 
         private static string Copy(string args)

@@ -24,7 +24,8 @@ namespace UnityMCP.Editor
             {
                 var w = ExtractInt(args, "width", 1280);
                 var h = ExtractInt(args, "height", 720);
-                var fp = MultiViewCapture.CaptureSceneOverview(w, h, topDown: camera == "overview");
+                var overviewOutputPath = JsonHelper.ExtractString(args, "output_path");
+                var fp = MultiViewCapture.CaptureSceneOverview(w, h, topDown: camera == "overview", outputPath: overviewOutputPath);
                 return JsonHelper.FormatFileResponse(id, fp);
             }
 
@@ -43,8 +44,9 @@ namespace UnityMCP.Editor
                 float fixedSize = ExtractFloat(args, "fixed_size", 0f);
                 var highlight = JsonHelper.ExtractString(args, "highlight");
                 var showColliders = JsonHelper.ExtractString(args, "show_colliders") == "true";
+                var multiOutputPath = JsonHelper.ExtractString(args, "output_path");
                 var filePath = MultiViewCapture.CaptureWithManifest(go, cellSize, supersample,
-                    angles, zoom, offset, fixedSize, highlight, showColliders, out var manifest);
+                    angles, zoom, offset, fixedSize, highlight, showColliders, out var manifest, multiOutputPath);
                 if (!string.IsNullOrEmpty(manifest))
                     return JsonHelper.FormatFileResponseWithData(id, filePath, manifest);
                 return JsonHelper.FormatFileResponse(id, filePath);
@@ -65,8 +67,9 @@ namespace UnityMCP.Editor
                 float fixedSize = ExtractFloat(args, "fixed_size", 0f);
                 var highlight = JsonHelper.ExtractString(args, "highlight");
                 var showColliders = JsonHelper.ExtractString(args, "show_colliders") == "true";
+                var singleOutputPath = JsonHelper.ExtractString(args, "output_path");
                 var filePath = MultiViewCapture.CaptureSingleView(go, size, supersample,
-                    angle, zoom, offset, fixedSize, highlight, showColliders, out var manifest);
+                    angle, zoom, offset, fixedSize, highlight, showColliders, out var manifest, singleOutputPath);
                 if (!string.IsNullOrEmpty(manifest))
                     return JsonHelper.FormatFileResponseWithData(id, filePath, manifest);
                 return JsonHelper.FormatFileResponse(id, filePath);

@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.93.0] — 2026-07-19 — Battle recheck fixes: run_playtest predicate, animator aliases, spatial cap, 7 blocker fixes
+
+**Python — run_playtest:**
+- `IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats (fixes false-failure on suite runs).
+
+**Python — console:**
+- `console_mark` token parsing handles `"ts:label"` format.
+
+**Python — screenshot:**
+- `output_path` forwarded to all 3 camera branches (overview/single/default).
+
+**C# — AnimatorControllerHelper:**
+- `get_parameters` / `get_states` alias normalization — compact format (`params=Speed:float:0`).
+
+**C# — SpatialHelper:**
+- `spatial_query` cap enforcement: output `"N objects within Xm (showing Y)"` + `"...+N more"` truncation.
+
+**C# — ObjectManager.Transfer:**
+- `transfer_object` copy: sets active scene before `Instantiate` so clone lands in target scene.
+
+**C# — MaterialHelper:**
+- `target=instance` uses `sharedMaterials` clone instead of `renderer.material` (avoids edit-mode error).
+
+**C# — PrefabHelper:**
+- `child_path ?? path` fallback; `mode`/`scope`/`format` params accepted by validator.
+
+**C# — ScriptableObjectHelper:**
+- Multi-field `Set`: per-field echo `ok: field = old → new`.
+
+**C# — UIHelper:**
+- TMP fallback to legacy `Text` component on `TextMeshPro` creation failure.
+
+**C# — CommandRouter:**
+- Timeline `director_path ?? path` fallback for `create` action.
+
+**Test counts:** Python unit 4735 | C# EditMode: pre-existing failures unchanged
+
+---
+
 ## [v0.92.0] — 2026-07-19 — API pragmatic review: envelope hardening, discover_tools UX, tool hardening, serialized field rename audit
 
 **Python — Result Envelopes:**

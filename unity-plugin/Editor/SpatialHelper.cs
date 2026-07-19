@@ -18,6 +18,12 @@ namespace UnityMCP.Editor
                 System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : def;
         }
 
+        private static int ExtractInt(string args, string key, int def)
+        {
+            var val = JsonHelper.ExtractString(args, key);
+            return val != null && int.TryParse(val, out var i) ? i : def;
+        }
+
         private static bool TryParseVec3(string s, out Vector3 v)
         {
             v = default;
@@ -188,9 +194,10 @@ namespace UnityMCP.Editor
         /// List objects within radius. center wins over path when both provided.
         /// center format: "x,y,z" (comma-separated, no parens).
         /// </summary>
-        public static string ObjectsInRadius(string path, float radius, string center = null)
+        public static string ObjectsInRadius(string path, float radius, string center = null, int cap = 20)
         {
             if (radius <= 0f) return "No objects within radius";
+            cap = System.Math.Min(System.Math.Max(1, cap), 200);
 
             Vector3 fromPos;
             GameObject fromObj = null;
@@ -209,20 +216,25 @@ namespace UnityMCP.Editor
             }
 
             var sb = new StringBuilder();
-            int count = 0;
+            int total = 0;
+            int shown = 0;
             foreach (var go in Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None))
             {
                 if (go == fromObj || (fromObj != null && go.transform.IsChildOf(fromObj.transform))) continue;
                 float dist = Vector3.Distance(fromPos, go.transform.position);
                 if (dist <= radius)
                 {
-                    sb.AppendLine($"  {ComponentSerializer.GetPath(go)} dist={F(dist,"F2")}");
-                    count++;
-                    if (count >= 20) { sb.AppendLine("  ...+more"); break; }
+                    total++;
+                    if (shown < cap)
+                    {
+                        sb.AppendLine($"  {ComponentSerializer.GetPath(go)} dist={F(dist,"F2")}");
+                        shown++;
+                    }
                 }
             }
-            if (count == 0) return "No objects within radius";
-            return $"{count} objects within {radius}m:\n{sb.ToString().TrimEnd()}";
+            if (total == 0) return "No objects within radius";
+            if (total > shown) sb.AppendLine($"  ...+{total - shown} more");
+            return $"{total} objects within {radius}m (showing {shown}):\n{sb.ToString().TrimEnd()}";
         }
 
         public static string BoundsInfo(string path)
@@ -302,7 +314,8 @@ namespace UnityMCP.Editor
                     float.TryParse(JsonHelper.ExtractString(args, "radius") ?? "5",
                         System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 5f,
-                    JsonHelper.ExtractString(args, "center")),
+                    JsonHelper.ExtractString(args, "center"),
+                    ExtractInt(args, "cap", 20)),
                 "bounds_info" => BoundsInfo(JsonHelper.ExtractString(args, "path")),
                 "raycast" => Raycast(
                     JsonHelper.ExtractString(args, "path"),

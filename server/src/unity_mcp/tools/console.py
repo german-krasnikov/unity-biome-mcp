@@ -58,7 +58,7 @@ async def get_console_since(mark_id: str, level: str | None = None,
     count: max entries to return (default 500)."""
     try:
         # Support "mark:ts[:label]" format and bare float
-        part = mark_id.split(":")[1] if mark_id.startswith("mark:") else mark_id
+        part = mark_id.split(":")[1] if mark_id.startswith("mark:") else mark_id.split(":", 1)[0]
         ts = float(part)
     except (IndexError, ValueError):
         return "err: invalid mark_id"

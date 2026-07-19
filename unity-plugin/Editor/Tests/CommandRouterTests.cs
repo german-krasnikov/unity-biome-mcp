@@ -2,6 +2,7 @@
 // Covers: IsAllowedDuringCompile, IsAlwaysAllowed, SuggestNext,
 //         CommandRegistry flags, BuildResponse (via Process stub),
 //         CommandValidator validation coverage.
+using System.Reflection;
 using NUnit.Framework;
 using UnityMCP.Editor;
 
@@ -104,6 +105,28 @@ namespace UnityMCP.Editor.Tests
         [TestCase("get_hierarchy")]
         public void Registry_IsRuntime_NonRuntimeCommands_ReturnFalse(string cmd)
             => Assert.IsFalse(CommandRegistry.IsRuntime(cmd));
+
+        [Test]
+        public void IsPlaytestSuccess_DetailedAllPassedReport_ReturnsTrue()
+        {
+            var method = typeof(CommandRouter).GetMethod("IsPlaytestSuccess",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.IsNotNull(method);
+
+            var report = "PLAYTEST: 4/4 (0.0s)\n[1] LOG smoke\n[2] SNAPSHOT\nRigidbody.mass=4";
+            Assert.IsTrue((bool)method.Invoke(null, new object[] { report }));
+        }
+
+        [Test]
+        public void IsPlaytestSuccess_DetailedFailedReport_ReturnsFalse()
+        {
+            var method = typeof(CommandRouter).GetMethod("IsPlaytestSuccess",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.IsNotNull(method);
+
+            var report = "PLAYTEST: 3/4 (0.0s)\n[4] ASSERT x -- FAIL";
+            Assert.IsFalse((bool)method.Invoke(null, new object[] { report }));
+        }
 
         // ── CommandRegistry.IsRegistered ─────────────────────────────────────
 

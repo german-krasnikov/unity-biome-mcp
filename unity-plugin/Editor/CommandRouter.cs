@@ -317,7 +317,29 @@ namespace UnityMCP.Editor
             var inner = new TaskCompletionSource<string>();
             PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh);
             CompleteFromInner(id, inner.Task, tcs, "run_playtest",
-                r => r.Contains(" OK"));
+                IsPlaytestSuccess);
+        }
+
+        private static bool IsPlaytestSuccess(string report)
+        {
+            if (string.IsNullOrEmpty(report)) return false;
+            if (report.Contains(" OK")) return true;
+            if (!report.StartsWith("PLAYTEST:", StringComparison.Ordinal)) return false;
+
+            var firstLineEnd = report.IndexOf('\n');
+            var firstLine = firstLineEnd >= 0 ? report.Substring(0, firstLineEnd) : report;
+            var countStart = "PLAYTEST:".Length;
+            while (countStart < firstLine.Length && char.IsWhiteSpace(firstLine[countStart]))
+                countStart++;
+            var countEnd = firstLine.IndexOf(' ', countStart);
+            if (countEnd < 0) return false;
+
+            var counts = firstLine.Substring(countStart, countEnd - countStart).Split('/');
+            if (counts.Length != 2) return false;
+            return int.TryParse(counts[0], out var passed)
+                && int.TryParse(counts[1], out var total)
+                && total > 0
+                && passed == total;
         }
 
         private static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)

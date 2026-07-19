@@ -14,7 +14,7 @@ namespace UnityMCP.Editor
         /// <summary>Full capture with optional manifest. manifest=null when highlight is null/empty.</summary>
         internal static string CaptureWithManifest(GameObject target, int cellSize, int supersample,
             string customAngles, float zoom, Vector3 offset, float fixedSize, string highlight,
-            bool showColliders, out string manifest)
+            bool showColliders, out string manifest, string outputPath = null)
         {
             manifest = null;
             cellSize = Mathf.Clamp(cellSize, 64, 2048);
@@ -106,7 +106,7 @@ namespace UnityMCP.Editor
                 composite.Apply();
                 if (highlightObjs.Count > 0)
                     manifest = MultiViewOverlay.BuildManifest(snapStates, highlightObjs);
-                return FileOutputHelper.WritePng(composite.EncodeToPNG(), "multiview");
+                return FileOutputHelper.WritePng(composite.EncodeToPNG(), "multiview", outputPath);
             }
             finally
             {
@@ -118,7 +118,7 @@ namespace UnityMCP.Editor
             }
         }
 
-        public static string CaptureSceneOverview(int width, int height, bool topDown)
+        public static string CaptureSceneOverview(int width, int height, bool topDown, string outputPath = null)
         {
             var allRenderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
             var bounds = allRenderers.Length > 0 ? allRenderers[0].bounds : new Bounds(Vector3.zero, Vector3.one * 20f);
@@ -149,7 +149,7 @@ namespace UnityMCP.Editor
                 RenderCamera(cam); cam.targetTexture = null;
                 RenderTexture.active = rt;
                 tex.ReadPixels(new Rect(0, 0, width, height), 0, 0); tex.Apply();
-                return FileOutputHelper.WritePng(tex.EncodeToPNG(), "overview");
+                return FileOutputHelper.WritePng(tex.EncodeToPNG(), "overview", outputPath);
             }
             finally
             {
@@ -262,7 +262,7 @@ namespace UnityMCP.Editor
         /// <summary>Render a single orthographic view of a target object.</summary>
         internal static string CaptureSingleView(GameObject target, int size, int supersample,
             string angle, float zoom, Vector3 offset, float fixedSize,
-            string highlight, bool showColliders, out string manifest)
+            string highlight, bool showColliders, out string manifest, string outputPath = null)
         {
             manifest = null;
             supersample = Mathf.Clamp(supersample, 1, 4);
@@ -313,7 +313,7 @@ namespace UnityMCP.Editor
                     manifest = $"{angle ?? "front"}:{string.Join(",", highlightObjs.ConvertAll(o => o.go.name + "(vis)"))}";
                 }
                 tex.Apply();
-                return FileOutputHelper.WritePng(tex.EncodeToPNG(), "singleview");
+                return FileOutputHelper.WritePng(tex.EncodeToPNG(), "singleview", outputPath);
             }
             finally
             {
@@ -357,4 +357,3 @@ namespace UnityMCP.Editor
         }
     }
 }
-

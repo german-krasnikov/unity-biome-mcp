@@ -8,7 +8,9 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Playables;
 using UnityEngine.Rendering;
+using UnityEngine.UI;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -185,6 +187,88 @@ namespace UnityMCP.Editor.Tests
                     AssetDatabase.DeleteAsset("Assets/MCPTests");
             }
         }
+
+        [Test]
+        public void Execute_EditAction_PathTargetsPrefabChild_NotRoot()
+        {
+            var tmpPath = "Assets/TestsTemp/PrefabChildTarget.prefab";
+            TestPaths.EnsureFolder("Assets/TestsTemp");
+
+            var root = new GameObject("PrefabRoot");
+            var child = new GameObject("Child");
+            child.transform.SetParent(root.transform, false);
+            PrefabUtility.SaveAsPrefabAsset(root, tmpPath);
+            UnityEngine.Object.DestroyImmediate(root);
+            AssetDatabase.Refresh();
+
+            try
+            {
+                var argsJson = "{\"asset_path\":\"" + tmpPath + "\"," +
+                               "\"path\":\"Child\"," +
+                               "\"component\":\"Transform\"," +
+                               "\"prop\":\"localScale\",\"value\":\"2,2,2\"}";
+                var result = PrefabHelper.Execute("edit", argsJson);
+                StringAssert.Contains("ok", result);
+
+                AssetDatabase.ImportAsset(tmpPath, ImportAssetOptions.ForceUpdate);
+                var loaded = AssetDatabase.LoadAssetAtPath<GameObject>(tmpPath);
+                Assert.AreEqual(Vector3.one, loaded.transform.localScale);
+                Assert.AreEqual(new Vector3(2f, 2f, 2f), loaded.transform.Find("Child").localScale);
+            }
+            finally
+            {
+                AssetDatabase.DeleteAsset(tmpPath);
+            }
+        }
+    }
+
+    [TestFixture]
+    public class UIHelperCreateTests : SceneTestBase
+    {
+        [Test]
+        public void CreateText_WithExplicitCanvasParent_Succeeds()
+        {
+            UIHelper.CreateUI("Canvas", "MCP_UI_Canvas", null, null, null, null, null, null, null, null);
+
+            var result = UIHelper.CreateUI("Text", "MCP_UI_Title", "/MCP_UI_Canvas",
+                null, null, null, null, null, "Hello", "32");
+
+            StringAssert.Contains("Created /MCP_UI_Canvas/MCP_UI_Title", result);
+            var textGo = ComponentSerializer.FindObject("/MCP_UI_Canvas/MCP_UI_Title");
+            Assert.IsNotNull(textGo);
+            Assert.IsTrue(
+                textGo.GetComponent<Text>() != null || textGo.GetComponent("TextMeshProUGUI") != null,
+                "Text object should have TMP or legacy Text component");
+        }
+    }
+
+    [TestFixture]
+    public class TimelineHelperCreateTests : SceneTestBase
+    {
+        const string TimelinePath = "Assets/TestsTemp/TimelinePathCreatesDirector.playable";
+
+        [TearDown]
+        public void DeleteTimelineAsset()
+        {
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(TimelinePath) != null)
+                AssetDatabase.DeleteAsset(TimelinePath);
+        }
+
+        [Test]
+        public void Process_CreateTimeline_UsesPathAsDirectorWhenDirectorPathOmitted()
+        {
+            TestPaths.EnsureFolder("Assets/TestsTemp");
+            var json = "{\"cmd\":\"timeline\",\"id\":\"tl1\",\"args\":{\"action\":\"create\",\"path\":\"/MCP_TimelineDirector\",\"asset_path\":\"" + TimelinePath + "\"}}";
+
+            var result = CommandRouter.Process(json);
+
+            var directorGo = ComponentSerializer.FindObject("/MCP_TimelineDirector");
+            Assert.IsNotNull(directorGo, result);
+            var director = directorGo.GetComponent<PlayableDirector>();
+            Assert.IsNotNull(director);
+            Assert.IsNotNull(director.playableAsset);
+            StringAssert.Contains("/MCP_TimelineDirector", result);
+        }
     }
 
     // ── ErrorHelper — prefab asset hint ─────────────────────────────────────
@@ -342,7 +426,7 @@ namespace UnityMCP.Editor.Tests
                 SpatialHelper.InFrontOf("/NoSuchObject_XYZ", 1f));
         }
 
-        // ObjectsInRadius truncates at 20 and adds "...+more"
+        // ObjectsInRadius defaults to 20 shown entries and adds "...+N more"
         [Test]
         public void ObjectsInRadius_Over20Objects_TruncatesWithEllipsis()
         {
@@ -352,7 +436,20 @@ namespace UnityMCP.Editor.Tests
                 Make($"SpatialEdge_Near_{i}", new Vector3(i * 0.01f, 0f, 0f));
 
             var result = SpatialHelper.ObjectsInRadius("/" + anchor.name, 5f);
-            StringAssert.Contains("...+more", result);
+            StringAssert.Contains("...+2 more", result);
+        }
+
+        [Test]
+        public void ObjectsInRadius_ExplicitCap_LimitsShownEntries()
+        {
+            var anchor = Make("SpatialCap_Anchor", new Vector3(2000f, 0f, 0f));
+            for (int i = 0; i < 8; i++)
+                Make($"SpatialCap_Near_{i}", new Vector3(2000f + i * 0.01f, 0f, 0f));
+
+            var result = SpatialHelper.ObjectsInRadius("/" + anchor.name, 5f, cap: 5);
+            StringAssert.Contains("8 objects within 5m (showing 5)", result);
+            StringAssert.Contains("...+3 more", result);
+            StringAssert.DoesNotContain("SpatialCap_Near_7", result);
         }
 
         // ObjectsInRadius 19 objects — no truncation (cap is >= 20)

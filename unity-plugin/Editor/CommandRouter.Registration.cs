@@ -476,9 +476,9 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAction("project_settings", ProjectSettingsHelper.Execute, mutating: true,
                 required: "target", optional: "prop,value,index");
             CommandRegistry.RegisterAction("material", MaterialHelper.Execute, mutating: true,
-                optional: "path,object_path,shader,prop,value,source,targets,slot,filter");
+                optional: "path,object_path,shader,prop,value,source,targets,slot,filter,target");
             CommandRegistry.RegisterAction("prefab", PrefabHelper.Execute, mutating: true,
-                optional: "path,asset_path,base_path,variant_path,recursive,component,prop,value,add_component,remove_component");
+                optional: "path,asset_path,base_path,variant_path,recursive,component,prop,value,add_component,remove_component,child_path,mode,scope,format");
             CommandRegistry.RegisterAction("scriptable_object", ScriptableObjectHelper.Execute, mutating: true,
                 optional: "path,type,prop,value,filter,fields");
             CommandRegistry.RegisterAction("scene_environment", EnvironmentHelper.Execute, mutating: true,

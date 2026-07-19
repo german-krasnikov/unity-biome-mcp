@@ -8,6 +8,7 @@ namespace UnityMCP.Editor.Tests
     public class ScriptableObjectHelperTests
     {
         const string TempPath = "Assets/TestsTemp/SOHelper_OrphanTest.asset";
+        const string EchoPath = "Assets/TestsTemp/SOHelper_EchoTest.asset";
 
         [SetUp]
         public void SetUp() => TestPaths.EnsureFolder();
@@ -17,6 +18,8 @@ namespace UnityMCP.Editor.Tests
         {
             if (AssetDatabase.LoadAssetAtPath<ScriptableObject>(TempPath) != null)
                 AssetDatabase.DeleteAsset(TempPath);
+            if (AssetDatabase.LoadAssetAtPath<ScriptableObject>(EchoPath) != null)
+                AssetDatabase.DeleteAsset(EchoPath);
         }
 
         [Test]
@@ -30,5 +33,28 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNull(AssetDatabase.LoadAssetAtPath<ScriptableObject>(TempPath),
                 "Orphan asset must not remain on disk after failed create");
         }
+
+        [Test]
+        public void Set_WithMultipleFields_EchoesOldToNewValues()
+        {
+            var asset = ScriptableObject.CreateInstance<SOEchoTestAsset>();
+            asset.speed = 3;
+            asset.label = "old";
+            AssetDatabase.CreateAsset(asset, EchoPath);
+
+            var result = ScriptableObjectHelper.Execute("set",
+                $"{{\"path\":\"{EchoPath}\",\"fields\":\"speed=9\\nlabel=new\"}}");
+
+            StringAssert.Contains("speed = 3", result);
+            StringAssert.Contains("→ 9", result);
+            StringAssert.Contains("label = old", result);
+            StringAssert.Contains("→ new", result);
+        }
+    }
+
+    public class SOEchoTestAsset : ScriptableObject
+    {
+        public int speed;
+        public string label;
     }
 }

@@ -71,6 +71,36 @@ async def test_get_console_since_valid_mark(mod, monkeypatch):
     assert captured["count"] == 200
 
 
+async def test_get_console_since_accepts_full_labeled_mark(mod, monkeypatch):
+    captured = {}
+
+    async def fake_get_console(count, level, since, keyword=None, count_only=False):
+        captured["since"] = since
+        return "logs"
+
+    monkeypatch.setattr(mod, "get_console", fake_get_console)
+    mark = await mod.console_mark(label="phase1")
+    result = await mod.get_console_since(mark)
+
+    assert result == "logs"
+    assert captured["since"] >= 0
+
+
+async def test_get_console_since_accepts_bare_timestamp_with_label(mod, monkeypatch):
+    captured = {}
+
+    async def fake_get_console(count, level, since, keyword=None, count_only=False):
+        captured["since"] = since
+        return "logs"
+
+    monkeypatch.setattr(mod, "get_console", fake_get_console)
+    mark = f"{time.time()}:phase1"
+    result = await mod.get_console_since(mark)
+
+    assert result == "logs"
+    assert captured["since"] >= 0
+
+
 async def test_get_console_since_with_level(mod, monkeypatch):
     captured = {}
 

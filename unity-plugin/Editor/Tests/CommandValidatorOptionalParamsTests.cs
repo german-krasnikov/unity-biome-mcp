@@ -91,6 +91,22 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Validate_Prefab_092SchemaParams_Pass()
+        {
+            var err = CommandValidator.Validate("prefab",
+                "{\"action\":\"edit\",\"asset_path\":\"Assets/P.prefab\",\"path\":\"Child\",\"child_path\":\"Child\",\"mode\":\"new\",\"scope\":\"children\",\"format\":\"structured\"}");
+            Assert.IsNull(err, err);
+        }
+
+        [Test]
+        public void Validate_Material_TargetParam_Passes()
+        {
+            var err = CommandValidator.Validate("material",
+                "{\"action\":\"set\",\"object_path\":\"/Obj\",\"prop\":\"_Color\",\"value\":\"#00FF00\",\"target\":\"instance\"}");
+            Assert.IsNull(err, err);
+        }
+
+        [Test]
         public void Validate_References_ConsolidatedCommand_Passes()
         {
             var err = CommandValidator.Validate("references", "{\"action\":\"get\",\"path\":\"/Obj\"}");

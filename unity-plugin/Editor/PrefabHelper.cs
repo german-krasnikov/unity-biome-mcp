@@ -156,7 +156,8 @@ namespace UnityMCP.Editor
         {
             var assetPath  = JsonHelper.ExtractString(args, "asset_path")
                 ?? throw new ArgumentException("asset_path is required (e.g. Assets/Prefabs/Foo.prefab)");
-            var childPath  = JsonHelper.ExtractString(args, "child_path");
+            var childPath  = JsonHelper.ExtractString(args, "child_path")
+                ?? JsonHelper.ExtractString(args, "path");
             var component  = JsonHelper.ExtractString(args, "component");
             var prop       = JsonHelper.ExtractString(args, "prop");
             var value      = JsonHelper.ExtractString(args, "value");

@@ -949,6 +949,19 @@ async def test_screenshot_show_colliders_passthrough(mock_bridge):
     assert args["show_colliders"] == "true"
 
 
+async def test_screenshot_output_path_keeps_scene_path_separate(mock_bridge):
+    """output_path is file output; path remains the scene/object path."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "img"})
+    await screenshot(
+        camera="single_view",
+        path="/Obj",
+        output_path="Plans/Artifacts/shot.png",
+    )
+    args = mock_bridge.send.call_args[0][1]
+    assert args["path"] == "/Obj"
+    assert args["output_path"] == "Plans/Artifacts/shot.png"
+
+
 async def test_screenshot_show_colliders_omitted_when_false(mock_bridge):
     """screenshot omits show_colliders when False/None."""
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "img"})
@@ -1463,5 +1476,4 @@ async def test_lifespan_releases_lock_on_normal_exit(monkeypatch):
         pass
 
     assert released == [fake_fd]
-
 

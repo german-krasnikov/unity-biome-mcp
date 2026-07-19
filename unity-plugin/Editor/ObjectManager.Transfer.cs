@@ -51,10 +51,23 @@ namespace UnityMCP.Editor
                     return $"Moved {sourcePath} → {targetScene.name}";
 
                 case "copy":
-                    var clone = UnityEngine.Object.Instantiate(go, null, worldPositionStays);
+                    var previousActive = SceneManager.GetActiveScene();
+                    GameObject clone;
+                    try
+                    {
+                        if (targetScene.IsValid())
+                            SceneManager.SetActiveScene(targetScene);
+                        clone = UnityEngine.Object.Instantiate(go);
+                    }
+                    finally
+                    {
+                        if (previousActive.IsValid())
+                            SceneManager.SetActiveScene(previousActive);
+                    }
                     clone.name = go.name;
                     Undo.RegisterCreatedObjectUndo(clone, $"Copy {go.name}");
-                    SceneManager.MoveGameObjectToScene(clone, targetScene);
+                    if (clone.scene != targetScene)
+                        SceneManager.MoveGameObjectToScene(clone, targetScene);
                     ApplyParent(clone, newParent, worldPositionStays, expectedScene: targetScene);
                     EditorUtility.SetDirty(clone);
                     if (!EditorApplication.isPlaying)

@@ -14,6 +14,9 @@ namespace UnityMCP.Editor
             var ctrl = GetOrCreateController(path);
             var added = new List<string>();
 
+            if (string.IsNullOrEmpty(paramsStr))
+                throw new ArgumentException("'params' is required for add_param");
+
             foreach (var part in paramsStr.Split(';'))
             {
                 var p = part.Trim();

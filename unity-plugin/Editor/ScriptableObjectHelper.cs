@@ -106,8 +106,7 @@ namespace UnityMCP.Editor
                 result = SetSingleField(so, prop, value);
             else
             {
-                SetMultipleFields(so, fields);
-                result = "ok";
+                result = SetMultipleFields(so, fields);
             }
 
             so.ApplyModifiedProperties();
@@ -138,8 +137,9 @@ namespace UnityMCP.Editor
             return string.Join(", ", names);
         }
 
-        private static void SetMultipleFields(SerializedObject so, string fields)
+        private static string SetMultipleFields(SerializedObject so, string fields)
         {
+            var sb = new StringBuilder();
             foreach (var line in fields.Split('\n'))
             {
                 var trimmed = line.Trim();
@@ -159,8 +159,11 @@ namespace UnityMCP.Editor
                     throw new ArgumentException($"Property not found: '{fieldProp}'. Allowed: {allowed}");
                 }
 
+                var oldVal = property.hasMultipleDifferentValues ? "<mixed>" : ComponentSerializer.GetPropertyValueString(property);
                 ValueParser.SetPropertyValue(property, fieldVal);
+                sb.AppendLine($"ok: {fieldProp} = {oldVal} → {fieldVal}");
             }
+            return sb.Length > 0 ? sb.ToString().TrimEnd() : "ok";
         }
 
         // ── list_types ────────────────────────────────────────────────────────

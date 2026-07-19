@@ -1,6 +1,7 @@
 using System;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -24,6 +25,18 @@ namespace UnityMCP.Editor.Tests
         [TearDown]
         public void TearDown()
         {
+            if (_go != null)
+            {
+                var renderer = _go.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    foreach (var mat in renderer.sharedMaterials)
+                    {
+                        if (mat != null && mat != _mat0 && mat != _mat1)
+                            UnityEngine.Object.DestroyImmediate(mat);
+                    }
+                }
+            }
             UnityEngine.Object.DestroyImmediate(_go);
             UnityEngine.Object.DestroyImmediate(_mat0);
             UnityEngine.Object.DestroyImmediate(_mat1);
@@ -115,6 +128,23 @@ namespace UnityMCP.Editor.Tests
             Assert.DoesNotThrow(() =>
                 MaterialHelper.Execute("list_slots",
                     "{\"object_path\":\"/ListSlotsAction\"}"));
+        }
+
+        [Test]
+        public void Set_TargetInstance_DoesNotLogEditModeMaterialError()
+        {
+            _go.name = "MaterialInstanceNoLog";
+            _go.transform.SetParent(null);
+            var originalColor = _mat0.GetColor("_Color");
+
+            var result = MaterialHelper.Execute("set",
+                "{\"object_path\":\"/MaterialInstanceNoLog\",\"prop\":\"_Color\",\"value\":\"#00FF00\",\"target\":\"instance\"}");
+
+            StringAssert.Contains("mutated: renderer_instance", result);
+            StringAssert.Contains("asset_modified: false", result);
+            Assert.AreEqual(Color.green, _go.GetComponent<Renderer>().sharedMaterials[0].GetColor("_Color"));
+            Assert.AreEqual(originalColor, _mat0.GetColor("_Color"));
+            LogAssert.NoUnexpectedReceived();
         }
     }
 }

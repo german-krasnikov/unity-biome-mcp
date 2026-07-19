@@ -222,9 +222,18 @@ namespace UnityMCP.Editor
             var tmpType = FindTMPTextType();
             if (tmpType != null)
             {
-                var comp = Undo.AddComponent(go, tmpType);
-                SetTMPText(comp, text, font_size, color);
-                return;
+                Component comp = null;
+                try
+                {
+                    comp = Undo.AddComponent(go, tmpType);
+                    SetTMPText(comp, text, font_size, color);
+                    return;
+                }
+                catch
+                {
+                    if (comp != null)
+                        UnityEngine.Object.DestroyImmediate(comp);
+                }
             }
             // Fallback to legacy Text
             var t = Undo.AddComponent<Text>(go);

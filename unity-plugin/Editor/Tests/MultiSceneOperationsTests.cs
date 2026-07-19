@@ -77,6 +77,21 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Copy_DoesNotDirtySourceScene()
+        {
+            var sourceScene = _transferGo.scene;
+            EditorSceneManager.SaveScene(sourceScene);
+            EditorSceneManager.SaveScene(_additiveScene);
+            Assert.IsFalse(sourceScene.isDirty, "precondition: source scene should be clean");
+            Assert.IsFalse(_additiveScene.isDirty, "precondition: target scene should be clean");
+
+            ObjectManager.TransferObject("/TransferObj", "copy", _additiveScene.name, null, true);
+
+            Assert.IsFalse(sourceScene.isDirty, "Copy should not dirty the source scene");
+            Assert.IsTrue(_additiveScene.isDirty, "Copy should dirty only the target scene");
+        }
+
+        [Test]
         public void Move_SceneNotLoaded_Throws()
         {
             Assert.Throws<System.ArgumentException>(() =>

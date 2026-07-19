@@ -1,4 +1,6 @@
 using NUnit.Framework;
+using System.IO;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
@@ -82,6 +84,23 @@ namespace UnityMCP.Editor.Tests
 
             Assert.Throws<System.ArgumentException>(
                 () => ScreenshotCapture.Capture(16, 16, null));
+        }
+
+        [Test]
+        public void Process_OverviewScreenshot_HonorsOutputPath()
+        {
+            TestPaths.EnsureFolder("Assets/TestsTemp/Screenshots");
+            var output = "Assets/TestsTemp/Screenshots/overview_requested.png";
+            var fullPath = Path.GetFullPath(output);
+            if (File.Exists(fullPath)) File.Delete(fullPath);
+
+            var json = "{\"cmd\":\"screenshot\",\"id\":\"shot1\",\"args\":{\"camera\":\"overview\",\"width\":\"32\",\"height\":\"32\",\"output_path\":\"" + output + "\"}}";
+            var result = CommandRouter.Process(json);
+
+            Assert.IsTrue(File.Exists(fullPath), result);
+            StringAssert.Contains(fullPath, result);
+
+            AssetDatabase.DeleteAsset(output);
         }
     }
 }
