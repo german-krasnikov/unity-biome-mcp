@@ -215,26 +215,23 @@ namespace UnityMCP.Editor
                 fromPos = fromObj.transform.position;
             }
 
-            var sb = new StringBuilder();
-            int total = 0;
-            int shown = 0;
+            var hits = new List<(GameObject go, float dist)>();
             foreach (var go in Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None))
             {
                 if (go == fromObj || (fromObj != null && go.transform.IsChildOf(fromObj.transform))) continue;
                 float dist = Vector3.Distance(fromPos, go.transform.position);
                 if (dist <= radius)
-                {
-                    total++;
-                    if (shown < cap)
-                    {
-                        sb.AppendLine($"  {ComponentSerializer.GetPath(go)} dist={F(dist,"F2")}");
-                        shown++;
-                    }
-                }
+                    hits.Add((go, dist));
             }
-            if (total == 0) return "No objects within radius";
-            if (total > shown) sb.AppendLine($"  ...+{total - shown} more");
-            return $"{total} objects within {radius}m (showing {shown}):\n{sb.ToString().TrimEnd()}";
+            if (hits.Count == 0) return "No objects within radius";
+            hits.Sort((a, b) => a.dist.CompareTo(b.dist));
+
+            var sb = new StringBuilder();
+            int shown = System.Math.Min(hits.Count, cap);
+            for (int i = 0; i < shown; i++)
+                sb.AppendLine($"  {ComponentSerializer.GetPath(hits[i].go)} dist={F(hits[i].dist,"F2")}");
+            if (hits.Count > shown) sb.AppendLine($"  ...+{hits.Count - shown} more");
+            return $"{hits.Count} objects within {radius}m (showing {shown}):\n{sb.ToString().TrimEnd()}";
         }
 
         public static string BoundsInfo(string path)

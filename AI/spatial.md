@@ -23,7 +23,7 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 
 - `nearest` — find closest object (optionally filtered by component name)
 - `in_front_of` — position in front of object at distance (returns world position)
-- `objects_in_radius` — list all objects within radius (around path OR center)
+- `objects_in_radius` — list all objects within radius (around path OR center); results sorted nearest-first, then truncated to `cap`
 - `bounds_info` — detailed bounds/dimensions of object
 - `raycast` — cast ray from path/pos to target, returns hits sorted by distance
 - `spatial_map` — ASCII grid map of objects in XZ plane (cell_size in meters)
@@ -57,7 +57,7 @@ Enemy #3001 [Rigidbody,EnemyAI] (distance: 5.23m)
 Position: (10.5, 0.0, 15.2)
 ```
 
-**objects_in_radius:**
+**objects_in_radius:** (sorted nearest-first; cap applied after sort)
 ```
 Rock_1 #4050 [Renderer] (5.1m)
 Rock_2 #4051 [Renderer,Rigidbody] (6.8m)
