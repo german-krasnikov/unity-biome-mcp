@@ -61,7 +61,49 @@ def test_deprecated_tools_raise_with_hint():
         asyncio.run(run_playtest_file("test.playtest"))
 
 
-def test_deprecated_not_in_all_known():
-    from unity_mcp.tools.gating import _ALL_KNOWN
-    assert "get_perf" not in _ALL_KNOWN
-    assert "run_playtest_file" not in _ALL_KNOWN
+def test_deprecated_in_all_known_but_not_visible():
+    """MCP091-011: deprecated stubs are in _ALL_KNOWN (so filter_by_tier hides them)
+    but NOT in TIER1 or session_enabled (so is_visible returns False → hidden in ListTools)."""
+    from unity_mcp.tools.gating import _ALL_KNOWN, is_visible
+    for name in ("get_perf", "run_playtest_file"):
+        assert name in _ALL_KNOWN, f"{name} must be in _ALL_KNOWN for visibility gating"
+        assert not is_visible(name), f"{name} must not be visible in ListTools"
+
+
+# ---------------------------------------------------------------------------
+# MCP091-014: configure_objects / setup_objects are Python-only macros
+# ---------------------------------------------------------------------------
+
+def test_configure_objects_is_direct_only():
+    assert _SPECS["configure_objects"].direct_only, \
+        "configure_objects must be direct_only=True (Python macro, not a C# command)"
+
+
+def test_setup_objects_is_direct_only():
+    assert _SPECS["setup_objects"].direct_only, \
+        "setup_objects must be direct_only=True (Python macro, not a C# command)"
+
+
+def test_configure_objects_not_in_tcp_catalog():
+    catalog = get_catalog()
+    for cat, tools in catalog["categories"].items():
+        assert "configure_objects" not in tools, \
+            f"configure_objects (direct_only) leaked into TCP catalog['{cat}']"
+
+
+def test_setup_objects_not_in_tcp_catalog():
+    catalog = get_catalog()
+    for cat, tools in catalog["categories"].items():
+        assert "setup_objects" not in tools, \
+            f"setup_objects (direct_only) leaked into TCP catalog['{cat}']"
+
+
+# ---------------------------------------------------------------------------
+# MCP091-011: deprecated stubs registered with FastMCP
+# ---------------------------------------------------------------------------
+
+def test_deprecated_stubs_registered_with_fastmcp():
+    from unity_mcp.server import mcp
+    for name in ("get_perf", "run_playtest_file"):
+        assert name in mcp._tool_manager._tools, \
+            f"deprecated stub '{name}' not registered with FastMCP (MCP091-011)"

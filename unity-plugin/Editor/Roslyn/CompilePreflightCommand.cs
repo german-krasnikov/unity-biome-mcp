@@ -10,13 +10,21 @@ namespace UnityMCP.Editor
         {
             var filePath   = JsonHelper.ExtractString(argsJson, "file_path") ?? "";
             var newContent = JsonHelper.ExtractString(argsJson, "new_content") ?? "";
+            if (string.IsNullOrWhiteSpace(filePath))
+                return "err: file_path is required";
+            if (string.IsNullOrWhiteSpace(newContent))
+                return "err: new_content is required";
 
             var sw = Stopwatch.StartNew();
             try
             {
                 var diagnostics = RoslynWorkspace.GetDiagnostics(filePath, newContent);
                 sw.Stop();
-                return RoslynFormat.FormatDiagnostics(diagnostics, sw.ElapsedMilliseconds);
+                var result = RoslynFormat.FormatDiagnostics(diagnostics, sw.ElapsedMilliseconds);
+                var hints = Roslyn.UnityPreflightHints.Analyze(filePath, newContent);
+                if (!string.IsNullOrEmpty(hints))
+                    result += "\n" + hints;
+                return result;
             }
             catch (Exception ex)
             {

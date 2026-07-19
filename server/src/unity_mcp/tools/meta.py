@@ -17,11 +17,14 @@ _send = None
 _args = None
 
 
-async def discover_tools(category: str | None = None, enable: bool = True, ctx: Context = None) -> str:
+async def discover_tools(category: str | None = None, enable: bool = True,
+                         include_legacy: bool = False, structured: bool = False,
+                         ctx: Context = None) -> str:
     """Find and enable tools by category.
-    Categories: object, animation, asset, advanced, ui, runtime, connection, session.
-    Pass enable=False to browse without enabling."""
-    result = await _discover_tools_impl(category, enable)
+    Canonical 8: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM.
+    include_legacy=True adds legacy aliases (object, animation, etc.).
+    structured=True adds surface/mutability info. enable=False to browse only."""
+    result = await _discover_tools_impl(category, enable, include_legacy, structured)
     if enable and category and ctx:
         await ctx.session.send_tool_list_changed()
     return result

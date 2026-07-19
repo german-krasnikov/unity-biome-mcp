@@ -28,14 +28,21 @@ def test_every_spec_has_registered_tool():
 
 
 def test_every_registered_tool_has_spec():
-    """Every first-party registered MCP tool must have a _SPECS entry (no orphan registrations)."""
+    """Every first-party registered MCP tool must have a _SPECS entry (no orphan registrations).
+
+    MCP091-011: deprecated stubs (get_perf, run_playtest_file) are intentionally registered
+    so MCP returns ToolError+migration-hint instead of 'tool not found'. They have _SPECS
+    entries (DEPRECATED category), so they're not orphans.
+    """
     registered = _get_first_party_registered()
-    orphans = registered - _SPEC_MCP_NAMES
+    # Include DEPRECATED in allowed set — deprecated stubs are intentionally registered (MCP091-011)
+    _ALL_SPEC_NAMES = frozenset(n for n, s in _SPECS.items() if s.category != "_INTERNAL")
+    orphans = registered - _ALL_SPEC_NAMES
     assert not orphans, f"Registered but no _SPECS entry: {sorted(orphans)}"
 
 
-def test_no_deprecated_tools_registered():
-    """Regression guard: get_perf and run_playtest_file must stay deleted."""
+def test_deprecated_tools_registered_with_migration_hint():
+    """MCP091-011: deprecated stubs are registered (return ToolError hint, not 'tool not found')."""
     registered = _get_registered()
     for name in ("get_perf", "run_playtest_file"):
-        assert name not in registered, f"Deprecated tool still registered: {name}"
+        assert name in registered, f"Deprecated stub not registered: {name}"

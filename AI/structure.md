@@ -154,7 +154,7 @@ unity-kiss-mcp/
 │   │   │   └── _annotations.py          # Tool annotations
 │   │   └── plugins/            # Plugin system — 3-source auto-discovery (auto-disabled via UNITY_MCP_SKIP_PLUGINS env)
 │   │       └── __init__.py     # load_plugins(mcp, send_fn, args_fn), 3-source discovery, UNITY_MCP_SKIP_PLUGINS filtering
-│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; playtests ROI sprint: +11 new test files for transaction/verify/watermarks/suite runner/scene refs; v0.78.11: +test_middleware_read_cmds + test_tool_schema_coverage; v0.78.x: +alias middleware tests; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
+│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; v0.91.0: +test_surface_parity, test_tools_verify, test_schema_parity, test_registration_parity, test_gating, test_catalog, test_deferred_schema; v0.92.0: +test_result_envelope, test_compile_workflow; playtests ROI sprint: +11 new test files for transaction/verify/watermarks/suite runner/scene refs; v0.78.11: +test_middleware_read_cmds + test_tool_schema_coverage; v0.78.x: +alias middleware tests; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
 │       ├── helpers.py                  # DRY: make_mock_bridge() + shared test utilities (v0.26.0)
 │       ├── test_server*.py             # Core + edge cases + tools
 │       ├── test_bridge*.py             # TCP bridge + reconnect + resilience
@@ -164,6 +164,8 @@ unity-kiss-mcp/
 │       ├── test_middleware_alias_lifecycle.py # Alias cache lifecycle: seeding, reset, Hook 1+2 integration (v0.78.x)
 │       ├── test_middleware_read_cmds.py    # READ_CMDS coverage: 59 tests verifying every cmd in READ_CMDS is flagged read-only + editor dual-use action parsing (v0.78.11)
 │       ├── test_tool_schema_coverage.py    # FastMCP contract tests: 7 tests verify JSON Schema emitted by FastMCP matches expected params (compress, validate_aliases, alias_status registration, core tool non-empty properties, v0.78.11)
+│       ├── test_result_envelope.py         # Result envelope predicates: isSuccess on run_playtest/wait_until/test_step/move_to/ask_user (v0.91.0+v0.92.0)
+│       ├── test_compile_workflow.py        # STALE-DOMAIN + MANUAL-REQUIRED compile workflow gate tests (v0.92.0)
 │       ├── test_batch*.py              # Batch + conflict + timeout
 │       ├── test_config_gaps.py         # Config validation: resolver.py + validator.py + update_check.py + doctor; SERVER_NAME drift guard (v0.71.0) (73+78=151 tests, v0.47.1: GitHub API, git+URL, TOML clients, per-client root_key)
 │       ├── test_server_name_consistency.py # Cross-language Python↔C# SERVER_NAME + MCP_BLANKET drift guard (v0.71.0)
@@ -543,11 +545,13 @@ unity-kiss-mcp/
 │       │       ├── PerfThresholds.cs       # Color band classification: good/warn/crit thresholds + Color32.Lerp gradients
 │       │       ├── AnimatedCounter.cs      # Label subclass: exponential ease lerp to target value (0.3s)
 │       │       └── RecordIndicator.cs      # Pure USS pulsing red dot animation for recording state
+│       ├── SerializedFieldRenameAudit.cs   # YAML scan of prefabs/scenes/SOs for stale field data after rename without [FormerlySerializedAs] (v0.92.0)
 │       ├── Roslyn/                         # Roslyn-based C# analysis (v0.62.0: 4 files)
 │       │   ├── RoslynLoader.cs             # Reflection-based Roslyn assembly discovery (mscorlib, UnityEngine)
 │       │   ├── RoslynWorkspace.cs          # SyntaxTree → Compilation → Diagnostics pipeline
 │       │   ├── RoslynFormat.cs             # OK/ERR formatter for compile_preflight results
-│       │   └── CompilePreflightCommand.cs  # Dry-run compilation check handler
+│       │   ├── CompilePreflightCommand.cs  # Dry-run compilation check handler
+│       │   └── UnityPreflightHints.cs      # Static analyzer: serialized Dictionary, non-serializable types, renamed fields without FormerlySerializedAs (v0.92.0)
 │       ├── Rendering/                      # Rendering Analysis & Optimization (v0.60.0: 6 C# files + 3 partials)
 │       │   ├── RenderAnalyzer.cs           # Entry point: dispatch to analysis actions (stats, overdraw, materials, etc.)
 │       │   ├── RenderAnalyzer.Materials.cs # Material/texture dedup & compression audit (partial)

@@ -43,9 +43,11 @@ del _name, _spec
 TIER1: set[str] = {name for name, spec in _SPECS.items() if spec.core or spec.tier1}
 
 # All known tool names across all tiers (everything except _INTERNAL protocol
-# commands and DEPRECATED stubs, which are not active MCP tools).
+# commands). DEPRECATED stubs are included so filter_by_tier can gate them —
+# they're not TIER1 and not session-enabled, so is_visible() returns False and
+# they are hidden in ListTools but remain callable by name (MCP091-011).
 _ALL_KNOWN: set[str] = {name for name, spec in _SPECS.items()
-                        if spec.category not in ("_INTERNAL", "DEPRECATED")}
+                        if spec.category != "_INTERNAL"}
 
 # Python-only tools: have no C# CommandRegistry handler; never sent to Unity.
 _DIRECT_ONLY: frozenset[str] = frozenset(
@@ -215,12 +217,36 @@ def filter_by_tier(tools: list) -> list:
     return [t for t in tools if t.name not in _ALL_KNOWN or is_visible(t.name)]
 
 
-async def discover_tools(category: str | None = None, enable: bool = True) -> str:
+def _tool_surface_line(name: str) -> str:
+    spec = _SPECS.get(name)
+    if spec is None:
+        return f"  {name}"
+    tags = []
+    if spec.core: tags.append("core")
+    elif spec.tier1: tags.append("tier1")
+    surfaces = "direct" if spec.direct_only else "direct,batch"
+    parts = [f"  {name}"]
+    if tags: parts.append(" ".join(tags))
+    parts.append(f"surfaces={surfaces}")
+    return "  ".join(parts)
+
+
+async def discover_tools(category: str | None = None, enable: bool = True,
+                         include_legacy: bool = False, structured: bool = False) -> str:
     """Find and enable tools by category.
-    Categories: object, animation, asset, advanced, ui, runtime, connection, session.
-    Pass enable=False to browse without enabling."""
+    Canonical categories: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM.
+    Legacy aliases (object, animation, etc.) available with include_legacy=True.
+    structured=True adds surface/mutability info per tool. enable=False to browse only."""
     if category is None:
-        lines = [f"{k}: {', '.join(sorted(v))}" for k, v in CATEGORIES.items()]
+        keys = list(CATEGORIES.keys()) if include_legacy else list(_THEMED_CATEGORY_KEYS)
+        if structured:
+            parts = []
+            for k in keys:
+                tools = sorted(CATEGORIES.get(k, []))
+                parts.append(f"{k}:")
+                parts.extend(_tool_surface_line(t) for t in tools)
+            return "\n".join(parts)
+        lines = [f"{k}: {', '.join(sorted(CATEGORIES.get(k, [])))}" for k in keys]
         return "\n".join(lines)
     if category not in CATEGORIES:
         raise ValueError(f"Unknown category: '{category}'. Valid: {sorted(CATEGORIES)}")

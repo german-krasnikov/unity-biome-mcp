@@ -273,10 +273,9 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Execute_UnknownAction_ReturnsErr()
+        public void Execute_UnknownAction_ThrowsInvalidOperation()
         {
-            var result = RenderAnalyzer.Execute(A("bogus_xyz"));
-            StringAssert.StartsWith("err:", result);
+            Assert.Throws<System.InvalidOperationException>(() => RenderAnalyzer.Execute(A("bogus_xyz")));
         }
 
         [Test]

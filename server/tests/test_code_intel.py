@@ -62,7 +62,7 @@ def test_removed_tools_not_registered():
     mcp.tool = MagicMock(return_value=lambda fn: registered.append(fn.__name__) or fn)
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    assert registered == ["compile_preflight", "await_compile"]
+    assert registered == ["compile_preflight", "await_compile", "serialized_field_rename_audit"]
 
 
 # --- gating ---

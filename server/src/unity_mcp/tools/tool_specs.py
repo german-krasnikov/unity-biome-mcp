@@ -57,7 +57,7 @@ _SPECS: dict[str, ToolSpec] = {
     # timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
     # timeout=15.0 (fast-fail by design).
     'compile_preflight': ToolSpec(category='VERIFY', tier1=True, timeout_s=60.0, mutability='read'),
-    'configure_objects': ToolSpec(category='SCENE', tier1=True),
+    'configure_objects': ToolSpec(category='SCENE', tier1=True, direct_only=True),
     'console_mark': ToolSpec(category='RUNTIME', tier1=True, mutability='read', direct_only=True),
     'create_object': ToolSpec(category='CORE', core=True),
     'create_ui': ToolSpec(category='MEDIA'),
@@ -156,6 +156,7 @@ _SPECS: dict[str, ToolSpec] = {
     'screenshot_compare': ToolSpec(category='MEDIA', mutability='read', direct_only=True),
     'scriptable_object': ToolSpec(category='ASSETS'),
     'search_scene': ToolSpec(category='SCENE', tier1=True, timeout_s=15.0, mutability='read'),
+    'serialized_field_rename_audit': ToolSpec(category='VERIFY', mutability='read'),
     'set_active': ToolSpec(category='SCENE', tier1=True),
     'set_llm_config': ToolSpec(category='SYSTEM'),
     'set_material': ToolSpec(category='SCENE'),
@@ -165,7 +166,7 @@ _SPECS: dict[str, ToolSpec] = {
     'set_property_delta': ToolSpec(category='SCENE'),
     'set_rect': ToolSpec(category='MEDIA'),
     'set_runtime_property': ToolSpec(category='RUNTIME', runtime_only=True),
-    'setup_objects': ToolSpec(category='SCENE', tier1=True),
+    'setup_objects': ToolSpec(category='SCENE', tier1=True, direct_only=True),
     'shader': ToolSpec(category='ASSETS'),
     'smart_build': ToolSpec(category='SYSTEM'),
     'snapshot': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),

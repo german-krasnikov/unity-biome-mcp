@@ -36,7 +36,8 @@ namespace UnityMCP.Editor
                 "probe_audit"    => ProbeAudit(path, detail),
                 "light_optimize" => LightOptimize(path),
                 "frame_debug"    => FrameDebugHelper.Capture(args),
-                _ => $"err:Unknown action '{action}'. Valid: stats|materials|shaders|lights|batching|overdraw|audit|compare|frame_debug|shadow_audit|probe_audit|light_optimize"
+                _ => throw new InvalidOperationException(
+                    $"Unknown action '{action}'. Valid: stats|materials|shaders|lights|batching|overdraw|audit|compare|frame_debug|shadow_audit|probe_audit|light_optimize")
             };
         }
 

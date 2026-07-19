@@ -18,6 +18,7 @@ namespace UnityMCP.Editor
         internal static Func<bool> IsCompiling = () => CommandRouter.IsCompiling();
 
         private static readonly Regex _sigilRe = new Regex(@"\$([A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
+        private static readonly Regex _errCountRe = new Regex(@"\berr:\s*[1-9]", RegexOptions.Compiled);
 
         public static string Execute(string commandsText, string onError, int timeoutMs = 25000, bool atomic = false, bool validateAliases = false)
         {
@@ -126,6 +127,8 @@ namespace UnityMCP.Editor
                     if (result != "ok")
                         sb.AppendLine($"[{i}] {result}");
                     okCount++;
+                    if (CommandRegistry.IsMutating(cmd) && !result.StartsWith("err:"))
+                        ChangeWatcher.RecordMutation($"MCP_BATCH_{cmd.ToUpper()}");
                 }
                 catch (Exception e)
                 {
@@ -342,6 +345,16 @@ namespace UnityMCP.Editor
 
             sb.Append("}");
             return sb.ToString();
+        }
+
+        // Returns true when the batch summary line reports one or more errors.
+        // Checks only the last non-empty line (always the summary: "ok:N err:M ...").
+        public static bool HasErrors(string batchOutput)
+        {
+            if (string.IsNullOrEmpty(batchOutput)) return false;
+            var lastNl = batchOutput.LastIndexOf('\n');
+            var lastLine = (lastNl < 0 ? batchOutput : batchOutput.Substring(lastNl + 1)).Trim();
+            return _errCountRe.IsMatch(lastLine);
         }
 
     }

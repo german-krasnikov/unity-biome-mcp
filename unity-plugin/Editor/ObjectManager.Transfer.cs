@@ -51,9 +51,8 @@ namespace UnityMCP.Editor
                     return $"Moved {sourcePath} → {targetScene.name}";
 
                 case "copy":
-                    var clone = UnityEngine.Object.Instantiate(go);
+                    var clone = UnityEngine.Object.Instantiate(go, null, worldPositionStays);
                     clone.name = go.name;
-                    clone.transform.SetParent(null, worldPositionStays);
                     Undo.RegisterCreatedObjectUndo(clone, $"Copy {go.name}");
                     SceneManager.MoveGameObjectToScene(clone, targetScene);
                     ApplyParent(clone, newParent, worldPositionStays, expectedScene: targetScene);

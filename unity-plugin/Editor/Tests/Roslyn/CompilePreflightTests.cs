@@ -82,7 +82,7 @@ namespace UnityMCP.Editor.Tests
             // Either returns OK (empty string parses fine) or ROSLYN UNAVAILABLE.
             var result = CompilePreflightCommand.Execute("{}");
             Assert.IsTrue(
-                result.StartsWith("OK") || result.StartsWith("ERR") || result.StartsWith("[ROSLYN"),
+                result.StartsWith("OK") || result.StartsWith("ERR") || result.StartsWith("[ROSLYN") || result.StartsWith("err:"),
                 $"unexpected result format: {result}");
         }
     }

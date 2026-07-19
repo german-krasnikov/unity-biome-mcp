@@ -119,5 +119,7 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RO)(get_test_results)
     mcp.tool(annotations=_RO)(get_test_progress)
     mcp.tool(annotations=_RO)(get_test_count)
-    # DEPRECATED stubs are NOT registered with FastMCP — they're importable
-    # Python functions only, callable for migration hints in tests.
+    # MCP091-011: register deprecated stubs so MCP returns ToolError+hint instead of "tool not found"
+    # DEPRECATED category excluded from filter_by_tier → invisible in ListTools, but callable by name
+    mcp.tool(annotations=_RO)(get_perf)
+    mcp.tool(annotations=_RO)(run_playtest_file)

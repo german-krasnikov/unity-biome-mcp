@@ -23,6 +23,11 @@ _STILL_BUSY_STATES = frozenset({"compiling", "reloading"})
 async def compile_preflight(file_path: str, new_content: str) -> str:
     """Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.
     file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE]."""
+    from mcp.server.fastmcp.exceptions import ToolError
+    if not file_path or not file_path.strip():
+        raise ToolError("compile_preflight: file_path is required (Assets-relative path)")
+    if not new_content or not new_content.strip():
+        raise ToolError("compile_preflight: new_content is required (full file content)")
     args: dict[str, Any] = {"file_path": file_path, "new_content": new_content}
     return await _send("compile_preflight", args, timeout=15.0)
 
@@ -111,14 +116,18 @@ async def await_compile(timeout: float = 60.0) -> str:
 
             if ep == epoch:
                 if st == "ready" or st == "idle":
-                    # P4: MVID gate — unchanged MVID after intended compile → stale domain
+                    # P4: MVID gate — unchanged MVID after intended compile
                     if stamp_pre and stamp_post:
                         mvid_pre  = stamp_pre.partition(":")[0]
                         mvid_post = stamp_post.partition(":")[0]
                         if mvid_pre == mvid_post:
+                            # MCP091-018: no-IL-change compile → check errors first
+                            errors = await _get_errors(compile_status="idle")
+                            if not errors:
+                                return "compile clean (no IL change)"
                             return (
                                 "STALE-DOMAIN: stamp unchanged after reload"
-                                " — old code may be live"
+                                " — old code may be live\n" + errors
                             )
                     errors = await _get_errors(compile_status="idle")
                     return errors if errors else "compile clean (sync)"
@@ -156,6 +165,24 @@ async def await_compile(timeout: float = 60.0) -> str:
         await asyncio.sleep(1)
 
 
+async def serialized_field_rename_audit(
+    type: str,
+    old_field: str,
+    new_field: str,
+    include: str = "prefabs,scenes,scriptable_objects",
+) -> str:
+    """Audit [SerializeField] rename safety.
+    type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats').
+    old_field: field name as it exists in serialized assets.
+    new_field: renamed field name in current C# source.
+    include: comma-separated scan targets (prefabs,scenes,scriptable_objects).
+    Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions."""
+    args: dict[str, Any] = {"type": type, "old_field": old_field, "new_field": new_field}
+    if include != "prefabs,scenes,scriptable_objects":
+        args["include"] = include
+    return await _send("serialized_field_rename_audit", args)
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
@@ -163,3 +190,4 @@ def register(mcp, send, args):
     from ._annotations import RO as _RO
     mcp.tool(annotations=_RO)(compile_preflight)
     mcp.tool(annotations=_RO)(await_compile)
+    mcp.tool(annotations=_RO)(serialized_field_rename_audit)

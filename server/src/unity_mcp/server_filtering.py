@@ -18,6 +18,12 @@ from .tools.schema_registry import _registry as _schema_registry, STUB_SCHEMA
 _SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
     "run_playtest", "run_tests", "run_tests_wait",
     "resolve_tool_schema", "discover_tools",
+    # MCP091-004 / MCP091-012: required-param TIER1 direct_only tools
+    "get_console_since", "scene", "await_compile", "console_mark", "screenshot",
+    # MCP091-PARTIAL: additional TIER1 tools with required params
+    "compile_preflight", "search_scene", "set_active", "set_parent", "validate_references",
+    # MCP091: sync_unity missing — must expose schema so resolve/bump params are visible
+    "sync_unity",
 })
 _SCHEMA_KEEP_FULL: frozenset[str] = _CORE_TOOLS | _SCHEMA_KEEP_FULL_EXTRA
 

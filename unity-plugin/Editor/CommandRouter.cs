@@ -118,9 +118,11 @@ namespace UnityMCP.Editor
                 TrackCommand(cmd);
                 var before = DateTime.Now;
                 string data;
+                bool batchHasErrors = false;
                 try
                 {
                     data = ExecuteCommand(cmd, argsJson);
+                    if (cmd == "batch") batchHasErrors = BatchHelper.HasErrors(data);
                 }
                 catch
                 {
@@ -142,6 +144,8 @@ namespace UnityMCP.Editor
                 {
                     UndoGroupHelper.EndGroup();
                 }
+                if (batchHasErrors)
+                    return JsonHelper.FormatResponse(id, false, null, data);
                 return BuildResponse(id, data, CommandRegistry.GetMaxResponseChars(cmd));
             }
             catch (Exception e)
@@ -235,7 +239,8 @@ namespace UnityMCP.Editor
             var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
             var inner = new TaskCompletionSource<string>();
             RuntimeHelper.WaitUntil(path, component, field, value, timeout, negate, inner, abortOnFail);
-            CompleteFromInner(id, inner.Task, tcs, "wait_until");
+            CompleteFromInner(id, inner.Task, tcs, "wait_until",
+                r => !r.StartsWith("wait_until") && !r.StartsWith("err:"));
         }
 
         private static void AsyncMoveTo(string id, string argsJson, TaskCompletionSource<string> tcs)
@@ -245,7 +250,8 @@ namespace UnityMCP.Editor
             var timeout = ExtractFloat(argsJson, "timeout", 15f);
             var inner = new TaskCompletionSource<string>();
             RuntimeHelper.MoveTo(path, position, timeout, inner);
-            CompleteFromInner(id, inner.Task, tcs, "move_to");
+            CompleteFromInner(id, inner.Task, tcs, "move_to",
+                r => !r.StartsWith("Error:") && !r.StartsWith("err:"));
         }
 
         private static void AsyncTestStep(string id, string argsJson, TaskCompletionSource<string> tcs)
@@ -258,7 +264,8 @@ namespace UnityMCP.Editor
             var timeout = ExtractFloat(argsJson, "timeout", 15f);
             var inner = new TaskCompletionSource<string>();
             RuntimeHelper.TestStep(path, position, checksBefore, checksAfter, waitAfter, timeout, inner);
-            CompleteFromInner(id, inner.Task, tcs, "test_step");
+            CompleteFromInner(id, inner.Task, tcs, "test_step",
+                r => !r.StartsWith("Error:") && !r.StartsWith("err:"));
         }
 
         private static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
@@ -309,7 +316,8 @@ namespace UnityMCP.Editor
             var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
             var inner = new TaskCompletionSource<string>();
             PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh);
-            CompleteFromInner(id, inner.Task, tcs, "run_playtest", r => !r.Contains("— FAIL") && !r.Contains("FAIL ("));
+            CompleteFromInner(id, inner.Task, tcs, "run_playtest",
+                r => r.Contains(" OK"));
         }
 
         private static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)
@@ -317,7 +325,10 @@ namespace UnityMCP.Editor
             var questionsJson = JsonHelper.ExtractString(argsJson, "questions") ?? "[]";
             if (OnAskUser == null)
                 Debug.LogWarning("[MCP] ask_user: no listener — is chat window open?");
-            CompleteFromInner(id, PendingAskRegistry.Ask(questionsJson, OnAskUser), tcs, "ask_user");
+            // PendingAskRegistry.Ask never returns "Error:"/"err:" strings (cancelled → {"cancelled":true}),
+            // but the predicate is safe and consistent with test_step/move_to.
+            CompleteFromInner(id, PendingAskRegistry.Ask(questionsJson, OnAskUser), tcs, "ask_user",
+                r => !r.StartsWith("Error:") && !r.StartsWith("err:"));
         }
 
         internal static string ExecuteCommand(string cmd, string args)

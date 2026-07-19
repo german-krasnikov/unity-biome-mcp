@@ -73,6 +73,7 @@ Other tier1 (30): alias_status, ask, ask_user, await_compile, compile_preflight,
 | debug | debug, snapshot, watch_add, get_watches, watch_remove, watch_clear, watch_reset, get_metrics |
 | profiling | get_frame_stats, profile, get_memory |
 | rendering | render_analyze, analyze_lod_culling |
+| verify | serialized_field_rename_audit |
 | plugins | (auto-gated: tools registered without register_tools() call) |
 | connection | (empty — list_connections and reconnect_unity are in TIER1/CORE) |
 
@@ -83,7 +84,13 @@ target paths. Replaces manual `get_component` + parsing when auditing event wiri
 
 **direct_only tools (v0.91.0 additions):** 7 more tools marked `direct_only=True` (Python-side only, never sent to Unity TCP): `console_mark`, `discover_tools`, `get_console_since`, `mcp_status`, `release_smoke`, `resolve_tool_schema`, `run_tests_wait`. These remain TIER1 and visible to the LLM; they just don't go through `get_enabled_tools` catalog sent to Unity. Total direct_only tools now ~28.
 
-**Full schemas kept for (v0.91.0):** `_SCHEMA_KEEP_FULL_EXTRA` adds `run_playtest`, `run_tests`, `run_tests_wait`, `resolve_tool_schema` to the full-schema set (always served with complete inputSchema, not stubs).
+**Full schemas kept for (v0.91.0):** `_SCHEMA_KEEP_FULL_EXTRA` adds `run_playtest`, `run_tests`, `run_tests_wait`, `resolve_tool_schema` to the full-schema set (always served with complete inputSchema, not stubs). v0.92.0 adds `sync_unity`.
+
+**discover_tools (v0.92.0):** `include_legacy=False` is now the default — only canonical category names (SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM) are listed unless `include_legacy=True` is passed. `structured=True` mode returns per-tool surface/mutability info.
+
+**screenshot (v0.92.0):** `output_path` is an alias for `path`; `output_path` wins when both are provided.
+
+**serialized_field_rename_audit (NEW, v0.92.0):** Scans prefabs, scenes, SOs for stale YAML field data after a rename without `[FormerlySerializedAs]`. VERIFY category, read-only. Backed by `SerializedFieldRenameAudit.cs` + `UnityPreflightHints.cs` (compile-time checks injected into `compile_preflight`).
 
 ### Capability Gating (gating.py)
 

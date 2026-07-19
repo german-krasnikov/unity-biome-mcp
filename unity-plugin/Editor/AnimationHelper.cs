@@ -46,19 +46,28 @@ namespace UnityMCP.Editor
 
             // Save as asset
             var assetPath = SaveClipAsset(clip, clipName);
-
-            // Ensure Animator on object
-            var animator = EnsureAnimator(go);
-
-            // Create or get AnimatorController and add clip
-            var controller = animator.runtimeAnimatorController as UnityEditor.Animations.AnimatorController;
-            if (controller == null)
+            string ctrlPath = null;
+            try
             {
-                var ctrlPath = assetPath.Replace(".anim", ".controller");
-                controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(ctrlPath);
-                animator.runtimeAnimatorController = controller;
+                // Ensure Animator on object
+                var animator = EnsureAnimator(go);
+
+                // Create or get AnimatorController and add clip
+                var controller = animator.runtimeAnimatorController as UnityEditor.Animations.AnimatorController;
+                if (controller == null)
+                {
+                    ctrlPath = assetPath.Replace(".anim", ".controller");
+                    controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(ctrlPath);
+                    animator.runtimeAnimatorController = controller;
+                }
+                controller.AddMotion(clip);
             }
-            controller.AddMotion(clip);
+            catch
+            {
+                AssetDatabase.DeleteAsset(assetPath);
+                if (ctrlPath != null) AssetDatabase.DeleteAsset(ctrlPath);
+                throw;
+            }
 
             var bindings = AnimationUtility.GetCurveBindings(clip);
             return $"created: {clipName} | {clip.length.ToString("F1", CultureInfo.InvariantCulture)}s | {bindings.Length} curves | saved: {assetPath}";

@@ -29,14 +29,19 @@ namespace UnityMCP.Editor
                 ?? throw new ArgumentException("path is required");
             var assetPath = JsonHelper.ExtractString(args, "asset_path")
                 ?? throw new ArgumentException("asset_path is required");
+            var mode = JsonHelper.ExtractString(args, "mode") ?? "overwrite";
 
             var go = ComponentSerializer.FindObject(path)
                 ?? throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
 
+            if (mode == "new" && AssetDatabase.LoadAssetAtPath<GameObject>(assetPath) != null)
+                throw new InvalidOperationException($"Prefab already exists: {assetPath}");
+
             AssetHelper.EnsureDirectory(assetPath);
             PrefabUtility.SaveAsPrefabAssetAndConnect(go, assetPath, InteractionMode.AutomatedAction);
             AssetDatabase.SaveAssets();
-            return $"ok: {assetPath}";
+            var srcPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(go) ?? "";
+            return $"ok: {assetPath}\nsource_prefab: {srcPath}\nis_variant: false\ninstance_path: {path}";
         }
 
         private static string CreateVariant(string args)
@@ -73,34 +78,48 @@ namespace UnityMCP.Editor
 
         private static string Revert(string args)
         {
+            var scope = JsonHelper.ExtractString(args, "scope") ?? "object";
             var go = RequirePrefabInstance(args);
-            PrefabUtility.RevertPrefabInstance(go, InteractionMode.AutomatedAction);
-            return $"Reverted: {go.name}";
+            var root = PrefabUtility.GetNearestPrefabInstanceRoot(go) ?? go;
+            if (scope == "children")
+            {
+                foreach (Transform child in root.transform)
+                    PrefabUtility.RevertObjectOverride(child, InteractionMode.AutomatedAction);
+                return $"Reverted children of: {root.name}";
+            }
+            PrefabUtility.RevertPrefabInstance(root, InteractionMode.AutomatedAction);
+            return $"Reverted: {root.name}";
         }
 
         private static string GetOverrides(string args)
         {
             var path = JsonHelper.ExtractString(args, "path")
                 ?? throw new ArgumentException("path is required");
+            var format = JsonHelper.ExtractString(args, "format") ?? "text";
             var go = ComponentSerializer.FindObject(path)
                 ?? throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
 
             if (!PrefabUtility.IsPartOfPrefabInstance(go))
                 return "no overrides (not a prefab instance)";
 
-            var sb = new StringBuilder();
-            var mods = PrefabUtility.GetPropertyModifications(go);
-            if (mods != null)
+            var mods    = PrefabUtility.GetPropertyModifications(go);
+            var added   = PrefabUtility.GetAddedComponents(go);
+            var removed = PrefabUtility.GetRemovedComponents(go);
+
+            if (format == "structured")
             {
-                foreach (var m in mods)
-                    sb.AppendLine($"  {m.propertyPath}: {m.value}");
+                var srcPrefab = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(go) ?? "";
+                return $"source_prefab: {srcPrefab}\ninstance_path: {path}\nchanged_properties: {(mods?.Length ?? 0)}\nadded_components: {added.Count}\nremoved_components: {removed.Count}";
             }
 
-            var added = PrefabUtility.GetAddedComponents(go);
+            var sb = new StringBuilder();
+            if (mods != null)
+                foreach (var m in mods)
+                    sb.AppendLine($"  {m.propertyPath}: {m.value}");
+
             foreach (var a in added)
                 sb.AppendLine($"  +component: {a.instanceComponent.GetType().Name}");
 
-            var removed = PrefabUtility.GetRemovedComponents(go);
             foreach (var r in removed)
                 sb.AppendLine($"  -component: {r.assetComponent.GetType().Name}");
 
@@ -118,6 +137,7 @@ namespace UnityMCP.Editor
             var mode = recursive ? PrefabUnpackMode.Completely : PrefabUnpackMode.OutermostRoot;
             Undo.RegisterFullObjectHierarchyUndo(go, "Unpack Prefab");
             PrefabUtility.UnpackPrefabInstance(go, mode, InteractionMode.AutomatedAction);
+            EditorUtility.SetDirty(go);
             return $"Unpacked: {go.name}";
         }
 
@@ -134,8 +154,9 @@ namespace UnityMCP.Editor
 
         private static string Edit(string args)
         {
-            var assetPath = JsonHelper.ExtractString(args, "asset_path")
+            var assetPath  = JsonHelper.ExtractString(args, "asset_path")
                 ?? throw new ArgumentException("asset_path is required (e.g. Assets/Prefabs/Foo.prefab)");
+            var childPath  = JsonHelper.ExtractString(args, "child_path");
             var component  = JsonHelper.ExtractString(args, "component");
             var prop       = JsonHelper.ExtractString(args, "prop");
             var value      = JsonHelper.ExtractString(args, "value");
@@ -147,24 +168,34 @@ namespace UnityMCP.Editor
                 throw new ArgumentException($"Prefab not found: {assetPath}");
             try
             {
+                var target = contents;
+                if (!string.IsNullOrWhiteSpace(childPath))
+                {
+                    childPath = childPath.TrimStart('/');
+                    var childTransform = contents.transform.Find(childPath);
+                    if (childTransform == null)
+                        throw new ArgumentException($"child not found: {childPath}");
+                    target = childTransform.gameObject;
+                }
+
                 if (!string.IsNullOrEmpty(addComp))
                 {
                     var t = ObjectManager.FindType(addComp)
                         ?? throw new ArgumentException($"Component type not found: {addComp}");
-                    if (contents.GetComponent(t) == null)
-                        contents.AddComponent(t);
+                    if (target.GetComponent(t) == null)
+                        target.AddComponent(t);
                 }
                 if (!string.IsNullOrEmpty(removeComp))
                 {
                     var t = ObjectManager.FindType(removeComp);
-                    var c = t != null ? contents.GetComponent(t) : null;
+                    var c = t != null ? target.GetComponent(t) : null;
                     if (c != null) UnityEngine.Object.DestroyImmediate(c);
                 }
                 if (!string.IsNullOrEmpty(prop) && !string.IsNullOrEmpty(component))
                 {
-                    var comp = ComponentSerializer.FindComponent(contents, component)
+                    var comp = ComponentSerializer.FindComponent(target, component)
                         ?? throw new ArgumentException(
-                            ErrorHelper.ComponentNotFound(component, contents));
+                            ErrorHelper.ComponentNotFound(component, target));
                     var so = new UnityEditor.SerializedObject(comp);
                     var normProp = InputNormalizer.NormalizeProperty(prop, so);
                     var sp = so.FindProperty(normProp)

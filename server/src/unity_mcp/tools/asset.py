@@ -30,12 +30,13 @@ async def project_settings(action: str, target: str, prop: str | None = None,
 async def material(action: str, path: str | None = None, object_path: str | None = None,
                    shader: str | None = None, prop: str | None = None, value: str | None = None,
                    source: str | None = None, targets: str | None = None,
-                   slot: int | None = None, filter: str | None = None) -> str:
-    """Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val)."""
+                   slot: int | None = None, filter: str | None = None,
+                   target: str | None = None) -> str:
+    """Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared)."""
     return await _send("material", _args(
         action=action, path=path, object_path=object_path, shader=shader,
         prop=prop, value=value, source=source, targets=targets, slot=slot,
-        filter=filter))
+        filter=filter, target=target))
 
 
 async def prefab(action: str, path: str | None = None, asset_path: str | None = None,
@@ -43,24 +44,30 @@ async def prefab(action: str, path: str | None = None, asset_path: str | None = 
                  component: str | None = None, prop: str | None = None,
                  value: str | None = None, add_component: str | None = None,
                  remove_component: str | None = None,
-                 recursive: bool = False) -> str:
+                 recursive: bool = False,
+                 mode: str | None = None, scope: str | None = None,
+                 format: str | None = None) -> str:
     """Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit.
     edit: asset_path + component + prop + value (set property on prefab asset).
     edit: asset_path + add_component or remove_component (manage components).
-    save: path (scene) + asset_path. create_variant: base_path + variant_path."""
+    save: path (scene) + asset_path [+ mode: new|overwrite (default)].
+    revert: scope: object (default)|children.
+    get_overrides: format: text (default)|structured.
+    create_variant: base_path + variant_path."""
     return await _send("prefab", _args(
         action=action, path=path, asset_path=asset_path,
         base_path=base_path, variant_path=variant_path,
         component=component, prop=prop, value=value,
         add_component=add_component, remove_component=remove_component,
-        recursive="true" if recursive else None))
+        recursive="true" if recursive else None,
+        mode=mode, scope=scope, format=format))
 
 
 async def scriptable_object(action: str, path: str | None = None, type: str | None = None,
                             prop: str | None = None, value: str | None = None,
                             fields: str | None = None,
                             filter: str | None = None) -> str:
-    """ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. find: type. list_types: filter."""
+    """ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter."""
     return await _send("scriptable_object", _args(
         action=action, path=path, type=type, prop=prop, value=value, fields=fields, filter=filter))
 

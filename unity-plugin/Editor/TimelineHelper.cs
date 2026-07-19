@@ -71,7 +71,19 @@ namespace UnityMCP.Editor
             {
                 var go = ComponentSerializer.FindObject(directorPath);
                 if (go == null)
-                    throw new InvalidOperationException(ErrorHelper.ObjectNotFound(directorPath));
+                {
+                    var goName = System.IO.Path.GetFileName(directorPath.TrimEnd('/'));
+                    go = new GameObject(goName);
+                    Undo.RegisterCreatedObjectUndo(go, "Create PlayableDirector");
+                    var parentPath = System.IO.Path.GetDirectoryName(directorPath)?.Replace('\\', '/');
+                    if (!string.IsNullOrEmpty(parentPath))
+                    {
+                        var parent = ComponentSerializer.FindObject(parentPath);
+                        if (parent != null)
+                            go.transform.SetParent(parent.transform, false);
+                    }
+                    sb.Append("created_go: ").AppendLine(ComponentSerializer.GetPath(go));
+                }
 
                 var director = go.GetComponent<PlayableDirector>();
                 if (director == null)

@@ -39,7 +39,7 @@ namespace UnityMCP.Editor
             // screenshot is intercepted in Process/ProcessAsync for file response formatting;
             // registered here only for IsRegistered/IsMutating queries
             CommandRegistry.Register("screenshot", _ => throw new InvalidOperationException("screenshot intercepted before ExecuteCommand"),
-                required: "", optional: "width,height,camera,path,supersample,angles,zoom,offset,fixed_size,highlight,show_colliders,angle,annotation_id",
+                required: "", optional: "width,height,camera,path,output_path,supersample,angles,zoom,offset,fixed_size,highlight,show_colliders,angle,annotation_id",
                 fileHandler: BuildScreenshotResponse,
                 specialDispatch: true, allowedDuringCompile: true);
             CommandRegistry.Register("diagnose", args => DiagnoseCommand.Execute(args),
@@ -360,6 +360,9 @@ namespace UnityMCP.Editor
                 return r;
             }, required: "file_path,new_content", optional: "",
                allowedDuringCompile: true);  // Roslyn in-process — safe during Unity compile
+            CommandRegistry.Register("serialized_field_rename_audit",
+                args => SerializedFieldRenameAudit.Execute(args),
+                required: "type,old_field,new_field", optional: "include");
         }
 
         internal static void RegisterMutatingCommands()

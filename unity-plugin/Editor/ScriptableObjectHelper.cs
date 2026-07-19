@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UnityEditor;
@@ -63,6 +64,10 @@ namespace UnityMCP.Editor
         private static string Get(string args)
         {
             var asset = LoadAsset(JsonHelper.ExtractString(args, "path"));
+            var fieldsFilter = JsonHelper.ExtractString(args, "fields");
+            HashSet<string> wanted = fieldsFilter != null
+                ? new HashSet<string>(fieldsFilter.Split(',').Select(f => f.Trim()))
+                : null;
             var so = new SerializedObject(asset);
             var prop = so.GetIterator();
             prop.Next(true);
@@ -70,6 +75,7 @@ namespace UnityMCP.Editor
             while (prop.NextVisible(false))
             {
                 if (prop.name == "m_Script") continue;
+                if (wanted != null && !wanted.Contains(prop.name)) continue;
                 sb.AppendLine($"{prop.name}: {ComponentSerializer.GetPropertyValueString(prop)}");
             }
             return sb.ToString().TrimEnd('\n', '\r');
@@ -95,22 +101,41 @@ namespace UnityMCP.Editor
             var asset = LoadAsset(path);
             var so    = new SerializedObject(asset);
 
+            string result;
             if (hasSingle)
-                SetSingleField(so, prop, value);
+                result = SetSingleField(so, prop, value);
             else
+            {
                 SetMultipleFields(so, fields);
+                result = "ok";
+            }
 
             so.ApplyModifiedProperties();
             EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
-            return "ok";
+            return result;
         }
 
-        private static void SetSingleField(SerializedObject so, string prop, string value)
+        private static string SetSingleField(SerializedObject so, string prop, string value)
         {
             var property = so.FindProperty(prop);
-            if (property == null) throw new ArgumentException($"Property not found: {prop}");
+            if (property == null)
+            {
+                var allowed = ListFieldNames(so);
+                throw new ArgumentException($"Property not found: '{prop}'. Allowed: {allowed}");
+            }
+            var oldVal = property.hasMultipleDifferentValues ? "<mixed>" : ComponentSerializer.GetPropertyValueString(property);
             ValueParser.SetPropertyValue(property, value);
+            return $"ok: {prop} = {oldVal} → {value}";
+        }
+
+        private static string ListFieldNames(SerializedObject so)
+        {
+            var it = so.GetIterator(); it.Next(true);
+            var names = new List<string>();
+            while (it.NextVisible(false))
+                if (it.name != "m_Script") names.Add(it.name);
+            return string.Join(", ", names);
         }
 
         private static void SetMultipleFields(SerializedObject so, string fields)
@@ -129,7 +154,10 @@ namespace UnityMCP.Editor
 
                 var property = so.FindProperty(fieldProp);
                 if (property == null)
-                    throw new ArgumentException($"Property not found: {fieldProp}");
+                {
+                    var allowed = ListFieldNames(so);
+                    throw new ArgumentException($"Property not found: '{fieldProp}'. Allowed: {allowed}");
+                }
 
                 ValueParser.SetPropertyValue(property, fieldVal);
             }

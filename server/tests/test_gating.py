@@ -98,7 +98,19 @@ def test_get_categories():
 async def test_discover_tools_lists_categories():
     from unity_mcp.tools.gating import discover_tools, reset
     reset()
+    # Default: only canonical 8 keys
     result = await discover_tools(enable=False)
+    assert "RUNTIME" in result
+    assert "SCENE" in result
+    # legacy aliases not shown by default
+    assert "animation:" not in result
+    assert "runtime:" not in result
+
+
+async def test_discover_tools_include_legacy():
+    from unity_mcp.tools.gating import discover_tools, reset
+    reset()
+    result = await discover_tools(enable=False, include_legacy=True)
     assert "animation" in result
     assert "runtime" in result
 

@@ -162,7 +162,7 @@ namespace UnityMCP.Editor.Tests
             {
                 var json = "{\"id\":\"5\",\"cmd\":\"batch\",\"args\":{\"commands\":\"set_active path=/X value=true\"}}";
                 var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":true"), result); // outer gate did not reject the batch itself
+                Assert.IsTrue(result.Contains("\"ok\":false"), result); // batch with blocked commands returns ok:false
                 StringAssert.Contains("BLOCKED", result); // inner per-line guard fired instead
             }
             finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }

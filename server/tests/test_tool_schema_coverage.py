@@ -154,3 +154,25 @@ def test_tier1_tools_visible_in_list_tools():
 
     missing = tier1_registered - visible
     assert not missing, f"TIER1 tools invisible after filter_by_tier: {sorted(missing)}"
+
+
+# ---------------------------------------------------------------------------
+# MCP091-004 / MCP091-012: schema keep-full expansion
+# ---------------------------------------------------------------------------
+
+def test_schema_keep_full_includes_wave2_tools():
+    """MCP091-004/012: TIER1 tools with required params must have full schemas in ListTools."""
+    from unity_mcp.server_filtering import _SCHEMA_KEEP_FULL
+    for name in ("get_console_since", "scene", "await_compile", "console_mark", "screenshot"):
+        assert name in _SCHEMA_KEEP_FULL, \
+            f"'{name}' must be in _SCHEMA_KEEP_FULL (MCP091-004/012)"
+
+
+def test_fastmcp_get_console_since_schema_has_mark_id():
+    assert "mark_id" in _props("get_console_since"), \
+        "FastMCP must expose 'mark_id' in get_console_since schema"
+
+
+def test_fastmcp_scene_schema_has_action():
+    assert "action" in _props("scene"), \
+        "FastMCP must expose 'action' in scene schema"

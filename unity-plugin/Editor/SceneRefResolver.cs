@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
@@ -35,39 +36,47 @@ namespace UnityMCP.Editor
         internal static RefResult ResolveOne(string token, string[] fields)
         {
             var r = new RefResult { Input = token };
-
-            // Expand $alias → may produce "path|comp|field" or just a path
-            string expanded = token.StartsWith("$")
-                ? AliasExpander.ExpandText(token)
-                : token;
-
-            if (expanded == token && token.StartsWith("$"))
+            try
             {
-                r.Status = "MISS";
-                r.Reason = "unknown alias";
+                // Expand $alias → may produce "path|comp|field" or just a path
+                string expanded = token.StartsWith("$")
+                    ? AliasExpander.ExpandText(token)
+                    : token;
+
+                if (expanded == token && token.StartsWith("$"))
+                {
+                    r.Status = "MISS";
+                    r.Reason = "unknown alias";
+                    return r;
+                }
+
+                // Parse pipe components: path|comp|field
+                var pipes = expanded.Split('|');
+                string pathPart = pipes[0].Trim();
+                string compPart = pipes.Length >= 2 ? pipes[1].Trim() : null;
+
+                if (pathPart.StartsWith("t:", System.StringComparison.OrdinalIgnoreCase))
+                    return ResolveByType(r, pathPart.Substring(2), compPart, fields);
+
+                var go = ComponentSerializer.FindObject(pathPart);
+                if (go == null)
+                {
+                    r.Status = "MISS";
+                    r.Reason = "not found";
+                    return r;
+                }
+
+                FillOk(ref r, go);
+                if (fields.Length > 0)
+                    r.Fields = CheckFields(go, compPart, fields);
                 return r;
             }
-
-            // Parse pipe components: path|comp|field
-            var pipes = expanded.Split('|');
-            string pathPart = pipes[0].Trim();
-            string compPart = pipes.Length >= 2 ? pipes[1].Trim() : null;
-
-            if (pathPart.StartsWith("t:", System.StringComparison.OrdinalIgnoreCase))
-                return ResolveByType(r, pathPart.Substring(2), compPart, fields);
-
-            var go = ComponentSerializer.FindObject(pathPart);
-            if (go == null)
+            catch (Exception ex)
             {
-                r.Status = "MISS";
-                r.Reason = "not found";
+                r.Status = "ERR";
+                r.Reason = ex.Message;
                 return r;
             }
-
-            FillOk(ref r, go);
-            if (fields.Length > 0)
-                r.Fields = CheckFields(go, compPart, fields);
-            return r;
         }
 
         private static RefResult ResolveByType(RefResult r, string typeName, string compHint, string[] fields)

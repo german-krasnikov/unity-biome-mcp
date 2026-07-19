@@ -16,7 +16,8 @@ def _get_describer_safe():
 
 
 async def screenshot(width: int = 640, height: int = 480, camera: str | None = None,
-                     path: str | None = None, describe: str | None = None,
+                     path: str | None = None, output_path: str | None = None,
+                     describe: str | None = None,
                      raw: bool = False, zoom: float | None = None,
                      angles: str | None = None, supersample: int | None = None,
                      offset: str | None = None, fixed_size: float | None = None,
@@ -31,8 +32,9 @@ async def screenshot(width: int = 640, height: int = 480, camera: str | None = N
     annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame)."""
     if annotation_id is not None:
         camera = "annotation_frame"
+    _output = output_path or path
     result = await _send("screenshot", _args(width=width, height=height, camera=camera,
-                                             path=path, zoom=zoom, angles=angles,
+                                             path=_output, zoom=zoom, angles=angles,
                                              supersample=supersample,
                                              offset=offset, fixed_size=fixed_size,
                                              highlight=highlight,

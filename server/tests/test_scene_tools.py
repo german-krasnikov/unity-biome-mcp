@@ -23,6 +23,16 @@ def scene_mod():
     return mod
 
 
+# ── scene ────────────────────────────────────────────────────────────────────
+
+async def test_scene_name_passed_as_scene_in_args(scene_mod, _patch_send):
+    await scene_mod.scene(action="save", scene_name="Level1")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "scene"
+    assert call_args[0][1]["scene"] == "Level1"
+
+
 # ── scene_environment ────────────────────────────────────────────────────────
 
 async def test_scene_environment_get_sends_command(scene_mod, _patch_send):

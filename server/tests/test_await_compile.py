@@ -305,10 +305,11 @@ def test_parse_status_idle_never_is_non_clean():
 
 
 async def test_await_compile_stamp_unchanged_stale_domain():
-    """P4 FLIP: same MVID before/after ready → result starts with STALE-DOMAIN."""
+    """P4 + MCP091-018: same MVID + actual errors → STALE-DOMAIN; same MVID + no errors → clean."""
     mvid = "60d2de34-1234-5678-abcd-ef0123456789"
     stamp_pre = f"{mvid}:639169455305003280"
     stamp_post = f"{mvid}:639169455309999999"  # same MVID, different ticks
+    errors_text = "Assets/A.cs(1,1): error CS0246: type not found"
 
     call_log = []
 
@@ -319,12 +320,36 @@ async def test_await_compile_stamp_unchanged_stale_domain():
                 return f"epoch=5|state=compiling|dur=1.0|stamp={stamp_pre}"
             return f"epoch=5|state=ready|stamp={stamp_post}"
         if cmd == "get_compile_errors":
-            return ""
+            return errors_text  # real errors → STALE-DOMAIN fires
         raise AssertionError(f"Unexpected: {cmd}")
 
     _ci._send = _send
     result = await _ci.await_compile(timeout=60.0)
     assert result.startswith("STALE-DOMAIN"), f"Expected STALE-DOMAIN, got: {result!r}"
+    assert errors_text in result
+
+
+async def test_await_compile_stamp_unchanged_no_errors_returns_clean():
+    """MCP091-018: same MVID + no errors = no-IL-change compile → 'compile clean (no IL change)'."""
+    mvid = "60d2de34-1234-5678-abcd-ef0123456789"
+    stamp_pre = f"{mvid}:100"
+    stamp_post = f"{mvid}:200"
+
+    call_log = []
+
+    async def _send(cmd, args=None, **kwargs):
+        call_log.append(cmd)
+        if cmd == "sync_status":
+            if call_log.count("sync_status") == 1:
+                return f"epoch=5|state=compiling|dur=1.0|stamp={stamp_pre}"
+            return f"epoch=5|state=ready|stamp={stamp_post}"
+        if cmd == "get_compile_errors":
+            return ""  # no errors → not stale
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    result = await _ci.await_compile(timeout=60.0)
+    assert result == "compile clean (no IL change)", f"Expected no-IL-change clean, got: {result!r}"
 
 
 async def test_await_compile_stamp_changed_clean():

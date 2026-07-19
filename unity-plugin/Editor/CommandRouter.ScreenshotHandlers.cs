@@ -74,7 +74,8 @@ namespace UnityMCP.Editor
 
             var width      = ExtractInt(args, "width", 640);
             var height     = ExtractInt(args, "height", 480);
-            var outputPath = JsonHelper.ExtractString(args, "path");
+            var outputPath = JsonHelper.ExtractString(args, "output_path")
+                          ?? JsonHelper.ExtractString(args, "path");
             var fpath = ScreenshotCapture.CaptureToFile(width, height, camera, outputPath);
             return JsonHelper.FormatFileResponse(id, fpath);
         }

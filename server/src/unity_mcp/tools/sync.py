@@ -62,6 +62,19 @@ async def _attempt_recovery(send, mvid_pre: str, send_reload=None) -> "str | Non
             mvid_post = stamp_post.partition(":")[0]
             if mvid_post != mvid_pre:
                 return None  # HEALED — MVID changed
+    # MCP091-009: no-IL-change compile → MVID legitimately stable.
+    # Only return None if compile actually completed (state=ready/idle) AND no errors.
+    # Stuck compile (state=compiling) → still REIMPORT-NEEDED.
+    try:
+        final_status = await send("sync_status", {})
+        _, final_state, _ = _parse_status(final_status)
+        if final_state in ("compiling", "reloading"):
+            return f"REIMPORT-NEEDED: focus Unity (stale MVID {mvid_pre})"
+        errors = await editor_log.get_corroborated_errors(send)
+        if not errors:
+            return None  # compile completed, no errors = no-op compile, domain is live
+    except Exception:
+        pass
     return f"REIMPORT-NEEDED: focus Unity (stale MVID {mvid_pre})"
 
 

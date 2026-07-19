@@ -341,6 +341,21 @@ namespace UnityMCP.Editor
             };
         }
 
+        private static string ExecCreateParticle(string args)
+        {
+            var parentPath = JsonHelper.ExtractString(args, "path");
+            var name = JsonHelper.ExtractString(args, "name");
+            if (string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(parentPath)
+                && ComponentSerializer.FindObject(parentPath) == null)
+            {
+                name = System.IO.Path.GetFileName(parentPath);
+                parentPath = System.IO.Path.GetDirectoryName(parentPath)?.Replace('\\', '/');
+                if (string.IsNullOrEmpty(parentPath) || parentPath == "/" || parentPath == "\\")
+                    parentPath = null;
+            }
+            return ParticleHelper.Create(parentPath, name, JsonHelper.ExtractString(args, "preset"));
+        }
+
         private static string ExecParticleConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
@@ -348,9 +363,7 @@ namespace UnityMCP.Editor
             {
                 "get" => ParticleSerializer.Serialize(
                     JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "module")),
-                "create" => ParticleHelper.Create(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "name"),
-                    JsonHelper.ExtractString(args, "preset")),
+                "create" => ExecCreateParticle(args),
                 "set" => ParticleHelper.SetProperty(
                     JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "module"),
                     JsonHelper.ExtractString(args, "prop"), JsonHelper.ExtractString(args, "value")),

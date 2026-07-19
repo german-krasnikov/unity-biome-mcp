@@ -108,42 +108,65 @@ namespace UnityMCP.Editor
             string pos, string size, string pivot, string color, string text, string font_size)
         {
             var parentGo = ResolveParent(parent);
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-            Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
-            go.transform.SetParent(parentGo.transform, false);
+            var created = new List<GameObject>();
+            try
+            {
+                var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+                created.Add(go);
+                go.transform.SetParent(parentGo.transform, false);
 
-            var rt = go.GetComponent<RectTransform>();
-            ApplyRect(rt, anchor, pos, size, pivot, null, null);
+                var rt = go.GetComponent<RectTransform>();
+                ApplyRect(rt, anchor, pos, size, pivot, null, null);
 
-            if (!string.IsNullOrEmpty(color))
-                go.GetComponent<Image>().color = ValueParser.ParseColor(color);
+                if (!string.IsNullOrEmpty(color))
+                    go.GetComponent<Image>().color = ValueParser.ParseColor(color);
 
-            // Child text
-            var textGo = new GameObject("Text", typeof(RectTransform));
-            Undo.RegisterCreatedObjectUndo(textGo, $"Create UI {name}/Text");
-            textGo.transform.SetParent(go.transform, false);
-            var textRt = textGo.GetComponent<RectTransform>();
-            ApplyRect(textRt, "stretch", null, null, null, null, null);
+                // Child text
+                var textGo = new GameObject("Text", typeof(RectTransform));
+                created.Add(textGo);
+                textGo.transform.SetParent(go.transform, false);
+                var textRt = textGo.GetComponent<RectTransform>();
+                ApplyRect(textRt, "stretch", null, null, null, null, null);
 
-            AddTextComponent(textGo, text ?? name, font_size, null);
+                AddTextComponent(textGo, text ?? name, font_size, null);
 
-            return FormatCreated(go);
+                Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
+                Undo.RegisterCreatedObjectUndo(textGo, $"Create UI {name}/Text");
+                return FormatCreated(go);
+            }
+            catch
+            {
+                foreach (var o in created)
+                    if (o != null) UnityEngine.Object.DestroyImmediate(o);
+                throw;
+            }
         }
 
         private static string CreateText(string name, string parent, string anchor,
             string pos, string size, string pivot, string color, string text, string font_size)
         {
             var parentGo = ResolveParent(parent);
-            var go = new GameObject(name, typeof(RectTransform));
-            Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
-            go.transform.SetParent(parentGo.transform, false);
+            var created = new List<GameObject>();
+            try
+            {
+                var go = new GameObject(name, typeof(RectTransform));
+                created.Add(go);
+                go.transform.SetParent(parentGo.transform, false);
 
-            var rt = go.GetComponent<RectTransform>();
-            ApplyRect(rt, anchor, pos, size, pivot, null, null);
+                var rt = go.GetComponent<RectTransform>();
+                ApplyRect(rt, anchor, pos, size, pivot, null, null);
 
-            AddTextComponent(go, text ?? name, font_size, color);
+                AddTextComponent(go, text ?? name, font_size, color);
 
-            return FormatCreated(go);
+                Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
+                return FormatCreated(go);
+            }
+            catch
+            {
+                foreach (var o in created)
+                    if (o != null) UnityEngine.Object.DestroyImmediate(o);
+                throw;
+            }
         }
 
         private static string CreateImage(string name, string parent, string anchor,

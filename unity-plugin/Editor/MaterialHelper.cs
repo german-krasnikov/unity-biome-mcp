@@ -105,8 +105,26 @@ namespace UnityMCP.Editor
 
         private static string Set(string args)
         {
+            var target = JsonHelper.ExtractString(args, "target") ?? "shared";
             var slot = JsonHelper.ExtractInt(args, "slot");
-            var mat = ResolveMaterial(args, slot);
+            Material mat;
+            if (target == "instance")
+            {
+                var objectPath = JsonHelper.ExtractString(args, "object_path")
+                    ?? throw new ArgumentException("object_path is required for target=instance");
+                var go = ComponentSerializer.FindObject(objectPath)
+                    ?? throw new InvalidOperationException(ErrorHelper.ObjectNotFound(objectPath));
+                var renderer = go.GetComponent<Renderer>();
+                if (renderer == null) throw new InvalidOperationException($"No Renderer on: {objectPath}");
+                var mats = renderer.materials;
+                if (slot < 0 || slot >= mats.Length)
+                    throw new ArgumentException($"Slot {slot} out of range (0-{mats.Length - 1})");
+                mat = mats[slot];
+            }
+            else
+            {
+                mat = ResolveMaterial(args, slot);
+            }
             var prop = JsonHelper.ExtractString(args, "prop")
                 ?? throw new ArgumentException("prop is required");
             var value = JsonHelper.ExtractString(args, "value")
@@ -148,7 +166,7 @@ namespace UnityMCP.Editor
             ShaderHelper.ApplyProperty(mat, prop, mat.shader.GetPropertyType(idx), value);
 
             EditorUtility.SetDirty(mat);
-            return $"ok: {prop}={value}";
+            return $"ok: {prop}={value}\nmutated: {(target == "instance" ? "renderer_instance" : "shared_asset")}\nasset_modified: {(target != "instance" ? "true" : "false")}";
         }
 
         private static string Copy(string args)

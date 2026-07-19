@@ -5,6 +5,81 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.92.0] — 2026-07-19 — API pragmatic review: envelope hardening, discover_tools UX, tool hardening, serialized field rename audit
+
+**Python — Result Envelopes:**
+- `move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated as always-ok).
+- `BatchHelper.HasErrors` (C#): inner `ok:false` items now promote the batch envelope to `ok:false` at C# send time.
+
+**Python — Tool Discovery:**
+- `discover_tools`: canonical categories listed first (SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM), legacy aliases excluded by default (`include_legacy=False`).
+- `structured=True` mode: returns per-tool surface/mutability info instead of plain name list.
+- `sync_unity` added to `_SCHEMA_KEEP_FULL_EXTRA` (full schema served).
+
+**Python — screenshot:**
+- `output_path` param added as alias for `path`; `output_path` wins when both are provided.
+
+**C# — MaterialHelper:**
+- `target=shared|instance|asset` param — controls which material is mutated; response enriched with old→new values.
+
+**C# — ScriptableObjectHelper:**
+- `Set` echoes old→new values in response; missing field lists allowed field names.
+- `Get` accepts `fields=` filter.
+
+**C# — PrefabHelper:**
+- `Save` accepts `mode=new|overwrite`.
+- `GetOverrides` accepts `format=structured` for machine-readable diff.
+- `Revert` accepts `scope=children` to recurse to nested prefab instances.
+
+**C# — AnimationHelper:**
+- `CreateClip`: try/catch + `DeleteAsset` rollback on failure (atomic).
+
+**C# — UnityPreflightHints (NEW):**
+- `Roslyn/UnityPreflightHints.cs` — static analyzer: checks serialized `Dictionary<>` fields, non-serializable interface/abstract field types, renamed fields without `[FormerlySerializedAs]`.
+- Integrated into `CompilePreflightCommand` for proactive hints in `compile_preflight` results.
+
+**C# — SerializedFieldRenameAudit (NEW):**
+- `SerializedFieldRenameAudit.cs` — scans prefabs, scenes, and ScriptableObjects via YAML for stale field data after a field rename without `[FormerlySerializedAs]`.
+- Exposed as `serialized_field_rename_audit` MCP tool (VERIFY category, read-only).
+
+**Test counts:** Python unit 4703 | C# EditMode: +NUnit assertions updated (1 pre-existing failure)
+
+---
+
+## [v0.91.0] — 2026-07-19 — MCP real-project audit fixes: P0 data-loss, result envelopes, mutation tracking, schema parity
+
+**Python — Result Envelopes:**
+- `run_playtest`, `wait_until`, `test_step`: correct `isSuccess` predicates (P0 fixes).
+- `BatchHelper.HasErrors` promotes inner `ok:false` to outer envelope.
+
+**Python — Schema Parity:**
+- 10+ tools added to `_SCHEMA_KEEP_FULL_EXTRA` (full schemas served).
+- `configure_objects` / `setup_objects` marked `direct_only=True`.
+
+**Python — Mutation Tracking:**
+- `batch` records `ChangeWatcher` mutations per mutating op.
+
+**Python — Compile Workflow:**
+- STALE-DOMAIN gate checks errors before escalating; MANUAL-REQUIRED syncs state.
+- `compile_preflight` validates empty param (Python + C#).
+
+**Python — Deprecated stubs:**
+- `get_perf` → `get_frame_stats`, `run_playtest_file` → `run_playtest(path=)`. Both raise `ToolError` with migration hint.
+
+**C# — PrefabHelper:** `Edit` child_path TrimStart; `Revert` via `GetNearestPrefabInstanceRoot`; `Unpack` calls `SetDirty`.
+**C# — UIHelper:** Atomic create with rollback; `Undo` after success only.
+**C# — TransferObject:** `Instantiate→MoveToScene` before parent assignment.
+**C# — SceneRefResolver:** Per-token try/catch (no abort-on-first-error).
+**C# — ErrorClassifier:** `IOException` → `INTERNAL` category.
+**C# — FileOutputHelper:** Reliable project root detection.
+**C# — Particle create:** Name from path tail; single-segment guard.
+**C# — Timeline create:** Auto-creates Director GO.
+**C# — RenderAnalyzer:** Throws on invalid `action`.
+
+**Test counts:** Python unit 4703 | C# EditMode 6537+ (1 pre-existing failure)
+
+---
+
 ## [v0.90.0] — 2026-07-18 — Playtest DSL Sprint P0-P3: FOR loops, PATH_PREFIX, CAPTURE_FRAMES, ASSERT_CHANGED; reload stability hardening
 
 **C# — PlaytestParser (DSL Sprint P0-P3):**

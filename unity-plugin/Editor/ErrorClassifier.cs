@@ -21,6 +21,7 @@ namespace UnityMCP.Editor
                 ArgumentException         => "VALIDATION",
                 KeyNotFoundException      => "NOT_FOUND",
                 FileNotFoundException     => "NOT_FOUND",
+                IOException               => "INTERNAL",
                 InvalidOperationException => "STATE",
                 TimeoutException          => "TIMEOUT",
                 MissingReferenceException => "NULL_REF",

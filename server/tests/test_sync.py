@@ -359,10 +359,11 @@ async def test_stamp_changed_is_sync_clean():
 # #34: stamp unchanged (same MVID) with expected compile → REIMPORT-NEEDED (G18)
 @pytest.mark.asyncio
 async def test_stamp_unchanged_is_noop():
-    """G18: same MVID + will_compile=true → REIMPORT-NEEDED (not 'sync clean').
+    """MCP091-009: same MVID + will_compile=true + no errors → 'sync clean' (no-op compile).
 
-    P5 retarget: previously asserted 'no-op'; G18 upgrades to machine-readable verdict
-    so agents can act on the stale domain (focus Unity / reimport file: package).
+    A comment/whitespace edit triggers will_compile=true but leaves MVID stable.
+    With no compile errors, the domain IS live — returning REIMPORT-NEEDED was a
+    false positive. After fix 2.4, this is 'sync clean'.
     """
     mvid = "60d2de34-f1b2-4c3d-a5e6-789012345678"
     _sync._send = _make_send_with_stamp(
@@ -371,7 +372,8 @@ async def test_stamp_unchanged_is_noop():
         status_seq=[f"epoch=1|state=ready|stamp={mvid}:639169455309999999"],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    assert "REIMPORT-NEEDED" in result, f"Frozen MVID after compile → REIMPORT-NEEDED, got {result!r}"
+    assert "sync clean" in result, f"No-op compile (MVID stable + no errors) → sync clean, got {result!r}"
+    assert "REIMPORT-NEEDED" not in result
 
 
 
@@ -399,7 +401,11 @@ async def test_same_mvid_no_compile_is_noop():
 # P5 NEW: expected IL change but MVID unchanged → STOP "build no-op suspected"
 @pytest.mark.asyncio
 async def test_expected_compile_mvid_unchanged_is_stop():
-    """P5: will_compile=true + ready + same MVID → STOP (not 'sync clean')."""
+    """MCP091-009: will_compile=true + ready + same MVID + no errors → sync clean (no-op).
+
+    P5 was wrong: REIMPORT-NEEDED fired even for no-IL-change compiles (comment edits).
+    After fix 2.4: no errors + compile completed (state=ready) = domain is live.
+    """
     mvid = "deadbeef-dead-beef-dead-beefdeadbeef"
     _sync._send = _make_send_with_stamp(
         pre_status=f"epoch=0|state=ready|stamp={mvid}:100",
@@ -407,10 +413,8 @@ async def test_expected_compile_mvid_unchanged_is_stop():
         status_seq=[f"epoch=1|state=ready|stamp={mvid}:200"],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    # MVID unchanged after expected compile → must NOT be "sync clean"
-    # G18: now returns REIMPORT-NEEDED (formerly "sync clean (no-op, domain unchanged)")
-    assert "REIMPORT-NEEDED" in result, (
-        f"unchanged MVID after expected compile must not return clean: {result!r}"
+    assert "sync clean" in result, (
+        f"no-IL-change compile (no errors) must return sync clean, got: {result!r}"
     )
 
 
@@ -514,11 +518,12 @@ async def test_sync_sentinel_stripped(_patch_corroborate):
 # G18: ready arm MVID unchanged after expected compile → REIMPORT-NEEDED
 @pytest.mark.asyncio
 async def test_bump_unchanged_mvid_yields_reimport_needed():
-    """G18: will_compile=true + ready + same MVID → REIMPORT-NEEDED (not silent no-op).
+    """MCP091-009: will_compile=true + ready + same MVID + no errors → sync clean.
 
-    Red-precondition: sync.py:170 returned 'sync clean (no-op, domain unchanged)' hiding
-    the stale domain. Now must return machine-readable REIMPORT-NEEDED verdict.
-    A8: feeds REAL stamp wire; asserts specific verdict prefix.
+    G18 was wrong: REIMPORT-NEEDED fired for no-IL-change compiles (false positive).
+    After fix 2.4: compile completed (state=ready) + no errors = domain is live → sync clean.
+
+    For stale domain (errors present), see test_mvid_stable_with_errors_is_reimport_needed.
     """
     mvid = "deadbeef-dead-beef-dead-beefdeadbeef"
     _sync._send = _make_send_with_stamp(
@@ -527,10 +532,23 @@ async def test_bump_unchanged_mvid_yields_reimport_needed():
         status_seq=[f"epoch=1|state=ready|stamp={mvid}:200"],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    # G18: frozen MVID after expected compile must emit an actionable verdict.
-    # run_ladder escalation: REIMPORT-NEEDED (main_mvid absent/stale) or MANUAL-REQUIRED.
-    assert ("REIMPORT-NEEDED" in result or "MANUAL-REQUIRED" in result), \
-        f"Frozen MVID after expected compile → actionable verdict, got {result!r}"
+    assert "sync clean" in result, \
+        f"no-IL-change compile (no errors) → sync clean, got {result!r}"
+
+
+@pytest.mark.asyncio
+async def test_mvid_stable_with_errors_is_reimport_needed():
+    """MCP091-009 companion: same MVID + will_compile=true + actual errors → REIMPORT-NEEDED."""
+    mvid = "deadbeef-dead-beef-dead-beefdeadbeef"
+    _sync._send = _make_send_with_stamp(
+        pre_status=f"epoch=0|state=ready|stamp={mvid}:100",
+        ack="sync_ack|epoch=1|will_compile=true",
+        status_seq=[f"epoch=1|state=ready|stamp={mvid}:200"],
+        errors_response="Assets/Foo.cs(1,1): error CS0246: type not found",
+    )
+    result = await _sync.sync_unity(timeout=60.0)
+    assert ("REIMPORT-NEEDED" in result or "MANUAL-REQUIRED" in result or "error CS" in result), \
+        f"Stale domain (errors present) must not return clean, got {result!r}"
 
 
 # Item 1 (expected_compile threading / A5): will_compile=false + frozen MVID → NOT REIMPORT-NEEDED

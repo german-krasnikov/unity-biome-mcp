@@ -46,7 +46,7 @@
 
 ### Two ways to work
 
-🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 141 MCP tools with 80–95% token compression.
+🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 144 MCP tools with 80–95% token compression.
 
 💬 **In-Unity Chat** — open `MCP → Chat` inside the editor. No API key needed — spawns the CLI directly. 5 backends: Claude, Antigravity, Kimi, Codex, OpenCode. Drag GameObjects, scripts, and materials into chat as typed context chips. Each AI turn gets its own undo group — one Ctrl+Z rolls back everything the AI changed. Domain-reload safe. Extensible chip-kind registry lets third-party plugins add new chip types with zero core edits.
 
@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="141 MCP Tools · 11700 Tests (4708 Python · 6708 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="144 MCP Tools · 11729 Tests (4737 Python · 6708 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -302,6 +302,20 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.92.0</b> — 2026-07-19 — `move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated …</summary>
+
+`move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated as always-ok).
+
+</details>
+
+<details>
+<summary><b>v0.91.0</b> — 2026-07-19 — `run_playtest`, `wait_until`, `test_step`: correct `isSuccess` predicates (P0 …</summary>
+
+`run_playtest`, `wait_until`, `test_step`: correct `isSuccess` predicates (P0 fixes).
+
+</details>
+
+<details>
 <summary><b>v0.90.0</b> — 2026-07-18 — `PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases …</summary>
 
 `PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases in the script; first occurrence wins, applied after `INCLUDE` expansion.
@@ -323,22 +337,10 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 </details>
 
 <details>
-<summary><b>v0.87.0</b> — 2026-07-12 — `tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools …</summary>
-
-`tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools marked `direct_only=True` (cannot be used inside `batch`): `do`, `ask`, …
-
-</details>
-
-<details>
-<summary><b>v0.86.0</b> — 2026-07-12 — 83 tests removed across 59 test files; `test_schema_cache.py` deleted entirely …</summary>
-
-83 tests removed across 59 test files; `test_schema_cache.py` deleted entirely (17 tests that only verified `dict` type and `is not None`).
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.87.0** — 2026-07-12 — `tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools …
+- **v0.86.0** — 2026-07-12 — 83 tests removed across 59 test files; `test_schema_cache.py` deleted entirely …
 - **v0.85.1** — 2026-07-12 — `get_perf` — fully removed from Python (`diagnostics.py`) and C# …
 - **v0.84.0** — 2026-07-12 — CORE shrunk from 15 → 11: `delete_object`, `set_parent`, `scene`, …
 - **v0.83.0** — 2026-07-11 — `ToolSpec.mutability: Literal['read','write']` — single-source classification …
