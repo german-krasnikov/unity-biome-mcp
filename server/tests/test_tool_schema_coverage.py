@@ -120,6 +120,27 @@ def test_resolve_tool_schema_returns_full_schema():
     assert "Params:" in text
 
 
+def test_fastmcp_run_tests_schema_has_params():
+    props = _props("run_tests")
+    assert "mode" in props
+
+
+def test_fastmcp_run_tests_wait_schema_has_params():
+    props = _props("run_tests_wait")
+    for p in ("mode", "filter", "timeout"):
+        assert p in props, f"'run_tests_wait' missing param '{p}'"
+
+
+def test_fastmcp_discover_tools_schema_has_category():
+    props = _props("discover_tools")
+    assert "category" in props
+
+
+def test_fastmcp_resolve_tool_schema_has_tools_param():
+    props = _props("resolve_tool_schema")
+    assert "tools" in props
+
+
 def test_tier1_tools_visible_in_list_tools():
     """All TIER1 tools that are registered must survive filter_by_tier."""
     from unity_mcp.server import mcp

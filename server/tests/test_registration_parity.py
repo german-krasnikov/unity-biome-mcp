@@ -1,7 +1,8 @@
 """Registration parity: every spec has a tool, every tool has a spec."""
 from unity_mcp.tools.tool_specs import _SPECS
 
-_SPEC_MCP_NAMES = frozenset(n for n, s in _SPECS.items() if s.category != "_INTERNAL")
+_SPEC_MCP_NAMES = frozenset(n for n, s in _SPECS.items()
+                            if s.category not in ("_INTERNAL", "DEPRECATED"))
 
 
 def _get_registered() -> frozenset[str]:

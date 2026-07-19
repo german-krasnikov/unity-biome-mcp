@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 
 namespace UnityMCP.Editor
 {
@@ -61,6 +62,8 @@ namespace UnityMCP.Editor
                 ValueParser.SetPropertyValue(property, value);
             }
             so.ApplyModifiedProperties();
+            if (!EditorApplication.isPlaying && comp.gameObject.scene.IsValid())
+                EditorSceneManager.MarkSceneDirty(comp.gameObject.scene);
             ApplyNativePhysicsProperty(comp, prop, value);
             if (comp is Transform && !EditorApplication.isPlaying && !BatchHelper.InBatch)
             {
@@ -127,6 +130,8 @@ namespace UnityMCP.Editor
             }
 
             so.ApplyModifiedProperties();
+            if (!EditorApplication.isPlaying && comp.gameObject.scene.IsValid())
+                EditorSceneManager.MarkSceneDirty(comp.gameObject.scene);
             if (comp is Transform && !EditorApplication.isPlaying && !BatchHelper.InBatch)
             {
                 Physics.SyncTransforms();

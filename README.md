@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="141 MCP Tools · 11669 Tests (4686 Python · 6699 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="141 MCP Tools · 11700 Tests (4708 Python · 6708 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 

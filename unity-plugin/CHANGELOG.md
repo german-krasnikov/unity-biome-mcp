@@ -5,6 +5,696 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.91.0] — 2026-07-19 — MCP Real-Project Audit Fixes: P0 data-loss, result envelopes, mutation tracking, surface parity
+
+**C# — P0 Data-Loss Fixes:**
+- `ObjectManager.Properties.cs`: `MarkSceneDirty` after `ApplyModifiedProperties()` in both `SetProperty` and `SetPropertyDelta` — fixes MCP-049 where scene changes were silently lost on save.
+- `ObjectManager.cs`: `MarkSceneDirty` after `MoveGameObjectToScene` in `CreateObject` — fixes MCP-053 (additive scene dirty flag not set).
+- `ObjectManager.Transfer.cs`: `ApplyParent` validates parent is in expected scene — fixes MCP-056 (object silently placed in wrong scene). Removed duplicate `targetScene.name/` from copy response — fixes MCP-054.
+
+**C# — Result Envelope Fixes (ok:true → ok:false on failure):**
+- `ErrorClassifier.cs`: Both `Classify` and `FormatError` unwrap `TargetInvocationException` before classification — fixes MCP-017 (execute_code reflection errors misclassified as INTERNAL).
+- `CommandRouter.cs`: `CompleteFromInner` gets `isSuccess` predicate; faulted tasks now use `FormatResponse(id, false, ...)` instead of `BuildResponse` — semantic failures propagate `ok:false` to Python.
+- `CommandRouter.Registration.cs`: `compile_preflight` throws on "ERR" prefix; `lint_playtest` throws on "ERROR"; `render_analyze` throws on "err:" (OrdinalIgnoreCase) — fixes MCP-020/022/032/083.
+- `SceneHelper.cs`: Both `SaveScene` overloads check bool return, throw `IOException` on false — fixes MCP-087.
+- `CommandRouter.cs`: VALIDATION errors → `Debug.LogWarning` instead of `Debug.LogError` — fixes MCP-014/072.
+
+**C# — Mutation Tracking + Undo:**
+- `CommandRouter.cs`: Mutating commands use `OpenNamedGroup` → `CloseNamedGroup` → `UndoGroupStack.Push` (was only in Chat assembly). Exception-safe: inner try/catch calls `CloseNamedGroup` on throw. `ChangeWatcher.RecordMutation` called after each mutating command.
+- `ChangeWatcher.cs`: `RecordMutation(string)` public method for synchronous inline recording (deferred events don't fire during `Process()`).
+
+**C# — Surface Parity:**
+- `MCPSettings.cs`: Removed ghost commands (no C# handler) from `_defaultCatalog`.
+
+**Python — Surface Parity + Schema:**
+- `tool_specs.py`: 7 tools marked `direct_only=True` (Python-only, no C# handler); 2 DEPRECATED entries (`get_perf`, `run_playtest_file`).
+- `gating.py`: `_DIRECT_ONLY` frozenset exported; `get_catalog()` excludes direct_only from category buckets; `_ALL_KNOWN` excludes DEPRECATED.
+- `server_filtering.py`: `_SCHEMA_KEEP_FULL` expanded with `run_playtest`, `run_tests`, `run_tests_wait`, `resolve_tool_schema`, `discover_tools`.
+- `testing.py`: Migration stubs for `run_playtest_file` and `get_perf` (raise `ToolError` with hint).
+- `verify.py`: `_extract_ratio` returns "ok" instead of "?" when no fraction match; supports "N tests passed" pattern.
+
+**New test files:**
+- `server/tests/test_surface_parity.py` (10 tests) — direct_only markers, catalog exclusion, schema coverage, deprecated stubs
+- `server/tests/test_tools_verify.py` (5 tests) — `_extract_ratio` edge cases
+- `unity-plugin/Editor/Tests/ObjectManagerTests.cs` (+2) — SetProperty/Delta marks dirty
+- `unity-plugin/Editor/Tests/MultiSceneOperationsTests.cs` (+3) — parent scene validation, path dedup, additive dirty
+- `unity-test-project/Assets/Tests/Editor/Command/CommandRouterWorkflowTests.cs` (+2) — RecordMutation, undo_last reverts
+
+**Test counts:** Python unit 4703 | C# EditMode pending verification
+
+## [v0.90.0] — 2026-07-18 — Playtest DSL Sprint P0-P3: FOR loops, PATH_PREFIX, CAPTURE_FRAMES, ASSERT_CHANGED; reload stability hardening
+
+**C# — PlaytestParser (DSL Sprint P0-P3):**
+- `PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases in the script; first occurrence wins, applied after `INCLUDE` expansion.
+- `FOR $var IN start..end` / `END_FOR` — integer loop unrolling at parse time; max 10000 iterations; nested `FOR` supported.
+- `CAPTURE_FRAMES n INTERVAL s [CAMERA name] [MODE strip|list] [LABEL name]` — captures N screenshots at fixed intervals (n≥2); grouped under `LABEL` for subsequent frame assertions.
+- `ASSERT_FRAMES_DIFFER label` — asserts consecutive captured frames differ (motion/animation check).
+- `ASSERT_FRAMES_STATIC label` — asserts all captured frames are identical (stability check).
+- `ASSERT_CHANGED $name` — asserts value captured by `CAPTURE $name /path|Comp|field` has changed since capture.
+
+**C# — New files:**
+- `PlaytestRunner.FrameCapture.cs` — partial class: `CAPTURE_FRAMES` + frame assertion step execution, screenshot sequence + pixel-hash comparison.
+- `PlaytestLaunchWindow.cs` — `MCP / Playtest Launcher` EditorWindow: run `.playtest` files without the Composer; file picker + output log.
+
+**C# — Reload stability:**
+- `SyncHelper.cs`: `_pumpActive` singleton guard prevents multiple concurrent `StartTickPump` coroutines (was N×300 pump accumulation on rapid reconnects). `isCompiling` early-exit in pump. `RequestScriptReload()` gated on `!isCompiling`. `Refresh()` called after `AllowAutoRefresh`.
+- `TestRunner.cs`: dirty temp scene saved silently before `NewScene` in `RunFinished` — suppresses "Save modified scenes?" dialog during suite teardown.
+- `SceneCleanTestBase.cs`: leaked object error message now includes object names.
+
+**Python — Reload stability:**
+- `bridge.py`: `DomainReloadError` in `send()` calls `self._reload.mark()` — tracks reload window from the connect path, not only from heartbeat.
+- `bridge_heartbeat.py`: heartbeat skips reconnect when `_reload.is_active()` — prevents reconnect storm during domain reload window.
+
+**New test files:**
+- `PlaytestForLoopTests.cs` — FOR loop DSL: range expansion, nesting, max-iterations guard
+- `PlaytestFrameCaptureTests.cs` — CAPTURE_FRAMES parser + ASSERT_FRAMES_DIFFER/STATIC
+- `PlaytestPathPrefixTests.cs` — PATH_PREFIX applied to VAL path values
+- `PlaytestCaptureStringTests.cs` — CAPTURE / ASSERT_CHANGED step types
+- `Sprint3FrictionTests.cs` — integration tests for friction sprint features
+- `RuntimeHelperInvokeTests.cs` — RuntimeHelper reflection invoke coverage
+- `server/tests/test_bridge_retry.py` — RetryPolicy unit tests
+- `server/tests/test_console.py` — console watermark + get_console_since tests
+- `server/tests/test_objects.py` — objects tool (find_type, IsNullOrEmpty guard) tests
+
+**Test counts:** Python unit 4681 | C# EditMode 6687 (1 pre-existing failure)
+
+## [v0.89.0] — 2026-07-17 — Gamedev friction sprint: security levels, execute_code improvements, DSL extensions
+
+**C# — CodeExecutor:**
+- `SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in MCPSettings + MCPHubUI; three-tier blocked-pattern sets computed at class init.
+- `using Object = UnityEngine.Object;` added to auto-injected usings — no more ambiguity errors.
+- `GetFields(` / `GetProperties(` unblocked in Normal mode (moved to Strict-only tier).
+- `.GetValue(` / `.SetValue(` / `.Invoke(` moved to Normal+Strict tier (allowed in Permissive) — `TryGetValue` was never blocked (dot-prefix requirement added).
+- Security error messages include actionable `Suggestion:` hints for common blocked patterns.
+- `return;` (bare void) auto-replaced with `return null;` in `WrapIfBareCode` — no more CS0161 for void-style snippets.
+- User-written namespace `using` directives (e.g. `using System.Text;`) are hoisted above the generated class wrapper automatically.
+- Error message on missing `Run()` method improved with explicit fix hint.
+
+**C# — PlaytestRunner:**
+- DSL `ASSERT` supports `activeSelf`, `activeInHierarchy`, `tag`, `layer`, `name` directly on the path (no component lookup required).
+- `ResolveVirtualField`: `Animator.currentState` (returns active clip name), `Rigidbody.speed`, `Rigidbody2D.speed` (velocity magnitude) — no C# property exists for these, now synthetic.
+
+**C# — ScriptableObjectHelper:**
+- `create_scriptable_object` accepts `fields=` param — sets multiple fields in one call with orphan rollback on failure.
+
+**C# — CommandRouter:**
+- `inspect` accepts `type=` as alias for `components=` param.
+
+**Python — Distiller:**
+- `execute_code` added to `_SKIP_CMDS` — results never distilled (code output is always complete).
+
+**Python — Server:**
+- Stale port cleanup on startup now uses `tcp_probe=True` — actively probes ports before removing `.port` files.
+
+**Test counts:** Python unit 4630 (unchanged) | C# EditMode: +217 security tests + 68 router tests + 127 playtest tests + 34 SO tests (pre-existing 1 failure)
+
+## [v0.88.0] — 2026-07-13 — C# settings panel sync with ToolSpec v2 8-category taxonomy
+
+**C# — Settings Panel:**
+- `MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories to 8 canonical categories (CORE, SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM) matching `get_catalog()` output from `tool_specs._SPECS`.
+- `MCPSettingsUI.cs`: `_noVisualsOff` set simplified from 4 entries (`SCREENSHOTS`, `ANIMATION`, `SHADERS_MATERIAL`, `VFX`) to 1 (`MEDIA`).
+- `CatalogParser.cs`: doc comments updated to reflect new category names (SCENE, SYSTEM).
+
+**Python — Tests:**
+- `test_catalog.py`: 3 new _SPECS↔catalog consistency tests: `test_all_spec_tools_in_catalog`, `test_spec_tools_in_exactly_one_category`, `test_no_phantom_tools_in_catalog`.
+
+## [v0.87.0] — 2026-07-12 — MCP release stabilization: 5 P0 + 12 P1 fixes, direct_only gating, batch UX, media hardening
+
+**Python — Gating:**
+- `tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools marked `direct_only=True` (cannot be used inside `batch`): `do`, `ask`, `doctor`, `debug`, `snapshot`, `watch`, `get_metrics`, `ui_intent`, `vfx_intent`, `animator_intent`, `set_properties`, `budget_status`, `list_connections`, `list_skills`, `list_templates`, `navmesh_query`, `lint_playtest_suite`, `run_playtest_suite`, `screenshot_baseline`, `screenshot_compare`, `validate_playtest_aliases`.
+- `do` demoted from CORE to SYSTEM (CORE 11→10, TIER1 46→45).
+
+**Python — Batch:**
+- `batch.py`: `on_error=continue` now filters direct_only lines before TCP dispatch; original line numbers remapped in result; `on_error=stop` raises ToolError immediately; imports `_SPECS` for direct_only lookup.
+
+**Python — Compile / Diagnose:**
+- `console.py`: `get_compile_errors` fetches `compile_status` and forwards `compile_status=state` to `editor_log.corroborate()` — better stale-DLL corroboration.
+- `diagnose.py`: stale-dll verdict (`FAIL:stale-dll`) now gated on `compile != "idle"` to avoid false positives after a clean domain reload.
+
+**C# — P0 fixes:**
+- `UIHelper.cs`: `SetTMPText` wrapped in `try/catch TargetInvocationException` — TMP styling is cosmetic, swallowed silently.
+- `TimelineHelper.cs`: `Undo.RecordObject` + `EditorUtility.SetDirty` on `PlayableDirector` binding — change is now undoable and saved.
+- `ObjectManager.Events.cs`: `m_` + PascalCase normalization for `wire_event` AND `unwire_event` — both now fallback to `m_OnClick` style when bare field name not found.
+
+**C# — P1 fixes:**
+- `AnimationHelper.cs`: null guard on `clip_name` for animation create.
+- `AnimatorControllerHelper.cs`: null/empty guard on `states` param for `add_state`.
+- `MaterialHelper.cs`: all property set paths return `"ok: prop=value"` instead of bare `"ok"`.
+- `SceneHealthAnalyzer.cs`: `ItemCap=20` on 3 finding lists — truncates with `"... and N more"` to prevent runaway output.
+- `GameStateHelper.cs`: error message truncated to 200 chars.
+- `CommandRouter.ToolsCache.cs`: `_hiddenFromCatalog` set filters 13 internal commands from the tool catalog (ping, get_disabled_tools, set_tool_catalog, force_play_stop, watch_add/remove/clear/reset, get_version, get_capabilities, set_client_label, get_aliases, list_playtest_files).
+- `CommandRouter.ScreenshotHandlers.cs` + `ScreenshotCapture.cs` + `FileOutputHelper.cs`: `screenshot path=` param honored — writes PNG to the requested path; path traversal validation (must be within project root).
+- `BatchHelper.cs`: async-only error message improved (clearer wording).
+
+**Test counts:** Python unit 4630 (unchanged) | C# EditMode 6537 (1 pre-existing failure)
+
+## [v0.86.0] — 2026-07-12 — Test quality review: 83 Python + 25 C# tests deleted, assertions hardened, RenderAnalyzer crash fix
+
+**Deleted (Python — vacuous/self-testing/duplicate):**
+- 83 tests removed across 59 test files; `test_schema_cache.py` deleted entirely (17 tests that only verified `dict` type and `is not None`).
+- Vacuous patterns removed: `assert result is not None`, `assert isinstance(result, dict)`, mocks asserting their own return values, tests with no assertions.
+
+**Deleted (C# NUnit — self-testing/duplicate):**
+- ~25 tests removed: self-testing stdlib behaviour (e.g. `List.Contains`, `string.StartsWith`), duplicate coverage, tests asserting mock setup rather than production logic.
+- 8 test method renames: `snake_case` → `PascalCase` to match NUnit convention.
+
+**Strengthened:**
+- ~45 Python assertions replaced: `is not None` / truthy-only → exact value checks (`== "expected"`, `== 42`, `== []`).
+- ~10 C# assertions strengthened to exact expected values.
+
+**Test Infrastructure:**
+- TearDown/SetUp added to 5 C# test classes: `SetParentTests`, `UndoGroupHelperTests`, `EnabledToolsCacheTests`, `GetAliasesTypedTests`, `ColliderFitHelperTests` — prevents state leak between tests.
+- `conftest.py` (live): `_cleanup_orphans` now retries with logging on failure.
+- `test_multiscene_stress_live.py`: `_make_scenes` retries with logging on failure.
+
+**Fixed (production):**
+- `RenderAnalyzer.cs`: `MissingComponentException` crash — `try/catch` moved to cover the `GetComponent<MeshFilter>()` call, not just `sharedMesh` access.
+
+**Test counts:** Python unit 4630 (was ~4710 before deletions) | C# EditMode 6537 (1 pre-existing failure) | Python live 254
+
+## [v0.85.1] — 2026-07-12 — Audit fixes: deprecated tools removed, middleware hardened, scene TearDown cleanup
+
+**Removed:**
+- `get_perf` — fully removed from Python (`diagnostics.py`) and C# (`CommandRouter.Registration.cs`); use `get_frame_stats` instead.
+- `run_playtest_file` — removed from Python (`runtime.py`) and `test_run_playtest_file.py`; use `run_playtest(path=...)` instead.
+
+**Fixed:**
+- `middleware_guards.py`: batch `blast_radius` now dynamic — scans inner commands instead of using a fixed value.
+- `middleware_async.py`: batch read-only guard added in `maybe_inject_state`.
+- `tool_specs.py`: `resolve_scene_refs` mutability corrected to `'read'` (was `'write'`).
+- `RenderAnalyzer.cs`: try/catch `InvalidOperationException` on non-readable meshes (2 sites).
+- `PlaytestLinter.cs`: no-evidence commands now `ERROR` (was `WARN`).
+- `compressor.py`: `project_fields()` returns helpful message when 0 fields matched.
+
+**Test Infrastructure:**
+- `SceneTestBase.cs`: added `Undo.ClearAll()` after `NewScene` to fix dirty scene state.
+- `PlaytestRunnerTests.cs`: `DefaultGameObjects` replaced with `EmptyScene, Single` fixture.
+- `HelperTests.cs`: `SpatialHelperEdgeCaseTests` now inherits `SceneTestBase`.
+- `RenderAnalyzerTests.cs`: 3 new NUnit tests for non-readable mesh exception handling.
+- New `test_registration_parity.py`: zero-drift guard between `tool_specs` and registered MCP tools (3 tests).
+- `test_schema_drift.py`: 2 new tests for tier1 description quality and no implementation leakage.
+
+## [v0.84.0] — 2026-07-12 — Release stabilization: CORE 15→11, tier restructure, P0 fixes, token economy
+
+**Phase 1 — CORE/TIER Restructuring:**
+- CORE shrunk from 15 → 11: `delete_object`, `set_parent`, `scene`, `search_scene` demoted to TIER1 SCENE.
+- TIER1 total: 46 always-visible tools (previously 59).
+- Promoted to TIER1: `set_active`, `validate_references`, `execute_code`, `undo_last`.
+- `run_playtest_file` deprecated (still functional; description says DEPRECATED — use `run_playtest path=`).
+- 8 categories preserved: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM.
+
+**Phase 2 — Description Standardization:**
+- 7 CORE tool descriptions rewritten with anti-hallucination cross-references.
+- 15 old uppercase alias keys (`SCENE_EDIT`, `ANIMATION`, `SHADERS_MATERIAL`, etc.) → `DeprecationWarning` on use.
+- Description template: `[Imperative verb]. [NOT for X — use Y]. [enum]: a|b|c. [non-obvious param].`
+
+**Phase 3 — P0 Fixes:**
+- `await_compile`: stale false-positive fixed — gated on `compile_status` before polling.
+- `mcp_status` alias count: now uses `CountConfigAliases()` (cached, O(1) on hot path).
+- `run_playtest_suite`: gained `auto_play=False` param — does not enter Play Mode by default.
+- Lint no-evidence severity: `WARN` → `ERROR`.
+- Schema drift guard test added (`test_schema_drift.py`).
+
+**Phase 4 — Parameter Consistency (BREAKING):**
+- `create_ui` / `set_rect`: `fontSize`→`font_size`, `offsetMin`→`offset_min`, `offsetMax`→`offset_max`.
+- `object_diff`: `pathA`/`pathB` → `path_a`/`path_b`.
+- Both Python tool signatures and C# command parsers updated.
+
+**Phase 5 — Middleware:**
+- `check_verification_needed` threshold: 5 → 10 (reduces spurious verification prompts).
+- `delete_object` blast_radius: 3 → 4 (wider safety net).
+- REFLECT lines excluded from distillation (bug fix — was polluting distilled output).
+
+**Phase 6 — Token Economy:**
+- `get_component` / `inspect`: `_no_distill=True` automatically set when `fields=` provided.
+- `get_perf` deprecated → redirects to `get_frame_stats` with a deprecation notice.
+- `get_frame_stats`: gained `include=` param for filtering returned fields.
+
+**Phase 7 — P1 Additions:**
+- New tool: `release_smoke` (TIER1, SYSTEM) — runs status + aliases + compile gates in one call.
+- `run_playtest_suite`: failure-only verbose report — matrix row for PASS, full block for FAIL.
+
+## [v0.83.0] — 2026-07-11 — MCP tool restructuring: 8-category taxonomy + write classification
+
+**Added:**
+- `ToolSpec.mutability: Literal['read','write']` — single-source classification for all tools.
+- `ToolSpec.runtime_only: bool` — declares Play Mode requirement in metadata.
+- `ACTION_READS` dict — maps 12 action-based tools to their read-action sets.
+- `is_write(cmd, args)` function — per-call read/write classification (action-aware).
+- 8-category taxonomy: `SCENE`, `COMPONENTS`, `ASSETS`, `MEDIA`, `VERIFY`, `RUNTIME`, `TESTS`, `SYSTEM`.
+- Full backward-compat alias layer for old 18 category names; `register_tools()` resolves old plugin keys.
+- Bounding test for `WRITE_CMDS` size — prevents silent growth.
+- 97+ new unit tests across 3 new test files.
+
+**Changed:**
+- Core tools shrunk from 24 → 15; 9 infrastructure tools demoted to `SYSTEM` tier1 (always-visible).
+- `WRITE_CMDS` / `READ_CMDS` / `_RUNTIME_ONLY_CMDS` now derived from `_SPECS` (−67 LOC hardcoded sets).
+- AUTO STATE injection gated on writes only (~4000 tokens/session saved).
+- `_compile_clean()` now recognizes C# sentinel `"no compilation errors"`.
+- Response prefix unified: `FAILED:` → `FAIL:` in diagnose output.
+- Themed categories consolidated: 18 → 8 task-oriented groups.
+
+**Fixed:**
+- AUTO STATE hierarchy injected after read-only commands (wasted ~4000 tokens/session).
+- `_compile_clean()` missed C# `"no compilation errors"` sentinel.
+- `run_tests` / `run_playtest*` incorrectly classified as writes (caused false "consecutive writes" warnings).
+
+## [v0.82.0] — 2026-07-11 — MCP Playtests ROI + Gameplay Workflow sprint
+
+**Phase 1 — MCP Playtests ROI (TZ #31):**
+
+- `run_playtest_file` + `run_playtest_suite` — file-based and suite-level playtest runners.
+- `lint_playtest` + `lint_playtest_suite` — static analysis for DSL scripts and suites.
+- `WAIT_CAPTURED` DSL keyword — delta-capture polling; waits until a field value changes.
+- `SWEEP_PATH` / `MOVE_PATH DWELL` — smooth path movement with configurable dwell time.
+- Bool ASSERT sugar — `ASSERT /path|Comp|boolField` without `== true`; bare field = truthy check.
+- `COMPLETE_PURCHASE` / `INVOKE_REPEAT` — action helper macros for common gameplay sequences.
+- `validate_aliases` / `sync_aliases` / `export_aliases` — bidirectional `.asset` ↔ `.defs` sync.
+- Macro stack provenance — `source:`, `macro:`, `section:` fields in assertion failure reports.
+- `snapshot_on_failure` — captures full data snapshot on assertion or timeout failure.
+- `PlaytestLinter.cs`, `PlaytestAliasHelpers.cs`, `PlaytestRunner.Snapshot.cs` — new C# modules.
+- `CommandRouter.AliasHandlers.cs` — alias commands extracted to dedicated partial class.
+
+**Phase 2 — MCP Gameplay Workflow (TZ #37):**
+
+- `run_tests_wait` — synchronous polling wrapper over `run_tests` fire-and-forget; polls `get_test_results` until done.
+- `console_mark` + `get_console_since` — timestamp watermarks for isolating log output per operation.
+- `verify_after_change` — 5-gate verification pipeline: compile → refs → console → playtest → screenshot.
+- `resolve_scene_refs` — resolves `$alias`, `/path`, `t:Type` references to canonical scene paths.
+- `lint_scene_refs` — 3-pass reference linter (existence, type, nullability); `SceneRefLinter.cs`.
+- `mcp_status` — returns connection/compile/alias cache state in one call; `McpStatusCommandTests.cs`.
+- `scene_change_plan` + `apply_scene_change` — transaction-style mutations with preview + atomic apply; `transaction.py`.
+- Schema/catalog parity gate — 5 regression tests in `test_schema_parity.py`.
+- `SceneRefResolver.cs`, `SceneRefLinter.cs` — new C# modules.
+- `verify.py`, `transaction.py` — new Python tool modules.
+
+**Fixed:**
+
+- `RelayBackend` test race condition — `string.Join` moved inside lock to prevent concurrent-access flicker.
+- `CommandRegistryCompletenessTests` updated for all new commands.
+
+**Stats:** 59 files changed, +4216/−72 LOC. 4462 pytest + 6550 NUnit green (1 pre-existing failure).
+
+## [v0.81.0] — 2026-07-11 — NUnit fixes, isCompiling latch recovery, SceneCleanTestBase, orphan guard
+
+**Fixed:**
+- NUnit: `RenameObject_Undo` — added `LogAssert.Expect` for expected undo log message.
+- NUnit: `MultiClientPingLiveness` — timeout tuning to reduce flakiness.
+- NUnit: `IsAllowedAssembly` (CodeExecutor) — added `internal` testability overload.
+- `ReloadGuard` static ctor: `delayCall` initialization order fix.
+- `SyncHelper.StartTickPump`: removed inverted-exit logic bug.
+
+**Added:**
+- `force_play_stop` command (`CommandRouter.Registration.cs`) — server-side play+stop via `delayCall`; `allowedDuringCompile=true`; safe to call in compile-latch state; returns immediately. Used by T5 reload ladder.
+- `SceneCleanTestBase.cs` — abstract NUnit base class; snapshots root `GameObject` instance IDs in `[SetUp]`, fails + auto-destroys leaked objects in `[TearDown]`.
+- `DiagnoseCommand`: new `isReallyCompiling` field — `MCPServer.IsReallyCompiling` event-driven flag; no stale post-reload latch.
+- `diagnose.py` `_DiagnoseFields.is_really_compiling` — parses `isReallyCompiling=` from C# diagnose output.
+- WEDGE-ENGINE detection enhanced: also fires when `iscompiling=true` + `is_really_compiling=false` + `stamp_frozen` — catches stale latch even when `CompileNotifier.IsCompiling=true`.
+- `_orphan_guard` autouse fixture (`server/tests/live/conftest.py`) — snapshots + diffs root scene objects per test; auto-destroys leaked objects and fails the test.
+
+**Changed:**
+- `force_refresh` enhanced: conditionally unlocks `ReloadGuard` (clears `MCP_ReloadGuardLocked`, calls `UnlockReloadAssemblies` + `AllowAutoRefresh`), adds `RequestScriptReload()` + `RepaintAllViews()` — resolves pending-reload stuck state.
+- `reload_ladder` T5: uses `force_play_stop` command instead of two separate `editor play` + `editor stop` calls + `asyncio.sleep`.
+
+**Stats:** 17 files changed, +183/−37 LOC. 4388+ Python unit + 280 live + 6455+ NUnit green.
+
+## [v0.80.0] — 2026-07-11 — values-driven refactoring sprint (SOLID/DRY/KISS/OCP/SRP)
+
+**Added:**
+- `middleware_hooks.py` — `POST_HOOKS` registry + `@register_post` decorator for OCP-compliant post-call hooks (C13). Alias extraction now via hooks instead of inline blocks.
+- `editor_log_freshness.py` (82L) + `editor_log_wedge.py` (155L) — SRP split from `editor_log.py` (391→148L core) (C9).
+- `bridge_socket.py` — `frame_write()`, `frame_read()`, `frame_read_with_timeout()` TCP framing helpers, used across 7 callsites in 5 files (M67).
+- `CommandRouter.AliasHandlers.cs`, `CommandRouter.ScreenshotHandlers.cs`, `CommandRouter.ToolsCache.cs` — SRP partial class split (C8). ObjectHandlers 454→274L.
+- `FileHandler` delegate on `CommandEntry` for OCP screenshot dispatch (C7).
+- `GetCapabilities` emits `mutating_cmds` + `runtime_cmds` sets; Python `_warm_cmd_flags()` syncs at connect/reconnect (C1/C2).
+- `BackendConfigStore.WithModel()` immutable clone pattern; `ApplySelectedModel` collapsed 110→1L (C10/C11).
+- `PlaytestStep` 10 semantic alias properties (ObjectPath, ComponentType, FieldName, etc.) (C5).
+- `VisualStep` composition: wraps `PlaytestStep` via `_step` backing field, 14 delegating properties (C6-A).
+- `parse_pipe_fields()` utility in `utils.py` — DRY for pipe-separated field parsing (M13).
+- `doctor.py` `_tcp_connect` async context manager — 2 TCP probes collapsed (M64).
+- `JsonHelper.ScanBalanced` private method — 4 JSON methods collapsed, −60L (M3).
+- `MCPServer` chat listener `SO_REUSEPORT` fix for macOS/Linux (M4).
+- `PrefKeys.DisableSceneNameNorm` constant (M20).
+
+**Changed:**
+- Chat is now always-on: removed `UNITY_MCP_CHAT` compile define and guards from 38+ files. No more `#if UNITY_MCP_CHAT`, no `ChatSettingsHook.IsChatEnabled()`, no env var toggle.
+- `_RUNTIME_ONLY_CMDS` changed from `frozenset` to `set` for contract sync.
+- `ChatTranscript.AppendUserBubble` single→list forwarding, −53L (M19).
+- `_is_pid_alive` deduplicated: `server_filtering.py` imports from `lockfile.py` (M9).
+- 4 asmdef files: `defineConstraints` cleared of `UNITY_MCP_CHAT` (test asmdefs keep `UNITY_INCLUDE_TESTS`).
+
+**Removed:**
+- `ChatSettingsHookTests.cs` — tested deleted production code.
+- `CloneWithModel` from `MCPChatWindow` — replaced by `BackendConfigStore.WithModel`.
+- `Enable Agent Chat` toggle from `MCPHubUI` — chat is unconditional.
+- 27 audit findings rejected as false positives after architect verification.
+
+**Stats:** 125 files changed, −669 LOC net. 4388 Python unit + 280 live + 6455 NUnit green, 0 new failures.
+
+## [v0.79.1] — 2026-07-11 — run_playtest path= parameter, scenarios/fuzzer removal, scene_session merge
+
+**Added:**
+- `run_playtest(path="Playtests/farm.playtest")` — C# reads file server-side; ~15 tokens vs 300-800 inline. `path` and `script` are mutually exclusive. `defs` param works with both modes. `_explicit_path=True` bypasses middleware length check for file paths. Path traversal guard in C# (`GetFullPath` + `StartsWith` check).
+- `test_playtest_path.py` (Python) + `PlaytestPathTests.cs` (C#) — new tests for file-based playtest execution.
+
+**Removed:**
+- `scenarios.py` — `run_scenario`, `save_scenario`, `load_scenario`, `list_scenarios` deleted. `run_playtest(path=...)` covers the use case with fewer tokens.
+- `fuzzer.py` + `fuzz_playtest` tool — experimental property-based fuzzer removed.
+- `scan_scene` `bands` param — dead param C# never registered.
+
+**Fixed:**
+- `check_colliders` path registration — C# moved from required to optional (matching Python signature).
+- `use_skill` param split — naive `split(",")` replaced with regex handling parenthesized values like `pos=(0,5,0)`.
+- `SamplingService` singleton — `runtime.py` now uses module-level singleton instead of fresh instance per call.
+
+**Refactored:**
+- Timeout constants — `_TCP_POLL_BUFFER = 5.0`, `_TCP_STEP_BUFFER = 10.0`, `_TCP_PLAYTEST_BUFFER = 20.0` replace magic numbers in `runtime.py`.
+- `scene_session.py` merged into `scene.py` — 5 session functions (save_session, load_session, screenshot_baseline, screenshot_compare + helper) inlined; `scene_session.py` deleted.
+- `_normalize_defs` — 4-line if/elif → 1-line expression; added `None` guard for comment-only defs in script mode.
+
+**Tests:** 4375 Python passed (5 skipped) | 6452 C# NUnit passed (1 pre-existing failure, 8 skipped)
+
+## [v0.79.0] — 2026-07-10 — TCP session persistence, alias pipe resolution, READ_CMDS audit
+
+**Fixed — TCP churn (4 root causes):**
+- `_ensure_heartbeat()` called on every send → duplicate tasks leaked → eliminated; tasks created only in `_reconnect()`, destroyed only in `close()`
+- `connected` property returned false-negative after socket established → churn loop
+- Fixed sleep during domain reload replaced by `asyncio.Event` reload gate (wakes immediately on reconnect)
+- Premature close on ping stall — threshold raised to 6 windows (~6 min); prevents disconnect during App Nap / heavy compile
+
+**Fixed — Heartbeat lifecycle:**
+- Self-cancel guard added; tasks no longer leak on concurrent reconnect
+
+**Added — Client identification:**
+- `UNITY_MCP_CLIENT` env var injected into ping messages
+- MCP `InitializedNotification` hook calls `set_client_label` automatically
+- `set_client_label` command (`alwaysAllowed`, `allowedDuringCompile`)
+- `RoleToLabel` expanded: codex, cursor, windsurf, claude-desktop
+- `MaxClients` increased 4 → 8
+
+**Fixed — AliasExpander pipe truncation (CRITICAL):**
+- `AliasExpander.GetTable()` used `a.path` only → query aliases lost `|component|field`
+- New `BuildPipePath(a)` helper preserves full pipe path for ValPath aliases
+- `query_state queries=$alias` now resolves to `path|component|field` correctly
+- `run_playtest` without `INCLUDE farm_core.defs` works with PlaytestConfig aliases
+
+**Fixed — Readonly batch blast radius false positive:**
+- `_is_batch_readonly()` in `middleware_guards.py` checks all batch commands against READ_CMDS
+- `editor` dual-use: `action=state` classified as read, other actions as write
+- `_EDITOR_READ_ACTIONS = frozenset({"state", "project_path"})` for precise classification
+
+**Fixed — READ_CMDS/WRITE_CMDS audit:**
+- READ_CMDS expanded 15→43 entries (alias_status, diagnose, editor, get_*, query_*, etc.)
+- WRITE_CMDS +`rename_object` +`set_sibling_index`, −`compress_hierarchy` (dead)
+- All command classifications validated against C# `_RO`/`_RW` markers
+
+**Added — Connection status:**
+- `UnityBridge.status` semantic property: `connected`/`reconnecting`/`domain-reloading`/`disconnected`
+- `list_connections` shows semantic status instead of binary connected/disconnected
+- `alias_status` promoted to tier1 (visible in tool listing without category gating)
+
+**Fixed — NUnit test failures (15 total, Unity 6 compat):**
+- `BoxCollider` → `TestComp` in bridge tests
+- `RenameObject_Undo` LogAssert fix
+- `ParseAsync` Model guard
+- `ToolVerbMap` / `ConfigWriter` prefix alignment
+- `BuildAliasSection` iteration guard
+- `TestRunner.DeleteTempScene()` cleanup via `delayCall` in `RunFinished()`
+- `SceneTestBase` for test isolation (32 test classes)
+
+**Tests (new):**
+- `test_bridge_reload_gate.py` (5 pytest) — reload gate (asyncio.Event) behavior
+- `test_bridge_role.py` (3 pytest) — client role / identification
+- `test_connection_status.py` (12 pytest) — semantic status property
+- `test_middleware_read_cmds.py` (59 pytest) — READ_CMDS/WRITE_CMDS classification
+- `test_tool_schema_coverage.py` (11 pytest) — tool schemas + FastMCP contract tests
+- `AliasExpanderTests.cs` (7+ NUnit) — pipe expansion, comma-separated, parentheses
+- `PlaytestGlobalAliasTests.cs` (6+ NUnit) — FormatVALBlock roundtrip, GetTable consistency
+- `AliasStatusTests.cs` (NUnit) — alias_status command wiring
+- `BatchHelperParserTests.cs` (NUnit) — batch parser edge cases
+
+## [v0.78.0] — 2026-07-09 — Typed alias cards, alias system (VAL/VAR/sigil/INCLUDE), batch DSL fields/compress
+
+**Added — Typed alias cards (Alias Composer UI):**
+- **`AliasType` enum** (`PlaytestConfig.cs`) — `ValPath` / `ValConst` / `VarRuntime`; drives per-card layout in the Alias Composer window
+- **`PlaytestAliasCardBuilder.cs`** (208 LOC) — extracted card rendering from `PlaytestAliasWindow`; per-type layouts: `ValPath` → path field + cascading component/field dropdowns; `ValConst` → single `constValue` text field; `VarRuntime` → path-based with `@` prefix in DSL output
+- **`BuildAliasSection`** (`PlaytestAliasHelpers.cs`) — skips `VarRuntime` cards (runtime-only, not emitted to DSL); emits `ValConst` without pipes; updated `FormatVALLine`/`FormatVARLine` accordingly
+- **`GetMemberNames` / `GetZeroArgMethodNames`** (`PlaytestAliasWindow.cs`) — reflection-based population of component/field/method dropdowns; cascades on component selection change
+- **Status dot** in Alias Composer window — visual connection indicator
+- **Removed duplicate Window menu entry** (`SetupWizard.cs` — stale `MenuItem` removed)
+
+**Added — Alias system (VAL/VAR/sigil/INCLUDE):**
+- **`middleware_alias.py`** — parse/resolve/strip alias blocks; `parse_alias_block`, `resolve_sigils`, `strip_alias_block`; plugged into `middleware_pipeline.py` before playtest dispatch
+- **VAL/VAR DSL keywords** (`PlaytestParser.cs`) — `VAL name /Path` for static aliases; `VAR name @/Path|Comp|field` for dynamic runtime aliases; `$name` sigil expansion at parse time (VAL) or step time (VAR)
+- **`PlaytestVarRegistry.cs`** — runtime sigil store; populated from `get_aliases` response; used by `PlaytestRunner` during step expansion
+- **INCLUDE directive** (`PlaytestParser.cs`) — `INCLUDE path/to/file.defs` imports VAL/VAR/MACRO defs from external file; symlink traversal hardened (max depth 4)
+- **`get_aliases` MCP command** (`CommandRouter.Registration.cs`) — session-init command that returns alias table keyed by object path; replaces per-hierarchy alias block
+- **`ParseResult.Warnings`** — non-fatal parse issues (unknown sigils, missing defs) returned alongside output; `HasGlobalAbort` moved into `ParseResult` flag (−11 LOC)
+- **`PlaytestPositionResolver.cs`** — `@path.position + offsets` expression; resolves WorldSpace position at runtime
+- **`PlaytestAliasWindow.cs`** — Alias Composer EditorWindow; drag-drop, Pick button, USS light/dark themes; accessible via MCP menu
+- **`PlaytestAliasHelpers.cs`** — `FormatVALLine` / `FormatVARLine` helpers; no trailing pipes on empty component/field
+- **`PlaytestAliasButton.cs`** — toolbar button to open Alias Composer from chat panel
+
+**Added — Batch DSL fields/compress (C#-side filtering):**
+- **`FieldProjector`** (`FieldProjector.cs`) — C# port of Python's `project_fields()`. Filters `inspect`/`get_component` response to only the named fields; dot-prefix syntax (`-fieldName`) excludes fields instead. Wired into `ExecInspect` and `ExecGetComponent` via `ApplyFieldsCompress` helper in `CommandRouter.ObjectHandlers.cs`.
+- **`DefaultStripper`** (`DefaultStripper.cs`) — C# port of Python's `strip_defaults()`. Removes fields whose values match Unity's type defaults (0, false, empty string, identity quaternion, zero vector, etc.); field-specific overrides for known noisy keys. Activated when batch DSL line carries `compress=true`.
+- **`fields` and `compress` optional params** (`CommandRouter.Registration.cs`) — registered as valid optional params so `CommandValidator` accepts them in batch DSL. `fields` wins over `compress` when both are present (matches Python no-strip semantics). Zero Python changes — `batch.py` passes DSL text through unmodified.
+
+**Added — Test infrastructure:**
+- **`get_test_progress` MCP tool** (`testing.py`, `TestRunner.cs`) — returns live running|ran|passed|failed|skipped|total|elapsed|eta snapshot while tests are in flight. Marked `allowedDuringCompile` so it can be polled across domain reloads.
+- **`TestResultPersistence`** (`TestRunner.cs`) — persists test results to `~/.unity-mcp/test-results/` as JSON; `ResetOnReload` restores from file on domain reload instead of clearing `SessionState`, preventing result loss across recompiles.
+- **`run_unity_tests.py`** (root) — self-contained TCP-based NUnit runner script. Auto-discovers Unity MCP port, reconnects across domain reloads, polls every 2s. Usage: `python run_unity_tests.py [EditMode|PlayMode]`.
+
+**Changed:**
+- Alias block removed from `get_hierarchy` response (session-init pattern via `get_aliases` instead)
+- `TokenSavingsEstimate` formula accounts for alias block overhead
+- `ALIAS` keyword marked deprecated with warning; `VAL` is canonical replacement
+- MOVE_PATH label leak fixed; RawPosition VAR expansion fixed
+
+**Fixed:**
+- INCLUDE symlink traversal hardening (loop prevention + depth cap)
+- Position resolver exception handling (null guard + fallback)
+- Token bounds checks for ASSERT/WAIT_UNTIL
+- SetTimeScale config caching
+- FormatVALLine trailing pipe on empty fields eliminated (10-architect audit, 37 findings across 6 waves)
+- **`ObjectComponentTests` TearDown** (`ObjectComponentTests.cs`) — adds `EditorSceneManager.NewScene` in `[TearDown]` to prevent Save Scene dialog blocking subsequent test runs
+
+**Tests (42 new NUnit + 3 new pytest on this sprint):**
+- `GetAliasesTypedTests.cs` (11 NUnit) — typed alias command wiring, AliasType response shape
+- `PlaytestAliasHelperTypedTests.cs` (19 NUnit) — FormatVALLine/FormatVARLine per type, BuildAliasSection skips VarRuntime
+- `PlaytestDropHelperMemberTests.cs` (12 NUnit) — GetMemberNames, GetZeroArgMethodNames, cascading dropdown population
+- `test_middleware_alias.py` (+3 pytest) — typed alias passthrough, sigil expansion with AliasType
+- `test_middleware_alias.py` (51 Python tests total) — parse, resolve, strip, pipeline wiring
+- `test_middleware_alias_lifecycle.py` (19 Python tests) — session lifecycle, defs param, warnings
+- `GetAliasesTests.cs` (10 NUnit) — command wiring, response shape
+- `PlaytestVarTests.cs` (40 NUnit) — VAL/VAR parse, sigil expansion, unknown sigil passthrough
+- `PlaytestValComboTests.cs` (10 NUnit) — combined VAL+VAR+INCLUDE scenarios
+- `PlaytestValEdgeCaseTests.cs` (17 NUnit) — malformed input, deep nesting, circular refs
+- `PlaytestAliasGridTestTests.cs` (30 NUnit) — grid coverage across all DSL combinations
+- `PlaytestAliasModularityTests.cs` (6 NUnit) — modular alias file loading
+- `PlaytestAliasRealWorldTests.cs` (4 NUnit) — end-to-end playtest scripts with aliases
+- `PlaytestAliasStressTests.cs` (5 NUnit) — large alias tables, performance bounds
+- `PlaytestAliasWindowTests.cs` (10 NUnit) — EditorWindow lifecycle
+- `PlaytestPositionResolverTests.cs` (15 NUnit) — expression parsing, offset math, null paths
+- `FieldProjectorTests.cs` (38 NUnit) — aliases, dot-prefix exclusion, structural passthrough, special chars `[]{}<>"`
+- `DefaultStripperTests.cs` (40 NUnit) — type defaults, field-specific overrides, structural lines, edge values
+- `TestProgressTests.cs` (6 NUnit) — GetProgress state machine, persistence round-trip
+- `test_batch.py` (+3 Python passthrough tests), `test_testing_tools.py` (+2 Python TDD tests)
+- C# NUnit: 6576 passed, 9 pre-existing failures (EditMode)
+
+## [v0.77.0] — 2026-07-09 — tools gap sprint: 34 new actions across 7 domains
+
+**Added — Timeline (animation.py → timeline()):**
+- **M1: `reorder_track`** — move track to position index (reflection on `m_Tracks`, only permitted reflection hack)
+- **M2: `duplicate_clip`** — duplicate clip on same track with configurable time offset
+- **M3: `add_marker` / `remove_marker`** — add/remove `SignalEmitter` markers on timeline tracks
+- **M4: `set_track_offset`** — set track offset mode (`auto`, `transform`, or `scene`)
+- **M5: `set_duration`** — set timeline asset duration
+- **M6: `add_sub_track`** — add a sub-track to a GroupTrack
+
+**Added — Animator (animation.py → animator()):**
+- **M7: `set_state_speed`** — set speed multiplier for an animator state
+- **M8: `update_transition`** — modify existing transition parameters (duration, exit_time, has_exit_time)
+- **M9: `set_avatar`** — assign avatar to Animator component from asset path
+- **M10: `rename_state`** — rename an existing animator state
+- **M10: `rename_param`** — rename an existing animator parameter
+
+**Added — Animation (animation.py → animation()):**
+- **M11: Color curve support** — `keys` accepts hex values (`#FF0000`) in Color property curves
+- **M12: `set_wrap`** — set clip wrap mode (`loop`, `once`, `pingpong`, `clamp`)
+- **M13: `set_framerate`** — set clip sample rate (frames per second)
+- **M14: `get_clip_path`** — return asset path for an animation clip
+
+**Added — Particle (animation.py → particle()):**
+- **M16: `trails` module** — 9 settable properties via `set` action (lifetime, material, textureMode, etc.)
+- **M17: `play` / `stop` / `pause`** — control particle system playback via new `action` values
+
+**Added — Material (asset.py → material()):**
+- **M19: `get_shader_errors`** — return shader compilation errors for a material
+- **M20: `list_shaders`** — list available shaders with optional name filter param
+- **M22: `set_fields`** — batch property setting (multiple `prop=value` pairs in one call)
+
+**Added — Objects (objects.py):**
+- **`clone_object`** — duplicate a GameObject with positional offset (`offset_x`, `offset_y`, `offset_z`)
+
+**Added — UI (ui.py):**
+- **`set_ui_style`** — apply USS inline styles to a UI element
+
+**Added — VFX (vfx_intent_tool.py):**
+- **`set_vfx_quality`** — set VFX quality level for a VFX Graph asset
+
+**Added — Shader Graph (ShaderGraphHelper.Mutations.cs):**
+- **`set_node_value`** — set input value on a Shader Graph node
+- **`connect_ports`** — connect two ports in a Shader Graph
+- **`add_node`** — add a new node to a Shader Graph
+
+**Added — Tool metadata:**
+- `shader` added to BATCHABLE set in `tool_specs.py`
+
+**Tests:**
+- `test_server_timeline.py` (10 tests) — M1–M6 timeline actions
+- `test_server_animator.py` (14 tests) — M7–M10 animator actions
+- `test_server_animation.py` (13 tests) — M11–M14 animation actions
+- `test_server_particle.py` (18 tests) — M16–M17 particle actions
+- `test_server_material.py` (17 tests) — M19–M22 material actions
+- `test_server_shader.py` (46 lines) — Shader Graph mutations
+- `test_server_objects_extra.py` (22 lines) — clone_object
+- `test_vfx_intent.py` (34 lines) — set_vfx_quality
+- Python unit: 4175 passed, 0 failed
+- C# NUnit: 6126 passed, 10 failed (all pre-existing), 7 skipped
+
+## [v0.76.0] — rename_object, NUnit 159 fix, get_test_results resilience, batch SO multi-field
+
+**Added:**
+- **ScriptableObject multi-field set** (`ScriptableObjectCommand.cs`) — `scriptable_object action=set` accepts a `fields` parameter with `\n`-separated `prop=value` pairs; sets N properties in a single load/save cycle (~68% token savings vs N separate calls); atomic — if any field is missing, no fields are written.
+- **`rename_object` tool** (`objects.py`, `ObjectManager.RenameObject`, `CommandRouter.Registration.cs`) — renames a GameObject and returns the new scene path. Registered as `_RW_IDEM` (idempotent write). Undo-aware; marks scene dirty in Edit Mode. `set_property` docstring now cross-references `rename_object` for GO name changes. Added to `tool_specs.py` (129th ToolSpec, category `object`) and `CommandRegistryCompletenessTests` snapshot.
+
+**Fixed:**
+- **Batch quoting double-unescape** (`BatchHelper.cs`) — removed redundant `UnescapeJsonString` call in `ParseLines`; `ParseValue` now correctly handles `\"`, `\\`, `\n` inside quoted strings, fixing string values with embedded quotes in batch commands.
+- **NUnit 159 failures** (`TestAssemblySetup.cs`) — added `CommandRegistry.InitDefaults()` to `[OneTimeSetUp]`; tests that relied on the registry being pre-populated (BlendTree, Capabilities, ScenePill) no longer fail when run in isolation. `ScenePillPipelineTests` tears down EditorPrefs keys to prevent cross-test pollution.
+- **`get_test_results` domain-reload resilience** (`testing.py`) — wrapped TCP send in `try/except`; returns `"pending"` instead of raising `ToolError` when the domain reload drops the connection mid-poll.
+- **Live test scene isolation** (`conftest.py`) — saves the active scene before entering Play Mode to prevent `SaveCurrentModifiedScenesIfUserWantsTo` dialog blocking test fixture teardown.
+- **`timeout=0` sentinel shim** (`conftest.py`) — `wrapped_bridge` now resolves per-command timeout via `get_timeout(cmd)` instead of forwarding `0`; prevents instant-cancel on commands with no explicit timeout.
+- **Hinter live test raw bridge bypass** (`test_hinter_real.py`) — replaced direct `bridge.send` calls with the `wrapped_bridge` fixture so the timeout shim is applied correctly.
+- **`compile_status` regex** (`test_console_compile.py`) — pattern updated to also match `idle-failed` and `idle-stale` variants returned after a compile error.
+
+## [v0.75.0] — Playtest Composer UI Toolkit, DSL Macros, Scenario Persistence, ShellHelper, NlComposerBridge
+
+**Added — Playtest Composer (visual DSL editor):**
+- **PlaytestComposerWindow** (`PlaytestComposerWindow.cs`) — full rewrite from IMGUI/ReorderableList to UI Toolkit (CreateGUI + ListView + USS). Exports to DSL via `PlaytestDslExporter`; imports via `PlaytestParser`; domain-reload-safe via `[SerializeField]`. Chat toolbar button (`PlaytestComposerButton.cs`) opens the window.
+- **PlaytestStepElement** (`PlaytestStepElement.cs`) — per-row `VisualElement` with a dedicated sub-panel per step type: Move, Teleport, Wait, TimeScale, WaitUntil, Assert, Invoke, **Set**, **Click**, **Invariant**, **Capture**, **AssertCaptured**, **AssertNear**, **AssertConsoleClean**, Log, Section. Invalid steps render with a red tint.
+- **PlaytestComposer.uss** — USS stylesheet for the Composer window; theme-neutral.
+- **Context-aware drag & drop** (`PlaytestDropHelper.cs`) — drag a `GameObject` or `Component` from Hierarchy/Inspector onto a step row; `ShowComponentPicker` and `ShowFieldPicker` open `GenericDropdownMenu` pickers; `ApplyMember` fills `path/component/method` for both `Invoke` and `Set` step contexts. `StopPropagation()` on pointer-down prevents `TextField` from swallowing drag events.
+- **PlaytestSmartDrop** (`PlaytestSmartDrop.cs`) — bulk drop zone; dropping a multi-selection of GameObjects creates one `Move` step per object. `AttachMultiDnD` wires the zone to the window.
+- **PlaytestStepValidator** (`PlaytestStepValidator.cs`) — validates `VisualStep` fields per step type (required path, positive timeout/delay, non-empty query, etc.); run gate rejects scripts with any invalid step.
+- **ComposerStateStore** (`ComposerStateStore.cs`) — JSON persistence to `Playtests/` directory (outside `Assets/`); `Save`/`Load`/`Exists`/`List` API; all fields `[SerializeField]` for domain-reload survival.
+- **VisualStep.Clone()** — right-click context menu exposes Duplicate; deep-copies all fields.
+- **PlaytestFileHelper** (`PlaytestFileHelper.cs`) — extracted file-path helpers (normalize name, resolve `Playtests/` directory).
+
+**Added — DSL extensions:**
+- **MACRO/END_MACRO/CALL** (`PlaytestParser.cs`) — define reusable DSL blocks with positional parameters; CALL expands inline before parsing; nesting up to depth 10; missing END_MACRO or nested MACRO definitions throw `ArgumentException`.
+- **MOVE_PATH** (`PlaytestParser.cs`) — `MOVE_PATH x1,y1,z1 > x2,y2,z2 [> ...] [TIMEOUT n]` expands into multiple `Move` steps at parse time; `>` separates waypoints; optional TIMEOUT applies to each leg.
+- **SECTION** (`PlaytestParser.cs`) — emits a section-header step (`StepType.Section`) rendered as `--- label ---` in reports; separates logical phases in long scripts.
+- **DESC** (`PlaytestParser.cs`) — `DESC "text"` preceding any step attaches a human-readable label (`PlaytestStep.Label`) to that step; no step is emitted for DESC itself.
+- **AS "text" suffix on ASSERT** (`PlaytestParser.cs`) — inline description on any `ASSERT` line (`ASSERT /Obj|hp >= 100 AS "health full"`); stored in `PlaytestStep.Message` and surfaced in failure output.
+- **Scenario persistence** (`server/src/unity_mcp/tools/scenarios.py`) — four new MCP tools: `save_scenario` (writes DSL to `~/.unity-mcp/scenarios/<name>.dsl`), `load_scenario`, `list_scenarios`, `run_scenario` (load + run_playtest in one call). Registered as `SESSION_SKILLS` / `UNIT_TESTS` tier.
+- **GdSnapshotSerializer** (`unity-plugin/Editor/RegionTool/GdSnapshotSerializer.cs`) — converts `RegionSnapshot` GD annotations (point, region, polyline, measurement) into `ALIAS @label x,y,z` DSL lines. `ToPlaytestPreamble()` emits a complete preamble block from a snapshot collection.
+
+**Added — infrastructure:**
+- **ShellHelper** (`ShellHelper.cs`) — DRY extraction of shell primitives previously duplicated across `LoginShellCommand.cs` and `ChatBinaryResolver.cs`. Provides `ShellQuoteSingle`, `BuildLoginShellArgs`, `CreateLoginShellPsi` (cross-platform: `/bin/zsh` on macOS, `/bin/bash` or `/bin/sh` on Linux, null on Windows), and async `RunProcessAsync`. `EditorPrefsKeyPrefix` constant shared across all shell consumers. `LoginShellCommand` is now a thin wrapper with no logic of its own.
+- **NlComposerBridge** (`NlComposerBridge.cs`) — spawns the active CLI backend (claude/codex/etc.) as a subprocess to convert natural-language game test descriptions into PlayTest DSL. Ships an embedded system prompt with the full DSL command reference. Test seams via `RunProcessOverride` / `ResolveBinaryOverride`.
+- **NlCommandWindow** (`NlCommandWindow.cs`) + **NlStepParser** (`NlStepParser.cs`) — Smart Command panel: free-text NL input → `NlComposerBridge.Convert()` → parses response → appends new steps to the Composer.
+
+**Fixed:**
+- **Last observed value in WAIT_UNTIL timeout** (`PlaytestRunner.cs`) — timeout message now includes final read: `WAIT_UNTIL … — TIMEOUT after 5s (last: 12)` instead of a bare timeout.
+- **ABORT false-positive** (`PlaytestParser.cs`) — ABORT detection moved inside the AND/OR extra-token loop; previously a value containing the substring "ABORT" could erroneously set `AbortOnFail`.
+- **`GetMethod` AmbiguousMatchException** (`RuntimeHelper.cs`) — zero-arg path now uses `Type.GetMethod(name, flags, null, Type.EmptyTypes, null)`; with-arg path uses `GetMethods().FirstOrDefault(m => m.GetParameters().Length == argCount)`. Cache key includes arg count suffix to avoid cross-arity collisions.
+
+**Internal:**
+- **EvalCompound short-circuit** (`PlaytestRunner.cs`) — AND exits on first `false` condition; OR exits on first `true` condition, avoiding unnecessary reflection reads in compound wait steps.
+
+**Tests:**
+- `PlaytestDslExporterTests.cs` (23 NUnit cases): roundtrip export/parse for all step types.
+- `PlaytestDropHelperTests.cs` (87 NUnit cases): component picker, field picker, `ApplyMember` for Invoke + Set contexts, multi-drop, `StopPropagation` guard.
+- `PlaytestComposerTests.cs` (~36 NUnit cases): `Bind`, panel visibility per step type, description field, `Clone`.
+- `PlaytestStepValidatorTests.cs` (42 NUnit cases): per-type validation error messages, null guard, `IsScriptValid`.
+- `ComposerStateStoreTests.cs` (~35 NUnit cases): save/load/list/exists round-trips, bad name rejection, missing file.
+- `ShellHelperTests.cs`: shell quoting correctness, cross-platform PSI factory, `BuildLoginShellArgs` format.
+- `NlComposerBridgeTests.cs`: NL→DSL conversion via `RunProcessOverride` seam, system prompt embedding.
+- `PlaytestDslExtensionTests.cs` (7 NUnit cases): SECTION step type, DESC label attachment, AS message on ASSERT, MOVE_PATH waypoint expansion, section preservation in compress_report.
+- `PlaytestMacroTests.cs` (15 NUnit cases): MACRO definition, CALL expansion, positional args substitution, nesting depth guard, missing END_MACRO error, stray END_MACRO ignored.
+- `GdSnapshotSerializerTests.cs` (10 NUnit cases): point, region, polyline, measurement serialization; multi-snapshot preamble; unknown type comment fallback.
+- `test_scenarios.py` (13 new pytest cases): save/load/list/run round-trips, name validation, missing scenario error, run_scenario delegates to run_playtest.
+- `test_runtime.py` (2 new cases): MOVE_PATH script forwarded unchanged, `_compress_report` preserves SECTION lines.
+
+## [v0.74.0] — wait_until: Method Dispatch, AND/OR Conditions, Abort-on-Fail
+
+**Added:**
+- **Method dispatch via `()` convention** (`RuntimeHelper.cs`) — field path segments ending with `()` invoke a zero-arg method via reflection (e.g., `wait_until /Player|Health|IsFullHP() == True`). `MethodInfo` cached per `(Type, methodName)` pair; cache cleared on domain reload. Enforced as zero-arg only (throws on methods with parameters).
+- **AND/OR compound conditions in DSL** (`PlaytestParser.cs`) — `WAIT_UNTIL` now accepts flat `AND` / `OR` chains: `WAIT_UNTIL /Player|Health|hp >= 100 AND /Player|Mana|value >= 50`. AND and OR cannot be mixed in the same step (throws `ArgumentException`). Extra conditions stored in `PlaytestStep.Queries/BatchOps/BatchValues/IsOr`.
+- **`EvalCompound` static helper** (`PlaytestRunner.cs`) — `internal static bool EvalCompound(bool primary, string[] queries, string[] ops, string[] vals, bool isOr, Func<string,string> readFn)` reduces primary + extra conditions with AND/OR logic. Pure function, no Unity API calls — testable without runtime.
+- **Abort on fail** (`PlaytestRunner.cs`, `RuntimeHelper.cs`, `PlaytestParser.cs`) — three surfaces:
+  - `abort_on_fail=True` param on `wait_until` and `run_playtest` (Python `runtime.py`)
+  - `ABORT_ON_FAIL` global directive in DSL script (parsed by `PlaytestParser.HasGlobalAbort()`, applies to all steps)
+  - `ABORT` per-step token in `WAIT_UNTIL` line (sets `PlaytestStep.AbortOnFail`)
+  - On timeout: `EditorApplication.isPlaying = false` — stops Play Mode immediately.
+
+**Tests:**
+- `WaitConditionTests.cs` (27 new NUnit cases): method dispatch happy path, zero-arg enforcement, cache miss/hit, AND compound pass/fail, OR compound pass/fail, mixed-operator rejection, `ABORT_ON_FAIL` directive parsing, per-step `ABORT` token, `EvalCompound` unit tests, `HasGlobalAbort` unit tests.
+- `test_runtime.py` (4 new cases): `abort_on_fail=True` serialized to TCP args, `run_playtest` abort param forwarding, param omitted when `False`.
+
+## [v0.73.1] — Command Registration Race Condition Fix
+
+**Fixed:**
+- **Command registration race condition** — `Bootstrap.cs` deleted. Registration moved from `[InitializeOnLoadMethod] Bootstrap.Init()` into `MCPServer.StartAsync()`, called before TCP bind. Commands are now guaranteed registered before the server accepts connections.
+- **`CommandRegistry.Ready` gate** — `volatile bool Ready` flag added; reset in `Clear()`, set at end of `RegisterAll()`. `CommandRouter.CheckGuards()` returns `retry-2000` when `!Ready`, preventing command dispatch before registration completes.
+- **Dead `EnsureEnabledToolsCacheWarm()` removed** — method deleted from `CommandRouter.ObjectHandlers.cs`; call site in `MCPServer.cs` replaced with `CommandRegistry.InitDefaults()`.
+
+**Tests:**
+- `RegistrationGateTests.cs` (6 new cases): `Ready` flag lifecycle, gate blocks dispatch before registration, gate unblocks after `RegisterAll`, `Clear` resets flag.
+- `BootstrapTests.cs`, `EnabledToolsCacheTests.cs` updated to reflect Bootstrap deletion.
+
+## [v0.73.0] — Tool Disambiguation & Play Mode Fail-Fast
+
+**Fixed:**
+- **`[Play Mode]` qualifier survives truncation** — `_short_description()` now preserves mode-qualifier prefixes during docstring truncation. Previously 11 runtime-only tools (`run_tests`, `get_test_results`, `set_runtime_property`, etc.) had their `[Play Mode]` marker stripped, making them appear mode-agnostic in the tool list.
+- **`AI/batch.md`** — Added `screenshot` and `ask_user` to the non-batchable tools list; removed invalid batch examples that referenced non-existent command formats.
+
+**Added:**
+- **Cross-reference docstrings** — 14 pairs of similarly-named tools now include `use \`<tool>\`` pointer in their docstring (e.g. `get_component` ↔ `get_components_list`, `run_tests` ↔ `get_test_results`). Reduces LLM tool-selection errors when tool names overlap.
+- **Fail-fast Play Mode guard** — Middleware layer blocks runtime-only commands (e.g. `set_runtime_property`, `get_runtime_property`) before the TCP round-trip when Edit Mode is confirmed, returning an immediate `[Play Mode required]` error. Saves one TCP call per misrouted invocation.
+
+**Tests:**
+- `BatchHelper` NUnit: 5 new cases covering async-command rejection, specialDispatch rejection, and runtime-command rejection in batch context.
+- Docstring regression suite: qualifier-survival tests for all 11 `[Play Mode]` tools + cross-reference pointer validation for all 14 disambiguated pairs.
+
+## [v0.72.0] — Token Counting for Reasoning Models + Context Window Hardening
+
+**Fixed:**
+- **Reasoning token output silently dropped** — `stream_transform.py` now includes `reasoning_output_tokens` in the total output token count for reasoning models (o3, o3-pro, GPT-5.5, Fable 5). Previously these tokens were read from the backend response but discarded, causing token budgets to underestimate actual consumption and context limits to be falsely reported as "clean".
+
+**Added:**
+- **Extended model detection** — `ModelContextWindows.cs` now recognizes latest models: GPT-5.5/5.4, Fable 5, gpt-4.1, o3/o3-pro, o4-mini with spec-compliant context window sizes. Codex fallback context window increased from 192k to 1M tokens (matches latest Claude).
+- **Visual output reserve on context progress bar** — `ContextProgressBar.cs` now enforces a 20% output safety margin: the bar hits 100% fill at 80% input consumption, giving visual warning before the actual context limit is reached. Prevents edge-case overflow on high-token replies.
+
+## [v0.71.0] — Revert MCP Config Key `unity-kiss` → `unity-mcp` (Chat Breakage Fix)
+
+**Breaking:** MCP server config key reverted from `unity-kiss` (v0.70.8) back to `unity-mcp` — the rename caused Chat to break in both Claude Code and Codex due to stale name references in relay + C# config writers.
+
+**Fixed:**
+- `MCP_BLANKET` / `--permission-prompt-tool` now correctly derives from `SERVER_NAME` constant (`mcp__unity-mcp`) — was hardcoded to wrong value `mcp__unity` since introduction, causing permission prompts to fail silently.
+- `config/validator.py` and `install/commands.py` doctor now use shared `SERVER_NAME` constant from `config/merger.py` — auto-migration and diagnostics work correctly across Python + C# config writers.
+- `login_shell_path()` retries after 30s TTL on failure instead of permanently caching empty PATH — fixes Node-based CLI (Codex, OpenCode) spawn failures when initial PATH probe fails transiently.
+
+**Added:**
+- Cross-language drift guard (`test_server_name_consistency.py`) — Python ↔ C# `SERVER_NAME` and `MCP_BLANKET` can never silently drift again (enforced at build/test time).
+- `CliSession` spawn kwargs characterization tests — pins stdin/stderr/limit/PATH contract for single-turn (Codex) vs multi-turn (Claude, Kimi) backends.
+- Shared `SERVER_NAME` constant in Python (`config/merger.py`) and C# (`PermissionConfig.cs`) — single source of truth, all config writers import.
+
+**Improved:**
+- Consolidated `login_shell_path()` + `_which_via_login_shell()` into shared `_run_login_shell()` helper (DRY) — one code path for login-shell PATH resolution.
+- All config writers (Python + C#) now derive server key from constants, not hardcoded literals — prevents accidental renames on future merges.
+
 ## [v0.70.8] — MCP Server Renamed `unity-kiss` (no tautology, auto-migrated)
 
 - **Server name is now `unity-kiss`** — the config key was `unity-mcp`, which read as a tautology under Codex's `[mcp_servers.unity-mcp]` ("mcp" twice). Renamed to `unity-kiss` in **every** config writer — Codex TOML (project `.codex/config.toml` + relay inline `-c`), Claude/Cursor/Windsurf `.mcp.json`, Kimi `mcp.json`, Agy `settings.json`, OpenCode, and the Claude chat `--mcp-config`. Both writers of the Codex config (C# `ProjectConfigToml`, Python `backend_def` inline) use the same `unity-kiss` name, so they still deduplicate into one server (the v0.70.7 fix, kept).

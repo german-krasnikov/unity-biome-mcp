@@ -35,7 +35,7 @@ _CORE_TOOLS: frozenset[str] = frozenset(
 _THEMED_CATEGORIES: dict[str, list[str]] = {key: [] for key in _THEMED_CATEGORY_KEYS}
 for _name in sorted(_SPECS):
     _spec = _SPECS[_name]
-    if _spec.category not in ("CORE", "_INTERNAL"):
+    if _spec.category not in ("CORE", "_INTERNAL", "DEPRECATED"):
         _THEMED_CATEGORIES[_spec.category].append(_name)
 del _name, _spec
 
@@ -43,8 +43,14 @@ del _name, _spec
 TIER1: set[str] = {name for name, spec in _SPECS.items() if spec.core or spec.tier1}
 
 # All known tool names across all tiers (everything except _INTERNAL protocol
-# commands, which are not MCP tools).
-_ALL_KNOWN: set[str] = {name for name, spec in _SPECS.items() if spec.category != "_INTERNAL"}
+# commands and DEPRECATED stubs, which are not active MCP tools).
+_ALL_KNOWN: set[str] = {name for name, spec in _SPECS.items()
+                        if spec.category not in ("_INTERNAL", "DEPRECATED")}
+
+# Python-only tools: have no C# CommandRegistry handler; never sent to Unity.
+_DIRECT_ONLY: frozenset[str] = frozenset(
+    name for name, spec in _SPECS.items() if spec.direct_only
+)
 
 # ---------------------------------------------------------------------------
 # Backward-compat: CATEGORIES derived from _THEMED_CATEGORIES
@@ -123,7 +129,7 @@ def get_catalog() -> dict:
     CORE tools appear only in categories["CORE"], not in their category bucket.
     """
     categories = {
-        cat: [t for t in tools if t not in _CORE_TOOLS]
+        cat: [t for t in tools if t not in _CORE_TOOLS and t not in _DIRECT_ONLY]
         for cat, tools in _THEMED_CATEGORIES.items()
     }
     categories["CORE"] = sorted(_CORE_TOOLS)

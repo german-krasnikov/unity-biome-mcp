@@ -84,6 +84,27 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Copy_ParentInWrongScene_Throws()
+        {
+            // parentGo lives in the main (active) scene; clone would land in additive — mismatch
+            var parentGo = new GameObject("WrongSceneParent");
+            _toDestroy.Add(parentGo);
+
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.TransferObject("/TransferObj", "copy", _additiveScene.name,
+                    "/WrongSceneParent", true));
+        }
+
+        [Test]
+        public void Copy_Response_NoPathDuplication()
+        {
+            var result = ObjectManager.TransferObject("/TransferObj", "copy", _additiveScene.name, null, true);
+
+            // Before fix: "Copied … → SceneName/SceneName:/TransferObj"
+            StringAssert.DoesNotContain($"{_additiveScene.name}/{_additiveScene.name}", result);
+        }
+
+        [Test]
         public void InvalidAction_Throws()
         {
             Assert.Throws<System.ArgumentException>(() =>
@@ -120,6 +141,14 @@ namespace UnityMCP.Editor.Tests
                 if (r.name == ObjName) { found = true; break; }
 
             Assert.IsTrue(found, $"Object should be in additive scene '{_additiveScene.name}'");
+        }
+
+        [Test]
+        public void CreateObject_InNamedScene_MarksTargetSceneDirty()
+        {
+            ObjectManager.CreateObject(ObjName, null, null, scene: _additiveScene.name);
+
+            Assert.IsTrue(_additiveScene.isDirty, "CreateObject with scene= must mark target scene dirty");
         }
 
         [Test]

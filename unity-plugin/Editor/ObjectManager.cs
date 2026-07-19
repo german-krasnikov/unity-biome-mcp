@@ -54,6 +54,8 @@ namespace UnityMCP.Editor
                 if (!targetScene.IsValid())
                     throw new ArgumentException($"Scene not found: {scene}");
                 UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, targetScene);
+                if (!EditorApplication.isPlaying)
+                    EditorSceneManager.MarkSceneDirty(targetScene);
             }
 
             if (!string.IsNullOrEmpty(parent))

@@ -19,10 +19,15 @@ namespace UnityMCP.Editor
             throw new ArgumentException($"Scene not found or not loaded: {name}");
         }
 
-        private static void ApplyParent(GameObject go, string newParent, bool worldPositionStays)
+        private static void ApplyParent(GameObject go, string newParent, bool worldPositionStays, Scene? expectedScene = null)
         {
             if (string.IsNullOrEmpty(newParent)) return;
             var parentGo = ComponentSerializer.FindObjectOrThrow(newParent);
+            if (expectedScene.HasValue && parentGo.scene != expectedScene.Value)
+                throw new ArgumentException(
+                    $"parent '{newParent}' is in scene '{parentGo.scene.name}', " +
+                    $"not target scene '{expectedScene.Value.name}'. " +
+                    $"Use a parent path inside '{expectedScene.Value.name}'.");
             Undo.SetTransformParent(go.transform, parentGo.transform, worldPositionStays, $"Set parent {go.name}");
         }
 
@@ -39,7 +44,7 @@ namespace UnityMCP.Editor
                 case "move":
                     Undo.SetTransformParent(go.transform, null, worldPositionStays, $"Unparent {go.name}");
                     SceneManager.MoveGameObjectToScene(go, targetScene);
-                    ApplyParent(go, newParent, worldPositionStays);
+                    ApplyParent(go, newParent, worldPositionStays, expectedScene: targetScene);
                     EditorUtility.SetDirty(go);
                     if (!EditorApplication.isPlaying)
                         EditorSceneManager.MarkSceneDirty(targetScene);
@@ -51,11 +56,11 @@ namespace UnityMCP.Editor
                     clone.transform.SetParent(null, worldPositionStays);
                     Undo.RegisterCreatedObjectUndo(clone, $"Copy {go.name}");
                     SceneManager.MoveGameObjectToScene(clone, targetScene);
-                    ApplyParent(clone, newParent, worldPositionStays);
+                    ApplyParent(clone, newParent, worldPositionStays, expectedScene: targetScene);
                     EditorUtility.SetDirty(clone);
                     if (!EditorApplication.isPlaying)
                         EditorSceneManager.MarkSceneDirty(targetScene);
-                    return $"Copied {sourcePath} → {targetScene.name}/{ComponentSerializer.GetPath(clone)}";
+                    return $"Copied {sourcePath} → {ComponentSerializer.GetPath(clone)}";
 
                 default:
                     throw new ArgumentException($"Invalid action: {action}. Must be move or copy");

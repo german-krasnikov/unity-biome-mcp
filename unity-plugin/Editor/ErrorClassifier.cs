@@ -11,19 +11,29 @@ namespace UnityMCP.Editor
     /// </summary>
     internal static class ErrorClassifier
     {
-        internal static string Classify(Exception e) => e switch
+        internal static string Classify(Exception e)
         {
-            ArgumentNullException     => "VALIDATION",
-            ArgumentException         => "VALIDATION",
-            KeyNotFoundException      => "NOT_FOUND",
-            FileNotFoundException     => "NOT_FOUND",
-            InvalidOperationException => "STATE",
-            TimeoutException          => "TIMEOUT",
-            MissingReferenceException => "NULL_REF",
-            NullReferenceException    => "NULL_REF",
-            _                         => "INTERNAL"
-        };
+            if (e is System.Reflection.TargetInvocationException tie && tie.InnerException != null)
+                e = tie.InnerException;
+            return e switch
+            {
+                ArgumentNullException     => "VALIDATION",
+                ArgumentException         => "VALIDATION",
+                KeyNotFoundException      => "NOT_FOUND",
+                FileNotFoundException     => "NOT_FOUND",
+                InvalidOperationException => "STATE",
+                TimeoutException          => "TIMEOUT",
+                MissingReferenceException => "NULL_REF",
+                NullReferenceException    => "NULL_REF",
+                _                         => "INTERNAL"
+            };
+        }
 
-        internal static string FormatError(Exception e) => $"{Classify(e)}: {e.Message}";
+        internal static string FormatError(Exception e)
+        {
+            if (e is System.Reflection.TargetInvocationException tie && tie.InnerException != null)
+                e = tie.InnerException;
+            return $"{Classify(e)}: {e.Message}";
+        }
     }
 }

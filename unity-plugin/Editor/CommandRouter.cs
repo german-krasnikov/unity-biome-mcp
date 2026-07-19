@@ -91,12 +91,21 @@ namespace UnityMCP.Editor
                 var argsJson = JsonHelper.ExtractObject(json, "args");
                 argsJson = AliasExpander.ExpandJson(argsJson);  // expand $sigils in args
 
-                UndoGroupHelper.SetCommandFallback(cmd);
+                bool mutating = IsMutatingCommand(cmd);
+                int groupId = -1;
+
+                if (mutating)
+                    groupId = UndoGroupHelper.OpenNamedGroup($"MCP: {cmd}");
+                else
+                    UndoGroupHelper.SetCommandFallback(cmd);
 
                 if (CommandRegistry.TryGetFileHandler(cmd, out var fileHandler))
                 {
                     var result = fileHandler(id, argsJson);
-                    UndoGroupHelper.EndGroup();
+                    if (mutating)
+                        UndoGroupHelper.CloseNamedGroup(groupId);
+                    else
+                        UndoGroupHelper.EndGroup();
                     return result;
                 }
 
@@ -108,20 +117,40 @@ namespace UnityMCP.Editor
 
                 TrackCommand(cmd);
                 var before = DateTime.Now;
-                var data = ExecuteCommand(cmd, argsJson);
-                UndoGroupHelper.EndGroup();
-                if (IsMutatingCommand(cmd))
+                string data;
+                try
                 {
+                    data = ExecuteCommand(cmd, argsJson);
+                }
+                catch
+                {
+                    if (mutating) UndoGroupHelper.CloseNamedGroup(groupId);
+                    throw;
+                }
+
+                if (mutating)
+                {
+                    UndoGroupHelper.CloseNamedGroup(groupId);
+                    UndoGroupStack.Push(groupId);
+                    ChangeWatcher.RecordMutation($"MCP_{cmd.ToUpper()}");
                     var errors = ConsoleCapture.GetErrorsSince(before);
                     if (errors != null) data += "\n⚠ CONSOLE ERRORS:\n" + errors;
                     var suggestion = SuggestNext(cmd);
                     if (suggestion != null) data += $"\n[next: {suggestion}]";
                 }
+                else
+                {
+                    UndoGroupHelper.EndGroup();
+                }
                 return BuildResponse(id, data, CommandRegistry.GetMaxResponseChars(cmd));
             }
             catch (Exception e)
             {
-                Debug.LogError($"[MCP] Command failed: {ErrorClassifier.FormatError(e)}");
+                var cls = ErrorClassifier.Classify(e);
+                if (cls == "VALIDATION")
+                    Debug.LogWarning($"[MCP] {ErrorClassifier.FormatError(e)}");
+                else
+                    Debug.LogError($"[MCP] Command failed: {ErrorClassifier.FormatError(e)}");
                 var id = JsonHelper.ExtractString(json, "id") ?? "unknown";
                 return JsonHelper.FormatResponse(id, false, null, ErrorClassifier.FormatError(e));
             }
@@ -150,7 +179,11 @@ namespace UnityMCP.Editor
             }
             catch (Exception e)
             {
-                Debug.LogError($"[MCP] Command failed: {ErrorClassifier.FormatError(e)}");
+                var cls = ErrorClassifier.Classify(e);
+                if (cls == "VALIDATION")
+                    Debug.LogWarning($"[MCP] {ErrorClassifier.FormatError(e)}");
+                else
+                    Debug.LogError($"[MCP] Command failed: {ErrorClassifier.FormatError(e)}");
                 var id = JsonHelper.ExtractString(json, "id") ?? "unknown";
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, ErrorClassifier.FormatError(e)));
             }
@@ -170,12 +203,25 @@ namespace UnityMCP.Editor
 
         // Bridges an inner async Task<string> to the outer TCS, formatting a fault
         // uniformly as "{label} error: ...". Collapses 4x identical ContinueWith copy-paste.
-        private static void CompleteFromInner(string id, Task<string> inner, TaskCompletionSource<string> tcs, string label)
+        // isSuccess: optional predicate on the result string; null = always success.
+        private static void CompleteFromInner(string id, Task<string> inner, TaskCompletionSource<string> tcs, string label, Func<string, bool> isSuccess = null)
         {
             inner.ContinueWith(t =>
-                tcs.TrySetResult(t.IsFaulted
-                    ? BuildResponse(id, $"{label} error: {t.Exception?.InnerException?.Message ?? t.Exception?.Message}")
-                    : BuildResponse(id, t.Result)));
+            {
+                if (t.IsFaulted)
+                {
+                    var errMsg = t.Exception?.InnerException?.Message ?? t.Exception?.Message;
+                    tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, $"{label} error: {errMsg}"));
+                }
+                else if (isSuccess != null && !isSuccess(t.Result))
+                {
+                    tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, t.Result));
+                }
+                else
+                {
+                    tcs.TrySetResult(BuildResponse(id, t.Result));
+                }
+            });
         }
 
         private static void AsyncWaitUntil(string id, string argsJson, TaskCompletionSource<string> tcs)
@@ -263,7 +309,7 @@ namespace UnityMCP.Editor
             var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
             var inner = new TaskCompletionSource<string>();
             PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh);
-            CompleteFromInner(id, inner.Task, tcs, "run_playtest");
+            CompleteFromInner(id, inner.Task, tcs, "run_playtest", r => !r.Contains("— FAIL") && !r.Contains("FAIL ("));
         }
 
         private static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)

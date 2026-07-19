@@ -15,7 +15,11 @@ from .tools.gating import filter_by_tier, get_catalog, _CORE_TOOLS
 from .tools.schema_registry import _registry as _schema_registry, STUB_SCHEMA
 
 # Core tools keep full schemas; all others get stub schema on ListTools.
-_SCHEMA_KEEP_FULL: frozenset[str] = _CORE_TOOLS
+_SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
+    "run_playtest", "run_tests", "run_tests_wait",
+    "resolve_tool_schema", "discover_tools",
+})
+_SCHEMA_KEEP_FULL: frozenset[str] = _CORE_TOOLS | _SCHEMA_KEEP_FULL_EXTRA
 
 # Non-core tool descriptions are truncated to this length in the initial
 # ListTools response; full text remains available via resolve_tool_schema.

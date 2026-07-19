@@ -97,12 +97,14 @@ namespace UnityMCP.Editor
                 : FindScene(identifier);
             if (!string.IsNullOrEmpty(path))
             {
-                EditorSceneManager.SaveScene(scene, path);
+                if (!EditorSceneManager.SaveScene(scene, path))
+                    throw new System.IO.IOException($"Unity failed to save scene to '{path}'.");
                 return path;
             }
             if (string.IsNullOrEmpty(scene.path))
                 throw new System.ArgumentException("untitled scene, path required");
-            EditorSceneManager.SaveScene(scene);
+            if (!EditorSceneManager.SaveScene(scene))
+                throw new System.IO.IOException($"Unity failed to save scene to '{scene.path}'.");
             return scene.path;
         }
 

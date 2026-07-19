@@ -117,7 +117,7 @@ def test_all_specs_have_cs_command_or_are_python_only():
     """Every non-_INTERNAL ToolSpec has a C# command or is known Python-only."""
     specs = _specs()
     cs = _extract_cs_commands()
-    non_internal = {k for k, v in specs.items() if v.category != "_INTERNAL"}
+    non_internal = {k for k, v in specs.items() if v.category not in ("_INTERNAL", "DEPRECATED")}
     missing = non_internal - _PYTHON_ONLY - cs
     assert not missing, (
         f"_SPECS tools with no C# command and not in _PYTHON_ONLY: {sorted(missing)}\n"

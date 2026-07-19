@@ -212,13 +212,23 @@ async def test_resolve_cold_start_empty_registry_returns_graceful_fallback():
 
 # --- resolve_tool_schema is SYSTEM tier1 (demoted from CORE in Phase 2) ---
 
-def test_resolve_tool_schema_schema_is_stripped_after_demotion():
-    """resolve_tool_schema demoted from CORE to SYSTEM tier1 in Phase 2 —
-    now gets stub schema like other non-core tools."""
+def test_resolve_tool_schema_keeps_full_schema():
+    """resolve_tool_schema is in _SCHEMA_KEEP_FULL_EXTRA — keeps full schema like core tools."""
+    from unity_mcp.server import _strip_deferred_schemas
+    from unity_mcp.server_filtering import _SCHEMA_KEEP_FULL
+    full = _full_schema()
+    tool = _tool("resolve_tool_schema", "Resolve deferred schemas", full)
+    assert "resolve_tool_schema" in _SCHEMA_KEEP_FULL
+    result = _strip_deferred_schemas([tool])
+    assert result[0].inputSchema == full
+
+
+def test_non_keep_full_tool_schema_is_stripped():
+    """Non-core, non-keep-full tool gets stub schema."""
     from unity_mcp.server import _strip_deferred_schemas
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
     full = _full_schema()
-    tool = _tool("resolve_tool_schema", "Resolve deferred schemas", full)
+    tool = _tool("animation", "Animation tool", full)
     result = _strip_deferred_schemas([tool])
     assert result[0].inputSchema == STUB_SCHEMA
 

@@ -100,6 +100,18 @@ async def get_test_count() -> str:
     return await _send("get_test_count", {})
 
 
+async def run_playtest_file(path: str) -> str:
+    """REMOVED in v0.85. Use: run_playtest(path='...')"""
+    from mcp.server.fastmcp.exceptions import ToolError
+    raise ToolError(f"run_playtest_file removed in v0.85. Use: run_playtest(path='{path}')")
+
+
+async def get_perf() -> str:
+    """REMOVED in v0.85. Use: get_frame_stats"""
+    from mcp.server.fastmcp.exceptions import ToolError
+    raise ToolError("get_perf removed in v0.85. Use: get_frame_stats")
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RW_IDEM)(run_tests)
@@ -107,3 +119,5 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RO)(get_test_results)
     mcp.tool(annotations=_RO)(get_test_progress)
     mcp.tool(annotations=_RO)(get_test_count)
+    # DEPRECATED stubs are NOT registered with FastMCP — they're importable
+    # Python functions only, callable for migration hints in tests.

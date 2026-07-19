@@ -115,9 +115,13 @@ namespace UnityMCP.Editor
                 var path   = JsonHelper.ExtractString(args, "path");
                 var script = JsonHelper.ExtractString(args, "script");
                 if (path != null && script != null) return "err: use path or script, not both";
-                if (path != null)   return PlaytestLinter.LintFile(path);
-                if (script != null) return PlaytestLinter.LintScript(script);
-                return "err: path or script required";
+                string result;
+                if (path != null)        result = PlaytestLinter.LintFile(path);
+                else if (script != null) result = PlaytestLinter.LintScript(script);
+                else return "err: path or script required";
+                if (result.StartsWith("ERROR") || result.Contains("\nERROR"))
+                    throw new InvalidOperationException(result);
+                return result;
             }, required: "", optional: "path,script", allowedDuringCompile: true);
             CommandRegistry.Register("lint_scene_refs", args =>
             {
@@ -258,8 +262,13 @@ namespace UnityMCP.Editor
                 required: "path", optional: "depth");
             CommandRegistry.Register("scan_scene", _ => ScanHelper.Scan(),
                 required: "", optional: "");
-            CommandRegistry.Register("render_analyze", args => RenderAnalyzer.Execute(args),
-                required: "", optional: "action,path,detail,baseline_id,max_events");
+            CommandRegistry.Register("render_analyze", args =>
+            {
+                var r = RenderAnalyzer.Execute(args);
+                if (r.StartsWith("err:", System.StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(r.Substring(4).Trim());
+                return r;
+            }, required: "", optional: "action,path,detail,baseline_id,max_events");
             CommandRegistry.Register("check_colliders", args => ColliderChecker.Check(
                 JsonHelper.ExtractString(args, "path")),
                 required: "", optional: "path");
@@ -344,9 +353,13 @@ namespace UnityMCP.Editor
                 allowedDuringCompile: true);  // T2.5: ReloadGuard probe must work when wedged
             // Both file_path and new_content are required — a preflight check needs the file
             // and the candidate content to validate (Issue 23 review M8).
-            CommandRegistry.Register("compile_preflight", args => CompilePreflightCommand.Execute(args),
-                required: "file_path,new_content", optional: "",
-                allowedDuringCompile: true);  // Roslyn in-process — safe during Unity compile
+            CommandRegistry.Register("compile_preflight", args =>
+            {
+                var r = CompilePreflightCommand.Execute(args);
+                if (r.StartsWith("ERR")) throw new InvalidOperationException(r);
+                return r;
+            }, required: "file_path,new_content", optional: "",
+               allowedDuringCompile: true);  // Roslyn in-process — safe during Unity compile
         }
 
         internal static void RegisterMutatingCommands()

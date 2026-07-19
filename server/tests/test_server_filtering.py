@@ -673,16 +673,16 @@ def test_short_description_noop_when_already_short():
 
 
 def test_strip_deferred_details_shortens_description_for_non_core_tool():
-    """Non-core tool: description shortened AND schema stubbed, same pass."""
+    """Non-core, non-keep-full tool: description shortened AND schema stubbed, same pass."""
     from unity_mcp.server_filtering import _strip_deferred_schemas, _short_description
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
     long_desc = (
-        "Runs a scripted playtest sequence against the live scene using a compact DSL. "
+        "Plays animation clips on a target GameObject via the Animator component. "
         "Supports ASSERT, ASSERT_CONSOLE_CLEAN, WAIT and other directives for verifying "
-        "gameplay behavior end to end without manual clicking."
+        "animation behavior end to end without manual clicking."
     )
-    tool = SimpleNamespace(name="run_playtest", description=long_desc,
-                           inputSchema={"type": "object", "properties": {"script": {"type": "string"}}})
+    tool = SimpleNamespace(name="animation", description=long_desc,
+                           inputSchema={"type": "object", "properties": {"clip": {"type": "string"}}})
     result = _strip_deferred_schemas([tool])
     assert result[0].description == _short_description(long_desc)
     assert result[0].description != long_desc
@@ -710,12 +710,12 @@ async def test_schema_registry_capture_stores_full_description_before_truncation
     from unity_mcp.server_filtering import _strip_deferred_schemas, _short_description
 
     long_desc = (
-        "Runs a scripted playtest sequence against the live scene using a compact DSL. "
+        "Plays animation clips on a target GameObject via the Animator component. "
         "Supports ASSERT, ASSERT_CONSOLE_CLEAN, WAIT and other directives for verifying "
-        "gameplay behavior end to end without manual clicking."
+        "animation behavior end to end without manual clicking."
     )
-    tool = SimpleNamespace(name="run_playtest", description=long_desc,
-                           inputSchema={"type": "object", "properties": {"script": {"type": "string"}}})
+    tool = SimpleNamespace(name="animation", description=long_desc,
+                           inputSchema={"type": "object", "properties": {"clip": {"type": "string"}}})
 
     registry = SchemaRegistry()
     # Mirror install_list_tools_filter's capture-before-strip ordering.
@@ -726,7 +726,7 @@ async def test_schema_registry_capture_stores_full_description_before_truncation
     assert tool.description == _short_description(long_desc)
     assert tool.description != long_desc
     # ...but the registry still holds the ORIGINAL full text.
-    assert registry.get_full("run_playtest")["description"] == long_desc
+    assert registry.get_full("animation")["description"] == long_desc
 
 
 # ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor;
 
@@ -230,6 +231,30 @@ namespace UnityMCP.Editor.Tests
         }
 
         // ── 6. SetProperty ────────────────────────────────────────────────────
+
+        [Test]
+        public void SetProperty_MarksSceneDirty()
+        {
+            _go.AddComponent<BoxCollider>();
+            var scene = _go.scene;
+            typeof(EditorSceneManager).GetMethod("ClearSceneDirtyFlag", BindingFlags.Static | BindingFlags.NonPublic)?.Invoke(null, new object[] { scene });
+
+            ObjectManager.SetProperty("/OM_TestObj", "BoxCollider", "m_Size", "(2,2,2)");
+
+            Assert.IsTrue(scene.isDirty, "SetProperty must mark scene dirty");
+        }
+
+        [Test]
+        public void SetPropertyDelta_MarksSceneDirty()
+        {
+            _go.AddComponent<Light>().intensity = 1f;
+            var scene = _go.scene;
+            typeof(EditorSceneManager).GetMethod("ClearSceneDirtyFlag", BindingFlags.Static | BindingFlags.NonPublic)?.Invoke(null, new object[] { scene });
+
+            ObjectManager.SetPropertyDelta("/OM_TestObj", "Light", "m_Intensity", "+0.5");
+
+            Assert.IsTrue(scene.isDirty, "SetPropertyDelta must mark scene dirty");
+        }
 
         [Test]
         public void SetProperty_FloatField_UpdatesValue()

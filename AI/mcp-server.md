@@ -68,7 +68,7 @@ Other tier1 (30): alias_status, ask, ask_user, await_compile, compile_preflight,
 | asset | asset, material, prefab, scriptable_object, project_settings, shader, references, material_audit |
 | advanced | recompile, get_schema, auto_fix, smart_build, checkpoint, undo_last, validate_references, menu, diagnose, scan_scene, check_colliders, spatial_query, region_clear, navmesh_query, scene_health, set_llm_config, budget_status |
 | ui | create_ui, set_rect, validate_layout, get_spatial_context, ui_intent, vfx_intent |
-| runtime | get_test_results, get_perf, debug_animator, debug_physics |
+| runtime | get_test_results, debug_animator, debug_physics |
 | session | fingerprint, scene_diff, get_changes, save_session, load_session, screenshot_baseline, screenshot_compare, save_skill, use_skill, list_skills, apply_template, save_template, list_templates |
 | debug | debug, snapshot, watch_add, get_watches, watch_remove, watch_clear, watch_reset, get_metrics |
 | profiling | get_frame_stats, profile, get_memory |
@@ -78,6 +78,12 @@ Other tier1 (30): alias_status, ask, ask_user, await_compile, compile_preflight,
 
 **get_unity_events:** Returns all UnityEvent fields on a component with fully-qualified
 target paths. Replaces manual `get_component` + parsing when auditing event wiring.
+
+**DEPRECATED stubs (v0.91.0):** `get_perf` and `run_playtest_file` are registered in ToolSpec with category `DEPRECATED` and `direct_only=True`. They raise `ToolError` with a migration hint when called. They do NOT appear in `_ALL_KNOWN` or any catalog bucket. Migration: `get_perf` → `get_frame_stats`, `run_playtest_file` → `run_playtest(path=...)`.
+
+**direct_only tools (v0.91.0 additions):** 7 more tools marked `direct_only=True` (Python-side only, never sent to Unity TCP): `console_mark`, `discover_tools`, `get_console_since`, `mcp_status`, `release_smoke`, `resolve_tool_schema`, `run_tests_wait`. These remain TIER1 and visible to the LLM; they just don't go through `get_enabled_tools` catalog sent to Unity. Total direct_only tools now ~28.
+
+**Full schemas kept for (v0.91.0):** `_SCHEMA_KEEP_FULL_EXTRA` adds `run_playtest`, `run_tests`, `run_tests_wait`, `resolve_tool_schema` to the full-schema set (always served with complete inputSchema, not stubs).
 
 ### Capability Gating (gating.py)
 

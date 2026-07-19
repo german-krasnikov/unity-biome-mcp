@@ -138,9 +138,8 @@ def test_no_tool_in_multiple_categories():
         seen[t] = True
 
 
-# budget_status is registered only when the cost tracker is active and is
-# meta-infrastructure (not a user-facing scene tool) — intentionally not in the catalog.
-_CATALOG_EXEMPT = {"budget_status"}
+# direct_only tools are Python-only; excluded from catalog by design.
+from unity_mcp.tools.gating import _DIRECT_ONLY as _CATALOG_EXEMPT
 
 
 def test_drift_guard_all_public_tools_in_catalog():
@@ -236,13 +235,15 @@ def test_get_categories_still_works():
 # ---------------------------------------------------------------------------
 
 def test_all_spec_tools_in_catalog():
-    """Every non-_INTERNAL tool in _SPECS must appear in the catalog."""
+    """Every non-_INTERNAL, non-DEPRECATED, non-direct_only tool in _SPECS must appear in the catalog."""
     from unity_mcp.tools.gating import get_catalog
     from unity_mcp.tools.tool_specs import _SPECS
     catalog_tools = {t for tools in get_catalog()["categories"].values() for t in tools}
     missing = {
         name for name, spec in _SPECS.items()
-        if spec.category != "_INTERNAL" and name not in catalog_tools
+        if spec.category not in ("_INTERNAL", "DEPRECATED")
+        and not spec.direct_only
+        and name not in catalog_tools
     }
     assert not missing, f"Tools in _SPECS missing from catalog: {sorted(missing)}"
 

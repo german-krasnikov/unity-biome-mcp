@@ -624,7 +624,8 @@ def test_no_orphan():
     for tools in _THEMED_CATEGORIES.values():
         themed.update(tools)
     internal = {n for n, s in _SPECS.items() if s.category == "_INTERNAL"}
-    assert themed | _CORE_TOOLS | internal == set(_SPECS.keys())
+    deprecated = {n for n, s in _SPECS.items() if s.category == "DEPRECATED"}
+    assert themed | _CORE_TOOLS | internal | deprecated == set(_SPECS.keys())
 
 
 def test_each_tool_exactly_one_themed_category():

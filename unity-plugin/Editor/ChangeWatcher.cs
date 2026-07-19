@@ -32,6 +32,10 @@ namespace UnityMCP.Editor
                 _changes.RemoveAt(0);
         }
 
+        // Called inline from CommandRouter.Process() after each mutating command,
+        // since deferred events (hierarchyChanged etc.) don't fire synchronously.
+        public static void RecordMutation(string mutation) => RecordChange(mutation);
+
         public static string GetChanges(bool clear = true)
         {
             if (_changes.Count == 0) return "NO_CHANGES";

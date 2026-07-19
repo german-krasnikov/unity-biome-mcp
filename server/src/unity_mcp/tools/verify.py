@@ -49,7 +49,10 @@ def _is_suite_pass(result: str) -> bool:
 
 def _extract_ratio(result: str) -> str:
     m = re.search(r"\d+/\d+", result)
-    return m.group(0) if m else "?"
+    if m:
+        return m.group(0)
+    m2 = re.search(r"(\d+)\s+(?:tests?\s+)?passed", result, re.IGNORECASE)
+    return f"{m2.group(1)} passed" if m2 else "ok"
 
 
 def _fail(gate: str, detail: str, skipped: list[str]) -> str:
