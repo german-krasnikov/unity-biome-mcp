@@ -5,10 +5,10 @@ using System.Text.RegularExpressions;
 
 namespace UnityMCP.Editor.RegionTool
 {
-    /// <summary>Converts RegionSnapshot instances to DSL ALIAS lines for playtest scripts.</summary>
+    /// <summary>Converts RegionSnapshot instances to DSL VAL lines for playtest scripts.</summary>
     internal static class GdSnapshotSerializer
     {
-        /// <summary>Single snapshot → one or more ALIAS lines (no trailing newline).</summary>
+        /// <summary>Single snapshot → one or more VAL lines (no trailing newline).</summary>
         internal static string ToAliasLines(RegionSnapshot snap)
         {
             var label = SanitizeLabel(snap.Label, snap.Id);
@@ -41,7 +41,7 @@ namespace UnityMCP.Editor.RegionTool
             return sb.ToString();
         }
 
-        /// <summary>All snapshots → preamble block of ALIAS lines.</summary>
+        /// <summary>All snapshots → preamble block of VAL lines.</summary>
         internal static string ToPlaytestPreamble(IEnumerable<RegionSnapshot> snapshots)
         {
             var sb = new StringBuilder();
@@ -56,7 +56,7 @@ namespace UnityMCP.Editor.RegionTool
 
         static string AliasLine(string label, float x, float y, float z)
             => string.Format(CultureInfo.InvariantCulture,
-                "ALIAS @{0} {1:F2},{2:F2},{3:F2}", label, x, y, z);
+                "VAL ${0} {1:F2},{2:F2},{3:F2}", label, x, y, z);
 
         static void AppendVertexLines(StringBuilder sb, string label, RegionSnapshot snap, bool suffix)
         {

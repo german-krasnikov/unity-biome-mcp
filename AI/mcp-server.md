@@ -2,7 +2,7 @@
 
 ## Overview
 
-Python MCP server with 121 MCP tools for controlling Unity Editor. `_UnstructuredMCP(FastMCP)` subclass (v0.50.3) + ConnectionSlot + capability gating + 23 middleware layers. External plugins can add more tools dynamically. Structured output disabled on all tools to eliminate duplicate `content` + `structuredContent` in MCP responses (reduces size & parsing overhead).
+Python MCP server with 142 MCP tools for controlling Unity Editor. `_UnstructuredMCP(FastMCP)` subclass (v0.50.3) + ConnectionSlot + capability gating + 23 middleware layers. External plugins can add more tools dynamically. Structured output disabled on all tools to eliminate duplicate `content` + `structuredContent` in MCP responses (reduces size & parsing overhead).
 
 ## Architecture (for Architect)
 
@@ -47,7 +47,7 @@ server/src/unity_mcp/
     └── __init__.py              # 3-source auto-discovery (pkgutil, entry_points, UNITY_MCP_PLUGIN_DIRS)
 ```
 
-### Tools (145 total)
+### Tools (142 total)
 
 **TIER1 — always visible (45 tools):**
 
@@ -61,28 +61,21 @@ Other tier1 (30): alias_status, ask, ask_user, await_compile, compile_preflight,
 
 **Category-gated (enabled via `discover_tools`):**
 
-| Category | Tools |
-|----------|-------|
-| object | find_objects, get_object_detail, get_components_list, set_active, rename_object, clone_object, set_material, wire_event, unwire_event, auto_wire, get_unity_events, set_property_delta, object_diff, transfer_object |
-| animation | animation, timeline, animator, particle |
-| asset | asset, material, prefab, scriptable_object, project_settings, shader, references, material_audit |
-| advanced | recompile, get_schema, auto_fix, smart_build, checkpoint, undo_last, validate_references, menu, diagnose, scan_scene, check_colliders, spatial_query, region_clear, navmesh_query, scene_health, set_llm_config, budget_status |
-| ui | create_ui, set_rect, validate_layout, get_spatial_context, ui_intent, vfx_intent |
-| runtime | get_test_results, debug_animator, debug_physics |
-| session | fingerprint, scene_diff, get_changes, save_session, load_session, screenshot_baseline, screenshot_compare, save_skill, use_skill, list_skills, apply_template, save_template, list_templates |
-| debug | debug, snapshot, watch_add, get_watches, watch_remove, watch_clear, watch_reset, get_metrics |
-| profiling | get_frame_stats, profile, get_memory |
-| rendering | render_analyze, analyze_lod_culling |
-| verify | serialized_field_rename_audit |
-| plugins | (auto-gated: tools registered without register_tools() call) |
-| connection | (empty — list_connections and reconnect_unity are in TIER1/CORE) |
+| Category | Tier2 Tools |
+|----------|-------------|
+| SCENE | autofit_collider, check_colliders, find_objects, get_components_list, get_object_detail, get_selection, get_spatial_context, get_unity_events, navmesh_query, object_diff, ping_object, region_clear, rename_object, scene_diff, scene_environment, set_material, set_properties, set_property_delta, set_sibling_index, spatial_query, transfer_object |
+| COMPONENTS | auto_wire, references, unwire_event, wire_event |
+| ASSETS | asset, material, material_audit, prefab, project_settings, scriptable_object, shader |
+| MEDIA | analyze_lod_culling, animation, animator, create_ui, particle, render_analyze, screenshot_baseline, screenshot_compare, set_rect, timeline, ui_intent, validate_layout, vfx_intent |
+| VERIFY | diagnose, scan_scene, scene_health, serialized_field_rename_audit |
+| RUNTIME | debug, debug_animator, debug_physics, get_frame_stats, get_memory, get_metrics, get_watches, invoke_method, move_to, profile, query_state, runtime_snapshot, set_runtime_property, snapshot, wait_until, watch |
+| TESTS | export_playtest_aliases_to_defs, get_test_count, get_test_progress, lint_playtest_suite, run_playtest_suite, sync_playtest_aliases_from_defs, test_step, validate_playtest_aliases |
+| SYSTEM | animator_intent, apply_template, auto_fix, budget_status, checkpoint, do, doctor, fingerprint, get_capabilities, get_changes, get_enabled_tools, get_schema, list_connections, list_skills, list_templates, load_session, menu, recompile, save_session, save_skill, save_template, set_llm_config, smart_build, use_skill |
 
 **get_unity_events:** Returns all UnityEvent fields on a component with fully-qualified
 target paths. Replaces manual `get_component` + parsing when auditing event wiring.
 
-**DEPRECATED stubs (v0.91.0):** `get_perf` and `run_playtest_file` are registered in ToolSpec with category `DEPRECATED` and `direct_only=True`. They raise `ToolError` with a migration hint when called. They do NOT appear in `_ALL_KNOWN` or any catalog bucket. Migration: `get_perf` → `get_frame_stats`, `run_playtest_file` → `run_playtest(path=...)`.
-
-**direct_only tools (v0.91.0 additions):** 7 more tools marked `direct_only=True` (Python-side only, never sent to Unity TCP): `console_mark`, `discover_tools`, `get_console_since`, `mcp_status`, `release_smoke`, `resolve_tool_schema`, `run_tests_wait`. These remain TIER1 and visible to the LLM; they just don't go through `get_enabled_tools` catalog sent to Unity. Total direct_only tools now ~28.
+**direct_only tools (v0.91.0 additions):** 7 more tools marked `direct_only=True` (Python-side only, never sent to Unity TCP): `console_mark`, `discover_tools`, `get_console_since`, `mcp_status`, `release_smoke`, `resolve_tool_schema`, `run_tests_wait`. These remain TIER1 and visible to the LLM; they just don't go through `get_enabled_tools` catalog sent to Unity. Total direct_only tools now 31.
 
 **Full schemas kept for (v0.91.0):** `_SCHEMA_KEEP_FULL_EXTRA` adds `run_playtest`, `run_tests`, `run_tests_wait`, `resolve_tool_schema` to the full-schema set (always served with complete inputSchema, not stubs). v0.92.0 adds `sync_unity`.
 
@@ -94,7 +87,7 @@ target paths. Replaces manual `get_component` + parsing when auditing event wiri
 
 ### Capability Gating (gating.py)
 
-- TIER1 tools (42) always visible to LLM
+- TIER1 tools (45) always visible to LLM
 - Categories enabled per-session via `discover_tools(category, enable=True)`
 - Double-filtered: Python gating × Unity-side MCPSettings (tool cache from `get_enabled_tools`)
 - Unknown (plugin) tools auto-gated to hidden `plugins` category by default
@@ -364,7 +357,7 @@ Guard conditions and reroute logic have been reordered for correctness:
 6. **Command execution** (actual send to Unity)
 
 **READ_CMDS / WRITE_CMDS audit (v0.78.11, `middleware_types.py`):**
-- `READ_CMDS` expanded from 15 → 41 entries: added `screenshot_compare`, `get_selection`, `get_capabilities`, `alias_status`, `get_aliases`, `list_connections`, `get_enabled_tools`, `budget_status`, `permission_prompt`, `get_test_results`, `get_test_progress`, `get_test_count`, `get_frame_stats`, `get_memory`, `get_metrics`, `get_perf`, `get_watches`, `debug`, `debug_animator`, `debug_physics`, `profile`, `object_diff`, `scene_diff`, `scene_health`, `material_audit`, `analyze_lod_culling`, `render_analyze`, `fingerprint`, `validate_layout`, `check_colliders`, `spatial_query`, `get_schema`, `get_changes`, `compile_preflight`, `await_compile`, `auto_fix`, `diagnose`, `list_skills`, `list_templates`, `load_session`, `ask`, `ask_user`
+- `READ_CMDS` expanded from 15 → 41 entries: added `screenshot_compare`, `get_selection`, `get_capabilities`, `alias_status`, `get_aliases`, `list_connections`, `get_enabled_tools`, `budget_status`, `permission_prompt`, `get_test_results`, `get_test_progress`, `get_test_count`, `get_frame_stats`, `get_memory`, `get_metrics`, `get_watches`, `debug`, `debug_animator`, `debug_physics`, `profile`, `object_diff`, `scene_diff`, `scene_health`, `material_audit`, `analyze_lod_culling`, `render_analyze`, `fingerprint`, `validate_layout`, `check_colliders`, `spatial_query`, `get_schema`, `get_changes`, `compile_preflight`, `await_compile`, `auto_fix`, `diagnose`, `list_skills`, `list_templates`, `load_session`, `ask`, `ask_user`
 - `compress_hierarchy` removed from `READ_CMDS` (dead command — does not exist in Unity plugin)
 - `WRITE_CMDS` gains `rename_object` and `set_sibling_index`
 - `_EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})` — `editor` cmd is dual-use; only these two actions are reads; all others (play/stop/pause/step/select) are writes. Used by `_is_batch_readonly()` and `transition()` to avoid misclassifying editor state queries as mutations.

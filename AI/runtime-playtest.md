@@ -158,7 +158,7 @@ await run_playtest(path="Playtests/smoke.playtest")
 - `VAL $name value` — parse-time static substitution; `$name` sigil replaced in all following lines
 - `VAR $name @path|Comp|field` — runtime-resolved sigil; value read from Unity at each step that uses it
 - `INCLUDE filename` — inline-expand `Assets/PlaytestDefs/filename` at parse time (max depth 5)
-- `ALIAS name value` — deprecated (whole-word substitution, no sigil); use `VAL` instead
+- `ALIAS name value` — **removed (v0.92.x)**: parser no longer handles ALIAS; linter emits ERROR. Use `VAL $name value` instead.
 - `MACRO name $p1 ... END_MACRO` / `CALL name arg1 ...` — reusable command blocks (Phase 0)
 - `ABORT_ON_FAIL` — global directive: stop Play Mode when any WAIT_UNTIL times out
 
@@ -229,24 +229,6 @@ await run_playtest(path="Playtests/smoke.playtest", defs=aliases)
 - Polling: Caller must poll get_test_results every 5s for up to 2min (see CLAUDE.md § run_tests)
 - Domain reload: Transparently reconnects mid-script if compilation detected
 
-## run_playtest_file(path, timeout=120.0, abort_on_fail=False, defs=None, snapshot_on_failure=False)
-
-**Purpose:** Run a single `.playtest` file by project-relative path. Convenience wrapper around `run_playtest(path=...)`.
-
-**path:** Project-relative path, e.g. `"Playtests/farm_pipeline_early.playtest"`. Missing file returns a clear error; path traversal (`../`) is rejected by Unity.
-
-**snapshot_on_failure:** Same as `run_playtest` — appends `$sigil` values + console errors on FAIL.
-
-**Returns:** Same compressed report as `run_playtest`.
-
-**Example:**
-```python
-await run_playtest_file("Playtests/smoke.playtest", timeout=60.0)
-await run_playtest_file("Playtests/combat.playtest", snapshot_on_failure=True)
-```
-
-**RW Annotation:** Mutating.
-
 ## run_playtest_suite(paths, timeout_per_test=120.0, stop_on_fail=False, stop_after=True)
 
 **Purpose:** Run multiple `.playtest` files sequentially; return a compact pass/fail matrix.
@@ -277,7 +259,7 @@ OK     8.9s  ui.playtest  4/4
 
 **Checks:**
 - `$sigil` unresolved (not defined in VAL/VAR or PlaytestConfig)
-- Deprecated `ALIAS` keyword
+- Removed `ALIAS` keyword (emits ERROR — migrate to `VAL`)
 - `TRACE_FLOW` (parsed but not executed)
 - `CALL` referencing unknown MACRO
 - Mixed `AND`/`OR` in `WAIT_UNTIL`
@@ -310,7 +292,7 @@ await lint_playtest(script="INVOKE /Player PC Heal\nASSERT /Player|PC|Health == 
 await lint_playtest_suite("Playtests/*.playtest")
 # → LINT: 3/4 OK
 #   OK  Playtests/smoke.playtest  no issues
-#   WARN  Playtests/combat.playtest:5  deprecated ALIAS keyword
+#   ERROR  Playtests/combat.playtest:5  deprecated ALIAS keyword — use VAL instead
 ```
 
 **RO Annotation:** Read-only.
@@ -486,7 +468,7 @@ Pass the returned `mark_id` to `get_console_since()` to retrieve only logs produ
 | Move + validate state | test_step | Atomic before/after with console check |
 | Ad-hoc script | run_playtest(script=...) | DSL readable; compression saves tokens |
 | Saved script (token-efficient) | run_playtest(path="Playtests/x.playtest") | ~15 tokens; C# reads file directly |
-| Single file explicit | run_playtest_file("Playtests/x.playtest") | Clearer intent; same token cost |
+| Single file explicit | run_playtest(path="Playtests/x.playtest") | Same token cost as `path=` form |
 | Multi-phase fail-fast | run_playtest(abort_on_fail=True) | Stop Play Mode immediately on timeout |
 | Suite of files | run_playtest_suite("Playtests/*.playtest") | One call; compact pass/fail matrix |
 | Lint before run | lint_playtest_suite("Playtests/*.playtest") | Catch errors without entering Play Mode |
@@ -496,7 +478,7 @@ Pass the returned `mark_id` to `get_console_since()` to retrieve only logs produ
 | Repeat invoke | INVOKE_REPEAT 3 /P PC Heal | N identical calls, one step sequence |
 | Preflight check | lint_playtest(path="Playtests/x.playtest") | Catch unresolved $sigil before Play |
 | Sync .defs → .asset | sync_playtest_aliases_from_defs(...) | Bidirectional alias sync |
-| Failure root cause | run_playtest_file(..., snapshot_on_failure=True) | Inline values + console at each FAIL |
+| Failure root cause | run_playtest(path="...", snapshot_on_failure=True) | Inline values + console at each FAIL |
 | Log-window slice | console_mark() → ... mutations ... → get_console_since(mark_id) | Only see errors from this change |
 | Post-change gate | verify_after_change(run_tests_mode="EditMode") | One call replaces compile+test loop |
 | Safe scene edit | scene_change_plan → apply_scene_change | Pre-flight + checkpoint + post-verify |

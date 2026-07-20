@@ -23,7 +23,7 @@ namespace UnityMCP.Editor.Tests
         {
             var script = "ALIAS $foo bar\n" + CleanScript;
             var result = PlaytestLinter.LintScript(script, "test");
-            Assert.That(result, Does.Contain("WARN"));
+            Assert.That(result, Does.Contain("ERROR"));
             Assert.That(result, Does.Contain("deprecated"));
         }
 

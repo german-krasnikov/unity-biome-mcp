@@ -79,16 +79,16 @@ END_MACRO";
             Assert.AreEqual(StepType.Log, steps[0].Type);
         }
 
-        // ── 6. ALIAS + MACRO compose: alias substituted inside expanded body ──────
+        // ── 6. VAL + MACRO compose: val substituted inside expanded body ──────────
 
         [Test]
         public void Parse_MacroCallWithAlias_BothResolve()
         {
-            var script = @"ALIAS HP /Player|Health|Value
+            var script = @"VAL $HP /Player|Health|Value
 MACRO check $1
   ASSERT $1 > 0
 END_MACRO
-CALL check HP";
+CALL check $HP";
             var steps = PlaytestParser.Parse(script);
             Assert.AreEqual(1, steps.Count);
             Assert.AreEqual(StepType.Assert, steps[0].Type);

@@ -188,7 +188,4 @@ _SPECS: dict[str, ToolSpec] = {
     'wait_until': ToolSpec(category='RUNTIME', runtime_only=True, mutability='read'),
     'watch': ToolSpec(category='RUNTIME', direct_only=True),
     'wire_event': ToolSpec(category='COMPONENTS'),
-    # ── DEPRECATED: removed tools — raise ToolError with migration hint ──────
-    'get_perf': ToolSpec(category='DEPRECATED', direct_only=True, mutability='read'),
-    'run_playtest_file': ToolSpec(category='DEPRECATED', direct_only=True, mutability='read'),
 }

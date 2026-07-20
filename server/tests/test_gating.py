@@ -680,18 +680,6 @@ def test_demoted_tools_are_tier1_not_core():
     assert all(t in TIER1 for t in demoted)
 
 
-def test_register_tools_old_key_compat():
-    """register_tools with an old themed key routes to the new category via alias."""
-    from unity_mcp.tools import gating
-    gating.register_tools("SCENE_EDIT", {"test_fake_tool_scene"})
-    try:
-        assert "test_fake_tool_scene" in gating._THEMED_CATEGORIES["SCENE"]
-    finally:
-        gating._THEMED_CATEGORIES["SCENE"].remove("test_fake_tool_scene")
-        gating._ALL_KNOWN.discard("test_fake_tool_scene")
-        gating.CATEGORIES = gating._rebuild_categories()
-
-
 # --- #04: execute_code promoted to core ---
 
 def test_execute_code_in_core():

@@ -3,7 +3,6 @@
 Phase 2 update: CORE shrunk from 24 to 15 (9 tools demoted to SYSTEM tier1).
 Phase 1a update: CORE shrunk from 15 to 11 (delete_object/set_parent/scene/search_scene → SCENE tier1).
 Phase 1b update: runtime tools demoted; set_active/validate_references/execute_code/undo_last promoted.
-Phase 1c update: run_playtest_file removed, then re-added in v0.84 as deprecated MCP alias.
 18 themed categories replaced with 8 task-oriented ones.
 """
 
@@ -59,7 +58,6 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "navmesh_query", "object_diff", "particle", "permission_prompt", "ping_object",
     "prefab", "profile", "project_settings", "query_state", "recompile",
     "reconnect_unity", "references", "region_clear", "render_analyze",
-    # Phase 1c: run_playtest_file removed
     "resolve_tool_schema", "run_playtest", "run_playtest_suite", "run_tests",
     "save_session",
     "export_playtest_aliases_to_defs",
@@ -109,7 +107,6 @@ _THEMED_CATEGORIES_SNAPSHOT = {
         "snapshot", "wait_until", "watch",
     },
     "TESTS": {
-        # Phase 1c: run_playtest_file removed
         "export_playtest_aliases_to_defs", "get_test_count", "get_test_progress",
         "get_test_results", "lint_playtest", "lint_playtest_suite",
         "run_playtest", "run_playtest_suite", "run_tests",
@@ -130,7 +127,6 @@ _THEMED_CATEGORIES_SNAPSHOT = {
 
 _CATEGORY_SIZES_SNAPSHOT = {
     # Phase 1a: object grows +4 (delete_object/set_parent/scene/search_scene added to SCENE)
-    # Phase 1c: runtime shrinks -1 (run_playtest_file removed from TESTS)
     "advanced": 34, "animation": 14, "asset": 7, "connection": 34, "debug": 17,
     "object": 29, "perf": 17, "plugins": 34, "profiling": 17, "rendering": 14,
     "runtime": 30, "session": 34, "ui": 14,

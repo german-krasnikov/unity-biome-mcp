@@ -71,7 +71,7 @@ namespace UnityMCP.Editor
                 var lineNo = i + 1;
 
                 if (trimmed.StartsWith("ALIAS ", StringComparison.OrdinalIgnoreCase))
-                    issues.Add(Issue("WARN", fileLabel, lineNo, "deprecated ALIAS keyword — use VAL instead"));
+                    issues.Add(Issue("ERROR", fileLabel, lineNo, "deprecated ALIAS keyword — use VAL instead"));
 
                 if (trimmed.StartsWith("TRACE_FLOW ", StringComparison.OrdinalIgnoreCase))
                     issues.Add(Issue("WARN", fileLabel, lineNo,

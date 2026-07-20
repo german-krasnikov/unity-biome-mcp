@@ -194,19 +194,19 @@ ASSERT $score == 0
             finally { UnityEngine.Object.DestroyImmediate(go); }
         }
 
-        // B6 — ALIAS vs VAR: different sigils, no conflict
+        // B6 — VAL vs VAR: both $-sigil, different names, no conflict
         [Test]
         public void Var_SameNameAsAlias_NoConflict()
         {
             var script = @"
-ALIAS hp /GridPlayer|GridPlayer|Score
+VAL $score /GridPlayer|GridPlayer|Score
 VAR $hp @/GridPlayer|GridPlayer|MoveCount
-ASSERT hp == 0
+ASSERT $score == 0
 ASSERT $hp == 0
 ";
             var result = PlaytestParser.Parse(script);
             Assert.AreEqual(2, result.Count);
-            Assert.AreEqual("/GridPlayer|GridPlayer|Score", result[0].Query); // ALIAS expanded (no sigil)
+            Assert.AreEqual("/GridPlayer|GridPlayer|Score", result[0].Query); // VAL expanded
             Assert.AreEqual("$hp", result[1].Query);  // $hp left for runtime (VAR)
             Assert.IsTrue(result.VarDefs.ContainsKey("hp"));
         }
@@ -324,18 +324,18 @@ ASSERT $gp_score >= 0
             Assert.AreEqual("/GridPlayer|GridPlayer|Score", result[2].Query);
         }
 
-        // D2 — ASSERT_BATCH on all GridPlayer fields at once (ALIAS-based)
+        // D2 — ASSERT_BATCH on all GridPlayer fields at once (VAL-based)
         [Test]
         public void Parse_AssertBatch_GridPlayerDefaultState()
         {
             var script = @"
-ALIAS gp_speed /GridPlayer|GridPlayer|MoveSpeed
-ALIAS gp_size  /GridPlayer|GridPlayer|GridSize
-ALIAS gp_score /GridPlayer|GridPlayer|Score
+VAL $gp_speed /GridPlayer|GridPlayer|MoveSpeed
+VAL $gp_size  /GridPlayer|GridPlayer|GridSize
+VAL $gp_score /GridPlayer|GridPlayer|Score
 ASSERT_BATCH
-  ASSERT gp_speed == 5
-  ASSERT gp_size  == 10
-  ASSERT gp_score == 0
+  ASSERT $gp_speed == 5
+  ASSERT $gp_size  == 10
+  ASSERT $gp_score == 0
 END
 ";
             var result = PlaytestParser.Parse(script);

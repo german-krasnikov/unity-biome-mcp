@@ -118,7 +118,7 @@ namespace UnityMCP.Editor
             "WAIT", "WAIT_UNTIL", "SNAPSHOT", "SET", "LOG", "TIMESCALE", "CAPTURE",
             "INVARIANT", "SIMULATE", "MONITOR", "TRACE_FLOW", "CLICK", "TAP",
             "SECTION", "DESC", "MACRO", "END_MACRO", "CALL", "INCLUDE", "ABORT_ON_FAIL",
-            "VAL", "VAR", "ALIAS", "WAIT_CAPTURED",
+            "VAL", "VAR", "WAIT_CAPTURED",
             "COMPLETE_PURCHASE", "INVOKE_REPEAT",
             "SET_DEFAULT_TIMEOUT", "ASSERT_ONE_ACTIVE",
             "PATH_PREFIX", "FOR", "END_FOR", "ASSERT_CHANGED",
@@ -214,20 +214,6 @@ namespace UnityMCP.Editor
                     return ExpandSigils(l, vals);
                 }).ToArray();
 
-            // Phase 1: collect ALIAS definitions (kept for backward compat — no sigil, whole-word)
-            var aliases = new Dictionary<string, string>();
-            foreach (var rawLine in lines)
-            {
-                var trimmed = rawLine.Trim();
-                if (!trimmed.StartsWith("ALIAS ", StringComparison.OrdinalIgnoreCase)) continue;
-                var parts = trimmed.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 3)
-                {
-                    Debug.LogWarning($"[Playtest] ALIAS is deprecated — use VAL instead: VAL ${parts[1]} {parts[2]}");
-                    aliases[parts[1]] = parts[2];
-                }
-            }
-
             // Phase 1.1 + Phase 2: parse commands; collect VAR definitions
             var varDefs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var steps = new List<PlaytestStep>();
@@ -239,17 +225,11 @@ namespace UnityMCP.Editor
             for (int i = 0; i < lines.Length; i++)
             {
                 var sourced = expandedSourced[i]; // provenance for this line
-                var rawLine = lines[i];
-                // Apply alias substitutions (ALIAS — whole-word, no sigil)
-                foreach (var kv in aliases)
-                    rawLine = ReplaceWholeWord(rawLine, kv.Key, kv.Value);
-
-                var line = rawLine.Trim();
+                var line = lines[i].Trim();
                 if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
 
                 var tokens = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 var cmd = tokens[0].ToUpperInvariant();
-                if (cmd == "ALIAS") continue; // skip alias definitions
                 if (cmd == "VAL") continue;   // skip VAL definitions (already processed in phase 0.7)
                 if (cmd == "PATH_PREFIX") continue; // skip PATH_PREFIX directive (processed in phase 0.7)
 
@@ -411,10 +391,7 @@ namespace UnityMCP.Editor
                         bool batchFoundEnd = false;
                         while (i < lines.Length)
                         {
-                            var bRaw = lines[i];
-                            foreach (var kv in aliases)
-                                bRaw = ReplaceWholeWord(bRaw, kv.Key, kv.Value);
-                            var bLine = bRaw.Trim();
+                            var bLine = lines[i].Trim();
                             if (bLine.ToUpperInvariant() == "END") { batchFoundEnd = true; break; }
                             if (!string.IsNullOrEmpty(bLine) && !bLine.StartsWith("#"))
                             {
@@ -688,9 +665,7 @@ namespace UnityMCP.Editor
                         string untilLine = null;
                         while (i + 1 < lines.Length)
                         {
-                            var nextRaw = lines[i + 1];
-                            foreach (var kv in aliases) nextRaw = ReplaceWholeWord(nextRaw, kv.Key, kv.Value);
-                            var nextTrimmed = nextRaw.Trim();
+                            var nextTrimmed = lines[i + 1].Trim();
                             if (string.IsNullOrEmpty(nextTrimmed) || nextTrimmed.StartsWith("#")) { i++; continue; }
                             if (nextTrimmed.StartsWith("UNTIL ", StringComparison.OrdinalIgnoreCase))
                             {
@@ -756,9 +731,7 @@ namespace UnityMCP.Editor
                         float cpTimeout = 5f;
                         while (i + 1 < lines.Length)
                         {
-                            var nextRaw = lines[i + 1];
-                            foreach (var kv in aliases) nextRaw = ReplaceWholeWord(nextRaw, kv.Key, kv.Value);
-                            var nextT = nextRaw.Trim();
+                            var nextT = lines[i + 1].Trim();
                             if (string.IsNullOrEmpty(nextT) || nextT.StartsWith("#")) { i++; continue; }
                             if (nextT.StartsWith("TIMEOUT ", StringComparison.OrdinalIgnoreCase))
                             {
@@ -821,9 +794,7 @@ namespace UnityMCP.Editor
                         // Read optional EXPECT line
                         while (i + 1 < lines.Length)
                         {
-                            var nextRaw = lines[i + 1];
-                            foreach (var kv in aliases) nextRaw = ReplaceWholeWord(nextRaw, kv.Key, kv.Value);
-                            var nextT = nextRaw.Trim();
+                            var nextT = lines[i + 1].Trim();
                             if (string.IsNullOrEmpty(nextT) || nextT.StartsWith("#")) { i++; continue; }
                             if (nextT.StartsWith("EXPECT ", StringComparison.OrdinalIgnoreCase))
                             {

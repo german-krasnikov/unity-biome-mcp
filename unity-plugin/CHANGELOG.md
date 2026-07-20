@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.94.0] — 2026-07-20 — Deprecated code removal, Client Skills migration, Install AI Skills wizard
+
+**C# — Deprecated Removal:**
+- `PlaytestParser.cs`: removed ALIAS keyword support (Phase 1 collection + Phase 2 substitution)
+- `PlaytestLinter.cs`: ALIAS detection changed from WARN → ERROR
+- `SceneRefLinter.cs`: removed ALIAS from skip-line keywords
+- `GdSnapshotSerializer.cs`: output format `ALIAS @label` → `VAL $label`
+
+**C# — Install AI Skills Wizard:**
+- `SkillsInstaller.cs`: discovers `ClientSkills/` in UPM package, copies skills/agents to `.claude/` dirs
+- `InstallSkillsScreen.cs`: UIToolkit wizard screen with file list, overwrite toggle, Codex sync
+- `SkillsInstallerTests.cs`: 14 NUnit tests for installer logic
+- WizardScreenHost: 3 → 4 screens, added InstallSkillsScreen
+- Menu: **MCP → Install AI Skills** opens installer directly
+
+**Client Skills (unity-plugin/ClientSkills/):**
+- 23 consumer skills for MCP tool usage (scene, animation, physics, VFX, playtest DSL, performance, etc.)
+- 2 agents: `playmode-tester` (Play Mode testing), `unity-editor-developer` (scene building/debugging)
+- 1 script: `claude_to_codex.py` (converts Claude format to Codex format, tomllib optional for Python < 3.11)
+
+---
+
 ## [v0.93.1] — 2026-07-19 — Patch: SpatialHelper nearest-first sort
 
 **C# — SpatialHelper:**

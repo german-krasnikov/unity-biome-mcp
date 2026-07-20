@@ -4,18 +4,19 @@ Run Play Mode scenarios with deterministic step-by-step assertions. Parser proce
 
 ## Step Types (Alphabetical)
 
-### ALIAS (deprecated — use VAL)
+### ALIAS (removed — use VAL)
 
-Backward-compatible whole-word text substitution. No `$` sigil — uses whole-word replacement.
+**ALIAS was removed from the parser in v0.92.x.** The keyword is no longer recognized; scripts using ALIAS will have the line treated as an unknown command. `PlaytestLinter` emits **ERROR** (not just WARN) when ALIAS is detected. Migrate to `VAL $name value`.
 
 ```
+# Old (BROKEN — parser no longer handles ALIAS):
 ALIAS player_start 100,50,0
-MOVE player TO player_start  → resolves to: MOVE player TO 100,50,0
+MOVE player TO player_start
+
+# Correct:
+VAL $player_start 100,50,0
+MOVE player TO $player_start
 ```
-
-**Syntax:** `ALIAS name value`
-
-Parser emits `LogWarning` when ALIAS is used. Prefer `VAL $name value` instead.
 
 ---
 
@@ -572,7 +573,7 @@ ASSERT $hp_path > 0               → expands to: ASSERT /Player|Health|currentH
 - Circular references detected at parse time (error thrown)
 - Defined anywhere in the script; all VALs collected before expansion
 
-**vs ALIAS:** VAL uses `$sigil` substitution (regex-based); ALIAS uses whole-word replacement without sigil. Prefer VAL — ALIAS is deprecated.
+**vs ALIAS:** VAL uses `$sigil` substitution (regex-based). ALIAS was removed from the parser in v0.92.x — linter flags it as ERROR. Migrate all ALIAS usages to VAL.
 
 ---
 
@@ -746,7 +747,7 @@ ASSERT /Player|Movement|DistanceTo(5,0,3) < 1.0
 2. **Phase 0 — MACROs:** All `MACRO … END_MACRO` blocks collected and removed
 3. **Phase 0.5 — CALL expansion:** `CALL name arg1 arg2` replaced with expanded body lines (recursive, max depth 10)
 4. **Phase 0.7 — VAL:** `VAL $name value` lines collected; `$sigil` regex substitution applied to all remaining lines; VAL-in-VAL chain resolved via topo-sort; cycles rejected at parse time
-5. **Phase 1 — ALIAS (deprecated):** `ALIAS name value` collected; whole-word substitution applied (no sigil); emits LogWarning
+5. **Phase 1 — ALIAS (removed v0.92.x):** ALIAS keyword removed from parser; linter emits ERROR if encountered. Use `VAL $name value` instead.
 6. **Phase 1.1 — VAR:** `VAR $name @path|Comp|field` collected into `PlaytestVarRegistry`; each step that contains a known sigil is expanded at runtime by `ReadValue()`
 7. **Comments:** Lines starting with `#` ignored
 8. **Whitespace:** Leading/trailing trimmed; tokens split by space
@@ -784,25 +785,25 @@ On failure, the provenance is appended inline:
 - **ERR:** exception during evaluation (e.g., path not found, component missing)
 - **Result format:** `[step_number] COMMAND ... — PASS/FAIL/ERR`
 - **Failure provenance:** source file, line, macro chain, and section label appended on FAIL (see Provenance Tracking above)
-- **Failure snapshot** (`snapshot_on_failure=true`): on FAIL or ERR, appends current `$sigil` values and recent console errors inline — controlled by `run_playtest(snapshot_on_failure=True)` or `run_playtest_file(snapshot_on_failure=True)`
+- **Failure snapshot** (`snapshot_on_failure=true`): on FAIL or ERR, appends current `$sigil` values and recent console errors inline — controlled by `run_playtest(snapshot_on_failure=True)` or `run_playtest(path="...", snapshot_on_failure=True)`
 
 ## GD Integration (@label namespace)
 
-`GdSnapshotSerializer.ToPlaytestPreamble(snapshots)` converts GD region annotations to `ALIAS` preamble lines using the `@label` namespace:
+`GdSnapshotSerializer.ToPlaytestPreamble(snapshots)` converts GD region annotations to `VAL $label` preamble lines using the `@label` namespace (updated v0.92.x from ALIAS to VAL format):
 
 ```
 # generated preamble
-ALIAS @spawn_zone 5.00,0.00,3.00
-ALIAS @patrol_start_0 1.00,0.00,0.00
-ALIAS @patrol_start_1 10.00,0.00,0.00
+VAL $spawn_zone 5.00,0.00,3.00
+VAL $patrol_start_0 1.00,0.00,0.00
+VAL $patrol_start_1 10.00,0.00,0.00
 
-# script uses them via alias substitution
-TELEPORT Player @spawn_zone
-MOVE_PATH @patrol_start_0 > @patrol_start_1
+# script uses them via $sigil substitution
+TELEPORT Player $spawn_zone
+MOVE_PATH $patrol_start_0 > $patrol_start_1
 ```
 
-**Label format:** `@<sanitized_label>` — lowercase, underscores, stripped special chars  
-**Annotation types:** `Point` → single ALIAS; `Path` → `_start`/`_end` pair + vertex list `_0`, `_1`, …
+**Label format:** `$<sanitized_label>` — lowercase, underscores, stripped special chars  
+**Annotation types:** `Point` → single VAL; `Path` → `_start`/`_end` pair + vertex list `_0`, `_1`, …
 
 ---
 

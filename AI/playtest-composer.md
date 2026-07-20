@@ -145,7 +145,7 @@ Modal 400×360 window for entering steps in natural language.
 - Extension: `.playtest` (plain UTF-8 text, raw DSL)
 - Default folder: `<ProjectRoot>/Playtests/` (auto-created on first Save)
 - Last used path is remembered per session
-- **Load round-trip note:** MACRO/ALIAS/MOVE_PATH directives are expanded by the parser; the loaded step list shows the flattened result, not the original macro structure
+- **Load round-trip note:** MACRO/VAL/MOVE_PATH directives are expanded by the parser; the loaded step list shows the flattened result, not the original macro structure (ALIAS removed v0.92.x)
 
 ---
 

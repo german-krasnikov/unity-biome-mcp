@@ -210,16 +210,6 @@ namespace UnityMCP.Editor.Tests
             Assert.AreSame(step.Queries, clone.Queries);
         }
 
-        // ── Backward compatibility: ALIAS still works ──────────────────────────
-
-        [Test]
-        public void Parse_Alias_StillWorksAfterValAdded()
-        {
-            var script = "ALIAS hero /Player\nVAL $hp /P|H|h\nASSERT hero|H|h == 0";
-            var result = PlaytestParser.Parse(script);
-            Assert.AreEqual("/Player|H|h", result[0].Query);
-        }
-
         // ── ExpandStep: arrays ────────────────────────────────────────────────────
 
         [Test]
@@ -396,15 +386,5 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("PlayerController", result[0].Component);
         }
 
-        // ── Wave 6.4: ALIAS deprecation warning ──────────────────────────────────
-
-        [Test]
-        public void Parse_AliasKeyword_LogsDeprecationWarning()
-        {
-            LogAssert.Expect(LogType.Warning, new Regex("deprecated", RegexOptions.IgnoreCase));
-            var script = "ALIAS hero /Player\nASSERT hero|H|hp > 0";
-            var result = PlaytestParser.Parse(script);
-            Assert.AreEqual(1, result.Count);
-        }
     }
 }

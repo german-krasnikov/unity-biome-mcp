@@ -253,6 +253,10 @@ unity-kiss-mcp/
 │   ├── package.json                          # v0.1.4, "com.unity-mcp.reload"
 │   └── package.json.meta
 ├── unity-plugin/               # Unity Editor Plugin (225+ C# files, ~22000 LOC, v0.90.0: +PlaytestRunner.FrameCapture.cs, +PlaytestLaunchWindow.cs, +6 test files (~150 NUnit tests), SyncHelper singleton guard, TestRunner dirty-scene save; playtests ROI sprint: +PlaytestLinter.cs, +PlaytestRunner.Snapshot.cs, +SceneRefResolver.cs, +SceneRefLinter.cs, +9 test files (~1200 new NUnit tests); v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests, v0.79.1: +PlaytestPathTests.cs (run_playtest path= 8 tests), CommandRouter path= dispatch; v0.80.1: +SceneCleanTestBase.cs (leak-detection base), +force_play_stop command — 6699 C# NUnit green (v0.91.0, 1 pre-existing failure))
+│   ├── ClientSkills/           # Consumer skills shipped with the plugin (v0.92.x) — installed via Setup Wizard → Install AI Skills screen
+│   │   ├── agents/             # 2 agents: playmode-tester.md, unity-editor-developer.md
+│   │   ├── skills/             # 23 skills: csharp-unity, playmode-verification, playtest-dsl, testing-tdd, token-optimization, unity-animation, unity-animator, unity-assets, unity-code-intel, unity-components, unity-debugging, unity-efficiency, unity-hierarchy, unity-intent, unity-mcp-reference, unity-particles, unity-performance, unity-physics, unity-scene-ui, unity-session, unity-shaders, unity-testing, unity-timeline
+│   │   └── scripts/            # claude_to_codex.py — syncs Claude skills to Codex format
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
@@ -501,16 +505,18 @@ unity-kiss-mcp/
 │       │   ├── SetupWizard.cs             # Auto-launch on first run, 3 screens (Welcome → PickBackend → Configure)
 │       │   ├── SetupWizard.uss            # Wizard stylesheet (layout, animations)
 │       │   ├── WizardScreen.cs            # Base class for wizard screens (lifecycle, navigation)
-│       │   ├── WizardScreenHost.cs        # Screen container + animation orchestrator (removed PythonCheckScreen, ServerTestScreen v0.47.1)
+│       │   ├── WizardScreenHost.cs        # Screen container + animation orchestrator; 4 screens (updated v0.92.x: +InstallSkillsScreen)
 │       │   ├── WizardAnimUtils.cs         # Reusable animation helpers (delegates to ArcadeAnim, v0.52.0)
 │       │   ├── WizardStepAnim.cs          # Slide transitions + progress bar for Setup Wizard (v0.52.0)
 │       │   ├── SetupDiagnostics.cs        # Python/TCP/config diagnostic checks + per-tool AI config validation (v0.47.1)
 │       │   ├── BackendDescriptor.cs       # 9 backend definitions + IsDetected logic (BinaryName + ConfigDir); platform-aware root_key (v0.47.1)
 │       │   ├── AiToolCardFactory.cs       # Reusable backend/tool card builder + platform-aware path methods (v0.47.1)
-│       │   ├── Screens/                   # 3-screen implementations (4 total: Welcome → PickBackend → AiConfig → Configure)
+│       │   ├── SkillsInstaller.cs         # Discovers ClientSkills in UPM package; copies to .claude/skills/ and .claude/agents/ (v0.92.x)
+│       │   ├── Screens/                   # Screen implementations (5 total: Welcome → PickBackend → AiConfig → Configure → InstallSkills)
 │       │   │   ├── WelcomeScreen.cs       # Introduction + system checks (Python found, TCP available)
 │       │   │   ├── AiConfigScreen.cs      # AI tool configuration cards + fallback JSON export for UPM installs (v0.47.1, new)
 │       │   │   ├── ConfigureScreen.cs     # Scope toggle (Global/Project) + per-backend selection; uses GitInstallUrl constant (v0.47.1)
+│       │   │   ├── InstallSkillsScreen.cs # UIToolkit wizard screen: file list, overwrite toggle, Codex sync (v0.92.x)
 │       │   │   └── PickBackendScreen.cs   # 9 backend cards (Claude Code, Desktop, Cursor, Windsurf, VS Code, Codex, Kimi, OpenCode, Antigravity)
 │       │   ├── Tests/                     # Wizard assembly tests (separate asmdef)
 │       │   │   ├── UnityMCP.Editor.Wizard.Tests.asmdef
@@ -524,7 +530,8 @@ unity-kiss-mcp/
 │       │   │   ├── ProjectConfigTomlTests.cs # TOML parsing edge cases (v0.68.0)
 │       │   │   ├── ProjectConfigTargetsTests.cs # Target definitions + path rendering (v0.68.0)
 │       │   │   ├── GitignorePatcherTests.cs # Append safety, idempotency, no-duplicates (v0.68.0)
-│       │   │   └── ... (13+ test files total)
+│       │   │   ├── SkillsInstallerTests.cs  # 14 NUnit tests: copy, overwrite, Codex sync, edge cases (v0.92.x)
+│       │   │   └── ... (14+ test files total)
 │       │   ├── UnityMCP.Editor.Wizard.asmdef # Separate compile unit, references core Editor asmdef
 │       │   └── WizardAssemblyInfo.cs      # AssemblyVersion + InternalsVisibleTo
 │       ├── Profiling/                      # Profiling & Performance Analysis (v0.60.0: 6 C# files; v0.61.0: +UI folder with 10 files)
@@ -607,7 +614,7 @@ unity-kiss-mcp/
 │       │   ├── SceneAnnotationUtils.cs      # Common validation, snapping, formatting utilities (v0.51.0)
 │       │   ├── PolygonDetail.cs             # Detail level enum (High/Medium/Low) + RDP thresholds
 │       │   ├── PolygonDetailSettings.cs     # EditorPrefs toggle for detail level
-│       │   ├── GdSnapshotSerializer.cs      # RegionSnapshot → ALIAS lines for playtest preamble (v0.74.0)
+│       │   ├── GdSnapshotSerializer.cs      # RegionSnapshot → VAL $label lines for playtest preamble (v0.74.0; updated v0.92.x: ALIAS→VAL format)
 │       │   ├── Drawing/                     # Drawing mode implementations (IDrawingMode + IAnnotationMode v0.51.0)
 │       │   │   ├── IDrawingMode.cs          # Interface: Begin, Update, Finalize, IsActive, IsComplete, PreviewVertices (v0.51.0: +IAnnotationMode)
 │       │   │   ├── DrawingUtils.cs          # Grid snap, point distance calculation

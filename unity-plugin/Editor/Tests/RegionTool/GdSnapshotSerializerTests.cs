@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Tests.RegionTool
             var snap = RegionSnapshot.CreatePoint("a1b2c3d4", new Vector2(1.5f, 2.5f), Array.Empty<string>(), "S", "spawn");
             var lines = GdSnapshotSerializer.ToAliasLines(snap);
             Assert.AreEqual(1, lines.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
-            StringAssert.StartsWith("ALIAS @spawn", lines);
+            StringAssert.StartsWith("VAL $spawn", lines);
             StringAssert.Contains("1.50", lines);
             StringAssert.Contains("0.00", lines); // PlaneY
             StringAssert.Contains("2.50", lines);
@@ -32,9 +32,9 @@ namespace UnityMCP.Editor.Tests.RegionTool
             var snap = RegionSnapshot.CreatePolyline("abcd1234", pts, Array.Empty<string>(), "S", "path");
             var lines = GdSnapshotSerializer.ToAliasLines(snap).Split(new[]{'\n'}, StringSplitOptions.RemoveEmptyEntries);
             Assert.AreEqual(3, lines.Length);
-            StringAssert.StartsWith("ALIAS @path_0", lines[0]);
-            StringAssert.StartsWith("ALIAS @path_1", lines[1]);
-            StringAssert.StartsWith("ALIAS @path_2", lines[2]);
+            StringAssert.StartsWith("VAL $path_0", lines[0]);
+            StringAssert.StartsWith("VAL $path_1", lines[1]);
+            StringAssert.StartsWith("VAL $path_2", lines[2]);
         }
 
         // ── ToAliasLines: measurement ─────────────────────────────────────────
@@ -45,8 +45,8 @@ namespace UnityMCP.Editor.Tests.RegionTool
             var snap = RegionSnapshot.CreateMeasurement("m1m2m3m4", Vector2.zero, new Vector2(10f, 0f), "S", "gap");
             var lines = GdSnapshotSerializer.ToAliasLines(snap).Split(new[]{'\n'}, StringSplitOptions.RemoveEmptyEntries);
             Assert.AreEqual(2, lines.Length);
-            StringAssert.StartsWith("ALIAS @gap_start", lines[0]);
-            StringAssert.StartsWith("ALIAS @gap_end", lines[1]);
+            StringAssert.StartsWith("VAL $gap_start", lines[0]);
+            StringAssert.StartsWith("VAL $gap_end", lines[1]);
         }
 
         // ── ToAliasLines: region ──────────────────────────────────────────────
@@ -64,7 +64,7 @@ namespace UnityMCP.Editor.Tests.RegionTool
                 PlaneY = 0f,
             };
             var lines = GdSnapshotSerializer.ToAliasLines(snap);
-            StringAssert.StartsWith("ALIAS @zone", lines);
+            StringAssert.StartsWith("VAL $zone", lines);
             StringAssert.Contains("3.00", lines);
             StringAssert.Contains("7.00", lines);
         }
@@ -76,7 +76,7 @@ namespace UnityMCP.Editor.Tests.RegionTool
         {
             var snap = RegionSnapshot.CreatePoint("deadbeef", new Vector2(1f, 2f), Array.Empty<string>(), "S");
             var lines = GdSnapshotSerializer.ToAliasLines(snap);
-            StringAssert.StartsWith("ALIAS @gd_deadbeef", lines);
+            StringAssert.StartsWith("VAL $gd_deadbeef", lines);
         }
 
         [Test]
@@ -84,7 +84,7 @@ namespace UnityMCP.Editor.Tests.RegionTool
         {
             var snap = RegionSnapshot.CreatePoint("id000001", new Vector2(0f, 0f), Array.Empty<string>(), "S", "My Spawn Point");
             var lines = GdSnapshotSerializer.ToAliasLines(snap);
-            StringAssert.StartsWith("ALIAS @my_spawn_point", lines);
+            StringAssert.StartsWith("VAL $my_spawn_point", lines);
         }
 
         // ── Null/corrupt VerticesFlat guards ─────────────────────────────────
@@ -144,8 +144,8 @@ namespace UnityMCP.Editor.Tests.RegionTool
                 RegionSnapshot.CreatePoint("bb000000", new Vector2(3f, 4f), Array.Empty<string>(), "S", "beta"),
             };
             var preamble = GdSnapshotSerializer.ToPlaytestPreamble(snaps);
-            StringAssert.Contains("ALIAS @alpha", preamble);
-            StringAssert.Contains("ALIAS @beta", preamble);
+            StringAssert.Contains("VAL $alpha", preamble);
+            StringAssert.Contains("VAL $beta", preamble);
         }
     }
 }

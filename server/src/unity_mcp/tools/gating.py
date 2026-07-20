@@ -9,7 +9,6 @@ tool_specs._SPECS at import time (one ToolSpec entry per tool) instead of being
 each other. _CATEGORY_ALIAS (legacy category-name -> themed-group mapping)
 stays hand-typed — it is category-level metadata, not a per-tool attribute.
 """
-import logging as _logging
 from .tool_specs import _SPECS
 
 # ---------------------------------------------------------------------------
@@ -75,25 +74,6 @@ _CATEGORY_ALIAS: dict[str, list[str]] = {
     "plugins":      ["SYSTEM"],
 }
 
-# Old uppercase themed keys — removed from _CATEGORY_ALIAS but still handled
-# gracefully in register_tools() with a DeprecationWarning.
-_DEPRECATED_KEYS: dict[str, list[str]] = {
-    "SCENE_EDIT":       ["SCENE"],
-    "ANIMATION":        ["MEDIA"],
-    "SHADERS_MATERIAL": ["ASSETS"],
-    "VFX":              ["MEDIA"],
-    "UI":               ["MEDIA"],
-    "SCREENSHOTS":      ["MEDIA"],
-    "UNIT_TESTS":       ["TESTS"],
-    "DEBUG":            ["RUNTIME"],
-    "ADVANCED_CODE":    ["SYSTEM"],
-    "SESSION_SKILLS":   ["SYSTEM"],
-    "CONNECTION":       ["SYSTEM"],
-    "META":             ["SYSTEM"],
-    "PROFILING":        ["RUNTIME"],
-    "RENDERING":        ["MEDIA"],
-    "PLUGINS":          ["SYSTEM"],
-}
 
 def _rebuild_categories() -> dict[str, set[str]]:
     """Rebuild the alias->themed-group view, preserving ad-hoc categories a
@@ -161,19 +141,10 @@ def register_tools(category: str, tools: set) -> None:
     global CATEGORIES
     _ALL_KNOWN.update(tools)
     themed_key = category.upper()
-    # Resolve lowercase alias (e.g. "debug" → "RUNTIME") via _CATEGORY_ALIAS
-    if themed_key not in _THEMED_CATEGORIES and themed_key in _CATEGORY_ALIAS:
-        for mapped in _CATEGORY_ALIAS[themed_key]:
-            if mapped in _THEMED_CATEGORIES:
-                themed_key = mapped
-                break
-    # Resolve deprecated old uppercase keys (e.g. "SCENE_EDIT") with a warning
-    elif themed_key not in _THEMED_CATEGORIES and themed_key in _DEPRECATED_KEYS:
-        _logging.warning(
-            "Category %r is deprecated; use new themed key(s): %s",
-            category, _DEPRECATED_KEYS[themed_key],
-        )
-        for mapped in _DEPRECATED_KEYS[themed_key]:
+    # Resolve alias (e.g. "debug" → "RUNTIME") via _CATEGORY_ALIAS (keys are lowercase)
+    alias_key = category.lower()
+    if themed_key not in _THEMED_CATEGORIES and alias_key in _CATEGORY_ALIAS:
+        for mapped in _CATEGORY_ALIAS[alias_key]:
             if mapped in _THEMED_CATEGORIES:
                 themed_key = mapped
                 break

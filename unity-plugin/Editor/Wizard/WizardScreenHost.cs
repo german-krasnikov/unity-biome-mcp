@@ -7,7 +7,7 @@ namespace UnityMCP.Editor.Wizard
 {
     /// <summary>
     /// Pure logic host for the setup wizard — testable without EditorWindow.
-    /// Flow: Welcome → PickBackend → Configure (3 screens).
+    /// Flow: Welcome → PickBackend → Configure → InstallSkills (4 screens).
     /// </summary>
     public sealed class WizardScreenHost
     {
@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.Wizard
             _closeCallback = closeCallback;
             _onNavigate    = onNavigate;
 
-            _configureScreen = new ConfigureScreen(Complete, Back);
+            _configureScreen = new ConfigureScreen(Next, Back);
             var pickScreen   = new PickBackendScreen(OnBackendSelected, Back);
 
             _screens = new IWizardScreen[]
@@ -38,6 +38,7 @@ namespace UnityMCP.Editor.Wizard
                 new WelcomeScreen(Next, Complete),
                 pickScreen,
                 _configureScreen,
+                new InstallSkillsScreen(Complete, Back),
             };
         }
 

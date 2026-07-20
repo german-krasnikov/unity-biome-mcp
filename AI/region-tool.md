@@ -244,34 +244,34 @@ RegionSnapshot
 
 ## GdSnapshotSerializer (Playtest Integration)
 
-**Purpose:** Convert `RegionSnapshot` instances to DSL `ALIAS` preamble lines for playtest scripts. Bridges the region annotation system with the playtest DSL.
+**Purpose:** Convert `RegionSnapshot` instances to DSL `VAL $label` preamble lines for playtest scripts (updated v0.92.x from ALIAS to VAL format). Bridges the region annotation system with the playtest DSL.
 
 **API:**
-- `ToAliasLines(snap)` → one or more `ALIAS @label x,y,z` lines (no trailing newline)
+- `ToAliasLines(snap)` → one or more `VAL $label x,y,z` lines (no trailing newline)
 - `ToPlaytestPreamble(snapshots)` → full preamble block from a collection
 
-**Label format:** `@<sanitized_label>` — lowercase, underscores, stripped special chars; fallback to `gd_<id>` if label empty.
+**Label format:** `$<sanitized_label>` — lowercase, underscores, stripped special chars; fallback to `gd_<id>` if label empty.
 
 **Annotation type mapping:**
 
 | AnnotationType | Output |
 |----------------|--------|
-| `point` / `region` | `ALIAS @label cx,cy,cz` (center) |
-| `polyline` | `ALIAS @label_0 x,y,z` … `ALIAS @label_N x,y,z` (per vertex) |
-| `measurement` | `ALIAS @label_start x,y,z` + `ALIAS @label_end x,y,z` |
+| `point` / `region` | `VAL $label cx,cy,cz` (center) |
+| `polyline` | `VAL $label_0 x,y,z` … `VAL $label_N x,y,z` (per vertex) |
+| `measurement` | `VAL $label_start x,y,z` + `VAL $label_end x,y,z` |
 
 **Example output:**
 ```
-ALIAS @spawn_zone 5.00,0.00,3.00
-ALIAS @patrol_0 1.00,0.00,0.00
-ALIAS @patrol_1 10.00,0.00,0.00
+VAL $spawn_zone 5.00,0.00,3.00
+VAL $patrol_0 1.00,0.00,0.00
+VAL $patrol_1 10.00,0.00,0.00
 ```
 
 **Usage in playtest scripts:**
 ```
 # Include preamble from GdSnapshotSerializer.ToPlaytestPreamble(regions)
-TELEPORT Player @spawn_zone
-MOVE_PATH @patrol_0 > @patrol_1
+TELEPORT Player $spawn_zone
+MOVE_PATH $patrol_0 > $patrol_1
 ```
 
 **File:** `unity-plugin/Editor/RegionTool/GdSnapshotSerializer.cs`  

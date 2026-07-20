@@ -2,13 +2,13 @@
 
 All tools organized by category. TIER1 tools (45 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools discovered dynamically.
 
-**direct_only tools** cannot be used inside `batch` commands — call them as typed MCP tools directly. Affects: `do`, `ask`, `doctor`, `debug`, `snapshot`, `watch`, `get_metrics`, `ui_intent`, `vfx_intent`, `animator_intent`, `set_properties`, `budget_status`, `list_connections`, `list_skills`, `list_templates`, `navmesh_query`, `lint_playtest_suite`, `run_playtest_suite`, `screenshot_baseline`, `screenshot_compare`, `validate_playtest_aliases`.
+**direct_only tools** cannot be used inside `batch` commands — call them as typed MCP tools directly. Affects: `animator_intent`, `ask`, `await_compile`, `budget_status`, `configure_objects`, `console_mark`, `debug`, `discover_tools`, `do`, `doctor`, `get_console_since`, `get_metrics`, `lint_playtest_suite`, `list_connections`, `list_skills`, `list_templates`, `mcp_status`, `navmesh_query`, `release_smoke`, `resolve_tool_schema`, `run_playtest_suite`, `run_tests_wait`, `screenshot_baseline`, `screenshot_compare`, `set_properties`, `setup_objects`, `snapshot`, `ui_intent`, `validate_playtest_aliases`, `vfx_intent`, `watch`.
 
 **v0.84.0 breaking changes:** `create_ui`/`set_rect` params renamed (`fontSize`→`font_size`, `offsetMin`→`offset_min`, `offsetMax`→`offset_max`); `object_diff` params renamed (`pathA`→`path_a`, `pathB`→`path_b`).
 
-## CORE Tools (10 — always visible, zero setup)
+## CORE Tools (15 — always visible, zero setup)
 
-The minimum 10 tools needed for any Unity task. Always visible, no gating.
+The minimum 15 tools needed for any Unity task. Always visible, no gating.
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
@@ -22,10 +22,15 @@ The minimum 10 tools needed for any Unity task. Always visible, no gating.
 | get_console | Read Editor.log tail | lines, severity |
 | get_compile_errors | List C# compile errors | — |
 | editor | Open Editor windows / control play mode | window_type, path, action |
+| apply_scene_change | Execute planned mutations with post-verify and save | plan_id, commands, verify, save |
+| execute_code | Run C# in Editor | code (C# method body), undo_label |
+| resolve_scene_refs | Resolve $alias, /path, t:Type refs to scene paths | refs, fields |
+| scene_change_plan | Pre-flight gate + checkpoint before scene edits | goal, targets, dry_run |
+| verify_after_change | 5-gate pipeline: compile → errors → console → tests → playtests | changed_files, test_filter, run_tests_mode, playtests, mark_id, timeout |
 
 ## TIER1 Tools (45 total — always visible)
 
-Includes CORE (10) + individually promoted tools below.
+Includes CORE (15) + individually promoted tools below.
 
 | Tool | Purpose | Key Params | Category |
 |------|---------|------------|----------|
@@ -52,7 +57,6 @@ Includes CORE (10) + individually promoted tools below.
 | run_playtest | Run playtest DSL script | script (DSL) or path (file path), abort_on_fail | TESTS |
 | lint_playtest | Static DSL preflight — no runtime needed | path or script | TESTS |
 | get_test_results | Poll test status | — | TESTS |
-| get_enabled_tools | List visible tools | — | SYSTEM |
 | discover_tools | Get tool schemas / enable a category | filter | SYSTEM |
 | mcp_status | Compact scene/compile/play-mode/alias status snapshot | — | SYSTEM |
 | alias_status | Returns alias cache state (loaded/count/source/stale) | — | SYSTEM |
@@ -62,7 +66,6 @@ Includes CORE (10) + individually promoted tools below.
 | permission_prompt | Gate sensitive ops | operation, details | SYSTEM |
 | reconnect_unity | Reconnect TCP socket | port (auto-discover) | SYSTEM |
 | resolve_tool_schema | Deferred schema fetch | tool_name | SYSTEM |
-| doctor | Health diagnostics | fix (auto-fix stale PIDs) | SYSTEM |
 | execute_code | Run C# in Editor | code (C# method body), undo_label | SYSTEM |
 | sync_unity | Reload and restart | reason, wait (bool) | SYSTEM |
 | undo_last | Revert last N editor operations | steps | SYSTEM |
@@ -71,7 +74,7 @@ Includes CORE (10) + individually promoted tools below.
 
 ## Tier2 Categories (require `discover_tools(category)`)
 
-### SCENE (29 tools)
+### SCENE (30 tools)
 
 Scene manipulation beyond CORE/TIER1 basics.
 
@@ -81,6 +84,7 @@ Scene manipulation beyond CORE/TIER1 basics.
 | get_object_detail | Detailed object state | path |
 | get_components_list | List components on object | path |
 | get_selection | Current editor selection | — |
+| get_unity_events | Returns all UnityEvent fields on a component with target paths | path, component |
 | get_spatial_context | Proximity query | path, radius, layer_mask |
 | set_properties | Batch set properties | objects_and_values (JSON) |
 | set_material | Assign material to object | path, material_path, slot |
@@ -144,7 +148,7 @@ Visual output, UI, animations, VFX, rendering analysis.
 | render_analyze | Rendering bottleneck analysis (9 actions) | action (stats/overdraw/materials/shaders/batching/lights/shadow_audit/probe_audit/frame_debug) |
 | analyze_lod_culling | LOD and culling audit | — |
 
-### VERIFY (9 tools)
+### VERIFY (10 tools)
 
 Compile, references, lint, scene audit.
 
@@ -153,6 +157,7 @@ Compile, references, lint, scene audit.
 | scan_scene | Audit for issues | checks (CSV: refs/colliders/physics/null_components) |
 | scene_health | Comprehensive scene audit | — |
 | diagnose | Deep troubleshooting | system (compile/tcp/memory/reload) |
+| serialized_field_rename_audit | Scan prefabs/scenes/SOs for stale YAML after field rename | — |
 
 *(Plus 6 in TIER1: await_compile, compile_preflight, validate_references, lint_scene_refs, resolve_scene_refs, verify_after_change)*
 
@@ -168,7 +173,6 @@ Play Mode operations, performance, debugging, watches.
 | move_to | Pathfind + walk to position | path, dest_pos, speed, timeout |
 | query_state | Read runtime GameObject state | path, queries (CSV) |
 | get_frame_stats | Instant performance snapshot | include= (field filter) |
-| get_perf | **REMOVED** (v0.85.1) — use get_frame_stats | filter |
 | profile | CPU/GPU profiler control | action (start/stop/dump/analyze/compare), target |
 | get_memory | Memory profiling | detailed (bool) |
 | debug_animator | Animator state inspection | path |
@@ -178,16 +182,16 @@ Play Mode operations, performance, debugging, watches.
 | watch | Watch expression lifecycle | action (add/get/remove/clear/reset), expr, name |
 | get_watches | Retrieve all watches | — |
 | get_metrics | Profiling metrics | filter |
+| runtime_snapshot | Take runtime memory snapshot | name, labels |
 
 *(Plus console_mark + get_console_since in TIER1)*
 
-### TESTS (14 tools)
+### TESTS (13 tools)
 
 NUnit, playtest suites, alias sync.
 
 | Tool | Purpose | Key Params |
 |------|---------|------------|
-| run_playtest_file | **REMOVED** (v0.85.1) — use `run_playtest(path=...)` | path, timeout, abort_on_fail, defs, snapshot_on_failure |
 | run_playtest_suite | Run multiple .playtest files sequentially | paths (glob/CSV), timeout_per_test, stop_on_fail, auto_play |
 | test_step | Execute single DSL step | step (JSON), config |
 | lint_playtest_suite | Lint all matched .playtest files; aggregated report | paths (glob/CSV) |
@@ -199,7 +203,7 @@ NUnit, playtest suites, alias sync.
 
 *(Plus run_tests, run_tests_wait, run_playtest, lint_playtest, get_test_results in TIER1)*
 
-### SYSTEM (35 tools)
+### SYSTEM (36 tools)
 
 Meta, session skills, templates, config, code tools.
 
@@ -225,12 +229,12 @@ Meta, session skills, templates, config, code tools.
 | budget_status | Token usage tracking | — |
 | set_llm_config | Store LLM settings | param, value |
 | list_connections | Show connection status with semantic states | — |
-| find_references | Locate usages of symbol | symbol_name, include_tests |
-| semantic_at | Language server: definition/hover | path, line, col, action |
+| doctor | Health diagnostics | fix (auto-fix stale PIDs) |
+| get_enabled_tools | List visible tools | — |
 | animator_intent | AI animator description → controller | target, intent |
 | do | Execute arbitrary code via AI intent (direct_only — cannot use in batch) | prompt, context, action |
 
-*(Plus alias_status, release_smoke, ask, ask_user, permission_prompt, reconnect_unity, resolve_tool_schema, doctor, execute_code, discover_tools, get_enabled_tools, mcp_status, sync_unity, undo_last in TIER1)*
+*(Plus alias_status, ask, ask_user, discover_tools, execute_code, mcp_status, permission_prompt, reconnect_unity, release_smoke, resolve_tool_schema, sync_unity, undo_last in TIER1)*
 
 ---
 

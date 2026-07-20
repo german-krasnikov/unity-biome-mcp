@@ -207,7 +207,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Parse_AliasSubstitution_AppliedBeforeParsing()
         {
-            var script = "ALIAS hp /Player|Health|current\nASSERT hp == 100";
+            var script = "VAL $hp /Player|Health|current\nASSERT $hp == 100";
             var steps = PlaytestParser.Parse(script);
             Assert.AreEqual(1, steps.Count);
             Assert.AreEqual("/Player|Health|current", steps[0].Query);

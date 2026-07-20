@@ -46,7 +46,7 @@
 
 ### Two ways to work
 
-🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 144 MCP tools with 80–95% token compression.
+🖥️ **CLI Mode** — run from terminal via Claude Code, Codex CLI, or any MCP client. The Python server connects to Unity over TCP :9500. Best for automation, batch operations, and scripting. Full access to 142 MCP tools with 80–95% token compression.
 
 💬 **In-Unity Chat** — open `MCP → Chat` inside the editor. No API key needed — spawns the CLI directly. 5 backends: Claude, Antigravity, Kimi, Codex, OpenCode. Drag GameObjects, scripts, and materials into chat as typed context chips. Each AI turn gets its own undo group — one Ctrl+Z rolls back everything the AI changed. Domain-reload safe. Extensible chip-kind registry lets third-party plugins add new chip types with zero core edits.
 
@@ -242,9 +242,33 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="144 MCP Tools · 11729 Tests (4737 Python · 6708 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 10784 Tests (4733 Python · 5767 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
+
+## AI Skills & Agents
+
+The plugin ships with **23 AI skills** and **2 specialized agents** that teach your AI assistant how to use MCP tools effectively. Skills cover scene management, animation, physics, VFX, playtesting DSL, performance profiling, and more. Agents provide ready-to-use personas for Play Mode testing and Unity Editor interaction.
+
+**Location:** `unity-plugin/ClientSkills/` inside the UPM package.
+
+**Install via Wizard:**
+
+1. Open **MCP → Install AI Skills** in Unity
+2. Review the file list (23 skills, 2 agents, 1 Codex sync script)
+3. Toggle **Overwrite existing files** if updating
+4. Click **Install** — files are copied to `.claude/skills/` and `.claude/agents/` in your project
+5. *(Optional)* Enable **Codex sync** to also generate `.codex/agents/` and `.agents/skills/` for Codex CLI
+
+**What gets installed:**
+
+| Type | Count | Destination | Purpose |
+|------|-------|-------------|---------|
+| Skills | 23 | `.claude/skills/` | Tool reference, DSL syntax, batch patterns, domain-specific guides |
+| Agents | 2 | `.claude/agents/` | `playmode-tester` (read-only Play Mode testing) and `unity-editor-developer` (scene building and debugging) |
+| Scripts | 1 | `.codex/scripts/` | `claude_to_codex.py` — converts Claude format to Codex format |
+
+Skills are updated with each release — re-run **Install AI Skills** after updating the plugin to get the latest versions.
 
 ## Features
 
@@ -302,6 +326,27 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.94.0</b> — 2026-07-20 — Removed `get_perf` tool stub (use `get_frame_stats`)</summary>
+
+Removed `get_perf` tool stub (use `get_frame_stats`)
+
+</details>
+
+<details>
+<summary><b>v0.93.1</b> — 2026-07-19 — `objects_in_radius`: now sorts all hits by distance ascending before truncating …</summary>
+
+`objects_in_radius`: now sorts all hits by distance ascending before truncating to `cap`.
+
+</details>
+
+<details>
+<summary><b>v0.93.0</b> — 2026-07-19 — `IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats …</summary>
+
+`IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats (fixes false-failure on suite runs).
+
+</details>
+
+<details>
 <summary><b>v0.92.0</b> — 2026-07-19 — `move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated …</summary>
 
 `move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated as always-ok).
@@ -316,29 +361,11 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 </details>
 
 <details>
-<summary><b>v0.90.0</b> — 2026-07-18 — `PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases …</summary>
-
-`PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases in the script; first occurrence wins, applied after `INCLUDE` expansion.
-
-</details>
-
-<details>
-<summary><b>v0.89.0</b> — 2026-07-17 — `SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in …</summary>
-
-`SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in MCPSettings + MCPHubUI; three-tier blocked-pattern sets computed at class …
-
-</details>
-
-<details>
-<summary><b>v0.88.0</b> — 2026-07-13 — `MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories …</summary>
-
-`MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories to 8 canonical categories (CORE, SCENE, COMPONENTS, ASSETS, MEDIA, …
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.90.0** — 2026-07-18 — `PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases …
+- **v0.89.0** — 2026-07-17 — `SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in …
+- **v0.88.0** — 2026-07-13 — `MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories …
 - **v0.87.0** — 2026-07-12 — `tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools …
 - **v0.86.0** — 2026-07-12 — 83 tests removed across 59 test files; `test_schema_cache.py` deleted entirely …
 - **v0.85.1** — 2026-07-12 — `get_perf` — fully removed from Python (`diagnostics.py`) and C# …

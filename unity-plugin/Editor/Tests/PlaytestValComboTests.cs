@@ -140,15 +140,15 @@ VAR $hp @$base|Health|current";
             StringAssert.DoesNotContain("$player", result[0].Message);
         }
 
-        // A10 — VAL and ALIAS coexist; no double-expansion or collision
+        // A10 — two VAL defs coexist; no double-expansion or collision
         [Test]
         public void Parse_Val_AndAlias_BothApply_NoDoubleExpansion()
         {
             var script = @"
 VAL $vpath /ValPath
-ALIAS apath /AliasPath
+VAL $apath /AliasPath
 ASSERT $vpath|C|f == 1
-ASSERT apath|C|f == 1";
+ASSERT $apath|C|f == 1";
             var result = PlaytestParser.Parse(script);
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("/ValPath|C|f", result[0].Query);

@@ -19,7 +19,7 @@ namespace UnityMCP.Editor
         private static readonly HashSet<string> _skipLineKeys =
             new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
             {
-                "VAL", "VAR", "ALIAS", "INCLUDE", "MACRO", "END_MACRO",
+                "VAL", "VAR", "INCLUDE", "MACRO", "END_MACRO",
                 "SECTION", "DESC", "CALL", "ABORT_ON_FAIL",
             };
 
