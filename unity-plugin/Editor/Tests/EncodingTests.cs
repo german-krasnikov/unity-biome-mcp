@@ -15,7 +15,7 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
-            _scope = new TempDirScope("unity-mcp-enc-test");
+            _scope = new TempDirScope("unity-biome-mcp-enc-test");
         }
 
         [TearDown]

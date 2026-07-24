@@ -523,7 +523,7 @@ namespace UnityMCP.Editor.Tests
             var port = MCPServer.ServerPort;
             var statePath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-mcp", "state", $"port-{port}.state");
+                ".unity-biome-mcp", "state", $"port-{port}.state");
 
             try
             {
@@ -549,7 +549,7 @@ namespace UnityMCP.Editor.Tests
             var port = MCPServer.ServerPort;
             var statePath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-mcp", "state", $"port-{port}.state");
+                ".unity-biome-mcp", "state", $"port-{port}.state");
 
             try
             {

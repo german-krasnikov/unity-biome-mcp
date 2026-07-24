@@ -22,7 +22,7 @@ def _discover_port() -> int:
     port = int(os.environ.get("UNITY_MCP_PORT", "0"))
     if port:
         return port
-    for p in pathlib.Path.home().glob(".unity-mcp/ports/*.port"):
+    for p in pathlib.Path.home().glob(".unity-biome-mcp/ports/*.port"):
         try:
             return int(p.read_text().split("\n")[0])
         except Exception:

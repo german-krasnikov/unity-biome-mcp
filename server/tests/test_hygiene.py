@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def test_home_is_isolated():
-    """_isolate_home fixture must redirect Path.home() away from real ~/.unity-mcp."""
+    """_isolate_home fixture must redirect Path.home() away from real ~/.unity-biome-mcp."""
     home = Path.home()
     assert ".unity-mcp" not in str(home), f"Path.home() leaks to real home: {home}"
     home_str = str(home)

@@ -4,7 +4,7 @@
 
 **Phase 25:** MCP tool for executing and listing Unity Editor menu items (MenuItem).
 
-**Pass 2 (2026-06-03):** Flattened the "Tools/Unity MCP" menu → top-level "MCP/" prefix (priority 0=Chat, 1=Status, 2=Settings). Added MCPStatusBarWidget injection into Editor AppStatusBar via reflection. Extracted MCPActions (Restart, Kill, Reimport) as shared utilities.
+**Pass 2 (2026-06-03):** Flattened the "Tools/Unity Biome MCP" menu → top-level "MCP/" prefix (priority 0=Chat, 1=Status, 2=Settings). Added MCPStatusBarWidget injection into Editor AppStatusBar via reflection. Extracted MCPActions (Restart, Kill, Reimport) as shared utilities.
 
 ## Architecture
 
@@ -92,7 +92,7 @@ menu action=list  # lists all root menus
 **MCPActions.cs** provides shared static methods used by status window and status bar widget:
 - `Restart()` — Stop + StartAsync
 - `Kill()` / `KillAll()` — Kill MCP server process(es) via lockfile PID
-- `Reimport()` — Force plugin reimport + recompile (finds com.unity-mcp.editor asmdef)
+- `Reimport()` — Force plugin reimport + recompile (finds com.unity-biome-mcp.editor asmdef)
 
 These are invoked directly from editor UI without going through MCP protocol.
 

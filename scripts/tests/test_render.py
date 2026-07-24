@@ -40,7 +40,7 @@ class TestSubstituteSvgMarkers:
         assert r1 == rr.substitute_svg_markers(r1, {"tests_total": 3500})
 
     def test_aria_label_mcp_tools_updated(self) -> None:
-        svg = '<svg aria-label="Unity MCP stats: 91 MCP Tools">'
+        svg = '<svg aria-label="Unity Biome MCP stats: 91 MCP Tools">'
         assert "92 MCP tools" in rr.substitute_svg_markers(svg, {"tools": 92})
 
     def test_none_tools_skips(self) -> None:
@@ -449,7 +449,7 @@ class TestBreakdownGate:
         assert "1904" not in result
 
     def test_substitute_svg_markers_rewrites_aria_label_breakdown(self) -> None:
-        svg = 'aria-label="Unity MCP stats: 92 MCP tools, 3605 Tests (1904 Python + 1475 Unity + 53 Live), 80-95% Batch Savings"'
+        svg = 'aria-label="Unity Biome MCP stats: 92 MCP tools, 3605 Tests (1904 Python + 1475 Unity + 53 Live), 80-95% Batch Savings"'
         result = rr.substitute_svg_markers(svg, {"tests_python": 1933, "tests_unity": 1613, "tests_live": 59})
         assert "(1933 Python + 1613 Unity + 59 Live)" in result
         assert "1904" not in result

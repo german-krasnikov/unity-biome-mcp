@@ -28,7 +28,7 @@ get_test_results                # → "pending" | "none" | results — repeat un
 ```
 
 - `get_test_results` swallows exceptions, safe to poll during domain reload.
-- Results persist across domain reloads — saved to `~/.unity-mcp/test-results/port-{port}.txt`.
+- Results persist across domain reloads — saved to `~/.unity-biome-mcp/test-results/port-{port}.txt`.
 - `run_tests` auto-calls `diagnose` before running. Returns `BLOCKED: <verdict>` on `FAIL:`/`WEDGE`.
 
 **Standalone runner (no MCP):** `python run_unity_tests.py [EditMode|PlayMode] [--filter=TestClass1|TestClass2]`

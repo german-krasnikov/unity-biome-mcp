@@ -1,6 +1,6 @@
-# Prompting Tips for Unity MCP
+# Prompting Tips for Unity Biome MCP
 
-Get the best results when using Unity MCP with AI assistants. These tips follow competitive best practices from CoderGamester and Memory MCP.
+Get the best results when using Unity Biome MCP with AI assistants. These tips follow competitive best practices from CoderGamester and Memory MCP.
 
 ## General Tips
 

@@ -11,7 +11,7 @@ namespace UnityMCP.Editor.Chat
 {
     public static class ChatMcpConfigWriter
     {
-        private const string PackageId = "com.unity-mcp.editor";
+        private const string PackageId = "com.unity-biome-mcp.editor";
 
 #if UNITY_INCLUDE_TESTS
         private static string _packageRootOverride;
@@ -34,7 +34,7 @@ namespace UnityMCP.Editor.Chat
 
         /// <summary>Returns per-port config filename. Port=0 falls back to legacy bare name.</summary>
         public static string ConfigFileName(int port) =>
-            port > 0 ? $"unity-mcp-config-{port}.json" : "unity-mcp-config.json";
+            port > 0 ? $"unity-biome-mcp-config-{port}.json" : "unity-biome-mcp-config.json";
 
         // ── Pure helpers ──────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ namespace UnityMCP.Editor.Chat
                 return (venvPython, new[] { "-m", "unity_mcp.server" });
 
             if (!string.IsNullOrEmpty(resolvedUvPath))
-                return (resolvedUvPath, new[] { "run", "--directory", serverDir, "unity-mcp" });
+                return (resolvedUvPath, new[] { "run", "--directory", serverDir, "unity-biome-mcp" });
 
             // Platform-aware fallback: python on Windows, python3 elsewhere
             var fallback = SystemInfo.operatingSystemFamily == OperatingSystemFamily.Windows
@@ -125,7 +125,7 @@ namespace UnityMCP.Editor.Chat
 
         /// <summary>
         /// Injectable overload (testability seam). No MCPServer/EditorPrefs references — pure/testable.
-        /// Writes unity-mcp-config-{port}.json into configDir and returns the absolute path.
+        /// Writes unity-biome-mcp-config-{port}.json into configDir and returns the absolute path.
         /// </summary>
         public static string GetOrCreateConfigPath(string configDir, int port)
         {
@@ -135,7 +135,7 @@ namespace UnityMCP.Editor.Chat
             if (source != InstallSourceDetector.Source.Local)
             {
                 var uvxJson = BuildClaudeConfigJson("uvx",
-                    new[] { "--from", WizardConfigWriter.GitInstallUrl, "unity-mcp" },
+                    new[] { "--from", WizardConfigWriter.GitInstallUrl, "unity-biome-mcp" },
                     port);
                 var uvxPath = Path.Combine(configDir, ConfigFileName(port));
                 AtomicWrite(uvxPath, uvxJson);
@@ -172,8 +172,8 @@ namespace UnityMCP.Editor.Chat
         {
             var dir    = configDir ?? Path.GetTempPath();
             var cutoff = DateTime.UtcNow.AddHours(-maxAgeHours);
-            foreach (var pattern in new[] { "unity-mcp-config-*.json", "opencode-unity-mcp-*.json",
-                                            "unity-mcp-config.json", "opencode-unity-mcp.json" })
+            foreach (var pattern in new[] { "unity-biome-mcp-config-*.json", "opencode-unity-biome-mcp-*.json",
+                                            "unity-biome-mcp-config.json", "opencode-unity-biome-mcp.json" })
                 foreach (var f in Directory.GetFiles(dir, pattern))
                     try { if (File.GetLastWriteTimeUtc(f) < cutoff) File.Delete(f); } catch { }
         }

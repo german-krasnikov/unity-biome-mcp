@@ -67,7 +67,7 @@ def write_codex_config(server_dir: Path, codex_dir: Path, codex_config: Path, ui
 
 
 def discover_port() -> int:
-    """Return Unity MCP port from ~/.unity-mcp/ports/*.port, default 9500."""
+    """Return Unity Biome MCP port from ~/.unity-biome-mcp/ports/*.port, default 9500."""
     from unity_mcp.paths import ports_dir
     ports = ports_dir()
     if ports.exists():
@@ -110,14 +110,14 @@ def setup_env(server_dir: Path, codex_dir: Path, codex_config: Path, ui,
 
 def cmd_setup(server_dir: Path, codex_dir: Path, codex_config: Path, ui,
               _args: argparse.Namespace) -> None:
-    ui.box(["Unity MCP setup"])
+    ui.box(["Unity Biome MCP setup"])
     setup_env(server_dir, codex_dir, codex_config, ui)
     ui.ok("Done. Run 'python install.py doctor' to verify.")
 
 
 def cmd_update(server_dir: Path, codex_dir: Path, codex_config: Path, ui,
                _args: argparse.Namespace) -> None:
-    ui.box(["Unity MCP update"])
+    ui.box(["Unity Biome MCP update"])
     stale = venv_stale(server_dir)
     if stale:
         ui.info("Stale venv detected (folder moved).")
@@ -133,7 +133,7 @@ def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
         suffix = f" ({info})" if info else ""
         (ui.ok if result else ui.fail)(f"{label}{suffix}")
 
-    ui.box(["Unity MCP doctor"])
+    ui.box(["Unity Biome MCP doctor"])
     _check("Python >= 3.10", check_python(), sys.version.split()[0])
     _check("uv found", shutil.which("uv") is not None)
     _check("uvx found", shutil.which("uvx") is not None)
@@ -214,7 +214,7 @@ def cmd_pull(repo_root: Path, ui) -> int:
 
 def cmd_uninstall(server_dir: Path, unity_mcp_data_dir: Path, ui, prompt_yn,
                   _args: argparse.Namespace) -> None:
-    """Remove Unity MCP venv and optionally ~/.unity-mcp data."""
+    """Remove Unity Biome MCP venv and optionally ~/.unity-biome-mcp data."""
     venv_dir = server_dir / ".venv"
     if venv_dir.exists():
         ui.info(f"Removing {venv_dir} …")
@@ -231,7 +231,7 @@ def cmd_uninstall(server_dir: Path, unity_mcp_data_dir: Path, ui, prompt_yn,
             ui.info("Keeping data directory")
 
 
-_MCP_PKGS = ("com.unity-mcp.editor", "com.unity-mcp.reload")
+_MCP_PKGS = ("com.unity-biome-mcp.editor", "com.unity-biome-mcp.reload")
 _REPO_ROOT = Path(__file__).parent.parent.resolve()
 
 
@@ -252,21 +252,21 @@ def cmd_connect(args: argparse.Namespace, ui) -> int:
 
     editor_ref = f"file:{editor_path.as_posix()}"
     reload_ref = f"file:{reload_path.as_posix()}"
-    if deps.get("com.unity-mcp.editor") == editor_ref and deps.get("com.unity-mcp.reload") == reload_ref:
+    if deps.get("com.unity-biome-mcp.editor") == editor_ref and deps.get("com.unity-biome-mcp.reload") == reload_ref:
         ui.ok("Already connected.")
         return 0
 
     shutil.copy2(manifest, manifest.with_suffix(".json.bak"))
 
-    deps["com.unity-mcp.editor"] = editor_ref
-    deps["com.unity-mcp.reload"] = reload_ref
+    deps["com.unity-biome-mcp.editor"] = editor_ref
+    deps["com.unity-biome-mcp.reload"] = reload_ref
     manifest.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", "utf-8")
     ui.ok(f"Connected to {project_dir.name}. Focus Unity to reload.")
     return 0
 
 
 def cmd_disconnect(args: argparse.Namespace, ui) -> int:
-    """Remove Unity MCP file: references from manifest.json."""
+    """Remove Unity Biome MCP file: references from manifest.json."""
     project_dir = Path(args.unity_project).resolve()
     manifest = project_dir / "Packages" / "manifest.json"
 

@@ -6,7 +6,7 @@
 
 **TIER1 tools (43 core)** — Always visible to your AI assistant.
 
-**Category-gated tools** — Enable via `discover_tools(category, enable=True)` or through the Unity MCP Settings panel.
+**Category-gated tools** — Enable via `discover_tools(category, enable=True)` or through the Unity Biome MCP Settings panel.
 
 **Unknown tools** — Plugin-registered tools pass through automatically.
 

@@ -31,7 +31,7 @@ namespace UnityMCP.Editor.Chat.Tests
             => Assert.AreEqual(RiskLevel.Low, RiskClassifier.Classify("mcp__unity__get_hierarchy"));
 
         [Test] public void Classify_McpToolWithServerPrefix_ReturnsLow()
-            => Assert.AreEqual(RiskLevel.Low, RiskClassifier.Classify("mcp__unity-mcp__batch"));
+            => Assert.AreEqual(RiskLevel.Low, RiskClassifier.Classify("mcp__unity-biome-mcp__batch"));
 
         [Test] public void Classify_UnknownTool_ReturnsMedium()
             => Assert.AreEqual(RiskLevel.Medium, RiskClassifier.Classify("SomeFutureTool"));

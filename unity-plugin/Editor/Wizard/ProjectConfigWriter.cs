@@ -66,7 +66,7 @@ namespace UnityMCP.Editor.Wizard
                 if (state == EntryState.OwnedCurrent) return; // no-op, cheapest path
                 if (state == EntryState.Foreign)
                 {
-                    Debug.LogWarning($"unity-mcp: {target.RelativePath} has a hand-edited unity-mcp entry — skipping.");
+                    Debug.LogWarning($"unity-biome-mcp: {target.RelativePath} has a hand-edited unity-biome-mcp entry — skipping.");
                     return;
                 }
 
@@ -89,7 +89,7 @@ namespace UnityMCP.Editor.Wizard
             catch (Exception ex)
             {
                 // Read-only FS / permission denied / etc — never throw out of delayCall.
-                Debug.LogWarning($"unity-mcp: could not write {target.RelativePath}: {ex.Message}");
+                Debug.LogWarning($"unity-biome-mcp: could not write {target.RelativePath}: {ex.Message}");
             }
         }
     }

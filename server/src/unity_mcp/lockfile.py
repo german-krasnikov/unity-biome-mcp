@@ -146,7 +146,7 @@ def cleanup_stale_locks(port: int, lock_dir: Path = None) -> int:
 
 
 def read_pid_from_port_file(port: int) -> Optional[int]:
-    """Read Unity PID from ~/.unity-mcp/ports/{pid}.port matching the given port.
+    """Read Unity PID from ~/.unity-biome-mcp/ports/{pid}.port matching the given port.
 
     Skips dead PIDs to avoid false-positive process-dead signals.
     """
@@ -208,7 +208,7 @@ def cleanup_stale_port_files(tcp_probe: bool = False) -> int:
 
 
 def read_reload_port() -> Optional[int]:
-    """Discover reload mini-server port from ~/.unity-mcp/ports/{pid}.reload-port."""
+    """Discover reload mini-server port from ~/.unity-biome-mcp/ports/{pid}.reload-port."""
     ports_dir = _ports_dir()
     if not ports_dir.exists():
         return None
@@ -247,7 +247,7 @@ def read_reload_port() -> Optional[int]:
 
 
 def read_project_path_from_port_file(port: int) -> Optional[Path]:
-    """Read Unity project path from ~/.unity-mcp/ports/{pid}.port matching the given port."""
+    """Read Unity project path from ~/.unity-biome-mcp/ports/{pid}.port matching the given port."""
     ports_dir = _ports_dir()
     if not ports_dir.exists():
         return None

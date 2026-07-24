@@ -217,7 +217,7 @@ class TestUpdateStatsSvg:
 
     def test_updates_aria_label(self) -> None:
         svg = (
-            '<svg aria-label="Unity MCP stats: 91 MCP Tools, 3635 Tests '
+            '<svg aria-label="Unity Biome MCP stats: 91 MCP Tools, 3635 Tests '
             '(1949 Python + 1633 Unity + 53 Live), 80-95% Batch Savings">'
             '<!-- STAT:TOOLS -->91<!-- /STAT -->'
             '<!-- STAT:TESTS -->3635<!-- /STAT -->'
@@ -225,7 +225,7 @@ class TestUpdateStatsSvg:
         )
         result = ur.update_stats_svg(svg, tools=95, tests=3700,
                                      python_tests=2000, nunit_tests=1600, live_tests=100)
-        assert 'aria-label="Unity MCP stats: 95 MCP Tools, 3700 Tests' in result
+        assert 'aria-label="Unity Biome MCP stats: 95 MCP Tools, 3700 Tests' in result
         assert "2000 Python + 1600 Unity + 100 Live" in result
 
     def test_updates_subtitle_line(self) -> None:

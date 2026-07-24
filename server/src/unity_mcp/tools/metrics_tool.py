@@ -21,7 +21,7 @@ async def get_metrics(format: str = "text", reset: bool = False) -> str:
 
 def _format_snapshot(snap: dict) -> str:
     """Format a snapshot dict as text (used after snapshot_and_reset)."""
-    lines = [f"=== Unity MCP Metrics (uptime {snap.get('uptime_s', 0):.0f}s) ==="]
+    lines = [f"=== Unity Biome MCP Metrics (uptime {snap.get('uptime_s', 0):.0f}s) ==="]
     c = snap.get("counters", {})
     if c:
         lines.append("")

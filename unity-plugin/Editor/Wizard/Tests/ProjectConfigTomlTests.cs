@@ -10,40 +10,40 @@ namespace UnityMCP.Editor.Tests
         public void BuildFresh_ContainsSectionHeader()
         {
             var result = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
-            StringAssert.Contains("[mcp_servers.unity-mcp]", result);
+            StringAssert.Contains("[mcp_servers.unity-biome-mcp]", result);
         }
 
         [Test]
         public void BuildFresh_ContainsMarkerComment()
         {
             var result = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
-            StringAssert.Contains("# unity-mcp generated v", result);
+            StringAssert.Contains("# unity-biome-mcp generated v", result);
         }
 
         [Test]
         public void BuildFresh_EnvTableHasPort()
         {
             var result = ProjectConfigToml.BuildFresh(9501, WizardConfigWriter.GitInstallUrl, "1.2.3");
-            StringAssert.Contains("[mcp_servers.unity-mcp.env]", result);
+            StringAssert.Contains("[mcp_servers.unity-biome-mcp.env]", result);
             StringAssert.Contains("UNITY_MCP_PORT = '9501'", result);
         }
 
         [Test]
         public void Merge_ReplacesStaleSection_PreservesOtherTables()
         {
-            // Also covers migration: existing entry is the OLD "unity-kiss" section
-            // (the botched v0.70.8 rename); Merge must rewrite it to the new "unity-mcp"
-            // name, never leave the old key behind as a duplicate.
+            // Also covers migration: existing entry is the OLD "unity-mcp" section;
+            // Merge must rewrite it to the new "unity-biome-mcp" name, never leave
+            // the old key behind as a duplicate.
             var existing =
                 "[some_other_tool]\n" +
                 "key = 'value'\n" +
                 "\n" +
-                "# unity-kiss generated v0.1.0\n" +
-                "[mcp_servers.unity-kiss]\n" +
+                "# unity-mcp generated v0.1.0\n" +
+                "[mcp_servers.unity-mcp]\n" +
                 "command = 'uvx'\n" +
                 "args = ['--from', 'old-url', 'unity-mcp']\n" +
                 "\n" +
-                "[mcp_servers.unity-kiss.env]\n" +
+                "[mcp_servers.unity-mcp.env]\n" +
                 "UNITY_MCP_PORT = '9000'\n";
 
             var result = ProjectConfigToml.Merge(existing, 9502, WizardConfigWriter.GitInstallUrl, "2.0.0");
@@ -51,9 +51,9 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("[some_other_tool]", result);
             StringAssert.Contains("key = 'value'", result);
             StringAssert.Contains("9502", result);
-            StringAssert.Contains("# unity-mcp generated v2.0.0", result);
-            StringAssert.Contains("[mcp_servers.unity-mcp]", result);
-            StringAssert.DoesNotContain("[mcp_servers.unity-kiss]", result, "old key must be migrated, not duplicated");
+            StringAssert.Contains("# unity-biome-mcp generated v2.0.0", result);
+            StringAssert.Contains("[mcp_servers.unity-biome-mcp]", result);
+            StringAssert.DoesNotContain("[mcp_servers.unity-mcp]", result, "old key must be migrated, not duplicated");
             StringAssert.DoesNotContain("9000", result);
         }
 
@@ -66,20 +66,20 @@ namespace UnityMCP.Editor.Tests
             // mirrors Python's _UNITY_MCP_SECTION_RE, which matches any number of
             // dotted subsections.
             var existing =
-                "# unity-kiss generated v0.1.0\n" +
-                "[mcp_servers.unity-kiss]\n" +
+                "# unity-mcp generated v0.1.0\n" +
+                "[mcp_servers.unity-mcp]\n" +
                 "command = 'uvx'\n" +
                 "\n" +
-                "[mcp_servers.unity-kiss.env]\n" +
+                "[mcp_servers.unity-mcp.env]\n" +
                 "UNITY_MCP_PORT = '9000'\n" +
                 "\n" +
-                "[mcp_servers.unity-kiss.extra]\n" +
+                "[mcp_servers.unity-mcp.extra]\n" +
                 "some_key = 'stale'\n";
 
             var result = ProjectConfigToml.Merge(existing, 9502, WizardConfigWriter.GitInstallUrl, "2.0.0");
 
             StringAssert.DoesNotContain("some_key", result);
-            StringAssert.DoesNotContain("[mcp_servers.unity-kiss.extra]", result);
+            StringAssert.DoesNotContain("[mcp_servers.unity-mcp.extra]", result);
             StringAssert.Contains("9502", result);
         }
 
@@ -94,7 +94,7 @@ namespace UnityMCP.Editor.Tests
         public void ExtractMarkerVersion_CommentAbsent_ReturnsNull()
         {
             // Hand-written Codex config — section present, no marker comment above it.
-            var existing = "[mcp_servers.unity-kiss]\ncommand = 'uvx'\n";
+            var existing = "[mcp_servers.unity-mcp]\ncommand = 'uvx'\n";
             Assert.IsNull(ProjectConfigToml.ExtractMarkerVersion(existing));
         }
 
@@ -109,7 +109,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Classify_NoMarkerComment_ReturnsForeign()
         {
-            var existing = "[mcp_servers.unity-kiss]\ncommand = 'uvx'\n";
+            var existing = "[mcp_servers.unity-mcp]\ncommand = 'uvx'\n";
             var result = ProjectConfigToml.Classify(existing, 9500, "1.2.3");
             Assert.AreEqual(EntryState.Foreign, result);
         }

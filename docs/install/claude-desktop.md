@@ -5,7 +5,7 @@ The plugin auto-configures Claude Desktop automatically when you add it to your 
 ## Prerequisites
 
 - Claude Desktop app installed
-- Unity 6000.0+ with the `unity-mcp` plugin installed (via UPM git URL)
+- Unity 6000.0+ with the `unity-biome-mcp` plugin installed (via UPM git URL)
 - TCP port 9500 (or auto-assigned) free
 
 ## Quick Setup
@@ -18,7 +18,7 @@ Visit https://claude.com/download and install Claude Desktop for your OS.
 
 1. Open **Window → Package Manager**
 2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
 4. Wait for import, then open any scene
 
 The plugin auto-generates your Claude Desktop MCP config on first load.
@@ -28,7 +28,7 @@ The plugin auto-generates your Claude Desktop MCP config on first load.
 Run the diagnostic:
 
 ```bash
-uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
+uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
 ```
 
 Or from Claude Desktop, try:
@@ -37,9 +37,9 @@ Or from Claude Desktop, try:
 await get_hierarchy()
 ```
 
-## Use Claude Desktop With Unity MCP
+## Use Claude Desktop With Unity Biome MCP
 
-Once configured, restart Claude Desktop completely, then use Unity MCP from the chat:
+Once configured, restart Claude Desktop completely, then use Unity Biome MCP from the chat:
 
 ```python
 await create_object("MyObject")
@@ -63,6 +63,6 @@ The plugin writes MCP config to:
 | Problem | Fix |
 |---------|-----|
 | Claude Desktop doesn't see MCP tools | **Restart Claude Desktop completely** (close via menu bar, reopen). Check that the plugin console shows `[MCP] Server started on port <XXXX>`. |
-| MCP config not auto-generated | Run the diagnostic: `uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor` |
+| MCP config not auto-generated | Run the diagnostic: `uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor` |
 | Tools fail with "Connection refused" | Ensure Unity is open with the plugin loaded. Check that TCP port is available and listening. |
-| "Unknown server: unity-mcp" error | Claude Desktop cached the old config. Clear config and restart: `rm ~/Library/Application\ Support/Claude/claude_desktop_config.json` (macOS), then restart Claude and re-add plugin to trigger auto-config. |
+| "Unknown server: unity-biome-mcp" error | Claude Desktop cached the old config. Clear config and restart: `rm ~/Library/Application\ Support/Claude/claude_desktop_config.json` (macOS), then restart Claude and re-add plugin to trigger auto-config. |

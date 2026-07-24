@@ -14,7 +14,7 @@ namespace UnityMCP.Editor.Tests
         public void MCPServer_CallsInitDefaults_BeforeTcpBind()
         {
             var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "MCPServer.cs"));
+                Path.Combine("Packages", "com.unity-biome-mcp.editor", "Editor", "MCPServer.cs"));
             if (!File.Exists(src))
             {
                 Assert.Ignore($"MCPServer.cs not found at {src} — skip in CI");
@@ -34,7 +34,7 @@ namespace UnityMCP.Editor.Tests
             // Bootstrap.cs was deleted in the registration-race fix (registration-gate sprint).
             // If this file reappears, the double-registration risk returns.
             var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "Bootstrap.cs"));
+                Path.Combine("Packages", "com.unity-biome-mcp.editor", "Editor", "Bootstrap.cs"));
             Assert.IsFalse(File.Exists(src),
                 "Bootstrap.cs must not exist — its responsibility was absorbed by MCPServer.StartAsync");
         }
@@ -43,7 +43,7 @@ namespace UnityMCP.Editor.Tests
         public void CommandRegistry_HasNoStaticConstructorCall_ToInitDefaults()
         {
             var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "CommandRegistry.cs"));
+                Path.Combine("Packages", "com.unity-biome-mcp.editor", "Editor", "CommandRegistry.cs"));
             if (!File.Exists(src))
             {
                 Assert.Ignore($"CommandRegistry.cs not found at {src} — skip in CI");

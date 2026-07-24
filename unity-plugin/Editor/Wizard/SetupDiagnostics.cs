@@ -65,18 +65,18 @@ namespace UnityMCP.Editor.Wizard
 
         /// <summary>Builds the <c>claude mcp add</c> command for the given port.</summary>
         public static string BuildClaudeCodeSnippet(int port)
-            => $"claude mcp add unity -- env UNITY_MCP_PORT={port} uvx --from {WizardConfigWriter.GitInstallUrl} unity-mcp";
+            => $"claude mcp add unity -- env UNITY_MCP_PORT={port} uvx --from {WizardConfigWriter.GitInstallUrl} unity-biome-mcp";
 
         // ── Port file ─────────────────────────────────────────────────────────
 
-        /// <summary>Checks whether ~/.unity-mcp/ports/ contains at least one .port file.</summary>
+        /// <summary>Checks whether ~/.unity-biome-mcp/ports/ contains at least one .port file.</summary>
         public static (bool ok, string detail) CheckPortFile()
         {
             var portsDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-mcp", "ports");
+                ".unity-biome-mcp", "ports");
             if (!Directory.Exists(portsDir))
-                return (false, "~/.unity-mcp/ports not found");
+                return (false, "~/.unity-biome-mcp/ports not found");
             var files = Directory.GetFiles(portsDir, "*.port");
             return files.Length > 0
                 ? (true, $"{files.Length} port file(s)")
@@ -86,7 +86,7 @@ namespace UnityMCP.Editor.Wizard
         // ── AI config ─────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Checks whether at least one AI tool config file contains a "unity-mcp" entry.
+        /// Checks whether at least one AI tool config file contains a "unity-biome-mcp" entry.
         /// Returns the path of the first matching config, or an error detail.
         /// </summary>
         public static (bool ok, string detail) CheckAiConfig()
@@ -108,7 +108,7 @@ namespace UnityMCP.Editor.Wizard
                 }
                 catch (IOException) { }
             }
-            return (false, "no AI tool config found with unity-mcp entry");
+            return (false, "no AI tool config found with unity-biome-mcp entry");
         }
     }
 }

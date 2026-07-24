@@ -15,11 +15,11 @@ if str(_INSTALL_DIR) not in sys.path:
 # ─── P1-C: validator uses info.root_key ──────────────────────────────────────
 
 def test_validator_uses_root_key(tmp_path, monkeypatch):
-    """vscode config with 'servers' key → validator finds unity-mcp entry."""
+    """vscode config with 'servers' key → validator finds unity-biome-mcp entry."""
     from unity_mcp.config import clients as c, validator
 
     cfg = tmp_path / "mcp.json"
-    cfg.write_text(json.dumps({"servers": {"unity-mcp": {"command": "uvx"}}}), encoding="utf-8")
+    cfg.write_text(json.dumps({"servers": {"unity-biome-mcp": {"command": "uvx"}}}), encoding="utf-8")
 
     monkeypatch.setattr(c.CLIENT_REGISTRY["vscode"], "config_path", cfg)
     # patch port probe so test doesn't need Unity running
@@ -27,7 +27,7 @@ def test_validator_uses_root_key(tmp_path, monkeypatch):
 
     result = validator.validate_config("vscode")
     assert "not configured" not in result
-    assert "unity-mcp entry" in result
+    assert "unity-biome-mcp entry" in result
 
 
 def test_validator_hardcoded_mcpservers_regression(tmp_path, monkeypatch):
@@ -35,22 +35,22 @@ def test_validator_hardcoded_mcpservers_regression(tmp_path, monkeypatch):
     from unity_mcp.config import clients as c, validator
 
     cfg = tmp_path / ".claude.json"
-    cfg.write_text(json.dumps({"mcpServers": {"unity-mcp": {"command": "uvx"}}}), encoding="utf-8")
+    cfg.write_text(json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "uvx"}}}), encoding="utf-8")
 
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
     monkeypatch.setattr(validator, "_port_reachable", lambda _: False)
 
     result = validator.validate_config("claude-code")
     assert "not configured" not in result
-    assert "unity-mcp entry" in result
+    assert "unity-biome-mcp entry" in result
 
 
 def test_validator_opencode_uses_mcp_root_key(tmp_path, monkeypatch):
-    """opencode config with 'mcp' key → validator finds unity-mcp entry."""
+    """opencode config with 'mcp' key → validator finds unity-biome-mcp entry."""
     from unity_mcp.config import clients as c, validator
 
     cfg = tmp_path / "opencode.json"
-    cfg.write_text(json.dumps({"mcp": {"unity-mcp": {"command": "uvx"}}}), encoding="utf-8")
+    cfg.write_text(json.dumps({"mcp": {"unity-biome-mcp": {"command": "uvx"}}}), encoding="utf-8")
 
     monkeypatch.setattr(c.CLIENT_REGISTRY["opencode"], "config_path", cfg)
     monkeypatch.setattr(validator, "_port_reachable", lambda _: False)
@@ -75,7 +75,7 @@ def test_build_server_entry_without_uvx():
 
 
 def test_build_server_entry_with_uvx():
-    """When uvx is present, use uvx --from git+URL unity-mcp."""
+    """When uvx is present, use uvx --from git+URL unity-biome-mcp."""
     from unity_mcp.config import resolver
 
     with patch.object(resolver, "_which", return_value="/usr/bin/uvx"):
@@ -83,22 +83,22 @@ def test_build_server_entry_with_uvx():
 
     assert entry["command"] == "uvx"
     assert "--from" in entry["args"]
-    assert "unity-mcp" in entry["args"]
+    assert "unity-biome-mcp" in entry["args"]
     assert any("github.com" in a for a in entry["args"])
 
 
 # ─── P1-F: doctor checks AI configs ──────────────────────────────────────────
 
 def test_doctor_checks_ai_configs(tmp_path, monkeypatch, capsys):
-    """doctor reports AI config present when file contains 'unity-mcp'."""
+    """doctor reports AI config present when file contains 'unity-biome-mcp'."""
     import install.commands as cmd
     from unity_mcp.config import clients as c
 
-    # Create a fake claude-code config with unity-mcp AND git URL present
+    # Create a fake claude-code config with unity-biome-mcp AND git URL present
     from unity_mcp.config.resolver import GIT_INSTALL_URL
     cfg = tmp_path / ".claude.json"
     cfg.write_text(
-        '{"mcpServers": {"unity-mcp": {"command": "uvx", "args": ["--from", "' + GIT_INSTALL_URL + '", "unity-mcp"]}}}',
+        '{"mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": ["--from", "' + GIT_INSTALL_URL + '", "unity-biome-mcp"]}}}',
         encoding="utf-8"
     )
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
@@ -250,7 +250,7 @@ def test_file_uri_uses_posix_path(tmp_path, monkeypatch):
     manifest.write_text('{"dependencies": {}}', encoding="utf-8")
 
     # Simulate a Windows-style path by monkeypatching _REPO_ROOT
-    fake_root = tmp_path / "C:" / "Work" / "unity-kiss-mcp"
+    fake_root = tmp_path / "C:" / "Work" / "unity-biome-mcp"
     fake_root.mkdir(parents=True)
     monkeypatch.setattr(cmd, "_REPO_ROOT", fake_root)
 
@@ -299,7 +299,7 @@ def test_validator_toml_client_skips_json_parse(tmp_path, monkeypatch):
     from unity_mcp.config import clients as c, validator
 
     toml_file = tmp_path / "config.toml"
-    toml_file.write_text('[mcp]\n[mcp."unity-mcp"]\ncommand = "uvx"\n', encoding="utf-8")
+    toml_file.write_text('[mcp]\n[mcp."unity-biome-mcp"]\ncommand = "uvx"\n', encoding="utf-8")
 
     monkeypatch.setattr(c.CLIENT_REGISTRY["codex"], "config_path", toml_file)
 
@@ -340,14 +340,14 @@ def test_update_check_uses_github_not_pypi():
 # ─── B3: doctor detects stale PyPI config ─────────────────────────────────────
 
 def test_doctor_detects_stale_pypi_config(tmp_path, monkeypatch, capsys):
-    """doctor must warn when config has unity-mcp but no git+URL (stale PyPI)."""
+    """doctor must warn when config has unity-biome-mcp but no git+URL (stale PyPI)."""
     import install.commands as cmd
     from unity_mcp.config import clients as c
     from unity_mcp.config.resolver import GIT_INSTALL_URL
 
-    # Config has unity-mcp but NOT the git URL — simulates old PyPI install
+    # Config has unity-biome-mcp but NOT the git URL — simulates old PyPI install
     cfg = tmp_path / ".claude.json"
-    cfg.write_text('{"mcpServers": {"unity-mcp": {"command": "uvx", "args": ["unity-mcp"]}}}',
+    cfg.write_text('{"mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": ["unity-biome-mcp"]}}}',
                    encoding="utf-8")
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
 

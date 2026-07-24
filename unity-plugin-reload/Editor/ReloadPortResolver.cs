@@ -18,7 +18,7 @@ namespace UnityMCP.Reload
         // Overridable for tests (set before calling WriteReloadPortFile).
         public static string PortsDir =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-mcp", "ports");
+                ".unity-biome-mcp", "ports");
 
         // Scan [startFrom..startFrom+100], fallback to OS-assigned port.
         public static int FindFreePort(int startFrom)
@@ -113,7 +113,7 @@ namespace UnityMCP.Reload
             return sb.ToString();
         }
 
-        // Write ~/.unity-mcp/ports/{pid}.reload-port = "port\nProjectDir\nProjectName"
+        // Write ~/.unity-biome-mcp/ports/{pid}.reload-port = "port\nProjectDir\nProjectName"
         // F2: mirrors MCPServer.WritePortFile format for CWD-based disambiguation.
         public static void WriteReloadPortFile(int pid, int port,
             string projectDir = "", string projectName = "")
@@ -127,7 +127,7 @@ namespace UnityMCP.Reload
             catch { }
         }
 
-        // Delete ~/.unity-mcp/ports/{pid}.reload-port
+        // Delete ~/.unity-biome-mcp/ports/{pid}.reload-port
         public static void DeleteReloadPortFile(int pid)
         {
             try

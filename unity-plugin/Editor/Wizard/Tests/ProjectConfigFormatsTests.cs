@@ -45,7 +45,7 @@ namespace UnityMCP.Editor.Tests
         public void ExtractMarkerVersion_EntryWithoutMarker_ReturnsNull()
         {
             // Simulates a hand-written pre-Phase1A entry — no "_v" key.
-            var existing = "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"uvx\"}}}";
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\"}}}";
             Assert.IsNull(ProjectConfigFormats.ExtractMarkerVersion(existing));
         }
 
@@ -73,7 +73,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Classify_EntryWithoutMarker_ReturnsForeign()
         {
-            var existing = "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"uvx\"}}}";
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\"}}}";
             var result = ProjectConfigFormats.Classify(existing, 9500, "1.2.3");
             Assert.AreEqual(EntryState.Foreign, result);
         }

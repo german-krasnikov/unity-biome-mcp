@@ -11,7 +11,7 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
-            // Isolate KillAll from real ~/.unity-mcp to avoid killing live Python MCP servers.
+            // Isolate KillAll from real ~/.unity-biome-mcp to avoid killing live Python MCP servers.
             _scope = new TempDirScope("mcp-kill-test");
             MCPActions.OverrideLockDir = _scope.Path;
         }

@@ -1,4 +1,4 @@
-# Unity MCP Plugin
+# Unity Biome MCP Plugin
 
 Unity Editor plugin that provides TCP server for MCP commands.
 

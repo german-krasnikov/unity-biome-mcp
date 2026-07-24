@@ -1,4 +1,4 @@
-# Contributing to Unity MCP
+# Contributing to Unity Biome MCP
 
 Thank you for your interest in contributing! This guide walks you through setting up a development environment and running the test suite.
 
@@ -6,8 +6,8 @@ Thank you for your interest in contributing! This guide walks you through settin
 
 ```bash
 # Clone the repo
-git clone https://github.com/german-krasnikov/unity-kiss-mcp.git
-cd unity-kiss-mcp
+git clone https://github.com/german-krasnikov/unity-biome-mcp.git
+cd unity-biome-mcp
 
 # Install (Python + venv + dependencies)
 python install.py setup
@@ -85,7 +85,7 @@ import asyncio,struct,json,pathlib,os
 def find_port():
     p=int(os.environ.get('UNITY_MCP_PORT','0'))
     if p: return p
-    for f in pathlib.Path.home().glob('.unity-mcp/ports/*.port'):
+    for f in pathlib.Path.home().glob('.unity-biome-mcp/ports/*.port'):
         try: return int(f.read_text().split('\n')[0])
         except: pass
     return 9500
@@ -171,4 +171,4 @@ Documentation is maintained automatically:
 
 ---
 
-**Thank you for contributing!** Every test, fix, and feature makes Unity MCP more reliable for everyone.
+**Thank you for contributing!** Every test, fix, and feature makes Unity Biome MCP more reliable for everyone.

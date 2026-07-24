@@ -61,14 +61,14 @@ def test_env_override_non_numeric_falls_through(monkeypatch, tmp_path):
 
 def test_fallback_default_when_no_dir(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    # Point home to tmp_path so ~/.unity-mcp/ports never exists
+    # Point home to tmp_path so ~/.unity-biome-mcp/ports never exists
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     assert _read_unity_port() == 9500
 
 
 def test_fallback_default_when_dir_empty(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     assert _read_unity_port() == 9500
@@ -80,7 +80,7 @@ def test_fallback_default_when_dir_empty(monkeypatch, tmp_path):
 
 def test_single_live_lockfile_returns_port(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     _make_port_file(ports_dir, pid=1234, port=9501, project="Game")
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
@@ -96,7 +96,7 @@ def test_single_live_lockfile_returns_port(monkeypatch, tmp_path):
 
 def test_newest_lockfile_wins(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     _make_port_file(ports_dir, pid=100, port=9600, mtime=500.0)   # older
     _make_port_file(ports_dir, pid=200, port=9700, mtime=1500.0)  # newer
@@ -107,7 +107,7 @@ def test_newest_lockfile_wins(monkeypatch, tmp_path):
 
 def test_oldest_lockfile_loses(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     _make_port_file(ports_dir, pid=100, port=9600, mtime=2000.0)  # newer
     _make_port_file(ports_dir, pid=200, port=9700, mtime=100.0)   # older
@@ -122,7 +122,7 @@ def test_oldest_lockfile_loses(monkeypatch, tmp_path):
 
 def test_dead_pid_process_lookup_error_skips_and_removes(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = _make_port_file(ports_dir, pid=9999, port=9501)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
@@ -135,7 +135,7 @@ def test_dead_pid_process_lookup_error_skips_and_removes(monkeypatch, tmp_path):
 def test_permission_error_keeps_file_as_live_candidate(monkeypatch, tmp_path):
     """PermissionError from os.kill means process is alive (different user) — keep file."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = _make_port_file(ports_dir, pid=9998, port=9502)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
@@ -147,7 +147,7 @@ def test_permission_error_keeps_file_as_live_candidate(monkeypatch, tmp_path):
 
 def test_dead_pid_os_error_skips_and_removes(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = _make_port_file(ports_dir, pid=9997, port=9503)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
@@ -163,7 +163,7 @@ def test_dead_pid_os_error_skips_and_removes(monkeypatch, tmp_path):
 
 def test_mixed_dead_and_live_returns_live_port(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     dead_file = _make_port_file(ports_dir, pid=7777, port=9800, mtime=2000.0)
     _make_port_file(ports_dir, pid=8888, port=9801, mtime=1000.0)
@@ -185,7 +185,7 @@ def test_mixed_dead_and_live_returns_live_port(monkeypatch, tmp_path):
 
 def test_malformed_port_file_skipped(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     bad = ports_dir / "notanint.port"
     bad.write_text("broken\n", encoding="utf-8")
@@ -197,7 +197,7 @@ def test_malformed_port_file_skipped(monkeypatch, tmp_path):
 
 def test_malformed_port_content_skipped(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     bad = ports_dir / "1234.port"
     bad.write_text("notaport\n", encoding="utf-8")
@@ -214,7 +214,7 @@ def test_malformed_port_content_skipped(monkeypatch, tmp_path):
 
 def test_lockfile_without_project_line(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = ports_dir / "5555.port"
     f.write_text("9505\n", encoding="utf-8")  # only one line — no project
@@ -230,7 +230,7 @@ def test_lockfile_without_project_line(monkeypatch, tmp_path):
 def test_cwd_exact_match_project_root(monkeypatch, tmp_path):
     """CWD is exactly the project root (not a subdir) — still matches."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
@@ -245,7 +245,7 @@ def test_cwd_exact_match_project_root(monkeypatch, tmp_path):
 def test_cwd_match_returns_matching_project_port(monkeypatch, tmp_path):
     """CWD inside project dir → returns that port even if another has newer mtime."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
@@ -262,7 +262,7 @@ def test_cwd_match_returns_matching_project_port(monkeypatch, tmp_path):
 def test_cwd_no_match_falls_back_to_mtime(monkeypatch, tmp_path):
     """CWD doesn't match any project → falls back to newest mtime."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
@@ -278,7 +278,7 @@ def test_cwd_no_match_falls_back_to_mtime(monkeypatch, tmp_path):
 def test_cwd_nested_projects_prefers_longest_match(monkeypatch, tmp_path):
     """Two overlapping project paths → prefer the longer (more specific) one."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_root = str(tmp_path / "Workspace")
     project_sub  = str(tmp_path / "Workspace" / "SubProject")
@@ -302,7 +302,7 @@ def test_skip_probe_true_returns_port_without_tcp_check(monkeypatch, tmp_path):
     skip_probe=False still controls the no-candidates fallback (None vs 9500).
     """
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     _make_port_file(ports_dir, pid=1111, port=9510)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
@@ -328,7 +328,7 @@ def test_read_unity_port_uses_unity_mcp_project_dir(monkeypatch, tmp_path):
     """UNITY_MCP_PROJECT_DIR set → uses it for port-file matching instead of CWD."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
@@ -347,7 +347,7 @@ def test_read_unity_port_falls_back_to_claude_project_dir(monkeypatch, tmp_path)
     """UNITY_MCP_PROJECT_DIR not set, CLAUDE_PROJECT_DIR set → uses it."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     monkeypatch.delenv("UNITY_MCP_PROJECT_DIR", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
@@ -365,7 +365,7 @@ def test_read_unity_port_falls_back_to_cwd(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     monkeypatch.delenv("UNITY_MCP_PROJECT_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
@@ -382,7 +382,7 @@ def test_read_unity_port_project_dir_matches_correct_of_three(monkeypatch, tmp_p
     """3 port files for 3 projects; project_dir matches the middle one."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     proj_a = str(tmp_path / "ProjA")
     proj_b = str(tmp_path / "ProjB")
@@ -401,7 +401,7 @@ def test_read_unity_port_project_dir_matches_correct_of_three(monkeypatch, tmp_p
 def test_read_unity_port_empty_unity_mcp_project_dir_falls_through(monkeypatch, tmp_path):
     """UNITY_MCP_PROJECT_DIR="" (empty string) → falls through to CLAUDE_PROJECT_DIR."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     proj_a = str(tmp_path / "ProjA")
     proj_b = str(tmp_path / "ProjB")
@@ -418,7 +418,7 @@ def test_read_unity_port_empty_unity_mcp_project_dir_falls_through(monkeypatch, 
 def test_read_unity_port_unity_mcp_project_dir_priority_over_claude(monkeypatch, tmp_path):
     """UNITY_MCP_PROJECT_DIR takes priority over CLAUDE_PROJECT_DIR."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     proj_a = str(tmp_path / "ProjA")
     proj_b = str(tmp_path / "ProjB")

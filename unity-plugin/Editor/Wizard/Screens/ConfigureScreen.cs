@@ -156,7 +156,7 @@ namespace UnityMCP.Editor.Wizard.Screens
             {
                 AppendLog(_backend.Instructions);
                 int manualPort = MCPServer.IsRunning ? MCPServer.ServerPort : 9500;
-                var uvxCmd = $"UNITY_MCP_PORT={manualPort} uvx --from {WizardConfigWriter.GitInstallUrl} unity-mcp";
+                var uvxCmd = $"UNITY_MCP_PORT={manualPort} uvx --from {WizardConfigWriter.GitInstallUrl} unity-biome-mcp";
                 GUIUtility.systemCopyBuffer = uvxCmd;
                 AppendLog("(uvx command copied to clipboard)");
                 return;

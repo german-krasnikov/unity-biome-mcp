@@ -21,7 +21,7 @@ def find_port() -> int:
     p = int(os.environ.get("UNITY_MCP_PORT", "0"))
     if p:
         return p
-    for f in pathlib.Path.home().glob(".unity-mcp/ports/*.port"):
+    for f in pathlib.Path.home().glob(".unity-biome-mcp/ports/*.port"):
         try:
             return int(f.read_text().split("\n")[0])
         except Exception:

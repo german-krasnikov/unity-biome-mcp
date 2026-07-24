@@ -1,7 +1,7 @@
 # Project Structure (Current)
 
 ```
-unity-kiss-mcp/
+unity-biome-mcp/
 ├── install/                    # Installation & configuration CLI (v0.38.0+, v0.45.0: connect/disconnect/pull, v0.68.0: _reconfigure_detected_clients)
 │   ├── __init__.py
 │   ├── bootstrap.sh            # One-liner macOS/Linux (legacy, deprecated v0.68.0)
@@ -30,7 +30,7 @@ unity-kiss-mcp/
 │   │   ├── mcp_config_writer.py # Dynamic MCP config generation for relay (v0.66.0+)
 │   │   ├── config/             # Config module (v0.38.0+): client detection, MCP JSON merger, backup/restore; v0.47.1: GitHub-direct install, per-client root_key
 │   │   │   ├── clients.py      # CLIENT_REGISTRY (Claude Code/Desktop/Cursor/Windsurf), detect_installed(), platform-aware ConfigDir (v0.47.1)
-│   │   │   ├── merger.py       # merge_mcp_config(path, entry) — idempotent MCP server entry addition; SERVER_NAME = "unity-mcp" (canonical source), _OLD_NAMES for migration (v0.71.0)
+│   │   │   ├── merger.py       # merge_mcp_config(path, entry) — idempotent MCP server entry addition; SERVER_NAME = "unity-biome-mcp" (canonical source), _OLD_NAMES for migration (v0.71.0)
 │   │   │   ├── backup.py       # Backup/restore config files before modifications
 │   │   │   ├── resolver.py     # build_server_entry(port) — MCP server entry generator; GIT_INSTALL_URL constant (v0.47.1: shared with C#)
 │   │   │   └── validator.py    # Config validation + path detection per tool; v0.47.1: skips json.loads for TOML clients, respects root_key
@@ -250,12 +250,12 @@ unity-kiss-mcp/
 │   │       ├── ReloadPluginTests.cs
 │   │       └── ReloadPortResolverTests.cs
 │   ├── UnityMCP.Reload.asmdef                # Core assembly (no references)
-│   ├── package.json                          # v0.1.4, "com.unity-mcp.reload"
+│   ├── package.json                          # v0.1.4, "com.unity-biome-mcp.reload"
 │   └── package.json.meta
 ├── unity-plugin/               # Unity Editor Plugin (225+ C# files, ~22000 LOC, v0.90.0: +PlaytestRunner.FrameCapture.cs, +PlaytestLaunchWindow.cs, +6 test files (~150 NUnit tests), SyncHelper singleton guard, TestRunner dirty-scene save; playtests ROI sprint: +PlaytestLinter.cs, +PlaytestRunner.Snapshot.cs, +SceneRefResolver.cs, +SceneRefLinter.cs, +9 test files (~1200 new NUnit tests); v0.75.0: +9 Composer files + 5 test files; v0.70.0: CommandRouter split to Registration partial + tests, v0.66.0: +7 Relay files, v0.65.1: +2 Plugin API files, v0.59.0: +11 Debug files, ROI sprint v0.69.0: +11 refactor files, v0.29.2: Chat split into CLI+View, v0.30.4: +482 new tests, v0.55.10: +346 tests for gating/subcategories/icons, v0.65.1: +29 Plugin API tests, v0.79.1: +PlaytestPathTests.cs (run_playtest path= 8 tests), CommandRouter path= dispatch; v0.80.1: +SceneCleanTestBase.cs (leak-detection base), +force_play_stop command — 6699 C# NUnit green (v0.91.0, 1 pre-existing failure))
 │   ├── ClientSkills/           # Consumer skills shipped with the plugin (v0.92.x) — installed via Setup Wizard → Install AI Skills screen
 │   │   ├── agents/             # 2 agents: playmode-tester.md, unity-editor-developer.md
-│   │   ├── skills/             # 23 skills: csharp-unity, playmode-verification, playtest-dsl, testing-tdd, token-optimization, unity-animation, unity-animator, unity-assets, unity-code-intel, unity-components, unity-debugging, unity-efficiency, unity-hierarchy, unity-intent, unity-mcp-reference, unity-particles, unity-performance, unity-physics, unity-scene-ui, unity-session, unity-shaders, unity-testing, unity-timeline
+│   │   ├── skills/             # 23 skills: csharp-unity, playmode-verification, playtest-dsl, testing-tdd, token-optimization, unity-animation, unity-animator, unity-assets, unity-code-intel, unity-components, unity-debugging, unity-efficiency, unity-hierarchy, unity-intent, unity-biome-mcp-reference, unity-particles, unity-performance, unity-physics, unity-scene-ui, unity-session, unity-shaders, unity-testing, unity-timeline
 │   │   └── scripts/            # claude_to_codex.py — syncs Claude skills to Codex format
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern

@@ -38,9 +38,9 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void ReplaceEntry_ReplacesValue_PreservesKey()
         {
-            var json = "{\"unity-mcp\":{\"command\":\"python3\",\"port\":9501}}";
-            var result = JsonMergeHelper.ReplaceEntry(json, "unity-mcp", "{\"command\":\"python3\",\"port\":9900}");
-            StringAssert.Contains("\"unity-mcp\"", result);
+            var json = "{\"unity-biome-mcp\":{\"command\":\"python3\",\"port\":9501}}";
+            var result = JsonMergeHelper.ReplaceEntry(json, "unity-biome-mcp", "{\"command\":\"python3\",\"port\":9900}");
+            StringAssert.Contains("\"unity-biome-mcp\"", result);
             StringAssert.Contains("9900", result);
             StringAssert.DoesNotContain("9501", result);
         }
@@ -48,8 +48,8 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void ReplaceEntry_PreservesOtherEntries()
         {
-            var json = "{\"blender\":{\"cmd\":\"blender-mcp\"},\"unity-mcp\":{\"port\":9501}}";
-            var result = JsonMergeHelper.ReplaceEntry(json, "unity-mcp", "{\"port\":9900}");
+            var json = "{\"blender\":{\"cmd\":\"blender-mcp\"},\"unity-biome-mcp\":{\"port\":9501}}";
+            var result = JsonMergeHelper.ReplaceEntry(json, "unity-biome-mcp", "{\"port\":9900}");
             StringAssert.Contains("\"blender\"", result);
             StringAssert.Contains("blender-mcp", result);
             StringAssert.Contains("9900", result);
@@ -61,9 +61,9 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void ReplaceEntry_OutputBracesAreBalanced()
         {
-            var json = "{\"unity-mcp\":{\"command\":\"python3\",\"env\":{\"UNITY_MCP_PORT\":\"9501\"}}}";
+            var json = "{\"unity-biome-mcp\":{\"command\":\"python3\",\"env\":{\"UNITY_MCP_PORT\":\"9501\"}}}";
             var fresh = "{\"command\":\"python3\",\"env\":{\"UNITY_MCP_PORT\":\"9900\"}}";
-            var result = JsonMergeHelper.ReplaceEntry(json, "unity-mcp", fresh);
+            var result = JsonMergeHelper.ReplaceEntry(json, "unity-biome-mcp", fresh);
             Assert.AreEqual(result.Count(c => c == '{'), result.Count(c => c == '}'),
                 "Output braces must be balanced");
         }
@@ -72,9 +72,9 @@ namespace UnityMCP.Editor.Chat.Tests
         public void ReplaceEntry_NestedBracesInValue_HandledCorrectly()
         {
             // Value contains nested braces — depth matching must not stop early
-            var json = "{\"unity-mcp\":{\"env\":{\"KEY\":\"old\"},\"args\":[]}}";
+            var json = "{\"unity-biome-mcp\":{\"env\":{\"KEY\":\"old\"},\"args\":[]}}";
             var fresh = "{\"env\":{\"KEY\":\"new\"},\"args\":[]}";
-            var result = JsonMergeHelper.ReplaceEntry(json, "unity-mcp", fresh);
+            var result = JsonMergeHelper.ReplaceEntry(json, "unity-biome-mcp", fresh);
             StringAssert.Contains("\"new\"", result);
             StringAssert.DoesNotContain("\"old\"", result);
             Assert.AreEqual(result.Count(c => c == '{'), result.Count(c => c == '}'),
@@ -88,12 +88,12 @@ namespace UnityMCP.Editor.Chat.Tests
                 "{\n" +
                 "  \"mcpServers\": {\n" +
                 "    \"blender\": { \"command\": \"blender-mcp\" },\n" +
-                "    \"unity-mcp\": { \"command\": \"python3\", \"env\": { \"UNITY_MCP_PORT\": \"9501\" } },\n" +
+                "    \"unity-biome-mcp\": { \"command\": \"python3\", \"env\": { \"UNITY_MCP_PORT\": \"9501\" } },\n" +
                 "    \"figma\": { \"command\": \"figma-mcp\" }\n" +
                 "  }\n" +
                 "}\n";
             var fresh = "{ \"command\": \"python3\", \"env\": { \"UNITY_MCP_PORT\": \"9900\" } }";
-            var result = JsonMergeHelper.ReplaceEntry(json, "unity-mcp", fresh);
+            var result = JsonMergeHelper.ReplaceEntry(json, "unity-biome-mcp", fresh);
 
             StringAssert.Contains("blender-mcp", result);
             StringAssert.Contains("figma-mcp", result);
@@ -152,12 +152,12 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void ExtractObjectEntries_FilterExcludesKey_EntryAbsent()
         {
-            var block = "\"unity-mcp\": { \"cmd\": \"python3\" }, \"blender\": { \"cmd\": \"blender-mcp\" }";
+            var block = "\"unity-biome-mcp\": { \"cmd\": \"python3\" }, \"blender\": { \"cmd\": \"blender-mcp\" }";
             var result = JsonMergeHelper.ExtractObjectEntries(block,
-                key => !key.Equals("unity-mcp", StringComparison.OrdinalIgnoreCase));
+                key => !key.Equals("unity-biome-mcp", StringComparison.OrdinalIgnoreCase));
             Assert.AreEqual(1, result.Count);
             StringAssert.Contains("\"blender\"", result[0]);
-            Assert.IsFalse(result.Exists(e => e.Contains("unity-mcp")));
+            Assert.IsFalse(result.Exists(e => e.Contains("unity-biome-mcp")));
         }
 
         [Test]
@@ -182,11 +182,11 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void InjectBeforeBlockClose_InjectsEntry()
         {
-            var json = "{\n  \"mcp\": {\n    \"unity-mcp\": {}\n  }\n}\n";
+            var json = "{\n  \"mcp\": {\n    \"unity-biome-mcp\": {}\n  }\n}\n";
             var extra = new List<string> { "\"blender\": { \"cmd\": \"b\" }" };
             var result = JsonMergeHelper.InjectBeforeBlockClose(json, "mcp", extra);
             StringAssert.Contains("\"blender\"", result);
-            StringAssert.Contains("unity-mcp", result);
+            StringAssert.Contains("unity-biome-mcp", result);
             Assert.AreEqual(result.Count(c => c == '{'), result.Count(c => c == '}'));
         }
 

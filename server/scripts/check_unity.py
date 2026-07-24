@@ -9,7 +9,7 @@ import struct
 import json
 from pathlib import Path
 
-_PORTS_DIR = Path.home() / ".unity-mcp/ports"
+_PORTS_DIR = Path.home() / ".unity-biome-mcp/ports"
 _TAIL = 2 * 1024 * 1024  # 2MB — covers large compile error bursts
 _TCP_TIMEOUT = 2
 

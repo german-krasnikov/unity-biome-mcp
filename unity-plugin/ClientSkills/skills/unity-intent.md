@@ -1,6 +1,6 @@
 ---
 name: unity-intent
-description: Natural language intent tools for Unity MCP — do, ask, animator_intent, ui_intent, vfx_intent. Use when you want to express a Unity scene change in plain language instead of writing batch DSL manually.
+description: Natural language intent tools for Unity Biome MCP — do, ask, animator_intent, ui_intent, vfx_intent. Use when you want to express a Unity scene change in plain language instead of writing batch DSL manually.
 user-invocable: false
 ---
 

@@ -1,4 +1,4 @@
-"""List and stop running Unity MCP server processes via lockfile inspection.
+"""List and stop running Unity Biome MCP server processes via lockfile inspection.
 
 Pure stdlib. No network calls. No wildcard kills.
 """

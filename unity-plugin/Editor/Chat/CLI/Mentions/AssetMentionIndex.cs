@@ -97,7 +97,7 @@ namespace UnityMCP.Editor.Chat
             var ext = Path.GetExtension(path).ToLowerInvariant();
             if (ext == ".meta" || ext == ".dll" || ext == ".so" || ext == ".pdb") return false;
             // Exclude Packages/ unless it's our own package
-            if (path.StartsWith("Packages/") && !path.Contains("/com.unity-mcp/")) return false;
+            if (path.StartsWith("Packages/") && !path.Contains("/com.unity-biome-mcp/")) return false;
             return true;
         }
 

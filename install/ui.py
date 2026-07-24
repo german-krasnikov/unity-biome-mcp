@@ -1,4 +1,4 @@
-"""stdlib-only terminal UI for the unity-kiss-mcp installer."""
+"""stdlib-only terminal UI for the unity-biome-mcp installer."""
 import io
 import os
 import sys

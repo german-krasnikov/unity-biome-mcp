@@ -47,7 +47,7 @@ namespace UnityMCP.Editor.Tests
         {
             var url = WizardConfigWriter.GitInstallUrlFor("1.2.3");
             Assert.AreEqual(
-                "git+https://github.com/german-krasnikov/unity-kiss-mcp.git@v1.2.3#subdirectory=server",
+                "git+https://github.com/german-krasnikov/unity-biome-mcp.git@v1.2.3#subdirectory=server",
                 url);
         }
 

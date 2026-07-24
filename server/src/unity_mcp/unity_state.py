@@ -1,6 +1,6 @@
 """Unity Editor state file reader.
 
-Unity writes ~/.unity-mcp/state/port-{port}.state with:
+Unity writes ~/.unity-biome-mcp/state/port-{port}.state with:
   line 0: state name (ready/compiling/reloading/compile_failed)
   line 1: unix timestamp when state changed
   line 2: Unity process PID
@@ -31,7 +31,7 @@ class UnityState:
 
 
 def read_state_for_port(port: int) -> Optional[UnityState]:
-    """Read Unity state from ~/.unity-mcp/state/port-{port}.state."""
+    """Read Unity state from ~/.unity-biome-mcp/state/port-{port}.state."""
     path = unity_mcp_dir() / "state" / f"port-{port}.state"
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").strip().split("\n")

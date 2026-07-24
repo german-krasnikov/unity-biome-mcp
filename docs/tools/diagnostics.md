@@ -14,8 +14,8 @@ Comprehensive health check with optional auto-fix.
 | Check | Tests | Auto-fix? |
 |-------|-------|-----------|
 | `python_version` | Python ≥ 3.10 | ❌ Install Python 3.10+ |
-| `port_file` | ~/.unity-mcp/ports/*.port exist + PIDs alive | ✅ Remove stale files |
-| `lockfile` | ~/.unity-mcp/*.lock holds live PID | ✅ Clean stale files |
+| `port_file` | ~/.unity-biome-mcp/ports/*.port exist + PIDs alive | ✅ Remove stale files |
+| `lockfile` | ~/.unity-biome-mcp/*.lock holds live PID | ✅ Clean stale files |
 | `tcp_connection` | 127.0.0.1:port reachable + responds | ⚠️ Reconnect attempt only |
 | `unity_state` | Editor.log accessible + recent activity | ⚠️ Diagnose compile/reload wedge |
 
@@ -24,8 +24,8 @@ Comprehensive health check with optional auto-fix.
 ```
 ✅ All checks passed
   Python: 3.12.1 ✓
-  Port file: ~/.unity-mcp/ports/1234.port (PID 1234 alive) ✓
-  Lockfile: ~/.unity-mcp/1234.lock ✓
+  Port file: ~/.unity-biome-mcp/ports/1234.port (PID 1234 alive) ✓
+  Lockfile: ~/.unity-biome-mcp/1234.lock ✓
   TCP connection: port 9500 ✓
   Unity state: compile clean ✓
 ```
@@ -316,7 +316,7 @@ Explicitly reconnect to Unity via TCP.
 **Port discovery waterfall:**
 1. Explicit `port` param (if > 0)
 2. `UNITY_MCP_PORT` env var
-3. First live `.port` file in `~/.unity-mcp/ports/`
+3. First live `.port` file in `~/.unity-biome-mcp/ports/`
 4. Default: 9500
 
 **Example:**
@@ -331,7 +331,7 @@ await reconnect_unity(port=9501)
 # Multi-instance discovery
 import os
 ports = []
-for f in os.listdir(os.path.expanduser("~/.unity-mcp/ports")):
+for f in os.listdir(os.path.expanduser("~/.unity-biome-mcp/ports")):
     try:
         ports.append(int(open(f).read().split("\n")[0]))
     except: pass
@@ -372,7 +372,7 @@ Commands hanging or timing out?
 | "ROSLYN UNAVAILABLE" | Try fallback tools | Use grep + Read tool instead of find_references |
 | "Tests fail but compile clean" | Check for stale DLL | Bump package.json version + force reload |
 | "Reconnect spam (9+ attempts)" | `doctor(fix=True)` | Clean stale port files |
-| "Wrong port when multi-instance" | `ls ~/.unity-mcp/ports/` | Set explicitly: `export UNITY_MCP_PORT=9501` |
+| "Wrong port when multi-instance" | `ls ~/.unity-biome-mcp/ports/` | Set explicitly: `export UNITY_MCP_PORT=9501` |
 
 ## Connection Diagnostics Workflow
 

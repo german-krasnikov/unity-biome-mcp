@@ -122,14 +122,14 @@ load_plugins(mcp, _send, _args)
 
 # Port configuration (v0.57.0)
 # - DEFAULT_PORT = 9500 centralized in constants.py (replaces magic strings)
-# - Auto-discovered from ~/.unity-mcp/ports/*.port or UNITY_MCP_PORT env
+# - Auto-discovered from ~/.unity-biome-mcp/ports/*.port or UNITY_MCP_PORT env
 # - Used throughout: lockfile creation, bridge connection, test harnesses
 
 @asynccontextmanager
 async def lifespan(app):
-    # 1. Auto-discover Unity port from ~/.unity-mcp/ports/*.port or UNITY_MCP_PORT env
-    # 2. Cleanup stale port-scoped config files (v0.53.0): unity-mcp-config-{port}.json older than 2h
-    # 3. Acquire exclusive PID lockfile ~/.unity-mcp/server-{port}.lock
+    # 1. Auto-discover Unity port from ~/.unity-biome-mcp/ports/*.port or UNITY_MCP_PORT env
+    # 2. Cleanup stale port-scoped config files (v0.53.0): unity-biome-mcp-config-{port}.json older than 2h
+    # 3. Acquire exclusive PID lockfile ~/.unity-biome-mcp/server-{port}.lock
     # 4. Create ConnectionSlot, connect bridge
     # 5. Wire middleware layers (if UNITY_MCP_MIDDLEWARE=1)
     # 6. Wire ToolHinter (default on, disable with UNITY_MCP_HINTS=0)
@@ -172,13 +172,13 @@ def main():
 
 ### Server Control (server_control.py)
 
-- `list_servers` — list all running MCP server PIDs/ports (reads ~/.unity-mcp/server-{port}.lock files)
+- `list_servers` — list all running MCP server PIDs/ports (reads ~/.unity-biome-mcp/server-{port}.lock files)
 - `stop_server(port)` — graceful SIGTERM (Unix) or taskkill (Windows) shutdown of running server
 
 ### Compile State Probe (compile_state.py)
 
 Simplified detector for Unity C# compile/domain-reload:
-- **State file**: reads `~/.unity-mcp/state/port-{port}.state` (ready/compiling/reloading)
+- **State file**: reads `~/.unity-biome-mcp/state/port-{port}.state` (ready/compiling/reloading)
 - `is_process_dead()`: PID cross-check from port file
 
 **compile_status** response format (v0.89.x):

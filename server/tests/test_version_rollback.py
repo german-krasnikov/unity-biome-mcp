@@ -47,7 +47,7 @@ def test_server_git_url_rejects_two_part_version():
 
 def test_server_git_url_correct_form():
     url = server_git_url("1.2.3")
-    expected = "git+https://github.com/german-krasnikov/unity-kiss-mcp.git@v1.2.3#subdirectory=server"
+    expected = "git+https://github.com/german-krasnikov/unity-biome-mcp.git@v1.2.3#subdirectory=server"
     assert url == expected
 
 
@@ -173,7 +173,7 @@ def test_version_set_repins_with_tagged_url(install_mod):
     # merge_mcp_config was called; inspect the entry passed
     assert mock_merge.called
     entry_arg = mock_merge.call_args[0][1]  # second positional arg = entry dict
-    from_url = entry_arg["args"][1]  # ["--from", URL, "unity-mcp"]
+    from_url = entry_arg["args"][1]  # ["--from", URL, "unity-biome-mcp"]
     assert "@v0.54.1" in from_url
     assert "#subdirectory=server" in from_url
 
@@ -220,7 +220,7 @@ def test_force_print_plugin_url_prints_and_exits(install_mod, capsys):
     )
     install_mod.cmd_version(args)  # must NOT call sys.exit or _load_stop_server
     out = capsys.readouterr().out
-    assert "german-krasnikov/unity-kiss-mcp" in out
+    assert "german-krasnikov/unity-biome-mcp" in out
     assert "#v0.55.0" in out
 
 
@@ -275,12 +275,12 @@ def full_project_root(tmp_path: Path) -> Path:
 
     (tmp_path / "server" / "pyproject.toml").write_text(textwrap.dedent("""\
         [project]
-        name = "unity-mcp"
+        name = "unity-biome-mcp"
         version = "0.50.0"
     """), encoding="utf-8")
 
     (tmp_path / "unity-plugin" / "package.json").write_text(
-        '{\n  "name": "com.unity-mcp.editor",\n  "version": "0.50.0"\n}\n',
+        '{\n  "name": "com.unity-biome-mcp.editor",\n  "version": "0.50.0"\n}\n',
         encoding="utf-8"
     )
 

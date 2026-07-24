@@ -1,8 +1,8 @@
-# Create Your First Unity MCP Plugin
+# Create Your First Unity Biome MCP Plugin
 
 ## Prerequisites
 
-- unity-kiss-mcp installed (pip + UPM)
+- unity-biome-mcp installed (pip + UPM)
 - Python 3.10+, Unity 2021+
 
 ## 1. Scaffold (Python side)
@@ -26,7 +26,7 @@ my-unity-plugin/
 [project]
 name = "my-unity-plugin"
 version = "0.1.0"
-dependencies = ["unity-mcp"]
+dependencies = ["unity-biome-mcp"]
 
 [project.entry-points."unity_mcp.plugins"]
 my_tools = "my_plugin.plugins.my_tools"

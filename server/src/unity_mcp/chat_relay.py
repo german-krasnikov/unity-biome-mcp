@@ -360,7 +360,7 @@ async def _main() -> None:
 
 
 def main() -> None:
-    """Sync entrypoint for the `unity-mcp-relay` console script."""
+    """Sync entrypoint for the `unity-biome-mcp-relay` console script."""
     asyncio.run(_main())
 
 

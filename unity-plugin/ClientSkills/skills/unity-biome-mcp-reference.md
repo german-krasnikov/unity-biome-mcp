@@ -1,8 +1,8 @@
 ---
-description: Complete Unity MCP reference — tool catalog, tier system, batch syntax
+description: Complete Unity Biome MCP reference — tool catalog, tier system, batch syntax
 ---
 
-# Unity MCP Tool Reference
+# Unity Biome MCP Tool Reference
 
 142 public tools. 45 always-visible (15 CORE + 30 TIER1). All others gated via `discover_tools(category)`.
 Categories: **SCENE**, **COMPONENTS**, **ASSETS**, **MEDIA**, **VERIFY**, **RUNTIME**, **TESTS**, **SYSTEM**.

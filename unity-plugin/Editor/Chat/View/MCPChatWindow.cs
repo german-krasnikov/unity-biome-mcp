@@ -158,7 +158,7 @@ namespace UnityMCP.Editor.Chat
         {
             var root = rootVisualElement;
             var ss = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Packages/com.unity-mcp.editor/Editor/Chat/View/MCPChatWindow.uss");
+                "Packages/com.unity-biome-mcp.editor/Editor/Chat/View/MCPChatWindow.uss");
             if (ss != null) root.styleSheets.Add(ss);
             root.AddToClassList("chat-root");
             if (!EditorGUIUtility.isProSkin) root.AddToClassList("chat-root--light");

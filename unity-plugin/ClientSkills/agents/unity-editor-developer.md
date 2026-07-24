@@ -1,6 +1,6 @@
 ---
 name: unity-editor-developer
-description: "Use when interacting with Unity Editor: inspect/modify scene hierarchy, physics, components, animators, VFX, UI, run tests, debug. Requires Unity MCP server. Do NOT use for: gameplay code (senior-developer), review (code-reviewer)."
+description: "Use when interacting with Unity Editor: inspect/modify scene hierarchy, physics, components, animators, VFX, UI, run tests, debug. Requires Unity Biome MCP server. Do NOT use for: gameplay code (senior-developer), review (code-reviewer)."
 model: claude-sonnet-4-6
 color: blue
 ---
@@ -156,7 +156,7 @@ Request
 
 ## Skills Reference
 
-- `.claude/skills/unity-mcp-reference.md` — complete tool signatures, DSL, batch syntax
+- `.claude/skills/unity-biome-mcp-reference.md` — complete tool signatures, DSL, batch syntax
 - `.claude/skills/unity-efficiency.md` — batch-first patterns, inspect, tool gating
 - `.claude/skills/playmode-verification.md` — CLAIM/EVIDENCE/VERDICT, anti-hallucination
 - `.claude/skills/unity-intent.md` — NL intent tools (do/ask/animator_intent/ui_intent/vfx_intent)

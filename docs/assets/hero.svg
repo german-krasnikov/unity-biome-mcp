@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="Unity MCP hero banner">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="Unity Biome MCP hero banner">
   <defs>
     <radialGradient id="bgGlow" cx="50%" cy="50%" r="60%">
       <stop offset="0%" stop-color="#21213f"/>
@@ -112,8 +112,8 @@
 
   <!-- ===== title + tagline ===== -->
   <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" text-anchor="middle">
-    <text x="600" y="176" text-anchor="middle" font-size="64" font-weight="700" fill="#3ad29f" opacity="0.45" filter="url(#softText)">Unity MCP</text>
-    <text x="600" y="176" text-anchor="middle" font-size="64" font-weight="700" fill="url(#titleGrad)" letter-spacing="1.5">Unity MCP</text>
+    <text x="600" y="176" text-anchor="middle" font-size="64" font-weight="700" fill="#3ad29f" opacity="0.45" filter="url(#softText)">Unity Biome MCP</text>
+    <text x="600" y="176" text-anchor="middle" font-size="64" font-weight="700" fill="url(#titleGrad)" letter-spacing="1.5">Unity Biome MCP</text>
     <text x="600" y="224" text-anchor="middle" font-size="19" font-weight="400" fill="#888899" letter-spacing="0.4">Control Unity from Claude with <!-- STAT:TOOLS -->142<!-- /STAT --> token-minimized tools and batch operations</text>
     <g>
       <rect x="560" y="246" width="80" height="2" rx="1" fill="#e94560" opacity="0.9"/>

@@ -1,4 +1,4 @@
-"""Integration tests for Unity MCP TCP communication.
+"""Integration tests for Unity Biome MCP TCP communication.
 
 Uses a REAL async TCP server to test bridge communication.
 """

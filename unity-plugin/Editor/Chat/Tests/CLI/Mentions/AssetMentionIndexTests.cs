@@ -62,14 +62,14 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.That(AssetMentionIndex.ShouldIncludePath("Assets/Foo.cs.meta"), Is.False);
         }
 
-        // 5. Packages/ paths are excluded (except unity-mcp)
+        // 5. Packages/ paths are excluded (except unity-biome-mcp)
         [Test]
         public void FiltersPackages_Standard()
             => Assert.That(AssetMentionIndex.ShouldIncludePath("Packages/com.unity.ui/Runtime/Foo.cs"), Is.False);
 
         [Test]
         public void FiltersPackages_AllowsUnityMcp()
-            => Assert.That(AssetMentionIndex.ShouldIncludePath("Packages/com.unity-mcp/Editor/Foo.cs"), Is.True);
+            => Assert.That(AssetMentionIndex.ShouldIncludePath("Packages/com.unity-biome-mcp/Editor/Foo.cs"), Is.True);
 
         // 6. Search finds entry by filename
         [Test]

@@ -32,7 +32,7 @@ await list_connections()
 **Write-idempotent.** Reconnect to Unity via TCP.
 
 ```python
-# Auto-discover port from ~/.unity-mcp/ports/*.port
+# Auto-discover port from ~/.unity-biome-mcp/ports/*.port
 await reconnect_unity()
 
 # Manual port
@@ -42,7 +42,7 @@ await reconnect_unity(port=9500)
 **Port discovery waterfall:**
 1. Explicit `port` param (if > 0)
 2. `UNITY_MCP_PORT` env var
-3. First live `.port` file in `~/.unity-mcp/ports/`
+3. First live `.port` file in `~/.unity-biome-mcp/ports/`
 4. Default: 9500
 
 **Returns:** Connection status message or error.
@@ -117,8 +117,8 @@ result = await doctor(fix=True)
 | Check | Tests | Auto-fix? |
 |-------|-------|-----------|
 | `python_version` | Python ≥ 3.10 | ❌ Manual: Install Python 3.10+ |
-| `port_file` | ~/.unity-mcp/ports/*.port exist + PIDs alive | ✅ Remove stale files, signal if none live |
-| `lockfile` | ~/.unity-mcp/*.lock holds live PID | ✅ Clean stale files |
+| `port_file` | ~/.unity-biome-mcp/ports/*.port exist + PIDs alive | ✅ Remove stale files, signal if none live |
+| `lockfile` | ~/.unity-biome-mcp/*.lock holds live PID | ✅ Clean stale files |
 | `tcp_connection` | 127.0.0.1:port reachable + responds to heartbeat | ⚠️ Reconnect attempt only |
 | `unity_state` | Editor.log accessible + recent activity | ⚠️ Diagnose compile/domain-reload wedge |
 
@@ -132,7 +132,7 @@ result = await doctor(fix=True)
 
 **Solution:**
 1. Read `UNITY_MCP_PORT` environment variable (set by setup wizard)
-2. Scan `~/.unity-mcp/ports/{PID}.port` files (one per running instance)
+2. Scan `~/.unity-biome-mcp/ports/{PID}.port` files (one per running instance)
 3. Check each file: `{port}\n{timestamp}\n{session_id}`
 4. Verify PID alive via `/proc/{PID}` (Linux) or `ps` (macOS) or WMI (Windows)
 5. Fall back to default 9500
@@ -141,14 +141,14 @@ result = await doctor(fix=True)
 
 ```bash
 # List all running instance ports
-ls -la ~/.unity-mcp/ports/
+ls -la ~/.unity-biome-mcp/ports/
 
 # Check single instance (macOS)
 python3 -c "
 import json,pathlib,os
 port=int(os.environ.get('UNITY_MCP_PORT','0'))
 if not port:
-    for p in pathlib.Path.home().glob('.unity-mcp/ports/*.port'):
+    for p in pathlib.Path.home().glob('.unity-biome-mcp/ports/*.port'):
         try: port=int(p.read_text().split('\n')[0]); break
         except: pass
 print(port or 9500)
@@ -220,8 +220,8 @@ print(port or 9500)
 **Fix:**
 ```bash
 # Manual cleanup
-rm ~/.unity-mcp/ports/{PID}.port
-rm ~/.unity-mcp/{PID}.lock
+rm ~/.unity-biome-mcp/ports/{PID}.port
+rm ~/.unity-biome-mcp/{PID}.lock
 # Then:
 open -a Unity  # restart editor
 ```
@@ -242,8 +242,8 @@ await reconnect_unity()
 2. **Or discover by project name:**
    ```bash
    # Lists all active instances with ports
-   ls -la ~/.unity-mcp/ports/
-   cat ~/.unity-mcp/ports/{PID}.port  # see port
+   ls -la ~/.unity-biome-mcp/ports/
+   cat ~/.unity-biome-mcp/ports/{PID}.port  # see port
    ```
 
 3. **Then reconnect:**

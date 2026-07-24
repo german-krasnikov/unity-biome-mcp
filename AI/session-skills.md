@@ -200,7 +200,7 @@ changes = await get_changes(clear=False)  # Read but don't clear log
 
 ```python
 await save_session()
-# → Session saved to /Users/german/Work/python/unity-kiss-mcp/.claude/session-context.json
+# → Session saved to /Users/german/Work/python/unity-biome-mcp/.claude/session-context.json
 ```
 
 **File format:**

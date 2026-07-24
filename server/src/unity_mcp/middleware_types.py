@@ -1,4 +1,4 @@
-"""Constants and CircuitBreaker for Unity MCP middleware."""
+"""Constants and CircuitBreaker for Unity Biome MCP middleware."""
 import time
 from .tools.tool_specs import _SPECS as _TOOL_SPECS
 

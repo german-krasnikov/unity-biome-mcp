@@ -19,13 +19,13 @@ from unity_mcp.mcp_config_writer import (
 def test_write_claude_config_creates_file(tmp_path):
     path = write_claude_config(str(tmp_path), 9601)
     assert Path(path).exists()
-    assert "unity-mcp-config-9601.json" in path
+    assert "unity-biome-mcp-config-9601.json" in path
 
 
 def test_claude_config_port_correct(tmp_path):
     path = write_claude_config(str(tmp_path), 9999)
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    env = data["mcpServers"]["unity-mcp"]["env"]
+    env = data["mcpServers"]["unity-biome-mcp"]["env"]
     assert env.get("UNITY_MCP_PORT") == "9999"
 
 
@@ -51,7 +51,7 @@ def test_resolve_server_cmd_uvx_fallback(tmp_path, monkeypatch):
                         lambda b: "/opt/homebrew/bin/uvx" if b == "uvx" else None)
     cmd, args = resolve_server_cmd()
     assert cmd == "/opt/homebrew/bin/uvx"
-    assert args == ["unity-mcp"]
+    assert args == ["unity-biome-mcp"]
 
 
 # ── Fake Path helper ──────────────────────────────────────────────────────────

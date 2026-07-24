@@ -1,5 +1,5 @@
 // Silent background uvx pre-warm (ARCH-coldstart-ux.md, component 1). First-run of
-// `uvx --from git+URL unity-mcp-relay` takes 10-45s because uvx clones the git repo and
+// `uvx --from git+URL unity-biome-mcp-relay` takes 10-45s because uvx clones the git repo and
 // builds the wheel from scratch. Firing a throwaway `--version` probe in the background
 // during domain reload/startup populates ~/.cache/uv so the real Chat spawn later hits the
 // warm wheel cache instead (~1-2s).
@@ -76,7 +76,7 @@ namespace UnityMCP.Editor.Chat
         /// <summary>
         /// Pure — swaps the relay's normal invocation for a throwaway version probe so the
         /// warmup never opens a TCP port or writes SessionState. E.g.
-        /// ["--from", url, "unity-mcp-relay"] → [..., "--version"].
+        /// ["--from", url, "unity-biome-mcp-relay"] → [..., "--version"].
         /// </summary>
         internal static string[] BuildWarmupArgv(string[] argv)
         {

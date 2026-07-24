@@ -10,7 +10,7 @@ namespace UnityMCP.Editor
     /// <summary>Shared MCP action methods — used by status window and status bar widget.</summary>
     internal static class MCPActions
     {
-        // Test seam: override to isolate KillAll from real ~/.unity-mcp in tests.
+        // Test seam: override to isolate KillAll from real ~/.unity-biome-mcp in tests.
         internal static string OverrideLockDir;
 
         internal static void Restart()
@@ -34,10 +34,10 @@ namespace UnityMCP.Editor
         {
             var dir = OverrideLockDir ?? System.IO.Path.Combine(
                 System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
-                ".unity-mcp");
+                ".unity-biome-mcp");
             if (!Directory.Exists(dir))
             {
-                UnityEngine.Debug.LogWarning("[MCP] Kill: no ~/.unity-mcp dir");
+                UnityEngine.Debug.LogWarning("[MCP] Kill: no ~/.unity-biome-mcp dir");
                 return;
             }
 
@@ -84,7 +84,7 @@ namespace UnityMCP.Editor
 
         internal static void Reimport()
         {
-            var guids = AssetDatabase.FindAssets("t:asmdef", new[] { "Packages/com.unity-mcp.editor" });
+            var guids = AssetDatabase.FindAssets("t:asmdef", new[] { "Packages/com.unity-biome-mcp.editor" });
             if (guids.Length > 0)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[0]);

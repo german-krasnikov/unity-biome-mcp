@@ -6,21 +6,20 @@ import re
 import shutil
 from typing import Callable, Optional
 
-# Our MCP server name (config key). "unity-mcp" — one "mcp", and distinct from
+# Our MCP server name (config key). "unity-biome-mcp" — one "mcp", and distinct from
 # the foreign bare [mcp_servers.unity] (CoplayDev) that the TOML strip removes.
-SERVER_NAME = "unity-mcp"
-# Previous name we shipped — migrated away from (removed) on every write so a
-# rename never leaves an orphaned duplicate server behind. ("unity-kiss" was the
-# botched v0.70.8 rename value; reverted back to "unity-mcp" as canonical.)
-_OLD_NAMES = ("unity-kiss",)
+SERVER_NAME = "unity-biome-mcp"
+# Previous names we shipped — migrated away from (removed) on every write so a
+# rename never leaves an orphaned duplicate server behind.
+_OLD_NAMES = ("unity-mcp",)
 
-# Matches OUR section [mcp_servers.unity-mcp] AND the old [mcp_servers.unity-kiss],
-# plus any dotted sub-sections (e.g. .env). Shared by merge_toml_mcp (replace →
-# migrates old to new) and remove_toml_mcp_entry (delete). Does NOT match the
-# foreign bare [mcp_servers.unity] — that has its own stale_re strip.
+# Matches OUR section [mcp_servers.unity-biome-mcp] AND old [mcp_servers.unity-mcp],
+# plus any dotted sub-sections (e.g. .env).
+# Shared by merge_toml_mcp (replace → migrates old to new) and remove_toml_mcp_entry
+# (delete). Does NOT match the foreign bare [mcp_servers.unity] — that has its own strip.
 _UNITY_MCP_SECTION_RE = re.compile(
-    r'\[mcp_servers\.unity-(?:kiss|mcp)\]\n(?:(?!\[)[^\n]*\n)*'
-    r'(?:\[mcp_servers\.unity-(?:kiss|mcp)\.[^\]]+\]\n(?:(?!\[)[^\n]*\n)*)*',
+    r'\[mcp_servers\.unity-(?:mcp|biome-mcp)\]\n(?:(?!\[)[^\n]*\n)*'
+    r'(?:\[mcp_servers\.unity-(?:mcp|biome-mcp)\.[^\]]+\]\n(?:(?!\[)[^\n]*\n)*)*',
     re.MULTILINE,
 )
 
@@ -31,7 +30,7 @@ def merge_mcp_config(
     root_key: str = "mcpServers",
     entry_transformer: Optional[Callable[[dict], dict]] = None,
 ) -> None:
-    """Read → parse → patch unity-mcp entry → write. Creates file if missing."""
+    """Read → parse → patch unity-biome-mcp entry → write. Creates file if missing."""
     if config_path.exists():
         try:
             data = json.loads(config_path.read_text(encoding="utf-8"))
@@ -53,7 +52,7 @@ def merge_mcp_config(
 
 
 def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
-    """Merge unity-mcp into a TOML config (Codex). Text-based, no TOML lib needed."""
+    """Merge unity-biome-mcp into a TOML config (Codex). Text-based, no TOML lib needed."""
     bak = config_path.with_suffix(".bak")
     if config_path.exists():
         if not bak.exists():
@@ -92,7 +91,7 @@ def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
 
 
 def remove_mcp_entry(config_path: pathlib.Path, root_key: str = "mcpServers") -> bool:
-    """Delete data[root_key]['unity-mcp'] if present.
+    """Delete data[root_key]['unity-biome-mcp'] if present.
 
     Returns True if it was removed, False if the file/entry didn't exist.
     Raises ValueError on corrupt JSON (same contract as merge_mcp_config).
@@ -116,7 +115,7 @@ def remove_mcp_entry(config_path: pathlib.Path, root_key: str = "mcpServers") ->
 
 
 def remove_toml_mcp_entry(config_path: pathlib.Path) -> bool:
-    """Strip [mcp_servers.unity-mcp] (+ any dotted sub-sections) from a TOML config.
+    """Strip [mcp_servers.unity-biome-mcp] (+ any dotted sub-sections) from a TOML config.
 
     Returns True if a section was found and removed, False otherwise.
     """

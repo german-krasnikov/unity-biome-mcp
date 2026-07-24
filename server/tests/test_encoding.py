@@ -154,7 +154,7 @@ def test_unity_state_read_utf8(tmp_path):
 
     CYR_STATE = "компилирую"  # Cyrillic — cp1251 decode gives mojibake, not this value
     port = 19500
-    state_dir = tmp_path / ".unity-mcp" / "state"
+    state_dir = tmp_path / ".unity-biome-mcp" / "state"
     state_dir.mkdir(parents=True)
     state_file = state_dir / f"port-{port}.state"
     # Write as UTF-8 bytes (no BOM, simulates what C# writes)
@@ -192,7 +192,7 @@ def test_server_filtering_read_utf8(tmp_path):
     import unittest.mock as mock
     from unity_mcp import server_filtering
 
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     # PID in stem; port=19999, project_path with Cyrillic, project_name with Cyrillic
     port_file = ports_dir / "99999.port"
@@ -230,7 +230,7 @@ def test_lockfile_read_pid_from_port_file_cyrillic_path(tmp_path):
     from unittest.mock import patch
     from unity_mcp.lockfile import read_pid_from_port_file
 
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = 77777
     port = 19501
@@ -269,7 +269,7 @@ def test_install_configure_writes_utf8_no_bom(tmp_path):
     raw = target.read_bytes()
     assert raw[:3] != BOM, ".mcp.json must not start with UTF-8 BOM"
     data = json.loads(raw.decode("utf-8"))
-    assert "unity-mcp" in data["mcpServers"], "unity-mcp entry must be present"
+    assert "unity-biome-mcp" in data["mcpServers"], "unity-biome-mcp entry must be present"
 
 
 # ── bridge.py — ensure_ascii=False ────────────────────────────────────────

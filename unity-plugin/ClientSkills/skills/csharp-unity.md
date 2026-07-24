@@ -1,6 +1,6 @@
 ---
 name: csharp-unity
-description: C# Unity Editor API patterns for the Unity MCP plugin. Load when writing or reviewing C# Editor code in unity-plugin/Editor/. Covers: InitializeOnLoad lifecycle, HierarchyChanged event, SerializedObject update/apply pattern, main-thread dispatch via ConcurrentQueue, EditorPrefs persistence across domain reloads, CancellationTokenSource safety on Mono (ObjectDisposedException), shutdown guard (_shuttingDown volatile), InitializeOnEnterPlayMode, EditorWindow setup, and a quick-reference table of common Unity Editor pitfalls and their fixes.
+description: C# Unity Editor API patterns for the Unity Biome MCP plugin. Load when writing or reviewing C# Editor code in unity-plugin/Editor/. Covers: InitializeOnLoad lifecycle, HierarchyChanged event, SerializedObject update/apply pattern, main-thread dispatch via ConcurrentQueue, EditorPrefs persistence across domain reloads, CancellationTokenSource safety on Mono (ObjectDisposedException), shutdown guard (_shuttingDown volatile), InitializeOnEnterPlayMode, EditorWindow setup, and a quick-reference table of common Unity Editor pitfalls and their fixes.
 user-invocable: false
 ---
 

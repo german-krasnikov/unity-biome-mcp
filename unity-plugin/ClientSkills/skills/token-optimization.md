@@ -1,6 +1,6 @@
 ---
 name: token-optimization
-description: Token optimization patterns for the Unity MCP project — batch-first rule (always use batch for 2+ ops), inspect tool for multi-object reads, C#-side field projection/compression (fields=/compress= params), tool gating via discover_tools (SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM categories), response format comparisons (text vs JSON savings), hierarchy serialization rules, and token budget benchmarks by scenario. Load when planning multi-step MCP operations, choosing between individual vs batched tool calls, or when response size or tool-count efficiency matters.
+description: Token optimization patterns for the Unity Biome MCP project — batch-first rule (always use batch for 2+ ops), inspect tool for multi-object reads, C#-side field projection/compression (fields=/compress= params), tool gating via discover_tools (SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM categories), response format comparisons (text vs JSON savings), hierarchy serialization rules, and token budget benchmarks by scenario. Load when planning multi-step MCP operations, choosing between individual vs batched tool calls, or when response size or tool-count efficiency matters.
 user-invocable: false
 ---
 
@@ -121,4 +121,4 @@ For multi-object component reads, prefer `inspect` over batch.
 ## See Also
 
 - `.claude/skills/unity-efficiency.md` — batch-first patterns, inspect, tool gating workflows
-- `.claude/skills/unity-mcp-reference.md` — complete tool signatures, batch syntax
+- `.claude/skills/unity-biome-mcp-reference.md` — complete tool signatures, batch syntax

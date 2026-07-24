@@ -163,14 +163,14 @@ namespace UnityMCP.Editor.Tests
         {
             ProcessStartInfo capturedPsi = null;
             RelaySpawner.CommandResolver = () => ("/usr/bin/uvx",
-                new[] { "--from", "git+https://example.com/repo.git#subdirectory=server", "unity-mcp-relay" });
+                new[] { "--from", "git+https://example.com/repo.git#subdirectory=server", "unity-biome-mcp-relay" });
             RelaySpawner.ProcessFactory = psi => { capturedPsi = psi; return SpawnFakeRelay(19706); };
 
             RelaySpawner.EnsureRunning();
 
             Assert.AreEqual("/usr/bin/uvx", capturedPsi.FileName);
             CollectionAssert.AreEqual(
-                new[] { "--from", "git+https://example.com/repo.git#subdirectory=server", "unity-mcp-relay" },
+                new[] { "--from", "git+https://example.com/repo.git#subdirectory=server", "unity-biome-mcp-relay" },
                 capturedPsi.ArgumentList);
         }
 

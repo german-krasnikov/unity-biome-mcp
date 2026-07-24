@@ -11,7 +11,7 @@ namespace UnityMCP.Editor.Wizard
 {
     internal static class GitignorePatcher
     {
-        internal const string MarkerLine = "# unity-mcp (auto-generated project configs)";
+        internal const string MarkerLine = "# unity-biome-mcp (auto-generated project configs)";
 
         // Pure — string in, string out. No file I/O. Idempotent: calling twice with the
         // same input+entries returns identical output both times.
@@ -60,7 +60,7 @@ namespace UnityMCP.Editor.Wizard
             catch (Exception ex)
             {
                 // Read-only FS / permission denied — never throw out of delayCall.
-                Debug.LogWarning($"unity-mcp: could not write .gitignore: {ex.Message}");
+                Debug.LogWarning($"unity-biome-mcp: could not write .gitignore: {ex.Message}");
             }
         }
 

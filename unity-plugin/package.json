@@ -1,7 +1,7 @@
 {
-  "name": "com.unity-mcp.editor",
-  "version": "0.94.0",
-  "displayName": "Unity MCP",
+  "name": "com.unity-biome-mcp.editor",
+  "version": "0.95.0",
+  "displayName": "Unity Biome MCP",
   "description": "MCP server for Unity Editor control",
   "unity": "6000.0",
   "license": "MIT",
@@ -12,6 +12,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/german-krasnikov/unity-kiss-mcp.git"
+    "url": "https://github.com/german-krasnikov/unity-biome-mcp.git"
   }
 }

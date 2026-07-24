@@ -1,6 +1,6 @@
 ---
 name: unity-session
-description: Unity MCP session tools — fingerprint, scene_diff, get_changes, save/load_session, screenshot_baseline/compare. Change detection, visual regression, session recovery.
+description: Unity Biome MCP session tools — fingerprint, scene_diff, get_changes, save/load_session, screenshot_baseline/compare. Change detection, visual regression, session recovery.
 user-invocable: false
 ---
 

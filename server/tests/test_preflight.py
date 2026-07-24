@@ -14,7 +14,7 @@ def test_run_preflight_python_too_old_exits_2_with_fatal_line(monkeypatch, capsy
 
     assert exc_info.value.code == 2
     err = capsys.readouterr().err
-    assert err.strip().startswith("UNITY-MCP-FATAL:")
+    assert err.strip().startswith("UNITY-BIOME-MCP-FATAL:")
     assert "| fix:" in err
 
 
@@ -34,7 +34,7 @@ def test_run_preflight_missing_mcp_exits_2(monkeypatch, capsys):
 
     assert exc_info.value.code == 2
     err = capsys.readouterr().err
-    assert err.strip().startswith("UNITY-MCP-FATAL:")
+    assert err.strip().startswith("UNITY-BIOME-MCP-FATAL:")
     assert "| fix:" in err
 
 

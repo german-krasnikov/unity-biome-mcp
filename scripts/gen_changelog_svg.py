@@ -268,7 +268,7 @@ def render_svg(versions: List[Version]) -> str:
     wend = w - 60
 
     first, last = versions[0].ver, versions[-1].ver
-    aria = f"Unity MCP changelog — animated heartbeat timeline of releases v{first} through v{last}"
+    aria = f"Unity Biome MCP changelog — animated heartbeat timeline of releases v{first} through v{last}"
 
     lines: List[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} 360" width="100%" height="360"'

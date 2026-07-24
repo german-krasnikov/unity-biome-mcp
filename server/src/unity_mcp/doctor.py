@@ -38,10 +38,10 @@ async def check_python_version() -> CheckResult:
 
 
 async def check_port_file(fix: bool = False) -> CheckResult:
-    """Check ~/.unity-mcp/ports/*.port files; auto-fix stale PIDs."""
+    """Check ~/.unity-biome-mcp/ports/*.port files; auto-fix stale PIDs."""
     ports_dir = _ports_dir()
     if not ports_dir.exists():
-        return CheckResult("port_file", False, "No ports dir — Unity MCP plugin never ran")
+        return CheckResult("port_file", False, "No ports dir — Unity Biome MCP plugin never ran")
 
     port_files = list(ports_dir.glob("*.port"))
     if not port_files:
@@ -152,7 +152,7 @@ async def check_tcp_connection(port: int = 0) -> CheckResult:
     except (ConnectionRefusedError, OSError):
         return CheckResult(
             "tcp_connection", False,
-            f"Cannot connect to :{port} — Unity MCP plugin not running",
+            f"Cannot connect to :{port} — Unity Biome MCP plugin not running",
             fix_cmd=USER_MESSAGES["disconnected"],
         )
     except asyncio.TimeoutError:

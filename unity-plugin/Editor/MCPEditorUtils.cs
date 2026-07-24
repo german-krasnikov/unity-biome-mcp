@@ -8,10 +8,10 @@ namespace UnityMCP.Editor
         internal static StyleSheet LoadStyleSheet(string filename)
         {
             var ss = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                $"Packages/com.unity-mcp.editor/Editor/{filename}");
+                $"Packages/com.unity-biome-mcp.editor/Editor/{filename}");
             if (ss != null) return ss;
             return AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                $"Assets/../Packages/com.unity-mcp.editor/Editor/{filename}");
+                $"Assets/../Packages/com.unity-biome-mcp.editor/Editor/{filename}");
         }
     }
 }

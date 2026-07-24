@@ -178,7 +178,7 @@ def test_read_pid_from_fd_returns_none_for_corrupt_content(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_read_pid_from_port_file(tmp_path):
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = 12345
     (ports_dir / f"{pid}.port").write_text("9500\n/path/to/project\nMyProject", encoding="utf-8")
@@ -192,7 +192,7 @@ def test_read_pid_returns_none_for_missing():
 
 
 def test_read_pid_from_port_file_corrupt_json(tmp_path):
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     (ports_dir / "12345.port").write_text("not-a-port\n/path/to/project", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path):
@@ -200,7 +200,7 @@ def test_read_pid_from_port_file_corrupt_json(tmp_path):
 
 
 def test_read_pid_from_port_file_non_integer_stem(tmp_path):
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     (ports_dir / "abc.port").write_text("9500\n/path/to/project", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path):
@@ -208,7 +208,7 @@ def test_read_pid_from_port_file_non_integer_stem(tmp_path):
 
 
 def test_read_pid_from_port_file_cyrillic_path_does_not_crash(tmp_path):
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     (ports_dir / "99999.port").write_bytes("9500\n/Users/Иван/МойПроект\nМойПроект\n".encode("utf-8"))
     with patch.object(Path, "home", return_value=tmp_path), \
@@ -222,7 +222,7 @@ def test_read_pid_from_port_file_cyrillic_path_does_not_crash(tmp_path):
 
 def test_read_project_path_from_port_file_returns_path(tmp_path):
     from unity_mcp.lockfile import read_project_path_from_port_file
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_dir = tmp_path / "MyProject"
     project_dir.mkdir()
@@ -234,7 +234,7 @@ def test_read_project_path_from_port_file_returns_path(tmp_path):
 
 def test_read_project_path_dead_pid_skipped(tmp_path):
     from unity_mcp.lockfile import read_project_path_from_port_file
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_dir = tmp_path / "MyProject"
     project_dir.mkdir()
@@ -246,7 +246,7 @@ def test_read_project_path_dead_pid_skipped(tmp_path):
 
 def test_read_project_path_from_port_file_wrong_port(tmp_path):
     from unity_mcp.lockfile import read_project_path_from_port_file
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_dir = tmp_path / "MyProject"
     project_dir.mkdir()
@@ -267,7 +267,7 @@ def test_read_reload_port_returns_none_when_no_dir():
 
 def test_read_reload_port_returns_port_for_alive_pid(tmp_path):
     from unity_mcp.lockfile import read_reload_port
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = os.getpid()
     (ports_dir / f"{pid}.reload-port").write_text("9600", encoding="utf-8")
@@ -277,7 +277,7 @@ def test_read_reload_port_returns_port_for_alive_pid(tmp_path):
 
 def test_read_reload_port_skips_dead_pid(tmp_path):
     from unity_mcp.lockfile import read_reload_port
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     (ports_dir / "99999999.reload-port").write_text("9600", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path):
@@ -286,7 +286,7 @@ def test_read_reload_port_skips_dead_pid(tmp_path):
 
 def test_read_reload_port_skips_corrupt_file(tmp_path):
     from unity_mcp.lockfile import read_reload_port
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = os.getpid()
     (ports_dir / f"{pid}.reload-port").write_text("not-a-port", encoding="utf-8")
@@ -296,7 +296,7 @@ def test_read_reload_port_skips_corrupt_file(tmp_path):
 
 def test_read_reload_port_cwd_disambiguation(tmp_path):
     from unity_mcp.lockfile import read_reload_port
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = os.getpid()
     proj_a = str(tmp_path / "ProjectA")
@@ -308,7 +308,7 @@ def test_read_reload_port_cwd_disambiguation(tmp_path):
 
 def test_read_reload_port_multiline_backward_compat(tmp_path):
     from unity_mcp.lockfile import read_reload_port
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = os.getpid()
     (ports_dir / f"{pid}.reload-port").write_text(
@@ -405,7 +405,7 @@ def test_kill_all_finds_all_lockfiles(tmp_path):
 
 def test_read_pid_from_port_file_skips_dead_pid(tmp_path):
     """Dead PID port file skipped → returns None."""
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     (ports_dir / "99999.port").write_text("9500\n/path/to/project\n", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path), \
@@ -416,7 +416,7 @@ def test_read_pid_from_port_file_skips_dead_pid(tmp_path):
 def test_cleanup_stale_port_files_removes_dead(tmp_path):
     """Dead PID .port file is deleted."""
     from unity_mcp.lockfile import cleanup_stale_port_files
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = ports_dir / "99999.port"
     f.write_text("9500\n/path\n", encoding="utf-8")
@@ -430,7 +430,7 @@ def test_cleanup_stale_port_files_removes_dead(tmp_path):
 def test_cleanup_stale_port_files_keeps_alive(tmp_path):
     """Alive PID .port file is preserved."""
     from unity_mcp.lockfile import cleanup_stale_port_files
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = ports_dir / "11111.port"
     f.write_text("9500\n/path\n", encoding="utf-8")
@@ -444,7 +444,7 @@ def test_cleanup_stale_port_files_keeps_alive(tmp_path):
 def test_cleanup_stale_port_files_all_patterns(tmp_path):
     """Cleans *.port, *.chat-port, *.reload-port patterns."""
     from unity_mcp.lockfile import cleanup_stale_port_files
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     files = [
         ports_dir / "99991.port",
@@ -468,7 +468,7 @@ def test_cleanup_stale_port_files_all_patterns(tmp_path):
 def test_cleanup_stale_port_files_cleans_chat_port(tmp_path):
     """Dead PID .chat-port file is deleted."""
     from unity_mcp.lockfile import cleanup_stale_port_files
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = ports_dir / "99998.chat-port"
     f.write_text("9510\n/path\n", encoding="utf-8")
@@ -482,7 +482,7 @@ def test_cleanup_stale_port_files_cleans_chat_port(tmp_path):
 def test_cleanup_stale_port_files_tcp_probe_dead_port(tmp_path):
     """PID alive but port not listening → file deleted (AssetImportWorker case)."""
     from unity_mcp.lockfile import cleanup_stale_port_files
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = ports_dir / "11111.port"
     f.write_text("9511\n/path\n", encoding="utf-8")
@@ -497,7 +497,7 @@ def test_cleanup_stale_port_files_tcp_probe_dead_port(tmp_path):
 def test_cleanup_stale_port_files_tcp_probe_live_port_kept(tmp_path):
     """PID alive and port listening → file kept."""
     from unity_mcp.lockfile import cleanup_stale_port_files
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = ports_dir / "11112.port"
     f.write_text("9512\n/path\n", encoding="utf-8")
@@ -512,7 +512,7 @@ def test_cleanup_stale_port_files_tcp_probe_live_port_kept(tmp_path):
 def test_cleanup_stale_port_files_no_tcp_probe_by_default(tmp_path):
     """tcp_probe=False (default) — alive PID with dead port is NOT cleaned."""
     from unity_mcp.lockfile import cleanup_stale_port_files
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = ports_dir / "11113.port"
     f.write_text("9513\n/path\n", encoding="utf-8")

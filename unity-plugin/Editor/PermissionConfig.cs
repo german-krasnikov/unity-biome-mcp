@@ -16,7 +16,7 @@ namespace UnityMCP.Editor
         // Mirrors SERVER_NAME/MCP_BLANKET in server/src/unity_mcp/config/merger.py
         // and server/src/unity_mcp/backend_def.py. Keep both in sync manually.
         // Cross-language drift guard: server/tests/test_server_name_consistency.py
-        public const string SERVER_NAME     = "unity-mcp";
+        public const string SERVER_NAME     = "unity-biome-mcp";
         public const string MCP_BLANKET     = "mcp__" + SERVER_NAME;
         public const string MCP_TOOL_PREFIX = MCP_BLANKET + "__";
 

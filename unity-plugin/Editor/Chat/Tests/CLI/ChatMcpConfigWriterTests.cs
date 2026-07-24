@@ -32,7 +32,7 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.IsNotNull(path, "should return a path, not null");
             var json = File.ReadAllText(path);
             StringAssert.Contains("uvx", json, "command must be uvx for git install");
-            StringAssert.Contains("unity-mcp", json);
+            StringAssert.Contains("unity-biome-mcp", json);
         }
 
         [Test]
@@ -72,17 +72,17 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void DeriveServerPath_BasicRoot_ReturnsNormalizedPath()
         {
-            var root = "/Users/dev/unity-kiss-mcp/unity-plugin";
+            var root = "/Users/dev/unity-biome-mcp/unity-plugin";
             var result = ChatMcpConfigWriter.DeriveServerPath(root);
-            Assert.AreEqual("/Users/dev/unity-kiss-mcp/server", result);
+            Assert.AreEqual("/Users/dev/unity-biome-mcp/server", result);
         }
 
         [Test]
         public void DeriveServerPath_TrailingSlash_ReturnsNormalizedPath()
         {
-            var root = "/Users/dev/unity-kiss-mcp/unity-plugin/";
+            var root = "/Users/dev/unity-biome-mcp/unity-plugin/";
             var result = ChatMcpConfigWriter.DeriveServerPath(root);
-            Assert.AreEqual("/Users/dev/unity-kiss-mcp/server", result);
+            Assert.AreEqual("/Users/dev/unity-biome-mcp/server", result);
         }
 
         // ── 2. ResolveServerDir missing server/ ───────────────────────────────
@@ -132,7 +132,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 winPath, new[] { argWithQuote });
 
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
-            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
+            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-biome-mcp");
             var command    = JsonHelper.ExtractString(unity, "command");
 
             Assert.AreEqual(winPath, command, "backslashes must survive the JSON round-trip");
@@ -147,16 +147,16 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var json = ChatMcpConfigWriter.BuildClaudeConfigJson(
                 "/usr/local/bin/uv",
-                new[] { "run", "--directory", "/some/server", "unity-mcp" });
+                new[] { "run", "--directory", "/some/server", "unity-biome-mcp" });
 
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
-            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
+            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-biome-mcp");
             var command    = JsonHelper.ExtractString(unity, "command");
             var argsRaw    = JsonHelper.ExtractArray(unity, "args");
 
             Assert.AreEqual("/usr/local/bin/uv", command);
             StringAssert.Contains("\"run\"", argsRaw);
-            StringAssert.Contains("\"unity-mcp\"", argsRaw);
+            StringAssert.Contains("\"unity-biome-mcp\"", argsRaw);
         }
 
         // ── 5. BuildClaudeConfigJson args with spaces → valid JSON ────────────
@@ -166,10 +166,10 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var json = ChatMcpConfigWriter.BuildClaudeConfigJson(
                 "/path with spaces/bin/uv",
-                new[] { "run", "--directory", "/path with spaces/server", "unity-mcp" });
+                new[] { "run", "--directory", "/path with spaces/server", "unity-biome-mcp" });
 
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
-            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
+            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-biome-mcp");
             var command    = JsonHelper.ExtractString(unity, "command");
 
             Assert.AreEqual("/path with spaces/bin/uv", command);
@@ -207,7 +207,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var (cmd, args) = ChatMcpConfigWriter.ResolvePythonCommand(serverDir, "/usr/local/bin/uv");
 
             Assert.AreEqual("/usr/local/bin/uv", cmd);
-            Assert.AreEqual(new[] { "run", "--directory", serverDir, "unity-mcp" }, args);
+            Assert.AreEqual(new[] { "run", "--directory", serverDir, "unity-biome-mcp" }, args);
         }
 
         // ── 8. ResolvePythonCommand no venv, no uv → python3 fallback ─────────
@@ -266,13 +266,13 @@ namespace UnityMCP.Editor.Chat.Tests
         public void BuildClaudeConfigJson_Contract_TopKeyMcpServersUnityHasCommandAndArgs()
         {
             var json = ChatMcpConfigWriter.BuildClaudeConfigJson(
-                "/bin/uv", new[] { "run", "--directory", "/srv", "unity-mcp" });
+                "/bin/uv", new[] { "run", "--directory", "/srv", "unity-biome-mcp" });
 
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
             Assert.AreNotEqual("{}", mcpServers, "mcpServers key must exist");
 
-            var unity = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
-            Assert.AreNotEqual("{}", unity, "unity-mcp server key must exist");
+            var unity = JsonHelper.ExtractObject(mcpServers, "unity-biome-mcp");
+            Assert.AreNotEqual("{}", unity, "unity-biome-mcp server key must exist");
 
             var command = JsonHelper.ExtractString(unity, "command");
             Assert.IsNotNull(command, "command field must exist");
@@ -285,10 +285,10 @@ namespace UnityMCP.Editor.Chat.Tests
         public void BuildClaudeConfigJson_WithPort_ContainsEnvUnityMcpPort()
         {
             var json = ChatMcpConfigWriter.BuildClaudeConfigJson(
-                "/bin/uv", new[] { "run", "--directory", "/srv", "unity-mcp" }, port: 9501);
+                "/bin/uv", new[] { "run", "--directory", "/srv", "unity-biome-mcp" }, port: 9501);
 
             var mcpServers = JsonHelper.ExtractObject(json, "mcpServers");
-            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-mcp");
+            var unity      = JsonHelper.ExtractObject(mcpServers, "unity-biome-mcp");
             var env        = JsonHelper.ExtractObject(unity, "env");
             var portVal    = JsonHelper.ExtractString(env, "UNITY_MCP_PORT");
             Assert.AreEqual("9501", portVal);
@@ -298,7 +298,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void BuildClaudeConfigJson_NoPort_NoEnvField()
         {
             var json = ChatMcpConfigWriter.BuildClaudeConfigJson(
-                "/bin/uv", new[] { "run", "--directory", "/srv", "unity-mcp" });
+                "/bin/uv", new[] { "run", "--directory", "/srv", "unity-biome-mcp" });
 
             StringAssert.DoesNotContain("\"env\"", json);
         }
@@ -351,7 +351,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void GetOrCreateConfigPath_PortGtZero_DoesNotProduceLegacyBareFilename()
         {
             var path = ChatMcpConfigWriter.GetOrCreateConfigPath(_tmpDir, 9501);
-            Assert.AreNotEqual("unity-mcp-config.json", Path.GetFileName(path));
+            Assert.AreNotEqual("unity-biome-mcp-config.json", Path.GetFileName(path));
         }
 
         // T6 — reload-survival: same port → same path on repeated calls
@@ -367,7 +367,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void CleanupStaleConfigs_OldFilesDeleted_CurrentFilePreserved()
         {
-            var stalePath = Path.Combine(_tmpDir, "unity-mcp-config-9999.json");
+            var stalePath = Path.Combine(_tmpDir, "unity-biome-mcp-config-9999.json");
             File.WriteAllText(stalePath, "{}", JsonHelper.Utf8NoBom);
             File.SetLastWriteTime(stalePath, DateTime.UtcNow.AddHours(-3));
 

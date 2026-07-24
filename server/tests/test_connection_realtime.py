@@ -451,7 +451,7 @@ def _port_is_alive(port: int) -> bool:
 
 
 def _discover_live_port() -> int | None:
-    """Read port from ~/.unity-mcp/ports/*.port files.
+    """Read port from ~/.unity-biome-mcp/ports/*.port files.
 
     Uses os.path.expanduser("~") to bypass the _isolate_home conftest fixture
     that redirects Path.home() to a tmp dir for isolation.
@@ -459,7 +459,7 @@ def _discover_live_port() -> int | None:
     import pathlib
     import os
     real_home = pathlib.Path(os.path.expanduser("~"))
-    for p in real_home.glob(".unity-mcp/ports/*.port"):
+    for p in real_home.glob(".unity-biome-mcp/ports/*.port"):
         try:
             return int(p.read_text(encoding="utf-8").split("\n")[0])
         except Exception:

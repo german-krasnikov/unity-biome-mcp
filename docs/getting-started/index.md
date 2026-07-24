@@ -1,6 +1,6 @@
-# Getting Started with Unity MCP
+# Getting Started with Unity Biome MCP
 
-Welcome! This guide will help you set up and start using Unity MCP to control your Unity Editor from Claude, Codex, Kimi, or any MCP-compatible AI assistant.
+Welcome! This guide will help you set up and start using Unity Biome MCP to control your Unity Editor from Claude, Codex, Kimi, or any MCP-compatible AI assistant.
 
 ## Prerequisites
 
@@ -18,13 +18,13 @@ Welcome! This guide will help you set up and start using Unity MCP to control yo
 
 ## Installation
 
-Unity MCP auto-configures when you add the plugin to your project — no manual setup required.
+Unity Biome MCP auto-configures when you add the plugin to your project — no manual setup required.
 
 ### Step 1: Add Plugin to Your Project
 
 1. Open **Window → Package Manager**
 2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
 4. Wait for import, then open any scene
 
 The plugin auto-detects your AI tool (Claude Code, Codex, Cursor, Windsurf, VS Code, or Claude Desktop) and generates the necessary MCP configuration.
@@ -34,7 +34,7 @@ The plugin auto-detects your AI tool (Claude Code, Codex, Cursor, Windsurf, VS C
 To verify everything works, run:
 
 ```bash
-uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
+uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
 ```
 
 This checks Python version, TCP connectivity, and plugin status.
@@ -90,7 +90,7 @@ You should see a text-based tree of all GameObjects in your scene.
 
 ## How It Works
 
-Unity MCP uses three communication layers:
+Unity Biome MCP uses three communication layers:
 
 ```
 Your AI Assistant (Claude, Codex, etc.)
@@ -121,7 +121,7 @@ No API key needed — chat spawns the CLI under the hood.
 
 ## Token Efficiency
 
-Unity MCP saves 80–95% of tokens by batching operations. Instead of calling individual tools 10 times, combine them into one `batch` call:
+Unity Biome MCP saves 80–95% of tokens by batching operations. Instead of calling individual tools 10 times, combine them into one `batch` call:
 
 ```python
 # Before: 10 separate calls (~2000 tokens)
@@ -158,8 +158,8 @@ Learn more: [Batch Reference](../tools/batch.md)
 Multiple Unity instances? Check which port your project is using:
 
 ```bash
-ls -la ~/.unity-mcp/ports/
-cat ~/.unity-mcp/ports/*.port
+ls -la ~/.unity-biome-mcp/ports/
+cat ~/.unity-biome-mcp/ports/*.port
 ```
 
 Then set the port explicitly:
@@ -173,7 +173,7 @@ export UNITY_MCP_PORT=9501
 Reinstall the plugin via Package Manager → Add package from git URL:
 
 ```
-https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin
+https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin
 ```
 
 ### "Cannot connect to Unity"
@@ -193,12 +193,12 @@ await await_compile(timeout=30)
 ## Learn More
 
 - 📖 **[README](../../README.md)** — Full project documentation
-- 🏗️ **[Architecture](../../AI/architecture.md)** — How Unity MCP works
+- 🏗️ **[Architecture](../../AI/architecture.md)** — How Unity Biome MCP works
 - 🔧 **[Install Guides](../install/)** — Platform-specific instructions
 - 💻 **[Tools Reference](../tools/index.md)** — Detailed tool parameters
 
 ---
 
-**Questions?** Open an issue on [GitHub](https://github.com/german-krasnikov/unity-kiss-mcp/issues).
+**Questions?** Open an issue on [GitHub](https://github.com/german-krasnikov/unity-biome-mcp/issues).
 
 **Next:** Jump to [Tools Reference](../tools/index.md) to see what you can do.

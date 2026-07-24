@@ -62,6 +62,8 @@ unity-plugin/.utmp/
 unity-plugin/Recordings/
 unity-plugin/inf/
 
+Logs/
+
 # Unity test project (exclude entire test project from repo)
 unity-test-project/
 unity-test-project/Library/

@@ -14,7 +14,7 @@ class CheckResult:
 
 
 USER_MESSAGES = {
-    "disconnected": f"MCP server isn't running. Start: uvx --from {GIT_INSTALL_URL} unity-mcp",
+    "disconnected": f"MCP server isn't running. Start: uvx --from {GIT_INSTALL_URL} unity-biome-mcp",
     "compiling": "Unity is compiling. Wait and retry.",
     "dlls_stale": "Plugin code outdated. Run: Assets → Reimport All",
     "frozen": "Unity stopped responding. Check Editor.log.",
@@ -32,7 +32,7 @@ def format_report(results: list[CheckResult]) -> str:
     passed = sum(1 for r in results if r.ok)
     total = len(results)
     summary = f"{passed}/{total} checks passed"
-    lines.insert(0, f"Unity MCP Doctor — {summary}")
+    lines.insert(0, f"Unity Biome MCP Doctor — {summary}")
     lines.insert(1, "")
     lines.append("")
     lines.append(summary)

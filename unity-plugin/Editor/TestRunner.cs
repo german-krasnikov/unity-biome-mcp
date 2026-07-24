@@ -335,15 +335,15 @@ namespace UnityMCP.Editor
 #endif
 
         /// <summary>File-backed persistence for test results — survives domain reload.
-        /// Saves/loads from ~/.unity-mcp/test-results/port-{port}.txt.</summary>
+        /// Saves/loads from ~/.unity-biome-mcp/test-results/port-{port}.txt.</summary>
         internal static class TestResultPersistence
         {
-            // Seam: redirect to temp dir in tests to avoid touching real ~/.unity-mcp/
+            // Seam: redirect to temp dir in tests to avoid touching real ~/.unity-biome-mcp/
             internal static string FilePathOverride = null;
 
             private static string FilePath => FilePathOverride ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-mcp", "test-results",
+                ".unity-biome-mcp", "test-results",
                 $"port-{PortFileManager.Port}.txt");
 
             internal static void Save(string results)

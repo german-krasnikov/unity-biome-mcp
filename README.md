@@ -1,10 +1,10 @@
-# Unity MCP — Control Unity Editor from Any AI Assistant
+# Unity Biome MCP — Control Unity Editor from Any AI Assistant
 
 <div align="center">
 
-<img src="docs/assets/hero.svg" width="100%" alt="Unity MCP — control Unity from Claude, a live heartbeat status window with a breathing mint-green orb, ECG trace, and TCP packet field">
+<img src="docs/assets/hero.svg" width="100%" alt="Unity Biome MCP — control Unity from Claude, a live heartbeat status window with a breathing mint-green orb, ECG trace, and TCP packet field">
 
-<a href="https://github.com/german-krasnikov/unity-kiss-mcp">
+<a href="https://github.com/german-krasnikov/unity-biome-mcp">
 <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&pause=900&color=3AD29F&center=true&vCenter=true&width=760&lines=The+editor's+heartbeat%2C+made+visible.;Control+Unity+from+Claude%2C+Codex%2C+and+more.;80-95%25+batch+token+savings.;Scene+CRUD+%C2%B7+Animation+%C2%B7+VFX+%C2%B7+PlayTest+DSL." alt="Control Unity from Claude — token-minimized MCP tools — 80-95% batch token savings">
 </a>
 
@@ -15,15 +15,15 @@
 <div align="center">
 
 <sub>**STATUS**</sub><br>
-<img src="https://img.shields.io/github/license/german-krasnikov/unity-kiss-mcp?style=for-the-badge&labelColor=1a1a2e&color=3ad29f&logo=opensourceinitiative&logoColor=white" alt="License">
-<img src="https://img.shields.io/github/stars/german-krasnikov/unity-kiss-mcp?style=for-the-badge&labelColor=1a1a2e&color=3ad29f&logo=github&logoColor=white" alt="Stars">
-<img src="https://img.shields.io/github/last-commit/german-krasnikov/unity-kiss-mcp?style=for-the-badge&labelColor=1a1a2e&color=3ad29f&logo=git&logoColor=white" alt="Last Commit">
+<img src="https://img.shields.io/github/license/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=1a1a2e&color=3ad29f&logo=opensourceinitiative&logoColor=white" alt="License">
+<img src="https://img.shields.io/github/stars/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=1a1a2e&color=3ad29f&logo=github&logoColor=white" alt="Stars">
+<img src="https://img.shields.io/github/last-commit/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=1a1a2e&color=3ad29f&logo=git&logoColor=white" alt="Last Commit">
 
 <sub>**SPEC**</sub><br>
-<img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/.github/badges/tests.json&style=for-the-badge&labelColor=1a1a2e" alt="Tests">
-<img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/.github/badges/tools.json&style=for-the-badge&labelColor=1a1a2e" alt="Tools">
-<img src="https://img.shields.io/badge/dynamic/toml?url=https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/server/pyproject.toml&query=$.project.version&label=SERVER%20BETA&style=for-the-badge&labelColor=1a1a2e&color=888899" alt="Server Version">
-<img src="https://img.shields.io/github/package-json/v/german-krasnikov/unity-kiss-mcp?filename=unity-plugin/package.json&label=PLUGIN%20BETA&style=for-the-badge&labelColor=1a1a2e&color=888899" alt="Plugin Version">
+<img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tests.json&style=for-the-badge&labelColor=1a1a2e" alt="Tests">
+<img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tools.json&style=for-the-badge&labelColor=1a1a2e" alt="Tools">
+<img src="https://img.shields.io/badge/dynamic/toml?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/server/pyproject.toml&query=$.project.version&label=SERVER%20BETA&style=for-the-badge&labelColor=1a1a2e&color=888899" alt="Server Version">
+<img src="https://img.shields.io/github/package-json/v/german-krasnikov/unity-biome-mcp?filename=unity-plugin/package.json&label=PLUGIN%20BETA&style=for-the-badge&labelColor=1a1a2e&color=888899" alt="Plugin Version">
 
 <sub>**STACK**</sub><br>
 <img src="https://img.shields.io/badge/Unity-6000.0+-e8a23a?style=for-the-badge&labelColor=1a1a2e&logo=unity&logoColor=white" alt="Unity">
@@ -38,7 +38,7 @@
 
 <img src="docs/assets/divider.svg" width="100%" alt="">
 
-## Why Unity MCP?
+## Why Unity Biome MCP?
 
 - **Stop alt-tabbing.** Your AI assistant inspects your scene, edits components, runs playtests, and captures screenshots without you leaving the chat.
 - **Stop burning tokens on boilerplate.** Each `batch` call replaces 5–20 individual round-trips — **80–95% fewer tokens** on the same work.
@@ -99,7 +99,7 @@ set_property path=Enemy component=Health prop=maxHp value=100
 2. Click **+ → Add package from git URL**
 3. Paste:
    ```
-   https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin
+   https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin
    ```
 4. Wait for import, then open any scene
 
@@ -110,19 +110,19 @@ The plugin auto-generates MCP configuration for your AI tool on first load.
 Run the diagnostic to verify everything is working:
 
 ```bash
-uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
+uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
 ```
 
 **One-liner (macOS / Linux):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/install/bootstrap.sh | bash
 ```
 
 **One-liner (Windows PowerShell):**
 
 ```powershell
-iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.ps1).Content
+iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/install/bootstrap.ps1).Content
 ```
 
 <details>
@@ -137,8 +137,8 @@ iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/maste
 
 2. Clone the repo:
    ```powershell
-   git clone https://github.com/german-krasnikov/unity-kiss-mcp.git "$HOME\.unity-mcp\server"
-   cd "$HOME\.unity-mcp\server"
+   git clone https://github.com/german-krasnikov/unity-biome-mcp.git "$HOME\.unity-biome-mcp\server"
+   cd "$HOME\.unity-biome-mcp\server"
    ```
 
 3. Run setup:
@@ -160,7 +160,7 @@ iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/maste
 
 2. Add the Unity plugin via **Package Manager → Add package from git URL:**
    ```
-   https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin
+   https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin
    ```
 
 3. Configure your AI tool manually (see "Manual MCP configuration" above).
@@ -177,9 +177,9 @@ Add this to your MCP config file:
 ```json
 {
   "mcpServers": {
-    "unity-mcp": {
+    "unity-biome-mcp": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server", "unity-mcp"],
+      "args": ["--from", "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server", "unity-biome-mcp"],
       "env": { "UNITY_MCP_PORT": "9500" }
     }
   }
@@ -197,16 +197,16 @@ Add this to your MCP config file:
 | OpenCode | `~/.config/opencode/opencode.json` (macOS/Linux) or `%APPDATA%\opencode\opencode.json` (Windows) |
 | Codex | `~/.codex/config.toml` |
 
-**Without uvx:** replace `"command": "uvx", "args": ["--from", "git+...", "unity-mcp"]` with `"command": "python", "args": ["-m", "unity_mcp.server"]`
+**Without uvx:** replace `"command": "uvx", "args": ["--from", "git+...", "unity-biome-mcp"]` with `"command": "python", "args": ["-m", "unity_mcp.server"]`
 
 </details>
 
 **Manual setup:**
 
-1. Python server: `uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp` — zero-install, runs on demand from GitHub (no separate install step).
+1. Python server: `uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp` — zero-install, runs on demand from GitHub (no separate install step).
 2. Add the Unity plugin via **Package Manager → Add package from git URL:**
    ```
-   https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin
+   https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin
    ```
 3. Open Unity, then open the **Setup Wizard** via **MCP → Setup Wizard** menu. It will:
    - Auto-detect installed AI tools (shows "detected" badge)
@@ -217,8 +217,8 @@ Add this to your MCP config file:
 <summary>Alternative: full local clone</summary>
 
 ```bash
-git clone https://github.com/german-krasnikov/unity-kiss-mcp.git
-cd unity-kiss-mcp
+git clone https://github.com/german-krasnikov/unity-biome-mcp.git
+cd unity-biome-mcp
 python install.py setup
 python install.py configure --tool claude-code
 python install.py doctor
@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 10784 Tests (4733 Python · 5767 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 11764 Tests (4743 Python · 6737 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -510,7 +510,7 @@ Removed `get_perf` tool stub (use `get_frame_stats`)
 <details>
 <summary><b>How is this different from Unity 6.2's built-in AI assistant?</b></summary>
 
-Unity's built-in AI is limited to code generation. Unity MCP gives full editor control: scene CRUD, animation, VFX, playtesting, screenshots. 126 tools vs basic code completion.
+Unity's built-in AI is limited to code generation. Unity Biome MCP gives full editor control: scene CRUD, animation, VFX, playtesting, screenshots. 126 tools vs basic code completion.
 
 </details>
 
@@ -524,7 +524,7 @@ No, requires Unity 6000.0+ (Unity 6). Uses modern Editor APIs not available in o
 <details>
 <summary><b>How much does it cost?</b></summary>
 
-Unity MCP is free and open source (MIT). You only pay for the AI tool you use (Claude, Codex, etc.). In-Unity Chat uses CLI tools directly — no separate API key needed.
+Unity Biome MCP is free and open source (MIT). You only pay for the AI tool you use (Claude, Codex, etc.). In-Unity Chat uses CLI tools directly — no separate API key needed.
 
 </details>
 
@@ -559,7 +559,7 @@ Yes. Drop a Python file in `tools/`, add it to `__init__.py`, implement the `reg
 <details>
 <summary><b>Comparison with other Unity AI tools</b></summary>
 
-| Feature | Unity MCP | CoplayDev | IvanMurzak | CoderGamester |
+| Feature | Unity Biome MCP | CoplayDev | IvanMurzak | CoderGamester |
 |---------|-----------|-----------|------------|---------------|
 | MCP Tools | 125 | ~40 | 70+ | 28 |
 | In-Editor Chat | ✅ 5 backends | ❌ | ❌ | ❌ |
@@ -597,8 +597,8 @@ pytest -m "live and not live_cli" -q
 
 Architecture overview: [`AI/architecture.md`](AI/architecture.md) · Full tool catalog: [`AI/mcp-server.md`](AI/mcp-server.md)
 
-[![Star History Chart](https://api.star-history.com/svg?repos=german-krasnikov/unity-kiss-mcp&type=Date)](https://star-history.com/#german-krasnikov/unity-kiss-mcp&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=german-krasnikov/unity-biome-mcp&type=Date)](https://star-history.com/#german-krasnikov/unity-biome-mcp&Date)
 
 <img src="docs/assets/divider.svg" width="100%" alt="">
 
-<div align="center"><sub>MIT License · © <a href="https://github.com/german-krasnikov">German Krasnikov</a> · <a href="https://github.com/german-krasnikov/unity-kiss-mcp">⭐ Star</a></sub></div>
+<div align="center"><sub>MIT License · © <a href="https://github.com/german-krasnikov">German Krasnikov</a> · <a href="https://github.com/german-krasnikov/unity-biome-mcp">⭐ Star</a></sub></div>

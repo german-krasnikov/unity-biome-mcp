@@ -1,11 +1,11 @@
 #Requires -Version 5.1
-# Run with: iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-kiss-mcp/master/install/bootstrap.ps1).Content
+# Run with: iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/install/bootstrap.ps1).Content
 # If execution policy blocks this: Set-ExecutionPolicy Bypass -Scope CurrentUser
 #
 # If your antivirus blocks this script, run these commands manually:
 #   winget install astral-sh.uv
-#   git clone https://github.com/german-krasnikov/unity-kiss-mcp.git "$HOME\.unity-mcp\server"
-#   cd "$HOME\.unity-mcp\server" && uv run python install.py setup
+#   git clone https://github.com/german-krasnikov/unity-biome-mcp.git "$HOME\.unity-biome-mcp\server"
+#   cd "$HOME\.unity-biome-mcp\server" && uv run python install.py setup
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ErrorActionPreference = "Stop"
 
@@ -36,7 +36,7 @@ if (Get-Command uv -ErrorAction SilentlyContinue) {
 }
 
 # 2. Clone/update repo
-$installDir = if ($env:UNITY_MCP_DIR) { $env:UNITY_MCP_DIR } else { "$HOME\.unity-mcp\server" }
+$installDir = if ($env:UNITY_MCP_DIR) { $env:UNITY_MCP_DIR } else { "$HOME\.unity-biome-mcp\server" }
 
 # Windows: enable long paths (>260 chars) before clone
 git config --global core.longpaths true
@@ -46,10 +46,10 @@ if (Test-Path "$installDir\.git") {
     git -C "$installDir" pull --ff-only
     ok "Updated"
 } else {
-    info "Cloning unity-kiss-mcp..."
+    info "Cloning unity-biome-mcp..."
     $parent = Split-Path "$installDir" -Parent
     if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-    git clone https://github.com/german-krasnikov/unity-kiss-mcp.git "$installDir"
+    git clone https://github.com/german-krasnikov/unity-biome-mcp.git "$installDir"
     ok "Cloned"
 }
 
@@ -66,6 +66,6 @@ try {
 Write-Host ""
 Write-Host "  Next steps:" -ForegroundColor Cyan
 Write-Host "    1. Open Unity -> Package Manager -> Add git URL:"
-Write-Host "       https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin"
+Write-Host "       https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin"
 Write-Host "    2. The Setup Wizard will guide you through the rest."
 Write-Host ""

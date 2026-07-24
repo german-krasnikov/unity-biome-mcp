@@ -9,7 +9,7 @@ import sys
 _MIN_PYTHON = (3, 10)
 _FIX_HINT = (
     "uvx --reinstall --from "
-    "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp"
+    "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp"
 )
 
 
@@ -19,16 +19,16 @@ def run_preflight() -> None:
         found = ".".join(str(p) for p in sys.version_info[:3])
         needed = ".".join(str(p) for p in _MIN_PYTHON)
         print(
-            f"UNITY-MCP-FATAL: Python {found} found, need >={needed} "
+            f"UNITY-BIOME-MCP-FATAL: Python {found} found, need >={needed} "
             f"| fix: use a newer interpreter, e.g. uvx --python 3.12 --from "
-            f"git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp",
+            f"git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp",
             file=sys.stderr,
         )
         sys.exit(2)
 
     if importlib.util.find_spec("mcp") is None:
         print(
-            f"UNITY-MCP-FATAL: mcp SDK not installed in this interpreter | fix: {_FIX_HINT}",
+            f"UNITY-BIOME-MCP-FATAL: mcp SDK not installed in this interpreter | fix: {_FIX_HINT}",
             file=sys.stderr,
         )
         sys.exit(2)

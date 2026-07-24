@@ -1,4 +1,4 @@
-"""Tests for the unity-mcp CLI dispatcher (configure/doctor/version/uninstall)."""
+"""Tests for the unity-biome-mcp CLI dispatcher (configure/doctor/version/uninstall)."""
 import pytest
 
 
@@ -23,7 +23,7 @@ def test_dispatch_help_flag_returns_0(capsys):
     code = dispatch(["-h"])
     assert code == 0
     out = capsys.readouterr().out
-    assert "unity-mcp" in out
+    assert "unity-biome-mcp" in out
 
 
 # ─── dispatch: configure ─────────────────────────────────────────────────────
@@ -195,7 +195,7 @@ def test_main_zero_argv_falls_through_to_server_main(monkeypatch):
 
     calls = []
     monkeypatch.setattr(srv, "main", lambda: calls.append(True))
-    monkeypatch.setattr("sys.argv", ["unity-mcp"])
+    monkeypatch.setattr("sys.argv", ["unity-biome-mcp"])
 
     cli.main()
 

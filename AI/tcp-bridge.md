@@ -121,21 +121,21 @@ Used by `list_connections` to replace the binary connected/disconnected boolean.
 
 ### Port Discovery & TCP Probe (server_filtering.py) — v0.23.0, v0.36.0
 
-Port discovery reads `~/.unity-mcp/ports/{pid}.port` files. **v0.23.0:** Adds `_tcp_probe(port, timeout=0.2)` — quick TCP handshake to verify port actually listens before returning. Filters out stale discovery files (port written but server not yet bound, or server crashed leaving orphan file). Candidates prioritized: env UNITY_MCP_PORT → CWD project path match → newest mtime → default 9500.
+Port discovery reads `~/.unity-biome-mcp/ports/{pid}.port` files. **v0.23.0:** Adds `_tcp_probe(port, timeout=0.2)` — quick TCP handshake to verify port actually listens before returning. Filters out stale discovery files (port written but server not yet bound, or server crashed leaving orphan file). Candidates prioritized: env UNITY_MCP_PORT → CWD project path match → newest mtime → default 9500.
 
 **v0.36.0:** `_is_pid_alive(pid)` cross-platform check (Windows: OpenProcess/CloseHandle, Unix: os.kill(pid,0)) replaces naive kill check. C# MCPServer writes `{pid}.port` discovery files.
 
 ### CompileStateProbe (compile_state.py)
 
 Simplified detector for Unity C# compile/domain-reload:
-- **State file**: reads `~/.unity-mcp/state/port-{port}.state` via `unity_state.py` (ready/compiling/reloading/restarting)
+- **State file**: reads `~/.unity-biome-mcp/state/port-{port}.state` via `unity_state.py` (ready/compiling/reloading/restarting)
 - `is_process_dead()` — cross-checks PID from port file
 - `has_strong_busy_signal()` — state file (authoritative) then lock file fallback
 - `_lock_file_exists()` — checks Unity's BeeDriver Lock file
 
 ### Lockfile (lockfile.py) — v0.23.0 Zombie Detection
 
-Exclusive lock per port at `~/.unity-mcp/server-{port}.lock`:
+Exclusive lock per port at `~/.unity-biome-mcp/server-{port}.lock`:
 - Uses `fcntl.flock` (POSIX exclusive)
 - **Zombie Process Detection (v0.23.0):** New `_is_zombie(pid)` check via `/proc/{pid}/stat` (Linux) or `ps -p` status (macOS/Windows). Stale processes with zombie state are no longer treated as "live" — server startup proceeds without waiting for process cleanup. Fixes `-32000 (server error)` when a previous server process became a zombie.
 - Auto-kills stale `unity_mcp` process (SIGTERM + poll)
@@ -144,7 +144,7 @@ Exclusive lock per port at `~/.unity-mcp/server-{port}.lock`:
 ### Crash Logging (crash_log.py)
 
 Append-only JSONL crash log for unhandled exceptions:
-- `log_crash(exc, *, log_dir=None)`: module-level function that writes `{"ev":"crash", "exc":"Type", "msg":"...", "tb":"...", "t":timestamp}` to `crash.jsonl` (defaults to `~/.unity-mcp/crash.jsonl`)
+- `log_crash(exc, *, log_dir=None)`: module-level function that writes `{"ev":"crash", "exc":"Type", "msg":"...", "tb":"...", "t":timestamp}` to `crash.jsonl` (defaults to `~/.unity-biome-mcp/crash.jsonl`)
 - Auto-creates parent dir, silent on I/O failures
 - Integrated into `main()`: outer try/except catches `BaseException` → calls `log_crash()` → re-raises (preserves clean shutdown for `KeyboardInterrupt`, `SystemExit`, EPIPE)
 - **CrashLogger class**: JSONL append-only logger with rotation (500 entries max, 15MB size limit) — logs disconnect, reconnect events (older feature). Separate from module-level `log_crash()` used for unhandled server exceptions.
@@ -165,8 +165,8 @@ Append-only JSONL crash log for unhandled exceptions:
 
 - **Main TCP listener** on port 9500 (configurable via `UNITY_MCP_PORT` env var)
 - **Chat TCP listener** on port 9501 (or `main_port + 1`; configurable via `UNITY_MCP_CHAT_PORT` env var) — separate connection for in-Unity chat
-- **Reload TCP listener** on port 9600 (independent compile-unit `com.unity-mcp.reload/`) — handles rapid recompilation without domain-reload blocking
-- **State file** written to `~/.unity-mcp/state/port-{port}.state` with format: `state\ntimestamp\npid\nepoch` (e.g., "ready", "compiling", "reloading", "compile_failed")
+- **Reload TCP listener** on port 9600 (independent compile-unit `com.unity-biome-mcp.reload/`) — handles rapid recompilation without domain-reload blocking
+- **State file** written to `~/.unity-biome-mcp/state/port-{port}.state` with format: `state\ntimestamp\npid\nepoch` (e.g., "ready", "compiling", "reloading", "compile_failed")
 - Max message size: 10MB
 - SO_KEEPALIVE with platform-specific tuning (idle=60s, interval=10s, count=3; relaxed from 10s/5s to survive macOS App Nap timer coalescing)
 - **SO_REUSEPORT (v0.23.0, macOS/Linux only):** Enables port reuse for rapid reconnect after server crash or process termination. Windows doesn't require it (already has soft TIME_WAIT). Prevents "address already in use" during recovery without waiting for kernel TIME_WAIT timer.
@@ -194,11 +194,11 @@ Append-only JSONL crash log for unhandled exceptions:
 - Re-registered in StartAsync() after bind succeeds
 
 **Port discovery:**
-- Writes `~/.unity-mcp/ports/{pid}.port` (port, project path, project name)
+- Writes `~/.unity-biome-mcp/ports/{pid}.port` (port, project path, project name)
 - Python auto-discovers port from these files
 
 **State file:**
-- Writes `~/.unity-mcp/state/port-{port}.state`
+- Writes `~/.unity-biome-mcp/state/port-{port}.state`
 - States: `ready`, `compiling`, `reloading`, `restarting` (new in Cycle 16)
 - "restarting": written when compilationFinished but server not yet running; indicates startup in progress (TCP client should wait)
 
@@ -286,7 +286,7 @@ Append-only JSONL crash log for unhandled exceptions:
 8. **State file management**: MCPServer writes "ready" on `compilationFinished` handler (not just startup); prevents stale "compiling" blocking reconnect
 9. **SO_KEEPALIVE**: OS-level dead peer detection (~90s: idle=60s + 3 probes at 10s intervals)
 10. **Reconnect callbacks**: invalidate tool cache, re-probe capabilities
-11. **CrashLogger**: JSONL append-only log at `~/.unity-mcp/crash.jsonl` (500 entries max, 15MB rotation) — logs disconnect, reconnect, exhausted events
+11. **CrashLogger**: JSONL append-only log at `~/.unity-biome-mcp/crash.jsonl` (500 entries max, 15MB rotation) — logs disconnect, reconnect, exhausted events
 
 ```
 send(cmd, args, timeout=30.0)

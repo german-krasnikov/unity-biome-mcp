@@ -12,22 +12,22 @@ namespace UnityMCP.Editor.Wizard
         // Marker comment + section header + body are treated as one atomic replaceable
         // unit, including any number of dotted subsections that follow (e.g. .env) —
         // mirrors Python's _UNITY_MCP_SECTION_RE (merger.py) exactly, which matches
-        // zero-or-more `[mcp_servers.unity-mcp.<name>]` blocks, not just one hardcoded
+        // zero-or-more `[mcp_servers.unity-biome-mcp.<name>]` blocks, not just one hardcoded
         // `.env`. Keeping both regexes structurally identical avoids the two independent
-        // writers (Python global, C# per-project) disagreeing on what "the unity-mcp
+        // writers (Python global, C# per-project) disagreeing on what "the unity-biome-mcp
         // block" spans, which would orphan stale dotted subsections on re-merge.
-        // Server name is "unity-mcp" (one "mcp", distinct from the foreign bare
-        // [mcp_servers.unity]). Regexes accept the OLD "unity-kiss" name too so an
+        // Server name is "unity-biome-mcp" (one "mcp", distinct from the foreign bare
+        // [mcp_servers.unity]). Regexes accept the OLD "unity-mcp" name too so an
         // existing install is migrated (replaced) rather than left as a duplicate.
         private static readonly Regex SectionRe = new Regex(
-            @"(?:^# unity-(?:kiss|mcp) generated v[\d.]+\r?\n)?" +
-            @"\[mcp_servers\.unity-(?:kiss|mcp)\]\r?\n" +
+            @"(?:^# unity-(?:biome-mcp|mcp) generated v[\d.]+\r?\n)?" +
+            @"\[mcp_servers\.unity-(?:biome-mcp|mcp)\]\r?\n" +
             @"(?:(?!\[)[^\r\n]*\r?\n)*" +
-            @"(?:\[mcp_servers\.unity-(?:kiss|mcp)\.[^\]]+\]\r?\n(?:(?!\[)[^\r\n]*\r?\n)*)*",
+            @"(?:\[mcp_servers\.unity-(?:biome-mcp|mcp)\.[^\]]+\]\r?\n(?:(?!\[)[^\r\n]*\r?\n)*)*",
             RegexOptions.Multiline);
 
         private static readonly Regex MarkerVersionRe = new Regex(
-            @"^# unity-(?:kiss|mcp) generated v([\d.]+)\r?\n\[mcp_servers\.unity-(?:kiss|mcp)\]", RegexOptions.Multiline);
+            @"^# unity-(?:biome-mcp|mcp) generated v([\d.]+)\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]", RegexOptions.Multiline);
 
         private static readonly Regex MarkerPortRe = new Regex(@"UNITY_MCP_PORT\s*=\s*'(\d+)'");
 
@@ -35,7 +35,7 @@ namespace UnityMCP.Editor.Wizard
             $"# {PermissionConfig.SERVER_NAME} generated v{version}\n" +
             $"[mcp_servers.{PermissionConfig.SERVER_NAME}]\n" +
             "command = 'uvx'\n" +
-            $"args = ['--from', '{gitUrl}', 'unity-mcp']\n" +    // 'unity-mcp' = PyPI package name
+            $"args = ['--from', '{gitUrl}', 'unity-biome-mcp']\n" +    // 'unity-biome-mcp' = PyPI package name
             "\n" +
             $"[mcp_servers.{PermissionConfig.SERVER_NAME}.env]\n" +
             $"UNITY_MCP_PORT = '{port}'\n";
@@ -68,7 +68,8 @@ namespace UnityMCP.Editor.Wizard
         internal static EntryState Classify(string existingText, int port, string version)
         {
             if (string.IsNullOrEmpty(existingText) ||
-                !(existingText.Contains("[mcp_servers.unity-kiss]") || existingText.Contains($"[mcp_servers.{PermissionConfig.SERVER_NAME}]")))
+                !(existingText.Contains("[mcp_servers.unity-mcp]")
+                  || existingText.Contains($"[mcp_servers.{PermissionConfig.SERVER_NAME}]")))
                 return EntryState.Absent;
 
             var markerVersion = ExtractMarkerVersion(existingText);

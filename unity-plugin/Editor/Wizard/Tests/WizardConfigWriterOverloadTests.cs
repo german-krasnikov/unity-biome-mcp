@@ -33,7 +33,7 @@ namespace UnityMCP.Editor.Tests
             var existing = "{\"servers\":{\"other-tool\":{\"command\":\"x\"}}}";
             var result = WizardConfigWriter.Merge(existing, 9501, WizardConfigWriter.GitInstallUrl, "servers");
             StringAssert.Contains("other-tool", result);
-            StringAssert.Contains("unity-mcp", result);
+            StringAssert.Contains("unity-biome-mcp", result);
             StringAssert.Contains("9501", result);
         }
 

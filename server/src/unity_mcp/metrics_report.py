@@ -11,7 +11,7 @@ def format_report(snapshot: dict) -> str:
     """Render a human-readable metrics report from a snapshot dict."""
     s = snapshot
     c = s["counters"]
-    lines = [f"=== Unity MCP Metrics (uptime {s['uptime_s']:.0f}s) ==="]
+    lines = [f"=== Unity Biome MCP Metrics (uptime {s['uptime_s']:.0f}s) ==="]
 
     # Caches
     cache_keys = [k for k in c if k.startswith("fpcache") or k.startswith("diffcache")]

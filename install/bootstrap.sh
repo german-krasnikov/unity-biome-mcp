@@ -20,15 +20,15 @@ else
 fi
 
 # 2. Clone/update repo
-INSTALL_DIR="${UNITY_MCP_DIR:-$HOME/.unity-mcp/server}"
+INSTALL_DIR="${UNITY_MCP_DIR:-$HOME/.unity-biome-mcp/server}"
 if [ -d "$INSTALL_DIR/.git" ]; then
     info "Updating existing installation..."
     git -C "$INSTALL_DIR" pull --ff-only
     ok "Updated to $(git -C "$INSTALL_DIR" describe --tags 2>/dev/null || echo 'latest')"
 else
-    info "Cloning unity-kiss-mcp..."
+    info "Cloning unity-biome-mcp..."
     mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone https://github.com/german-krasnikov/unity-kiss-mcp.git "$INSTALL_DIR"
+    git clone https://github.com/german-krasnikov/unity-biome-mcp.git "$INSTALL_DIR"
     ok "Cloned"
 fi
 
@@ -48,6 +48,6 @@ ok "Installation complete"
 printf "\n"
 printf "  Next steps:\n"
 printf "    1. Open Unity → Package Manager → Add git URL:\n"
-printf "       https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin\n"
+printf "       https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin\n"
 printf "    2. The Setup Wizard will guide you through the rest.\n"
 printf "\n"

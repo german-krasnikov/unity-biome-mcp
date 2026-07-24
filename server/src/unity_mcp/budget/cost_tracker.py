@@ -44,7 +44,7 @@ class CostTracker:
             self._path.parent.mkdir(parents=True, exist_ok=True)
             with _filelocked(self._path):
                 # Per-PID tmp eliminates multi-writer collision on shared .tmp filename.
-                # NOTE: if process crashes between write and os.replace, ~/.unity-mcp/budget.tmp.<PID>
+                # NOTE: if process crashes between write and os.replace, ~/.unity-biome-mcp/budget.tmp.<PID>
                 # orphans. Cleanup intentionally omitted — files are small and rare. Manual cleanup OK.
                 tmp = self._path.with_suffix(f".tmp.{os.getpid()}")
                 tmp.write_text(json.dumps(self._daily_state, ensure_ascii=False), encoding="utf-8")

@@ -33,7 +33,7 @@ namespace UnityMCP.Editor
             if (ss != null) root.styleSheets.Add(ss);
             root.AddToClassList("mcp-root");
 
-            var brand = new Label("UNITY MCP");
+            var brand = new Label("UNITY BIOME MCP");
             brand.AddToClassList("brand");
 
             var stage = new VisualElement();

@@ -1,7 +1,7 @@
 """Cross-session memory: store error patterns and provide hints.
 
 Enable with UNITY_MCP_LESSONS=1.
-Storage: ~/.unity-mcp/lessons.json
+Storage: ~/.unity-biome-mcp/lessons.json
 """
 import hashlib
 import json

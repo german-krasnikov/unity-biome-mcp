@@ -1,6 +1,6 @@
-# Unity MCP Documentation
+# Unity Biome MCP Documentation
 
-Documentation for Unity MCP v0.75.0 — MCP server for controlling Unity Editor from AI coding assistants.
+Documentation for Unity Biome MCP v0.75.0 — MCP server for controlling Unity Editor from AI coding assistants.
 
 ## Getting Started
 - [Installation & First Steps](getting-started/index.md)

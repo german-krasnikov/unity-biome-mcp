@@ -375,7 +375,7 @@ def test_read_unity_port_pid_alive_candidate_always_included(tmp_path):
     from unittest.mock import patch, MagicMock
     from pathlib import Path
 
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     port_file = ports_dir / "12345.port"
     port_file.write_text("9501\n/some/project\nMyProject", encoding="utf-8")
@@ -387,7 +387,7 @@ def test_read_unity_port_pid_alive_candidate_always_included(tmp_path):
     ):
         mock_home = MagicMock()
         mock_path_cls.home.return_value = mock_home
-        mock_home.__truediv__ = lambda self, x: tmp_path / x if x == ".unity-mcp" else MagicMock()
+        mock_home.__truediv__ = lambda self, x: tmp_path / x if x == ".unity-biome-mcp" else MagicMock()
 
         from unity_mcp import server_filtering
         with patch.object(Path, "home", return_value=tmp_path):
@@ -404,7 +404,7 @@ def test_read_unity_port_cyrillic_project_path_parses_correctly(tmp_path):
     """
     from pathlib import Path
 
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     port_file = ports_dir / "12345.port"
     # Write file as raw UTF-8 bytes — bypasses EncodingWarning gate on test side
@@ -425,7 +425,7 @@ def test_read_unity_port_never_calls_tcp_probe(tmp_path):
     """read_unity_port must not call _tcp_probe — removed to avoid Unity console spam.
     PID liveness check is sufficient; bridge heartbeat handles transient port unreadiness.
     """
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     (ports_dir / "12345.port").write_bytes(b"9501\n/some/project\nMyProject")
 
@@ -545,7 +545,7 @@ def test_stale_reload_port_cleanup_removes_dead_pid(tmp_path):
     """Dead-PID *.reload-port files are deleted by cleanup_stale_port_files()."""
     from unity_mcp.server_filtering import cleanup_stale_port_files
     from pathlib import Path
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     dead_pid = 99999999
     (ports_dir / f"{dead_pid}.reload-port").write_text("9600", encoding="utf-8")
@@ -559,7 +559,7 @@ def test_stale_reload_port_cleanup_preserves_alive_pid(tmp_path):
     """Alive-PID *.reload-port files are NOT deleted."""
     from unity_mcp.server_filtering import cleanup_stale_port_files
     from pathlib import Path
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     alive_pid = os.getpid()
     f = ports_dir / f"{alive_pid}.reload-port"

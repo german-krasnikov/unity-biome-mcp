@@ -113,7 +113,7 @@ async def test_get_metrics_tool_returns_text():
     from unity_mcp.metrics import METRICS
     METRICS.inc("sampling.calls", 3)
     result = await get_metrics(format="text")
-    assert "Unity MCP Metrics" in result
+    assert "Unity Biome MCP Metrics" in result
     assert isinstance(result, str)
 
 

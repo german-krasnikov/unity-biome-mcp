@@ -290,7 +290,7 @@ def test_format_report_empty_data():
     from unity_mcp.metrics import MetricsRegistry
     m = MetricsRegistry()
     report = m.format_report()
-    assert "Unity MCP Metrics" in report
+    assert "Unity Biome MCP Metrics" in report
     assert "Sampling" not in report
     assert "Lessons" not in report
     assert "Hinter" not in report

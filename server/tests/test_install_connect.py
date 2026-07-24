@@ -44,10 +44,10 @@ def test_connect_adds_file_entries(tmp_path):
     rc = cmds.cmd_connect(_args(tmp_path), ui)
     assert rc == 0
     data = json.loads((tmp_path / "Packages" / "manifest.json").read_text("utf-8"))
-    assert "com.unity-mcp.editor" in data["dependencies"]
-    assert "com.unity-mcp.reload" in data["dependencies"]
-    assert data["dependencies"]["com.unity-mcp.editor"].startswith("file:")
-    assert data["dependencies"]["com.unity-mcp.reload"].startswith("file:")
+    assert "com.unity-biome-mcp.editor" in data["dependencies"]
+    assert "com.unity-biome-mcp.reload" in data["dependencies"]
+    assert data["dependencies"]["com.unity-biome-mcp.editor"].startswith("file:")
+    assert data["dependencies"]["com.unity-biome-mcp.reload"].startswith("file:")
 
 
 def test_connect_idempotent(tmp_path):
@@ -59,7 +59,7 @@ def test_connect_idempotent(tmp_path):
     assert rc == 0
     data = json.loads((tmp_path / "Packages" / "manifest.json").read_text("utf-8"))
     # Entry appears exactly once
-    assert list(data["dependencies"]).count("com.unity-mcp.editor") == 1
+    assert list(data["dependencies"]).count("com.unity-biome-mcp.editor") == 1
     ui.ok.assert_called()
 
 
@@ -80,14 +80,14 @@ def test_connect_adds_reload_to_existing_editor_project(tmp_path):
     """Item 26: editor present, reload missing → both added, returns 0."""
     editor_path = (Path(__file__).parent.parent.parent / "unity-plugin").resolve()
     _make_manifest(tmp_path, extra_deps={
-        "com.unity-mcp.editor": f"file:{editor_path.as_posix()}"
+        "com.unity-biome-mcp.editor": f"file:{editor_path.as_posix()}"
     })
     ui = _ui()
     rc = cmds.cmd_connect(_args(tmp_path), ui)
     assert rc == 0
     data = json.loads((tmp_path / "Packages" / "manifest.json").read_text("utf-8"))
-    assert "com.unity-mcp.reload" in data["dependencies"]
-    assert data["dependencies"]["com.unity-mcp.reload"].startswith("file:")
+    assert "com.unity-biome-mcp.reload" in data["dependencies"]
+    assert data["dependencies"]["com.unity-biome-mcp.reload"].startswith("file:")
 
 
 def test_connect_skips_when_both_present(tmp_path):
@@ -95,8 +95,8 @@ def test_connect_skips_when_both_present(tmp_path):
     editor_path = (Path(__file__).parent.parent.parent / "unity-plugin").resolve()
     reload_path = (Path(__file__).parent.parent.parent / "unity-plugin-reload").resolve()
     _make_manifest(tmp_path, extra_deps={
-        "com.unity-mcp.editor": f"file:{editor_path.as_posix()}",
-        "com.unity-mcp.reload": f"file:{reload_path.as_posix()}",
+        "com.unity-biome-mcp.editor": f"file:{editor_path.as_posix()}",
+        "com.unity-biome-mcp.reload": f"file:{reload_path.as_posix()}",
     })
     ui = _ui()
     rc = cmds.cmd_connect(_args(tmp_path), ui)
@@ -119,23 +119,23 @@ def test_disconnect_removes_entries(tmp_path):
     rc = cmds.cmd_disconnect(_args(tmp_path), _ui())
     assert rc == 0
     data = json.loads((tmp_path / "Packages" / "manifest.json").read_text("utf-8"))
-    assert "com.unity-mcp.editor" not in data["dependencies"]
-    assert "com.unity-mcp.reload" not in data["dependencies"]
+    assert "com.unity-biome-mcp.editor" not in data["dependencies"]
+    assert "com.unity-biome-mcp.reload" not in data["dependencies"]
 
 
 def test_disconnect_removes_testables(tmp_path):
-    _make_manifest(tmp_path, testables=["com.unity-mcp.editor", "com.unity-mcp.reload"])
+    _make_manifest(tmp_path, testables=["com.unity-biome-mcp.editor", "com.unity-biome-mcp.reload"])
     # Manually inject deps so disconnect sees something to remove
     manifest = tmp_path / "Packages" / "manifest.json"
     data = json.loads(manifest.read_text("utf-8"))
-    data["dependencies"]["com.unity-mcp.editor"] = "file:/foo"
-    data["dependencies"]["com.unity-mcp.reload"] = "file:/bar"
+    data["dependencies"]["com.unity-biome-mcp.editor"] = "file:/foo"
+    data["dependencies"]["com.unity-biome-mcp.reload"] = "file:/bar"
     manifest.write_text(json.dumps(data, indent=2) + "\n", "utf-8")
 
     cmds.cmd_disconnect(_args(tmp_path), _ui())
     data = json.loads(manifest.read_text("utf-8"))
-    assert "com.unity-mcp.editor" not in data.get("testables", [])
-    assert "com.unity-mcp.reload" not in data.get("testables", [])
+    assert "com.unity-biome-mcp.editor" not in data.get("testables", [])
+    assert "com.unity-biome-mcp.reload" not in data.get("testables", [])
 
 
 def test_disconnect_noop_when_not_connected(tmp_path):

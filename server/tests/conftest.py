@@ -58,7 +58,7 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_home(tmp_path_factory):
-    """Redirect Path.home() per session to prevent ~/.unity-mcp pollution."""
+    """Redirect Path.home() per session to prevent ~/.unity-biome-mcp pollution."""
     fake_home = tmp_path_factory.mktemp("home")
     real_home = Path.home
     Path.home = staticmethod(lambda: fake_home)

@@ -126,7 +126,7 @@ def _count_unity_tests_tcp() -> Optional[int]:
         w.close()
         return json.loads(raw).get("data", "")
     async def _query():
-        for port_file in pathlib.Path.home().glob(".unity-mcp/ports/*.port"):
+        for port_file in pathlib.Path.home().glob(".unity-biome-mcp/ports/*.port"):
             try:
                 port = int(port_file.read_text().split("\n")[0])
             except Exception:

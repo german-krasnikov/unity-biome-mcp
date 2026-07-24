@@ -275,14 +275,14 @@ class CodexDef(BackendDef):
         def _toml_arr(items: list[str]) -> str:
             return ",".join(f'"{_toml_esc(i)}"' for i in items)
 
-        # Use the SAME server name the project .codex/config.toml uses ("unity-mcp"),
+        # Use the SAME server name the project .codex/config.toml uses (SERVER_NAME),
         # so this inline -c OVERRIDES the project entry instead of adding a duplicate
         # second Unity server (two servers on port 9500 → codex hangs).
         argv += [
-            "-c", f'mcp_servers.unity-mcp.command="{_toml_esc(cmd)}"',
-            "-c", f"mcp_servers.unity-mcp.args=[{_toml_arr(cmd_args)}]",
-            "-c", "mcp_servers.unity-mcp.startup_timeout_sec=30",
-            "-c", f'mcp_servers.unity-mcp.env.UNITY_MCP_PORT="{mcp_port}"',
+            "-c", f'mcp_servers.{SERVER_NAME}.command="{_toml_esc(cmd)}"',
+            "-c", f"mcp_servers.{SERVER_NAME}.args=[{_toml_arr(cmd_args)}]",
+            "-c", f"mcp_servers.{SERVER_NAME}.startup_timeout_sec=30",
+            "-c", f'mcp_servers.{SERVER_NAME}.env.UNITY_MCP_PORT="{mcp_port}"',
         ]
 
         if model:

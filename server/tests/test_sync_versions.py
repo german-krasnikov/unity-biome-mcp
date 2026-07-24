@@ -18,10 +18,10 @@ def _write_fixture(root: Path, versions: dict) -> None:
     (root / "docs" / "assets").mkdir(parents=True, exist_ok=True)
 
     (root / "server" / "pyproject.toml").write_text(
-        f'[project]\nname = "unity-mcp"\nversion = "{versions["pyproject.toml"]}"\n', encoding="utf-8"
+        f'[project]\nname = "unity-biome-mcp"\nversion = "{versions["pyproject.toml"]}"\n', encoding="utf-8"
     )
     (root / "unity-plugin" / "package.json").write_text(
-        json.dumps({"name": "unity-mcp", "version": versions["package.json"]}), encoding="utf-8"
+        json.dumps({"name": "unity-biome-mcp", "version": versions["package.json"]}), encoding="utf-8"
     )
     (root / "server" / "src" / "unity_mcp" / "__version__.py").write_text(
         f'__version__ = "{versions["__version__.py"]}"\n', encoding="utf-8"

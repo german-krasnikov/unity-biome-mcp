@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unity MCP installer. stdlib only, Python 3.10+."""
+"""Unity Biome MCP installer. stdlib only, Python 3.10+."""
 import argparse
 import json
 import re
@@ -13,7 +13,7 @@ SERVER_DIR = REPO_ROOT / "server"
 CODEX_DIR = REPO_ROOT / ".codex"
 MCP_JSON = REPO_ROOT / ".mcp.json"
 CODEX_CONFIG = CODEX_DIR / "config.toml"
-_UNITY_MCP_DATA_DIR = Path.home() / ".unity-mcp"
+_UNITY_MCP_DATA_DIR = Path.home() / ".unity-biome-mcp"
 
 # ── package imports ───────────────────────────────────────────────────────────
 sys.path.insert(0, str(REPO_ROOT))
@@ -41,10 +41,10 @@ except ImportError:
     detect_installed = lambda: []  # type: ignore[assignment]
     merge_mcp_config = None  # type: ignore[assignment]
     merge_toml_mcp = None  # type: ignore[assignment]
-    SERVER_NAME = "unity-mcp"  # type: ignore[assignment]
+    SERVER_NAME = "unity-biome-mcp"  # type: ignore[assignment]
     backup = None  # type: ignore[assignment]
     build_server_entry = lambda port=0: {}  # type: ignore[assignment]
-    GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server"
+    GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server"
     validate_config = lambda key: "not configured"  # type: ignore[assignment]
 
 
@@ -67,7 +67,7 @@ def _has_uvx() -> bool:
 
 
 def _reinstall_uvx() -> None:
-    subprocess.run(["uvx", "--reinstall", "--from", GIT_INSTALL_URL, "unity-mcp"], check=True)
+    subprocess.run(["uvx", "--reinstall", "--from", GIT_INSTALL_URL, "unity-biome-mcp"], check=True)
 
 
 def _reconfigure_detected_clients() -> None:
@@ -99,13 +99,13 @@ def _reconfigure_detected_clients() -> None:
 # ── subcommands ───────────────────────────────────────────────────────────────
 
 def cmd_setup(_args: argparse.Namespace) -> None:
-    ui.box(["Unity MCP setup"])
+    ui.box(["Unity Biome MCP setup"])
     _setup_env()
     ui.ok("Done. Run 'python install.py doctor' to verify.")
 
 
 def cmd_update(_args: argparse.Namespace, _stop_fn=None) -> None:
-    ui.box(["Unity MCP update"])
+    ui.box(["Unity Biome MCP update"])
 
     # Stop the running server BEFORE swapping files (avoids file-lock / port-hold).
     # Explicit --port required for safety: we NEVER wildcard-kill all servers.
@@ -259,11 +259,11 @@ def build_server_entry_for_ref(version: str) -> dict:
     """Build MCP server entry with pinned @vX.Y.Z URL."""
     from unity_mcp.config.resolver import server_git_url
     url = server_git_url(ref=version)
-    return {"command": "uvx", "args": ["--from", url, "unity-mcp"]}
+    return {"command": "uvx", "args": ["--from", url, "unity-biome-mcp"]}
 
 
 def _plugin_upm_url(version: str) -> str:
-    return f"https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin#v{version}"
+    return f"https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin#v{version}"
 
 
 def cmd_version(args: argparse.Namespace) -> None:
@@ -336,11 +336,11 @@ def cmd_version(args: argparse.Namespace) -> None:
     print(f"\nPlugin re-pin: open Unity → MCP → Updates → Version Picker → select v{set_version} → Roll Back")
     print(f"  OR: python install.py version --set {set_version} --force-print-plugin-url")
     print(f"Plugin UPM URL: {_plugin_upm_url(set_version)}")
-    print(f"\nIf the server doesn't start correctly, run: uvx cache clean unity-mcp")
+    print(f"\nIf the server doesn't start correctly, run: uvx cache clean unity-biome-mcp")
 
 
 def cmd_pull(_args: argparse.Namespace) -> None:
-    ui.box(["Unity MCP — pull latest"])
+    ui.box(["Unity Biome MCP — pull latest"])
     code = _cmds.cmd_pull(REPO_ROOT, ui)
     if code != 0:
         sys.exit(code)
@@ -361,7 +361,7 @@ def cmd_disconnect(args: argparse.Namespace) -> None:
 # ── argparse ──────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Unity MCP installer")
+    p = argparse.ArgumentParser(description="Unity Biome MCP installer")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("setup", help="First-time setup")
@@ -372,7 +372,7 @@ def main() -> None:
 
     sub.add_parser("doctor", help="Diagnose installation")
 
-    p_stop = sub.add_parser("stop", help="Stop a running Unity MCP server")
+    p_stop = sub.add_parser("stop", help="Stop a running Unity Biome MCP server")
     p_stop.add_argument("--port", type=int, required=True,
                         help="Port of the server to stop (e.g. 9515)")
     p_stop.add_argument("--timeout", type=float, default=10.0,
@@ -398,12 +398,12 @@ def main() -> None:
                        help="Print plugin UPM git URL for the pinned version and exit")
 
     sub.add_parser("pull", help="Pull latest code (git clone installs only)")
-    sub.add_parser("uninstall", help="Remove Unity MCP")
+    sub.add_parser("uninstall", help="Remove Unity Biome MCP")
 
-    p_connect = sub.add_parser("connect", help="Connect Unity MCP to a Unity project")
+    p_connect = sub.add_parser("connect", help="Connect Unity Biome MCP to a Unity project")
     p_connect.add_argument("unity_project", help="Path to Unity project root")
 
-    p_disconnect = sub.add_parser("disconnect", help="Disconnect Unity MCP from a Unity project")
+    p_disconnect = sub.add_parser("disconnect", help="Disconnect Unity Biome MCP from a Unity project")
     p_disconnect.add_argument("unity_project", help="Path to Unity project root")
 
     args = p.parse_args()

@@ -9,7 +9,7 @@ from unity_mcp.paths import unity_mcp_dir
 
 CACHE_FILE = unity_mcp_dir() / "update_cache.json"
 CACHE_TTL = 86400  # 24 hours
-GITHUB_URL = "https://api.github.com/repos/german-krasnikov/unity-kiss-mcp/releases/latest"
+GITHUB_URL = "https://api.github.com/repos/german-krasnikov/unity-biome-mcp/releases/latest"
 TIMEOUT = 3
 
 log = logging.getLogger("unity_mcp")
@@ -36,9 +36,11 @@ def check_for_update() -> str | None:
 
 
 def _is_newer(remote: str, local: str) -> bool:
-    """Return True if remote semver > local."""
+    """Return True if remote semver > local. Strips pre-release suffixes (e.g. '0.0.0-dev')."""
     try:
-        return tuple(int(x) for x in remote.split(".")) > tuple(int(x) for x in local.split("."))
+        r = tuple(int(x) for x in remote.split("-")[0].split("."))
+        l = tuple(int(x) for x in local.split("-")[0].split("."))
+        return r > l
     except Exception:
         return False
 
@@ -61,5 +63,5 @@ def _write_cache(data: dict) -> None:
 
 
 def format_update_banner(new_version: str) -> str:
-    msg = f"  Update available: {__version__} → {new_version}  (run: uvx --reinstall --from {GIT_INSTALL_URL} unity-mcp)"
+    msg = f"  Update available: {__version__} → {new_version}  (run: uvx --reinstall --from {GIT_INSTALL_URL} unity-biome-mcp)"
     return f"\n{msg}\n"

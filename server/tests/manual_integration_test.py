@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Manual integration test for Unity MCP Server.
+Manual integration test for Unity Biome MCP Server.
 
 Usage:
     1. Open Unity Editor with the unity-plugin installed

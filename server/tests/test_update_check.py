@@ -77,6 +77,7 @@ def test_check_for_update_uses_cache(tmp_path, monkeypatch):
 def test_check_for_update_no_update(tmp_path, monkeypatch):
     cache_file = tmp_path / "cache.json"
     monkeypatch.setattr("unity_mcp._update_check.CACHE_FILE", cache_file)
+    monkeypatch.setattr("unity_mcp._update_check.__version__", "1.0.0")
     cache_file.write_text(json.dumps({"ts": time.time(), "latest": "0.1.0"}), encoding="utf-8")
     with patch("urllib.request.urlopen") as mock_url:
         result = check_for_update()

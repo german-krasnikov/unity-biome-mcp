@@ -1,4 +1,4 @@
-"""Anti-hallucination + speed middleware for Unity MCP.
+"""Anti-hallucination + speed middleware for Unity Biome MCP.
 
 Enable with env var: UNITY_MCP_MIDDLEWARE=1
 Each feature is independent and stateless per Middleware instance.

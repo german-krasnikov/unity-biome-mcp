@@ -2,9 +2,9 @@
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability in Unity MCP, please report it responsibly:
+If you discover a security vulnerability in Unity Biome MCP, please report it responsibly:
 
-1. **GitHub Security Advisory** (preferred): Visit the [Security tab](https://github.com/german-krasnikov/unity-kiss-mcp/security/advisories) and report privately.
+1. **GitHub Security Advisory** (preferred): Visit the [Security tab](https://github.com/german-krasnikov/unity-biome-mcp/security/advisories) and report privately.
 2. **Email**: [german.krasnikov@gmail.com](mailto:german.krasnikov@gmail.com)
 
 Please do not open public GitHub issues for security vulnerabilities.
@@ -13,7 +13,7 @@ Please do not open public GitHub issues for security vulnerabilities.
 
 ## Security Model
 
-Unity MCP is a **developer tool** designed for local, interactive use. The security model assumes the OS user as the trust boundary.
+Unity Biome MCP is a **developer tool** designed for local, interactive use. The security model assumes the OS user as the trust boundary.
 
 ### Network Isolation
 - **Localhost-only**: TCP binds to `127.0.0.1:9500` — no remote connections possible.
@@ -73,7 +73,7 @@ Unity MCP is a **developer tool** designed for local, interactive use. The secur
 
 ## Best Practices
 
-When using Unity MCP in development:
+When using Unity Biome MCP in development:
 
 - **Run only one MCP session per project** (one MCP process per Unity instance).
 - **Use `UNITY_MCP_PROJECT_DIR` env var** when managing multiple projects simultaneously.
@@ -84,4 +84,4 @@ When using Unity MCP in development:
 
 ## Attribution
 
-Security reports that result in a fix are credited in the changelog. Thank you for helping keep Unity MCP secure.
+Security reports that result in a fix are credited in the changelog. Thank you for helping keep Unity Biome MCP secure.

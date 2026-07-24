@@ -43,7 +43,7 @@ class Executor:
             failed_lines = _count_failures(result_str)
             if 0 < len(failed_lines) <= 5:
                 fix_prompt = (
-                    f"Fix these failed Unity MCP commands (output only fixed commands, one per line):\n"
+                    f"Fix these failed Unity Biome MCP commands (output only fixed commands, one per line):\n"
                     f"Original intent: {original_intent}\n"
                     f"Failed:\n" + "\n".join(failed_lines)
                 )

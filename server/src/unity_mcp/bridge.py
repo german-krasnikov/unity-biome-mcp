@@ -73,12 +73,12 @@ def check_protocol_version(python_proto: int, unity_proto: int) -> None:
     if python_proto > unity_proto:
         logger.warning(
             "Unity plugin is outdated (proto %d < %d). "
-            "Upgrade the Unity MCP plugin package.", unity_proto, python_proto
+            "Upgrade the Unity Biome MCP plugin package.", unity_proto, python_proto
         )
     elif python_proto < unity_proto:
         raise ConnectionError(
             f"Python MCP server must upgrade: Unity proto {unity_proto} > Python proto {python_proto}. "
-            "Run: pip install --upgrade unity-mcp"
+            "Run: pip install --upgrade unity-biome-mcp"
         )
 
 CONNECT_TIMEOUT = float(os.environ.get("UNITY_MCP_CONNECT_TIMEOUT", "5.0"))

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace UnityMCP.Editor
 {
     // Port resolution + discovery-file I/O extracted from MCPServer (Phase 2, M1).
-    // Owns MCP_Port.json / MCPSettings.json / ~/.unity-mcp/{ports,state} writes and
+    // Owns MCP_Port.json / MCPSettings.json / ~/.unity-biome-mcp/{ports,state} writes and
     // the resolved Port/ChatPort values shared across the server.
     internal static class PortFileManager
     {
@@ -69,7 +69,7 @@ namespace UnityMCP.Editor
             {
                 var dir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".unity-mcp", "ports");
+                    ".unity-biome-mcp", "ports");
                 Directory.CreateDirectory(dir);
                 var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
                 var project = Path.GetFileName(Path.GetDirectoryName(Application.dataPath));
@@ -90,7 +90,7 @@ namespace UnityMCP.Editor
             {
                 var dir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".unity-mcp", "ports");
+                    ".unity-biome-mcp", "ports");
                 var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
                 var path = Path.Combine(dir, $"{pid}.port");
                 if (File.Exists(path)) File.Delete(path);
@@ -106,7 +106,7 @@ namespace UnityMCP.Editor
             {
                 var dir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".unity-mcp", "state");
+                    ".unity-biome-mcp", "state");
                 Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, $"port-{Port}.state");
                 var tmp = path + ".tmp";
@@ -131,7 +131,7 @@ namespace UnityMCP.Editor
             {
                 var path = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".unity-mcp", "state", $"port-{Port}.state");
+                    ".unity-biome-mcp", "state", $"port-{Port}.state");
                 if (File.Exists(path)) File.Delete(path);
             }
             catch { }

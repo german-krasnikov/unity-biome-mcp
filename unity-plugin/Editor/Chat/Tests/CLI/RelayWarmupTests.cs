@@ -88,11 +88,11 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void BuildWarmupArgv_AppendsVersionFlag()
         {
-            var argv = new[] { "--from", "git+https://example.com/repo", "unity-mcp-relay" };
+            var argv = new[] { "--from", "git+https://example.com/repo", "unity-biome-mcp-relay" };
             var result = RelayWarmup.BuildWarmupArgv(argv);
 
             CollectionAssert.AreEqual(
-                new[] { "--from", "git+https://example.com/repo", "unity-mcp-relay", "--version" },
+                new[] { "--from", "git+https://example.com/repo", "unity-biome-mcp-relay", "--version" },
                 result);
         }
 
@@ -159,7 +159,7 @@ namespace UnityMCP.Editor.Chat.Tests
             RelayWarmup.CommandResolverOverride = () =>
             {
                 resolverCalled = true;
-                return ("/definitely/not/a/real/binary", new[] { "--from", "url", "unity-mcp-relay" });
+                return ("/definitely/not/a/real/binary", new[] { "--from", "url", "unity-biome-mcp-relay" });
             };
             var started = false;
             RelayWarmup.OnWarmStarted = () => started = true;

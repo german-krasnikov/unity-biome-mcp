@@ -71,7 +71,7 @@ namespace UnityMCP.Editor.Tests
             var tmp = Path.GetTempFileName();
             try
             {
-                File.WriteAllText(tmp, "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"uvx\",\"args\":[\"--from\",\"git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server\",\"unity-mcp\"]}}}");
+                File.WriteAllText(tmp, "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\",\"args\":[\"--from\",\"git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server\",\"unity-biome-mcp\"]}}}");
                 VersionCoherenceChecker._testConfigPath = tmp;
                 Assert.IsNull(VersionCoherenceChecker.GetServerPinnedRef());
             }
@@ -84,7 +84,7 @@ namespace UnityMCP.Editor.Tests
             var tmp = Path.GetTempFileName();
             try
             {
-                File.WriteAllText(tmp, "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"uvx\",\"args\":[\"--from\",\"git+https://github.com/german-krasnikov/unity-kiss-mcp.git@v0.54.1#subdirectory=server\",\"unity-mcp\"]}}}");
+                File.WriteAllText(tmp, "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\",\"args\":[\"--from\",\"git+https://github.com/german-krasnikov/unity-biome-mcp.git@v0.54.1#subdirectory=server\",\"unity-biome-mcp\"]}}}");
                 VersionCoherenceChecker._testConfigPath = tmp;
                 Assert.AreEqual("0.54.1", VersionCoherenceChecker.GetServerPinnedRef());
             }

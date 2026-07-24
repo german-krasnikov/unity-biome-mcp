@@ -27,7 +27,7 @@ def resolve_server_cmd() -> tuple[str, list[str]]:
 
     uvx = shutil.which("uvx")
     if uvx:
-        return uvx, ["unity-mcp"]
+        return uvx, ["unity-biome-mcp"]
 
     python = "python3" if sys.platform != "win32" else "python"
     return python, ["-m", "unity_mcp.server"]
@@ -41,7 +41,7 @@ def _atomic_write(path: str, content: str) -> None:
 
 
 def write_claude_config(config_dir: str, mcp_port: int) -> str:
-    """Writes unity-mcp-config-{port}.json for --mcp-config. Returns absolute path."""
+    """Writes unity-biome-mcp-config-{port}.json for --mcp-config. Returns absolute path."""
     cmd, args = resolve_server_cmd()
     config = {
         "mcpServers": {
@@ -52,7 +52,7 @@ def write_claude_config(config_dir: str, mcp_port: int) -> str:
             }
         }
     }
-    path = os.path.join(config_dir, f"unity-mcp-config-{mcp_port}.json")
+    path = os.path.join(config_dir, f"unity-biome-mcp-config-{mcp_port}.json")
     _atomic_write(path, json.dumps(config))
     return path
 
@@ -103,7 +103,7 @@ def write_agy_settings(settings_dir: str, mcp_port: int) -> None:
 
 
 def write_opencode_config(config_dir: str, mcp_port: int) -> str:
-    """Writes opencode-unity-mcp-{port}.json. Returns absolute path."""
+    """Writes opencode-unity-biome-mcp-{port}.json. Returns absolute path."""
     os.makedirs(config_dir, exist_ok=True)
     cmd, args = resolve_server_cmd()
     config = {
@@ -116,6 +116,6 @@ def write_opencode_config(config_dir: str, mcp_port: int) -> str:
             }
         }
     }
-    path = os.path.join(config_dir, f"opencode-unity-mcp-{mcp_port}.json")
+    path = os.path.join(config_dir, f"opencode-unity-biome-mcp-{mcp_port}.json")
     _atomic_write(path, json.dumps(config, indent=2))
     return path

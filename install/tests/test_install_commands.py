@@ -47,14 +47,14 @@ def _fake_registry(config_path: Path) -> dict:
 def test_configure_creates_config(tmp_path):
     cfg = tmp_path / "mcp.json"
     registry = _fake_registry(cfg)
-    entry = {"command": "uv", "args": ["run", "unity-mcp"]}
+    entry = {"command": "uv", "args": ["run", "unity-biome-mcp"]}
 
     with patch.object(inst, "CLIENT_REGISTRY", registry), \
          patch.object(inst, "build_server_entry", return_value=entry):
         cmd_configure(_args(tool="fake-tool"))
 
     data = json.loads(cfg.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-mcp"] == entry
+    assert data["mcpServers"]["unity-biome-mcp"] == entry
 
 
 def test_configure_preserves_other_servers(tmp_path):
@@ -69,7 +69,7 @@ def test_configure_preserves_other_servers(tmp_path):
 
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "other-tool" in data["mcpServers"]
-    assert "unity-mcp" in data["mcpServers"]
+    assert "unity-biome-mcp" in data["mcpServers"]
 
 
 def test_configure_with_tool_flag_only_configures_that_tool(tmp_path):
@@ -196,7 +196,7 @@ def test_uninstall_removes_venv(tmp_path):
 
 
 def test_uninstall_removes_unity_mcp_dir(tmp_path):
-    data_dir = tmp_path / ".unity-mcp"
+    data_dir = tmp_path / ".unity-biome-mcp"
     data_dir.mkdir()
     (data_dir / "ports").mkdir()
 
@@ -209,7 +209,7 @@ def test_uninstall_removes_unity_mcp_dir(tmp_path):
 
 
 def test_uninstall_skips_data_dir_if_user_declines(tmp_path):
-    data_dir = tmp_path / ".unity-mcp"
+    data_dir = tmp_path / ".unity-biome-mcp"
     data_dir.mkdir()
 
     with patch.object(inst, "SERVER_DIR", tmp_path / "server"), \
@@ -398,7 +398,7 @@ def test_reconfigure_detected_clients_skips_unconfigured_tools(tmp_path):
     merge_calls = []
 
     def fake_validate(key):
-        return "Status: not configured (unity-mcp missing)" if key == "cursor" else "Status: ok"
+        return "Status: not configured (unity-biome-mcp missing)" if key == "cursor" else "Status: ok"
 
     def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
         merge_calls.append(path)

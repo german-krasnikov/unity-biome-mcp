@@ -1,6 +1,6 @@
 ---
 name: unity-physics
-description: Unity MCP physics setup — Rigidbody, colliders, spatial queries, physics debug. Patterns for manage_component, configure_objects, autofit_collider, check_colliders, spatial_query, debug_physics.
+description: Unity Biome MCP physics setup — Rigidbody, colliders, spatial queries, physics debug. Patterns for manage_component, configure_objects, autofit_collider, check_colliders, spatial_query, debug_physics.
 user-invocable: false
 ---
 

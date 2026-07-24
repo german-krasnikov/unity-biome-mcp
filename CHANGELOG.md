@@ -1,9 +1,25 @@
 # Changelog
 
+> **v0.95.0 Rebrand:** Server name `unity-mcp` → `unity-biome-mcp`, data dir
+> `~/.unity-mcp/` → `~/.unity-biome-mcp/`, UPM package `com.unity-mcp.editor`
+> → `com.unity-biome-mcp.editor`. Prior installs auto-migrate on first server start.
+> GitHub repo: `unity-kiss-mcp` → `unity-biome-mcp`.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [v0.95.0] — 2026-07-24 — Rebrand unity-kiss-mcp → unity-biome-mcp
+
+**Rebrand:**
+- Server name `unity-mcp` → `unity-biome-mcp` (SERVER_NAME, UPM packages, data dir, docs, URLs)
+- Data directory `~/.unity-mcp/` → `~/.unity-biome-mcp/` with auto-migration on first start
+- UPM packages `com.unity-mcp.editor` → `com.unity-biome-mcp.editor`, `com.unity-mcp.reload` → `com.unity-biome-mcp.reload`
+- GitHub repo `unity-kiss-mcp` → `unity-biome-mcp` (301 redirect preserved)
+- Internal identifiers preserved: `unity_mcp` Python module, `UnityMCP` C# namespace, `UNITY_MCP_*` env vars
+- Legacy migration: `_OLD_NAMES = ("unity-mcp",)` strips stale config keys on upgrade
+- 682 files updated, zero regressions across 11764 tests
 
 ## [v0.94.0] — 2026-07-20 — Deprecated code removal, Client Skills migration, Install AI Skills wizard
 

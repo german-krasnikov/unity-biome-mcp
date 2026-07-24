@@ -27,7 +27,7 @@ namespace UnityMCP.Editor.Wizard.Screens
             _root = new VisualElement();
             _root.AddToClassList("wiz-container");
 
-            _logo = new Label("◆ Unity MCP");
+            _logo = new Label("◆ Unity Biome MCP");
             _logo.AddToClassList("wiz-title");
             var logo = _logo;
 

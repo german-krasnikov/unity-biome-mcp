@@ -1,4 +1,4 @@
-// Writes/merges unity-mcp entry into external AI tool config files.
+// Writes/merges unity-biome-mcp entry into external AI tool config files.
 using System;
 using System.IO;
 using System.Text;
@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.Wizard
                 File.WriteAllText(configPath, merged, new UTF8Encoding(false));
                 UnityEditor.EditorUtility.DisplayDialog(
                     $"{toolName} — Config Written",
-                    $"unity-mcp added to:\n{configPath}", "OK");
+                    $"unity-biome-mcp added to:\n{configPath}", "OK");
             }
             catch (Exception ex)
             {
@@ -55,10 +55,10 @@ namespace UnityMCP.Editor.Wizard
         // plain one, so both writers share one merge algorithm (DRY).
         internal static string MergeWithEntry(string existing, string entry, string rootKey)
         {
-            // Replace our existing entry (new name first, then the OLD "unity-kiss" name
+            // Replace our existing entry (new name first, then the OLD "unity-mcp" name
             // so a prior install is migrated — key AND value swapped for the fresh entry,
             // never left as a duplicate second server).
-            foreach (var key in new[] { PermissionConfig.SERVER_NAME, "unity-kiss" })
+            foreach (var key in new[] { PermissionConfig.SERVER_NAME, "unity-mcp" })
             {
                 if (!FindEntryBounds(existing, key, out var bStart, out var bEnd)) continue;
                 var keyStart = existing.LastIndexOf("\"" + key + "\"", bStart, StringComparison.Ordinal);
@@ -98,7 +98,7 @@ namespace UnityMCP.Editor.Wizard
             "}\n";
 
         public const string GitInstallUrl =
-            "git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server";
+            "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server";
 
         /// <summary>
         /// Returns a uvx --from URL pinned to a specific git tag.
@@ -112,7 +112,7 @@ namespace UnityMCP.Editor.Wizard
             var parts = clean.Split('.');
             if (parts.Length != 3 || !AllDigits(parts))
                 throw new ArgumentException($"Invalid version ref: {@ref}");
-            const string RepoBase = "git+https://github.com/german-krasnikov/unity-kiss-mcp.git";
+            const string RepoBase = "git+https://github.com/german-krasnikov/unity-biome-mcp.git";
             return $"{RepoBase}@v{clean}#subdirectory=server";
         }
 
@@ -128,7 +128,7 @@ namespace UnityMCP.Editor.Wizard
         internal static string Entry(int port, string gitUrl) =>
             $"\"{PermissionConfig.SERVER_NAME}\": {{\n" +              // server name (config key)
             "      \"command\": \"uvx\",\n" +
-            $"      \"args\": [\"--from\", \"{gitUrl}\", \"unity-mcp\"],\n" +   // 'unity-mcp' = PyPI package
+            $"      \"args\": [\"--from\", \"{gitUrl}\", \"unity-biome-mcp\"],\n" +   // 'unity-biome-mcp' = PyPI package
             $"      \"env\": {{ \"UNITY_MCP_PORT\": \"{port}\" }}\n" +
             "    }";
 

@@ -1,8 +1,8 @@
 {
-  "name": "com.unity-mcp.reload",
+  "name": "com.unity-biome-mcp.reload",
   "version": "0.1.4",
-  "displayName": "Unity MCP Reload",
-  "description": "Reload recovery package for Unity MCP — survives main plugin compilation failures",
+  "displayName": "Unity Biome MCP Reload",
+  "description": "Reload recovery package for Unity Biome MCP — survives main plugin compilation failures",
   "unity": "6000.0",
   "dependencies": {}
 }

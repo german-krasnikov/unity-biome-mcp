@@ -71,7 +71,7 @@ def _start_idle_watchdog() -> threading.Thread | None:
                 logging.shutdown()
                 os._exit(0)
 
-    t = threading.Thread(target=_loop, daemon=True, name="unity-mcp-idle-watchdog")
+    t = threading.Thread(target=_loop, daemon=True, name="unity-biome-mcp-idle-watchdog")
     t.start()
     return t
 
@@ -421,6 +421,8 @@ install_initialized_hook(mcp, lambda: slot.bridge if slot else None)
 
 
 def main():
+    from .paths import migrate_data_dir
+    migrate_data_dir()
     global _last_activity
     _last_activity = time.monotonic()
     _start_idle_watchdog()

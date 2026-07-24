@@ -5,7 +5,7 @@ The plugin auto-configures Kimi automatically when you add it to your project. W
 ## Prerequisites
 
 - Kimi CLI installed and authenticated
-- Unity 6000.0+ with the `unity-mcp` plugin installed (via UPM git URL)
+- Unity 6000.0+ with the `unity-biome-mcp` plugin installed (via UPM git URL)
 - TCP port 9500 (or auto-assigned) free
 
 ## Quick Setup
@@ -23,7 +23,7 @@ The installer adds `~/.kimi-code/bin` to PATH via `~/.zshrc` (macOS) or `~/.bash
 
 1. Open **Window → Package Manager**
 2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
 4. Wait for import, then open any scene
 
 Authenticate Kimi:
@@ -39,7 +39,7 @@ The plugin auto-generates your Kimi MCP config on first load.
 Run the diagnostic:
 
 ```bash
-uvx --from git+https://github.com/german-krasnikov/unity-kiss-mcp.git#subdirectory=server unity-mcp doctor
+uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
 ```
 
 ## Use From the Editor (Primary Workflow)

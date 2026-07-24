@@ -102,10 +102,10 @@ def test_opencode_config_path_platform_specific():
 def test_merge_creates_new_config_file(tmp_path):
     from unity_mcp.config import merger
     cfg = tmp_path / "config.json"
-    entry = {"command": "uvx", "args": ["unity-mcp"]}
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"]}
     merger.merge_mcp_config(cfg, entry)
     data = json.loads(cfg.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-mcp"] == entry
+    assert data["mcpServers"]["unity-biome-mcp"] == entry
 
 
 def test_merge_preserves_other_servers(tmp_path):
@@ -113,52 +113,52 @@ def test_merge_preserves_other_servers(tmp_path):
     cfg = tmp_path / "config.json"
     existing = {"mcpServers": {"filesystem": {"command": "fs", "args": []}}}
     cfg.write_text(json.dumps(existing), encoding="utf-8")
-    entry = {"command": "uvx", "args": ["unity-mcp"]}
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"]}
     merger.merge_mcp_config(cfg, entry)
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "filesystem" in data["mcpServers"]
-    assert data["mcpServers"]["unity-mcp"] == entry
+    assert data["mcpServers"]["unity-biome-mcp"] == entry
 
 
 def test_merge_updates_existing_unity_mcp(tmp_path):
-    """A prior-install entry under the OLD name 'unity-kiss' must be migrated to
-    'unity-mcp' on merge — no leftover duplicate under the old key."""
+    """A prior-install entry under the OLD name 'unity-mcp' must be migrated to
+    'unity-biome-mcp' on merge — no leftover duplicate under the old key."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.json"
-    old = {"mcpServers": {"unity-kiss": {"command": "python", "args": ["-m", "old"]}}}
+    old = {"mcpServers": {"unity-mcp": {"command": "python", "args": ["-m", "old"]}}}
     cfg.write_text(json.dumps(old), encoding="utf-8")
-    new_entry = {"command": "uvx", "args": ["unity-mcp"]}
+    new_entry = {"command": "uvx", "args": ["unity-biome-mcp"]}
     merger.merge_mcp_config(cfg, new_entry)
     data = json.loads(cfg.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-mcp"] == new_entry
-    assert "unity-kiss" not in data["mcpServers"]  # old name migrated away
+    assert data["mcpServers"]["unity-biome-mcp"] == new_entry
+    assert "unity-mcp" not in data["mcpServers"]  # old name migrated away
     assert len(data["mcpServers"]) == 1  # not duplicated
 
 
 def test_merger_custom_root_key(tmp_path):
     from unity_mcp.config import merger
     cfg = tmp_path / "mcp.json"
-    entry = {"type": "stdio", "command": "uvx", "args": ["unity-mcp"]}
+    entry = {"type": "stdio", "command": "uvx", "args": ["unity-biome-mcp"]}
     merger.merge_mcp_config(cfg, entry, root_key="servers")
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "servers" in data
-    assert data["servers"]["unity-mcp"] == entry
+    assert data["servers"]["unity-biome-mcp"] == entry
     assert "mcpServers" not in data
 
 
 def test_merger_entry_transformer(tmp_path):
     from unity_mcp.config import merger
     cfg = tmp_path / "config.json"
-    base_entry = {"command": "uvx", "args": ["unity-mcp"]}
+    base_entry = {"command": "uvx", "args": ["unity-biome-mcp"]}
 
     def transform(e: dict) -> dict:
         return {"type": "local", "command": [e["command"]] + e["args"], "enabled": True}
 
     merger.merge_mcp_config(cfg, base_entry, entry_transformer=transform)
     data = json.loads(cfg.read_text(encoding="utf-8"))
-    stored = data["mcpServers"]["unity-mcp"]
+    stored = data["mcpServers"]["unity-biome-mcp"]
     assert stored["type"] == "local"
-    assert stored["command"] == ["uvx", "unity-mcp"]
+    assert stored["command"] == ["uvx", "unity-biome-mcp"]
     assert stored["enabled"] is True
 
 
@@ -168,21 +168,21 @@ def test_merger_default_root_key_unchanged(tmp_path):
     cfg = tmp_path / "config.json"
     existing = {"mcpServers": {"other": {}}}
     cfg.write_text(json.dumps(existing), encoding="utf-8")
-    merger.merge_mcp_config(cfg, {"command": "uvx", "args": ["unity-mcp"]})
+    merger.merge_mcp_config(cfg, {"command": "uvx", "args": ["unity-biome-mcp"]})
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "mcpServers" in data
     assert "other" in data["mcpServers"]
 
 
 def test_merge_toml_strips_stale_unity_entry(tmp_path):
-    """Stale [mcp_servers.unity] (bare) must be removed when writing unity-mcp."""
+    """Stale [mcp_servers.unity] (bare) must be removed when writing unity-biome-mcp."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
     cfg.write_text('[mcp_servers.unity]\ncommand = "/old/python"\nargs = []\n', encoding="utf-8")
     merger.merge_toml_mcp(cfg, {"command": "/new/python", "args": ["-m", "unity_mcp.server"]})
     text = cfg.read_text(encoding="utf-8")
     assert "[mcp_servers.unity]\n" not in text
-    assert "[mcp_servers.unity-mcp]" in text
+    assert "[mcp_servers.unity-biome-mcp]" in text
     assert "/new/python" in text
 
 
@@ -200,9 +200,9 @@ def test_merge_toml_preserves_other_tables(tmp_path):
 def test_merge_toml_includes_env(tmp_path):
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
-    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": ["unity-mcp"], "env": {"PYTHONUTF8": "1"}})
+    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": ["unity-biome-mcp"], "env": {"PYTHONUTF8": "1"}})
     text = cfg.read_text(encoding="utf-8")
-    assert "[mcp_servers.unity-mcp.env]" in text
+    assert "[mcp_servers.unity-biome-mcp.env]" in text
     assert "PYTHONUTF8 = '1'" in text
 
 
@@ -217,7 +217,7 @@ def test_merge_toml_windows_path_no_regex_escape(tmp_path):
     })
     text = cfg.read_text(encoding="utf-8")
     assert r"C:\Users\TestUser" in text
-    assert text.count("[mcp_servers.unity-mcp]") == 1
+    assert text.count("[mcp_servers.unity-biome-mcp]") == 1
 
 
 def test_merge_toml_creates_backup(tmp_path):
@@ -237,12 +237,12 @@ def test_merge_toml_idempotent(tmp_path):
     merger.merge_toml_mcp(cfg, entry)
     merger.merge_toml_mcp(cfg, entry)
     text = cfg.read_text(encoding="utf-8")
-    assert text.count("[mcp_servers.unity-mcp]") == 1
+    assert text.count("[mcp_servers.unity-biome-mcp]") == 1
 
 
 def test_merge_toml_does_not_strip_unity_mcp_entry(tmp_path):
-    """Regression: stale_re must NOT consume our own [mcp_servers.unity-mcp] section,
-    while the foreign bare [mcp_servers.unity] (CoplayDev) is still stripped."""
+    """Legacy [mcp_servers.unity-mcp] is migrated to unity-biome-mcp;
+    the foreign bare [mcp_servers.unity] (CoplayDev) is still stripped."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
     cfg.write_text(
@@ -252,7 +252,8 @@ def test_merge_toml_does_not_strip_unity_mcp_entry(tmp_path):
     )
     merger.merge_toml_mcp(cfg, {"command": "/new", "args": []})
     text = cfg.read_text(encoding="utf-8")
-    assert text.count("[mcp_servers.unity-mcp]") == 1
+    assert text.count("[mcp_servers.unity-biome-mcp]") == 1
+    assert "[mcp_servers.unity-mcp]" not in text
     assert "[mcp_servers.unity]\n" not in text
 
 
@@ -280,7 +281,7 @@ def test_merge_toml_strips_stale_no_trailing_newline(tmp_path):
     merger.merge_toml_mcp(cfg, {"command": "/new", "args": []})
     text = cfg.read_text(encoding="utf-8")
     assert "[mcp_servers.unity]\n" not in text
-    assert "[mcp_servers.unity-mcp]" in text
+    assert "[mcp_servers.unity-biome-mcp]" in text
 
 
 def test_merge_toml_backup_not_overwritten_on_second_call(tmp_path):
@@ -297,17 +298,17 @@ def test_merger_handles_crlf_toml(tmp_path):
     """CRLF line endings (Windows) must not cause duplicate sections.
 
     Also covers migration: an old-name section survives CRLF parsing and is
-    replaced by the new unity-mcp name (not left behind as a duplicate)."""
+    replaced by the new unity-biome-mcp name (not left behind as a duplicate)."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
     # Write TOML with Windows CRLF line endings
     cfg.write_bytes(
-        b'[mcp_servers.unity-kiss]\r\ncommand = \'/old\'\r\nargs = []\r\n'
+        b'[mcp_servers.unity-mcp]\r\ncommand = \'/old\'\r\nargs = []\r\n'
     )
     merger.merge_toml_mcp(cfg, {"command": "/new", "args": ["-m", "unity_mcp.server"]})
     text = cfg.read_text(encoding="utf-8")
-    assert text.count("[mcp_servers.unity-mcp]") == 1, "CRLF caused duplicate section"
-    assert "[mcp_servers.unity-kiss]" not in text  # old name migrated away
+    assert text.count("[mcp_servers.unity-biome-mcp]") == 1, "CRLF caused duplicate section"
+    assert "[mcp_servers.unity-mcp]" not in text  # old name migrated away
     assert "/new" in text
     assert "/old" not in text
 
@@ -317,13 +318,13 @@ def test_merger_handles_crlf_toml(tmp_path):
 def test_remove_mcp_entry_deletes_existing_key(tmp_path):
     from unity_mcp.config import merger
     cfg = tmp_path / "config.json"
-    cfg.write_text(json.dumps({"mcpServers": {"unity-mcp": {"command": "x"}, "other": {"command": "y"}}}), encoding="utf-8")
+    cfg.write_text(json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "x"}, "other": {"command": "y"}}}), encoding="utf-8")
 
     result = merger.remove_mcp_entry(cfg)
 
     assert result is True
     data = json.loads(cfg.read_text(encoding="utf-8"))
-    assert "unity-mcp" not in data["mcpServers"]
+    assert "unity-biome-mcp" not in data["mcpServers"]
     assert "other" in data["mcpServers"]
 
 
@@ -487,7 +488,7 @@ def test_validate_ok_report(tmp_path, monkeypatch):
     from unity_mcp.config import clients as c, validator
     from unity_mcp.config.merger import SERVER_NAME
     cfg = tmp_path / "cfg.json"
-    cfg.write_text(json.dumps({"mcpServers": {SERVER_NAME: {"command": "uvx", "args": ["unity-mcp"]}}}), encoding="utf-8")
+    cfg.write_text(json.dumps({"mcpServers": {SERVER_NAME: {"command": "uvx", "args": ["unity-biome-mcp"]}}}), encoding="utf-8")
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
     # patch port check to skip network
     with patch("unity_mcp.config.validator._port_reachable", return_value=False):
@@ -504,7 +505,7 @@ def test_validate_config_uses_read_unity_port_not_naive_find_port(tmp_path, monk
     from unity_mcp.config import clients as c, validator
     from unity_mcp.config.merger import SERVER_NAME
     cfg = tmp_path / "cfg.json"
-    cfg.write_text(json.dumps({"mcpServers": {SERVER_NAME: {"command": "uvx", "args": ["unity-mcp"]}}}), encoding="utf-8")
+    cfg.write_text(json.dumps({"mcpServers": {SERVER_NAME: {"command": "uvx", "args": ["unity-biome-mcp"]}}}), encoding="utf-8")
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
     monkeypatch.setattr("unity_mcp.config.resolver.find_port", lambda: 1111)
     monkeypatch.setattr("unity_mcp.config.validator.read_unity_port", lambda skip_probe=False: 2222)
@@ -522,7 +523,7 @@ def test_validate_config_falls_back_to_default_port_when_read_unity_port_returns
     from unity_mcp.config.merger import SERVER_NAME
     from unity_mcp.constants import DEFAULT_PORT
     cfg = tmp_path / "cfg.json"
-    cfg.write_text(json.dumps({"mcpServers": {SERVER_NAME: {"command": "uvx", "args": ["unity-mcp"]}}}), encoding="utf-8")
+    cfg.write_text(json.dumps({"mcpServers": {SERVER_NAME: {"command": "uvx", "args": ["unity-biome-mcp"]}}}), encoding="utf-8")
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
     monkeypatch.setattr("unity_mcp.config.validator.read_unity_port", lambda skip_probe=False: None)
     with patch("unity_mcp.config.validator._port_reachable", return_value=False):
@@ -541,7 +542,7 @@ def test_validate_config_key_matches_server_name(tmp_path, monkeypatch):
     monkeypatch.setattr(validator, "SERVER_NAME", "probe-doctor")
     cfg = tmp_path / "cfg.json"
     cfg.write_text(
-        json.dumps({"mcpServers": {"probe-doctor": {"command": "uvx", "args": ["unity-mcp"]}}}),
+        json.dumps({"mcpServers": {"probe-doctor": {"command": "uvx", "args": ["unity-biome-mcp"]}}}),
         encoding="utf-8",
     )
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
@@ -558,7 +559,7 @@ def test_find_server_command_prefers_uvx(monkeypatch):
     monkeypatch.setattr(resolver, "_which", lambda name: "/usr/local/bin/uvx" if name == "uvx" else None)
     cmd = resolver.find_server_command()
     assert cmd[0] == "uvx"
-    assert "unity-mcp" in cmd
+    assert "unity-biome-mcp" in cmd
 
 
 def test_find_server_command_falls_back_to_python(monkeypatch):
@@ -572,7 +573,7 @@ def test_find_server_command_falls_back_to_python(monkeypatch):
 
 def test_find_port_from_port_file(tmp_path, monkeypatch):
     from unity_mcp.config import resolver
-    ports_dir = tmp_path / ".unity-mcp" / "ports"
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     (ports_dir / "test.port").write_text("9501\n", encoding="utf-8")
     monkeypatch.setattr(resolver, "_ports_dir", lambda: ports_dir)
@@ -609,7 +610,7 @@ def test_build_server_entry_with_port(monkeypatch):
 
 def test_vscode_transform_passes_env():
     from unity_mcp.config.clients import _vscode_transform
-    entry = {"command": "uvx", "args": ["unity-mcp"], "env": {"PORT": "9500"}}
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "env": {"PORT": "9500"}}
     result = _vscode_transform(entry)
     assert result["env"] == {"PORT": "9500"}
 
@@ -618,7 +619,7 @@ def test_opencode_transform_passes_env():
     # OpenCode uses the key "environment" (not "env") per opencode.ai/docs/mcp-servers.
     # Emitting "env" silently drops UNITY_MCP_PORT for OpenCode users.
     from unity_mcp.config.clients import _opencode_transform
-    entry = {"command": "uvx", "args": ["unity-mcp"], "env": {"PORT": "9500"}}
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "env": {"PORT": "9500"}}
     result = _opencode_transform(entry)
     assert result["environment"] == {"PORT": "9500"}
     assert "env" not in result
@@ -657,28 +658,28 @@ def _write_project_config(project: pathlib.Path, tool_key: str, entry: dict) -> 
     return target
 
 
-_ENTRY = {"command": "uvx", "args": ["unity-mcp"]}
+_ENTRY = {"command": "uvx", "args": ["unity-biome-mcp"]}
 
 
 def test_configure_project_dir_claude_code(tmp_path):
     target = _write_project_config(tmp_path, "claude-code", _ENTRY)
     assert target == tmp_path / ".mcp.json"
     data = json.loads(target.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["unity-mcp"]["command"] == "uvx"
+    assert data["mcpServers"]["unity-biome-mcp"]["command"] == "uvx"
 
 
 def test_configure_project_dir_cursor(tmp_path):
     target = _write_project_config(tmp_path, "cursor", _ENTRY)
     assert target == tmp_path / ".cursor" / "mcp.json"
     data = json.loads(target.read_text(encoding="utf-8"))
-    assert "unity-mcp" in data["mcpServers"]
+    assert "unity-biome-mcp" in data["mcpServers"]
 
 
 def test_configure_project_dir_vscode(tmp_path):
     target = _write_project_config(tmp_path, "vscode", _ENTRY)
     assert target == tmp_path / ".vscode" / "mcp.json"
     data = json.loads(target.read_text(encoding="utf-8"))
-    assert "unity-mcp" in data["servers"]
+    assert "unity-biome-mcp" in data["servers"]
 
 
 def test_project_merge_preserves_existing_servers(tmp_path):
@@ -688,4 +689,4 @@ def test_project_merge_preserves_existing_servers(tmp_path):
     _write_project_config(tmp_path, "claude-code", _ENTRY)
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "filesystem" in data["mcpServers"]
-    assert "unity-mcp" in data["mcpServers"]
+    assert "unity-biome-mcp" in data["mcpServers"]

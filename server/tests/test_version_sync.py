@@ -25,13 +25,13 @@ def project_root(tmp_path: Path) -> Path:
 
     (tmp_path / "server" / "pyproject.toml").write_text(textwrap.dedent("""\
         [project]
-        name = "unity-mcp"
+        name = "unity-biome-mcp"
         version = "0.8.2"
         description = "MCP server"
     """), encoding="utf-8")
 
     (tmp_path / "unity-plugin" / "package.json").write_text(
-        '{\n  "name": "com.unity-mcp.editor",\n  "version": "0.8.2"\n}\n',
+        '{\n  "name": "com.unity-biome-mcp.editor",\n  "version": "0.8.2"\n}\n',
         encoding="utf-8"
     )
 
@@ -57,7 +57,7 @@ def test_sync_versions_preserves_other_content(project_root: Path):
     assert result.returncode == 0, result.stderr
 
     pyproject = (project_root / "server" / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'name = "unity-mcp"' in pyproject
+    assert 'name = "unity-biome-mcp"' in pyproject
     assert 'description = "MCP server"' in pyproject
 
 

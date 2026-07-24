@@ -2,7 +2,7 @@
 // Verifies that the production write chain (BuildClaudeConfigJson + File.WriteAllText(Utf8NoBom))
 // produces no BOM — BOM in JSON causes Node.js JSON.parse to fail.
 // Discriminating: swap JsonHelper.Utf8NoBom → Encoding.UTF8 → bytes[0] becomes 0xEF → FAIL.
-// GetOrCreateConfigPath() is not exercised directly: it depends on Packages/com.unity-mcp.editor
+// GetOrCreateConfigPath() is not exercised directly: it depends on Packages/com.unity-biome-mcp.editor
 // (UPM path, not available in EditMode isolation). We exercise the same 2 prod lines (L109-111).
 using System;
 using System.IO;
@@ -19,7 +19,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            _tmpDir = Path.Combine(Path.GetTempPath(), $"unity-mcp-chatenc-{Guid.NewGuid():N}");
+            _tmpDir = Path.Combine(Path.GetTempPath(), $"unity-biome-mcp-chatenc-{Guid.NewGuid():N}");
             Directory.CreateDirectory(_tmpDir);
         }
 
@@ -34,7 +34,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             // Mirror exact production chain from GetOrCreateConfigPath lines 109-111
             var json       = ChatMcpConfigWriter.BuildClaudeConfigJson("python3", new[] { "-m", "unity_mcp.server" });
-            var configPath = Path.Combine(_tmpDir, "unity-mcp-config.json");
+            var configPath = Path.Combine(_tmpDir, "unity-biome-mcp-config.json");
             File.WriteAllText(configPath, json, JsonHelper.Utf8NoBom);  // ← same call as production
 
             var bytes = File.ReadAllBytes(configPath);
@@ -47,7 +47,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void WriteChain_BytesMatchNoBomEncoding()
         {
             // Byte-level: on-disk bytes must equal UTF8NoBom.GetBytes(json), not UTF8(BOM).GetBytes
-            var json       = ChatMcpConfigWriter.BuildClaudeConfigJson("uv", new[] { "run", "unity-mcp" });
+            var json       = ChatMcpConfigWriter.BuildClaudeConfigJson("uv", new[] { "run", "unity-biome-mcp" });
             var configPath = Path.Combine(_tmpDir, "config-bytes.json");
             File.WriteAllText(configPath, json, JsonHelper.Utf8NoBom);
 
@@ -59,10 +59,10 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void BuildClaudeConfigJson_Structure()
         {
-            var json = ChatMcpConfigWriter.BuildClaudeConfigJson("uv", new[] { "run", "unity-mcp" });
+            var json = ChatMcpConfigWriter.BuildClaudeConfigJson("uv", new[] { "run", "unity-biome-mcp" });
             Assert.IsTrue(json.StartsWith("{"), "Config JSON must start with '{'");
             Assert.IsTrue(json.Contains("\"mcpServers\""), "Must contain mcpServers key");
-            Assert.IsTrue(json.Contains("\"unity-mcp\""), "Must contain unity-mcp server key");
+            Assert.IsTrue(json.Contains("\"unity-biome-mcp\""), "Must contain unity-biome-mcp server key");
         }
     }
 }

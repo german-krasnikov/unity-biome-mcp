@@ -164,14 +164,14 @@ namespace UnityMCP.Editor.Tests
         {
             // Drift guard: MCP_BLANKET must be built FROM SERVER_NAME, not an
             // independently-hardcoded literal that merely happens to agree with it
-            // today (it didn't — MCP_BLANKET was "mcp__unity", wrong under both the
-            // old "unity-kiss" and current "unity-mcp" naming schemes). Deriving the
+            // today (it didn't — MCP_BLANKET was "mcp__unity", wrong under the
+            // current "unity-biome-mcp" naming scheme). Deriving the
             // expected value from the constant proves the DRY coupling. Mirrors
             // backend_def.py's MCP_BLANKET = f"mcp__{SERVER_NAME}" (NOT
             // .replace('-', '_') — hyphens are legal in MCP tool-name segments and
             // are never touched by Claude's sanitizer).
             Assert.AreEqual("mcp__" + PermissionConfig.SERVER_NAME, PermissionConfig.MCP_BLANKET);
-            Assert.AreEqual("mcp__unity-mcp", PermissionConfig.MCP_BLANKET);
+            Assert.AreEqual("mcp__unity-biome-mcp", PermissionConfig.MCP_BLANKET);
         }
 
         [Test]

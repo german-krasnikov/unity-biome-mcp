@@ -54,7 +54,7 @@ namespace UnityMCP.Editor.Tests
             var serverDir   = Path.Combine(_tmpDir, "server");
             Directory.CreateDirectory(packageRoot);
             Directory.CreateDirectory(serverDir);
-            File.WriteAllText(Path.Combine(serverDir, "pyproject.toml"), "[project]\nname=\"unity-mcp\"\n");
+            File.WriteAllText(Path.Combine(serverDir, "pyproject.toml"), "[project]\nname=\"unity-biome-mcp\"\n");
             if (withVenv)
             {
                 var venvBin = Path.Combine(serverDir, ".venv", "bin");
@@ -78,9 +78,9 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(3, argv.Length);
             Assert.AreEqual("--from", argv[0]);
             Assert.AreEqual(
-                "git+https://github.com/german-krasnikov/unity-kiss-mcp.git@v1.2.3#subdirectory=server",
+                "git+https://github.com/german-krasnikov/unity-biome-mcp.git@v1.2.3#subdirectory=server",
                 argv[1]);
-            Assert.AreEqual("unity-mcp-relay", argv[2]);
+            Assert.AreEqual("unity-biome-mcp-relay", argv[2]);
         }
 
         [Test]
@@ -105,9 +105,9 @@ namespace UnityMCP.Editor.Tests
             var (cmd, argv) = RelayCommandResolver.Resolve();
 
             Assert.AreEqual("/usr/local/bin/uvx", cmd);
-            Assert.AreEqual("unity-mcp-relay", argv[2]);
+            Assert.AreEqual("unity-biome-mcp-relay", argv[2]);
             // Unpinned URL (no version) still targets the right repo/subdirectory.
-            StringAssert.StartsWith("git+https://github.com/german-krasnikov/unity-kiss-mcp.git", argv[1]);
+            StringAssert.StartsWith("git+https://github.com/german-krasnikov/unity-biome-mcp.git", argv[1]);
             StringAssert.EndsWith("#subdirectory=server", argv[1]);
         }
 
@@ -136,7 +136,7 @@ namespace UnityMCP.Editor.Tests
             var (cmd, argv) = RelayCommandResolver.Resolve();
 
             Assert.AreEqual("/opt/homebrew/bin/uv", cmd);
-            CollectionAssert.AreEqual(new[] { "run", "--directory", serverDir, "unity-mcp-relay" }, argv);
+            CollectionAssert.AreEqual(new[] { "run", "--directory", serverDir, "unity-biome-mcp-relay" }, argv);
         }
 
         [Test]

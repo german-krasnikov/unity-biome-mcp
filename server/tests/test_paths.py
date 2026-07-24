@@ -1,5 +1,5 @@
-"""Regression guard: every ~/.unity-mcp base-dir reference must go through
-paths.unity_mcp_dir(), not a hand-rolled Path.home() / ".unity-mcp" literal."""
+"""Regression guard: every ~/.unity-biome-mcp base-dir reference must go through
+paths.unity_mcp_dir(), not a hand-rolled Path.home() / ".unity-biome-mcp" literal."""
 import re
 from pathlib import Path
 
@@ -18,7 +18,7 @@ _FILES_TO_CHECK = [
     _REPO_ROOT / "install" / "commands.py",
 ]
 
-_BYPASS_RE = re.compile(r'Path\.home\(\)\s*/\s*[\'"]\.unity-mcp[\'"]')
+_BYPASS_RE = re.compile(r'Path\.home\(\)\s*/\s*[\'"]\.unity-(?:mcp|biome-mcp)[\'"]')
 
 
 def test_all_unity_mcp_dir_consumers_use_canonical_helper():

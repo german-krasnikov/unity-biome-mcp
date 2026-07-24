@@ -14,5 +14,5 @@ If you still need Gemini CLI:
 
 1. Install: `npm install -g @google/gemini-cli` (or `brew install gemini-cli` on macOS)
 2. Authenticate: `gemini` (opens browser OAuth)
-3. Add plugin to Unity via UPM: `https://github.com/german-krasnikov/unity-kiss-mcp.git?path=unity-plugin`
+3. Add plugin to Unity via UPM: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
 4. Run Setup Wizard (**MCP → Setup Wizard**) and select **Gemini** to auto-configure `~/.gemini/settings.json`

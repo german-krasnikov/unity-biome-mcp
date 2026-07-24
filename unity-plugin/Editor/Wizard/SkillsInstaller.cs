@@ -86,7 +86,7 @@ namespace UnityMCP.Editor.Wizard
         }
 
         private static string VersionFilePath(string projectRoot) =>
-            Path.Combine(projectRoot, ".claude", ".unity-mcp-skills-version");
+            Path.Combine(projectRoot, ".claude", ".unity-biome-mcp-skills-version");
     }
 
     public readonly struct InstallResult

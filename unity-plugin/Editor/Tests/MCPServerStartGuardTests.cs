@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Tests
         public void StaticCtor_ContainsBatchModeGuard()
         {
             var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "MCPServer.cs"));
+                Path.Combine("Packages", "com.unity-biome-mcp.editor", "Editor", "MCPServer.cs"));
             if (!File.Exists(src))
             {
                 Assert.Ignore($"MCPServer.cs not found at {src} — skip in CI");
@@ -42,7 +42,7 @@ namespace UnityMCP.Editor.Tests
         private static string LoadMCPServerSrc()
         {
             var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "MCPServer.cs"));
+                Path.Combine("Packages", "com.unity-biome-mcp.editor", "Editor", "MCPServer.cs"));
             if (!File.Exists(src))
                 Assert.Ignore($"MCPServer.cs not found at {src} — skip in CI");
             return File.ReadAllText(src);
@@ -53,7 +53,7 @@ namespace UnityMCP.Editor.Tests
         private static string LoadClientConnectionHandlerSrc()
         {
             var src = Path.GetFullPath(
-                Path.Combine("Packages", "com.unity-mcp.editor", "Editor", "ClientConnectionHandler.cs"));
+                Path.Combine("Packages", "com.unity-biome-mcp.editor", "Editor", "ClientConnectionHandler.cs"));
             if (!File.Exists(src))
                 Assert.Ignore($"ClientConnectionHandler.cs not found at {src} — skip in CI");
             return File.ReadAllText(src);

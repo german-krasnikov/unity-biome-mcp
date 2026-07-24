@@ -139,7 +139,7 @@ def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
 
 
 def read_unity_port(skip_probe: bool = False) -> int | None:
-    """Discover Unity MCP port from discovery files, env var, or default 9500.
+    """Discover Unity Biome MCP port from discovery files, env var, or default 9500.
 
     Returns None when skip_probe=True and no live candidates found (no silent 9500 drift).
     Returns 9500 when skip_probe=False and no candidates (cold-start backward compat).

@@ -54,7 +54,7 @@ TIMESCALE 1
 
 **v0.90 DSL extensions:** `FOR $i IN 0..N` / `...` / `END_FOR` repeat block, `CAPTURE_FRAMES N` for frame-by-frame capture, `runtime_snapshot` for state dumps mid-script.
 
-Full DSL reference: `.claude/skills/unity-mcp-reference.md` → "run_playtest DSL Reference"
+Full DSL reference: `.claude/skills/unity-biome-mcp-reference.md` → "run_playtest DSL Reference"
 
 ## Manual Tools
 
@@ -84,7 +84,7 @@ Full DSL reference: `.claude/skills/unity-mcp-reference.md` → "run_playtest DS
 
 ## Skills Reference
 
-- `.claude/skills/unity-mcp-reference.md` — run_playtest DSL syntax, tool signatures
+- `.claude/skills/unity-biome-mcp-reference.md` — run_playtest DSL syntax, tool signatures
 - `.claude/skills/playtest-dsl.md` — full run_playtest DSL reference (22 commands)
 - `.claude/skills/playmode-verification.md` — CLAIM/EVIDENCE/VERDICT rules, anti-hallucination
 - `.claude/skills/unity-session.md` — fingerprint/screenshot_compare visual regression

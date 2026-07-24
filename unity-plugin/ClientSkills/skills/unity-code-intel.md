@@ -1,6 +1,6 @@
 ---
 name: unity-code-intel
-description: C# code intelligence via Unity MCP — execute_code (TIER1), compile_preflight (TIER1), await_compile (TIER1), get_compile_errors (CORE), auto_fix/get_schema/smart_build (TIER2 SYSTEM), serialized_field_rename_audit (TIER2 VERIFY).
+description: C# code intelligence via Unity Biome MCP — execute_code (TIER1), compile_preflight (TIER1), await_compile (TIER1), get_compile_errors (CORE), auto_fix/get_schema/smart_build (TIER2 SYSTEM), serialized_field_rename_audit (TIER2 VERIFY).
 user-invocable: false
 ---
 

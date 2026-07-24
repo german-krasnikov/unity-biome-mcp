@@ -1,8 +1,8 @@
-"""unity-mcp CLI surface: configure/doctor/version/uninstall + MCP server fallthrough.
+"""unity-biome-mcp CLI surface: configure/doctor/version/uninstall + MCP server fallthrough.
 
 Ships inside the uvx package (unlike install/, which is dev-repo-only), so these
 subcommands work even for users who never cloned the repo. Every real MCP-client
-spawn invokes `unity-mcp` with zero argv — argv is non-empty only when a human
+spawn invokes `unity-biome-mcp` with zero argv — argv is non-empty only when a human
 typed a subcommand at a terminal.
 """
 import sys
@@ -18,10 +18,10 @@ def dispatch(argv: list[str]) -> Optional[int]:
         return None
     sub, rest = argv[0], argv[1:]
     if sub in ("-h", "--help"):
-        print(f"unity-mcp [{'|'.join(_SUBCOMMANDS)}]")
+        print(f"unity-biome-mcp [{'|'.join(_SUBCOMMANDS)}]")
         return 0
     if sub not in _SUBCOMMANDS:
-        print(f"unity-mcp: unknown subcommand {sub!r}. Known: {', '.join(_SUBCOMMANDS)}",
+        print(f"unity-biome-mcp: unknown subcommand {sub!r}. Known: {', '.join(_SUBCOMMANDS)}",
               file=sys.stderr)
         return 1
     handlers = {
@@ -38,7 +38,7 @@ def _cmd_configure(argv: list[str]) -> int:
     from .config.backup import backup
     from .config.resolver import build_server_entry
 
-    p = argparse.ArgumentParser(prog="unity-mcp configure", add_help=False)
+    p = argparse.ArgumentParser(prog="unity-biome-mcp configure", add_help=False)
     p.add_argument("--tool", choices=list(CLIENT_REGISTRY))
     p.add_argument("--port", type=int, default=0)
     args = p.parse_args(argv)
@@ -60,7 +60,7 @@ def _cmd_configure(argv: list[str]) -> int:
                 merge_mcp_config(client.config_path, entry, root_key=client.root_key,
                                   entry_transformer=client.entry_transformer)
         except ValueError as e:
-            print(f"unity-mcp: {client.name}: {e} (backup written, skipping)", file=sys.stderr)
+            print(f"unity-biome-mcp: {client.name}: {e} (backup written, skipping)", file=sys.stderr)
             continue
         print(f"{client.name} configured at {client.config_path}")
     return 0
@@ -77,7 +77,7 @@ def _cmd_doctor(argv: list[str]) -> int:
 
 def _cmd_version(argv: list[str]) -> int:
     from . import __version__
-    print(f"unity-mcp {__version__}")
+    print(f"unity-biome-mcp {__version__}")
     return 0
 
 
@@ -87,7 +87,7 @@ def _cmd_uninstall(argv: list[str]) -> int:
     from .config.merger import remove_mcp_entry, remove_toml_mcp_entry
     from .config.backup import backup
 
-    p = argparse.ArgumentParser(prog="unity-mcp uninstall", add_help=False)
+    p = argparse.ArgumentParser(prog="unity-biome-mcp uninstall", add_help=False)
     p.add_argument("--tool", choices=list(CLIENT_REGISTRY))
     args = p.parse_args(argv)
 
@@ -102,11 +102,11 @@ def _cmd_uninstall(argv: list[str]) -> int:
             removed = (remove_toml_mcp_entry(client.config_path) if client.is_toml
                        else remove_mcp_entry(client.config_path, root_key=client.root_key))
         except ValueError as e:
-            print(f"unity-mcp: {client.name}: {e} (backup written, skipping)", file=sys.stderr)
+            print(f"unity-biome-mcp: {client.name}: {e} (backup written, skipping)", file=sys.stderr)
             continue
         removed_any = removed_any or removed
-        print(f"Removed unity-mcp from {client.config_path}" if removed
-              else f"unity-mcp not found in {client.config_path} — skipped")
+        print(f"Removed unity-biome-mcp from {client.config_path}" if removed
+              else f"unity-biome-mcp not found in {client.config_path} — skipped")
     if not removed_any:
         print("Nothing to uninstall.")
     return 0

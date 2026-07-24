@@ -9,7 +9,7 @@ namespace UnityMCP.Editor
         const string CacheTimeKey = "UnityMCP.UpdateCacheTime";
         const string SkipKey      = "UnityMCP.SkippedVersion";
         const int    CacheTtlHours = 24;
-        const string RepoSlug    = "german-krasnikov/unity-kiss-mcp";
+        const string RepoSlug    = "german-krasnikov/unity-biome-mcp";
         const string ReleasesUrl = "https://api.github.com/repos/" + RepoSlug + "/releases/latest";
         internal const string RepoGitUrl = "https://github.com/" + RepoSlug + ".git";
 
@@ -49,7 +49,7 @@ namespace UnityMCP.Editor
         static void FetchFromNetwork()
         {
             var req = UnityWebRequest.Get(ReleasesUrl);
-            req.SetRequestHeader("User-Agent", "unity-mcp-update-checker");
+            req.SetRequestHeader("User-Agent", "unity-biome-mcp-update-checker");
             req.SendWebRequest().completed += _ => OnResponse(req);
         }
 
