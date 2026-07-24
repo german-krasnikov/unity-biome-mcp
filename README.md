@@ -179,8 +179,7 @@ Add this to your MCP config file:
   "mcpServers": {
     "unity-biome-mcp": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server", "unity-biome-mcp"],
-      "env": { "UNITY_MCP_PORT": "9500" }
+      "args": ["--from", "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server", "unity-biome-mcp"]
     }
   }
 }
@@ -242,7 +241,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 11772 Tests (4743 Python · 6745 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 10809 Tests (4749 Python · 5776 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -326,6 +325,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.96.1</b> — 2026-07-24 — `pyproject.toml`: added `[tool.hatch.build.targets.wheel] packages = …</summary>
+
+`pyproject.toml`: added `[tool.hatch.build.targets.wheel] packages = ["src/unity_mcp"]` — fixes wheel build failure after rebrand (project name …
+
+</details>
+
+<details>
 <summary><b>v0.96.0</b> — 2026-07-24 — Renamed `SecurityLevel` enum: `Normal` → `Standard`, `Permissive` → `AllowAll`</summary>
 
 Renamed `SecurityLevel` enum: `Normal` → `Standard`, `Permissive` → `AllowAll`
@@ -354,15 +360,9 @@ Removed `get_perf` tool stub (use `get_frame_stats`)
 </details>
 
 <details>
-<summary><b>v0.93.0</b> — 2026-07-19 — `IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats …</summary>
-
-`IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats (fixes false-failure on suite runs).
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.93.0** — 2026-07-19 — `IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats …
 - **v0.92.0** — 2026-07-19 — `move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated …
 - **v0.91.0** — 2026-07-19 — `run_playtest`, `wait_until`, `test_step`: correct `isSuccess` predicates (P0 …
 - **v0.90.0** — 2026-07-18 — `PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases …

@@ -51,7 +51,7 @@ def test_resolve_server_cmd_uvx_fallback(tmp_path, monkeypatch):
                         lambda b: "/opt/homebrew/bin/uvx" if b == "uvx" else None)
     cmd, args = resolve_server_cmd()
     assert cmd == "/opt/homebrew/bin/uvx"
-    assert args == ["unity-biome-mcp"]
+    assert args == ["--quiet", "unity-biome-mcp"]
 
 
 # ── Fake Path helper ──────────────────────────────────────────────────────────

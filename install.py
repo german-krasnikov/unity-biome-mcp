@@ -101,7 +101,17 @@ def _reconfigure_detected_clients() -> None:
 def cmd_setup(_args: argparse.Namespace) -> None:
     ui.box(["Unity Biome MCP setup"])
     _setup_env()
+    _write_mcp_json()
     ui.ok("Done. Run 'python install.py doctor' to verify.")
+
+
+def _write_mcp_json() -> None:
+    """Auto-generate .mcp.json pointing at the local venv."""
+    from unity_mcp.mcp_config_writer import resolve_server_cmd
+    from unity_mcp.config.merger import merge_mcp_config
+    cmd, args = resolve_server_cmd()
+    merge_mcp_config(MCP_JSON, {"command": cmd, "args": args})
+    ui.ok(f".mcp.json written → {MCP_JSON}")
 
 
 def cmd_update(_args: argparse.Namespace, _stop_fn=None) -> None:
@@ -142,6 +152,7 @@ def cmd_update(_args: argparse.Namespace, _stop_fn=None) -> None:
         _setup_env(force_recreate=stale)
 
     _reconfigure_detected_clients()
+    _write_mcp_json()
     ui.ok("Done. To reconnect: run /mcp in your Claude session.")
 
 

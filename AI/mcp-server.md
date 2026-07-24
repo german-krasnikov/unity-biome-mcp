@@ -123,6 +123,7 @@ load_plugins(mcp, _send, _args)
 # Port configuration (v0.57.0)
 # - DEFAULT_PORT = 9500 centralized in constants.py (replaces magic strings)
 # - Auto-discovered from ~/.unity-biome-mcp/ports/*.port or UNITY_MCP_PORT env
+#   (v0.96.1: iter_port_files() also checks legacy ~/.unity-mcp/ports/ as fallback)
 # - Used throughout: lockfile creation, bridge connection, test harnesses
 
 @asynccontextmanager

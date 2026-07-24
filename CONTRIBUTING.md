@@ -9,7 +9,7 @@ Thank you for your interest in contributing! This guide walks you through settin
 git clone https://github.com/german-krasnikov/unity-biome-mcp.git
 cd unity-biome-mcp
 
-# Install (Python + venv + dependencies)
+# Install (Python + venv + dependencies + auto-generates .mcp.json)
 python install.py setup
 
 # Verify installation
@@ -42,14 +42,15 @@ PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "not live" -q
 
 ### Integration Testing (Requires Running Unity)
 
-1. **Start Unity** on a free port (default 9500):
+1. **Start Unity** — the plugin auto-assigns a port and writes it to `~/.unity-biome-mcp/ports/`:
    ```bash
    open -a Unity  # macOS; or launch Unity manually
    ```
 
-2. **Run Python live tests:**
+2. **Discover the port and run Python live tests:**
    ```bash
-   PYTHONWARNDEFAULTENCODING=1 UNITY_MCP_PORT=9500 python -m pytest tests/ -m "live and not live_cli" -q
+   export UNITY_MCP_PORT=$(python3 -c "import pathlib; f=list(pathlib.Path.home().glob('.unity-biome-mcp/ports/*.port')); print(f[0].read_text().split()[0] if f else '9500')")
+   PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "live and not live_cli" -q
    ```
    Expected: 78 live tests passing.
 
@@ -67,10 +68,10 @@ Always run tests in this order to catch issues early:
 |------|-------|---------|------|------|
 | **1. Unit (Python)** | 2728 mocked | `pytest tests/ -m "not live"` | ~15s | $0 |
 | **2. EditMode (C#)** | 2389 | Unity Test Runner → EditMode → Run All | ~30s | $0 |
-| **3. Python Live** | 78 | `UNITY_MCP_PORT=9500 pytest tests/ -m "live and not live_cli"` | ~10s | $0 |
+| **3. Python Live** | 78 | `pytest tests/ -m "live and not live_cli"` (set `UNITY_MCP_PORT` first) | ~10s | $0 |
 | **4. PlayMode (C#)** | 73 | Unity Test Runner → PlayMode → Run All | ~60s | $0 |
 | **5. Reload Stability** | 39 | `pytest tests/test_reload_stability.py -v` | ~40s | $0 |
-| **6. Real CLI (live_cli)** | 4 | `UNITY_MCP_PORT=9500 pytest tests/ -m "live_cli" -v` | ~20s | ~$0.004 |
+| **6. Real CLI (live_cli)** | 4 | `pytest tests/ -m "live_cli" -v` (set `UNITY_MCP_PORT` first) | ~20s | ~$0.004 |
 
 Stop at the first failure — don't run all tiers if an earlier tier fails.
 
@@ -80,7 +81,8 @@ Always verify the test assembly compiles:
 
 ```bash
 # Check for compilation errors (not just stale DLLs)
-UNITY_MCP_PORT=9500 python3 -c "
+# Port is auto-discovered; override with UNITY_MCP_PORT=<port> for multiple Unity instances
+python3 -c "
 import asyncio,struct,json,pathlib,os
 def find_port():
     p=int(os.environ.get('UNITY_MCP_PORT','0'))

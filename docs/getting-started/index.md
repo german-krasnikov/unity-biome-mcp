@@ -108,9 +108,9 @@ Your AI Assistant (Claude, Codex, etc.)
 
 **CLI Mode** — use from Claude Code, Codex CLI, or any terminal:
 ```bash
-export UNITY_MCP_PORT=9500
 claude code < script.py
 ```
+The port is auto-discovered from `~/.unity-biome-mcp/ports/`. No manual `UNITY_MCP_PORT` needed.
 
 **In-Unity Chat** — open the MCP Chat window directly in the editor:
 ```

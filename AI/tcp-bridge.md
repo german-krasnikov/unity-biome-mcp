@@ -125,6 +125,8 @@ Port discovery reads `~/.unity-biome-mcp/ports/{pid}.port` files. **v0.23.0:** A
 
 **v0.36.0:** `_is_pid_alive(pid)` cross-platform check (Windows: OpenProcess/CloseHandle, Unix: os.kill(pid,0)) replaces naive kill check. C# MCPServer writes `{pid}.port` discovery files.
 
+**v0.96.1 Legacy fallback (`paths.py`):** `iter_port_files(pattern, primary_dir)` yields port files from primary `~/.unity-biome-mcp/ports/` AND legacy `~/.unity-mcp/ports/`. Deduplicates by filename (new dir wins). `config/resolver.py:find_port()` uses this iterator so port discovery works for users who haven't migrated to the new path yet.
+
 ### CompileStateProbe (compile_state.py)
 
 Simplified detector for Unity C# compile/domain-reload:

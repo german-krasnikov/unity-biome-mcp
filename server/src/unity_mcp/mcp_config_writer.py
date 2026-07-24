@@ -27,7 +27,7 @@ def resolve_server_cmd() -> tuple[str, list[str]]:
 
     uvx = shutil.which("uvx")
     if uvx:
-        return uvx, ["unity-biome-mcp"]
+        return uvx, ["--quiet", "unity-biome-mcp"]
 
     python = "python3" if sys.platform != "win32" else "python"
     return python, ["-m", "unity_mcp.server"]

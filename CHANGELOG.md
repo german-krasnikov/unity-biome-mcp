@@ -10,6 +10,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.96.1] — 2026-07-24 — Hatch wheel build fix, Windows relay, port migration fallback
+
+**Python — Build:**
+- `pyproject.toml`: added `[tool.hatch.build.targets.wheel] packages = ["src/unity_mcp"]` — fixes wheel build failure after rebrand (project name `unity-biome-mcp` ≠ package dir `unity_mcp`)
+
+**Python — Windows:**
+- `chat_relay.py`: wrapped `loop.add_signal_handler()` in `try/except NotImplementedError` — prevents crash on Windows ProactorEventLoop
+- 2 new unit tests: signal registration (happy path) + `NotImplementedError` guard
+
+**Python — Migration:**
+- `paths.py`: `iter_port_files()` — discovers `.port` files from both `~/.unity-biome-mcp/ports/` and legacy `~/.unity-mcp/ports/`, deduplicates by filename (new dir wins)
+- Updated 4 call sites: `server_filtering.py`, `lockfile.py` (×2), `config/resolver.py`
+- 3 new unit tests: primary dir, legacy dir, deduplication
+
+**Python — Config:**
+- `resolver.py`: `find_python()` now venv-first (was uvx-first) — dev clones get local venv, not uvx
+- `mcp_config_writer.py`, `resolver.py`: `uvx --quiet` flag — suppresses stderr noise in MCP hosts
+- `README.md`: removed hardcoded `UNITY_MCP_PORT=9500` from MCP config example — auto-discovery handles port selection
+- `install.py`: `setup` and `update` now auto-generate `.mcp.json` with venv-based server command
+
 ## [v0.96.0] — 2026-07-24 — Security levels redesign, relay spawner stability
 
 **C# — Security Levels:**

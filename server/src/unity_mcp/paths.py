@@ -1,6 +1,7 @@
 """Canonical path helpers for ~/.unity-biome-mcp directory layout."""
 import sys
 from pathlib import Path
+from typing import Iterator
 
 _NEW = ".unity-biome-mcp"
 _OLD = ".unity-mcp"
@@ -40,3 +41,18 @@ def migrate_data_dir() -> None:
             f"unity-biome-mcp: could not migrate {old} → {new}: {e}",
             file=sys.stderr,
         )
+
+
+def iter_port_files(pattern: str, primary_dir: Path | None = None) -> Iterator[Path]:
+    """Yield port files from primary + legacy ~/.unity-mcp/ports. Dedup by filename.
+
+    primary_dir defaults to ports_dir(). New dir wins on duplicate filenames.
+    """
+    seen: set[str] = set()
+    for d in (primary_dir if primary_dir is not None else ports_dir(), Path.home() / _OLD / "ports"):
+        if not d.exists():
+            continue
+        for f in d.glob(pattern):
+            if f.name not in seen:
+                seen.add(f.name)
+                yield f

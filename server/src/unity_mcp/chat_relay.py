@@ -350,11 +350,14 @@ async def _main() -> None:
     port = _find_free_port()
     relay = ChatRelay()
     loop = asyncio.get_running_loop()
-    for _sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(
-            _sig,
-            lambda: asyncio.create_task(relay._shutdown()),
-        )
+    try:
+        for _sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(
+                _sig,
+                lambda: asyncio.create_task(relay._shutdown()),
+            )
+    except NotImplementedError:
+        pass
     print(f"relay_port:{port}", flush=True)
     await relay.serve(port)
 

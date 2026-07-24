@@ -10,7 +10,7 @@ from pathlib import Path
 from .constants import DEFAULT_PORT
 
 from .lockfile import is_pid_alive as _is_pid_alive
-from .paths import ports_dir as _ports_dir
+from .paths import ports_dir as _ports_dir, iter_port_files as _iter_port_files
 from .tools.gating import filter_by_tier, get_catalog, _CORE_TOOLS
 from .tools.schema_registry import _registry as _schema_registry, STUB_SCHEMA
 
@@ -152,14 +152,9 @@ def read_unity_port(skip_probe: bool = False) -> int | None:
             return int(os.environ["UNITY_MCP_PORT"])
         except ValueError:
             pass
-    ports_dir = _ports_dir()
-    if not ports_dir.exists():
-        return DEFAULT_PORT
-
     glob_pattern = "*.port"
-
     candidates = []
-    for f in ports_dir.glob(glob_pattern):
+    for f in _iter_port_files(glob_pattern, _ports_dir()):
         try:
             lines = f.read_text(encoding="utf-8", errors="replace").strip().split("\n")
             port = int(lines[0])

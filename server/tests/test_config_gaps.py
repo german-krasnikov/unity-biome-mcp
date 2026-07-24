@@ -75,10 +75,10 @@ def test_build_server_entry_without_uvx():
 
 
 def test_build_server_entry_with_uvx():
-    """When uvx is present, use uvx --from git+URL unity-biome-mcp."""
+    """When uvx is present and no venv, use uvx --from git+URL unity-biome-mcp."""
     from unity_mcp.config import resolver
 
-    with patch.object(resolver, "_which", return_value="/usr/bin/uvx"):
+    with patch.object(resolver, "find_python", return_value="uvx"):
         entry = resolver.build_server_entry(port=9500)
 
     assert entry["command"] == "uvx"

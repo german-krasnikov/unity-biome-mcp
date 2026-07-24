@@ -5,7 +5,7 @@ import shutil
 import sys
 from typing import Optional
 
-from unity_mcp.paths import ports_dir as _ports_dir_canonical
+from unity_mcp.paths import ports_dir as _ports_dir_canonical, iter_port_files as _iter_port_files_canonical
 from unity_mcp.constants import DEFAULT_PORT
 
 
@@ -19,6 +19,11 @@ def _ports_dir() -> pathlib.Path:
     return _ports_dir_canonical()
 
 
+def _iter_port_files(pattern: str):
+    """Iterate port files from primary + legacy dir. Seam for testing."""
+    return _iter_port_files_canonical(pattern, _ports_dir())
+
+
 def find_server_dir() -> Optional[pathlib.Path]:
     """Attempt to find local server installation directory.
 
@@ -28,12 +33,13 @@ def find_server_dir() -> Optional[pathlib.Path]:
 
 
 def find_python() -> str:
-    """Return the python/uvx executable for running the MCP server."""
+    """Return the python/uvx executable for running the MCP server. Venv-first."""
+    server_dir = pathlib.Path(__file__).parent.parent.parent.parent  # → server/
+    venv_py = server_dir / ".venv" / ("Scripts" if sys.platform == "win32" else "bin") / "python"
+    if venv_py.exists():
+        return str(venv_py)
     if _which("uvx"):
         return "uvx"
-    venv_python = pathlib.Path(sys.executable).parent / "unity-biome-mcp"
-    if venv_python.exists():
-        return str(venv_python)
     return sys.executable
 
 
@@ -58,18 +64,16 @@ def server_git_url(ref: str | None = None) -> str:
 
 
 def find_server_command() -> list[str]:
-    """Return best command to start MCP server. Priority: uvx > venv python > sys.executable."""
+    """Return best command to start MCP server. Priority: venv > uvx > sys.executable."""
     exe = find_python()
     if exe == "uvx":
-        return ["uvx", "--from", GIT_INSTALL_URL, "unity-biome-mcp"]
-    if pathlib.Path(exe) != pathlib.Path(sys.executable):
-        return [exe]
+        return ["uvx", "--quiet", "--from", GIT_INSTALL_URL, "unity-biome-mcp"]
     return [exe, "-m", "unity_mcp.server"]
 
 
 def find_port() -> int:
-    """Discover Unity Biome MCP port from ~/.unity-biome-mcp/ports/*.port files. Default 9500."""
-    for port_file in _ports_dir().glob("*.port"):
+    """Discover Unity Biome MCP port from port files (new + legacy dir). Default 9500."""
+    for port_file in _iter_port_files("*.port"):
         try:
             return int(port_file.read_text(encoding="utf-8").split("\n")[0])
         except (ValueError, OSError):

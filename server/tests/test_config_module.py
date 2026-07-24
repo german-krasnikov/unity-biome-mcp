@@ -554,9 +554,25 @@ def test_validate_config_key_matches_server_name(tmp_path, monkeypatch):
 
 # ─── resolver.py ─────────────────────────────────────────────────────────────
 
-def test_find_server_command_prefers_uvx(monkeypatch):
+def test_find_server_command_prefers_venv(monkeypatch, tmp_path):
     from unity_mcp.config import resolver
+    venv_py = tmp_path / ".venv" / "bin" / "python"
+    venv_py.parent.mkdir(parents=True)
+    venv_py.touch()
+    monkeypatch.setattr(resolver.pathlib.Path, "__fspath__", lambda self: str(self))
     monkeypatch.setattr(resolver, "_which", lambda name: "/usr/local/bin/uvx" if name == "uvx" else None)
+    # Point server_dir to tmp_path so venv is found
+    monkeypatch.setattr(resolver.pathlib.Path, "parent", property(lambda self: type(self)(str(self).rsplit("/", 1)[0])))
+    # Simpler: just patch find_python directly
+    monkeypatch.setattr(resolver, "find_python", lambda: str(venv_py))
+    cmd = resolver.find_server_command()
+    assert cmd[0] == str(venv_py)
+    assert "-m" in cmd
+
+
+def test_find_server_command_falls_back_to_uvx(monkeypatch):
+    from unity_mcp.config import resolver
+    monkeypatch.setattr(resolver, "find_python", lambda: "uvx")
     cmd = resolver.find_server_command()
     assert cmd[0] == "uvx"
     assert "unity-biome-mcp" in cmd

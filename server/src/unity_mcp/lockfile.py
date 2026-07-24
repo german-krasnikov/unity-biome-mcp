@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from .paths import ports_dir as _ports_dir, unity_mcp_dir
+from .paths import ports_dir as _ports_dir, unity_mcp_dir, iter_port_files as _iter_port_files
 
 log = logging.getLogger("unity_mcp.lockfile")
 
@@ -146,14 +146,12 @@ def cleanup_stale_locks(port: int, lock_dir: Path = None) -> int:
 
 
 def read_pid_from_port_file(port: int) -> Optional[int]:
-    """Read Unity PID from ~/.unity-biome-mcp/ports/{pid}.port matching the given port.
+    """Read Unity PID from port files matching the given port.
 
+    Checks both ~/.unity-biome-mcp/ports and legacy ~/.unity-mcp/ports.
     Skips dead PIDs to avoid false-positive process-dead signals.
     """
-    ports_dir = _ports_dir()
-    if not ports_dir.exists():
-        return None
-    for f in ports_dir.glob("*.port"):
+    for f in _iter_port_files("*.port", _ports_dir()):
         try:
             lines = f.read_text(encoding="utf-8", errors="replace").strip().split("\n")
             if int(lines[0]) != port:
@@ -247,11 +245,11 @@ def read_reload_port() -> Optional[int]:
 
 
 def read_project_path_from_port_file(port: int) -> Optional[Path]:
-    """Read Unity project path from ~/.unity-biome-mcp/ports/{pid}.port matching the given port."""
-    ports_dir = _ports_dir()
-    if not ports_dir.exists():
-        return None
-    for f in ports_dir.glob("*.port"):
+    """Read Unity project path from port files matching the given port.
+
+    Checks both ~/.unity-biome-mcp/ports and legacy ~/.unity-mcp/ports.
+    """
+    for f in _iter_port_files("*.port", _ports_dir()):
         try:
             pid = int(f.stem)
             lines = f.read_text(encoding="utf-8", errors="replace").strip().split("\n")

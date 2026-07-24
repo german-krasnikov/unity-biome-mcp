@@ -10,9 +10,11 @@ import pytest
 from collections import deque
 from unittest.mock import AsyncMock, MagicMock, patch, ANY
 
+import signal
+
 from unity_mcp.chat_relay import (
     BufLine, CliSession, ChatRelay, SessionMeta, BACKENDS,
-    _esc, _find_free_port, main,
+    _esc, _find_free_port, main, _main,
     MAX_BUF, KILL_WAIT, PPID_POLL,
 )
 from unity_mcp.stream_transform import (
@@ -857,6 +859,27 @@ async def test_shutdown_kills_session():
     with patch("unity_mcp.chat_relay.os._exit"):
         await relay._shutdown()
     sess.kill.assert_called_once()
+
+
+async def test_main_signal_handler_not_implemented_does_not_crash():
+    """Windows ProactorEventLoop raises NotImplementedError on add_signal_handler — must not crash."""
+    loop = asyncio.get_running_loop()
+    with patch.object(loop, "add_signal_handler", side_effect=NotImplementedError), \
+         patch("unity_mcp.chat_relay._find_free_port", return_value=19999), \
+         patch("unity_mcp.chat_relay.ChatRelay.serve", new=AsyncMock()):
+        await _main()
+
+
+async def test_main_registers_sigterm_and_sigint():
+    """Normal path: both SIGTERM and SIGINT must be registered on the event loop."""
+    loop = asyncio.get_running_loop()
+    with patch.object(loop, "add_signal_handler") as mock_add, \
+         patch("unity_mcp.chat_relay._find_free_port", return_value=19999), \
+         patch("unity_mcp.chat_relay.ChatRelay.serve", new=AsyncMock()):
+        await _main()
+    assert mock_add.call_count == 2
+    registered = {call.args[0] for call in mock_add.call_args_list}
+    assert registered == {signal.SIGTERM, signal.SIGINT}
 
 
 # ─── Bug Fixes (B1-B8) ──────────────────────────────────────────────────────
