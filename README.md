@@ -242,7 +242,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 11764 Tests (4743 Python · 6737 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 11772 Tests (4743 Python · 6745 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -326,6 +326,20 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v0.96.0</b> — 2026-07-24 — Renamed `SecurityLevel` enum: `Normal` → `Standard`, `Permissive` → `AllowAll`</summary>
+
+Renamed `SecurityLevel` enum: `Normal` → `Standard`, `Permissive` → `AllowAll`
+
+</details>
+
+<details>
+<summary><b>v0.95.0</b> — 2026-07-24 — Server name `unity-mcp` → `unity-biome-mcp` (SERVER_NAME, UPM packages, data …</summary>
+
+Server name `unity-mcp` → `unity-biome-mcp` (SERVER_NAME, UPM packages, data dir, docs, URLs)
+
+</details>
+
+<details>
 <summary><b>v0.94.0</b> — 2026-07-20 — Removed `get_perf` tool stub (use `get_frame_stats`)</summary>
 
 Removed `get_perf` tool stub (use `get_frame_stats`)
@@ -347,24 +361,12 @@ Removed `get_perf` tool stub (use `get_frame_stats`)
 </details>
 
 <details>
-<summary><b>v0.92.0</b> — 2026-07-19 — `move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated …</summary>
-
-`move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated as always-ok).
-
-</details>
-
-<details>
-<summary><b>v0.91.0</b> — 2026-07-19 — `run_playtest`, `wait_until`, `test_step`: correct `isSuccess` predicates (P0 …</summary>
-
-`run_playtest`, `wait_until`, `test_step`: correct `isSuccess` predicates (P0 fixes).
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.92.0** — 2026-07-19 — `move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated …
+- **v0.91.0** — 2026-07-19 — `run_playtest`, `wait_until`, `test_step`: correct `isSuccess` predicates (P0 …
 - **v0.90.0** — 2026-07-18 — `PATH_PREFIX /path` directive — applies path prefix to all `VAL` path aliases …
-- **v0.89.0** — 2026-07-17 — `SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in …
+- **v0.89.0** — 2026-07-17 — `SecurityLevel` enum (`Standard` / `AllowAll` / `Strict`) — dropdown in …
 - **v0.88.0** — 2026-07-13 — `MCPSettings.cs`: default `_defaultCatalog` rewritten from 13 legacy categories …
 - **v0.87.0** — 2026-07-12 — `tool_specs.py`: new `direct_only: bool = False` field on ToolSpec; 21 tools …
 - **v0.86.0** — 2026-07-12 — 83 tests removed across 59 test files; `test_schema_cache.py` deleted entirely …

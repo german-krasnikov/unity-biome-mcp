@@ -1,6 +1,7 @@
 // TDD tests for RelaySpawner — all process interactions injected via seams.
 // Uses ProcessFactory + CommandResolver to avoid requiring a real Python install.
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using NUnit.Framework;
 using UnityEditor;
@@ -15,13 +16,16 @@ namespace UnityMCP.Editor.Tests
         private Func<ProcessStartInfo, Process>   _origFactory;
         private Func<(string cmd, string[] argv)> _origResolver;
         private TimeSpan                          _origTimeout;
+        private TimeSpan                          _origRetryDelay;
 
         [SetUp]
         public void SetUp()
         {
-            _origFactory  = RelaySpawner.ProcessFactory;
-            _origResolver = RelaySpawner.CommandResolver;
-            _origTimeout  = RelaySpawner.ReadTimeout;
+            _origFactory    = RelaySpawner.ProcessFactory;
+            _origResolver   = RelaySpawner.CommandResolver;
+            _origTimeout    = RelaySpawner.ReadTimeout;
+            _origRetryDelay = RelaySpawner.RetryDelay;
+            RelaySpawner.RetryDelay = TimeSpan.Zero; // keep tests fast
             RelaySpawner.Stop();
             ClearSessionState();
         }
@@ -34,7 +38,9 @@ namespace UnityMCP.Editor.Tests
             RelaySpawner.ProcessFactory   = _origFactory;
             RelaySpawner.CommandResolver  = _origResolver;
             RelaySpawner.ReadTimeout      = _origTimeout;
+            RelaySpawner.RetryDelay       = _origRetryDelay;
             RelaySpawner.TcpAliveOverride = null;
+            RelaySpawnState.ResetForTests();
             InstallSourceDetector.ClearTestOverride();
         }
 
@@ -533,6 +539,114 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(RelaySpawner.IsRunning);
         }
 
+        // ── Bug fixes: stderr capture, retry, stale-cache ────────────
+
+        // Bug 1: stderr included in exception when process exits without printing port
+        [Test]
+        public void ExecuteSpawn_ProcessExitsWithStderr_ExceptionIncludesStderr()
+        {
+            RelaySpawner.ReadTimeout     = TimeSpan.FromMilliseconds(300);
+            RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
+            RelaySpawner.ProcessFactory  = _ => SpawnBashProcess(
+                "-c \"echo 'ImportError: No module named unity_mcp' >&2; exit 1\"");
+
+            var ex = Assert.Throws<InvalidOperationException>(() => RelaySpawner.EnsureRunning());
+            StringAssert.Contains("ImportError", ex.Message);
+        }
+
+        // Bug 2: transient failure — succeeds on third attempt
+        [Test]
+        public void Spawn_TransientFailure_SucceedsOnThirdAttempt()
+        {
+            RelaySpawner.ReadTimeout     = TimeSpan.FromMilliseconds(300);
+            RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
+            int calls = 0;
+            RelaySpawner.ProcessFactory  = _ =>
+            {
+                calls++;
+                return calls < 3
+                    ? SpawnBashProcess("-c \"echo 'err' >&2; exit 1\"")
+                    : SpawnBashProcess("-c \"echo relay_port:19920; exec sleep 60\"");
+            };
+
+            var port = RelaySpawner.EnsureRunning();
+            Assert.AreEqual(19920, port);
+            Assert.AreEqual(3, calls);
+        }
+
+        // Bug 2: all retries fail — throws after exactly 3 attempts
+        [Test]
+        public void Spawn_AllRetriesFail_ThrowsAfterThreeAttempts()
+        {
+            RelaySpawner.ReadTimeout     = TimeSpan.FromMilliseconds(200);
+            RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
+            int calls = 0;
+            RelaySpawner.ProcessFactory  = _ => { calls++; return SpawnBashProcess("-c \"exit 1\""); };
+
+            Assert.Throws<InvalidOperationException>(() => RelaySpawner.EnsureRunning());
+            Assert.AreEqual(3, calls);
+        }
+
+        // Bug 2b: zombie processes — failed spawn's process must be killed before retry
+        [Test]
+        public void Spawn_TransientFailure_KillsZombieBeforeRetry()
+        {
+            RelaySpawner.ReadTimeout     = TimeSpan.FromMilliseconds(100);
+            RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
+            var spawned = new List<Process>();
+            int calls = 0;
+            RelaySpawner.ProcessFactory = _ =>
+            {
+                calls++;
+                var p = calls < 3
+                    ? SpawnBashProcess("-c \"exec sleep 60\"")  // hangs → triggers timeout
+                    : SpawnBashProcess("-c \"echo relay_port:19921; exec sleep 60\"");
+                spawned.Add(p);
+                return p;
+            };
+
+            try
+            {
+                var port = RelaySpawner.EnsureRunning();
+                Assert.AreEqual(19921, port);
+                Assert.IsTrue(spawned[0].HasExited, "First zombie must be killed before retry");
+                Assert.IsTrue(spawned[1].HasExited, "Second zombie must be killed before retry");
+                Assert.IsFalse(spawned[2].HasExited, "Successful process must still be alive");
+            }
+            finally
+            {
+                foreach (var p in spawned) try { p.Kill(); p.Dispose(); } catch { }
+            }
+        }
+
+        // Bug 3: live PID takes fast path even when TCP cache would say dead
+        [Test]
+        public void LooksAlreadyRunning_LivePid_TakesFastPath()
+        {
+            var liveProc = SpawnBashProcess("-c \"exec sleep 60\"");
+            try
+            {
+                SessionState.SetInt("MCPChat_Relay_Port", 19931);
+                SessionState.SetInt("MCPChat_Relay_PID",  liveProc.Id);
+                // No TcpAliveOverride — real TCP to port 19931 has no listener in tests.
+                // Old code: IsTcpAlive fails → LooksAlreadyRunning = false → cold path.
+                // New code: IsProcessAlive(live) = true → fast path → EnsureRunningOverride called.
+                bool fastPathCalled = false;
+                RelaySpawnState.ResetForTests();
+                RelaySpawnState.EnsureRunningOverride = () => { fastPathCalled = true; return 19931; };
+
+                RelaySpawnState.RequestSpawn(_ => { }, _ => { });
+
+                Assert.IsTrue(fastPathCalled, "Fast path should be taken when PID is alive");
+            }
+            finally
+            {
+                RelaySpawnState.ResetForTests();
+                try { liveProc.Kill(); } catch { }
+                liveProc.Dispose();
+            }
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static void SetMockRelay(int port)
@@ -546,6 +660,19 @@ namespace UnityMCP.Editor.Tests
             var psi = new ProcessStartInfo("bash")
             {
                 Arguments              = $"-c \"echo relay_port:{port}; exec sleep 60\"",
+                UseShellExecute        = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                CreateNoWindow         = true,
+            };
+            return Process.Start(psi);
+        }
+
+        private static Process SpawnBashProcess(string args)
+        {
+            var psi = new ProcessStartInfo("bash")
+            {
+                Arguments              = args,
                 UseShellExecute        = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,

@@ -5,6 +5,11 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class CodeExecutorSecurityWhitespaceBypassTests
     {
+        private SecurityLevel _savedLevel;
+
+        [SetUp]    public void SetUp()    { _savedLevel = MCPSettings.GetSecurityLevel(); MCPSettings.SetSecurityLevel(SecurityLevel.Standard); }
+        [TearDown] public void TearDown() { MCPSettings.SetSecurityLevel(_savedLevel); }
+
         // ── CS4.arch.2: whitespace/newline bypass ────────────────────────────
 
         [Test]

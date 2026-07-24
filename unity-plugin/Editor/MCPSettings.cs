@@ -24,7 +24,7 @@ namespace UnityMCP.Editor
         private const string KeySecurityLevel = "UnityMCP_SecurityLevel";
 
         public static SecurityLevel GetSecurityLevel() =>
-            (SecurityLevel)EditorPrefs.GetInt(KeySecurityLevel, (int)SecurityLevel.Normal);
+            (SecurityLevel)EditorPrefs.GetInt(KeySecurityLevel, (int)SecurityLevel.AllowAll);
 
         public static void SetSecurityLevel(SecurityLevel level) =>
             EditorPrefs.SetInt(KeySecurityLevel, (int)level);

@@ -1,6 +1,6 @@
 {
   "name": "com.unity-biome-mcp.editor",
-  "version": "0.95.0",
+  "version": "0.96.0",
   "displayName": "Unity Biome MCP",
   "description": "MCP server for Unity Editor control",
   "unity": "6000.0",

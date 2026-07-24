@@ -10,6 +10,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.96.0] — 2026-07-24 — Security levels redesign, relay spawner stability
+
+**C# — Security Levels:**
+- Renamed `SecurityLevel` enum: `Normal` → `Standard`, `Permissive` → `AllowAll`
+- `AllowAll` skips all security scans — no pattern matching, no regex filtering
+- Default changed to `AllowAll` for frictionless development
+- Fixed `IsAllowedAssembly` for Unity 6 in-memory assemblies (7 test failures)
+- Fixed `TempDirScope` macOS symlink canonicalization (1 test failure)
+- Security tests: `SetUp`/`TearDown` isolation, 5 new `AllowAll` tests
+
+**C# — Relay Spawner Stability:**
+- Always capture stderr from relay process (was local-only — silent crashes)
+- 3× retry with 2s backoff on transient spawn failures
+- Zombie process cleanup: kill previous process before each retry attempt
+- `LooksAlreadyRunning` uses PID check instead of stale 3s TCP cache
+- Retry logic in `ExecuteSpawn` covers both sync and async spawn paths
+- 5 new relay stability tests including zombie kill verification
+
 ## [v0.95.0] — 2026-07-24 — Rebrand unity-kiss-mcp → unity-biome-mcp
 
 **Rebrand:**
@@ -214,10 +232,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.89.0] — 2026-07-17 — Gamedev friction sprint: security levels, execute_code improvements, DSL extensions
 
 **C# — CodeExecutor:**
-- `SecurityLevel` enum (`Normal` / `Permissive` / `Strict`) — dropdown in MCPSettings + MCPHubUI; three-tier blocked-pattern sets computed at class init.
+- `SecurityLevel` enum (`Standard` / `AllowAll` / `Strict`) — dropdown in MCPSettings + MCPHubUI; three-tier blocked-pattern sets computed at class init; `AllowAll` is the default.
 - `using Object = UnityEngine.Object;` added to auto-injected usings — no more ambiguity errors.
-- `GetFields(` / `GetProperties(` unblocked in Normal mode (moved to Strict-only tier).
-- `.GetValue(` / `.SetValue(` / `.Invoke(` moved to Normal+Strict tier (allowed in Permissive) — `TryGetValue` was never blocked (dot-prefix requirement added).
+- `GetFields(` / `GetProperties(` unblocked in Standard mode (moved to Strict-only tier).
+- `.GetValue(` / `.SetValue(` / `.Invoke(` moved to Standard+Strict tier (allowed in AllowAll) — `TryGetValue` was never blocked (dot-prefix requirement added).
 - Security error messages include actionable `Suggestion:` hints for common blocked patterns.
 - `return;` (bare void) auto-replaced with `return null;` in `WrapIfBareCode` — no more CS0161 for void-style snippets.
 - User-written namespace `using` directives (e.g. `using System.Text;`) are hoisted above the generated class wrapper automatically.

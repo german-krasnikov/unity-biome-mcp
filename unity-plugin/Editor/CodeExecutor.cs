@@ -7,11 +7,11 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    public enum SecurityLevel { Normal = 0, Permissive = 1, Strict = 2 }
+    public enum SecurityLevel { Standard = 0, AllowAll = 1, Strict = 2 }
 
     internal static class CodeExecutor
     {
-        // ── Security tier 1: always blocked regardless of level ───────────────
+        // ── Security tier 1: blocked in Standard and Strict (bypassed by AllowAll) ───
         private static readonly string[] BlockedAlways = {
             "System.Diagnostics.Process", "System.IO.File", "System.IO.Directory",
             "System.IO.Stream", "FileStream", "StreamWriter", "StreamReader",
@@ -38,7 +38,7 @@ namespace UnityMCP.Editor
             "FileUtil.",
         };
 
-        // ── Security tier 2: blocked in Normal and Strict, allowed in Permissive
+        // ── Security tier 2: blocked in Standard and Strict, allowed in AllowAll
         private static readonly string[] BlockedReflectionAccess = {
             ".GetValue(", ".SetValue(", ".Invoke(",
         };
@@ -49,12 +49,10 @@ namespace UnityMCP.Editor
         };
 
         // Pre-computed per-level arrays (avoid allocation per call)
-        private static readonly string[] _scanNormal      = BlockedAlways.Concat(BlockedReflectionAccess).ToArray();
-        private static readonly string[] _scanPermissive  = BlockedAlways;
-        private static readonly string[] _scanStrict      = _scanNormal.Concat(BlockedStrictReflection).ToArray();
-        private static readonly string[] _scanNormalDense     = Densify(_scanNormal);
-        private static readonly string[] _scanPermissiveDense = Densify(_scanPermissive);
-        private static readonly string[] _scanStrictDense     = Densify(_scanStrict);
+        private static readonly string[] _scanStandard      = BlockedAlways.Concat(BlockedReflectionAccess).ToArray();
+        private static readonly string[] _scanStrict        = _scanStandard.Concat(BlockedStrictReflection).ToArray();
+        private static readonly string[] _scanStandardDense = Densify(_scanStandard);
+        private static readonly string[] _scanStrictDense   = Densify(_scanStrict);
 
         // Word-boundary check for extern/unsafe — substring scan would block identifiers like "externalRef"
         private static readonly System.Text.RegularExpressions.Regex _wordBoundaryBlocked =
@@ -141,13 +139,13 @@ namespace UnityMCP.Editor
 
         internal static void SecurityScan(string code, SecurityLevel level)
         {
+            if (level == SecurityLevel.AllowAll) return;
             var stripped = StripComments(code);
             var dense = System.Text.RegularExpressions.Regex.Replace(stripped, @"\s+", "");
             var (patterns, densePatterns) = level switch
             {
-                SecurityLevel.Permissive => (_scanPermissive, _scanPermissiveDense),
-                SecurityLevel.Strict     => (_scanStrict,     _scanStrictDense),
-                _                        => (_scanNormal,      _scanNormalDense),
+                SecurityLevel.Strict => (_scanStrict,    _scanStrictDense),
+                _                    => (_scanStandard,  _scanStandardDense),
             };
             for (int i = 0; i < patterns.Length; i++)
             {
@@ -341,12 +339,7 @@ namespace UnityMCP.Editor
             return true;
         }
 
-        internal static bool IsAllowedAssembly(Assembly a)
-        {
-            if (!IsAllowedAssembly(a.GetName().Name)) return false;
-            try { return !string.IsNullOrEmpty(a.Location); }
-            catch { return false; }
-        }
+        internal static bool IsAllowedAssembly(Assembly a) => IsAllowedAssembly(a.GetName().Name);
 
         private static void CheckEmitResult(object emitResult)
         {

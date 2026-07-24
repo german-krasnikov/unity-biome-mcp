@@ -23,7 +23,7 @@ user-invocable: false
 
 Запустить произвольный C# в Editor-контексте. Timeout 60s.
 
-**Security gating (v0.89):** `SecurityLevel` enum — `Low` / `Medium` (default) / `High`. Medium блокирует запись файлов вне `Assets/`. Если операция отклонена — SecurityLevel слишком низкий, запроси у пользователя повышение.
+**Security gating (v0.89):** `SecurityLevel` enum — `AllowAll` (default) / `Standard` / `Strict`. `AllowAll` skips all scans — all C# APIs available. `Standard` blocks unsafe namespaces + reflection accessors. `Strict` additionally blocks `GetField`/`GetProperty`/`GetFields`/`GetProperties`. Если операция отклонена — переключи уровень в MCPSettings.
 
 ```
 execute_code code="Selection.activeGameObject.name"

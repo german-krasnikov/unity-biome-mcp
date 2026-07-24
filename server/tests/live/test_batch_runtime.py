@@ -42,7 +42,7 @@ async def test_batch_async_commands_blocked_not_unknown(ensure_edit_mode, bridge
     result = await bridge.send("batch", {
         "commands": "wait_until path=/X component=Y field=z value=1"
     })
-    text = result.get("data", "") if isinstance(result, dict) else str(result)
+    text = (result.get("data") or result.get("err", "")) if isinstance(result, dict) else str(result)
     assert "Unknown command" not in text, f"Schema missing wait_until: {text}"
     assert "async-only" in text.lower() or "BLOCKED" in text, f"Expected async block: {text}"
 

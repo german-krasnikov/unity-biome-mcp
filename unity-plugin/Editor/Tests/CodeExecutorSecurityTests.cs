@@ -6,6 +6,11 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class CodeExecutorSecurityTests
     {
+        private SecurityLevel _savedLevel;
+
+        [SetUp]    public void SetUp()    { _savedLevel = MCPSettings.GetSecurityLevel(); MCPSettings.SetSecurityLevel(SecurityLevel.Standard); }
+        [TearDown] public void TearDown() { MCPSettings.SetSecurityLevel(_savedLevel); }
+
         // ── Blocked patterns ─────────────────────────────────────────────────
 
         [Test]
@@ -283,39 +288,59 @@ namespace UnityMCP.Editor.Tests
         // ── SecurityLevel enum tests (Wave 3 #3/#4) ──────────────────────────
 
         [Test]
-        public void Normal_GetField_IsAllowed()
+        public void Standard_GetField_IsAllowed()
             => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
-                "var f = typeof(Rigidbody).GetField(\"mass\");", SecurityLevel.Normal));
+                "var f = typeof(Rigidbody).GetField(\"mass\");", SecurityLevel.Standard));
 
         [Test]
-        public void Normal_GetProperty_IsAllowed()
+        public void Standard_GetProperty_IsAllowed()
             => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
-                "var p = typeof(Rigidbody).GetProperty(\"mass\");", SecurityLevel.Normal));
+                "var p = typeof(Rigidbody).GetProperty(\"mass\");", SecurityLevel.Standard));
 
         [Test]
-        public void Normal_GetValue_IsBlocked()
+        public void Standard_GetValue_IsBlocked()
             => Assert.Throws<System.InvalidOperationException>(() => CodeExecutor.SecurityScan(
-                "f.GetValue(obj);", SecurityLevel.Normal));
+                "f.GetValue(obj);", SecurityLevel.Standard));
 
         [Test]
-        public void Normal_Invoke_IsBlocked()
+        public void Standard_Invoke_IsBlocked()
             => Assert.Throws<System.InvalidOperationException>(() => CodeExecutor.SecurityScan(
-                "m.Invoke(null, null);", SecurityLevel.Normal));
+                "m.Invoke(null, null);", SecurityLevel.Standard));
 
         [Test]
-        public void Permissive_GetValue_IsAllowed()
+        public void AllowAll_GetValue_IsAllowed()
             => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
-                "var v = field.GetValue(obj);", SecurityLevel.Permissive));
+                "var v = field.GetValue(obj);", SecurityLevel.AllowAll));
 
         [Test]
-        public void Permissive_Invoke_IsAllowed()
+        public void AllowAll_Invoke_IsAllowed()
             => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
-                "method.Invoke(null, null);", SecurityLevel.Permissive));
+                "method.Invoke(null, null);", SecurityLevel.AllowAll));
 
         [Test]
-        public void Permissive_FileIO_IsStillBlocked()
-            => Assert.Throws<System.InvalidOperationException>(() => CodeExecutor.SecurityScan(
-                "System.IO.File.Delete(\"x\");", SecurityLevel.Permissive));
+        public void AllowAll_FileIO_IsAllowed()
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
+                "System.IO.File.Delete(\"x\");", SecurityLevel.AllowAll));
+
+        [Test]
+        public void AllowAll_ProcessExec_IsAllowed()
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
+                "System.Diagnostics.Process.Start(\"calc\");", SecurityLevel.AllowAll));
+
+        [Test]
+        public void AllowAll_Network_IsAllowed()
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
+                "var c = new System.Net.WebClient();", SecurityLevel.AllowAll));
+
+        [Test]
+        public void AllowAll_Reflection_IsAllowed()
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
+                "field.GetValue(null);", SecurityLevel.AllowAll));
+
+        [Test]
+        public void AllowAll_ExternKeyword_IsAllowed()
+            => Assert.DoesNotThrow(() => CodeExecutor.SecurityScan(
+                "static extern void Foo();", SecurityLevel.AllowAll));
 
         [Test]
         public void Strict_GetFields_IsBlocked()
@@ -331,8 +356,8 @@ namespace UnityMCP.Editor.Tests
         public void ErrorMessage_IncludesLevelName()
         {
             var ex = Assert.Throws<System.InvalidOperationException>(() =>
-                CodeExecutor.SecurityScan("System.IO.File.Delete(\"x\");", SecurityLevel.Normal));
-            StringAssert.Contains("Normal", ex.Message);
+                CodeExecutor.SecurityScan("System.IO.File.Delete(\"x\");", SecurityLevel.Standard));
+            StringAssert.Contains("Standard", ex.Message);
         }
 
         [Test]

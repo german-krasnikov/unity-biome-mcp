@@ -14,7 +14,8 @@ namespace UnityMCP.Editor.Tests
 
         public TempDirScope(string prefix = "mcp_test")
         {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{prefix}_{Guid.NewGuid():N}");
+            Path = System.IO.Path.GetFullPath(
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{prefix}_{Guid.NewGuid():N}"));
             Directory.CreateDirectory(Path);
         }
 

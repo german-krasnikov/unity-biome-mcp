@@ -148,7 +148,10 @@ namespace UnityMCP.Editor.Chat
 #endif
             var port = SessionState.GetInt(RelaySpawner.PortKey, 0);
             var pid  = SessionState.GetInt(RelaySpawner.PidKey, 0);
-            return port > 0 && RelaySpawner.IsProcessAlive(pid) && RelaySpawner.IsTcpAlive(port);
+            // PID check is cheap (OS-level) and accurate. IsTcpAlive has a 3s cache that
+            // can return stale-alive after the relay dies — skip it here and let EnsureRunning
+            // do the authoritative TCP check on the fast path.
+            return port > 0 && RelaySpawner.IsProcessAlive(pid);
         }
     }
 }
