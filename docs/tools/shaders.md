@@ -25,6 +25,11 @@ Read or write shader assets (.shader / .shadergraph). Inspect shader properties 
 - `input_node` (string, optional) — Input node ID (for edge)
 - `input_slot` (int, optional) — Input slot index (for edge)
 - `edge_action` (string, optional) — Edge action: "connect" | "disconnect"
+- `name` (string, optional) — Property name (for graph_node configure)
+- `type` (string, optional) — Property type (for graph_node)
+- `default_value` (string, optional) — Default value (for graph_node property)
+- `reference_name` (string, optional) — Shader reference name (for graph_node property)
+- `new_name` (string, optional) — New name for rename operations
 
 **Actions:**
 
@@ -81,62 +86,7 @@ await shader("graph_edge", path="Assets/Shaders/MyGraph.shadergraph",
 
 ## material
 
-Create and configure materials. Assign shaders, set properties, and copy materials across scene objects.
-
-**Parameters:**
-- `action` (string) — "create" | "get" | "set" | "copy" | "list_properties"
-- `path` (string, optional) — Material asset path (Assets/...) for asset-level operations
-- `object_path` (string, optional) — Scene object path for scene-level operations
-- `shader` (string, optional) — Shader name (used with create or set)
-- `prop` (string, optional) — Property name to read/write
-- `value` (string, optional) — Property value
-- `source` (string, optional) — Source material to copy from
-- `targets` (string, optional) — Comma-separated scene paths to paste to
-
-**Actions:**
-
-| Action | Purpose | Required Params | Example |
-|--------|---------|-----------------|---------|
-| create | New material asset | path, shader | `material("create", path="Assets/Materials/NewMat.mat", shader="Standard")` |
-| get | Read material properties | path OR object_path | `material("get", path="Assets/Materials/Player.mat")` |
-| set | Change property on material | path OR object_path, prop, value | `material("set", path="Assets/Materials/Player.mat", prop="_Color", value="#FF0000")` |
-| copy | Duplicate material to targets | source, targets | `material("copy", source="Assets/Materials/Base.mat", targets="Player,Enemy,NPC")` |
-| list_properties | Show all properties | path OR object_path | `material("list_properties", path="Assets/Materials/Player.mat")` |
-
-**Object Path vs Asset Path:**
-- `path`: Asset in project (Assets/Materials/Player.mat) — modifies the asset
-- `object_path`: Scene object (/Player/Mesh) — modifies the material instance on that object
-
-**Example:**
-
-```python
-# Create new material with Standard shader
-await material("create", path="Assets/Materials/Enemy.mat", shader="Standard")
-
-# Set color on asset material
-await material("set", path="Assets/Materials/Enemy.mat",
-              prop="_Color", value="#FF3333")
-
-# Get material properties
-props = await material("get", path="Assets/Materials/Enemy.mat")
-
-# List all properties
-await material("list_properties", path="Assets/Materials/Enemy.mat")
-
-# Copy material to multiple scene objects
-await material("copy", source="Assets/Materials/Base.mat",
-              targets="Enemy1,Enemy2,Enemy3")
-
-# Set property on scene object's material directly
-await material("set", object_path="Player/Mesh",
-              prop="_MainColor", value="#00FF00")
-```
-
-**Typical Workflow:**
-1. Use `shader("create", ...)` or `shader("get", ...)` to work with shaders
-2. Use `material("create", ..., shader=...)` to create materials with specific shader
-3. Use `material("set", ...)` to configure material properties
-4. Use `material("copy", ...)` to apply material across multiple objects
+Create and configure materials. See [Asset Tools — material](assets.md#material) for full documentation.
 
 ---
 

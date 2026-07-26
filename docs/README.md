@@ -1,12 +1,12 @@
 # Unity Biome MCP Documentation
 
-Documentation for Unity Biome MCP v0.75.0 — MCP server for controlling Unity Editor from AI coding assistants.
+Documentation for Unity Biome MCP v0.96.1 — MCP server for controlling Unity Editor from AI coding assistants.
 
 ## Getting Started
 - [Installation & First Steps](getting-started/index.md)
 
 ## Tools Reference
-- [All Tools (125)](tools/index.md)
+- [All Tools (142)](tools/index.md)
 - [Scene Tools](tools/scene.md)
 - [Object Tools](tools/objects.md)
 - [Batch Operations](tools/batch.md)
@@ -48,6 +48,7 @@ Documentation for Unity Biome MCP v0.75.0 — MCP server for controlling Unity E
 - [VS Code](install/vscode.md)
 - [Codex](install/codex.md)
 - [Kimi](install/kimi.md)
+- [Junie](install/junie.md)
 - [Gemini](install/gemini.md)
 - [OpenCode](install/opencode.md)
 

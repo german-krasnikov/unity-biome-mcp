@@ -10,14 +10,34 @@ Annotations are visual overlays (lines, arrows, shapes, text) drawn on screensho
 
 ## Tools
 
-| Tool | Shortcut | Purpose | Color |
-|------|----------|---------|-------|
-| Pen | P | Free-hand drawing | Teal |
-| Line | L | Straight line | Teal |
-| Arrow | A | Directional arrow | Orange |
-| Rectangle | R | Rect outline | Yellow |
-| Ellipse | O | Oval outline | Green |
-| Text | T | Add text label | White on black bg |
+| Tool | Shortcut | Purpose |
+|------|----------|---------|
+| Pen | P | Free-hand drawing |
+| Line | L | Straight line |
+| Arrow | A | Directional arrow |
+| Rectangle | R | Rect outline (supports fill) |
+| Ellipse | E | Oval outline (supports fill) |
+| Text | T | Add text label |
+| Eraser | X | Remove individual strokes |
+
+## Color Palette
+
+A single **active color** applies to all tools. Pick from the 8-color palette in the second toolbar row:
+
+| Swatch | Color | RGB |
+|--------|-------|-----|
+| 🔴 | Red (default) | `(255, 50, 50)` |
+| 🔵 | Blue | `(50, 150, 255)` |
+| 🟢 | Green | `(50, 200, 50)` |
+| 🟡 | Yellow | `(255, 200, 0)` |
+| 🟠 | Orange | `(255, 130, 0)` |
+| 🟣 | Purple | `(200, 50, 255)` |
+| ⚪ | White | `(255, 255, 255)` |
+| ⚫ | Black | `(0, 0, 0)` |
+
+**Stroke width** presets: Thin (2px), Medium (3px, default), Thick (5px).
+
+**Fill mode** (Rectangle and Ellipse only): None, Solid, or Semi-transparent.
 
 ## Usage
 
@@ -63,7 +83,7 @@ Annotations are visual overlays (lines, arrows, shapes, text) drawn on screensho
 
 ### Ellipse (Oval)
 ```
-1. Click Ellipse button or press O
+1. Click Ellipse button or press E
 2. Click center
 3. Drag to set radius
 4. Release to confirm
@@ -82,6 +102,14 @@ Annotations are visual overlays (lines, arrows, shapes, text) drawn on screensho
 **Use case:** Add callouts, error names, coordinates.
 
 **Supported:** ASCII text, numbers, basic symbols.
+
+### Eraser
+```
+1. Click Eraser button or press X
+2. Click on a stroke to remove it
+```
+
+**Use case:** Remove individual annotations without clearing everything.
 
 ## Example Workflow
 
@@ -102,19 +130,12 @@ Screenshot taken automatically after scene change
 
 ## Appearing in LLM Prompt
 
-Annotated screenshots are sent as:
+Annotations are rasterized (baked) into the screenshot PNG before sending. The LLM receives:
 
-**Image + overlay data:**
-- Raw screenshot (PNG)
-- Annotation layer (as vector metadata or separate image)
-- Text transcription of labels
+- A single **binary `image_url` block** (the composited PNG with annotations burned in)
+- **Text metadata** (transcription of text labels and 3D coordinate annotations)
 
-**LLM interprets:**
-```
-"I see the health bar is misaligned (circled in teal).
-You marked it should be at top-left corner (arrow points there).
-Error: Off by 10px (as labeled)."
-```
+No vector data is sent — the LLM sees the final image with all annotations visible.
 
 ## Tips
 
@@ -141,29 +162,18 @@ Error: Off by 10px (as labeled)."
 | L | Activate Line |
 | A | Activate Arrow |
 | R | Activate Rectangle |
-| O | Activate Ellipse |
+| E | Activate Ellipse |
 | T | Activate Text |
-| Ctrl+Z | Undo last stroke |
-| Escape | Cancel current drawing |
-| Enter | Confirm and finalize |
-
-## Annotation Export
-
-**Save annotated screenshot:**
-
-```
-Chat → Right-click message → Export annotation
-→ Saves as: ScreenShots/YYYY-MM-DD_HH-MM-SS_annotated.png
-```
-
-**In transcript:** Annotated images appear inline with permanent metadata.
+| X | Activate Eraser |
+| Ctrl+Z / Cmd+Z | Undo |
+| Ctrl+Shift+Z / Ctrl+Y / Cmd+Y | Redo |
+| Ctrl+Enter / Cmd+Enter | Send to Chat |
 
 ## Limitations
 
-- Annotations are **image overlays** (not stored separately; baked into screenshot)
+- Annotations are **rasterized** into the screenshot (not stored as separate vector data)
 - Text is **single-line** (no multi-line labels)
-- Colors are **fixed per tool** (no custom color picker)
-- Precision is **relative to viewport** (if camera moves, annotations move too)
+- Coordinates are **normalized 0..1** (resolution-independent, relative to viewport)
 
 ---
 

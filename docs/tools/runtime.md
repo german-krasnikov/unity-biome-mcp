@@ -7,23 +7,27 @@ Execute methods, modify values at runtime, run automated test scenarios. These t
 Execute a Play Mode test scenario using the Playtest DSL. Deterministic step-by-step assertions.
 
 **Parameters:**
-- `script` (string, required) — DSL script (21 step types supported)
-- `timeout` (int, default=300) — Max seconds for entire test
-- `stop_on_fail` (bool, default=true) — Stop at first failure
-- `verbose` (bool, default=false) — Show detailed logs
+- `script` (string, optional) — DSL script (mutually exclusive with `path`; at least one required)
+- `path` (string, optional) — Assets-relative or project-root-relative path to a `.playtest` file (mutually exclusive with `script`)
+- `timeout` (float, default=120.0) — Max seconds for entire test
+- `abort_on_fail` (bool, default=false) — Stop Play Mode on step timeout
+- `defs` (string, optional) — Inline VAL definitions (`name path|comp|field` per line), prepended to script
+- `snapshot_on_failure` (bool, default=false) — On assertion/timeout failure, appends current alias values and recent console errors
+- `fresh` (bool, default=false) — Stop and restart Play Mode before running the script
 
-**Output:** Test results with PASS/FAIL/ERR for each step, optional graphs for monitored values.
+**Output:** Test results with PASS/FAIL/ERR for each step. Large reports are auto-compressed and optionally LLM-summarized.
 
 **DSL Quick Reference:**
 
 | Step | Purpose | Example |
 |------|---------|---------|
-| **ALIAS** | Define substitution | `ALIAS player_start (100,50,0)` |
+| **VAL** | Define substitution | `VAL player_start (100,50,0)` |
 | **ASSERT** | Test single condition | `ASSERT Player/Health == 100` |
 | **ASSERT_BATCH...END** | Multiple assertions | `ASSERT_BATCH\n  Player/Health == 100\n  Enemy/Health > 0\nEND` |
 | **ASSERT_NEAR** | Check distance | `ASSERT_NEAR Player Enemy 5.0` |
 | **ASSERT_CTA** | Verify UI button interactable | `ASSERT_CTA StartButton` |
 | **ASSERT_CONSOLE_CLEAN** | No errors in console | `ASSERT_CONSOLE_CLEAN ignore="warning"` |
+| **ASSERT_CONSERVED** | Conservation law | `ASSERT_CONSERVED SUM a+b OVER t` |
 | **CAPTURE** | Snapshot value | `CAPTURE initial_pos = Player/Transform/position` |
 | **ASSERT_CAPTURED** | Verify captured value | `ASSERT_CAPTURED initial_pos != (100,100,0)` |
 | **SET** | Modify runtime property | `SET Player/Health 50` |
@@ -32,7 +36,6 @@ Execute a Play Mode test scenario using the Playtest DSL. Deterministic step-by-
 | **WAIT** | Pause execution | `WAIT 2.0` |
 | **WAIT_UNTIL** | Poll condition with timeout | `WAIT_UNTIL Player/Health == 100 timeout=10` |
 | **SIMULATE** | Advance physics/time | `SIMULATE duration=1.0 physics=true` |
-| **SCREENSHOT** | Capture view | `SCREENSHOT width=1280 height=720` |
 | **LOG** | Print message | `LOG Test step completed` |
 | **MONITOR** | Watch expression during step | `MONITOR Player/Health` |
 | **COMMENT** | Documentation (no-op) | `# This is a comment` |
@@ -69,7 +72,6 @@ ASSERT_CAPTURED initial_enemy_health != 90
 ASSERT Enemy/Health/hp > 0
 
 # Visual checkpoint
-SCREENSHOT width=1280 height=720
 
 # Console clean
 ASSERT_CONSOLE_CLEAN ignore="warning"
@@ -85,9 +87,9 @@ print(result)
 
 ```python
 script = """
-ALIAS patrol_1 (10,0,0)
-ALIAS patrol_2 (20,0,0)
-ALIAS patrol_3 (10,0,0)
+VAL patrol_1 (10,0,0)
+VAL patrol_2 (20,0,0)
+VAL patrol_3 (10,0,0)
 
 LOG Testing patrol route
 CAPTURE patrol_count = Enemy/Patrol/position_count
@@ -111,24 +113,188 @@ result = await run_playtest(script=script)
 
 ---
 
-## fuzz_playtest
+## run_playtest_suite
 
-Generate and run a random playtest DSL script. Finds hidden bugs via property-based testing.
+Run multiple `.playtest` files sequentially and return a compact pass/fail matrix.
 
 **Parameters:**
-- `steps` (int, default=10) — Number of random actions to generate
-- `seed` (int, optional) — Random seed for reproducibility
+- `paths` (string, optional) — Glob pattern (e.g. `Playtests/*.playtest`), comma-separated, or newline-separated list of project-relative paths (mutually exclusive with `suite_path`)
+- `suite_path` (string, optional) — Absolute path to a `.suite` file (lines = project-relative `.playtest` paths, `#` = comment)
+- `timeout_per_test` (float, default=120.0) — Max seconds per individual test
+- `stop_on_fail` (bool, default=false) — Abort suite after first failure
+- `stop_after` (bool, default=true) — Exit Play Mode when suite completes
+- `auto_play` (bool, default=false) — Enter Play Mode automatically if not already playing
+- `restart_between` (bool, default=false) — Stop and restart Play Mode between each file to reset runtime state
 
-**Output:** Playtest report with pass/fail per step.
+**Output:** `SUITE: X/Y passed (Zs)` + per-file line + full failure details.
 
 **Example:**
 
 ```python
-# Run 20 random steps
-result = await fuzz_playtest(steps=20)
+# Run all playtests in a directory
+result = await run_playtest_suite(paths="Playtests/*.playtest")
 
-# Reproducible run
-result = await fuzz_playtest(steps=10, seed=42)
+# Run specific files with restart between each
+result = await run_playtest_suite(
+    paths="Playtests/combat.playtest,Playtests/movement.playtest",
+    restart_between=True,
+    stop_on_fail=True
+)
+
+# Run from a suite file
+result = await run_playtest_suite(suite_path="/path/to/tests.suite")
+```
+
+---
+
+## lint_playtest
+
+Read-only preflight check on a `.playtest` file or inline script. Does not execute anything.
+
+**Parameters:**
+- `path` (string, optional) — Project-relative path to `.playtest` file (mutually exclusive with `script`)
+- `script` (string, optional) — Inline DSL to lint (mutually exclusive with `path`)
+
+**Checks:** Unresolved `$alias`, deprecated `ALIAS` keyword, unimplemented `TRACE_FLOW`, unknown `CALL` macro, mixed `AND`/`OR`, missing `ASSERT_CONSOLE_CLEAN` at end.
+
+**Returns:** `OK` or severity-tagged issues (`ERROR`/`WARN`/`INFO`) with `file:line`.
+
+**Example:**
+
+```python
+# Lint a file
+result = await lint_playtest(path="Playtests/combat.playtest")
+
+# Lint inline DSL
+result = await lint_playtest(script="ASSERT Player/Health == 100\nASSERT_CONSOLE_CLEAN")
+```
+
+---
+
+## lint_playtest_suite
+
+Read-only preflight check across multiple `.playtest` files.
+
+**Parameters:**
+- `paths` (string, optional) — Glob pattern (e.g. `Playtests/*.playtest`) or comma-separated list (mutually exclusive with `suite_path`)
+- `suite_path` (string, optional) — Absolute path to a `.suite` file
+
+**Returns:** Aggregated lint report with `LINT: X/Y clean` header, one block per file.
+
+**Example:**
+
+```python
+result = await lint_playtest_suite(paths="Playtests/*.playtest")
+```
+
+---
+
+## validate_playtest_aliases
+
+Compare alias `.defs` text file vs `PlaytestConfig.asset`. Reports missing, extra, or changed aliases.
+
+**Parameters:**
+- `defs` (string, default=`Assets/PlaytestDefs/farm_core.defs`) — Project-relative path to `.defs` file
+- `asset` (string, default=`Assets/Configs/PlaytestConfig.asset`) — Asset path to PlaytestConfig
+
+**Returns:** `ok: N aliases in sync` when identical, or a diff report.
+
+**Example:**
+
+```python
+result = await validate_playtest_aliases()
+result = await validate_playtest_aliases(defs="Assets/PlaytestDefs/custom.defs")
+```
+
+---
+
+## sync_playtest_aliases_from_defs
+
+Overwrite `PlaytestConfig.asset` aliases from a `.defs` text file. Invalidates `AliasExpander` cache after sync. Not allowed in Play Mode.
+
+**Parameters:**
+- `defs` (string, default=`Assets/PlaytestDefs/farm_core.defs`) — Project-relative path to `.defs` file
+- `asset` (string, default=`Assets/Configs/PlaytestConfig.asset`) — Asset path to PlaytestConfig
+
+**Example:**
+
+```python
+result = await sync_playtest_aliases_from_defs()
+```
+
+---
+
+## export_playtest_aliases_to_defs
+
+Export `PlaytestConfig.asset` aliases to a readable `.defs` text file.
+
+**Parameters:**
+- `asset` (string, default=`Assets/Configs/PlaytestConfig.asset`) — Asset path to PlaytestConfig
+- `defs` (string, default=`Assets/PlaytestDefs/farm_core.defs`) — Project-relative output path
+
+**Example:**
+
+```python
+result = await export_playtest_aliases_to_defs()
+```
+
+---
+
+## resolve_scene_refs
+
+Read-only scene reference resolver. Resolves `$alias`, `/path`, or `t:Type` tokens against the live scene.
+
+**Parameters:**
+- `refs` (string) — Comma-separated list of `$alias`, `/path`, or `t:Type` tokens
+- `fields` (string, optional) — Comma-separated field names to check existence on matched component
+
+**Returns:** One tab-aligned line per ref: `OK`|`MISS`|`AMB` + path + details.
+
+**Example:**
+
+```python
+result = await resolve_scene_refs(refs="$player,/Enemy,t:Camera")
+result = await resolve_scene_refs(refs="$player", fields="hp,maxHp")
+```
+
+---
+
+## lint_scene_refs
+
+Read-only linter for scene references in DSL scripts or batch commands.
+
+**Parameters:**
+- `path` (string, optional) — Project-relative path to `.playtest` file (mutually exclusive with `snippet`)
+- `snippet` (string, optional) — Inline DSL or batch commands to lint (mutually exclusive with `path`)
+
+**Checks:** Unresolved aliases, embedded aliases, missing objects, ambiguous names.
+
+**Returns:** `OK: no issues` or severity-tagged issues (`ERROR`/`WARN`) with `file:line:token`.
+
+**Example:**
+
+```python
+result = await lint_scene_refs(path="Playtests/combat.playtest")
+result = await lint_scene_refs(snippet="ASSERT /Player|Health|hp == 100")
+```
+
+---
+
+## runtime_snapshot
+
+Snapshot all runtime objects of a given component type. Returns per-object field dump.
+
+**Parameters:**
+- `type` (string) — Component type name (e.g. `Rigidbody`, `EnemyController`)
+- `name` (string, optional) — Name substring filter
+- `component` (string, optional) — Component type to serialize (defaults to `type`)
+- `compress` (bool, default=false) — Strip default-value fields to reduce response size
+
+**Example:**
+
+```python
+result = await runtime_snapshot(type="Rigidbody")
+result = await runtime_snapshot(type="EnemyController", name="Boss", compress=True)
 ```
 
 ---
@@ -204,7 +370,8 @@ Poll a condition with timeout. Block until true or timeout. Play Mode only.
 - `field` (string) — Field name (e.g., "hp")
 - `value` (string) — Expected value
 - `timeout` (float, default=5.0) — Max seconds to wait
-- `negate` (bool, default=False) — If True, wait for value to NOT match
+- `negate` (bool, default=false) — If true, wait for value to NOT match
+- `abort_on_fail` (bool, default=false) — Stop Play Mode on timeout
 
 **Example:**
 
@@ -334,22 +501,7 @@ result = await vfx_intent(target="Enemy", intent="fade out particle system", dry
 
 ## ui_intent
 
-Natural language UI manipulation (Category: Intent).
-
-**Parameters:**
-- `intent` (string, required) — Natural language description (e.g., "Create a health bar at top-left, score at top-right")
-- `parent` (string, optional) — Parent path (default: new Canvas)
-- `template` (string, optional) — Preset template: "hud" | "menu" | "dialog" | "grid"
-- `dry_run` (bool, default=false) — Preview the batch plan without executing
-
-**Example:**
-
-```python
-# Natural language UI creation
-result = await ui_intent(intent="show health bar above player")
-result = await ui_intent(intent="create pause menu with Play/Quit buttons", parent="Canvas", template="menu")
-result = await ui_intent(intent="flash screen red", dry_run=False)
-```
+Natural language UI manipulation. See [UI Tools — ui_intent](ui.md#ui_intent) for full documentation.
 
 ---
 
@@ -360,14 +512,15 @@ result = await ui_intent(intent="flash screen red", dry_run=False)
 | Verify game logic | run_playtest + ASSERT | `script = "ASSERT Player/Health == 100"; await run_playtest(script=script)` |
 | Test combat flow | run_playtest + INVOKE + WAIT_UNTIL | `script = "INVOKE Enemy Attack\nWAIT_UNTIL Player/Health < 100"; await run_playtest(script=script)` |
 | Test movement | run_playtest + MOVE + ASSERT_NEAR | `script = "MOVE Player TO 10,0,0\nASSERT_NEAR Player (10,0,0) 0.5"; await run_playtest(script=script)` |
-| Stress test | fuzz_playtest | `await fuzz_playtest(steps=50)` |
+| Lint before run | lint_playtest | `await lint_playtest(path="Playtests/combat.playtest")` |
+| Suite run | run_playtest_suite | `await run_playtest_suite(paths="Playtests/*.playtest")` |
 | Method invocation | invoke_method | `await invoke_method("Enemy", "HealthComponent", "TakeDamage", args="10")` |
 | Runtime modification | set_runtime_property + batch | `await batch("set_runtime_property path=Player component=Health field=hp value=50")` |
 
 ## PlayTest DSL Full Syntax
 
 See [Playtest DSL Reference](../features/playtest.md) for complete documentation including:
-- All 21 step types with parameters
+- All step types with parameters
 - Parsing rules and edge cases
 - Result format and error handling
 - Common assertions for game logic

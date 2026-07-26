@@ -2,7 +2,7 @@
 
 ## Overview
 
-An optional Editor window that brings agentic chat directly into Unity, spawning the user's local `claude` CLI as a child process. Zero new MCP tools — reuses all 126 existing tools via the spawn-the-CLI architecture.
+An optional Editor window that brings agentic chat directly into Unity, spawning the user's local `claude` CLI as a child process. Zero new MCP tools — reuses all 142 existing tools via the spawn-the-CLI architecture.
 
 **Isolation:** `UnityMCP.Editor.Chat.asmdef` is always compiled. Deleting the `Chat/` folder leaves core untouched.
 
@@ -18,7 +18,7 @@ Unity Editor Window (MCPChatWindow)
             └─ python -m unity_mcp.server
                 │
                 └─ TCP:9500 → Unity Editor Plugin
-                    └─ ~126 MCP tools (create, set_property, screenshot, etc.)
+                    └─ ~142 MCP tools (create, set_property, screenshot, etc.)
 ```
 
 ### Spawn Invocation (v0.36.0)
@@ -291,10 +291,7 @@ Mapping in `ToolVerbMap.cs` (tool name → human action).
 
 **MCPChatWindow.Selector.cs** provides a dropdown menu for model selection with presets per backend. **Implementation:**
 
-1. **Presets expanded (v0.30.5):**
-   - **Claude:** Default, Fable 5, Opus 4.8/4.7/4.6, Sonnet 4.6, Haiku 4.5, Custom...
-   - **Codex:** Default, GPT-5.5, GPT-5.4/5.4-Mini, o3-pro, o3, o4-mini, GPT-4.1/4.1-Mini, Custom...
-   - **Gemini:** Default, 3.5 Flash, 3.1 Pro Preview, 3 Pro Preview, 3 Flash Preview, 2.5 Pro, 2.5 Flash, 2.5 Flash Lite, Custom...
+1. **Presets expanded (v0.30.5):** Per-backend model dropdown with hardcoded fallback presets per `BackendKind` (Claude, Codex, Gemini). Users can override via `Library/MCP_ChatBackendConfig.json` ModelPresets field. Custom model ID field always available.
 
 2. **ModelPresets.cs (NEW)** — Extracted from BackendConfig.cs:
    - `ModelPresetEntry` (label, modelId)
@@ -378,384 +375,6 @@ Tracks recently sent text (last 10 messages) to dedup against accumulated text d
 - On assembly reload (domain reload), cleanup task kills the PID via `Process.Kill()`
 - Prevents zombie processes on recompilation or script reload
 
-## UX Sprint Features (v0.15.0)
-
-### Feature F1 — Token Counter Reset on Backend/Model Switch
-
-`TokenResetTests.cs` ensures token counters reset when user switches backend (Claude → Codex) or selects a different model. Implemented in `MCPChatWindow.Selector.cs`:
-
-```csharp
-void SelectModelDropdown_OnChange(ChangeEvent<string> evt) {
-    ResetTokenCounters();
-    CreateBackendWithSession();
-}
-```
-
-Result: No stale token carry-over across model changes.
-
-### Feature F2 — Cascade Restore (Undo Earlier Turns)
-
-`RestoreButton.cs` + `TurnUndoTracker.RestoreFromIndex()`: User can restore any earlier turn (not just the last one). Clicking Restore on turn 3 reverts turns 3, 4, 5 in reverse order (cascade rollback via sequential `UndoGroupHelper.RevertToBeforeGroup()`).
-
-**New method:** `RestoreFromIndex(int turnIndex)` iterates from tail backward, reverting each turn's Undo group. Verified in TurnUndoTrackerTests (9/9 green).
-
-### Feature F3 — Approve Button Shows Only for Real Tool Calls
-
-`MCPChatWindow.Drain.cs` + `ApproveButtonFactory.cs`: The "Approve & Execute" button is injected only when a turn has real tool calls (`_turnHasToolCalls = true`). Turns with pure prose responses never show the button, eliminating UI clutter.
-
-**Verification:** ApproveFlowTests check flag gating.
-
-### Feature F4 — Hierarchy Refs Carry #instanceID for Disambiguation
-
-`SelectionSummary.Summarize()` + `ChipContextResolver.ResolveOne()`: When a scene has duplicate object names (e.g., two "Enemy" GameObjects), the chip path now includes the Unity instance ID: `/Enemy #12345`. Enables Claude to distinguish them.
-
-**Format:** `path #<instanceID>` (appended by ChipContextResolver at send-time). Verified in SelectionSummaryTests (path-only scene objects gain #ID markers).
-
-### Feature F5 — Inline Removable Chips + Drag-Drop + Context Menu
-
-`InlineChipModel.cs` + `InlineChipField.cs` + `ChipPillFactory.cs`: Type objects directly into the composer via drag-drop. Chips appear as removable pills (✕) in a leading flex-row before the TextField (v0.16.0 refactored from overlay stack).
-
-**Composed field** (`InlineChipField`): Pills are real layout children (flex-row), not overlays. No pixel-positioning bugs, no NBSP markers. Backspace-at-caret-0 removes last chip (atomic).
-
-**Drag-drop routing** (`Chips.cs` OnDragPerform): Drops on field area add chips.
-
-**Context menu** (`InlineChipField` + right-click on pill): "Add Selection to Context" inserts chip, "Show LLM Payload" reveals send-path format, "Remove" deletes chip.
-
-**Model logic** (`InlineChipModel.Add/Remove/Clear`): Headless data layer. Pill rendering delegated to `ChipPillFactory` (shared with response pills, v0.16.0 P7).
-
-Verified: InlineChipModelTests 11/11, InlineChipFieldTests 7/7, visual/interactive paths compile clean.
-
-### Feature F6 — Auto-Scroll Toggle
-
-`MCPChatWindow.Drain.cs`: EditorPref gate for auto-scroll behavior. Default ON. When OFF, streaming messages do not auto-scroll; user can read top of transcript while turn completes.
-
-**Wired in:** `Drain()` loop checks `EditorPrefs.GetBool(PrefKey.AutoScroll, true)` before calling `ScrollViewMode.Scroll()`.
-
-### Feature F7 — Status Panel Distinguishes CLI-Listening vs Chat-Active
-
-`ChatBackendProbe.cs` (reflection-based, domain-reload safe): Detects if chat backend is running via reflection on `MCPChatWindow.s_instance`. `MCPStatusModel.GetState()` now returns 3-state enum:
-- Down (no server)
-- Listen (TCP running, no chat)
-- ChatActive (Chat window running)
-
-**Reflection:** `Type.GetProperty("IsRunning")` on Chat assembly (if loaded). Domain-reload safe: re-queried per call, no static cache.
-
-Verified: MCPStatusModelTests include ChatActive state transitions.
-
-### Feature F8 — Remove "(Beta)" Labels
-
-`MCPSettingsUI.cs` + `ChatSettingsSection.cs`: Removed "(Beta)" from:
-- Chat toggle button in MCPSettings
-- Chat settings foldout header
-
-Result: UI looks shipping-ready.
-
-### Feature F9 — Per-Backend Settings Form → Own JSON → CLI Args
-
-`BackendConfig.cs` + `BackendConfigStore.cs` + `BackendSettingsForm.cs`:
-
-**Settings form** (UIToolkit dropdowns per backend):
-- Claude: model (Opus, Sonnet, Haiku), permission mode (plan, acceptEdits), timeout, extra args
-- Codex: same axes
-
-**Persistence:** Writes to `Library/MCP_ChatBackendConfig.json` (project-local, NOT ~/.codex/config.toml or ~/.mcp.json). Format:
-```json
-{
-  "claude": { "model": "opus-4-1", "permission_mode": "acceptEdits", "extra_args": "--verbose" },
-  "codex": { "model": "default", "permission_mode": "plan" }
-}
-```
-
-**Arg wiring:** `ClaudeArgBuilder.BuildArgs()` + `CodexArgBuilder.BuildArgs()` read from config and inject into argv (e.g., `--model=<model>`, extra args split on whitespace).
-
-**DRY:** `ArgTokenizer.cs` (new, shell-style quote-aware split) centralizes whitespace+quote parsing for both builders. +11 tests.
-
-Verified: BackendConfigStoreTests 10/10, BackendSettingsFormTests integration passes.
-
-### Feature F10 — Typed Context Tags (Kind-Aware Chips)
-
-`ChipKindDetector.cs` + `ChipData.Kind` + `ChipConfig.cs` + `ResponseTagInliner.cs`:
-
-**Send-side (input):**
-- Each chip carries a `ChipKind` (Hierarchy, Scene, Script, Prefab, Material, Texture, ScriptableObject, Asset)
-- AI-facing format: `[hierarchy:/Player #123]`, `[script:PlayerController]`, `[scene:.../Main.unity]`
-- Depth configurable per kind (none|path|summary|full, stored in BackendConfigStore.ChipConfig)
-- Chips display left-side color-coded kind prefix (visual feedback)
-
-**Receive-side (response):**
-- `ResponseTagTokenizer.Tokenize()` parses `[kind:ref]`, `⟦kind:ref⟧` fences, and bare file paths registered via `IChipKindProvider.BarePathExtensions` (no hardcoded image regex)
-- `MixedParagraphRenderer` renders text runs as Labels and tags/bare-paths as colored pills
-- Pills support single-click inline preview and double-click navigation via the provider registry
-- Wired into `MarkdownInline` between escape and bold/italic
-
-**Classes:**
-- `ChipKindDetector.Detect()` → ChipKind (pure, reflection-based hierarchy vs scene discrimination)
-- `ChipContextResolver.EmitTyped()` + `ResolveAllTyped()` — send-time API
-- `ResponseTagTokenizer` — response-time tokenizer
-- `MixedParagraphRenderer` / `ChipClickRouter` / `ChipInlinePreviewPanel` — rendering + interaction
-
-Verified: ChipKindDetector 13/13, ResponseTagInliner 17/17 (false-positive guards), EmitTyped 7/7, ChipConfig 3/3.
-
-### Feature F11 — Inline Chips + Extensible Chip-Kind Registry (v0.15.8)
-
-#### Extensibility: IChipKindProvider & ChipKindRegistry
-
-**Core Innovation:** Third-party plugins (in separate asmdefs referencing `UnityMCP.Editor.Chat`) register custom chip kinds via the public `ChipKindRegistry` with ZERO core edits.
-
-**Public Interface:**
-```csharp
-public interface IChipKindProvider
-{
-    string Key { get; }                    // Unique lowercase key, e.g. "hierarchy"
-    int Priority { get; }                  // Lower = checked first
-    bool CanHandle(Object obj, string assetPath);
-    ChipData Create(Object obj, string assetPath);
-    string IconName { get; }               // EditorGUIUtility.IconContent key
-    string HexColor { get; }               // Pill + response tag color
-    string FormatPayload(ChipData chip, ChipPayloadContext ctx);
-    string DefaultDepth { get; }           // Fallback when no config entry
-    string[] BarePathExtensions { get; }   // Extensions for bare-path recognition in responses (e.g., [".png"])
-    void Navigate(string reference);       // Handle click on chip link (open, select)
-    void Ping(string reference);           // Highlight/ping object (inline preview trigger)
-    VisualElement BuildPreview(string path); // Build inline preview element (return null if none)
-}
-```
-
-**Public Registry:**
-```csharp
-public static class ChipKindRegistry
-{
-    public static bool Register(IChipKindProvider p);
-    public static bool Unregister(string key);
-    public static IChipKindProvider Resolve(Object obj, string assetPath);
-    public static IChipKindProvider ForKey(string key);
-}
-```
-
-**Built-in Providers (8 total, Priority 100–800):**
-- HierarchyChipProvider (100): GameObjects not in assets
-- SceneChipProvider (200): .unity scene files
-- ScriptChipProvider (300): MonoScript C# files
-- PrefabChipProvider (400): .prefab files
-- MaterialChipProvider (500): .mat material files
-- TextureChipProvider (600): .png/.jpg image files
-- ScriptableObjectChipProvider (700): .asset SO files
-- AssetChipProvider (800): generic fallback for unlisted asset types
-
-**New Methods (v0.36.0+):**
-- **`BarePathExtensions`** — Array of file extensions recognized as bare-path references in assistant responses (e.g., `[".png", ".jpg"]`). Used by `ResponseTagTokenizer` to link bare file paths like "image.png" without markup.
-- **`Ping(reference)`** — Highlight/ping the referenced object (flash in Hierarchy, select in Inspector). Called when inline preview panel first opens. Distinct from `Navigate` which may open a dedicated viewer.
-- **`BuildPreview(string path)`** — Build a `VisualElement` for inline preview display. Return null if this kind has no visual preview. Called lazily when the preview panel opens; preview builders are wired via seam in `AssetChipProviderBase`.
-
-**Priority Convention:**
-- <100: Plugin providers override a built-in type
-- 100–800: Built-ins (default)
-- >800: Plugin providers extend (new kinds)
-
-**Reload Survival (PendingTurnState v4):** Serializes `KindKeys[]` parallel to chip paths; on resume, re-binds by key. Falls back to re-detection if provider not yet registered.
-
-#### Inline Rendering at Cursor
-
-**Positioning (UitkCharRect.cs):** Uses PUBLIC `TextField.textSelection.GetCursorPositionFromStringIndex` API — confirmed working live on Unity 6000.3.0b7. H10 degradation: if API unavailable, falls back to row-layout strip (current behavior).
-
-**Width Reservation (NbspReservation.cs):** Reserves pill width via U+FFFC marker + N×U+00A0 (non-breaking spaces), ensuring layout won't reflow when pill moves.
-
-**Atomic Caret (TokenSpan.cs):** Caret skips whole chips (never lands mid-pill). Backspace on chip deletes entire chip (not character-by-character). Press arrow → moves caret before/after chip boundary.
-
-**"Show LLM Payload" Context Menu:** Right-click on chip → reveals exact byte-for-byte payload sent to AI (symmetry test enforces match).
-
-**Breaking Change — BUG B:** `ChipConfig` default depth `"summary"` → `"path"` (token-minimal). Restore via F9 settings form (per-kind dropdown). Marked in-code: `// BREAKING (H15)`.
-
-#### Test Coverage
-
-- **ChipKindRegistryTests:** Register, Unregister, Resolve, ForKey, priority ordering, version bumping
-- **ChipKindRegistryPipelineTests:** End-to-end: detect → resolve → format → render
-- **NbspReservationTests:** Width prediction, marker insertion/cleanup
-- **TokenSpanTests:** Atomic caret boundaries, backspace/arrow behavior
-- **UitkCharRectProbeTests:** Positioning API availability detection, H10 fallback
-- **Wave4ChipInputTests:** Integration: drag-drop, context menu, serialization
-
-All suites: 100% pass, zero new failures (5 pre-existing reds unrelated to F11).
-
-### Review-Hardening Pass (v0.14.6)
-
-**ArgTokenizer Quote-Awareness:** Fixes silent corruption of quoted multi-word ExtraArgs values (e.g., `--append-system-prompt "be terse"`). Shell-style: double+single quotes, unbalanced trailing tolerated. DRY across both Claude/CodexArgBuilder. +11 tests.
-
-**ChatBackendProbe Reload-Safety:** Drops stale static MethodInfo cache; resolved per-call so status stays correct across domain reloads (was wrongly showing Listen when Chat was active).
-
-**Dedup BackendConfigStore.Load():** MCPChatWindow.OnSend/AttachScreenshot now load store once and thread into AppendChipContext (lazy ??= fallback), avoiding double file-read+parse per turn.
-
-### Feature F12 — Chip UX Overhaul (v0.16.0)
-
-**Five production-ready pieces shipped together, resolving seven user problems (P1–P7):**
-
-#### P1+P2: Composed Inline-Chip Field (Overlay Stack Deleted)
-
-Replaced 466-line overlay architecture (InlineChipOverlay, NbspReservation, UitkCharRect, TokenSpan) with a simple **composed `InlineChipField`** — a flex-row VisualElement with pill children + trailing TextField.
-
-**Why composed > overlay:**
-- Pills are layout children, not overlays → never mis-position, never vanish on typing (P1+P2 solved by construction)
-- No pixel-chasing, no NBSP markers, no coordinate-space drift
-- Backspace-at-caret-0 removes last chip (atomic, standard tag-input UX)
-
-**New classes:**
-- `InlineChipModel` — Pure headless data (add/remove/clear/serialize/restore). Fully unit-testable. No Unity rendering dependency.
-- `ChipPillFactory` — Static factory builds pills from registry. Shared by input field + response rendering (P7).
-- `InlineChipField` — Composed VisualElement control. Flex-row of pill children + trailing TextField. Backspace-at-0 handler, context menu per pill.
-
-#### P3+P5: Removed Legacy Auto-Selection
-
-Deleted auto-prepend of `SelectionSummary` in send path. Context now flows **exclusively through explicit typed chips**. Prevents duplicate/verbose context. `SelectionSummary` class kept for depth="summary" resolution in chip context resolver.
-
-#### P4: Per-Kind Chip Display Settings (Depth + Color)
-
-Registry-driven settings form enumerates all registered kinds (built-in + 3rd-party plugins) dynamically. Each kind has:
-- **Depth dropdown:** none/path/summary/full (LLM payload customization)
-- **Color field:** Graphical pill color override
-
-**Classes:**
-- `ChipDisplayOverride` struct — Per-kind overrides (depth + hex color). Null fields = use provider default.
-- `ChipConfig` — Extended with parallel arrays (`OverrideKeys[]`, `OverrideDepths[]`, `OverrideColors[]`) for 3rd-party kinds. Maintains backward compat with legacy explicit fields.
-- `ChipPillFactory.ColorResolver` — Static `Func<string, string>` seam. Set once on window open, consulted by both input + response pills. Live-updated on settings save.
-
-**Resolution order (per-kind):** Override > Legacy field > Provider default. No hardcoded kind lists, no switches.
-
-#### P7: Response Scene-Object Pills (MixedParagraphRenderer)
-
-Response-side `[kind:ref]` tags now render as graphical pills (leaf name, click→ping/select, tooltip=full ref) in paragraphs and lists — identical to input pills.
-
-**Classes:**
-- `ResponseTagTokenizer.Tokenize()` — Returns ordered tokens (text / `[kind:ref]` / bare paths). Uses `IChipKindProvider.BarePathExtensions` for extension detection; no hardcoded image regex.
-- `RefParser` — Inverse of `ChipContextResolver.FormatChipRef`. Delegates hierarchy identity parsing to `HierarchyReference` (` #id`, ` @globalObjectId`, path).
-- `HierarchyReference` + `HierarchyResolver` — Value object + resolver for scene object refs (survives reparent/rename via GlobalObjectId).
-- `MixedParagraphRenderer.Render()` — Flex-row container with Labels (text runs via MarkdownInline.ToRichText) + ChipPillFactory pills (response mode: no remove button, single-click preview, double-click navigate). Tooltip = full ref.
-- `ChipInlinePreviewPanel` + `PreviewBuilderRegistry` — Lazy inline previews per kind with cancellation.
-
-**Side benefit:** Hierarchy refs now preserve ` #id` / ` @globalObjectId`; `HierarchyChipProvider.Navigate` resolves via `HierarchyResolver` instead of naive path matching.
-
-#### P6: New-Session / Clear Button
-
-Dropdown button with confirm dialog. Clicking "Clear" tears down the current chat:
-1. Kill + restart the backend (fresh `CreateBackend()` with new `EditorStateSnapshot` + `SessionId=null` → next turn has no `--resume`)
-2. Clear transcript + input + inline chips
-3. Call `ReloadGuard.ClearPendingState()` so domain-reload can't resurrect old turn state
-4. Reset per-session window state (sent-text cache, activity, token counters, turn flags)
-
-**New class:** `MCPChatWindow.Session.cs` partial.
-
-#### Test Coverage & Metrics
-
-- **New test suites:** InlineChipModelTests, InlineChipFieldTests, ChipPillFactoryTests, ChipDisplayOverrideTests, ResponseTagInlinerTests, MixedParagraphRendererTests, NewSessionTests
-- **Test count:** 1581/1586 EditMode pass (5 pre-existing reds, 0 CS errors)
-- **Code delta:** −806 net lines (overlay stack deleted), +23 new tests
-- **Breaking change:** `ChipConfig` default depth `"summary"` → `"path"` (token-minimal). Users restore via F9 settings form. Marked in-code: `// BREAKING (v0.16.0)`.
-
-#### Package Version Change
-
-`package.json` unity min bumped **2022.3 → 6000.0**. Rationale: The editor is already running 6000.3.0b7; the old minimum was a lie. Per META mandate: "If a limitation forces raising the Unity minimum to 6.0, DO IT." Migration cost: one line. Risk: Users on 2022.3 lose access — but they never had the full chip feature anyway (text APIs differ).
-
-### Feature F13 — Inline Context Chips + Auto-Linking (v0.17.1)
-
-**Three production-ready UX improvements shipped together (P1–P3):**
-
-#### P1: Consolidated Chip Input (Removed _objChipStrip Dual-Path)
-
-F12 left a legacy path (`_objChipStrip`) for backward-compat; F13 removes it entirely. All context chips now route **exclusively through `InlineChipField` + `InlineChipModel`**:
-
-**Architecture:**
-- `InlineChipModel` — Pure headless data (add/remove/clear/serialize/restore). No UI deps.
-- `AppendChipContext()` — Single source of truth: calls `m.SerializePayload()` directly (removed legacy `AddChip` branch)
-- `MCPChatWindow.cs` — Removed `_objChipStrip` field + `ClearChips()` call in Session cleanup
-
-**Files modified:**
-- `MCPChatWindow.Chips.cs` — Removed `AddChip()`, `CollectChipData()` methods (71 lines deleted). Drag-drop now adds directly to model.
-- `MCPChatWindow.Send.cs` — Single `AppendChipContext()` call (−17 lines net)
-- `MCPChatWindow.cs`, `MCPChatWindow.AutoHeight.cs`, `MCPChatWindow.Session.cs` — Wired to use `_chipField.Model.Count` instead of `_objChipStrip.Count`
-
-**Tests:** ChipConsolidationTests (3 cases) — verify SerializePayload format matches send-path contract.
-
-#### P2: Rich User Bubbles (User-Sent Chips as Pills)
-
-User-sent messages now render `[kind:ref]` tags as clickable pills — identical visual/interactive style to AI-sent response pills.
-
-**Mechanism:**
-- `ChatTranscript.cs` — calls `MixedParagraphRenderer.InlineElement()` on user bubble text
-- `MixedParagraphRenderer.InlineElement()` — splits text on `ResponseTagInliner` regex, builds mixed container (text labels + inline pill children)
-- Pills have **no remove button** (read-only, user-approved), click → navigate via chip provider
-
-**Symmetry:** User bubbles now render via the same code path as AI responses (P7 from F12).
-
-**Tests:** UserBubblePillTests (4 cases) — plain text, single tag, mixed content, empty text.
-
-#### P3: Unified Chat Reference Rendering (v0.20.0 Phase 1 consolidation)
-
-AI responses can now mention scene object names (e.g., "see Player1 here") and bare file paths (e.g., "saved to img.png"). They route through ONE unified rendering path: bare name / bare path → normalization → `ResponseTagTokenizer` → `MixedParagraphRenderer` → `ChipPillFactory` pill.
-
-**Legacy path deleted (v0.20.0):** Removed the secondary SceneNameLinker.Linkify path which was wrapping refs as `<link><u>Name</u></link>` at the static mutable `MarkdownInline.Linker` seam. This divergence caused dual rendering and inconsistent state. The unified path is now enforced:
-
-1. **Normalization stage (BareNameNormalizer):** Scans LLM output text and converts bare scene object names to `[kind:ref]` bracket tags. Filters aggressively (length ≥3, skips generics, requires signature traits: digits/underscores/consecutive uppercase). Protects existing `[kind:ref]` tags and triple-backtick fenced code blocks. **Bare file paths are not normalized here** — they are recognized later by the tokenizer via `IChipKindProvider.BarePathExtensions`.
-
-2. **Response rendering stage (ResponseTagTokenizer → MixedParagraph → ChipPillFactory):** Tokenizes text, `[kind:ref]` tags, `⟦kind:ref⟧` fences, and bare file paths into a shared model, then renders graphical pills with single-click preview, double-click navigate, tooltips, and colors per kind.
-
-**Kill-switch:** `MCPChat.DisableSceneNameNorm` allows disabling normalization if needed (e.g., for custom name-linking logic in plugins).
-
-**Integration:**
-- `BareNameNormalizer.cs` — Converts bare scene object names to `[kind:ref]` format
-- `ResponseTagTokenizer.cs` — Tokenizes `[kind:ref]`, `⟦kind:ref⟧` fences, and bare file paths
-- `MixedParagraphRenderer.cs` — Renders tokens as labels/pills
-- `ChatRefResolver.cs` — Exposed `Objects` property (read-only dict) for name lookup
-- `MCPChatWindow.cs` — Calls RefreshResolver (renamed from RefreshLinker) before FinalizeAssistant in Drain TurnDone
-
-**Tests:** BareNameNormalizerTests (fenced-block protection, edge cases), NormalizationPipelineTests (7 cases verifying unified path), ResponseTagInlinerTests (false-positive guards).
-
-#### Test Coverage & Metrics
-
-- **New test suites:** UserBubblePillTests (4), ChipConsolidationTests (3), NormalizationPipelineTests (7)
-- **Test count:** 1600+/1605 EditMode pass (5 pre-existing reds, 0 new failures, 20 new tests)
-- **Code delta:** −97 net lines (removed SceneNameLinker path), +120 insertions (unified path + tests)
-- **plugin version:** 0.17.0 → 0.17.1 → 0.20.0
-
-### Feature F14 — Inline @DisplayName Insertion + Chip Pill Strip in Bubbles (v0.17.2)
-
-#### P1: Inline @DisplayName Insertion at Cursor
-
-`MCPChatWindow.InlineChips.cs` — `InsertInlineChip()` now captures the cursor position in the TextField and inserts `@DisplayName` directly at that caret point. Chip references flow naturally inline with user text.
-
-**Behavior:**
-- "Add Selection to Context" (context menu) captures cursor index
-- Inserts @DisplayName at caret → "analyze @Player and compare to @Enemy"
-- Chips appear as pills in the `_pillRow` above text (visual affordance)
-- Cursor clamped to prevent edge-case `ArgumentOutOfRangeException`
-
-**Files modified:** `MCPChatWindow.InlineChips.cs` (cursor capture + insertion logic)
-
-#### P2: Chip Pill Strip in Sent User Bubbles
-
-`MCPChatWindow.Send.cs` + `ChatTranscript.cs` — Send path now splits the user's text into two representations:
-
-- **rawText** — Display text with @names (e.g., "analyze @Player and compare to @Enemy")
-- **llmText** — LLM text with [kind:ref] tags (e.g., "analyze [hierarchy:/Player] and compare to [hierarchy:/Enemy]")
-
-Chip snapshot is copied before TextField clear, then passed to `AppendUserBubble()` which renders a `.user-chip-strip` row of visual pill elements above the message text. Pills are read-only (user-approved) and symmetric with AI-sent response pills.
-
-**Files modified:**
-- `MCPChatWindow.Send.cs` — Split rawText/llmText, snapshot chips, pass to bubble
-- `ChatTranscript.cs` — Accept chips param, render .user-chip-strip row
-- `MCPChatWindow.Drain.cs` — Restore path also passes chip snapshot (defensive copy)
-
-**Restore path:** Resumed turns also get chip snapshot (defensive copy), preserving visual feedback on domain reload.
-
-#### Test Coverage & Metrics
-
-- **New test suites:** UserBubblePillTests +3 additional pill strip rendering tests (UserBubbleChipStripTests)
-- **Test count:** 1562+/1567 EditMode pass (5 pre-existing reds, 0 new failures)
-- **Code delta:** +107 lines (inline insertion + pill strip rendering)
-- **plugin version:** 0.17.1 → 0.17.2
-
-**Note:** This release also includes two bugfixes from earlier in the same version sprint:
-- **BUG1:** InlineChipField layout changed flex-row → flex-column with dedicated _pillRow; USS align-items: center → stretch
-- **BUG2:** SaveStateBeforeReload() no longer skips ActivityPhase.Idle; chips survive domain reload even in idle state
-
 ### Binary Resolution on macOS
 
 **Problem:** Finder-launched Unity has a minimal PATH; `claude` binary may not be found.
@@ -778,70 +397,38 @@ This ensures the child shell inherits the user's `.zshrc` PATH and finds `claude
 ## File Layout
 
 ```
-unity-plugin/Editor/
-├── AssemblyInfo.cs                   # [assembly: InternalsVisibleTo("UnityMCP.Editor.Chat")]
-├── Chat.meta                         # Meta for Chat/ folder
-├── Chat/
-│   ├── ChatEvent.cs                  # Normalized event struct
-│   ├── ChatStreamParser.cs           # Parse stream-json from stdout
-│   ├── ClaudeArgBuilder.cs           # Build --mcp-config JSON + --permission-mode
-│   ├── UserTurnBuilder.cs            # Encode user message → stdin JSON
-│   ├── ToolVerbMap.cs                # Tool name → humanized action
+unity-plugin/Editor/Chat/
+├── CLI/                              # Backend logic (106 .cs files)
 │   ├── IChatBackend.cs               # Backend interface
-│   ├── ChatBinaryResolver.cs         # Binary PATH resolution
-│   ├── ChatProcess.cs                # Process lifecycle manager
-│   ├── ClaudeBackend.cs              # Implementation: spawns claude CLI
-│   ├── ChatTranscript.cs             # In-memory message history
-│   ├── MCPChatWindow.cs              # EditorWindow UI + interaction
-│   ├── MCPChatWindow.Drain.cs        # Partial: message accumulation
-│   ├── MCPChatWindow.FlowBar.cs      # Partial: activity indicator animation
-│   ├── MCPChatWindow.uss             # UIToolkit styling
-│   ├── ChatSettingsSection.cs        # Settings foldout in MCPSettings
 │   ├── CliBackendBase.cs             # Abstract host for CLI backends (4 axes)
-│   ├── CodexArgBuilder.cs            # Codex: argv + env-key-strip builder
-│   ├── CodexAppServerParser.cs       # Codex: JSON-RPC 2.0 → ChatEvent
-│   ├── CodexAppServerBackend.cs      # Codex: IChatBackend implementation (persistent JSON-RPC)
+│   ├── ClaudeBackend.cs, RelayBackend.cs, CodexAppServerBackend.cs, AntigravityBackend.cs
 │   ├── BackendRegistry.cs            # Backend factory + enum
-│   ├── ReloadGuard.cs                # Domain-reload: lock + unlock mechanism
-│   ├── PendingTurnState.cs           # Domain-reload: persist in-flight turn state (v3: BackendKind)
-│   ├── SelectionSummary.cs           # Auto-Selection: prepend active GameObject context
-│   ├── SentTextCache.cs              # Domain-reload: track sent text for dedup
-│   ├── CompileAutoFix.cs             # Auto-retry on compile failures (MAX_RETRIES=3)
+│   ├── ChatEvent.cs                  # Normalized event struct
+│   ├── ChatBinaryResolver.cs         # Binary PATH resolution
+│   ├── ClaudeArgBuilder.cs, CodexArgBuilder.cs  # Per-backend argv builders
+│   ├── CodexAppServerParser.cs, RelayEventParser.cs  # Per-backend stream parsers
+│   ├── ModelPresets.cs               # Per-backend model dropdown presets
+│   ├── PendingTurnState.cs           # Domain-reload: persist in-flight turn state
 │   ├── EditorStateSnapshot.cs        # Inject context block (scene, compile, errors)
-│   ├── ToolPing.cs                   # Flash object on tool-call completion
 │   ├── ChipContextResolver.cs        # Resolve object chips to plain text at 3 depths
-│   ├── MCPChatWindow.Approve.cs      # Event handler: Approve & Execute button
-│   ├── ApproveHelper.cs              # Session management: resume, mode flip
-│   ├── ApproveButtonFactory.cs       # Button builder: humanized button UI
-│   ├── SlashTemplate.cs              # Template model: enum ContextGather + struct
-│   ├── SlashRegistry.cs              # Template registry: Builtins, Match, Resolve
-│   ├── SlashPopup.cs                 # UIToolkit popup: 5 visible, arrow nav
-│   ├── MCPChatWindow.Slash.cs        # Slash setup: KeyDown + ChangeEvent on parent
-│   ├── BareNameNormalizer.cs         # Converts bare scene names in LLM output to [kind:ref] tags
-│   ├── UnityMCP.Editor.Chat.asmdef   # Assembly definition (references Core)
-│   └── Tests/
-│       ├── ChatStreamParserTests.cs
-│       ├── ClaudeArgBuilderTests.cs
-│       ├── UserTurnBuilderTests.cs
-│       ├── ToolVerbMapTests.cs
-│       ├── CliBackendBaseTests.cs              # Tests base lifecycle + 4-axis dispatch
-│       ├── CodexArgBuilderTests.cs             # Tests argv construction + env-key-strip
-│       ├── CodexAppServerParserTests.cs        # Tests Codex JSON-RPC → ChatEvent (15+ cases)
-│       ├── ReloadGuardTests.cs
-│       ├── PendingTurnStateTests.cs            # Tests v3 header + BackendKind persistence
-│       ├── SelectionSummaryTests.cs
-│       ├── SentTextCacheTests.cs
-│       ├── ApproveFlowTests.cs
-│       ├── SlashRegistryTests.cs
-│       ├── SlashPopupTests.cs
-│       ├── UserBubblePillTests.cs             # User bubbles render [kind:ref] chips as pills (4 cases)
-│       ├── ChipConsolidationTests.cs          # Verify chip serialization format (3 cases)
-│       ├── NormalizationPipelineTests.cs      # Unified bare-name → [kind:ref] → pill pipeline (7 cases)
-│       ├── BareNameNormalizerTests.cs         # Bare name detection + fenced-code protection
-│       └── UnityMCP.Editor.Chat.Tests.asmdef
-├── ChatSettingsHook.cs               # Event hook for settings updates
-├── MCPSettingsUI.cs                  # Modified: fires ChatSettingsHook.Invoke
-└── [other core files]
+│   ├── InlineChipModel.cs, InlineChipData.cs, ChipKindRegistry.cs  # Chip system
+│   ├── BareNameNormalizer.cs, AtMentionNormalizer.cs  # Name normalization
+│   ├── Mentions/                     # @mention system (7 files)
+│   └── UnityMCP.Editor.Chat.CLI.asmdef
+├── View/                             # UI rendering (50 .cs files)
+│   ├── MCPChatWindow.cs + 19 partials (Drain, FlowBar, Send, Selector, Chips, etc.)
+│   ├── MCPChatWindow.uss             # UIToolkit styling
+│   ├── Annotation/                   # Screenshot annotation overlay (11 files)
+│   ├── Markdown/                     # Markdown rendering + Mermaid (25 files)
+│   ├── Preview/                      # Asset/object preview cards (14 files)
+│   └── Viewers/                      # Specialized content viewers (11 files)
+├── Tests/
+│   ├── CLI/                          # Backend + chip logic tests (93 files)
+│   │   ├── Helpers/                  # Test utilities (2 files)
+│   │   └── Mentions/                 # @mention tests (7 files)
+│   └── View/                         # UI rendering tests (112 files)
+│       └── Helpers/                  # Test utilities (3 files)
+└── [.meta files omitted]
 ```
 
 ## Enabling the Feature
@@ -1015,7 +602,7 @@ Two paired changes guarantee the model receives full object/file paths and the U
 ## Known Limitations
 
 - **ChipPath Repaint After Resume:** Object chips are persisted via `PendingTurnState` and restored after domain reload, but the chip strip UI is not repainted. The turn executes with correct context; the visual strip just shows stale paths until the next user message. This is a cosmetic UX issue; the actual turn data is correct.
-- **MCPChatWindow Line Count:** At 185 lines (approaching the 200-line ceiling), the file may need splitting into more partials if significant features are added.
+- **MCPChatWindow Partials:** MCPChatWindow.cs (284 lines) plus 19 partial files (Drain, FlowBar, Send, Selector, Chips, etc.). Already well-split.
 
 ## Related
 

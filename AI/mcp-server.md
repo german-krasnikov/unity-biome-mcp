@@ -20,9 +20,18 @@ server/src/unity_mcp/
 ├── resources.py        # MCP Resources (4 URIs: hierarchy, console, editor, categories)
 ├── tools/
 │   ├── __init__.py     # Tool module registry
+│   ├── _annotations.py # MCP ToolAnnotations constants (RO, RW, RW_IDEM, DEL)
+│   ├── _common.py      # bind() helper — uniform binding across register() functions
+│   ├── tool_specs.py   # 148 ToolSpec entries (142 user-visible + 6 _INTERNAL) — single source of truth for categories, tiers, timeouts
+│   ├── gating.py       # Capability gating: CORE, TIER1, category-based filtering, catalog
+│   ├── schema_registry.py  # Tool schema lazy-loading
 │   ├── objects.py      # get_component/inspect/find/set_property/create/delete/manage_component/set_active/rename_object/wire_event/unwire_event/set_material/set_parent/set_property_delta/transfer_object/object_diff
-│   ├── scene.py        # hierarchy, console, compile_errors, screenshot(annotation_id), recompile, run_tests, get_test_results, scene (open_additive/close/set_active/list), search_scene, editor, checkpoint, fingerprint, scene_diff, save/load_session, screenshot_baseline/compare, get_changes
-│   ├── code_intel.py   # find_references, compile_preflight, semantic_at, await_compile
+│   ├── scene.py        # get_hierarchy, scene, search_scene, fingerprint, scene_diff, scene_environment, save/load_session, screenshot_baseline/compare, get_changes
+│   ├── console.py      # get_console, get_compile_errors (B2: split from scene.py)
+│   ├── screenshot.py   # screenshot + optional Haiku description (B2: split from scene.py)
+│   ├── editor_control.py  # editor (play/pause/stop/select), ping_object, undo_last, checkpoint, get_capabilities (B2: split from scene.py)
+│   ├── testing.py      # run_tests, get_test_results, get_test_count, get_test_progress (B2: split from scene.py)
+│   ├── code_intel.py   # compile_preflight, await_compile
 │   ├── runtime.py      # invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest (script|path)
 │   ├── batch.py        # batch, references, validate_references + DRY serialization
 │   ├── spatial.py      # spatial_query, validate_layout, get_spatial_context, scan_scene, check_colliders
@@ -33,16 +42,29 @@ server/src/unity_mcp/
 │   ├── asset.py        # asset, material, prefab, scriptable_object, project_settings, get_enabled_tools
 │   ├── connection.py   # list_connections, reconnect_unity
 │   ├── autobatch.py    # setup_objects, set_properties, configure_objects
-│   ├── gating.py       # Capability gating: TIER1 + category-based filtering
+│   ├── auto_wire.py    # auto_wire — fill null ObjectReference fields by name/type matching
 │   ├── do_tool.py      # NL intent → Haiku plan → batch execute
 │   ├── ask_tool.py     # NL read-only question → route → Haiku summarize
+│   ├── ask_user_tool.py     # ask_user — interactive question shown as Unity UI card
 │   ├── animator_intent_tool.py  # Domain-specific animator NL
 │   ├── vfx_intent_tool.py       # Domain-specific VFX NL
 │   ├── ui_intent_tool.py        # Domain-specific UI NL
 │   ├── intent_common.py         # Shared intent infrastructure
+│   ├── permission_prompt_tool.py  # --permission-prompt-tool MCP handler for Claude CLI
 │   ├── budget_tool.py           # budget_status tool (Haiku spend tracking)
 │   ├── metrics_tool.py          # Performance metrics
-│   └── schema_registry.py        # Tool schema lazy-loading
+│   ├── meta.py         # discover_tools, doctor, resolve_tool_schema, set_llm_config, alias_status
+│   ├── diagnose.py     # Python wrapper for C# diagnose command
+│   ├── diagnostics.py  # Performance and diagnostics tools (Play Mode and editor)
+│   ├── debug_tool.py   # AI-assisted debugging: gather diagnostic context
+│   ├── profiling.py    # get_frame_stats, profile sessions, get_memory
+│   ├── rendering.py    # render_analyze — dispatches to RenderAnalyzer.cs
+│   ├── scene_health.py # Scene hierarchy/health audit
+│   ├── sync.py         # sync_unity — unified Unity reload API
+│   ├── watch.py        # Watch system — path-based field polling in Play Mode
+│   ├── reload_ladder.py     # T0-T5 reload-recovery ladder
+│   ├── transaction.py       # scene_change_plan + apply_scene_change (transactional scene edits)
+│   └── verify.py            # verify_after_change — 5-gate verification pipeline
 └── plugins/
     └── __init__.py              # 3-source auto-discovery (pkgutil, entry_points, UNITY_MCP_PLUGIN_DIRS)
 ```
@@ -260,9 +282,7 @@ Each plugin implements `register(mcp, send_fn, args_fn)`. Plugin API facade (`pl
 
 **await_compile (NEW):** Read-only tool that blocks until Unity finishes C# compilation AND domain-reloading. Returns compile errors as plain text. Survives domain-reload disconnect via reconnect + re-query. `timeout=0` = instant snapshot. Replaces `sleep`-then-poll patterns.
 
-- `find_references` — semantic search for usages of a symbol (method, property, class)
 - `compile_preflight` — pre-compile validation + type inference for code edits
-- `semantic_at` — AST analysis at a line:col position (type info, references, quick-fix suggestions)
 
 ### Deferred MCP Tool-Schema Loading (F4, server 0.3.0)
 

@@ -66,8 +66,7 @@ await list_skills()
 ```python
 await save_template(
     name="spawn_room",
-    description="Spawn dungeon room with platforms",
-    template_code="""
+    code="""
     var room = new GameObject("Room");
     for (int x = 0; x < 3; x++) {
         var platform = Instantiate(platformPrefab, 
@@ -164,7 +163,7 @@ changes = await get_changes(clear=False)  # Read but don't clear
 
 ```python
 fp = await fingerprint()
-# → "scene_v0_hash=abc123def456..."
+# → "fp:A1B2C3D4"
 ```
 
 **Use case:** Quick "did scene change?" check without full snapshot.
@@ -172,15 +171,20 @@ fp = await fingerprint()
 ### Compare Two States
 
 ```python
-fp_before = await fingerprint()
-# ... perform edits ...
-fp_after = await fingerprint()
+# First call saves a snapshot of the current scene state
+await scene_diff()
+# → "Snapshot saved."
 
-diff = await scene_diff(fp_before, fp_after)
+# ... perform edits ...
+
+# Second call compares current state against the saved snapshot
+diff = await scene_diff()
 # → Changes:
 #   Player/Health: 100 → 50
 #   Enemy count: 3 → 5
 ```
+
+`scene_diff()` takes no arguments. The first call saves an internal snapshot; subsequent calls diff against it.
 
 ## Complete Workflow
 
@@ -195,18 +199,17 @@ await save_skill(
 # 2. Save template
 await save_template(
     name="combat_arena",
-    description="Combat ready scene",
-    template_code="use_skill('setup_combat')"
+    code="use_skill('setup_combat')"
 )
 
 # 3. Snapshot current state
-fp_before = await fingerprint()
+await fingerprint()  # quick hash check
+await scene_diff()   # save snapshot for later comparison
 await save_session()
 
 # 4. Later: Recover state
 await load_session()
-fp_after = await fingerprint()
-diff = await scene_diff(fp_before, fp_after)
+diff = await scene_diff()  # compare against saved snapshot
 
 # 5. Recreate from template
 await apply_template("combat_arena")

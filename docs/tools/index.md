@@ -1,10 +1,10 @@
 # Tools Reference
 
-126 MCP tools organized by category. Every tool is documented with parameters, examples, and real-world usage patterns.
+142 MCP tools organized by category. Every tool is documented with parameters, examples, and real-world usage patterns.
 
 ## How Tools Work
 
-**TIER1 tools (43 core)** — Always visible to your AI assistant.
+**TIER1 tools (45 always-visible)** — Always visible to your AI assistant.
 
 **Category-gated tools** — Enable via `discover_tools(category, enable=True)` or through the Unity Biome MCP Settings panel.
 
@@ -48,14 +48,14 @@
 
 **Run tests & playtests**
 - [run_playtest](runtime.md#run_playtest) — Execute DSL-based test scenarios
-- [fuzz_playtest](runtime.md#fuzz_playtest) — Random stress testing
 - [run_tests](scene.md#run_tests) — Execute NUnit tests
+- [run_tests_wait](scene.md#run_tests_wait) — Run tests and block until results
 - [test_step](runtime.md#test_step) — Single assertion within a test
 
 **Take screenshots**
-- [screenshot](scene.md#screenshot) — Capture game view with annotations
-- [screenshot_baseline](scene.md#screenshot_baseline) — Save reference image
-- [screenshot_compare](scene.md#screenshot_compare) — Visual diff against baseline
+- [screenshot](screenshots.md#screenshot) — Capture game view with annotations
+- [screenshot_baseline](screenshots.md#screenshot_baseline) — Save reference image
+- [screenshot_compare](screenshots.md#screenshot_compare) — Visual diff against baseline
 
 **Debug problems**
 - [doctor](diagnostics.md#doctor) — Health check with auto-fix
@@ -68,24 +68,23 @@
 - [vfx_intent](runtime.md#vfx_intent) — Natural language VFX control
 
 **Advanced: Code analysis**
-- [find_references](diagnostics.md#find_references) — Locate all usages of a symbol
 - [compile_preflight](diagnostics.md#compile_preflight) — Validate C# before write
-- [semantic_at](diagnostics.md#semantic_at) — Get type info at file position
+- [execute_code](diagnostics.md#execute_code) — Run arbitrary C# in Unity
 
 ## TIER1 Tools (Always Available)
 
-**Core (24):**
-- get_hierarchy, get_component, inspect, set_property, create_object, delete_object
-- manage_component, batch, set_parent, scene, search_scene, editor
-- get_console, get_compile_errors, get_enabled_tools, discover_tools
-- do, ask, ask_user, permission_prompt
-- reconnect_unity, list_connections, resolve_tool_schema, doctor
+**Core (15):**
+- get_hierarchy, get_component, inspect, set_property, create_object
+- manage_component, batch, editor, get_console, get_compile_errors
+- execute_code, resolve_scene_refs, scene_change_plan, apply_scene_change, verify_after_change
 
-**Non-Core TIER1 (18):**
-- screenshot, run_tests, setup_objects, set_properties, configure_objects
-- find_references, compile_preflight, semantic_at, await_compile, sync_unity
-- invoke_method, set_runtime_property, wait_until, move_to, query_state
-- test_step, run_playtest, fuzz_playtest
+**Non-Core TIER1 (30):**
+- alias_status, ask, ask_user, await_compile, compile_preflight
+- configure_objects, console_mark, delete_object, discover_tools, get_console_since
+- get_test_results, lint_playtest, lint_scene_refs, mcp_status, permission_prompt
+- reconnect_unity, release_smoke, resolve_tool_schema, run_playtest, run_tests
+- run_tests_wait, scene, screenshot, search_scene, set_active
+- set_parent, setup_objects, sync_unity, undo_last, validate_references
 
 ## Enabling Tools by Category
 
@@ -95,7 +94,7 @@ To unlock advanced tools, enable the category:
 # Enable all Animation tools
 await discover_tools("animation", enable=True)
 
-# Enable Advanced tools (find_references, auto_fix, spatial queries, etc.)
+# Enable Advanced tools (execute_code, spatial queries, etc.)
 await discover_tools("advanced", enable=True)
 
 # Enable Asset tools (prefab, material, scriptable_object, etc.)

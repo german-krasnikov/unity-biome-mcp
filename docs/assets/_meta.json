@@ -5,7 +5,7 @@
   "tests_unity": 5776,
   "tests_unity_source": "static_grep",
   "tests_live": 284,
-  "server_version": "0.96.1",
-  "plugin_version": "0.96.1",
+  "server_version": "1.0.0",
+  "plugin_version": "1.0.0",
   "batch_savings": "80\u201395%"
 }

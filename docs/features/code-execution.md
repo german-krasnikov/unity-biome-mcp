@@ -37,18 +37,40 @@ You have full access to:
 | EditorApplication | Scene queries, serialization |
 | Debug | `Debug.Log()`, `Debug.DrawRay()` |
 
-## Security & Restrictions
+## Security Levels
 
-**BLOCKED (cannot execute):**
-- Code that calls `EditorApplication.Exit()` (can't quit editor)
-- Infinite loops (timeout: 5s per script)
-- Code accessing `File.Delete()` with system paths (only Assets/ allowed)
-- Arbitrary DLL loading
-- Network requests (exception: localhost)
+Code execution uses a three-tier security system. The active level is set via the **Security Level** dropdown in **MCP → MCP Hub** (Unity Editor).
 
-**Why blocked:** Prevents accidental game-breaking scripts and security issues.
+| Level | Default? | Behavior |
+|-------|----------|----------|
+| **AllowAll** | **Yes** | Skips all pattern scanning. No restrictions beyond compilation and timeout. |
+| **Standard** | No | Moderate scanning — blocks filesystem, network, reflection, process, and editor-exit patterns. |
+| **Strict** | No | Densest scanning — everything in Standard plus `GetField()`, `GetProperty()`, `GetFields()`, `GetProperties()`. |
 
-**Workaround:** Contact support to request additional APIs if needed.
+> **Important:** The default level is **AllowAll**, which bypasses all security scanning. If you need protection against accidental destructive calls, switch to **Standard** or **Strict** in the MCP Hub.
+
+### Blocked Patterns (Standard and Strict only)
+
+These patterns are **not checked** when the level is AllowAll.
+
+**Tier 1 — blocked in Standard and Strict:**
+- Filesystem: `System.IO.File`, `System.IO.Directory`, `System.IO.Stream`, `FileStream`, `StreamWriter`, `StreamReader`, `System.IO.Path`, `FileUtil.`
+- Network: `System.Net.`, `WebClient`, `HttpClient`
+- Process/Environment: `System.Diagnostics.Process`, `Environment.Exit`, `Environment.SetEnvironmentVariable`, `Environment.GetEnvironmentVariable`
+- Reflection/Dynamic: `Assembly.Load`, `AppDomain`, `DllImport`, `System.Reflection.Assembly`, `Type.GetType`, `.GetMethod(`, `GetRuntimeMethod`, `DynamicInvoke`, `Activator`, `System.Linq.Expressions.Expression`, `GetMethods(`, `CreateDelegate`, `GetTypes(`, `GetMembers(`, `GetConstructors(`, `.Assembly`, `System.Reflection.Emit`, `DynamicMethod`, `ILGenerator`, `OpCodes`, `CSharpCodeProvider`, `CodeDomProvider`, `CompileAssemblyFrom`, `InvokeMember(`
+- Threading: `System.Threading`, `System.Runtime.InteropServices`
+- Editor-exit: `EditorApplication.Exit`, `Application.Quit`, `Environment.FailFast`, `EditorApplication.isPlaying`, `EditorApplication.isPaused`
+- Editor-destructive: `AssetDatabase.ExportPackage`, `AssetDatabase.ImportPackage`, `EditorApplication.OpenProject`, `ProjectWindowUtil`
+- Using guards: `using System.Diagnostics`, `using System.IO`, `using System.Net`, `using System.Reflection`
+- Keywords (word-boundary): `extern`, `unsafe`
+
+**Tier 2 — blocked in Standard and Strict:**
+- `.GetValue(`, `.SetValue(`, `.Invoke(`
+
+**Tier 3 — blocked in Strict only (additional):**
+- `GetField(`, `GetProperty(`, `GetFields(`, `GetProperties(`
+
+When a pattern is blocked, the error message includes a suggestion where available (e.g., "Use `SerializedObject.FindProperty()` instead of `GetField(`").
 
 ## Undo Integration
 
@@ -61,7 +83,7 @@ player.health = 50;
 
 **undo_label:** Optional. Groups changes into one undo action with custom name.
 
-**Automatic undo:** Any script changes are batched under "MCP Code Execution" label if not specified.
+**Automatic undo:** Any script changes are batched under "execute_code" label if not specified.
 
 ## Error Handling
 
@@ -129,23 +151,21 @@ return obj.transform.position.ToString();
 - Color, Bounds, Rect
 - GameObject (as instance ID)
 
-## Play Mode Restrictions
+## Play Mode Notes
 
-`execute_code()` works in **Edit Mode only**.
-
-For Play Mode state mutations, use `set_runtime_property()` instead.
+`execute_code()` works in both Edit and Play Mode. For structured runtime field changes, prefer `set_property()` or `set_runtime_property()` instead.
 
 ```python
-# Edit Mode: OK
+# Edit Mode: full access
 await execute_code("GameObject.Find('Player').SetActive(false)")
 
-# Play Mode: Must use runtime API
+# Play Mode: also works, but structured tools are preferred
 await set_runtime_property("/Player", "PlayerController", "Health", "50")
 ```
 
 ## Timeout & Performance
 
-- **Timeout:** 5 seconds per script
+- **Timeout:** 30 seconds per script (TCP default)
 - **Long operations:** Split into multiple calls
 - **Compilation:** First call warm (~500ms); cached after
 

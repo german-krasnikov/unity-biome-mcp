@@ -84,15 +84,24 @@ public interface IMCPPlugin
     void RegisterCommands();          // Called on registration + domain reload
     void OnDomainReload();            // Cleanup hook on script recompile
     
-    // Optional: Organize tools into subcategories (v0.56.0+)
-    string GetToolSubcategory(string toolName) => null;  // Return subcategory string or null
-    
     // Optional: Register additional commands beyond CommandPrefix matching
-    List<string> AdditionalCommands => null;  // Return list of command names, or null
+    IReadOnlyList<string> AdditionalCommands => Array.Empty<string>();
+    
+    // Optional: Organize tools into subcategories (v0.56.0+)
+    string GetToolSubcategory(string command) => null;  // Return subcategory string or null
+    
+    // Optional: Settings UI for the Plugins settings page
+    VisualElement BuildSettingsUI() => null;  // Return null to skip
+    bool HasSettingsUI => false;              // Override alongside BuildSettingsUI
+    
+    // Optional: Short description for the plugin card
+    string Description => "";
 }
 ```
 
 **Subcategories:** Tools can be organized in the UI by returning a category string like `"Animation"` or `"Physics"`. Return `null` or empty string for top-level placement.
+
+**Settings UI:** Implement `BuildSettingsUI()` and set `HasSettingsUI => true` to show a per-plugin settings panel on the Plugins settings page.
 
 **Tool Grouping:** The `PluginToolGrouping` table allows fine-grained organization of tool visibility per subcategory.
 

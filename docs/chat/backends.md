@@ -7,13 +7,12 @@ In-Unity chat supports multiple CLI-based LLM backends.
 | Backend | CLI | Model | Persistent | Status |
 |---------|-----|-------|-----------|--------|
 | Claude | claude | Claude 4 (Opus, Sonnet) | Per-turn | ✅ Stable |
-| Claude Desktop | claude | Claude 4 (Opus, Sonnet) | Per-turn | ✅ Stable |
 | Codex | codex | OpenAI GPT-4 | Per-turn (supports resume) | ✅ Stable |
 | Kimi | kimi | Kimi (Moonshot) | Per-turn | ✅ Stable |
 | Antigravity | agy | Various | Per-turn | ✅ Stable |
 | OpenCode | opencode | Various | Per-turn | ✅ Testing |
 
-## Claude & Claude Desktop
+## Claude
 
 **Executable:** `claude` (installed via `curl | bash` setup)
 
@@ -88,7 +87,7 @@ Configure credentials via your Agy instance documentation.
 
 **Models:** Configurable (Claude, GitHub Copilot, custom)
 
-**Session:** Per-turn (supports external MCP merge, v0.55.0+)
+**Session:** Per-turn (supports external MCP merge)
 
 **Note:** Experimental; external MCP configs merged additively.
 
@@ -96,7 +95,7 @@ Configure credentials via your Agy instance documentation.
 
 1. Open **MCP → Chat** in the menu
 2. Click the **Backend** dropdown
-3. Select Claude, Codex, Kimi, Antigravity, Cursor, Windsurf, or OpenCode
+3. Select Claude, Codex, Kimi, Antigravity, or OpenCode
 4. Enter API key if needed
 5. Start chatting
 
@@ -108,7 +107,7 @@ Configure credentials via your Agy instance documentation.
 - New CLI process started each time (stateless)
 - Faster startup (~100ms)
 - No memory between turns unless session resume is used
-- Example: Claude, Codex, Kimi, Cursor, OpenCode
+- Example: Claude, Codex, Kimi, OpenCode
 
 **Pros:**
 - Simple; no session management
@@ -149,7 +148,7 @@ Unity Editor → MCP → Settings → Chat → API Keys
 ### Environment Variables
 
 **Injected to all backends:**
-- `UNITY_MCP_PORT`: TCP port where MCP server is listening (v0.67.1+)
+- `UNITY_MCP_PORT`: TCP port where MCP server is listening
 - `UNITY_MCP_SESSION_TIMEOUT`: Default 300 seconds (extended for reasoning models)
 
 **Claude only:** `UNITY_MCP_PORT` is stripped (not passed to Claude CLI; delivered via `--mcp-config` file instead).

@@ -329,16 +329,6 @@ await lint_playtest_suite("Playtests/*.playtest")
 
 **RW Annotation:** Mutating (writes file).
 
-## lint_playtest_suite(paths)
-
-**Purpose:** Lint all matching `.playtest` files without entering Play Mode. Aggregated report.
-
-**paths:** Glob pattern (e.g. `"Playtests/*.playtest"`) or comma-separated list of project-relative paths.
-
-**Returns:** `"LINT: X/Y clean"` + per-file lint blocks.
-
-**RO Annotation:** Read-only.
-
 ## resolve_scene_refs(refs, fields=None)
 
 **Purpose:** Resolve `$alias`, `/path`, or `t:Type` tokens to scene paths in one batch call.

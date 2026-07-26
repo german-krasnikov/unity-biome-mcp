@@ -22,8 +22,9 @@
 <sub>**SPEC**</sub><br>
 <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tests.json&style=for-the-badge&labelColor=1a1a2e" alt="Tests">
 <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tools.json&style=for-the-badge&labelColor=1a1a2e" alt="Tools">
-<img src="https://img.shields.io/badge/dynamic/toml?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/server/pyproject.toml&query=$.project.version&label=SERVER%20BETA&style=for-the-badge&labelColor=1a1a2e&color=888899" alt="Server Version">
-<img src="https://img.shields.io/github/package-json/v/german-krasnikov/unity-biome-mcp?filename=unity-plugin/package.json&label=PLUGIN%20BETA&style=for-the-badge&labelColor=1a1a2e&color=888899" alt="Plugin Version">
+<img src="https://img.shields.io/badge/dynamic/toml?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/server/pyproject.toml&query=$.project.version&label=SERVER&style=for-the-badge&labelColor=1a1a2e&color=3ad29f" alt="Server Version">
+<img src="https://img.shields.io/github/package-json/v/german-krasnikov/unity-biome-mcp?filename=unity-plugin/package.json&label=PLUGIN&style=for-the-badge&labelColor=1a1a2e&color=3ad29f" alt="Plugin Version">
+<img src="https://img.shields.io/github/v/release/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=1a1a2e&color=3ad29f&logo=github&logoColor=white&label=RELEASE" alt="Release">
 
 <sub>**STACK**</sub><br>
 <img src="https://img.shields.io/badge/Unity-6000.0+-e8a23a?style=for-the-badge&labelColor=1a1a2e&logo=unity&logoColor=white" alt="Unity">
@@ -34,7 +35,7 @@
 
 > **Let any MCP-compatible AI assistant control your Unity Editor** — inspect scenes, edit GameObjects, run playtests, and capture screenshots without leaving the chat. JSON-framed TCP protocol; batch delivers 80–95% token savings (5–20× compression) on multi-step work.
 
-<sub>MCP (Model Context Protocol) is Anthropic's open standard for giving AI assistants structured tool access.</sub>
+<sub>MCP (Model Context Protocol) is an open standard for giving AI assistants structured tool access.</sub>
 
 <img src="docs/assets/divider.svg" width="100%" alt="">
 
@@ -273,7 +274,7 @@ Skills are updated with each release — re-run **Install AI Skills** after upda
 
 - **Token Optimization** — `batch` compresses 5–20 calls into one (80–95% savings), deferred tool schemas, per-session cost analytics
 - **In-Unity Chat** — 5 CLI backends (Claude, Antigravity, Kimi, Codex, OpenCode), no API key needed, typed context chips (`[hierarchy:/Player]`, `[script:Health.cs]`), per-turn undo, domain-reload safe
-- **Code Intelligence** — Roslyn-powered `find_references`, `compile_preflight`, `semantic_at`
+- **Code Intelligence** — `compile_preflight` code analysis
 - **PlayTest DSL** — 24 commands: `MOVE`, `MOVE_PATH`, `ASSERT`, `WAIT_UNTIL`, `INVOKE`, `SNAPSHOT`, `SIMULATE`, `SECTION`, `MACRO/CALL`, AND/OR compounds, abort-on-fail, and more
 - **Playtest Composer** — visual drag-and-drop editor (UI Toolkit) for composing PlayMode test scripts; context-aware D&D from Hierarchy/Inspector; Smart Command NL→DSL via active CLI backend
 - **Multi-Scene Management** — Load multiple scenes, inspect/edit across scenes, move/copy objects between loaded scenes, unified `object_diff` for cross-scene comparison
@@ -325,6 +326,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v1.0.0</b> — 2026-07-26 — 4-cycle audit (analyze→fix→deep-audit→verify) with 36 agents against source code</summary>
+
+4-cycle audit (analyze→fix→deep-audit→verify) with 36 agents against source code
+
+</details>
+
+<details>
 <summary><b>v0.96.1</b> — 2026-07-24 — `pyproject.toml`: added `[tool.hatch.build.targets.wheel] packages = …</summary>
 
 `pyproject.toml`: added `[tool.hatch.build.targets.wheel] packages = ["src/unity_mcp"]` — fixes wheel build failure after rebrand (project name …
@@ -353,15 +361,9 @@ Removed `get_perf` tool stub (use `get_frame_stats`)
 </details>
 
 <details>
-<summary><b>v0.93.1</b> — 2026-07-19 — `objects_in_radius`: now sorts all hits by distance ascending before truncating …</summary>
-
-`objects_in_radius`: now sorts all hits by distance ascending before truncating to `cap`.
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.93.1** — 2026-07-19 — `objects_in_radius`: now sorts all hits by distance ascending before truncating …
 - **v0.93.0** — 2026-07-19 — `IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats …
 - **v0.92.0** — 2026-07-19 — `move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated …
 - **v0.91.0** — 2026-07-19 — `run_playtest`, `wait_until`, `test_step`: correct `isSuccess` predicates (P0 …
@@ -512,7 +514,7 @@ Removed `get_perf` tool stub (use `get_frame_stats`)
 <details>
 <summary><b>How is this different from Unity 6.2's built-in AI assistant?</b></summary>
 
-Unity's built-in AI is limited to code generation. Unity Biome MCP gives full editor control: scene CRUD, animation, VFX, playtesting, screenshots. 126 tools vs basic code completion.
+Unity's built-in AI is limited to code generation. Unity Biome MCP gives full editor control: scene CRUD, animation, VFX, playtesting, screenshots. 142 tools vs basic code completion.
 
 </details>
 
@@ -563,14 +565,14 @@ Yes. Drop a Python file in `tools/`, add it to `__init__.py`, implement the `reg
 
 | Feature | Unity Biome MCP | CoplayDev | IvanMurzak | CoderGamester |
 |---------|-----------|-----------|------------|---------------|
-| MCP Tools | 125 | ~40 | 70+ | 28 |
+| MCP Tools | 142 | ~40 | 70+ | 28 |
 | In-Editor Chat | ✅ 5 backends | ❌ | ❌ | ❌ |
 | Token Optimization | 80-95% batch savings | ❌ | ❌ | ❌ |
 | One-Liner Install | ✅ curl/iex | ❌ | ❌ | ❌ |
 | PlayTest DSL | ✅ 24 commands | ❌ | ❌ | ❌ |
 | Multi-Scene Support | ✅ | ❌ | ✅ | ❌ |
 | AI Backends | 9 (Claude, Codex, Kimi, Antigravity, OpenCode, etc.) | 1 | 4 | 9 |
-| Tests | 9,581 | — | — | — |
+| Tests | 11,528 | — | — | — |
 | Code Intelligence | ✅ Roslyn-powered | ❌ | ❌ | ❌ |
 | Cross-Platform | ✅ Win/Mac/Linux | ✅ | ✅ | ✅ |
 | License | MIT | MIT | MIT | MIT |
@@ -582,7 +584,7 @@ Yes. Drop a Python file in `tools/`, add it to `__init__.py`, implement the `reg
 ## Contributing
 
 ```bash
-# Python unit tests (no Unity, 4110 tests)
+# Python unit tests (no Unity, 4703 tests)
 cd server && pytest -m "not live" -q
 
 # Python live integration tests (Unity running on :9500, 284 tests)
@@ -593,7 +595,7 @@ pytest -m "live and not live_cli" -q
 ```
 
 **Test Tiers:**
-- **Tier 1 (Unit):** LLM-mocked Python (230 tests, $0) + C# EditMode (5187 tests, $0)
+- **Tier 1 (Unit):** LLM-mocked Python (230 tests subset, $0) + C# EditMode (6537 tests, $0)
 - **Tier 2 (Integration):** Python live (284 tests, $0) + NUnit PlayMode (73 tests, $0) + reload stability (36 tests, $0)
 - **Tier 3 (CLI):** Real `claude` CLI with interactive I/O (4 tests, ~$0.004)
 

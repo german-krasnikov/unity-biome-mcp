@@ -47,7 +47,7 @@ Select a type from the dropdown. Each type exposes relevant fields:
 | Monitor | Query |
 | Click | Path, Wait delay |
 | Capture | Label, Query |
-| AssertCaptured | Label, Mode (`DELTA` / `RATIO` / `INCREASED` / `DECREASED` / `UNCHANGED` / `CHANGED`) |
+| AssertCaptured | Label, Mode (`INCREASED` / `DECREASED` / `UNCHANGED` / `INCREASED_BY` / `DECREASED_BY`) |
 | AssertNear | Path A, Path B, Distance threshold |
 | AssertConsoleClean | Ignore patterns (comma-separated) |
 
@@ -115,7 +115,7 @@ SECTION "Teardown"
 ASSERT_CONSOLE_CLEAN
 ```
 
-For the full DSL reference (all 26 steps, operators, parsing rules), see [Playtest Guide](playtest.md).
+For the full DSL reference (all 30 step types, operators, parsing rules), see [Playtest Guide](playtest.md).
 
 ## Examples
 

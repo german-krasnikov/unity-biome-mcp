@@ -12,7 +12,9 @@ Welcome! This guide will help you set up and start using Unity Biome MCP to cont
   - Claude Desktop
   - Cursor
   - Windsurf
+  - VS Code
   - Kimi
+  - Junie
   - OpenCode
 - **TCP port 9500** available on your machine
 
@@ -27,7 +29,7 @@ Unity Biome MCP auto-configures when you add the plugin to your project — no m
 3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
 4. Wait for import, then open any scene
 
-The plugin auto-detects your AI tool (Claude Code, Codex, Cursor, Windsurf, VS Code, or Claude Desktop) and generates the necessary MCP configuration.
+The plugin auto-detects your AI tool (Claude Code, Codex, Cursor, Windsurf, VS Code, Kimi, Junie, OpenCode, or Claude Desktop) and generates the necessary MCP configuration.
 
 ### Step 2: Verify Installation (Optional)
 
@@ -108,7 +110,11 @@ Your AI Assistant (Claude, Codex, etc.)
 
 **CLI Mode** — use from Claude Code, Codex CLI, or any terminal:
 ```bash
-claude code < script.py
+claude "inspect the scene"
+```
+Or launch interactively:
+```bash
+claude
 ```
 The port is auto-discovered from `~/.unity-biome-mcp/ports/`. No manual `UNITY_MCP_PORT` needed.
 
@@ -144,7 +150,7 @@ Learn more: [Batch Reference](../tools/batch.md)
 
 ## What's Next?
 
-- 📚 **[Tools Reference](../tools/index.md)** — Complete list of 126 MCP tools by category
+- 📚 **[Tools Reference](../tools/index.md)** — Complete list of 142 MCP tools by category
 - ⚙️ **[Scene Tools](../tools/scene.md)** — Inspect, modify, and query your scene
 - 🎮 **[Object Tools](../tools/objects.md)** — Create, edit, and manage GameObjects
 - 🧪 **[PlayTest Tools](../tools/runtime.md)** — Write automated test scenarios

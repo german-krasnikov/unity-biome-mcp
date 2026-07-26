@@ -13,7 +13,7 @@ unity-biome-mcp/
 │   ├── src/unity_mcp/
 │   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
-│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 126 registered MCP tools
+│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 142 registered MCP tools
 │   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
 │   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0)
 │   │   ├── bridge_retry.py     # RetryPolicy class + unwrap_bridge_result() extracted (v0.70.0)
@@ -21,7 +21,7 @@ unity-biome-mcp/
 │   │   ├── bridge_heartbeat.py # Heartbeat management (extracted)
 │   │   ├── bridge_reload_state.py # Reload state tracking (extracted)
 │   │   ├── bridge_socket.py    # Socket management + frame helpers (extracted; v0.80.0: frame_write(), frame_read(), frame_read_with_timeout() — shared by bridge, heartbeat, chat_relay, reload_ladder, doctor)
-│   │   ├── connection_slot.py  # ConnectionSlot: dual connections (CLI + Chat agent)
+│   │   ├── connection_slot.py  # ConnectionSlot: single connection per project
 │   │   ├── chat_relay.py       # Chat relay TCP server: 5 backends, deferred spawn for single-turn, _TRANSFORM_FNS dispatch, EOF handling (v0.67.0: +output_format/reads_stdin, +close_stdin, role-aware ping; v0.96.1: add_signal_handler wrapped in try/except NotImplementedError for Windows)
 │   │   ├── cli_session.py      # CLI session state tracking + history scanning + close_stdin (v0.66.0+)
 │   │   ├── backend_def.py      # 5 backend definitions: output_format enum (stream-json/codex-json/kimi-json/plain-text/opencode-json), reads_stdin flag, env_set UNITY_MCP_PORT, _run_login_shell() helper, MCP_BLANKET derived from SERVER_NAME, TTL retry cache (v0.71.0: +_run_login_shell, MCP_BLANKET, retry cache; v0.67.0: output_format replaces uses_stream_json)
@@ -77,7 +77,13 @@ unity-biome-mcp/
 │   │   ├── schema_guard.py     # Pre-flight argument validation
 │   │   ├── speculation.py      # Speculative prefetch layer
 │   │   ├── visual_diff.py      # Visual regression diff
+│   │   ├── visual_diff_pixel.py # Pixel-level visual diff helpers
 │   │   ├── watchdog.py         # Proactive validation watchdog
+│   │   ├── constants.py        # Shared constants (DEFAULT_PORT, etc.)
+│   │   ├── console_levels.py   # Console log level definitions
+│   │   ├── server_lifespan.py  # Server lifespan context manager
+│   │   ├── doctor.py           # Doctor diagnostic logic
+│   │   ├── doctor_report.py    # Doctor report formatting
 │   │   ├── ask/                # ask() tool decomposition
 │   │   │   ├── router.py       # Keyword regex router — deterministic 80% of ask() questions
 │   │   │   ├── plans.py        # ToolPlan dataclass + canonical plan templates
@@ -109,9 +115,9 @@ unity-biome-mcp/
 │   │   ├── debug/              # Debug subsystem (v0.59.0: state capture + watch system)
 │   │   │   ├── __init__.py
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
-│   │   ├── tools/              # Tool modules (42 files + __init__, playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
+│   │   ├── tools/              # Tool modules (44 files + __init__, playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
-│   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 146 entries (v0.69.0, M8)
+│   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 148 entries (142 user-visible + 6 _INTERNAL)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
 │   │   │   ├── meta.py         # Meta tools: discover_tools, doctor, resolve_tool_schema, set_llm_config, alias_status in register(mcp, send, args) pattern (v0.69.0, v0.78.9: +alias_status)
 │   │   │   ├── profiling.py    # Profile MCP tool: session-based profiling, frame stats, performance analysis (v0.60.0, 412 LOC)
@@ -148,7 +154,7 @@ unity-biome-mcp/
 │   │   │   ├── intent_common.py         # Shared intent infrastructure
 │   │   │   ├── budget_tool.py           # Haiku spend tracking
 │   │   │   ├── metrics_tool.py          # Performance metrics tool
-│   │   │   ├── code_intel.py            # find_references, compile_preflight, semantic_at
+│   │   │   ├── code_intel.py            # compile_preflight, await_compile
 │   │   │   ├── debug_tool.py            # Symptom classifier + runtime diagnostic tool (v0.59.0, 278 LOC)
 │   │   │   ├── diagnostics.py           # Performance/animator/physics/memory helpers (v0.59.0, 345 LOC)
 │   │   │   ├── watch.py                 # Watch system MCP tool interface (v0.59.0, 412 LOC)

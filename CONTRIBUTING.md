@@ -37,7 +37,7 @@ cd server  # All Python work happens here
 # Unit tests only — fast, $0, no Unity needed
 PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "not live" -q
 
-# Expected: 2728 tests passing
+# Expected: 4703 tests passing
 ```
 
 ### Integration Testing (Requires Running Unity)
@@ -52,13 +52,13 @@ PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "not live" -q
    export UNITY_MCP_PORT=$(python3 -c "import pathlib; f=list(pathlib.Path.home().glob('.unity-biome-mcp/ports/*.port')); print(f[0].read_text().split()[0] if f else '9500')")
    PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "live and not live_cli" -q
    ```
-   Expected: 78 live tests passing.
+   Expected: 284 live tests passing.
 
 3. **Open Unity Test Runner** (EditMode only):
    - `Window → Testing → Test Runner`
    - Click **EditMode**
    - Click **Run All**
-   - Expected: 2389+ tests passing
+   - Expected: 6537+ tests passing
 
 ## Test Execution Order
 
@@ -66,11 +66,11 @@ Always run tests in this order to catch issues early:
 
 | Tier | Tests | Command | Time | Cost |
 |------|-------|---------|------|------|
-| **1. Unit (Python)** | 2728 mocked | `pytest tests/ -m "not live"` | ~15s | $0 |
-| **2. EditMode (C#)** | 2389 | Unity Test Runner → EditMode → Run All | ~30s | $0 |
-| **3. Python Live** | 78 | `pytest tests/ -m "live and not live_cli"` (set `UNITY_MCP_PORT` first) | ~10s | $0 |
+| **1. Reload Stability** | 36 | `pytest tests/test_reload_stability.py -v` | ~40s | $0 |
+| **2. Unit (Python)** | 4703 mocked | `pytest tests/ -m "not live"` | ~15s | $0 |
+| **3. EditMode (C#)** | 6537 | Unity Test Runner → EditMode → Run All | ~30s | $0 |
 | **4. PlayMode (C#)** | 73 | Unity Test Runner → PlayMode → Run All | ~60s | $0 |
-| **5. Reload Stability** | 39 | `pytest tests/test_reload_stability.py -v` | ~40s | $0 |
+| **5. Python Live** | 284 | `pytest tests/ -m "live and not live_cli"` (set `UNITY_MCP_PORT` first) | ~10s | $0 |
 | **6. Real CLI (live_cli)** | 4 | `pytest tests/ -m "live_cli" -v` (set `UNITY_MCP_PORT` first) | ~20s | ~$0.004 |
 
 Stop at the first failure — don't run all tiers if an earlier tier fails.
@@ -111,7 +111,7 @@ Follow these principles for all contributions:
 - **DRY** (Don't Repeat Yourself): Extract patterns into shared utilities
 - **KISS** (Keep It Simple, Stupid): Prefer straightforward code over clever abstractions
 - **TDD**: Write tests before implementation
-- **File size**: Keep files under 200 lines to maintain readability and testability
+- **File size**: Keep files under 300 lines to maintain readability and testability
 - **No "future-proofing"**: Only add abstractions when refactoring existing code, never preemptively
 
 ### Python style

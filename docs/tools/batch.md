@@ -31,8 +31,9 @@ Execute multiple commands in one call.
 **Parameters:**
 - `commands` (string) — Text format: one command per line, `cmd key=value key=value`
 - `on_error` (string, default="continue") — "continue" or "stop"
-- `timeout` (float, default=30.0) — Seconds to wait
+- `timeout` (float, default=75.0) — Seconds to wait
 - `atomic` (bool, default=False) — Revert all ops if any fail (uses Unity Undo)
+- `validate_aliases` (bool, default=False) — Dry-run alias validation before any mutations execute
 
 **Command Format:**
 ```
@@ -145,7 +146,7 @@ set_runtime_property path=Player component=Health field=hp value=50
 
 **get_component:**
 ```
-get_component path=Player component=Transform
+get_component path=Player type=Transform
 ```
 
 **inspect:**
@@ -202,7 +203,7 @@ scriptable_object action=set path=Assets/GameConfig.asset prop=maxLevel value=50
 
 **object_diff:**
 ```
-object_diff path1=PlayerTemplate path2=Player
+object_diff path_a=PlayerTemplate path_b=Player
 ```
 
 **validate_references:**
@@ -280,7 +281,7 @@ prefab action=edit asset_path=Assets/Prefabs/Player.prefab component=Health prop
 **Some tools MUST be called as typed MCP tools (not batch):**
 - `batch` — Can't batch a batch
 - `do`, `ask`, `ask_user` — NL intent tools
-- `run_playtest`, `fuzz_playtest` — DSL-based testing
+- `run_playtest` — DSL-based testing
 - `run_tests` — NUnit execution
 - `wait_until`, `move_to`, `test_step` — Async operations
 - `animator_intent`, `vfx_intent`, `ui_intent` — DSL-expansion tools

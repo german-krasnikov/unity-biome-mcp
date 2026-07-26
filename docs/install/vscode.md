@@ -41,7 +41,8 @@ The MCP tools become available through the MCP context in VS Code.
 
 The plugin writes MCP config to:
 
-- **macOS/Linux:** `~/.config/Code/User/mcp.json`
+- **macOS:** `~/Library/Application Support/Code/User/mcp.json`
+- **Linux:** `~/.config/Code/User/mcp.json`
 - **Windows:** `%APPDATA%\Code\User\mcp.json`
 
 ## Troubleshooting

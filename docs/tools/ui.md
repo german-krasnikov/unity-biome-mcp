@@ -16,19 +16,19 @@ Create UI elements with smart defaults. Automatically creates Canvas if needed.
 - `pivot` (string, optional) — Pivot point (x,y)
 - `color` (string, optional) — Color (hex #RRGGBB or named)
 - `text` (string, optional) — Text content (for Text/Button elements)
-- `fontSize` (string, optional) — Font size (points)
+- `font_size` (string, optional) — Font size (points)
 
 **Example:**
 
 ```python
 # Create button in new Canvas
 await create_ui(type="Button", name="PlayButton", 
-               anchor="center", size="200,60", text="Play", fontSize="32")
+               anchor="center", size="200,60", text="Play", font_size="32")
 
 # Create text in existing hierarchy
 await create_ui(type="Text", name="Score", parent="Canvas/HUD",
                anchor="top-right", pos="20,-20", size="120,40",
-               text="0", fontSize="24")
+               text="0", font_size="24")
 
 # Create image panel
 await create_ui(type="Image", name="HealthBar", parent="Canvas/HUD",
@@ -47,8 +47,8 @@ Configure RectTransform anchor, position, size, and offsets. Fine-tune UI elemen
 - `pos` (string, optional) — Position (x,y)
 - `size` (string, optional) — Size (width,height)
 - `pivot` (string, optional) — Pivot (x,y)
-- `offsetMin` (string, optional) — Min corner offset (x,y)
-- `offsetMax` (string, optional) — Max corner offset (x,y)
+- `offset_min` (string, optional) — Min corner offset (x,y)
+- `offset_max` (string, optional) — Max corner offset (x,y)
 
 **Example:**
 
@@ -63,7 +63,7 @@ await set_rect(path="Canvas/HUD/HealthBar",
 
 # Stretch to fill parent with margins
 await set_rect(path="Canvas/Background",
-              anchor="stretch", offsetMin="10,10", offsetMax="-10,-10")
+              anchor="stretch", offset_min="10,10", offset_max="-10,-10")
 ```
 
 ---

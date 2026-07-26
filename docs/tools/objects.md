@@ -8,7 +8,10 @@ Read a component's properties from a scene object.
 
 **Parameters:**
 - `path` (string) — GameObject path (e.g., "Player" or "Player/Head")
-- `component` (string) — Component type (e.g., "Transform", "Rigidbody", "Health")
+- `type` (string) — Component type (e.g., "Transform", "Rigidbody", "Health")
+- `fields` (string, optional) — Comma-separated field names to keep (e.g., "mass,position") — projects result to save tokens
+- `full` (bool, default=false) — Bypass distillation, return raw response
+- `compress` (bool, default=false) — Strip default values before transfer
 
 **Output Format:**
 ```
@@ -46,8 +49,12 @@ renderer = await get_component("Player/Body", "SkinnedMeshRenderer")
 Read multiple components from one or more objects in one call.
 
 **Parameters:**
-- `paths` (list or string) — Single path or comma-separated list
-- `components` (list or string, optional) — Components to read (default: all)
+- `paths` (string, optional) — Single path or comma-separated list
+- `components` (string, optional) — Comma-separated component types to read (default: all)
+- `fields` (string, optional) — Comma-separated field names to keep across all objects — projects result to save tokens
+- `full` (bool, default=false) — Bypass distillation, return raw response
+- `compress` (bool, default=false) — Strip default values before transfer
+- `find_type` (string, optional) — Component type to find — populates paths automatically (replaces explicit paths)
 
 **Output Format:**
 ```
@@ -88,13 +95,15 @@ inspect paths=Player,Enemy components=Health,Rigidbody
 
 ## set_property
 
-Change a component property on a scene object.
+Change a component property on a scene object (Edit Mode, SerializedObject).
 
 **Parameters:**
-- `path` (string) — GameObject path
+- `path` (string, optional) — GameObject path
 - `component` (string) — Component type
 - `prop` (string) — Property name
 - `value` (string) — New value (always as string; types inferred by Unity)
+- `dry_run` (bool, default=false) — Show what would change without applying
+- `find_type` (string, optional) — Component type — bulk-sets prop on all matching objects without specifying paths
 
 **Type Inference:**
 - `"true"` / `"false"` → bool
@@ -261,7 +270,8 @@ Change an object's parent in the hierarchy.
 
 **Parameters:**
 - `path` (string) — GameObject to move
-- `parent` (string) — New parent path (empty string = unparent)
+- `parent` (string, optional) — New parent path (null = move to scene root)
+- `world_position_stays` (bool, default=true) — Preserve world transform; false = stay local to new parent
 
 **Example:**
 
@@ -270,7 +280,10 @@ Change an object's parent in the hierarchy.
 await set_parent("Sword", parent="Player/WeaponSlot")
 
 # Unparent (root level)
-await set_parent("Player", parent="")
+await set_parent("Player", parent=None)
+
+# Reparent keeping local position
+await set_parent("Widget", parent="Canvas/Panel", world_position_stays=False)
 ```
 
 ---
@@ -345,24 +358,28 @@ await set_material("Player", color="#0000FF", shader="Universal Render Pipeline/
 
 ## find_objects
 
-Search for GameObjects by name, component, tag, or layer (Category: `object`).
+Search for GameObjects by name, component, tag, or layer (Category: `object`). For complex queries use search_scene instead.
 
 **Parameters:**
-- `query` (string) — Search term
-- `type` (string, optional) — "name" | "component" | "tag" | "layer"
-- `recursive` (bool, default=true) — Search entire hierarchy
+- `name` (string, optional) — Name substring filter
+- `tag` (string, optional) — Tag filter
+- `layer` (string, optional) — Layer filter
+- `component` (string, optional) — Component type filter (full namespace)
 
 **Example:**
 
 ```python
 # Find by name
-enemies = await find_objects(query="Enemy")
+enemies = await find_objects(name="Enemy")
 
 # Find all with Rigidbody
-rigidbodies = await find_objects(query="Rigidbody", type="component")
+rigidbodies = await find_objects(component="Rigidbody")
 
 # Find all with "Collectible" tag
-items = await find_objects(query="Collectible", type="tag")
+items = await find_objects(tag="Collectible")
+
+# Find by layer
+ui = await find_objects(layer="UI")
 ```
 
 ---
@@ -423,18 +440,18 @@ components = await get_components_list(id=<instance_id>)
 
 ## object_diff
 
-Compare two objects' properties (Category: `object`).
+Compare two objects' properties (Category: `object`). Supports cross-scene: `"SceneA:/Alice"`.
 
 **Parameters:**
-- `path1` (string) — First object
-- `path2` (string) — Second object
+- `path_a` (string) — First object
+- `path_b` (string) — Second object
 
 **Output:** Diff showing matching/different components and values.
 
 **Example:**
 
 ```python
-diff = await object_diff("PlayerTemplate", "Player")
+diff = await object_diff(path_a="PlayerTemplate", path_b="Player")
 # → Transform: MATCH
 # → Health: maxHp=100 vs 85
 ```
@@ -482,6 +499,59 @@ await transfer_object(path="Player", action="move", target_scene="AdditiveScene"
 
 # Copy Player to same scene
 await transfer_object(path="Player", action="copy")
+```
+
+---
+
+## rename_object
+
+Rename a GameObject. All subsequent MCP calls must use the new path.
+
+**Parameters:**
+- `path` (string) — Current scene path or #instanceID
+- `name` (string) — New name (non-empty)
+
+**Example:**
+
+```python
+await rename_object(path="GameObject", name="Player")
+# → Returns new scene path
+```
+
+---
+
+## set_sibling_index
+
+Set sibling index of a GameObject within its parent.
+
+**Parameters:**
+- `path` (string) — GameObject path
+- `index` (int) — Target index (0 = first child)
+
+**Example:**
+
+```python
+# Move to first child position
+await set_sibling_index(path="Canvas/Panel/Button3", index=0)
+```
+
+---
+
+## get_unity_events
+
+List all UnityEvent persistent listeners in the active scene.
+
+**Parameters:**
+- `path` (string, optional) — Scene-path prefix filter (e.g., "/UI" to scan only the UI subtree)
+
+**Example:**
+
+```python
+# List all events in scene
+events = await get_unity_events()
+
+# List events under UI subtree only
+events = await get_unity_events(path="/UI")
 ```
 
 ---

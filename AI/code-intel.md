@@ -6,9 +6,9 @@ Roslyn-based C# code analysis: fast symbol lookup, preflight compilation checks,
 
 **Pre-Phase-B behavior:** Tools raise ToolError ("Command not registered") if Roslyn not available — fail-safe by design.
 
-## find_references(symbol, kind="", scope="")
+## ~~find_references~~ (REMOVED)
 
-**Purpose:** Find all C# references to a symbol (Roslyn) — replaces grep + multi-file reads for renames.
+**Status:** Removed — no C# handler was ever shipped. Use `grep` or `search_scene` instead.
 
 **Parameters:**
 - `symbol`: Name to search (required)
@@ -80,9 +80,9 @@ result = await compile_preflight("Assets/Scripts/Player.cs", new_code)
 # → OK preflight (156ms)
 ```
 
-## semantic_at(file_path, line, col)
+## ~~semantic_at~~ (REMOVED)
 
-**Purpose:** Get symbol/type info at a file position (Roslyn) — replaces read±20 + type reasoning.
+**Status:** Removed — no C# handler was ever shipped. Use source reading instead.
 
 **Parameters:**
 - `file_path`: Assets-relative
@@ -356,9 +356,8 @@ else:
 
 | Pattern | Tool | Why |
 |---------|------|-----|
-| Find all usages of method X | find_references("X", kind="method") | Rename safety; beats grep |
+| Find all usages of method X | grep / search_scene | Rename safety |
 | Validate .cs before write | compile_preflight(path, content) | 200ms vs 30s cycle |
-| Jump-to-definition | semantic_at(file, line, col) | Symbol resolution; type info |
 | Wait for compile after script edit | await_compile(timeout=30) | Blocks until safe to run tests |
 | Poll compile every 5s | compile_status() (no await) | Low-overhead status check |
 
@@ -366,7 +365,7 @@ else:
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| "[ROSLYN UNAVAILABLE]" | Phase B C# not loaded | Fallback: find_references → grep, compile_preflight → write + run_tests |
+| "[ROSLYN UNAVAILABLE]" | Phase B C# not loaded | Fallback: compile_preflight → write + run_tests |
 | "AMBIGUOUS [kind=...]" | Symbol name matches multiple types | Retry with kind parameter (e.g., kind="method") |
 | "timeout after 60s" | Very large project or network lag | Increase timeout; check get_compile_errors for actual status |
 | "STALE-DOMAIN: stamp unchanged" | MVID not updated after reload | Unity stalled; see .claude/skills/reload-recovery.md for T-ladder |
@@ -377,15 +376,14 @@ else:
 **Recommended sequence for feature implementation:**
 
 1. Read source (understand current code)
-2. find_references(symbol, kind) — verify rename scope
-3. Write new/modified .cs
-4. compile_preflight(path, new_content) — early error catch
-5. (Conditional: if preflight fails, fix + retry step 4)
-6. Write to disk (Edit/Write tool)
-7. await_compile(timeout) — block on domain reload
-8. Run tests (run_tests with filter)
+2. Write new/modified .cs
+3. compile_preflight(path, new_content) — early error catch
+4. (Conditional: if preflight fails, fix + retry step 3)
+5. Write to disk (Edit/Write tool)
+6. await_compile(timeout) — block on domain reload
+7. Run tests (run_tests with filter)
 
-**Cost:** 1 find_references (~500ms) + 1 preflight (~200ms) + 1 await (~varies) = typically <10s total.
+**Cost:** 1 preflight (~200ms) + 1 await (~varies) = typically <10s total.
 
 ---
 

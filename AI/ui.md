@@ -40,8 +40,8 @@ Fast RectTransform configuration.
 | pos | no | anchoredPosition (x,y) |
 | size | no | sizeDelta (w,h) |
 | pivot | no | pivot (x,y) |
-| offsetMin | no | (left, bottom) |
-| offsetMax | no | (-right, -top) |
+| offset_min | no | (left, bottom) |
+| offset_max | no | (-right, -top) |
 
 ### Anchor presets (14)
 stretch, center, top-left, top-center, top-right, middle-left, middle-right,

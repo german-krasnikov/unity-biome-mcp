@@ -2,58 +2,11 @@
 
 Connect and disconnect UnityEvent persistent listeners. Wire UI buttons to methods, trigger events, and manage event callbacks without manual serialization.
 
+> **Note:** `wire_event` and `unwire_event` are registered in [Object Tools](objects.md#wire_event). This page provides extended examples and workflows.
+
 ## wire_event
 
-Connect a persistent listener to a UnityEvent field. Wire buttons to methods, hook lifecycle events, and create event chains.
-
-**Parameters:**
-- `path` (string) — Scene path to GameObject with the event
-- `component` (string) — Component type owning the event field (e.g., "Button", "CustomController")
-- `event` (string) — Serialized field name (e.g., "onClick", "_onComplete", "onDamaged")
-- `target` (string) — Scene path (/Player) or asset path (Assets/Prefabs/Handler.prefab) for target object/prefab
-- `method` (string) — Method name to invoke (e.g., "SetActive", "Play", "TakeDamage")
-- `arg_type` (string, default="void") — Parameter type: "void" | "bool" | "int" | "float" | "string" | "object"
-- `arg_value` (string, optional) — Parameter value (required if arg_type != void). For object: scene path or asset path.
-
-**Argument Types:**
-
-| Type | Description | arg_value Example |
-|------|-------------|------------------|
-| void | No argument | (omit) |
-| bool | Boolean | "true" or "false" |
-| int | Integer | "10" or "-5" |
-| float | Decimal number | "0.5" or "3.14" |
-| string | Text | "Hello World" |
-| object | GameObject/Component reference | "/Player" (scene) or "Assets/Obj.prefab" (asset) |
-
-**Example:**
-
-```python
-# Wire button click to SetActive
-await wire_event(path="Canvas/PlayButton", component="Button", 
-                event="onClick", target="PauseMenu",
-                method="SetActive", arg_type="bool", arg_value="false")
-
-# Wire trigger enter to TakeDamage
-await wire_event(path="DamageZone", component="DamageTrigger",
-                event="onTriggerEnter", target="Player",
-                method="TakeDamage", arg_type="int", arg_value="10")
-
-# Wire audio play
-await wire_event(path="SoundButton", component="Button",
-                event="onClick", target="AudioSource",
-                method="Play")
-
-# Wire with string parameter
-await wire_event(path="NameInput", component="InputField",
-                event="onEndEdit", target="SceneController",
-                method="SetPlayerName", arg_type="string", arg_value="Hero")
-
-# Wire to prefab method (asset reference)
-await wire_event(path="Canvas/Confirm", component="Button",
-                event="onClick", target="Assets/Handlers/GameController.prefab",
-                method="StartGame")
-```
+See [Object Tools — wire_event](objects.md#wire_event) for parameters.
 
 **Common Patterns:**
 
@@ -64,50 +17,9 @@ await wire_event(path="Canvas/Confirm", component="Button",
 | Input → Method Call | `wire_event(path="Canvas/Input", component="InputField", event="onEndEdit", target="Handler", method="ProcessInput", arg_type="string", arg_value="...")` |
 | UI → Animation | `wire_event(path="Button", component="Button", event="onClick", target="Character", method="PlayAnimation", arg_type="string", arg_value="Attack")` |
 
-**Verification:**
-After wiring, verify with:
-```python
-comp = await get_component(path="Canvas/PlayButton", type="Button")
-# Should show onClick listeners connected
-```
-
----
-
 ## unwire_event
 
-Remove persistent listener(s) from a UnityEvent. Clear specific listeners or clear all listeners at once.
-
-**Parameters:**
-- `path` (string) — Scene path to GameObject with the event
-- `component` (string) — Component type owning the event field
-- `event` (string) — Serialized field name
-- `index` (int, optional) — Remove specific listener (0-based). Omit to clear all listeners.
-
-**Example:**
-
-```python
-# Remove all listeners from button
-await unwire_event(path="Canvas/PlayButton", component="Button", event="onClick")
-
-# Remove specific listener (first one, index 0)
-await unwire_event(path="Canvas/PlayButton", component="Button", 
-                  event="onClick", index=0)
-
-# Remove second listener
-await unwire_event(path="Canvas/PlayButton", component="Button",
-                  event="onClick", index=1)
-
-# Clear all listeners from custom event
-await unwire_event(path="Enemy", component="EnemyController",
-                  event="onDeath")
-```
-
-**Verification:**
-After unwiring, verify with:
-```python
-comp = await get_component(path="Canvas/PlayButton", type="Button")
-# onClick listeners should be empty
-```
+See [Object Tools — unwire_event](objects.md#unwire_event) for parameters.
 
 ---
 

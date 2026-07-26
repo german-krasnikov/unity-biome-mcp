@@ -10,7 +10,8 @@ Capture the current game view as a PNG image with optional object annotations an
 - `width` (int, default=640) — Image width in pixels
 - `height` (int, default=480) — Image height in pixels
 - `camera` (string, optional) — Camera preset: "scene_view" | "scene_view_frame" | "multi_view" | "single_view" | "overview" | "overview_game" | custom camera name
-- `path` (string, optional) — Save path (default: auto-generated in Screenshots/)
+- `path` (string, optional) — Scene path to target object (for framing)
+- `output_path` (string, optional) — Save path (default: auto-generated in Screenshots/)
 - `describe` (string, optional) — AI description mode: "haiku" (Haiku model, 15-100x token reduction)
 - `raw` (bool, default=false) — Force path output instead of description
 - `zoom` (float, optional) — Zoom level (higher = closer)

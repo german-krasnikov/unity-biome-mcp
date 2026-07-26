@@ -12,7 +12,7 @@ Two entry points: **`WAIT_UNTIL`** (DSL inside `run_playtest`) and **`wait_until
 
 ## Built-in Conditions
 
-All comparison operators from the [Playtest Guide](playtest.md) apply (`==`, `!=`, `>`, `<`, `>=`, `<=`, `~=`). `WAIT_UNTIL` adds one extra operator: `contains` (substring match on string fields).
+All comparison operators from the [Playtest Guide](playtest.md) apply: `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains` (substring match on string fields).
 
 **Syntax (DSL):**
 ```

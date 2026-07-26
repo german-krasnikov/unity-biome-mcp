@@ -39,7 +39,7 @@ namespace MyPlugin.Chat
         public string Key => "custom_asset";
 
         // Lower numbers = checked first during detection
-        // Built-ins use 100–800; plugin overrides use <100, extensions use >800
+        // Built-ins use 40–700 (Asset fallback = int.MaxValue); plugin overrides use <40, extensions use >700
         public int Priority => 900;
 
         // Return true if this provider handles the object
@@ -155,7 +155,7 @@ Your plugin will auto-register on domain load and appear in chip detection.
 | Member | Type | Purpose |
 |--------|------|---------|
 | `Key` | `string` (property) | Unique identifier, must match `^[a-z0-9_]+$`. Used in linkId format: `chip:KEY:REF` |
-| `Priority` | `int` (property) | Detection order (lower = earlier). Built-ins 100–800 |
+| `Priority` | `int` (property) | Detection order (lower = earlier). Built-ins 40–700; Asset fallback = int.MaxValue |
 | `CanHandle(obj, assetPath)` | `bool` (method) | Return true if this provider recognizes the object |
 | `Create(obj, assetPath)` | `ChipData` (method) | Construct a `ChipData` for drag-drop and context |
 | `IconName` | `string` (property) | EditorGUIUtility.IconContent key (e.g., `"d_Prefab Icon"`) |
@@ -195,18 +195,19 @@ public static class ChipKindRegistry
 ### ChipData & ChipPayloadContext
 
 ```csharp
-public struct ChipData
+public readonly struct ChipData
 {
-    public string KindKey { get; }      // e.g., "custom_asset"
-    public string Path { get; }         // File path or object reference
-    public string DisplayName { get; }  // Shown in the pill UI
-    public int InstanceID { get; }      // 0 for assets, >0 for scene objects
+    public readonly string KindKey;          // e.g., "custom_asset"
+    public readonly string Path;             // File path or object reference
+    public readonly string DisplayName;      // Shown in the pill UI
+    public readonly int    InstanceID;       // 0 for assets, >0 for scene objects
+    public readonly GlobalObjectId GlobalObjectId; // Stable cross-session identity (scene objects)
 }
 
-public struct ChipPayloadContext
+public readonly struct ChipPayloadContext
 {
-    public string Depth { get; }              // "none" | "path" | "summary" | "full"
-    public string ResolvedSummary { get; }    // Pre-resolved component list (if depth includes it)
+    public readonly string Depth;              // "none" | "path" | "summary" | "full"
+    public readonly string ResolvedSummary;    // Pre-resolved component list (if depth includes it)
 }
 ```
 
@@ -214,9 +215,9 @@ public struct ChipPayloadContext
 
 Use priority to control detection order:
 
-- **<100:** Plugin overrides a built-in (e.g., provide a better detector for prefabs). The built-in `Image` kind uses priority 50 for external image files that have no Unity object.
-- **100–800:** Built-in kinds (hierarchy=100, scene=200, script=300, prefab=400, material=500, texture=600, scriptable-object=700, asset=int.MaxValue)
-- **>800:** Plugin extensions (new kinds not overlapping built-ins)
+- **<40:** Plugin overrides a built-in (e.g., provide a better detector for a specific asset type)
+- **40–700:** Built-in kinds: annotated_screenshot=40, image=50, hierarchy=100, region=120, component=125, field=130, folder=150, scene=200, script=300, prefab=400, model=450, material=500, audio=550, texture=600, so=700, asset=int.MaxValue
+- **>700:** Plugin extensions (new kinds not overlapping built-ins)
 
 Example: If you want to extend asset detection, use `Priority = 900`. If you want to override the built-in script handler, use `Priority = 250`.
 
@@ -224,7 +225,7 @@ Example: If you want to extend asset detection, use `Priority = 900`. If you wan
 
 Users can override `DefaultDepth` per kind via the **F9 Settings Form** (per-backend chip config dropdown). If no user override, your `DefaultDepth` is used.
 
-**v0.15.8 Limitation:** No per-custom-kind depth UI yet — custom providers always use their `DefaultDepth`. Built-in kinds have per-kind dropdowns in settings.
+Custom providers always use their `DefaultDepth`. Built-in kinds have per-kind dropdowns in settings.
 
 ## Reload Survival
 
@@ -327,16 +328,9 @@ namespace MyGame.Chat
 
         public void Ping(string reference) => Navigate(reference);
 
-        public UnityEngine.UIElements.VisualElement BuildPreview(string path)
+        public void AppendContextMenuItems(UnityEngine.UIElements.DropdownMenu menu, string reference)
         {
-            var config = AssetDatabase.LoadAssetAtPath<GameConfig>(path);
-            if (config == null)
-                return null;
-
-            var container = new UnityEngine.UIElements.Box();
-            container.Add(new UnityEngine.UIElements.Label($"Difficulty: {config.difficultyLevel}"));
-            container.Add(new UnityEngine.UIElements.Label($"Max Players: {config.maxPlayers}"));
-            return container;
+            menu.AppendAction("Open Config", _ => Navigate(reference));
         }
     }
 }

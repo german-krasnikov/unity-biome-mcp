@@ -117,7 +117,7 @@ set_property path=Enemy2 component=Health prop=MaxHP value=100
 
 **Spatial assertions in playtest:**
 ```
-ALIAS boss_arena (100,0,0)
+VAL $boss_arena 100,0,0
 # (region drawn previously with Shift+R)
 ASSERT_NEAR Player Boss 10.0  # Within arena bounds
 ```

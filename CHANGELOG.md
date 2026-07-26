@@ -10,6 +10,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.0] — 2026-07-26 — Documentation audit, v1.0.0 release
+
+**Docs — Full audit (38 files, 85+ issues fixed):**
+- 4-cycle audit (analyze→fix→deep-audit→verify) with 36 agents against source code
+- Removed phantom tools from all docs (fuzz_playtest, find_references, semantic_at, save/run_scenario)
+- Fixed all parameter names/defaults against Python+C# source (SET 5-token syntax, WAIT_CAPTURED label+mode, ASSERT_CONSOLE_CLEAN IGNORE keyword, ~= operator removed)
+- Actualized numeric counts across all layers (142 MCP tools, 148 ToolSpec, 4703/284/4/6537/36 tests)
+- Eliminated DRY violations (recompile, material, screenshot, wire_event → single-source + cross-refs)
+- Added documentation for ~20 previously undocumented tools (run_tests_wait, execute_code, etc.)
+- Fixed DSL examples in playtest.md against PlaytestParser.cs (comparison operators, SIMULATE syntax, CAPTURE syntax)
+- New install guide: docs/install/junie.md
+
+**Docs — README:**
+- Removed BETA labels from badge wall, added RELEASE badge
+- Updated all test/tool counts to current values
+
+<!-- tests: 4703 unit + 284 live + 4 live_cli + 6537 C# + 36 reload = 11564 -->
+
 ## [v0.96.1] — 2026-07-24 — Hatch wheel build fix, Windows relay, port migration fallback
 
 **Python — Build:**
