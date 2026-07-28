@@ -16,9 +16,6 @@ namespace UnityMCP.Editor.Wizard.Screens
         private BackendDescriptor _backend;
         private Label _logLabel;
         private Button _configureBtn;
-        private Button _globalBtn;
-        private Button _projectBtn;
-        private bool _projectScope;
         private readonly StringBuilder _log = new StringBuilder();
         private Process _proc;
 
@@ -62,18 +59,6 @@ namespace UnityMCP.Editor.Wizard.Screens
                 header.Add(placeholder);
             }
             root.Add(header);
-
-            // Scope toggle: Global / Project
-            var scopeRow = new VisualElement();
-            scopeRow.style.flexDirection = FlexDirection.Row;
-            scopeRow.style.marginBottom = 8;
-
-            _globalBtn = new Button(() => SetScope(false)) { text = "Global" };
-            _projectBtn = new Button(() => SetScope(true)) { text = "Project" };
-            _globalBtn.AddToClassList("wiz-btn-primary"); // default = global active
-            scopeRow.Add(_globalBtn);
-            scopeRow.Add(_projectBtn);
-            root.Add(scopeRow);
 
             // Log area
             var logScroll = new ScrollView();
@@ -122,34 +107,18 @@ namespace UnityMCP.Editor.Wizard.Screens
 
         // ── Private ───────────────────────────────────────────────────────────
 
-        private void SetScope(bool projectScope)
-        {
-            _projectScope = projectScope;
-            if (_globalBtn != null)
-            {
-                if (projectScope) _globalBtn.RemoveFromClassList("wiz-btn-primary");
-                else _globalBtn.AddToClassList("wiz-btn-primary");
-            }
-            if (_projectBtn != null)
-            {
-                if (projectScope) _projectBtn.AddToClassList("wiz-btn-primary");
-                else _projectBtn.RemoveFromClassList("wiz-btn-primary");
-            }
-        }
-
         private void RunConfigure()
         {
             if (_backend == null) return;
 
             if (_backend.AutoProjectConfig)
             {
-                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                var autoRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
                 var relPath = ProjectConfigTargets.RelativePathFor(_backend.Key) ?? "";
-                var path = Path.Combine(projectRoot, relPath);
+                var path = Path.Combine(autoRoot, relPath);
                 AppendLog($"✓ {_backend.DisplayName} is auto-configured per-project at {path}");
                 AppendLog("Regenerates automatically on port/version change — no action needed.");
-                if (_projectScope) return; // nothing else to do, ProjectConfigWriter already handled it
-                // else fall through to the existing install.py subprocess flow (Global scope)
+                return;
             }
 
             if (_backend.Mechanism == InstallMechanism.ManualInstructions)
@@ -180,6 +149,15 @@ namespace UnityMCP.Editor.Wizard.Screens
                 // UPM git/registry install: no install.py — show JSON for manual copy
                 int port = MCPServer.IsRunning ? MCPServer.ServerPort : 9500;
                 AppendLog("Installed via UPM. Copy the JSON config below and paste it into your AI tool's config file:");
+                var (uvOk, uvHint) = SetupDiagnostics.CheckUv();
+                if (!uvOk)
+                {
+                    AppendLog("");
+                    AppendLog($"⚠ uvx not found. The config below requires uv.");
+                    AppendLog($"  {uvHint}");
+                    AppendLog("  Then restart Unity and click Configure again.");
+                    AppendLog("");
+                }
                 AppendLog("");
                 var json = WizardConfigWriter.Fresh(port);
                 AppendLog(json);
@@ -195,12 +173,8 @@ namespace UnityMCP.Editor.Wizard.Screens
 #else
             string exe = "python3";
 #endif
-            var args = $"\"{pyPath}\" configure --tool {_backend.Key}";
-            if (_projectScope)
-            {
-                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-                args += $" --project-dir \"{projectRoot}\"";
-            }
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var args = $"\"{pyPath}\" configure --tool {_backend.Key} --project-dir \"{projectRoot}\"";
 
             try
             {

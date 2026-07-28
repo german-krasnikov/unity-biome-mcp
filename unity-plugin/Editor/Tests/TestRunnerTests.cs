@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.Tests
             SessionState.SetString(KeyResults, "");
             SessionState.SetFloat(KeyStartTime, 0f);
             // Reset seams to production defaults
-            TestRunner.GetIsCompiling    = () => EditorApplication.isCompiling;
+            TestRunner.GetIsCompiling    = CommandRouter.DefaultIsCompiling;
             TestRunner.GetIsCompileClean = () => SyncHelper.IsCompileClean;
             TestRunner.GetTimeSinceStartup = () => EditorApplication.timeSinceStartup;
         }
@@ -207,6 +207,32 @@ namespace UnityMCP.Editor.Tests
                 "GetIsCompileClean seam must exist");
             Assert.IsTrue(TestRunner.GetIsCompileClean(),
                 "Default seam must return SyncHelper.IsCompileClean which defaults to true");
+        }
+
+        // ── 7a. GetIsCompiling seam — must delegate to CommandRouter, not EditorApplication ──
+
+        [Test]
+        public void GetIsCompiling_Default_ReflectsMCPServerIsReallyCompiling()
+        {
+            var savedIsCompiling = MCPServer._isCompiling;
+            var savedStartTime = MCPServer._compileStartTime;
+            try
+            {
+                // Simulate compile just started (IsReallyCompiling=true, elapsed<120s)
+                MCPServer._isCompiling = true;
+                MCPServer._compileStartTime = System.DateTime.UtcNow;
+
+                // Production default (restored by SetUp) should return true when MCPServer says compiling.
+                // BEFORE fix: () => EditorApplication.isCompiling → false in test env → FAILS (RED)
+                // AFTER fix:  CommandRouter.DefaultIsCompiling → true (IsReallyCompiling=true, <120s) → PASSES (GREEN)
+                Assert.IsTrue(TestRunner.GetIsCompiling(),
+                    "Default GetIsCompiling must reflect MCPServer.IsReallyCompiling, not EditorApplication.isCompiling");
+            }
+            finally
+            {
+                MCPServer._isCompiling = savedIsCompiling;
+                MCPServer._compileStartTime = savedStartTime;
+            }
         }
 
         // ── 8. FinishRun (C7a, review sprint v0.70) ──────────────────────────

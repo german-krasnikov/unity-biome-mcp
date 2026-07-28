@@ -1,3 +1,4 @@
+using System.IO;
 using NUnit.Framework;
 using UnityMCP.Editor;
 using UnityMCP.Editor.Wizard;
@@ -89,6 +90,107 @@ namespace UnityMCP.Editor.Tests
         }
 
         // ── P0-B fix 1: ResolveRepoRoot delegates ────────────────────────────
+
+        [TearDown]
+        public void TearDown()
+        {
+            SetupDiagnostics.WhichOverride = null;
+            SetupDiagnostics.PythonVersionOverride = null;
+            SetupDiagnostics.ResetPythonVersionCache();
+        }
+
+        // ── CheckUv ──────────────────────────────────────────────────────────
+
+        [Test]
+        public void CheckUv_Found_ReturnsTrueWithPath()
+        {
+            SetupDiagnostics.WhichOverride = b => b == "uvx" ? "/usr/local/bin/uvx" : null;
+            var (ok, detail) = SetupDiagnostics.CheckUv();
+            Assert.IsTrue(ok);
+            Assert.That(detail, Does.Contain("uvx").Or.Contain("/usr/local/bin/uvx"));
+        }
+
+        [Test]
+        public void CheckUv_Missing_ReturnsFalseWithHint()
+        {
+            SetupDiagnostics.WhichOverride = _ => null;
+            var (ok, detail) = SetupDiagnostics.CheckUv();
+            Assert.IsFalse(ok);
+            Assert.IsTrue(detail.Contains("Install") || detail.Contains("uv"), $"Expected install hint, got: {detail}");
+        }
+
+        // ── CheckPython system-fallback version gate ──────────────────────────
+
+        [Test]
+        public void CheckPython_SystemFallback_VersionTooLow_ReturnsFalse()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), $"DiagTest_{System.Guid.NewGuid():N}");
+            Directory.CreateDirectory(dir);
+            SetupDiagnostics.PythonVersionOverride = _ => "3.9.7";
+            try
+            {
+                var (ok, detail) = SetupDiagnostics.CheckPython(dir);
+                Assert.IsFalse(ok);
+                Assert.IsTrue(detail.Contains("3.9") || detail.Contains("3.10"), $"Detail: {detail}");
+            }
+            finally
+            {
+                Directory.Delete(dir, recursive: false);
+            }
+        }
+
+        [Test]
+        public void CheckPython_SystemFallback_VersionOk_ReturnsTrue()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), $"DiagTest_{System.Guid.NewGuid():N}");
+            Directory.CreateDirectory(dir);
+            SetupDiagnostics.PythonVersionOverride = _ => "3.12.1";
+            try
+            {
+                var (ok, detail) = SetupDiagnostics.CheckPython(dir);
+                Assert.IsTrue(ok);
+                Assert.That(detail, Does.Contain("3.12"));
+            }
+            finally
+            {
+                Directory.Delete(dir, recursive: false);
+            }
+        }
+
+        [Test]
+        public void CheckPython_SystemFallback_VersionExactMinimum_ReturnsTrue()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), $"DiagTest_{System.Guid.NewGuid():N}");
+            Directory.CreateDirectory(dir);
+            SetupDiagnostics.PythonVersionOverride = _ => "3.10.0";
+            try
+            {
+                var (ok, detail) = SetupDiagnostics.CheckPython(dir);
+                Assert.IsTrue(ok);
+                Assert.That(detail, Does.Contain("3.10"));
+            }
+            finally
+            {
+                Directory.Delete(dir, recursive: false);
+            }
+        }
+
+        [Test]
+        public void CheckPython_SystemFallback_VersionCheckFails_ReturnsFalse()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), $"DiagTest_{System.Guid.NewGuid():N}");
+            Directory.CreateDirectory(dir);
+            SetupDiagnostics.PythonVersionOverride = _ => null;
+            try
+            {
+                var (ok, _) = SetupDiagnostics.CheckPython(dir);
+                Assert.IsFalse(ok);
+            }
+            finally
+            {
+                Directory.Delete(dir, recursive: false);
+            }
+        }
 
         [Test]
         public void ResolveRepoRoot_DelegatesToInstallSourceDetector_WhenOverrideSet()

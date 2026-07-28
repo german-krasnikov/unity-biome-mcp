@@ -80,24 +80,6 @@ namespace UnityMCP.Editor.Tests
             Assert.DoesNotThrow(() => screen.OnExit());
         }
 
-        [Test]
-        public void Build_HasGlobalScopeButton()
-        {
-            var screen = new ConfigureScreen(null, null);
-            screen.SetBackend(SampleBackend());
-            var root = screen.Build();
-            Assert.IsTrue(ContainsButton(root, "Global"), "Should have Global scope button");
-        }
-
-        [Test]
-        public void Build_HasProjectScopeButton()
-        {
-            var screen = new ConfigureScreen(null, null);
-            screen.SetBackend(SampleBackend());
-            var root = screen.Build();
-            Assert.IsTrue(ContainsButton(root, "Project"), "Should have Project scope button");
-        }
-
         // ── Phase 1A: AutoProjectConfig / ManualInstructions branches ──────────
 
         [Test]
@@ -109,8 +91,6 @@ namespace UnityMCP.Editor.Tests
             var root = screen.Build();
             screen.OnEnter();
 
-            // Project scope short-circuits before the existing install.py subprocess flow.
-            InvokeSetScope(screen, true);
             InvokeRunConfigure(screen);
 
             Assert.IsTrue(ContainsTextContaining(root, "auto-configured"),
@@ -139,13 +119,6 @@ namespace UnityMCP.Editor.Tests
             var method = typeof(ConfigureScreen).GetMethod("RunConfigure",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             method.Invoke(screen, null);
-        }
-
-        private static void InvokeSetScope(ConfigureScreen screen, bool projectScope)
-        {
-            var method = typeof(ConfigureScreen).GetMethod("SetScope",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            method.Invoke(screen, new object[] { projectScope });
         }
 
         private static bool ContainsTextContaining(VisualElement root, string substring)

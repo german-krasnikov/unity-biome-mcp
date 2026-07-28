@@ -15,4 +15,8 @@ If you still need Gemini CLI:
 1. Install: `npm install -g @google/gemini-cli` (or `brew install gemini-cli` on macOS)
 2. Authenticate: `gemini` (opens browser OAuth)
 3. Add plugin to Unity via UPM: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
-4. Run Setup Wizard (**MCP → Setup Wizard**) and select **Gemini** to auto-configure `~/.gemini/settings.json`
+4. Configure manually — add to `~/.gemini/settings.json`:
+   ```json
+   {"mcpServers":{"unity-biome-mcp":{"command":"uvx","args":["--from","git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server","unity-biome-mcp"]}}}
+   ```
+   (Setup Wizard no longer supports Gemini — configure manually)

@@ -39,7 +39,7 @@ uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirect
 
 The plugin writes MCP config to:
 
-- **All platforms:** `~/.junie/mcp/mcp.json`
+- **All platforms:** `~/.junie/mcp/mcp.json` *(global by design — Junie only reads from this location)*
 
 Config format (standard `mcpServers` JSON):
 

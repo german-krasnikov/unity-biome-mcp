@@ -41,17 +41,16 @@ def _atomic_write(path: str, content: str) -> None:
 
 
 def write_claude_config(config_dir: str, mcp_port: int) -> str:
-    """Writes unity-biome-mcp-config-{port}.json for --mcp-config. Returns absolute path."""
+    """Writes unity-biome-mcp-config-{port}.json for --mcp-config. Returns absolute path.
+
+    When mcp_port == 0, UNITY_MCP_PORT is omitted so Python uses discovery files instead
+    of a baked port — prevents connection failures after Windows port drift.
+    """
     cmd, args = resolve_server_cmd()
-    config = {
-        "mcpServers": {
-            SERVER_NAME: {
-                "command": cmd,
-                "args": args,
-                "env": {"UNITY_MCP_PORT": str(mcp_port)},
-            }
-        }
-    }
+    entry: dict = {"command": cmd, "args": args}
+    if mcp_port:
+        entry["env"] = {"UNITY_MCP_PORT": str(mcp_port)}
+    config = {"mcpServers": {SERVER_NAME: entry}}
     path = os.path.join(config_dir, f"unity-biome-mcp-config-{mcp_port}.json")
     _atomic_write(path, json.dumps(config))
     return path
@@ -73,8 +72,10 @@ def write_kimi_mcp_config(config_dir: str, mcp_port: int) -> None:
     servers = existing.get("mcpServers", {})
     for old in _OLD_NAMES:
         servers.pop(old, None)                # migrate away from prior name(s)
-    servers[SERVER_NAME] = {"command": cmd, "args": args,
-                             "env": {"UNITY_MCP_PORT": str(mcp_port)}}
+    entry: dict = {"command": cmd, "args": args}
+    if mcp_port:
+        entry["env"] = {"UNITY_MCP_PORT": str(mcp_port)}
+    servers[SERVER_NAME] = entry
     existing["mcpServers"] = servers
     _atomic_write(path, json.dumps(existing, indent=2))
 
@@ -95,9 +96,10 @@ def write_agy_settings(settings_dir: str, mcp_port: int) -> None:
     servers = existing.get("mcpServers", {})
     for old in _OLD_NAMES:
         servers.pop(old, None)                # migrate away from prior name(s)
-    servers[SERVER_NAME] = {"command": cmd, "args": args,
-                             "env": {"UNITY_MCP_PORT": str(mcp_port)},
-                             "trust": True}
+    entry: dict = {"command": cmd, "args": args, "trust": True}
+    if mcp_port:
+        entry["env"] = {"UNITY_MCP_PORT": str(mcp_port)}
+    servers[SERVER_NAME] = entry
     existing["mcpServers"] = servers
     _atomic_write(path, json.dumps(existing, indent=2))
 
@@ -106,16 +108,10 @@ def write_opencode_config(config_dir: str, mcp_port: int) -> str:
     """Writes opencode-unity-biome-mcp-{port}.json. Returns absolute path."""
     os.makedirs(config_dir, exist_ok=True)
     cmd, args = resolve_server_cmd()
-    config = {
-        "mcp": {
-            SERVER_NAME: {
-                "type": "local",
-                "command": [cmd] + args,
-                "environment": {"UNITY_MCP_PORT": str(mcp_port)},
-                "enabled": True,
-            }
-        }
-    }
+    entry: dict = {"type": "local", "command": [cmd] + args, "enabled": True}
+    if mcp_port:
+        entry["environment"] = {"UNITY_MCP_PORT": str(mcp_port)}
+    config = {"mcp": {SERVER_NAME: entry}}
     path = os.path.join(config_dir, f"opencode-unity-biome-mcp-{mcp_port}.json")
     _atomic_write(path, json.dumps(config, indent=2))
     return path

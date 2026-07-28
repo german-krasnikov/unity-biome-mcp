@@ -14,10 +14,11 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void BuildEntry_ContainsPort()
+        public void BuildEntry_DoesNotContainPort()
         {
             var result = ProjectConfigFormats.BuildEntry(9501, WizardConfigWriter.GitInstallUrl, "1.2.3");
-            StringAssert.Contains("9501", result);
+            StringAssert.DoesNotContain("UNITY_MCP_PORT", result);
+            StringAssert.DoesNotContain("9501", result);
         }
 
         [Test]
@@ -57,10 +58,11 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ExtractMarkerPort_ReadsEnvPort()
+        public void ExtractMarkerPort_NoPortInEntry_ReturnsNull()
         {
+            // Port is no longer written to JSON entries — discovery uses .port files.
             var entry = ProjectConfigFormats.BuildFresh(9501, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
-            Assert.AreEqual(9501, ProjectConfigFormats.ExtractMarkerPort(entry));
+            Assert.IsNull(ProjectConfigFormats.ExtractMarkerPort(entry));
         }
 
         [Test]
@@ -79,7 +81,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Classify_MarkerMatchesCurrentVersionAndPort_ReturnsOwnedCurrent()
+        public void Classify_MarkerMatchesCurrentVersion_ReturnsOwnedCurrent()
         {
             var fresh = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
             var result = ProjectConfigFormats.Classify(fresh, 9500, "1.2.3");
@@ -95,11 +97,12 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Classify_MarkerPortDiffers_ReturnsOwnedStale()
+        public void Classify_MarkerPortDiffers_ReturnsOwnedCurrent()
         {
+            // Port is no longer written to JSON entries — port difference is not a staleness signal.
             var fresh = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
             var result = ProjectConfigFormats.Classify(fresh, 9501, "1.2.3");
-            Assert.AreEqual(EntryState.OwnedStale, result);
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
         }
 
         [Test]
@@ -126,7 +129,6 @@ namespace UnityMCP.Editor.Tests
                 + "\"unity-mcp\":{\"command\":\"uvx\",\"_v\":\"0.1.0\"}}}";
             var result = ProjectConfigFormats.Merge(existing, 9502, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
             StringAssert.Contains("other-tool", result);
-            StringAssert.Contains("9502", result);
             StringAssert.Contains("\"_v\": \"2.0.0\"", result);
         }
     }

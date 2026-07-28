@@ -28,7 +28,7 @@ namespace UnityMCP.Editor
 
         // Testable seam — override in tests to avoid Editor-uptime dependency
         internal static Func<double> GetTimeSinceStartup = () => EditorApplication.timeSinceStartup;
-        internal static Func<bool> GetIsCompiling    = () => EditorApplication.isCompiling;
+        internal static Func<bool> GetIsCompiling    = CommandRouter.DefaultIsCompiling;
         internal static Func<bool> GetIsCompileClean = () => SyncHelper.IsCompileClean;
 
         internal static bool IsRunning => _isRunning == 1

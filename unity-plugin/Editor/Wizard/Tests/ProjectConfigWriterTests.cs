@@ -35,18 +35,23 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Run_FreshProjectDir_EachFileContainsCurrentPortAndVersion()
+        public void Run_FreshProjectDir_EachFileContainsCurrentVersion()
         {
+            // JSON entries no longer contain port (discovery via .port files); TOML still does.
             ProjectConfigWriter.Run(_tmpDir, 9501, "1.2.3");
 
             foreach (var target in ProjectConfigTargets.All)
             {
                 var content = File.ReadAllText(Path.Combine(_tmpDir, target.RelativePath));
-                StringAssert.Contains("9501", content);
                 if (target.IsToml)
+                {
                     StringAssert.Contains("v1.2.3", content);
+                    StringAssert.Contains("9501", content);
+                }
                 else
+                {
                     StringAssert.Contains("\"_v\": \"1.2.3\"", content);
+                }
             }
         }
 
@@ -69,8 +74,10 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Run_PortChanged_RewritesFile_PreservesUnrelatedMcpServers()
+        public void Run_PortChangedOnly_SkipsRewrite_PreservesUnrelatedMcpServers()
         {
+            // Port change alone no longer triggers a rewrite (port not in JSON entries).
+            // Same-version entry is OwnedCurrent → skip; sibling servers stay untouched.
             var path = Path.Combine(_tmpDir, ".mcp.json");
             File.WriteAllText(path,
                 "{\"mcpServers\":{\"other-tool\":{\"command\":\"x\"},"
@@ -80,7 +87,6 @@ namespace UnityMCP.Editor.Tests
 
             var content = File.ReadAllText(path);
             StringAssert.Contains("other-tool", content);
-            StringAssert.Contains("9600", content);
         }
 
         [Test]

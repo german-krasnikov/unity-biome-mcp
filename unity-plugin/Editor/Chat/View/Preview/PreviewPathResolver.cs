@@ -7,31 +7,37 @@ namespace UnityMCP.Editor.Chat
 {
     internal static class PreviewPathResolver
     {
+        // Guard: on Windows, Path.GetExtension/IsPathRooted throw ArgumentException for paths
+        // containing illegal chars (e.g. '|' in component/field chip paths like "Root|Transform").
+        // Without this guard, every send with a component chip on Windows triggers a 45s WER freeze.
+        private static bool HasIllegalChars(string path)
+            => path.IndexOfAny(Path.GetInvalidPathChars()) >= 0;
+
         /// <summary>Returns an absolute filesystem path. Supports absolute or project-relative paths.</summary>
         internal static string Resolve(string path)
         {
-            if (string.IsNullOrEmpty(path)) return "";
+            if (string.IsNullOrEmpty(path) || HasIllegalChars(path)) return "";
             if (Path.IsPathRooted(path)) return path;
             return Path.Combine(Directory.GetCurrentDirectory(), path);
         }
 
         internal static bool IsImageFile(string path)
         {
-            if (string.IsNullOrEmpty(path)) return false;
+            if (string.IsNullOrEmpty(path) || HasIllegalChars(path)) return false;
             var ext = Path.GetExtension(path).ToLowerInvariant();
             return ext is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".webp" or ".tiff" or ".tif";
         }
 
         internal static bool IsAudioFile(string path)
         {
-            if (string.IsNullOrEmpty(path)) return false;
+            if (string.IsNullOrEmpty(path) || HasIllegalChars(path)) return false;
             var ext = Path.GetExtension(path).ToLowerInvariant();
             return ext is ".wav" or ".mp3" or ".ogg" or ".aiff";
         }
 
         internal static bool IsModelFile(string path)
         {
-            if (string.IsNullOrEmpty(path)) return false;
+            if (string.IsNullOrEmpty(path) || HasIllegalChars(path)) return false;
             var ext = Path.GetExtension(path).ToLowerInvariant();
             return ext is ".fbx" or ".obj" or ".blend" or ".dae";
         }

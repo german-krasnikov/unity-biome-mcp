@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.2] — 2026-07-28 — Windows port/chat fixes
+
+**C# — Port lifecycle (Windows TIME_WAIT):**
+- `ClientSlot.cs`: `LingerOption(true, 0)` on all close paths (`DisconnectAll`, `KillPhantoms`, eviction) — forces RST instead of FIN, eliminates TIME_WAIT on Windows, port freed immediately after domain reload
+- `PortFileManager.cs`: new `SaveRuntimePorts(port, chatPort)` — updates `MCP_Port.json` + `{pid}.port` but NOT `MCPSettings.json` (user intent), preventing cascade port drift on Windows reload (9514→9516→9518...)
+- `MCPServer.cs`: fallback bind now calls `SaveRuntimePorts` instead of `SavePorts` — retries configured port on next reload, no drift
+- `PortFileManager.cs`: new `CleanStalePeerPortFiles()` — removes `.port` files from dead PIDs at startup, prevents stale discovery entries accumulating after hard crashes (6 new NUnit tests in `PortFileManagerTests.cs`)
+- `MCPServer.cs`: log message "in TIME_WAIT" → "unavailable (address in use)" (more accurate on Windows)
+
+**C# — MCP Chat freeze (Windows):**
+- `PreviewPathResolver.cs`: `HasIllegalChars()` guard before `Path.GetExtension()` — prevents `ArgumentException` on Windows paths containing `|` (component/field chips like `PlayerController|Health|value`), eliminating 45s chat freeze (11 new NUnit tests in `PreviewPathResolverWindowsGuardTests.cs`)
+
+**C# + Python — Port baking removed from permanent configs:**
+- `WizardConfigWriter.cs`: `Entry()` no longer emits `UNITY_MCP_PORT` env block — Python uses `~/.unity-biome-mcp/ports/{pid}.port` discovery (updated on every bind including fallbacks)
+- `ConfigureScreen.cs`: Global/Project scope toggle removed (no port to scope), tests updated accordingly
+
 ## [v1.0.0] — 2026-07-26 — Documentation audit, v1.0.0 release
 
 Version bump only — all changes in this release are documentation-side.

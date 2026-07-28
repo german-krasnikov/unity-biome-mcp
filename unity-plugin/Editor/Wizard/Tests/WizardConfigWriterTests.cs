@@ -125,10 +125,12 @@ namespace UnityMCP.Editor.Tests
         // ── Fresh — port and key presence ─────────────────────────────────────
 
         [Test]
-        public void Fresh_ContainsPort()
+        public void Fresh_NoPortBakedIntoEnv()
         {
+            // RC-3: UNITY_MCP_PORT must NOT be baked into the permanent Wizard config.
+            // Python uses ~/.unity-biome-mcp/ports/{pid}.port discovery instead.
             var result = WizardConfigWriter.Fresh(9501);
-            StringAssert.Contains("9501", result, "Fresh should embed the port number");
+            StringAssert.DoesNotContain("UNITY_MCP_PORT", result, "Wizard config must not bake port — use discovery");
         }
 
         [Test]

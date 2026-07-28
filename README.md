@@ -92,9 +92,17 @@ set_property path=Enemy component=Health prop=maxHp value=100
 
 ## Quick Start
 
-**Prerequisites:** <kbd>Python 3.10+</kbd> · <kbd>Unity 6000.0+</kbd> · <kbd>TCP port 9500</kbd> free
+> No Python install needed — [uv](https://docs.astral.sh/uv/) manages it automatically.
 
-**Step 1: Add the plugin via Package Manager**
+### macOS / Linux
+
+**Step 1 — Install uv (once per machine)**
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Step 2 — Add the Unity plugin**
 
 1. Open **Window → Package Manager**
 2. Click **+ → Add package from git URL**
@@ -104,71 +112,45 @@ set_property path=Enemy component=Health prop=maxHp value=100
    ```
 4. Wait for import, then open any scene
 
-The plugin auto-generates MCP configuration for your AI tool on first load.
+**Step 3 — Configure your AI tool**
 
-**Step 2: Configure your AI tool (if needed)**
+In Unity: **MCP → Setup Wizard** → pick your tool → **Configure**
 
-Run the diagnostic to verify everything is working:
+Done. The Wizard writes the MCP config and verifies the connection.
+
+---
+
+### Windows
+
+**Step 1 — Install uv (once per machine)**
+
+```powershell
+winget install astral-sh.uv
+```
+
+**Step 2 — Add the Unity plugin**
+
+1. Open **Window → Package Manager**
+2. Click **+ → Add package from git URL**
+3. Paste:
+   ```
+   https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin
+   ```
+4. Wait for import, then open any scene
+
+**Step 3 — Configure your AI tool**
+
+In Unity: **MCP → Setup Wizard** → pick your tool → **Configure**
+
+Done. The Wizard writes the MCP config and verifies the connection.
+
+---
+
+**Verify (optional):**
 
 ```bash
 uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
 ```
-
-**One-liner (macOS / Linux):**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/install/bootstrap.sh | bash
-```
-
-**One-liner (Windows PowerShell):**
-
-```powershell
-iex (iwr https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/install/bootstrap.ps1).Content
-```
-
-<details>
-<summary>Windows: antivirus blocked the script?</summary>
-
-**Option 1: Install via install.py**
-
-1. Install `uv`:
-   ```powershell
-   winget install astral-sh.uv
-   ```
-
-2. Clone the repo:
-   ```powershell
-   git clone https://github.com/german-krasnikov/unity-biome-mcp.git "$HOME\.unity-biome-mcp\server"
-   cd "$HOME\.unity-biome-mcp\server"
-   ```
-
-3. Run setup:
-   ```powershell
-   uv run python install.py setup
-   ```
-
-4. Configure your AI tool:
-   ```powershell
-   uv run python install.py configure --tool claude-code
-   ```
-
-**Option 2: Manual setup**
-
-1. Install `uv`: Open PowerShell and run:
-   ```powershell
-   winget install astral-sh.uv
-   ```
-
-2. Add the Unity plugin via **Package Manager → Add package from git URL:**
-   ```
-   https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin
-   ```
-
-3. Configure your AI tool manually (see "Manual MCP configuration" above).
-
-4. Open the **Setup Wizard** in Unity via **MCP → Setup Wizard** to complete setup.
-
-</details>
 
 <details>
 <summary>Manual MCP configuration (all AI tools)</summary>
@@ -189,29 +171,17 @@ Add this to your MCP config file:
 | AI Tool | Config file path |
 |---------|-----------------|
 | Claude Code | `~/.claude.json` |
-| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows) |
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) · `%APPDATA%\Claude\claude_desktop_config.json` (Windows) |
 | Cursor | `~/.cursor/mcp.json` |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` (macOS/Linux) or `%APPDATA%\Codeium\windsurf\mcp_config.json` (Windows) |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` (macOS/Linux) · `%APPDATA%\Codeium\windsurf\mcp_config.json` (Windows) |
 | Kimi | `~/.kimi-code/mcp.json` |
-| VS Code | `~/Library/Application Support/Code/User/mcp.json` (macOS), `%APPDATA%\Code\User\mcp.json` (Windows), or `~/.config/Code/User/mcp.json` (Linux) |
-| OpenCode | `~/.config/opencode/opencode.json` (macOS/Linux) or `%APPDATA%\opencode\opencode.json` (Windows) |
+| VS Code | `~/Library/Application Support/Code/User/mcp.json` (macOS) · `%APPDATA%\Code\User\mcp.json` (Windows) · `~/.config/Code/User/mcp.json` (Linux) |
+| OpenCode | `~/.config/opencode/opencode.json` (macOS/Linux) · `%APPDATA%\opencode\opencode.json` (Windows) |
 | Codex | `~/.codex/config.toml` |
 
 **Without uvx:** replace `"command": "uvx", "args": ["--from", "git+...", "unity-biome-mcp"]` with `"command": "python", "args": ["-m", "unity_mcp.server"]`
 
 </details>
-
-**Manual setup:**
-
-1. Python server: `uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp` — zero-install, runs on demand from GitHub (no separate install step).
-2. Add the Unity plugin via **Package Manager → Add package from git URL:**
-   ```
-   https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin
-   ```
-3. Open Unity, then open the **Setup Wizard** via **MCP → Setup Wizard** menu. It will:
-   - Auto-detect installed AI tools (shows "detected" badge)
-   - One-click configure: pick your tool → choose Global or Project scope → done
-   - Supports 9 backends: Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex, Kimi, OpenCode, Antigravity
 
 <details>
 <summary>Alternative: full local clone</summary>
@@ -224,7 +194,7 @@ python install.py configure --tool claude-code
 python install.py doctor
 ```
 
-This clones the repo, creates a venv, installs dependencies, configures your AI tool, and verifies the setup. Supported tools: `claude-code`, `claude-desktop`, `cursor`, `windsurf`, `vscode`, `codex`, `kimi`, `opencode`
+Supported tools: `claude-code`, `claude-desktop`, `cursor`, `windsurf`, `vscode`, `codex`, `kimi`, `opencode`
 
 </details>
 
@@ -242,7 +212,7 @@ This clones the repo, creates a venv, installs dependencies, configures your AI 
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 10809 Tests (4749 Python · 5776 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 10836 Tests (4754 Python · 5798 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -326,6 +296,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v1.0.2</b> — 2026-07-28 — `ClientSlot.cs`: `LingerOption(true, 0)` on all close paths (`DisconnectAll`, …</summary>
+
+`ClientSlot.cs`: `LingerOption(true, 0)` on all close paths (`DisconnectAll`, `KillPhantoms`, eviction) — forces RST instead of FIN, eliminates …
+
+</details>
+
+<details>
 <summary><b>v1.0.0</b> — 2026-07-26 — 4-cycle audit (analyze→fix→deep-audit→verify) with 36 agents against source code</summary>
 
 4-cycle audit (analyze→fix→deep-audit→verify) with 36 agents against source code
@@ -354,15 +331,9 @@ Server name `unity-mcp` → `unity-biome-mcp` (SERVER_NAME, UPM packages, data d
 </details>
 
 <details>
-<summary><b>v0.94.0</b> — 2026-07-20 — Removed `get_perf` tool stub (use `get_frame_stats`)</summary>
-
-Removed `get_perf` tool stub (use `get_frame_stats`)
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.94.0** — 2026-07-20 — Removed `get_perf` tool stub (use `get_frame_stats`)
 - **v0.93.1** — 2026-07-19 — `objects_in_radius`: now sorts all hits by distance ascending before truncating …
 - **v0.93.0** — 2026-07-19 — `IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats …
 - **v0.92.0** — 2026-07-19 — `move_to` and `ask_user` gain `isSuccess` predicates (P0: were missing, treated …
@@ -568,7 +539,7 @@ Yes. Drop a Python file in `tools/`, add it to `__init__.py`, implement the `reg
 | MCP Tools | 142 | ~40 | 70+ | 28 |
 | In-Editor Chat | ✅ 5 backends | ❌ | ❌ | ❌ |
 | Token Optimization | 80-95% batch savings | ❌ | ❌ | ❌ |
-| One-Liner Install | ✅ curl/iex | ❌ | ❌ | ❌ |
+| Easy Install | ✅ uv + UPM + Wizard | ❌ | ❌ | ❌ |
 | PlayTest DSL | ✅ 24 commands | ❌ | ❌ | ❌ |
 | Multi-Scene Support | ✅ | ❌ | ✅ | ❌ |
 | AI Backends | 9 (Claude, Codex, Kimi, Antigravity, OpenCode, etc.) | 1 | 4 | 9 |

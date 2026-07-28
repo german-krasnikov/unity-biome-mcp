@@ -113,6 +113,8 @@ namespace UnityMCP.Editor
         {
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
+            // Remove port files from dead PIDs before writing our own — prevents stale entries.
+            PortFileManager.CleanStalePeerPortFiles();
             // Persist auto-assigned ports so they survive domain reload
             PortFileManager.SavePorts(PortFileManager.Port, PortFileManager.ChatPort);
             EditorApplication.update += MainThreadDispatcher.Drain;
@@ -193,8 +195,10 @@ namespace UnityMCP.Editor
                         _listener.Start();
                         if (bindPort != PortFileManager.Port)
                         {
-                            var bp = bindPort; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Port {PortFileManager.Port} in TIME_WAIT, switched to {bp}"));
-                            PortFileManager.SavePorts(bindPort, PortFileManager.ChatPort);
+                            var bp = bindPort; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Port {PortFileManager.Port} unavailable (address in use), switched to {bp}"));
+                            // SaveRuntimePorts: updates MCP_Port.json + {pid}.port but NOT MCPSettings.json.
+                            // Preserves user intent so next reload retries the configured port, no cascade drift.
+                            PortFileManager.SaveRuntimePorts(bindPort, PortFileManager.ChatPort);
                         }
                         break;
                     }
@@ -226,8 +230,8 @@ namespace UnityMCP.Editor
                         _chatListener.Start();
                         if (bindPort != PortFileManager.ChatPort)
                         {
-                            var bp = bindPort; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Chat port {PortFileManager.ChatPort} in TIME_WAIT, switched to {bp}"));
-                            PortFileManager.SavePorts(PortFileManager.Port, bindPort);
+                            var bp = bindPort; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Chat port {PortFileManager.ChatPort} unavailable (address in use), switched to {bp}"));
+                            PortFileManager.SaveRuntimePorts(PortFileManager.Port, bindPort);
                         }
                         break;
                     }

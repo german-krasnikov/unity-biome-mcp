@@ -181,6 +181,13 @@ namespace UnityMCP.Editor.Chat
             if (RelaySpawnState.IsPending)
             {
                 _relayStatusLabel.text = "Starting relay (first run ~30s)...";
+                _relayStatusLabel.style.color = StyleKeyword.Null;
+                _relayStatusLabel.style.display = DisplayStyle.Flex;
+            }
+            else if (RelaySpawnState.Error != null)
+            {
+                _relayStatusLabel.text = RelaySpawnState.Error;
+                _relayStatusLabel.style.color = new StyleColor(new Color(1f, 0.35f, 0.35f));
                 _relayStatusLabel.style.display = DisplayStyle.Flex;
             }
             else

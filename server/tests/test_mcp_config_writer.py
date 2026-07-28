@@ -103,3 +103,43 @@ def test_atomic_write_overwrites_existing(tmp_path):
     _atomic_write(path, "first")
     _atomic_write(path, "second")
     assert Path(path).read_text(encoding="utf-8") == "second"
+
+
+# ── RC-3: port=0 must omit UNITY_MCP_PORT (use discovery instead of baked port) ──
+
+def test_claude_config_port_zero_omits_env(tmp_path):
+    """RC-3: mcp_port=0 → no UNITY_MCP_PORT env so Python uses discovery files."""
+    path = write_claude_config(str(tmp_path), 0)
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    entry = data["mcpServers"]["unity-biome-mcp"]
+    assert "env" not in entry, "port=0 must not bake UNITY_MCP_PORT into config"
+
+
+def test_kimi_config_port_zero_omits_env(tmp_path):
+    write_kimi_mcp_config(str(tmp_path), 0)
+    data = json.loads((tmp_path / "mcp.json").read_text(encoding="utf-8"))
+    entry = data["mcpServers"]["unity-biome-mcp"]
+    assert "env" not in entry
+
+
+def test_agy_config_port_zero_omits_env(tmp_path):
+    write_agy_settings(str(tmp_path), 0)
+    data = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
+    entry = data["mcpServers"]["unity-biome-mcp"]
+    assert "env" not in entry
+
+
+def test_opencode_config_port_zero_omits_env(tmp_path):
+    write_opencode_config(str(tmp_path), 0)
+    path = tmp_path / "opencode-unity-biome-mcp-0.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    entry = data["mcp"]["unity-biome-mcp"]
+    assert "environment" not in entry
+
+
+def test_kimi_config_nonzero_port_includes_env(tmp_path):
+    """Existing callers that pass an explicit port still get the env key."""
+    write_kimi_mcp_config(str(tmp_path), 9601)
+    data = json.loads((tmp_path / "mcp.json").read_text(encoding="utf-8"))
+    entry = data["mcpServers"]["unity-biome-mcp"]
+    assert entry["env"]["UNITY_MCP_PORT"] == "9601"

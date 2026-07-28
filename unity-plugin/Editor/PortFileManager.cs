@@ -57,6 +57,50 @@ namespace UnityMCP.Editor
             WritePortFile(port);
         }
 
+        // Fallback-only save: updates runtime files (MCP_Port.json + {pid}.port) but NOT
+        // MCPSettings.json (user intent). Prevents cascade port drift on Windows reload.
+        internal static void SaveRuntimePorts(int port, int chatPort)
+        {
+            PortResolver.SavePorts(PortFilePath, port, chatPort);
+            _port = port;
+            _chatPort = chatPort;
+            _portsResolved = true;
+            WritePortFile(port);
+        }
+
+        // Removes port files from dead PIDs to prevent stale discovery entries accumulating
+        // after hard crashes. Called once at startup before WritePortFile().
+        internal static void CleanStalePeerPortFiles()
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".unity-biome-mcp", "ports");
+            CleanStalePeerPortFiles(dir);
+        }
+
+        // Testable overload: accepts the ports directory so tests can pass a temp path.
+        internal static void CleanStalePeerPortFiles(string dir)
+        {
+            try
+            {
+                if (!Directory.Exists(dir)) return;
+                var currentPid = System.Diagnostics.Process.GetCurrentProcess().Id;
+                foreach (var file in Directory.GetFiles(dir, "*.port"))
+                {
+                    var stem = Path.GetFileNameWithoutExtension(file);
+                    if (!int.TryParse(stem, out var pid) || pid == currentPid) continue;
+                    try { System.Diagnostics.Process.GetProcessById(pid); }  // alive — skip
+                    catch (ArgumentException)
+                    {
+                        try { File.Delete(file); } catch { }
+                        var chatFile = Path.ChangeExtension(file, ".chat-port");
+                        try { if (File.Exists(chatFile)) File.Delete(chatFile); } catch { }
+                    }
+                }
+            }
+            catch { }
+        }
+
         internal static void WritePortFile(int port)
         {
             try

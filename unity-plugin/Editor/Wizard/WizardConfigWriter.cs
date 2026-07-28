@@ -125,11 +125,13 @@ namespace UnityMCP.Editor.Wizard
 
         internal static string Entry(int port) => Entry(port, GitInstallUrl);
 
+        // Note: UNITY_MCP_PORT intentionally not written. Python uses ~/.unity-biome-mcp/ports/{pid}.port
+        // discovery which is updated on every bind (including fallbacks). Baking a port here blocks
+        // discovery after Windows port drift and breaks multi-project setups.
         internal static string Entry(int port, string gitUrl) =>
             $"\"{PermissionConfig.SERVER_NAME}\": {{\n" +              // server name (config key)
             "      \"command\": \"uvx\",\n" +
-            $"      \"args\": [\"--from\", \"{gitUrl}\", \"unity-biome-mcp\"],\n" +   // 'unity-biome-mcp' = PyPI package
-            $"      \"env\": {{ \"UNITY_MCP_PORT\": \"{port}\" }}\n" +
+            $"      \"args\": [\"--from\", \"{gitUrl}\", \"unity-biome-mcp\"]\n" +   // 'unity-biome-mcp' = PyPI package
             "    }";
 
         // ── Backup / Restore ──────────────────────────────────────────────────

@@ -65,8 +65,9 @@ namespace UnityMCP.Editor.Wizard
             if (markerVersion == null)
                 return EntryState.Foreign;
 
-            var markerPort = ExtractMarkerPort(existingText);
-            return markerVersion == version && markerPort == port
+            // Port is no longer written to JSON entries (discovery via .port files).
+            // Staleness is version-only; port parameter kept for API compatibility.
+            return markerVersion == version
                 ? EntryState.OwnedCurrent
                 : EntryState.OwnedStale;
         }

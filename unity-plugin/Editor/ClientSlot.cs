@@ -76,6 +76,9 @@ namespace UnityMCP.Editor
                 }
                 // All full — evict entry 0 (oldest), shift down, add at end
                 try { _entries[0].Cts?.Cancel(); } catch { }
+                try { _entries[0].Client?.Client?.SetSocketOption(
+                        SocketOptionLevel.Socket, SocketOptionName.Linger,
+                        new LingerOption(true, 0)); } catch { }
                 try { _entries[0].Client?.Close(); } catch { }
                 for (int i = 0; i < MaxClients - 1; i++)
                 {
@@ -128,6 +131,12 @@ namespace UnityMCP.Editor
                 for (int i = 0; i < MaxClients; i++)
                 {
                     try { _entries[i].Cts?.Cancel(); } catch { }
+                    // Force RST instead of FIN — eliminates TIME_WAIT on Windows.
+                    // ExclusiveAddressUse blocks port reuse during TIME_WAIT, causing port drift on reload.
+                    // SendGoingAwaySync() is called BEFORE DisconnectAll() so Python gets the frame first.
+                    try { _entries[i].Client?.Client?.SetSocketOption(
+                            SocketOptionLevel.Socket, SocketOptionName.Linger,
+                            new LingerOption(true, 0)); } catch { }
                     try { _entries[i].Client?.Close(); } catch { }
                     _entries[i].Client = null;
                     _entries[i].Cts = null;
@@ -173,6 +182,9 @@ namespace UnityMCP.Editor
                     if (c != null && !IsSocketAlive(c))
                     {
                         try { _entries[i].Cts?.Cancel(); } catch { }
+                        try { c.Client?.SetSocketOption(
+                                SocketOptionLevel.Socket, SocketOptionName.Linger,
+                                new LingerOption(true, 0)); } catch { }
                         try { c.Close(); } catch { }
                         _entries[i].Client = null;
                         _entries[i].Cts = null;

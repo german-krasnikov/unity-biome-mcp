@@ -5,7 +5,6 @@ unity-biome-mcp/
 ├── install/                    # Installation & configuration CLI (v0.38.0+, v0.45.0: connect/disconnect/pull, v0.68.0: _reconfigure_detected_clients)
 │   ├── __init__.py
 │   ├── bootstrap.sh            # One-liner macOS/Linux (legacy, deprecated v0.68.0)
-│   ├── bootstrap.ps1           # One-liner Windows (legacy, deprecated v0.68.0)
 │   ├── ui.py                   # Terminal UI (prompt, confirm, boxes, colors)
 │   ├── commands.py             # Subcommand implementations (setup, update [uvx --reinstall + reconfigure], doctor, configure, uninstall, connect, disconnect, pull)
 │   └── tests/                  # Bootstrap + UI + install tests
@@ -27,7 +26,7 @@ unity-biome-mcp/
 │   │   ├── backend_def.py      # 5 backend definitions: output_format enum (stream-json/codex-json/kimi-json/plain-text/opencode-json), reads_stdin flag, env_set UNITY_MCP_PORT, _run_login_shell() helper, MCP_BLANKET derived from SERVER_NAME, TTL retry cache (v0.71.0: +_run_login_shell, MCP_BLANKET, retry cache; v0.67.0: output_format replaces uses_stream_json)
 │   │   ├── relay_buffer.py     # Message buffering + dequeuing for relay pipeline (v0.66.0+)
 │   │   ├── stream_transform.py # 4 transform functions: _transform_line (Claude), _transform_plain_text_line (Agy), _transform_codex_line, _transform_kimi_line, _transform_opencode_line (v0.67.0: +4 specialized transformers, selected via _TRANSFORM_FNS)
-│   │   ├── mcp_config_writer.py # Dynamic MCP config generation for relay (v0.66.0+; v0.96.1: uvx args include --quiet to suppress stderr)
+│   │   ├── mcp_config_writer.py # Dynamic MCP config generation for relay (v0.66.0+; v0.96.1: uvx args include --quiet; v1.0.1: UNITY_MCP_PORT env only written when mcp_port != 0 — no baked port in permanent configs)
 │   │   ├── config/             # Config module (v0.38.0+): client detection, MCP JSON merger, backup/restore; v0.47.1: GitHub-direct install, per-client root_key
 │   │   │   ├── clients.py      # CLIENT_REGISTRY (Claude Code/Desktop/Cursor/Windsurf), detect_installed(), platform-aware ConfigDir (v0.47.1)
 │   │   │   ├── merger.py       # merge_mcp_config(path, entry) — idempotent MCP server entry addition; SERVER_NAME = "unity-biome-mcp" (canonical source), _OLD_NAMES for migration (v0.71.0)
@@ -352,11 +351,11 @@ unity-biome-mcp/
 │       ├── ConsoleProblemPersistence.cs    # SessionState-persisted problem entries (Error/Exception/Assert) across domain reload
 │       ├── PrefKeys.cs                     # Central SessionState/EditorPrefs key literals (DRY)
 │       ├── ClientConnectionHandler.cs       # Handles TCP client connections (v0.69.0)
-│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0)
+│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0; v1.0.1: LingerOption(true,0) on all close paths → RST not FIN, no TIME_WAIT on Windows)
 │       ├── MainThreadDispatcher.cs          # Main-thread work queue for TCP callbacks (v0.69.0)
 │       ├── EnvironmentHelper.cs             # Unity environment detection + version checks (v0.69.0)
 │       ├── ErrorClassifier.cs               # Categorizes command failures for recovery (v0.69.0)
-│       ├── PortFileManager.cs               # Port file lifecycle + atomic writes (v0.69.0)
+│       ├── PortFileManager.cs               # Port file lifecycle + atomic writes (v0.69.0; v1.0.1: +SaveRuntimePorts (no MCPSettings.json touch) + CleanStalePeerPortFiles (dead-PID cleanup at startup))
 │       ├── ResponseGovernance.cs            # Response size limiting + overflow handling (v0.69.0)
 │       ├── ConsoleStackParser.cs            # Console exception stack parsing (v0.69.0)
 │       ├── ColliderFitHelper.cs             # Collider bounds fitting helpers (v0.69.0)
@@ -515,14 +514,14 @@ unity-biome-mcp/
 │       │   ├── WizardScreenHost.cs        # Screen container + animation orchestrator; 4 screens (updated v0.92.x: +InstallSkillsScreen)
 │       │   ├── WizardAnimUtils.cs         # Reusable animation helpers (delegates to ArcadeAnim, v0.52.0)
 │       │   ├── WizardStepAnim.cs          # Slide transitions + progress bar for Setup Wizard (v0.52.0)
-│       │   ├── SetupDiagnostics.cs        # Python/TCP/config diagnostic checks + per-tool AI config validation (v0.47.1)
+│       │   ├── SetupDiagnostics.cs        # Python/TCP/config diagnostic checks + per-tool AI config validation (v0.47.1; v1.0.1: +CheckUv() uvx PATH probe with install hint, +GetPythonVersion() with 3s timeout+caching, +WhichUvx() inline to avoid Chat.CLI cyclic dep, +IsVersionAtLeast())
 │       │   ├── BackendDescriptor.cs       # 9 backend definitions + IsDetected logic (BinaryName + ConfigDir); platform-aware root_key (v0.47.1)
 │       │   ├── AiToolCardFactory.cs       # Reusable backend/tool card builder + platform-aware path methods (v0.47.1)
 │       │   ├── SkillsInstaller.cs         # Discovers ClientSkills in UPM package; copies to .claude/skills/ and .claude/agents/ (v0.92.x)
 │       │   ├── Screens/                   # Screen implementations (5 total: Welcome → PickBackend → AiConfig → Configure → InstallSkills)
 │       │   │   ├── WelcomeScreen.cs       # Introduction + system checks (Python found, TCP available)
 │       │   │   ├── AiConfigScreen.cs      # AI tool configuration cards + fallback JSON export for UPM installs (v0.47.1, new)
-│       │   │   ├── ConfigureScreen.cs     # Scope toggle (Global/Project) + per-backend selection; uses GitInstallUrl constant (v0.47.1)
+│       │   │   ├── ConfigureScreen.cs     # Per-backend selection; uses GitInstallUrl constant (v0.47.1; v1.0.1: scope toggle removed — no port baked, no scope distinction)
 │       │   │   ├── InstallSkillsScreen.cs # UIToolkit wizard screen: file list, overwrite toggle, Codex sync (v0.92.x)
 │       │   │   └── PickBackendScreen.cs   # 9 backend cards (Claude Code, Desktop, Cursor, Windsurf, VS Code, Codex, Kimi, OpenCode, Antigravity)
 │       │   ├── Tests/                     # Wizard assembly tests (separate asmdef)
@@ -530,7 +529,7 @@ unity-biome-mcp/
 │       │   │   ├── BackendDescriptorTests.cs
 │       │   │   ├── ConfigureScreenTests.cs
 │       │   │   ├── PickBackendScreenTests.cs
-│       │   │   ├── WizardConfigWriterTests.cs # Config backup/restore, merge safety, GitInstallUrl constant (9+8=17 tests, v0.44.0-v0.47.1)
+│       │   │   ├── WizardConfigWriterTests.cs # Config backup/restore, merge safety, GitInstallUrl constant (9+8=17 tests, v0.44.0-v0.47.1; v1.0.1: port-baking-removed assertions)
 │       │   │   ├── AiToolCardFactoryTests.cs # Platform path methods + card rendering (20 tests, v0.47.1)
 │       │   │   ├── ProjectConfigWriterTests.cs # Auto-config logic: port discovery, version, multi-target writes (v0.68.0)
 │       │   │   ├── ProjectConfigFormatsTests.cs # Format registry + serialization (v0.68.0)
@@ -740,7 +739,7 @@ unity-biome-mcp/
 │       │   │       └── ... # 40+ total CLI tests
 │       │   ├── View/                       # Chat.View assembly (UI windows, rendering, cards)
 │       │   │   ├── MCPChatWindow.cs           # EditorWindow UI + interaction (partial class)
-│       │   │   ├── MCPChatWindow.Drain.cs     # Event draining + state updates + domain refresh trigger (F27) (partial class)
+│       │   │   ├── MCPChatWindow.Drain.cs     # Event draining + state updates + domain refresh trigger (F27) (partial class; v1.0.1: relay error shown inline in red when RelaySpawnState.Error != null)
 │       │   │   ├── MCPChatWindow.Send.cs      # Send path: OnSend, rawText/llmText split, chip snapshot (partial class)
 │       │   │   ├── MCPChatWindow.FlowBar.cs   # Activity animation track+chip (_askPending flag v0.29.37)
 │       │   │   ├── MCPChatWindow.Mention.cs   # @Mention setup: debounce, popup show/hide, keyboard intercept (v0.41.4)

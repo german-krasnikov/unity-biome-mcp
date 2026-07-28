@@ -40,12 +40,14 @@ namespace UnityMCP.Editor
             var (srvOk, srvDetail)    = SetupDiagnostics.CheckServer();
             var compileOk             = !CompileErrorCapture.HasErrors();
             var compileDetail         = compileOk ? "no errors" : "compile errors present";
+            var (uvOk, uvDetail)      = SetupDiagnostics.CheckUv();
 
             var results = new[]
             {
                 ("Python",  pyOk,      pyDetail),
                 ("Server",  srvOk,     srvDetail),
                 ("Compile", compileOk, compileDetail),
+                ("uv",      uvOk,      uvDetail),
             };
 
             for (int i = 0; i < results.Length; i++)

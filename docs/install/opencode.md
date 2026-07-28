@@ -35,7 +35,7 @@ Authenticate OpenCode:
 opencode login
 ```
 
-The plugin auto-generates your OpenCode MCP config on first load (temporary config, doesn't affect your global `~/.opencode/config.json`).
+The plugin auto-generates your OpenCode MCP config on first load as a project-local config file.
 
 ### 3. Verify Installation (Optional)
 
