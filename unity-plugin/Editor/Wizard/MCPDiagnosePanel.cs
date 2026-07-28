@@ -1,5 +1,6 @@
 using System.IO;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Wizard;
 
@@ -13,8 +14,7 @@ namespace UnityMCP.Editor
             var root = new VisualElement();
             root.AddToClassList("wiz-container");
 
-            var ss = MCPEditorUtils.LoadStyleSheet("Wizard/SetupWizard.uss");
-            if (ss != null) root.styleSheets.Add(ss);
+            BiomeUI.LoadCoreStyles(root, includeWizard: true);
 
             var title = new Label("Health Check");
             title.AddToClassList("wiz-title");
@@ -23,7 +23,11 @@ namespace UnityMCP.Editor
             var (dots, dotsTimer) = BuildScanDots();
             root.Add(dots);
 
-            EditorApplication.delayCall += () => RunDiagnostics(root, dots, dotsTimer);
+            EditorApplication.delayCall += () =>
+            {
+                if (root.panel != null)
+                    RunDiagnostics(root, dots, dotsTimer);
+            };
 
             return root;
         }
@@ -80,25 +84,30 @@ namespace UnityMCP.Editor
             var container = new VisualElement();
             container.AddToClassList("wiz-dots");
 
-            int lit = 0;
+            var dots = new VisualElement[3];
             for (int i = 0; i < 3; i++)
             {
                 var dot = new VisualElement();
+                dot.usageHints |= UsageHints.DynamicTransform | UsageHints.DynamicColor;
                 dot.AddToClassList("wiz-scan-dot");
                 container.Add(dot);
+                dots[i] = dot;
             }
 
-            // Pulse each dot in turn at 250ms intervals
-            var timer = container.schedule.Execute(() =>
+            var timer = ArcadeAnim.SmoothLoop(container, elapsed =>
             {
-                var dots = container.Query<VisualElement>(className: "wiz-scan-dot").ToList();
-                for (int i = 0; i < dots.Count; i++)
+                for (int i = 0; i < dots.Length; i++)
                 {
-                    if (i == lit) dots[i].AddToClassList("wiz-scan-dot--lit");
-                    else          dots[i].RemoveFromClassList("wiz-scan-dot--lit");
+                    float wave = 0.5f + 0.5f
+                        * Mathf.Sin(elapsed * 5.2f - i * 1.35f);
+                    float scale = 0.72f + wave * 0.55f;
+                    dots[i].style.scale = new Scale(new Vector3(
+                        scale,
+                        scale,
+                        1f));
+                    dots[i].style.opacity = 0.24f + wave * 0.76f;
                 }
-                lit = (lit + 1) % dots.Count;
-            }).Every(250);
+            });
 
             return (container, timer);
         }

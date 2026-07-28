@@ -12,45 +12,62 @@ namespace UnityMCP.Editor
         {
             var page = new VisualElement();
             page.AddToClassList("nav-page");
+            page.AddToClassList("biome-page");
             page.Add(SettingsPageFactory.BackHeader("Version Picker", onBack));
+            var header = EcosystemHeaderAnim.BuildVersions();
+            page.Add(header);
 
             var current   = UpdateChecker.GetCurrentVersion();
             var serverRef = VersionCoherenceChecker.GetServerPinnedRef();
             var coherent  = VersionCoherenceChecker.IsCoherent(current, serverRef);
 
-            var statusLabel = new Label(BuildStatusText(current, serverRef, coherent));
-            statusLabel.AddToClassList("info-label");
-            statusLabel.style.whiteSpace = WhiteSpace.Normal;
-            page.Add(statusLabel);
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("biome-page-scroll");
+            page.Add(scroll);
+
+            var statusLabel = BiomeUI.StatusLabel();
+            BiomeUI.SetStatus(
+                statusLabel,
+                BuildStatusText(current, serverRef, coherent),
+                coherent ? "success" : "warning");
+            scroll.Add(statusLabel);
 
             var versions = BuildVersionList();
             if (versions.Count == 0)
             {
-                page.Add(new Label("Changelog not found.") { name = "no-changelog" });
+                var empty = BiomeUI.StatusLabel("Changelog not found.");
+                empty.name = "no-changelog";
+                scroll.Add(empty);
                 return page;
             }
 
             var dd = new DropdownField(versions, 0);
             dd.AddToClassList("sampling-backend-dd");
-            page.Add(dd);
+            scroll.Add(dd);
+            EcosystemHeaderAnim.SetVersionIndex(header, 0, versions.Count);
 
             var noteLabel = new Label(GetVersionNote(versions[0]));
             noteLabel.AddToClassList("info-label");
-            noteLabel.style.whiteSpace = WhiteSpace.Normal;
-            page.Add(noteLabel);
-            dd.RegisterValueChangedCallback(e => noteLabel.text = GetVersionNote(e.newValue));
+            scroll.Add(noteLabel);
+            dd.RegisterValueChangedCallback(e =>
+            {
+                noteLabel.text = GetVersionNote(e.newValue);
+                EcosystemHeaderAnim.SetVersionIndex(header, versions.IndexOf(e.newValue), versions.Count);
+            });
 
-            var rollbackBtn = new Button(() => ConfirmAndRollback(dd.value, page))
-                { text = $"Roll Back to v{dd.value}" };
+            var rollbackBtn = BiomeUI.PrimaryButton(
+                $"Roll Back to v{dd.value}",
+                () => ConfirmAndRollback(dd.value, page));
             rollbackBtn.AddToClassList("updates-check-btn");
             dd.RegisterValueChangedCallback(e => rollbackBtn.text = $"Roll Back to v{e.newValue}");
-            page.Add(rollbackBtn);
+            scroll.Add(rollbackBtn);
 
             if (!coherent)
             {
-                var alignBtn = new Button(() => AlignBoth(current)) { text = $"Align Both to v{current}" };
-                alignBtn.AddToClassList("nav-back-btn");
-                page.Add(alignBtn);
+                var alignBtn = BiomeUI.SecondaryButton(
+                    $"Align Both to v{current}",
+                    () => AlignBoth(current));
+                scroll.Add(alignBtn);
             }
 
             return page;

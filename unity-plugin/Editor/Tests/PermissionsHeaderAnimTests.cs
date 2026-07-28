@@ -16,8 +16,8 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(_root.ClassListContains("shield-root"));
 
         [Test]
-        public void Build_RootHasThreeChildren() =>
-            Assert.AreEqual(3, _root.childCount);
+        public void Build_RootHasHeaderAndParticles() =>
+            Assert.AreEqual(4, _root.childCount);
 
         [Test]
         public void Build_LineLHasShieldLineClass() =>
@@ -28,8 +28,8 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(_root.ElementAt(2).ClassListContains("shield-line"));
 
         [Test]
-        public void Build_HubHasFourChildren() =>
-            Assert.AreEqual(4, _root.ElementAt(1).childCount);
+        public void Build_HubHasFiveChildren() =>
+            Assert.AreEqual(5, _root.ElementAt(1).childCount);
 
         [Test]
         public void Build_HubFirstChildHasShieldBodyClass() =>
@@ -46,5 +46,13 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Build_HubFourthChildHasLockDotClass() =>
             Assert.IsTrue(_root.ElementAt(1).ElementAt(3).ClassListContains("lock-dot"));
+
+        [Test]
+        public void Build_HubFifthChildHasShieldScanClass() =>
+            Assert.IsTrue(_root.ElementAt(1).ElementAt(4).ClassListContains("shield-scan"));
+
+        [Test]
+        public void Build_HasAmbientParticleField() =>
+            Assert.IsNotNull(_root.Q<BiomeAmbientParticles>());
     }
 }

@@ -68,6 +68,18 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void InstallSkillsScreen_Build_ContainsLivingModuleStream()
+        {
+            var screen = new InstallSkillsScreen(null, null);
+            var root = screen.Build();
+
+            Assert.IsTrue(ContainsClass(root, "wiz-skills-anim"));
+            Assert.AreEqual(
+                BiomeAmbientParticles.ParticleCount,
+                CountClass(root, "biome-ambient-particle"));
+        }
+
+        [Test]
         public void InstallSkillsScreen_Title_IsInstallAISkills()
         {
             var screen = new InstallSkillsScreen(null, null);
@@ -111,6 +123,21 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(EditorPrefs.GetBool("MCPWizard.Done", false));
         }
 
+        [Test]
+        public void WizardJourney_SetStep_UpdatesFourNodeRoute()
+        {
+            var journey = new WizardJourneyAnim();
+
+            journey.SetStep(2, 4);
+
+            Assert.AreEqual(
+                WizardJourneyAnim.NodeCount,
+                CountClass(journey, "wiz-journey__node"));
+            Assert.AreEqual(2, CountClass(journey, "wiz-journey__node--complete"));
+            Assert.AreEqual(1, CountClass(journey, "wiz-journey__node--active"));
+            Assert.AreEqual(1, CountClass(journey, "wiz-journey__node--pending"));
+        }
+
         // ── Helper ────────────────────────────────────────────────────────────
 
         private static bool ContainsClass(VisualElement root, string cls)
@@ -119,6 +146,14 @@ namespace UnityMCP.Editor.Tests
             foreach (var child in root.Children())
                 if (ContainsClass(child, cls)) return true;
             return false;
+        }
+
+        private static int CountClass(VisualElement root, string cls)
+        {
+            int count = root.ClassListContains(cls) ? 1 : 0;
+            foreach (var child in root.Children())
+                count += CountClass(child, cls);
+            return count;
         }
     }
 }

@@ -1,3 +1,4 @@
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor
@@ -13,36 +14,89 @@ namespace UnityMCP.Editor
             var hub   = new VisualElement(); hub.AddToClassList("shield-hub");
             var lineR = new VisualElement(); lineR.AddToClassList("shield-line");
 
-            var body    = new VisualElement(); body.AddToClassList("shield-body");
+            var body    = new VisualElement();
+            body.usageHints |= UsageHints.DynamicTransform | UsageHints.DynamicColor;
+            body.AddToClassList("shield-body");
             var shackle = new VisualElement(); shackle.AddToClassList("lock-shackle");
             var bar     = new VisualElement(); bar.AddToClassList("lock-bar");
-            var dot     = new VisualElement(); dot.AddToClassList("lock-dot");
+            var dot     = new VisualElement();
+            dot.usageHints |= UsageHints.DynamicTransform;
+            dot.AddToClassList("lock-dot");
+            var scan    = new VisualElement();
+            scan.usageHints |= UsageHints.DynamicTransform | UsageHints.DynamicColor;
+            scan.AddToClassList("shield-scan");
 
-            hub.Add(body); hub.Add(shackle); hub.Add(bar); hub.Add(dot);
+            hub.Add(body); hub.Add(shackle); hub.Add(bar); hub.Add(dot); hub.Add(scan);
             root.Add(lineL); root.Add(hub); root.Add(lineR);
 
-            int beat = 0;
-            scheduleHost.schedule.Execute(() =>
-            {
-                beat++;
-                if (beat % 6 == 0) body.ToggleInClassList("shield-body--pulse");
-                if (beat % 12 == 0) shackle.ToggleInClassList("lock-shackle--up");
+            var particles = BiomeAmbientParticles.Attach(
+                root,
+                BiomeParticlePattern.Shield);
+            string previousState = null;
+            var config = new PermissionConfig();
 
-                string state = MCPServer.IsRunning && MCPServer.IsClientConnected ? "up"
-                    : MCPServer.IsRunning ? "listen" : "down";
+            void Refresh()
+            {
+                var states = config.GetToolStates();
+                int denied = states.FindAll(item => !item.allowed).Count;
+                string state = denied > 0 ? "up" : "listen";
+                if (state == previousState)
+                {
+                    root.tooltip = denied == 0
+                        ? "All tools are allowed"
+                        : $"{denied} tool permissions denied";
+                    return;
+                }
 
                 foreach (var el in new[] { body, shackle })
-                {
-                    el.RemoveFromClassList("shield--up");
-                    el.RemoveFromClassList("shield--listen");
-                    el.RemoveFromClassList("shield--down");
-                    el.AddToClassList("shield--" + state);
-                }
-                bar.RemoveFromClassList("lock-bar--up");
-                bar.RemoveFromClassList("lock-bar--listen");
-                bar.RemoveFromClassList("lock-bar--down");
-                bar.AddToClassList("lock-bar--" + state);
-            }).Every(150);
+                    BiomeUI.SetExclusiveClass(
+                        el,
+                        "shield--" + state,
+                        "shield--up",
+                        "shield--listen",
+                        "shield--down");
+                BiomeUI.SetExclusiveClass(
+                    bar,
+                    "lock-bar--" + state,
+                    "lock-bar--up",
+                    "lock-bar--listen",
+                    "lock-bar--down");
+                shackle.EnableInClassList("lock-shackle--up", denied == 0);
+                BiomeUI.SetExclusiveClass(
+                    scan,
+                    "conn-" + state,
+                    "conn-up",
+                    "conn-listen",
+                    "conn-down");
+                particles.SetState(state);
+                root.tooltip = denied == 0
+                    ? "All tools are allowed"
+                    : $"{denied} tool permissions denied";
+                previousState = state;
+            }
+
+            Refresh();
+            root.schedule.Execute(Refresh).Every(900);
+            ArcadeAnim.SmoothLoop(root, elapsed =>
+            {
+                float travel = 0.5f - 0.5f
+                    * Mathf.Cos(elapsed * Mathf.PI * 2f / 2.8f);
+                scan.style.translate = new Translate(travel * 24f, 0f);
+                scan.style.opacity = 0.22f
+                    + Mathf.Sin(travel * Mathf.PI) * 0.74f;
+
+                float breath = 0.5f + 0.5f * Mathf.Sin(elapsed * 2.35f);
+                float bodyScale = 1f + breath * 0.055f;
+                body.style.scale = new Scale(new Vector3(
+                    bodyScale,
+                    bodyScale,
+                    1f));
+                body.style.opacity = 0.62f + breath * 0.34f;
+                dot.style.scale = new Scale(new Vector3(
+                    0.82f + breath * 0.42f,
+                    0.82f + breath * 0.42f,
+                    1f));
+            });
 
             return root;
         }

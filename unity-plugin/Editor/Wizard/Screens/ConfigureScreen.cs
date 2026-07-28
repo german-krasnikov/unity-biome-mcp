@@ -15,9 +15,15 @@ namespace UnityMCP.Editor.Wizard.Screens
         private readonly Action _onBack;
         private BackendDescriptor _backend;
         private Label _logLabel;
+        private Label _statusLabel;
+        private ScrollView _logScroll;
         private Button _configureBtn;
+        private Button _continueBtn;
         private readonly StringBuilder _log = new StringBuilder();
         private Process _proc;
+        private VisualElement _root;
+        private bool _readyToContinue;
+        private int _runGeneration;
 
         public string Title => "Configure";
 
@@ -31,20 +37,18 @@ namespace UnityMCP.Editor.Wizard.Screens
 
         public VisualElement Build()
         {
-            var root = new VisualElement();
-            root.AddToClassList("wiz-container");
+            _root = new VisualElement();
+            _root.AddToClassList("wiz-container");
+            _root.RegisterCallback<DetachFromPanelEvent>(_ => StopProcess());
 
             // Header: icon + name
             var header = new VisualElement();
-            header.style.flexDirection = FlexDirection.Row;
-            header.style.alignItems = Align.Center;
-            header.style.marginBottom = 8;
+            header.AddToClassList("wiz-screen-header");
 
             if (_backend != null)
             {
                 var icon = new Label(_backend.Icon);
-                icon.style.fontSize = 22;
-                icon.style.marginRight = 8;
+                icon.AddToClassList("wiz-screen-icon");
 
                 var name = new Label(_backend.DisplayName);
                 name.AddToClassList("wiz-title");
@@ -58,51 +62,61 @@ namespace UnityMCP.Editor.Wizard.Screens
                 placeholder.AddToClassList("wiz-title");
                 header.Add(placeholder);
             }
-            root.Add(header);
+            _root.Add(header);
+
+            _statusLabel = BiomeUI.StatusLabel();
+            _root.Add(_statusLabel);
 
             // Log area
-            var logScroll = new ScrollView();
-            logScroll.AddToClassList("wiz-log");
-            logScroll.style.flexGrow = 1;
-            logScroll.style.minHeight = 120;
+            _logScroll = new ScrollView();
+            _logScroll.AddToClassList("wiz-log");
 
             _logLabel = new Label();
-            _logLabel.style.fontSize = 11;
-            _logLabel.style.whiteSpace = WhiteSpace.Normal;
-            _logLabel.style.unityFontStyleAndWeight = FontStyle.Normal;
-            logScroll.Add(_logLabel);
-            root.Add(logScroll);
+            _logLabel.AddToClassList("wiz-log-label");
+            _logScroll.Add(_logLabel);
+            _root.Add(_logScroll);
 
             // Nav
-            var nav = new VisualElement();
-            nav.AddToClassList("wiz-nav");
-            nav.Add(new Button(_onBack) { text = "← Back" });
-
-            _configureBtn = new Button(RunConfigure) { text = "Configure" };
-            _configureBtn.AddToClassList("wiz-btn-primary");
-            nav.Add(_configureBtn);
-
-            var doneBtn = new Button(_onDone) { text = "Done ✓" };
-            nav.Add(doneBtn);
-
-            root.Add(nav);
-            return root;
+            _configureBtn = WizardUI.Primary("Configure", RunConfigure);
+            _continueBtn = WizardUI.Secondary("Continue →", _onDone);
+            _continueBtn.SetEnabled(false);
+            _root.Add(WizardUI.Navigation(
+                WizardUI.Secondary("← Back", _onBack),
+                _configureBtn,
+                _continueBtn));
+            return _root;
         }
 
         public void OnEnter()
         {
             _log.Clear();
             if (_logLabel != null) _logLabel.text = "";
+            SetState(
+                _backend == null ? "Choose a backend on the previous step." : "Ready to configure.",
+                _backend == null ? "error" : "neutral",
+                readyToContinue: false);
         }
 
         public void OnExit()
         {
-            if (_proc != null && !_proc.HasExited)
-            {
-                try { _proc.Kill(); } catch { }
-            }
-            try { _proc?.Dispose(); } catch { }
+            StopProcess();
+        }
+
+        private void StopProcess()
+        {
+            _runGeneration++;
+            var process = _proc;
             _proc = null;
+            if (process != null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill();
+                }
+                catch { }
+                try { process.Dispose(); } catch { }
+            }
         }
 
         // ── Private ───────────────────────────────────────────────────────────
@@ -110,6 +124,7 @@ namespace UnityMCP.Editor.Wizard.Screens
         private void RunConfigure()
         {
             if (_backend == null) return;
+            SetState("Configuration in progress...", "warning", readyToContinue: false);
 
             if (_backend.AutoProjectConfig)
             {
@@ -118,6 +133,7 @@ namespace UnityMCP.Editor.Wizard.Screens
                 var path = Path.Combine(autoRoot, relPath);
                 AppendLog($"✓ {_backend.DisplayName} is auto-configured per-project at {path}");
                 AppendLog("Regenerates automatically on port/version change — no action needed.");
+                SetState("Project configuration is ready.", "success", readyToContinue: true);
                 return;
             }
 
@@ -128,13 +144,14 @@ namespace UnityMCP.Editor.Wizard.Screens
                 var uvxCmd = $"UNITY_MCP_PORT={manualPort} uvx --from {WizardConfigWriter.GitInstallUrl} unity-biome-mcp";
                 GUIUtility.systemCopyBuffer = uvxCmd;
                 AppendLog("(uvx command copied to clipboard)");
+                SetState("Instructions and command are ready.", "success", readyToContinue: true);
                 return;
             }
 
             if (_backend.Mechanism == InstallMechanism.ChatAuto)
             {
                 AppendLog($"✓ {_backend.DisplayName} is auto-configured at chat start — no extra steps needed.");
-                if (_configureBtn != null) _configureBtn.SetEnabled(true);
+                SetState("Chat backend configuration is ready.", "success", readyToContinue: true);
                 return;
             }
 
@@ -164,6 +181,7 @@ namespace UnityMCP.Editor.Wizard.Screens
                 GUIUtility.systemCopyBuffer = json;
                 AppendLog("(Copied to clipboard)");
                 if (_configureBtn != null) _configureBtn.SetEnabled(true);
+                SetState("Manual configuration copied to the clipboard.", "success", readyToContinue: true);
                 return;
             }
 
@@ -178,6 +196,7 @@ namespace UnityMCP.Editor.Wizard.Screens
 
             try
             {
+                int generation = ++_runGeneration;
                 var psi = new ProcessStartInfo(exe, args)
                 {
                     UseShellExecute = false,
@@ -190,24 +209,31 @@ namespace UnityMCP.Editor.Wizard.Screens
                 {
                     if (e.Data == null) return;
                     var line = e.Data;
-                    EditorApplication.delayCall += () => AppendLog(line);
+                    QueueIfActive(generation, () => AppendLog(line));
                 };
                 proc.ErrorDataReceived += (_, e) =>
                 {
                     if (e.Data == null) return;
                     var line = e.Data;
-                    EditorApplication.delayCall += () => AppendLog("ERR: " + line);
+                    QueueIfActive(generation, () => AppendLog("ERR: " + line));
                 };
                 proc.Exited += (_, __) =>
                 {
-                    int code = proc.ExitCode;
-                    EditorApplication.delayCall += () =>
+                    int code;
+                    try { code = proc.ExitCode; }
+                    catch { return; }
+                    QueueIfActive(generation, () =>
                     {
                         AppendLog(code == 0
                             ? $"✓ Done — restart {_backend.DisplayName} to activate"
                             : $"✗ Exit code {code}");
                         if (_configureBtn != null) _configureBtn.SetEnabled(true);
-                    };
+                        SetState(
+                            code == 0 ? "Configuration completed." : $"Configuration failed with exit code {code}.",
+                            code == 0 ? "success" : "error",
+                            readyToContinue: code == 0);
+                        ReleaseProcess(proc);
+                    });
                 };
                 proc.Start();
                 proc.BeginOutputReadLine();
@@ -215,15 +241,49 @@ namespace UnityMCP.Editor.Wizard.Screens
             }
             catch (Exception ex)
             {
+                StopProcess();
                 AppendLog("ERROR: " + ex.Message);
                 if (_configureBtn != null) _configureBtn.SetEnabled(true);
+                SetState("Could not start configuration.", "error", readyToContinue: false);
             }
+        }
+
+        private void QueueIfActive(int generation, Action action)
+        {
+            EditorApplication.delayCall += () =>
+            {
+                if (generation != _runGeneration || _root?.panel == null)
+                    return;
+                action();
+            };
+        }
+
+        private void ReleaseProcess(Process process)
+        {
+            if (!ReferenceEquals(_proc, process)) return;
+            _proc = null;
+            try { process.Dispose(); } catch { }
         }
 
         private void AppendLog(string line)
         {
             _log.AppendLine(line);
             if (_logLabel != null) _logLabel.text = _log.ToString();
+            _logScroll?.schedule.Execute(() =>
+            {
+                if (_logLabel?.panel != null)
+                    _logScroll.ScrollTo(_logLabel);
+            });
+        }
+
+        private void SetState(string message, string state, bool readyToContinue)
+        {
+            if (_statusLabel != null)
+                BiomeUI.SetStatus(_statusLabel, message, state);
+            _continueBtn?.SetEnabled(readyToContinue);
+            if (readyToContinue && !_readyToContinue)
+                BiomeParticleBurst.Emit(_root);
+            _readyToContinue = readyToContinue;
         }
     }
 }

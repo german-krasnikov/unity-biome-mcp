@@ -124,3 +124,4 @@ Plans/
 
 # Local Codex CLI config (contains machine-absolute paths; MCP config is injected via -c at runtime)
 .codex/
+Plans/UnityCLI/

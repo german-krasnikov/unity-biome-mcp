@@ -20,9 +20,7 @@ namespace UnityMCP.Editor.Wizard
         /// <summary>Horizontal shake for error feedback.</summary>
         public static void ShakeX(VisualElement el)
         {
-            el.RemoveFromClassList("wiz-shake");
-            el.schedule.Execute(() => el.AddToClassList("wiz-shake")).StartingIn(0);
-            el.schedule.Execute(() => el.RemoveFromClassList("wiz-shake")).StartingIn(300);
+            BiomeUI.ShakeX(el);
         }
 
         // ── Pulse ─────────────────────────────────────────────────────────────

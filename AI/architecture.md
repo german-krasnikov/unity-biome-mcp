@@ -308,16 +308,16 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
   * Updates on scheduler tick (paused when stable)
   * Zero allocation at rest
   
-- **RecordIndicator** — Pure USS animation:
-  * @keyframes pulsing red dot (#e94560)
-  * Triggered when PerfWindow.Record = true
+- **RecordIndicator** — UI Toolkit transition:
+  * Scheduled USS state toggle for the red recording dot (#e94560)
+  * Triggered when PerfWindow.Record = true and paused with the panel lifecycle
   
 - **FrameRingBuffer Enhancement** (v0.61.0):
   * Added `CopyTo(FrameSample[] dest)` zero-alloc bulk export
   * Used by PerfGraphElement to extract samples for rendering
   
 - **Styling**:
-  * All animations via USS transitions/@keyframes (no C# animation)
+  * Animations use supported USS transitions plus short scheduled state changes
   * Colors from ArcadePalette: good=#3ad29f, warn=#e8a23a, crit=#e94560
   * UITK only (no IMGUI, Unity 6 Overlay API)
 
@@ -483,6 +483,40 @@ for _ in range(24):  # 2min @ 5s intervals
    - **Codex requestUserInput Integration (v0.29.38)** — Codex CLI can now show same interactive `AskUserCard` via JSON-RPC `tool/requestUserInput` and `item/tool/requestUserInput` requests. **CodexAppServerParser**: Detects both request types, extracts numeric `id` field, prefixes response with `"codex:"` for reply routing. **CodexAppServerBackend**: Advertises `experimentalApi: true` in initialize capabilities. **ControlResponseBuilder**: New `CodexUserInputResponse()` method formats JSON-RPC response with `int.TryParse(id)` guard: numeric id → unquoted, string → quoted for safety. **AskUserCard**: Detects `"codex:"` prefix in `Submit()`, formats positional answers array `[{"answer":"..."}]` matching Codex protocol (vs. `{"answer":"..."}` for Claude). Same interactive UI experience across both backends.
    - **Tests**: v0.29.37 added 6 Python tests (permission_prompt_tool), 68 C# tests (AskUserCard redesign). v0.29.38 added 7 C# tests (CodexAppServerParser, ControlResponseBuilder, AskUserCard Codex protocol). Total: 2413 Python tests passed, 2623+ C# EditMode green.
 
+### UI Animation System (docs-critical-review branch)
+
+**Shared building blocks and particle effects for all Biome editor surfaces (MCPHub, Settings, Chat, Wizard).**
+
+- **`BiomeUI.cs`** — Static helper layer for all Biome editor windows:
+  * `LoadCoreStyles(root, includeWizard)` — loads MCPHub.uss + MCPSettings.uss + ArcadeAnim.uss in one call (replaces 6-line boilerplate in every window)
+  * Button factories: `PrimaryButton`, `SecondaryButton`, `QuietButton` → consistent BEM class composition
+  * `Section(title, out body)` / `StatusLabel(text)` / `SetStatus(label, text, state)` — structural helpers
+  * `SetExclusiveClass(element, activeClass, ...classes)` — single-call exclusive CSS class toggle (replaces Remove/Add pairs)
+  * `ShakeX(element)` — 5-frame horizontal shake via `schedule.Execute`, GPU-friendly translate
+
+- **`BiomeParticleBurst.cs`** — Two pooled particle classes, zero permanent update loops:
+  * **`BiomeParticleBurst`** (12 particles) — event burst: radial disperse on `Emit(host)`, particles pooled per host element, generation counter prevents stale completions
+  * **`BiomeAmbientParticles`** (9 particles, 8 patterns) — continuous ambient field driven by `ArcadeAnim.SmoothLoop`; each particle has a seeded `MotionProfile` (incommensurate sin/cos harmonics → smooth non-looping paths); pauses on `DetachFromPanelEvent`. Patterns: DataFlow, Tools, Shield, Chat, Sampling, Updates, Ecosystem, Timeline — each applies per-pattern motion modifier. `Attach(host, pattern, entryBurst)` factory; entry burst fires 220ms after `AttachToPanelEvent`. All elements use `UsageHints.DynamicTransform | DynamicColor` for GPU layer promotion.
+
+- **`BiomeToggleGroup.cs`** — Accessible category disclosure widget:
+  * Tri-state master toggle (`toggle-mixed` CSS class when partially enabled)
+  * Per-item rows with individual Toggle controls, all wired to external `getValue`/`setValue`/`setAll` delegates
+  * `Filter(query)` — case-insensitive substring filter, auto-expands group when filtering
+  * Replaces raw Foldout usage in permissions and tool-enable UIs
+
+- **`EcosystemHeaderAnim.cs`** — Shared semantic header for plugin/version pages:
+  * `BuildPlugins()` — 7-node graph: nodes light up per registered plugin with `HasSettingsUI`, animated pulse sweeps across active nodes, polls `PluginRegistry.All` every 900ms
+  * `BuildVersions()` — 7-node timeline scanner: sinusoidal scan beam sweeps nodes, used by VersionPickerPage
+  * `SetVersionIndex(root, index, total)` — maps list selection to node highlight + `ArcadeAnim.PulseOnce`
+  * Both variants attach `BiomeAmbientParticles` (Ecosystem and Timeline patterns respectively)
+
+**Modified surfaces:**
+
+- **`MCPHubUI.cs`** — Hub home page now wraps content in `ScrollView(Vertical)` with `biome-page-scroll` / `biome-page-content` classes. Style loading replaced by `BiomeUI.LoadCoreStyles`. Status labels use `BiomeUI.StatusLabel`.
+- **`SettingsPageFactory.cs`** — All pages gain `biome-page` class. Plugins page now renders `EcosystemHeaderAnim.BuildPlugins()` header; plugin detail cards expand inline (accordion) instead of nav-push. Chat page scroll uses `biome-page-scroll` class.
+- **`StatusAmbientAnim.cs`** — Added `UsageHints.DynamicTransform | DynamicColor` to scanline/sonar/dots for GPU layer promotion. Grid state changes gated behind `previousState` guard (skips redundant class swaps). Replaced manual `Remove/AddToClassList` pair with `BiomeUI.SetExclusiveClass`. Per-dot references captured for future per-dot animation.
+- **`MCPChatWindow.FlowBar.cs`** — Particle-based data stream replaces CSS-class sweep animation: 7 pooled `VisualElement` particles + aura layer, all driven by `ArcadeAnim.ControlledSmoothLoop(_flowBar, AnimateFlowBar)`. Sending vs. receiving phases modulate particle motion rather than toggling fill classes.
+
 ## Reload Stability (v0.42.0, commit 39672a0)
 
 Root cause: v0.42.0 asmdef split (7→9 assemblies) amplified 3 latent bugs into crashes and stale DLLs. Addressed via 13 surgical fixes + 39 regression tests.
@@ -562,18 +596,26 @@ Root cause: v0.42.0 asmdef split (7→9 assemblies) amplified 3 latent bugs into
 **Unified animation primitives for UI consistency:**
 
 - **ArcadePalette.cs** — Centralized color constants (Up=#3ad29f, Listen=#e8a23a, Down=#6e2b3a, Accent=#e94560) + `StateClass` seam for connection status color
-- **ArcadeAnim.cs** — Shared animation library with USS class toggles (GPU-accelerated, no per-frame cost):
+- **ArcadeAnim.cs** — Shared animation library with USS class toggles and short transform sequences:
   * `AnimateClass(el, hiddenClass, visibleClass, delayMs)` — generic class-toggle animator base
   * `FadeIn`, `SlideInRight`, `ShakeX`, `PulseOnce`, `FlashClass`, `GlowPulse` — common effects
   * `CountUp` — numeric label animation (0 → N over duration)
   * `StaggerFadeIn`, `Typewriter` — sequential element effects
-- **ArcadeAnim.uss** — Shared USS keyframes + transitions (@keyframes arcade-fade-*, arcade-slide-*, etc.)
+- **ArcadeAnim.uss** — Shared UI Toolkit transitions. Web CSS `@keyframes` and
+  `animation-name` are intentionally forbidden because UI Toolkit does not
+  support them.
 - **Per-window HeaderAnims** — DRY builders following `VisualElement Build()` pattern:
   * `SamplingHeaderAnim.Build()` — 7-bar frequency analyzer for Sampling page
   * `StatusAmbientAnim.Build()` — scanline + grid + sonar ring overlay for Status window
   * `WizardStepAnim.cs` — slide transitions + progress bar for Setup Wizard
-- **Architecture:** All effects use CSS class toggles (schedule.Execute for delayed transitions). Single-source-of-truth color palette prevents hardcoded #RRGGBB drift. DRY consolidation across ~6 animation-heavy windows.
-- **Tests:** 23 NUnit tests (ArcadePaletteTests 7, ArcadeAnimTests 6, SamplingHeaderAnimTests 3, StatusAmbientAnimTests 5, WizardStepAnimTests 5)
+  * `WizardJourneyAnim` (WizardAmbientAnim.cs) — 4-node animated progress track shared by every wizard screen; packet + aura glide between nodes via `ArcadeAnim.SmoothLoop`
+  * `SkillsInstallAnim` (WizardAmbientAnim.cs) — module-stream animation for InstallSkills screen; speed adjusts on `SetWorking(true/false)` during active install
+- **WizardUI.cs** — DRY factory for wizard navigation buttons (`Primary`, `Secondary`, `Quiet`) and `Navigation(back, ...actions)` layout row; delegates to `BiomeUI` for base button styles
+- **Architecture:** Effects use USS class toggles and element-owned schedulers.
+  Recurring state probes run at restrained cadences, transform-heavy elements
+  declare usage hints, and schedulers pause when their visual is detached.
+  Unity theme variables provide the neutral palette; arcade colors are semantic.
+- **Tests:** 27 NUnit tests (ArcadePaletteTests 7, ArcadeAnimTests 6, SamplingHeaderAnimTests 3, StatusAmbientAnimTests 5, WizardStepAnimTests 5, BiomeParticleBurstTests 4) — note: individual file counts may differ from totals due to `[TestCase]` expansion; use `[Test]` grep for raw method count
 
 ## Playtest Composer Subsystem (v0.75.0)
 
@@ -1113,7 +1155,7 @@ Applied by `ApplyFieldsCompress(args, result)` in `CommandRouter.ObjectHandlers.
 - **MCPToolSettingsWindow** (MCPToolSettingsWindow.cs, `MCP/Tool Settings` menu): Per-tool enable/disable toggles, organized by theme categories (CORE locked, others toggle/tri-state group masters), search bar, presets (Minimal/Full/No-visuals), dynamic Plugins section from PluginRegistry. UIToolkit.
 - **MCPPermissionsWindow** (MCPPermissionsWindow.cs, `MCP/Permissions` menu): Agent tool deny-set configuration (permissions deny-list UI). UIToolkit.
 - **MCPConnectionWindow** (MCPConnectionWindow.cs, `MCP/Connection` menu): CLI binary path, auth settings, backend selection, chips. Uses event hook `ChatSettingsHook.OnBuildConnection` for Chat assembly to inject settings content without core edits (extensible pattern).
-- **MCPStatus Window** (MCPStatusWindow.cs): Connection status monitor. UIToolkit-based with breathing heartbeat pulsation (ECG beat when connected, gentle beat when listening, flatline when stopped). Centered orb (`.orb`) + halo ring (`.orb-halo`) with state-driven colors & USS class-triggered pulsation (border-width + opacity + background-color transitions, 2021.3-safe). Polling every 700ms for state. Buttons: Restart MCP / Kill MCP / Reimport. Stylesheet: `MCPStatus.uss`.
+- **MCPStatus Window** (MCPStatusWindow.cs): Connection status monitor. UIToolkit-based with smooth `ArcadeAnim.SmoothLoop` orb + halo pulse (speed tracks connection state: connected=3.4 Hz, listening=2.0 Hz, stopped=1.1 Hz). Main buttons: **Restart** (primary), **Diagnose**, **Setup Wizard**, **Check for Updates**. **Maintenance** foldout (collapsed by default): Reimport, Kill MCP (danger). `BiomeAmbientParticles` (Ecosystem pattern) attached to stage. Stylesheet: `MCPStatus.uss`.
 - **Stylesheet Helper** (MCPEditorUtils.LoadStyleSheet): Shared two-path loader for `.uss` files, called by windows (DRY; handles package-relative asset lookup).
 
 ### Code Execution (C#: CodeExecutor, v0.59.0: Play Mode + Security Hardening)

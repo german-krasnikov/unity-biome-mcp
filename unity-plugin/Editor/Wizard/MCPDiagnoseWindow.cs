@@ -10,9 +10,6 @@ namespace UnityMCP.Editor
     {
         private void CreateGUI()
         {
-            var ss = MCPEditorUtils.LoadStyleSheet("Wizard/SetupWizard.uss");
-            if (ss != null) rootVisualElement.styleSheets.Add(ss);
-
             rootVisualElement.Add(MCPDiagnosePanel.Build());
 
             var banner = UpdateBanner.Build();

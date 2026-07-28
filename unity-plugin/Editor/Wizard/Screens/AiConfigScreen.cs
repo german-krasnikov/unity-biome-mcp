@@ -29,6 +29,9 @@ namespace UnityMCP.Editor.Wizard.Screens
             title.AddToClassList("wiz-title");
             root.Add(title);
 
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("wiz-scroll");
+
             int port     = MCPServer.IsRunning ? MCPServer.ServerPort : 9500;
             var allCards = AiToolCardFactory.Build(port);
             var external = allCards.Where(c => c.Action != CardAction.CopyPort).ToArray();
@@ -36,21 +39,18 @@ namespace UnityMCP.Editor.Wizard.Screens
 
             var cardElements = new System.Collections.Generic.List<VisualElement>();
 
-            root.Add(MakeGroupLabel("External MCP Hosts"));
-            foreach (var card in external) { var el = BuildCard(card, port); cardElements.Add(el); root.Add(el); }
+            scroll.Add(MakeGroupLabel("External MCP Hosts"));
+            foreach (var card in external) { var el = BuildCard(card, port); cardElements.Add(el); scroll.Add(el); }
 
-            root.Add(MakeGroupLabel("In-Unity Chat Backends"));
-            foreach (var card in chat) { var el = BuildCard(card, port); cardElements.Add(el); root.Add(el); }
+            scroll.Add(MakeGroupLabel("In-Unity Chat Backends"));
+            foreach (var card in chat) { var el = BuildCard(card, port); cardElements.Add(el); scroll.Add(el); }
 
             _cards = cardElements.ToArray();
+            root.Add(scroll);
 
-            var spacer = new VisualElement { style = { flexGrow = 1 } };
-            var nav = new VisualElement();
-            nav.AddToClassList("wiz-nav");
-            nav.Add(new Button(_onBack) { text = "← Back" });
-            nav.Add(new Button(_onDone) { text = "Done ✓" });
-            root.Add(spacer);
-            root.Add(nav);
+            root.Add(WizardUI.Navigation(
+                WizardUI.Secondary("← Back", _onBack),
+                WizardUI.Primary("Done ✓", _onDone)));
             return root;
         }
 
@@ -68,10 +68,7 @@ namespace UnityMCP.Editor.Wizard.Screens
         private static Label MakeGroupLabel(string text)
         {
             var lbl = new Label(text);
-            lbl.style.unityFontStyleAndWeight = FontStyle.Bold;
-            lbl.style.fontSize   = 12;
-            lbl.style.marginTop  = 10;
-            lbl.style.marginBottom = 4;
+            lbl.AddToClassList("wiz-group-label");
             return lbl;
         }
 
@@ -81,20 +78,17 @@ namespace UnityMCP.Editor.Wizard.Screens
             card.AddToClassList("wiz-card");
 
             var heading = new Label(data.Name);
-            heading.style.unityFontStyleAndWeight = FontStyle.Bold;
-            heading.style.marginBottom = 4;
+            heading.AddToClassList("wiz-card-title");
 
             var body = new Label(data.Body);
-            body.style.fontSize    = 11;
-            body.style.whiteSpace  = WhiteSpace.Normal;
-            body.style.marginBottom = 8;
+            body.AddToClassList("wiz-card-description");
 
             Button btn = null;
-            btn = new Button(() =>
+            btn = WizardUI.Secondary(data.BtnLabel, () =>
             {
                 Dispatch(data, port);
                 WizardAnimUtils.FlashClass(btn, "wiz-btn-copied", 800);
-            }) { text = data.BtnLabel };
+            });
 
             card.Add(heading);
             card.Add(body);
@@ -107,9 +101,7 @@ namespace UnityMCP.Editor.Wizard.Screens
                     isReadOnly = true,
                     multiline  = true,
                 };
-                snippet.style.fontSize    = 10;
-                snippet.style.whiteSpace  = WhiteSpace.Normal;
-                snippet.style.marginBottom = 6;
+                snippet.AddToClassList("wiz-snippet");
                 card.Add(snippet);
             }
 
@@ -117,11 +109,11 @@ namespace UnityMCP.Editor.Wizard.Screens
 
             if (data.Action == CardAction.WriteConfig && WizardConfigWriter.HasBackup(data.Payload))
             {
-                var restoreBtn = new Button(() =>
+                var restoreBtn = WizardUI.Secondary("Restore", () =>
                 {
                     WizardConfigWriter.RestoreConfig(data.Payload);
                     WizardAnimUtils.FlashClass(btn, "wiz-btn-copied", 800);
-                }) { text = "Restore" };
+                });
                 restoreBtn.AddToClassList("wiz-btn-restore");
                 card.Add(restoreBtn);
             }

@@ -10,6 +10,7 @@ namespace UnityMCP.Editor
         {
             var page = new VisualElement();
             page.AddToClassList("nav-page");
+            page.AddToClassList("biome-page");
             page.Add(BackHeader("Tools", onBack));
             page.Add(ToolsHeaderAnim.Build(page));
             var scroll = new ScrollView();
@@ -23,13 +24,12 @@ namespace UnityMCP.Editor
         {
             var page = new VisualElement();
             page.AddToClassList("nav-page");
+            page.AddToClassList("biome-page");
             page.Add(BackHeader("Permissions", onBack));
             page.Add(PermissionsHeaderAnim.Build(page));
             var info = new Label("Controls which MCP tools the in-Unity Chat agent may call. " +
                                  "Tool toggles are in the Settings hub.");
             info.AddToClassList("info-label");
-            info.style.whiteSpace = WhiteSpace.Normal;
-            info.style.marginBottom = 8;
             page.Add(info);
             page.Add(MCPSettingsPermUI.BuildContent(new PermissionConfig()));
             return page;
@@ -39,10 +39,11 @@ namespace UnityMCP.Editor
         {
             var page = new VisualElement();
             page.AddToClassList("nav-page");
+            page.AddToClassList("biome-page");
             page.Add(BackHeader("Chat Settings", onBack));
             page.Add(ChatHeaderAnim.Build(page));
             var scroll = new ScrollView();
-            scroll.style.flexGrow = 1;
+            scroll.AddToClassList("biome-page-scroll");
             ChatSettingsHook.InvokeConnection(scroll);
             if (scroll.childCount == 0)
                 ChatSettingsHook.InvokeConnectionViaReflection(scroll);
@@ -54,18 +55,20 @@ namespace UnityMCP.Editor
         {
             var page = new VisualElement();
             page.AddToClassList("nav-page");
+            page.AddToClassList("biome-page");
             page.Add(BackHeader("Plugins", onBack));
+            page.Add(EcosystemHeaderAnim.BuildPlugins());
 
             var plugins = PluginRegistry.All;
             if (plugins.Count == 0)
             {
-                page.Add(new Label("No plugins registered.") { style = { marginTop = 12 } });
+                page.Add(BiomeUI.StatusLabel("No plugins registered."));
                 return page;
             }
 
-            var content = new VisualElement();
-            var nav = new SettingsNavController(content);
-            var home = new VisualElement();
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("biome-page-scroll");
+            page.Add(scroll);
 
             bool anyWithUI = false;
             foreach (var plugin in plugins)
@@ -73,32 +76,56 @@ namespace UnityMCP.Editor
                 if (!plugin.HasSettingsUI) continue;
                 anyWithUI = true;
                 var p = plugin;
+                var detail = new VisualElement();
+                detail.AddToClassList("plugin-settings-card");
+                detail.style.display = DisplayStyle.None;
+                bool built = false;
+                bool expanded = false;
+
                 var card = HubCardButton.Build("🧩", p.Name, p.Description,
-                    () => nav.Push(BuildPluginDetailPage(p, () => nav.Pop())));
-                home.Add(card);
+                    () =>
+                    {
+                        if (!built)
+                        {
+                            BuildPluginSettings(p, detail);
+                            built = true;
+                        }
+                        expanded = !expanded;
+                        detail.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None;
+                    });
+                scroll.Add(card);
+                scroll.Add(detail);
             }
 
             if (!anyWithUI)
             {
-                page.Add(new Label("No plugins have settings UI.") { style = { marginTop = 12 } });
+                scroll.Add(BiomeUI.StatusLabel("No plugins have settings UI."));
                 return page;
             }
 
-            nav.SetRoot(home);
-            page.Add(content);
             return page;
         }
 
-        private static VisualElement BuildPluginDetailPage(IMCPPlugin plugin, Action onBack)
+        private static void BuildPluginSettings(IMCPPlugin plugin, VisualElement detail)
         {
-            var page = new VisualElement();
-            page.AddToClassList("nav-page");
-            page.Add(BackHeader(plugin.Name, onBack));
+            if (!string.IsNullOrEmpty(plugin.Description))
+            {
+                var description = new Label(plugin.Description);
+                description.AddToClassList("plugin-settings-description");
+                detail.Add(description);
+            }
+
             VisualElement ui = null;
             try { ui = plugin.BuildSettingsUI(); }
-            catch (Exception e) { UnityEngine.Debug.LogError($"[MCP] Plugin '{plugin.Name}' BuildSettingsUI failed: {e.Message}"); }
-            if (ui != null) page.Add(ui);
-            return page;
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogError($"[MCP] Plugin '{plugin.Name}' BuildSettingsUI failed: {e.Message}");
+                var status = BiomeUI.StatusLabel();
+                BiomeUI.SetStatus(status, $"Could not load {plugin.Name} settings.", "error");
+                detail.Add(status);
+            }
+            if (ui != null)
+                detail.Add(ui);
         }
 
         internal static VisualElement BuildUpdatesPage(Action onBack) =>
@@ -111,6 +138,7 @@ namespace UnityMCP.Editor
         {
             var page = new VisualElement();
             page.AddToClassList("nav-page");
+            page.AddToClassList("biome-page");
             page.Add(BackHeader("LLM Sampling", onBack));
             page.Add(SamplingHeaderAnim.Build(page));
             var store = LlmConfigStore.Load();
@@ -122,7 +150,7 @@ namespace UnityMCP.Editor
         {
             var header = new VisualElement();
             header.AddToClassList("nav-back-header");
-            var btn = new Button(onBack) { text = "← Back" };
+            var btn = BiomeUI.QuietButton("← Back", onBack, "Return to the previous settings page");
             btn.AddToClassList("nav-back-btn");
             var lbl = new Label(title);
             lbl.AddToClassList("nav-back-title");
@@ -142,6 +170,7 @@ namespace UnityMCP.Editor
         private static VisualElement BuildSamplingForm(LlmConfigStore store)
         {
             var scroll = new ScrollView();
+            scroll.AddToClassList("biome-page-scroll");
             var cfg = store.Config;
 
             // --- Apply-All preset buttons (replaces old Claude/Codex tabs) ---
@@ -171,14 +200,14 @@ namespace UnityMCP.Editor
             foreach (var (label, backend, model) in _applyAllPresets)
             {
                 var b = backend; var m = model; // capture
-                var btn = new Button(() =>
+                var btn = BiomeUI.SecondaryButton(label, () =>
                 {
                     foreach (var kv in toolControls)
                     {
                         kv.Value.backend.value = b;
                         kv.Value.model.value   = m;
                     }
-                }) { text = label };
+                });
                 btn.AddToClassList("preset-btn");
                 presetRow.Add(btn);
             }
@@ -191,11 +220,18 @@ namespace UnityMCP.Editor
             VisualElement parent, string label, SamplingConfig cfg, LlmConfigStore store,
             string toolDep = null)
         {
-            var foldout = new Foldout { text = label, value = false };
+            string HeaderText() =>
+                $"{label} · {(string.IsNullOrEmpty(cfg.Backend) ? "claude" : cfg.Backend)} / " +
+                $"{(string.IsNullOrEmpty(cfg.Model) ? "default" : cfg.Model)}";
+
+            var foldout = new Foldout { text = HeaderText(), value = false };
             foldout.AddToClassList("sampling-card");
 
             if (toolDep != null && !MCPSettings.IsToolEnabled(toolDep))
-                foldout.style.display = DisplayStyle.None;
+            {
+                foldout.SetEnabled(false);
+                foldout.tooltip = $"Enable the '{toolDep}' tool to configure this sampler.";
+            }
 
             var body = new VisualElement();
             body.AddToClassList("sampling-card-body");
@@ -223,10 +259,16 @@ namespace UnityMCP.Editor
                 if (System.Array.IndexOf(models, modelDd.value) < 0)
                     modelDd.value = models[0];
                 FlashElement(modelDd, "model-changed-flash");
+                foldout.text = HeaderText();
                 store.Save();
             });
 
-            modelDd.RegisterValueChangedCallback(e => { cfg.Model = e.newValue; store.Save(); });
+            modelDd.RegisterValueChangedCallback(e =>
+            {
+                cfg.Model = e.newValue;
+                foldout.text = HeaderText();
+                store.Save();
+            });
 
             // Row 1: Backend + Model
             var row1 = new VisualElement();
@@ -241,12 +283,24 @@ namespace UnityMCP.Editor
 
             var maxTurns = new IntegerField("Max Turns") { value = cfg.MaxTurns };
             maxTurns.AddToClassList("sampling-int-field");
-            maxTurns.RegisterValueChangedCallback(e => { cfg.MaxTurns = e.newValue; store.Save(); });
+            maxTurns.RegisterValueChangedCallback(e =>
+            {
+                int value = UnityEngine.Mathf.Clamp(e.newValue, 1, 100);
+                maxTurns.SetValueWithoutNotify(value);
+                cfg.MaxTurns = value;
+                store.Save();
+            });
             row2.Add(maxTurns);
 
             var timeout = new FloatField("Timeout") { value = cfg.Timeout };
             timeout.AddToClassList("sampling-float-field");
-            timeout.RegisterValueChangedCallback(e => { cfg.Timeout = e.newValue; store.Save(); });
+            timeout.RegisterValueChangedCallback(e =>
+            {
+                float value = UnityEngine.Mathf.Clamp(e.newValue, 1f, 600f);
+                timeout.SetValueWithoutNotify(value);
+                cfg.Timeout = value;
+                store.Save();
+            });
             row2.Add(timeout);
 
             body.Add(row2);

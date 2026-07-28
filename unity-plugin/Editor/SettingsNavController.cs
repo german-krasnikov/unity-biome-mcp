@@ -15,7 +15,7 @@ namespace UnityMCP.Editor
         private bool _animating;
         private bool _isPop;
 
-        private const long AnimMs = 350;
+        private const long AnimMs = BiomeUI.PageMotionMs;
 
         internal int Depth => _stack.Count;
 
@@ -75,12 +75,12 @@ namespace UnityMCP.Editor
             _slotB.Add(page);
 
             _container.AddToClassList("nav-no-transition");
-            _container.style.translate = new Translate(0, 0);
+            _container.style.translate = new Translate(Length.Percent(0), Length.Percent(0));
 
             _container.schedule.Execute(() =>
             {
                 _container.RemoveFromClassList("nav-no-transition");
-                _container.style.translate = new Translate(Length.Percent(-50), 0);
+                _container.style.translate = new Translate(Length.Percent(-50), Length.Percent(0));
             });
 
             _container.schedule.Execute(() => FinishTransition()).ExecuteLater(AnimMs + 50);
@@ -102,12 +102,12 @@ namespace UnityMCP.Editor
             _slotA.Add(prev);
 
             _container.AddToClassList("nav-no-transition");
-            _container.style.translate = new Translate(Length.Percent(-50), 0);
+            _container.style.translate = new Translate(Length.Percent(-50), Length.Percent(0));
 
             _container.schedule.Execute(() =>
             {
                 _container.RemoveFromClassList("nav-no-transition");
-                _container.style.translate = new Translate(0, 0);
+                _container.style.translate = new Translate(Length.Percent(0), Length.Percent(0));
             });
 
             _container.schedule.Execute(() => FinishTransition()).ExecuteLater(AnimMs + 50);
@@ -122,7 +122,7 @@ namespace UnityMCP.Editor
             if (_rootPage != null) _slotA.Add(_rootPage);
             _currentPage = _rootPage;
             _container.AddToClassList("nav-no-transition");
-            _container.style.translate = new Translate(0, 0);
+            _container.style.translate = new Translate(Length.Percent(0), Length.Percent(0));
             _container.schedule.Execute(() =>
                 _container.RemoveFromClassList("nav-no-transition"));
         }
@@ -146,7 +146,7 @@ namespace UnityMCP.Editor
             }
 
             _container.AddToClassList("nav-no-transition");
-            _container.style.translate = new Translate(0, 0);
+            _container.style.translate = new Translate(Length.Percent(0), Length.Percent(0));
             _container.schedule.Execute(() =>
                 _container.RemoveFromClassList("nav-no-transition"));
 

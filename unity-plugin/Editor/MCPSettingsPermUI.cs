@@ -11,39 +11,10 @@ namespace UnityMCP.Editor
     {
         public static VisualElement BuildSection()
         {
-            var config = new PermissionConfig(); // default ctor → DEFAULT_PREFIX, shared prefs
-            var groups = new List<PermCategoryGroup>();
-
             var foldout = new Foldout { text = "Agent Tool Permissions" };
             foldout.AddToClassList("category-foldout");
-            foldout.value = false; // collapsed by default
-
-            // Preset row: Allow All / Deny All
-            var presetRow = new VisualElement();
-            presetRow.AddToClassList("preset-row");
-            AddPresetBtn(presetRow, "Allow All", () => { config.AllowAll(); RebuildScroll(foldout, config, groups); });
-            AddPresetBtn(presetRow, "Deny All",  () => { config.DenyAll();  RebuildScroll(foldout, config, groups); });
-            foldout.Add(presetRow);
-
-            // Search field
-            var search = new TextField { tooltip = "Filter tools by name" };
-            search.AddToClassList("search-field");
-            foldout.Add(search);
-
-            // Scroll area
-            var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.AddToClassList("tool-scroll");
-            foldout.Add(scroll);
-
-            BuildGroups(scroll, config, groups);
-
-            // Wire search
-            search.RegisterValueChangedCallback(evt =>
-            {
-                var q = evt.newValue.Trim();
-                foreach (var g in groups) g.Filter(q);
-            });
-
+            foldout.value = false;
+            foldout.Add(BuildCore(new PermissionConfig()));
             return foldout;
         }
 
@@ -52,29 +23,53 @@ namespace UnityMCP.Editor
         /// </summary>
         public static VisualElement BuildContent(PermissionConfig config)
         {
+            return BuildCore(config);
+        }
+
+        private static VisualElement BuildCore(PermissionConfig config)
+        {
             var groups = new List<PermCategoryGroup>();
 
             var container = new VisualElement();
-            container.style.flexGrow = 1;
+            container.AddToClassList("permission-content");
+            var summary = BiomeUI.StatusLabel();
 
-            // Preset row: Allow All / Deny All
+            void Refresh()
+            {
+                foreach (var group in groups)
+                    group.Refresh();
+                var states = config.GetToolStates();
+                int allowed = states.Count(state => state.allowed);
+                BiomeUI.SetStatus(
+                    summary,
+                    $"{allowed} of {states.Count} tools allowed for the in-Unity agent.",
+                    allowed == states.Count ? "warning" : "neutral");
+            }
+
             var presetRow = new VisualElement();
             presetRow.AddToClassList("preset-row");
-            AddPresetBtn(presetRow, "Allow All", () => { config.AllowAll();  RebuildScroll(container, config, groups); });
-            AddPresetBtn(presetRow, "Deny All",  () => { config.DenyAll();   RebuildScroll(container, config, groups); });
+            AddPresetBtn(presetRow, "Allow All", () =>
+            {
+                config.AllowAll();
+                Refresh();
+            });
+            AddPresetBtn(presetRow, "Deny All", () =>
+            {
+                config.DenyAll();
+                Refresh();
+            });
             container.Add(presetRow);
+            container.Add(summary);
 
-            // Search field
-            var search = new TextField { tooltip = "Filter tools by name" };
+            var search = new TextField("Search") { tooltip = "Filter tools by name" };
             search.AddToClassList("search-field");
             container.Add(search);
 
-            // Scroll area
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("tool-scroll");
             container.Add(scroll);
 
-            BuildGroups(scroll, config, groups);
+            BuildGroups(scroll, config, groups, Refresh);
 
             search.RegisterValueChangedCallback(evt =>
             {
@@ -82,19 +77,15 @@ namespace UnityMCP.Editor
                 foreach (var g in groups) g.Filter(q);
             });
 
+            Refresh();
             return container;
         }
 
-        private static void RebuildScroll(VisualElement root, PermissionConfig config, List<PermCategoryGroup> groups)
-        {
-            var scroll = root.Q<ScrollView>();
-            if (scroll == null) return;
-            scroll.Clear();
-            groups.Clear();
-            BuildGroups(scroll, config, groups);
-        }
-
-        private static void BuildGroups(ScrollView scroll, PermissionConfig config, List<PermCategoryGroup> groups)
+        private static void BuildGroups(
+            ScrollView scroll,
+            PermissionConfig config,
+            List<PermCategoryGroup> groups,
+            System.Action onChanged)
         {
             var byCategory = config.GetToolStates()
                 .GroupBy(s => s.category)
@@ -102,7 +93,7 @@ namespace UnityMCP.Editor
 
             foreach (var kv in byCategory)
             {
-                var group = new PermCategoryGroup(kv.Key, kv.Value, config);
+                var group = new PermCategoryGroup(kv.Key, kv.Value, config, onChanged);
                 scroll.Add(group.Element);
                 groups.Add(group);
             }
@@ -110,7 +101,7 @@ namespace UnityMCP.Editor
 
         private static void AddPresetBtn(VisualElement parent, string label, System.Action onClick)
         {
-            var btn = new Button(onClick) { text = label };
+            var btn = BiomeUI.SecondaryButton(label, onClick);
             btn.AddToClassList("preset-btn");
             parent.Add(btn);
         }

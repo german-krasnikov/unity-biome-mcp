@@ -123,6 +123,7 @@ namespace UnityMCP.Editor.Chat
 
         private void OnDisable()
         {
+            _flowMotion?.SetActive(false);
             // P0-A: persist transcript so window close/reopen restores history (not just domain reload)
             SessionState.SetString(PrefKeys.ChatTranscript, _transcript?.SerializeForReload() ?? "");
             CommandRouter.OnAskUser -= OnMcpAskUser;
@@ -189,7 +190,6 @@ namespace UnityMCP.Editor.Chat
             SetupSlash();
             SetupMention();
             root.schedule.Execute(DrainAndRender).Every(33);
-            root.schedule.Execute(TickFlowBarSweep).Every(950);
             root.RegisterCallback<DragUpdatedEvent>(OnDragUpdated);
             root.RegisterCallback<DragPerformEvent>(OnDragPerform);
             // F20: Esc cancels a running turn. Guard: Idle → no-op (slash popup handles its own Esc).

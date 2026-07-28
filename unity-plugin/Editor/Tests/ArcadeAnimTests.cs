@@ -47,5 +47,37 @@ namespace UnityMCP.Editor.Tests
             ArcadeAnim.FlashClass(el, "test-cls", 500);
             Assert.IsTrue(el.ClassListContains("test-cls"));
         }
+
+        [Test]
+        public void SmoothLoop_InitializesOnce_WhileDetached()
+        {
+            var el = new VisualElement();
+            int ticks = 0;
+
+            ArcadeAnim.SmoothLoop(el, _ => ticks++);
+
+            Assert.AreEqual(1, ticks);
+            Assert.IsNull(el.panel);
+        }
+
+        [Test]
+        public void ControlledSmoothLoop_OnlyInitializesWhenActivated()
+        {
+            var el = new VisualElement();
+            int ticks = 0;
+
+            var motion = ArcadeAnim.ControlledSmoothLoop(el, _ => ticks++);
+
+            Assert.AreEqual(0, ticks);
+            Assert.IsFalse(motion.IsActive);
+
+            motion.SetActive(true);
+            Assert.AreEqual(1, ticks);
+            Assert.IsTrue(motion.IsActive);
+
+            motion.SetActive(false);
+            Assert.AreEqual(1, ticks);
+            Assert.IsFalse(motion.IsActive);
+        }
     }
 }

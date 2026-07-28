@@ -128,10 +128,33 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void LevelUpAnimator_Tree_HasLiftArrowAndLayeredAura()
+        {
+            var el = LevelUpAnimator.Build(
+                new VisualElement(),
+                "0.42.0",
+                "0.43.0",
+                () => { });
+
+            Assert.IsNotNull(el.Q<Label>(className: "lvlup-symbol-arrow"));
+            Assert.AreEqual(
+                2,
+                el.Query<VisualElement>(className: "lvlup-symbol-aura").ToList().Count);
+        }
+
+        [Test]
+        public void BuildIdleSignal_HasLifecycleBoundLiftSymbol()
+        {
+            var signal = LevelUpAnimator.BuildIdleSignal();
+
+            Assert.IsTrue(signal.ClassListContains("lvlup-idle-signal"));
+            Assert.IsNotNull(signal.Q<Label>(className: "lvlup-symbol-arrow"));
+        }
+
+        [Test]
         public void LevelUpAnimator_OnComplete_InvokedExactlyOnce()
         {
-            // Scheduler does not tick in EditMode — simulate ticks via the internal action.
-            // Verifies the fix: handle.Pause() is called before onComplete so re-entry is impossible.
+            // Scheduler does not tick while detached, so drive the completion seam.
             int callCount = 0;
             var host = new VisualElement();
             LevelUpAnimator.Build(host, "0.42.0", "0.43.0", () => callCount++);

@@ -10,6 +10,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.0] — 2026-07-29 — UI polish, animations, BiomeUI utilities
+
+**C# — New UI Components:**
+- `BiomeParticleBurst.cs`: pooled editor particle burst system with 8 motion patterns (Confetti, Sparkle, Rise, Orbit, Spiral, Wave, Fountain, Scatter) for celebrations/effects
+- `BiomeToggleGroup.cs`: radio-button-style toggle group with tri-state master, accordion behavior, filter API
+- `BiomeUI.cs`: shared UI utility class — style loading, button factories (`PrimaryButton`, `SecondaryButton`, `QuietButton`), `Section()`, `StatusLabel()`, `SetExclusiveClass()`, `ShakeX()` animation
+- `EcosystemHeaderAnim.cs`: Plugins node graph + Version Picker timeline scanner header animations
+- `WizardAmbientAnim.cs`: `WizardJourneyAnim` (4-node step tracker) + `SkillsInstallAnim` (module-stream animation for InstallSkills screen)
+- `WizardUI.cs`: DRY factory for wizard button variants and navigation layout
+
+**C# — Enhanced Animations:**
+- All `*HeaderAnim.cs` files: enhanced with `BiomeAmbientParticles`, GPU `UsageHints`, improved motion patterns
+- `ArcadeAnim.cs`: new `MotionHandle` + `ControlledSmoothLoop` API for fine-grained animation control
+- `LevelUpAnimator.cs`: idle signal, spark effects, `SimulateCompletion` test hook
+- `StatusAmbientAnim.cs`: GPU hints, refined ambient animation
+- `MCPChatWindow.FlowBar.cs`: particle-driven FlowBar redesign (replaces CSS sweep with `ArcadeAnim.ControlledSmoothLoop` + pooled particles)
+
+**C# — UI Styling:**
+- `MCPHub.uss`: major expansion (+504 lines) — biome visual language, card layouts, scroll wrapping
+- `MCPSettings.uss`: new settings page styles (+103 lines)
+- `SetupWizard.uss`: wizard visual overhaul (+374 lines) — ambient animations, step transitions
+- `LevelUpAnim.uss`: enhanced level-up celebration styles
+- `MCPStatus.uss`: refined status page styling
+
+**C# — Settings & Wizard Refactoring:**
+- `MCPSettingsCategoryGroup.cs`, `PermCategoryGroup.cs`: simplified using `BiomeToggleGroup`
+- `SettingsPageFactory.cs`: biome-page class + inline plugin accordion
+- `BackendSettingsForm.cs`: CSS class refactor, Codex timeout clamping
+- `ChatSettingsSection.cs`: auth probe cleanup on detach, warning styling
+- All wizard screens enhanced: `AiConfigScreen`, `ConfigureScreen`, `InstallSkillsScreen`, `PickBackendScreen`, `WelcomeScreen`
+- `MCPStatusWindow.cs`: Kill MCP + Reimport collapsed into Maintenance foldout
+
+**Python — Tests:**
+- `test_editor_ui_styles.py`: UI style validation tests (72 lines)
+
+**Docs:**
+- `docs/plugins/ui-toolkit-best-practices.md`: UI Toolkit best practices guide
+- AI knowledge files updated: architecture, animation, ui, chat-view, particles, structure
+
+<!-- tests: 4753 unit + 284 live + 4 live_cli + C# (6753+) + 36 reload = 11830+ -->
+
 ## [v1.1.0] — 2026-07-28 — Windows connection stability, UPM package page
 
 **Python — Windows TCP stability:**

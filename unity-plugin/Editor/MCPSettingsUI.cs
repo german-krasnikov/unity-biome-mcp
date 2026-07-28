@@ -12,20 +12,32 @@ namespace UnityMCP.Editor
         // ── Entry point ───────────────────────────────────────────────────────
         public static void BuildToolsSection(VisualElement root)
         {
-            root.Add(BuildPresets());
+            var allGroups = new List<CategoryGroup>();
+            var summary = BiomeUI.StatusLabel();
 
-            var info = new Label("Changes apply on next MCP reconnect.");
-            info.AddToClassList("info-label");
-            root.Add(info);
+            void RefreshVisibleState()
+            {
+                foreach (var group in allGroups)
+                    group.Refresh();
+                int total = MCPSettings.GetToolNames().Length;
+                int enabled = MCPSettings.GetToolNames().Count(MCPSettings.IsToolEnabled);
+                BiomeUI.SetStatus(
+                    summary,
+                    $"{enabled} of {total} tools enabled. Changes apply on next MCP reconnect.",
+                    "neutral");
+            }
+
+            root.Add(BuildPresets(RefreshVisibleState));
+            root.Add(summary);
 
             var searchField = new TextField();
             searchField.value = "";
+            searchField.label = "Search";
             searchField.tooltip = "Filter tools by name";
             searchField.AddToClassList("search-field");
             root.Add(searchField);
 
             var categories = MCPSettings.GetCatalogCategories();
-            var allGroups = new List<CategoryGroup>();
 
             foreach (var kv in categories)
             {
@@ -43,22 +55,32 @@ namespace UnityMCP.Editor
                 var q = evt.newValue.ToLowerInvariant().Trim();
                 foreach (var g in allGroups) g.Filter(q);
             });
+
+            RefreshVisibleState();
         }
 
         // ── Presets ───────────────────────────────────────────────────────────
-        private static VisualElement BuildPresets()
+        private static VisualElement BuildPresets(Action onApplied)
         {
             var row = new VisualElement();
             row.AddToClassList("preset-row");
-            AddPresetButton(row, "Minimal",    ApplyMinimal);
-            AddPresetButton(row, "Full",       ApplyFull);
-            AddPresetButton(row, "No-visuals", ApplyNoVisuals);
+            AddPresetButton(row, "Minimal",    ApplyMinimal, onApplied);
+            AddPresetButton(row, "Full",       ApplyFull, onApplied);
+            AddPresetButton(row, "No visuals", ApplyNoVisuals, onApplied);
             return row;
         }
 
-        private static void AddPresetButton(VisualElement parent, string label, Action action)
+        private static void AddPresetButton(
+            VisualElement parent,
+            string label,
+            Action action,
+            Action onApplied)
         {
-            var btn = new Button(action) { text = label };
+            var btn = BiomeUI.SecondaryButton(label, () =>
+            {
+                action();
+                onApplied?.Invoke();
+            });
             btn.AddToClassList("preset-btn");
             parent.Add(btn);
         }

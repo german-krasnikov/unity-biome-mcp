@@ -55,6 +55,8 @@ namespace UnityMCP.Editor
         private bool IsAllowed(string toolName) =>
             EditorPrefs.GetBool(_prefix + toolName, true);
 
+        internal bool IsToolAllowed(string toolName) => IsAllowed(toolName);
+
         private bool HasAnyDenied() =>
             AllTools().Any(t => !IsAllowed(t));
 

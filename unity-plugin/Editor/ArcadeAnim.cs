@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor
@@ -6,6 +8,111 @@ namespace UnityMCP.Editor
     /// <summary>Shared arcade animation primitives using USS class toggles.</summary>
     internal static class ArcadeAnim
     {
+        internal const int SmoothFrameMs = 16;
+
+        internal sealed class MotionHandle
+        {
+            private readonly VisualElement _owner;
+            private readonly Action<float> _animate;
+            private readonly IVisualElementScheduledItem _item;
+            private float _epoch;
+            private bool _active;
+
+            internal MotionHandle(
+                VisualElement owner,
+                Action<float> animate,
+                int frameMs)
+            {
+                _owner = owner;
+                _animate = animate;
+                _item = owner.schedule.Execute(Tick).Every(frameMs);
+                _item.Pause();
+
+                owner.RegisterCallback<AttachToPanelEvent>(_ =>
+                {
+                    if (!_active) return;
+                    Restart();
+                });
+                owner.RegisterCallback<DetachFromPanelEvent>(_ => _item.Pause());
+            }
+
+            internal bool IsActive => _active;
+
+            internal void SetActive(bool active)
+            {
+                if (_active == active)
+                    return;
+
+                _active = active;
+                if (!active)
+                {
+                    _item.Pause();
+                    return;
+                }
+
+                _epoch = Time.realtimeSinceStartup;
+                _animate(0f);
+                if (_owner.panel != null)
+                    _item.Resume();
+            }
+
+            private void Restart()
+            {
+                _epoch = Time.realtimeSinceStartup;
+                _animate(0f);
+                _item.Resume();
+            }
+
+            private void Tick() =>
+                _animate(Time.realtimeSinceStartup - _epoch);
+        }
+
+        /// <summary>
+        /// Runs a time-based animation only while <paramref name="owner"/> is attached.
+        /// The epoch resets after reattach, avoiding a large catch-up jump.
+        /// </summary>
+        internal static IVisualElementScheduledItem SmoothLoop(
+            VisualElement owner,
+            Action<float> animate,
+            int frameMs = SmoothFrameMs)
+        {
+            if (owner == null) throw new ArgumentNullException(nameof(owner));
+            if (animate == null) throw new ArgumentNullException(nameof(animate));
+
+            float epoch = Time.realtimeSinceStartup;
+            animate(0f);
+
+            var item = owner.schedule.Execute(() =>
+                animate(Time.realtimeSinceStartup - epoch)).Every(frameMs);
+            item.Pause();
+
+            owner.RegisterCallback<AttachToPanelEvent>(_ =>
+            {
+                epoch = Time.realtimeSinceStartup;
+                animate(0f);
+                item.Resume();
+            });
+            owner.RegisterCallback<DetachFromPanelEvent>(_ => item.Pause());
+
+            if (owner.panel != null)
+                item.Resume();
+            return item;
+        }
+
+        /// <summary>
+        /// Creates a loop that remains paused until explicitly activated. It also
+        /// pauses on detach and only resumes after reattach when still active.
+        /// </summary>
+        internal static MotionHandle ControlledSmoothLoop(
+            VisualElement owner,
+            Action<float> animate,
+            int frameMs = SmoothFrameMs)
+        {
+            if (owner == null) throw new ArgumentNullException(nameof(owner));
+            if (animate == null) throw new ArgumentNullException(nameof(animate));
+            return new MotionHandle(owner, animate, frameMs);
+        }
+
         // ── Generic Class Toggle ──────────────────────────────────────────────
 
         /// <summary>Adds <paramref name="hiddenClass"/>, then after <paramref name="delayMs"/> swaps to <paramref name="visibleClass"/>.</summary>
@@ -33,9 +140,7 @@ namespace UnityMCP.Editor
 
         public static void ShakeX(VisualElement el)
         {
-            el.RemoveFromClassList("arcade-shake");
-            el.schedule.Execute(() => el.AddToClassList("arcade-shake")).StartingIn(0);
-            el.schedule.Execute(() => el.RemoveFromClassList("arcade-shake")).StartingIn(300);
+            BiomeUI.ShakeX(el);
         }
 
         // ── Pulse ─────────────────────────────────────────────────────────────

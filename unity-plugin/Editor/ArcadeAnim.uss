@@ -28,28 +28,12 @@
     transition-timing-function: ease-out;
 }
 
-/* ── Shake ────────────────────────────────────────────────────────────────── */
-
-@keyframes arcade-shake-frames {
-    0%   { translate: -6px 0; }
-    20%  { translate:  5px 0; }
-    40%  { translate: -4px 0; }
-    60%  { translate:  3px 0; }
-    100% { translate:  0px 0; }
-}
-
-.arcade-shake {
-    animation-name: arcade-shake-frames;
-    animation-duration: 275ms;
-    animation-timing-function: ease-out;
-}
-
 /* ── Pulse ────────────────────────────────────────────────────────────────── */
 
 .arcade-pulse {
-    transition-property: border-width, border-color;
-    transition-duration: 0.4s;
-    border-width: 2px;
+    scale: 1.02;
+    transition-property: scale, border-color;
+    transition-duration: 0.22s;
 }
 
 /* ── Neon Glow ────────────────────────────────────────────────────────────── */
@@ -64,19 +48,8 @@
 .arcade-glow.conn-listen { border-color: #e8a23a; }
 .arcade-glow.conn-down   { border-color: #6e2b3a; }
 
-/* ── Grid Background ──────────────────────────────────────────────────────── */
-
-@keyframes arcade-grid-breathe {
-    0%   { opacity: 0.04; }
-    50%  { opacity: 0.12; }
-    100% { opacity: 0.04; }
-}
-
 .arcade-grid-bg {
-    animation-name: arcade-grid-breathe;
-    animation-duration: 3s;
-    animation-timing-function: ease-in-out;
-    animation-iteration-count: infinite;
+    opacity: 0.08;
 }
 
 /* ── Score Flash ──────────────────────────────────────────────────────────── */

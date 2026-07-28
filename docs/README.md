@@ -55,3 +55,4 @@ Documentation for Unity Biome MCP v0.96.1 — MCP server for controlling Unity E
 ## Developer Reference
 - [Architecture](../AI/architecture.md)
 - [Full Tool Inventory](../AI/tools-reference.md)
+- [UI Toolkit Best Practices](plugins/ui-toolkit-best-practices.md)

@@ -18,8 +18,15 @@ namespace UnityMCP.Editor.Wizard.Screens
         private Toggle  _overwriteToggle;
         private Toggle  _codexToggle;
         private Button  _installBtn;
+        private Button  _finishBtn;
+        private Button  _skipBtn;
+        private Label   _statusLabel;
+        private ScrollView _logScroll;
+        private SkillsInstallAnim _headerAnim;
         private readonly StringBuilder _log = new StringBuilder();
         private Process _proc;
+        private VisualElement _root;
+        private int _runGeneration;
 
         public string Title => "Install AI Skills";
 
@@ -31,64 +38,106 @@ namespace UnityMCP.Editor.Wizard.Screens
 
         public VisualElement Build()
         {
-            var root = new VisualElement();
-            root.AddToClassList("wiz-container");
+            _root = new VisualElement();
+            _root.AddToClassList("wiz-container");
+            _root.RegisterCallback<DetachFromPanelEvent>(_ => StopProcess());
 
             var title = new Label("Install AI Skills");
             title.AddToClassList("wiz-title");
-            root.Add(title);
+            _root.Add(title);
 
             var subtitle = new Label(GetSubtitle());
             subtitle.AddToClassList("wiz-subtitle");
-            root.Add(subtitle);
+            _root.Add(subtitle);
 
-            var logScroll = new ScrollView();
-            logScroll.AddToClassList("wiz-log");
-            logScroll.style.flexGrow  = 1;
-            logScroll.style.minHeight = 120;
+            _headerAnim = new SkillsInstallAnim();
+            _root.Add(_headerAnim);
+
+            _statusLabel = BiomeUI.StatusLabel();
+            _root.Add(_statusLabel);
+
+            _logScroll = new ScrollView();
+            _logScroll.AddToClassList("wiz-log");
             _logLabel = new Label();
-            _logLabel.style.fontSize   = 11;
-            _logLabel.style.whiteSpace = WhiteSpace.Normal;
-            logScroll.Add(_logLabel);
-            root.Add(logScroll);
+            _logLabel.AddToClassList("wiz-log-label");
+            _logScroll.Add(_logLabel);
+            _root.Add(_logScroll);
 
             _overwriteToggle = new Toggle("Overwrite existing files") { value = false };
-            root.Add(_overwriteToggle);
+            _overwriteToggle.AddToClassList("wiz-form-field");
+            _root.Add(_overwriteToggle);
 
             var projectRoot = ProjectRoot();
             _codexToggle = new Toggle("Run Codex sync after install")
                 { value = SkillsInstaller.HasCodexDir(projectRoot) };
-            root.Add(_codexToggle);
+            _codexToggle.AddToClassList("wiz-form-field");
+            _root.Add(_codexToggle);
 
-            var nav = new VisualElement();
-            nav.AddToClassList("wiz-nav");
-            nav.Add(new Button(_onBack) { text = "← Back" });
+            var spacer = new VisualElement();
+            spacer.AddToClassList("wiz-spacer");
+            _root.Add(spacer);
 
-            _installBtn = new Button(RunInstall) { text = "Install" };
-            _installBtn.AddToClassList("wiz-btn-primary");
-            nav.Add(_installBtn);
-            nav.Add(new Button(_onDone) { text = "Done ✓" });
-            root.Add(nav);
+            _installBtn = WizardUI.Primary("Install", RunInstall);
+            _finishBtn = WizardUI.Secondary("Finish", _onDone);
+            _finishBtn.SetEnabled(false);
+            _finishBtn.style.display = DisplayStyle.None;
+            _skipBtn = WizardUI.Quiet("Skip skills", _onDone);
+            _root.Add(WizardUI.Navigation(
+                WizardUI.Secondary("← Back", _onBack),
+                _skipBtn,
+                _installBtn,
+                _finishBtn));
 
-            return root;
+            return _root;
         }
 
         public void OnEnter()
         {
+            _headerAnim?.SetWorking(false);
             _log.Clear();
             if (_logLabel != null) _logLabel.text = "";
 
             var ver = SkillsInstaller.ReadVersionFile(ProjectRoot());
-            if (ver != null) AppendLog($"Previously installed: v{ver}");
+            if (ver != null)
+            {
+                AppendLog($"Previously installed: v{ver}");
+                SetCompletionActions(true, allowReinstall: true);
+                SetStatus($"Skills v{ver} are already installed.", "success");
+            }
+            else
+            {
+                SetCompletionActions(false);
+                SetStatus("Ready to install project-local AI skills.", "neutral");
+            }
 
-            if (SkillsInstaller.FindSource() == null) AppendLog("⚠ ClientSkills not found in package.");
+            if (SkillsInstaller.FindSource() == null)
+            {
+                AppendLog("⚠ ClientSkills not found in package.");
+                _installBtn?.SetEnabled(false);
+                SetStatus("ClientSkills were not found. You can skip this step.", "error");
+            }
         }
 
         public void OnExit()
         {
-            if (_proc != null && !_proc.HasExited) try { _proc.Kill(); } catch { }
-            try { _proc?.Dispose(); } catch { }
+            StopProcess();
+        }
+
+        private void StopProcess()
+        {
+            _runGeneration++;
+            _headerAnim?.SetWorking(false);
+            _skipBtn?.SetEnabled(true);
+            var process = _proc;
             _proc = null;
+            if (process == null) return;
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill();
+            }
+            catch { }
+            try { process.Dispose(); } catch { }
         }
 
         // ── Private ───────────────────────────────────────────────────────────
@@ -96,10 +145,20 @@ namespace UnityMCP.Editor.Wizard.Screens
         private void RunInstall()
         {
             var src = SkillsInstaller.FindSource();
-            if (src == null) { AppendLog("✗ ClientSkills directory not found."); return; }
+            if (src == null)
+            {
+                AppendLog("✗ ClientSkills directory not found.");
+                SetStatus("ClientSkills directory not found.", "error");
+                _headerAnim?.SetWorking(false);
+                return;
+            }
 
             var projectRoot = ProjectRoot();
+            _headerAnim?.SetWorking(true);
             _installBtn?.SetEnabled(false);
+            _finishBtn?.SetEnabled(false);
+            _skipBtn?.SetEnabled(false);
+            SetStatus("Installing skills...", "warning");
 
             var result = SkillsInstaller.Install(src, projectRoot, _overwriteToggle.value);
             AppendLog($"✓ Copied {result.Copied}, skipped {result.Skipped}");
@@ -112,14 +171,40 @@ namespace UnityMCP.Editor.Wizard.Screens
             }
 
             _installBtn?.SetEnabled(true);
+            _skipBtn?.SetEnabled(true);
 
-            if (_codexToggle?.value == true) RunCodexSync(projectRoot);
+            if (!result.IsSuccess)
+            {
+                _headerAnim?.SetWorking(false);
+                SetCompletionActions(false);
+                SetStatus("Skills installation completed with errors.", "error");
+                return;
+            }
+
+            BiomeParticleBurst.Emit(_root);
+            if (_codexToggle?.value == true)
+            {
+                SetStatus("Skills installed. Running Codex sync...", "warning");
+                RunCodexSync(projectRoot);
+            }
+            else
+            {
+                _headerAnim?.SetWorking(false);
+                SetCompletionActions(true);
+                SetStatus("Skills installed successfully.", "success");
+            }
         }
 
         private void RunCodexSync(string projectRoot)
         {
             var script = Path.Combine(projectRoot, ".codex", "scripts", "claude_to_codex.py");
-            if (!File.Exists(script)) return;
+            if (!File.Exists(script))
+            {
+                _headerAnim?.SetWorking(false);
+                SetCompletionActions(true);
+                SetStatus("Skills installed. Codex sync script was not found.", "warning");
+                return;
+            }
 
 #if UNITY_EDITOR_WIN
             const string exe = "python";
@@ -128,6 +213,7 @@ namespace UnityMCP.Editor.Wizard.Screens
 #endif
             try
             {
+                int generation = ++_runGeneration;
                 var psi = new ProcessStartInfo(exe, $"\"{script}\" --repo-root \"{projectRoot}\"")
                 {
                     UseShellExecute        = false,
@@ -140,31 +226,93 @@ namespace UnityMCP.Editor.Wizard.Screens
                 {
                     if (e.Data == null) return;
                     var line = e.Data;
-                    EditorApplication.delayCall += () => AppendLog(line);
+                    QueueIfActive(generation, () => AppendLog(line));
                 };
                 proc.ErrorDataReceived += (_, e) =>
                 {
                     if (e.Data == null) return;
                     var line = e.Data;
-                    EditorApplication.delayCall += () => AppendLog("ERR: " + line);
+                    QueueIfActive(generation, () => AppendLog("ERR: " + line));
                 };
                 proc.Exited += (_, __) =>
                 {
-                    int code = proc.ExitCode;
-                    EditorApplication.delayCall += () =>
+                    int code;
+                    try { code = proc.ExitCode; }
+                    catch { return; }
+                    QueueIfActive(generation, () =>
+                    {
                         AppendLog(code == 0 ? "✓ Codex sync done" : $"✗ Codex exit {code}");
+                        _headerAnim?.SetWorking(false);
+                        _skipBtn?.SetEnabled(true);
+                        SetCompletionActions(code == 0);
+                        SetStatus(
+                            code == 0 ? "Skills and Codex sync are ready." : "Codex sync failed.",
+                            code == 0 ? "success" : "error");
+                        ReleaseProcess(proc);
+                    });
                 };
                 proc.Start();
                 proc.BeginOutputReadLine();
                 proc.BeginErrorReadLine();
             }
-            catch (Exception ex) { AppendLog("ERROR: " + ex.Message); }
+            catch (Exception ex)
+            {
+                StopProcess();
+                AppendLog("ERROR: " + ex.Message);
+                SetCompletionActions(false);
+                SetStatus("Could not start Codex sync.", "error");
+            }
+        }
+
+        private void SetCompletionActions(bool ready, bool allowReinstall = false)
+        {
+            if (_finishBtn != null)
+            {
+                _finishBtn.SetEnabled(ready);
+                _finishBtn.style.display = ready ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+            if (_skipBtn != null)
+                _skipBtn.style.display = ready ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_installBtn != null)
+            {
+                _installBtn.text = allowReinstall ? "Reinstall" : "Install";
+                _installBtn.style.display =
+                    !ready || allowReinstall ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
+        private void QueueIfActive(int generation, Action action)
+        {
+            EditorApplication.delayCall += () =>
+            {
+                if (generation != _runGeneration || _root?.panel == null)
+                    return;
+                action();
+            };
+        }
+
+        private void ReleaseProcess(Process process)
+        {
+            if (!ReferenceEquals(_proc, process)) return;
+            _proc = null;
+            try { process.Dispose(); } catch { }
         }
 
         private void AppendLog(string line)
         {
             _log.AppendLine(line);
             if (_logLabel != null) _logLabel.text = _log.ToString();
+            _logScroll?.schedule.Execute(() =>
+            {
+                if (_logLabel?.panel != null)
+                    _logScroll.ScrollTo(_logLabel);
+            });
+        }
+
+        private void SetStatus(string text, string state)
+        {
+            if (_statusLabel != null)
+                BiomeUI.SetStatus(_statusLabel, text, state);
         }
 
         private static string ProjectRoot() =>
@@ -185,15 +333,21 @@ namespace UnityMCP.Editor.Wizard.Screens
         }
 
         [MenuItem("MCP/Install AI Skills", priority = 3)]
-        private static void OpenStandalone() =>
-            EditorWindow.GetWindow<StandaloneWindow>("Install AI Skills").Show();
+        private static void OpenStandalone()
+        {
+            var window = EditorWindow.GetWindow<StandaloneWindow>("Install AI Skills");
+            window.minSize = new Vector2(440, 500);
+            window.Show();
+        }
 
         private sealed class StandaloneWindow : EditorWindow
         {
             private InstallSkillsScreen _screen;
 
-            private void OnEnable()
+            private void CreateGUI()
             {
+                rootVisualElement.Clear();
+                BiomeUI.LoadCoreStyles(rootVisualElement, includeWizard: true);
                 _screen = new InstallSkillsScreen(Close, Close);
                 rootVisualElement.Add(_screen.Build());
                 _screen.OnEnter();

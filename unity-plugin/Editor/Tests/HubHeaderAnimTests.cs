@@ -16,8 +16,8 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(_root.ClassListContains("hub-anim-root"));
 
         [Test]
-        public void Build_RootHasTenChildren() =>
-            Assert.AreEqual(10, _root.childCount);
+        public void Build_RootHasExpectedChildren() =>
+            Assert.AreEqual(11, _root.childCount);
 
         [Test]
         public void Build_FirstChildHasNodeSmClass() =>
@@ -38,6 +38,10 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Build_LastChildIsPacket() =>
             Assert.IsTrue(_root.ElementAt(9).ClassListContains("han-packet"));
+
+        [Test]
+        public void Build_HasAmbientParticleField() =>
+            Assert.IsNotNull(_root.Q<BiomeAmbientParticles>("biome-ambient-particles"));
 
         [Test]
         public void Build_Children1357HaveLineClass()

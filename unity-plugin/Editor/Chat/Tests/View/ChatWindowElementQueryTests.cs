@@ -161,5 +161,13 @@ namespace UnityMCP.Editor.Chat.Tests
             if (FlowFill() == null) Assert.Ignore("FlowFill not found");
             Assert.IsNotNull(FlowFill());
         }
+
+        [Test] public void FlowBar_UsesFixedSevenParticlePool()
+        {
+            var particles = W.rootVisualElement
+                .Query<VisualElement>(className: "flowbar__particle")
+                .ToList();
+            Assert.AreEqual(7, particles.Count);
+        }
     }
 }

@@ -15,8 +15,8 @@
 }
 
 .orb-stage {
-    width: 80px;
-    height: 80px;
+    width: 116px;
+    height: 116px;
     position: relative;
     align-items: center;
     justify-content: center;
@@ -24,39 +24,50 @@
 
 .orb-halo {
     position: absolute;
-    width: 64px;
-    height: 64px;
-    border-radius: 32px;
-    background-color: rgba(0, 0, 0, 0);
-    border-width: 1px;
+    width: 92px;
+    height: 92px;
+    border-radius: 46px;
+    background-color: rgba(58, 210, 159, 0.04);
+    border-width: 2px;
     opacity: 0.15;
-    transition-property: border-top-width, border-right-width, border-bottom-width, border-left-width, opacity;
-    transition-duration: 0.45s;
+    transition-property: border-color, background-color;
+    transition-duration: 0.3s;
     transition-timing-function: ease-in-out;
 }
 
 .orb {
-    width: 36px;
-    height: 36px;
-    border-radius: 18px;
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
     transition-property: background-color;
     transition-duration: 0.45s;
     transition-timing-function: ease-in-out;
 }
 
 /* State fills — orb */
-.orb--up      { background-color: #1f7a5c; }
+.orb--up      { background-color: #3ad29f; }
 .orb--up.beat { background-color: #3ad29f; }
 
-.orb--listen      { background-color: #8a6512; }
+.orb--listen      { background-color: #e8a23a; }
 .orb--listen.beat { background-color: #e8a23a; }
 
-.orb--down { background-color: #6e2b3a; }
+.orb--down { background-color: #e94560; }
 
 /* Halo colors per state */
-.halo--up     { border-color: #3ad29f; }
-.halo--listen { border-color: #e8a23a; }
-.halo--down   { border-color: #6e2b3a; }
+.halo--up {
+    border-color: #54e8b5;
+    background-color: rgba(84, 232, 181, 0.07);
+}
+
+.halo--listen {
+    border-color: #e8a23a;
+    background-color: rgba(232, 162, 58, 0.05);
+}
+
+.halo--down {
+    border-color: #e94560;
+    background-color: rgba(233, 69, 96, 0.04);
+}
 
 /* Beat classes */
 .orb-halo.beat {
@@ -99,6 +110,22 @@
     margin: 3px;
 }
 
+.mcp-btn--primary {
+    border-color: #3ad29f;
+    background-color: rgba(58, 210, 159, 0.10);
+}
+
+.mcp-btn--danger {
+    border-color: rgba(233, 69, 96, 0.65);
+    color: #ff7187;
+}
+
+.mcp-maintenance {
+    align-self: stretch;
+    max-width: 360px;
+    margin-top: 3px;
+}
+
 /* ── Ambient Overlay ── */
 .status-ambient {
     position: absolute;
@@ -112,9 +139,6 @@
     height: 1px;
     background-color: rgba(58, 210, 159, 0.07);
     top: -2px;
-    transition-property: top;
-    transition-duration: 2s;
-    transition-timing-function: linear;
 }
 
 .status-scanline--sweep {
@@ -125,7 +149,7 @@
     position: absolute;
     top: 50%; left: 50%;
     translate: -50% -50%;
-    width: 80px; height: 80px;
+    width: 108px; height: 108px;
     flex-wrap: wrap;
     flex-direction: row;
     opacity: 0.06;
@@ -140,7 +164,7 @@
 
 .status-grid-dot {
     width: 4px; height: 4px;
-    margin: 6px;
+    margin: 11.5px;
     border-radius: 50%;
     background-color: #3ad29f;
 }
@@ -152,15 +176,12 @@
     position: absolute;
     top: 50%; left: 50%;
     translate: -50% -50%;
-    width: 20px; height: 20px;
+    width: 26px; height: 26px;
     border-radius: 50%;
     border-width: 1px;
     border-color: rgba(58, 210, 159, 0.15);
     opacity: 0;
     scale: 1;
-    transition-property: scale, opacity;
-    transition-duration: 1.5s;
-    transition-timing-function: ease-out;
 }
 
 .status-sonar--ping {

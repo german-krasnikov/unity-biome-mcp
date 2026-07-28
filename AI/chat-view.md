@@ -10,7 +10,10 @@ In-Unity MCP Chat window: 15-file partial class MCPChatWindow, Markdown→UIElem
 - `Chat/CLI/DeferredSchema.cs` — Lazy tool schema loading (token optimization)
 
 ### View Layer (UIElements Rendering)
-- `Chat/View/MCPChatWindow.cs` — Main window (15 partials: input, transcript, events, reload-survival)
+- `Chat/View/MCPChatWindow.cs` — Main window (16 partials: input, transcript, events, reload-survival, FlowBar)
+- `Chat/View/MCPChatWindow.FlowBar.cs` — Activity animation bar + footer bar (BuildFooterBar, Send/Stop swap)
+- `Chat/View/BackendSettingsForm.cs` — Per-backend settings forms (Claude/Codex/Antigravity/Kimi/OpenCode + chip display)
+- `Chat/View/ChatSettingsSection.cs` — Settings panel builder (auto-scroll, timeout, per-backend foldouts, auth probe)
 - `Chat/View/ChatTranscript.cs` — Message rendering + reload-survival serialization
 - `Chat/View/ChatBlockRendererRegistry.cs` — Block type → renderer dispatcher
 - `Chat/View/Markdown/MarkdownParser.cs` — Pure markdown→MdBlock parse (no side effects)
@@ -18,13 +21,14 @@ In-Unity MCP Chat window: 15-file partial class MCPChatWindow, Markdown→UIElem
 - `Chat/View/Mermaid/MermaidRenderer.cs` — Diagram rendering via SVG texture
 - `Chat/View/Chips/ChipPillFactory.cs` — Unified chip rendering (scene refs, toggles, buttons)
 - `Chat/View/Chips/ChipTextInterleaver.cs` — Interleave chip displays with plain text
+- `ChatHeaderAnim.cs` — Chat header connection-state animation (up/listen/down + ambient particles)
 
 ### Data Layer
 - `Chat/Data/ChatEvent.cs` — Event log entry (message, tool call, error)
 - `Chat/Data/UserMessage.cs` — User input with interleaved chips (segments)
 - `Chat/Data/ToolCallRecord.cs` — MCP tool invocation + result
 
-## MCPChatWindow (Main Window) — 15 Partials
+## MCPChatWindow (Main Window) — Partials
 
 | Partial | Responsibility |
 |---------|-----------------|
@@ -40,19 +44,48 @@ In-Unity MCP Chat window: 15-file partial class MCPChatWindow, Markdown→UIElem
 | _Token.cs | Token budget display + Haiku cost tracking |
 | _Undo.cs | Turn undo (TurnUndoTracker) |
 | _Tests.cs | NUnit helpers (test-scoped hooks) |
+| FlowBar.cs | Activity animation bar + footer bar (BuildFooterBar / MakeModeBtn) |
 
 **Key Fields:**
-- `_backend`: Current CLI backend (Claude/Codex/Kimi/Gemini)
+- `_backend`: Current CLI backend (Claude/Codex/Kimi/Antigravity/OpenCode)
 - `_transcript`: ChatTranscript renderer
 - `_agentMode`: Boolean for agent vs. one-shot mode
 - `_sentLlmCache`: Full-path payload cache (reload-survival)
 - `_permConfig`: Permission UI state
 - `_resumeRetryCount`: Bounded retry for compile-clean gate (max 30)
+- `_activity`: `ChatActivityState` — phase tracker (Idle / Sending / Receiving)
+- `_sendBtn` / `_stopBtn`: Swapped via `OnActivityChanged` (F20: idle shows Send, active shows Stop)
 
 **Reload-Survival (F21):**
 - `SerializeForReload()` → JSON snapshot of _entries + _sentLlmCache
 - `RestoreFromReload()` → Re-render from snapshot + re-send pending turns if compile clean
 - Circuit breaker: _resumeRetryCount prevents infinite retry loop
+
+## FlowBar (MCPChatWindow.FlowBar.cs)
+
+Active-only activity animation bar. Driven by `ArcadeAnim.ControlledSmoothLoop`.
+
+**Elements:**
+- `_flowBar` — container (`flowbar` class), `PickingMode.Ignore`, `GroupTransform` hint
+- `_flowFill` — animated fill pill (`flowbar__fill`) with translate + scale + opacity
+- `_flowAura` — glow halo behind fill (`flowbar__aura`)
+- `_flowParticles[7]` — pooled particles; alternating `flowbar__particle--hot` / `--soft` classes
+
+**State Machine (OnActivityChanged):**
+| Phase | CSS classes on _flowBar | Fill class |
+|-------|------------------------|------------|
+| Idle / askPending | none | removed |
+| Sending | `flowbar--active flowbar--sending` | `flowbar__fill--sending` |
+| Receiving | `flowbar--active flowbar--receiving` | `flowbar__fill--receiving` |
+
+`OnActivityChanged` also swaps Send ↔ Stop button visibility (F20).
+
+**Animation (AnimateFlowBar):**
+- Fill: yoyo translate (cosine) + breathing scale + opacity pulse
+- Aura: offset scale/opacity pulse (180° out of phase with fill)
+- Particles: gaussian wake brightening around fill lead position; per-particle drift (sin/cos)
+
+**Footer bar:** `BuildFooterBar` and `MakeModeBtn` live in this partial (moved from MCPChatWindow.cs to keep partials under 200 lines). Footer contains: agent selector, model selector, Ask/Agent mode segment, plugin buttons, session menu, token readout, relay status label, context progress bar, Send/Stop buttons.
 
 ## ChatTranscript
 
@@ -194,6 +227,8 @@ ChipKindRegistry.Register(new SceneChipProvider());  // 3rd party
 | Persist chat state | ChatTranscript._entries + SerializeForReload() | Reload-survival; survives domain reload |
 | Stream response | ChatTranscript._assistantBubble | Live tail; append + FinalizeAssistant() |
 | Handle tool results | ChatTranscript.AppendBlock(ToolBlock) | ToolChipGrouper batches display |
+| Add new CLI backend | BackendSettingsForm + ChatSettingsSection + new foldout | BuildBinarySection for shared binary path UI |
+| Animate activity state | MCPChatWindow.FlowBar.cs / OnActivityChanged | Drives CSS classes + particle animation via ChatActivityState.Phase |
 
 ## Reload-Survival (F21 Innovation)
 
@@ -204,6 +239,52 @@ ChipKindRegistry.Register(new SceneChipProvider());  // 3rd party
 **Circuit Breaker:** _resumeRetryCount prevents infinite loop (max 30 retries before giving up).
 
 **Payload Cache:** _sentLlmCache stores full-path LLM input (not short display text) so re-send is identical.
+
+## BackendSettingsForm
+
+Pure UIToolkit form builder — no persistence logic. Static class.
+
+**Forms per backend:**
+
+| Method | Backend | Key fields |
+|--------|---------|------------|
+| `BuildClaudeForm` | Claude | Model, PermissionMode (plan/acceptEdits), ExtraArgs |
+| `BuildCodexForm` | Codex | Binary path override, Model, PermissionMode, StartupTimeout (1–120 s) |
+| `BuildAntigravityForm` | Antigravity (agy) | Binary path, Model, ApprovalMode (default/yolo), Sandbox toggle, ExtraArgs |
+| `BuildKimiForm` | Kimi | Binary path, Model, ApprovalMode (default/yolo/plan), ExtraArgs |
+| `BuildOpenCodeForm` | OpenCode | Binary path, Model format hint (`provider/modelId`), SkipPermissions toggle, ExtraArgs |
+| `BuildChipDisplayForm` | (shared) | Allowed asset type toggles + per-kind depth/color overrides (registry-driven, P4) |
+
+**Shared helper `BuildBinarySection`:** shows `ChatBinaryResolver.Resolve(binaryName)` auto-path hint (success/error class), optional install hint when not found, and an override `TextField` backed by EditorPrefs. Used by Antigravity, Kimi, OpenCode.
+
+## ChatSettingsSection
+
+Builds the connection settings panel content (called by `ChatConnectionSection`).
+
+**Layout (top to bottom):**
+1. Auto-scroll toggle (F22) — `EditorPrefs` `PrefKeys.ChatAutoScroll`, default true
+2. Inactivity Timeout field — clamped 30–600 s, persisted via `BackendConfigStore`
+3. Claude foldout (expanded by default) — binary path hint + override, auth status probe, ANTHROPIC_API_KEY warning, `BuildClaudeForm`
+4. Codex foldout (collapsed)
+5. Antigravity foldout (collapsed)
+6. Kimi foldout (collapsed)
+7. OpenCode foldout (collapsed)
+8. Context Chips foldout — `BuildChipDisplayForm`; on save calls `RefreshColorResolver` + `RefreshChipDisplay` on all open chat windows
+9. Plugin foldouts — one per `SettingsProviderRegistry.All` entry
+
+**Auth probe (`ProbeAuthAsync`):** runs `claude auth status` on a ThreadPool thread (2 s timeout), updates label on main thread via `EditorApplication.delayCall`. Cancels cleanly on panel detach. Writes result to `EditorPrefs` `PrefKeys.ChatAuthStatus`.
+
+## ChatHeaderAnim
+
+Connection-state animation in the chat window header.
+
+**Elements:** wave-root → lineL, hub (3 arcs + dot + orbit/orbitDot), lineR + ambient particles.
+
+**States:** `up` (backend running) / `listen` (binary available, not logged in or auth unknown) / `down` (binary not found or auth failed). State polled every 600 ms via `root.schedule.Execute`.
+
+**CSS class switching:** `BiomeUI.SetExclusiveClass` sets `wave--{state}` on arcs and lines, `wave-dot--{state}` on dot, `conn-{state}` on orbit. Particles state via `BiomeAmbientParticles.SetState(state)` (pattern: `BiomeParticlePattern.Chat`).
+
+**Animation loop (SmoothLoop):** arc opacity + scale pulses (sin wave, staggered per arc), dot scale/opacity pulse, orbit angle via dual-frequency sin for organic feel, line L/R opacity breathe in antiphase.
 
 ## Error Handling
 

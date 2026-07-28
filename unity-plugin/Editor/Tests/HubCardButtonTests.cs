@@ -45,5 +45,13 @@ namespace UnityMCP.Editor.Tests
         {
             Assert.DoesNotThrow(() => HubCardButton.Build("⚙", "T", "S", null));
         }
+
+        [Test]
+        public void Build_ReturnsKeyboardFocusableButton()
+        {
+            var el = HubCardButton.Build("⚙", "T", "S", () => { });
+            Assert.IsInstanceOf<Button>(el);
+            Assert.IsTrue(el.focusable);
+        }
     }
 }

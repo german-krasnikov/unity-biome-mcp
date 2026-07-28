@@ -16,8 +16,8 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(_root.ClassListContains("anim-tools"));
 
         [Test]
-        public void Build_RootHasFiveChildren() =>
-            Assert.AreEqual(5, _root.childCount);
+        public void Build_RootHasControlsAndParticles() =>
+            Assert.AreEqual(6, _root.childCount);
 
         [Test]
         public void Build_EachChildHasToggleTrackClass()
@@ -39,5 +39,10 @@ namespace UnityMCP.Editor.Tests
             for (int i = 0; i < 5; i++)
                 Assert.IsTrue(_root.ElementAt(i).ElementAt(0).ClassListContains("toggle-knob"));
         }
+
+        [Test]
+        public void Build_HasToolParticlePattern() =>
+            Assert.IsTrue(_root.Q<BiomeAmbientParticles>()
+                .ClassListContains("biome-ambient--tools"));
     }
 }

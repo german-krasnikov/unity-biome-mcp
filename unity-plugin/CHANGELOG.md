@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.0] — 2026-07-29 — UI polish, animations, BiomeUI utilities
+
+**C# — New UI Components:**
+- `BiomeParticleBurst.cs`: pooled editor particle burst system with 8 motion patterns
+- `BiomeToggleGroup.cs`: radio-button-style toggle group with tri-state master
+- `BiomeUI.cs`: shared UI utility class — style loading, button factories, animations
+- `EcosystemHeaderAnim.cs`: Plugins node graph + Version Picker header animations
+- `WizardAmbientAnim.cs`: journey step tracker + skills install stream animation
+- `WizardUI.cs`: DRY factory for wizard button variants and navigation layout
+
+**C# — Enhanced Animations:**
+- All `*HeaderAnim.cs`: BiomeAmbientParticles, GPU UsageHints, improved motion
+- `ArcadeAnim.cs`: MotionHandle + ControlledSmoothLoop API
+- `LevelUpAnimator.cs`: idle signal, sparks, SimulateCompletion test hook
+- `MCPChatWindow.FlowBar.cs`: particle-driven FlowBar redesign
+
+**C# — UI Styling:**
+- `MCPHub.uss` (+504), `MCPSettings.uss` (+103), `SetupWizard.uss` (+374), `LevelUpAnim.uss`, `MCPStatus.uss`
+
+**C# — Settings & Wizard Refactoring:**
+- `MCPSettingsCategoryGroup.cs`, `PermCategoryGroup.cs`: simplified via BiomeToggleGroup
+- `SettingsPageFactory.cs`: biome-page class + inline plugin accordion
+- All wizard screens enhanced visually
+- `MCPStatusWindow.cs`: Maintenance foldout for Kill MCP + Reimport
+
 ## [v1.1.0] — 2026-07-28 — Windows connection stability, UPM package page
 
 **C# — Windows TIME_WAIT (accepted sockets):**

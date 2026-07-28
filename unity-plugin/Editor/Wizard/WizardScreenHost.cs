@@ -22,6 +22,7 @@ namespace UnityMCP.Editor.Wizard
 
         public int ScreenCount  => _screens.Length;
         public int CurrentIndex { get; private set; } = -1;
+        public int PreviousIndex { get; private set; } = -1;
 
         /// <param name="closeCallback">Called on Complete() to close the window.</param>
         /// <param name="onNavigate">Called after each Navigate() so the window can re-render.</param>
@@ -35,7 +36,7 @@ namespace UnityMCP.Editor.Wizard
 
             _screens = new IWizardScreen[]
             {
-                new WelcomeScreen(Next, Complete),
+                new WelcomeScreen(Next, Cancel),
                 pickScreen,
                 _configureScreen,
                 new InstallSkillsScreen(Complete, Back),
@@ -53,8 +54,8 @@ namespace UnityMCP.Editor.Wizard
         {
             if (index < 0 || index >= _screens.Length) return;
             CurrentScreen?.OnExit();
+            PreviousIndex = CurrentIndex;
             CurrentIndex = index;
-            CurrentScreen?.OnEnter();
             RefreshDots();
             _onNavigate?.Invoke();
         }
@@ -67,6 +68,8 @@ namespace UnityMCP.Editor.Wizard
             EditorPrefs.SetBool(DonePrefKey, true);
             _closeCallback?.Invoke();
         }
+
+        public void Cancel() => _closeCallback?.Invoke();
 
         // ── Backend handoff ───────────────────────────────────────────────────
 
@@ -83,8 +86,8 @@ namespace UnityMCP.Editor.Wizard
             if (_dots == null) return;
             for (int i = 0; i < _dots.Length; i++)
             {
-                if (i == CurrentIndex) _dots[i].AddToClassList("wiz-dot--active");
-                else                   _dots[i].RemoveFromClassList("wiz-dot--active");
+                _dots[i].EnableInClassList("wiz-dot--active", i == CurrentIndex);
+                _dots[i].EnableInClassList("wiz-dot--complete", i < CurrentIndex);
             }
         }
     }

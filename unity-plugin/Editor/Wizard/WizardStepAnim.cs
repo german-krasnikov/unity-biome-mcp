@@ -7,16 +7,23 @@ namespace UnityMCP.Editor.Wizard
     public static class WizardStepAnim
     {
         /// <summary>Slide current content out to the left.</summary>
-        public static void TransitionOut(VisualElement el) =>
-            el.AddToClassList("wiz-transition-out");
+        public static void TransitionOut(VisualElement el, bool backwards = false)
+        {
+            el.RemoveFromClassList("wiz-transition-out");
+            el.RemoveFromClassList("wiz-transition-out-back");
+            el.AddToClassList(backwards ? "wiz-transition-out-back" : "wiz-transition-out");
+        }
 
         /// <summary>Slide new content in from the right.</summary>
-        public static void TransitionIn(VisualElement el)
+        public static void TransitionIn(VisualElement el, bool backwards = false)
         {
-            el.AddToClassList("wiz-transition-in-start");
+            string startClass = backwards
+                ? "wiz-transition-in-start-back"
+                : "wiz-transition-in-start";
+            el.AddToClassList(startClass);
             el.schedule.Execute(() =>
             {
-                el.RemoveFromClassList("wiz-transition-in-start");
+                el.RemoveFromClassList(startClass);
                 el.AddToClassList("wiz-transition-in-end");
             }).StartingIn(16);
         }
@@ -37,7 +44,9 @@ namespace UnityMCP.Editor.Wizard
         {
             var fill = progressBar.Q(className: "wiz-progress-fill");
             if (fill != null)
-                fill.style.width = new Length(ratio * 100f, LengthUnit.Percent);
+                fill.style.width = new Length(
+                    Mathf.Clamp01(ratio) * 100f,
+                    LengthUnit.Percent);
         }
     }
 }

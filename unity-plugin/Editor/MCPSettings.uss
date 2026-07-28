@@ -42,6 +42,7 @@
     margin-right: 6px;
     padding: 3px 10px;
     font-size: 11px;
+    min-height: 24px;
 }
 
 /* ── Info label ── */
@@ -64,12 +65,41 @@
     margin: 0 2px;
 }
 
+.permission-content {
+    flex-grow: 1;
+}
+
 /* ── Category foldout ── */
 .category-foldout {
     margin: 2px 0;
     border-left-width: 2px;
     border-left-color: var(--unity-colors-default-border);
     padding-left: 4px;
+}
+
+.category-header {
+    flex-direction: row;
+    align-items: center;
+    min-height: 24px;
+}
+
+.category-disclosure {
+    flex-grow: 1;
+    -unity-text-align: middle-left;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    margin: 0;
+    padding: 3px 5px;
+    font-size: 11px;
+}
+
+.category-disclosure:hover,
+.category-disclosure:focus {
+    background-color: rgba(128, 128, 128, 0.10);
+}
+
+.category-content {
+    flex-direction: column;
 }
 
 /* ── Tool row ── */
@@ -166,4 +196,77 @@
     -unity-font-style: bold;
     color: var(--unity-colors-label-text);
     margin-bottom: 4px;
+}
+
+/* ── Chat settings ── */
+.chat-settings {
+    padding: 2px 4px 10px 4px;
+}
+
+.chat-settings-foldout {
+    margin: 4px 0;
+    padding: 4px 6px;
+    border-width: 1px;
+    border-color: var(--unity-colors-default-border);
+    border-radius: 4px;
+}
+
+.chat-form-field {
+    margin: 3px 0;
+    min-height: 20px;
+}
+
+.chat-hint,
+.chat-warning {
+    font-size: 10px;
+    white-space: normal;
+    margin: 2px 0 4px 0;
+    opacity: 0.78;
+}
+
+.chat-hint--success { color: #3ad29f; }
+.chat-hint--warning,
+.chat-warning { color: #e8a23a; }
+.chat-hint--error { color: #e94560; }
+
+.settings-section-header {
+    font-size: 11px;
+    -unity-font-style: bold;
+    margin: 5px 0 3px 0;
+}
+
+.chat-separator {
+    height: 1px;
+    margin: 5px 0;
+    background-color: var(--unity-colors-default-border);
+}
+
+.chip-config-row {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    min-height: 25px;
+    margin: 2px 0;
+}
+
+.chip-config-label {
+    min-width: 86px;
+    flex-grow: 1;
+    font-size: 11px;
+}
+
+.chip-config-depth {
+    min-width: 78px;
+    flex-grow: 1;
+}
+
+.chip-config-color {
+    width: 54px;
+    margin-left: 4px;
+}
+
+.chip-config-reset {
+    min-width: 50px;
+    margin-left: 4px;
+    font-size: 9px;
 }

@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine.Networking;
+using System;
 
 namespace UnityMCP.Editor
 {
@@ -15,6 +16,10 @@ namespace UnityMCP.Editor
 
         public static string AvailableVersion { get; private set; }
         public static bool   HasUpdate        => !string.IsNullOrEmpty(AvailableVersion);
+        public static bool   IsChecking       { get; private set; }
+        public static string LastError        { get; private set; }
+        public static event Action CheckCompleted;
+        private static UnityWebRequest _activeRequest;
 
         /// <summary>Check for updates respecting 24h cache. Safe to call from button.</summary>
         public static void CheckAsync()
@@ -43,22 +48,44 @@ namespace UnityMCP.Editor
         public static void ForceCheckAsync()
         {
             AvailableVersion = null;
+            LastError = null;
             FetchFromNetwork();
         }
 
         static void FetchFromNetwork()
         {
+            if (IsChecking) return;
+            IsChecking = true;
             var req = UnityWebRequest.Get(ReleasesUrl);
+            _activeRequest = req;
             req.SetRequestHeader("User-Agent", "unity-biome-mcp-update-checker");
             req.SendWebRequest().completed += _ => OnResponse(req);
         }
 
         static void OnResponse(UnityWebRequest req)
         {
-            if (req.result != UnityWebRequest.Result.Success) return;
+            if (!ReferenceEquals(req, _activeRequest))
+                return;
+            _activeRequest = null;
+            IsChecking = false;
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                LastError = string.IsNullOrEmpty(req.error)
+                    ? "Update check failed."
+                    : req.error;
+                CheckCompleted?.Invoke();
+                req.Dispose();
+                return;
+            }
 
             var tag = ParseTagName(req.downloadHandler.text);
-            if (string.IsNullOrEmpty(tag)) return;
+            if (string.IsNullOrEmpty(tag))
+            {
+                LastError = "The release response did not contain a version tag.";
+                CheckCompleted?.Invoke();
+                req.Dispose();
+                return;
+            }
 
             var nowEpoch = (System.DateTime.UtcNow -
                 new System.DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc)).TotalSeconds;
@@ -66,6 +93,19 @@ namespace UnityMCP.Editor
             EditorPrefs.SetString(CacheTimeKey, nowEpoch.ToString("F0", System.Globalization.CultureInfo.InvariantCulture));
 
             ApplyVersion(tag);
+            LastError = null;
+            CheckCompleted?.Invoke();
+            req.Dispose();
+        }
+
+        internal static void CancelActiveCheck()
+        {
+            var request = _activeRequest;
+            _activeRequest = null;
+            IsChecking = false;
+            if (request == null) return;
+            try { request.Abort(); } catch { }
+            request.Dispose();
         }
 
         static void ApplyVersion(string tag)
@@ -115,6 +155,7 @@ namespace UnityMCP.Editor
             EditorPrefs.DeleteKey(CacheKey);
             EditorPrefs.DeleteKey(CacheTimeKey);
             AvailableVersion = null;
+            LastError = null;
         }
 
         public static void SkipVersion()
@@ -127,7 +168,11 @@ namespace UnityMCP.Editor
 #if UNITY_INCLUDE_TESTS
         public static void ResetForTest()
         {
+            CancelActiveCheck();
             AvailableVersion = null;
+            IsChecking = false;
+            LastError = null;
+            CheckCompleted = null;
         }
 
         public static void SetAvailableVersionForTest(string version)

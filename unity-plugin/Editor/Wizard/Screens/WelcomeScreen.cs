@@ -36,24 +36,15 @@ namespace UnityMCP.Editor.Wizard.Screens
             var subtitle = _subtitle;
 
             var version = new Label(GetVersion());
-            version.style.fontSize = 11;
-            version.style.opacity  = 0.6f;
-            version.style.marginBottom = 16;
+            version.AddToClassList("wiz-version");
 
             var spacer = new VisualElement();
-            spacer.style.flexGrow = 1;
+            spacer.AddToClassList("wiz-spacer");
 
-            var nav = new VisualElement();
-            nav.AddToClassList("wiz-nav");
+            var skipBtn = WizardUI.Quiet("Set up later", _onSkip);
+            var nextBtn = WizardUI.Primary("Next →", _onNext);
 
-            var skipBtn = new Button(_onSkip) { text = "Skip" };
-            skipBtn.AddToClassList("wiz-btn-skip");
-
-            var nextBtn = new Button(_onNext) { text = "Next →" };
-            nextBtn.AddToClassList("wiz-btn-primary");
-
-            nav.Add(skipBtn);
-            nav.Add(nextBtn);
+            var nav = WizardUI.Navigation(skipBtn, nextBtn);
             _nav = nav;
 
             _root.Add(logo);

@@ -9,43 +9,42 @@ namespace UnityMCP.Editor
     {
         public static void Build(VisualElement root)
         {
-            var ss = MCPEditorUtils.LoadStyleSheet("MCPHub.uss");
-            if (ss != null) root.styleSheets.Add(ss);
-            var settingsSs = MCPEditorUtils.LoadStyleSheet("MCPSettings.uss");
-            if (settingsSs != null) root.styleSheets.Add(settingsSs);
-            var arcadeSs = MCPEditorUtils.LoadStyleSheet("ArcadeAnim.uss");
-            if (arcadeSs != null) root.styleSheets.Add(arcadeSs);
+            BiomeUI.LoadCoreStyles(root);
             root.AddToClassList("hub-root");
 
             var nav = new SettingsNavController(root);
 
-            var home = new VisualElement();
-            home.Add(HubHeaderAnim.Build(root));
-            home.Add(BuildGeneralSection());
-            home.Add(MCPHubDivider.Build(root));
-            home.Add(HubCardButton.Build("⚙",  "Tools",        "Enable / disable MCP tools",
+            var home = new ScrollView(ScrollViewMode.Vertical);
+            home.AddToClassList("biome-page-scroll");
+            var content = home.contentContainer;
+            content.AddToClassList("biome-page-content");
+
+            content.Add(HubHeaderAnim.Build(home));
+            content.Add(BuildGeneralSection());
+            content.Add(MCPHubDivider.Build(home));
+            content.Add(HubCardButton.Build("⚙",  "Tools",        "Enable / disable MCP tools",
                 () => nav.Push(SettingsPageFactory.BuildToolsPage(() => nav.Pop()))));
             if (PluginRegistry.All.Any(p => p.HasSettingsUI))
-                home.Add(HubCardButton.Build("🧩", "Plugins", "Installed plugin settings",
+                content.Add(HubCardButton.Build("🧩", "Plugins", "Installed plugin settings",
                     () => nav.Push(SettingsPageFactory.BuildPluginsPage(() => nav.Pop()))));
-            home.Add(HubCardButton.Build("🔒", "Permissions",   "Agent tool deny-set",
+            content.Add(HubCardButton.Build("🔒", "Permissions",   "Agent tool deny-set",
                 () => nav.Push(SettingsPageFactory.BuildPermissionsPage(() => nav.Pop()))));
-            home.Add(HubCardButton.Build("💬", "Chat Settings",  ChatCardSubtitle(),
+            content.Add(HubCardButton.Build("💬", "Chat Settings",  ChatCardSubtitle(),
                 () => nav.Push(SettingsPageFactory.BuildChatPage(() => nav.Pop()))));
-            home.Add(HubCardButton.Build("🧠", "LLM Sampling",  "Claude / Codex presets",
+            content.Add(HubCardButton.Build("🧠", "LLM Sampling",  "Claude / Codex presets",
                 () => nav.Push(SettingsPageFactory.BuildSamplingPage(() => nav.Pop()))));
-            home.Add(HubCardButton.Build("🔄", "Updates",
+            content.Add(HubCardButton.Build("🔄", "Updates",
                 UpdateChecker.HasUpdate ? $"v{UpdateChecker.AvailableVersion} available" : "Check for updates",
                 () => nav.Push(SettingsPageFactory.BuildUpdatesPage(() => nav.Pop()))));
-            home.Add(HubCardButton.Build("⏪", "Version Picker",
+            content.Add(HubCardButton.Build("⏪", "Version Picker",
                 "Roll back to any release",
                 () => nav.Push(SettingsPageFactory.BuildVersionPickerPage(() => nav.Pop()))));
-            home.Add(MCPHubDivider.Build(root));
+            content.Add(MCPHubDivider.Build(home));
 
             var cards = new List<VisualElement>();
-            for (int i = 0; i < home.childCount; i++)
+            for (int i = 0; i < content.childCount; i++)
             {
-                var child = home.ElementAt(i);
+                var child = content.ElementAt(i);
                 if (child.ClassListContains("hub-card"))
                     cards.Add(child);
             }
@@ -84,29 +83,60 @@ namespace UnityMCP.Editor
                 MCPSettings.SetSecurityLevel((SecurityLevel)levelNames.IndexOf(e.newValue)));
             section.Add(secLevel);
 
-            var restartWarning = new Label("Restart required to apply") { visible = false };
+            var restartWarning = BiomeUI.StatusLabel();
+            restartWarning.visible = false;
             restartWarning.AddToClassList("hub-port-restart-warning");
             section.Add(restartWarning);
 
             portField.RegisterValueChangedCallback(e =>
             {
                 var v = e.newValue;
-                if (v < 1024 || v > 65535) { portField.SetValueWithoutNotify(e.previousValue); return; }
-                if (v == chatPortField.value) { portField.SetValueWithoutNotify(e.previousValue); return; }
+                if (v < 1024 || v > 65535)
+                {
+                    portField.SetValueWithoutNotify(e.previousValue);
+                    ShowPortStatus(restartWarning, "Port must be between 1024 and 65535.", "error");
+                    ArcadeAnim.ShakeX(portField);
+                    return;
+                }
+                if (v == chatPortField.value)
+                {
+                    portField.SetValueWithoutNotify(e.previousValue);
+                    ShowPortStatus(restartWarning, "MCP and Chat ports must be different.", "error");
+                    ArcadeAnim.ShakeX(portField);
+                    return;
+                }
                 MCPServer.SavePorts(v, chatPortField.value);
-                restartWarning.visible = (v != MCPServer.ServerPort || chatPortField.value != MCPServer.ServerChatPort);
+                ShowPortStatus(restartWarning, "Saved. Restart the MCP server to apply port changes.", "warning");
             });
 
             chatPortField.RegisterValueChangedCallback(e =>
             {
                 var v = e.newValue;
-                if (v < 1024 || v > 65535) { chatPortField.SetValueWithoutNotify(e.previousValue); return; }
-                if (v == portField.value) { chatPortField.SetValueWithoutNotify(e.previousValue); return; }
+                if (v < 1024 || v > 65535)
+                {
+                    chatPortField.SetValueWithoutNotify(e.previousValue);
+                    ShowPortStatus(restartWarning, "Chat port must be between 1024 and 65535.", "error");
+                    ArcadeAnim.ShakeX(chatPortField);
+                    return;
+                }
+                if (v == portField.value)
+                {
+                    chatPortField.SetValueWithoutNotify(e.previousValue);
+                    ShowPortStatus(restartWarning, "MCP and Chat ports must be different.", "error");
+                    ArcadeAnim.ShakeX(chatPortField);
+                    return;
+                }
                 MCPServer.SavePorts(portField.value, v);
-                restartWarning.visible = (portField.value != MCPServer.ServerPort || v != MCPServer.ServerChatPort);
+                ShowPortStatus(restartWarning, "Saved. Restart the MCP server to apply port changes.", "warning");
             });
 
             return section;
+        }
+
+        private static void ShowPortStatus(Label label, string message, string state)
+        {
+            label.visible = true;
+            BiomeUI.SetStatus(label, message, state);
         }
 
         // Sync read — no shell spawn: uses cached binary path + EditorPrefs auth key.

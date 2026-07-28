@@ -17,7 +17,6 @@ namespace UnityMCP.Editor
 
             var root = new VisualElement();
             root.AddToClassList("lvlup-cta");
-            root.style.position = Position.Relative;
 
             var ss = MCPEditorUtils.LoadStyleSheet("Updates/LevelUpAnim.uss");
             if (ss != null) root.styleSheets.Add(ss);
@@ -30,6 +29,7 @@ namespace UnityMCP.Editor
         {
             root.Clear();
             root.AddToClassList("lvlup-cta-pulse");
+            root.Add(LevelUpAnimator.BuildIdleSignal());
 
             var title = new Label("You can level up!");
             title.AddToClassList("lvlup-title");
@@ -39,8 +39,9 @@ namespace UnityMCP.Editor
             sub.AddToClassList("lvlup-subtitle");
             root.Add(sub);
 
-            var btn = new Button(() => ShowAnimating(root, scheduleHost, from, to)) { text = "Level Up!" };
-            btn.AddToClassList("wiz-btn-primary");
+            var btn = BiomeUI.PrimaryButton(
+                "Level Up!",
+                () => ShowAnimating(root, scheduleHost, from, to));
             root.Add(btn);
         }
 
@@ -63,12 +64,12 @@ namespace UnityMCP.Editor
             badge.AddToClassList("lvlup-badge");
 
             var btnRow = new VisualElement();
-            btnRow.style.flexDirection = FlexDirection.Row;
+            btnRow.AddToClassList("lvlup-button-row");
 
-            var statsBtn = new Button(() => ShowDiff(root, scheduleHost, from, to)) { text = "See new stats" };
-            statsBtn.AddToClassList("wiz-btn-secondary");
-            var updateBtn = new Button(() => DoUpdate(root, to)) { text = "Update now" };
-            updateBtn.AddToClassList("wiz-btn-primary");
+            var statsBtn = BiomeUI.SecondaryButton(
+                "See new stats",
+                () => ShowDiff(root, scheduleHost, from, to));
+            var updateBtn = BiomeUI.PrimaryButton("Update now", () => DoUpdate(root, to));
 
             btnRow.Add(statsBtn);
             btnRow.Add(updateBtn);
@@ -76,6 +77,7 @@ namespace UnityMCP.Editor
             root.Clear();
             root.Add(badge);
             root.Add(btnRow);
+            BiomeParticleBurst.Emit(root);
         }
 
         static void ShowDiff(VisualElement root, VisualElement scheduleHost, string from, string to)
@@ -99,13 +101,13 @@ namespace UnityMCP.Editor
                 {
                     var b = new Label("+ " + bullet);
                     b.AddToClassList("lvlup-diff-bullet");
-                    b.style.whiteSpace = WhiteSpace.Normal;
                     root.Add(b);
                 }
             }
 
-            var updateBtn = new Button(() => DoUpdate(root, to)) { text = $"Update now — v{to}" };
-            updateBtn.AddToClassList("wiz-btn-primary");
+            var updateBtn = BiomeUI.PrimaryButton(
+                $"Update now — v{to}",
+                () => DoUpdate(root, to));
             root.Add(updateBtn);
         }
 

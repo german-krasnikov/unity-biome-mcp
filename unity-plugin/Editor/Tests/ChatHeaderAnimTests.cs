@@ -16,8 +16,8 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(_root.ClassListContains("wave-root"));
 
         [Test]
-        public void Build_RootHasThreeChildren() =>
-            Assert.AreEqual(3, _root.childCount);
+        public void Build_RootHasHeaderAndParticles() =>
+            Assert.AreEqual(4, _root.childCount);
 
         [Test]
         public void Build_LineLHasWaveLineClass() =>
@@ -28,8 +28,8 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(_root.ElementAt(2).ClassListContains("wave-line"));
 
         [Test]
-        public void Build_HubHasFourChildren() =>
-            Assert.AreEqual(4, _root.ElementAt(1).childCount);
+        public void Build_HubHasFiveChildren() =>
+            Assert.AreEqual(5, _root.ElementAt(1).childCount);
 
         [Test]
         public void Build_HubArcsHaveWaveArcClass()
@@ -42,5 +42,15 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Build_HubLastChildHasWaveDotClass() =>
             Assert.IsTrue(_root.ElementAt(1).ElementAt(3).ClassListContains("wave-dot"));
+
+        [Test]
+        public void Build_HubHasOrbitWithDot() =>
+            Assert.IsTrue(_root.ElementAt(1).ElementAt(4)
+                .Q(className: "wave-orbit-dot") != null);
+
+        [Test]
+        public void Build_HasChatParticlePattern() =>
+            Assert.IsTrue(_root.Q<BiomeAmbientParticles>()
+                .ClassListContains("biome-ambient--chat"));
     }
 }

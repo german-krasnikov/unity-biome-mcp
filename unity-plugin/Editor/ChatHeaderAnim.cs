@@ -1,3 +1,5 @@
+using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor
@@ -9,46 +11,132 @@ namespace UnityMCP.Editor
             var root = new VisualElement();
             root.AddToClassList("wave-root");
 
-            var lineL = new VisualElement(); lineL.AddToClassList("wave-line");
+            var lineL = new VisualElement();
+            lineL.usageHints |= UsageHints.DynamicColor;
+            lineL.AddToClassList("wave-line");
             var hub   = new VisualElement(); hub.AddToClassList("wave-hub");
-            var lineR = new VisualElement(); lineR.AddToClassList("wave-line");
+            var lineR = new VisualElement();
+            lineR.usageHints |= UsageHints.DynamicColor;
+            lineR.AddToClassList("wave-line");
 
             var arcs = new VisualElement[3];
             for (int i = 0; i < 3; i++)
             {
                 arcs[i] = new VisualElement();
+                arcs[i].usageHints |= UsageHints.DynamicTransform | UsageHints.DynamicColor;
                 arcs[i].AddToClassList("wave-arc");
                 arcs[i].AddToClassList("wave-arc-" + (i + 1));
                 hub.Add(arcs[i]);
             }
 
-            var dot = new VisualElement(); dot.AddToClassList("wave-dot");
+            var dot = new VisualElement();
+            dot.usageHints |= UsageHints.DynamicTransform | UsageHints.DynamicColor;
+            dot.AddToClassList("wave-dot");
             hub.Add(dot);
+
+            var orbit = new VisualElement();
+            orbit.usageHints |= UsageHints.DynamicTransform;
+            orbit.AddToClassList("wave-orbit");
+            var orbitDot = new VisualElement();
+            orbitDot.AddToClassList("wave-orbit-dot");
+            orbit.Add(orbitDot);
+            hub.Add(orbit);
 
             root.Add(lineL); root.Add(hub); root.Add(lineR);
 
-            int phase = 0;
-            scheduleHost.schedule.Execute(() =>
-            {
-                phase = (phase + 1) % 12;
-                // Phases 0-2: arc1 lit, 3-5: arc2 lit, 6-8: arc3 lit, 9-11: pause
-                for (int i = 0; i < 3; i++)
-                    arcs[i].EnableInClassList("wave-arc--lit", phase >= i * 3 && phase < (i + 1) * 3);
+            var particles = BiomeAmbientParticles.Attach(
+                root,
+                BiomeParticlePattern.Chat);
+            string previousState = null;
 
-                string state = MCPServer.IsRunning && MCPServer.IsClientConnected ? "up"
-                    : MCPServer.IsRunning ? "listen" : "down";
-                foreach (var arc in arcs)
+            string ResolveState()
+            {
+                if (ChatBackendProbe.IsChatBackendRunning())
+                    return "up";
+                if (!ChatSettingsHook.IsChatBinaryAvailable())
+                    return "down";
+                return EditorPrefs.GetString(PrefKeys.ChatAuthStatus, "") == "fail"
+                    ? "down"
+                    : "listen";
+            }
+
+            void RefreshState()
+            {
+                string state = ResolveState();
+                if (state != previousState)
                 {
-                    arc.RemoveFromClassList("wave--up");
-                    arc.RemoveFromClassList("wave--listen");
-                    arc.RemoveFromClassList("wave--down");
-                    arc.AddToClassList("wave--" + state);
+                    foreach (var arc in arcs)
+                        BiomeUI.SetExclusiveClass(
+                            arc,
+                            "wave--" + state,
+                            "wave--up",
+                            "wave--listen",
+                            "wave--down");
+                    foreach (var line in new[] { lineL, lineR })
+                        BiomeUI.SetExclusiveClass(
+                            line,
+                            "wave--" + state,
+                            "wave--up",
+                            "wave--listen",
+                            "wave--down");
+                    BiomeUI.SetExclusiveClass(
+                        dot,
+                        "wave-dot--" + state,
+                        "wave-dot--up",
+                        "wave-dot--listen",
+                        "wave-dot--down");
+                    BiomeUI.SetExclusiveClass(
+                        orbit,
+                        "conn-" + state,
+                        "conn-up",
+                        "conn-listen",
+                        "conn-down");
+                    particles.SetState(state);
+                    previousState = state;
                 }
-                dot.RemoveFromClassList("wave-dot--up");
-                dot.RemoveFromClassList("wave-dot--listen");
-                dot.RemoveFromClassList("wave-dot--down");
-                dot.AddToClassList("wave-dot--" + state);
-            }).Every(150);
+
+                root.tooltip = state == "up"
+                    ? "Chat backend is running"
+                    : state == "listen"
+                        ? "Chat CLI is ready"
+                        : "Chat CLI needs attention";
+            }
+
+            void Animate(float elapsed)
+            {
+                for (int i = 0; i < arcs.Length; i++)
+                {
+                    float wave = 0.5f + 0.5f
+                        * Mathf.Sin(elapsed * 3.15f - i * 0.92f);
+                    float energy = wave * wave;
+                    arcs[i].style.opacity = 0.25f + energy * 0.75f;
+                    float arcScale = 0.94f + wave * 0.19f;
+                    arcs[i].style.scale = new Scale(new Vector3(
+                        arcScale,
+                        arcScale,
+                        1f));
+                }
+
+                float pulse = 0.5f + 0.5f * Mathf.Sin(elapsed * 4.4f);
+                float dotScale = 0.88f + pulse * 0.68f;
+                dot.style.scale = new Scale(new Vector3(
+                    dotScale,
+                    dotScale,
+                    1f));
+                dot.style.opacity = 0.72f + pulse * 0.28f;
+
+                float orbitAngle = Mathf.Sin(elapsed * 0.95f) * 154f
+                    + Mathf.Sin(elapsed * 0.37f + 1.2f) * 18f;
+                orbit.style.rotate = new Rotate(new Angle(orbitAngle));
+                lineL.style.opacity = 0.48f
+                    + (0.5f + 0.5f * Mathf.Sin(elapsed * 2.1f)) * 0.28f;
+                lineR.style.opacity = 0.48f
+                    + (0.5f + 0.5f * Mathf.Sin(elapsed * 2.1f + Mathf.PI)) * 0.28f;
+            }
+
+            RefreshState();
+            root.schedule.Execute(RefreshState).Every(600);
+            ArcadeAnim.SmoothLoop(root, Animate);
 
             return root;
         }

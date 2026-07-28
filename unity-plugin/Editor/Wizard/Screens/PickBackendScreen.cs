@@ -1,6 +1,8 @@
 using System;
-using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -12,6 +14,8 @@ namespace UnityMCP.Editor.Wizard.Screens
         private readonly Action<BackendDescriptor> _onSelect;
         private readonly Action _onBack;
         private VisualElement[] _cards;
+        private int _buildGeneration;
+        private CancellationTokenSource _detectionCancellation;
 
         public string Title => "Pick Backend";
 
@@ -31,27 +35,49 @@ namespace UnityMCP.Editor.Wizard.Screens
             root.Add(title);
 
             var scroll = new ScrollView();
-            scroll.style.flexGrow = 1;
+            scroll.AddToClassList("wiz-scroll");
 
             var backends = BackendDescriptor.All;
             _cards = new VisualElement[backends.Length];
+            int generation = ++_buildGeneration;
+            _detectionCancellation?.Cancel();
+            _detectionCancellation?.Dispose();
+            _detectionCancellation = new CancellationTokenSource();
+            var cancellation = _detectionCancellation.Token;
+            root.RegisterCallback<DetachFromPanelEvent>(_ => CancelDetection());
 
             for (int i = 0; i < backends.Length; i++)
             {
                 var backend = backends[i]; // capture for lambda
-                var card = BuildCard(backend, IsDetected(backend));
-                int idx = i;
-                card.RegisterCallback<ClickEvent>(_ => _onSelect?.Invoke(backends[idx]));
+                var (card, badge) = BuildCard(backend);
+                card.clicked += () => _onSelect?.Invoke(backend);
                 _cards[i] = card;
                 scroll.Add(card);
+
+                Task.Run(() => IsDetected(backend, cancellation), cancellation).ContinueWith(task =>
+                {
+                    bool detected = task.Status == TaskStatus.RanToCompletion && task.Result;
+                    EditorApplication.delayCall += () =>
+                    {
+                        if (cancellation.IsCancellationRequested
+                            || generation != _buildGeneration
+                            || badge.panel == null)
+                            return;
+                        badge.text = detected ? "detected" : "not detected";
+                        BiomeUI.SetExclusiveClass(
+                            badge,
+                            detected ? "wiz-badge-detected" : "wiz-badge-missing",
+                            "wiz-badge-detected",
+                            "wiz-badge-checking",
+                            "wiz-badge-missing");
+                    };
+                }, cancellation);
             }
 
             root.Add(scroll);
 
-            var nav = new VisualElement();
-            nav.AddToClassList("wiz-nav");
-            nav.Add(new Button(_onBack) { text = "← Back" });
-            root.Add(nav);
+            root.Add(WizardUI.Navigation(
+                WizardUI.Secondary("← Back", _onBack)));
 
             return root;
         }
@@ -63,7 +89,7 @@ namespace UnityMCP.Editor.Wizard.Screens
                 WizardAnimUtils.SlideInRight(_cards[i], i * 60);
         }
 
-        public void OnExit() { }
+        public void OnExit() => CancelDetection();
 
         /// <summary>Test hook — simulates clicking card at index.</summary>
         public void SimulateSelect(int index)
@@ -75,70 +101,73 @@ namespace UnityMCP.Editor.Wizard.Screens
 
         // ── Private ───────────────────────────────────────────────────────────
 
-        private static VisualElement BuildCard(BackendDescriptor b, bool detected)
+        private static (Button card, Label badge) BuildCard(BackendDescriptor b)
         {
-            var card = new VisualElement();
+            var card = new Button { text = string.Empty };
             card.AddToClassList("wiz-card");
+            card.tooltip = $"Configure {b.DisplayName}";
 
             var header = new VisualElement();
-            header.style.flexDirection = FlexDirection.Row;
-            header.style.alignItems = Align.Center;
+            header.AddToClassList("wiz-card-header");
 
             var icon = new Label(b.Icon);
-            icon.style.fontSize = 18;
-            icon.style.marginRight = 8;
+            icon.AddToClassList("wiz-card-icon");
 
             var name = new Label(b.DisplayName);
-            name.style.unityFontStyleAndWeight = FontStyle.Bold;
-            name.style.flexGrow = 1;
+            name.AddToClassList("wiz-card-title");
 
             header.Add(icon);
             header.Add(name);
 
-            if (detected)
-            {
-                var badge = new Label("detected");
-                badge.AddToClassList("wiz-badge-detected");
-                badge.style.fontSize = 10;
-                header.Add(badge);
-            }
+            var badge = new Label("checking...");
+            badge.AddToClassList("wiz-badge-detected");
+            badge.AddToClassList("wiz-badge-checking");
+            header.Add(badge);
 
             var desc = new Label(b.Description);
-            desc.style.fontSize = 11;
-            desc.style.whiteSpace = WhiteSpace.Normal;
-            desc.style.opacity = 0.75f;
+            desc.AddToClassList("wiz-card-description");
 
             card.Add(header);
             card.Add(desc);
-            return card;
+            return (card, badge);
         }
 
-        private static bool IsDetected(BackendDescriptor d)
+        private static bool IsDetected(BackendDescriptor d, CancellationToken cancellation)
         {
+            if (cancellation.IsCancellationRequested) return false;
             if (d.Mechanism == InstallMechanism.ChatAuto) return true;
-            if (!string.IsNullOrEmpty(d.BinaryName) && WhichExists(d.BinaryName)) return true;
+            if (!string.IsNullOrEmpty(d.BinaryName)
+                && BinaryExistsOnPath(d.BinaryName, cancellation))
+                return true;
+            if (cancellation.IsCancellationRequested) return false;
             if (!string.IsNullOrEmpty(d.ConfigDir) && ConfigDirExists(d.ConfigDir)) return true;
             return false;
         }
 
-        private static bool WhichExists(string tool)
+        private static bool BinaryExistsOnPath(string tool, CancellationToken cancellation)
         {
             try
             {
+                string path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+                string[] extensions;
 #if UNITY_EDITOR_WIN
-                const string cmd = "where";
+                extensions = (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE;.CMD;.BAT")
+                    .Split(';');
 #else
-                const string cmd = "which";
+                extensions = new[] { string.Empty };
 #endif
-                var psi = new ProcessStartInfo(cmd, tool)
+                foreach (string directory in path.Split(Path.PathSeparator))
                 {
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                };
-                using var proc = Process.Start(psi);
-                proc?.WaitForExit(1000);
-                return proc?.ExitCode == 0;
+                    if (cancellation.IsCancellationRequested) return false;
+                    if (string.IsNullOrWhiteSpace(directory)) continue;
+                    foreach (string extension in extensions)
+                    {
+                        if (cancellation.IsCancellationRequested) return false;
+                        if (File.Exists(Path.Combine(directory, tool + extension)))
+                            return true;
+                    }
+                }
+                return false;
             }
             catch { return false; }
         }
@@ -151,6 +180,14 @@ namespace UnityMCP.Editor.Wizard.Screens
                 return Directory.Exists(path.Replace("~", home));
             }
             catch { return false; }
+        }
+
+        private void CancelDetection()
+        {
+            _buildGeneration++;
+            _detectionCancellation?.Cancel();
+            _detectionCancellation?.Dispose();
+            _detectionCancellation = null;
         }
     }
 }

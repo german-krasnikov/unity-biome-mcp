@@ -16,8 +16,7 @@ namespace UnityMCP.Editor
         private ScrollView    _changelogScroll;
         private bool          _changelogLoaded;
         private IVisualElementScheduledItem _refreshJob;
-        private IVisualElementScheduledItem _beatFastJob;
-        private IVisualElementScheduledItem _beatSoftJob;
+        private BiomeAmbientParticles _statusParticles;
 
         [MenuItem("MCP/Status", priority = 1)]
         public static void ShowWindow()
@@ -29,8 +28,11 @@ namespace UnityMCP.Editor
         private void CreateGUI()
         {
             var root = rootVisualElement;
+            root.Clear();
+            BiomeUI.LoadCoreStyles(root);
             var ss = MCPEditorUtils.LoadStyleSheet("MCPStatus.uss");
-            if (ss != null) root.styleSheets.Add(ss);
+            if (ss != null && !root.styleSheets.Contains(ss))
+                root.styleSheets.Add(ss);
             root.AddToClassList("mcp-root");
 
             var brand = new Label("UNITY BIOME MCP");
@@ -39,8 +41,15 @@ namespace UnityMCP.Editor
             var stage = new VisualElement();
             stage.AddToClassList("orb-stage");
             stage.Add(StatusAmbientAnim.Build(root));
-            _halo = new VisualElement(); _halo.AddToClassList("orb-halo");
-            _orb  = new VisualElement(); _orb.AddToClassList("orb");
+            _statusParticles = BiomeAmbientParticles.Attach(
+                stage,
+                BiomeParticlePattern.Ecosystem);
+            _halo = new VisualElement();
+            _halo.usageHints |= UsageHints.DynamicTransform | UsageHints.DynamicColor;
+            _halo.AddToClassList("orb-halo");
+            _orb  = new VisualElement();
+            _orb.usageHints |= UsageHints.DynamicTransform | UsageHints.DynamicColor;
+            _orb.AddToClassList("orb");
             stage.Add(_halo);
             stage.Add(_orb);
 
@@ -51,15 +60,40 @@ namespace UnityMCP.Editor
             var spacerBot = new VisualElement(); spacerBot.style.flexGrow = 1;
 
             var row = new VisualElement(); row.AddToClassList("btn-row");
-            row.Add(MakeBtn("Restart",      MCPActions.Restart));
-            row.Add(MakeBtn("Kill MCP",     MCPActions.Kill));
-            row.Add(MakeBtn("Reimport",     MCPActions.Reimport));
-            row.Add(MakeBtn("Diagnose",     OpenDiagnosePanel));
+            row.Add(MakeBtn(
+                "Restart",
+                MCPActions.Restart,
+                "Restart the MCP server",
+                "mcp-btn--primary"));
+            row.Add(MakeBtn(
+                "Diagnose",
+                OpenDiagnosePanel,
+                "Inspect server, transport, and project health"));
 
-            // Extra action row
             var row2 = new VisualElement(); row2.AddToClassList("btn-row");
-            row2.Add(MakeBtn("Setup Wizard",      SetupWizard.ShowWindow));
-            row2.Add(MakeBtn("Check for Updates", OnCheckUpdates));
+            row2.Add(MakeBtn(
+                "Setup Wizard",
+                SetupWizard.ShowWindow,
+                "Review MCP setup"));
+            row2.Add(MakeBtn(
+                "Check for Updates",
+                OnCheckUpdates,
+                "Check the installed package version"));
+
+            var maintenance = new Foldout { text = "Maintenance", value = false };
+            maintenance.AddToClassList("mcp-maintenance");
+            var maintenanceRow = new VisualElement();
+            maintenanceRow.AddToClassList("btn-row");
+            maintenanceRow.Add(MakeBtn(
+                "Reimport",
+                MCPActions.Reimport,
+                "Reimport the MCP editor package"));
+            maintenanceRow.Add(MakeBtn(
+                "Kill MCP",
+                MCPActions.Kill,
+                "Force-stop the MCP server",
+                "mcp-btn--danger"));
+            maintenance.Add(maintenanceRow);
 
             _updateLabel = new Label();
             _updateLabel.style.fontSize = 10;
@@ -83,14 +117,36 @@ namespace UnityMCP.Editor
             root.Add(spacerBot);
             root.Add(row);
             root.Add(row2);
+            root.Add(maintenance);
             root.Add(_updateLabel);
             root.Add(changelogFold);
 
             RefreshState();
             RefreshUpdateLabel();
             _refreshJob  = root.schedule.Execute(RefreshState).Every(700);
-            _beatFastJob = root.schedule.Execute(BeatFast).Every(900);
-            _beatSoftJob = root.schedule.Execute(BeatSoft).Every(1500);
+            ArcadeAnim.SmoothLoop(stage, elapsed =>
+            {
+                bool connected = MCPServer.IsRunning && MCPServer.IsClientConnected;
+                bool listening = MCPServer.IsRunning && !connected;
+                float speed = connected ? 3.4f : listening ? 2.0f : 1.1f;
+                float pulse = 0.5f + 0.5f * Mathf.Sin(elapsed * speed);
+                float micro = 0.5f + 0.5f
+                    * Mathf.Sin(elapsed * (speed * 0.43f) + 1.2f);
+
+                float orbScale = 0.92f + pulse * (connected ? 0.18f : 0.10f);
+                _orb.style.scale = new Scale(new Vector3(
+                    orbScale,
+                    orbScale,
+                    1f));
+
+                float haloScale = 0.88f + pulse * 0.25f + micro * 0.05f;
+                _halo.style.scale = new Scale(new Vector3(
+                    haloScale,
+                    haloScale,
+                    1f));
+                _halo.style.opacity = 0.15f
+                    + pulse * (connected ? 0.47f : listening ? 0.30f : 0.12f);
+            });
         }
 
         private void OnCheckUpdates()
@@ -148,40 +204,26 @@ namespace UnityMCP.Editor
             win.Show();
         }
 
-        private Button MakeBtn(string t, System.Action a)
+        private Button MakeBtn(
+            string text,
+            System.Action action,
+            string tooltip,
+            string modifierClass = null)
         {
-            var b = new Button(a) { text = t };
+            var b = new Button(action)
+            {
+                text = text,
+                tooltip = tooltip
+            };
             b.AddToClassList("mcp-btn");
+            if (!string.IsNullOrEmpty(modifierClass))
+                b.AddToClassList(modifierClass);
             return b;
         }
 
         private void OnDisable()
         {
             _refreshJob?.Pause();
-            _beatFastJob?.Pause();
-            _beatSoftJob?.Pause();
-        }
-
-        private void BeatFast()
-        {
-            if (MCPServer.IsRunning && MCPServer.IsClientConnected)
-            {
-                _halo.ToggleInClassList("beat");
-                _orb.ToggleInClassList("beat");
-            }
-            else
-            {
-                _halo.RemoveFromClassList("beat");
-                _orb.RemoveFromClassList("beat");
-            }
-        }
-
-        private void BeatSoft()
-        {
-            if (MCPServer.IsRunning && !MCPServer.IsClientConnected)
-                _halo.ToggleInClassList("beat-soft");
-            else
-                _halo.RemoveFromClassList("beat-soft");
         }
 
         private void RefreshState()
@@ -202,6 +244,7 @@ namespace UnityMCP.Editor
             _orb.AddToClassList("orb--" + s);
             _halo.AddToClassList("halo--" + s);
             _word.AddToClassList("status-word--" + s);
+            _statusParticles?.SetState(s);
 
             _word.text = MCPStatusModel.GetLabel(state, MCPServer.ServerPort);
             _sub.text  = MCPStatusModel.GetSub(state);

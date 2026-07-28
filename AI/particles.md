@@ -157,3 +157,58 @@ renderer: Billboard
 
 - Tool: `vfx_intent` — NL intent tool for visual effects (See `AI/intent-tools.md`)
 - Architecture: `AI/architecture.md` — System-wide structure
+
+---
+
+## Editor UI Particle System (BiomeParticleBurst.cs)
+
+**Not an MCP tool.** Pure editor-side UI Toolkit particle effects for the plugin's own UI (Hub, Settings headers, Chat, Updates, etc.).
+
+### Classes
+
+| Class | Purpose | Count |
+|-------|---------|-------|
+| `BiomeParticleBurst` | One-shot burst on demand (celebrations, wizard completion, level-up) | 12 particles |
+| `BiomeAmbientParticles` | Continuous ambient field with harmonic motion, pauses on detach | 9 particles |
+| `BiomeParticlePattern` | Enum (8 values) — selects motion profile for ambient field | — |
+
+### BiomeParticleBurst
+
+- `BiomeParticleBurst.Emit(host)` — attach + fire. Pooled: second call reuses the same element, just re-plays.
+- Particles: 12 `VisualElement`s fanned 360°, radius 30–51 px. CSS classes: `--accent`, `--success`, `--warning` (cycling mod-3).
+- Animation: inline style transitions (`translate`, `rotate`, `scale`, `opacity`) via `schedule.Execute`. No permanent update loop.
+- Generation counter prevents stale callbacks from a prior burst.
+
+### BiomeAmbientParticles
+
+- `BiomeAmbientParticles.Attach(host, pattern, entryBurst=true)` — pooled attach. Returns existing instance on repeat calls.
+- Motion: incommensurate harmonics (sin/cos combinations) per-particle, seeded from pattern index. Driven by `ArcadeAnim.SmoothLoop`.
+- `SetState("up"|"listen"|"down")` — toggles `conn-*` CSS class (connection status visual cue).
+- Entry burst: schedules `BiomeParticleBurst.Emit` 220 ms after first `AttachToPanelEvent`.
+
+### Patterns (BiomeParticlePattern)
+
+| Pattern | Motion override |
+|---------|----------------|
+| `DataFlow` | Horizontal bias, compressed Y |
+| `Tools` | Vertical ripple, scale pulse |
+| `Shield` | Orbital paths around center |
+| `Chat` | Smaller orbits, faster spin |
+| `Sampling` | Narrow X, vertical wave |
+| `Updates` | Compressed X, slow drift |
+| `Ecosystem` | Wide X, gentle vertical wave |
+| `Timeline` | Horizontal sweep, flat Y |
+
+### Files
+
+| File | Lines | Role |
+|------|-------|------|
+| `unity-plugin/Editor/BiomeParticleBurst.cs` | 351 | Both classes + `BiomeParticlePattern` enum |
+| `unity-plugin/Editor/Tests/BiomeParticleBurstTests.cs` | 57 | 4 NUnit tests: pooling (burst + ambient), particle count, CSS class |
+
+### Key Design Constraints
+
+- `pickingMode = PickingMode.Ignore` on all elements — never blocks UI interaction.
+- `UsageHints.DynamicTransform | DynamicColor` per particle for GPU-friendly style updates.
+- `UsageHints.GroupTransform` on container for batch transform.
+- No `Update()` loop. Burst: one-shot schedule. Ambient: `ArcadeAnim.SmoothLoop` (pauses when detached).

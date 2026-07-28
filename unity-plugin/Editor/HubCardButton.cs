@@ -7,10 +7,12 @@ namespace UnityMCP.Editor
     {
         public static VisualElement Build(string icon, string title, string subtitle, Action onClick)
         {
-            var card = new VisualElement();
-            card.AddToClassList("hub-card");
+            var card = new Button();
             if (onClick != null)
-                card.AddManipulator(new Clickable(onClick));
+                card.clicked += onClick;
+            card.text = string.Empty;
+            card.tooltip = $"{title}: {subtitle}";
+            card.AddToClassList("hub-card");
 
             var iconLabel = new Label(icon);
             iconLabel.AddToClassList("hub-card-icon");
@@ -28,6 +30,10 @@ namespace UnityMCP.Editor
             col.Add(subLabel);
             card.Add(iconLabel);
             card.Add(col);
+
+            var chevron = new Label("›");
+            chevron.AddToClassList("hub-card-chevron");
+            card.Add(chevron);
             return card;
         }
     }

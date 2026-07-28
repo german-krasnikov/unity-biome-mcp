@@ -147,6 +147,10 @@
     padding: 0 6px 5px 6px;
 }
 
+.input-area--working {
+    border-top-color: rgba(84, 232, 181, 0.55);
+}
+
 /* Outer container IS the visual field: border + background live here so chips
    and text share one visible box. flex-column so pills sit above text;
    align-items stretch for full-width children. */
@@ -611,40 +615,83 @@
     background-color: rgba(244, 67, 54, 0.06);
 }
 
-/* -- FlowBar: fixed 2px track with inner sweeping chip --
-   Track fades in/out; chip pings left↔right inside overflow:hidden container. */
+/* -- FlowBar: active-only Biome data stream --
+   Motion is driven by a lifecycle-aware scheduler and is fully paused in idle. */
 .flowbar {
-    height: 2px;
+    height: 10px;
     flex-shrink: 0;
     overflow: hidden;
     opacity: 0;
+    border-radius: 3px;
     transition-property: opacity;
-    transition-duration: 0.3s;
+    transition-duration: 0.18s;
 }
 
 .flowbar--active {
     opacity: 1;
 }
 
-/* Inner chip — 33% wide, sweeps between two anchor positions */
-.flowbar__fill {
+.flowbar__aura {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 33%;
-    border-radius: 1px;
-    transition-property: translate, background-color;
-    transition-duration: 0.9s;
-    transition-timing-function: ease-in-out;
-    translate: -120% 0;
+    top: 1px;
+    width: 28%;
+    height: 8px;
+    border-radius: 4px;
+    background-color: rgba(84, 232, 181, 0.14);
+    opacity: 0;
 }
 
-.flowbar__fill--sending   { background-color: var(--unity-colors-highlight-background); }
-.flowbar__fill--receiving { background-color: #e0a050; }
+.flowbar__fill {
+    position: absolute;
+    top: 4px;
+    width: 28%;
+    height: 3px;
+    border-radius: 2px;
+    opacity: 0;
+    background-color: #54e8b5;
+}
 
-/* Ping-pong anchors toggled every 950ms (>900ms transition = each leg completes) */
-.flowbar__fill--a { translate: -40% 0; }
-.flowbar__fill--b { translate: 220% 0; }
+.flowbar__fill--sending   { background-color: #54e8b5; }
+.flowbar__fill--receiving { background-color: #e8a23a; }
+
+.flowbar__particles {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.flowbar__particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 2px;
+    opacity: 0;
+    background-color: #54e8b5;
+}
+
+.flowbar__particle--hot {
+    width: 4px;
+    height: 4px;
+    background-color: #62f2bd;
+}
+
+.flowbar__particle--soft {
+    background-color: rgba(84, 232, 181, 0.72);
+}
+
+.flowbar--receiving .flowbar__aura {
+    background-color: rgba(232, 162, 58, 0.14);
+}
+
+.flowbar--receiving .flowbar__particle {
+    background-color: #e8a23a;
+}
+
+.flowbar--sending .flowbar__aura {
+    background-color: rgba(84, 232, 181, 0.14);
+}
 
 /* ── Approve & Execute button ── */
 .approve-btn {
