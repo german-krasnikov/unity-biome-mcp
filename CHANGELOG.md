@@ -10,6 +10,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.0] — 2026-07-28 — Windows connection stability, UPM package page
+
+**Python — Windows TCP stability:**
+- `bridge.py`: `SHUT_WR` instead of `SHUT_RDWR` on Windows — avoids RST packet on graceful close, prevents connection reset errors on client side
+- `bridge.py`: reset `_pinned_port` on `ConnectionRefusedError` — forces port rediscovery instead of retrying a dead port after Unity reload
+
+**C# — Windows TIME_WAIT (accepted sockets):**
+- `ClientConnectionHandler.cs`: `LingerOption(true, 0)` on accepted socket — forces RST on close, eliminates TIME_WAIT for incoming connections on Windows
+- `ClientSlot.cs`: `LingerOption(true, 0)` in eviction path — consistent with accepted socket behaviour
+- `MCPServer.cs`: capture `origPort` before `SaveRuntimePorts()` — log message now shows the correct pre-fallback port
+
+**UPM Package Manager page:**
+- `unity-plugin/package.json`: added `description`, `keywords`, `documentationUrl`, `changelogUrl`, `licensesUrl` — Unity Package Manager now shows metadata and links
+- `unity-plugin/LICENSE.md`: copy of licence for UPM inline display
+
+**Tests:**
+- `test_bridge_edge_cases.py`: SHUT_WR vs SHUT_RDWR path coverage
+- `test_bridge_port_rediscovery.py`: `_pinned_port` reset on `ConnectionRefusedError`, full rediscovery cycle
+- `test_package_json.py`: 8 package.json contract tests (required fields, URL format, keyword presence)
+- `PortFileManagerTests.cs`: `SaveRuntimePorts` contract tests
+
 ## [v1.0.2] — 2026-07-28 — Windows port/chat fixes
 
 **C# — Port lifecycle (Windows TIME_WAIT):**

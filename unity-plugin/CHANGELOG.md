@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.0] — 2026-07-28 — Windows connection stability, UPM package page
+
+**C# — Windows TIME_WAIT (accepted sockets):**
+- `ClientConnectionHandler.cs`: `LingerOption(true, 0)` on accepted socket — forces RST on close, eliminates TIME_WAIT for incoming connections on Windows
+- `ClientSlot.cs`: `LingerOption(true, 0)` in eviction path — consistent with accepted socket behaviour
+- `MCPServer.cs`: capture `origPort` before `SaveRuntimePorts()` — log message now shows the correct pre-fallback port
+
+**UPM Package Manager page:**
+- `package.json`: added `description`, `keywords`, `documentationUrl`, `changelogUrl`, `licensesUrl`
+- `LICENSE.md`: copy of licence for UPM inline display
+
+**Tests:**
+- `PortFileManagerTests.cs`: `SaveRuntimePorts` contract tests
+
 ## [v1.0.2] — 2026-07-28 — Windows port/chat fixes
 
 **C# — Port lifecycle (Windows TIME_WAIT):**

@@ -212,7 +212,7 @@ Supported tools: `claude-code`, `claude-desktop`, `cursor`, `windsurf`, `vscode`
 
 </details>
 
-<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 10836 Tests (4754 Python · 5798 Unity · 284 Live) · 80–95% Batch Savings">
+<img src="docs/assets/stats.svg" width="100%" alt="142 MCP Tools · 10849 Tests (4766 Python · 5799 Unity · 284 Live) · 80–95% Batch Savings">
 
 <img src="docs/assets/divider-wave.svg" width="100%" alt="">
 
@@ -296,6 +296,13 @@ Drop the file in `tools/` and add it to `tools/__init__.py` — it registers on 
 
 <!-- CHANGELOG_START -->
 <details>
+<summary><b>v1.1.0</b> — 2026-07-28 — `bridge.py`: `SHUT_WR` instead of `SHUT_RDWR` on Windows — avoids RST packet on …</summary>
+
+`bridge.py`: `SHUT_WR` instead of `SHUT_RDWR` on Windows — avoids RST packet on graceful close, prevents connection reset errors on client side
+
+</details>
+
+<details>
 <summary><b>v1.0.2</b> — 2026-07-28 — `ClientSlot.cs`: `LingerOption(true, 0)` on all close paths (`DisconnectAll`, …</summary>
 
 `ClientSlot.cs`: `LingerOption(true, 0)` on all close paths (`DisconnectAll`, `KillPhantoms`, eviction) — forces RST instead of FIN, eliminates …
@@ -324,15 +331,9 @@ Renamed `SecurityLevel` enum: `Normal` → `Standard`, `Permissive` → `AllowAl
 </details>
 
 <details>
-<summary><b>v0.95.0</b> — 2026-07-24 — Server name `unity-mcp` → `unity-biome-mcp` (SERVER_NAME, UPM packages, data …</summary>
-
-Server name `unity-mcp` → `unity-biome-mcp` (SERVER_NAME, UPM packages, data dir, docs, URLs)
-
-</details>
-
-<details>
 <summary>Older releases</summary>
 
+- **v0.95.0** — 2026-07-24 — Server name `unity-mcp` → `unity-biome-mcp` (SERVER_NAME, UPM packages, data …
 - **v0.94.0** — 2026-07-20 — Removed `get_perf` tool stub (use `get_frame_stats`)
 - **v0.93.1** — 2026-07-19 — `objects_in_radius`: now sorts all hits by distance ascending before truncating …
 - **v0.93.0** — 2026-07-19 — `IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats …

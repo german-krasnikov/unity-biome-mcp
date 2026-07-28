@@ -355,10 +355,18 @@ class UnityBridge(HeartbeatMixin):
                     self._retry_policy.probe = self._probe
             except Exception:
                 pass
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(self._host, self._port),
-            timeout=CONNECT_TIMEOUT,
-        )
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(self._host, self._port),
+                timeout=CONNECT_TIMEOUT,
+            )
+        except ConnectionRefusedError:
+            # Port was valid when pinned but Unity stopped listening (port drift).
+            # Other errors (TimeoutError, OSError) keep the pin — they indicate
+            # transient network issues, not a port change.
+            self._pinned_port = None
+            self._pinned_pid = None
+            raise
         _apply_socket_options(writer.get_extra_info("socket"))
         try:
             self._counter += 1
@@ -450,7 +458,7 @@ class UnityBridge(HeartbeatMixin):
             sock = w.get_extra_info("socket")
             if sock is not None:
                 try:
-                    sock.shutdown(socket.SHUT_RDWR)
+                    sock.shutdown(socket.SHUT_WR if os.name == "nt" else socket.SHUT_RDWR)
                 except OSError:
                     pass
             w.close()

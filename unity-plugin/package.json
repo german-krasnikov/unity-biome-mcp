@@ -1,10 +1,20 @@
 {
   "name": "com.unity-biome-mcp.editor",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "displayName": "Unity Biome MCP",
-  "description": "MCP server for Unity Editor control",
+  "description": "Control Unity Editor from Claude, Codex, Cursor, and other AI assistants via MCP. 142 tools for scene editing, playtests, screenshots. Batch API: 80\u201395% token savings.",
   "unity": "6000.0",
   "license": "MIT",
+  "keywords": [
+    "mcp",
+    "ai",
+    "claude",
+    "editor-tool",
+    "automation"
+  ],
+  "documentationUrl": "https://github.com/german-krasnikov/unity-biome-mcp#readme",
+  "changelogUrl": "https://github.com/german-krasnikov/unity-biome-mcp/blob/master/CHANGELOG.md",
+  "licensesUrl": "https://github.com/german-krasnikov/unity-biome-mcp/blob/master/LICENSE",
   "author": {
     "name": "German Krasnikov",
     "email": "german.krasnikov@gmail.com",

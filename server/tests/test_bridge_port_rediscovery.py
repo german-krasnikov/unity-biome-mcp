@@ -239,3 +239,62 @@ async def test_reconnect_pid_none_falls_through_to_discoverer():
     assert bridge._port == 9503    # discoverer was used
     assert 9503 in connected_to
     assert bridge._pinned_pid is None   # still None (read_pid_from_port_file mocked)
+
+
+# ---------------------------------------------------------------------------
+# Fix 2: ConnectionRefused clears pinned_port so next reconnect rediscovers
+# ---------------------------------------------------------------------------
+
+async def test_reconnect_clears_pin_on_refused():
+    """ConnectionRefusedError in open_connection must clear _pinned_port/_pinned_pid
+    so the next reconnect attempt uses port_discoverer instead of the stale pin."""
+    probe = make_idle_probe()
+    bridge = UnityBridge("127.0.0.1", 9500, probe=probe)
+    bridge._pinned_port = 9500
+    bridge._pinned_pid = 12345
+
+    with patch.object(bridge_mod.asyncio, "open_connection",
+                      side_effect=ConnectionRefusedError("refused")):
+        with pytest.raises(ConnectionRefusedError):
+            await bridge._reconnect(fire_callbacks=False)
+
+    assert bridge._pinned_port is None
+    assert bridge._pinned_pid is None
+
+
+# ---------------------------------------------------------------------------
+# Fix 3: Full cycle — refused → pin cleared → discoverer → success
+# ---------------------------------------------------------------------------
+
+async def test_full_cycle_refused_then_rediscovers():
+    """ConnectionRefused clears pin → next reconnect uses discoverer → connects on new port."""
+    call_count = 0
+
+    async def mock_open(host, port):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise ConnectionRefusedError("old port gone")
+        return _make_ok_reader(), make_writer()
+
+    discoverer = Mock(return_value=9502)
+    probe = make_idle_probe()
+
+    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open), \
+         patch("unity_mcp.bridge.is_pid_alive", return_value=True), \
+         patch("unity_mcp.lockfile.read_pid_from_port_file", return_value=None):
+        bridge = UnityBridge("127.0.0.1", 9500, probe=probe, port_discoverer=discoverer)
+        bridge._pinned_port = 9500
+        bridge._pinned_pid = 99999
+
+        # First: pinned → ConnectionRefused → pin cleared
+        with pytest.raises(ConnectionRefusedError):
+            await bridge._reconnect(fire_callbacks=False)
+        assert bridge._pinned_port is None
+        assert bridge._pinned_pid is None
+
+        # Second: no pin → discoverer → 9502 → success
+        await bridge._reconnect(fire_callbacks=False)
+
+    assert bridge._port == 9502
+    discoverer.assert_called_once()

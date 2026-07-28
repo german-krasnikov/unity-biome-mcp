@@ -784,3 +784,43 @@ async def test_reader_null_on_ping_failure():
     assert bridge._writer is None
 
 
+async def test_close_uses_shut_wr_on_windows(monkeypatch):
+    """On Windows, close() should use SHUT_WR (not SHUT_RDWR) to avoid RST on recv buffer."""
+    import socket as sock_mod
+    import unity_mcp.bridge as bmod
+
+    mock_sock = Mock()
+    writer = make_writer()
+    writer.get_extra_info = Mock(return_value=mock_sock)
+    writer.is_closing = Mock(return_value=False)
+
+    bridge = UnityBridge()
+    bridge._writer = writer
+    bridge._reader = AsyncMock()
+
+    monkeypatch.setattr(bmod.os, "name", "nt")
+    await bridge.close()
+
+    mock_sock.shutdown.assert_called_once_with(sock_mod.SHUT_WR)
+
+
+async def test_close_uses_shut_rdwr_on_non_windows(monkeypatch):
+    """On non-Windows, close() should use SHUT_RDWR to unblock pending selector reads."""
+    import socket as sock_mod
+    import unity_mcp.bridge as bmod
+
+    mock_sock = Mock()
+    writer = make_writer()
+    writer.get_extra_info = Mock(return_value=mock_sock)
+    writer.is_closing = Mock(return_value=False)
+
+    bridge = UnityBridge()
+    bridge._writer = writer
+    bridge._reader = AsyncMock()
+
+    monkeypatch.setattr(bmod.os, "name", "posix")
+    await bridge.close()
+
+    mock_sock.shutdown.assert_called_once_with(sock_mod.SHUT_RDWR)
+
+

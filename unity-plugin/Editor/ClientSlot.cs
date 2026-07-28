@@ -57,6 +57,10 @@ namespace UnityMCP.Editor
                     if (c != null && !IsSocketAlive(c))
                     {
                         try { _entries[i].Cts?.Cancel(); } catch { }
+#if UNITY_EDITOR_WIN
+                        try { c.Client?.SetSocketOption(SocketOptionLevel.Socket,
+                            SocketOptionName.Linger, new LingerOption(true, 0)); } catch (System.Net.Sockets.SocketException) { }
+#endif
                         try { c.Close(); } catch { }
                         _entries[i].Client = null;
                         _entries[i].Cts = null;

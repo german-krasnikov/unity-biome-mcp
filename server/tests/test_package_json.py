@@ -1,0 +1,56 @@
+"""Package manifest validation tests."""
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+PKG = ROOT / "unity-plugin" / "package.json"
+PYPROJECT = ROOT / "server" / "pyproject.toml"
+
+
+@pytest.fixture
+def pkg():
+    return json.loads(PKG.read_text(encoding="utf-8"))
+
+
+def test_valid_json():
+    json.loads(PKG.read_text(encoding="utf-8"))
+
+
+def test_required_upm_fields(pkg):
+    for field in ("name", "version", "displayName", "description", "unity"):
+        assert field in pkg, f"Missing required UPM field: {field}"
+
+
+def test_description_not_empty(pkg):
+    assert pkg["description"]
+    assert len(pkg["description"]) <= 200
+
+
+def test_url_fields_present(pkg):
+    for field in ("documentationUrl", "changelogUrl", "licensesUrl"):
+        assert field in pkg, f"Missing URL field: {field}"
+        assert pkg[field].startswith("https://"), f"{field} must be HTTPS"
+
+
+def test_keywords_present(pkg):
+    assert "keywords" in pkg
+    assert len(pkg["keywords"]) >= 3
+
+
+def test_author_has_url(pkg):
+    assert "author" in pkg
+    assert "url" in pkg["author"]
+
+
+def test_version_matches_pyproject(pkg):
+    text = PYPROJECT.read_text(encoding="utf-8")
+    match = re.search(r'^version\s*=\s*"(.+)"', text, re.MULTILINE)
+    assert match, "Could not find version in pyproject.toml"
+    assert pkg["version"] == match.group(1)
+
+
+def test_license_file_exists():
+    assert (ROOT / "unity-plugin" / "LICENSE.md").exists()

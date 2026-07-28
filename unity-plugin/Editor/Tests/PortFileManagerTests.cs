@@ -90,6 +90,22 @@ namespace UnityMCP.Editor.Tests
                 PortFileManager.CleanStalePeerPortFiles(
                     Path.Combine(_tempDir, "nonexistent")));
 
+        // ── SaveRuntimePorts ─────────────────────────────────────────────────
+
+        [Test]
+        public void SaveRuntimePorts_DoesNotModifySettings()
+        {
+            // Derive the same path PortFileManager uses internally.
+            var settingsPath = Path.GetFullPath(
+                Path.Combine(UnityEngine.Application.dataPath, "..", "ProjectSettings", "MCPSettings.json"));
+            var before = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
+
+            PortFileManager.SaveRuntimePorts(9999, 10000);
+
+            var after = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
+            Assert.AreEqual(before, after, "SaveRuntimePorts must not touch MCPSettings.json");
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static bool IsProcessAlive(int pid)

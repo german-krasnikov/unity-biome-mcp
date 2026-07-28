@@ -37,6 +37,13 @@ namespace UnityMCP.Editor
 
                 try { client.NoDelay = true; } catch { }
                 ApplyKeepAlive(client.Client);
+#if UNITY_EDITOR_WIN
+                // Linger(true, 0) on the accepted socket sends RST on Dispose instead of FIN.
+                // Prevents TIME_WAIT accumulation when Python disconnects during domain reload —
+                // ExclusiveAddressUse on the listener blocks rebind if any local socket is in TIME_WAIT.
+                try { client.Client.SetSocketOption(SocketOptionLevel.Socket,
+                    SocketOptionName.Linger, new LingerOption(true, 0)); } catch (SocketException) { }
+#endif
                 var (idx, gen, clientCts) = slot.Add(client, token);
                 _ = HandleClientAsync(client, slot, idx, gen, label, clientCts.Token);
             }
