@@ -102,9 +102,9 @@ namespace UnityMCP.Editor
             if (code.Contains("class ") || code.Contains("namespace "))
                 return code;
 
-            // bare `return;` is void syntax — replace with `return null;` for object Run()
-            // ponytail: mutates return; inside string literals too; strip-strings pass if this causes real issues
-            code = System.Text.RegularExpressions.Regex.Replace(code, @"\breturn\s*;", "return null;");
+            // bare `return;` at brace-depth 0 → `return null;` for object Run()
+            // ponytail: brace counter is tricked by { in string literals; add string-strip pass if needed
+            code = ReplaceTopLevelReturns(code);
 
             // Wave 2 #5: hoist namespace using directives above the class wrapper.
             // Matches `using System.Text;` (uppercase first char after `using `, no `=` before `;`).
@@ -112,7 +112,7 @@ namespace UnityMCP.Editor
             // `using Object = UnityEngine.Object;` (has `=` — already in Usings, user shouldn't write it).
             // SecurityScan already blocked `using System.IO/Net/Reflection/Diagnostics`.
             var usingPattern = new System.Text.RegularExpressions.Regex(
-                @"^\s*using\s+[A-Z][\w.]+\s*;",
+                @"^\s*using\s+[A-Za-z_][\w.]+\s*;",
                 System.Text.RegularExpressions.RegexOptions.Multiline);
             var extraUsings = string.Join(" ",
                 usingPattern.Matches(code)
@@ -132,6 +132,39 @@ namespace UnityMCP.Editor
                    "return null;\n" +
                    "#pragma warning restore 162\n" +
                    "} }";
+        }
+
+        // Depth-aware return; → return null; rewriter.
+        // Only replaces `return;` at brace-depth 0 (top-level of snippet), leaving
+        // `return;` inside local void functions intact.
+        internal static string ReplaceTopLevelReturns(string code)
+        {
+            var sb = new System.Text.StringBuilder(code.Length);
+            int depth = 0, i = 0;
+            while (i < code.Length)
+            {
+                char c = code[i];
+                if (c == '{') { depth++; sb.Append(c); i++; continue; }
+                if (c == '}') { depth--; sb.Append(c); i++; continue; }
+                // At depth 0 only: check for `return` (word-boundary) followed by whitespace/`;`
+                bool wordBoundary = i == 0 || (!char.IsLetterOrDigit(code[i - 1]) && code[i - 1] != '_');
+                if (depth == 0 && wordBoundary && c == 'r' && i + 5 < code.Length
+                    && code[i + 1] == 'e' && code[i + 2] == 't'
+                    && code[i + 3] == 'u' && code[i + 4] == 'r'
+                    && code[i + 5] == 'n')
+                {
+                    int j = i + 6;
+                    while (j < code.Length && (code[j] == ' ' || code[j] == '\t' || code[j] == '\n' || code[j] == '\r')) j++;
+                    if (j < code.Length && code[j] == ';')
+                    {
+                        sb.Append("return null;");
+                        i = j + 1;
+                        continue;
+                    }
+                }
+                sb.Append(c); i++;
+            }
+            return sb.ToString();
         }
 
         internal static void SecurityScan(string code) =>

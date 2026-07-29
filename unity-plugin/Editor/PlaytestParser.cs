@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
@@ -228,7 +229,7 @@ namespace UnityMCP.Editor
                 var line = lines[i].Trim();
                 if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
 
-                var tokens = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var tokens = SplitTokens(line);
                 var cmd = tokens[0].ToUpperInvariant();
                 if (cmd == "VAL") continue;   // skip VAL definitions (already processed in phase 0.7)
                 if (cmd == "PATH_PREFIX") continue; // skip PATH_PREFIX directive (processed in phase 0.7)
@@ -294,13 +295,14 @@ namespace UnityMCP.Editor
                         }
                         if (tokens.Length < 4) throw new ArgumentException($"WAIT_UNTIL requires path op value, got: '{line}'");
                         step.Type = StepType.WaitUntil;
-                        step.Query = tokens[1]; step.Op = tokens[2]; step.Value = tokens[3];
-                        var tiIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "TIMEOUT");
+                        var (wq, wop, wv, wnext) = ParseQOV(tokens, 1);
+                        step.Query = wq; step.Op = wop; step.Value = wv;
+                        var tiIdx = Array.FindIndex(tokens, wnext, t => t.ToUpperInvariant() == "TIMEOUT");
                         if (tiIdx >= 0) { step.Timeout = float.Parse(tokens[tiIdx + 1], CultureInfo.InvariantCulture); step.HasExplicitTimeout = true; }
                         // AND/OR compound conditions + ABORT detection (inline, avoids false-positive on ABORT-as-value)
                         var xQ = new List<string>(); var xOps = new List<string>(); var xVals = new List<string>();
                         bool? isOr = null;
-                        int xi = 4;
+                        int xi = wnext;
                         while (xi < tokens.Length)
                         {
                             var tk = tokens[xi].ToUpperInvariant();
@@ -312,8 +314,9 @@ namespace UnityMCP.Editor
                                 if (isOr == null) isOr = thisOr;
                                 else if (isOr != thisOr) throw new ArgumentException("Cannot mix AND/OR in WAIT_UNTIL");
                                 if (xi + 3 >= tokens.Length) throw new ArgumentException($"{tk} requires query op value");
-                                xQ.Add(tokens[xi + 1]); xOps.Add(tokens[xi + 2]); xVals.Add(tokens[xi + 3]);
-                                xi += 4;
+                                var (cq, cop, cv, cnext) = ParseQOV(tokens, xi + 1);
+                                xQ.Add(cq); xOps.Add(cop); xVals.Add(cv);
+                                xi = cnext;
                             }
                             else xi++;
                         }
@@ -352,15 +355,25 @@ namespace UnityMCP.Editor
                                 step.Value = negated ? "False" : "True";
                                 break;
                             }
-                            throw new ArgumentException($"ASSERT: unrecognised single-token form '{t1}' (expected $name, !$name, or ($a,$b,...))");
+                            // Bool shorthand: ASSERT /path|comp|field (implied == True)
+                            if (inner.StartsWith("/") || inner.StartsWith("#"))
+                            {
+                                step.Type = StepType.Assert;
+                                step.Query = inner;
+                                step.Op = "==";
+                                step.Value = negated ? "False" : "True";
+                                break;
+                            }
+                            throw new ArgumentException($"ASSERT: unrecognised single-token form '{t1}' (expected $name, !$name, /path, or ($a,$b,...))");
                         }
                         // Standard form: ASSERT query op value [TIMEOUT n] [AS label]
                         if (tokens.Length < 4) throw new ArgumentException($"ASSERT requires path op value, got: '{line}'");
                         step.Type = StepType.Assert;
-                        step.Query = tokens[1]; step.Op = tokens[2]; step.Value = tokens[3];
-                        var tiIdxA = Array.FindIndex(tokens, 4, t => t.ToUpperInvariant() == "TIMEOUT");
+                        var (aq, aop, av, anext) = ParseQOV(tokens, 1);
+                        step.Query = aq; step.Op = aop; step.Value = av;
+                        var tiIdxA = Array.FindIndex(tokens, anext, t => t.ToUpperInvariant() == "TIMEOUT");
                         if (tiIdxA >= 0) { step.Timeout = float.Parse(tokens[tiIdxA + 1], CultureInfo.InvariantCulture); step.HasExplicitTimeout = true; }
-                        var asIdx = Array.FindIndex(tokens, 4, t => t.ToUpperInvariant() == "AS");
+                        var asIdx = Array.FindIndex(tokens, anext, t => t.ToUpperInvariant() == "AS");
                         if (asIdx >= 0)
                         {
                             var labelEnd = (tiIdxA >= 0 && tiIdxA > asIdx) ? tiIdxA : tokens.Length;
@@ -395,12 +408,12 @@ namespace UnityMCP.Editor
                             if (bLine.ToUpperInvariant() == "END") { batchFoundEnd = true; break; }
                             if (!string.IsNullOrEmpty(bLine) && !bLine.StartsWith("#"))
                             {
-                                var bt = bLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                                var bt = SplitTokens(bLine);
                                 if (bt.Length >= 4 && bt[0].ToUpperInvariant() == "ASSERT")
                                 {
-                                    batchQueries.Add(bt[1]);
-                                    batchOps.Add(bt[2]);
-                                    batchValues.Add(bt[3]);
+                                    var (bq, bop, bv, _) = ParseQOV(bt, 1);
+                                    if (!string.IsNullOrEmpty(bop))
+                                    { batchQueries.Add(bq); batchOps.Add(bop); batchValues.Add(bv); }
                                 }
                             }
                             i++;
@@ -454,10 +467,10 @@ namespace UnityMCP.Editor
                         break;
 
                     case "CAPTURE":
-                        // CAPTURE label query
+                        // CAPTURE label query  (query may have spaces if path has spaces)
                         step.Type = StepType.Capture;
                         step.Message = tokens[1];
-                        step.Query = tokens[2];
+                        step.Query = tokens.Length > 2 ? string.Join(" ", tokens, 2, tokens.Length - 2) : "";
                         break;
 
                     case "CAPTURE_FRAMES":
@@ -530,9 +543,8 @@ namespace UnityMCP.Editor
                     case "INVARIANT":
                         // INVARIANT query op value
                         step.Type = StepType.Invariant;
-                        step.Query = tokens[1];
-                        step.Op = tokens[2];
-                        step.Value = tokens[3];
+                        var (iq, iop, iv, _) = ParseQOV(tokens, 1);
+                        step.Query = iq; step.Op = iop; step.Value = iv;
                         break;
 
                     case "ASSERT_CONSERVED":
@@ -1168,6 +1180,56 @@ namespace UnityMCP.Editor
             if (parts.Length >= 3) return (parts[0].Trim(), parts[1].Trim(), parts[2].Trim());
             if (parts.Length == 2) return (parts[0].Trim(), parts[1].Trim(), "");
             return (query, "", "");
+        }
+
+        // ── Tokenizer: bracket/quote-aware split ───────────────────────────────
+
+        private static string[] SplitTokens(string line)
+        {
+            var tokens = new List<string>();
+            var sb = new StringBuilder();
+            int depth = 0;
+            bool inQuote = false;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (c == '\\' && i + 1 < line.Length && (line[i + 1] == '"' || line[i + 1] == '['))
+                { sb.Append(line[++i]); continue; }
+                if (c == '"' && depth == 0) { inQuote = !inQuote; }
+                else if (c == '[' && !inQuote) { depth++; sb.Append(c); }
+                else if (c == ']' && !inQuote && depth > 0) { depth--; sb.Append(c); }
+                else if (c == ' ' && !inQuote && depth == 0)
+                { if (sb.Length > 0) { tokens.Add(sb.ToString()); sb.Clear(); } }
+                else sb.Append(c);
+            }
+            if (sb.Length > 0) tokens.Add(sb.ToString());
+            return tokens.ToArray();
+        }
+
+        // keywords that end the value in ASSERT/WAIT_UNTIL/INVARIANT
+        private static readonly HashSet<string> _Ops = new HashSet<string> { "==", "!=", ">=", "<=", ">", "<" };
+        private static readonly HashSet<string> _StopKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "TIMEOUT", "AS", "AND", "OR", "ABORT" };
+
+        // Returns (query, op, value, nextIdx-after-value).
+        // nextIdx is the index of the first stop-keyword (or tokens.Length if none).
+        // op == "" when no operator token is found (bool shorthand).
+        private static (string q, string op, string v, int next) ParseQOV(string[] tokens, int start)
+        {
+            for (int i = start + 1; i < tokens.Length; i++)
+            {
+                if (!_Ops.Contains(tokens[i])) continue;
+                var q = string.Join(" ", tokens, start, i - start);
+                // Value is at least 1 token; stop-keywords checked from i+2 onward
+                // so `ASSERT /x == TIMEOUT` correctly yields value="TIMEOUT"
+                int vEnd = i + 2;
+                while (vEnd < tokens.Length && !_StopKeywords.Contains(tokens[vEnd].ToUpperInvariant()))
+                    vEnd++;
+                var v = vEnd > i + 1 ? string.Join(" ", tokens, i + 1, vEnd - i - 1) : "";
+                return (q, tokens[i], v, vEnd);
+            }
+            // No operator found — bool shorthand (path only)
+            return (string.Join(" ", tokens, start, tokens.Length - start), "", "", tokens.Length);
         }
 
         internal static bool Compare(string actual, string op, string expected)

@@ -113,5 +113,99 @@ namespace UnityMCP.Editor.Tests
             var steps = PlaytestParser.Parse("WAIT_UNTIL /P|C|state == ok AND /Q|C|mode == run ABORT");
             Assert.IsTrue(steps[0].AbortOnFail, "Standalone ABORT after AND block should set AbortOnFail");
         }
+
+        // ── Phase 3: SplitTokens + ParseQOV ─────────────────────────────────
+
+        [Test]
+        public void Parse_Assert_BracketPathWithSpaces_ParsesPathCorrectly()
+        {
+            var result = PlaytestParser.Parse(
+                "ASSERT /[MECHANICS/ZONE TEMPLATE]/Child|Comp|field == value");
+            Assert.AreEqual(1, result.Count);
+            StringAssert.Contains("[MECHANICS/ZONE TEMPLATE]", result[0].Query);
+            Assert.AreEqual("value", result[0].Value);
+        }
+
+        [Test]
+        public void Parse_Assert_SpaceInName_OperatorBased()
+        {
+            var result = PlaytestParser.Parse(
+                "ASSERT /My Object/Child|Health|hp == 100");
+            Assert.AreEqual(1, result.Count);
+            StringAssert.Contains("My Object", result[0].Query);
+            Assert.AreEqual("100", result[0].Value);
+        }
+
+        [Test]
+        public void Parse_WaitUntil_SpaceInName_ParsesQueryAndValue()
+        {
+            var result = PlaytestParser.Parse(
+                "WAIT_UNTIL /My Object|AI|active == True TIMEOUT 5");
+            Assert.AreEqual(1, result.Count);
+            StringAssert.Contains("My Object", result[0].Query);
+            Assert.AreEqual("True", result[0].Value);
+            Assert.AreEqual(5f, result[0].Timeout, 0.001f);
+        }
+
+        [Test]
+        public void Parse_Assert_BoolShorthand_NoOperator_ImpliesEqualTrue()
+        {
+            var result = PlaytestParser.Parse("ASSERT /Player|Health|isAlive");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("/Player|Health|isAlive", result[0].Query);
+            Assert.AreEqual("==", result[0].Op);
+            Assert.AreEqual("True", result[0].Value);
+        }
+
+        [Test]
+        public void Parse_Assert_SpaceInPath_ExplicitTrue_ParsesQueryCorrectly()
+        {
+            var result = PlaytestParser.Parse("ASSERT /My Player|Health|isAlive == True");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("/My Player|Health|isAlive", result[0].Query);
+            Assert.AreEqual("==", result[0].Op);
+            Assert.AreEqual("True", result[0].Value);
+        }
+
+        [Test]
+        public void Parse_AssertBatch_SpaceInPath_ParsesCorrectly()
+        {
+            var result = PlaytestParser.Parse(
+                "ASSERT_BATCH\nASSERT /My Object|C|f == 1\nEND");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(StepType.AssertBatch, result[0].Type);
+            StringAssert.Contains("My Object", result[0].Queries[0]);
+        }
+
+        [Test]
+        public void Parse_WaitUntil_CompoundAND_SpaceInPath()
+        {
+            var result = PlaytestParser.Parse(
+                "WAIT_UNTIL /My Object|C|f == 1 AND /Other Space|C|g == 2 TIMEOUT 5");
+            Assert.AreEqual(1, result.Count);
+            StringAssert.Contains("My Object", result[0].Query);
+            Assert.AreEqual(1, result[0].Queries.Length);
+            StringAssert.Contains("Other Space", result[0].Queries[0]);
+            Assert.AreEqual(5f, result[0].Timeout, 0.001f);
+        }
+
+        [TestCase("TIMEOUT")]
+        [TestCase("ABORT")]
+        [TestCase("AND")]
+        [TestCase("OR")]
+        public void Parse_Assert_ValueIsStopKeyword_PreservesValueToken(string keyword)
+        {
+            var result = PlaytestParser.Parse($"ASSERT /x|C|state == {keyword}");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(keyword, result[0].Value);
+        }
+
+        [Test]
+        public void Parse_Assert_MultiWordValue_ConcatenatesTokens()
+        {
+            var result = PlaytestParser.Parse("ASSERT /x|C|state == hello world");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual("hello world", result[0].Value);
+        }
     }
 }

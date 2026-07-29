@@ -92,3 +92,24 @@ def test_resolve_path_no_match_returns_original(mw):
 def test_resolve_path_empty_cache_returns_original():
     m = Middleware()
     assert m.resolve_path("Anything") == "Anything"
+
+
+# ─── P1: multi-scene scene-qualified path cache ───────────────────────────────
+
+MULTI_SCENE_HIERARCHY = """\
+[Scene1]
+├─ Player $123
+└─ Enemy $456
+
+[Scene2]
+├─ Player $789
+└─ Boss $012
+"""
+
+
+def test_path_cache_multiscene_same_path_both_scenes_tracked():
+    """P1: both scene-qualified paths should be stored in multi-scene hierarchy."""
+    m = Middleware()
+    m.update_path_cache("get_hierarchy", MULTI_SCENE_HIERARCHY)
+    assert "Scene1:/Player" in m.known_paths
+    assert "Scene2:/Player" in m.known_paths

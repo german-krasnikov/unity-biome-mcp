@@ -36,7 +36,7 @@ namespace UnityMCP.Editor
             var parsed = ScenePathParser.Parse(path);
             if (parsed.SceneName != null)
             {
-                var sceneParts = parsed.LocalPath.Split('/');
+                var sceneParts = SplitPathSegments(parsed.LocalPath);
                 var sceneRoot = FindRootInScene(parsed.SceneName, sceneParts[0]);
                 if (sceneRoot == null) return null;  // strict scene boundary — no fuzzy cross-scene
                 GameObject current = sceneRoot;
@@ -52,7 +52,7 @@ namespace UnityMCP.Editor
             if (path.StartsWith("/")) path = path.Substring(1);
             if (string.IsNullOrEmpty(path)) return null;
 
-            var parts = path.Split('/');
+            var parts = SplitPathSegments(path);
             var root = FindRoot(parts[0]);
             if (root == null)
             {
@@ -70,6 +70,53 @@ namespace UnityMCP.Editor
                 cur = child.gameObject;
             }
             return cur;
+        }
+
+        // Bracket-aware + backslash-aware path split.
+        // "a/[b/c]/d"   → ["a","[b/c]","d"]   (bracket protection for embedded '/')
+        // "Day\/Night"  → ["Day/Night"]         (\/ = literal '/' in segment name)
+        // "path\\thing" → ["path\thing"]         (\\ = literal '\' in segment name)
+        // internal: also used by SceneObjectFinder (C4 fix).
+        internal static string[] SplitPathSegments(string path)
+        {
+            var parts = new List<string>();
+            var seg = new System.Text.StringBuilder();
+            int depth = 0;
+            for (int i = 0; i < path.Length; i++)
+            {
+                char c = path[i];
+                // Backslash escape: \/ = literal '/', \\ = literal '\'
+                if (c == '\\' && i + 1 < path.Length)
+                {
+                    char next = path[i + 1];
+                    if (next == '/' || next == '\\') { seg.Append(next); i++; continue; }
+                }
+                if      (c == '[') { depth++; seg.Append(c); }
+                else if (c == ']') { depth--; seg.Append(c); }
+                else if (c == '/' && depth == 0) { parts.Add(seg.ToString()); seg.Clear(); }
+                else seg.Append(c);
+            }
+            parts.Add(seg.ToString());
+            return parts.ToArray();
+        }
+
+        // Escape '/' and '\' in a GO name for use as a path segment.
+        // '/' inside [...] brackets is NOT escaped (brackets already protect it).
+        // Fast-path when no special chars (99%+ of names).
+        private static string EscapeSegment(string name)
+        {
+            if (!name.Contains('\\') && !name.Contains('/')) return name;
+            var sb = new System.Text.StringBuilder(name.Length + 4);
+            int depth = 0;
+            foreach (char c in name)
+            {
+                if      (c == '[') { depth++; sb.Append(c); }
+                else if (c == ']') { depth--; sb.Append(c); }
+                else if (c == '\\') { sb.Append("\\\\"); }          // always escape backslash
+                else if (c == '/' && depth == 0) { sb.Append("\\/"); }  // escape '/' outside brackets
+                else sb.Append(c);
+            }
+            return sb.ToString();
         }
 
         // Transform.Find() interprets brackets as selectors — manual traversal avoids that.
@@ -166,7 +213,8 @@ namespace UnityMCP.Editor
 
             if (parts.Length > 1)
             {
-                var suffix = "/" + string.Join("/", parts);
+                // GetPath() escapes segment names; re-escape parts so suffix matches GetPath output
+                var suffix = "/" + string.Join("/", System.Array.ConvertAll(parts, EscapeSegment));
                 candidates.RemoveAll(c => !GetPath(c).EndsWith(suffix, System.StringComparison.OrdinalIgnoreCase));
             }
 
@@ -219,11 +267,11 @@ namespace UnityMCP.Editor
 
         public static string GetPath(GameObject go)
         {
-            var path = go.name;
+            var path = EscapeSegment(go.name);
             var t = go.transform.parent;
             while (t != null)
             {
-                path = t.name + "/" + path;
+                path = EscapeSegment(t.name) + "/" + path;
                 t = t.parent;
             }
             return SceneContext.Current.QualifyPath(go, path);

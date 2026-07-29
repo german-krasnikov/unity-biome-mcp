@@ -2,6 +2,56 @@
 
 Run Play Mode scenarios with deterministic step-by-step assertions. Parser processes directives in phases: INCLUDE expansion → MACRO collection → CALL expansion → VAL substitution → VAR binding → step execution.
 
+## Path Syntax
+
+Paths identify GameObjects in the hierarchy. Standard form: `/RootName/ChildName/GrandchildName` or `SceneName:/RootName/Child`. Paths support special characters in GameObject names through escaping.
+
+### Backslash Escaping
+
+Use backslash to escape literal `/` or `\` characters in GameObject names:
+
+- `\/` = literal `/` in a name
+- `\\` = literal `\` in a name
+
+**Example:** A GameObject named `Day/Night` (slash in name):
+```
+ASSERT Day\/Night|Health > 0      # escapes the embedded /
+MOVE to Day\/Night                # same rule applies to all path contexts
+```
+
+**Round-trip guarantee:** `ComponentSerializer.GetPath(go)` always generates a path that `FindObject` can resolve back to the original object, preserving special characters.
+
+### Bracket Protection
+
+Square brackets protect content from path splitting. Use brackets when a GameObject name already contains `/` and escaping is inconvenient:
+
+```
+[Zone A/Zone B]                    # single path segment, slash is literal
+/[Zone A/Zone B]/Child             # child of "Zone A/Zone B"
+ASSERT /[Zone A/Zone B]/Child|Comp|field == value
+```
+
+Brackets are nested-depth aware: `[[nested]]` is valid (inner brackets are data, not delimiters).
+
+### Multi-Scene Paths
+
+Qualify a path with a scene name using the colon operator:
+
+```
+SceneName:/RootObj/Child           # path in a specific scene
+SceneName:/RootObj|Component|field # works with component paths too
+```
+
+Only the rightmost `/` before the path body is split by the parser. Slashes inside brackets or escaped with `\` are preserved.
+
+### Parser Internals
+
+- **SplitTokens**: Bracket/quote-aware tokenizer. Ignores spaces inside:
+  - Double quotes: `"text with spaces"`
+  - Square brackets: `[content/with/slashes]`
+  - Backslash escapes: `\"` and `\[` inside quotes; `\/` and `\\` in paths
+- **ParseQOV** (Query-Operator-Value): Scans tokens for operators (`==`, `!=`, `>`, `<`, `>=`, `<=`), extracts query/op/value. Empty op = bool shorthand (e.g., `ASSERT $flag` = `ASSERT $flag == True`)
+
 ## Step Types (Alphabetical)
 
 ### ALIAS (removed — use VAL)

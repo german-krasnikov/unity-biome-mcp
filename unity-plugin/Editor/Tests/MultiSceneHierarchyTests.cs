@@ -392,5 +392,30 @@ namespace UnityMCP.Editor.Tests
             Assert.That(result, Does.Not.Contain("[" + s1.name + "]"), "s1 phantom");
             Assert.That(result, Does.Not.Contain("[" + s2.name + "]"), "s2 phantom");
         }
+
+        // ── Phase 4: scene param + root param combined (C3 fix) ──────────────
+
+        [Test]
+        public void Serialize_WithRootAndSceneParam_QualifiesRootToNamedScene()
+        {
+            // Two GOs with same name in different scenes — scene param must disambiguate
+            var additiveRoot = CreateIn(_additiveScene, "AmbigRoot_C3");
+            var additiveChild = CreateIn(_additiveScene, "AdditiveOnlyChild_C3");
+            additiveChild.transform.SetParent(additiveRoot.transform);
+
+            var activeGo = new GameObject("AmbigRoot_C3");
+            _toDestroy.Add(activeGo);
+            var activeChild = new GameObject("ActiveOnlyChild_C3");
+            activeChild.transform.SetParent(activeGo.transform);
+            _toDestroy.Add(activeChild);
+
+            var result = HierarchySerializer.Serialize(
+                root: "AmbigRoot_C3",
+                scene: _additiveScene.name);
+            Assert.That(result, Does.Contain("AdditiveOnlyChild_C3"),
+                "Must serialize the additive scene version (has AdditiveOnlyChild_C3)");
+            Assert.That(result, Does.Not.Contain("ActiveOnlyChild_C3"),
+                "Must NOT include the active scene version");
+        }
     }
 }

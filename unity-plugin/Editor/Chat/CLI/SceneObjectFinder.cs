@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -15,7 +16,7 @@ namespace UnityMCP.Editor.Chat
             // Parse optional "SceneName:/local/path" prefix
             var parsed = UnityMCP.Editor.ScenePathParser.Parse(path);
 
-            var parts = parsed.LocalPath.TrimStart('/').Split('/');
+            var parts = ComponentSerializer.SplitPathSegments(parsed.LocalPath.TrimStart('/'));
             if (parts.Length == 0 || string.IsNullOrEmpty(parts[0])) return null;
 
             GameObject current = null;

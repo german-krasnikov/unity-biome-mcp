@@ -12,6 +12,19 @@ from .utils import _levenshtein
 _SCENE_HEADER_RE = re.compile(r"^\[(.+)\]$")
 
 
+def _last_segment(path: str) -> str:
+    """Bracket-aware last segment: '/a/[b/c]/d' → 'd', '/Root/[Zone A/B]' → '[Zone A/B]'."""
+    depth, last = 0, -1
+    for i, ch in enumerate(path):
+        if ch == '[':
+            depth += 1
+        elif ch == ']':
+            depth -= 1
+        elif ch == '/' and depth == 0:
+            last = i
+    return path[last + 1:]
+
+
 def _split_scene_qualified(path: str) -> tuple:
     """'Scene:/foo' -> ('Scene', '/foo'). '/foo' -> ('', '/foo')."""
     if ":" in path and not path.startswith("$"):
@@ -72,6 +85,7 @@ class PathResolverMixin:
             full_path = "/" + "/".join(stack)
             self.known_paths.add(full_path)
             if current_scene:
+                self.known_paths.add(f"{current_scene}:{full_path}")
                 self.path_to_scene[full_path] = current_scene
 
     def validate_path(self, path: str) -> Optional[str]:
@@ -152,13 +166,13 @@ class PathResolverMixin:
         now = time.monotonic()
         if path in self._negative_path_cache and now < self._negative_path_cache[path]:
             return path, ""
-        leaf = path.rsplit("/", 1)[-1]
+        leaf = _last_segment(path)
         search_ok = False
         try:
             result = await send_fn("search_scene", {"query": f"name {leaf}"})
             search_ok = True
             candidates = [
-                line.split()[0]
+                line.split(" #", 1)[0].rstrip()
                 for line in result.strip().split("\n")
                 if line.strip() and leaf.lower() in line.lower()
             ]
@@ -187,7 +201,7 @@ class PathResolverMixin:
         """Return paths from cache matching name as last segment. None if no hit."""
         if not name or not self.known_paths:
             return None
-        matches = [p for p in self.known_paths if p.split("/")[-1] == name]
+        matches = [p for p in self.known_paths if ":" not in p and p.split("/")[-1] == name]
         if not matches:
             return None
         return "\n".join(sorted(matches))

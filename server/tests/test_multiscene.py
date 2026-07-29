@@ -104,13 +104,16 @@ class TestPathCacheScale:
 
     def test_five_scenes_paths_distributed(self):
         m = _m(FIVE_SCENES)
-        assert len(m.known_paths) == 5
+        # bare paths + scene-qualified paths are both stored (P1 fix)
         for i in range(1, 6):
+            assert f"/Obj{i}" in m.known_paths
+            assert f"Scene{i}:/Obj{i}" in m.known_paths
             assert m.path_to_scene[f"/Obj{i}"] == f"Scene{i}"
 
     def test_ten_scenes_stress(self):
         m = _m(TEN_SCENES)
-        assert len(m.known_paths) == 10
+        # P1 fix: both bare and scene-qualified paths stored — 10 bare + 10 qualified = 20
+        assert len(m.known_paths) == 20
         assert len(m.path_to_scene) == 10
         assert m.path_to_scene["/Obj9"] == "Scene9"
 
@@ -137,7 +140,9 @@ class TestPathCacheNameEdgeCases:
 
     def test_empty_scene_does_not_break_parser(self):
         m = _m("[EmptyScene]\n[NextScene]\nPlayer $a")
-        assert m.known_paths == {"/Player"}
+        # P1 fix: both bare and scene-qualified stored
+        assert "/Player" in m.known_paths
+        assert "NextScene:/Player" in m.known_paths
 
     def test_long_scene_name_with_underscores(self):
         name = "MyVeryLongSceneName_With_Underscores"
@@ -150,7 +155,11 @@ class TestPathCacheNameEdgeCases:
 class TestPathCacheDuplicatesAndDepth:
     def test_duplicate_object_across_scenes_last_wins(self):
         m = _m("[SceneA]\nPlayer $a\n[SceneB]\nPlayer $b\n[SceneC]\nPlayer $c")
-        assert m.known_paths == {"/Player"}
+        # P1 fix: all scene-qualified paths stored (disambiguation), last wins in path_to_scene
+        assert "/Player" in m.known_paths
+        assert "SceneA:/Player" in m.known_paths
+        assert "SceneB:/Player" in m.known_paths
+        assert "SceneC:/Player" in m.known_paths
         assert m.path_to_scene["/Player"] == "SceneC"
 
     def test_deep_hierarchy_five_levels(self):

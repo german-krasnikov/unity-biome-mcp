@@ -130,9 +130,9 @@ namespace UnityMCP.Editor
                 if (phase == Phase.LoadingFresh)
                 {
                     if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().isLoaded)
-                    { phase = Phase.Ready; _freshReloadDone = true; }
+                    { phase = Phase.Ready; _freshReloadDone = true; stepStartUtc = DateTime.Now; }
                     else if (Time.realtimeSinceStartup - phaseStart > 10f)
-                    { phase = Phase.Ready; _freshReloadDone = true; }  // timeout — continue anyway
+                    { phase = Phase.Ready; _freshReloadDone = true; stepStartUtc = DateTime.Now; }  // timeout — continue anyway
                     return;
                 }
 

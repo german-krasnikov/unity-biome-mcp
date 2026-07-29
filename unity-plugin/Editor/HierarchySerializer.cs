@@ -63,7 +63,11 @@ namespace UnityMCP.Editor
             }
             else
             {
-                var roots = GetSubtreeRoots(root);
+                // C3: qualify root with scene param so multi-scene root lookup is scene-scoped
+                var qualifiedRoot = (!string.IsNullOrEmpty(scene) && !root.Contains(":/"))
+                    ? $"{scene}:/{root.TrimStart('/')}"
+                    : root;
+                var roots = GetSubtreeRoots(qualifiedRoot);
                 for (int i = 0; i < roots.Length && nodeCount < MAX_NODES; i++)
                     SerializeObject(sb, roots[i], depth, 0, new List<bool>(), i == roots.Length - 1, filter, ref nodeCount, components);
             }

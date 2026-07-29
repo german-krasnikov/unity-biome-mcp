@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 130" width="640" height="130"
      role="img" aria-labelledby="stats-title stats-desc">
   <title id="stats-title">Unity Biome MCP project inventory</title>
-  <desc id="stats-desc"><!-- STAT:STATS_DESC -->142 registered MCP tools. Test inventory: 10879 entries: 4261 regular Python, 511 Python stress, 289 live Python, and 5818 Unity source attributes. Unity count source: static source scan.<!-- /STAT --></desc>
-  <metadata id="stats-breakdown"><!-- STAT:BREAKDOWN -->4261 regular · 511 stress · 289 live · 5818 Unity<!-- /STAT --></metadata>
+  <desc id="stats-desc"><!-- STAT:STATS_DESC -->142 registered MCP tools. Test inventory: 10922 entries: 4264 regular Python, 511 Python stress, 289 live Python, and 5858 Unity source attributes. Unity count source: static source scan.<!-- /STAT --></desc>
+  <metadata id="stats-breakdown"><!-- STAT:BREAKDOWN -->4264 regular · 511 stress · 289 live · 5858 Unity<!-- /STAT --></metadata>
   <metadata id="stats-unity-source"><!-- STAT:UNITY_SOURCE -->static source scan<!-- /STAT --></metadata>
 
   <defs>
@@ -85,7 +85,7 @@
       <circle class="particle delay" cx="388" cy="24" r="2" fill="#59a7ff"/>
       <circle class="particle slow" cx="590" cy="43" r="2" fill="#59a7ff"/>
       <text x="478" y="70" text-anchor="middle" fill="#f2f2f2" font-size="34"
-            font-weight="700" data-mobile-critical="true"><!-- STAT:TESTS -->10879<!-- /STAT --></text>
+            font-weight="700" data-mobile-critical="true"><!-- STAT:TESTS -->10922<!-- /STAT --></text>
       <text x="478" y="101" text-anchor="middle" fill="#59a7ff" font-size="20"
             font-weight="700" data-mobile-critical="true">TEST INVENTORY</text>
     </g>

@@ -10,6 +10,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.4.0] — 2026-07-29 — Path resolution for special characters
+
+**Fixed:**
+- Backslash-escaped `/` and `\` in GameObject names for correct hierarchy path
+  round-trips (`\/` for literal slash, `\\` for literal backslash)
+- Bracket-aware path splitting (`SplitPathSegments`) so `[Zone A/Zone B]/Child`
+  no longer breaks on the inner `/`
+- Multi-scene path cache invalidation on scene load/unload
+- Brace-depth-aware `return;` → `return null;` rewriting in `execute_code`
+- Broadened `using`-hoisting regex to catch `using static`, aliases, and global
+  usings in `execute_code`
+- PlaytestParser: bracket/quote-aware tokenizer (`SplitTokens`) and
+  operator-scan parser (`ParseQOV`) replace positional token indexing
+
+**Tests:**
+- `ComponentSerializerSpecialCharTests` — 16 round-trip cases for escaping
+- `ComponentSerializerBracketFinderTests` — bracket `/` in `SceneObjectFinder`
+- `PlaytestParserEdgeCaseTests` — compound AND, bool shorthand, multi-word value
+- `CodeExecutorTransformTests` — using-hoisting and return-rewriting edge cases
+- `MultiSceneHierarchyTests` — path cache invalidation
+- Python: path resolution middleware, multi-scene cache, path cache tests
+
 ## [v1.3.1] — 2026-07-29 — README presentation and release safety
 
 **Documentation:**

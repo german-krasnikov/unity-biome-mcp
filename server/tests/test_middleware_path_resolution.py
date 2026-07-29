@@ -47,7 +47,7 @@ async def test_resolve_path_live_no_cache_passthrough(mw):
 async def test_resolve_path_live_search_single_match(mw):
     """Cache miss + search returns 1 result → rewrite path."""
     mw.known_paths = {"/Root/SomethingElse"}
-    send_fn = AsyncMock(return_value="/Root/Player $123")
+    send_fn = AsyncMock(return_value="/Root/Player #123")
     path, marker = await mw.resolve_path_live("/Player", send_fn)
     assert path == "/Root/Player"
     send_fn.assert_called_once()
@@ -56,7 +56,7 @@ async def test_resolve_path_live_search_single_match(mw):
 async def test_resolve_path_live_search_multiple(mw):
     """Multiple ambiguous candidates → disambiguator block (Cycle 5d)."""
     mw.known_paths = {"/Root/SomethingElse"}
-    send_fn = AsyncMock(return_value="/Root/Player $123\n/Other/Player $456")
+    send_fn = AsyncMock(return_value="/Root/Player #123\n/Other/Player #456")
     path, marker = await mw.resolve_path_live("/Player", send_fn)
     assert path.startswith("__DISAMBIG_BLOCK__"), f"Expected block, got: {path!r}"
 
@@ -92,12 +92,31 @@ async def test_wrap_send_resolves_path_arg(mw):
 
     async def fake_send(cmd, args, timeout=30.0):
         if cmd == "search_scene":
-            return "/Root/Player $123"
+            return "/Root/Player #123"
         return f"ok path={args.get('path')}"
 
     wrapped = wrap_send(fake_send, mw)
     result = await wrapped("get_component", {"path": "/Player", "type": "Transform"})
     assert "/Root/Player" in result
+
+
+async def test_resolve_path_live_spaced_name_candidate_extracted_correctly(mw):
+    """P3: line.split()[0] truncated paths with spaces — fixed to split on ' #'."""
+    mw.known_paths = {"/Root/Other"}
+    # search_scene line format: "path #instanceId [Components]" (SearchHelper.cs:30)
+    send_fn = AsyncMock(return_value="/[NAME WITH SPACE]/Child #12345 [Transform]")
+    path, _ = await mw.resolve_path_live("/[NAME WITH SPACE]/Child", send_fn)
+    assert path == "/[NAME WITH SPACE]/Child"
+
+
+async def test_resolve_path_live_bracket_name_leaf_extracted_correctly(mw):
+    """P2: rsplit('/') was bracket-blind — leaf of '/Root/[Zone_A/B]' should be '[Zone_A/B]'."""
+    mw.known_paths = {"/Root/Other"}
+    send_fn = AsyncMock(return_value="")
+    await mw.resolve_path_live("/Root/[Zone_A/B]", send_fn)
+    # After fix: leaf extracted is '[Zone_A/B]', not 'B]'
+    query = send_fn.call_args.args[1]["query"]
+    assert "[Zone_A/B]" in query
 
 
 # ─── Item 3: Component Cache ──────────────────────────────────────────────────

@@ -306,7 +306,7 @@ unity-biome-mcp/
 │       ├── PlaytestRunner.Snapshot.cs      # BuildFailureSnapshot(step, config): extracts $sigil names from RawLine, reads current values, appends recent console errors — called when snapshot_on_failure=true (playtests ROI sprint)
 │       ├── PlaytestRunner.FrameCapture.cs  # CAPTURE_FRAMES execution: screenshot sequence at fixed intervals, pixel-hash comparison for ASSERT_FRAMES_DIFFER/STATIC (v0.90.0)
 │       ├── PlaytestLaunchWindow.cs         # MCP/Playtest Launcher EditorWindow: run .playtest files from Edit/Play Mode, file picker + output log (v0.90.0)
-│       ├── PlaytestParser.cs               # DSL parser; MACRO/CALL, MOVE_PATH, SECTION, DESC, AND/OR WAIT_UNTIL (v0.74.0); INCLUDE (Phase -1), VAL (Phase 0.7), VAR, ParseResult, SigilRegex, _DSL_KEYWORDS (v0.78.x); playtests ROI sprint: +WAIT_CAPTURED, +SWEEP_PATH, bool ASSERT, provenance (RawLine per step); v0.90.0: +PATH_PREFIX (Phase 0.7.1), +FOR/$var IN start..end/END_FOR loop unrolling, +CAPTURE_FRAMES, +ASSERT_FRAMES_DIFFER, +ASSERT_FRAMES_STATIC, +ASSERT_CHANGED
+│       ├── PlaytestParser.cs               # DSL parser; MACRO/CALL, MOVE_PATH, SECTION, DESC, AND/OR WAIT_UNTIL (v0.74.0); INCLUDE (Phase -1), VAL (Phase 0.7), VAR, ParseResult, SigilRegex, _DSL_KEYWORDS (v0.78.x); playtests ROI sprint: +WAIT_CAPTURED, +SWEEP_PATH, bool ASSERT, provenance (RawLine per step); v0.90.0: +PATH_PREFIX (Phase 0.7.1), +FOR/$var IN start..end/END_FOR loop unrolling, +CAPTURE_FRAMES, +ASSERT_FRAMES_DIFFER, +ASSERT_FRAMES_STATIC, +ASSERT_CHANGED; v1.4.0: +SplitTokens (bracket/quote-aware tokenizer), +ParseQOV (operator-scan parser for ASSERT/WAIT_UNTIL)
 │       ├── PlaytestLinter.cs               # Static DSL linter (no Play Mode): 3-pass (raw scan → parse → semantic), LintFile/LintScript → ERROR/WARN/INFO issues with line numbers (playtests ROI sprint)
 │       ├── SceneRefResolver.cs             # Resolves reference tokens ($alias, /path, t:Type) against live scene; ResolveMany(refs, fields) → List<RefResult> (OK/MISS/AMB) (playtests ROI sprint)
 │       ├── SceneRefLinter.cs               # 3-pass read-only linter: extracts path tokens from DSL → validates via SceneRefResolver → ERROR/WARN issues (playtests ROI sprint)
@@ -432,7 +432,10 @@ unity-biome-mcp/
 │       │   ├── CodeExecutorSecurityBypassTests.cs # Security hardening: comment-strip, whitespace densify, blocked patterns (v0.31.0, 15 tests)
 │       │   ├── CodeExecutorSecurityTests.cs # Core security + whitespace bypass tests
 │       │   ├── CodeExecutorSecurityWhitespaceBypassTests.cs # Whitespace evasion scenarios
+│       │   ├── CodeExecutorTransformTests.cs # v1.4.0: brace-depth-aware ReplaceTopLevelReturns (return; in void funcs), using-hoisting regex (lowercase/underscore support)
 │       │   ├── ConsoleCaptureTests.cs     # Multi-level console filter + comma-separated levels (v0.31.0)
+│       │   ├── ComponentSerializerBracketFinderTests.cs # v1.4.0: bracket-aware path splitting, finding objects with [Zone A/Zone B] names
+│       │   ├── ComponentSerializerSpecialCharTests.cs # v1.4.0: round-trip GetPath/FindObject with backslash escaping (/, \), bracket protection, multi-scene paths, Unicode names
 │       │   ├── MultiSceneHierarchyTests.cs # Multi-scene hierarchy tests
 │       │   ├── MultiSceneOperationsTests.cs # Multi-scene CRUD operations
 │       │   ├── MultiSceneFinderTests.cs   # Object finding across scenes (updated v0.31.0)

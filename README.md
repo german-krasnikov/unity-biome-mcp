@@ -214,7 +214,7 @@ To install them, open **MCP > Install AI Skills**. The installer shows the exact
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 10879 entries: 4261 regular Python, 511 Python stress, 289 live Python, and 5818 Unity source attributes. Unity count source: static source scan.">
+<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 10922 entries: 4264 regular Python, 511 Python stress, 289 live Python, and 5858 Unity source attributes. Unity count source: static source scan.">
 <!-- README_STATS_END -->
 
 <img src="docs/assets/divider-biome.svg" width="100%" alt="">
@@ -237,7 +237,7 @@ and records constraints as well as strengths.
 ## Recent Changes
 
 <!-- CHANGELOG_START -->
-**Current release: v1.3.1 (2026-07-29).** [Read the full changelog.](CHANGELOG.md)
+**Current release: v1.4.0 (2026-07-29).** [Read the full changelog.](CHANGELOG.md)
 <!-- CHANGELOG_END -->
 
 ## Contributing
