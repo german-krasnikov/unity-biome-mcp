@@ -2,7 +2,7 @@
 
 ## Overview
 
-TCP communication between Python MCP Server and Unity Editor Plugin. Includes heartbeat (sole reconnect mechanism), compile state probing, single-slot connection, and exclusive lockfile.
+TCP communication between Python MCP Server and Unity Editor Plugin. Includes heartbeat-driven reconnects, compile state probing, one Python connection slot per MCP session, and the server lockfile.
 
 ## Architecture (for Architect)
 
@@ -71,7 +71,7 @@ Key features:
 - **Pin guard (v0.52.6)**: Bridge caches `_pinned_pid` from initial connection to stick to same Unity instance. `_reconnect()` explicitly checks `_pinned_pid is not None` before trusting pin, preventing silent re-bind to different instance if pinned process dies. Falls back to port discovery if pin invalid.
 - **Pin reset on `ConnectionRefusedError` (v1.0.2):** If `_reconnect()` gets `ConnectionRefusedError`, both `_pinned_port` and `_pinned_pid` are cleared so the next attempt uses full port rediscovery. `TimeoutError` and `OSError` do NOT clear the pin — they signal transient network issues, not a port change. This prevents the bridge from retrying a dead port indefinitely after Unity restarts on a different port.
 - **`_reload_gate` (asyncio.Event)**: replaces fixed `asyncio.sleep()` during DomainReloadError retry. Always cleared on `domain_reload` retry path (v0.78.8 removed the `if not self.connected:` guard that could skip the clear). Set on successful reconnect. Wakes retries immediately on reconnect instead of sleeping the full backoff window.
-- `send()` retry logic: idle errors get 1 grace attempt; busy (domain reload / probe) gets full retries with exponential backoff (capped at 8s). Session deadline `SESSION_TIMEOUT=120s` prevents infinite retries (overridable via env UNITY_MCP_SESSION_TIMEOUT for reasoning models like Codex o3/o3-pro; chat backend sets 300s). **v0.31.1 Fix**: When `DomainReloadError` is caught, `domain_reload_in_progress` flag is pinned to True for all subsequent retries within that send() call, preventing `_probe_busy()` re-evaluation from returning False too early (Editor.log may clear "compiling" status before TCP 9700 is restored). Non-DomainReloadError exceptions still allow probe re-evaluation per attempt. **v0.36.0: SESSION_TIMEOUT env override** — CliBackendBase injects UNITY_MCP_SESSION_TIMEOUT=300 so Python bridge allows longer think time for reasoning models without timeout. **v0.57.0 RuntimeError**: send() now raises `RuntimeError(f"_send_with_retry exhausted {MAX_RETRIES} retries without result for cmd={cmd!r}")` on max retries (previously returned None silently); errors are explicit, no silent command failures.
+- `send()` retry logic: idle errors get 1 grace attempt; busy (domain reload / probe) gets full retries with exponential backoff (capped at 8s). Session deadline `SESSION_TIMEOUT=120s` prevents infinite retries and is overridable via `UNITY_MCP_SESSION_TIMEOUT`. **v0.31.1 Fix**: When `DomainReloadError` is caught, `domain_reload_in_progress` flag is pinned to True for all subsequent retries within that send() call, preventing `_probe_busy()` re-evaluation from returning False too early (Editor.log may clear "compiling" status before TCP 9700 is restored). Non-DomainReloadError exceptions still allow probe re-evaluation per attempt. **v0.57.0 RuntimeError**: send() now raises `RuntimeError(f"_send_with_retry exhausted {MAX_RETRIES} retries without result for cmd={cmd!r}")` on max retries (previously returned None silently); errors are explicit, no silent command failures.
 - Lock per connection for thread safety
 
 **P0 (Cycle 17+) Fix — Domain Reload Sticky Flag**
@@ -137,13 +137,15 @@ Simplified detector for Unity C# compile/domain-reload:
 - `has_strong_busy_signal()` — state file (authoritative) then lock file fallback
 - `_lock_file_exists()` — checks Unity's BeeDriver Lock file
 
-### Lockfile (lockfile.py) — v0.23.0 Zombie Detection
+### Session Presence Locks (lockfile.py)
 
-Exclusive lock per port at `~/.unity-biome-mcp/server-{port}.lock`:
-- Uses `fcntl.flock` (POSIX exclusive)
-- **Zombie Process Detection (v0.23.0):** New `_is_zombie(pid)` check via `/proc/{pid}/stat` (Linux) or `ps -p` status (macOS/Windows). Stale processes with zombie state are no longer treated as "live" — server startup proceeds without waiting for process cleanup. Fixes `-32000 (server error)` when a previous server process became a zombie.
-- Auto-kills stale `unity_mcp` process (SIGTERM + poll)
-- Prevents multiple MCP servers on same Unity instance
+Each MCP session owns
+`~/.unity-biome-mcp/server-{port}-{pid}.lock`:
+- Multiple sessions can coexist on the same Unity port.
+- The process takes a non-blocking lock on its own presence file.
+- `cleanup_stale_locks()` deletes files whose PID is no longer alive.
+- No process is signaled or terminated by lock acquisition or cleanup.
+- Windows locks a sentinel byte; POSIX uses `flock`.
 
 ### Crash Logging (crash_log.py)
 
@@ -175,7 +177,7 @@ Append-only JSONL crash log for unhandled exceptions:
 - SO_KEEPALIVE with platform-specific tuning (idle=60s, interval=10s, count=3; relaxed from 10s/5s to survive macOS App Nap timer coalescing)
 - **Windows `LingerOption(true, 0)` (v1.0.2, `#if UNITY_EDITOR_WIN`):** Set on every accepted client socket in `ClientConnectionHandler.cs` and on evicted sockets in `ClientSlot.cs`. Sends RST on `Dispose()` instead of FIN, preventing TIME_WAIT accumulation. Required because the Windows listener uses `ExclusiveAddressUse`, which blocks rebind if any local socket is in TIME_WAIT — a domain reload disconnect could leave a socket in TIME_WAIT and prevent the server from restarting on the same port.
 - **SO_REUSEPORT (v0.23.0, macOS/Linux only):** Enables port reuse for rapid reconnect after server crash or process termination. Windows doesn't require it (already has soft TIME_WAIT). Prevents "address already in use" during recovery without waiting for kernel TIME_WAIT timer.
-- Single client mode: new connection disconnects previous
+- Up to 8 concurrent Unity-side client slots; when all slots are occupied, slot eviction is handled by `ClientSlot`
 - Client generation tracking: prevents stale handlers from clearing shared state
 - Lifecycle hardening: `IsRunning` property guarded with try/catch for ObjectDisposedException; `Stop()` wraps listener teardown with try/catch; `OnBeforeReload()` wrapped with try/catch
 - Socket shutdown: `Shutdown(Both)` before `Stop()` in OnBeforeReload and Stop (TCP_NODELAY + shutdown both directions → faster port release)
@@ -223,31 +225,30 @@ Append-only JSONL crash log for unhandled exceptions:
 **Fast-path commands** (bypass main thread dispatch):
 - `ping`, `get_version`, `status`, `get_enabled_tools`
 
-**Per-command timeouts (v0.57.0 — hard deadline separation):**
-| Command | Timeout |
-|---------|---------|
-| `run_tests`, `run_playtest` | 130s (initial send; v0.32.0: short 8s fire-and-forget) |
-| `batch` | 65s (atomic timeout: all-or-nothing with Undo rollback) |
-| `wait_until`, `move_to`, `test_step` | 30s |
-| Default | 25s |
-| **Hard deadline (v0.57.0)** | **450s** (separate from per-command timeout; latches even while domain-reload busy; fires only if reconnect loop exhausted) |
+### Timeout Layers
 
-**Heartbeat vs Command Deadline (v0.57.0):**
-- **Heartbeat timeout:** 15s ping interval (keepalive only; cannot kill long-running commands)
-- **Command deadline:** per-command timeout + hard deadline (450s) applies to send() → re-tries
-- **Impact:** `run_playtest` (130s), `run_tests` (130s), `wait_until` (30s) no longer get killed by heartbeat idle timeout; heartbeat cannot block command I/O
+| Layer | Current contract |
+|---|---|
+| Python retry session | `SESSION_TIMEOUT=120s`, override with `UNITY_MCP_SESSION_TIMEOUT`; checked between attempts |
+| Typed wrapper response wait | Tool-specific: for example `batch` defaults to 75s and `run_playtest` waits for its internal timeout plus a 20s transport buffer |
+| Unity request deadline | `run_tests`/`run_playtest`: 130s; `batch`: 65s; `wait_until`/`move_to`/`test_step`: 30s; default: 25s |
+| Operation-internal timeout | Passed in command arguments; it cannot extend the Unity request deadline |
+
+The heartbeat uses a separate 15s ping interval and does not replace command
+timeouts. Its disconnected-startup guard is not a tool-call deadline.
 
 **Batch Atomic Timeout Rollback (v0.57.0 — BatchHelper.cs):**
-- `batch(atomic=true, timeoutMs=25000)` — all-or-nothing semantics with automatic Undo
-- If ANY sub-command times out (elapsed > timeoutMs), entire batch atomically rolls back
+- `batch(atomic=true, timeoutMs=25000)` — automatic rollback for Undo-recorded Unity changes
+- If any sub-command times out (elapsed > timeoutMs), the batch stops and reverts its Undo group
 - Opens named UndoGroup before first sub-command, reverts all ops on timeout/error
 - Summary includes `ATOMIC_ROLLBACK: reverted ops 0..N` when rollback occurs
-- Non-atomic batch (default) continues on errors, skips remaining ops on first failure
+- Non-atomic batch follows `on_error`; the default `continue` processes remaining operations
 - Prevents partial state corruption when timeout interrupts mid-batch
 
 **run_tests Fire-and-Forget (v0.32.0)**
 - `run_tests()` returns immediately (8s send timeout) with message `"tests-started|{mode}|poll get_test_results every 5s for up to 2min"`
 - Does NOT poll internally — caller must poll `get_test_results()` externally
+- `run_playtest()` is synchronous and returns its final playtest report; do not poll `get_test_results()` for it
 - On `DomainReloadError`: returns immediately (no wait)
 - **Why:** avoids TCP blocking when domain reload clears socket before port 9700 restored
 

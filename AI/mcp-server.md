@@ -152,7 +152,8 @@ load_plugins(mcp, _send, _args)
 async def lifespan(app):
     # 1. Auto-discover Unity port from ~/.unity-biome-mcp/ports/*.port or UNITY_MCP_PORT env
     # 2. Cleanup stale port-scoped config files (v0.53.0): unity-biome-mcp-config-{port}.json older than 2h
-    # 3. Acquire exclusive PID lockfile ~/.unity-biome-mcp/server-{port}.lock
+    # 3. Acquire this session's presence lock:
+    #    ~/.unity-biome-mcp/server-{port}-{pid}.lock
     # 4. Create ConnectionSlot, connect bridge
     # 5. Wire middleware layers (if UNITY_MCP_MIDDLEWARE=1)
     # 6. Wire ToolHinter (default on, disable with UNITY_MCP_HINTS=0)
@@ -195,7 +196,8 @@ def main():
 
 ### Server Control (server_control.py)
 
-- `list_servers` — list all running MCP server PIDs/ports (reads ~/.unity-biome-mcp/server-{port}.lock files)
+- `list_servers` — list all running MCP server PIDs/ports (reads
+  `~/.unity-biome-mcp/server-{port}-{pid}.lock` files)
 - `stop_server(port)` — graceful SIGTERM (Unix) or taskkill (Windows) shutdown of running server
 
 ### Compile State Probe (compile_state.py)
@@ -294,62 +296,19 @@ resolve_tool_schema(tools: "comma,separated,names") -> plain text
 
 Returns a plain-text schema block (no JSON), one tool per section. Backwards-compatible: MCP dispatch doesn't validate against inputSchema, so stubbed tools execute normally. Environment escape hatch: `UNITY_MCP_FULL_SCHEMAS=1` disables stripping (default off).
 
-**Token impact:** ~58-68% per-turn schema-token reduction. Enabled by default; discovery-gated tools show stub until explicitly enabled in session.
+This reduces the schema payload exposed on each turn. It is enabled by default;
+discovery-gated tools show a stub until explicitly enabled in session.
 
-### Codex App-Server Elicitation Handling (Chat CLI backends, v0.53.1+)
+### Chat Relay Permissions and User Input
 
-**Problem:** Codex app-server gates MCP tool invocations with `mcpServer/elicitation/request` JSON-RPC (OpenAI issue #11816, no timeout) before executing mutating tools (e.g., `set_property`). Codex sets no timeout on the request, causing infinite spinner when the elicitation is silently dropped or not auto-accepted. Read-only tools don't trigger elicitation, so they pass through normally.
+Backend-native permission and elicitation events are normalized in `server/src/unity_mcp/stream_transform.py`:
 
-**Solution:** Layered handling in **asmdef `UnityMCP.Editor.Chat.CLI`** distinguishes requests (expect replies) from notifications (fire-and-forget).
+- `pp|toolName|requestId|toolInput` for a tool permission prompt
+- `au|requestId|rawJson` for a user question
 
-**Layer 1: Approval Policy Suppression (Performance)**
+`RelayEventParser` converts those lines to `ChatEvent` values. The Unity window renders `ToolApprovalCard` or `AskUserCard`, applies Ask/Agent policy, and sends the resulting control payload through `RelayBackend.SendControlResponse()`.
 
-Configure `approvalPolicy` in MCP client to suppress elicitation prompts:
-- In `thread/start` request: `"sandbox":"danger-full-access"` (string)
-- In `turn/start` request: `sandboxPolicy:{type:"dangerFullAccess"}` (object)
-
-**Layer 2: Parser Auto-Accept (Correctness)**
-
-**CodexAppServerParser.cs** detects the elicitation request and auto-replies immediately:
-```csharp
-case "mcpServer/elicitation/request":
-{
-    var rpcId = JsonHelper.ExtractString(line, "id") ?? "0";
-    sink.Add(ChatEvent.AutoReply(ControlResponseBuilder.CodexElicitationAccept(rpcId)));
-    break;
-}
-```
-
-**ControlResponseBuilder.cs** formats the JSON-RPC 2.0 accept response:
-```csharp
-public static string CodexElicitationAccept(string rpcId) =>
-    $"{{\"jsonrpc\":\"2.0\",\"id\":{FormatRpcId(rpcId)},\"result\":{{\"action\":\"accept\",\"content\":{{}}}}}}";
-```
-
-**Layer 3: Request vs Notification Invariant (Safety)**
-
-**Critical distinction:** JSON-RPC requests have a top-level `"id"` field; notifications don't. Parser correctly ignores nested `id` fields (e.g., `params.turn.id`) via `JsonHelper.ExtractString(line, "id")` which is depth-aware (returns top-level keys only).
-
-Unknown server requests with top-level `id` are auto-declined (not auto-accepted) to avoid granting unintended permissions:
-```csharp
-if (HasRpcId(line))  // top-level id present
-{
-    var rpcId = JsonHelper.ExtractString(line, "id") ?? "0";
-    sink.Add(ChatEvent.Error($"[MCP Chat] Unhandled server request: {m} — auto-declined"));
-    sink.Add(ChatEvent.AutoReply(ControlResponseBuilder.CodexElicitationDecline("codex:" + rpcId)));
-}
-// else: benign notification → ignore silently
-```
-
-**ChatEvent.cs** defines `AutoReply` kind (not rendered, transparent to UI; text holds raw JSON-RPC response).
-
-**Why This Works**
-- Mutating tools trigger elicitation → caught at parser, auto-accepted immediately → no spinner
-- Read-only tools don't trigger elicitation → no request sent → passes through
-- Unknown requests (safety net) → declined, never silently dropped → visible warning
-- Shell/file approvals (safety gate) → surfaced as Error, never auto-accepted
-
-**Files:** `CodexAppServerParser.cs`, `ControlResponseBuilder.cs`, `ChatEvent.cs` (all in `unity-plugin/Editor/Chat/CLI/`)
+Do not add backend-native JSON-RPC or stream parsers to the C# window. The canonical architecture is `AI/architecture.md` under **Chat Relay System**.
 
 ### Middleware (23 layers, `UNITY_MCP_MIDDLEWARE=1`)
 
@@ -410,7 +369,11 @@ async def tool_name(arg1: str, arg2: int = 10) -> str:
     return await _send("cmd_name", {"arg1": arg1, "arg2": arg2})
 ```
 
-`_send()` helper: raises ToolError on `!ok`, returns `data` or file path. Routes through middleware pipeline when `UNITY_MCP_MIDDLEWARE=1`. Per-command timeouts via `COMMAND_TIMEOUTS` dict (run_tests/run_playtest: 120s, compile_preflight: 60s, batch: 60s, default: 30s).
+`_send()` raises `ToolError` on `!ok`, returns `data` or a file path, and routes
+through the middleware pipeline when `UNITY_MCP_MIDDLEWARE=1`. Timeout ownership
+is split between typed wrappers, the 120s Python retry session, and Unity's
+per-command request deadlines; use the canonical table in
+[`AI/tcp-bridge.md`](tcp-bridge.md).
 
 ### Consolidated Tool Pattern (action-based)
 
@@ -482,7 +445,6 @@ Tests organized by module in `server/tests/`:
 
 - **Python changes** (F03, F04, F08, F12): take effect only after MCP server restart (`/mcp` command or process restart). Live MCP server will continue showing old behavior until restarted.
 - **C# changes** (F02, F13, F18): live immediately after Unity recompile.
-- **Pre-existing C# EditMode test failures**: 2 failures in `MCPPrefabTests.Revert_RevertsChanges` and `MCPValueParserTests.ValueParser_Enum_NegativeInt` are unrelated to Wave 0; their source files (prefab logic, ValueParser.cs) were not touched by any Wave 0 commit. C# NUnit tests for Wave 0 fixes written locally at `unity-test-project/Assets/Tests/Editor/MCPF02F13F18Tests.cs` (gitignored directory, not version-controlled).
 
 ## Related
 

@@ -4,23 +4,25 @@
 
 ## Overview
 
-MCP server for controlling Unity Editor from Claude Code with token minimization (10-15x compression vs JSON).
+MCP server for controlling Unity Editor from MCP-compatible AI clients with
+compact, tool-oriented responses.
 
-## Installation & Distribution (v0.38.0+, v0.42.0: Setup Wizard 3-screen flow + 9 backends; v0.68.0: Auto-config + CLI dispatcher)
+## Installation & Distribution
 
 **Golden-path install flow (v0.68.0+):**
 
 1. **Python Server**: Runs on-demand via `uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp` (GitHub-direct git+URL install, GIT_INSTALL_URL constant in resolver.py + C# WizardConfigWriter.cs)
 2. **Unity Plugin**: Add via Package Manager → **Add package from git URL** → `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin` (UPM git URL, only 1 step needed)
-3. **Auto-Config** (v0.68.0, ProjectConfigWriter.cs): On Editor startup (SessionState-gated, per-session), discovers resolved port + installed package version, auto-writes per-project MCP configs for 6 AI tools (Claude Code, Codex, Cursor, Windsurf, VS Code, Claude Desktop). Configs written to project-scoped paths (e.g., `<project>/.mcp.json`, `<project>/.codex/config.toml`). Patch .gitignore via GitignorePatcher. Eliminated bootstrap scripts (v0.47.1: curl|bash, iex), removed Setup Wizard manual config step (auto instead).
+3. **Auto-Config** (`ProjectConfigWriter.cs`): On Editor startup (SessionState-gated, per-session), discovers the resolved port and installed package version, then writes project-local configurations for Claude Code, Cursor, VS Code, Windsurf, Codex, and Junie. Configs are written to client-specific project paths such as `<project>/.mcp.json` and `<project>/.codex/config.toml`.
 4. **CLI Dispatcher** (v0.68.0, cli.py + _preflight.py): `unity-biome-mcp configure/doctor/version/uninstall` subcommands via uvx. Preflight guard turns crashes before handshake into one-line stderr (no traceback).
-   - **Screen 1 (Welcome)**: Introduction + System checks (Python found, TCP available)
-   - **Screen 2 (PickBackend)**: 9 backend cards with auto-detection (BinaryName PATH check + ConfigDir existence)
-   - **Screen 3 (Configure)**: Scope toggle (Global/Project via `--project-dir` flag) + per-backend setup. **v0.47.1**: Shows AiConfigScreen with fallback copyable JSON config when UPM install source detected (file: vs git: via InstallSourceDetector)
-5. **9 Supported Backends** (v0.42.0): Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex, Kimi, OpenCode, Antigravity. **IsDetected logic**: BinaryName check via which/where (PATH) + ConfigDir existence check (~ expanded at runtime). **v0.47.1**: per-client root_key detection (e.g., `mcpServers` for Claude Code/Desktop, `mcp_servers` for Codex TOML, platform-aware ConfigDir for Windows)
-6. **Config Auto-Gen**: `python install.py configure --tool [claude-code|claude-desktop|cursor|windsurf]` merges MCP server entry into client config. Global/Project scope via `--project-dir` flag (v0.42.0). **v0.47.1**: AiToolCardFactory abstracts platform paths, Claude Code writes ~/.claude.json instead of clipboard
+   - **Screen 1 (Welcome)**: Product introduction
+   - **Screen 2 (Pick Backend)**: 10 backend cards with available binary/config detection
+   - **Screen 3 (Configure)**: Auto-generated project config, Chat-auto setup, manual instructions, or client-specific configuration
+   - **Screen 4 (Install AI Skills)**: Optional bundled skill and agent installation
+5. **10 Wizard Backends**: Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex, Kimi, OpenCode, Antigravity, and Rider AI Assistant.
+6. **Config CLI**: `python install.py configure --tool <client-key>` uses the current `CLIENT_REGISTRY`; run `python install.py configure --help` for the accepted keys. `--project-dir` selects project-local output where that client supports it.
 7. **Doctor Tool**: `python install.py doctor` diagnostic checks (Python, imports, TCP connectivity, config validity). **v0.47.1**: validates git+URL presence in configs, warns on stale PyPI entries, checks uvx + git in PATH
-8. **Version Sync**: `scripts/sync_versions.py X.Y.Z` bumps all 3 version files (server/pyproject.toml, plugin/package.json, server/__version__.py)
+8. **Version Sync**: `scripts/sync_versions.py X.Y.Z` updates all managed version artifacts.
 9. **GitHub-Direct Install** (v0.47.1): DRY consolidation — `GIT_INSTALL_URL` constant shared between Python resolver.py and C# WizardConfigWriter.cs, consumed by all backends for consistent versioning. Update banner includes `--reinstall` flag for recovery
 
 **Architecture changes:**
@@ -28,7 +30,7 @@ MCP server for controlling Unity Editor from Claude Code with token minimization
 - **Config system** (`server/src/unity_mcp/config/`): CLIENT_REGISTRY (Claude Code/Desktop/Cursor/Windsurf), config path detection, MCP JSON merger, backup/restore. **Codex TOML merger (v0.42.0)**: `merge_toml_mcp()` support. **Stale entry cleanup (v0.44.0)**: strips `[mcp_servers.unity]` on first write, creates .bak backup (first-write-wins). **v0.47.1**: `resolver.GIT_INSTALL_URL` as single source of truth, validator.py skips json.loads for TOML clients (Codex), respects per-client root_key (mcpServers vs mcp_servers). **v0.96.1 resolver changes**: `find_python()` is now venv-first — checks `server/.venv/bin/python` (or `Scripts/python.exe` on Windows) before falling back to uvx or sys.executable. `find_server_command()` priority: venv → uvx → sys.executable. `uvx` commands now include `--quiet` flag to suppress stderr in MCP hosts. `find_port()` uses `iter_port_files()` from `paths.py` for legacy `~/.unity-mcp/ports/` fallback.
 - **Update checker & LevelUp UX** (v0.42.0+v0.44.0): GitHub API polling (v0.47.1: switched from PyPI to GitHub releases API via api.github.com/repos/.../releases/latest) + UpdatesPage changelog viewer. **LevelUp arcade-style animation (v0.44.0)**: 4-state panel (Idle→Animating→Done→Diff), XP bar + sparkles via LevelUpAnimator, release notes diff via ReleaseDiff. **v0.45.0**: InstallSourceDetector (file: vs git: detection via PackageInfo.source), LocalPluginUpdater (git pull --tags async), UpmPluginUpdater (Client.Add chain), UpdateDispatcher (DRY routing), ChatMcpConfigWriter uvx fallback. **v0.47.1**: `_update_check.py` uses GitHub releases API with importlib.metadata for version read, 24h cache TTL, banner includes --reinstall flag. **v0.50.0+**: UpdateChecker validates git+URL in configs, ClearCache on Level Up callback chain (v0.50.1). **v0.50.2**: WizardConfigWriter GitInstallUrl made public for cross-assembly access. **v0.53.0 Chat config lifecycle**: Per-port temp configs (unity-biome-mcp-config-{port}.json) written by ChatMcpConfigWriter.GetOrCreateConfigPath(). Python lifespan cleanup: `cleanup_stale_port_files()` deletes configs >2h old. C# OnDisable: DeleteOwnConfig() removes MCPServer.ServerChatPort config on shutdown (ChatMcpConfigWriter.DeleteConfig). ConfigFileName(port) → port>0 ? "{port}.json" : legacy bare name (backward compat).
 - **ClientSkills (v0.92.x)**: `unity-plugin/ClientSkills/` ships consumer skills with the UPM package — 23 skills + 2 agents + `claude_to_codex.py`. Installed via Setup Wizard → **Install AI Skills** screen (`InstallSkillsScreen.cs`). `SkillsInstaller.cs` discovers files from `PackageInfo`, copies to `.claude/skills/` and `.claude/agents/` with optional overwrite toggle and Codex sync. 14 NUnit tests in `SkillsInstallerTests.cs`.
-- **Plugin side** (C#, v0.68.0: ProjectConfigWriter, v0.47.1-v0.67.x: SetupWizard). **v0.68.0 Auto-Config**: `ProjectConfigWriter` [InitializeOnLoad] → SessionState gated (once per session) → Run(projectRoot, port, version) → auto-writes per-project configs for each target in `ProjectConfigTargets.All` (Claude Code, Codex, Cursor, Windsurf, VS Code, Claude Desktop). Config formats abstracted via `ProjectConfigFormats` (JSON, TOML, custom). TOML writing via `ProjectConfigToml.cs`. Gitignore patching via `GitignorePatcher.cs` (append project config paths, idempotent). **v0.44.0-v0.67.x legacy**: SetupWizard 3-screen flow, BackendDescriptor with 9 backends + IsDetected, PickBackendScreen + ConfigureScreen, scope toggle, Wizard asmdef split. **Config recovery (v0.44.0)**: WizardConfigWriter.HasBackup + RestoreConfig, AiConfigScreen Restore button. **v0.45.0**: Async local plugin updates (LocalPluginUpdater.UpdateAsync), UPM registry updates (UpmPluginUpdater.UpdateAsync). **v0.47.1**: `WizardConfigWriter.GitInstallUrl` constant (shared with Python resolver.py), AiConfigScreen with fallback copyable JSON on UPM installs, `AiToolCardFactory` platform-aware path methods for Windows (ConfigDir detection, .as_posix() for TOML paths, BackendDescriptor platform-specific root_key). **v1.0.1: Port baking removed** — `WizardConfigWriter.Entry()` no longer emits `UNITY_MCP_PORT` env block in permanent AI tool configs; Python uses `~/.unity-biome-mcp/ports/{pid}.port` discovery instead (updated on every bind including fallbacks). Mirrored in `mcp_config_writer.py` — `UNITY_MCP_PORT` only written when `mcp_port != 0`. Prevents connection failures after Windows port drift and multi-project desync.
+- **Plugin side** (C#, v0.68.0: ProjectConfigWriter, v0.47.1-v0.67.x: SetupWizard). **Auto-Config**: `ProjectConfigWriter` [InitializeOnLoad] → SessionState gated (once per session) → Run(projectRoot, port, version) → auto-writes per-project configs for each target in `ProjectConfigTargets.All` (Claude Code, Cursor, VS Code, Windsurf, Codex, Junie). Config formats abstracted via `ProjectConfigFormats` (JSON, TOML, custom). TOML writing via `ProjectConfigToml.cs`. Gitignore patching via `GitignorePatcher.cs` (append project config paths, idempotent). **v0.44.0-v0.67.x legacy**: SetupWizard 3-screen flow, BackendDescriptor with 9 backends + IsDetected, PickBackendScreen + ConfigureScreen, scope toggle, Wizard asmdef split. **Config recovery (v0.44.0)**: WizardConfigWriter.HasBackup + RestoreConfig, AiConfigScreen Restore button. **v0.45.0**: Async local plugin updates (LocalPluginUpdater.UpdateAsync), UPM registry updates (UpmPluginUpdater.UpdateAsync). **v0.47.1**: `WizardConfigWriter.GitInstallUrl` constant (shared with Python resolver.py), AiConfigScreen with fallback copyable JSON on UPM installs, `AiToolCardFactory` platform-aware path methods for Windows (ConfigDir detection, .as_posix() for TOML paths, BackendDescriptor platform-specific root_key). **v1.0.1: Port baking removed** — `WizardConfigWriter.Entry()` no longer emits `UNITY_MCP_PORT` env block in permanent AI tool configs; Python uses `~/.unity-biome-mcp/ports/{pid}.port` discovery instead (updated on every bind including fallbacks). Mirrored in `mcp_config_writer.py` — `UNITY_MCP_PORT` only written when `mcp_port != 0`. Prevents connection failures after Windows port drift and multi-project desync.
 
 ## Architecture (for Architect)
 
@@ -46,12 +48,12 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
      │                        │  (stub schemas + lazy resolve)   ├─ ValueParser
      │                        ├─ 23-layer Middleware (opt-in)    ├─ 7 Serializers
      │                        ├─ CompileStateProbe               ├─ RefManager ($a-$zz)
-     │                        ├─ PID Lockfile (exclusive)        ├─ PlaytestRunner + DSL
+     │                        ├─ PID presence lock (per session) ├─ PlaytestRunner + DSL
      │                        ├─ Port discovery (CWD-based)      ├─ RuntimeHelper (Play Mode)
      │                        ├─ Config module (client detection) ├─ MultiViewCapture (4-panel)
      │                        ├─ Update checker (GitHub API, v0.47.1) ├─ CodeExecutor (Roslyn)
      │                        ├─ Config TOML merger (v0.42.0)    ├─ PortResolver (dual-port)
-     │                        ├─ GIT_INSTALL_URL constant        ├─ SetupWizard (3-screen, 9 backends, AiConfigScreen fallback)
+     │                        ├─ GIT_INSTALL_URL constant        ├─ SetupWizard (4 screens, 10 backends)
      │                        └─ Heartbeat (15s, reconnect)      ├─ UpdatesPage (changelog viewer)
      │                                                           ├─ AiToolCardFactory (platform paths)
      │                                                           ├─ Guards (compile/play/runtime/tool)
@@ -61,9 +63,10 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
 ### Why This Architecture
 
 - **Python MCP**: Claude Code launches via stdio, mature SDK
-- **TCP socket**: Survives Unity domain reload (vs WebSocket)
+- **TCP socket**: Explicit `going_away` signaling and bridge reconnection recover across Unity domain reloads
 - **Binary framing**: 4-byte BE length prefix + JSON, minimal overhead
-- **No cache**: All calls go directly to Unity via bridge.send (scene changes too frequently)
+- **Bounded caching**: Eligible reads may use the middleware's short-lived,
+  invalidated prefetch cache; uncached calls go through `bridge.send`
 
 ### Components
 
@@ -82,7 +85,7 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
    - **142 MCP tools registered** (v0.70.0: scene split → +1 deduplicated register call, net +0 tools; tool count 124→121 via watch consolidation B4; v0.79.1: -5 tools: run_scenario/save_scenario/load_scenario/list_scenarios + fuzz_playtest removed with scenarios.py + fuzzer.py; playtests ROI sprint: +17 tools). Gating: TIER1 + themed categories (derived from tool_specs._SPECS). External plugins can add more tools dynamically. `_UnstructuredMCP(FastMCP)` subclass forces `structured_output=False` on all tools. Ungated (always visible): `get_test_results`, `budget_status`, `diagnose`.
    - **Config Module (v0.42.0+v0.44.0, v0.71.0: shared SERVER_NAME constant)**: `server/src/unity_mcp/config/` extended with TOML merger for Codex backend. `merge_toml_mcp(path, section)` merges MCP config into TOML with diff-based updates (preserves user settings). Python 3.9 compat: `Optional[X]` instead of `X | None`. ValueError raised on corrupt JSON. **Stale entry cleanup (v0.44.0)**: strips `[mcp_servers.unity]` duplicates on first write, creates .bak backup. **v0.47.1**: `validator.py` skips json.loads for TOML clients, checks string presence in configs. Adds 25 new tests (v0.42.0) + 9 new tests (v0.44.0) + 151 new tests (v0.47.1: 73 Python + 78 C# in test_config_gaps.py). **v0.71.0: Shared SERVER_NAME Constant (config/merger.py)**: `SERVER_NAME = "unity-biome-mcp"`. `_OLD_NAMES = ("unity-mcp",)` migration tuple strips stale keys on every write (orphaned duplicates cannot persist). All config paths now use `SERVER_NAME` key (JSON `mcpServers[unity-biome-mcp]`, TOML `[mcp_servers.unity-biome-mcp]`). MCP_BLANKET derived in backend_def.py as `f"mcp__{SERVER_NAME}"` = `"mcp__unity-biome-mcp"`
    - **CodeExecutor.SecurityScan (v0.31.0, v0.89.0: SecurityLevel)**: Hardened pipeline — (1) strip C# comments via regex (2) whitespace densification (3) OrdinalIgnoreCase matching (4) 11 new blocked patterns (EditorApplication.Exit, Application.Quit, Environment.FailFast, ExportPackage, ImportPackage, OpenProject, ProjectWindowUtil, using-aliases for System.IO/Diagnostics/Net/Reflection). **v0.89.0**: `SecurityLevel` enum (`Standard`/`AllowAll`/`Strict`) — three pre-computed pattern sets; `AllowAll` skips ALL security scans (no pattern matching, no regex — all C# APIs available); `Standard` blocks unsafe namespaces + `.GetValue(/.SetValue(/.Invoke(`; `Strict` additionally blocks `GetField(/GetProperty(/GetFields(/GetProperties(`; `AllowAll` is the default. Security error messages include actionable `Suggestion:` hints. `using Object = UnityEngine.Object` added to auto-usings. User `using` directives hoisted above wrapper. `return;` auto-replaced with `return null;`.
-   - **In-Unity Chat System (v0.66.6+)**: Unified RelayBackend on C# side communicates with Python chat_relay.py sidecar. Five backends managed server-side (Claude, Codex, Kimi, Agy, OpenCode) via `backend_def.py` with CLI arg builders + parsers. C# simply dispatches semantic commands (send turn, get events, set mode); relay handles all CLI protocol details, binary resolution, model selection, NDJSON/stream-json parsing, transport over pipe-format (60% token savings). See Chat Relay System section above for full architecture.
+   - **In-Unity Chat System (v0.66.6+)**: Unified RelayBackend on C# side communicates with Python chat_relay.py sidecar. Five backends are managed server-side (Claude, Codex, Kimi, Agy, OpenCode) via `backend_def.py` with CLI argument builders and stream transforms. C# dispatches semantic commands; the relay owns CLI protocols, binary resolution, model selection, and event normalization. See the Chat Relay System section below.
    - `_UnstructuredMCP(FastMCP)` subclass: overrides `add_tool()` to force `structured_output=False` on all registered tools, eliminating duplicate `content` + `structuredContent` in responses + `outputSchema` from ListTools (v0.50.3). Reduces MCP response size & Claude parsing overhead. **FastMCP Contract Tests (v0.78.11, `test_tool_schema_coverage.py`)**: 7 new tests verify the JSON Schema FastMCP actually emits to MCP clients (`mcp._tool_manager._tools[name].parameters["properties"]`). Guards against FastMCP silently dropping params (e.g., `compress` from `get_component`/`inspect`, `validate_aliases` from `batch`). Also verifies `alias_status` registration and that all core tools with params have non-empty properties.
    - Lifespan: auto-discover Unity port from `~/.unity-biome-mcp/ports/*.port`, acquire exclusive PID lockfile, create ConnectionSlot, connect bridge, fetch disabled tools cache (`get_disabled_tools`), push Python-authoritative catalog (`_push_catalog`), start heartbeat, register reconnect callbacks, load_plugins()
    - **MCP SDK Version (v0.31.0, v0.50.3)**: Pinned `mcp>=1.28.0,<2` — v2.0 ships 2026-07-28 with breaking changes (e.g., `response.content` structure). Upper bound prevents silent breakage. v0.50.3: bumped to 1.28.0+ for structured_output support.
@@ -94,10 +97,9 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
 
 2. **TCP Bridge** (Python: `bridge.py` + `bridge_heartbeat.py` + `bridge_reload_state.py` + `bridge_retry.py` + `bridge_result.py` + `bridge_socket.py` + `connection_slot.py` + `lockfile.py` + `compile_state.py` + `server_filtering.py`)
    - **ConnectionSlot**: single per-project connection with project-based discovery
-   - **Port Discovery** (`server_filtering.py:read_unity_port`, v0.23.0, v0.52.6 multi-CLI waterfall, v0.70.0: unity_mcp_dir() centralized): Env waterfall (UNITY_MCP_PROJECT_DIR > CLAUDE_PROJECT_DIR > os.getcwd()) for multi-CLI project discovery → ~/.unity-biome-mcp/ports/*.port files → env UNITY_MCP_PORT → default 9500. **v0.23.0: TCP probe** filters stale discovery files (port written but not listening). Candidates ranked by project path match (CWD), then mtime. PermissionError (cross-user processes) skipped gracefully, live .port files preserved. **v0.52.6: Multi-CLI project discovery** — UNITY_MCP_PROJECT_DIR env variable enables Cursor/Codex/Windsurf/OpenCode/Gemini to independently discover the same Unity instance while main CLI uses CLAUDE_PROJECT_DIR. **C2 (v0.70.0): unity_mcp_dir() Centralized** — NEW `paths.py` module with single `unity_mcp_dir(project_dir: str) → Path` function. All port file reads routed through this one path (instead of inline `~/.unity-biome-mcp/ports/` in 3+ places). DRY + testability. **v0.96.1: Legacy port fallback** — `paths.py:iter_port_files(pattern, primary_dir)` yields port files from both `~/.unity-biome-mcp/ports/` and legacy `~/.unity-mcp/ports/` (dedup by filename, new dir wins). `config/resolver.py:find_port()` uses this iterator for backward-compat discovery.
+   - **Port Discovery** (`server_filtering.py:read_unity_port`): `UNITY_MCP_PORT` takes precedence. Otherwise, live `~/.unity-biome-mcp/ports/*.port` candidates are ranked by project context (`UNITY_MCP_PROJECT_DIR`, `CLAUDE_PROJECT_DIR`, or current working directory) and then modification time; the non-probing cold-start fallback is `9500`. Legacy `~/.unity-mcp/ports/` files remain a compatibility fallback.
    - **Port Persistence (v0.35.0)** — PortResolver discovery chain: env UNITY_MCP_PORT → ProjectSettings/MCPSettings.json (user intent, survives Library purge) → Library/MCP_Port.json (cache) → FindFreePort. MCPServer.cs calls SaveProjectSettings() to persist both main + chat port assignments at startup. `MCPServer.WritePortFile()` writes `{pid}.port`. DeletePortFile() cleans it. Backward compatible: nil ProjectSettings falls through to Library cache. **v1.0.1: SaveRuntimePorts** — new PortFileManager method: updates `MCP_Port.json` + `{pid}.port` but NOT `MCPSettings.json`. Called by MCPServer when bind falls back to an alternate port — preserves user intent so next reload retries the configured port, no cascade drift (9514→9516→9518). **CleanStalePeerPortFiles** — called at startup, removes `.port` files from dead PIDs before writing our own.
    - **TCP Frame Helpers (`bridge_socket.py`, v0.80.0 M67)**: `frame_write(writer, payload)`, `frame_read(reader)`, `frame_read_with_timeout(reader, timeout)` — 4-byte BE length-prefix framing extracted to single module. Used by bridge, heartbeat, chat_relay, reload_ladder, and doctor. Eliminates inline struct.pack/unpack at every call site.
-   - **Fail-Fast Lockfile** (`lockfile.py`): RuntimeError raised on live process (instead of SIGTERM) to let Python server handle reconnection logic cleanly. **v0.23.0: Zombie detection** — `_is_zombie(pid)` check prevents treating defunct processes as "live", allowing fast server startup without waiting for cleanup.
    - **UnityBridge (v0.36.0)**: AsyncIO TCP client, 4-byte BE length prefix JSON
      * **BridgeState enum**: DISCONNECTED | CONNECTED | DOMAIN_RELOADING | FAILED (startup grace expired)
      * **DomainReloadTracker** (`bridge_reload_state.py`, v0.36.0): Tracks domain reload state independently from compile probe (30s expiry). Shared between bridge.send() and heartbeat via `_reload` instance. Three methods: `mark()` (on DomainReloadError), `clear()` (on success), `is_active()` (checks expiry). Decouples reload window from compile heuristics.
@@ -124,15 +126,16 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
      * Handles both text-result and structured-response formats
      * Extracts file path when present (screenshots, exports)
      * Centralizes error handling logic (reduces duplication)
-   - **PID Lockfile**: `~/.unity-biome-mcp/server-{port}.lock`, **cross-platform locking**:
+   - **PID Lockfile**: each session owns `~/.unity-biome-mcp/server-{port}-{pid}.lock`; multiple sessions may coexist:
      * **macOS/Linux**: `fcntl.flock` (advisory, whole-file lock)
      * **Windows**: `msvcrt.locking` on sentinel byte at offset 1024 (non-blocking, avoids mandatory lock of PID data at bytes 0-31)
-     * Kills stale servers: SIGTERM→SIGKILL (Unix), TerminateProcess (Windows)
-     * **v0.23.0: Zombie detection** via `_is_zombie()` prevents stale defunct processes from blocking reconnection
+     * Cleanup removes files whose PIDs are no longer alive; it never terminates another process
    - **SIGPIPE handling**: guarded with `hasattr(signal, "SIGPIPE")` since Windows lacks SIGPIPE. Suppressed on Unix to prevent server crash on client disconnect.
    - **Reconnect (v0.30.3, v0.52.7)**: exponential backoff throttling (MIN=5s → MAX=60s, reset on success, jitter ±10%). v0.52.7: cooldown re-armed on every attempt (not only success), preventing retry spam when port unavailable. Heartbeat debounce=30s. send() reconnect no longer fires callbacks (only heartbeat does) — breaks reconnect feedback loop. push_catalog skips if already locked.
    - **Client Identification (v0.78.5)**: `UNITY_MCP_CLIENT` env var sent as `role` field in ping JSON (`"codex"`, `"cursor"`, `"windsurf"`, `"claude-desktop"`; falls back to `"mcp"` when unset). `install_initialized_hook(mcp, get_slot)` in `server_filtering.py` registers `InitializedNotification` handler — on MCP handshake, reads `session.client_params.clientInfo.name`, skips `"Claude Code"` (default), fire-and-forgets `set_client_label` command to Unity (3s timeout, DEBUG log on failure). C# `RoleToLabel()` in `ClientConnectionHandler.cs` expanded: codex→"Codex session", cursor→"Cursor session", windsurf→"Windsurf session", claude-desktop→"Claude Desktop session". `ClientSlot.Label` (new `volatile string` field): cleared on new session connect, updated by `set_client_label` command, used in disconnect log.
-   - Max message: 10MB, timeouts: 30s default, 60s compile_preflight, **75s batch** (A4: v0.70.0 increased from 30s), 120s run_tests/run_playtest. Python-side buffer constants (v0.79.1): `_TCP_POLL_BUFFER=5.0`, `_TCP_STEP_BUFFER=10.0`, `_TCP_PLAYTEST_BUFFER=20.0`
+   - Max message: 10MB. Timeout ownership is layered across wrappers, the
+     retry session, Unity request deadlines, and operation arguments; use the
+     canonical table in [`AI/tcp-bridge.md`](tcp-bridge.md#timeout-layers).
 
 3. **Unity Plugin** (C#: 165+ files, ~17800 LOC, v0.42.0: Wizard asmdef split, Updates folder, MarkdownInlineFormatter extraction, v0.44.0: LevelUp UX, v0.45.0: InstallSourceDetector + async updaters, v0.55.10: unified SceneMcpOverlay + IconCanvas + PluginToolGrouping, v0.59.0: Runtime Debug + Watch System + Chat field chips + Debug UI panel, ROI sprint v0.69.0: CommandOptions struct, CallerIsPlugin gate, v0.73.1: command registration race fix — Bootstrap.cs deleted, registration moved to MCPServer.StartAsync, tools gap sprint v0.77.0: +ShaderGraphHelper.Mutations.cs +961 LOC across TimelineHelper/AnimatorControllerHelper/AnimationHelper/ParticleHelper/MaterialHelper/CommandRouter — 6126 C# NUnit green, v0.78.5: MaxClients 4→8, ClientSlot.Label, set_client_label command, RoleToLabel expansion, v0.78.8: AliasExpander.cs (C#-side $alias expansion in batch DSL + direct MCP tools), SceneTestBase.cs (abstract TearDown base for 36 test classes) — 6426 C# NUnit green, v0.78.9: AliasStatusTests.cs (alias_status command + IsStale tracking), PlaytestGlobalAliasTests.cs (PlaytestConfig alias auto-injection into run_playtest) — 6550+ C# NUnit green, v0.78.10: AliasStatusTests.cs count assertion relaxed to existence-only check, v0.78.11: AliasExpander BuildPipePath (pipe-preserving ValPath resolution), TestRunner DeleteTempScene cleanup, +13 C# alias pipe tests + 6 PlaytestGlobalAlias tests — 6633+ C# NUnit green, v0.79.1: +PlaytestPathTests.cs (run_playtest path= file execution, traversal guard), check_colliders path optional fix — 6452 C# NUnit green, v0.80.1: +SceneCleanTestBase.cs (root-object leak-detection base), +force_play_stop command (allowedDuringCompile, T5 ladder), force_refresh enhanced (ReloadGuard unlock + RequestScriptReload + RepaintAllViews), DiagnoseCommand isReallyCompiling field — 6455+ C# NUnit green; playtests ROI sprint: +PlaytestLinter.cs, +PlaytestRunner.Snapshot.cs, +SceneRefResolver.cs, +SceneRefLinter.cs, +WAIT_CAPTURED/SWEEP_PATH/provenance in PlaytestParser, +9 new test files (~1200 new NUnit tests); v0.86.0: test quality review — 25 C# tests deleted (self-testing/duplicate), ~10 assertions hardened, 8 test renames (snake_case→PascalCase), TearDown/SetUp added for SetParentTests + UndoGroupHelperTests + EnabledToolsCacheTests + GetAliasesTypedTests + ColliderFitHelperTests, RenderAnalyzer.cs MissingComponentException crash fix (try/catch moved to cover GetComponent call) — 6537 C# NUnit green; v0.90.0: +PlaytestRunner.FrameCapture.cs (CAPTURE_FRAMES step execution), +PlaytestLaunchWindow.cs (MCP/Playtest Launcher EditorWindow), +6 new test files (PlaytestForLoopTests, PlaytestFrameCaptureTests, PlaytestPathPrefixTests, PlaytestCaptureStringTests, Sprint3FrictionTests, RuntimeHelperInvokeTests), SyncHelper._pumpActive singleton guard + isCompiling early-exit, TestRunner dirty-scene save before NewScene, SceneCleanTestBase leaked-name error report — 6687 C# NUnit green (1 pre-existing failure); v0.91.0: real-project audit — CommandRouter VALIDATION errors → Debug.LogWarning (was LogError); mutating commands now call UndoGroupStack.Push + ChangeWatcher.RecordMutation inline (get_changes + undo_last now track MCP commands); lint_playtest/render_analyze/compile_preflight throw InvalidOperationException on error → ok:false; run_playtest returns ok:false when result contains FAIL; CompleteFromInner gains isSuccess predicate; ObjectManager set_property+set_property_delta call MarkSceneDirty in Edit Mode; transfer_object cross-scene parent guard (validates parent is in target scene); ErrorClassifier.Classify+FormatError unwrap TargetInvocationException before type-switch; SceneHelper.SaveScene throws IOException on failure (was silent); ChangeWatcher.RecordMutation public static inline hook; +MultiSceneOperationsTests.cs (29) +ObjectManagerTests.cs (25) +ResultEnvelopeTests.cs (32) — 6699 C# NUnit green (1 pre-existing failure); v0.92.0: API pragmatic review — +SerializedFieldRenameAudit.cs (YAML scan for stale field data after rename), +Roslyn/UnityPreflightHints.cs (static analyzer: serialized Dictionary/interface/abstract/rename checks), MaterialHelper target=shared|instance|asset, ScriptableObjectHelper Set echoes old→new + missing field list, PrefabHelper Save mode=new|overwrite + GetOverrides format=structured + Revert scope=children, AnimationHelper CreateClip try/catch+rollback, BatchHelper.HasErrors promotes inner ok:false to batch envelope, UIHelper atomic create rollback — 6700+ C# NUnit green (1 pre-existing failure))
    - **SyncHelper.cs (v0.90.0 reload stability)**: `_pumpActive` singleton guard — `StartTickPump` returns immediately if already active, preventing N×300 concurrent pump accumulation on rapid reconnects. Pump exits when `EditorApplication.isCompiling` becomes true (early-exit). `RequestScriptReload()` gated on `!isCompiling`. `Refresh()` called after `AllowAutoRefresh` in `force_refresh` handler. TestRunner.cs: dirty temp scene saved silently before `NewScene` in `RunFinished` to suppress "Save modified scenes?" dialog.
@@ -275,7 +278,7 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
 - **Gating Categories (v0.60.0)**:
   * New: PROFILING, RENDERING, DEBUG (aliases: 'profiling', 'rendering', 'debug', 'perf')
   * Debug tools moved from TIER1 → DEBUG category: debug, snapshot, watch_add/get/remove/clear/reset, get_metrics
-  * Saves ~1080 tokens/turn by hiding debug tools by default (only reveal on demand)
+  * Hides debug schemas by default and reveals them on demand
 
 ### Profiling UI Subsystem (v0.61.0)
 
@@ -375,14 +378,14 @@ for _ in range(24):  # 2min @ 5s intervals
 6. **Post-mutation features**: console error capture, SuggestNext (recommends verification tool), auto-return parent subtree after create/delete
 
 7. **In-Unity Chat Session Control (v0.19.0, F20–F30, v0.36.0 timeout messaging)**
-   - **Stop button (F20)**: CancelTurn() method in MCPChatWindow + backend handlers. Sends `{ "stop_reason": "end_turn" }` to Claude stdin or terminates Codex process. Esc hotkey also triggers cancel. Button UI swaps from Send→Stop during streaming.
-   - **Timeout Context Hints (v0.36.0)**: When turn exceeds InactivityTimeoutSec (300s for Codex, 90s for Claude), failure message now includes last tool name: `[Timed out: no response for 300s (last tool: set_property)]`. Helps debug what operation was in-flight. Tracked via `_lastToolName` in EventHandlers.cs.
+   - **Stop button (F20)**: `CancelTurn()` stops the current relay-owned CLI session. Esc hotkey also triggers cancel. Button UI swaps from Send→Stop during streaming.
+   - **Timeout Context Hints (v0.36.0)**: When a turn exceeds the configured inactivity timeout, the failure message includes the last tool name. Codex has a 300s minimum; other backends have a 30s minimum. Tracked via `_lastToolName` in EventHandlers.cs.
    - **Dead-Process Guard Message (v0.36.0)**: When backend process unexpectedly exits mid-turn, appends `[Process exited]` to transcript before finalizing. Surfaces connection loss (vs. timeout) as distinct error state. Clears turn flags to unlock reload.
    - **Transcript reload survival (F21, v0.63.0)**: TranscriptSerializer.cs persists chat history to SessionState at Library/MCP_ChatTranscript.txt. Format: 5-column line-delimited `KindInt|Base64(Text)|Base64(ChipsData)|Base64(LlmPayload)|Base64(ImagePath)` with Kind enum (User=0, Assistant=1, Tool=2). Tool-call entries (Kind.Tool) serialize with tool name + args in Text column. Image paths (P1) stored as ImagePath column (first image captured). Backward-compat: old 3-4 column format missing ImagePath/LlmPayload columns fallback to null. On domain reload, `MCPChatWindow.OnDisable()` saves transcript to SessionState. History restored on reopen via `AppendToolChip()` from `_entries` list, preserving all entry types + styling.
    - **Settings persistence (F22–F24)**: AutoScroll toggle persisted in EditorPrefs, dropdown selections (Backend, Model) cached, all restore on domain reload / window reopen.
    - **Chip correctness (F24–F26)**: @Object duplicate fix via global forward search instead of narrow offset window. Direct Clear dialog (no submenu). Drag-drop MonoScript creates dual-chip (@Object + @Script).
    - **Domain reload trigger (F27)**: `_needsRefresh` flag set when code-editing tool result arrives; consumed in DrainAndRender to call `AssetDatabase.Refresh(ForceUpdate)` once per drain cycle. Ensures .cs edits via chat backend trigger recompilation.
-   - **Backend simplification (F28)**: Removed spawn-per-turn CodexBackend. BackendKind now 2 entries (Claude, Codex). BackendKind.Codex always creates CodexAppServerBackend (persistent JSON-RPC sessions, matches Claude one-per-chat model).
+   - **Current Chat relay**: C# uses only `RelayBackend`; Python `chat_relay.py`, `backend_def.py`, and `stream_transform.py` own backend processes and event normalization. See [Chat Relay System](#chat-relay-system-v0666-replaces-clibackendbase--5-backend-variants-with-unified-relaybackend).
    - **External drag/drop (F29)**: FolderChipProvider accepts files/folders from Finder. ProcessExternalPath() static method routes DragAndDrop.paths into chip context.
    - **Input height (F30)**: Default input field height 4 lines (CompactH=117f). Compute() clamps via minH=min(CompactH, maxH) to prevent degenerate clamp in tiny windows.
    - **Chat Component Fields (v0.59.0)**: Right-click Inspector properties or components → "Add to MCP Chat" menu entries. **PropertyContextMenuBridge**: wires EditorApplication.contextualPropertyMenu hook. **ComponentChipProvider** (priority 125, key "component"): chip for entire component summary (format: `goPath|CompType`). **FieldChipProvider** (priority 130, key "field"): chip for single field (format: `goPath|CompType|fieldName`). Both registered via ChipKindRegistry.EnsureBuiltIns(). **ChipPropertyFormatter DRY**: unified serialized property rendering (UnityEvent expansion, ObjectReference disambiguation, value display). **SerializedObject disposal**: Using statements prevent memory leaks during repeated inspector interactions.
@@ -393,7 +396,6 @@ for _ in range(24):  # 2min @ 5s intervals
    - **Asset validate_move (Server v0.8.2)**: New `asset(action="validate_move", src="...", dst="...")` dry-run validation before asset move operations. Checks path existence, destination writability, conflict detection. Returns `{"ok":true}` or error details. Prevents silent failures on renames/refactors. **Tests**: 15 test_server_asset.py new scenarios.
    - **Asset Export/Import Enhancements (Server v0.8.2, Plugin v0.35.0)**: `export_package` gains `include_deps` parameter (default true) — skip dependencies if false for token optimization on large packages. `import_package` now returns manifest: list of imported asset paths. **AssetDatabaseHelper.cs extended** with dependency filtering + import result tracking. **Tests**: 6 new test_server_asset.py scenarios.
    - **Multi-Scene Chat Reference Fix (Plugin + Server v0.8.2)**: Fixed scene-qualified object paths in chat. **IsAssetPath** now strict: returns false for "Scene:/" prefix (asset paths only "Assets/" prefix). **SceneObjectFinder** parses `"SceneName:/"` to extract scene name + path separately. Chips display `[Scene] name` for multi-scene objects. **Tests**: 74 MultiSceneChipTests (parsing, display, navigation).
-   - **Ask↔Agent Session Persistence (Plugin)**: Switching backend mode preserves chat session via `--resume` flag. **SetMode.cs** captures `SessionId` on mode switch, passes to new backend launch. **Tests**: 120 SetModeTests (mode switch, persistence, restart).
 
 12. **Plugin Extensibility API + Image Drag-Drop + Asset Viewers (v0.34.0, v0.63.0: MenuOnly DIM)**
    - **Plugin Extensibility (Settings/Toolbar/Panels, CLI v0.34.0)**: New public seam interfaces for plugins to extend chat UI without core edits:
@@ -433,24 +435,6 @@ for _ in range(24):  # 2min @ 5s intervals
      * **BuiltInChipProviders extended**: `AssetChipProviderBase.ViewerLauncher` seam — wired by AssetViewerFactory [InitializeOnLoad]. Chip Navigate() checks `ViewerLauncher?.Invoke(path)` first; if true, viewer handled; else falls back to ping
      * **Tests**: 224 AssetViewerFactoryTests (factory dispatch, plugin registration, viewer lifecycle), 198 PrefabViewerWindowTests (see above)
    
-   - **New CLI Backends: Kimi K2 + OpenCode (CLI v0.34.0)**:
-     * **Kimi K2 Backend**:
-       - **KimiArgBuilder.cs** (120 LOC): Constructs `kimi` subprocess argv with role-based NDJSON protocol (system→user→assistant messages)
-       - **KimiParser.cs** (74 LOC): Parses Kimi NDJSON response stream (newline-delimited events, tool calls, streaming tokens)
-       - **KimiBackend.cs** (35 LOC): CliBackendBase subclass — spawns `kimi` process, pipes turn JSON
-       - **KimiProvider.cs** (21 LOC): IBackendProvider Kimi implementation, auto-discovered via TypeCache
-       - **Tests**: 214 KimiArgBuilderTests (role mapping, token streaming, tool call parsing), 243 KimiParserTests (event parsing, multi-line tool results, error recovery)
-     
-     * **OpenCode Backend**:
-       - **OpenCodeArgBuilder.cs** (132 LOC): Constructs `opencode` CLI command with multi-provider model selection (Claude/GPT/Gemini). Wires models via `-m model-name` flag with format conversion (e.g., "anthropic/claude-sonnet-4" for OpenCode's provider syntax)
-       - **OpenCodeParser.cs** (92 LOC): Parses OpenCode stream-json (compatible with Claude SDK format)
-       - **OpenCodeBackend.cs** (49 LOC): CliBackendBase subclass — persists OpenCode process across turns (stdin loop)
-       - **OpenCodeProvider.cs** (21 LOC): IBackendProvider OpenCode implementation, auto-discovered via TypeCache
-       - **Tests**: 222 OpenCodeArgBuilderTests (model name mapping, provider formats, arg ordering), 273 OpenCodeParserTests (stream parsing, error handling, tool routing)
-     
-     * **BackendKind enum expanded**: Now includes Kimi + OpenCode (was Claude/Codex/Gemini). **BackendRegistry.cs**, **BackendConfig.cs**, **BackendProviderRegistry.cs** all updated
-     * **KimiBackendConfig + OpenCodeBackendConfig**: New [Serializable] config classes in Library/MCP_ChatBackendConfig.json
-   
    - **Chip Kind Extensions (View v0.34.0)**:
      * **ChipKindKeys extended**: Added Image, Model, Audio (beyond existing Hierarchy/Scene/Script/Prefab/Material/Texture/ScriptableObject/Asset/Folder)
      * **BuiltInChipProviders extended**: `ModelChipProvider` (priority 450, handles .fbx/.obj/.blend/.dae), `AudioChipProvider` (priority 550, handles .wav/.mp3/.ogg/.aiff), `ImageChipProvider` (priority 50, handles external .png/.jpg/.bmp/.gif/.webp/.tiff — obj==null only)
@@ -470,18 +454,9 @@ for _ in range(24):  # 2min @ 5s intervals
 
 10. **Sprint 1B: Assembly Split + Interactive Permissions (v0.29.2)**
    - **Chat Assembly Split (asmdef)**: UnityMCP.Editor.Chat split into two: `UnityMCP.Editor.Chat.CLI` (protocol, parsing, backends, control flow) and `UnityMCP.Editor.Chat.View` (UI windows, rendering, cards). CLI assembly compiles when main plugin is broken (zero View dependencies); View always depends on CLI. Enables frontend reload before backend fully healthy. Asmdef references one-way: View → CLI → Editor core.
-   - **Interactive Permission Prompts (v0.29.2→v0.29.11 fix)**: **Original (v0.29.2)** used non-functional `--permission-prompt-tool stdio` arg expecting `sdk_control_request` events. **Fixed (v0.29.11, Sprint 1C)** implements correct CLI v2.1.177+ protocol: (1) `CliBackendBase` sends `InitializeRequest()` handshake after spawn with `PreToolUse` hooks wired to hook_0; (2) backend emits `control_request` (not `sdk_control_request`) with `subtype:hook_callback` containing tool info; (3) `ChatStreamParser` routes to `PermissionPrompt` event; (4) `ControlResponseBuilder` serializes approvals as `{"continue":true/false}` (not `{"behavior":"allow"}`) + reason field; (5) legacy `sdk_control_request`/`permission` subtype still supported for backward compat. **ToolApprovalCard** (Allow/Deny/Session/Always + RiskClassifier + SessionAllowlist) and **AskUserCard** (radio/checkbox/freetext inputs). Response flows back to backend via stdout for tool call resume.
-   - **IBackendProvider + TypeCache**: Extensible backend registration without core edits. **BackendProviderRegistry** auto-discovers IBackendProvider implementations via TypeCache. Each backend plugin = 1 file with `[InitializeOnLoad]` static ctor calling `BackendProviderRegistry.Register()`. **ClaudeProvider** + **CodexProvider** (built-in, zero delta). New plugins use same pattern.
-   - **Control Protocol (Python side)**: `ChatStreamParser` now handles both new (`control_request`/`hook_callback`) and old (`sdk_control_request`/`permission`) events, routes to interactive card UI via MCPChatWindow.Approve partial. Response serialized by `ControlResponseBuilder` and written to process stdin.
 
 10. **Chat Resilience Sprint (v0.30.5): Codex Silent Abort + Inactivity Watchdog**
-   - **Codex Silent Abort Fix**: Codex sets `status:"completed"` on tool errors; real indicator is `result.isError:true` (no space in JSON). **CodexAppServerParser (v0.30.5)** now detects errors via `!resultObj.Contains("\"isError\":true")` pattern-match instead of checking status. Extracts result text regardless of isError flag; if error with empty text, appends `"[MCP tool error]"` placeholder. Emits `ChatEvent.Heartbeat()` on "reasoning" events (proof-of-life during o3/o3-pro silent thinking). **Tests**: 6 new error scenario tests.
-   - **Inactivity Watchdog (v0.30.5)**: Codex reasoning (o3, o3-pro) can think silently for 2–5 minutes. Old code assumed event silence = dead process, aborting in-flight work. New: **MCPChatWindow.Drain.cs** tracks `_lastEventTime` (timestamp of last drained event). DrainAndRender() checks if `EditorApplication.timeSinceStartup - _lastEventTime > InactivityTimeoutSec` (300s for Codex, 90s for Claude/Gemini) while backend running; if true, emit failure card, finalize turn, call OnTurnFailed(). Resets on every OnSend (turn start) and every event drain. Result: long reasoning completes, failures timeout gracefully. **Tests**: 2 new timeout scenarios.
-
-11. **Sprint 1D: Claude AskUserQuestion + Codex requestUserInput (v0.29.37–v0.29.38)**
-   - **Claude Interactive User Input (v0.29.37)** — Claude CLI `AskUserQuestion` events now route through new MCP tool `permission_prompt_tool` → TCP `ask_user` command → Unity `AskUserCard` UI (radio/checkbox/freetext) → user input → response returned to Claude for tool call completion. **permission_prompt_tool.py**: Registers as MCP handler for `--permission-prompt-tool mcp__unity_mcp__permission_prompt` CLI flag. Receives AskUserQuestion payload, routes to TCP bridge, awaits user response. Auto-allows non-AskUser tools (unchanged behavior for other tool requests). **ClaudeArgBuilder**: Automatically injects `--permission-prompt-tool` flag into Claude CLI args (user's `--permission-prompt-tool` config irrelevant; plugin handles it). **AskUserCard Redesign (v0.29.37)**: Extracted inner `QuestionRow` class → new file `AskUserQuestionRow.cs` (217 LOC, pill-button UI). SingleSelect now auto-submits on pill click (no separate Submit button needed). Hover animation (200ms transition, 1.03x scale). Vertical full-width layout. Fixed `Toggle.text` → `Toggle.label` bug (Unity BaseBoolField nulls .text in constructor). Other field returns answers-map JSON, not raw text. **FlowBar Enhancement**: `_askPending` flag hides Stop button + progress bar during user input (prevents cancellation mid-prompt). **Gating**: `permission_prompt` added to `CORE_TOOLS` and `TIER1` (always visible).
-   - **Codex requestUserInput Integration (v0.29.38)** — Codex CLI can now show same interactive `AskUserCard` via JSON-RPC `tool/requestUserInput` and `item/tool/requestUserInput` requests. **CodexAppServerParser**: Detects both request types, extracts numeric `id` field, prefixes response with `"codex:"` for reply routing. **CodexAppServerBackend**: Advertises `experimentalApi: true` in initialize capabilities. **ControlResponseBuilder**: New `CodexUserInputResponse()` method formats JSON-RPC response with `int.TryParse(id)` guard: numeric id → unquoted, string → quoted for safety. **AskUserCard**: Detects `"codex:"` prefix in `Submit()`, formats positional answers array `[{"answer":"..."}]` matching Codex protocol (vs. `{"answer":"..."}` for Claude). Same interactive UI experience across both backends.
-   - **Tests**: v0.29.37 added 6 Python tests (permission_prompt_tool), 68 C# tests (AskUserCard redesign). v0.29.38 added 7 C# tests (CodexAppServerParser, ControlResponseBuilder, AskUserCard Codex protocol). Total: 2413 Python tests passed, 2623+ C# EditMode green.
+   - **Inactivity Watchdog (v0.30.5)**: `MCPChatWindow.Drain.cs` tracks `_lastEventTime` and compares it with the configured inactivity timeout while a backend is running. Codex has a 300s minimum; other backends have a 30s minimum. It resets on turn start and every drained event.
 
 ### UI Animation System (docs-critical-review branch)
 
@@ -777,9 +752,9 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 
 ### Capability Gating (Python: `tools/gating.py`, v0.70.0: categories derived from _THEMED_CATEGORIES)
 - **CORE tools** (15, `core=True` in ToolSpec): locked, always visible, full schema. See list above in "### CORE" section. Separate from TIER1 (CORE + `tier1=True` tools) — TIER1 tools are always visible but not locked. Example: `is_core("get_hierarchy")` → True, `is_core("discover_tools")` → False (TIER1/SYSTEM, not CORE)
-  - **T4 (v0.64.0): get_console Filter Params** — `keyword` (substring match across all log lines) + `count_only` (return only count, no text). Token economy: 30x compression vs full log dump. Sample use: `get_console(keyword="Error", count_only=true)` → `"3 errors"`. Gating.py updated for tool filtering.
+  - **T4 (v0.64.0): get_console Filter Params** — `keyword` (substring match across all log lines) + `count_only` (return only count, no text). `count_only` avoids returning the full log payload. Sample use: `get_console(keyword="Error", count_only=true)` → `"3 errors"`. Gating.py updated for tool filtering.
   - **C6 (v0.70.0): Derived Categories** — `_THEMED_CATEGORIES` is now single source of truth. At import time, derived categories list computed (all categories minus internal ones). Eliminates manual enum-sync drift.
-- **Themed catalog** (single source of truth): `get_catalog()` returns dict with 8 categories (v0.83.0: 18 themed → 8: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM — old names kept as aliases; CORE as category, not separate key); public tools only, no NDA/plugin names. Format simplified for token economy (CORE → categories["CORE"]).
+- **Themed catalog** (single source of truth): `get_catalog()` returns dict with 8 categories (v0.83.0: 18 themed → 8: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM — old names kept as aliases; CORE as category, not separate key); public tools only, with extension-registered tools added separately. Format simplified for token economy (CORE → categories["CORE"]).
 - **Catalog serialization (v0.18.0+)**: Plain-text format sent to C# (`set_tool_catalog`): `CORE:tool1,tool2\nSCENE:tool3,tool4\n...` via `CatalogParser.Parse()` (no JSON encoding). Reduces ~40% wire size vs JSON + eliminates C# JSON deserializer cost.
 - **Filtering pipeline**: (1) apply TIER1+session gating via `_apply_gating()`, (2) subtract disabled set from Unity MCPSettings via `_filter_tools()` (cache=None → gating-only fallback). Approach is "hide-disabled-set" (NOT allowlist — Python-only tools not in Unity's CSV wouldn't be wrongly hidden)
 - **Sessions**: session-enabled via `discover_tools(category, enable)` (legacy CATEGORIES dict still works for back-compat)
@@ -869,7 +844,7 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 - **middleware_async.py**: distill cache key collision fix (include full flag)
 
 ### Playtest File Execution (Python: `tools/runtime.py`, v0.79.1)
-- `run_playtest(path="Playtests/farm.playtest")` — C# reads Assets-relative `.playtest` file server-side; ~15 tokens instead of 300-800 inline DSL
+- `run_playtest(path="Playtests/smoke.playtest")` — C# reads Assets-relative `.playtest` file server-side; ~15 tokens instead of 300-800 inline DSL
 - `path` and `script` are mutually exclusive (ValueError on both/neither)
 - `_explicit_path=True` passed in args → middleware bypasses length check for file paths
 - `defs` param works with both `path` and `script` modes (prepended for script mode, passed to C# for path mode)
@@ -1033,51 +1008,38 @@ Applied by `ApplyFieldsCompress(args, result)` in `CommandRouter.ObjectHandlers.
   - Tool result: `tr|toolId|ok|text`
   - Session: `si|sessionId`
   - Done: `d|sessionId|cost|inTok|outTok`
-  - ~60% token savings vs NDJSON (prefixes + field elimination)
-
 **C# Components:**
-- **RelayBackend**: Single backend implementation (v0.66.6+, replaces 5 old CliBackendBase subclasses). Zero CLI-specific knowledge — semantic commands only. Owns RelayChatProcess, ToolCallAccumulator, SessionId (persisted to SessionState). Lifecycle: Start() → _proc.StartViaRelay(...) → DrainEvents() → SetMode() (respawns). No CliBackendBase parent. RoleToLabel() maps role from ping: "chat-relay" → Chat Relay label (vs "mcp" for direct MCP).
-- **RelayEventParser**: Pure static parser (no allocations beyond Split). Converts pipe-format line → ChatEvent. 13 event types (TextDelta, Error, AutoReply, RateLimit, SessionInit, Heartbeat, SessionState, ToolStart, ToolResult, PermissionPrompt, AskUser, ToolProgress, Done).
-- **RelayChatProcess**: TCP client connecting to chat_relay.py. Owns socket, reader queue, LineBufferDeque. StartViaRelay() sends `{"cmd":"send","args":{...}}` init message. WriteLine() → JSON to relay with error checking (sets error event on failure). DrainLines() → long-poll events. SendSetMode() → respawn via relay. Heartbeat every 30s (via separate timer).
-- **RelaySpawner**: Manages relay process lifecycle. EnsureRunning() spawns `python -m unity_mcp.chat_relay` on free port (via FindFreePort in Python, similar to MCP bridge). Returns port number. **Stability (v0.94.x):** (1) `ExecuteSpawn` retries up to 3× on failure — kills zombie process between attempts, logs retry reason to Unity console; (2) stderr always captured (not just non-local) and included in the exception message when the process exits without printing port; (3) `LooksAlreadyRunning` uses PID-only liveness check — skips the 3s-cached `IsTcpAlive` that could return stale-alive after relay dies.
-- **SessionState Persistence (v0.66.8+)**: SessionId written to SessionState on init/resume. On domain reload, SessionState restored (key="MCPChat_BackendSessionId"). Survives reload without network loss.
+- **`RelayBackend`** is the single C# backend. It owns the selected backend ID,
+  mode, model, MCP port, session ID, system prompt, and tool-call accumulator.
+- **`RelayChatProcess.StartViaRelay`** sends semantic `start` with those fields.
+  User turns use `send`; mode changes use `set_mode`; cancellation uses `kill`.
+- **`RelayChatProcess.PollLoop`** requests `events` every 100 ms and reconnects
+  with a bounded retry on transport failure. There is no 30-second Chat
+  heartbeat in this path.
+- **`RelayEventParser`** converts compact relay events to backend-neutral
+  `ChatEvent` values.
+- **`RelaySpawner`** uses `RelayCommandResolver` to choose the local
+  venv/uv/Python command or the version-pinned `uvx` console script, then reports
+  spawn failures with captured stderr.
 
-**Stability Features:**
-- **PollLoop (ReadTimeout 30s)**: RelayChatProcess spawns dedicated read thread polling relay TCP. Timeout detects dead relay; reconnection on next DrainEvents.
-- **IsTcpAlive cache**: RelayChatProcess caches connectivity status (1s TTL) to avoid repeated failed TCP probes.
-- **Domain Reload Reconnect**: RelayBackend.Start() kills+disposes old _proc, creating fresh RelayChatProcess. SessionId restored from SessionState allows graceful session resume (relay maintains all state server-side).
-- **Heartbeat**: RelayChatProcess sends `{ "cmd": "status" }` every 30s; relay returns health. Inactivity timeout (300s for most backends, 90s for Claude) triggers client-side failure card.
-- **Buffer Safety**: relay_buffer escapes \n/\r → \\n/\\r to prevent line corruption. Dropped counter tracks silent eviction. Long-poll ensures no events lost mid-reconnect.
+**Python ownership:**
 
-**5 Backends on Relay (via backend_def.py):**
-  - **Claude**: `claude -p` with stream-json, system-prompt injection. reads_stdin=True. OUTPUT_FORMAT_STREAM_JSON.
-  - **Codex**: `codex app-server` (single-turn). reads_stdin=False. OUTPUT_FORMAT_CODEX_JSON. Respawned at _cmd_send with prompt.
-  - **Kimi**: `kimi -p --output-format stream-json` (single-turn). reads_stdin=False. OUTPUT_FORMAT_KIMI_JSON. Respawned at _cmd_send.
-  - **Agy** (Antigravity): `agy` with model selection (single-turn). reads_stdin=False. OUTPUT_FORMAT_PLAIN_TEXT. Plain stdout wrapped as `t|` events.
-  - **OpenCode**: `opencode` with multi-provider model selection (single-turn). reads_stdin=False. OUTPUT_FORMAT_OPENCODE_JSON. Respawned at _cmd_send.
-  - All five managed by Python CLI arg builders; C# RelayBackend dispatches via backend_id string (user selects UI backend dropdown). Env var UNITY_MCP_PORT passed to Codex/Kimi/Agy/OpenCode via env_set.
+- `chat_relay.py` implements `start`, `send`, `events`, `set_mode`,
+  `close_stdin`, `kill`, and `status`.
+- `backend_def.py` resolves binaries from the login-shell `PATH`, builds CLI
+  arguments, and writes temporary MCP configuration.
+- Claude keeps one stdin-driven process. Codex uses `codex exec`; Kimi,
+  Antigravity (`agy`), and OpenCode use per-turn processes.
+- Backend output is normalized by `stream_transform.py` before C# sees it.
 
-**Tests (feature/chat-relay):**
-  - Python: 70 relay tests (stream_transform, relay_buffer, cli_session, chat_relay)
-  - C#: 300+ NUnit tests (RelayBackendTests, RelayEventParserTests, RelayBackendConstructionMonkeyTests, RelayBackendDrainMonkeyTests)
-  - 11 monkey tests (UI stability under rapid mode switch, relay crashes, parser torture)
-- **Binary Resolution (cross-platform v0.21.0+):**
-  * **ChatBinaryResolver.cs** — Cross-platform binary resolution: (1) Check EditorPrefs override key per backend (e.g., `UnityMCP_Chat_ClaudePath`, `UnityMCP_Chat_Path_codex`), (2) Query login shell via platform-specific methods:
-    - **Windows:** `where.exe <binary>` with `NoDefaultCurrentDirectoryInExePath=1` (MITRE T1574.008 CWD-hijack mitigation). Parses multi-line output: prefers `.exe` over `.cmd` lines.
-    - **macOS:** `/bin/zsh -lc 'command -v "$1"' zsh <binary>` via LoginShellCommand. Rejects multi-line output (banner contamination).
-    - **Linux:** `/bin/bash -lic 'command -v "$1"' bash <binary>` (bash preferred over sh). Reads stderr into drain (suppress "no job control" warning). Parses last line starting with `/` (real path after banner).
-  * **ChatMcpConfigWriter.cs** — Python command resolution (DRY with CodexArgBuilder): (1) Windows `.venv/Scripts/python.exe`, (2) Unix `.venv/bin/python`, (3) `uv` binary (Claude only, Codex passes null), (4) fallback `python` (Windows) or `python3` (Unix). Checks File.Exists for venv paths (cross-platform check). Generates temp JSON config with resolved command + `-m unity_mcp.server` args.
+**Session and settings boundaries:**
 
-### Per-Backend Settings (C#: BackendConfig + BackendSettingsForm, v0.15.0 F9)
-- **BackendConfig.cs** — [Serializable] per-backend configs (model, permission_mode, timeout, extra_args)
-- **BackendConfigStore.cs** — Loads/saves to `Library/MCP_ChatBackendConfig.json` (project-local, NOT global ~/.codex/config.toml)
-- **BackendSettingsForm.cs** — UIToolkit foldout per backend with model/permission/timeout/extra-args dropdowns
-- **Wiring:** `ClaudeArgBuilder` + `CodexArgBuilder` + `AgyArgBuilder` + `KimiArgBuilder` + `OpenCodeArgBuilder` read from store, inject into argv construction
-  - **ClaudeArgBuilder.cs** (v0.38.0) — builds `claude` subprocess argv with stdin pipe + MCP config path. No `--strict-mcp-config` — allows Claude to merge with user's `~/.claude/` MCP servers
-  - **AgyArgBuilder.cs** (v0.41.0 Antigravity, v0.55.0: scoped config) — builds `agy` subprocess argv with spawned model selection. Writes MCP config to `~/.gemini/settings.json` (scoped per-port delivery).
-  - **KimiArgBuilder.cs** (v0.38.0) — builds `kimi` argv; `WriteMcpConfig()` merges instead of full-overwrite, preserving user's other MCP servers
-  - **OpenCodeArgBuilder.cs** (v0.34.0, v0.55.0: external MCP merge) — builds `opencode` subprocess argv with model selection. Merges external MCP from `~/.opencode/config.json` into scoped config via `MergeGlobalOpenCodeConfig()`.
-- **ArgTokenizer.cs** — Shell-style quote-aware split (double+single quotes, unbalanced trailing tolerated); centralizes whitespace+quote parsing for both builders; fixes silent corruption of quoted multi-word ExtraArgs values (e.g., `--append-system-prompt "be terse"`); +11 tests
+- Claude can consume a persisted resume ID. Deferred startup for per-turn
+  backends currently drops the selected resume ID from `SessionMeta`.
+- The C# start payload forwards model selection, but not stored binary
+  overrides, permission options, startup timeouts, or extra arguments.
+- Chat inactivity uses a 300-second minimum for Codex and a 30-second minimum
+  for other backends.
 
 ### Typed Context Tags (C#: ChipKind + ResponseTagInliner, v0.15.0 F10)
 - **ChipKindDetector.cs** — Pure `Detect()` method categorizes chips: Hierarchy, Scene, Script, Prefab, Material, Texture, ScriptableObject, Asset
@@ -1148,39 +1110,35 @@ Applied by `ApplyFieldsCompress(args, result)` in `CommandRouter.ObjectHandlers.
 - **F12 (Chip UX Overhaul):** Composed inline-chip field (P1+P2), removed auto-selection (P3+P5), per-kind display settings (P4), response scene-object pills (P7), new-session/clear button (P6). See Extensible Chip-Kind Registry + Composed Inline Field above for details.
 - **F13 (Chip Input/Display Architecture Fix):** Unified inline-chip architecture (flex-row composite field), @mention display injection, offset-drift fix, comprehensive TDD coverage. Send path splits rawText (display) from llmText (AI). Re-render after normalization preserves sent state. API cleanup (PositionedChip, ChipTextInterleaver API). Test DRY (ChipTestHelpers).
 - **F14 (Bare-Name Normalizer + Context Menu):** LLM response bare object names converted to `[kind:ref]` tags (BareNameNormalizer, fenced-code protected). Right-click "Add to context" on response pills (ChipPillFactory.AddToContextAction). Full chip data preserved (kindKey+instanceID). See Bare-Name Normalization + Add-to-Context above for details.
-- **F23 (Settings Windows Split):** Monolithic MCPSettings EditorWindow refactored into 3 focused UI windows: `MCPToolSettingsWindow` (Tool Settings menu), `MCPPermissionsWindow` (Permissions menu), `MCPConnectionWindow` (Connection menu). MCPSettings becomes pure static data class (API preserved). Chat assembly decoupled via event hook `ChatSettingsHook.OnBuildConnection` — `ChatConnectionSection` subscriber `[InitializeOnLoad]` injects Chat content without core edits. Dead code paths (OnBuild/Invoke/AppendSection) removed. 5 new tests.
+- **Settings Hub:** `MCPSettingsHub` owns the `MCP/Settings` window and routes to
+  focused Tools, Permissions, Chat Settings, Plugins, Updates, and Version
+  Picker pages. `MCPSettings` remains the static settings data API.
 
 ### Editor UI Windows (C#: UIToolkit)
 - **MCPSettings** (MCPSettings.cs): Pure static data class — catalog persistence, EnabledTools state, no EditorWindow. Public API preserved for backward compatibility.
-- **MCPToolSettingsWindow** (MCPToolSettingsWindow.cs, `MCP/Tool Settings` menu): Per-tool enable/disable toggles, organized by theme categories (CORE locked, others toggle/tri-state group masters), search bar, presets (Minimal/Full/No-visuals), dynamic Plugins section from PluginRegistry. UIToolkit.
-- **MCPPermissionsWindow** (MCPPermissionsWindow.cs, `MCP/Permissions` menu): Agent tool deny-set configuration (permissions deny-list UI). UIToolkit.
-- **MCPConnectionWindow** (MCPConnectionWindow.cs, `MCP/Connection` menu): CLI binary path, auth settings, backend selection, chips. Uses event hook `ChatSettingsHook.OnBuildConnection` for Chat assembly to inject settings content without core edits (extensible pattern).
+- **Tools page** (`MCPSettingsUI.cs`): Per-tool enable/disable toggles,
+  categories, search, presets, and plugin registrations.
+- **Permissions page** (`MCPSettingsPermUI.cs`): Stored Chat deny-set
+  configuration; the current relay start request does not forward this deny-set.
+- **Chat Settings page** (`ChatSettingsSection.cs`): Inactivity timeout, model
+  selection, context-chip display, and extension settings. Stored binary and
+  launch controls are not currently forwarded by the relay start request.
 - **MCPStatus Window** (MCPStatusWindow.cs): Connection status monitor. UIToolkit-based with smooth `ArcadeAnim.SmoothLoop` orb + halo pulse (speed tracks connection state: connected=3.4 Hz, listening=2.0 Hz, stopped=1.1 Hz). Main buttons: **Restart** (primary), **Diagnose**, **Setup Wizard**, **Check for Updates**. **Maintenance** foldout (collapsed by default): Reimport, Kill MCP (danger). `BiomeAmbientParticles` (Ecosystem pattern) attached to stage. Stylesheet: `MCPStatus.uss`.
 - **Stylesheet Helper** (MCPEditorUtils.LoadStyleSheet): Shared two-path loader for `.uss` files, called by windows (DRY; handles package-relative asset lookup).
 
 ### Code Execution (C#: CodeExecutor, v0.59.0: Play Mode + Security Hardening)
 - **Roslyn C# execution via `execute_code` command**
-- **Play Mode Support (v0.59.0)**: Removed `mutating=true` restriction. Code executes in Play Mode (read-only, no Edit Mode asset changes). Blocked patterns unchanged.
-- **Security Sandbox (v0.59.0: 47 blocked patterns)**:
-  - **Reflection dispatch**: InvokeMember(, GetMethods(, GetProperties(, GetFields(, GetConstructors(, CreateDelegate (blocks runtime method invocation by name)
-  - **Process/File/Network**: Process, FileStream, StreamWriter, StreamReader, File, Directory, Path, WebClient, HttpClient (blocks file I/O, network access)
-  - **Assembly loading**: Assembly.Load, AppDomain, DllImport, extern, unsafe, DynamicMethod, ILGenerator, Activator (blocks dynamic code generation)
-  - **Reflection refinement (v0.59.0)**: GetField(, GetProperty(, GetValue(, SetValue( (singular accessors still blocked; use public properties only)
-  - **Using-directive bypass**: `using System.Diagnostics`, `using System.IO`, etc. (blocks shorthand imports)
-  - **Play mode kill-switch (v0.59.0)**: EditorApplication.isPlaying, EditorApplication.isPaused (blocks queries that could terminate active session)
-  - **Editor file API (v0.59.0)**: FileUtil.* (blocks UnityEditor file manipulation bypass)
-  - **Process termination**: EditorApplication.Exit, Application.Quit, Environment.FailFast (blocks editor/app shutdown)
-  - **Package manipulation**: AssetDatabase.ExportPackage, ImportPackage (blocks data exfiltration)
-  - **Project switching**: EditorApplication.OpenProject, ProjectWindowUtil (blocks arbitrary asset creation/project load)
-  - **Dynamic compilation**: CSharpCodeProvider, CodeDomProvider, CompileAssemblyFrom (blocks compile+exec bypass)
-- **SecurityScan Pipeline**: (1) Strip C# comments, (2) Densify whitespace (O(1) pattern matching), (3) OrdinalIgnoreCase matching, (4) 47-pattern blocklist check
-- **IsAllowedAssembly (v0.59.0)**: Inverted to blocklist model via Roslyn. Scans all types in custom asmdefs (Unity Code domain hides them by default). Null guard prevents edge case crashes.
-- **Supports undo_label for undo grouping**
+- `execute_code` is mutating and can change runtime state, scenes, or assets.
+- **Allow All**, the current default, bypasses security scanning. **Standard**
+  blocks dangerous APIs and runtime reflection access; **Strict** also blocks
+  type-information reflection.
+- `undo_label` groups Unity Undo-compatible mutations, but arbitrary external
+  side effects are not guaranteed to be reversible.
 
 ### Undo Group Primitives (C#: UndoGroupHelper)
 - **UndoGroupHelper** (`UndoGroupHelper.cs`, public core API): Reusable named-group rollback primitive with 4 methods: `OpenNamedGroup()`, `CloseNamedGroup()`, `RevertToBeforeGroup()`, `CanRevert()`.
 - **F6 (Chat, v0.11.0):** `TurnUndoTracker` + `RestoreButton` consume this API to wrap each agent turn in an Undo group; Restore button reverts the turn's mutations. Only the last turn's button is active.
-- **F27 (shipped v0.6.1):** Atomic batch rollback (opt-in `atomic=true` param) reuses the same primitive — reverts all prior ops on first failure via `OpenNamedGroup`/`RevertToBeforeGroup`. One unified rollback system across Chat (per-turn) and Batch (per-operation).
+- **F27 (shipped v0.6.1):** Batch Undo rollback (opt-in `atomic=true`) reuses the same primitive. It reverts Undo-recorded Unity changes on first failure via `OpenNamedGroup`/`RevertToBeforeGroup`; external side effects are not covered.
 
 ### Spatial Queries (C#: via spatial_query command)
 - Actions: nearest, in_front_of, objects_in_radius, objects_in_polygon, bounds_info, raycast, spatial_map
@@ -1280,7 +1238,7 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
 ## Test Infrastructure
 
 ### Python Tests: (See CLAUDE.md Commands section for live count)
-- Default: `PYTHONWARNDEFAULTENCODING=1 pytest -m "not live" -q` — unit tests, $0 cost (see CLAUDE.md for exact test count)
+- Default: `PYTHONWARNDEFAULTENCODING=1 pytest -m "not live and not live_cli and not live_chat and not monkey" --ignore=tests/live --strict-markers -q` — non-live, non-stress unit tests
 - With Unity: `PYTHONWARNDEFAULTENCODING=1 UNITY_MCP_PORT=<port> pytest -m "live and not live_cli" -q` — 78 live integration tests, $0 cost (requires Unity running, sampling disabled)
 - Real CLI: `PYTHONWARNDEFAULTENCODING=1 UNITY_MCP_PORT=<port> UNITY_MCP_VISUAL_VERIFY=1 pytest -m "live_cli" -v` — 4 real CLI tests, ~$0.001/call (requires Unity + claude CLI, visual verification enabled)
 - Test order: unit → C# EditMode → C# PlayMode → live integration → live_cli (live/live_cli always last, occupy TCP)
@@ -1337,7 +1295,7 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
 - `server/src/unity_mcp/metrics.py` — MetricsRegistry singleton
 - `server/src/unity_mcp/sampling.py` — SamplingService for visual verification
 - **Chat Relay System (v0.66.6+):**
-  - `server/src/unity_mcp/chat_relay.py` — Standalone TCP sidecar (entry: `python -m unity_mcp.chat_relay`). Single-client design, spawned by Unity, survives domain reload. Manages CliSession, RelayBuffer, stream transform. Commands: send, events (long-poll), set_mode, status.
+  - `server/src/unity_mcp/chat_relay.py` — Standalone TCP sidecar (entry: `python -m unity_mcp.chat_relay`). Single-client design, spawned by Unity, survives domain reload. Manages CliSession, RelayBuffer, stream transform. Commands: start, send, events (long-poll), set_mode, status, close_stdin, kill.
   - `server/src/unity_mcp/cli_session.py` — Subprocess wrapper (lifecycle: spawn, write_line, read_stdout_line, kill). SessionMeta tracks backend/mode/model/mcp_port for mode-switching respawn. Env isolation (strip/set lists).
   - `server/src/unity_mcp/relay_buffer.py` — Reconnect-safe ring buffer (maxlen=500). Append-only log with monotonic seq IDs, long-poll via asyncio.Event, dropped counter.
   - `server/src/unity_mcp/stream_transform.py` — Pure NDJSON→pipe-format converter. Stateless _ToolCallAcc accumulator for multi-line tool args. Unknown input → empty list (never raises).
@@ -1366,7 +1324,7 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
   - `server/tests/test_cli_session_spawn.py` — **NEW (v0.71.0)** Characterization tests pinning 4 CliSession.start() crash-fixes (DEVNULL stdin, stderr capture, 16 MiB line limit, login-shell PATH prepend). RED signals live regression.
 
 **C#** (165+ files, 17850+ LOC, review sprint v0.70.0: B1 CommandRouter.Registration split + C7 PendingAskRegistry + C4 ExtractVector3 + B3 CommandOptions demoted to internal, v0.71.0: shared SERVER_NAME constant in PermissionConfig, v0.80.0: CommandRouter SRP split +3 partials (AliasHandlers/ScreenshotHandlers/ToolsCache), UNITY_MCP_CHAT define removed — Chat always compiled, BackendConfigStore.WithModel immutable clone, GetCapabilities emits mutating_cmds + runtime_cmds, PlaytestStep semantic aliases C5, VisualStep composition C6-A):
-- **Core** (55+ files): MCPServer, CommandRouter (7 partials: main + **v0.70.0 B1: Registration** + **v0.80.0 SRP: ObjectHandlers, AliasHandlers (68L), ScreenshotHandlers (72L, FileHandler delegate for OCP), ToolsCache (42L)** + MediaHandlers), **v0.70.0 C7: PendingAskRegistry** (isolated ask_user state machine), CommandRegistry/Validator, IMCPPlugin/PluginRegistry, ObjectManager, ValueParser, InputNormalizer, BatchHelper, HierarchySerializer, ComponentSerializer, RefManager, ErrorHelper, RuntimeHelper, PlaytestRunner (2 partials), PlaytestParser, MultiViewCapture, CodeExecutor, SearchHelper, SpatialHelper, AnimationHelper, TimelineHelper, AnimatorControllerHelper, ParticleHelper, ShaderHelper, ShaderGraphHelper, UIHelper, ReferenceHelper, AssetDatabaseHelper, ProjectSettingsHelper, MaterialHelper, PrefabHelper, ScriptableObjectHelper, MCPSettings (data class), MCPToolSettingsWindow, MCPPermissionsWindow, MCPConnectionWindow, MCPStatusWindow, MCPStatusModel, MCPStatusBarWidget, MCPActions, ChatSettingsHook (event hook); **v0.80.0: GetCapabilities emits `mutating_cmds` + `runtime_cmds` sets** (Python `_warm_cmd_flags()` syncs at connect/reconnect); **BackendConfigStore.WithModel** immutable clone — `MCPChatWindow.ApplySelectedModel` collapsed 110→1L
+- **Core** (55+ files): MCPServer, CommandRouter (7 partials: main + **v0.70.0 B1: Registration** + **v0.80.0 SRP: ObjectHandlers, AliasHandlers (68L), ScreenshotHandlers (72L, FileHandler delegate for OCP), ToolsCache (42L)** + MediaHandlers), **v0.70.0 C7: PendingAskRegistry** (isolated ask_user state machine), CommandRegistry/Validator, IMCPPlugin/PluginRegistry, ObjectManager, ValueParser, InputNormalizer, BatchHelper, HierarchySerializer, ComponentSerializer, RefManager, ErrorHelper, RuntimeHelper, PlaytestRunner (2 partials), PlaytestParser, MultiViewCapture, CodeExecutor, SearchHelper, SpatialHelper, AnimationHelper, TimelineHelper, AnimatorControllerHelper, ParticleHelper, ShaderHelper, ShaderGraphHelper, UIHelper, ReferenceHelper, AssetDatabaseHelper, ProjectSettingsHelper, MaterialHelper, PrefabHelper, ScriptableObjectHelper, MCPSettings (data class), MCPSettingsHub, MCPHubUI, MCPSettingsUI, MCPSettingsPermUI, MCPStatusWindow, MCPStatusModel, MCPStatusBarWidget, MCPActions; **v0.80.0: GetCapabilities emits `mutating_cmds` + `runtime_cmds` sets** (Python `_warm_cmd_flags()` syncs at connect/reconnect); **BackendConfigStore.WithModel** immutable clone — `MCPChatWindow.ApplySelectedModel` collapsed 110→1L
 - **Debug Subsystem (v0.59.0)** (12 files): MCPDebugPanel, MCPDebugUI (5 partials: WatchRows, EvalBar, AddWatch, ConsolePreview), DebugOverlayDrawer, SparklineHelper, ProfilerHelper, MemoryHelper, AnimatorHelper, PhysicsHelper, WatchEntry, WatchCondition, WatchEvaluator, WatchRegistry, WatchScheduler, WatchCommandHandler (+ 10 test files: WatchEntryTests, WatchRegistryTests, ProfilerHelperTests, SparklineHelperTests, WatchEvaluatorTests, WatchCommandHandlerTests, MCPDebugUITests, WatchConditionTests, MemoryHelperTests, AnimatorHelperTests, PhysicsHelperTests). Stylesheet: MCPDebug.uss.
 - **Chat Module** (130+ files, v0.29.2 split into CLI + View assemblies, v0.66.6 unified RelayBackend):
   - **CLI Assembly** (UnityMCP.Editor.Chat.CLI, protocol + single RelayBackend, compiles independently when main broken):
@@ -1414,24 +1372,14 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
   - [ ] Scene iteration uses `SceneContext.Current.Scenes`, not raw `GetSceneAt(i)`
   - [ ] New tool returning paths: tested in both single and multi-scene mode
 
-## v0.42.0 Features: Setup Wizard (3-Screen Flow, 9 Backends), Updates Hub, Asmdef Split
+## Setup Wizard and Updates Hub
 
-**Setup Wizard Redesign (v0.42.0)**
-- **3-Screen Flow** replacing 4-screen model:
-  1. **Welcome Screen** — System checks (Python found ✓, TCP available ✓), intro text
-  2. **PickBackend Screen** — 9 backend cards: Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex, Kimi, OpenCode, Antigravity. Auto-detection via `IsDetected` (BinaryName PATH lookup via which/where + ConfigDir ~ expansion + exists check)
-  3. **Configure Screen** — Scope toggle (Global/Project via install.py `--project-dir` flag), per-backend setup instructions
-- **BackendDescriptor.cs** (v0.42.0) — Sealed class with static `All[]` array. Fields: Key, DisplayName (UI name), Icon (Unicode symbol), Description, InstallMechanism enum (PythonConfig/CliCommand/ChatAuto), BinaryName (for PATH detection), ConfigDir (for existence check). IsDetected logic: checks Process.Start() which/where (Windows/Unix) for BinaryName, expands ~ and checks Directory.Exists(ConfigDir)
-- **ConfigureScreen.cs** — Backend-specific setup cards with instructions per mechanism. **v1.0.1: scope toggle removed** — no port baked in configs so Global/Project distinction no longer meaningful
-- **PickBackendScreen.cs** (156 LOC) — Grid of 9 backend cards using AiToolCardFactory.Build(), auto-detection badge, click→navigation to ConfigureScreen
-- **WizardScreenHost refactored** (v0.42.0) — Updated to support 3-screen sequence (was 4), smooth transitions
-- **SetupDiagnostics.cs** — Moved to Wizard/ folder, diagnostic checks (Python detection, TCP test). **v1.0.1**: `CheckUv()` — probes uvx on PATH via inline `WhichUvx()` (avoids Chat.CLI dependency that caused cyclic asmdef), returns platform-appropriate install hint if missing. `GetPythonVersion(cmd)` — spawns `--version` with 3s timeout, reads stdout+stderr (Python 2 uses stderr), caches result per session. `IsVersionAtLeast()` — semver comparison. System-Python fallback now rejected if version < 3.10.
-- **Tests** — 5 new test files in `Wizard/Tests/`:
-  - BackendDescriptorTests (89 tests): IsDetected logic, all 9 backends, mock PATH/ConfigDir
-  - ConfigureScreenTests (127 tests): Scope toggle, per-backend instructions, navigation
-  - PickBackendScreenTests (97 tests): Card rendering, auto-detection badge, click behavior
-  - SetupDiagnosticsTests (existing, moved)
-  - (5 test files total: AiToolCardFactoryTests also moved)
+**Setup Wizard**
+- **4-screen flow:** Welcome → Pick Backend → Configure → Install Skills.
+- **10 backends:** Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex, Kimi, OpenCode, Antigravity, and Rider AI Assistant.
+- **BackendDescriptor.cs:** owns display metadata, discovery hints, `InstallMechanism` (`PythonConfig`, `CliCommand`, `ChatAuto`, or `ManualInstructions`), and project-auto-configuration state.
+- **ConfigureScreen.cs:** reports the backend-specific result. Depending on the descriptor and installation type, it uses generated project configuration, the Python helper, Chat auto-configuration, or manual instructions.
+- **SetupDiagnostics.cs:** checks `uvx`, supported Python fallback versions, and local connection prerequisites.
 
 **Updates Hub + Changelog Viewer (v0.42.0)**
 - **UpdatesPage.cs** (80 LOC) — New Hub page (registered via SettingsPageFactory):

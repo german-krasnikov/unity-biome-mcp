@@ -89,7 +89,7 @@ inspect paths=Player,Enemy components=Health,Rigidbody
 **Use Cases:**
 - Quick snapshot of multiple objects
 - Verify component state in test assertions
-- Much faster than individual get_component calls (use in batch for 80% token savings)
+- Prefer this bulk read over a loop of individual `get_component` calls
 
 ---
 
@@ -135,7 +135,7 @@ await set_property("Player/Renderer", "Material", "_Color", "#FF0000")
 # Boolean
 await set_property("Player", "Rigidbody", "isKinematic", "true")
 
-# Batch multiple (93% token savings!)
+# Batch multiple compatible updates
 await batch("""
 set_property path=Player component=Transform prop=position value=0,1,0
 set_property path=Player component=Health prop=maxHp value=100
@@ -220,10 +220,10 @@ Enable or disable a GameObject.
 
 ```python
 # Hide UI panel
-await set_active("UI/PauseMenu", active=false)
+await set_active("UI/PauseMenu", active=False)
 
 # Show it again
-await set_active("UI/PauseMenu", active=true)
+await set_active("UI/PauseMenu", active=True)
 
 # Batch multiple
 await batch("""

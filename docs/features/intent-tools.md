@@ -127,11 +127,10 @@ Check daily Haiku usage.
 
 ```python
 status = await budget_status()
-# → Haiku budget: 0.045 / 1.00 day cap
-#   Skipped features: animator_intent (3), vfx_intent (1)
+# → sess=$0.0450/0.50 (9%) day=$0.1200 skipped=animator_intent:3 vfx_intent:1
 ```
 
-**Disabled by default.** Enable with `UNITY_MCP_BUDGET=1` environment variable.
+Budget tracking is enabled by default with a `$0.50` session cap and a `$5.00` daily cap. Override them with `UNITY_MCP_HAIKU_BUDGET` and `UNITY_MCP_HAIKU_DAY_CAP`, or disable tracking with `UNITY_MCP_BUDGET=0`.
 
 ## Common Workflow
 

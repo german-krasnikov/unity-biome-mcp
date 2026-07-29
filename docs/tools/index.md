@@ -1,10 +1,10 @@
 # Tools Reference
 
-142 MCP tools organized by category. Every tool is documented with parameters, examples, and real-world usage patterns.
+Tools are organized into a 15-tool Core and eight task-oriented categories. Use the live catalog to discover the tools available in your installed version.
 
 ## How Tools Work
 
-**TIER1 tools (45 always-visible)** — Always visible to your AI assistant.
+**TIER1 tools** — Always visible to your AI assistant.
 
 **Category-gated tools** — Enable via `discover_tools(category, enable=True)` or through the Unity Biome MCP Settings panel.
 
@@ -12,19 +12,17 @@
 
 ## Categories Overview
 
-| Category | Tools | Purpose |
-|----------|-------|---------|
-| **Core** | 24 tools | Hierarchy inspection, component access, object CRUD, batch operations, diagnostics |
-| **Scene** | Scene tools | Open/close/save scenes, take screenshots, checkpoint/diff states |
-| **Objects** | 10 tools | Advanced object queries, find/filter, spatial context, collider validation |
-| **Animation** | 4 tools | Animation clips, timelines, animator state machines, particles |
-| **Assets** | 6 tools | Manage prefabs, materials, ScriptableObjects, project settings, dependencies |
-| **Code Intel** | 5 tools | Symbol lookup, compile checking, semantic queries, error detection |
-| **Runtime** | 8 tools | Runtime property modification, method invocation, playtest execution, physics queries |
-| **UI** | 5 tools | Create UI elements, layout configuration, spatial context, intent-driven UI |
-| **Advanced** | 15+ tools | Execution profiling, reference validation, auto-fix, spatial queries |
-| **Session** | 11 tools | Save/load state snapshots, visual baselines, skill/template management |
-| **Connection** | 2 tools | TCP status, reconnect, multi-instance management |
+| Category | Purpose |
+|----------|---------|
+| **Core** | 15 always-visible tools for hierarchy inspection, component access, object changes, batching, and verification |
+| **SCENE** | Scene and object lifecycle, hierarchy queries, spatial context, and scene changes |
+| **COMPONENTS** | Component references and event wiring |
+| **ASSETS** | Prefabs, materials, shaders, ScriptableObjects, and project settings |
+| **MEDIA** | Animation, Timeline, particles, screenshots, rendering, and UI |
+| **VERIFY** | Compile checks, scene validation, diagnostics, and post-change verification |
+| **RUNTIME** | Play Mode state, methods, watches, debugging, and profiling |
+| **TESTS** | Unity tests, Playtest execution, linting, and alias synchronization |
+| **SYSTEM** | Connection, sessions, skills, permissions, intent tools, and maintenance |
 
 ## Quick Links by Task
 
@@ -39,7 +37,7 @@
 - [create_object](objects.md#create_object) — Spawn new GameObjects
 - [set_property](objects.md#set_property) — Change component values
 - [manage_component](objects.md#manage_component) — Add/remove components
-- [batch](batch.md#batch) — Do 2+ operations in one call (93% token savings!)
+- [batch](batch.md#batch) — Run compatible operations in one call
 
 **Work with prefabs**
 - [prefab (save)](assets.md#prefab) — Convert scene instance → prefab asset
@@ -47,7 +45,7 @@
 - [prefab (apply/revert)](assets.md#prefab) — Push/discard instance changes
 
 **Run tests & playtests**
-- [run_playtest](runtime.md#run_playtest) — Execute DSL-based test scenarios
+- [run_playtest](../features/playtest.md#run_playtest-parameters) — Execute DSL-based test scenarios
 - [run_tests](scene.md#run_tests) — Execute NUnit tests
 - [run_tests_wait](scene.md#run_tests_wait) — Run tests and block until results
 - [test_step](runtime.md#test_step) — Single assertion within a test
@@ -64,8 +62,8 @@
 - [reconnect_unity](diagnostics.md#reconnect_unity) — Restart TCP connection
 
 **Advanced: Animation & VFX**
-- [animator_intent](../features/intent-tools.md#animator_intent) — Setup animation controller
-- [vfx_intent](runtime.md#vfx_intent) — Natural language VFX control
+- [animator_intent](../features/intent-tools.md) — Setup animation controller
+- [vfx_intent](../features/intent-tools.md) — Natural language VFX control
 
 **Advanced: Code analysis**
 - [compile_preflight](diagnostics.md#compile_preflight) — Validate C# before write
@@ -78,65 +76,54 @@
 - manage_component, batch, editor, get_console, get_compile_errors
 - execute_code, resolve_scene_refs, scene_change_plan, apply_scene_change, verify_after_change
 
-**Non-Core TIER1 (30):**
-- alias_status, ask, ask_user, await_compile, compile_preflight
-- configure_objects, console_mark, delete_object, discover_tools, get_console_since
-- get_test_results, lint_playtest, lint_scene_refs, mcp_status, permission_prompt
-- reconnect_unity, release_smoke, resolve_tool_schema, run_playtest, run_tests
-- run_tests_wait, scene, screenshot, search_scene, set_active
-- set_parent, setup_objects, sync_unity, undo_last, validate_references
+**Other TIER1 tools:** Run `discover_tools(enable=False, structured=True)` and look for entries tagged `tier1`. This keeps the reference aligned with the installed version.
 
 ## Enabling Tools by Category
 
 To unlock advanced tools, enable the category:
 
 ```python
-# Enable all Animation tools
-await discover_tools("animation", enable=True)
+# Enable animation, Timeline, particles, screenshots, rendering, and UI tools
+await discover_tools("MEDIA", enable=True)
 
-# Enable Advanced tools (execute_code, spatial queries, etc.)
-await discover_tools("advanced", enable=True)
+# Enable validation and compile tools
+await discover_tools("VERIFY", enable=True)
 
-# Enable Asset tools (prefab, material, scriptable_object, etc.)
-await discover_tools("asset", enable=True)
+# Enable asset tools (prefab, material, scriptable_object, etc.)
+await discover_tools("ASSETS", enable=True)
 ```
 
 After enabling, the tools appear in your AI's tool list and become callable.
 
 **Available categories:**
-- `object` — Advanced object queries
-- `animation` — Animation & timeline control
-- `asset` — Prefab, material, ScriptableObject CRUD
-- `advanced` — Roslyn code intel, reference validation, spatial queries
-- `ui` — UI element creation & layout
-- `runtime` — Runtime property access
-- `session` — State snapshots, visual baselines, templates
-- `connection` — TCP status, multi-instance management
-- `debug` — Runtime debugging, watches, performance snapshots
-- `profiling` — Frame stats, memory analysis, performance profiling
-- `rendering` — LOD culling analysis, render optimization
-- `perf` — Profiling & rendering combined
-- `plugins` — Plugin-registered tools (auto-discovered)
+- `SCENE`
+- `COMPONENTS`
+- `ASSETS`
+- `MEDIA`
+- `VERIFY`
+- `RUNTIME`
+- `TESTS`
+- `SYSTEM`
+
+Run `discover_tools(enable=False, structured=True)` to inspect the current catalog, including each tool's supported surfaces. Legacy category aliases remain available with `include_legacy=True`.
 
 ## Batch: Combine Operations for Token Savings
 
-Any read OR write can be batched. Combine 2+ operations into one call:
+Only tools reported with `surfaces=direct,batch` can be batched. Direct-only tools must be called through their typed MCP interface.
 
 ```python
 # Before: 3 calls
 await create_object(name="Player")
 await set_property(path="Player", component="Transform", prop="position", value="0,1,0")
-await get_component(path="Player", component="Transform")
+await get_component(path="Player", type="Transform")
 
 # After: 1 batch call (text DSL format)
 result = await batch("""
 create_object name=Player
 set_property path=Player component=Transform prop=position value=0,1,0
-get_component path=Player component=Transform
+get_component path=Player type=Transform
 """)
 ```
-
-**Result:** 93% fewer tokens, same outcome.
 
 See [Batch Reference](batch.md) for all batch-eligible commands.
 
@@ -160,7 +147,9 @@ This helps your AI assistant optimize its decision tree — it only offers tools
 
 1. Is the tool's category enabled?
    ```python
-   await discover_tools("advanced", enable=True)
+   catalog = await discover_tools(enable=False, structured=True)
+   # Find the tool's category in the catalog, then enable it:
+   await discover_tools("MEDIA", enable=True)
    ```
 
 2. Is the MCP connection alive?
@@ -188,10 +177,10 @@ This helps your AI assistant optimize its decision tree — it only offers tools
 - **[UI Tools](ui.md)** — Create and layout UI elements
 - **[Screenshot Tools](screenshots.md)** — Capture and compare visual states
 - **[Component Tools](components.md)** — Component lifecycle and wiring
-- **[PlayTest Tools](runtime.md)** — Automated testing with DSL
+- **[Playtest Guide](../features/playtest.md)** — Automated scenarios and DSL reference
 - **[Asset Tools](assets.md)** — Prefabs, materials, ScriptableObjects
 - **[Diagnostics](diagnostics.md)** — Troubleshoot and debug
 
 ---
 
-**Complete reference:** See [mcp-server.md](../../AI/mcp-server.md) in the architecture docs for implementation details.
+**Live reference:** Run `discover_tools(enable=False, structured=True)`, then use `resolve_tool_schema(tools="tool_name")` for the installed tool's current parameters.

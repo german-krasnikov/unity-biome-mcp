@@ -59,7 +59,7 @@ hier = await get_hierarchy()
 print(hier)
 
 # With components
-hier = await get_hierarchy(components=true)
+hier = await get_hierarchy(components=True)
 ```
 
 **Use Cases:**
@@ -149,22 +149,22 @@ Capture the current game view as a PNG image. See [Screenshot Tools](screenshots
 
 ## editor
 
-Control Play/Pause/Stop and selection. Core editor state operations.
+Read editor state, control Play Mode, select a GameObject, or return the project path.
 
 **Parameters:**
-- `action` (string) — "play" | "pause" | "stop" | "select" | "frame" | "focus"
-- `path` (string, optional) — GameObject path for select/frame/focus
+- `action` (string, default="state") — "state" | "play" | "pause" | "stop" | "select" | "project_path"
+- `path` (string, optional) — GameObject path required by `select`
 
 **Actions:**
 
 | Action | Purpose | Example |
 |--------|---------|---------|
+| state | Return current Play Mode and editor state | `editor()` |
 | play | Enter Play Mode | `editor("play")` |
 | pause | Pause Play Mode | `editor("pause")` |
 | stop | Exit Play Mode | `editor("stop")` |
 | select | Highlight object in Hierarchy | `editor("select", path="Player")` |
-| frame | Zoom camera on object | `editor("frame", path="Player")` |
-| focus | Activate editor window | `editor("focus")` |
+| project_path | Return the current Unity project path | `editor("project_path")` |
 
 **Example:**
 
@@ -174,9 +174,6 @@ await editor("play")
 
 # Select Player in Hierarchy
 await editor("select", path="Player")
-
-# Frame camera on Player
-await editor("frame", path="Player")
 
 # Pause simulation
 await editor("pause")
@@ -200,8 +197,8 @@ Create a named Undo checkpoint. Allows rollback via Ctrl+Z in Unity.
 # Save full scene state
 await checkpoint(label="before_combat")
 
-# Make changes...
-await set_property("Player", "Health", "hp", "50")
+# Make a hierarchy change...
+await create_object("CombatRoot")
 
 # Compare later via scene_diff
 diff = await scene_diff()
@@ -248,39 +245,31 @@ Compare current scene state with last snapshot. First call saves the snapshot; s
 ```python
 await scene_diff()  # saves snapshot
 
-await invoke_method("Enemy", "HealthComponent", "TakeDamage", args="10")
+await create_object("Enemy")
 
 diff = await scene_diff()
-# → "Enemy/Health == 90 (was 100)"
+# -> DIFF: +1 -0
+# -> + Enemy ...
 ```
 
 ---
 
 ## run_tests
 
-Execute NUnit tests in EditMode or PlayMode.
+Start NUnit tests in EditMode or PlayMode without waiting for completion. Prefer `run_tests_wait()` for normal workflows; use `run_tests()` only when the caller must remain non-blocking.
 
 **Parameters:**
-- `mode` (string) — "EditMode" | "PlayMode" (required)
+- `mode` (string, default="EditMode") — "EditMode" | "PlayMode"
 - `filter` (string, optional) — Pipe-separated test class names for fast focused runs
 
-**Returns immediately** with message "tests-started|{mode}|...". Poll `get_test_results()` every 5 seconds.
+**Returns:** A final result when Unity responds immediately, or `tests-started|{mode}|...` when the run continues asynchronously.
 
 **Example:**
 
 ```python
-# Start Edit Mode tests
+# Start an asynchronous Edit Mode run
 result = await run_tests(mode="EditMode")
-# → "tests-started|EditMode|poll get_test_results every 5s"
-
-# Poll for results (in a loop)
-import asyncio
-for i in range(24):  # 2 minutes
-    status = await get_test_results()
-    if status not in ("pending", "none"):
-        print(f"Tests complete: {status}")
-        break
-    await asyncio.sleep(5)
+# If this returns tests-started, query get_test_results() later.
 
 # Run only failing tests (much faster)
 await run_tests(mode="EditMode", filter="HealthTest|DamageTest")
@@ -352,7 +341,7 @@ await save_session()
 
 ## load_session
 
-Load previous session context. Shows hierarchy diff since last save.
+Load the previous session context beside the current hierarchy.
 
 **Parameters:** None
 
@@ -397,22 +386,20 @@ await get_changes(clear=False)
 
 ---
 
-## checkpoint (continued) — Advanced Usage
+## Runtime Assertion Example
 
-Use checkpoints + scene_diff for test assertions:
+Use runtime reads for component-value assertions. `scene_diff()` only compares
+serialized hierarchy lines.
 
 ```python
-# Playtest sequence
 await checkpoint(label="start")
 await editor("play")
 await wait_until(path="Player", component="Health", field="hp", value="100", timeout=10)
 
-# Simulate combat
 await invoke_method(path="Player", component="Health", method="TakeDamage", args="10")
 
-# Verify state change
-diff = await scene_diff()
-assert "90" in diff, "Health should drop to 90"
+health = await query_state(path="Player", component="Health", field="hp")
+assert "90" in health, "Health should drop to 90"
 
 await editor("stop")
 ```
@@ -424,9 +411,9 @@ await editor("stop")
 | Task | Tools | Example |
 |------|-------|---------|
 | Verify scene structure | get_hierarchy + search_scene | `hier = await get_hierarchy()` |
-| Track object changes | checkpoint + scene_diff | `await checkpoint(label="before"); ...; diff = await scene_diff()` |
+| Track hierarchy changes | scene_diff | `await scene_diff(); ...; diff = await scene_diff()` |
 | Visual regression testing | screenshot_baseline + screenshot_compare | `await screenshot_baseline(name="x"); diff = await screenshot_compare(name="x")` |
-| Run tests after changes | run_tests + get_test_results | `await run_tests(mode="EditMode"); await asyncio.sleep(5); result = await get_test_results()` |
+| Run tests after changes | run_tests_wait | `result = await run_tests_wait(mode="EditMode")` |
 | Load scenes additively | scene("open_additive") | `await scene("open_additive", path="AdditiveScene")` |
 
 ---

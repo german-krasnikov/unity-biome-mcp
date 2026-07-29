@@ -1,65 +1,30 @@
-# Junie Setup
+# Junie
 
-The plugin auto-configures Junie automatically when you add it to your project. Works on **Windows, macOS, and Linux**.
+Prerequisite: complete the
+[Unity package installation](../getting-started/index.md#1-install-the-unity-package).
 
-## Prerequisites
+## Install
 
-- Junie installed (via JetBrains IDE plugin)
-- Unity 6000.0+ with the `unity-biome-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or auto-assigned) free
+Install Junie in a compatible JetBrains IDE and sign in. See the [Junie MCP settings guide](https://junie.jetbrains.com/docs/junie-plugin-mcp-settings.html) for the client UI.
 
-## Quick Setup
+## Configure
 
-### 1. Install Junie
+Unity Biome MCP creates this project-local file:
 
-Install the Junie plugin from within your JetBrains IDE:
-
-1. Open **Settings/Preferences > Plugins**
-2. Search for **Junie** and install it
-3. Restart the IDE
-
-### 2. Add Plugin to Unity
-
-1. Open **Window > Package Manager**
-2. Click **+ > Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
-4. Wait for import, then open any scene
-
-The plugin auto-generates your Junie MCP config on first load.
-
-### 3. Verify Installation (Optional)
-
-Run the diagnostic:
-
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
+```text
+.junie/mcp/mcp.json
 ```
 
-## Config Location
+Open the Unity project in the IDE, allow Junie to load project configuration, and run the [first connection check](../getting-started/index.md#3-verify-the-first-connection).
 
-The plugin writes MCP config to:
+For user-level configuration instead, use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `junie`. The packaged CLI writes `~/.junie/mcp/mcp.json`.
 
-- **All platforms:** `~/.junie/mcp/mcp.json` *(global by design — Junie only reads from this location)*
+The project-local and global paths are different scopes. Check which scope Junie reports before editing a file.
 
-Config format (standard `mcpServers` JSON):
+## Client-specific Troubleshooting
 
-```json
-{
-  "mcpServers": {
-    "unity-biome-mcp": {
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server", "unity-biome-mcp"]
-    }
-  }
-}
-```
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| Junie plugin not found | Ensure you are using a compatible JetBrains IDE. Check **Settings/Preferences > Plugins** for Junie. |
-| Setup Wizard doesn't run in Unity | (1) Check plugin is in Package Manager. (2) Close/reopen Unity. (3) Check Console for errors. |
-| MCP server fails to start | Run Setup Wizard > Diagnostics to verify Python 3.10+ and TCP port availability. |
-| MCP config not auto-generated | Run the diagnostic: `uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor` |
-| Tools fail with "Connection refused" | Ensure Unity is open with the plugin loaded. Check that TCP port is available and listening. |
+| Symptom | Action |
+|---|---|
+| Junie does not load the project entry | Confirm the project is trusted and project MCP configuration is enabled |
+| The wrong file was edited | Check the scope shown in Junie's MCP Servers list |
+| Tools cannot reach Unity | Keep Unity open and follow [connection diagnostics](../getting-started/index.md#diagnose-a-failure) |

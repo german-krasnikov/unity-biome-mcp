@@ -211,7 +211,7 @@ unity-biome-mcp/
 │       ├── test_server_animator.py       # M7–M10 animator actions: set_state_speed, update_transition, set_avatar, rename_state, rename_param (14 tests)
 │       ├── test_server_animation.py      # M11–M14 animation actions: color curves hex, set_wrap, set_framerate, get_clip_path (13 tests)
 │       ├── test_server_particle.py       # M16–M17 particle actions: trails module, play/stop/pause (18 tests)
-│       ├── test_server_material.py       # M19–M22 material actions: get_shader_errors, list_shaders, set_fields (17 tests)
+│       ├── test_server_material.py       # Material actions: get_errors, list_shaders, set_fields
 │       ├── test_server_shader.py         # ShaderGraphHelper mutations: graph_set_value, graph_connect, graph_add_node
 │       ├── test_server_objects_extra.py  # clone_object action tests
 │       ├── test_objects.py               # objects tool: find_type param, IsNullOrEmpty guard (v0.90.0)
@@ -288,7 +288,7 @@ unity-biome-mcp/
 │       ├── ObjectManager.Transfer.cs       # Move/copy objects between scenes (v0.24.3: transfer_object)
 │       ├── ObjectManager.Lookup.cs         # FindType + short-name fallback for custom components (v0.23.0)
 │       ├── SceneContext.cs                 # Multi-scene state centralization: IsMulti, QualifyPath, FilterByScene (v0.24.3)
-│       ├── ObjectDiffHelper.cs             # Unified-diff format for object comparison (~10x token savings) (v0.24.3, v0.25.0: Transform properties)
+│       ├── ObjectDiffHelper.cs             # Compact unified-diff format for object comparison (v0.24.3, v0.25.0: Transform properties)
 │       ├── ValueParser.cs                  # Parse vectors/quaternions/colors/arrays
 │       ├── InputNormalizer.cs              # Auto-fix component/property hallucinations
 │       ├── HierarchySerializer.cs          # Scene → text tree + MAX_NODES + summary + incremental
@@ -693,58 +693,21 @@ unity-biome-mcp/
 │       │   │   ├── RecentMentionSource.cs     # Selection.activeGameObject + score boost
 │       │   │   ├── MentionCoordinator.cs      # Merge, dedup, sort, cap at maxResults
 │       │   │   └── MentionPopup.cs            # UIToolkit popup (focusable=false, max 8 rows)
-│       │   ├── CLI/                        # Chat.CLI assembly (protocol, parsing, relay backends, independent compile, v0.66.0+: RelayBackend)
+│       │   ├── CLI/                        # Chat.CLI assembly: relay protocol and shared chat models
+│       │   │   ├── IChatBackend.cs            # Backend interface used by the window
+│       │   │   ├── RelayBackend.cs            # Only C# backend implementation
+│       │   │   ├── RelayChatProcess.cs        # TCP command/event connection to Python relay
+│       │   │   ├── RelaySpawner.cs            # Sidecar lifecycle and domain-reload reattachment
+│       │   │   ├── RelayEventParser.cs        # Pipe protocol to normalized ChatEvent
+│       │   │   ├── BackendRegistry.cs         # Backend selection
+│       │   │   ├── BackendConfig.cs           # Serializable per-backend settings
+│       │   │   ├── BackendConfigStore.cs      # Project-local settings persistence
 │       │   │   ├── ChatEvent.cs               # Normalized event struct
-│       │   │   ├── UserTurnBuilder.cs     # Encode user messages → stdin JSON
-│       │   │   ├── ToolVerbMap.cs             # Tool name → humanized action text
-│       │   │   ├── AnnotatedScreenshotChipProvider.cs # Chip provider for annotated images (v0.46.0)
-│       │   │   ├── AnnotationMetaWriter.cs   # Serialize annotation metadata (world coords + raycasts) to JSON (v0.46.0)
-│       │   │   ├── FieldChipProvider.cs      # Chip provider for component fields (v0.46.0, priority 200)
-│       │   │   ├── ModelContextWindows.cs    # LLM context window size presets (v0.46.0)
-│       │   │   ├── ScreenshotService.cs      # Screenshot capture + chip integration (v0.46.0)
-│       │   │   ├── ScreenshotToolbarButton.cs # Toolbar button for screenshot (v0.46.0)
-│       │   │   ├── SessionHandoff.cs          # GetResumeCommand(), GetBinaryName() static helpers (v0.41.0)
-│       │   │   ├── SessionScanner.cs          # Scan ~/Library/Caches/<backend>/ for resume sessions (v0.41.0, 190 LOC)
-│       │   │   ├── CopyFlash.cs               # Static seam for showing "Copied!" notification (v0.41.0)
-│       │   │   ├── ChipSystemPrompt.cs        # System prompt generation for chip-aware LLM (v0.66.0+)
-│       │   │   ├── AnnotationSettingsProvider.cs # Plugin settings provider for annotation preferences (v0.66.0+)
-│       │   │   ├── RelayChatProcess.cs        # Relay process manager: spawn + stdin/stdout (v0.66.0+)
-│       │   │   ├── RelayEventParser.cs        # Parse stream-json events from relay process (v0.66.0+)
-│       │   │   ├── RelaySpawner.cs            # Dynamic relay spawner with backend detection (v0.66.0+)
-│       │   │   ├── RelayTcpClient.cs          # TCP client for relay bidirectional communication (v0.66.0+)
-│       │   │   ├── RelayBackend.cs            # Unified relay backend (replaces 5 separate backends, v0.66.0+)
-│       │   │   ├── BackendRegistry.cs         # Backend factory + BackendKind enum
-│       │   │   ├── BackendConfig.cs           # [Serializable] configs per backend + KimiBackendConfig + OpenCodeBackendConfig (v0.34.0)
-│       │   │   ├── BackendConfigStore.cs      # JsonUtility Load/Save (project-local Library/)
-│       │   │   ├── BackendSettingsForm.cs     # UIToolkit per-backend settings forms (v0.30.1: redesigned with presets)
-│       │   │   ├── ControlResponseBuilder.cs  # Serialize approval + user input responses (v0.29.2+, CodexUserInputResponse v0.29.38)
-│       │   │   ├── ClipboardImageReader.cs    # Platform-specific clipboard image read (macOS/Windows/Linux, v0.34.0, 142 LOC)
-│       │   │   ├── ImageAttachmentStore.cs    # Temp file storage for pasted/dropped images (v0.34.0, 96 LOC)
-│       │   │   ├── ProviderRegistry.cs        # Base class for extensible provider registries (Settings/Toolbar/Panel, v0.34.0)
-│       │   │   ├── SettingsProviderRegistry.cs # Registry for ISettingsProvider implementations (v0.34.0)
-│       │   │   ├── ToolbarButtonRegistry.cs   # Registry for IToolbarButtonProvider implementations (v0.34.0)
-│       │   │   ├── PanelProviderRegistry.cs   # Registry for IPanelProvider implementations (v0.34.0)
-│       │   │   ├── ISettingsProvider.cs       # Plugin interface for custom settings UI (v0.34.0)
-│       │   │   ├── IToolbarButtonProvider.cs  # Plugin interface for toolbar buttons (v0.34.0, MenuOnly DIM v0.63.0)
-│       │   │   ├── IPanelProvider.cs          # Plugin interface for side panels (v0.34.0)
-│       │   │   ├── ChatTranscript.cs          # In-memory message history + streaming→finalize strategy
-│       │   │   ├── TranscriptSerializer.cs    # Serialize/deserialize chat history to plain-text (F21 reload survival, v0.63.0: Kind enum + 5-column format)
-│       │   │   ├── PlaytestComposerButton.cs  # IToolbarButtonProvider (MenuOnly=true, Order=20) → opens PlaytestComposerWindow (v0.75.0)
-│       │   │   ├── PlaytestAliasButton.cs     # IToolbarButtonProvider (MenuOnly=true, Order=21, Key="playtest_alias") → opens PlaytestAliasWindow (v0.78.x)
-│       │   │   ├── AssemblyInfo.cs            # AssemblyVersion + InternalsVisibleTo decorators (Chat.CLI)
-│       │   │   └── Tests/                     # CLI assembly tests (protocol, parsing, backends)
-│       │   │       ├── ChatStreamParserTests.cs # Parse stream-json events + control_request routing
-│       │   │       ├── ClaudeArgBuilderTests.cs # CLI arg building + permission-prompt-tool (v0.29.37, no strict-mcp-config v0.38.0)
-│       │   │       ├── CodexAppServerParserTests.cs # Codex JSON-RPC + requestUserInput (v0.29.38)
-│       │   │       ├── CodexArgBuilderTests.cs # Codex CLI args + model wiring (v0.30.4, 33 tests)
-│       │   │       ├── ControlResponseBuilderTests.cs # Response serialization including CodexUserInputResponse (v0.29.38)
-│       │   │       ├── AgyArgBuilderTests.cs  # Antigravity args building + environment (v0.41.0)
-│       │   │       ├── AgyParserTests.cs      # Antigravity stream-json parsing (v0.41.0)
-│       │   │       ├── SessionHandoffTests.cs # Resume command generation per-backend (v0.41.0)
-│       │   │       ├── SessionScannerTests.cs # CLI history scanning + session discovery (v0.41.0)
-│       │   │       ├── MultiSceneChipTests.cs # Scene-qualified object path parsing + display (v0.30.4, 74 tests)
-│       │   │       ├── TokenFormatTests.cs    # Token cost display + null-safe guards (v0.30.4, 12 tests)
-│       │   │       └── ... # 40+ total CLI tests
+│       │   │   ├── UserTurnBuilder.cs         # Encode user turns
+│       │   │   ├── ControlResponseBuilder.cs  # Approval and user-input responses
+│       │   │   ├── ChipKindRegistry.cs        # Extensible chip providers
+│       │   │   ├── ProviderRegistry.cs        # Settings/toolbar/panel provider base
+│       │   │   └── ...                        # Shared models, chips, mentions, and utilities
 │       │   ├── View/                       # Chat.View assembly (UI windows, rendering, cards)
 │       │   │   ├── MCPChatWindow.cs           # EditorWindow UI + interaction (partial class)
 │       │   │   ├── MCPChatWindow.Drain.cs     # Event draining + state updates + domain refresh trigger (F27) (partial class; v1.0.1: relay error shown inline in red when RelaySpawnState.Error != null)
@@ -982,10 +945,15 @@ unity-biome-mcp/
 │   └── README.md               # Root documentation mirror
 ├── install.py                  # Setup/update/doctor/configure CLI (v0.23.0, 179 lines)
 ├── .mcp.json                   # MCP config pointing at local venv (v0.23.0: template; v0.96.1: auto-generated by `install.py setup` and `install.py update` via _write_mcp_json())
-├── scripts/                    # Tooling: changelog SVG, force_reset.sh (recovery), test updates
+├── scripts/                    # Tooling: README stats, changelog SVG, release utilities
+│   ├── readme_facts.py         # Source-backed inventory facts (tool count, test counts) — SSOT for README numbers
+│   ├── readme_render.py        # Render README metadata, SVG statistics, and Shields endpoints
+│   ├── update_readme.py        # CLI entry: collect + render README facts
 │   ├── gen_changelog_svg.py    # Changelog → SVG badge
-│   ├── force_reset.sh          # Kill stale servers + clean lockfiles (v0.23.0 recovery)
-│   └── ...                     # Test suite utilities
+│   ├── changelog_svg_templates.py # SVG templates for changelog badge
+│   ├── sync_versions.py        # Sync version across package.json, pyproject.toml, C# asmdef
+│   ├── release.sh              # Release automation (tag, push, trigger CI)
+│   └── tests/                  # pytest suite for scripts/ (test_facts.py, test_render.py, test_update_readme.py, test_gen_changelog_svg.py)
 ├── AI/                         # Feature knowledge docs + changelog
 ├── .claude/
 │   ├── skills/                 # Technical references

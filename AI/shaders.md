@@ -48,14 +48,14 @@ Consolidated `shader` MCP tool with 7 actions for ShaderLab code shaders, Shader
 | copy | Copy material to new asset (with property preservation) |
 | list_properties | Enumerate all properties of a material |
 | list_shaders | List available shaders with optional name filter |
-| get_shader_errors | Return shader compilation errors for a material |
+| get_errors | Return compilation errors for a shader asset |
 
 ## Code Locations
 - Python: `server/src/unity_mcp/tools/ui.py` (shader tool)
-- C#: `unity-plugin/Editor/ShaderSerializer.cs`, `ShaderHelper.cs`, `ShaderGraphHelper.cs` (331 lines), `ShaderGraphHelper.Mutations.cs` (+110 lines: SetNodeValue, ConnectPorts, AddNode)
-- C# Material: `unity-plugin/Editor/MaterialHelper.cs` — 5 actions (create, get, set, copy, list_properties)
-- Router: `unity-plugin/Editor/CommandRouter.cs` (1053 lines, ExecShaderConsolidated + UnescapeJsonString)
-- Tests: `server/tests/test_server_shader.py` (22), `unity-test-project/Assets/Tests/Editor/MCPShaderTests.cs` (41 tests incl. 2 regression)
+- C#: `unity-plugin/Editor/ShaderSerializer.cs`, `ShaderHelper.cs`, `ShaderGraphHelper.cs`, `ShaderGraphHelper.Mutations.cs`
+- C# Material: `unity-plugin/Editor/MaterialHelper.cs`
+- Router: `unity-plugin/Editor/CommandRouter.MediaHandlers.cs`
+- Tests: `server/tests/test_server_shader.py`, `server/tests/test_server_material.py`
 
 ## Review Checklist (for Reviewer)
 - [ ] Security: no arbitrary file writes outside Assets/

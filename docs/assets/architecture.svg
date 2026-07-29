@@ -1,134 +1,208 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 960 240" width="960" height="240" role="img" aria-label="Unity Biome MCP architecture: Claude Code → Python MCP Server → TCP :9500 → Unity Editor Plugin">
-  <defs>
-    <filter id="g3" x="-25%" y="-50%" width="150%" height="200%">
-      <feGaussianBlur stdDeviation="3" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="g7" x="-40%" y="-80%" width="180%" height="260%">
-      <feGaussianBlur stdDeviation="7" result="b">
-        <animate attributeName="stdDeviation" values="4;9;4" dur="2s" repeatCount="indefinite"/>
-      </feGaussianBlur>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="pg" x="-150%" y="-150%" width="400%" height="400%">
-      <feGaussianBlur stdDeviation="2.5"/>
-    </filter>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 458" width="640" height="458"
+     role="img" aria-labelledby="architecture-title architecture-desc">
+  <title id="architecture-title">Unity Biome MCP architecture</title>
+  <desc id="architecture-desc">An external MCP client launches the Python MCP server over standard input and output, then exchanges framed commands with the Unity Editor plugin over localhost TCP. In-Unity Chat sends turns through the local chat relay and selected CLI backend, which uses the same Python MCP server and Unity connection.</desc>
 
-    <!-- node positions: N1=10..185, N2=245..465, N3=525..695, N4=755..950 -->
-    <!-- wire gaps: W1=185..245, W2=465..525, W3=695..755 -->
-    <path id="p1f" d="M 187,105 L 243,105"/>
-    <path id="p1r" d="M 243,135 L 187,135"/>
-    <path id="p2f" d="M 467,105 L 523,105"/>
-    <path id="p2r" d="M 523,135 L 467,135"/>
-    <path id="p3f" d="M 697,105 L 753,105"/>
-    <path id="p3r" d="M 753,135 L 697,135"/>
+  <defs>
+    <marker id="architecture-arrow-green" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#46e6a6"/>
+    </marker>
+    <marker id="architecture-arrow-blue" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#59a7ff"/>
+    </marker>
+    <filter id="architecture-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3.2"/>
+    </filter>
   </defs>
 
-  <rect width="960" height="240" fill="#1a1a2e"/>
+  <style>
+    .bg { fill: #2b2b2b; }
+    .frame { fill: none; stroke: #4a4a4a; }
+    .section {
+      fill: #a8a8a8;
+      font: 700 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0;
+    }
+    .node { fill: #202020; stroke-width: 1.5; }
+    .node-title {
+      fill: #f0f0f0;
+      font: 700 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0;
+      text-anchor: middle;
+    }
+    .node-subtitle {
+      fill: #aaa;
+      font: 500 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0;
+      text-anchor: middle;
+    }
+    .protocol {
+      fill: #9e9eaa;
+      font: 600 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0;
+      text-anchor: middle;
+    }
+    .route {
+      fill: none;
+      stroke-width: 2;
+      opacity: .35;
+    }
+    .flow {
+      fill: none;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-dasharray: 8 13;
+      animation: architecture-flow 3.8s linear infinite;
+    }
+    .core-aura {
+      fill: #46e6a6;
+      opacity: .18;
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: architecture-breathe 3.1s ease-in-out infinite;
+    }
+    .core-node {
+      animation: architecture-node 3.1s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .particle { fill: #46e6a6; }
+    .particle-blue { fill: #59a7ff; }
+    .spore {
+      fill: #46e6a6;
+      opacity: .62;
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: architecture-drift 4.6s ease-in-out infinite alternate;
+    }
+    .spore-b { animation-delay: -1.7s; animation-duration: 5.4s; }
+    .spore-c { animation-delay: -3.1s; animation-duration: 3.9s; }
+    @keyframes architecture-flow {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: -42; }
+    }
+    @keyframes architecture-breathe {
+      0%, 100% { opacity: .1; transform: scale(.88); }
+      50% { opacity: .3; transform: scale(1.14); }
+    }
+    @keyframes architecture-node {
+      0%, 100% { opacity: .92; }
+      50% { opacity: 1; }
+    }
+    @keyframes architecture-drift {
+      0% { opacity: .28; transform: translate(-2px, 3px) scale(.75); }
+      50% { opacity: .82; transform: translate(5px, -4px) scale(1.15); }
+      100% { opacity: .4; transform: translate(8px, 2px) scale(.82); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .flow, .core-aura, .core-node, .spore { animation: none !important; }
+      .flow { stroke-dasharray: none; opacity: .72; }
+      .core-aura { opacity: .18; }
+      .motion-particle { display: none; }
+    }
+  </style>
 
-  <!-- grid -->
-  <g stroke="#888899" stroke-opacity="0.05" stroke-width="1">
-    <line x1="0" y1="60"  x2="960" y2="60"/>
-    <line x1="0" y1="120" x2="960" y2="120"/>
-    <line x1="0" y1="180" x2="960" y2="180"/>
-    <line x1="240" y1="0" x2="240" y2="240"/>
-    <line x1="480" y1="0" x2="480" y2="240"/>
-    <line x1="720" y1="0" x2="720" y2="240"/>
+  <rect class="bg" width="640" height="458"/>
+  <rect class="frame" x="1" y="1" width="638" height="456" rx="7"/>
+
+  <text class="section" x="25" y="34">EXTERNAL MCP PATH</text>
+
+  <g>
+    <rect class="node" x="25" y="58" width="170" height="86" rx="6" stroke="#59a7ff"/>
+    <text class="node-title" x="110" y="93">MCP Client</text>
+    <text class="node-subtitle" x="110" y="117">Claude, Codex, IDE...</text>
   </g>
 
-  <!-- ==== NODE 1: Claude Code ==== -->
-  <rect x="10" y="70" width="175" height="100" rx="10" fill="none" stroke="#3ad29f" stroke-width="7" opacity="0.12" filter="url(#g3)">
-    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" begin="0s" repeatCount="indefinite"/>
-  </rect>
-  <rect x="10" y="70" width="175" height="100" rx="10" fill="#111125"/>
-  <rect x="10" y="70" width="175" height="100" rx="10" fill="none" stroke="#3ad29f" stroke-width="1.5"/>
-  <text x="97" y="109" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="12" font-weight="700" fill="#ffffff">Claude Code</text>
-  <text x="97" y="126" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899">MCP Client</text>
+  <g class="core-node">
+    <rect class="core-aura" x="232" y="50" width="186" height="102" rx="12"
+          filter="url(#architecture-glow)"/>
+    <rect class="node" x="240" y="58" width="170" height="86" rx="6" stroke="#46e6a6"/>
+    <text class="node-title" x="325" y="91" fill="#46e6a6">Python MCP Server</text>
+    <text class="node-subtitle" x="325" y="116">tools and middleware</text>
+  </g>
 
-  <!-- ==== WIRE 1 ==== -->
-  <line x1="187" y1="105" x2="243" y2="105" stroke="#3ad29f" stroke-width="1.5" stroke-dasharray="5 5" stroke-dashoffset="24">
-    <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1.2s" repeatCount="indefinite"/>
-  </line>
-  <line x1="187" y1="135" x2="243" y2="135" stroke="#ccccff" stroke-width="1.2" stroke-dasharray="5 5" stroke-dashoffset="0">
-    <animate attributeName="stroke-dashoffset" from="0" to="24" dur="1.2s" repeatCount="indefinite"/>
-  </line>
-  <text x="215" y="97" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9" fill="#888899" text-anchor="middle">stdio</text>
-  <text x="215" y="148" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9" fill="#ccccff" text-anchor="middle" opacity="0.55">response</text>
-  <!-- fwd packets -->
-  <circle r="4" fill="#e94560">
-    <animateMotion dur="1.2s" begin="0s" repeatCount="indefinite"><mpath xlink:href="#p1f"/></animateMotion>
-    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.9;1" dur="1.2s" begin="0s" repeatCount="indefinite"/>
-  </circle>
-  <!-- return packet -->
-  <circle r="3.5" fill="#ccccff">
-    <animateMotion dur="1.4s" begin="0.4s" repeatCount="indefinite"><mpath xlink:href="#p1r"/></animateMotion>
-    <animate attributeName="opacity" values="0;.7;.7;0" keyTimes="0;.1;.9;1" dur="1.4s" begin="0.4s" repeatCount="indefinite"/>
-  </circle>
+  <g>
+    <rect class="node" x="455" y="58" width="160" height="86" rx="6" stroke="#f0a536"/>
+    <text class="node-title" x="535" y="91">Unity Plugin</text>
+    <text class="node-subtitle" x="535" y="116">commands and undo</text>
+  </g>
 
-  <!-- ==== NODE 2: Python MCP Server ==== -->
-  <rect x="245" y="70" width="220" height="100" rx="10" fill="none" stroke="#3ad29f" stroke-width="7" opacity="0.12" filter="url(#g3)">
-    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" begin="0.8s" repeatCount="indefinite"/>
-  </rect>
-  <rect x="245" y="70" width="220" height="100" rx="10" fill="#111125"/>
-  <rect x="245" y="70" width="220" height="100" rx="10" fill="none" stroke="#3ad29f" stroke-width="1.5"/>
-  <text x="355" y="103" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="12" font-weight="700" fill="#ffffff">Python MCP Server</text>
-  <text x="355" y="119" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899"><!-- STAT:TOOLS -->142<!-- /STAT --> Tools · Middleware</text>
-  <text x="355" y="133" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899">Filtering · Plugin System</text>
+  <path class="route" d="M195 101H240" stroke="#59a7ff"
+        marker-start="url(#architecture-arrow-blue)" marker-end="url(#architecture-arrow-blue)"/>
+  <path class="flow" d="M195 101H240" stroke="#59a7ff"/>
+  <text class="protocol" x="218" y="87">stdio</text>
 
-  <!-- ==== WIRE 2 ==== -->
-  <line x1="467" y1="105" x2="523" y2="105" stroke="#3ad29f" stroke-width="1.5" stroke-dasharray="5 5" stroke-dashoffset="24">
-    <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1.2s" repeatCount="indefinite"/>
-  </line>
-  <line x1="467" y1="135" x2="523" y2="135" stroke="#ccccff" stroke-width="1.2" stroke-dasharray="5 5" stroke-dashoffset="0">
-    <animate attributeName="stroke-dashoffset" from="0" to="24" dur="1.2s" repeatCount="indefinite"/>
-  </line>
-  <text x="495" y="97" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9" fill="#888899" text-anchor="middle">TCP :9500</text>
-  <text x="495" y="148" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9" fill="#ccccff" text-anchor="middle" opacity="0.55">text resp</text>
-  <circle r="4" fill="#e94560">
-    <animateMotion dur="1.2s" begin="0.3s" repeatCount="indefinite"><mpath xlink:href="#p2f"/></animateMotion>
-    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.9;1" dur="1.2s" begin="0.3s" repeatCount="indefinite"/>
+  <path class="route" d="M410 101H455" stroke="#46e6a6"
+        marker-start="url(#architecture-arrow-green)" marker-end="url(#architecture-arrow-green)"/>
+  <path class="flow" d="M410 101H455" stroke="#46e6a6"/>
+  <text class="protocol" x="433" y="87">TCP</text>
+
+  <circle class="particle-blue motion-particle" r="3">
+    <animateMotion dur="2.7s" repeatCount="indefinite" path="M195 101H240"/>
   </circle>
-  <circle r="3.5" fill="#ccccff">
-    <animateMotion dur="1.4s" begin="0.8s" repeatCount="indefinite"><mpath xlink:href="#p2r"/></animateMotion>
-    <animate attributeName="opacity" values="0;.7;.7;0" keyTimes="0;.1;.9;1" dur="1.4s" begin="0.8s" repeatCount="indefinite"/>
+  <circle class="particle motion-particle" r="3">
+    <animateMotion dur="2.9s" begin="-1.1s" repeatCount="indefinite" path="M410 101H455"/>
   </circle>
 
-  <!-- ==== NODE 3: TCP :9500 — breathing glow ==== -->
-  <rect x="525" y="67" width="170" height="106" rx="11" fill="none" stroke="#3ad29f" stroke-width="12" opacity="0.08" filter="url(#g7)">
-    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" begin="1.6s" repeatCount="indefinite"/>
-  </rect>
-  <rect x="525" y="70" width="170" height="100" rx="10" fill="#111125"/>
-  <rect x="525" y="70" width="170" height="100" rx="10" fill="none" stroke="#3ad29f" stroke-width="2"/>
-  <text x="610" y="108" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="12" font-weight="700" fill="#3ad29f">TCP :9500</text>
-  <text x="610" y="124" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899">4-byte BE framing</text>
-  <text x="610" y="138" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899">JSON · Heartbeat</text>
+  <path d="M25 184H615" stroke="#444" stroke-width="1"/>
+  <circle cx="325" cy="184" r="4" fill="#46e6a6"/>
+  <text class="section" x="25" y="222">IN-UNITY CHAT PATH</text>
 
-  <!-- ==== WIRE 3 ==== -->
-  <line x1="697" y1="105" x2="753" y2="105" stroke="#3ad29f" stroke-width="1.5" stroke-dasharray="5 5" stroke-dashoffset="24">
-    <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1.2s" repeatCount="indefinite"/>
-  </line>
-  <line x1="697" y1="135" x2="753" y2="135" stroke="#ccccff" stroke-width="1.2" stroke-dasharray="5 5" stroke-dashoffset="0">
-    <animate attributeName="stroke-dashoffset" from="0" to="24" dur="1.2s" repeatCount="indefinite"/>
-  </line>
-  <text x="725" y="97" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9" fill="#888899" text-anchor="middle">commands</text>
-  <text x="725" y="148" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9" fill="#ccccff" text-anchor="middle" opacity="0.55">results</text>
-  <circle r="4" fill="#e94560">
-    <animateMotion dur="1.2s" begin="0.6s" repeatCount="indefinite"><mpath xlink:href="#p3f"/></animateMotion>
-    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.9;1" dur="1.2s" begin="0.6s" repeatCount="indefinite"/>
+  <g>
+    <rect class="node" x="25" y="253" width="135" height="82" rx="6" stroke="#59a7ff"/>
+    <text class="node-title" x="92.5" y="286">Chat UI</text>
+    <text class="node-subtitle" x="92.5" y="310">Ask and Agent</text>
+  </g>
+
+  <g>
+    <rect class="node" x="188" y="253" width="135" height="82" rx="6" stroke="#46e6a6"/>
+    <text class="node-title" x="255.5" y="286">Chat Relay</text>
+    <text class="node-subtitle" x="255.5" y="310">local sidecar</text>
+  </g>
+
+  <g>
+    <rect class="node" x="351" y="253" width="135" height="82" rx="6" stroke="#59a7ff"/>
+    <text class="node-title" x="418.5" y="286">CLI Backend</text>
+    <text class="node-subtitle" x="418.5" y="310">selected agent</text>
+  </g>
+
+  <path class="route" d="M160 294H188" stroke="#59a7ff"
+        marker-start="url(#architecture-arrow-blue)" marker-end="url(#architecture-arrow-blue)"/>
+  <path class="flow" d="M160 294H188" stroke="#59a7ff"/>
+  <path class="route" d="M323 294H351" stroke="#46e6a6"
+        marker-start="url(#architecture-arrow-green)" marker-end="url(#architecture-arrow-green)"/>
+  <path class="flow" d="M323 294H351" stroke="#46e6a6"/>
+
+  <path class="route" d="M418 253V212Q418 197 403 197H340Q325 197 325 182V145"
+        stroke="#46e6a6" marker-start="url(#architecture-arrow-green)"
+        marker-end="url(#architecture-arrow-green)"/>
+  <path class="flow" d="M418 253V212Q418 197 403 197H340Q325 197 325 182V145"
+        stroke="#46e6a6"/>
+  <text class="protocol" x="382" y="188">MCP stdio</text>
+
+  <circle class="particle-blue motion-particle" r="2.6">
+    <animateMotion dur="3.1s" repeatCount="indefinite" path="M160 294H188"/>
   </circle>
-  <circle r="3.5" fill="#ccccff">
-    <animateMotion dur="1.4s" begin="1.1s" repeatCount="indefinite"><mpath xlink:href="#p3r"/></animateMotion>
-    <animate attributeName="opacity" values="0;.7;.7;0" keyTimes="0;.1;.9;1" dur="1.4s" begin="1.1s" repeatCount="indefinite"/>
+  <circle class="particle motion-particle" r="2.8">
+    <animateMotion dur="3.4s" begin="-1.5s" repeatCount="indefinite" path="M323 294H351"/>
+  </circle>
+  <circle class="particle motion-particle" r="3">
+    <animateMotion dur="4.6s" begin="-2.2s" repeatCount="indefinite"
+                   path="M418 253V212Q418 197 403 197H340Q325 197 325 182V145"/>
   </circle>
 
-  <!-- ==== NODE 4: Unity Editor Plugin ==== -->
-  <rect x="755" y="70" width="195" height="100" rx="10" fill="none" stroke="#3ad29f" stroke-width="7" opacity="0.12" filter="url(#g3)">
-    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" begin="0s" repeatCount="indefinite"/>
-  </rect>
-  <rect x="755" y="70" width="195" height="100" rx="10" fill="#111125"/>
-  <rect x="755" y="70" width="195" height="100" rx="10" fill="none" stroke="#3ad29f" stroke-width="1.5"/>
-  <text x="852" y="103" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="12" font-weight="700" fill="#ffffff">Unity Editor Plugin</text>
-  <text x="852" y="119" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899">CommandRouter · Serializers</text>
-  <text x="852" y="133" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="9.5" fill="#888899">RefManager · PlaytestRunner</text>
+  <circle class="spore" cx="514" cy="238" r="2.5"/>
+  <circle class="spore spore-b" cx="547" cy="182" r="2"/>
+  <circle class="spore spore-c" cx="302" cy="169" r="2.2"/>
 
+  <g transform="translate(25 378)">
+    <rect width="590" height="52" rx="6" fill="#242424" stroke="#414141"/>
+    <circle cx="22" cy="26" r="5" fill="#46e6a6"/>
+    <text x="40" y="22" fill="#d7d7d7" font-size="12" font-weight="700"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">ONE TOOL SURFACE</text>
+    <text x="40" y="39" fill="#9e9eaa" font-size="11"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">External clients and Chat reach the same Unity command catalog</text>
+  </g>
 </svg>

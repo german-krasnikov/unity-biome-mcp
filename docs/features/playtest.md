@@ -9,18 +9,22 @@ Playtesting executes a script of gameplay steps: move, wait, assert state, check
 ## Quick Start
 
 ```python
-# Simple playtest
-script = """MOVE Player TO 5,0,0
+script = """MOVE /Player TO 5,0,0
 WAIT 1.0
-ASSERT /Player|Health > 0
+ASSERT /Player|Health|hp > 0
 ASSERT_CONSOLE_CLEAN"""
 
-await run_playtest(script=script, timeout=30.0)
-# → [1/4] MOVE ... — PASS
-#   [2/4] WAIT ... — PASS
-#   [3/4] ASSERT ... — PASS
-#   [4/4] ASSERT_CONSOLE_CLEAN ... — PASS
+await editor(action="play")
+try:
+    result = await run_playtest(script=script, timeout=30.0)
+finally:
+    await editor(action="stop")
+
+# PLAYTEST: 4/4 (1.1s) OK
 ```
+
+`run_playtest` requires Play Mode. Successful step details are removed from the
+compact result; failures, snapshots, and logs remain.
 
 ## run_playtest Parameters
 
@@ -32,7 +36,7 @@ await run_playtest(script=script, timeout=30.0)
 | `abort_on_fail` | bool | False | Stop Play Mode on step timeout |
 | `defs` | str \| None | None | VAL definitions prepended to script (one per line) |
 | `snapshot_on_failure` | bool | False | Appends alias values and recent console errors on failure |
-| `fresh` | bool | False | Stop and restart Play Mode before running |
+| `fresh` | bool | False | Reload the active scene before the first step |
 
 At least one of `script` or `path` is required; they are mutually exclusive.
 
@@ -42,8 +46,8 @@ await run_playtest(path="Assets/Playtests/combat.playtest")
 
 # With defs and fresh start
 await run_playtest(
-    script="ASSERT $player|Health > 0",
-    defs="player /Player",
+    script="ASSERT $player|Health|hp > 0",
+    defs="VAL $player /Player",
     fresh=True,
     snapshot_on_failure=True,
 )
@@ -87,7 +91,7 @@ await lint_playtest(path="Assets/Playtests/combat.playtest")
 
 `lint_playtest_suite(paths=..., suite_path=...)` lints multiple files at once.
 
-## DSL Quick Reference (30 Step Types + Directives)
+## DSL Quick Reference
 
 ### Core Commands
 
@@ -110,7 +114,7 @@ await lint_playtest(path="Assets/Playtests/combat.playtest")
 | `ASSERT` | Test condition | `ASSERT /Player\|Health == 100` |
 | `ASSERT_BATCH` | Multiple asserts | `ASSERT_BATCH ... END` |
 | `ASSERT_NEAR` | Distance check | `ASSERT_NEAR /Player /Enemy 5.0` |
-| `ASSERT_CTA` | UI button state | `ASSERT_CTA /Canvas/StartButton` |
+| `ASSERT_CTA` | CTA visibility or interactivity | `ASSERT_CTA CLICKABLE` |
 | `ASSERT_CONSOLE_CLEAN` | No errors | `ASSERT_CONSOLE_CLEAN IGNORE "warning"` |
 | `ASSERT_CONSERVED` | Sum constant check | `ASSERT_CONSERVED SUM /A\|val + /B\|val == CONSTANT OVER 3` |
 | `ASSERT_CAPTURED` | Compare snapshot | `ASSERT_CAPTURED health_before INCREASED` |
@@ -145,8 +149,8 @@ await lint_playtest(path="Assets/Playtests/combat.playtest")
 | Command | Purpose | Example |
 |---------|---------|---------|
 | `SWEEP_PATH` | Move along path with dwell | See below |
-| `COMPLETE_PURCHASE` | Invoke + wait for results | `COMPLETE_PURCHASE /Shop EXPECT ...` |
-| `INVOKE_REPEAT` | Invoke N times | `INVOKE_REPEAT 3 /Obj Comp Method` |
+| `COMPLETE_PURCHASE` | Invoke purchase + wait for expected state | `COMPLETE_PURCHASE $buy_gate EXPECT` followed by expected aliases and `TIMEOUT` |
+| `INVOKE_REPEAT` | Invoke N times | `INVOKE_REPEAT 3 /Enemy Health TakeDamage 10` |
 
 ### Directives (not emitted as steps)
 
@@ -253,26 +257,19 @@ Macros expand at parse time. Nested macros are not supported.
 
 ```python
 script = """
-# Setup
-VAL $spawn 0,0,0
-VAL $enemy_pos 5,0,0
 LOG Starting combat scenario
 SECTION "Setup"
 
 # Snapshot initial state
 CAPTURE initial_health /Player|Health|value
 
-# Move player to enemy
-MOVE /Player TO $enemy_pos
-WAIT_UNTIL /Player|Transform|position < 1.0 TIMEOUT 5
-
 # Trigger combat
 INVOKE /Enemy EnemyAI AttackPlayer
-WAIT 2.0
+WAIT_CAPTURED initial_health DECREASED TIMEOUT 5
 
 # Verify damage
 SECTION "Verification"
-ASSERT /Player|Health|value < $initial_health
+ASSERT_CAPTURED initial_health DECREASED
 ASSERT_CONSOLE_CLEAN IGNORE "test_warning"
 ASSERT /Player|Health|value > 0
 

@@ -28,7 +28,7 @@ Core asset database operations: search, copy, move, delete, import/export.
 | validate_move | Test move without executing | source, dest | `asset("validate_move", source="Assets/A.cs", dest="Assets/B.cs")` |
 | duplicate | Copy asset | path | `asset("duplicate", path="Assets/Material.mat")` |
 | delete | Remove asset + .meta | path | `asset("delete", path="Assets/Temp.prefab")` |
-| get_dependencies | List forward dependencies | path | `asset("get_dependencies", path="Assets/Scene.unity", include_deps=true)` |
+| get_dependencies | List forward dependencies | path | `asset("get_dependencies", path="Assets/Scene.unity", include_deps=True)` |
 | find_dependents | Reverse dependencies — who references this asset | path | `asset("find_dependents", path="Assets/Materials/Shared.mat")` |
 | import_settings | Configure import params | path, prop, value | `asset("import_settings", path="Assets/Mesh.fbx", prop="importer_type", value="humanoid")` |
 | export_package | Create .unitypackage | path, output | `asset("export_package", path="Assets/MyFeature", output="/tmp/export.unitypackage")` |
@@ -53,13 +53,13 @@ await asset("move", source="Assets/Old/Player.mat", dest="Assets/Materials/Playe
 await asset("delete", path="Assets/Temp.prefab")
 
 # Get forward dependencies
-deps = await asset("get_dependencies", path="Assets/Scenes/Level1.unity", include_deps=true)
+deps = await asset("get_dependencies", path="Assets/Scenes/Level1.unity", include_deps=True)
 
 # Find reverse dependencies (who references this asset)
 dependents = await asset("find_dependents", path="Assets/Materials/Shared.mat")
 
 # Export package
-await asset("export_package", path="Assets/MyFeature", output="/tmp/feature.unitypackage", include_deps=true)
+await asset("export_package", path="Assets/MyFeature", output="/tmp/feature.unitypackage", include_deps=True)
 
 # Import package
 await asset("import_package", path="/tmp/feature.unitypackage")
@@ -185,7 +185,7 @@ Create, modify, and manage prefabs. Save instances as prefabs or edit prefabs di
 ```python
 # 1. Design in scene
 await create_object("Player")
-await manage_component("Player", "add", "Health")
+await manage_component(path="Player", type="Health", action="add")
 await set_property("Player", "Health", "maxHp", "100")
 
 # 2. Save as prefab

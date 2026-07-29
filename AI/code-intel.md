@@ -278,19 +278,15 @@ All three are caught by `StripComments()` + `Regex.Replace(@"\s+", "")` + case-i
 
 ## Compile Status & Await
 
-### compile_status() [RO]
+### Immediate status check
 
-**Purpose:** Immediate compile state snapshot (no polling).
+`compile_status` is an internal TCP command used by `await_compile`; it is not a public MCP tool. For one non-polling check, call:
 
-**Output:** `state|duration` format.
+```python
+await await_compile(timeout=0)
+```
 
-**States:**
-- `idle|N.N` — compilation finished in N seconds
-- `idle-failed|N.N` — compilation failed
-- `idle-never|0.0` — session never compiled (cold start)
-- `idle-stale|0.0` — MVID not updated (old code live)
-- `compiling|N.N` — still compiling (N seconds elapsed)
-- `reloading|N.N` — domain reload in progress
+This returns `"still compiling"` for an active compile/reload or the corroborated compile result for terminal states.
 
 ### await_compile(timeout=60.0)
 
@@ -337,35 +333,36 @@ else:
 ## Compile Workflow Diagram
 
 ```
-[Write .cs file]
+[Prepare complete .cs content in memory]
     ↓
 [compile_preflight (fast check)]  ← ~200ms, catch typos
     ↓
 [Write to disk]
     ↓
-[await_compile (block on domain reload)] ← 0-30s
+[force_refresh → wait 15s → diagnose]
     ↓
-[Check result for errors]
+[Cross-check get_console / Editor.log when needed]
     ↓
 [Run tests / continue]
 ```
 
-**Time Savings:** preflight catch ~50% of errors before write cycle, avoiding 30s recompile.
+Preflight can reject syntax and reference errors before writing a file and
+triggering a Unity compile cycle.
 
 ## Common Patterns
 
 | Pattern | Tool | Why |
 |---------|------|-----|
 | Find all usages of method X | grep / search_scene | Rename safety |
-| Validate .cs before write | compile_preflight(path, content) | 200ms vs 30s cycle |
-| Wait for compile after script edit | await_compile(timeout=30) | Blocks until safe to run tests |
-| Poll compile every 5s | compile_status() (no await) | Low-overhead status check |
+| Validate .cs before write | compile_preflight(file_path, new_content) | 200ms vs 30s cycle |
+| Reload after script edit | force_refresh → diagnose | Confirms the new assembly loaded |
+| Check compile once | await_compile(timeout=0) | Public immediate status path |
 
 ## Errors & Recovery
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| "[ROSLYN UNAVAILABLE]" | Phase B C# not loaded | Fallback: compile_preflight → write + run_tests |
+| "[ROSLYN UNAVAILABLE]" | Phase B C# not loaded | Write only after source review, then use the reload-recovery workflow |
 | "AMBIGUOUS [kind=...]" | Symbol name matches multiple types | Retry with kind parameter (e.g., kind="method") |
 | "timeout after 60s" | Very large project or network lag | Increase timeout; check get_compile_errors for actual status |
 | "STALE-DOMAIN: stamp unchanged" | MVID not updated after reload | Unity stalled; see .claude/skills/reload-recovery.md for T-ladder |
@@ -376,14 +373,17 @@ else:
 **Recommended sequence for feature implementation:**
 
 1. Read source (understand current code)
-2. Write new/modified .cs
-3. compile_preflight(path, new_content) — early error catch
-4. (Conditional: if preflight fails, fix + retry step 3)
-5. Write to disk (Edit/Write tool)
-6. await_compile(timeout) — block on domain reload
-7. Run tests (run_tests with filter)
+2. Prepare the complete new file content in memory
+3. `compile_preflight(file_path, new_content)` before writing
+4. If preflight fails, fix the in-memory content and retry
+5. Write to disk
+6. `force_refresh`, wait 15 seconds, then run `diagnose`
+7. If diagnostics disagree with Editor behavior, inspect `get_console`, then
+   `Editor.log`
+8. Run the focused test filter
 
-**Cost:** 1 preflight (~200ms) + 1 await (~varies) = typically <10s total.
+Do not run Unity tests between a `.cs` edit and `force_refresh`; that can execute
+the previous DLL.
 
 ---
 

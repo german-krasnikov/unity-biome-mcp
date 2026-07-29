@@ -1,54 +1,25 @@
-# VS Code Setup
+# VS Code
 
-The plugin auto-configures VS Code automatically when you add it to your project. Works on **Windows, macOS, and Linux**.
+Prerequisite: complete the
+[Unity package installation](../getting-started/index.md#1-install-the-unity-package).
 
-## Prerequisites
+## Install
 
-- VS Code installed (latest version recommended)
-- Unity 6000.0+ with the `unity-biome-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or auto-assigned) free
+Install [Visual Studio Code](https://code.visualstudio.com/download) and a Chat extension that supports local MCP servers.
 
-## Quick Setup
+## Configure
 
-### 1. Install VS Code
+Unity Biome MCP creates `.vscode/mcp.json` in the Unity project. The file uses VS Code's `servers` root and typed stdio entry.
 
-Visit https://code.visualstudio.com/download and install VS Code for your OS.
+Open the Unity project as the VS Code workspace, accept the local-server trust prompt when appropriate, and run the [first connection check](../getting-started/index.md#3-verify-the-first-connection).
 
-### 2. Add Plugin to Unity
+For user-level configuration instead, use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `vscode`. The packaged CLI writes the platform-specific user `mcp.json`.
 
-1. Open **Window → Package Manager**
-2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
-4. Wait for import, then open any scene
+## Client-specific Troubleshooting
 
-The plugin auto-generates your VS Code MCP config on first load.
-
-### 3. Verify Installation (Optional)
-
-Run the diagnostic:
-
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
-```
-
-## Use VS Code With Unity Biome MCP
-
-VS Code's MCP support requires appropriate extensions. Once configured, the plugin generates a `mcp.json` file that VS Code reads automatically.
-
-The MCP tools become available through the MCP context in VS Code.
-
-## Config Location
-
-The plugin writes MCP config to:
-
-- **macOS:** `~/Library/Application Support/Code/User/mcp.json`
-- **Linux:** `~/.config/Code/User/mcp.json`
-- **Windows:** `%APPDATA%\Code\User\mcp.json`
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| VS Code doesn't find MCP tools | Reload VS Code window: `Ctrl+Shift+P` → "Developer: Reload Window". Check that the plugin console shows `[MCP] Server started on port <XXXX>`. |
-| MCP config not auto-generated | Run the diagnostic: `uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor` |
-| Tools fail with "Connection refused" | Ensure Unity is open with the plugin loaded. Check that TCP port is available and listening. |
+| Symptom | Action |
+|---|---|
+| Server is not listed | Run **MCP: List Servers** from the Command Palette and confirm `.vscode/mcp.json` is loaded |
+| Server is not trusted | Review the generated command, then accept the workspace trust prompt |
+| Configuration changed | Run **Developer: Reload Window** |
+| Tools cannot reach Unity | Keep Unity open and follow [connection diagnostics](../getting-started/index.md#diagnose-a-failure) |

@@ -325,7 +325,7 @@ NavMeshHelper.cs (NavMesh API delegates; no explicit tests — relies on Unity N
 ### spatial_query
 - [ ] Security: Physics.Raycast safe, no eval, correct layer mask handling
 - [ ] Performance: radius queries use Physics.OverlapSphere (not O(n)), grid bounded
-- [ ] Token efficiency: text format ~8x smaller than JSON
+- [ ] Token efficiency: compact text format avoids repeated JSON structure
 - [ ] Edge cases: no objects found, invalid path/center handled
 
 ### region_clear

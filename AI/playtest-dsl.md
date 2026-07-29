@@ -1,4 +1,4 @@
-# Playtest DSL Reference (26 Steps + VAL/VAR/INCLUDE + MACRO)
+# Playtest DSL Reference
 
 Run Play Mode scenarios with deterministic step-by-step assertions. Parser processes directives in phases: INCLUDE expansion → MACRO collection → CALL expansion → VAL substitution → VAR binding → step execution.
 
@@ -156,6 +156,20 @@ ASSERT_CAPTURED initial_pos != 100,100,0
 
 ---
 
+### ASSERT_CHANGED
+
+Verify that a previously captured value has changed. String comparison is case-insensitive.
+
+```
+CAPTURE status_before /NPC|Status|name
+INVOKE /NPC Status Advance
+ASSERT_CHANGED status_before
+```
+
+**Syntax:** `ASSERT_CHANGED label`
+
+---
+
 ### ASSERT_CONSOLE_CLEAN
 
 Verify no error/exception logs since last call.
@@ -167,6 +181,36 @@ ASSERT_CONSOLE_CLEAN IGNORE "NullReferenceException,deprecation_warning"
 
 **Syntax:** `ASSERT_CONSOLE_CLEAN [IGNORE "pattern1,pattern2"]`  
 **Filters out:** comma-separated substring patterns (trimmed, quotes stripped) — all matched as substrings against Console error text
+
+---
+
+### ASSERT_FRAMES_DIFFER / ASSERT_FRAMES_STATIC
+
+Check a frame set captured by `CAPTURE_FRAMES`. A frame assertion requires at least two captured frames.
+
+```
+CAPTURE_FRAMES 4 INTERVAL 0.25 LABEL movement
+ASSERT_FRAMES_DIFFER movement
+
+CAPTURE_FRAMES 3 INTERVAL 0.2 LABEL idle
+ASSERT_FRAMES_STATIC idle
+```
+
+**Syntax:** `ASSERT_FRAMES_DIFFER label` or `ASSERT_FRAMES_STATIC label`
+
+---
+
+### ASSERT_ONE_ACTIVE
+
+Verify that exactly one GameObject in a list is active.
+
+```
+ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu /Cam_Game
+```
+
+**Syntax:** `ASSERT_ONE_ACTIVE path1 path2 [path3 ...]`
+
+At least two paths are required. Missing objects count as inactive.
 
 ---
 
@@ -183,6 +227,26 @@ ASSERT_CAPTURED health_before != 50
 **Syntax:** `CAPTURE label query`  
 **label:** key used later in ASSERT_CAPTURED  
 **query:** `path|Component|field` expression evaluated at capture time
+
+---
+
+### CAPTURE_FRAMES
+
+Capture a timed frame sequence for motion or stability assertions.
+
+```
+CAPTURE_FRAMES 4 INTERVAL 0.25
+CAPTURE_FRAMES 3 INTERVAL 0.5 CAMERA Main MODE list LABEL run1
+```
+
+**Syntax:** `CAPTURE_FRAMES count INTERVAL seconds [CAMERA name] [MODE strip|list] [LABEL name]`
+
+- `count` must be at least 2.
+- Default camera is `game`.
+- Default mode is `strip`; `list` returns individual frame paths.
+- When `LABEL` is omitted, the runner assigns a step-based label.
+
+Use the label with `ASSERT_FRAMES_DIFFER` or `ASSERT_FRAMES_STATIC`.
 
 ---
 

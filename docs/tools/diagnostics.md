@@ -15,9 +15,9 @@ Comprehensive health check with optional auto-fix.
 |-------|-------|-----------|
 | `python_version` | Python >= 3.10 | No (install Python 3.10+) |
 | `port_file` | ~/.unity-biome-mcp/ports/*.port exist + PIDs alive | Yes (remove stale files) |
-| `lockfile` | ~/.unity-biome-mcp/*.lock holds live PID | Yes (clean stale files) |
+| `lockfile` | `~/.unity-biome-mcp/server-*.lock` contains no dead-PID entries | Yes (clean stale files) |
 | `tcp_connection` | 127.0.0.1:port reachable + responds | Reconnect attempt only |
-| `unity_state` | Editor.log accessible + recent activity | Diagnose compile/reload wedge |
+| `unity_state` | Unity responds to the TCP `diagnose` command without a compile/reload wedge | No |
 
 **Output:**
 
@@ -25,7 +25,7 @@ Comprehensive health check with optional auto-fix.
 All checks passed
   Python: 3.12.1
   Port file: ~/.unity-biome-mcp/ports/1234.port (PID 1234 alive)
-  Lockfile: ~/.unity-biome-mcp/1234.lock
+  Lockfile: no stale server lockfiles
   TCP connection: port 9500
   Unity state: compile clean
 ```
@@ -234,15 +234,17 @@ result = await compile_preflight("Assets/Scripts/Player.cs", new_code)
 # -> "ERR preflight\nerror CS0103 at line 5: ..." (fix first)
 ```
 
-**Time Savings:** 200ms preflight catch ~50% of errors before 30s write cycle.
+Preflight can reject syntax and reference errors before writing a file and
+triggering a Unity compile cycle.
 
 ---
 
 ## execute_code
 
-Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. Bare statements are auto-wrapped in a static class — no boilerplate needed.
+Execute C# code in the Unity Editor via Roslyn without creating a persistent
+script asset. Bare statements are auto-wrapped in a static class.
 
-**Security:** `System.IO`, `System.Net`, `System.Diagnostics` are blocked.
+**Security:** Scanning depends on the selected security level. The default **AllowAll** level does not block these APIs; **Standard** and **Strict** apply progressively stronger checks. See the [Code Execution Guide](../features/code-execution.md#security-levels).
 
 **Parameters:**
 - `code` (string) — C# code to execute (bare statements, no class wrapper needed)
@@ -408,8 +410,9 @@ Explicitly reconnect to Unity via TCP.
 **Port discovery waterfall:**
 1. Explicit `port` param (if > 0)
 2. `UNITY_MCP_PORT` env var
-3. First live `.port` file in `~/.unity-biome-mcp/ports/`
-4. Default: 9500
+3. Live `.port` file whose recorded project path best matches `UNITY_MCP_PROJECT_DIR`, `CLAUDE_PROJECT_DIR`, or the current working directory
+4. Newest live `.port` file
+5. Default: 9500
 
 **Example:**
 

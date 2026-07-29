@@ -221,7 +221,7 @@ await apply_template("combat_arena")
 
 ```python
 await screenshot_baseline("menu_screen", width=1280, height=720)
-# → Baseline saved: /Users/german/.../baselines/menu_screen.png
+# → Baseline saved: <project>/.claude/baselines/menu_screen.png
 ```
 
 ### Compare Current vs Baseline
@@ -233,14 +233,7 @@ result = await screenshot_compare("menu_screen", mode="auto")
 # → DIFFERENT: button layout shifted 10px left
 ```
 
-**Modes:**
-
-| Mode | Cost | Purpose |
-|------|------|---------|
-| pixel | Free | Fast exact RGB match |
-| auto | $0–0.005 | Pixel first; escalate to LLM if diff |
-| structural | ~$0.005 | Full-image LLM analysis |
-| targeted | ~$0.001 | Custom question (pinpoint changes) |
+For comparison modes and budget behavior, see [Screenshot & Visual Diff Tools](../tools/screenshots.md#screenshot_compare).
 
 ## Storage Locations
 

@@ -1,17 +1,18 @@
 # Batch Command Reference
 
-Combine 2+ operations into a single MCP call. Reduces tokens by 80–95% compared to individual calls.
+Combine two or more compatible operations into a single MCP call and avoid
+repeating typed-call envelopes.
 
 ## Overview
 
-**Batch-First Rule:** ALWAYS use `batch()` for 2+ operations — both reads AND writes.
+Prefer `batch()` for two or more compatible reads or writes. Direct-only and
+Python-expanded tools must be called through their typed MCP wrappers.
 
 Instead of:
 ```python
 await create_object("Enemy")          # 1 call
 await set_property("Enemy", ...)      # 2nd call
 await manage_component("Enemy", ...)  # 3rd call
-# → ~1800 tokens
 ```
 
 Use:
@@ -21,7 +22,6 @@ create_object name=Enemy
 set_property path=Enemy component=Transform prop=position value=0,1,0
 manage_component path=Enemy type=Health action=add
 """)
-# → ~120 tokens (93% savings!)
 ```
 
 ## batch
@@ -31,8 +31,8 @@ Execute multiple commands in one call.
 **Parameters:**
 - `commands` (string) — Text format: one command per line, `cmd key=value key=value`
 - `on_error` (string, default="continue") — "continue" or "stop"
-- `timeout` (float, default=75.0) — Seconds to wait
-- `atomic` (bool, default=False) — Revert all ops if any fail (uses Unity Undo)
+- `timeout` (float, default=75.0) — Client-side wait budget. Unity's outer batch execution deadline is 65 seconds.
+- `atomic` (bool, default=False) — On failure, revert changes recorded in the Unity Undo group. File, process, and other external side effects are not guaranteed to roll back.
 - `validate_aliases` (bool, default=False) — Dry-run alias validation before any mutations execute
 
 **Command Format:**
@@ -365,4 +365,5 @@ ok: 3, err: 2
 
 ---
 
-**See also:** Token Optimization Skills for patterns and benchmarks, [Batch Efficiency Guide](index.md#batch-combine-operations-for-token-savings).
+**See also:** Token Optimization Skills for usage patterns and the
+[Batch guide index](index.md#batch-combine-operations-for-token-savings).

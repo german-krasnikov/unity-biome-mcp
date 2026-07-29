@@ -65,10 +65,11 @@ Fail 2: event target path wrong → validate_references
 ## Token-Saving Patterns
 
 **Batch multiple operations**
-2+ ops → always `batch`. Saves ~40 tokens per additional operation.
+Use `batch` for two or more compatible operations to avoid repeated tool-call
+envelopes.
 
 ```
-await batch("op1\nop2\nop3")  # 1 call, 40% token savings vs 3 calls
+await batch("op1\nop2\nop3")
 ```
 
 **Use inspect for bulk reads**

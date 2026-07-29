@@ -1,53 +1,50 @@
 # Chat View Architecture
 
-In-Unity MCP Chat window: 15-file partial class MCPChatWindow, Markdown→UIElements rendering, chip system for scene references, annotation overlays.
+In-Unity MCP Chat window: partial `MCPChatWindow`, Markdown-to-UIElements rendering, chip system for scene references, annotation overlays, and a unified relay backend.
 
 ## File Organization
 
 ### CLI Layer (Backend Abstraction)
-- `Chat/CLI/CliBackendBase.cs` — Interface for Claude/Codex/Kimi/Gemini/OpenCode
+- `Chat/CLI/IChatBackend.cs` — Backend interface used by the window
+- `Chat/CLI/RelayBackend.cs` — Only C# backend implementation
+- `Chat/CLI/RelayChatProcess.cs`, `RelaySpawner.cs`, `RelayEventParser.cs` — Sidecar connection, lifecycle, and pipe-event parsing
+- `Chat/CLI/BackendRegistry.cs`, `BackendConfigStore.cs` — Backend selection and project-local settings
 - `Chat/CLI/ChipKindRegistry.cs` — Plugin-extensible chip display registry (provider pattern)
-- `Chat/CLI/DeferredSchema.cs` — Lazy tool schema loading (token optimization)
 
 ### View Layer (UIElements Rendering)
-- `Chat/View/MCPChatWindow.cs` — Main window (16 partials: input, transcript, events, reload-survival, FlowBar)
+- `Chat/View/MCPChatWindow.cs` — Main window lifecycle and shared state
 - `Chat/View/MCPChatWindow.FlowBar.cs` — Activity animation bar + footer bar (BuildFooterBar, Send/Stop swap)
 - `Chat/View/BackendSettingsForm.cs` — Per-backend settings forms (Claude/Codex/Antigravity/Kimi/OpenCode + chip display)
 - `Chat/View/ChatSettingsSection.cs` — Settings panel builder (auto-scroll, timeout, per-backend foldouts, auth probe)
 - `Chat/View/ChatTranscript.cs` — Message rendering + reload-survival serialization
 - `Chat/View/ChatBlockRendererRegistry.cs` — Block type → renderer dispatcher
 - `Chat/View/Markdown/MarkdownParser.cs` — Pure markdown→MdBlock parse (no side effects)
-- `Chat/View/Markdown/MarkdownRenderers.cs` — MdBlock → UIElements (heading, code, table, etc.)
-- `Chat/View/Mermaid/MermaidRenderer.cs` — Diagram rendering via SVG texture
-- `Chat/View/Chips/ChipPillFactory.cs` — Unified chip rendering (scene refs, toggles, buttons)
-- `Chat/View/Chips/ChipTextInterleaver.cs` — Interleave chip displays with plain text
+- `Chat/View/Markdown/MarkdownBlockRenderer.cs` — MdBlock → UIElements (heading, code, table, etc.)
+- `Chat/View/Markdown/Mermaid/MermaidBlockRenderer.cs` — Mermaid block rendering
+- `Chat/View/ChipPillFactory.cs` — Unified chip rendering (scene refs, toggles, buttons)
+- `Chat/CLI/ChipTextInterleaver.cs` — Interleave chip displays with plain text
 - `ChatHeaderAnim.cs` — Chat header connection-state animation (up/listen/down + ambient particles)
 
-### Data Layer
-- `Chat/Data/ChatEvent.cs` — Event log entry (message, tool call, error)
-- `Chat/Data/UserMessage.cs` — User input with interleaved chips (segments)
-- `Chat/Data/ToolCallRecord.cs` — MCP tool invocation + result
+### Shared Models
+- `Chat/CLI/ChatEvent.cs` — Normalized relay event
+- `Chat/CLI/InlineChipData.cs`, `InlineChipModel.cs` — User input chip data
+- `Chat/CLI/ToolCallRecord.cs` — MCP tool invocation and result
 
 ## MCPChatWindow (Main Window) — Partials
 
 | Partial | Responsibility |
 |---------|-----------------|
-| MCPChatWindow.cs | Field declarations, lifecycle (OnEnable/OnDisable) |
-| _Build.cs | UIBuilder: construct layout (input, transcript, buttons) |
-| _Events.cs | Event handlers: OnSubmit, OnChatEvent, OnReload |
-| _Backend.cs | CLI backend selection + configuration |
-| _Input.cs | TextField management, auto-complete, @ mentions |
-| _Transcript.cs | ChatTranscript delegation: AppendMessage, Finalize |
-| _Permission.cs | Dialog for MCP tool permissions |
-| _Reload.cs | Domain reload survival: SerializeForReload, RestoreFromReload |
-| _Agent.cs | Agent mode toggle + agentic turn handling |
-| _Token.cs | Token budget display + Haiku cost tracking |
-| _Undo.cs | Turn undo (TurnUndoTracker) |
-| _Tests.cs | NUnit helpers (test-scoped hooks) |
-| FlowBar.cs | Activity animation bar + footer bar (BuildFooterBar / MakeModeBtn) |
+| MCPChatWindow.cs | Lifecycle, fields, shared state, transcript construction |
+| MCPChatWindow.Send.cs / ChipInput.cs | Turn construction and send path |
+| MCPChatWindow.Drain.cs / EventHandlers.cs | Relay event draining and state changes |
+| MCPChatWindow.Selector.cs | Backend, model, and mode selection |
+| MCPChatWindow.Session.cs | Session restore and pending-turn recovery |
+| MCPChatWindow.Chips.cs / InlineChips.cs / Mention.cs | Context-chip and mention workflows |
+| MCPChatWindow.Approve.cs | Ask-to-Agent approval flow |
+| MCPChatWindow.FlowBar.cs | Activity animation and footer controls |
 
 **Key Fields:**
-- `_backend`: Current CLI backend (Claude/Codex/Kimi/Antigravity/OpenCode)
+- `_backend`: Current `RelayBackend` through the `IChatBackend` interface
 - `_transcript`: ChatTranscript renderer
 - `_agentMode`: Boolean for agent vs. one-shot mode
 - `_sentLlmCache`: Full-path payload cache (reload-survival)
@@ -227,7 +224,7 @@ ChipKindRegistry.Register(new SceneChipProvider());  // 3rd party
 | Persist chat state | ChatTranscript._entries + SerializeForReload() | Reload-survival; survives domain reload |
 | Stream response | ChatTranscript._assistantBubble | Live tail; append + FinalizeAssistant() |
 | Handle tool results | ChatTranscript.AppendBlock(ToolBlock) | ToolChipGrouper batches display |
-| Add new CLI backend | BackendSettingsForm + ChatSettingsSection + new foldout | BuildBinarySection for shared binary path UI |
+| Add a CLI backend | Python backend registry + stream transformer, then existing settings/provider UI | Keeps CLI protocol knowledge out of C# |
 | Animate activity state | MCPChatWindow.FlowBar.cs / OnActivityChanged | Drives CSS classes + particle animation via ChatActivityState.Phase |
 
 ## Reload-Survival (F21 Innovation)
@@ -256,6 +253,12 @@ Pure UIToolkit form builder — no persistence logic. Static class.
 | `BuildChipDisplayForm` | (shared) | Allowed asset type toggles + per-kind depth/color overrides (registry-driven, P4) |
 
 **Shared helper `BuildBinarySection`:** shows `ChatBinaryResolver.Resolve(binaryName)` auto-path hint (success/error class), optional install hint when not found, and an override `TextField` backed by EditorPrefs. Used by Antigravity, Kimi, OpenCode.
+
+These forms persist UI values, but the current `RelayBackend` start payload
+forwards only backend ID, mode, model, MCP port, resume ID, and system prompt.
+Binary overrides, permission controls, startup timeouts, and extra arguments are
+not active relay inputs. Python resolves backend binaries from the login-shell
+`PATH`.
 
 ## ChatSettingsSection
 

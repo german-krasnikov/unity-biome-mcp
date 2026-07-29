@@ -42,8 +42,9 @@ await reconnect_unity(port=9500)
 **Port discovery waterfall:**
 1. Explicit `port` param (if > 0)
 2. `UNITY_MCP_PORT` env var
-3. First live `.port` file in `~/.unity-biome-mcp/ports/`
-4. Default: 9500
+3. Live `.port` file whose project path best matches `UNITY_MCP_PROJECT_DIR`, `CLAUDE_PROJECT_DIR`, or the current working directory
+4. Newest live `.port` file
+5. Default: 9500
 
 **Returns:** Connection status message or error.
 
@@ -55,31 +56,21 @@ await reconnect_unity(port=9500)
 
 ---
 
-### get_aliases()
+## Internal Protocol Commands
 
-**Read-only.** Return all alias definitions from the `PlaytestConfig` ScriptableObject.
+`get_aliases` and `set_client_label` are Unity TCP protocol commands, not public MCP tools. Agents must not call them directly.
 
-```python
-# Returns one "name=path|comp|field" line per alias, or "no aliases"
-await get_aliases()
-# → "hp=Player/Health|HealthComponent|m_HP\nspeed=/Player|Rigidbody|m_Velocity"
-```
+### get_aliases
 
-**Returns:** Bare `name=path|component|field` lines (no header/footer), or `"no aliases"` when no `PlaytestConfig` asset exists or alias list is empty.
+Returns bare `name=path|component|field` lines to the Python middleware, or `"no aliases"` when no `PlaytestConfig` asset exists or its alias list is empty.
 
-**Middleware behavior:** Python middleware auto-populates `_alias_cache` from this response. Subsequent tool calls with `$name` arg values auto-resolve against the cache. Also allowed during compile (`allowedDuringCompile=true`).
+The middleware uses it to populate `_alias_cache`; normal tool calls then resolve `$name` values through that cache. It is allowed during compile.
 
 ---
 
-### set_client_label(label: str)
+### set_client_label
 
-**Write.** Attach a human-readable label to the current connection slot.
-
-```python
-await set_client_label(label="Cursor session")
-```
-
-**Behavior:**
+Internal connection-identification command:
 - Sets `MCPServer._mainSlot.Label = label` on the C# side.
 - Always allowed: registered as `alwaysAllowed` + `allowedDuringCompile`.
 - Label appears in disconnect logs: `slot.Label ?? label`.
@@ -96,8 +87,6 @@ await set_client_label(label="Cursor session")
 | `windsurf` | Windsurf session |
 | `claude-desktop` | Claude Desktop session |
 
-**Returns:** `"ok"` or error string.
-
 ---
 
 ### doctor(fix: bool = False)
@@ -108,7 +97,7 @@ await set_client_label(label="Cursor session")
 # Diagnosis only
 result = await doctor()
 
-# Auto-fix stale port files, retry connection
+# Remove confirmed stale discovery files and retry connection
 result = await doctor(fix=True)
 ```
 
@@ -126,34 +115,12 @@ result = await doctor(fix=True)
 
 ---
 
-## Port Discovery Waterfall
+## Port Discovery
 
-**Problem:** Multiple Unity instances running simultaneously.
-
-**Solution:**
-1. Read `UNITY_MCP_PORT` environment variable (set by setup wizard)
-2. Scan `~/.unity-biome-mcp/ports/{PID}.port` files (one per running instance)
-3. Check each file: `{port}\n{timestamp}\n{session_id}`
-4. Verify PID alive via `/proc/{PID}` (Linux) or `ps` (macOS) or WMI (Windows)
-5. Fall back to default 9500
-
-**Manual discovery:**
-
-```bash
-# List all running instance ports
-ls -la ~/.unity-biome-mcp/ports/
-
-# Check single instance (macOS)
-python3 -c "
-import json,pathlib,os
-port=int(os.environ.get('UNITY_MCP_PORT','0'))
-if not port:
-    for p in pathlib.Path.home().glob('.unity-biome-mcp/ports/*.port'):
-        try: port=int(p.read_text().split('\n')[0]); break
-        except: pass
-print(port or 9500)
-"
-```
+The canonical order is documented once under
+[`reconnect_unity`](#reconnect_unityport-int--0). Discovery files contain the
+port and project identity recorded by Unity; do not select the first file from
+the directory when multiple Editors are open.
 
 ---
 
@@ -187,48 +154,42 @@ print(port or 9500)
 
 ### "Connected but commands hang"
 
-1. **Check compile errors:**
+1. **Classify the connection and reload state:**
    ```python
-   await get_compile_errors()
+   await diagnose()
    ```
 
-2. **Check domain reload:**
+2. **Cross-check errors if the verdict is unexpected:**
    ```python
    await get_console(severity='error')
    ```
 
-3. **Force reconnect with backoff:**
+3. **Reconnect only when diagnostics identify a connection problem:**
    ```python
-   await reconnect_unity(port=9500)  # retries up to 3x
+   await reconnect_unity()
    ```
 
 ### "Stale assembly / tests fail but compile clean"
 
-1. **Unity using cached DLL?**
-   - Bump `package.json` version → forces reload
-   - Or: Editor → `⌘R` (macOS) or `Ctrl+Shift+R` (Windows)
+Use the canonical reload sequence:
 
-2. **Run compile check before tests:**
-   ```python
-   await run_tests(mode="EditMode")  # FAST gate
-   ```
+```python
+await force_refresh()
+# Wait 15 seconds, then:
+await diagnose()
+```
+
+Run tests only after the verdict is clean. If the assembly MVID is unchanged,
+continue with the escalation ladder in `.claude/skills/reload-recovery.md`.
 
 ### "Reconnect spam (9 failed attempts)"
 
 **Root cause:** PID file alive but editor crashed → socket orphaned.
 
-**Fix:**
-```bash
-# Manual cleanup
-rm ~/.unity-biome-mcp/ports/{PID}.port
-rm ~/.unity-biome-mcp/{PID}.lock
-# Then:
-open -a Unity  # restart editor
-```
+**Fix:** Confirm the discovery entries are stale, then use:
 
-Or auto:
 ```python
-await doctor(fix=True)  # removes stale files
+await doctor(fix=True)
 await reconnect_unity()
 ```
 
@@ -255,24 +216,24 @@ await reconnect_unity()
 
 ## Connection Slot Architecture
 
-**Single ConnectionSlot per MCP session:**
+**One Python ConnectionSlot per MCP session:**
 - Maintains TCP socket to one Unity instance
 - Auto-reconnect on disconnect (5s backoff, max 60s exponential backoff with ±10% jitter)
 - Heartbeat every 15s (via `_raw_ping()`) to detect stale connections; fast-path bypass of retry machinery
 - Graceful shutdown: closes socket + cleanup on MCP exit
-- `MaxClients`: 8 (raised from 4 in v0.79+)
-- `volatile string Label`: human-readable client name; set via `set_client_label`, cleared on slot reset, appears in disconnect logs
+
+The Unity listener independently accepts up to eight client slots. Each slot has a human-readable label set by the internal identification flow and cleared on reset.
 
 **Blocking behavior:** All MCP tool calls block on socket I/O (TCP call-response).
 
-**Timeout:** Default 25s per command (configurable via `UNITY_MCP_TIMEOUT`). Per-command overrides exist: `run_tests`/`run_playtest` use 130s; `batch` uses 65s; `wait_until`/`move_to`/`test_step` use 30s. Hard deadline (450s) applies to all send() retries.
+**Timeouts:** The bridge provides the shared transport timeout. Tool-specific limits come from `ToolSpec` metadata or the typed wrapper, which adds operation-specific buffers for long-running calls.
 
 ---
 
 ## Integration with Tools
 
-**Every tool uses `list_connections()` implicitly:**
-- CORE tools check connection before executing
+**Every tool uses the shared connection slot:**
+- Tool calls check the shared connection before executing; they do not invoke `list_connections()`
 - Disconnected state → auto-reconnect attempt
 - 3 failed attempts → raise ToolError (user must `reconnect_unity()` explicitly)
 

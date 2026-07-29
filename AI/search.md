@@ -121,7 +121,7 @@ C# tests (14 total, in MCPSearchTests.cs):
 
 - [ ] Security: GameObject.Find safe, no eval, no path traversal
 - [ ] Performance: FindObjectsByType or GetRootGameObjects + BFS (no N² search)
-- [ ] Token efficiency: text format ~8x smaller than JSON
+- [ ] Token efficiency: compact text format avoids repeated JSON structure
 - [ ] Edge cases: empty query, no matches, inactive objects handled
 
 ## Related

@@ -1,6 +1,6 @@
 # Runtime & PlayTest Tools
 
-Execute methods, modify values at runtime, run automated test scenarios. These tools are available in Play Mode and for real-time control.
+Execute methods, modify values at runtime, and run automated scenarios. Runtime mutation and Playtest execution require Play Mode; linting and reference validation do not.
 
 ## run_playtest
 
@@ -13,103 +13,22 @@ Execute a Play Mode test scenario using the Playtest DSL. Deterministic step-by-
 - `abort_on_fail` (bool, default=false) — Stop Play Mode on step timeout
 - `defs` (string, optional) — Inline VAL definitions (`name path|comp|field` per line), prepended to script
 - `snapshot_on_failure` (bool, default=false) — On assertion/timeout failure, appends current alias values and recent console errors
-- `fresh` (bool, default=false) — Stop and restart Play Mode before running the script
+- `fresh` (bool, default=false) — Reload the active scene before the first step
 
-**Output:** Test results with PASS/FAIL/ERR for each step. Large reports are auto-compressed and optionally LLM-summarized.
+**Output:** A compact `PLAYTEST: X/Y (...) OK` line on success. Failures,
+snapshots, and logs remain in the report. Reports over 300 characters may be
+summarized when LLM Sampling is enabled.
 
-**DSL Quick Reference:**
-
-| Step | Purpose | Example |
-|------|---------|---------|
-| **VAL** | Define substitution | `VAL player_start (100,50,0)` |
-| **ASSERT** | Test single condition | `ASSERT Player/Health == 100` |
-| **ASSERT_BATCH...END** | Multiple assertions | `ASSERT_BATCH\n  Player/Health == 100\n  Enemy/Health > 0\nEND` |
-| **ASSERT_NEAR** | Check distance | `ASSERT_NEAR Player Enemy 5.0` |
-| **ASSERT_CTA** | Verify UI button interactable | `ASSERT_CTA StartButton` |
-| **ASSERT_CONSOLE_CLEAN** | No errors in console | `ASSERT_CONSOLE_CLEAN ignore="warning"` |
-| **ASSERT_CONSERVED** | Conservation law | `ASSERT_CONSERVED SUM a+b OVER t` |
-| **CAPTURE** | Snapshot value | `CAPTURE initial_pos = Player/Transform/position` |
-| **ASSERT_CAPTURED** | Verify captured value | `ASSERT_CAPTURED initial_pos != (100,100,0)` |
-| **SET** | Modify runtime property | `SET Player/Health 50` |
-| **MOVE** | Pathfind and walk to position | `MOVE Player TO 100,50,0` |
-| **TELEPORT** | Instantly move | `TELEPORT Player 0,0,0` |
-| **WAIT** | Pause execution | `WAIT 2.0` |
-| **WAIT_UNTIL** | Poll condition with timeout | `WAIT_UNTIL Player/Health == 100 timeout=10` |
-| **SIMULATE** | Advance physics/time | `SIMULATE duration=1.0 physics=true` |
-| **LOG** | Print message | `LOG Test step completed` |
-| **MONITOR** | Watch expression during step | `MONITOR Player/Health` |
-| **COMMENT** | Documentation (no-op) | `# This is a comment` |
-| **INVARIANT** | Assert continuously | `INVARIANT Player/Health > 0` |
-| **INVOKE** | Call method | `INVOKE Enemy Attack` |
-| **TRACE_FLOW** | Log method entry/exit | `TRACE_FLOW Player.OnTakeDamage` |
-| **TIMESCALE** | Change time speed | `TIMESCALE 0.5` |
-
-**Full DSL Reference:** [Playtest DSL Docs](../features/playtest.md)
-
-**Example: Combat Test**
+**Example:**
 
 ```python
-script = """
-# Setup
-LOG Starting combat test
-TELEPORT Player 0,0,0
-TELEPORT Enemy 5,0,0
-
-# Verify initial state
-CAPTURE initial_enemy_health = Enemy/Health/hp
-ASSERT Enemy/Health/hp == 100
-
-# Deal damage
-LOG Enemy takes 10 damage
-INVOKE Enemy TakeDamage 10
-
-# Verify damage applied
-WAIT 0.5
-ASSERT Enemy/Health/hp == 90
-ASSERT_CAPTURED initial_enemy_health != 90
-
-# Verify enemy still alive
-ASSERT Enemy/Health/hp > 0
-
-# Visual checkpoint
-
-# Console clean
-ASSERT_CONSOLE_CLEAN ignore="warning"
-
-LOG Test completed successfully
-"""
-
-result = await run_playtest(script=script, timeout=60)
-print(result)
+result = await run_playtest(
+    script="ASSERT /Player|Health|hp > 0\nASSERT_CONSOLE_CLEAN",
+    timeout=30,
+)
 ```
 
-**Example: Patrol Route Test**
-
-```python
-script = """
-VAL patrol_1 (10,0,0)
-VAL patrol_2 (20,0,0)
-VAL patrol_3 (10,0,0)
-
-LOG Testing patrol route
-CAPTURE patrol_count = Enemy/Patrol/position_count
-
-MOVE Enemy TO ${patrol_1}
-WAIT_UNTIL distance(Enemy, ${patrol_1}) < 0.5 timeout=10
-ASSERT_NEAR Enemy ${patrol_1} 0.5
-
-MOVE Enemy TO ${patrol_2}
-WAIT_UNTIL distance(Enemy, ${patrol_2}) < 0.5 timeout=10
-
-MOVE Enemy TO ${patrol_3}
-ASSERT_NEAR Enemy ${patrol_3} 0.5
-
-ASSERT_CONSOLE_CLEAN
-LOG Patrol test passed
-"""
-
-result = await run_playtest(script=script)
-```
+The [Playtest Guide](../features/playtest.md) is the canonical reference for DSL syntax, workflows, result handling, and complete examples.
 
 ---
 
@@ -141,8 +60,10 @@ result = await run_playtest_suite(
     stop_on_fail=True
 )
 
-# Run from a suite file
-result = await run_playtest_suite(suite_path="/path/to/tests.suite")
+# Run from an absolute suite-file path
+from pathlib import Path
+suite = str((Path.cwd() / "Playtests/smoke.suite").resolve())
+result = await run_playtest_suite(suite_path=suite)
 ```
 
 ---
@@ -194,16 +115,21 @@ result = await lint_playtest_suite(paths="Playtests/*.playtest")
 Compare alias `.defs` text file vs `PlaytestConfig.asset`. Reports missing, extra, or changed aliases.
 
 **Parameters:**
-- `defs` (string, default=`Assets/PlaytestDefs/farm_core.defs`) — Project-relative path to `.defs` file
-- `asset` (string, default=`Assets/Configs/PlaytestConfig.asset`) — Asset path to PlaytestConfig
+- `defs` (string, optional) — Project-relative path to the `.defs` file
+- `asset` (string, optional) — Asset path to `PlaytestConfig`
+
+The tool has package defaults. Pass both paths explicitly in reusable automation
+so the workflow is independent of those defaults.
 
 **Returns:** `ok: N aliases in sync` when identical, or a diff report.
 
 **Example:**
 
 ```python
-result = await validate_playtest_aliases()
-result = await validate_playtest_aliases(defs="Assets/PlaytestDefs/custom.defs")
+result = await validate_playtest_aliases(
+    defs="Assets/Playtests/aliases.defs",
+    asset="Assets/Playtests/PlaytestConfig.asset",
+)
 ```
 
 ---
@@ -213,13 +139,18 @@ result = await validate_playtest_aliases(defs="Assets/PlaytestDefs/custom.defs")
 Overwrite `PlaytestConfig.asset` aliases from a `.defs` text file. Invalidates `AliasExpander` cache after sync. Not allowed in Play Mode.
 
 **Parameters:**
-- `defs` (string, default=`Assets/PlaytestDefs/farm_core.defs`) — Project-relative path to `.defs` file
-- `asset` (string, default=`Assets/Configs/PlaytestConfig.asset`) — Asset path to PlaytestConfig
+- `defs` (string, optional) — Project-relative path to the `.defs` file
+- `asset` (string, optional) — Asset path to `PlaytestConfig`
+
+The tool has package defaults. Pass both paths explicitly in reusable automation.
 
 **Example:**
 
 ```python
-result = await sync_playtest_aliases_from_defs()
+result = await sync_playtest_aliases_from_defs(
+    defs="Assets/Playtests/aliases.defs",
+    asset="Assets/Playtests/PlaytestConfig.asset",
+)
 ```
 
 ---
@@ -229,13 +160,18 @@ result = await sync_playtest_aliases_from_defs()
 Export `PlaytestConfig.asset` aliases to a readable `.defs` text file.
 
 **Parameters:**
-- `asset` (string, default=`Assets/Configs/PlaytestConfig.asset`) — Asset path to PlaytestConfig
-- `defs` (string, default=`Assets/PlaytestDefs/farm_core.defs`) — Project-relative output path
+- `asset` (string, optional) — Asset path to `PlaytestConfig`
+- `defs` (string, optional) — Project-relative output path
+
+The tool has package defaults. Pass both paths explicitly in reusable automation.
 
 **Example:**
 
 ```python
-result = await export_playtest_aliases_to_defs()
+result = await export_playtest_aliases_to_defs(
+    asset="Assets/Playtests/PlaytestConfig.asset",
+    defs="Assets/Playtests/aliases.defs",
+)
 ```
 
 ---
@@ -509,54 +445,10 @@ Natural language UI manipulation. See [UI Tools — ui_intent](ui.md#ui_intent) 
 
 | Task | Tool | Example |
 |------|------|---------|
-| Verify game logic | run_playtest + ASSERT | `script = "ASSERT Player/Health == 100"; await run_playtest(script=script)` |
-| Test combat flow | run_playtest + INVOKE + WAIT_UNTIL | `script = "INVOKE Enemy Attack\nWAIT_UNTIL Player/Health < 100"; await run_playtest(script=script)` |
-| Test movement | run_playtest + MOVE + ASSERT_NEAR | `script = "MOVE Player TO 10,0,0\nASSERT_NEAR Player (10,0,0) 0.5"; await run_playtest(script=script)` |
+| Run a deterministic scenario | run_playtest | See the [Playtest Guide](../features/playtest.md) |
 | Lint before run | lint_playtest | `await lint_playtest(path="Playtests/combat.playtest")` |
 | Suite run | run_playtest_suite | `await run_playtest_suite(paths="Playtests/*.playtest")` |
 | Method invocation | invoke_method | `await invoke_method("Enemy", "HealthComponent", "TakeDamage", args="10")` |
 | Runtime modification | set_runtime_property + batch | `await batch("set_runtime_property path=Player component=Health field=hp value=50")` |
-
-## PlayTest DSL Full Syntax
-
-See [Playtest DSL Reference](../features/playtest.md) for complete documentation including:
-- All step types with parameters
-- Parsing rules and edge cases
-- Result format and error handling
-- Common assertions for game logic
-- Performance monitoring examples
-
-## Workflow Example: Full Test Cycle
-
-```python
-# 1. Enter Play Mode
-await editor("play")
-await asyncio.sleep(1)  # Wait for initialization
-
-# 2. Run test scenario
-test_script = """
-LOG Verifying game state
-ASSERT Player/Health/hp == 100
-ASSERT Enemy/Health/hp == 100
-
-LOG Dealing damage
-INVOKE Player Attack
-WAIT 1.0
-
-LOG Verifying damage
-ASSERT Player/Health/hp < 100
-
-LOG Test completed
-ASSERT_CONSOLE_CLEAN
-"""
-
-result = await run_playtest(script=test_script, timeout=30)
-print(result)
-
-# 3. Exit Play Mode
-await editor("stop")
-```
-
----
 
 **See also:** [Scene Tools](scene.md) for Play Mode control (editor play/stop), [Objects](objects.md) for component access, [Diagnostics](diagnostics.md) for compile gates.

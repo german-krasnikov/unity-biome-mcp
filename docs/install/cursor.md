@@ -1,50 +1,24 @@
-# Cursor Setup
+# Cursor
 
-The plugin auto-configures Cursor automatically when you add it to your project. Works on **Windows, macOS, and Linux**.
+Prerequisite: complete the
+[Unity package installation](../getting-started/index.md#1-install-the-unity-package).
 
-## Prerequisites
+## Install
 
-- Cursor IDE installed and authenticated
-- Unity 6000.0+ with the `unity-biome-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or auto-assigned) free
+Install and sign in to Cursor from the [official download page](https://cursor.com/downloads).
 
-## Quick Setup
+## Configure
 
-### 1. Install Cursor
+Unity Biome MCP creates `.cursor/mcp.json` in the Unity project. Open that project in Cursor, restart or reload Cursor after the file is created, and run the [first connection check](../getting-started/index.md#3-verify-the-first-connection).
 
-Visit https://cursor.com/download and install Cursor for your OS.
+For user-level configuration instead, use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `cursor`. It writes `~/.cursor/mcp.json`.
 
-### 2. Add Plugin to Unity
+Both files use Cursor's `mcpServers` JSON shape. Project configuration takes effect only for the project that contains it.
 
-1. Open **Window → Package Manager**
-2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
-4. Wait for import, then open any scene
+## Client-specific Troubleshooting
 
-The plugin auto-generates your Cursor MCP config on first load.
-
-### 3. Verify Installation (Optional)
-
-Run the diagnostic:
-
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
-```
-
-## Use Cursor With Unity Biome MCP
-
-Once configured, use Unity Biome MCP from your Cursor terminal or chat:
-
-```python
-await get_hierarchy()
-```
-
-The MCP tools are automatically available in Cursor's MCP context.
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| Cursor doesn't find MCP tools | Restart Cursor completely. Check that the plugin console shows `[MCP] Server started on port <XXXX>`. |
-| MCP config not auto-generated | Run the diagnostic: `uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor` |
-| Tools fail with "Connection refused" | Ensure Unity is open with the plugin loaded. Check that TCP port is available and listening. |
+| Symptom | Action |
+|---|---|
+| Cursor does not list the server | Confirm the Unity project is the open workspace and `.cursor/mcp.json` exists |
+| A global entry works but the project entry does not | Reload the Cursor window and inspect the project's MCP settings |
+| Tools cannot reach Unity | Keep Unity open and follow [connection diagnostics](../getting-started/index.md#diagnose-a-failure) |

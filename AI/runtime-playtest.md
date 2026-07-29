@@ -2,7 +2,7 @@
 
 Play Mode runtime operations: reflection-based method/field mutation, state queries, movement, and structured playtest DSL execution.
 
-**Guard:** All tools in this doc require Play Mode active. Tools reject outside Play Mode.
+**Guard:** Runtime mutation, movement, and playtest execution require Play Mode. Static tools such as `lint_playtest`, `lint_playtest_suite`, `validate_playtest_aliases`, `resolve_scene_refs`, and `lint_scene_refs` do not.
 
 ## invoke_method(path, component, method, args="")
 
@@ -37,7 +37,7 @@ await invoke_method("/UI/HealthBar", "Slider", "SetValue", "0.5")
 ```python
 await set_runtime_property("/Player", "PlayerController", "Health", "50")
 # Verify:
-await get_component("/Player", "PlayerController", query="Health")  # → Health: 50
+await get_component("/Player", "PlayerController", fields="Health")  # → Health: 50
 ```
 
 **RW_IDEM Annotation:** Idempotent write; safe to retry.
@@ -131,13 +131,16 @@ await query_state("$score,$posX")
 
 **RW Annotation:** Mutating (movement + snapshots).
 
-## run_playtest(script=None, timeout=120.0, abort_on_fail=False, defs=None, path=None, snapshot_on_failure=False)
+## run_playtest(script=None, timeout=120.0, abort_on_fail=False, defs=None, path=None, snapshot_on_failure=False, fresh=False)
 
-**Purpose:** Execute playtest DSL script (fire-and-forget fire-and-poll pattern).
+**Purpose:** Execute a playtest DSL script and wait for its final report.
 
 **Mutually exclusive:** `path` XOR `script` — exactly one must be provided.
 
-**path:** Assets-relative path to a `.playtest` file on disk (e.g. `"Playtests/farm.playtest"`). C# reads and executes the file directly — costs ~15 tokens instead of 300–800 for an inline script. Use when the script lives in the project's `Playtests/` folder. Internally sends `_explicit_path=true` to bypass middleware path resolution.
+**path:** Assets-relative or project-root-relative path to a `.playtest` file on
+disk (for example, `"Playtests/smoke.playtest"`). C# reads and executes the file
+directly, avoiding an inline DSL payload. Internally sends `_explicit_path=true`
+to bypass middleware path resolution.
 
 **script:** Inline DSL text. Use for ad-hoc or generated scripts.
 
@@ -147,9 +150,11 @@ await query_state("$score,$posX")
 
 **snapshot_on_failure:** If True, appends current `$sigil` values and recent console errors to each FAIL/ERR line in the report. Costs extra reads per failure but makes root-cause obvious without a follow-up `query_state`.
 
+**fresh:** If True, reload the active scene before the first playtest step.
+
 ```python
-aliases = await get_aliases()   # → "$hp=/Player|Health|hp\n$pos=..."
-await run_playtest(script, defs=aliases)
+defs = "VAL $hp /Player|Health|hp\nVAL $pos /Player|Transform|position"
+await run_playtest(script, defs=defs)
 # or from file:
 await run_playtest(path="Playtests/smoke.playtest")
 ```
@@ -171,9 +176,13 @@ await run_playtest(path="Playtests/smoke.playtest")
 - `ASSERT_CONSOLE_CLEAN [IGNORE "pat1","pat2"]` — verify no console errors (ignore patterns)
 - `ASSERT_BATCH...END` — multi-line assert block
 - `ASSERT_NEAR pathA pathB dist` — spatial proximity check
+- `ASSERT_ONE_ACTIVE pathA pathB [pathC...]` — exactly one listed object must be active
 - `ASSERT_CONSERVED SUM a+b OVER t` — physics invariant (e.g., energy conservation)
 - `ASSERT_CTA VISIBLE|CLICKABLE` — check UI reachability
 - `ASSERT_CAPTURED label INCREASED|DECREASED` — verify delta
+- `ASSERT_CHANGED label` — verify the raw value stored by `CAPTURE` changed
+- `CAPTURE_FRAMES n INTERVAL s [CAMERA name] [MODE strip|list] [LABEL name]` — timed frame sequence
+- `ASSERT_FRAMES_DIFFER label` / `ASSERT_FRAMES_STATIC label` — verify motion or stability in a captured frame set
 - `SECTION "title"` — group header always shown in report
 - `DESC "text"` — label next step in report (no step emitted)
 - `SNAPSHOT queries` — capture state (comma-separated paths|component|field)
@@ -197,9 +206,11 @@ await run_playtest(path="Playtests/smoke.playtest")
 
 **Compression:** Long reports (>300 chars) summarized by Haiku: line 1 = result (X/Y), line 2+ = failures only.
 
-**Timeout:** 120s default; increase for complex scenarios.
+**Timeout:** 120s operation default. Unity's outer `run_playtest` request
+deadline is 130s, so values above that cannot extend one request beyond the
+outer deadline.
 
-**Returns:** Compressed report (failures only) or full report if short.
+**Returns:** The final report. Long reports may be compressed to the result and failures.
 
 **Examples:**
 ```python
@@ -211,10 +222,13 @@ ASSERT_CONSOLE_CLEAN"""
 await run_playtest(script, timeout=30.0)
 
 # file path — ~15 tokens vs 300-800 inline
-await run_playtest(path="Playtests/farm.playtest", timeout=60.0)
+await run_playtest(path="Playtests/smoke.playtest", timeout=60.0)
 
 # file path + runtime defs
-await run_playtest(path="Playtests/smoke.playtest", defs=aliases)
+await run_playtest(
+    path="Playtests/smoke.playtest",
+    defs="VAL $hp /Player|Health|hp"
+)
 ```
 
 **RW Annotation:** Mutating (movement, state changes, assertions).
@@ -225,11 +239,11 @@ await run_playtest(path="Playtests/smoke.playtest", defs=aliases)
 - `run_playtest`: `_TCP_PLAYTEST_BUFFER = 20.0` added
 
 **Notes:**
-- Fire-and-forget: run_playtest sends script, returns immediately with status
-- Polling: Caller must poll get_test_results every 5s for up to 2min (see CLAUDE.md § run_tests)
+- The call blocks until Unity returns the playtest report or the timeout expires.
+- Do not poll `get_test_results`; that polling workflow belongs to `run_tests`, not `run_playtest`.
 - Domain reload: Transparently reconnects mid-script if compilation detected
 
-## run_playtest_suite(paths, timeout_per_test=120.0, stop_on_fail=False, stop_after=True)
+## run_playtest_suite(paths=None, suite_path=None, timeout_per_test=120.0, stop_on_fail=False, stop_after=True, auto_play=False, restart_between=False)
 
 **Purpose:** Run multiple `.playtest` files sequentially; return a compact pass/fail matrix.
 
@@ -238,9 +252,15 @@ await run_playtest(path="Playtests/smoke.playtest", defs=aliases)
 - Comma-separated: `"Playtests/a.playtest,Playtests/b.playtest"`
 - Newline-separated list of project-relative paths
 
+**suite_path:** Absolute path to a `.suite` file containing project-relative `.playtest` paths, one per line. Exactly one of `paths` or `suite_path` is required.
+
 **stop_on_fail:** Abort after first failure.
 
 **stop_after:** Exit Play Mode when suite finishes (default True).
+
+**auto_play:** Enter Play Mode before running when needed.
+
+**restart_between:** Stop and re-enter Play Mode between files to reset runtime state.
 
 **Output format:**
 ```
@@ -263,7 +283,7 @@ OK     8.9s  ui.playtest  4/4
 - `TRACE_FLOW` (parsed but not executed)
 - `CALL` referencing unknown MACRO
 - Mixed `AND`/`OR` in `WAIT_UNTIL`
-- No evidence commands (ASSERT/WAIT_UNTIL/ASSERT_CONSOLE_CLEAN/ASSERT_BATCH/ASSERT_CAPTURED)
+- No evidence commands (ASSERT/WAIT_UNTIL/ASSERT_CONSOLE_CLEAN/ASSERT_BATCH/ASSERT_CAPTURED/ASSERT_CHANGED/ASSERT_ONE_ACTIVE/ASSERT_FRAMES_DIFFER/ASSERT_FRAMES_STATIC)
 - Missing `ASSERT_CONSOLE_CLEAN` at end
 
 **path / script:** Mutually exclusive; one required.
@@ -272,18 +292,20 @@ OK     8.9s  ui.playtest  4/4
 
 **Example:**
 ```python
-await lint_playtest(path="Playtests/farm.playtest")
-# → "OK  Playtests/farm.playtest  no issues"
+await lint_playtest(path="Playtests/smoke.playtest")
+# → "OK  Playtests/smoke.playtest  no issues"
 await lint_playtest(script="INVOKE /Player PC Heal\nASSERT /Player|PC|Health == 100")
 ```
 
 **RO Annotation:** Read-only.
 
-## lint_playtest_suite(paths)
+## lint_playtest_suite(paths=None, suite_path=None)
 
 **Purpose:** Batch preflight check across multiple `.playtest` files. Read-only — no Play Mode required.
 
 **paths:** Glob pattern (`"Playtests/*.playtest"`) or comma-separated list of project-relative paths.
+
+**suite_path:** Absolute path to a `.suite` file. Provide either `paths` or `suite_path`.
 
 **Returns:** Aggregated report, one block per file. Summary line: `LINT: X/Y OK`.
 
@@ -301,9 +323,10 @@ await lint_playtest_suite("Playtests/*.playtest")
 
 **Purpose:** Diff alias `.defs` file vs `PlaytestConfig.asset`. Reports missing/extra/changed entries.
 
-**defs:** Project-relative path to `.defs` file (default: `"Assets/PlaytestDefs/farm_core.defs"`).
+**defs:** Project-relative path to a `.defs` file. Pass it explicitly in agent
+workflows.
 
-**asset:** Asset path to `PlaytestConfig` (default: first found via `FindAssets`).
+**asset:** Asset path to `PlaytestConfig`.
 
 **Returns:** `"ok: N aliases in sync"` or a structured diff report with `missing:`, `extra:`, `changed:` sections.
 
@@ -457,8 +480,8 @@ Pass the returned `mark_id` to `get_console_since()` to retrieve only logs produ
 | Multi-field snapshot | query_state | Batch; one TCP call instead of N |
 | Move + validate state | test_step | Atomic before/after with console check |
 | Ad-hoc script | run_playtest(script=...) | DSL readable; compression saves tokens |
-| Saved script (token-efficient) | run_playtest(path="Playtests/x.playtest") | ~15 tokens; C# reads file directly |
-| Single file explicit | run_playtest(path="Playtests/x.playtest") | Same token cost as `path=` form |
+| Saved script | run_playtest(path="Playtests/x.playtest") | C# reads the file directly |
+| Single file explicit | run_playtest(path="Playtests/x.playtest") | Same execution path |
 | Multi-phase fail-fast | run_playtest(abort_on_fail=True) | Stop Play Mode immediately on timeout |
 | Suite of files | run_playtest_suite("Playtests/*.playtest") | One call; compact pass/fail matrix |
 | Lint before run | lint_playtest_suite("Playtests/*.playtest") | Catch errors without entering Play Mode |

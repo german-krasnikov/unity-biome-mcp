@@ -1,68 +1,47 @@
-# Claude Desktop Setup
+# Claude Desktop
 
-The plugin auto-configures Claude Desktop automatically when you add it to your project. Works on **Windows, macOS, and Linux**.
+Prerequisite: complete the
+[Unity package installation](../getting-started/index.md#1-install-the-unity-package).
 
-## Prerequisites
+## Install
 
-- Claude Desktop app installed
-- Unity 6000.0+ with the `unity-biome-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or auto-assigned) free
+Install the current Claude Desktop release from [Claude downloads](https://claude.com/download).
 
-## Quick Setup
+## Configure the Global Client
 
-### 1. Install Claude Desktop
+Claude Desktop does not use one of the generated project-local files. Choose one of these flows:
 
-Visit https://claude.com/download and install Claude Desktop for your OS.
+### Setup Wizard clipboard
 
-### 2. Add Plugin to Unity
+1. Open **MCP > Setup Wizard**.
+2. Select **Claude Desktop**.
+3. Select **Configure**.
+4. Follow the Wizard result. A local source checkout can update the configuration
+   directly; a UPM installation copies a complete JSON object.
+5. If JSON was copied, open the platform configuration file below and merge the
+   `unity-biome-mcp` entry into its existing `mcpServers` object. Preserve other
+   servers and top-level settings instead of replacing the file.
 
-1. Open **Window → Package Manager**
-2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
-4. Wait for import, then open any scene
+### Python CLI
 
-The plugin auto-generates your Claude Desktop MCP config on first load.
+Use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `claude-desktop`. The packaged CLI writes:
 
-### 3. Verify Installation (Optional)
+### Configuration files
 
-Run the diagnostic:
+| Platform | Configuration file |
+|---|---|
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `~/.config/Claude/claude_desktop_config.json` |
 
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
-```
+Quit Claude Desktop completely and reopen it after configuration, then run the [first connection check](../getting-started/index.md#3-verify-the-first-connection).
 
-Or from Claude Desktop, try:
+Claude Desktop is an external MCP client. The **Claude** option in MCP Chat uses Claude Code CLI instead.
 
-```python
-await get_hierarchy()
-```
+## Client-specific Troubleshooting
 
-## Use Claude Desktop With Unity Biome MCP
-
-Once configured, restart Claude Desktop completely, then use Unity Biome MCP from the chat:
-
-```python
-await create_object("MyObject")
-await get_hierarchy()
-await batch("""
-create_object name=Enemy
-set_property path=Enemy component=Transform prop=position value=0,1,0
-""")
-```
-
-## Config Location
-
-The plugin writes MCP config to:
-
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux:** `~/.config/Claude/claude_desktop_config.json`
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| Claude Desktop doesn't see MCP tools | **Restart Claude Desktop completely** (close via menu bar, reopen). Check that the plugin console shows `[MCP] Server started on port <XXXX>`. |
-| MCP config not auto-generated | Run the diagnostic: `uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor` |
-| Tools fail with "Connection refused" | Ensure Unity is open with the plugin loaded. Check that TCP port is available and listening. |
-| "Unknown server: unity-biome-mcp" error | Claude Desktop cached the old config. Clear config and restart: `rm ~/Library/Application\ Support/Claude/claude_desktop_config.json` (macOS), then restart Claude and re-add plugin to trigger auto-config. |
+| Symptom | Action |
+|---|---|
+| Tools do not appear | Quit Claude Desktop completely, reopen it, and verify the global config contains `unity-biome-mcp` |
+| Configuration was edited incorrectly | Restore the `.bak` file created by the Python CLI, then configure again |
+| Tools cannot reach Unity | Keep the Unity project open and follow [connection diagnostics](../getting-started/index.md#diagnose-a-failure) |

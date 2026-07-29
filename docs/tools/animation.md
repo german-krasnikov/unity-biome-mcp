@@ -225,7 +225,7 @@ Create and configure Particle Systems with preset or custom modules.
 | get | Inspect particle system | `particle("get", path="Effects/Fire")` |
 | create | New ParticleSystem | `particle("create", path="Enemy", name="Explosion", preset="explosion")` |
 | set | Change module property | `particle("set", path="Effects/Fire", module="emission", prop="rateOverTime", value="50")` |
-| apply | Apply changes | `particle("apply", path="Effects/Fire")` |
+| apply | Apply a preset to an existing system | `particle("apply", path="Effects/Fire", preset="fire")` |
 | play | Start playback | `particle("play", path="Effects/Fire")` |
 | stop | Stop playback | `particle("stop", path="Effects/Fire")` |
 | pause | Pause playback | `particle("pause", path="Effects/Fire")` |
@@ -244,8 +244,8 @@ await particle("set", path="Effects/ExplosionFX", module="emission",
 await particle("set", path="Effects/ExplosionFX", module="renderer",
               prop="maxParticleSize", value="10")
 
-# Apply
-await particle("apply", path="Effects/ExplosionFX")
+# Reset the system to the named preset when needed
+await particle("apply", path="Effects/ExplosionFX", preset="explosion")
 ```
 
 ---

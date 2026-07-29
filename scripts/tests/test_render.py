@@ -1,4 +1,5 @@
-"""Tests for readme_render.py — render logic, C1 regression, C3 regression."""
+"""Tests for the pure README renderer and committed presentation surfaces."""
+
 import json
 import pathlib
 import re
@@ -7,498 +8,301 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
+
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 import readme_render as rr
-import update_readme as ur
+
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
-_META = REPO_ROOT / "docs" / "assets" / "_meta.json"
-_ASSETS = REPO_ROOT / "docs" / "assets"
+ASSETS = REPO_ROOT / "docs" / "assets"
+META_PATH = ASSETS / "_meta.json"
 
+SAMPLE_META = {
+    "tools": 142,
+    "tests_total": 10872,
+    "tests_python": 4252,
+    "tests_stress": 511,
+    "tests_unity": 5820,
+    "tests_unity_source": "static_grep",
+    "tests_live": 289,
+}
 
-# ---------------------------------------------------------------------------
-# substitute_svg_markers
-# ---------------------------------------------------------------------------
-
-class TestSubstituteSvgMarkers:
-    def test_replaces_tools_marker(self) -> None:
-        svg = '<text><!-- STAT:TOOLS -->89<!-- /STAT --> Tools</text>'
-        assert "<!-- STAT:TOOLS -->92<!-- /STAT -->" in rr.substitute_svg_markers(svg, {"tools": 92})
-
-    def test_replaces_tests_marker(self) -> None:
-        svg = '<text><!-- STAT:TESTS -->3432<!-- /STAT --></text>'
-        assert "<!-- STAT:TESTS -->3500<!-- /STAT -->" in rr.substitute_svg_markers(svg, {"tests_total": 3500})
-
-    def test_idempotent_tools(self) -> None:
-        svg = '<text><!-- STAT:TOOLS -->92<!-- /STAT --> Tools</text>'
-        r1 = rr.substitute_svg_markers(svg, {"tools": 92})
-        assert r1 == rr.substitute_svg_markers(r1, {"tools": 92})
-
-    def test_idempotent_tests(self) -> None:
-        svg = '<text><!-- STAT:TESTS -->3500<!-- /STAT --></text>'
-        r1 = rr.substitute_svg_markers(svg, {"tests_total": 3500})
-        assert r1 == rr.substitute_svg_markers(r1, {"tests_total": 3500})
-
-    def test_aria_label_mcp_tools_updated(self) -> None:
-        svg = '<svg aria-label="Unity Biome MCP stats: 91 MCP Tools">'
-        assert "92 MCP tools" in rr.substitute_svg_markers(svg, {"tools": 92})
-
-    def test_none_tools_skips(self) -> None:
-        svg = '<text><!-- STAT:TOOLS -->89<!-- /STAT --></text>'
-        assert "89" in rr.substitute_svg_markers(svg, {"tools": None})
-
-    def test_none_tests_skips(self) -> None:
-        svg = '<text><!-- STAT:TESTS -->3432<!-- /STAT --></text>'
-        assert "3432" in rr.substitute_svg_markers(svg, {"tests_total": None})
-
-
-# ---------------------------------------------------------------------------
-# C1 regression: render propagates tool count to all 3 README spots
-# ---------------------------------------------------------------------------
-
-class TestReadmeToolCountWired:
-    def test_hero_alt_updated(self) -> None:
-        readme = '<img alt="banner with 50 token-minimized MCP tools connecting">'
-        result = rr._substitute_readme_tool_counts(readme, {"tools": 777})
-        assert "777 token-minimized MCP tools" in result
-        assert "50 token-minimized MCP tools" not in result
-
-    def test_prose_full_access_updated(self) -> None:
-        readme = "Full access to 50 MCP tools with 80–95% token compression."
-        result = rr._substitute_readme_tool_counts(readme, {"tools": 777})
-        assert "Full access to 777 MCP tools" in result
-        assert "Full access to 50 MCP tools" not in result
-
-    def test_arch_alt_updated(self) -> None:
-        readme = '<img alt="Architecture: Claude Code ... MCP Server with 50 tools, which connects">'
-        result = rr._substitute_readme_tool_counts(readme, {"tools": 777})
-        assert "MCP Server with 777 tools" in result
-        assert "MCP Server with 50 tools" not in result
-
-    def test_unrelated_numbers_untouched(self) -> None:
-        readme = "port 9500 free. savings 80–95%. version 0.21.5."
-        result = rr._substitute_readme_tool_counts(readme, {"tools": 777})
-        assert "9500" in result
-        assert "80–95%" in result
-        assert "0.21.5" in result
-
-    def test_all_three_spots_set_to_777(self) -> None:
-        readme = (
-            '<img alt="banner with 92 token-minimized MCP tools">\n'
-            "Full access to 92 MCP tools with 80–95%.\n"
-            '<img alt="MCP Server with 92 tools, which">'
-        )
-        result = rr._substitute_readme_tool_counts(readme, {"tools": 777})
-        assert result.count("777") == 3
-
-
-# ---------------------------------------------------------------------------
-# C3 regression: [Unreleased] not rendered as first entry
-# ---------------------------------------------------------------------------
-
-class TestChangelogUnreleased:
-    def test_unreleased_skipped(self) -> None:
-        cl = (
-            "## [Unreleased]\n\n- some WIP\n\n"
-            "## [v1.2.3] — 2026-01-01\n\n- Real feature.\n"
-        )
-        result = rr.generate_changelog_details(cl, n=5)
-        first_summary = re.search(r"<summary><b>([^<]+)</b>", result)
-        assert first_summary is not None
-        assert "?" not in first_summary.group(1)
-        assert "v1.2.3" in first_summary.group(1)
-
-    def test_real_changelog_first_entry_is_dated(self) -> None:
-        text = (REPO_ROOT / "CHANGELOG.md").read_text()
-        result = rr.generate_changelog_details(text, n=5)
-        first_summary = re.search(r"<summary><b>([^<]+)</b>", result)
-        assert first_summary is not None
-        assert "?" not in first_summary.group(1)
-        assert re.search(r"v\d+\.\d+", first_summary.group(1))
-
-
-# ---------------------------------------------------------------------------
-# C7: dynamic top version (no hardcoded "v0.20.7")
-# ---------------------------------------------------------------------------
-
-def _top_dated_version() -> str:
-    text = (REPO_ROOT / "CHANGELOG.md").read_text()
-    ver, _ = rr.parse_latest_changelog(text)
-    return ver
-
-
-class TestChangelogBlock:
-    def test_readme_changelog_block_has_current_version(self) -> None:
-        readme = (REPO_ROOT / "README.md").read_text()
-        ver = _top_dated_version()
-        assert ver in readme, f"README CHANGELOG block is stale (missing {ver})"
-
-    def test_readme_first_entry_not_v0_17_25(self) -> None:
-        readme = (REPO_ROOT / "README.md").read_text()
-        m = re.search(r"<!-- CHANGELOG_START -->(.*?)<!-- CHANGELOG_END -->", readme, re.DOTALL)
-        if m:
-            first = re.search(r"<summary><b>([^<]+)</b>", m.group(1))
-            if first:
-                assert "v0.17.25" not in first.group(1)
-
-
-# ---------------------------------------------------------------------------
-# render drift checks on real files
-# ---------------------------------------------------------------------------
-
-class TestRenderDrift:
-    def test_all_svgs_have_tools_marker(self) -> None:
-        for name in ("stats.svg", "hero.svg", "architecture.svg"):
-            svg = (_ASSETS / name).read_text()
-            assert "<!-- STAT:TOOLS -->" in svg, f"{name} missing STAT:TOOLS marker"
-
-    def test_all_svgs_well_formed_xml(self) -> None:
-        for svg_path in _ASSETS.glob("*.svg"):
-            try:
-                ET.fromstring(svg_path.read_text())
-            except ET.ParseError as e:
-                pytest.fail(f"{svg_path.name} is not well-formed XML: {e}")
-
-    def test_all_surfaces_agree_on_tool_count(self) -> None:
-        if not _META.exists():
-            pytest.skip("_meta.json not yet written")
-        meta = json.loads(_META.read_text())
-        n = str(meta["tools"])
-        hero = (_ASSETS / "hero.svg").read_text()
-        arch = (_ASSETS / "architecture.svg").read_text()
-        stats = (_ASSETS / "stats.svg").read_text()
-        badges_tools = json.loads((REPO_ROOT / ".github" / "badges" / "tools.json").read_text())
-        readme = (REPO_ROOT / "README.md").read_text()
-        assert f"<!-- STAT:TOOLS -->{n}<!-- /STAT -->" in hero, "hero.svg mismatch"
-        assert f"<!-- STAT:TOOLS -->{n}<!-- /STAT -->" in arch, "architecture.svg mismatch"
-        assert f"<!-- STAT:TOOLS -->{n}<!-- /STAT -->" in stats, "stats.svg mismatch"
-        assert n in badges_tools["message"], "badges/tools.json mismatch"
-        assert n in readme, "tool count not found anywhere in README"
-
-
-# ---------------------------------------------------------------------------
-# _apply_or_check
-# ---------------------------------------------------------------------------
-
-class TestApplyOrCheck:
-    def test_check_exits_1_on_stale(self, tmp_path: pathlib.Path) -> None:
-        p = tmp_path / "file.txt"
-        p.write_text("old")
-        with pytest.raises(SystemExit) as exc:
-            rr._apply_or_check([(p, "new")], check=True)
-        assert exc.value.code == 1
-
-    def test_check_exits_0_when_current(self, tmp_path: pathlib.Path) -> None:
-        p = tmp_path / "file.txt"
-        p.write_text("same")
-        rr._apply_or_check([(p, "same")], check=True)
-
-    def test_normal_writes_file(self, tmp_path: pathlib.Path) -> None:
-        p = tmp_path / "file.txt"
-        p.write_text("old")
-        rr._apply_or_check([(p, "new")], check=False)
-        assert p.read_text() == "new"
-
-    def test_check_stale_lists_all_paths(self, tmp_path: pathlib.Path, capsys) -> None:
-        p1, p2 = tmp_path / "a.txt", tmp_path / "b.txt"
-        p1.write_text("old1")
-        p2.write_text("old2")
-        with pytest.raises(SystemExit):
-            rr._apply_or_check([(p1, "new1"), (p2, "new2")], check=True)
-        out = capsys.readouterr().out
-        assert "a.txt" in out or "b.txt" in out
-
-
-# ---------------------------------------------------------------------------
-# inject_changelog / make_badge_json / extract_changelog_blocks
-# ---------------------------------------------------------------------------
-
-class TestInjectChangelog:
-    def test_replaces_between_markers(self) -> None:
-        readme = "# T\n\n<!-- CHANGELOG_START -->\nOLD\n<!-- CHANGELOG_END -->\n\n## F\n"
-        result = rr.inject_changelog_into_readme(readme, "NEW")
-        assert "NEW" in result and "OLD" not in result
-
-    def test_no_markers_returns_unchanged(self) -> None:
-        readme = "# Title\nNo markers here\n"
-        assert rr.inject_changelog_into_readme(readme, "NEW") == readme
-
-
-class TestMakeBadgeJson:
-    def test_returns_valid_shields_format(self) -> None:
-        d = rr.make_badge_json("tests", "1726 passing", "3ad29f")
-        assert d == {"schemaVersion": 1, "label": "tests", "message": "1726 passing", "color": "3ad29f"}
-
-
-class TestExtractChangelogBlocks:
-    def test_extracts_two_blocks(self) -> None:
-        cl = "# C\n\n## [v2.0.0] — 2026-02-01\n\n- A\n\n## [v1.9.0] — 2026-01-01\n\n- X\n"
-        blocks = rr.extract_changelog_blocks(cl, n=2)
-        assert len(blocks) == 2
-        assert "v2.0.0" in blocks[0]
-
-    def test_returns_one_if_only_one_version(self) -> None:
-        cl = "## [v1.0.0] — 2026-01-01\n\n- Only one\n"
-        assert len(rr.extract_changelog_blocks(cl, n=2)) == 1
-
-
-# ---------------------------------------------------------------------------
-# generate_changelog_details
-# ---------------------------------------------------------------------------
-
-SAMPLE_CHANGELOG = """\
-# Changelog
-
-## [v3.0.0] — 2026-06-10 <!-- svg: feature A title -->
-
-- **Feature A** — First sentence. Second sentence.
-- Other bullet.
-
-## [v2.0.0] — 2026-06-09 <!-- svg: feature B title -->
-
-- **Feature B** — Some description here.
-
-## [v1.9.0] — 2026-06-08 <!-- svg: feature C -->
-
-- **Feature C** — Detail.
-
-## [v1.8.0] — 2026-06-07 <!-- svg: feature D -->
-
-- **Feature D** — Detail.
-
-## [v1.7.0] — 2026-06-06 <!-- svg: feature E -->
-
-- **Feature E** — Detail.
-
-## [v1.6.0] — 2026-06-05 <!-- svg: feature F -->
-
-- **Feature F** — older.
-
-## [v1.5.0] — 2026-06-04 <!-- svg: feature G -->
-
-- **Feature G** — even older.
+SAMPLE_SVG = """
+<desc><!-- STAT:STATS_DESC -->old<!-- /STAT --></desc>
+<text><!-- STAT:TOOLS -->1<!-- /STAT --></text>
+<text><!-- STAT:TESTS -->2<!-- /STAT --></text>
+<text><!-- STAT:BREAKDOWN -->old<!-- /STAT --></text>
+<text><!-- STAT:UNITY_SOURCE -->old<!-- /STAT --></text>
 """
 
 
-class TestGenerateChangelogDetails:
-    def test_produces_details_blocks(self) -> None:
-        r = rr.generate_changelog_details(SAMPLE_CHANGELOG)
-        assert "<details>" in r and "</details>" in r
+class TestStatsSummary:
+    def test_describes_inventory_without_claiming_execution(self) -> None:
+        summary = rr.stats_summary(SAMPLE_META)
+        assert "142 registered MCP tools" in summary
+        assert "Test inventory: 10872 entries" in summary
+        assert "511 Python stress" in summary
+        assert "static source scan" in summary
+        assert "passing" not in summary.lower()
 
-    def test_latest_version_present(self) -> None:
-        assert "v3.0.0" in rr.generate_changelog_details(SAMPLE_CHANGELOG)
-
-    def test_limits_to_n_recent(self) -> None:
-        r = rr.generate_changelog_details(SAMPLE_CHANGELOG, n=5)
-        assert r.count("<details>") == 6  # 5 individual + 1 "Older releases"
-
-    def test_older_releases_block_present(self) -> None:
-        r = rr.generate_changelog_details(SAMPLE_CHANGELOG, n=5)
-        assert "Older releases" in r and "v1.6.0" in r
-
-    def test_extracts_svg_comment_as_title(self) -> None:
-        assert "feature A title" in rr.generate_changelog_details(SAMPLE_CHANGELOG)
-
-    def test_summary_has_version_date_title(self) -> None:
-        r = rr.generate_changelog_details(SAMPLE_CHANGELOG)
-        assert "<summary><b>v3.0.0</b>" in r and "2026-06-10" in r
-
-    def test_blank_line_after_summary(self) -> None:
-        assert "</summary>\n\n" in rr.generate_changelog_details(SAMPLE_CHANGELOG)
-
-    def test_blank_line_before_closing_details(self) -> None:
-        assert "\n\n</details>" in rr.generate_changelog_details(SAMPLE_CHANGELOG)
-
-    def test_no_older_when_few_versions(self) -> None:
-        cl = "## [v1.0.0] — 2026-01-01 <!-- svg: only one -->\n\n- Single bullet.\n"
-        assert "Older releases" not in rr.generate_changelog_details(cl, n=5)
-
-    def test_real_changelog(self) -> None:
-        text = (REPO_ROOT / "CHANGELOG.md").read_text()
-        r = rr.generate_changelog_details(text, n=5)
-        assert "<details>" in r
-
-
-# ---------------------------------------------------------------------------
-# Backward compat: update_stats_svg still works via update_readme re-export
-# ---------------------------------------------------------------------------
-
-class TestUpdateStatsSvgBackwardCompat:
-    def test_replaces_tools_marker(self) -> None:
-        svg = '<text><!-- STAT:TOOLS -->89<!-- /STAT --></text>'
-        assert "42" in ur.update_stats_svg(svg, tools=42, tests=None)
-
-    def test_replaces_tests_marker(self) -> None:
-        svg = '<text><!-- STAT:TESTS -->100<!-- /STAT --></text>'
-        assert "999" in ur.update_stats_svg(svg, tools=None, tests=999)
-
-    def test_skips_none(self) -> None:
-        svg = '<text><!-- STAT:TOOLS -->89<!-- /STAT --></text>'
-        assert ur.update_stats_svg(svg, tools=None, tests=None) == svg
-
-
-# ---------------------------------------------------------------------------
-# divider-dataflow.svg and a11y (moved from test_single_source)
-# ---------------------------------------------------------------------------
-
-class TestDividerDataflow:
-    def test_no_bare_href_mpath(self) -> None:
-        svg = (_ASSETS / "divider-dataflow.svg").read_text()
-        assert len(re.findall(r"<mpath\s+href=", svg)) == 0
-
-    def test_has_xlink_namespace(self) -> None:
-        assert 'xmlns:xlink="http://www.w3.org/1999/xlink"' in (_ASSETS / "divider-dataflow.svg").read_text()
-
-    def test_well_formed_xml_after_fix(self) -> None:
-        ET.fromstring((_ASSETS / "divider-dataflow.svg").read_text())
-
-
-class TestStatsColor:
-    def test_no_color_typo_888919(self) -> None:
-        assert "#888919" not in (_ASSETS / "stats.svg").read_text()
-
-    def test_correct_color_888899(self) -> None:
-        assert "#888899" in (_ASSETS / "stats.svg").read_text()
-
-
-class TestA11y:
-    def test_hero_has_title_and_desc(self) -> None:
-        hero = (_ASSETS / "hero.svg").read_text()
-        assert "<title" in hero and "<desc" in hero
-
-    def test_architecture_svg_has_title_and_desc(self) -> None:
-        arch = (_ASSETS / "architecture.svg").read_text()
-        assert "<title" in arch and "<desc" in arch
-
-    def test_stats_svg_has_title_and_desc(self) -> None:
-        stats = (_ASSETS / "stats.svg").read_text()
-        assert "<title" in stats and "<desc" in stats
-
-    def test_svgs_have_role_img(self) -> None:
-        for name in ("hero.svg", "architecture.svg", "stats.svg"):
-            assert 'role="img"' in (_ASSETS / name).read_text(), f"{name} missing role=img"
-
-
-class TestContributing:
-    def test_good_first_issue_link(self) -> None:
-        readme = (REPO_ROOT / "README.md").read_text()
-        assert "good%20first%20issue" in readme or "good first issue" in readme.lower()
-
-    def test_contributing_has_open_pr_guidance(self) -> None:
-        readme = (REPO_ROOT / "README.md").read_text()
-        assert "master" in readme.lower() or "pull request" in readme.lower()
-
-
-# ---------------------------------------------------------------------------
-# Step D: architecture.svg STAT:TOOLS gate — render-controlled, not hardcoded
-# ---------------------------------------------------------------------------
-
-class TestArchitectureSvgGate:
-    """Prove architecture.svg tool count is render-controlled and gate bites."""
-
-    def test_architecture_svg_has_stat_tools_marker(self) -> None:
-        """STAT:TOOLS marker must exist so render() can rewrite it."""
-        arch = (_ASSETS / "architecture.svg").read_text()
-        assert "<!-- STAT:TOOLS -->" in arch, "architecture.svg missing STAT:TOOLS marker"
-        assert "<!-- /STAT -->" in arch
-
-    def test_stale_architecture_svg_fails_check(self, tmp_path: pathlib.Path) -> None:
-        """A stale tool count in architecture.svg causes --check to exit non-zero."""
-        arch = (_ASSETS / "architecture.svg").read_text()
-        meta = json.loads(_META.read_text())
-        stale = re.sub(
-            r"<!-- STAT:TOOLS -->[^<]*<!-- /STAT -->",
-            "<!-- STAT:TOOLS -->42<!-- /STAT -->",
-            arch,
+    def test_unity_source_labels_are_explicit(self) -> None:
+        assert "unavailable" in rr.stats_summary(
+            {**SAMPLE_META, "tests_unity_source": "unavailable"}
         )
-        rendered = rr.substitute_svg_markers(stale, meta)
-        assert rendered != stale, "substitute_svg_markers must change stale value"
-        p = tmp_path / "architecture.svg"
-        p.write_text(stale, encoding="utf-8")
+
+    def test_missing_metadata_fails_closed(self) -> None:
+        with pytest.raises(ValueError, match="tests_stress"):
+            rr.stats_summary({k: v for k, v in SAMPLE_META.items()
+                              if k != "tests_stress"})
+
+
+class TestSubstituteSvgMarkers:
+    def test_replaces_every_stats_marker(self) -> None:
+        result = rr.substitute_svg_markers(SAMPLE_SVG, SAMPLE_META)
+        assert "<!-- STAT:TOOLS -->142<!-- /STAT -->" in result
+        assert "<!-- STAT:TESTS -->10872<!-- /STAT -->" in result
+        assert "4252 regular · 511 stress · 289 live · 5820 Unity" in result
+        assert "Unity count source: static source scan" in result
+        assert "<!-- STAT:UNITY_SOURCE -->static source scan<!-- /STAT -->" in result
+
+    def test_is_idempotent(self) -> None:
+        once = rr.substitute_svg_markers(SAMPLE_SVG, SAMPLE_META)
+        assert rr.substitute_svg_markers(once, SAMPLE_META) == once
+
+    def test_only_explicit_markers_change(self) -> None:
+        svg = "<text>142 prose value</text>" + SAMPLE_SVG
+        result = rr.substitute_svg_markers(svg, {**SAMPLE_META, "tools": 99})
+        assert "<text>142 prose value</text>" in result
+        assert "<!-- STAT:TOOLS -->99<!-- /STAT -->" in result
+
+    def test_missing_marker_fails_closed(self) -> None:
+        svg = SAMPLE_SVG.replace(
+            "<text><!-- STAT:BREAKDOWN -->old<!-- /STAT --></text>",
+            "",
+        )
+        with pytest.raises(ValueError, match="STAT:BREAKDOWN"):
+            rr.substitute_svg_markers(svg, SAMPLE_META)
+
+    def test_duplicate_or_incomplete_markers_fail_closed(self) -> None:
+        with pytest.raises(ValueError, match="exactly one"):
+            rr.substitute_svg_markers(
+                "<!-- STAT:TOOLS -->1<!-- /STAT -->"
+                "<!-- STAT:TOOLS -->2<!-- /STAT -->",
+                SAMPLE_META,
+            )
+        with pytest.raises(ValueError, match="exactly one"):
+            rr.substitute_svg_markers("<!-- STAT:TOOLS -->1", SAMPLE_META)
+
+
+class TestReadmeStats:
+    def test_image_alt_uses_canonical_summary(self) -> None:
+        readme = (
+            "<!-- README_STATS_START -->\n"
+            '<img src="docs/assets/stats.svg" alt="stale">\n'
+            "<!-- README_STATS_END -->"
+        )
+        result = rr.update_readme_stats(readme, SAMPLE_META)
+        assert rr.stats_summary(SAMPLE_META) in result
+        assert 'src="docs/assets/stats.svg"' in result
+        assert "stale" not in result
+
+    def test_missing_markers_fail_closed(self) -> None:
+        readme = "# README\n"
+        with pytest.raises(ValueError, match="README stats"):
+            rr.update_readme_stats(readme, SAMPLE_META)
+
+
+class TestChangelogSummary:
+    SAMPLE = """
+# Changelog
+
+## [Unreleased]
+
+- Work in progress.
+
+## [v3.0.0] — 2026-06-10 <!-- svg: title -->
+
+- First release detail.
+
+## [v2.0.0] — 2026-06-09
+
+- Older detail.
+"""
+
+    def test_parses_latest_dated_release(self) -> None:
+        assert rr.parse_latest_changelog(self.SAMPLE) == ("v3.0.0", "2026-06-10")
+
+    def test_renders_one_release_and_link(self) -> None:
+        result = rr.generate_changelog_summary(self.SAMPLE)
+        assert "v3.0.0" in result
+        assert "2026-06-10" in result
+        assert "CHANGELOG.md" in result
+        assert "v2.0.0" not in result
+        assert "<details>" not in result
+
+    def test_missing_release_falls_back_to_link(self) -> None:
+        assert rr.generate_changelog_summary("# Changelog") == (
+            "[Read the full changelog.](CHANGELOG.md)"
+        )
+
+    def test_injection_preserves_markers_and_surrounding_content(self) -> None:
+        readme = (
+            "before\n<!-- CHANGELOG_START -->\nold\n"
+            "<!-- CHANGELOG_END -->\nafter"
+        )
+        result = rr.inject_changelog_into_readme(readme, "new")
+        assert result.startswith("before\n")
+        assert result.endswith("\nafter")
+        assert "new" in result and "old" not in result
+        assert "<!-- CHANGELOG_START -->" in result
+        assert "<!-- CHANGELOG_END -->" in result
+
+
+class TestBadgeJson:
+    def test_returns_shields_schema(self) -> None:
+        assert rr.make_badge_json("tests", "100 discovered", "46e6a6") == {
+            "schemaVersion": 1,
+            "label": "tests",
+            "message": "100 discovered",
+            "color": "46e6a6",
+        }
+
+
+class TestApplyOrCheck:
+    def test_check_fails_on_stale_file(self, tmp_path: pathlib.Path) -> None:
+        path = tmp_path / "file.txt"
+        path.write_text("old", encoding="utf-8")
         with pytest.raises(SystemExit) as exc:
-            rr._apply_or_check([(p, rendered)], check=True)
+            rr._apply_or_check([(path, "new")], check=True)
         assert exc.value.code == 1
+        assert path.read_text(encoding="utf-8") == "old"
 
-    def test_render_corrects_stale_architecture_svg(self) -> None:
-        """After --render, architecture.svg STAT:TOOLS equals _meta.json tools."""
-        meta = json.loads(_META.read_text())
-        expected = f"<!-- STAT:TOOLS -->{meta['tools']}<!-- /STAT -->"
-        arch = (_ASSETS / "architecture.svg").read_text()
-        assert expected in arch, f"architecture.svg stale: expected {expected}"
+    def test_write_updates_file(self, tmp_path: pathlib.Path) -> None:
+        path = tmp_path / "file.txt"
+        path.write_text("old", encoding="utf-8")
+        rr._apply_or_check([(path, "new")], check=False)
+        assert path.read_text(encoding="utf-8") == "new"
+
+    def test_check_accepts_current_file(self, tmp_path: pathlib.Path) -> None:
+        path = tmp_path / "file.txt"
+        path.write_text("same", encoding="utf-8")
+        rr._apply_or_check([(path, "same")], check=True)
 
 
-# ---------------------------------------------------------------------------
-# Gate-hardening: STAT:BREAKDOWN marker + aria-label substitution
-# ---------------------------------------------------------------------------
+class TestCommittedAssets:
+    def test_all_svgs_are_well_formed(self) -> None:
+        for path in ASSETS.glob("*.svg"):
+            try:
+                ET.fromstring(path.read_text(encoding="utf-8"))
+            except ET.ParseError as error:
+                pytest.fail(f"{path.name} is not valid XML: {error}")
 
-class TestBreakdownGate:
-    """Prove the freshness gate is no longer hollow for breakdown stats."""
+    @pytest.mark.parametrize("name", ["hero.svg", "architecture.svg", "stats.svg"])
+    def test_primary_assets_have_accessible_names(self, name: str) -> None:
+        svg = (ASSETS / name).read_text(encoding="utf-8")
+        assert 'role="img"' in svg
+        assert "<title" in svg
+        assert "<desc" in svg
+        assert "aria-labelledby" in svg
 
-    def test_stats_svg_has_breakdown_marker(self) -> None:
-        """STAT:BREAKDOWN marker must be present so render() can rewrite it."""
-        assert "<!-- STAT:BREAKDOWN -->" in (_ASSETS / "stats.svg").read_text()
+    @pytest.mark.parametrize("name", ["hero.svg", "architecture.svg", "stats.svg"])
+    def test_readme_embedded_assets_use_reduced_motion(self, name: str) -> None:
+        svg = (ASSETS / name).read_text(encoding="utf-8")
+        assert "@keyframes" in svg
+        assert "prefers-reduced-motion: reduce" in svg
 
-    def test_substitute_svg_markers_rewrites_breakdown_marker(self) -> None:
-        svg = (
-            '<text fill="#888899"><!-- STAT:BREAKDOWN -->'
-            '1904 Python &#x00B7; 1475 Unity &#x00B7; 53 Live'
-            '<!-- /STAT --></text>'
+    @pytest.mark.parametrize(
+        ("name", "max_width"),
+        [("hero.svg", 640), ("architecture.svg", 640), ("stats.svg", 560)],
+    )
+    def test_primary_assets_have_mobile_readable_viewboxes(
+        self, name: str, max_width: int
+    ) -> None:
+        root = ET.fromstring((ASSETS / name).read_text(encoding="utf-8"))
+        width = float(root.attrib["viewBox"].split()[2])
+        assert width <= max_width
+
+    def test_stats_use_inventory_language(self) -> None:
+        stats = (ASSETS / "stats.svg").read_text(encoding="utf-8")
+        assert "TEST INVENTORY" in stats
+        assert "TESTS DISCOVERED" not in stats
+        assert "TESTS PASSING" not in stats
+        assert "#888919" not in stats
+
+class TestCommittedReadme:
+    def test_first_success_precedes_feature_detail(self) -> None:
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        assert readme.index("## Quick Start") < readme.index("## What You Can Do")
+        assert "get_hierarchy(depth=2)" in readme
+
+    def test_setup_and_diagnostics_are_not_conflated(self) -> None:
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        assert "does not perform an end-to-end connection test" in readme
+        assert "MCP > Status > Diagnose" in readme
+
+    def test_remote_typing_is_removed_and_comparison_is_evidence_based(self) -> None:
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        comparison = (REPO_ROOT / "docs" / "comparison.md").read_text(
+            encoding="utf-8"
         )
-        result = rr.substitute_svg_markers(svg, {"tests_python": 1933, "tests_unity": 1613, "tests_live": 59})
-        assert "1933 Python &#x00B7; 1613 Unity &#x00B7; 59 Live" in result
-        assert "1904" not in result
+        hero = (ASSETS / "comparison-hero.svg").read_text(encoding="utf-8")
+        assert "readme-typing-svg" not in readme
+        assert "## Unity MCP Product Comparison" in readme
+        assert "(docs/comparison.md)" in readme
+        assert "Last verified: **July 29, 2026**" in comparison
+        assert "Unity MCP Server / Assistant 2.16.0-pre.1" in comparison
+        for snapshot in ("fc70dda", "f6db1c2", "bbfb1c0"):
+            assert snapshot in comparison
+        assert "not documented" in comparison.lower()
+        assert "quality or coverage score" in comparison
+        assert "@keyframes" in hero
+        assert "prefers-reduced-motion: reduce" in hero
 
-    def test_substitute_svg_markers_rewrites_aria_label_breakdown(self) -> None:
-        svg = 'aria-label="Unity Biome MCP stats: 92 MCP tools, 3605 Tests (1904 Python + 1475 Unity + 53 Live), 80-95% Batch Savings"'
-        result = rr.substitute_svg_markers(svg, {"tests_python": 1933, "tests_unity": 1613, "tests_live": 59})
-        assert "(1933 Python + 1613 Unity + 59 Live)" in result
-        assert "1904" not in result
+    def test_decorative_dividers_are_not_embedded(self) -> None:
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        assert "docs/assets/divider" not in readme
 
-    def test_render_writes_correct_breakdown_into_stats_svg(self, tmp_path: pathlib.Path) -> None:
-        """render() must produce canonical breakdown values in stats.svg."""
-        meta = json.loads(_META.read_text())
-        # Seed a stale stats.svg copy in tmp repo structure
-        assets_tmp = tmp_path / "docs" / "assets"
-        assets_tmp.mkdir(parents=True)
-        stale_svg = (_ASSETS / "stats.svg").read_text().replace(
-            "<!-- STAT:BREAKDOWN -->", "<!-- STAT:BREAKDOWN -->"
+    def test_contributor_links_are_actionable(self) -> None:
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        assert "CONTRIBUTING.md" in readme
+        assert "good+first+issue" in readme
+        assert "pull request" in readme.lower()
+
+    def test_no_machine_specific_paths(self) -> None:
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        assert "/Users/" not in readme
+        assert "/home/" not in readme
+        assert not re.search(r"[A-Za-z]:\\\\Users\\\\", readme)
+
+
+class TestGeneratedSurfaces:
+    def test_stats_and_readme_match_meta(self) -> None:
+        meta = json.loads(META_PATH.read_text(encoding="utf-8"))
+        stats = (ASSETS / "stats.svg").read_text(encoding="utf-8")
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        assert f"<!-- STAT:TOOLS -->{meta['tools']}<!-- /STAT -->" in stats
+        assert f"<!-- STAT:TESTS -->{meta['tests_total']}<!-- /STAT -->" in stats
+        assert rr.stats_summary(meta) in stats
+        assert rr.stats_summary(meta) in readme
+
+    def test_badge_reports_inventory_not_execution(self) -> None:
+        badge = json.loads(
+            (REPO_ROOT / ".github" / "badges" / "tests.json").read_text(
+                encoding="utf-8"
+            )
         )
-        # Replace breakdown content with stale values
-        stale_svg = re.sub(
-            r"<!-- STAT:BREAKDOWN -->.*?<!-- /STAT -->",
-            "<!-- STAT:BREAKDOWN -->1904 Python &#x00B7; 1475 Unity &#x00B7; 53 Live<!-- /STAT -->",
-            stale_svg,
+        assert "inventoried" in badge["message"]
+        assert "passing" not in badge["message"]
+
+    def test_readme_contains_only_current_release_summary(self) -> None:
+        changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        expected = rr.generate_changelog_summary(changelog)
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        block = re.search(
+            r"<!-- CHANGELOG_START -->(.*?)<!-- CHANGELOG_END -->",
+            readme,
+            re.DOTALL,
         )
-        (assets_tmp / "stats.svg").write_text(stale_svg, encoding="utf-8")
-        # Copy _meta.json
-        (assets_tmp / "_meta.json").write_text(_META.read_text(), encoding="utf-8")
-
-        updated = rr.substitute_svg_markers(stale_svg, meta)
-        assert "1933 Python &#x00B7; 1613 Unity &#x00B7; 59 Live" in updated
-        assert "1904" not in updated
-
-    def test_check_mode_catches_stale_breakdown(self, tmp_path: pathlib.Path) -> None:
-        """--check must exit non-zero when breakdown is stale (gate is not hollow)."""
-        meta = json.loads(_META.read_text())
-        stale_svg = re.sub(
-            r"<!-- STAT:BREAKDOWN -->.*?<!-- /STAT -->",
-            "<!-- STAT:BREAKDOWN -->1904 Python &#x00B7; 1475 Unity &#x00B7; 53 Live<!-- /STAT -->",
-            (_ASSETS / "stats.svg").read_text(),
-        )
-        p = tmp_path / "stats.svg"
-        p.write_text(stale_svg, encoding="utf-8")
-        rendered = rr.substitute_svg_markers(stale_svg, meta)
-        # rendered != stale → check must flag stale
-        with pytest.raises(SystemExit) as exc:
-            rr._apply_or_check([(p, rendered)], check=True)
-        assert exc.value.code == 1
-
-    def test_real_stats_svg_breakdown_matches_meta(self) -> None:
-        """The real stats.svg breakdown must equal _meta.json values."""
-        meta = json.loads(_META.read_text())
-        p, u, lv = meta["tests_python"], meta["tests_unity"], meta["tests_live"]
-        stats = (_ASSETS / "stats.svg").read_text()
-        expected_card = f"{p} Python &#x00B7; {u} Unity &#x00B7; {lv} Live"
-        expected_aria = f"({p} Python + {u} Unity + {lv} Live)"
-        assert expected_card in stats, f"Card breakdown stale. Expected: {expected_card}"
-        assert expected_aria in stats, f"aria-label breakdown stale. Expected: {expected_aria}"
+        assert block is not None
+        assert expected in block.group(1)
+        assert "Older releases" not in block.group(1)

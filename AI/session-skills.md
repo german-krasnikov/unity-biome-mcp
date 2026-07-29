@@ -75,15 +75,14 @@ await list_skills()
 
 ---
 
-## save_template(name: str, description: str, template_code: str)
+## save_template(name: str, code: str)
 
 **Write.** Store scene creation template (`.claude/templates/{name}.cs`).
 
 ```python
 await save_template(
     name="spawn_room",
-    description="Spawn dungeon room with platform pattern",
-    template_code="""
+    code="""
     var room = new GameObject("Room");
     for (int x = 0; x < 3; x++) {
         var platform = Instantiate(platformPrefab, new Vector3(x * 2, 0, 0), Quaternion.identity);
@@ -123,8 +122,8 @@ await apply_template(
 ```python
 await list_templates()
 # →
-# spawn_room: Spawn dungeon room with platform pattern
-# boss_arena: Large circular arena with traps
+# boss_arena
+# spawn_room
 ```
 
 ---
@@ -143,24 +142,24 @@ fp = await fingerprint()
 
 ---
 
-## scene_diff(fp1: str, fp2: str)
+## scene_diff()
 
-**Read-only.** Compare two fingerprints; report differences.
+**Read-only.** Compare the current scene hierarchy with the previous `scene_diff()` snapshot. The first call stores a snapshot; later calls report added and removed hierarchy lines.
 
 ```python
-fp_before = await fingerprint()
-# ... perform edits ...
-fp_after = await fingerprint()
+await scene_diff()
+# → SNAPSHOT SAVED (first call — no diff yet)
 
-diff = await scene_diff(fp_before, fp_after)
+# ... perform edits ...
+
+diff = await scene_diff()
 # →
-# Changes:
-#   Player/Health: 100 → 50
-#   Enemy count: 3 → 5
-#   Door/isOpen: false → true
+# DIFF: +1 -1
+# + Enemy ...
+# - OldSpawn ...
 ```
 
-**Output:** Structured list of property deltas or "IDENTICAL".
+**Output:** Added/removed hierarchy lines or an unchanged result. Use `fingerprint()` separately for a compact state hash.
 
 ---
 
@@ -200,11 +199,11 @@ changes = await get_changes(clear=False)  # Read but don't clear log
 
 ```python
 await save_session()
-# → Session saved to /Users/german/Work/python/unity-biome-mcp/.claude/session-context.json
+# → Session saved to <project>/.claude/session-context.json
 ```
 
 **File format:**
-```json
+```text
 1234567890.0
 === hierarchy ===
 Scene (Root)
@@ -221,7 +220,7 @@ Scene (Root)
 
 ## load_session()
 
-**Read-only.** Load previous session context; show diff vs current hierarchy.
+**Read-only.** Load the previous session context and show it beside the current hierarchy.
 
 ```python
 await load_session()
@@ -232,11 +231,11 @@ await load_session()
 # 
 # Current:
 # Scene (Root)
-#   Player (inactive)  ← changed
-#   Enemy (active)     ← added
+#   Player (inactive)
+#   Enemy (active)
 ```
 
-**Returns:** 2-part output: previous snapshot + current state + diff markers.
+**Returns:** Two sections: the timestamped previous snapshot and the current hierarchy. It does not compute diff markers.
 
 **If no previous session:** "No previous session found."
 
@@ -248,7 +247,7 @@ await load_session()
 
 ```python
 await screenshot_baseline("menu_screen", width=1280, height=720, camera="UICamera")
-# → Baseline saved: /Users/german/.../baselines/menu_screen.png
+# → Baseline saved: <project>/.claude/baselines/menu_screen.png
 ```
 
 **Multi-baseline workflow:**
@@ -322,8 +321,7 @@ await save_skill(
 # Save template using that skill
 await save_template(
     name="combat_arena",
-    description="Combat ready scene",
-    template_code="use_skill('setup_combat')"
+    code='new GameObject("CombatArena");'
 )
 
 # Session recovery

@@ -3,7 +3,7 @@
 ## Overview
 
 Serialization of Unity data into compact text format:
-- **HierarchySerializer**: scene → text tree (11x compression)
+- **HierarchySerializer**: scene → compact text tree
 - **ComponentSerializer**: components → key-value (90% vs JSON)
 - **ConsoleCapture**: logs → formatted text
 - **ScreenshotCapture**: window → base64 PNG
@@ -108,7 +108,7 @@ Isolates serialization to a single scene in multi-scene projects.
 ### Token Budget
 
 - 50 objects: ~350 tokens (vs ~4000 JSON)
-- Compression: **11x**
+- Compact text mode omits repeated structure and default values
 
 ## Implementation Notes (for Developer)
 
@@ -340,11 +340,11 @@ m_UseGravity: true
 - Separator `: ` (colon-space), sections separated by `---`
 - Component headers: `[TypeName]`
 - Handles all built-in types: int, float, bool, string, Vector3, Color, Enum, ObjectReference, etc.
-- **Float format**: ToString("G4") — 4 significant figures (e.g., 1.234, 0.005678 → "0.005678") for 300-600 token savings per response
+- **Float format**: ToString("G4") — 4 significant figures (for example, 1.234 or 0.005678)
 - Null reference → `null`
 - Arrays → element-per-line with `[i]` indices
 - Skips internal Unity properties (m_Script, m_ObjectHideFlags, etc.)
-- ~90% compression vs JSON
+- Compact key-value output instead of repeated JSON structure
 
 ### Usage
 

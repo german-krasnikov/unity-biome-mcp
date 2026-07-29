@@ -41,7 +41,13 @@ Settings, Setup Wizard, diagnostics, plugin settings, and future editor windows.
 - Every page that can exceed the minimum window height must own a `ScrollView`.
   Use `ListView` virtualization for large flat repeated datasets. Grouped lists
   may use lazy disclosures when virtualization would destroy hierarchy.
-- Use familiar icon buttons for icon-only commands and always set a tooltip.
+- Preserve a visible keyboard focus state and a logical tab order. Do not remove
+  native focus styling without replacing it with an equally clear state.
+- Use familiar icon buttons for icon-only commands and always set a tooltip and
+  stable control name. Where a text label fits, keep it visible; a tooltip alone
+  is not an accessible name.
+- Pair color-coded status with text or a familiar icon. Color must not be the only
+  distinction between ready, working, warning, and error states.
 
 ## Motion
 
@@ -80,6 +86,12 @@ Settings, Setup Wizard, diagnostics, plugin settings, and future editor windows.
 - UI Toolkit has no portable USS blur filter. Build a small aura from one or two
   larger translucent elements behind the core instead of a blur shader or
   repeatedly generated texture.
+- Nonessential motion must have one project-level off switch, not separate
+  per-window settings. When motion is disabled, skip scheduled loops and render
+  the final state immediately.
+- A static frame must communicate the same status and action as the animated
+  state. Tests must cover the motion-disabled path and verify that it schedules
+  no recurring work.
 
 ## State And Feedback
 

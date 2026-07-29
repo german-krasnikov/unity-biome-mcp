@@ -10,10 +10,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.0] — 2026-07-29 — Documentation refresh
+
+**Docs:**
+- Complete README rewrite with auto-generated stats and comparison hero
+- Rewrote install guides for 10 AI clients (Claude Code, Cursor, Windsurf, Codex, Gemini, Junie, Kimi, OpenCode, VS Code, Rider)
+- Added: comparison page, settings reference, chat usage guide, install index
+- Refreshed all AI/ knowledge files to match current codebase
+- Streamlined CONTRIBUTING.md and docs/README.md
+
 ## [v1.2.0] — 2026-07-29 — UI polish, animations, BiomeUI utilities
 
 **C# — New UI Components:**
-- `BiomeParticleBurst.cs`: pooled editor particle burst system with 8 motion patterns (Confetti, Sparkle, Rise, Orbit, Spiral, Wave, Fountain, Scatter) for celebrations/effects
+- `BiomeParticleBurst.cs`: pooled 12-particle radial event burst plus pooled ambient fields with 8 UI-specific motion themes; ambient loops pause while detached
 - `BiomeToggleGroup.cs`: radio-button-style toggle group with tri-state master, accordion behavior, filter API
 - `BiomeUI.cs`: shared UI utility class — style loading, button factories (`PrimaryButton`, `SecondaryButton`, `QuietButton`), `Section()`, `StatusLabel()`, `SetExclusiveClass()`, `ShakeX()` animation
 - `EcosystemHeaderAnim.cs`: Plugins node graph + Version Picker timeline scanner header animations
@@ -49,7 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/plugins/ui-toolkit-best-practices.md`: UI Toolkit best practices guide
 - AI knowledge files updated: architecture, animation, ui, chat-view, particles, structure
 
-<!-- tests: 4753 unit + 284 live + 4 live_cli + C# (6753+) + 36 reload = 11830+ -->
 
 ## [v1.1.0] — 2026-07-28 — Windows connection stability, UPM package page
 
@@ -624,7 +632,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.79.1] — 2026-07-11 — run_playtest path= parameter, scenarios/fuzzer removal, scene_session merge
 
 **Added:**
-- `run_playtest(path="Playtests/farm.playtest")` — C# reads file server-side; ~15 tokens vs 300-800 inline. `path` and `script` are mutually exclusive. `defs` param works with both modes. `_explicit_path=True` bypasses middleware length check for file paths. Path traversal guard in C# (`GetFullPath` + `StartsWith` check).
+- `run_playtest(path="Playtests/smoke.playtest")` — C# reads file server-side; ~15 tokens vs 300-800 inline. `path` and `script` are mutually exclusive. `defs` param works with both modes. `_explicit_path=True` bypasses middleware length check for file paths. Path traversal guard in C# (`GetFullPath` + `StartsWith` check).
 - `test_playtest_path.py` (Python) + `PlaytestPathTests.cs` (C#) — new tests for file-based playtest execution.
 
 **Removed:**
@@ -666,7 +674,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AliasExpander.GetTable()` used `a.path` only → query aliases lost `|component|field`
 - New `BuildPipePath(a)` helper preserves full pipe path for ValPath aliases
 - `query_state queries=$alias` now resolves to `path|component|field` correctly
-- `run_playtest` without `INCLUDE farm_core.defs` works with PlaytestConfig aliases
+- `run_playtest` can use `PlaytestConfig` aliases without an explicit
+  project-specific `INCLUDE`
 
 **Fixed — Readonly batch blast radius false positive:**
 - `_is_batch_readonly()` in `middleware_guards.py` checks all batch commands against READ_CMDS

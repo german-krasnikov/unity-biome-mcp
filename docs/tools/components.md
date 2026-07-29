@@ -30,7 +30,7 @@ See [Object Tools — unwire_event](objects.md#unwire_event) for parameters.
 1. **Create UI**
    ```python
    await create_ui(type="Button", name="PauseButton", anchor="top-right",
-                  text="Pause", fontSize="24")
+                  text="Pause", font_size="24")
    ```
 
 2. **Wire to game controller**
@@ -49,7 +49,9 @@ See [Object Tools — unwire_event](objects.md#unwire_event) for parameters.
 4. **Test in play mode**
    ```python
    await editor("play")
-   await wait_until(timeout=10)  # Simulate gameplay
+   await run_playtest(script="CLICK /Canvas/PauseButton")
+   await wait_until(path="GameController", component="GameController",
+                    field="IsPaused", value="true", timeout=10)
    await editor("stop")
    ```
 

@@ -19,7 +19,7 @@ Creates UI elements with smart defaults.
 | pivot | no | pivot (x,y) |
 | color | no | hex #RRGGBB or #RRGGBBAA |
 | text | no | text for Text/Button |
-| fontSize | no | font size |
+| font_size | no | font size |
 
 **Type behaviors:**
 - Canvas: Canvas + CanvasScaler(ScaleWithScreenSize, 1920x1080) + GraphicRaycaster + auto EventSystem
@@ -50,10 +50,10 @@ bottom-left, bottom-center, bottom-right, top-stretch, bottom-stretch, left-stre
 ## Architecture
 
 ### Files
-- `UIHelper.cs` (~298 lines) — CreateUI, SetRect, anchor presets, auto-Canvas, TMPro detection
-- `CommandRouter.cs` — 2 cases (ExecCreateUI, ExecSetRect)
-- `MCPSettings.cs` — create_ui, set_rect in CoreToolNames
-- `tools/ui.py` — 2 MCP tools with _RW annotation
+- `UIHelper.cs` — CreateUI, SetRect, anchor presets, auto-Canvas, TMPro detection
+- `CommandRouter.MediaHandlers.cs` — handlers for the UI commands
+- `MCPSettings.cs` — `create_ui` and `set_rect` in the MEDIA category
+- `tools/ui.py` — 4 MCP tools: `create_ui`, `set_rect`, `menu`, and `shader`
 
 ### Dependencies
 - `ValueParser.ParseVector2()` — (x,y) parsing
@@ -74,8 +74,8 @@ set_rect path=/MenuCanvas/ExitBtn anchor=center pos=(0,-40)
 ```
 
 ## Tests
-- C#: 15 tests in `MCPUITests.cs` (Canvas, Panel, Button, Text, Image, SetRect, errors, batch, play mode guard)
-- Python: 8 tests in `test_server_ui.py` (bridge calls, args, errors)
+- C#: `unity-test-project/Assets/Tests/Editor/Visual/UITests.cs`
+- Python: `server/tests/test_server_ui.py`
 
 ## Related
 - Knowledge: `AI/intent-tools.md` (ui_intent DSL tool for layout automation)

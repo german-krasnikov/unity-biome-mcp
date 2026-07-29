@@ -1,6 +1,15 @@
 # MCP Tools Reference
 
-All tools organized by category. TIER1 tools (45 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools discovered dynamically.
+Tool index organized by category. TIER1 tools (45 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools are discovered dynamically.
+
+Parameter lists are intentionally not duplicated here because the MCP schemas are the runtime contract. Resolve the current schema before calling an unfamiliar tool:
+
+```python
+await resolve_tool_schema(tools="get_component,inspect")
+await discover_tools(category="SCENE", enable=False, structured=True)
+```
+
+`resolve_tool_schema` accepts a comma-separated `tools` string and returns the captured full descriptions and parameter schemas. `discover_tools` browses or enables categories; it is not the parameter-schema source.
 
 **direct_only tools** cannot be used inside `batch` commands — call them as typed MCP tools directly. Affects: `animator_intent`, `ask`, `await_compile`, `budget_status`, `configure_objects`, `console_mark`, `debug`, `discover_tools`, `do`, `doctor`, `get_console_since`, `get_metrics`, `lint_playtest_suite`, `list_connections`, `list_skills`, `list_templates`, `mcp_status`, `navmesh_query`, `release_smoke`, `resolve_tool_schema`, `run_playtest_suite`, `run_tests_wait`, `screenshot_baseline`, `screenshot_compare`, `set_properties`, `setup_objects`, `snapshot`, `ui_intent`, `validate_playtest_aliases`, `vfx_intent`, `watch`.
 
@@ -10,65 +19,60 @@ All tools organized by category. TIER1 tools (45 always-visible) require no `dis
 
 The minimum 15 tools needed for any Unity task. Always visible, no gating.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| get_hierarchy | Read scene tree | summary, depth |
-| get_component | Read component values | path, component, fields (projection), compress (strip defaults) |
-| inspect | Batch-read N objects' components | query, filter, fields, compress |
-| set_property | Write component value | path, component, prop, value |
-| create_object | Spawn GameObject | name, parent, components |
-| manage_component | Add/remove components | path, action, component |
-| batch | Run 2+ ops atomically; readonly batches skip blast-radius | commands (JSON array), validate_aliases |
-| get_console | Read Editor.log tail | lines, severity |
-| get_compile_errors | List C# compile errors | — |
-| editor | Open Editor windows / control play mode | window_type, path, action |
-| apply_scene_change | Execute planned mutations with post-verify and save | plan_id, commands, verify, save |
-| execute_code | Run C# in Editor | code (C# method body), undo_label |
-| resolve_scene_refs | Resolve $alias, /path, t:Type refs to scene paths | refs, fields |
-| scene_change_plan | Pre-flight gate + checkpoint before scene edits | goal, targets, dry_run |
-| verify_after_change | 5-gate pipeline: compile → errors → console → tests → playtests | changed_files, test_filter, run_tests_mode, playtests, mark_id, timeout |
+| Tool | Purpose |
+| ------ | --------- |
+| get_hierarchy | Read scene tree |
+| get_component | Read component values |
+| inspect | Batch-read N objects' components |
+| set_property | Write component value |
+| create_object | Spawn GameObject |
+| manage_component | Add/remove components |
+| batch | Run compatible operations sequentially; `atomic=true` reverts Undo-recorded Unity changes on failure |
+| get_console | Read Editor.log tail |
+| get_compile_errors | List C# compile errors |
+| editor | Open Editor windows / control play mode |
+| apply_scene_change | Execute planned mutations with post-verify and save |
+| execute_code | Run C# in Editor |
+| resolve_scene_refs | Resolve $alias, /path, t:Type refs to scene paths |
+| scene_change_plan | Pre-flight gate + checkpoint before scene edits |
+| verify_after_change | 5-gate pipeline: compile → errors → console → tests → playtests |
 
-## TIER1 Tools (45 total — always visible)
+## Non-Core TIER1 Tools (30 — always visible)
 
-Includes CORE (15) + individually promoted tools below.
+Together with CORE (15), these make the 45 always-visible TIER1 tools.
 
-| Tool | Purpose | Key Params | Category |
-|------|---------|------------|----------|
-| delete_object | Remove GameObject | path | SCENE |
-| set_parent | Reparent GameObject | path, parent | SCENE |
-| set_active | Toggle active flag | path, active | SCENE |
-| scene | List/load/save scenes | action, name | SCENE |
-| search_scene | Find objects by pattern | query, type | SCENE |
-| configure_objects | Batch configure components | objects_and_config (JSON) | SCENE |
-| setup_objects | Batch create + wire objects | spec (JSON template array) | SCENE |
-| scene_change_plan | Pre-flight gate + checkpoint before scene edits | goal, targets, dry_run | SCENE |
-| apply_scene_change | Execute planned mutations with post-verify and save | plan_id, commands, verify, save | SCENE |
-| screenshot | Capture frame | width, height, camera, path (output) | MEDIA |
-| get_console_since | Console entries after a watermark | mark_id, level, count | RUNTIME |
-| console_mark | Create timestamp watermark for log slicing | label | RUNTIME |
-| await_compile | Block until compile done | timeout | VERIFY |
-| compile_preflight | Check compile readiness | fix (bool) | VERIFY |
-| validate_references | Check all refs valid | fix (bool) | VERIFY |
-| lint_scene_refs | 3-pass linter for scene refs in DSL/batch commands | path or snippet | VERIFY |
-| resolve_scene_refs | Resolve $alias, /path, t:Type refs to scene paths | refs, fields | VERIFY |
-| verify_after_change | 5-gate pipeline: compile → errors → console → tests → playtests | changed_files, test_filter, run_tests_mode, playtests, mark_id, timeout | VERIFY |
-| run_tests | Execute NUnit tests | mode (EditMode/PlayMode), filter | TESTS |
-| run_tests_wait | Synchronous NUnit test runner; blocks until done or timeout | mode, filter, timeout, poll_interval | TESTS |
-| run_playtest | Run playtest DSL script | script (DSL) or path (file path), abort_on_fail | TESTS |
-| lint_playtest | Static DSL preflight — no runtime needed | path or script | TESTS |
-| get_test_results | Poll test status | — | TESTS |
-| discover_tools | Get tool schemas / enable a category | filter | SYSTEM |
-| mcp_status | Compact scene/compile/play-mode/alias status snapshot | — | SYSTEM |
-| alias_status | Returns alias cache state (loaded/count/source/stale) | — | SYSTEM |
-| release_smoke | Run status + aliases + compile gates in one call | — | SYSTEM |
-| ask | Query LLM about scene | query, context | SYSTEM |
-| ask_user | Prompt human | question, options | SYSTEM |
-| permission_prompt | Gate sensitive ops | operation, details | SYSTEM |
-| reconnect_unity | Reconnect TCP socket | port (auto-discover) | SYSTEM |
-| resolve_tool_schema | Deferred schema fetch | tool_name | SYSTEM |
-| execute_code | Run C# in Editor | code (C# method body), undo_label | SYSTEM |
-| sync_unity | Reload and restart | reason, wait (bool) | SYSTEM |
-| undo_last | Revert last N editor operations | steps | SYSTEM |
+| Tool | Purpose | Category |
+| ------ | --------- | ---------- |
+| delete_object | Remove GameObject | SCENE |
+| set_parent | Reparent GameObject | SCENE |
+| set_active | Toggle active flag | SCENE |
+| scene | List/load/save scenes | SCENE |
+| search_scene | Find objects by pattern | SCENE |
+| configure_objects | Batch configure components | SCENE |
+| setup_objects | Batch create + wire objects | SCENE |
+| screenshot | Capture frame | MEDIA |
+| get_console_since | Console entries after a watermark | RUNTIME |
+| console_mark | Create timestamp watermark for log slicing | RUNTIME |
+| await_compile | Block until compile done | VERIFY |
+| compile_preflight | Check compile readiness | VERIFY |
+| validate_references | Check all refs valid | VERIFY |
+| lint_scene_refs | 3-pass linter for scene refs in DSL/batch commands | VERIFY |
+| run_tests | Execute NUnit tests | TESTS |
+| run_tests_wait | Synchronous NUnit test runner; blocks until done or timeout | TESTS |
+| run_playtest | Run playtest DSL script | TESTS |
+| lint_playtest | Static DSL preflight — no runtime needed | TESTS |
+| get_test_results | Poll test status | TESTS |
+| discover_tools | Browse or enable a category | SYSTEM |
+| mcp_status | Compact scene/compile/play-mode/alias status snapshot | SYSTEM |
+| alias_status | Returns alias cache state (loaded/count/source/stale) | SYSTEM |
+| release_smoke | Run status + aliases + compile gates in one call | SYSTEM |
+| ask | Query LLM about scene | SYSTEM |
+| ask_user | Prompt human | SYSTEM |
+| permission_prompt | Gate sensitive ops | SYSTEM |
+| reconnect_unity | Reconnect TCP socket | SYSTEM |
+| resolve_tool_schema | Deferred schema fetch | SYSTEM |
+| sync_unity | Reload and restart | SYSTEM |
+| undo_last | Revert last N editor operations | SYSTEM |
 
 ---
 
@@ -78,86 +82,86 @@ Includes CORE (15) + individually promoted tools below.
 
 Scene manipulation beyond CORE/TIER1 basics.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| find_objects | Search objects by query | query, type |
-| get_object_detail | Detailed object state | path |
-| get_components_list | List components on object | path |
-| get_selection | Current editor selection | — |
-| get_unity_events | Returns all UnityEvent fields on a component with target paths | path, component |
-| get_spatial_context | Proximity query | path, radius, layer_mask |
-| set_properties | Batch set properties | objects_and_values (JSON) |
-| set_material | Assign material to object | path, material_path, slot |
-| set_property_delta | Relative property change | path, component, prop, delta |
-| set_sibling_index | Change sibling order | path, index |
-| set_active | (also TIER1) Toggle active flag | path, active |
-| rename_object | Rename GameObject, returns new path | path, name |
-| object_diff | Compare two objects | path_a, path_b |
-| transfer_object | Move object between scenes | path, target_scene |
-| ping_object | Flash object in hierarchy | path |
-| autofit_collider | Auto-fit collider bounds | path |
-| check_colliders | Collision layer conflicts | fix (bool), path (optional) |
-| spatial_query | Radial/box search + filter | origin, radius, layer_mask, type_filter |
-| region_clear | Clear region of GameObjects | region, layer_mask |
-| navmesh_query | Pathfinding query | start_pos, end_pos, area_mask |
-| scene_environment | Get/set scene lighting/environment | action, property, value |
-| scene_diff | Compare two fingerprints | fp1, fp2 |
+| Tool | Purpose |
+| ------ | --------- |
+| find_objects | Search objects by query |
+| get_object_detail | Detailed object state |
+| get_components_list | List components on object |
+| get_selection | Current editor selection |
+| get_unity_events | Returns all UnityEvent fields on a component with target paths |
+| get_spatial_context | Proximity query |
+| set_properties | Batch set properties |
+| set_material | Assign material to object |
+| set_property_delta | Relative property change |
+| set_sibling_index | Change sibling order |
+| set_active | (also TIER1) Toggle active flag |
+| rename_object | Rename GameObject, returns new path |
+| object_diff | Compare two objects |
+| transfer_object | Move object between scenes |
+| ping_object | Flash object in hierarchy |
+| autofit_collider | Auto-fit collider bounds |
+| check_colliders | Collision layer conflicts |
+| spatial_query | Radial/box search + filter |
+| region_clear | Clear region of GameObjects |
+| navmesh_query | Pathfinding query |
+| scene_environment | Get/set scene lighting/environment |
+| scene_diff | Compare the current hierarchy with the previous `scene_diff()` snapshot |
 
 ### COMPONENTS (4 tools)
 
 Component event wiring.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| wire_event | Connect event to method | path, component, event, target_path, target_method |
-| unwire_event | Disconnect event listener | path, component, event, target_path |
-| auto_wire | Auto-wire compatible fields by type | path, component, event |
-| references | Find asset references | asset_path, include_indirect |
+| Tool | Purpose |
+| ------ | --------- |
+| wire_event | Connect event to method |
+| unwire_event | Disconnect event listener |
+| auto_wire | Auto-wire compatible fields by type |
+| references | Find asset references |
 
 ### ASSETS (7 tools)
 
 Asset database: import/export, prefab, ScriptableObject, project settings.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| asset | Asset DB operations | action (find/get_info/create/move/duplicate/delete/import/export), path, type, name |
-| prefab | Prefab lifecycle | action (save/create_variant/apply/revert), path, asset_path |
-| scriptable_object | ScriptableObject create/read/write | action, type, path, values |
-| project_settings | Project config | action (get/set), target (tags/layers/quality), prop, value |
-| shader | Find shader, list properties | name, action (find/get_props) |
-| material | Assign/inspect material | path, material_path, slot |
-| material_audit | Audit material usage and performance | filter, fix (bool) |
+| Tool | Purpose |
+| ------ | --------- |
+| asset | Asset DB operations |
+| prefab | Prefab lifecycle |
+| scriptable_object | ScriptableObject create/read/write |
+| project_settings | Project config |
+| shader | Find shader, list properties |
+| material | Assign/inspect material |
+| material_audit | Audit material usage and performance |
 
 ### MEDIA (14 tools)
 
 Visual output, UI, animations, VFX, rendering analysis.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| screenshot_baseline | Save baseline for regression | name, width, height, camera |
-| screenshot_compare | Diff baseline ↔ current | name, mode (auto/pixel/structural/targeted), question |
-| animation | Play clip on Animator | path, clip_name, speed, loop |
-| timeline | Control Timeline | path, action (play/pause/stop), time |
-| animator | Get/set Animator parameters | path, param_name, param_type, value |
-| particle | Emit/stop particles | path, action (play/stop/clear), count |
-| create_ui | Spawn UI elements | type, name, parent, rect |
-| set_rect | Modify RectTransform | path, anchor, offset_min, offset_max, size, font_size |
-| validate_layout | Check UI constraints | path, fix (bool) |
-| ui_intent | AI ui description → components | parent, description, context |
-| vfx_intent | AI vfx description → settings | target, intent, kind |
-| render_analyze | Rendering bottleneck analysis (9 actions) | action (stats/overdraw/materials/shaders/batching/lights/shadow_audit/probe_audit/frame_debug) |
-| analyze_lod_culling | LOD and culling audit | — |
+| Tool | Purpose |
+| ------ | --------- |
+| screenshot_baseline | Save baseline for regression |
+| screenshot_compare | Diff baseline ↔ current |
+| animation | Play clip on Animator |
+| timeline | Control Timeline |
+| animator | Get/set Animator parameters |
+| particle | Emit/stop particles |
+| create_ui | Spawn UI elements |
+| set_rect | Modify RectTransform |
+| validate_layout | Check UI constraints |
+| ui_intent | AI ui description → components |
+| vfx_intent | AI vfx description → settings |
+| render_analyze | Rendering bottleneck analysis (9 actions) |
+| analyze_lod_culling | LOD and culling audit |
 
 ### VERIFY (10 tools)
 
 Compile, references, lint, scene audit.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| scan_scene | Audit for issues | checks (CSV: refs/colliders/physics/null_components) |
-| scene_health | Comprehensive scene audit | — |
-| diagnose | Deep troubleshooting | system (compile/tcp/memory/reload) |
-| serialized_field_rename_audit | Scan prefabs/scenes/SOs for stale YAML after field rename | — |
+| Tool | Purpose |
+| ------ | --------- |
+| scan_scene | Audit for issues |
+| scene_health | Comprehensive scene audit |
+| diagnose | Deep troubleshooting |
+| serialized_field_rename_audit | Scan prefabs/scenes/SOs for stale YAML after field rename |
 
 *(Plus 6 in TIER1: await_compile, compile_preflight, validate_references, lint_scene_refs, resolve_scene_refs, verify_after_change)*
 
@@ -165,24 +169,24 @@ Compile, references, lint, scene audit.
 
 Play Mode operations, performance, debugging, watches.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| invoke_method | Call method at runtime | path, component, method, args (JSON) |
-| set_runtime_property | Set field/property at runtime | path, component, prop, value |
-| wait_until | Busy-wait on condition | query, op, value, timeout |
-| move_to | Pathfind + walk to position | path, dest_pos, speed, timeout |
-| query_state | Read runtime GameObject state | path, queries (CSV) |
-| get_frame_stats | Instant performance snapshot | include= (field filter) |
-| profile | CPU/GPU profiler control | action (start/stop/dump/analyze/compare), target |
-| get_memory | Memory profiling | detailed (bool) |
-| debug_animator | Animator state inspection | path |
-| debug_physics | Physics debugger | mode, layer_mask |
-| debug | Session debugger | action (run/step/continue), bp_path |
-| snapshot | Take memory snapshot | name, labels |
-| watch | Watch expression lifecycle | action (add/get/remove/clear/reset), expr, name |
-| get_watches | Retrieve all watches | — |
-| get_metrics | Profiling metrics | filter |
-| runtime_snapshot | Take runtime memory snapshot | name, labels |
+| Tool | Purpose |
+| ------ | --------- |
+| invoke_method | Call method at runtime |
+| set_runtime_property | Set field/property at runtime |
+| wait_until | Busy-wait on condition |
+| move_to | Pathfind + walk to position |
+| query_state | Read runtime GameObject state |
+| get_frame_stats | Instant performance snapshot |
+| profile | CPU/GPU profiler control |
+| get_memory | Memory profiling |
+| debug_animator | Animator state inspection |
+| debug_physics | Physics debugger |
+| debug | Session debugger |
+| snapshot | Take memory snapshot |
+| watch | Watch expression lifecycle |
+| get_watches | Retrieve all watches |
+| get_metrics | Profiling metrics |
+| runtime_snapshot | Take runtime memory snapshot |
 
 *(Plus console_mark + get_console_since in TIER1)*
 
@@ -190,16 +194,16 @@ Play Mode operations, performance, debugging, watches.
 
 NUnit, playtest suites, alias sync.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| run_playtest_suite | Run multiple .playtest files sequentially | paths (glob/CSV), timeout_per_test, stop_on_fail, auto_play |
-| test_step | Execute single DSL step | step (JSON), config |
-| lint_playtest_suite | Lint all matched .playtest files; aggregated report | paths (glob/CSV) |
-| validate_playtest_aliases | Diff .defs text file vs PlaytestConfig.asset | defs, asset |
-| sync_playtest_aliases_from_defs | Import .defs → overwrite PlaytestConfig.asset aliases | defs, asset |
-| export_playtest_aliases_to_defs | Export PlaytestConfig.asset aliases → .defs text file | asset, defs |
-| get_test_count | Count available NUnit tests | filter |
-| get_test_progress | Poll test run progress | — |
+| Tool | Purpose |
+| ------ | --------- |
+| run_playtest_suite | Run multiple .playtest files sequentially |
+| test_step | Execute single DSL step |
+| lint_playtest_suite | Lint all matched .playtest files; aggregated report |
+| validate_playtest_aliases | Diff .defs text file vs PlaytestConfig.asset |
+| sync_playtest_aliases_from_defs | Import .defs → overwrite PlaytestConfig.asset aliases |
+| export_playtest_aliases_to_defs | Export PlaytestConfig.asset aliases → .defs text file |
+| get_test_count | Count available NUnit tests |
+| get_test_progress | Poll test run progress |
 
 *(Plus run_tests, run_tests_wait, run_playtest, lint_playtest, get_test_results in TIER1)*
 
@@ -207,32 +211,32 @@ NUnit, playtest suites, alias sync.
 
 Meta, session skills, templates, config, code tools.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| save_skill | Store reusable C# or batch | name, description, code |
-| use_skill | Execute saved skill | name, params (key=value CSV) |
-| list_skills | Show all skills + usage | — |
-| save_template | Store scene template | name, description, template_code |
-| apply_template | Instantiate template | name, params (key=value CSV) |
-| list_templates | Show all templates | — |
-| fingerprint | Hash scene state | — |
-| get_changes | Log editor events since last call | clear (bool) |
-| save_session | Snapshot hierarchy to .claude/session-context.json | — |
-| load_session | Load + diff previous session | — |
-| recompile | Force script compilation | — |
-| get_schema | Inspect class/type schema | type_name, include_bases |
-| auto_fix | Apply code fix suggestion | file_path, fix_id |
-| smart_build | Rebuild affected assemblies | affected_paths |
-| checkpoint | Save named revision | name, description |
-| menu | Execute Editor menu item | menu_path |
-| get_capabilities | List all registered C# commands | — |
-| budget_status | Token usage tracking | — |
-| set_llm_config | Store LLM settings | param, value |
-| list_connections | Show connection status with semantic states | — |
-| doctor | Health diagnostics | fix (auto-fix stale PIDs) |
-| get_enabled_tools | List visible tools | — |
-| animator_intent | AI animator description → controller | target, intent |
-| do | Execute arbitrary code via AI intent (direct_only — cannot use in batch) | prompt, context, action |
+| Tool | Purpose |
+| ------ | --------- |
+| save_skill | Store reusable C# or batch |
+| use_skill | Execute saved skill |
+| list_skills | Show all skills + usage |
+| save_template | Store scene template |
+| apply_template | Instantiate template |
+| list_templates | Show all templates |
+| fingerprint | Hash scene state |
+| get_changes | Log editor events since last call |
+| save_session | Snapshot hierarchy to .claude/session-context.json |
+| load_session | Show the saved and current session hierarchies |
+| recompile | Force script compilation |
+| get_schema | Inspect class/type schema |
+| auto_fix | Apply code fix suggestion |
+| smart_build | Rebuild affected assemblies |
+| checkpoint | Save named revision |
+| menu | Execute Editor menu item |
+| get_capabilities | List all registered C# commands |
+| budget_status | Token usage tracking |
+| set_llm_config | Store LLM settings |
+| list_connections | Show connection status with semantic states |
+| doctor | Health diagnostics |
+| get_enabled_tools | List visible tools |
+| animator_intent | AI animator description → controller |
+| do | Execute arbitrary code via AI intent (direct_only — cannot use in batch) |
 
 *(Plus alias_status, ask, ask_user, discover_tools, execute_code, mcp_status, permission_prompt, reconnect_unity, release_smoke, resolve_tool_schema, sync_unity, undo_last in TIER1)*
 

@@ -17,10 +17,10 @@ Asset database CRUD, prefab lifecycle, material configuration, ScriptableObject 
 | validate_move | Test move without executing | source, dest | `asset("validate_move", source="Assets/Old/X.cs", dest="Assets/New/X.cs")` |
 | duplicate | Copy asset | path | `asset("duplicate", path="Assets/Material.mat")` |
 | delete | Remove asset | path | `asset("delete", path="Assets/Temp.prefab")` |
-| get_dependencies | List dependencies | path, include_indirect (bool) | `asset("get_dependencies", path="Assets/Scene.unity", include_deps=True)` |
+| get_dependencies | List dependencies | path, recursive (bool) | `asset("get_dependencies", path="Assets/Scene.unity", recursive=True)` |
 | import_settings | Configure import params | path, prop, value (varies by type) | `asset("import_settings", path="Assets/Mesh.fbx", prop="importer_type", value="humanoid")` |
 | export_package | Serialize to .unitypackage | path, output (filesystem path), include_deps (bool) | `asset("export_package", path="Assets/MyFeature", output="/tmp/export.unitypackage", include_deps=True)` |
-| import_package | Load .unitypackage | path (filesystem), source | `asset("import_package", path="/tmp/export.unitypackage")` |
+| import_package | Load .unitypackage | path (filesystem) | `asset("import_package", path="/tmp/export.unitypackage")` |
 
 **Batch find:**
 ```python
@@ -34,7 +34,7 @@ await asset("get_dependencies", path="Assets/", recursive=True)
 
 ---
 
-## material(action, path=None, object_path=None, shader=None, prop=None, value=None, source=None, targets=None, filter=None, fields=None)
+## material(action, path=None, object_path=None, shader=None, prop=None, value=None, source=None, targets=None, slot=None, filter=None, target=None)
 
 **Write.** Material asset operations + runtime material assignment.
 
@@ -45,11 +45,11 @@ await asset("get_dependencies", path="Assets/", recursive=True)
 | create | Create material with shader | path, shader (name) | `material("create", path="Assets/NewMat.mat", shader="Standard")` |
 | get | Read material properties | path OR object_path | `material("get", path="Assets/PlayerMat.mat")` |
 | set | Modify material property | path OR object_path, prop, value | `material("set", path="Assets/Mat.mat", prop="_Color", value="1,0,0,1")` |
-| set_fields | Batch property setting — multiple `prop=value` pairs | path OR object_path, fields (`\n`-separated `prop=value`) | `material("set_fields", path="Assets/Mat.mat", fields="_Color=1,0,0,1\n_Glossiness=0.8")` |
+| set_fields | Batch property setting — multiple `prop=value` pairs | path, value (`\n`-separated `prop=value`) | `material("set_fields", path="Assets/Mat.mat", value="_Color=1,0,0,1\n_Glossiness=0.8")` |
 | copy | Clone + assign to scene objects | source (asset), targets (comma-sep scene paths) | `material("copy", source="Assets/Base.mat", targets="Player,Enemy")` |
 | list_properties | Enumerate all properties | path OR object_path | `material("list_properties", path="Assets/Mat.mat")` |
 | list_shaders | List available shaders with optional name filter | filter (optional substring) | `material("list_shaders", filter="URP")` |
-| get_shader_errors | Return shader compilation errors for a material | path OR object_path | `material("get_shader_errors", path="Assets/Mat.mat")` |
+| get_errors | Return shader compilation errors | path (shader asset) | `material("get_errors", path="Assets/Shaders/Effect.shader")` |
 
 **Shader lookup:**
 ```python
@@ -68,7 +68,7 @@ await material("set", object_path="Player", prop="_MainColor", value="0,1,0,1")
 
 ---
 
-## prefab(action, path=None, asset_path=None, base_path=None, variant_path=None, component=None, prop=None, value=None, add_component=None, remove_component=None, recursive=False)
+## prefab(action, path=None, asset_path=None, base_path=None, variant_path=None, component=None, prop=None, value=None, add_component=None, remove_component=None, recursive=False, mode=None, scope=None, format=None)
 
 **Write.** Prefab save, variant creation, apply/revert, component management, prefab editing (v0.56.0+).
 
@@ -103,7 +103,7 @@ await prefab("edit", asset_path="Assets/Prefabs/Player.prefab",
 
 ---
 
-## scriptable_object(action, path=None, type=None, prop=None, value=None, filter=None)
+## scriptable_object(action, path=None, type=None, prop=None, value=None, fields=None, filter=None)
 
 **Write.** ScriptableObject CRUD + type discovery.
 

@@ -4,9 +4,9 @@ Mark up screenshots in the Chat window to highlight issues or point out features
 
 ## Overview
 
-Annotations are visual overlays (lines, arrows, shapes, text) drawn on screenshots. They appear in LLM responses to help clarify communication.
+Annotations are visual overlays (lines, arrows, shapes, text) drawn on screenshots and attached to the next Chat request.
 
-**Access:** Chat window → Toolbar → Annotation tools (or keyboard shortcuts).
+**Access:** Capture or attach an image in MCP Chat, then open the annotation editor.
 
 ## Tools
 
@@ -16,9 +16,9 @@ Annotations are visual overlays (lines, arrows, shapes, text) drawn on screensho
 | Line | L | Straight line |
 | Arrow | A | Directional arrow |
 | Rectangle | R | Rect outline (supports fill) |
-| Ellipse | E | Oval outline (supports fill) |
+| Ellipse | E | Oval outline |
 | Text | T | Add text label |
-| Eraser | X | Remove individual strokes |
+| Eraser | X | Paint a transparent erase stroke |
 
 ## Color Palette
 
@@ -37,115 +37,102 @@ A single **active color** applies to all tools. Pick from the 8-color palette in
 
 **Stroke width** presets: Thin (2px), Medium (3px, default), Thick (5px).
 
-**Fill mode** (Rectangle and Ellipse only): None, Solid, or Semi-transparent.
+**Fill mode** (Rectangle only): None, Solid, or Semi-transparent.
 
 ## Usage
 
 ### Pen (Free-Hand)
-```
-1. Click Pen button or press P
-2. Click + drag to draw
-3. Release to finish stroke
-4. Repeat for additional strokes
-```
+
+1. Select **Pen** or press **P**.
+2. Drag to draw.
+3. Release to finish the stroke.
+4. Repeat for additional strokes.
 
 **Use case:** Circling UI elements, marking problem areas.
 
 ### Line (Straight)
-```
-1. Click Line button or press L
-2. Click start point
-3. Click end point
-4. Press Enter to confirm or Escape to cancel
-```
+
+1. Select **Line** or press **L**.
+2. Drag from the start point to the end point.
+3. Release to confirm.
 
 **Use case:** Connecting related elements, pointing along axis.
 
 ### Arrow (Directional)
-```
-1. Click Arrow button or press A
-2. Click start point (tail)
-3. Click end point (head)
-4. Arrow automatically orients
-```
+
+1. Select **Arrow** or press **A**.
+2. Drag from the tail to the head.
+3. Release to confirm.
 
 **Use case:** Show direction of movement, flow, sequence.
 
 ### Rectangle (Outline)
-```
-1. Click Rectangle button or press R
-2. Click top-left corner
-3. Drag to bottom-right
-4. Release to confirm
-```
+
+1. Select **Rectangle** or press **R**.
+2. Start at one corner of the target area.
+3. Drag to the opposite corner.
+4. Release to confirm.
 
 **Use case:** Highlight UI regions, problem zones, hitboxes.
 
 ### Ellipse (Oval)
-```
-1. Click Ellipse button or press E
-2. Click center
-3. Drag to set radius
-4. Release to confirm
-```
+
+1. Select **Ellipse** or press **E**.
+2. Start at the center.
+3. Drag to set the radius.
+4. Release to confirm.
 
 **Use case:** Highlight circular features (heads, spawners, projectiles).
 
 ### Text (Label)
-```
-1. Click Text button or press T
-2. Click location to place text
-3. Type label (single line)
-4. Press Enter to confirm
-```
+
+1. Select **Text** or press **T**.
+2. Select the label position.
+3. Type a single-line label.
+4. Press **Enter** to confirm.
 
 **Use case:** Add callouts, error names, coordinates.
 
-**Supported:** ASCII text, numbers, basic symbols.
+Text labels are single-line and are also included in the annotation metadata.
 
 ### Eraser
-```
-1. Click Eraser button or press X
-2. Click on a stroke to remove it
-```
 
-**Use case:** Remove individual annotations without clearing everything.
+1. Select **Eraser** or press **X**.
+2. Drag across marks to erase them.
+
+**Use case:** Remove part of a mark without clearing the canvas.
 
 ## Example Workflow
 
-```
-Screenshot taken automatically after scene change
-
-1. User sees issue in chat response
-2. In annotation toolbar: select Pen
-3. Draw circle around problematic UI element
-4. Select Text
-5. Type "Off by 10px"
-6. Select Arrow
-7. Draw from buggy element to expected position
-8. Press Enter to commit annotations
-9. Annotations visible in chat transcript
-10. LLM sees annotated image in prompt
-```
+1. Capture or attach a screenshot in MCP Chat.
+2. Open the annotation editor and select **Pen**.
+3. Circle the problematic UI element.
+4. Select **Text** and enter a short label such as `Off by 10px`.
+5. Select **Arrow** and point from the current position to the expected position.
+6. Select **Send to Chat** or press **Ctrl+Enter** / **Cmd+Enter**.
+7. Confirm that the annotated image appears as a context chip.
+8. Send the Chat request.
 
 ## Appearing in LLM Prompt
 
-Annotations are rasterized (baked) into the screenshot PNG before sending. The LLM receives:
+Annotations are rasterized into a composited PNG before sending. The request
+receives:
 
-- A single **binary `image_url` block** (the composited PNG with annotations burned in)
-- **Text metadata** (transcription of text labels and 3D coordinate annotations)
+- the composited image
+- text metadata with camera context and visible objects
+- 3D raycast results and text-label metadata when **Show 3D coordinates** is enabled
 
-No vector data is sent — the LLM sees the final image with all annotations visible.
+No vector command data is sent.
 
 ## Tips
 
 **Clear annotations:**
-- Click undo (Ctrl+Z) to remove last stroke
+- Click undo (Ctrl+Z) to remove the last annotation command
 - Clear all: Click "Clear" button in annotation toolbar
-- Revert: Press Escape before confirming
+- While entering text, press Escape to cancel that label
 
 **Visibility:**
-- Use contrasting colors (yellow on dark, teal on light)
+- Use contrasting colors (yellow on dark, blue on light)
 - Thin lines for precision; thicker for UI elements
 - Multiple arrows for flow sequences
 
@@ -177,4 +164,4 @@ No vector data is sent — the LLM sees the final image with all annotations vis
 
 ---
 
-**See also:** `docs/chat/backends.md` for backend chat features, `docs/features/session-skills.md` for storing screenshots as baselines.
+**See also:** [Using MCP Chat](using-chat.md) for the full Chat workflow and [Skills and Templates](../features/session-skills.md) for storing screenshots as baselines.

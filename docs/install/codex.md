@@ -1,60 +1,40 @@
-# Codex Setup
+# Codex
 
-The plugin auto-configures Codex automatically when you add it to your project. Works on **Windows, macOS, and Linux**.
+Prerequisite: complete the
+[Unity package installation](../getting-started/index.md#1-install-the-unity-package).
 
-## Prerequisites
+## Install and Sign In
 
-- Codex CLI installed and authenticated
-- Unity 6000.0+ with the `unity-biome-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or auto-assigned) free
-
-## Quick Setup
-
-### 1. Install Codex CLI
+Install Codex and complete its first-run sign-in using the [official Codex CLI guide](https://learn.chatgpt.com/docs/codex/cli):
 
 ```bash
-npm install -g @openai/codex
-codex --version
+codex
 ```
 
-Authenticate:
+## External MCP Client
 
-```bash
-codex login
-```
+Unity Biome MCP creates `.codex/config.toml` in the Unity project. Restart Codex
+after Unity creates or updates this file, open Codex from that project, and run
+the [first connection check](../getting-started/index.md#3-verify-the-first-connection).
 
-### 2. Add Plugin to Unity
+Codex uses TOML. Do not paste the standard `mcpServers` JSON into `config.toml`.
 
-1. Open **Window → Package Manager**
-2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
-4. Wait for import, then open any scene
+For user-level configuration instead, use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `codex`. It writes `~/.codex/config.toml`.
 
-The plugin auto-generates your Codex MCP config on first load.
+## In-Unity Chat
 
-### 3. Verify Installation (Optional)
+1. Open **MCP > Settings > Chat Settings > Codex Settings**.
+2. Confirm that the Codex binary is detected.
+3. Open **MCP > Chat** and select **Codex**.
 
-Run the diagnostic:
+MCP Chat uses the Codex CLI's existing authentication and starts `codex exec`
+for each turn. See [Chat Backends](../chat/backends.md#sessions) for current
+session behavior.
 
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
-```
+## Client-specific Troubleshooting
 
-## Use Codex From the Editor (Primary Workflow)
-
-1. Open Unity and wait for `[MCP] Server started on port <XXXX>` in the Console.
-2. Open **MCP → Chat**.
-3. Select **Codex** from the backend dropdown.
-4. Type a prompt and press Enter.
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| `codex: command not found` | Ensure `npm install -g @openai/codex` completed. Check `which codex` or `where.exe codex`. |
-| `unknown MCP server 'unity'` | Run Setup Wizard to auto-configure Codex MCP settings. |
-| MCP server fails to start | Run Setup Wizard → Diagnostics to check Python version and TCP port availability. |
-| Setup Wizard doesn't open in Unity | (1) Verify plugin is in Package Manager. (2) Close/reopen Unity. (3) Check Console for errors. |
-| Tools don't respond in Chat | Confirm Unity is open and Console shows `[MCP] Server started on port <XXXX>`. Run Setup Wizard → Diagnostics. |
-| `codex exec` blocks at startup (macOS/Linux) | Redirect stdin: append `</dev/null`. The plugin handles this automatically. |
-| Binary path resolution fails in Settings | Override manually: **Settings > Agent Chat > Codex Binary Path** — enter absolute path. |
+| Symptom | Action |
+|---|---|
+| Codex is not found | Make `codex` available on the login-shell `PATH`, then restart Unity |
+| External Codex reports an unknown server | Confirm `.codex/config.toml` exists in the Unity project and restart Codex |
+| A Chat turn times out too early | Codex uses a higher inactivity floor; review Chat Settings before increasing it further |

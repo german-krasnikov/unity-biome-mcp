@@ -193,7 +193,7 @@ C# tests (8 total):
 
 - [x] Security: no path traversal (GameObject.Find validates), API calls safe
 - [x] Performance: keyframe limit 50/curve prevents token bloat, no unnecessary sampling
-- [x] Token efficiency: text format ~5x smaller than JSON equivalent
+- [x] Token efficiency: compact text format avoids repeated JSON structure
 - [x] Edge cases: no Animator → error, AnimationMode → checked before start, vector expansion → handled
 
 ## Related

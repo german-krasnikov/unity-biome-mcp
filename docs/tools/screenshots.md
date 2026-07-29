@@ -12,7 +12,7 @@ Capture the current game view as a PNG image with optional object annotations an
 - `camera` (string, optional) — Camera preset: "scene_view" | "scene_view_frame" | "multi_view" | "single_view" | "overview" | "overview_game" | custom camera name
 - `path` (string, optional) — Scene path to target object (for framing)
 - `output_path` (string, optional) — Save path (default: auto-generated in Screenshots/)
-- `describe` (string, optional) — AI description mode: "haiku" (Haiku model, 15-100x token reduction)
+- `describe` (string, optional) — AI description mode: `"haiku"`
 - `raw` (bool, default=false) — Force path output instead of description
 - `zoom` (float, optional) — Zoom level (higher = closer)
 - `angles` (string, optional) — Per-view rotation (Euler angles): "ex,ey,ez|..." (use "_" to skip)
@@ -35,7 +35,7 @@ Capture the current game view as a PNG image with optional object annotations an
 | overview | Top-down orthographic | Level layout overview |
 | overview_game | Game view top-down | Build playable perspective |
 
-**Output:** File saved to `unity-test-project/ScreenShots/YYYY-MM-DD_HH-MM-SS.png` with optional AI description appended.
+**Output:** File saved under `<project>/ScreenShots/` with an optional AI description appended.
 
 **Example:**
 
@@ -50,7 +50,7 @@ img = await screenshot(width=1280, height=720, camera="scene_view")
 img = await screenshot(camera="multi_view", zoom=1.5)
 
 # With object highlighting (bounding box)
-img = await screenshot(highlight="Player:Enemy:#FF0000", 
+img = await screenshot(highlight="Player:Enemy:#FF0000",
                       camera="scene_view")
 
 # Show colliders
@@ -59,7 +59,7 @@ img = await screenshot(camera="scene_view", show_colliders=True)
 # Haiku AI description (token-efficient)
 desc = await screenshot(describe="haiku", camera="scene_view")
 # → "[AI analysis] Player standing at position (0,5,0), health UI visible..."
-# → "[img:/path/to/screenshot.png]"
+# → "[img:<project>/ScreenShots/2026-07-29_12-00-00_screenshot.png]"
 
 # With annotation ID (labels on objects)
 img = await screenshot(annotation_id="Player", camera="annotation_frame")
@@ -121,16 +121,18 @@ Compare current screenshot with saved baseline. Highlights differences and calcu
 
 **Comparison Modes:**
 
-| Mode | Detects | Cost | Use Case |
-|------|---------|------|----------|
-| auto | Pixel diffs → structural escalation | ~$0.002 | Default, comprehensive |
-| pixel | Direct pixel comparison | ~$0.0 | Quick pixel-perfect tests |
-| structural | Haiku general layout analysis | ~$0.005 | Layout/composition changes |
-| targeted | Answer specific question | ~$0.01 | "Did button move?" |
-| ui_layout | UI element positioning | ~$0.005 | HUD layout changes |
-| animation | Motion/frame differences | ~$0.005 | Animation state verification |
-| color | Color/appearance changes | ~$0.003 | Color/material changes |
-| position | Object position differences | ~$0.003 | Spatial/transform changes |
+| Mode | Detects | Use Case |
+|------|---------|----------|
+| auto | Pixel diffs → structural escalation | Default, comprehensive |
+| pixel | Direct pixel comparison | Quick pixel-perfect tests |
+| structural | General layout analysis | Layout/composition changes |
+| targeted | Answer specific question | "Did button move?" |
+| ui_layout | UI element positioning | HUD layout changes |
+| animation | Motion/frame differences | Animation state verification |
+| color | Color/appearance changes | Color/material changes |
+| position | Object position differences | Spatial/transform changes |
+
+`pixel` comparison is local. Modes that use image analysis consume the configured LLM budget according to the actual image and token usage; `auto` consumes budget only when it escalates beyond the pixel comparison.
 
 **Output:** Comparison report with diff image and similarity percentage.
 

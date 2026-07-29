@@ -1,63 +1,38 @@
-# Kimi Setup
+# Kimi
 
-The plugin auto-configures Kimi automatically when you add it to your project. Works on **macOS and Linux**.
+Prerequisite: complete the
+[Unity package installation](../getting-started/index.md#1-install-the-unity-package).
 
-## Prerequisites
+## Install and Sign In
 
-- Kimi CLI installed and authenticated
-- Unity 6000.0+ with the `unity-biome-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or auto-assigned) free
-
-## Quick Setup
-
-### 1. Install Kimi CLI
-
-```bash
-curl -fsSL https://kimi.ai/install.sh | bash
-kimi --version
-```
-
-The installer adds `~/.kimi-code/bin` to PATH via `~/.zshrc` (macOS) or `~/.bashrc` (Linux). **Restart your terminal** before continuing.
-
-### 2. Add Plugin to Unity
-
-1. Open **Window → Package Manager**
-2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
-4. Wait for import, then open any scene
-
-Authenticate Kimi:
+Install Kimi Code using the [official CLI guide](https://www.kimi.com/help/kimi-code/cli-getting-started), then sign in:
 
 ```bash
 kimi login
 ```
 
-The plugin auto-generates your Kimi MCP config on first load.
+Restart Unity if the CLI was installed while the Editor was open.
 
-### 3. Verify Installation (Optional)
+## In-Unity Chat
 
-Run the diagnostic:
+Kimi is a Chat-start backend:
 
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
-```
+1. Open **MCP > Settings > Chat Settings > Kimi Settings**.
+2. Confirm that the `kimi` binary is detected.
+3. Open **MCP > Chat** and select **Kimi**.
 
-## Use From the Editor (Primary Workflow)
+The relay writes Kimi's temporary MCP configuration when a turn starts. Each
+turn runs a new Kimi process. See [Chat Backends](../chat/backends.md#sessions)
+for current session behavior.
 
-1. Open Unity and wait for `[MCP] Server started on port <XXXX>` in the Console.
-2. Open **MCP → Chat**.
-3. Select **Kimi** from the backend dropdown.
-4. Choose a model from the dropdown (K2.7 Code is the default).
-5. Type a prompt and press Send.
+## External MCP Client
 
-## Troubleshooting
+The Unity package does not create a project-local Kimi file. To configure Kimi as an external MCP client, use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `kimi`. It writes `~/.kimi-code/mcp.json`.
 
-| Problem | Fix |
-|---------|-----|
-| `kimi: command not found` | Restart terminal; verify `~/.kimi-code/bin` is in PATH (`echo $PATH`) |
-| Setup Wizard doesn't run in Unity | (1) Check plugin is in Package Manager. (2) Close/reopen Unity. (3) Check Console for errors. |
-| MCP server fails to start | Run Setup Wizard → Diagnostics to verify Python 3.10+ and TCP port availability. |
-| `Model "X" is not configured` | Plugin auto-provisions K2.7 Code, K2.6, K2.5. For custom models, add `[models."X"]` to `~/.kimi-code/config.toml`. |
-| Chat connects then immediately disconnects | Check `~/.kimi-code/logs/kimi-code.log` for errors. Verify `~/.kimi-code/mcp.json` exists and is valid JSON. |
-| Binary not found in Chat Settings but works in terminal | Terminal sources `~/.zshrc` but Unity doesn't. Override manually: **Settings > Agent Chat > Kimi Binary Path** — enter absolute path. |
-| Tools fail with "Connection refused" | Ensure Unity is open and TCP port is listening. Run Setup Wizard → Diagnostics. |
+## Client-specific Troubleshooting
+
+| Symptom | Action |
+|---|---|
+| Kimi is not found | Make `kimi` available on the login-shell `PATH`, then restart Unity |
+| Authentication fails | Run `kimi login` in a terminal and complete the login flow |
+| A custom model is rejected | Verify the model in Kimi's own configuration before selecting it in Chat |

@@ -1,186 +1,64 @@
-# Chat Backends Guide
+# Chat Backends
 
-In-Unity chat supports multiple CLI-based LLM backends.
+MCP Chat runs supported CLI tools through a local Python relay. Install and sign in to a CLI outside Unity first; Chat reuses that CLI's cached authentication. There is no API-key field in Unity.
 
 ## Supported Backends
 
-| Backend | CLI | Model | Persistent | Status |
-|---------|-----|-------|-----------|--------|
-| Claude | claude | Claude 4 (Opus, Sonnet) | Per-turn | ✅ Stable |
-| Codex | codex | OpenAI GPT-4 | Per-turn (supports resume) | ✅ Stable |
-| Kimi | kimi | Kimi (Moonshot) | Per-turn | ✅ Stable |
-| Antigravity | agy | Various | Per-turn | ✅ Stable |
-| OpenCode | opencode | Various | Per-turn | ✅ Testing |
+| Backend | CLI | Process model | Resume argument | Chat-start MCP configuration |
+|---|---|---|---|---|
+| Claude | `claude` | One process; turns are written to stdin | `--resume` | Temporary Claude MCP JSON |
+| Codex | `codex` | New `codex exec` process for each turn | `exec resume` | Inline Codex configuration |
+| Kimi | `kimi` | New process for each turn | Not defined | Temporary Kimi MCP JSON |
+| Antigravity | `agy` | New process for each turn | Not defined | Temporary Antigravity settings |
+| OpenCode | `opencode` | New `opencode run` process for each turn | `-s` | Temporary config through `OPENCODE_CONFIG` |
 
-## Claude
+The model selector and launch options come from **MCP > Settings > Chat Settings**. Model availability and authentication are owned by the selected CLI, so verify custom model IDs in that CLI before using them in Chat.
 
-**Executable:** `claude` (installed via `curl | bash` setup)
+## Process Lifecycle
 
-**Models:** Claude 4 Opus (reasoning), Claude 4 Sonnet (balanced), Claude 4 Haiku (fast, cost-effective)
+### Claude
 
-**Session:** Per-turn (no session memory between turns in default config)
+The relay starts Claude with stream-json input and output. The process remains available between turns, and Chat writes each new turn to stdin. A returned session ID can be passed back with `--resume`.
 
-**Authentication:** Uses cached login from `claude auth login`
+### Codex, Kimi, Antigravity, and OpenCode
 
-```python
-# In Unity: MCP → Chat → Select "Claude"
-# Then chat in the window
-```
+These CLIs receive the prompt as a command argument instead of reading turns from stdin. The relay therefore defers startup until a prompt is available, starts one process for that turn, and closes stdin.
 
-**Pricing:** See Anthropic's pricing page for current rates
+Switching the backend or model stops the current backend. Stopping a turn also kills its process; Chat creates a fresh backend for the next send.
 
-## Codex (OpenAI)
+## Ask, Agent, and Approvals
 
-**Executable:** `codex exec`
+**Ask** is the default Chat mode. When a backend emits a permission request, Chat shows **Allow**, **Deny**, **Session**, and **Always** choices. **Agent** automatically approves permission requests emitted by the backend.
 
-**Models:** GPT-4, o3, o4-mini and newer
+Mode behavior remains backend-specific. Some CLIs use their own non-interactive or permission-bypass flags and do not emit the same prompts as Claude. Ask and Agent are not a replacement for server-side tool visibility or code-execution security; see [Settings](../settings.md).
 
-**Session:** Per-turn (new process each turn; supports session resume via `codex exec resume <session-id>` subcommand)
+## Sessions
 
-**Protocol:** NDJSON (line-delimited JSON via `--json` flag, parsed as OpenAI Responses API format)
+The backend definitions accept resume IDs for Claude, Codex, and OpenCode. The Chat session picker scans local stores for Claude, Codex, Kimi, and Antigravity; it does not scan OpenCode's SQLite store.
 
-**Setup:**
-```bash
-# Install Codex CLI
-npm install -g @openai/codex
-codex login
-```
+These are separate capabilities: a picker entry means Chat can find an ID, while
+a resume argument means the backend can consume one. A resume ID selected for a
+per-turn backend is not currently applied to the next turn. Reliable in-Chat
+resume is therefore limited to Claude.
 
-**Note:** Pricing varies by model; check OpenAI pricing page.
+When a backend returns a session ID, **To CLI** copies that backend's resume command. See [Using MCP Chat](using-chat.md#sessions) for the user workflow.
 
-## Kimi (Moonshot AI)
+## Authentication and Configuration
 
-**Executable:** `kimi`
+- Sign in with the backend CLI outside Unity.
+- Ensure the CLI executable is available on the login-shell `PATH`, then restart
+  Unity after installing it.
+- Claude exposes a cached-auth status check through `claude auth status`.
+- Chat writes temporary or inline MCP configuration at backend start; this does not configure the same CLI as a standalone external MCP client.
+- For external-client setup, follow the matching [client guide](../install/index.md).
 
-**Models:** Kimi (Chinese LLM), multilingual support
+### Antigravity
 
-**Session:** Per-turn
+The Antigravity backend requires the `agy` executable and its CLI
+authentication/configuration to be available before Chat starts. Verify that
+`agy --help` runs in a login shell, restart Unity, then select **Antigravity** in
+MCP Chat. The relay writes temporary MCP settings for each turn.
 
-**Setup:**
-```bash
-# Install Kimi CLI
-curl -fsSL https://kimi.ai/install.sh | bash
-kimi login
-```
-
-**Pricing:** Check Moonshot AI's pricing page for current rates.
-
-## Antigravity (Agy)
-
-**Executable:** `agy` (CLI binary)
-
-**Models:** Configurable backend (Claude via API, custom LLM)
-
-**Session:** Per-turn
-
-**Setup:**
-```bash
-# Install Agy CLI
-go install github.com/antigravityai/agy@latest
-agy login  # if required by your Agy instance
-```
-
-Configure credentials via your Agy instance documentation.
-
-## OpenCode
-**Executable:** `opencode` (standalone Go CLI)
-
-**Models:** Configurable (Claude, GitHub Copilot, custom)
-
-**Session:** Per-turn (supports external MCP merge)
-
-**Note:** Experimental; external MCP configs merged additively.
-
-## Switching Backends in Unity
-
-1. Open **MCP → Chat** in the menu
-2. Click the **Backend** dropdown
-3. Select Claude, Codex, Kimi, Antigravity, or OpenCode
-4. Enter API key if needed
-5. Start chatting
-
-**Persistence:** Selected backend is saved to EditorPrefs.
-
-## Per-Turn vs Session Persistence
-
-### Per-Turn
-- New CLI process started each time (stateless)
-- Faster startup (~100ms)
-- No memory between turns unless session resume is used
-- Example: Claude, Codex, Kimi, OpenCode
-
-**Pros:**
-- Simple; no session management
-- Works offline (no session server)
-- Each backend can optionally support session resume
-
-**Cons:**
-- Each turn must re-context the entire conversation (unless resumed)
-- Slower for long conversations without resume
-
-### Session Resume (Optional)
-- Some backends (Codex, OpenCode) support resuming previous sessions
-- Faster recovery after network issues or crash
-- Full conversation history maintained if resumed
-- Example: `codex resume <session-id>`, `opencode run -s <session-id>`
-
-**Pros:**
-- Faster per-turn response
-- Rich conversation history
-- Supports reasoning models (o3, etc.)
-
-**Cons:**
-- Requires process management
-- Harder recovery after crash
-
-## Configuration
-
-### API Keys
-
-Store in local settings:
-
-```
-Unity Editor → MCP → Settings → Chat → API Keys
-```
-
-**NOT stored in code or version control.**
-
-### Environment Variables
-
-**Injected to all backends:**
-- `UNITY_MCP_PORT`: TCP port where MCP server is listening
-- `UNITY_MCP_SESSION_TIMEOUT`: Default 300 seconds (extended for reasoning models)
-
-**Claude only:** `UNITY_MCP_PORT` is stripped (not passed to Claude CLI; delivered via `--mcp-config` file instead).
-
-## Cost Tracking
-
-**In-window display:**
-- Token budget per day
-- Current spend vs. cap
-- Haiku cost breakdown (intent tools)
-
-**Enable tracking:**
-```
-UNITY_MCP_BUDGET=1 environment variable
-```
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| "CLI not found" | See installation guide for your CLI (`docs/install/`) or add to PATH |
-| "Authentication failed" | Run `<backend> auth login` to cache credentials |
-| "Connection timeout" | Increase `UNITY_MCP_SESSION_TIMEOUT=600` for reasoning models |
-| "No response" | Check Editor.log for connection errors; restart chat window |
-| "Tool not available" | Upgrade backend CLI via its own updater — see `docs/install/` for your CLI |
-
-## Switching Mid-Conversation
-
-**Warning:** Switching backends loses current session context.
-
-**Recommended:** Let conversation finish, then select new backend for next chat.
-
----
-
-**See also:** `docs/chat/annotation.md` for visual tools, `docs/features/intent-tools.md` for LLM-driven automation.
+For common recovery steps, see
+[Using MCP Chat](using-chat.md#troubleshooting). If a custom model is rejected,
+test its ID with the backend CLI before saving it in Chat Settings.

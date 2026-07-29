@@ -4,7 +4,7 @@ Execute C# scripts directly in the Unity Editor.
 
 ## Overview
 
-`execute_code()` runs arbitrary C# code in the Editor with full access to Unity APIs. Useful for complex mutations that don't fit simple tool parameters.
+`execute_code()` runs arbitrary C# code in the Editor. With the default **AllowAll** level it has full access to Unity APIs; **Standard** and **Strict** scan for blocked patterns before execution. Use it for complex mutations that don't fit simple tool parameters.
 
 ## Basic Usage
 
@@ -23,9 +23,9 @@ return enemies.Length.ToString();
 # → "3"
 ```
 
-## Editor Access
+## Editor API Access
 
-You have full access to:
+At the **AllowAll** level, code can access:
 
 | API | Example |
 |-----|---------|
@@ -39,7 +39,7 @@ You have full access to:
 
 ## Security Levels
 
-Code execution uses a three-tier security system. The active level is set via the **Security Level** dropdown in **MCP → MCP Hub** (Unity Editor).
+Code execution uses a three-tier security system. The active level is set via the **Security Level** dropdown in **MCP → Settings** (Unity Editor).
 
 | Level | Default? | Behavior |
 |-------|----------|----------|
@@ -47,7 +47,7 @@ Code execution uses a three-tier security system. The active level is set via th
 | **Standard** | No | Moderate scanning — blocks filesystem, network, reflection, process, and editor-exit patterns. |
 | **Strict** | No | Densest scanning — everything in Standard plus `GetField()`, `GetProperty()`, `GetFields()`, `GetProperties()`. |
 
-> **Important:** The default level is **AllowAll**, which bypasses all security scanning. If you need protection against accidental destructive calls, switch to **Standard** or **Strict** in the MCP Hub.
+> **Important:** The default level is **AllowAll**, which bypasses all security scanning. If you need protection against accidental destructive calls, switch to **Standard** or **Strict** in **MCP → Settings**.
 
 ### Blocked Patterns (Standard and Strict only)
 
@@ -165,7 +165,7 @@ await set_runtime_property("/Player", "PlayerController", "Health", "50")
 
 ## Timeout & Performance
 
-- **Timeout:** 30 seconds per script (TCP default)
+- **Timeout:** Unity enforces a 25-second execution ceiling
 - **Long operations:** Split into multiple calls
 - **Compilation:** First call warm (~500ms); cached after
 

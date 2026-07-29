@@ -2,9 +2,13 @@
 
 ## Overview
 
-Single MCP tool that executes multiple Unity commands in one call using compact text format, reducing token overhead by 80-95% compared to individual tool calls. Processes operations sequentially on Unity main thread with configurable error handling.
+Single MCP tool that executes multiple compatible Unity commands in one call
+using a compact text format. Operations run sequentially on the Unity main
+thread with configurable error handling.
 
-**Batch-First Rule (Phase 24):** ALWAYS prefer `batch` for 2+ operations — both reads AND writes. See `.claude/skills/token-optimization.md` for patterns. For multi-object component reads, prefer `inspect` tool instead.
+Prefer `batch` for two or more compatible operations. Direct-only and
+Python-expanded tools must be called through their typed MCP wrappers. For
+multi-object component reads, prefer `inspect`.
 
 ## Architecture
 
@@ -126,7 +130,10 @@ inspect paths=/Player,/Enemy components=Rigidbody compress=true
 
 ## Atomic Mode (F27, Transactional Batches)
 
-Opt-in `atomic=true` parameter enables transactional batch execution. On FIRST failure, all prior ops are reverted via F6's `UndoGroupHelper` (scene-only Undo rollback), leaving the scene exactly as before. Default `atomic=false` (backward-compatible) and is token-neutral (param not sent when false).
+Opt-in `atomic=true` groups Undo-recorded Unity changes. On the first failure,
+`UndoGroupHelper` reverts changes recorded in that group. File-system, process,
+and other external side effects are outside the guarantee. Default
+`atomic=false` is backward-compatible and token-neutral.
 
 **Semantics:**
 - **Outermost-only grouping**: `_batchDepth` counter ensures only the outermost batch (depth=1) opens/closes the Undo group. Nested batches roll back under the single outer group.
@@ -140,7 +147,7 @@ Opt-in `atomic=true` parameter enables transactional batch execution. On FIRST f
 ```python
 batch(
   commands="create_object name=A\nset_material path=/A color=#FF0000\nUNKNOWNCMD",
-  atomic=true
+  atomic=True
 )
 → [0] ok: created /A
 → [1] ok
@@ -152,7 +159,11 @@ batch(
 ## MCP Tool
 
 ### Tool: `batch`
-**Parameters:** `commands` (required, text), `on_error` (default="continue"), `atomic` (optional, boolean, default=false), `timeout` (optional, float seconds, default=30.0 — Python converts to `timeout_ms=(timeout-5)*1000` for C#, C# default=25000ms), `validate_aliases` (optional, boolean, default=false — when true, forwards `validate_aliases=true` to C# for dry-run alias resolution check without executing commands)
+**Parameters:** `commands` (required, text), `on_error`
+(default=`"continue"`), `atomic` (default=false), `timeout` (default=75.0;
+Python sends an internal timeout five seconds lower, while Unity's outer request
+deadline is 65s), and `validate_aliases` (default=false; dry-run alias
+resolution before execution).
 
 Executes multiple text-based commands. One command per line, format: `cmd key=value key=value`
 
@@ -168,7 +179,7 @@ batch(
 ```python
 batch(
   commands="create_object name=A\nset_material path=/A color=#FF0000\nBADCMD",
-  atomic=true
+  atomic=True
 )
 → ATOMIC_ROLLBACK: reverted ops 0..1
 → err:1
@@ -224,7 +235,7 @@ ok:N err:M timeout:K  # when timeout hit
 
 - [x] Security: no code injection (text forwarded safely, C# parser validates)
 - [x] Performance: no per-command overhead, sequential only
-- [x] Token efficiency: saves 80-95% vs N individual calls (~20 tokens/cmd vs ~150 JSON)
+- [x] Token efficiency: compact command text avoids repeated typed-call envelopes
 - [x] Text parsing: quoted values, comments, empty lines handled
 - [x] Edge cases: empty text, disabled tools, stop vs continue modes, special chars
 - [x] Anti-hallucination: CommandValidator validates all commands before execution via contracts declared at Register() call site, catches typos with fuzzy suggestions, error format uses sigils (!missing, ?unknown→suggestion)

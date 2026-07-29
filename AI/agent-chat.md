@@ -2,118 +2,53 @@
 
 ## Overview
 
-An optional Editor window that brings agentic chat directly into Unity, spawning the user's local `claude` CLI as a child process. Zero new MCP tools — reuses all 142 existing tools via the spawn-the-CLI architecture.
+An optional Editor window that brings agentic chat directly into Unity. A single C# `RelayBackend` talks to the Python `chat_relay.py` sidecar, which owns the selected local CLI process and reuses the existing MCP tools.
 
-**Isolation:** `UnityMCP.Editor.Chat.asmdef` is always compiled. Deleting the `Chat/` folder leaves core untouched.
+**Isolation:** Chat is split into `UnityMCP.Editor.Chat.CLI` and
+`UnityMCP.Editor.Chat.View`. Both reference Core; Core does not reference Chat.
 
 ## Architecture
 
 ```
 Unity Editor Window (MCPChatWindow)
     │
-    └─ System.Diagnostics.Process
+    └─ RelayBackend / RelayChatProcess
         │
-        └─ claude CLI (headless, stream-json mode)
+        └─ TCP relay protocol
             │
-            └─ python -m unity_mcp.server
+            └─ Python chat_relay.py
                 │
-                └─ TCP:9500 → Unity Editor Plugin
-                    └─ ~142 MCP tools (create, set_property, screenshot, etc.)
+                └─ selected local CLI + unity-biome-mcp server
 ```
 
-### Spawn Invocation (v0.36.0)
+### Relay Lifecycle
 
-```bash
-claude -p \
-  --output-format stream-json \
-  --verbose \
-  --include-partial-messages \
-  --input-format stream-json \
-  --mcp-config <config.json> \
-  --permission-mode <plan|acceptEdits>
-```
+Unity sends semantic `start`, `send`, `events`, `set_mode`, and `kill` commands to the relay. `server/src/unity_mcp/backend_def.py` owns backend-specific argv, environment, authentication, resume, and MCP configuration. Claude keeps one stdin-driven process; Codex, Kimi, Antigravity, and OpenCode are started per turn.
 
-Key details:
-- **`-p`** — headless streaming mode (no interactive terminal)
-- **`--output-format stream-json`** — stream JSON events (partial message chunks)
-- **`--include-partial-messages`** — emit tool cards + results as they arrive
-- **`--input-format stream-json`** — accept JSON-encoded user turns on stdin
-- **`--mcp-config`** — path to the MCP config file (defines `unity_mcp` server with optional env block)
-- **`--permission-mode plan|acceptEdits`** — user-selected mode (tool calls require acknowledgment or auto-accept)
-- **Auth:** Uses user's locally-installed `claude` CLI with cached subscription login. `ANTHROPIC_API_KEY` is explicitly stripped from child env to prevent API key leakage or double-billing.
-
-**Subprocess Environment (v0.36.0, v0.55.0: scoped config delivery)** — CliBackendBase injects only:
-- **UNITY_MCP_SESSION_TIMEOUT=300** — extended session deadline for reasoning models (Codex o3/o3-pro may think for 2–5 min)
-
-**RULE (v0.55.0):** NEVER inject UNITY_MCP_PORT into process env — port comes via scoped config only. BuildSpawnEnv() returns only UNITY_MCP_SESSION_TIMEOUT. Each CLI backend delivers port via its --mcp-config JSON/TOML environment block.
-
-**v0.55.0 Breaking Rule:** UNITY_MCP_PORT is **never** injected into process env. Instead, each backend delivers the port via scoped --mcp-config (JSON/TOML/env block per CLI):
-- **Claude**: `--mcp-config <path>.json` with `"environment": { "UNITY_MCP_PORT": "<port>" }` block
-- **Codex**: `--mcp-config <path>.json` with `"environment": { "UNITY_MCP_PORT": "<port>" }` block
-- **OpenCode**: `--mcp-config <path>.json` with `"environment": { "UNITY_MCP_PORT": "<port>" }` block (v0.55.0: external MCP merge)
-- **Other backends**: deliver UNITY_MCP_PORT in their scoped config env block (NEVER process env)
+The canonical implementation description is `AI/architecture.md` under **Chat Relay System**. Do not add CLI-specific process logic to the Unity window or create another C# backend implementation.
 
 ### Module Isolation
 
-**C# asmdef:**
-- `UnityMCP.Editor.Chat.asmdef` (references ONLY `UnityMCP.Editor`, autoReferenced=false)
-- One-way dependency: Chat → Core (via assembly reference), not Core → Chat
+**C# asmdefs:**
+- `UnityMCP.Editor.Chat.CLI` references `UnityMCP.Editor` and the Wizard assembly.
+- `UnityMCP.Editor.Chat.View` references Core and Chat.CLI.
+- Both are Editor-only and `autoReferenced=false`.
 
 **InternalsVisibleTo:**
-- Core exposes internals: `[assembly: InternalsVisibleTo("UnityMCP.Editor.Chat")]` in `AssemblyInfo.cs`
-- Enables Chat to access internal core APIs (CommandRouter, RefManager, CommandRegistry, etc.)
+- Core exposes internals separately to `UnityMCP.Editor.Chat.CLI` and
+  `UnityMCP.Editor.Chat.View` in `AssemblyInfo.cs`.
 
 **Settings Hook (Event-Driven):**
-- Core fires `ChatSettingsHook.OnBuildToolsCatalog` event on MCPSettings build
-- Chat subscribes: `ChatSettingsHook.OnBuildToolsCatalog += RefreshSettings`
+- Core invokes `ChatSettingsHook.OnBuildConnection` when building Chat Settings.
+- `ChatSettingsSection` subscribes and contributes the settings controls.
 - Preserves one-way dependency: core does not know Chat exists
 - Removed the GUI code for Chat settings completely in core for clarity
 
-## Multi-Backend Architecture (v0.14.0+)
+## Multi-Backend Architecture
 
-Each CLI-based backend is a strategy over **4 variation axes:**
+`RelayBackend` is the only C# chat backend implementation. `BackendRegistry` selects a backend ID and configuration, while Python `BackendDef` implementations own binary resolution, arguments, environment, resume behavior, and output format. `stream_transform.py` normalizes backend output to the relay pipe protocol before C# converts it to `ChatEvent` values.
 
-1. **BuildArgs** — spawn/resume argv construction (e.g., Claude uses `--resume <sessionId>`, Codex uses `exec resume <id>`)
-2. **ParseLine** — NDJSON line → ChatEvent[] conversion (stream format differs per CLI)
-3. **BinaryName** — CLI executable name for ChatBinaryResolver (e.g., `"claude"`, `"codex"`)
-4. **IsPersistentProcess** — true = stdin loop (Claude), false = spawn-per-turn (Codex)
-
-**CliBackendBase** (194-line abstract host, v0.55.0: port delivery via scoped config): Owns shared lifecycle (spawn, drain, accumulate, SessionId, Stop, Dispose). **CRITICAL RULE (v0.55.0):** `BuildSpawnEnv()` returns ONLY `UNITY_MCP_SESSION_TIMEOUT` — NEVER UNITY_MCP_PORT. Port must be delivered via each backend's scoped --mcp-config (JSON env block). Subclasses override only the 4 axes; all other logic (turn dispatch, tool accumulation, session management) is inherited.
-
-**ClaudeBackend** (ported): Zero behavior change (−65 lines net). Now a thin wrapper over the base. Regression anchor proving the abstraction doesn't alter existing behavior.
-
-**CodexAppServerBackend** (v0.14.0, simplified in v0.20.0 as only Codex option): Implements the 4 axes for OpenAI Codex via persistent `codex app-server` (JSON-RPC 2.0). One process per chat session (IsPersistentProcess=true), eliminates spawn-per-turn churn. Protocol: `initialize` → `thread/start` → repeated `turn/start` with `mcpToolCall` items + real token streaming via `item/agentMessage/delta`.
-
-**AntigravityBackend** (v0.41.0, external LLM service): Implements the 4 axes for Antigravity with model selection and stream-json protocol.
-
-**CodexArgBuilder** (v0.14.0): Constructs `codex app-server` argv + init args. Three `-c mcp_servers.unity*` flags passed at initialization. Format: `-c mcp_servers.{unity,unity_auth,unity_plugins}=<value>`.
-
-**CodexAppServerParser** (v0.14.0, replaces CodexStreamParser, v0.30.5 silent abort fix): JSON-RPC 2.0 notification/response parser → ChatEvent. Emits agent_message (via delta tokens), mcp_tool_call, command_execution (aggregated_output or declined), file_change (changes array), and turn.completed (usage stats; CostUsd=0). **v0.30.5 fix:** Codex sets `status:"completed"` even on tool errors; real indicator is `result.isError:true` (no space). Parser now checks `!resultObj.Contains("\"isError\":true")` pattern-match. On error with empty text, appends `"[MCP tool error]"` placeholder. Emits `ChatEvent.Heartbeat()` on "reasoning" events (o3/o3-pro silent thinking). 15+ NUnit test cases cover all paths, +6 new error scenario tests.
-
-**BackendRegistry** & **BackendKind** (simplified v0.20.0): Central enum + factory. User selects Claude (persistent stdin) or Codex (persistent JSON-RPC) from dropdown; MCPChatWindow.CreateBackend dispatches to the right subclass. BackendKind = {Claude, Codex} (removed spawn-per-turn CodexBackend entry).
-
-**PendingTurnState v3** (upgraded): Now persists `BackendKind` to survive domain reload. Back-compatible with v1/v2 state; header includes version marker.
-
-**Result:** Adding a new backend = 1 new CliBackendBase subclass + parser file. No changes to window, dispatcher, or lifecycle code.
-
-### Codex Backend — Version-Specific Integration (v0.141.0+)
-
-**Problem (OpenAI issue #11816, OPEN):** Codex 0.141.0 sends `mcp_elicitation` (approval-kind) events without timeout, causing indefinite blocking in headless stream-json mode. Unlike Claude which distinguishes request (top-level `id`) from notification (nested `id`), Codex doesn't signal request context cleanly.
-
-**Layered Mitigation:**
-
-1. **Layer 1 — Suppression + Sandbox:** `CodexArgBuilder` injects `--disallowedTools approval` (prevents Codex from emitting approval requests). Paired with `--permission-mode acceptEdits` for auto-accept on mutations (no approval needed). Sandbox: all tool calls pass immutable `args` dict to CommandRouter — no approval-mutation races.
-
-2. **Layer 2 — Auto-Accept:** If approval leaks through Layer 1, `ControlResponseBuilder.CodexElicitationAccept()` auto-responds with status=accepted (never silent-drop). Prevents indefinite block but signals bug upstream.
-
-3. **Layer 3 — Request/Notification Invariant:** `CodexAppServerParser.HasRpcId()` distinguishes top-level request `id` (field present, type string) from notification (field absent or null). Parser NEVER silent-drops: every incoming JSON-RPC frame must match this invariant or logs error + continues. Enables future version diffs.
-
-**Files:**
-- `CodexArgBuilder.cs` — line with `--disallowedTools approval`
-- `CodexAppServerParser.cs` — HasRpcId check in frame dispatch
-- `ControlResponseBuilder.cs` — CodexElicitationAccept entry point
-
-**Details:** See `AI/mcp-server.md` § "Codex App-Server Elicitation Handling" for architectural explanation and code snippets.
+To add a backend, extend the Python backend registry and transformer coverage, then expose its configuration through the existing provider/registry UI. Do not reintroduce `CliBackendBase`, `ClaudeBackend`, `CodexAppServerBackend`, or backend-specific parsers in C#.
 
 ## IChatBackend Abstraction
 
@@ -122,16 +57,17 @@ Single interface for pluggable chat backends:
 ```csharp
 public interface IChatBackend
 {
-    event EventHandler<ChatEvent>? OnChatEvent;
-    Task<bool> StartAsync(string modePermission, string userPrompt);
-    Task StopAsync();
-    Task SendUserTurnAsync(JsonObject turn);
-    bool IsConnected { get; }
-    string Status { get; }
+    bool IsRunning { get; }
+    string SessionId { get; }
+    void Start();
+    void SendTurn(string turnJson);
+    void DrainEvents(List<ChatEvent> output, List<ToolCallRecord> toolOutput = null);
+    void Stop();
+    void SendControlResponse(string json);
 }
 ```
 
-**Implementations:** `ClaudeBackend` (Claude, persistent stdin), `CodexAppServerBackend` (Codex, persistent JSON-RPC). Future: add more via `CliBackendBase` subclasses.
+**Implementation:** `RelayBackend`. Backend-specific lifecycle remains in the Python relay.
 
 **ChatEvent struct:**
 - Normalized event type (ToolCard, ToolResult, UserMessage, Error, Status, Done)
@@ -184,7 +120,8 @@ Scene annotations enable domain-specific markup via visual regions (points, poly
 
 ### Editor State Snapshot Injection (F7, plugin 0.8.0)
 
-`EditorStateSnapshot.cs` builds a lightweight context block and injects it early:
+`EditorStateSnapshot.cs` builds a lightweight context block for recovery after a
+domain reload:
 
 **Content:**
 - Active scene name
@@ -192,9 +129,9 @@ Scene annotations enable domain-specific markup via visual regions (points, poly
 - Console error count
 - First 500 chars of scene hierarchy (with "…(truncated)" if longer)
 
-**Injection:** Via `--append-system-prompt` on fresh chat sessions (ClaudeArgBuilder.cs sets the flag; ClaudeBackend.cs appends the block). On domain-reload resume, the snapshot is prepended to sent text via SentTextCache.
-
-**Result:** Claude starts with full context, eliminating the 2–3 cold-start probe calls it used to make ("What scene are we in?", "Are there compile errors?", "Show me the hierarchy"). Immediate productivity boost; no extra token cost on subsequent turns.
+**Injection:** During pending-turn recovery, `MCPChatWindow.Drain` prepends the
+fresh snapshot before resending and caches the exact payload through
+`SentTextCache`. Normal new turns do not receive this snapshot automatically.
 
 ### Tool Ping on Call Complete (F29, plugin 0.8.0)
 
@@ -213,12 +150,15 @@ Scene annotations enable domain-specific markup via visual regions (points, poly
 After a Plan-mode (Ask) turn finishes, `MCPChatWindow.Drain.cs` injects a one-shot "Approve & Execute" button into the transcript via `ApproveButtonFactory`. Clicking it:
 1. Captures the current backend `SessionId`
 2. Flips the window to Agent mode
-3. Recreates the backend with `--resume <sessionId>` (preserves the just-produced plan)
+3. Keeps Claude's active relay session when available and switches the UI to
+   Agent-mode approval behavior
 4. Auto-dispatches the prompt "Execute the plan above."
 
 Files: `MCPChatWindow.Approve.cs` (event handler), `ApproveHelper.cs` (session management), `ApproveButtonFactory.cs` (button builder), `ChatTranscript.Append(VisualElement)` made internal.
 
-**Result:** Seamless bridge from planning to execution in a single workflow, plan never lost. 10 NUnit EditMode tests green.
+**Result:** Claude preserves the relay session across the planning-to-execution
+bridge. Per-turn backends can start Agent mode, but do not currently retain the
+selected resume ID through deferred startup.
 
 ### Slash-Command Templates (F12, plugin 0.10.0)
 
@@ -236,7 +176,7 @@ Files: `SlashTemplate.cs` (`[Flags] ContextGather` enum + readonly struct), `Sla
 
 Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI + revert logic), `MCPChatWindow.Undo.cs` (partial, split from MCPChatWindow.cs), `.chat-btn--restore` in `MCPChatWindow.uss`.
 
-**Reusable Primitive:** Built on a new public `UndoGroupHelper` core API (4 methods: `OpenNamedGroup`, `CloseNamedGroup`, `RevertToBeforeGroup`, `CanRevert`). Upcoming F27 (atomic batch rollback) will reuse this same system — one rollback mechanism, not two.
+**Reusable Primitive:** Built on the public `UndoGroupHelper` core API (`OpenNamedGroup`, `CloseNamedGroup`, `RevertToBeforeGroup`, `CanRevert`). Batch Undo rollback reuses the same mechanism for Undo-recorded Unity changes.
 
 **Tests:** 11 NUnit EditMode tests green (TurnUndoTrackerTests 9/9, RestoreButtonTests 2/2). Core `UndoGroupHelper` has 6 NUnit EditMode tests.
 
@@ -247,7 +187,8 @@ Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI + r
 **MCPChatWindow.Drain.cs** now monitors event silence to handle Codex reasoning models (o3, o3-pro) that think silently for 2–5 minutes. **Implementation:**
 
 1. **`_lastEventTime`** — timestamp of the most recent drained event
-2. **`InactivityTimeoutSec`** property — returns 300s for Codex (long thinking), 90s for Claude/Gemini (normal responses)
+2. **`InactivityTimeoutSec`** property — applies the saved timeout with a
+   300-second minimum for Codex and a 30-second minimum for other backends
 3. **DrainAndRender() watchdog check** — If no events for longer than timeout while backend is running, emit failure card with context hint, finalize turn, call `OnTurnFailed()` (resets undo group, unlocks reload)
 4. **Resets:** `_lastEventTime` updated on every OnSend (turn start) and every event drain
 
@@ -255,7 +196,7 @@ Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI + r
 
 **Dead-Process Guard (v0.36.0)** — If backend process unexpectedly exits mid-turn (detected via `OnProcessDead()`), appends `[Process exited]` to transcript and finalizes. Surfaces unexpected connection loss (vs. timeout) as distinct error. Also clears turn flags to unlock reload guard.
 
-**Why:** Old code assumed event silence = dead process and called `OnProcessDead()`, killing in-flight reasoning work. New approach: explicit timeout lets reasoning complete, fails gracefully if truly stuck. `ChatEvent.Heartbeat()` (emitted by CodexAppServerParser on reasoning events) resets watchdog without rendering anything.
+**Why:** Event silence is not treated as an immediate process death. Relay heartbeat events reset the watchdog without rendering anything, while the configurable inactivity timeout handles a genuinely stalled turn.
 
 **Tests:** 2 new inactivity timeout scenarios, 2 new dead-process guard scenarios.
 
@@ -336,10 +277,10 @@ Extracts top 3 non-Transform components; deduped against existing object-chip re
 ### Ask / Agent Mode Toggle
 
 Two permission modes:
-- **Ask** (`--permission-mode plan`) — tool calls require user acknowledgment before executing
-- **Agent** (`--permission-mode acceptEdits`) — tool calls auto-execute with confirmation only on mutations
+- **Ask** — permission prompts are rendered for explicit user approval.
+- **Agent** — permission prompts are auto-approved by the Unity-side policy.
 
-User can toggle mid-conversation via settings dropdown.
+The relay maps the selected mode to backend-specific CLI arguments. Users can toggle mode mid-conversation without adding backend-specific logic to the window.
 
 ### Domain-Reload Safety & Turn Survival (F4, plugin 0.7.0)
 
@@ -355,13 +296,15 @@ Result: Domain reload queued during a turn waits until the turn finishes, so the
 
 ### Pending Turn State (PendingTurnState.cs)
 
-Serializes in-flight turn state to `Library/MCP_ChatPendingTurn.txt` (plain-text pipe-delimited, base64-encoded payload). Format: `sessionId|turnId|requestJson_b64`. On `afterAssemblyReload`, the window's `OnEnable` reads the file and calls:
+Serializes in-flight turn state to `Library/MCP_ChatPendingTurn.txt` (plain-text pipe-delimited, base64-encoded payload). On `afterAssemblyReload`, the window restores the pending state and starts `RelayBackend` with the persisted session ID.
 
 ```csharp
-ClaudeBackend.ResumeAsync(sessionId)  // via --resume <sessionId>
+new RelayBackend(backendId, mode, model, mcpPort, resumeSessionId: sessionId)
 ```
 
-The CLI's `--resume` flag loads prior message history (via `load_session`) and continues the in-flight turn with the same context, picking up where it left off.
+The Python backend definition consumes the session ID for Claude. For
+non-stdin backends, deferred startup currently drops that ID before spawning the
+per-turn process; do not rely on in-Chat resume for those backends.
 
 **Persistence:** Plain-text, survives recompilation and process restart. Cleaned up after resume or on window close.
 
@@ -369,44 +312,29 @@ The CLI's `--resume` flag loads prior message history (via `load_session`) and c
 
 Tracks recently sent text (last 10 messages) to dedup against accumulated text during resume. Prevents duplicate context on reconnect.
 
-### Orphan Process Cleanup
+### Relay Process Lifecycle
 
-- Child `claude` process PID stored in `SessionState` (Editor-scoped serialization)
-- On assembly reload (domain reload), cleanup task kills the PID via `Process.Kill()`
-- Prevents zombie processes on recompilation or script reload
+- Relay PID and TCP port are stored in `SessionState`.
+- A domain reload leaves the relay alive and reattaches the C# process handle afterward.
+- Unity quit terminates the relay. Backend stop or session replacement terminates the current CLI process while leaving the relay sidecar available for reuse.
 
 ### Binary Resolution on macOS
 
 **Problem:** Finder-launched Unity has a minimal PATH; `claude` binary may not be found.
 
-**Solution:** Wrap the invocation in `/bin/zsh -lc`:
-
-```csharp
-var psi = new ProcessStartInfo
-{
-    FileName = "/bin/zsh",
-    Arguments = "-lc 'claude -p --mcp-config ... > /tmp/claude.log 2>&1'",
-    UseShellExecute = false,
-    RedirectStandardInput = true,
-    RedirectStandardOutput = true
-};
-```
-
-This ensures the child shell inherits the user's `.zshrc` PATH and finds `claude`.
+**Solution:** The Python backend resolver checks the inherited PATH, then queries the user's login shell when needed. C# does not construct a backend-specific shell command.
 
 ## File Layout
 
 ```
 unity-plugin/Editor/Chat/
-├── CLI/                              # Backend logic (106 .cs files)
+├── CLI/                              # Relay protocol, backend configuration, shared chat models
 │   ├── IChatBackend.cs               # Backend interface
-│   ├── CliBackendBase.cs             # Abstract host for CLI backends (4 axes)
-│   ├── ClaudeBackend.cs, RelayBackend.cs, CodexAppServerBackend.cs, AntigravityBackend.cs
+│   ├── RelayBackend.cs               # Only C# backend implementation
+│   ├── RelayChatProcess.cs, RelaySpawner.cs, RelayEventParser.cs
 │   ├── BackendRegistry.cs            # Backend factory + enum
 │   ├── ChatEvent.cs                  # Normalized event struct
 │   ├── ChatBinaryResolver.cs         # Binary PATH resolution
-│   ├── ClaudeArgBuilder.cs, CodexArgBuilder.cs  # Per-backend argv builders
-│   ├── CodexAppServerParser.cs, RelayEventParser.cs  # Per-backend stream parsers
 │   ├── ModelPresets.cs               # Per-backend model dropdown presets
 │   ├── PendingTurnState.cs           # Domain-reload: persist in-flight turn state
 │   ├── EditorStateSnapshot.cs        # Inject context block (scene, compile, errors)
@@ -426,50 +354,44 @@ unity-plugin/Editor/Chat/
 │   ├── CLI/                          # Backend + chip logic tests (93 files)
 │   │   ├── Helpers/                  # Test utilities (2 files)
 │   │   └── Mentions/                 # @mention tests (7 files)
-│   └── View/                         # UI rendering tests (112 files)
-│       └── Helpers/                  # Test utilities (3 files)
+│   └── View/                         # UI rendering tests
+│       └── Helpers/                  # Test utilities
 └── [.meta files omitted]
 ```
 
 ## Enabling the Feature
 
-### In MCPSettings Window
-
-1. **Window > UnityMCP > Settings**
-2. Scroll to **Agent Chat** section
-3. Toggle **Enable Agent Chat** checkbox
-4. Configure mode (Ask / Agent) and binary path (optional; auto-resolved on macOS)
+Open **MCP > Chat**. Chat is compiled and available without an enable toggle.
+Use **MCP > Settings > Chat Settings** for the inactivity timeout, model
+selection, context-chip display, and extension-provided settings. Backend
+binaries must be available on the login-shell `PATH`; stored binary overrides
+are not forwarded by the current relay start request.
 
 ## JSON-Only-at-Boundaries Principle
 
-Internal models are C# **structs + plain text strings**. JSON appears ONLY at forced protocol boundaries:
+Internal C# models are structs and plain text strings. JSON is limited to protocol boundaries:
 
-- **stdin** — user turn envelope (JSON): `{"messages":[...], "attachments":[...]}`
-- **stdout** — claude stream-json events (JSON): `{"type":"message_start",...}`
-- **--mcp-config** — config file (JSON): defines MCP server
-- **--permission-mode** — CLI arg (string): "plan" or "acceptEdits"
+- **Unity → relay** — command envelopes for start, send, control response, and mode changes
+- **Backend → relay** — backend-native JSON or text, normalized in Python
+- **Relay → Unity** — compact pipe-protocol events parsed by `RelayEventParser`
+- **MCP configuration** — backend-specific JSON or TOML generated in Python
 
-All intermediate parsing → plain C# objects (ChatEvent, ChatTranscript, ToolCard, etc.). Humanized output is plain text strings (`"🔧 Editing..."`), not re-encoded JSON.
+All Unity-side rendering uses `ChatEvent`, transcript models, and plain text rather than backend-native protocol objects.
 
-**Token savings:**
+**Protocol overhead:**
 - Omit JSON serialization inside Chat logic (→ no JsonConvert overhead)
 - Humanize at parse time (→ one-pass JSON→text, not JSON→object→JSON)
 - No intermediate JSON round-trips
 
 ## Testing
 
-Chat module has 4 NUnit suites (EditMode only, no Live dependency):
-
-- `ChatStreamParserTests` — Parse raw stream-json, emit ChatEvent structs
-- `ClaudeArgBuilderTests` — Generate --mcp-config file + args
-- `UserTurnBuilderTests` — Encode user messages → stdin JSON
-- `ToolVerbMapTests` — Tool name → humanized text
+Chat tests are split between `unity-plugin/Editor/Chat/Tests/CLI/` for relay protocol and shared models, and `unity-plugin/Editor/Chat/Tests/View/` for UI behavior. Python backend definitions, relay lifecycle, and stream transformers are covered under `server/tests/`.
 
 Run via **Window > TextExecution > Test Runner** when `UNITY_INCLUDE_TESTS` is defined.
 
 ## Billing / Terms of Service
 
-**Important:** Enabling MCP Chat spawns the **user's own** locally-installed `claude` CLI using **their own** logged-in Claude subscription. Usage, credits, and Anthropic Terms of Service are **between the user and Anthropic**. This feature does NOT proxy, cache, or share login credentials. Each user drives their own `claude` binary independently.
+**Important:** MCP Chat runs the user's selected locally installed CLI with that provider's local authentication. Usage, credits, and terms remain between the user and the selected provider. The relay does not proxy or share login credentials.
 
 ## Content Rendering
 
@@ -535,54 +457,38 @@ Called from `AppendUserBubble` + `AppendToolChip` so interrupted segments + text
 
 ## Implementation Notes
 
-### Why Spawn vs. Sidecar
+### Why the Relay Sidecar
 
-- **No sidecar server needed** — reuses existing `unity_mcp.server` via the spawned CLI's MCP config
-- **No API key exposure** — uses subscription auth from disk (logged-in CLI session)
-- **Per-user isolation** — each Unity instance is independent
-- **Natural upgrade path** — if user upgrades their `claude` CLI, MCP Chat auto-benefits
+- **Domain-reload survival** — the Python relay owns the CLI process outside the Unity AppDomain.
+- **One C# protocol** — Unity handles semantic commands and normalized events, not backend-specific output formats.
+- **Backend isolation** — argv, authentication, environment, and resume behavior live in `backend_def.py`.
+- **Reconnect safety** — the relay buffer preserves sequenced events across C# reconnects.
 
 ### macOS PATH Gotchas
 
 - Finder-launched Unity has minimal PATH (e.g., `/usr/bin:/bin:/usr/sbin:/sbin`)
 - `claude` binary typically installed in `/opt/homebrew/bin/claude` or user-local `~/.local/bin/claude`
-- Solution: spawn via `/bin/zsh -lc 'claude ...'` to inherit user's shell config (`.zshrc`)
-- Alternative: user can set `CLAUDE_PATH` env var in MCPSettings to override auto-resolution
+- `BackendDef.resolve_binary()` checks the current PATH and then uses a login-shell lookup on macOS/Linux.
+- Successful login-shell PATH resolution is cached; failed lookups are retried after a short TTL.
+- Windows uses registry PATH entries and known user-local install directories.
 
-### MCP Config Generation via ChatMcpConfigWriter (v0.36.0)
+### MCP Config Generation
 
-The `--mcp-config` file is auto-generated by `ChatMcpConfigWriter` at runtime, deriving the Python server path from the UPM package location. Resolution chain:
+The relay delegates scoped MCP configuration to `server/src/unity_mcp/mcp_config_writer.py`. Each `BackendDef` chooses the format and how `UNITY_MCP_PORT` is delivered. The Unity layer passes only semantic backend settings and the MCP port.
 
-1. Probe `server/.venv/bin/python` (local venv)
-2. Resolve absolute path via `uv` tool
-3. Fall back to `python3` (system PATH)
+Do not duplicate backend-specific JSON/TOML or environment rules in C#.
 
-**v0.36.0: Env block injection** — Config file now emits `"env":{"UNITY_MCP_PORT":"<port>"}` block (when chat port > 0). Python bridge reads this from the config env and uses it for initial connection, falling back to discovery files if needed.
+### Interactive Questions and Permissions
 
-**v0.55.0: External MCP Support** — OpenCode backend now merges 3rd-party MCP entries from global `~/.opencode/config.json` into the scoped config's "mcp" block. Non-Unity entries (detected by key filter) are injected additively; Unity entries are stripped to prevent conflicts. Future backends (Blender, etc.) follow the same pattern: scoped config + external merge.
-
-Port discovery chain: no explicit port embedded in config itself (server self-discovers via `~/.unity-biome-mcp/ports/*.port`), but env var in config accelerates connection. The hardcoded `~/.claude/mcp.json` path is now a fallback only (used if config generation fails). This eliminates the need for manual setup in most cases.
-
-### Prose-Fallback for Headless Chat (--disallowedTools AskUserQuestion)
-
-**Problem:** The built-in `AskUserQuestion` tool auto-fails when Claude runs in headless stream-json mode (no stdin interactivity). The spawn writes JSON questions to the tool card, but Unity has no way to capture user input back through stdin within the stream. Response: timeout (~500ms), tool fails, context lost.
-
-**Solution:** In `ClaudeArgBuilder`, add `--disallowedTools AskUserQuestion` to the CLI args. This tells Claude's built-in tool-use logic to skip the tool and instead respond with prose text describing what it would ask. Example:
-
-```
-Claude normally: [tool_use AskUserQuestion ("What color?")]
-With disallowedTools: "What color would you like for the particle system? (I would ask you, but I can't do that in this mode.)"
-```
-
-**Result:** No tool-call failures, context-preserved prose question, user can paste answer into next input. Cost: ~200 tokens per question (prose vs. tool card), acceptable trade-off.
+The relay normalizes permission prompts and user questions into pipe-protocol events. `ToolApprovalCard` and `AskUserCard` collect the response in Unity, and `RelayBackend.SendControlResponse()` sends it back through the active relay session.
 
 ### Domain Reload Lifecycle
 
 1. User edits a C# script in the Chat assembly or core
 2. Unity detects domain reload, fires `[InitializeOnLoad]` finalizers
-3. Chat's orphan-cleanup task reads PID from SessionState, calls `Process.Kill()`
-4. Domain reload completes; Chat window re-initializes on next EditorApplication.update
-5. User can start a new chat session
+3. The Python relay and CLI process remain outside the Unity AppDomain
+4. Domain reload completes; the Chat window reconnects to the relay
+5. Pending session and event sequence state are restored
 
 ### Full-Path Chip Payload + "Show LLM payload" Inspector (Plugin v0.20.6)
 

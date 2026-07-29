@@ -11,13 +11,13 @@ Create a new `.asmdef` in your plugin folder:
 ```json
 {
   "name": "MyPlugin.Chat",
-  "references": ["UnityMCP.Editor.Chat"],
+  "references": ["UnityMCP.Editor.Chat.CLI"],
   "autoReferenced": false
 }
 ```
 
 **Key points:**
-- Reference `UnityMCP.Editor.Chat` (which provides `IChipKindProvider` + `ChipKindRegistry`)
+- Reference `UnityMCP.Editor.Chat.CLI` (which provides `IChipKindProvider` + `ChipKindRegistry`)
 - Set `autoReferenced: false` to avoid interfering with other assemblies
 
 ### 2. Implement IChipKindProvider
@@ -25,6 +25,7 @@ Create a new `.asmdef` in your plugin folder:
 ```csharp
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
 
 namespace MyPlugin.Chat
@@ -223,9 +224,9 @@ Example: If you want to extend asset detection, use `Priority = 900`. If you wan
 
 ## Depth Configuration
 
-Users can override `DefaultDepth` per kind via the **F9 Settings Form** (per-backend chip config dropdown). If no user override, your `DefaultDepth` is used.
-
-Custom providers always use their `DefaultDepth`. Built-in kinds have per-kind dropdowns in settings.
+Users can override depth and color for every registered kind under
+**MCP > Settings > Chat Settings > Context Chips**. `DefaultDepth` is the
+fallback until the user saves an override.
 
 ## Reload Survival
 
@@ -275,67 +276,6 @@ public void CustomProvider_CanHandle_CustomAsset()
 
 (This method is available only in test assemblies via `#if UNITY_INCLUDE_TESTS`.)
 
-## Full Example: Domain-Specific Configuration Chip
-
-```csharp
-using UnityEditor;
-using UnityEngine;
-using UnityMCP.Editor.Chat;
-
-namespace MyGame.Chat
-{
-    [InitializeOnLoad]
-    internal sealed class GameConfigChipProvider : IChipKindProvider
-    {
-        static GameConfigChipProvider() => ChipKindRegistry.Register(new GameConfigChipProvider());
-
-        public string Key => "game_config";
-        public int Priority => 850;
-        public string IconName => "d_Settings";
-        public string HexColor => "#fbbf24";
-        public string DefaultDepth => "summary";
-
-        public bool CanHandle(Object obj, string assetPath)
-            => obj is ScriptableObject && assetPath.Contains("GameConfig");
-
-        public ChipData Create(Object obj, string assetPath)
-            => new ChipData(Key, assetPath, obj.name, 0);
-
-        public string FormatPayload(ChipData chip, ChipPayloadContext ctx)
-        {
-            if (ctx.Depth == "none") return "";
-            if (ctx.Depth == "path") return $"[{Key}:{chip.Path}]";
-
-            var header = $"[{Key}:{chip.Path}]";
-            var config = AssetDatabase.LoadAssetAtPath<GameConfig>(chip.Path);
-            if (config == null) return header;
-
-            var details = $"\ndifficultyLevel={config.difficultyLevel}\n" +
-                         $"maxPlayers={config.maxPlayers}\n" +
-                         $"enableAI={config.enableAI}";
-            return header + details;
-        }
-
-        public void Navigate(string reference)
-        {
-            var asset = AssetDatabase.LoadAssetAtPath<GameConfig>(reference);
-            if (asset != null)
-            {
-                EditorGUIUtility.PingObject(asset);
-                Selection.activeObject = asset;
-            }
-        }
-
-        public void Ping(string reference) => Navigate(reference);
-
-        public void AppendContextMenuItems(UnityEngine.UIElements.DropdownMenu menu, string reference)
-        {
-            menu.AppendAction("Open Config", _ => Navigate(reference));
-        }
-    }
-}
-```
-
 ## Troubleshooting
 
 **"Duplicate key 'X' — keeping first registration"**
@@ -344,7 +284,7 @@ Two providers registered with the same `Key`. Check for name collisions across p
 
 **Plugin not appearing in chips**
 
-1. Ensure `[InitializeOnLoad]` static ctor calls `ChipKindRegistry.Register(this)` exactly once
+1. Ensure the `[InitializeOnLoad]` static constructor calls `ChipKindRegistry.Register(new CustomAssetChipProvider())` exactly once
 2. Check Console for warnings from ChipKindRegistry
 3. Verify `CanHandle()` logic is correct
 

@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - unity-biome-mcp installed (pip + UPM)
-- Python 3.10+, Unity 2021+
+- Python 3.10+, Unity 6000.0+
 
 ## 1. Scaffold (Python side)
 
@@ -111,14 +111,16 @@ ln -s /path/to/my-unity-plugin/unity/Editor /path/to/game-project/Assets/MyPlugi
 # Or just copy the Editor folder directly instead of symlinking.
 
 # Force MCP server reload
-# Restart MCP server via MCP → Reconnect in Unity, or restart the Claude Code CLI session
+# Open MCP > Status in Unity and select Restart, then restart the Claude Code CLI session
 ```
 
-**Plugin Discovery:** Plugins are discovered from 3 sources in order: (1) built-in plugins, (2) pip entry points in `pyproject.toml`, (3) `UNITY_MCP_PLUGIN_DIRS` environment variable. Your plugin is auto-loaded when the MCP server starts or reconnects.
+**Plugin Discovery:** Plugins are discovered from 3 sources in order: (1) built-in plugins, (2) pip entry points in `pyproject.toml`, (3) `UNITY_MCP_PLUGIN_DIRS` environment variable. Restart the MCP server process after installing or changing a Python plugin.
 
 **Important:** Always call `register_tools()` to declare your plugin's tools. If you use `@mcp.tool()` without declaring the tool via `register_tools()`, it will be automatically hidden in the `"plugins"` category (visible only via `discover_tools(category="plugins")`). This prevents undeclared tools from cluttering the budget.
 
-Verify: call `my_count_objects` from Claude Code. If tools don't appear, run the Setup Wizard to diagnose.
+From any connected MCP client, call `my_count_objects`. A successful response
+contains `count: <number>`. If the tool does not appear, open
+**MCP > Status > Diagnose**.
 
 ## 4. Testing Your Plugin
 

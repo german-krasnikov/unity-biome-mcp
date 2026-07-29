@@ -1,67 +1,37 @@
-# Claude Code Setup
+# Claude Code
 
-The plugin auto-configures Claude Code automatically when you add it to your project. Works on **Windows, macOS, and Linux**.
+Prerequisite: complete the
+[Unity package installation](../getting-started/index.md#1-install-the-unity-package).
 
-## Prerequisites
+## Install and Sign In
 
-- Claude Code CLI installed and authenticated
-- Unity 6000.0+ with the `unity-biome-mcp` plugin installed (via UPM git URL)
-- TCP port 9500 (or auto-assigned) free
-
-## Quick Setup
-
-### 1. Install Claude Code CLI
-
-Visit https://claude.com/download and install the native Claude Code app for your OS, or via npm:
+Install Claude Code using the [official setup guide](https://docs.anthropic.com/en/docs/claude-code/getting-started), then run:
 
 ```bash
-npm install -g @anthropic-ai/claude-code
-claude --version
+claude
 ```
 
-Authenticate:
+Complete the interactive sign-in. Unity's Chat Settings uses `claude auth status` to report the cached CLI authentication state.
 
-```bash
-claude auth login
-```
+## External MCP Client
 
-### 2. Add Plugin to Unity
+Unity Biome MCP creates `.mcp.json` in the Unity project root. Open Claude Code from that project, restart it after the file is created, and run the [first connection check](../getting-started/index.md#3-verify-the-first-connection).
 
-1. Open **Window → Package Manager**
-2. Click **+ → Add package from git URL**
-3. Paste: `https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin`
-4. Wait for import, then open any scene
+For user-level configuration instead, use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `claude-code`.
 
-The plugin auto-generates your Claude Code MCP config on first load.
+## In-Unity Chat
 
-### 3. Verify Installation (Optional)
+1. Open **MCP > Settings > Chat Settings**.
+2. Confirm that the Claude binary is detected and authentication reports success.
+3. Open **MCP > Chat** and select **Claude**.
 
-Run the diagnostic:
+MCP Chat reuses the cached Claude CLI login. It does not ask for an API key.
 
-```bash
-uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp doctor
-```
+## Client-specific Troubleshooting
 
-Or from Claude Code itself:
-
-```python
-await doctor()
-```
-
-## Use Claude Code From the Editor (Primary Workflow)
-
-1. Open Unity and wait for `[MCP] Server started on port <XXXX>` in the Console.
-2. Open **MCP → Chat**.
-3. Select **Claude** from the backend dropdown.
-4. Type a prompt and press Enter.
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| `claude: command not found` | Ensure Claude Code is installed and in PATH. Check `which claude` or `where.exe claude`. |
-| MCP server fails to start | Run Setup Wizard → Diagnostics. Check that Python 3.10+ is available and TCP port 9500 is free. |
-| Setup Wizard doesn't open in Unity | (1) Verify plugin is in Package Manager. (2) Close and reopen Unity. (3) Check Console for errors. |
-| MCP tools don't appear in Claude Code | (1) Confirm Setup Wizard configured Claude Code. (2) Restart Claude Code. (3) Check Console for MCP connection errors. |
-| Tools fail with "Connection refused" | (1) Ensure Unity is open with the plugin. (2) Run Setup Wizard → Diagnostics to check TCP port. (3) Restart Unity. |
-| Python path resolution fails in Chat Settings | Override manually: **Settings > Agent Chat > Claude Binary Path** — enter absolute path to `claude` binary. |
+| Symptom | Action |
+|---|---|
+| Claude is not found | Make `claude` available on the login-shell `PATH`, then restart Unity |
+| Authentication is not ready | Run `claude`, complete sign-in, and verify with `claude auth status` |
+| Tools are absent in Claude Code | Start Claude Code from the Unity project and confirm that `.mcp.json` exists |
+| Configuration changed | Restart Claude Code so it reloads the MCP server entry |

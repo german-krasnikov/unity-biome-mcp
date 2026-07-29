@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 230"
+     role="img" aria-labelledby="comparison-title comparison-desc">
+  <title id="comparison-title">Unity MCP ecosystem comparison</title>
+  <desc id="comparison-desc">
+    Five product nodes share an animated arcade signal line around a glowing
+    Unity Biome MCP core. Motion stops when reduced motion is requested.
+  </desc>
+  <defs>
+    <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+  </defs>
+  <style>
+    .bg { fill: #2f2f2f; }
+    .frame { fill: none; stroke: #555; stroke-width: 1; }
+    .track { fill: none; stroke: #46e6a6; stroke-width: 2; opacity: .36; }
+    .tick { fill: #2f2f2f; stroke-width: 2; }
+    .label {
+      fill: #cfcfcf;
+      font: 700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      text-anchor: middle;
+    }
+    .title {
+      fill: #f1f1f1;
+      font: 800 27px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      text-anchor: middle;
+    }
+    .subtitle {
+      fill: #a8a8a8;
+      font: 500 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      text-anchor: middle;
+    }
+    .core-aura {
+      fill: #46e6a6;
+      opacity: .28;
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: aura 2.8s ease-in-out infinite;
+    }
+    .core {
+      fill: #2f2f2f;
+      stroke: #46e6a6;
+      stroke-width: 3;
+      transform: rotate(45deg);
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: breathe 2.8s ease-in-out infinite;
+    }
+    .signal {
+      fill: #46e6a6;
+      filter: url(#soft-glow);
+      animation: signal 5.4s cubic-bezier(.45, 0, .55, 1) infinite;
+    }
+    .pulse {
+      fill: none;
+      stroke: #46e6a6;
+      stroke-width: 2;
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: pulse 2.8s ease-out infinite;
+    }
+    .particle {
+      fill: #46e6a6;
+      opacity: .7;
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: drift 3.7s ease-in-out infinite alternate;
+    }
+    .p2 { animation-delay: -.9s; animation-duration: 4.6s; }
+    .p3 { animation-delay: -1.8s; animation-duration: 3.2s; }
+    .p4 { animation-delay: -2.6s; animation-duration: 5.1s; }
+    @keyframes aura {
+      0%, 100% { opacity: .16; transform: scale(.86); }
+      50% { opacity: .38; transform: scale(1.16); }
+    }
+    @keyframes breathe {
+      0%, 100% { transform: scale(.96) rotate(45deg); }
+      50% { transform: scale(1.04) rotate(45deg); }
+    }
+    @keyframes signal {
+      0% { transform: translateX(0); opacity: 0; }
+      8% { opacity: 1; }
+      50% { opacity: 1; }
+      92% { opacity: 1; }
+      100% { transform: translateX(520px); opacity: 0; }
+    }
+    @keyframes pulse {
+      0% { opacity: .75; transform: scale(.45); }
+      75%, 100% { opacity: 0; transform: scale(1.45); }
+    }
+    @keyframes drift {
+      0% { transform: translate(-3px, 2px) scale(.8); opacity: .35; }
+      45% { transform: translate(4px, -5px) scale(1.15); opacity: .9; }
+      100% { transform: translate(7px, 3px) scale(.7); opacity: .45; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .core-aura, .core, .signal, .pulse, .particle { animation: none; }
+      .signal { opacity: .8; transform: translateX(260px); }
+      .core-aura { opacity: .25; }
+    }
+  </style>
+
+  <rect class="bg" width="640" height="230" rx="8"/>
+  <rect class="frame" x=".5" y=".5" width="639" height="229" rx="7.5"/>
+
+  <text class="title" x="320" y="47">UNITY MCP ECOSYSTEM</text>
+  <text class="subtitle" x="320" y="68">SOURCE-BACKED PRODUCT COMPARISON / 2026-07-29</text>
+
+  <path class="track" d="M60 132 H580"/>
+  <circle class="tick" cx="60" cy="132" r="7" stroke="#42a5f5"/>
+  <circle class="tick" cx="190" cy="132" r="7" stroke="#f3a634"/>
+  <circle class="tick" cx="450" cy="132" r="7" stroke="#e94560"/>
+  <circle class="tick" cx="580" cy="132" r="7" stroke="#b6b6b6"/>
+
+  <circle class="signal" cx="60" cy="132" r="4"/>
+  <circle class="pulse" cx="320" cy="132" r="24"/>
+  <circle class="core-aura" cx="320" cy="132" r="29" filter="url(#soft-glow)"/>
+  <rect class="core" x="301" y="113" width="38" height="38" rx="5"/>
+  <circle class="particle p1" cx="282" cy="116" r="3"/>
+  <circle class="particle p2" cx="354" cy="108" r="2.5"/>
+  <circle class="particle p3" cx="366" cy="151" r="3.5"/>
+  <circle class="particle p4" cx="276" cy="155" r="2"/>
+
+  <text class="label" x="60" y="166">UNITY</text>
+  <text class="label" x="190" y="166">COPLAY</text>
+  <text class="label" x="320" y="188" fill="#46e6a6">BIOME</text>
+  <text class="label" x="450" y="166">AI GAME DEV</text>
+  <text class="label" x="580" y="166">MCP UNITY</text>
+</svg>

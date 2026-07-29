@@ -35,10 +35,15 @@ cd server  # All Python work happens here
 ### Local Testing (No Unity Required)
 ```bash
 # Unit tests only — fast, $0, no Unity needed
-PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "not live" -q
+PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ \
+  -m "not live and not live_cli and not live_chat and not monkey" \
+  --ignore=tests/live --strict-markers -q
 
-# Expected: 4703 tests passing
+# Expected: command exits successfully
 ```
+
+Run the `monkey` stress suite separately; it is intentionally excluded from the
+fast unit command.
 
 ### Integration Testing (Requires Running Unity)
 
@@ -47,61 +52,51 @@ PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "not live" -q
    open -a Unity  # macOS; or launch Unity manually
    ```
 
-2. **Discover the port and run Python live tests:**
+2. **Select the project and run Python live tests:**
    ```bash
-   export UNITY_MCP_PORT=$(python3 -c "import pathlib; f=list(pathlib.Path.home().glob('.unity-biome-mcp/ports/*.port')); print(f[0].read_text().split()[0] if f else '9500')")
+   export UNITY_MCP_PROJECT_DIR="/absolute/path/to/your/UnityProject"
    PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "live and not live_cli" -q
    ```
-   Expected: 284 live tests passing.
+   The server selects the live port whose recorded project path best matches
+   `UNITY_MCP_PROJECT_DIR`. Set `UNITY_MCP_PORT` only when you need to override
+   that selection. Expected: command exits successfully.
 
 3. **Open Unity Test Runner** (EditMode only):
    - `Window → Testing → Test Runner`
    - Click **EditMode**
    - Click **Run All**
-   - Expected: 6537+ tests passing
+   - Expected: the EditMode run completes without failures
 
 ## Test Execution Order
 
 Always run tests in this order to catch issues early:
 
-| Tier | Tests | Command | Time | Cost |
-|------|-------|---------|------|------|
-| **1. Reload Stability** | 36 | `pytest tests/test_reload_stability.py -v` | ~40s | $0 |
-| **2. Unit (Python)** | 4703 mocked | `pytest tests/ -m "not live"` | ~15s | $0 |
-| **3. EditMode (C#)** | 6537 | Unity Test Runner → EditMode → Run All | ~30s | $0 |
-| **4. PlayMode (C#)** | 73 | Unity Test Runner → PlayMode → Run All | ~60s | $0 |
-| **5. Python Live** | 284 | `pytest tests/ -m "live and not live_cli"` (set `UNITY_MCP_PORT` first) | ~10s | $0 |
-| **6. Real CLI (live_cli)** | 4 | `pytest tests/ -m "live_cli" -v` (set `UNITY_MCP_PORT` first) | ~20s | ~$0.004 |
+| Tier | Tests | Command | Requirement |
+|------|-------|---------|-------------|
+| **1. Reload Stability** | Focused bridge stability | `pytest tests/test_reload_stability.py -v` | Python environment |
+| **2. Unit (Python)** | Non-live, non-stress Python suite | `pytest tests/ -m "not live and not live_cli and not live_chat and not monkey" --ignore=tests/live --strict-markers` | Python environment |
+| **3. Stress (Python)** | Monkey/property stress suite | `pytest tests/ -m "monkey and not live and not live_cli and not live_chat" --ignore=tests/live --strict-markers` | Python environment |
+| **4. EditMode (C#)** | Unity EditMode suite | Unity Test Runner → EditMode → Run All | Running Unity project |
+| **5. PlayMode (C#)** | Unity PlayMode suite | Unity Test Runner → PlayMode → Run All | Running Unity project |
+| **6. Python Live** | Unity-connected Python suite | `pytest tests/ -m "live and not live_cli"` | Running target Unity project |
+| **7. Live Chat** | Standalone `live_chat` suite | `pytest tests/ -m "live_chat" -v` | Authenticated CLI and target Unity project |
+| **8. Real CLI** | `live_cli` suite | `pytest tests/ -m "live_cli" -v` | Authenticated CLI and target Unity project |
 
 Stop at the first failure — don't run all tiers if an earlier tier fails.
 
 ### After C# Changes
 
-Always verify the test assembly compiles:
+Always reload before running Unity tests:
 
-```bash
-# Check for compilation errors (not just stale DLLs)
-# Port is auto-discovered; override with UNITY_MCP_PORT=<port> for multiple Unity instances
-python3 -c "
-import asyncio,struct,json,pathlib,os
-def find_port():
-    p=int(os.environ.get('UNITY_MCP_PORT','0'))
-    if p: return p
-    for f in pathlib.Path.home().glob('.unity-biome-mcp/ports/*.port'):
-        try: return int(f.read_text().split('\n')[0])
-        except: pass
-    return 9500
-async def go():
-    port=find_port()
-    r,w=await asyncio.open_connection('127.0.0.1',port)
-    msg=json.dumps({'cmd':'get_compile_errors','args':{}}).encode()
-    w.write(struct.pack('>I',len(msg))+msg);await w.drain()
-    d=await r.readexactly(struct.unpack('>I',await r.readexactly(4))[0])
-    resp=json.loads(d);w.close()
-    print(resp.get('data','') or '[COMPILE CLEAN]')
-asyncio.run(go())
-"
-```
+1. Call `force_refresh`.
+2. Wait at least 15 seconds.
+3. Call `diagnose` and require a clean verdict.
+4. If the verdict and Editor behavior disagree, inspect `get_console`, then
+   `Editor.log`.
+5. Run the focused EditMode or PlayMode tests.
+
+Do not use `get_compile_errors` alone as proof that the new assembly loaded. See
+[reload recovery](.claude/skills/reload-recovery.md) for the escalation ladder.
 
 ## Code Style
 
@@ -150,20 +145,23 @@ Follow these principles for all contributions:
 For architectural decisions and design patterns, see [`AI/architecture.md`](AI/architecture.md).
 
 Key concepts:
-- **Plugin system**: Register tools via `ToolRegistry` — no cross-imports
-- **Serializers**: 7 types (GameObjectSerializer, ComponentSerializer, etc.) for safe data transfer
+- **Tool catalog**: `tools/tool_specs.py` owns public tool metadata; tool modules register their wrappers during server composition
+- **Serialization**: purpose-specific Unity helpers such as `HierarchySerializer` and `ComponentSerializer` own wire-safe output
 - **CommandRouter**: Async dispatch with permission gating and security scanning
 - **TCP bridge**: 4-byte length-prefixed JSON, localhost-only, heartbeat recovery
 
 ## Documentation
 
-Documentation is maintained automatically:
+Documentation is maintained with code:
 - Release notes go in `CHANGELOG.md`
-- Tool catalog in `AI/mcp-server.md`
-- Architecture in `AI/architecture.md`
-- Skills and recipes in `.claude/skills/`
+- User workflows go in `docs/`
+- Agent implementation constraints go in `AI/`
+- Generated README facts are updated with `python scripts/update_readme.py --all`
+- Before committing generated facts, run `python scripts/update_readme.py --check-facts`
+  and `python scripts/update_readme.py --check`
 
-**Do not manually edit documentation during development** — the release workflow updates docs from code. Focus only on feature implementation and tests.
+Update the smallest canonical page that owns the behavior. Avoid copying the
+same workflow into several files.
 
 ## Getting Help
 

@@ -133,13 +133,14 @@ await ui_intent("create a health bar at top-left", template="hud")
 
 **Output Format** (text):
 ```
-Haiku budget: 0.045 / 1.00 day cap
-Skipped features: animator_intent (3), vfx_intent (1)
+sess=$0.0450/0.50 (9%) day=$0.0450 skipped=animator_intent:3 vfx_intent:1
 ```
 
-**Enabled by:** `UNITY_MCP_BUDGET=1` environment variable.
+**Enabled by default.** Set `UNITY_MCP_BUDGET=0` to disable it; set `UNITY_MCP_BUDGET=1` to enable it explicitly.
 
-**Disabled:** "budget tracking disabled (set UNITY_MCP_BUDGET=1)".
+**Default caps:** `$0.50` per session and `$5.00` per day. Override them with `UNITY_MCP_HAIKU_BUDGET` and `UNITY_MCP_HAIKU_DAY_CAP`.
+
+**Disabled response:** `"budget tracking disabled (set UNITY_MCP_BUDGET=1)"`.
 
 ## Common Patterns
 

@@ -1,120 +1,113 @@
-"""Update README stats: badges, changelog excerpt, stats/hero/architecture SVGs.
+"""Collect and render README facts.
 
-CLI:
-  --collect   collect_facts + write docs/assets/_meta.json (needs venv/env)
-  --render    read _meta.json + regenerate outputs (CI-safe, no pip)
-  --all       collect then render (default)
-  --check     render in-memory, exit 1 if any file is stale
+Modes:
+  --collect      collect facts and write docs/assets/_meta.json
+  --render       render committed outputs from _meta.json
+  --all          collect and render (default)
+  --check        fail when rendered outputs are stale
+  --check-facts  fail when _meta.json differs from a fresh collection
 """
+
+import argparse
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
-REPO_ROOT = pathlib.Path(__file__).parent.parent
+SCRIPTS_DIR = pathlib.Path(__file__).parent
+REPO_ROOT = SCRIPTS_DIR.parent
+sys.path.insert(0, str(SCRIPTS_DIR))
 
-# ---------------------------------------------------------------------------
-# Re-exports from readme_render (pure stdlib — always safe to import)
-# ---------------------------------------------------------------------------
 from readme_render import (  # noqa: E402
-    substitute_svg_markers,
-    update_readme_badges,
+    generate_changelog_summary,
     inject_changelog_into_readme,
     make_badge_json,
-    generate_changelog_details,
-    extract_changelog_blocks,
     parse_latest_changelog,
-    render,
-    _apply_or_check,
     read_meta_json,
+    render,
+    stats_summary,
+    substitute_svg_markers,
+    update_readme_stats,
 )
 
-# backward compat: update_stats_svg was in old update_readme
-def update_stats_svg(svg: str, tools, tests) -> str:
-    return substitute_svg_markers(svg, {"tools": tools, "tests_total": tests})
 
-
-def git_commit_count():
-    import subprocess
-    try:
-        out = subprocess.check_output(
-            ["git", "rev-list", "--count", "HEAD"],
-            text=True, cwd=REPO_ROOT, stderr=subprocess.DEVNULL,
-        )
-        return int(out.strip())
-    except Exception:
-        return None
-
-
-# ---------------------------------------------------------------------------
-# C4: readme_facts re-exports via lazy __getattr__ — not imported at module load
-# ---------------------------------------------------------------------------
-_FACTS_ATTRS = {"count_mcp_tools", "read_server_version", "read_plugin_version",
-                "count_pytest_python", "count_pytest_live", "count_unity_tests"}
+_FACTS_ATTRS = {
+    "count_mcp_tools",
+    "count_pytest_python",
+    "count_pytest_stress",
+    "count_pytest_live",
+    "count_unity_tests",
+    "read_plugin_version",
+    "read_server_version",
+}
 
 
 def __getattr__(name: str):
+    """Lazily expose fact collectors without loading them for render-only CI."""
     if name in _FACTS_ATTRS:
-        import readme_facts as _rf
-        return getattr(_rf, name)
+        import readme_facts
+
+        return getattr(readme_facts, name)
     raise AttributeError(f"module 'update_readme' has no attribute {name!r}")
 
 
-# ---------------------------------------------------------------------------
-# Main CLI
-# ---------------------------------------------------------------------------
+def _facts_drift(stored: dict, fresh: dict) -> dict:
+    return {
+        key: (stored.get(key), value)
+        for key, value in fresh.items()
+        if stored.get(key) != value
+    }
+
 
 def main() -> None:
-    import argparse
-    ap = argparse.ArgumentParser(description="Update README/SVG stats from single source.")
-    g = ap.add_mutually_exclusive_group()
-    g.add_argument("--collect", action="store_true", help="Collect live facts + write _meta.json")
-    g.add_argument("--render", action="store_true", help="Read _meta.json + regenerate outputs")
-    g.add_argument("--check", action="store_true", help="Render in-memory, exit 1 if stale")
-    g.add_argument("--check-facts", dest="check_facts", action="store_true",
-                   help="Collect fresh facts, exit 1 if _meta.json is stale")
-    g.add_argument("--all", dest="all_", action="store_true", help="collect then render (default)")
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser(
+        description="Collect and render README metadata from source registrations and test discovery."
+    )
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--collect", action="store_true")
+    modes.add_argument("--render", action="store_true")
+    modes.add_argument("--all", dest="all_", action="store_true")
+    modes.add_argument("--check", action="store_true")
+    modes.add_argument("--check-facts", dest="check_facts", action="store_true")
+    args = parser.parse_args()
 
     if args.check_facts:
         from readme_facts import collect_facts, load_meta
+
         fresh = collect_facts(REPO_ROOT)
-        stored = load_meta(REPO_ROOT)
-        drifted = {k: (stored.get(k), fresh[k]) for k in fresh if stored.get(k) != fresh[k]}
-        if drifted:
-            for k, (was, now) in drifted.items():
-                print(f"DRIFT {k}: stored={was} actual={now}")
-            sys.exit(1)
+        drift = _facts_drift(load_meta(REPO_ROOT), fresh)
+        if drift:
+            for key, (stored, actual) in drift.items():
+                print(f"DRIFT {key}: stored={stored} actual={actual}")
+            raise SystemExit(1)
         print("facts OK")
         return
 
-    do_collect = args.collect or args.all_ or not any([args.collect, args.render, args.check, args.all_])
-    do_render  = args.render  or args.all_ or not any([args.collect, args.render, args.check, args.all_])
-    do_check   = args.check
+    default_mode = not any((args.collect, args.render, args.all_, args.check))
+    collect = args.collect or args.all_ or default_mode
+    render_outputs = args.render or args.all_ or default_mode
 
-    if do_collect:
-        # C4: lazy import of readme_facts only in --collect/--all branch
+    if collect:
         from readme_facts import collect_facts, write_meta_json
+
         print("Collecting facts...")
         facts = collect_facts(REPO_ROOT)
         meta_path = write_meta_json(REPO_ROOT, facts)
         print(
-            f"  tools={facts['tools']}  tests={facts['tests_total']} "
-            f"(python={facts['tests_python']} unity={facts['tests_unity']} live={facts['tests_live']})"
-            f"  server={facts['server_version']}  plugin={facts['plugin_version']}"
+            f"  tools={facts['tools']}  test_inventory={facts['tests_total']} "
+            f"(regular={facts['tests_python']} stress={facts['tests_stress']} "
+            f"live={facts['tests_live']} unity_source={facts['tests_unity']}) "
+            f"server={facts['server_version']} plugin={facts['plugin_version']}"
         )
         print(f"  wrote {meta_path}")
     else:
-        # C4: --render reads _meta.json via stdlib-only readme_render (no readme_facts)
         facts = read_meta_json(REPO_ROOT)
 
-    if do_render:
+    if args.check:
+        render(REPO_ROOT, facts, check=True)
+    elif render_outputs:
         print("Rendering...")
         render(REPO_ROOT, facts)
         print("Done.")
-    elif do_check:
-        # C6: same code path as --render, just check=True
-        render(REPO_ROOT, facts, check=True)
 
 
 if __name__ == "__main__":

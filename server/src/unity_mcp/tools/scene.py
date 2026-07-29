@@ -127,7 +127,7 @@ async def save_session() -> str:
 
 
 async def load_session() -> str:
-    """Load previous session context. Shows hierarchy diff since last save."""
+    """Load previous session context beside the current hierarchy."""
     path = os.path.join(os.getcwd(), ".claude", "session-context.json")
     if not os.path.exists(path):
         return "No previous session found."
