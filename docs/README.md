@@ -6,6 +6,7 @@ User documentation for connecting an AI assistant to the Unity Editor through Un
 
 - [Getting Started](getting-started/index.md) - Install the Unity package, configure a client, and verify the first connection
 - [Choose an MCP Client](install/index.md) - Client-specific setup and configuration locations
+- [AI Skills and Agents](install/ai-skills.md) - Install project-local guidance for Claude Code and Codex
 - [Settings](settings.md) - Ports, security, tool visibility, Chat permissions, updates, and rollback
 - [Using MCP Chat](chat/using-chat.md) - Run an end-to-end task inside the Unity Editor
 - [Product Comparison](comparison.md) - Source-backed capabilities, differentiators, and constraints
@@ -46,6 +47,7 @@ User documentation for connecting an AI assistant to the Unity Editor through Un
 
 ## Client Guides
 
+- [AI Skills and Agents](install/ai-skills.md)
 - [Claude Code](install/claude-code.md)
 - [Claude Desktop](install/claude-desktop.md)
 - [Codex](install/codex.md)

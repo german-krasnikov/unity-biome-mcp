@@ -1,146 +1,300 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" width="960" height="280"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 280" width="640" height="280"
      role="img" aria-labelledby="comparison-title comparison-desc">
   <title id="comparison-title">Unity MCP ecosystem comparison</title>
-  <desc id="comparison-desc">Unity MCP Server, MCP for Unity, Unity Biome MCP, AI Game Developer, and MCP Unity share an animated comparison signal line.</desc>
+  <desc id="comparison-desc">The official Unity MCP, Coplay MCP for Unity, Unity Biome MCP, Ivan Murzak Unity MCP, and CoderGamester MCP Unity form five nodes with alternating labels in a living deterministic arcade signal ecosystem.</desc>
 
   <defs>
-    <filter id="comparison-glow" x="-100%" y="-100%" width="300%" height="300%">
-      <feGaussianBlur stdDeviation="7"/>
+    <filter id="comparison-soft-glow" x="-90%" y="-90%" width="280%" height="280%">
+      <feGaussianBlur stdDeviation="3.5"/>
     </filter>
+    <linearGradient id="comparison-track-gradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#59a7ff"/>
+      <stop offset=".24" stop-color="#f0a536"/>
+      <stop offset=".5" stop-color="#46e6a6"/>
+      <stop offset=".76" stop-color="#e95b78"/>
+      <stop offset="1" stop-color="#b6b6b6"/>
+    </linearGradient>
+    <radialGradient id="comparison-core-gradient" cx=".42" cy=".35" r=".72">
+      <stop offset="0" stop-color="#effff9"/>
+      <stop offset=".2" stop-color="#46e6a6"/>
+      <stop offset="1" stop-color="#1f6f57"/>
+    </radialGradient>
   </defs>
 
   <style>
+    .comparison-grid {
+      fill: none;
+      stroke: #8a8a8a;
+      stroke-width: 1;
+      opacity: .07;
+    }
     .comparison-track {
       fill: none;
-      stroke: #46e6a6;
-      stroke-width: 3;
+      stroke: url(#comparison-track-gradient);
+      stroke-width: 2;
       stroke-linecap: round;
-      stroke-dasharray: 12 18;
-      opacity: .48;
-      animation: comparison-flow 4.2s linear infinite;
+    }
+    .comparison-flow {
+      fill: none;
+      stroke: #46e6a6;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-dasharray: 4 12;
+      opacity: .64;
+      animation: comparison-flow 3.8s linear infinite;
+    }
+    .comparison-undercurrent {
+      fill: none;
+      stroke: #59a7ff;
+      stroke-width: 1;
+      stroke-linecap: round;
+      stroke-dasharray: 2 11;
+      opacity: .24;
+      animation: comparison-undercurrent 5.6s linear infinite;
     }
     .comparison-node {
       transform-box: fill-box;
       transform-origin: center;
-      animation: comparison-node 4.6s ease-in-out infinite;
+      animation: comparison-node-breathe 4.4s ease-in-out infinite;
     }
-    .comparison-node-b { animation-delay: -.8s; }
-    .comparison-node-c { animation-delay: -1.6s; }
-    .comparison-node-d { animation-delay: -2.4s; }
-    .comparison-core {
+    .comparison-node-b { animation-delay: -1.1s; animation-duration: 5.1s; }
+    .comparison-node-c { animation-delay: -2.3s; animation-duration: 4.7s; }
+    .comparison-node-d { animation-delay: -3.4s; animation-duration: 5.4s; }
+    .comparison-node-ring {
+      fill: none;
       transform-box: fill-box;
       transform-origin: center;
-      animation: comparison-core 2.9s ease-in-out infinite;
+      animation: comparison-ring 4.4s ease-out infinite;
     }
-    .comparison-aura {
+    .comparison-ring-b { animation-delay: -1.1s; animation-duration: 5.1s; }
+    .comparison-ring-c { animation-delay: -2.3s; animation-duration: 4.7s; }
+    .comparison-ring-d { animation-delay: -3.4s; animation-duration: 5.4s; }
+    .comparison-core-aura {
       transform-box: fill-box;
       transform-origin: center;
-      animation: comparison-aura 2.9s ease-in-out infinite;
+      animation: comparison-core-aura 3.2s ease-in-out infinite;
+    }
+    .comparison-core-shell {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: comparison-core-shell 3.2s ease-in-out infinite;
+    }
+    .comparison-core-seed {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: comparison-core-seed 2.15s ease-in-out infinite;
+    }
+    .comparison-orbit {
+      fill: none;
+      stroke: #46e6a6;
+      stroke-width: 1;
+      stroke-dasharray: 3 7;
+      opacity: .42;
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: comparison-orbit 7.4s linear infinite;
     }
     .comparison-spore {
       transform-box: fill-box;
       transform-origin: center;
-      animation: comparison-drift-a 4.8s ease-in-out infinite alternate;
+      animation: comparison-drift-a 4.9s ease-in-out infinite alternate;
     }
     .comparison-spore-b {
       animation-name: comparison-drift-b;
-      animation-duration: 5.7s;
-      animation-delay: -2.2s;
+      animation-duration: 6.1s;
+      animation-delay: -2.7s;
     }
-    @keyframes comparison-flow { to { stroke-dashoffset: -60; } }
-    @keyframes comparison-node {
-      0%, 100% { opacity: .82; transform: translateY(0); }
-      50% { opacity: 1; transform: translateY(-3px); }
+    .comparison-spore-c {
+      animation-name: comparison-drift-c;
+      animation-duration: 5.6s;
+      animation-delay: -1.6s;
     }
-    @keyframes comparison-core {
-      0%, 100% { transform: scale(.94) rotate(45deg); }
-      50% { transform: scale(1.08) rotate(45deg); }
+    .comparison-spore-phase {
+      animation-delay: -4.4s;
+      animation-duration: 5.3s;
     }
-    @keyframes comparison-aura {
-      0%, 100% { opacity: .14; transform: scale(.82); }
-      50% { opacity: .44; transform: scale(1.18); }
+    .comparison-label {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: comparison-label-float 5.2s ease-in-out infinite;
+    }
+    .comparison-label-b { animation-delay: -.9s; animation-duration: 5.8s; }
+    .comparison-label-c { animation-delay: -2.1s; animation-duration: 5.5s; }
+    .comparison-label-d { animation-delay: -3.2s; animation-duration: 6.1s; }
+    .comparison-label-e { animation-delay: -4.3s; animation-duration: 5.7s; }
+    .comparison-scan {
+      fill: #46e6a6;
+      opacity: .05;
+      animation: comparison-scan 6.8s ease-in-out infinite;
+    }
+    @keyframes comparison-flow {
+      to { stroke-dashoffset: -48; }
+    }
+    @keyframes comparison-undercurrent {
+      to { stroke-dashoffset: 52; }
+    }
+    @keyframes comparison-node-breathe {
+      0%, 100% { opacity: .86; transform: translateY(0) scale(.96); }
+      48% { opacity: 1; transform: translateY(-2px) scale(1.05); }
+    }
+    @keyframes comparison-ring {
+      0% { opacity: .58; transform: scale(.72); }
+      68%, 100% { opacity: 0; transform: scale(1.38); }
+    }
+    @keyframes comparison-core-aura {
+      0%, 100% { opacity: .18; transform: scale(.84); }
+      52% { opacity: .46; transform: scale(1.16); }
+    }
+    @keyframes comparison-core-shell {
+      0%, 100% { transform: rotate(45deg) scale(.95); }
+      50% { transform: rotate(45deg) scale(1.07); }
+    }
+    @keyframes comparison-core-seed {
+      0%, 100% { opacity: .78; transform: scale(.78); }
+      46% { opacity: 1; transform: scale(1.18); }
+    }
+    @keyframes comparison-orbit {
+      to { transform: rotate(360deg); stroke-dashoffset: -30; }
     }
     @keyframes comparison-drift-a {
-      0% { opacity: .16; transform: translate(-8px, 6px) scale(.72); }
-      55% { opacity: .82; transform: translate(10px, -8px) scale(1.18); }
-      100% { opacity: .26; transform: translate(17px, 5px) scale(.8); }
+      0% { opacity: .18; transform: translate(-4px, 3px) scale(.72); }
+      53% { opacity: .86; transform: translate(7px, -7px) scale(1.16); }
+      100% { opacity: .28; transform: translate(12px, 4px) scale(.82); }
     }
     @keyframes comparison-drift-b {
-      0% { opacity: .14; transform: translate(8px, -6px) scale(.74); }
-      50% { opacity: .72; transform: translate(-12px, 9px) scale(1.14); }
-      100% { opacity: .24; transform: translate(5px, -11px) scale(.8); }
+      0% { opacity: .16; transform: translate(5px, -3px) scale(.76); }
+      48% { opacity: .76; transform: translate(-9px, 7px) scale(1.12); }
+      100% { opacity: .24; transform: translate(3px, -9px) scale(.8); }
+    }
+    @keyframes comparison-drift-c {
+      0% { opacity: .2; transform: translate(-2px, -5px) scale(.7); }
+      58% { opacity: .82; transform: translate(8px, 5px) scale(1.2); }
+      100% { opacity: .3; transform: translate(-7px, 8px) scale(.86); }
+    }
+    @keyframes comparison-scan {
+      0%, 100% { opacity: 0; transform: translateX(-80px); }
+      15% { opacity: .07; }
+      75% { opacity: .04; }
+      88% { opacity: 0; transform: translateX(720px); }
+    }
+    @keyframes comparison-label-float {
+      0%, 100% { transform: translateY(0); }
+      43% { transform: translateY(-2px); }
+      72% { transform: translateY(1px); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .comparison-track, .comparison-node, .comparison-core, .comparison-aura,
-      .comparison-spore {
+      .comparison-flow, .comparison-undercurrent, .comparison-node,
+      .comparison-node-ring, .comparison-core-aura, .comparison-core-shell,
+      .comparison-core-seed, .comparison-orbit, .comparison-spore,
+      .comparison-scan, .comparison-label {
         animation: none !important;
       }
-      .comparison-track { stroke-dasharray: none; opacity: .62; }
-      .comparison-core { transform: rotate(45deg); }
-      .comparison-aura { opacity: .22; }
-      .comparison-spore { opacity: .28; }
-      .motion-particle { display: none; }
+      .comparison-flow { stroke-dasharray: none; opacity: .38; }
+      .comparison-undercurrent { stroke-dasharray: none; opacity: .15; }
+      .comparison-node { transform: none; opacity: 1; }
+      .comparison-node-ring { opacity: .2; transform: none; }
+      .comparison-core-aura { opacity: .24; transform: none; }
+      .comparison-core-shell { transform: rotate(45deg); }
+      .comparison-core-seed { opacity: 1; transform: none; }
+      .comparison-orbit { opacity: .34; transform: none; }
+      .comparison-spore { opacity: .36; transform: none; }
+      .comparison-label { transform: none; }
+      .comparison-scan, .motion-particle { display: none; }
     }
   </style>
 
-  <rect width="960" height="280" rx="8" fill="#2b2b2b"/>
-  <rect x="1" y="1" width="958" height="278" rx="7" fill="none" stroke="#4a4a4a"/>
-  <g stroke="#777" stroke-width="1" opacity=".08">
-    <path d="M0 70H960M0 140H960M0 210H960"/>
-    <path d="M120 0V280M240 0V280M360 0V280M480 0V280M600 0V280M720 0V280M840 0V280"/>
+  <rect width="640" height="280" rx="8" fill="#2f2f2f"/>
+  <rect x=".5" y=".5" width="639" height="279" rx="7.5" fill="none" stroke="#555"/>
+  <g class="comparison-grid">
+    <path d="M0 56H640M0 112H640M0 168H640M0 224H640"/>
+    <path d="M80 0V280M160 0V280M240 0V280M320 0V280M400 0V280M480 0V280M560 0V280"/>
+  </g>
+  <rect class="comparison-scan" x="-32" y="1" width="32" height="278"/>
+
+  <g fill="#f1f1f1" text-anchor="middle"
+     font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif">
+    <text x="320" y="43" font-size="28" font-weight="800"
+          data-mobile-critical="true">UNITY MCP ECOSYSTEM</text>
+    <text x="320" y="72" fill="#b8b8b8" font-size="19" font-weight="600"
+          data-mobile-critical="true">A LIVING, SOURCE-BACKED COMPARISON</text>
   </g>
 
-  <text x="480" y="48" text-anchor="middle" fill="#f2f2f2" font-size="40"
-        font-weight="700" data-mobile-critical="true"
-        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">UNITY MCP ECOSYSTEM</text>
-  <text x="480" y="82" text-anchor="middle" fill="#a8a8a8" font-size="28"
-        font-weight="600" data-mobile-critical="true"
-        font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">SOURCE-BACKED PRODUCT COMPARISON</text>
+  <path class="comparison-undercurrent" d="M80 170C128 182 160 158 200 170S280 182 320 170 400 158 440 170 520 182 560 170"/>
+  <path class="comparison-track" d="M80 160C128 148 160 172 200 160S280 148 320 160 400 172 440 160 520 148 560 160"/>
+  <path class="comparison-flow" d="M80 160C128 148 160 172 200 160S280 148 320 160 400 172 440 160 520 148 560 160"/>
 
-  <path d="M80 156H880" stroke="#46e6a6" stroke-width="2" opacity=".2"/>
-  <path class="comparison-track" d="M80 156H880"/>
-  <circle class="motion-particle" r="6" fill="#46e6a6" filter="url(#comparison-glow)">
-    <animateMotion dur="5.2s" repeatCount="indefinite" path="M80 156H880"/>
-  </circle>
-
-  <g class="comparison-node">
-    <circle cx="80" cy="156" r="13" fill="#2b2b2b" stroke="#59a7ff" stroke-width="3"/>
-    <circle cx="80" cy="156" r="5" fill="#59a7ff"/>
+  <g class="motion-particle comparison-firefly" aria-hidden="true">
+    <circle r="7" fill="#59a7ff" opacity=".15"/>
+    <circle r="3.5" fill="#59a7ff" filter="url(#comparison-soft-glow)"/>
+    <animateMotion dur="11.4s" begin="-2.8s" repeatCount="indefinite"
+                   path="M80 160C128 148 160 172 200 160S280 148 320 160 400 172 440 160 520 148 560 160C520 172 480 148 440 160S360 172 320 160 240 148 200 160 128 172 80 160"/>
   </g>
-  <g class="comparison-node comparison-node-b">
-    <circle cx="280" cy="156" r="13" fill="#2b2b2b" stroke="#f0a536" stroke-width="3"/>
-    <circle cx="280" cy="156" r="5" fill="#f0a536"/>
+  <g class="motion-particle comparison-firefly" aria-hidden="true">
+    <circle r="6" fill="#f0a536" opacity=".14"/>
+    <circle r="3" fill="#f0a536" filter="url(#comparison-soft-glow)"/>
+    <animateMotion dur="13.2s" begin="-9.7s" repeatCount="indefinite"
+                   path="M560 170C520 182 480 158 440 170S360 182 320 170 240 158 200 170 128 182 80 170C128 158 160 182 200 170S280 158 320 170 400 182 440 170 520 158 560 170"/>
+  </g>
+  <g class="motion-particle comparison-firefly" aria-hidden="true">
+    <circle r="5.4" fill="#46e6a6" opacity=".14"/>
+    <circle r="2.6" fill="#46e6a6" filter="url(#comparison-soft-glow)"/>
+    <animateMotion dur="9.8s" begin="-6.3s" repeatCount="indefinite"
+                   path="M80 160Q110 148 140 160T200 160T260 160T320 160T380 160T440 160T500 160T560 160Q530 172 500 160T440 160T380 160T320 160T260 160T200 160T140 160T80 160"/>
+  </g>
+
+  <g>
+    <circle class="comparison-node-ring" cx="80" cy="160" r="18" stroke="#59a7ff" stroke-width="2"/>
+    <g class="comparison-node">
+      <circle cx="80" cy="160" r="12" fill="#2f2f2f" stroke="#59a7ff" stroke-width="3"/>
+      <circle cx="80" cy="160" r="4" fill="#59a7ff"/>
+    </g>
   </g>
   <g>
-    <circle class="comparison-aura" cx="480" cy="156" r="54" fill="#46e6a6"
-            filter="url(#comparison-glow)"/>
-    <rect class="comparison-core" x="457" y="133" width="46" height="46" rx="6"
+    <circle class="comparison-node-ring comparison-ring-b" cx="200" cy="160" r="18" stroke="#f0a536" stroke-width="2"/>
+    <g class="comparison-node comparison-node-b">
+      <circle cx="200" cy="160" r="12" fill="#2f2f2f" stroke="#f0a536" stroke-width="3"/>
+      <circle cx="200" cy="160" r="4" fill="#f0a536"/>
+    </g>
+  </g>
+  <g>
+    <circle class="comparison-core-aura" cx="320" cy="160" r="27" fill="#46e6a6"
+            filter="url(#comparison-soft-glow)"/>
+    <circle class="comparison-orbit" cx="320" cy="160" r="23"/>
+    <rect class="comparison-core-shell" x="305" y="145" width="30" height="30" rx="5"
           fill="#202020" stroke="#46e6a6" stroke-width="3"/>
-    <circle cx="480" cy="156" r="8" fill="#effff9"/>
+    <circle class="comparison-core-seed" cx="320" cy="160" r="7"
+            fill="url(#comparison-core-gradient)"/>
+    <circle class="comparison-spore" cx="286" cy="135" r="2.5" fill="#46e6a6"/>
+    <circle class="comparison-spore comparison-spore-b" cx="351" cy="131" r="2" fill="#59a7ff"/>
+    <circle class="comparison-spore comparison-spore-c" cx="358" cy="182" r="2.5" fill="#f0a536"/>
+    <circle class="comparison-spore comparison-spore-b comparison-spore-phase" cx="282" cy="186" r="2" fill="#46e6a6"/>
   </g>
-  <g class="comparison-node comparison-node-c">
-    <circle cx="680" cy="156" r="13" fill="#2b2b2b" stroke="#e95b78" stroke-width="3"/>
-    <circle cx="680" cy="156" r="5" fill="#e95b78"/>
+  <g>
+    <circle class="comparison-node-ring comparison-ring-c" cx="440" cy="160" r="18" stroke="#e95b78" stroke-width="2"/>
+    <g class="comparison-node comparison-node-c">
+      <circle cx="440" cy="160" r="12" fill="#2f2f2f" stroke="#e95b78" stroke-width="3"/>
+      <circle cx="440" cy="160" r="4" fill="#e95b78"/>
+    </g>
   </g>
-  <g class="comparison-node comparison-node-d">
-    <circle cx="880" cy="156" r="13" fill="#2b2b2b" stroke="#b6b6b6" stroke-width="3"/>
-    <circle cx="880" cy="156" r="5" fill="#b6b6b6"/>
+  <g>
+    <circle class="comparison-node-ring comparison-ring-d" cx="560" cy="160" r="18" stroke="#b6b6b6" stroke-width="2"/>
+    <g class="comparison-node comparison-node-d">
+      <circle cx="560" cy="160" r="12" fill="#2f2f2f" stroke="#b6b6b6" stroke-width="3"/>
+      <circle cx="560" cy="160" r="4" fill="#b6b6b6"/>
+    </g>
   </g>
 
-  <g fill="#d8d8d8" font-size="28" font-weight="700" text-anchor="middle"
-     font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
-    <text x="80" y="213" font-size="28" data-mobile-critical="true"><tspan x="80"
-          textLength="140" lengthAdjust="spacingAndGlyphs">UNITY MCP</tspan><tspan
-          x="80" dy="29">SERVER</tspan></text>
-    <text x="280" y="213" font-size="28" data-mobile-critical="true"><tspan x="280">MCP FOR</tspan><tspan x="280" dy="29">UNITY</tspan></text>
-    <text x="480" y="229" fill="#46e6a6" font-size="28" data-mobile-critical="true">BIOME</text>
-    <text x="680" y="213" font-size="28" data-mobile-critical="true"><tspan x="680">AI GAME</tspan><tspan x="680" dy="29">DEVELOPER</tspan></text>
-    <text x="880" y="229" font-size="28" textLength="140"
-          lengthAdjust="spacingAndGlyphs" data-mobile-critical="true">MCP UNITY</text>
+  <g text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif"
+     font-weight="700">
+    <text class="comparison-label" x="80" y="216" fill="#d8d8d8" font-size="19"
+          data-mobile-critical="true"><tspan x="80">Official</tspan></text>
+    <text class="comparison-label comparison-label-b" x="200" y="104" fill="#d8d8d8" font-size="19"
+          data-mobile-critical="true"><tspan x="200">Coplay</tspan></text>
+    <text class="comparison-label comparison-label-c" x="320" y="216" fill="#46e6a6" font-size="19"
+          data-mobile-critical="true"><tspan x="320">Biome</tspan></text>
+    <text class="comparison-label comparison-label-d" x="440" y="104" fill="#d8d8d8" font-size="19"
+          data-mobile-critical="true"><tspan x="440">Ivan Murzak</tspan></text>
+    <text class="comparison-label comparison-label-e" x="560" y="216" fill="#d8d8d8" font-size="19"
+          data-mobile-critical="true"><tspan x="560">CoderGamester</tspan></text>
   </g>
-
-  <circle class="comparison-spore" cx="416" cy="118" r="4" fill="#46e6a6"/>
-  <circle class="comparison-spore comparison-spore-b" cx="546" cy="111" r="3" fill="#59a7ff"/>
-  <circle class="comparison-spore" cx="552" cy="190" r="3" fill="#f0a536"/>
-  <circle class="comparison-spore comparison-spore-b" cx="405" cy="194" r="3" fill="#46e6a6"/>
 </svg>

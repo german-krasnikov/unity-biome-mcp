@@ -25,3 +25,10 @@ configuration, use the canonical
 with the client key from the matching guide.
 
 Do not copy configuration between clients: Codex uses TOML, VS Code uses a `servers` object, OpenCode uses its own local-server shape, and the remaining supported JSON clients use `mcpServers`.
+
+## Optional Project Guidance
+
+After configuring Claude Code or Codex, install the bundled
+[AI skills and agents](ai-skills.md) when you want project-local MCP workflows
+and focused Unity subagents. This installation is separate from the MCP server
+configuration above.

@@ -1,164 +1,657 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 270" width="640" height="270"
      role="img" aria-labelledby="hero-title hero-desc">
   <title id="hero-title">Unity Biome MCP</title>
-  <desc id="hero-desc">An AI client and the Unity Editor exchange a living MCP signal through the pulsing Unity Biome core.</desc>
+  <desc id="hero-desc">An AI client and the Unity Editor exchange deterministic streams of tool requests and results through a living cell-like Unity Biome MCP core. Commands reaching Unity create varied objects that rise into the background.</desc>
 
   <defs>
-    <linearGradient id="hero-title-gradient" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="hero-heading" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#ffffff"/>
       <stop offset="1" stop-color="#d6d6d6"/>
     </linearGradient>
-    <radialGradient id="hero-core" cx="50%" cy="42%" r="62%">
+    <radialGradient id="hero-core-fill" cx="44%" cy="38%" r="68%">
       <stop offset="0" stop-color="#effff9"/>
       <stop offset=".28" stop-color="#46e6a6"/>
-      <stop offset="1" stop-color="#46e6a6" stop-opacity="0"/>
+      <stop offset="1" stop-color="#138b62"/>
     </radialGradient>
-    <filter id="hero-green-glow" x="-100%" y="-100%" width="300%" height="300%">
-      <feGaussianBlur stdDeviation="10"/>
+    <linearGradient id="hero-membrane-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#59a7ff"/>
+      <stop offset=".38" stop-color="#46e6a6"/>
+      <stop offset=".62" stop-color="#effff9"/>
+      <stop offset="1" stop-color="#f0a536"/>
+    </linearGradient>
+    <filter id="hero-aura-glow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="6"/>
     </filter>
-    <filter id="hero-soft-glow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="4"/>
+    <filter id="hero-signal-glow" x="-35%" y="-120%" width="170%" height="340%">
+      <feGaussianBlur stdDeviation="2.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
-    <marker id="hero-arrow-blue" viewBox="0 0 10 10" refX="9" refY="5"
-            markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0 0L10 5L0 10Z" fill="#59a7ff"/>
-    </marker>
-    <marker id="hero-arrow-green" viewBox="0 0 10 10" refX="9" refY="5"
-            markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0 0L10 5L0 10Z" fill="#46e6a6"/>
-    </marker>
+    <filter id="hero-trail-glow" x="-80%" y="-80%" width="260%" height="260%"
+            color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="2.6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <mask id="hero-flight-background-mask" maskUnits="userSpaceOnUse"
+          x="0" y="0" width="640" height="270"
+          style="mask-type:luminance">
+      <rect width="640" height="270" fill="white"/>
+      <rect x="16" y="56" width="148" height="113" rx="13" fill="#777777"/>
+      <rect x="20" y="60" width="140" height="105" rx="9" fill="black"/>
+      <rect x="476" y="56" width="148" height="113" rx="13" fill="#777777"/>
+      <rect x="480" y="60" width="140" height="105" rx="9" fill="black"/>
+      <circle cx="320" cy="112" r="76" fill="#777777"/>
+      <circle cx="320" cy="112" r="70" fill="black"/>
+      <rect y="168" width="640" height="102" fill="black"/>
+    </mask>
+    <symbol id="hero-icon-gameobject" viewBox="0 0 16 16">
+      <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5ZM2 4.5L8 8L14 4.5M8 8V15"
+            fill="none" stroke="currentColor" stroke-width="1.5"
+            stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="hero-icon-component" viewBox="0 0 16 16">
+      <path d="M2 4H5M9 4H14M2 8H9M13 8H14M2 12H4M8 12H14"
+            fill="none" stroke="currentColor" stroke-width="1.6"
+            stroke-linecap="round"/>
+      <circle cx="7" cy="4" r="1.7" fill="none" stroke="currentColor"
+              stroke-width="1.4"/>
+      <circle cx="11" cy="8" r="1.7" fill="none" stroke="currentColor"
+              stroke-width="1.4"/>
+      <circle cx="6" cy="12" r="1.7" fill="none" stroke="currentColor"
+              stroke-width="1.4"/>
+    </symbol>
+    <symbol id="hero-icon-image" viewBox="0 0 16 16">
+      <rect x="1.5" y="2" width="13" height="12" rx="2" fill="none"
+            stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="11.5" cy="5.5" r="1.3" fill="currentColor"/>
+      <path d="M3 12L6.3 8.5L8.4 10.6L10 9L13.5 12.5" fill="none"
+            stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="hero-icon-sound" viewBox="0 0 16 16">
+      <path d="M2 6H5L9 3V13L5 10H2ZM11 6C12.4 7 12.4 9 11 10M13 4.5C15.4 6.4 15.4 9.6 13 11.5"
+            fill="none" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="hero-icon-light" viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="3" fill="none" stroke="currentColor"
+              stroke-width="1.5"/>
+      <path d="M8 1V3M8 13V15M1 8H3M13 8H15M3.1 3.1L4.5 4.5M11.5 11.5L12.9 12.9M12.9 3.1L11.5 4.5M4.5 11.5L3.1 12.9"
+            fill="none" stroke="currentColor" stroke-width="1.4"
+            stroke-linecap="round"/>
+    </symbol>
+    <symbol id="hero-icon-script" viewBox="0 0 16 16">
+      <path d="M6 3L2 8L6 13M10 3L14 8L10 13M9 1.5L7 14.5"
+            fill="none" stroke="currentColor" stroke-width="1.6"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="hero-icon-camera" viewBox="0 0 16 16">
+      <path d="M2 5H5L6.2 3H9.8L11 5H14V13H2Z" fill="none"
+            stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      <circle cx="8" cy="9" r="2.5" fill="none" stroke="currentColor"
+              stroke-width="1.4"/>
+    </symbol>
+    <symbol id="hero-icon-material" viewBox="0 0 16 16">
+      <path d="M8 1.5C8 1.5 3 7 3 10A5 5 0 0 0 13 10C13 7 8 1.5 8 1.5Z"
+            fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M5.5 10.5C6.3 12.2 9 12.7 10.6 11" fill="none"
+            stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="hero-icon-animation" viewBox="0 0 16 16">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none"
+            stroke="currentColor" stroke-width="1.5"/>
+      <path d="M6.5 5.5L11 8L6.5 10.5Z" fill="currentColor"/>
+      <path d="M4 2.5V5M12 2.5V5M4 11V13.5M12 11V13.5"
+            stroke="currentColor" stroke-width="1.2"/>
+    </symbol>
+    <symbol id="hero-icon-physics" viewBox="0 0 16 16">
+      <ellipse cx="8" cy="8" rx="6.5" ry="2.8" fill="none"
+               stroke="currentColor" stroke-width="1.2"/>
+      <ellipse cx="8" cy="8" rx="6.5" ry="2.8" fill="none"
+               stroke="currentColor" stroke-width="1.2"
+               transform="rotate(60 8 8)"/>
+      <ellipse cx="8" cy="8" rx="6.5" ry="2.8" fill="none"
+               stroke="currentColor" stroke-width="1.2"
+               transform="rotate(120 8 8)"/>
+      <circle cx="8" cy="8" r="1.4" fill="currentColor"/>
+    </symbol>
   </defs>
 
   <style>
-    .hero-route {
-      fill: none;
-      stroke-width: 3;
-      stroke-linecap: round;
-      stroke-dasharray: 12 18;
-      animation: hero-flow 3.8s linear infinite;
+    .hero-route-request {
+      animation: hero-flow-request 3.7s linear infinite;
     }
-    .hero-core-aura {
-      animation: hero-aura 3.2s ease-in-out infinite;
+    .hero-route-result {
+      animation: hero-flow-result 4.3s linear infinite;
+    }
+    .hero-node-left {
+      animation: hero-node-left-life 4.8s ease-in-out infinite;
       transform-box: fill-box;
       transform-origin: center;
     }
-    .hero-core-mark {
-      animation: hero-core-life 2.4s ease-in-out infinite;
+    .hero-node-right {
+      animation: hero-node-right-life 5.3s ease-in-out -2.1s infinite;
       transform-box: fill-box;
       transform-origin: center;
     }
-    .hero-node {
-      animation: hero-node-life 4.2s ease-in-out infinite;
+    .hero-node-led {
+      animation: hero-led 2.6s ease-in-out infinite;
+    }
+    .hero-node-right .hero-node-led {
+      animation: hero-unity-build-led 7s linear infinite;
+    }
+    .hero-created-object {
+      animation: hero-unity-create 7s linear infinite;
       transform-box: fill-box;
       transform-origin: center;
     }
-    .hero-node-right { animation-delay: -2.1s; }
-    .hero-spore {
-      animation: hero-drift-a 5.2s ease-in-out infinite alternate;
+    .hero-generated-flight {
+      opacity: 0;
+      pointer-events: none;
+      offset-anchor: center;
+      offset-rotate: 0deg;
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: hero-generated-flight 28s linear infinite both;
+    }
+    .hero-generated-flight > use {
+      transform: scale(1.4);
       transform-box: fill-box;
       transform-origin: center;
     }
-    .hero-spore-b { animation-name: hero-drift-b; animation-duration: 6.1s; }
-    .hero-spore-c { animation-delay: -2.4s; animation-duration: 4.5s; }
-    @keyframes hero-flow { to { stroke-dashoffset: -60; } }
-    @keyframes hero-aura {
-      0%, 100% { opacity: .14; transform: scale(.82); }
-      50% { opacity: .48; transform: scale(1.16); }
+    .hero-generated-flight > circle {
+      transform: scale(1.25);
+      transform-box: fill-box;
+      transform-origin: center;
     }
-    @keyframes hero-core-life {
-      0%, 100% { transform: scale(.94) rotate(45deg); }
-      50% { transform: scale(1.08) rotate(45deg); }
+    .hero-flight-route-1 { offset-path: path("M584 104C580 72 562 52 536 44S480 26 438 28 360 44 300 26 190 10 80-18"); }
+    .hero-flight-route-2 { offset-path: path("M584 104C570 76 548 56 522 48S470 40 430 22 360 8 318 30 248 46 210 18 176-2 150-20"); }
+    .hero-flight-route-3 { offset-path: path("M584 104C590 78 572 58 548 50S500 28 464 36 410 54 366 34 310 10 274 20 238 8 220-18"); }
+    .hero-flight-route-4 { offset-path: path("M584 104C568 84 548 64 526 52S484 28 448 42 400 58 362 38 326 14 300-20"); }
+    .hero-flight-route-5 { offset-path: path("M584 104C592 78 574 56 548 48S510 34 484 20 440 4 414 18 392 8 380-18"); }
+    .hero-flight-route-6 { offset-path: path("M584 104C566 80 554 60 540 48S510 28 494 36 474 46 458 20 452 0 460-20"); }
+    .hero-flight-route-7 { offset-path: path("M584 104C596 78 580 58 564 46S536 28 524 14 510-2 520-18"); }
+    .hero-flight-route-8 { offset-path: path("M584 104C574 70 548 50 514 44S452 20 408 30 340 52 282 28 190 2 122 12 70 4 40-16"); }
+    .hero-flight-route-9 { offset-path: path("M584 104C586 74 564 54 538 46S494 24 456 32 402 50 356 30 300 8 266 16 248-4 250-18"); }
+    .hero-flight-route-10 { offset-path: path("M584 104C572 82 550 58 524 50S468 30 426 38 352 48 294 24 214 4 156 14 118 2 100-18"); }
+    .hero-generated-color-1 { color: #46e6a6; }
+    .hero-generated-color-2 { color: #59a7ff; }
+    .hero-generated-color-3 { color: #f0a536; }
+    .hero-generated-color-4 { color: #e95b78; }
+    .hero-generated-color-5 { color: #c084fc; }
+    .hero-generated-color-6 { color: #7dd3fc; }
+    .hero-generated-color-7 { color: #f472b6; }
+    .hero-generated-color-8 { color: #a3e635; }
+    .hero-generated-color-9 { color: #fb7185; }
+    .hero-generated-color-10 { color: #facc15; }
+    .hero-aura {
+      animation: hero-aura-life 3.6s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
     }
-    @keyframes hero-node-life {
-      0%, 100% { opacity: .88; transform: translateY(0); }
-      50% { opacity: 1; transform: translateY(-3px); }
+    .hero-biome-membrane-a,
+    .hero-biome-membrane-b,
+    .hero-biome-membrane-echo,
+    .hero-biome-veins {
+      transform-origin: 320px 112px;
+    }
+    .hero-biome-membrane-a {
+      animation: hero-membrane-a 7.8s ease-in-out -.9s infinite;
+    }
+    .hero-biome-membrane-b {
+      animation: hero-membrane-b 9.1s ease-in-out -4.1s infinite;
+    }
+    .hero-biome-membrane-echo {
+      animation: hero-membrane-echo 11.4s ease-in-out -6.3s infinite;
+    }
+    .hero-biome-veins {
+      animation: hero-vein-flow 4.8s linear -1.7s infinite;
+    }
+    .hero-spore-a,
+    .hero-spore-b,
+    .hero-spore-c,
+    .hero-spore-d {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .hero-spore-a {
+      animation: hero-drift-a 6.7s ease-in-out -.9s infinite;
+    }
+    .hero-spore-b {
+      animation: hero-drift-b 7.9s ease-in-out -4.2s infinite;
+    }
+    .hero-spore-c {
+      animation: hero-drift-c 5.8s ease-in-out -2.5s infinite;
+    }
+    .hero-spore-d {
+      animation: hero-drift-d 8.6s ease-in-out -5.1s infinite;
+    }
+    .hero-phase-1 { animation-delay: -1.8s; }
+    .hero-phase-2 { animation-delay: -3.3s; }
+    .hero-phase-3 { animation-delay: -4.4s; }
+    .hero-phase-4 { animation-delay: -6.2s; }
+    @keyframes hero-flow-request {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: -52; }
+    }
+    @keyframes hero-flow-result {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: 58; }
+    }
+    @keyframes hero-node-left-life {
+      0%, 100% { opacity: .92; transform: translateY(0); }
+      38% { opacity: 1; transform: translateY(-2px); }
+      68% { opacity: .96; transform: translateY(1px); }
+    }
+    @keyframes hero-node-right-life {
+      0%, 100% { opacity: .94; transform: translateY(0); }
+      46% { opacity: 1; transform: translateY(-3px); }
+      76% { opacity: .96; transform: translateY(1px); }
+    }
+    @keyframes hero-led {
+      0%, 100% { opacity: .38; }
+      44% { opacity: 1; }
+      66% { opacity: .7; }
+    }
+    @keyframes hero-unity-build-led {
+      0%, 19.8%, 24%, 42.7%, 47%, 65.5%, 70%, 88.4%, 93%, 100% {
+        opacity: .28;
+      }
+      20%, 42.9%, 65.7%, 88.6% { opacity: 1; }
+      22.2%, 45.1%, 67.9%, 90.8% { opacity: .58; }
+    }
+    @keyframes hero-unity-create {
+      0%, 20%, 32%, 42.86%, 54.86%, 65.72%, 77.72%, 88.57%, 100% {
+        opacity: 0;
+        transform: translate(-8px, 3px) scale(.72) rotate(-4deg);
+      }
+      21.42%, 44.28%, 67.14%, 89.99% {
+        opacity: .48;
+        transform: translate(-3px, 1px) scale(.9) rotate(-1deg);
+      }
+      22.57%, 45.43%, 68.29%, 91.14% {
+        opacity: .96;
+        transform: translate(0, 0) scale(1.06) rotate(1deg);
+      }
+      24.07%, 46.93%, 69.79%, 92.64% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1) rotate(0);
+      }
+      27.07%, 49.93%, 72.79%, 95.64% {
+        opacity: .7;
+        transform: translate(1px, -2px) scale(.98) rotate(1deg);
+      }
+      29.87%, 52.73%, 75.59%, 98.44% {
+        opacity: 0;
+        transform: translate(3px, -7px) scale(.9) rotate(4deg);
+      }
+    }
+    @keyframes hero-generated-flight {
+      0% {
+        opacity: 0;
+        offset-distance: 0%;
+        transform: scale(.3) rotate(-18deg);
+      }
+      .65% {
+        opacity: .95;
+        offset-distance: 12%;
+        transform: scale(1.08) rotate(8deg);
+      }
+      9% {
+        opacity: .82;
+        offset-distance: 20%;
+        transform: scale(.9) rotate(-5deg);
+      }
+      38% {
+        opacity: .96;
+        offset-distance: 48%;
+        transform: scale(1.04) rotate(128deg);
+      }
+      72% {
+        opacity: .78;
+        offset-distance: 75%;
+        transform: scale(.86) rotate(264deg);
+      }
+      94% {
+        opacity: .58;
+        offset-distance: 95%;
+        transform: scale(.72) rotate(344deg);
+      }
+      100% {
+        opacity: 0;
+        offset-distance: 100%;
+        transform: scale(.42) rotate(380deg);
+      }
+    }
+    @keyframes hero-aura-life {
+      0%, 100% { opacity: .12; transform: scale(.84); }
+      47% { opacity: .42; transform: scale(1.13); }
+      72% { opacity: .25; transform: scale(1.02); }
+    }
+    @keyframes hero-membrane-a {
+      0%, 100% { opacity: .78; transform: translate(-1px, 1px) rotate(-4deg); }
+      37% { opacity: 1; transform: translate(2px, -2px) rotate(5deg); }
+      72% { opacity: .86; transform: translate(-2px, -1px) rotate(1deg); }
+    }
+    @keyframes hero-membrane-b {
+      0%, 100% { opacity: .55; transform: translate(1px, -1px) rotate(5deg); }
+      43% { opacity: .88; transform: translate(-2px, 2px) rotate(-6deg); }
+      76% { opacity: .68; transform: translate(2px, 1px) rotate(-1deg); }
+    }
+    @keyframes hero-membrane-echo {
+      0%, 100% { opacity: .12; transform: translate(-2px, 1px) rotate(-7deg); }
+      48% { opacity: .3; transform: translate(3px, -2px) rotate(7deg); }
+      79% { opacity: .18; transform: translate(-1px, -3px) rotate(2deg); }
+    }
+    @keyframes hero-vein-flow {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: -36; }
     }
     @keyframes hero-drift-a {
-      0% { opacity: .16; transform: translate(-8px, 8px) scale(.7); }
-      55% { opacity: .86; transform: translate(10px, -10px) scale(1.2); }
-      100% { opacity: .28; transform: translate(18px, 4px) scale(.82); }
+      0%, 100% { opacity: .18; transform: translate(-2px, 4px) scale(.75); }
+      36% { opacity: .78; transform: translate(8px, -7px) scale(1.15); }
+      71% { opacity: .4; transform: translate(13px, 2px) scale(.9); }
     }
     @keyframes hero-drift-b {
-      0% { opacity: .12; transform: translate(10px, -8px) scale(.76); }
-      50% { opacity: .72; transform: translate(-14px, 10px) scale(1.16); }
-      100% { opacity: .24; transform: translate(4px, -12px) scale(.8); }
+      0%, 100% { opacity: .16; transform: translate(4px, -3px) scale(.8); }
+      48% { opacity: .68; transform: translate(-10px, 8px) scale(1.18); }
+      79% { opacity: .32; transform: translate(-4px, -7px) scale(.88); }
+    }
+    @keyframes hero-drift-c {
+      0%, 100% { opacity: .2; transform: translate(-3px, -2px) scale(.72); }
+      43% { opacity: .84; transform: translate(6px, 9px) scale(1.2); }
+      73% { opacity: .38; transform: translate(11px, 4px) scale(.86); }
+    }
+    @keyframes hero-drift-d {
+      0%, 100% { opacity: .14; transform: translate(3px, 3px) scale(.78); }
+      39% { opacity: .64; transform: translate(-8px, -9px) scale(1.12); }
+      69% { opacity: .3; transform: translate(5px, -5px) scale(.9); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .hero-route, .hero-core-aura, .hero-core-mark, .hero-node, .hero-spore {
+      .hero-route-request,
+      .hero-route-result,
+      .hero-node-left,
+      .hero-node-right,
+      .hero-node-led,
+      .hero-created-object,
+      .hero-generated-flight,
+      .hero-aura,
+      .hero-biome-membrane-a,
+      .hero-biome-membrane-b,
+      .hero-biome-membrane-echo,
+      .hero-biome-veins,
+      .hero-spore-a,
+      .hero-spore-b,
+      .hero-spore-c,
+      .hero-spore-d {
         animation: none !important;
       }
-      .hero-route { stroke-dasharray: none; opacity: .72; }
-      .hero-core-aura { opacity: .26; }
-      .hero-core-mark { transform: rotate(45deg); }
-      .motion-particle { display: none; }
-      .hero-spore { opacity: .3; }
+      .hero-route-request,
+      .hero-route-result {
+        stroke-dasharray: none;
+        opacity: .72;
+      }
+      .hero-node-left,
+      .hero-node-right {
+        opacity: 1;
+        transform: none;
+      }
+      .hero-node-led {
+        opacity: .8;
+      }
+      .hero-created-object {
+        opacity: .9;
+        transform: none;
+      }
+      .hero-generated-flight {
+        display: none;
+      }
+      .hero-aura {
+        opacity: .22;
+        transform: scale(1);
+      }
+      .hero-biome-membrane-a,
+      .hero-biome-membrane-b,
+      .hero-biome-membrane-echo {
+        opacity: .72;
+        transform: none;
+      }
+      .hero-biome-veins {
+        stroke-dasharray: none;
+        opacity: .55;
+      }
+      .hero-spore-a,
+      .hero-spore-b,
+      .hero-spore-c,
+      .hero-spore-d {
+        opacity: .32;
+        transform: none;
+      }
+      .motion-particle {
+        display: none;
+      }
     }
   </style>
 
-  <rect width="1200" height="360" fill="#2b2b2b"/>
-  <rect x="1" y="1" width="1198" height="358" rx="8" fill="none" stroke="#4a4a4a"/>
-  <g stroke="#777" stroke-width="1" opacity=".1">
-    <path d="M0 72H1200M0 144H1200M0 216H1200M0 288H1200"/>
-    <path d="M120 0V360M240 0V360M360 0V360M480 0V360M600 0V360M720 0V360M840 0V360M960 0V360M1080 0V360"/>
+  <rect width="640" height="270" fill="#2b2b2b"/>
+  <rect x="1" y="1" width="638" height="268" rx="7" fill="none" stroke="#4a4a4a"/>
+
+  <g stroke="#777777" stroke-width="1" opacity=".1">
+    <path d="M0 54H640M0 108H640M0 162H640M0 216H640"/>
+    <path d="M80 0V270M160 0V270M240 0V270M320 0V270M400 0V270M480 0V270M560 0V270"/>
   </g>
 
-  <g class="hero-node">
-    <rect x="80" y="104" width="240" height="102" rx="8" fill="#202020"
+  <path d="M153 112H258M382 112H487" fill="none" stroke="#5a5a5a"
+        stroke-width="2"/>
+  <path class="hero-route-request" d="M153 107H258M382 107H487" fill="none"
+        stroke="#46e6a6" stroke-width="3" stroke-linecap="round"
+        stroke-dasharray="9 17" filter="url(#hero-signal-glow)"/>
+  <path class="hero-route-result" d="M153 119H258M382 119H487" fill="none"
+        stroke="#59a7ff" stroke-width="2" stroke-linecap="round"
+        stroke-dasharray="5 14" opacity=".8"/>
+
+  <g class="motion-particle" aria-hidden="true">
+    <circle r="7" fill="#46e6a6" opacity=".16"/>
+    <circle r="3.4" fill="#46e6a6" filter="url(#hero-trail-glow)"/>
+    <circle r="1.2" fill="#effff9"/>
+    <animateMotion dur="7s" begin="-2.1s" repeatCount="indefinite"
+                   path="M153 107C184 94 220 120 262 112A58 58 0 0 1 378 112C420 99 455 121 487 107C455 121 420 99 378 112A58 58 0 0 1 262 112C220 120 184 94 153 107"/>
+  </g>
+  <g class="motion-particle" aria-hidden="true">
+    <circle r="6" fill="#59a7ff" opacity=".16"/>
+    <circle r="3" fill="#59a7ff" filter="url(#hero-trail-glow)"/>
+    <circle r="1" fill="#effff9"/>
+    <animateMotion dur="7s" begin="-4s" repeatCount="indefinite"
+                   path="M487 119C454 103 420 132 378 112A58 58 0 0 0 262 112C221 101 184 132 153 119C184 132 221 101 262 112A58 58 0 0 0 378 112C420 132 454 103 487 119"/>
+  </g>
+  <g class="motion-particle" aria-hidden="true">
+    <circle r="5.5" fill="#46e6a6" opacity=".14"/>
+    <circle r="2.7" fill="#46e6a6" filter="url(#hero-trail-glow)"/>
+    <animateMotion dur="7s" begin="-5.9s" repeatCount="indefinite"
+                   path="M153 112Q175 98 197 112T241 112Q252 119 262 112A58 52 0 0 1 378 112Q390 105 401 112T445 112T487 112Q465 126 443 112T399 112Q389 105 378 112A58 52 0 0 1 262 112Q251 105 240 112T196 112T153 112"/>
+  </g>
+  <g class="motion-particle" aria-hidden="true">
+    <circle r="5" fill="#f0a536" opacity=".14"/>
+    <circle r="2.5" fill="#f0a536" filter="url(#hero-trail-glow)"/>
+    <animateMotion dur="7s" begin="-0.8s" repeatCount="indefinite"
+                   path="M487 112Q465 98 443 112T399 112Q389 119 378 112A58 64 0 0 0 262 112Q251 105 240 112T196 112T153 112Q175 126 197 112T241 112Q252 105 262 112A58 64 0 0 0 378 112Q390 119 401 112T445 112T487 112"/>
+  </g>
+
+  <g class="hero-node-left">
+    <rect x="28" y="64" width="125" height="96" rx="7" fill="#202020"
+          stroke="#656565"/>
+    <rect x="42" y="78" width="97" height="53" rx="4" fill="#303030"
           stroke="#59a7ff" stroke-width="2"/>
-    <circle cx="118" cy="136" r="7" fill="#59a7ff"/>
-    <text x="200" y="160" text-anchor="middle" fill="#f2f2f2" font-size="36"
-          font-weight="700" data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">AI CLIENT</text>
+    <circle class="hero-node-led" cx="55" cy="91" r="4" fill="#59a7ff"/>
+    <path d="M68 91H125M55 106H125M73 144H108" fill="none"
+          stroke="#858585" stroke-width="3" stroke-linecap="round"/>
   </g>
 
-  <g class="hero-node hero-node-right">
-    <rect x="880" y="104" width="240" height="102" rx="8" fill="#202020"
+  <g class="hero-node-right">
+    <rect x="487" y="64" width="125" height="96" rx="7" fill="#202020"
+          stroke="#656565"/>
+    <rect x="501" y="78" width="97" height="53" rx="4" fill="#303030"
           stroke="#f0a536" stroke-width="2"/>
-    <circle cx="918" cy="136" r="7" fill="#f0a536"/>
-    <text x="1000" y="144" text-anchor="middle" fill="#f2f2f2" font-size="36"
-          font-weight="700" data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan
-          x="1000">UNITY</tspan><tspan x="1000" dy="38">EDITOR</tspan></text>
+    <g data-brand="unity" aria-hidden="true"
+       transform="translate(524.4 80) scale(.4)">
+      <path fill="#f2f2f2"
+            d="m64.414 122.93 47.606-27.49-18.247-10.553-18.656 10.777a1.06 1.06 0 0 1-1.035-.008 1.054 1.054 0 0 1-.523-.898V69.164c0-.754.39-1.437 1.043-1.812L96.77 54.55a1.03 1.03 0 0 1 1.035.008c.324.18.527.52.53.89v21.543l18.259 10.547V32.56l-52.18 30.12Z"/>
+      <path fill="#b9dfff"
+            d="M53.738 95.676 35.074 84.886 16.813 95.438l47.601 27.492V62.68L12.25 32.559v54.976l18.254-10.543V55.45c.008-.37.207-.71.527-.89a1.04 1.04 0 0 1 1.04-.008l22.179 12.8a2.095 2.095 0 0 1 1.043 1.813v25.598c-.004.37-.2.71-.52.902-.316.188-.71.191-1.035.012"/>
+      <path fill="#59a7ff"
+            d="M68.988 5.07v21.086l18.657 10.77c.32.187.511.531.511.906 0 .371-.195.711-.511.898L65.469 51.54a2.12 2.12 0 0 1-2.09 0L41.21 38.73a1.033 1.033 0 0 1-.516-.898 1.038 1.038 0 0 1 .516-.906l18.652-10.77V5.07L12.25 32.56l52.164 30.12 52.176-30.12Z"/>
+    </g>
+    <g class="hero-created-object" data-created="gameobject" aria-hidden="true">
+      <circle cx="584" cy="104" r="11" fill="#46e6a6" opacity=".2"
+              filter="url(#hero-signal-glow)"/>
+      <rect x="574" y="92" width="2.5" height="2.5" rx=".7" fill="#59a7ff"/>
+      <rect x="593" y="101" width="2.5" height="2.5" rx=".7" fill="#46e6a6"/>
+      <rect x="578" y="117" width="2" height="2" rx=".5" fill="#f0a536"/>
+      <path d="M584 93L593 99L584 105L575 99Z" fill="#effff9"
+            fill-opacity=".76"/>
+      <path d="M575 99L584 105V115L575 109Z" fill="#59a7ff"
+            fill-opacity=".58"/>
+      <path d="M584 105L593 99V109L584 115Z" fill="#46e6a6"
+            fill-opacity=".72"/>
+      <path d="M584 93L593 99V109L584 115L575 109V99ZM575 99L584 105L593 99M584 105V115"
+            fill="none" stroke="#effff9" stroke-width="1.1"
+            stroke-linejoin="round"/>
+    </g>
+    <circle class="hero-node-led" cx="515" cy="145" r="4" fill="#46e6a6"/>
+    <path d="M527 145H584" stroke="#858585" stroke-width="3"
+          stroke-linecap="round"/>
   </g>
 
-  <path d="M320 155H530" stroke="#59a7ff" opacity=".28" stroke-width="2"
-        marker-end="url(#hero-arrow-blue)"/>
-  <path class="hero-route" d="M320 155H530" stroke="#59a7ff"/>
-  <path d="M670 155H880" stroke="#46e6a6" opacity=".3" stroke-width="2"
-        marker-end="url(#hero-arrow-green)"/>
-  <path class="hero-route" d="M670 155H880" stroke="#46e6a6"/>
+  <!-- Four command arrivals per 7s; each batch launches after a 0.18s build delay. -->
+  <g id="hero-generated-pool" aria-hidden="true"
+     data-cycle-seconds="28" data-command-cycle-seconds="7"
+     data-spawn-delay-seconds="0.18"
+     mask="url(#hero-flight-background-mask)">
+    <g class="hero-generated-flight hero-flight-route-1 hero-generated-color-1" data-seq="0" data-kind="gameobject" style="animation-delay:1.58s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-gameobject" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-4 hero-generated-color-6" data-seq="1" data-kind="image" style="animation-delay:1.6s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-image" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-7 hero-generated-color-3" data-seq="2" data-kind="sound" style="animation-delay:1.62s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-sound" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-2 hero-generated-color-9" data-seq="3" data-kind="component" style="animation-delay:3.18s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-component" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-9 hero-generated-color-2" data-seq="4" data-kind="light" style="animation-delay:4.78s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-light" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-5 hero-generated-color-8" data-seq="5" data-kind="script" style="animation-delay:4.8s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-script" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-10 hero-generated-color-4" data-seq="6" data-kind="camera" style="animation-delay:4.82s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-camera" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-3 hero-generated-color-10" data-seq="7" data-kind="material" style="animation-delay:4.84s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-material" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-8 hero-generated-color-5" data-seq="8" data-kind="animation" style="animation-delay:4.86s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-animation" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-6 hero-generated-color-7" data-seq="9" data-kind="physics" style="animation-delay:6.38s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-physics" x="-7" y="-7" width="14" height="14"/></g>
 
-  <circle class="motion-particle" r="6" fill="#59a7ff">
-    <animateMotion dur="2.8s" repeatCount="indefinite" path="M320 155H530"/>
-  </circle>
-  <circle class="motion-particle" r="6" fill="#46e6a6">
-    <animateMotion dur="3.1s" begin="-1.4s" repeatCount="indefinite" path="M670 155H880"/>
-  </circle>
+    <g class="hero-generated-flight hero-flight-route-3 hero-generated-color-2" data-seq="10" data-kind="sound" style="animation-delay:6.4s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-sound" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-8 hero-generated-color-9" data-seq="11" data-kind="material" style="animation-delay:8.58s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-material" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-5 hero-generated-color-4" data-seq="12" data-kind="gameobject" style="animation-delay:8.6s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-gameobject" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-1 hero-generated-color-8" data-seq="13" data-kind="camera" style="animation-delay:8.62s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-camera" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-10 hero-generated-color-6" data-seq="14" data-kind="component" style="animation-delay:8.64s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-component" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-4 hero-generated-color-1" data-seq="15" data-kind="animation" style="animation-delay:10.18s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-animation" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-6 hero-generated-color-5" data-seq="16" data-kind="light" style="animation-delay:10.2s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-light" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-9 hero-generated-color-3" data-seq="17" data-kind="physics" style="animation-delay:10.22s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-physics" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-2 hero-generated-color-7" data-seq="18" data-kind="image" style="animation-delay:11.78s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-image" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-7 hero-generated-color-10" data-seq="19" data-kind="script" style="animation-delay:11.8s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-script" x="-7" y="-7" width="14" height="14"/></g>
+
+    <g class="hero-generated-flight hero-flight-route-6 hero-generated-color-3" data-seq="20" data-kind="component" style="animation-delay:13.38s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-component" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-2 hero-generated-color-7" data-seq="21" data-kind="light" style="animation-delay:13.4s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-light" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-10 hero-generated-color-5" data-seq="22" data-kind="image" style="animation-delay:13.42s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-image" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-4 hero-generated-color-1" data-seq="23" data-kind="physics" style="animation-delay:13.44s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-physics" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-8 hero-generated-color-9" data-seq="24" data-kind="script" style="animation-delay:13.46s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-script" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-7 hero-generated-color-6" data-seq="25" data-kind="gameobject" style="animation-delay:15.58s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-gameobject" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-1 hero-generated-color-2" data-seq="26" data-kind="material" style="animation-delay:17.18s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-material" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-9 hero-generated-color-8" data-seq="27" data-kind="sound" style="animation-delay:17.2s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-sound" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-5 hero-generated-color-10" data-seq="28" data-kind="camera" style="animation-delay:17.22s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-camera" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-3 hero-generated-color-4" data-seq="29" data-kind="animation" style="animation-delay:17.24s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-animation" x="-7" y="-7" width="14" height="14"/></g>
+
+    <g class="hero-generated-flight hero-flight-route-10 hero-generated-color-8" data-seq="30" data-kind="animation" style="animation-delay:18.78s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-animation" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-6 hero-generated-color-1" data-seq="31" data-kind="camera" style="animation-delay:18.8s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-camera" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-2 hero-generated-color-5" data-seq="32" data-kind="sound" style="animation-delay:18.82s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-sound" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-8 hero-generated-color-3" data-seq="33" data-kind="image" style="animation-delay:18.84s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-image" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-1 hero-generated-color-9" data-seq="34" data-kind="physics" style="animation-delay:18.86s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-physics" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-5 hero-generated-color-7" data-seq="35" data-kind="material" style="animation-delay:20.38s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-material" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-3 hero-generated-color-2" data-seq="36" data-kind="script" style="animation-delay:20.4s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-script" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-7 hero-generated-color-4" data-seq="37" data-kind="light" style="animation-delay:22.58s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-light" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-9 hero-generated-color-10" data-seq="38" data-kind="gameobject" style="animation-delay:22.6s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-gameobject" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-4 hero-generated-color-6" data-seq="39" data-kind="component" style="animation-delay:22.62s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-component" x="-7" y="-7" width="14" height="14"/></g>
+
+    <g class="hero-generated-flight hero-flight-route-9 hero-generated-color-5" data-seq="40" data-kind="material" style="animation-delay:24.18s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-material" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-5 hero-generated-color-2" data-seq="41" data-kind="physics" style="animation-delay:24.2s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-physics" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-3 hero-generated-color-9" data-seq="42" data-kind="camera" style="animation-delay:24.22s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-camera" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-8 hero-generated-color-7" data-seq="43" data-kind="gameobject" style="animation-delay:24.24s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-gameobject" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-2 hero-generated-color-3" data-seq="44" data-kind="animation" style="animation-delay:25.78s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-animation" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-7 hero-generated-color-10" data-seq="45" data-kind="component" style="animation-delay:27.38s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-component" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-1 hero-generated-color-4" data-seq="46" data-kind="sound" style="animation-delay:27.4s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-sound" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-10 hero-generated-color-6" data-seq="47" data-kind="script" style="animation-delay:27.42s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-script" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-4 hero-generated-color-8" data-seq="48" data-kind="light" style="animation-delay:27.44s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-light" x="-7" y="-7" width="14" height="14"/></g>
+    <g class="hero-generated-flight hero-flight-route-6 hero-generated-color-1" data-seq="49" data-kind="image" style="animation-delay:27.46s"><circle r="7" fill="currentColor" opacity=".13"/><use href="#hero-icon-image" x="-7" y="-7" width="14" height="14"/></g>
+  </g>
 
   <g>
-    <circle class="hero-core-aura" cx="600" cy="155" r="94" fill="#46e6a6"
-            filter="url(#hero-green-glow)"/>
-    <circle cx="600" cy="155" r="62" fill="none" stroke="#46e6a6"
-            stroke-width="3" opacity=".72"/>
-    <circle cx="600" cy="155" r="43" fill="url(#hero-core)" opacity=".9"/>
-    <rect class="hero-core-mark" x="578" y="133" width="44" height="44" rx="6"
-          fill="#202020" stroke="#46e6a6" stroke-width="3"/>
-    <circle cx="600" cy="155" r="9" fill="#effff9" filter="url(#hero-soft-glow)"/>
+    <circle class="hero-aura" cx="320" cy="112" r="62" fill="#46e6a6"
+            filter="url(#hero-aura-glow)"/>
+    <circle cx="320" cy="112" r="47" fill="#242424"/>
+    <g class="hero-biome-membrane-echo" aria-hidden="true">
+      <path d="M320 84C335 82 350 92 352 106C357 121 347 138 332 143C316 150 296 142 289 127C281 112 287 93 302 87C308 84 314 86 320 84Z"
+            fill="none" stroke="#46e6a6" stroke-width="5" opacity=".28"
+            filter="url(#hero-trail-glow)"/>
+    </g>
+    <g class="hero-biome-membrane-a" aria-hidden="true">
+      <path d="M320 86C333 84 346 92 348 105C352 117 344 132 332 138C318 144 301 138 295 125C289 112 294 96 307 90C311 87 316 88 320 86Z"
+            fill="#46e6a6" fill-opacity=".055"
+            stroke="url(#hero-membrane-gradient)" stroke-width="2.7"/>
+      <circle cx="302" cy="99" r="2.3" fill="#59a7ff"/>
+      <circle cx="340" cy="122" r="2.6" fill="#46e6a6"/>
+      <circle cx="316" cy="139" r="1.8" fill="#f0a536"/>
+    </g>
+    <g class="hero-biome-membrane-b" aria-hidden="true">
+      <path d="M320 94C329 91 339 98 340 107C343 117 337 127 328 131C318 135 307 130 304 121C300 112 304 102 312 97C315 95 318 96 320 94Z"
+            fill="#59a7ff" fill-opacity=".045" stroke="#46e6a6"
+            stroke-width="1.5" stroke-dasharray="4 6"/>
+      <circle cx="309" cy="117" r="1.7" fill="#effff9"/>
+      <circle cx="333" cy="104" r="1.9" fill="#46e6a6"/>
+    </g>
+    <g class="hero-biome-veins" aria-hidden="true" fill="none"
+       stroke-linecap="round" stroke-dasharray="5 7" opacity=".72">
+      <path d="M296 104C306 105 312 108 320 112" stroke="#59a7ff"
+            stroke-width="1.4"/>
+      <path d="M344 101C335 104 329 108 320 112" stroke="#46e6a6"
+            stroke-width="1.6"/>
+      <path d="M341 128C333 123 327 117 320 112" stroke="#f0a536"
+            stroke-width="1.3"/>
+      <path d="M301 130C307 123 313 117 320 112" stroke="#46e6a6"
+            stroke-width="1.2"/>
+    </g>
+    <circle cx="320" cy="112" r="12" fill="url(#hero-core-fill)"
+            filter="url(#hero-signal-glow)"/>
+    <circle cx="320" cy="112" r="4" fill="#effff9"/>
   </g>
 
   <g>
-    <circle class="hero-spore" cx="380" cy="70" r="4" fill="#46e6a6"/>
-    <circle class="hero-spore hero-spore-b" cx="455" cy="224" r="3" fill="#59a7ff"/>
-    <circle class="hero-spore hero-spore-c" cx="750" cy="75" r="4" fill="#46e6a6"/>
-    <circle class="hero-spore hero-spore-b" cx="810" cy="230" r="3" fill="#f0a536"/>
-    <circle class="hero-spore hero-spore-c" cx="1045" cy="66" r="3" fill="#46e6a6"/>
-    <circle class="hero-spore" cx="142" cy="245" r="3" fill="#59a7ff"/>
+    <circle class="hero-spore-a" cx="188" cy="62" r="3" fill="#46e6a6"/>
+    <circle class="hero-spore-b" cx="221" cy="151" r="2.5" fill="#59a7ff"/>
+    <circle class="hero-spore-c" cx="260" cy="48" r="2" fill="#46e6a6"/>
+    <circle class="hero-spore-d" cx="402" cy="58" r="3" fill="#f0a536"/>
+    <circle class="hero-spore-a hero-phase-1" cx="429" cy="153" r="2.5" fill="#46e6a6"/>
+    <circle class="hero-spore-b hero-phase-2" cx="462" cy="48" r="2" fill="#59a7ff"/>
+    <circle class="hero-spore-c hero-phase-3" cx="171" cy="143" r="2" fill="#f0a536"/>
+    <circle class="hero-spore-d hero-phase-4" cx="474" cy="135" r="2" fill="#46e6a6"/>
   </g>
 
-  <text x="600" y="286" text-anchor="middle" fill="url(#hero-title-gradient)"
-        font-size="64" font-weight="700" data-mobile-critical="true"
+  <g text-anchor="middle"
+     font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <text x="90" y="186" fill="#d8d8d8" font-size="19" font-weight="600"
+          data-mobile-critical="true">AI CLIENT</text>
+    <text x="320" y="186" fill="#46e6a6" font-size="19" font-weight="700"
+          data-mobile-critical="true">BIOME MCP</text>
+    <text x="550" y="186" fill="#d8d8d8" font-size="19" font-weight="600"
+          data-mobile-critical="true">UNITY EDITOR</text>
+  </g>
+
+  <text x="320" y="224" text-anchor="middle" fill="url(#hero-heading)"
+        font-size="29" font-weight="700" data-mobile-critical="true"
         font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">UNITY BIOME MCP</text>
-  <text x="600" y="329" text-anchor="middle" fill="#46e6a6" font-size="36"
-        font-weight="600" data-mobile-critical="true"
+  <text x="320" y="252" text-anchor="middle" fill="#46e6a6"
+        font-size="19" font-weight="600" data-mobile-critical="true"
         font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">AI AND UNITY, ONE LIVING TOOL SURFACE</text>
 </svg>

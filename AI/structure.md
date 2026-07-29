@@ -261,9 +261,9 @@ unity-biome-mcp/
 │   └── package.json.meta
 ├── unity-plugin/               # Unity Editor plugin; generated inventory totals live in docs/assets/_meta.json
 │   ├── ClientSkills/           # Consumer skills shipped with the plugin and installed via Setup Wizard
-│   │   ├── agents/             # 2 agents: playmode-tester.md, unity-editor-developer.md
-│   │   ├── skills/             # 23 skills: csharp-unity, playmode-verification, playtest-dsl, testing-tdd, token-optimization, unity-animation, unity-animator, unity-assets, unity-code-intel, unity-components, unity-debugging, unity-efficiency, unity-hierarchy, unity-intent, unity-biome-mcp-reference, unity-particles, unity-performance, unity-physics, unity-scene-ui, unity-session, unity-shaders, unity-testing, unity-timeline
-│   │   └── scripts/            # claude_to_codex.py — syncs Claude skills to Codex format
+│   │   ├── agents/             # 4 focused agents: scene editing, C# development, playtesting, diagnostics
+│   │   ├── skills/             # 11 folder skills with SKILL.md and optional references/resources
+│   │   └── scripts/            # claude_to_codex.py — ownership-checked Claude-to-Codex sync
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
@@ -528,12 +528,12 @@ unity-biome-mcp/
 │       │   ├── SetupDiagnostics.cs        # Python/TCP/config diagnostic checks + per-tool AI config validation (v0.47.1; v1.0.1: +CheckUv() uvx PATH probe with install hint, +GetPythonVersion() with 3s timeout+caching, +WhichUvx() inline to avoid Chat.CLI cyclic dep, +IsVersionAtLeast())
 │       │   ├── BackendDescriptor.cs       # 9 backend definitions + IsDetected logic (BinaryName + ConfigDir); platform-aware root_key (v0.47.1)
 │       │   ├── AiToolCardFactory.cs       # Reusable backend/tool card builder + platform-aware path methods (v0.47.1)
-│       │   ├── SkillsInstaller.cs         # Discovers ClientSkills in UPM package; copies to .claude/skills/ and .claude/agents/ (v0.92.x)
+│       │   ├── SkillsInstaller.cs         # Transactional ClientSkills install, legacy migration, conflict/ownership safety
 │       │   ├── Screens/                   # Screen implementations (5 total: Welcome → PickBackend → AiConfig → Configure → InstallSkills)
 │       │   │   ├── WelcomeScreen.cs       # Introduction + system checks (Python found, TCP available)
 │       │   │   ├── AiConfigScreen.cs      # AI tool configuration cards + fallback JSON export for UPM installs (v0.47.1, new)
 │       │   │   ├── ConfigureScreen.cs     # Per-backend selection; uses GitInstallUrl constant (v0.47.1; v1.0.1: scope toggle removed — no port baked, no scope distinction)
-│       │   │   ├── InstallSkillsScreen.cs # UIToolkit wizard screen: file list, overwrite toggle, Codex sync (v0.92.x)
+│       │   │   ├── InstallSkillsScreen.cs # AI skills install UI; optional Codex sync; completion marker written last
 │       │   │   └── PickBackendScreen.cs   # 9 backend cards (Claude Code, Desktop, Cursor, Windsurf, VS Code, Codex, Kimi, OpenCode, Antigravity)
 │       │   ├── Tests/                     # Wizard assembly tests (separate asmdef)
 │       │   │   ├── UnityMCP.Editor.Wizard.Tests.asmdef
@@ -547,7 +547,7 @@ unity-biome-mcp/
 │       │   │   ├── ProjectConfigTomlTests.cs # TOML parsing edge cases (v0.68.0)
 │       │   │   ├── ProjectConfigTargetsTests.cs # Target definitions + path rendering (v0.68.0)
 │       │   │   ├── GitignorePatcherTests.cs # Append safety, idempotency, no-duplicates (v0.68.0)
-│       │   │   ├── SkillsInstallerTests.cs  # 14 NUnit tests: copy, overwrite, Codex sync, edge cases (v0.92.x)
+│       │   │   ├── SkillsInstallerTests.cs  # 26 NUnit tests: resources, upgrades, rollback, conflicts, path safety
 │       │   │   └── ... (14+ test files total)
 │       │   ├── UnityMCP.Editor.Wizard.asmdef # Separate compile unit, references core Editor asmdef
 │       │   └── WizardAssemblyInfo.cs      # AssemblyVersion + InternalsVisibleTo

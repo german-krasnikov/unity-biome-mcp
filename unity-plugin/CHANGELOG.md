@@ -10,6 +10,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.5.0] — 2026-07-30 — Client workflow guidance
+
+**Client skills and agents:**
+- Consolidated the shipped guidance from 23 overlapping files into 11
+  goal-focused folder skills with reusable references
+- Replaced the broad editor agent with focused scene, C#, playtest, and
+  diagnostics agents
+- Added batch-first workflows, saved PlayTest artifacts, macro reuse, live
+  schema discovery, and evidence-based verification guidance
+
+**Installation and Codex conversion:**
+- Added ownership-aware, transactional installation with conflict preflight,
+  rollback, nested skill resources, and supported-release migration
+- Hardened Claude-to-Codex generation with managed-file manifests, safe prune,
+  path and symlink checks, rollback, and Python 3.10-compatible validation
+- Added direct clean-install and legacy-upgrade coverage for 11 skills and 4
+  agents
+
+**Documentation and presentation:**
+- Expanded the animated README hero, architecture, comparison, and inventory
+  visuals while preserving deterministic marker-only stat updates and
+  reduced-motion fallbacks
+- Added a user guide for installing and safely updating project-local AI
+  skills and agents
+
 ## [v1.4.1] — 2026-07-29 — README visuals hotfix
 
 **Fixed:**

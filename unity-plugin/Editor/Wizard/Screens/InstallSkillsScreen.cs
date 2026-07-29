@@ -27,6 +27,7 @@ namespace UnityMCP.Editor.Wizard.Screens
         private Process _proc;
         private VisualElement _root;
         private int _runGeneration;
+        private string _pendingVersion;
 
         public string Title => "Install AI Skills";
 
@@ -160,24 +161,58 @@ namespace UnityMCP.Editor.Wizard.Screens
             _skipBtn?.SetEnabled(false);
             SetStatus("Installing skills...", "warning");
 
+            var previousVersion = SkillsInstaller.ReadVersionFile(projectRoot);
+            if (previousVersion != null && !ClearVersionMarker(projectRoot))
+            {
+                _headerAnim?.SetWorking(false);
+                _installBtn?.SetEnabled(true);
+                _skipBtn?.SetEnabled(true);
+                SetCompletionActions(false);
+                SetStatus("The previous version marker could not be cleared.", "error");
+                return;
+            }
+
             var result = SkillsInstaller.Install(src, projectRoot, _overwriteToggle.value);
-            AppendLog($"✓ Copied {result.Copied}, skipped {result.Skipped}");
+            AppendLog($"✓ Copied {result.Copied}, unchanged {result.Skipped}, removed {result.Removed}");
             foreach (var e in result.Errors) AppendLog("✗ " + e);
 
             if (result.IsSuccess)
-            {
-                var ver = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(SkillsInstaller).Assembly)?.version ?? "?";
-                SkillsInstaller.WriteVersionFile(projectRoot, ver);
-            }
+                _pendingVersion =
+                    UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(SkillsInstaller).Assembly)?.version
+                    ?? "?";
+            else
+                _pendingVersion = null;
 
             _installBtn?.SetEnabled(true);
             _skipBtn?.SetEnabled(true);
 
             if (!result.IsSuccess)
             {
+                if (previousVersion != null && result.StateRestored)
+                {
+                    try
+                    {
+                        SkillsInstaller.WriteVersionFile(projectRoot, previousVersion);
+                    }
+                    catch (Exception ex)
+                    {
+                        AppendLog("ERROR: Could not restore the previous version marker: " + ex.Message);
+                    }
+                }
+                else if (!result.StateRestored)
+                {
+                    AppendLog(
+                        "ERROR: The previous marker was not restored because rollback was incomplete.");
+                    if (!string.IsNullOrEmpty(result.RecoveryPath))
+                        AppendLog("Recovery files: " + result.RecoveryPath);
+                }
                 _headerAnim?.SetWorking(false);
                 SetCompletionActions(false);
-                SetStatus("Skills installation completed with errors.", "error");
+                SetStatus(
+                    result.StateRestored
+                        ? "Skills installation completed with errors."
+                        : "Skills installation requires manual recovery.",
+                    "error");
                 return;
             }
 
@@ -189,6 +224,13 @@ namespace UnityMCP.Editor.Wizard.Screens
             }
             else
             {
+                if (!CompleteVersionWrite(projectRoot))
+                {
+                    _headerAnim?.SetWorking(false);
+                    SetCompletionActions(false);
+                    SetStatus("Skills installed, but the version marker could not be written.", "error");
+                    return;
+                }
                 _headerAnim?.SetWorking(false);
                 SetCompletionActions(true);
                 SetStatus("Skills installed successfully.", "success");
@@ -201,8 +243,8 @@ namespace UnityMCP.Editor.Wizard.Screens
             if (!File.Exists(script))
             {
                 _headerAnim?.SetWorking(false);
-                SetCompletionActions(true);
-                SetStatus("Skills installed. Codex sync script was not found.", "warning");
+                SetCompletionActions(false);
+                SetStatus("Codex sync script was not found; installation is incomplete.", "error");
                 return;
             }
 
@@ -214,7 +256,7 @@ namespace UnityMCP.Editor.Wizard.Screens
             try
             {
                 int generation = ++_runGeneration;
-                var psi = new ProcessStartInfo(exe, $"\"{script}\" --repo-root \"{projectRoot}\"")
+                var psi = new ProcessStartInfo(exe, $"\"{script}\" --repo-root \"{projectRoot}\" --prune")
                 {
                     UseShellExecute        = false,
                     RedirectStandardOutput = true,
@@ -242,12 +284,14 @@ namespace UnityMCP.Editor.Wizard.Screens
                     QueueIfActive(generation, () =>
                     {
                         AppendLog(code == 0 ? "✓ Codex sync done" : $"✗ Codex exit {code}");
+                        var ready = code == 0 && CompleteVersionWrite(projectRoot);
                         _headerAnim?.SetWorking(false);
                         _skipBtn?.SetEnabled(true);
-                        SetCompletionActions(code == 0);
+                        SetCompletionActions(ready);
                         SetStatus(
-                            code == 0 ? "Skills and Codex sync are ready." : "Codex sync failed.",
-                            code == 0 ? "success" : "error");
+                            ready ? "Skills and Codex sync are ready." :
+                                code == 0 ? "Version marker write failed." : "Codex sync failed.",
+                            ready ? "success" : "error");
                         ReleaseProcess(proc);
                     });
                 };
@@ -261,6 +305,36 @@ namespace UnityMCP.Editor.Wizard.Screens
                 AppendLog("ERROR: " + ex.Message);
                 SetCompletionActions(false);
                 SetStatus("Could not start Codex sync.", "error");
+            }
+        }
+
+        private bool CompleteVersionWrite(string projectRoot)
+        {
+            if (_pendingVersion == null) return false;
+            try
+            {
+                SkillsInstaller.WriteVersionFile(projectRoot, _pendingVersion);
+                _pendingVersion = null;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AppendLog("ERROR: " + ex.Message);
+                return false;
+            }
+        }
+
+        private bool ClearVersionMarker(string projectRoot)
+        {
+            try
+            {
+                SkillsInstaller.DeleteVersionFile(projectRoot);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AppendLog("ERROR: " + ex.Message);
+                return false;
             }
         }
 
@@ -325,9 +399,14 @@ namespace UnityMCP.Editor.Wizard.Screens
             int skills = 0, agents = 0, scripts = 0;
             foreach (var f in SkillsInstaller.ListFiles(src))
             {
-                if (f.StartsWith("skills/"))  skills++;
-                else if (f.StartsWith("agents/"))  agents++;
-                else if (f.StartsWith("scripts/")) scripts++;
+                if (f.StartsWith("skills/") &&
+                    (f.EndsWith("/SKILL.md") ||
+                     f.IndexOf('/', "skills/".Length) < 0 && f.EndsWith(".md")))
+                    skills++;
+                else if (f.StartsWith("agents/") && f.EndsWith(".md"))
+                    agents++;
+                else if (f.StartsWith("scripts/") && f.EndsWith(".py"))
+                    scripts++;
             }
             return $"{skills} skills · {agents} agents · {scripts} scripts";
         }

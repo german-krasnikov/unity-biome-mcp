@@ -50,7 +50,9 @@ project so `.codex/config.toml` is regenerated, then restart Codex.
 
 ## 2. Choose a Configuration Flow
 
-Open **MCP > Setup Wizard** to choose a backend and optionally install the bundled skills. The Wizard configures clients; it does not test the connection.
+Open **MCP > Setup Wizard** to choose a backend and optionally install the
+bundled [AI skills and agents](../install/ai-skills.md). The Wizard configures
+clients; it does not test the connection.
 
 Use the flow that matches your client:
 

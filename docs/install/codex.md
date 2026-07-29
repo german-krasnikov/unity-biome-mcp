@@ -21,6 +21,10 @@ Codex uses TOML. Do not paste the standard `mcpServers` JSON into `config.toml`.
 
 For user-level configuration instead, use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `codex`. It writes `~/.codex/config.toml`.
 
+For optional project-local skills and generated Codex agents, follow
+[Install AI Skills and Agents](ai-skills.md). The guide explains ownership
+checks and the Claude-to-Codex sync.
+
 ## In-Unity Chat
 
 1. Open **MCP > Settings > Chat Settings > Codex Settings**.

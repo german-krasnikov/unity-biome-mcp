@@ -19,6 +19,9 @@ Unity Biome MCP creates `.mcp.json` in the Unity project root. Open Claude Code 
 
 For user-level configuration instead, use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `claude-code`.
 
+For optional project-local MCP workflows and focused Unity subagents, follow
+[Install AI Skills and Agents](ai-skills.md).
+
 ## In-Unity Chat
 
 1. Open **MCP > Settings > Chat Settings**.

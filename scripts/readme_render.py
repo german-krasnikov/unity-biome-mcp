@@ -5,6 +5,7 @@ import json
 import pathlib
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Mapping
 
 
 _MARKER_NAME = r"[A-Z][A-Z0-9_]*"
@@ -20,8 +21,21 @@ _MARKER_PAIR_RE = re.compile(
     re.DOTALL,
 )
 STATS_SVG_MARKERS = frozenset(
-    {"STATS_DESC", "TOOLS", "TESTS", "VERSION"}
+    {
+        "STATS_DESC",
+        "TOOLS",
+        "TESTS",
+        "BREAKDOWN_PRIMARY",
+        "BREAKDOWN_SECONDARY",
+    }
 )
+STATS_SVG_MARKER_PARENTS = {
+    "STATS_DESC": "desc",
+    "TOOLS": "text",
+    "TESTS": "text",
+    "BREAKDOWN_PRIMARY": "text",
+    "BREAKDOWN_SECONDARY": "text",
+}
 SVG_MARKER_ALLOWLIST = {
     "stats.svg": STATS_SVG_MARKERS,
 }
@@ -147,16 +161,69 @@ def _validate_svg_marker_contract(
             )
 
 
+def _validate_svg_marker_locations(
+    svg: str,
+    marker_parents: Mapping[str, str],
+) -> None:
+    parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+    root = ET.fromstring(svg, parser=parser)
+    located: dict[str, list[ET.Element]] = {}
+    for element in root.iter():
+        name = element.attrib.get("data-biome-marker")
+        if name:
+            located.setdefault(name, []).append(element)
+
+    unexpected = set(located) - set(marker_parents)
+    if unexpected:
+        raise ValueError(
+            f"Unexpected data-biome-marker value(s): {', '.join(sorted(unexpected))}"
+        )
+
+    for name, expected_tag in marker_parents.items():
+        elements = located.get(name, [])
+        if len(elements) != 1:
+            raise ValueError(
+                f"Expected exactly one data-biome-marker={name} element"
+            )
+        element = elements[0]
+        tag = str(element.tag).rsplit("}", 1)[-1]
+        if tag != expected_tag:
+            raise ValueError(
+                f"BIOME:{name} must be a direct child payload of <{expected_tag}>"
+            )
+
+        children = list(element)
+        if (
+            len(children) != 2
+            or any(child.tag is not ET.Comment for child in children)
+            or (children[0].text or "").strip() != f"BIOME:{name}"
+            or (children[1].text or "").strip() != f"/BIOME:{name}"
+        ):
+            raise ValueError(
+                f"BIOME:{name} markers must be direct children of their owner"
+            )
+        if (element.text or "").strip() or (children[1].tail or "").strip():
+            raise ValueError(
+                f"BIOME:{name} owner contains text outside its marker payload"
+            )
+
+
 def substitute_svg_markers(
     svg: str,
     meta: dict,
     expected_markers: frozenset[str] = STATS_SVG_MARKERS,
+    marker_parents: Mapping[str, str] = STATS_SVG_MARKER_PARENTS,
 ) -> str:
     """Replace allowlisted marker payloads while preserving all other SVG bytes."""
     replacements = {
         "TOOLS": meta["tools"],
         "TESTS": meta["tests_total"],
-        "VERSION": f"v{meta['server_version']}",
+        "BREAKDOWN_PRIMARY": (
+            f"{meta['tests_python']} regular / {meta['tests_stress']} stress"
+        ),
+        "BREAKDOWN_SECONDARY": (
+            f"{meta['tests_live']} live / {meta['tests_unity']} Unity"
+        ),
         "STATS_DESC": stats_summary(meta),
     }
     if frozenset(replacements) != expected_markers:
@@ -167,6 +234,7 @@ def substitute_svg_markers(
     except ET.ParseError as error:
         raise ValueError(f"SVG is not valid XML: {error}") from error
     _validate_svg_marker_contract(svg, expected_markers)
+    _validate_svg_marker_locations(svg, marker_parents)
 
     def replace_payload(match: re.Match[str]) -> str:
         value = html.escape(str(replacements[match.group("name")]), quote=False)

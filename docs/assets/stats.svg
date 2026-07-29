@@ -1,126 +1,251 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 170" width="960" height="170"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 304" width="560" height="304"
      role="img" aria-labelledby="stats-title stats-desc">
   <title id="stats-title">Unity Biome MCP project inventory</title>
-  <desc id="stats-desc"><!-- BIOME:STATS_DESC -->142 registered MCP tools. Test inventory: 10922 entries: 4264 regular Python, 511 Python stress, 289 live Python, and 5858 Unity source attributes. Unity count source: static source scan. Server package version: v1.4.1.<!-- /BIOME:STATS_DESC --></desc>
+  <desc id="stats-desc" data-biome-marker="STATS_DESC"><!-- BIOME:STATS_DESC -->142 registered MCP tools. Test inventory: 10933 entries: 4264 regular Python, 511 Python stress, 289 live Python, and 5869 Unity source attributes. Unity count source: static source scan. Server package version: v1.5.0.<!-- /BIOME:STATS_DESC --></desc>
 
   <defs>
-    <filter id="stats-glow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="5"/>
+    <filter id="stats-core-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.2"/>
     </filter>
-    <clipPath id="stats-card-a"><rect x="18" y="14" width="292" height="142" rx="7"/></clipPath>
-    <clipPath id="stats-card-b"><rect x="334" y="14" width="292" height="142" rx="7"/></clipPath>
-    <clipPath id="stats-card-c"><rect x="650" y="14" width="292" height="142" rx="7"/></clipPath>
+    <clipPath id="stats-tools-clip">
+      <rect x="12" y="12" width="536" height="130" rx="7"/>
+    </clipPath>
+    <clipPath id="stats-tests-clip">
+      <rect x="12" y="162" width="536" height="130" rx="7"/>
+    </clipPath>
+    <linearGradient id="stats-tools-scan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#46e6a6" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#46e6a6" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#46e6a6" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="stats-tests-scan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#59a7ff" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#59a7ff" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#59a7ff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
 
   <style>
+    .stats-card {
+      fill: #202020;
+      stroke-width: 1.5;
+    }
     .stats-aura {
       transform-box: fill-box;
       transform-origin: center;
-      animation: stats-aura 3.4s ease-in-out infinite;
+      animation: stats-aura-breathe 4.2s ease-in-out infinite;
     }
-    .stats-card {
+    .stats-aura-tests { animation-delay: -2.1s; }
+    .stats-flow {
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-dasharray: 7 13;
+      animation: stats-flow 3.8s linear infinite;
+    }
+    .stats-flow-tests {
+      animation-delay: -1.9s;
+      animation-duration: 4.4s;
+    }
+    .stats-ring {
+      fill: none;
       transform-box: fill-box;
       transform-origin: center;
-      animation: stats-life 4.6s ease-in-out infinite;
+      animation: stats-ring-life 3.2s ease-out infinite;
     }
-    .stats-card-b { animation-delay: -.9s; }
-    .stats-card-c { animation-delay: -1.8s; }
+    .stats-ring-mid { animation-delay: -1.05s; }
+    .stats-ring-late { animation-delay: -2.1s; }
+    .stats-ring-tests { animation-duration: 3.7s; }
+    .stats-core {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: stats-core-life 2.8s ease-in-out infinite;
+    }
+    .stats-core-tests {
+      animation-delay: -1.4s;
+      animation-duration: 3.2s;
+    }
     .stats-scan {
-      animation: stats-scan 4.2s ease-in-out infinite;
+      animation: stats-scan-yoyo 5.4s ease-in-out infinite alternate;
     }
-    .stats-scan-b { animation-delay: -.8s; }
-    .stats-scan-c { animation-delay: -1.6s; }
+    .stats-scan-tests {
+      animation-delay: -2.7s;
+      animation-duration: 6.2s;
+    }
     .stats-spore {
       transform-box: fill-box;
       transform-origin: center;
-      animation: stats-drift 4.8s ease-in-out infinite alternate;
+      animation: stats-spore-drift 5.1s ease-in-out infinite alternate;
     }
-    .stats-spore-b { animation-delay: -2.2s; animation-duration: 5.7s; }
-    @keyframes stats-aura {
-      0%, 100% { opacity: .1; transform: scale(.86); }
-      50% { opacity: .34; transform: scale(1.12); }
+    .stats-spore-b { animation-delay: -1.7s; animation-duration: 6.3s; }
+    .stats-spore-c { animation-delay: -3.4s; animation-duration: 4.7s; }
+    .stats-spore-phase-1 { animation-delay: -.6s; animation-duration: 5.5s; }
+    .stats-spore-phase-2 { animation-delay: -1.3s; animation-duration: 4.8s; }
+    .stats-spore-phase-3 { animation-delay: -2.2s; animation-duration: 6s; }
+    .stats-spore-phase-4 { animation-delay: -3.1s; animation-duration: 5.2s; }
+    .stats-spore-phase-5 { animation-delay: -4s; animation-duration: 6.6s; }
+    .stats-spore-phase-6 { animation-delay: -4.8s; animation-duration: 5.8s; }
+    .stats-bridge {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: stats-bridge-life 3.6s ease-in-out infinite;
     }
-    @keyframes stats-life {
-      0%, 100% { opacity: .9; transform: translateY(0); }
-      50% { opacity: 1; transform: translateY(-2px); }
+    .motion-particle { pointer-events: none; }
+    @keyframes stats-aura-breathe {
+      0%, 100% { opacity: .07; transform: scale(.985); }
+      50% { opacity: .2; transform: scale(1.015); }
     }
-    @keyframes stats-scan {
-      0% { transform: translateX(-90px); opacity: 0; }
-      18%, 70% { opacity: .75; }
-      100% { transform: translateX(390px); opacity: 0; }
+    @keyframes stats-flow {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: -40; }
     }
-    @keyframes stats-drift {
-      0% { opacity: .18; transform: translate(-7px, 5px) scale(.72); }
-      55% { opacity: .8; transform: translate(8px, -7px) scale(1.18); }
-      100% { opacity: .28; transform: translate(15px, 4px) scale(.82); }
+    @keyframes stats-ring-life {
+      0% { opacity: .7; transform: scale(.45); }
+      72%, 100% { opacity: 0; transform: scale(1.85); }
+    }
+    @keyframes stats-core-life {
+      0%, 100% { opacity: .8; transform: scale(.86); }
+      50% { opacity: 1; transform: scale(1.12); }
+    }
+    @keyframes stats-scan-yoyo {
+      0% { opacity: 0; transform: translateX(-76px); }
+      16%, 84% { opacity: .8; }
+      100% { opacity: 0; transform: translateX(596px); }
+    }
+    @keyframes stats-spore-drift {
+      0% { opacity: .2; transform: translate(-5px, 4px) scale(.72); }
+      48% { opacity: .72; transform: translate(4px, -5px) scale(1.12); }
+      100% { opacity: .3; transform: translate(9px, 3px) scale(.84); }
+    }
+    @keyframes stats-bridge-life {
+      0%, 100% { opacity: .38; transform: scale(.82); }
+      50% { opacity: 1; transform: scale(1.12); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .stats-aura, .stats-card, .stats-scan, .stats-spore {
+      .stats-aura, .stats-flow, .stats-ring, .stats-core,
+      .stats-scan, .stats-spore, .stats-bridge {
         animation: none !important;
       }
-      .stats-aura { opacity: .18; }
-      .stats-scan { display: none; }
-      .stats-spore { opacity: .28; }
+      .stats-aura { opacity: .1; }
+      .stats-flow { stroke-dasharray: none; opacity: .42; }
+      .stats-ring { opacity: .18; }
+      .stats-core { opacity: 1; }
+      .stats-scan, .motion-particle { display: none; }
+      .stats-spore { opacity: .3; }
+      .stats-bridge { opacity: .75; }
     }
   </style>
 
-  <rect width="960" height="170" rx="8" fill="#2b2b2b"/>
-  <rect x="1" y="1" width="958" height="168" rx="7" fill="none" stroke="#4a4a4a"/>
+  <rect width="560" height="304" rx="8" fill="#2b2b2b"/>
+  <rect x="1" y="1" width="558" height="302" rx="7" fill="none" stroke="#4a4a4a"/>
 
-  <g class="stats-card">
-    <rect class="stats-aura" x="18" y="14" width="292" height="142" rx="7"
-          fill="#46e6a6" opacity=".12" filter="url(#stats-glow)"/>
-    <rect x="18" y="14" width="292" height="142" rx="7" fill="#202020"
-          stroke="#46e6a6" stroke-width="2"/>
-    <g clip-path="url(#stats-card-a)">
-      <rect class="stats-scan" x="-50" y="14" width="70" height="142"
-            fill="#46e6a6" opacity=".08"/>
+  <path d="M280 142V162" stroke="#46e6a6" stroke-width="1.5" opacity=".22"/>
+  <circle class="stats-bridge" cx="280" cy="152" r="4" fill="#46e6a6"
+          filter="url(#stats-core-glow)"/>
+  <circle class="stats-spore stats-spore-b stats-spore-phase-1" cx="264" cy="151" r="2.2" fill="#59a7ff"/>
+  <circle class="stats-spore stats-spore-c stats-spore-phase-2" cx="298" cy="153" r="1.8" fill="#f0a536"/>
+
+  <rect class="stats-aura" x="12" y="12" width="536" height="130" rx="7"
+        fill="#46e6a6"/>
+  <rect class="stats-card" x="12" y="12" width="536" height="130" rx="7"
+        stroke="#46e6a6"/>
+  <g clip-path="url(#stats-tools-clip)">
+    <rect class="stats-scan" x="-70" y="12" width="74" height="130"
+          fill="url(#stats-tools-scan)"/>
+  </g>
+  <path d="M42 43H171M389 43H518" stroke="#46e6a6" opacity=".16"/>
+  <path class="stats-flow" d="M42 43H171M389 43H518" stroke="#46e6a6"/>
+
+  <g aria-hidden="true">
+    <circle class="stats-ring" cx="42" cy="43" r="10" stroke="#46e6a6" stroke-width="1.4"/>
+    <circle class="stats-ring stats-ring-mid" cx="42" cy="43" r="10"
+            stroke="#46e6a6" stroke-width="1.2"/>
+    <circle class="stats-ring stats-ring-late" cx="518" cy="43" r="10"
+            stroke="#46e6a6" stroke-width="1.2"/>
+    <circle class="stats-core" cx="42" cy="43" r="5.5" fill="#46e6a6"
+            filter="url(#stats-core-glow)"/>
+    <circle class="stats-core" cx="518" cy="43" r="4.5" fill="#46e6a6"/>
+    <circle class="stats-spore" cx="87" cy="29" r="2.4" fill="#46e6a6"/>
+    <circle class="stats-spore stats-spore-b stats-spore-phase-3" cx="133" cy="56" r="1.8" fill="#f0a536"/>
+    <circle class="stats-spore stats-spore-c stats-spore-phase-4" cx="477" cy="28" r="2.2" fill="#46e6a6"/>
+    <g class="motion-particle">
+      <circle r="2.4" fill="#46e6a6">
+        <animateMotion dur="4.8s" begin="-1.3s" repeatCount="indefinite"
+                       path="M42 43H171"/>
+        <animate attributeName="opacity" values="0;.9;.9;0" dur="4.8s"
+                 begin="-1.3s" repeatCount="indefinite"/>
+      </circle>
     </g>
-    <text x="164" y="79" text-anchor="middle" fill="#f2f2f2" font-size="48"
-          font-weight="700" data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><!-- BIOME:TOOLS -->142<!-- /BIOME:TOOLS --></text>
-    <text x="164" y="116" text-anchor="middle" fill="#46e6a6" font-size="28"
-          font-weight="700" data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">MCP TOOLS</text>
-    <rect x="124" y="132" width="80" height="3" rx="1.5" fill="#46e6a6"/>
+    <g class="motion-particle">
+      <circle r="2" fill="#46e6a6">
+        <animateMotion dur="5.6s" begin="-4.1s" repeatCount="indefinite"
+                       path="M389 43H518"/>
+        <animate attributeName="opacity" values="0;.75;.75;0" dur="5.6s"
+                 begin="-4.1s" repeatCount="indefinite"/>
+      </circle>
+    </g>
   </g>
 
-  <g class="stats-card stats-card-b">
-    <rect class="stats-aura" x="334" y="14" width="292" height="142" rx="7"
-          fill="#59a7ff" opacity=".12" filter="url(#stats-glow)"/>
-    <rect x="334" y="14" width="292" height="142" rx="7" fill="#202020"
-          stroke="#59a7ff" stroke-width="2"/>
-    <g clip-path="url(#stats-card-b)">
-      <rect class="stats-scan stats-scan-b" x="266" y="14" width="70" height="142"
-            fill="#59a7ff" opacity=".08"/>
-    </g>
-    <text x="480" y="79" text-anchor="middle" fill="#f2f2f2" font-size="48"
-          font-weight="700" data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><!-- BIOME:TESTS -->10922<!-- /BIOME:TESTS --></text>
-    <text x="480" y="116" text-anchor="middle" fill="#59a7ff" font-size="28"
-          font-weight="700" data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">TEST INVENTORY</text>
-    <rect x="440" y="132" width="80" height="3" rx="1.5" fill="#59a7ff"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <text x="280" y="82" text-anchor="middle" fill="#f2f2f2" font-size="42"
+          data-biome-marker="TOOLS"
+          font-weight="700" data-mobile-critical="true"><!-- BIOME:TOOLS -->142<!-- /BIOME:TOOLS --></text>
+    <text x="280" y="116" text-anchor="middle" fill="#46e6a6" font-size="17"
+          font-weight="700" data-mobile-critical="true">REGISTERED MCP TOOLS</text>
   </g>
 
-  <g class="stats-card stats-card-c">
-    <rect class="stats-aura" x="650" y="14" width="292" height="142" rx="7"
-          fill="#f0a536" opacity=".12" filter="url(#stats-glow)"/>
-    <rect x="650" y="14" width="292" height="142" rx="7" fill="#202020"
-          stroke="#f0a536" stroke-width="2"/>
-    <g clip-path="url(#stats-card-c)">
-      <rect class="stats-scan stats-scan-c" x="582" y="14" width="70" height="142"
-            fill="#f0a536" opacity=".08"/>
+  <rect class="stats-aura stats-aura-tests" x="12" y="162" width="536" height="130"
+        rx="7" fill="#59a7ff"/>
+  <rect class="stats-card stats-card-tests" x="12" y="162" width="536" height="130"
+        rx="7" stroke="#59a7ff"/>
+  <g clip-path="url(#stats-tests-clip)">
+    <rect class="stats-scan stats-scan-tests" x="-70" y="162" width="74" height="130"
+          fill="url(#stats-tests-scan)"/>
+  </g>
+  <path d="M42 193H171M389 193H518" stroke="#59a7ff" opacity=".16"/>
+  <path class="stats-flow stats-flow-tests" d="M42 193H171M389 193H518"
+        stroke="#59a7ff"/>
+
+  <g aria-hidden="true">
+    <circle class="stats-ring stats-ring-tests" cx="42" cy="193" r="10"
+            stroke="#59a7ff" stroke-width="1.4"/>
+    <circle class="stats-ring stats-ring-mid stats-ring-tests" cx="518" cy="193" r="10"
+            stroke="#59a7ff" stroke-width="1.2"/>
+    <circle class="stats-core stats-core-tests" cx="42" cy="193" r="5.5"
+            fill="#59a7ff" filter="url(#stats-core-glow)"/>
+    <circle class="stats-core stats-core-tests" cx="518" cy="193" r="4.5" fill="#59a7ff"/>
+    <circle class="stats-spore stats-spore-c stats-spore-phase-5" cx="78" cy="178" r="2.1" fill="#59a7ff"/>
+    <circle class="stats-spore stats-spore-phase-6" cx="118" cy="208" r="1.8" fill="#46e6a6"/>
+    <circle class="stats-spore stats-spore-b stats-spore-phase-2" cx="485" cy="178" r="2.4" fill="#59a7ff"/>
+    <g class="motion-particle">
+      <circle r="2.4" fill="#59a7ff">
+        <animateMotion dur="5.2s" begin="-3.7s" repeatCount="indefinite"
+                       path="M42 193H171"/>
+        <animate attributeName="opacity" values="0;.9;.9;0" dur="5.2s"
+                 begin="-3.7s" repeatCount="indefinite"/>
+      </circle>
     </g>
-    <text x="796" y="79" text-anchor="middle" fill="#f2f2f2" font-size="48"
-          font-weight="700" data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><!-- BIOME:VERSION -->v1.4.1<!-- /BIOME:VERSION --></text>
-    <text x="796" y="116" text-anchor="middle" fill="#f0a536" font-size="28"
-          font-weight="700" data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">SERVER VERSION</text>
-    <rect x="756" y="132" width="80" height="3" rx="1.5" fill="#f0a536"/>
+    <g class="motion-particle">
+      <circle r="2" fill="#59a7ff">
+        <animateMotion dur="4.6s" begin="-.8s" repeatCount="indefinite"
+                       path="M389 193H518"/>
+        <animate attributeName="opacity" values="0;.75;.75;0" dur="4.6s"
+                 begin="-.8s" repeatCount="indefinite"/>
+      </circle>
+    </g>
   </g>
 
-  <circle class="stats-spore" cx="320" cy="29" r="3" fill="#46e6a6"/>
-  <circle class="stats-spore stats-spore-b" cx="640" cy="143" r="3" fill="#59a7ff"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <text x="280" y="218" text-anchor="middle" fill="#f2f2f2" font-size="38"
+          data-biome-marker="TESTS"
+          font-weight="700" data-mobile-critical="true"><!-- BIOME:TESTS -->10933<!-- /BIOME:TESTS --></text>
+    <text x="280" y="245" text-anchor="middle" fill="#59a7ff" font-size="17"
+          font-weight="700" data-mobile-critical="true">TEST INVENTORY</text>
+    <text x="280" y="266" text-anchor="middle" fill="#d2d2d2" font-size="17"
+          data-biome-marker="BREAKDOWN_PRIMARY"
+          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_PRIMARY -->4264 regular / 511 stress<!-- /BIOME:BREAKDOWN_PRIMARY --></text>
+    <text x="280" y="283" text-anchor="middle" fill="#b7b7bd" font-size="17"
+          data-biome-marker="BREAKDOWN_SECONDARY"
+          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_SECONDARY -->289 live / 5869 Unity<!-- /BIOME:BREAKDOWN_SECONDARY --></text>
+  </g>
 </svg>

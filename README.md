@@ -123,6 +123,7 @@ The configuration helper supports `claude-code`, `claude-desktop`, `cursor`,
 |---|---|
 | Install and connect | [Getting Started](docs/getting-started/index.md) |
 | Choose and configure an MCP client | [Client guides](docs/README.md#client-guides) |
+| Install project-local AI guidance | [AI Skills and Agents](docs/install/ai-skills.md) |
 | Find a tool for a task | [Tool Guide](docs/features/tool-guide.md) |
 | Use batch safely | [Batch Operations](docs/tools/batch.md) |
 | Build Play Mode workflows | [PlayTest DSL](docs/features/playtest.md) |
@@ -191,20 +192,25 @@ See [Chat backends](docs/chat/backends.md) for setup and behavior.
 
 <img src="docs/assets/architecture.svg" width="100%" alt="Animated architecture diagram: external clients and In-Unity Chat reach the Python MCP server and Unity Editor plugin through their local transport paths">
 
-The external path is `MCP client -> Python MCP server -> localhost TCP -> Unity Editor plugin`. In-Unity Chat is an editor-owned path that invokes a selected CLI backend through the chat relay.
+The external path is `MCP client -> Python MCP server -> localhost TCP -> Unity Editor plugin`. In-Unity Chat invokes the selected CLI through the local chat relay; that CLI connects to the same Python MCP server and rejoins the shared TCP-to-plugin path.
 
 ## AI Skills
 
-The Unity package includes reusable skills and specialized agents under `unity-plugin/ClientSkills/`. They cover common Unity workflows, tool usage, batching, playtesting, and visual verification.
+The Unity package includes 11 reusable domain skills and 4 focused agents for
+Claude Code and Codex. They cover efficient MCP tool selection, batching,
+Unity authoring, playtesting, diagnostics, and evidence-based verification.
 
-To install them, open **MCP > Install AI Skills**. The installer shows the exact files and destinations before writing. Re-run it after updating the package when you want the latest bundled guidance.
+Open **MCP > Install AI Skills** to install them into the current project.
+Existing and generated files are ownership-checked before replacement. See
+[AI Skills and Agents](docs/install/ai-skills.md) for paths, safe updates, and
+Codex synchronization.
 
 ## Project Inventory
 
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 10922 entries: 4264 regular Python, 511 Python stress, 289 live Python, and 5858 Unity source attributes. Unity count source: static source scan. Server package version: v1.4.1.">
+<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 10933 entries: 4264 regular Python, 511 Python stress, 289 live Python, and 5869 Unity source attributes. Unity count source: static source scan. Server package version: v1.5.0.">
 <!-- README_STATS_END -->
 
 ## Unity MCP Product Comparison
@@ -225,7 +231,7 @@ and records constraints as well as strengths.
 ## Recent Changes
 
 <!-- CHANGELOG_START -->
-**Current release: v1.4.1 (2026-07-29).** [Read the full changelog.](CHANGELOG.md)
+**Current release: v1.5.0 (2026-07-30).** [Read the full changelog.](CHANGELOG.md)
 <!-- CHANGELOG_END -->
 
 ## Contributing
