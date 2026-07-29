@@ -12,10 +12,20 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 
 <img src="https://img.shields.io/github/license/german-krasnikov/unity-biome-mcp?style=flat-square&labelColor=2b2b2b&color=46e6a6" alt="MIT license">
 <img src="https://img.shields.io/github/v/release/german-krasnikov/unity-biome-mcp?style=flat-square&labelColor=2b2b2b&color=46e6a6&label=release" alt="Latest release">
+<br>
 <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tools.json&style=flat-square&labelColor=2b2b2b" alt="Registered MCP tools">
 <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tests.json&style=flat-square&labelColor=2b2b2b" alt="Discovered test inventory">
 
 </div>
+
+<img src="docs/assets/divider-biome.svg" width="100%" alt="">
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#documentation">Documentation</a> ·
+  <a href="docs/comparison.md">Comparison</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
 ## Quick Start
 
@@ -51,7 +61,10 @@ Open **MCP > Setup Wizard**, choose a client, and follow the result shown by the
 
 Configuration depends on the client. The Wizard may write a project configuration, run the configuration helper, copy a client-specific snippet, or defer configuration until In-Unity Chat starts. Restart the selected client when prompted. The Wizard configures the integration; it does not perform an end-to-end connection test.
 
-For manual setup, use the matching guide:
+<details>
+<summary>Manual client setup guides</summary>
+
+Use the matching guide:
 
 [Claude Code](docs/install/claude-code.md) |
 [Claude Desktop](docs/install/claude-desktop.md) |
@@ -67,6 +80,8 @@ For manual setup, use the matching guide:
 For external OpenCode setup, do not use the Wizard's standard clipboard JSON:
 OpenCode has a different configuration shape. Follow the
 [OpenCode guide](docs/install/opencode.md#external-mcp-client).
+
+</details>
 
 ### 4. Verify the first connection
 
@@ -108,6 +123,21 @@ The configuration helper supports `claude-code`, `claude-desktop`, `cursor`,
 
 </details>
 
+## Documentation
+
+| Goal | Guide |
+|---|---|
+| Install and connect | [Getting Started](docs/getting-started/index.md) |
+| Choose and configure an MCP client | [Client guides](docs/README.md#client-guides) |
+| Find a tool for a task | [Tool Guide](docs/features/tool-guide.md) |
+| Use batch safely | [Batch Operations](docs/tools/batch.md) |
+| Build Play Mode workflows | [PlayTest DSL](docs/features/playtest.md) |
+| Configure In-Unity Chat | [Chat Backends](docs/chat/backends.md) |
+| Extend Unity Biome MCP | [Plugin Quick Start](docs/plugins/quickstart.md) |
+| Diagnose failures | [Diagnostics](docs/tools/diagnostics.md) |
+
+<img src="docs/assets/divider-biome.svg" width="100%" alt="">
+
 ## What You Can Do
 
 - **Scene and object editing:** inspect and modify GameObjects, components,
@@ -120,6 +150,9 @@ The configuration helper supports `claude-code`, `claude-desktop`, `cursor`,
   deferred schemas, and enable capability categories only when needed.
 - **Extensibility:** add project-specific server tools, Unity commands, Chat
   context chips, and plugin hooks.
+
+<details>
+<summary>Prompt and batch examples</summary>
 
 Example prompts:
 
@@ -147,6 +180,10 @@ set_property path=Enemy component=Rigidbody prop=mass value=2
 ```
 
 Some typed tools are direct-only and cannot be placed in a batch. See the [Batch guide](docs/tools/batch.md) for validation, Undo-backed rollback, and error handling.
+
+</details>
+
+<img src="docs/assets/divider-biome.svg" width="100%" alt="">
 
 ## Ways to Work
 
@@ -177,8 +214,10 @@ To install them, open **MCP > Install AI Skills**. The installer shows the exact
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 10870 entries: 4252 regular Python, 511 Python stress, 289 live Python, and 5818 Unity source attributes. Unity count source: static source scan.">
+<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 10879 entries: 4261 regular Python, 511 Python stress, 289 live Python, and 5818 Unity source attributes. Unity count source: static source scan.">
 <!-- README_STATS_END -->
+
+<img src="docs/assets/divider-biome.svg" width="100%" alt="">
 
 ## Unity MCP Product Comparison
 
@@ -195,23 +234,10 @@ and records constraints as well as strengths.
 
 [Open the full source-backed comparison](docs/comparison.md)
 
-## Documentation
-
-| Goal | Guide |
-|---|---|
-| Install and connect | [Getting Started](docs/getting-started/index.md) |
-| Choose and configure an MCP client | [Client guides](docs/README.md#client-guides) |
-| Find a tool for a task | [Tool Guide](docs/features/tool-guide.md) |
-| Use batch safely | [Batch Operations](docs/tools/batch.md) |
-| Build Play Mode workflows | [PlayTest DSL](docs/features/playtest.md) |
-| Configure In-Unity Chat | [Chat Backends](docs/chat/backends.md) |
-| Extend Unity Biome MCP | [Plugin Quick Start](docs/plugins/quickstart.md) |
-| Diagnose failures | [Diagnostics](docs/tools/diagnostics.md) |
-
 ## Recent Changes
 
 <!-- CHANGELOG_START -->
-**Current release: v1.3.0 (2026-07-29).** [Read the full changelog.](CHANGELOG.md)
+**Current release: v1.3.1 (2026-07-29).** [Read the full changelog.](CHANGELOG.md)
 <!-- CHANGELOG_END -->
 
 ## Contributing

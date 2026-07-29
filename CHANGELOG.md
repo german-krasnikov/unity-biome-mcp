@@ -10,6 +10,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.1] — 2026-07-29 — README presentation and release safety
+
+**Documentation:**
+- Restored a compact GitHub README rhythm with mobile-readable animated Biome
+  visuals, reduced-motion fallbacks, and a dedicated ecosystem divider
+- Reworked the source-backed product comparison for narrow layouts, including
+  the official Unity MCP Server and concise strengths and constraints for each
+  product
+- Removed volatile implementation counts from maintained architecture guidance
+
+**Release tooling:**
+- Made `server/pyproject.toml` the version source of truth and added
+  rollback-safe synchronization for every generated version copy
+- Replaced the publishing shell helper with a non-publishing release preflight
+  and added changelog/version/presentation contract tests
+- Made the UPM changelog an exact generated mirror of this canonical changelog
+
 ## [v1.3.0] — 2026-07-29 — Documentation refresh
 
 **Docs:**

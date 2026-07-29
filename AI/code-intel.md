@@ -365,7 +365,7 @@ triggering a Unity compile cycle.
 | "[ROSLYN UNAVAILABLE]" | Phase B C# not loaded | Write only after source review, then use the reload-recovery workflow |
 | "AMBIGUOUS [kind=...]" | Symbol name matches multiple types | Retry with kind parameter (e.g., kind="method") |
 | "timeout after 60s" | Very large project or network lag | Increase timeout; check get_compile_errors for actual status |
-| "STALE-DOMAIN: stamp unchanged" | MVID not updated after reload | Unity stalled; see .claude/skills/reload-recovery.md for T-ladder |
+| "STALE-DOMAIN: stamp unchanged" | MVID not updated after reload | Unity stalled; see `AI/reload-reference.md` for reload constraints |
 | "CS0246: Type not found" | preflight error in new code | Check import statements; verify assembly references |
 
 ## Invocation Order
@@ -387,4 +387,4 @@ the previous DLL.
 
 ---
 
-**Related:** `AI/architecture.md` (Roslyn workspace setup), `.claude/skills/reload-recovery.md` (T-ladder for stale domain), `CLAUDE.md` § compile workflow.
+**Related:** `AI/architecture.md` (Roslyn workspace setup), `AI/reload-reference.md` (reload constraints), `CLAUDE.md` § compile workflow.

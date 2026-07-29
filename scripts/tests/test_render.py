@@ -197,7 +197,16 @@ class TestCommittedAssets:
             except ET.ParseError as error:
                 pytest.fail(f"{path.name} is not valid XML: {error}")
 
-    @pytest.mark.parametrize("name", ["hero.svg", "architecture.svg", "stats.svg"])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "hero.svg",
+            "architecture.svg",
+            "stats.svg",
+            "divider-biome.svg",
+            "comparison-hero.svg",
+        ],
+    )
     def test_primary_assets_have_accessible_names(self, name: str) -> None:
         svg = (ASSETS / name).read_text(encoding="utf-8")
         assert 'role="img"' in svg
@@ -205,22 +214,72 @@ class TestCommittedAssets:
         assert "<desc" in svg
         assert "aria-labelledby" in svg
 
-    @pytest.mark.parametrize("name", ["hero.svg", "architecture.svg", "stats.svg"])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "hero.svg",
+            "architecture.svg",
+            "stats.svg",
+            "divider-biome.svg",
+            "comparison-hero.svg",
+        ],
+    )
     def test_readme_embedded_assets_use_reduced_motion(self, name: str) -> None:
         svg = (ASSETS / name).read_text(encoding="utf-8")
         assert "@keyframes" in svg
         assert "prefers-reduced-motion: reduce" in svg
+        assert "animation: none" in svg
+        if "<animate" in svg:
+            assert ".motion-particle { display: none; }" in svg
+            root = ET.fromstring(svg)
+            parents = {child: parent for parent in root.iter() for child in parent}
+            animated = [
+                node
+                for node in root.iter()
+                if node.tag.rsplit("}", 1)[-1].startswith("animate")
+            ]
+            assert animated
+            assert all(
+                "motion-particle" in parents[node].attrib.get("class", "").split()
+                for node in animated
+            )
 
     @pytest.mark.parametrize(
-        ("name", "max_width"),
-        [("hero.svg", 640), ("architecture.svg", 640), ("stats.svg", 560)],
+        ("name", "max_height_ratio"),
+        [
+            ("hero.svg", 0.34),
+            ("architecture.svg", 0.34),
+            ("stats.svg", 0.22),
+            ("divider-biome.svg", 0.05),
+            ("comparison-hero.svg", 0.37),
+        ],
     )
-    def test_primary_assets_have_mobile_readable_viewboxes(
-        self, name: str, max_width: int
+    def test_primary_assets_keep_compact_aspect_ratios(
+        self, name: str, max_height_ratio: float
     ) -> None:
         root = ET.fromstring((ASSETS / name).read_text(encoding="utf-8"))
-        width = float(root.attrib["viewBox"].split()[2])
-        assert width <= max_width
+        _, _, width, height = map(float, root.attrib["viewBox"].split())
+        assert height / width <= max_height_ratio
+
+    @pytest.mark.parametrize(
+        "name",
+        ["hero.svg", "architecture.svg", "stats.svg", "comparison-hero.svg"],
+    )
+    def test_mobile_critical_svg_text_remains_readable(self, name: str) -> None:
+        root = ET.fromstring((ASSETS / name).read_text(encoding="utf-8"))
+        _, _, width, _ = map(float, root.attrib["viewBox"].split())
+        critical = [
+            node
+            for node in root.iter("{http://www.w3.org/2000/svg}text")
+            if node.attrib.get("data-mobile-critical") == "true"
+        ]
+        assert critical, f"{name} has no mobile-critical text contract"
+        for node in critical:
+            rendered_size = float(node.attrib["font-size"]) * 340 / width
+            assert rendered_size >= 9.5, (
+                f"{name} renders {''.join(node.itertext()).strip()!r} at "
+                f"{rendered_size:.1f}px on a 340px GitHub content width"
+            )
 
     def test_stats_use_inventory_language(self) -> None:
         stats = (ASSETS / "stats.svg").read_text(encoding="utf-8")
@@ -249,7 +308,9 @@ class TestCommittedReadme:
         assert "readme-typing-svg" not in readme
         assert "## Unity MCP Product Comparison" in readme
         assert "(docs/comparison.md)" in readme
-        assert "Last verified: **July 29, 2026**" in comparison
+        assert "This July 29, 2026 snapshot" in comparison
+        assert "### Unity Biome MCP" in comparison
+        assert "Unity Biome MCP v1.2.0" not in comparison
         assert "Unity MCP Server / Assistant 2.16.0-pre.1" in comparison
         for snapshot in ("fc70dda", "f6db1c2", "bbfb1c0"):
             assert snapshot in comparison
@@ -257,10 +318,14 @@ class TestCommittedReadme:
         assert "quality or coverage score" in comparison
         assert "@keyframes" in hero
         assert "prefers-reduced-motion: reduce" in hero
+        assert comparison.count("| Capability | Documented support |") == 3
+        assert "| Capability | Unity Biome MCP |" not in comparison
 
-    def test_decorative_dividers_are_not_embedded(self) -> None:
+    def test_approved_biome_dividers_define_major_section_rhythm(self) -> None:
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        assert "docs/assets/divider" not in readme
+        divider = '<img src="docs/assets/divider-biome.svg" width="100%" alt="">'
+        assert readme.count(divider) == 4
+        assert "docs/assets/divider.svg" not in readme
 
     def test_contributor_links_are_actionable(self) -> None:
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")

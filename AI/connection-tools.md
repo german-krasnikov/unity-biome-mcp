@@ -180,7 +180,7 @@ await diagnose()
 ```
 
 Run tests only after the verdict is clean. If the assembly MVID is unchanged,
-continue with the escalation ladder in `.claude/skills/reload-recovery.md`.
+continue with the recovery constraints in `AI/reload-reference.md`.
 
 ### "Reconnect spam (9 failed attempts)"
 
@@ -263,4 +263,4 @@ export UNITY_MCP_CLIENT=codex  # set before bridge launch
 ```
 Bridge reads it in `_reconnect()` and includes `"role": "codex"` in the ping payload. C# `RoleToLabel` maps it to `"Codex session"` and stores on the slot.
 
-**See also:** CLAUDE.md § "Run MCP server", `.claude/skills/reload-recovery.md` (domain reload strategy).
+**See also:** CLAUDE.md § "Run MCP server", `AI/reload-reference.md` (domain reload strategy).

@@ -22,7 +22,11 @@ compact, tool-oriented responses.
 5. **10 Wizard Backends**: Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex, Kimi, OpenCode, Antigravity, and Rider AI Assistant.
 6. **Config CLI**: `python install.py configure --tool <client-key>` uses the current `CLIENT_REGISTRY`; run `python install.py configure --help` for the accepted keys. `--project-dir` selects project-local output where that client supports it.
 7. **Doctor Tool**: `python install.py doctor` diagnostic checks (Python, imports, TCP connectivity, config validity). **v0.47.1**: validates git+URL presence in configs, warns on stale PyPI entries, checks uvx + git in PATH
-8. **Version Sync**: `scripts/sync_versions.py X.Y.Z` updates all managed version artifacts.
+8. **Version Sync**: `server/pyproject.toml` is canonical.
+   `scripts/sync_versions.py X.Y.Z` bumps it and all generated copies, including
+   the local package entry in `server/uv.lock`;
+   `scripts/sync_versions.py --sync` repairs copies from the canonical value,
+   and `--check` is the no-write drift gate.
 9. **GitHub-Direct Install** (v0.47.1): DRY consolidation — `GIT_INSTALL_URL` constant shared between Python resolver.py and C# WizardConfigWriter.cs, consumed by all backends for consistent versioning. Update banner includes `--reinstall` flag for recovery
 
 **Architecture changes:**

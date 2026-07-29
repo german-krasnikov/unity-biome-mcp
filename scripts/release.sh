@@ -1,27 +1,62 @@
 #!/usr/bin/env bash
-# One-command release. Bumps all 5 version artifacts, commits, tags, pushes.
-# CI (.github/workflows/release.yml) then creates the GitHub Release automatically.
+# Non-publishing release preflight.
 #
-#   ./scripts/release.sh 0.71.0
+# This script intentionally never changes versions, stages files, commits,
+# tags, pushes, or creates a GitHub release. Publication requires the reviewed
+# internal release workflow and its visual, documentation, and privacy gates.
 set -euo pipefail
 
-VERSION="${1:?Usage: ./scripts/release.sh X.Y.Z}"
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-echo "==> Syncing version to $VERSION across all artifacts..."
-python scripts/sync_versions.py "$VERSION"
-python scripts/sync_versions.py --check   # paranoia gate — abort if anything drifted
+if [[ $# -lt 1 || "$1" != "--preflight" || $# -gt 2 ]]; then
+    echo "scripts/release.sh no longer publishes releases." >&2
+    echo "Usage: ./scripts/release.sh --preflight [EXPECTED_VERSION]" >&2
+    echo "Use the reviewed internal finish-task/create-release workflow to publish." >&2
+    exit 2
+fi
+EXPECTED_VERSION="${2:-}"
 
-echo "==> Committing..."
-git add server/pyproject.toml server/src/unity_mcp/__version__.py \
-        unity-plugin/package.json unity-plugin/Editor/MCPServer.cs \
-        docs/assets/_meta.json CHANGELOG.md unity-plugin/CHANGELOG.md
-git commit -m "chore: release v${VERSION}"
-git tag "v${VERSION}"
+if [[ -x "$ROOT/server/.venv/bin/python" ]]; then
+    PYTHON="$ROOT/server/.venv/bin/python"
+else
+    PYTHON="${PYTHON:-python3}"
+fi
 
-echo "==> Pushing..."
-git push
-git push origin "v${VERSION}"
+if [[ -n "$EXPECTED_VERSION" ]]; then
+    "$PYTHON" - "$EXPECTED_VERSION" <<'PY'
+import pathlib
+import re
+import sys
 
-echo "==> Done. CI will create the GitHub Release for v${VERSION}."
+expected = sys.argv[1].removeprefix("v")
+content = pathlib.Path("server/pyproject.toml").read_text(encoding="utf-8")
+match = re.search(r'^version = "([^"]+)"$', content, re.MULTILINE)
+if match is None:
+    raise SystemExit("Could not read the current version from server/pyproject.toml")
+actual = match.group(1)
+if actual != expected:
+    raise SystemExit(
+        f"Expected version {expected}, but the synchronized working-tree version is {actual}"
+    )
+PY
+fi
+
+echo "==> Checking synchronized versions"
+"$PYTHON" scripts/sync_versions.py --check
+cmp CHANGELOG.md unity-plugin/CHANGELOG.md
+
+echo "==> Checking generated README facts and presentation surfaces"
+"$PYTHON" scripts/update_readme.py --check-facts
+"$PYTHON" scripts/update_readme.py --check
+"$PYTHON" -m pytest scripts/tests -q
+
+if command -v xmllint >/dev/null 2>&1; then
+    xmllint --noout docs/assets/*.svg
+fi
+
+git diff --check
+
+echo "==> Preflight passed"
+echo "No files were changed, staged, committed, tagged, pushed, or released."
+echo "Continue with the reviewed internal release workflow."

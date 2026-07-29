@@ -1,40 +1,86 @@
 # Changelog
 
+> **v0.95.0 Rebrand:** Server name `unity-mcp` → `unity-biome-mcp`, data dir
+> `~/.unity-mcp/` → `~/.unity-biome-mcp/`, UPM package `com.unity-mcp.editor`
+> → `com.unity-biome-mcp.editor`. Prior installs auto-migrate on first server start.
+> GitHub repo: `unity-kiss-mcp` → `unity-biome-mcp`.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.1] — 2026-07-29 — README presentation and release safety
+
+**Documentation:**
+- Restored a compact GitHub README rhythm with mobile-readable animated Biome
+  visuals, reduced-motion fallbacks, and a dedicated ecosystem divider
+- Reworked the source-backed product comparison for narrow layouts, including
+  the official Unity MCP Server and concise strengths and constraints for each
+  product
+- Removed volatile implementation counts from maintained architecture guidance
+
+**Release tooling:**
+- Made `server/pyproject.toml` the version source of truth and added
+  rollback-safe synchronization for every generated version copy
+- Replaced the publishing shell helper with a non-publishing release preflight
+  and added changelog/version/presentation contract tests
+- Made the UPM changelog an exact generated mirror of this canonical changelog
+
 ## [v1.3.0] — 2026-07-29 — Documentation refresh
 
-No C# changes in this release — documentation-only update.
+**Docs:**
+- Complete README rewrite with auto-generated stats and comparison hero
+- Rewrote install guides for 10 AI clients (Claude Code, Cursor, Windsurf, Codex, Gemini, Junie, Kimi, OpenCode, VS Code, Rider)
+- Added: comparison page, settings reference, chat usage guide, install index
+- Refreshed all AI/ knowledge files to match current codebase
+- Streamlined CONTRIBUTING.md and docs/README.md
 
 ## [v1.2.0] — 2026-07-29 — UI polish, animations, BiomeUI utilities
 
 **C# — New UI Components:**
-- `BiomeParticleBurst.cs`: pooled editor particle burst system with 8 motion patterns
-- `BiomeToggleGroup.cs`: radio-button-style toggle group with tri-state master
-- `BiomeUI.cs`: shared UI utility class — style loading, button factories, animations
-- `EcosystemHeaderAnim.cs`: Plugins node graph + Version Picker header animations
-- `WizardAmbientAnim.cs`: journey step tracker + skills install stream animation
+- `BiomeParticleBurst.cs`: pooled 12-particle radial event burst plus pooled ambient fields with 8 UI-specific motion themes; ambient loops pause while detached
+- `BiomeToggleGroup.cs`: radio-button-style toggle group with tri-state master, accordion behavior, filter API
+- `BiomeUI.cs`: shared UI utility class — style loading, button factories (`PrimaryButton`, `SecondaryButton`, `QuietButton`), `Section()`, `StatusLabel()`, `SetExclusiveClass()`, `ShakeX()` animation
+- `EcosystemHeaderAnim.cs`: Plugins node graph + Version Picker timeline scanner header animations
+- `WizardAmbientAnim.cs`: `WizardJourneyAnim` (4-node step tracker) + `SkillsInstallAnim` (module-stream animation for InstallSkills screen)
 - `WizardUI.cs`: DRY factory for wizard button variants and navigation layout
 
 **C# — Enhanced Animations:**
-- All `*HeaderAnim.cs`: BiomeAmbientParticles, GPU UsageHints, improved motion
-- `ArcadeAnim.cs`: MotionHandle + ControlledSmoothLoop API
-- `LevelUpAnimator.cs`: idle signal, sparks, SimulateCompletion test hook
-- `MCPChatWindow.FlowBar.cs`: particle-driven FlowBar redesign
+- All `*HeaderAnim.cs` files: enhanced with `BiomeAmbientParticles`, GPU `UsageHints`, improved motion patterns
+- `ArcadeAnim.cs`: new `MotionHandle` + `ControlledSmoothLoop` API for fine-grained animation control
+- `LevelUpAnimator.cs`: idle signal, spark effects, `SimulateCompletion` test hook
+- `StatusAmbientAnim.cs`: GPU hints, refined ambient animation
+- `MCPChatWindow.FlowBar.cs`: particle-driven FlowBar redesign (replaces CSS sweep with `ArcadeAnim.ControlledSmoothLoop` + pooled particles)
 
 **C# — UI Styling:**
-- `MCPHub.uss` (+504), `MCPSettings.uss` (+103), `SetupWizard.uss` (+374), `LevelUpAnim.uss`, `MCPStatus.uss`
+- `MCPHub.uss`: major expansion (+504 lines) — biome visual language, card layouts, scroll wrapping
+- `MCPSettings.uss`: new settings page styles (+103 lines)
+- `SetupWizard.uss`: wizard visual overhaul (+374 lines) — ambient animations, step transitions
+- `LevelUpAnim.uss`: enhanced level-up celebration styles
+- `MCPStatus.uss`: refined status page styling
 
 **C# — Settings & Wizard Refactoring:**
-- `MCPSettingsCategoryGroup.cs`, `PermCategoryGroup.cs`: simplified via BiomeToggleGroup
+- `MCPSettingsCategoryGroup.cs`, `PermCategoryGroup.cs`: simplified using `BiomeToggleGroup`
 - `SettingsPageFactory.cs`: biome-page class + inline plugin accordion
-- All wizard screens enhanced visually
-- `MCPStatusWindow.cs`: Maintenance foldout for Kill MCP + Reimport
+- `BackendSettingsForm.cs`: CSS class refactor, Codex timeout clamping
+- `ChatSettingsSection.cs`: auth probe cleanup on detach, warning styling
+- All wizard screens enhanced: `AiConfigScreen`, `ConfigureScreen`, `InstallSkillsScreen`, `PickBackendScreen`, `WelcomeScreen`
+- `MCPStatusWindow.cs`: Kill MCP + Reimport collapsed into Maintenance foldout
+
+**Python — Tests:**
+- `test_editor_ui_styles.py`: UI style validation tests (72 lines)
+
+**Docs:**
+- `docs/plugins/ui-toolkit-best-practices.md`: UI Toolkit best practices guide
+- AI knowledge files updated: architecture, animation, ui, chat-view, particles, structure
+
 
 ## [v1.1.0] — 2026-07-28 — Windows connection stability, UPM package page
+
+**Python — Windows TCP stability:**
+- `bridge.py`: `SHUT_WR` instead of `SHUT_RDWR` on Windows — avoids RST packet on graceful close, prevents connection reset errors on client side
+- `bridge.py`: reset `_pinned_port` on `ConnectionRefusedError` — forces port rediscovery instead of retrying a dead port after Unity reload
 
 **C# — Windows TIME_WAIT (accepted sockets):**
 - `ClientConnectionHandler.cs`: `LingerOption(true, 0)` on accepted socket — forces RST on close, eliminates TIME_WAIT for incoming connections on Windows
@@ -42,10 +88,13 @@ No C# changes in this release — documentation-only update.
 - `MCPServer.cs`: capture `origPort` before `SaveRuntimePorts()` — log message now shows the correct pre-fallback port
 
 **UPM Package Manager page:**
-- `package.json`: added `description`, `keywords`, `documentationUrl`, `changelogUrl`, `licensesUrl`
-- `LICENSE.md`: copy of licence for UPM inline display
+- `unity-plugin/package.json`: added `description`, `keywords`, `documentationUrl`, `changelogUrl`, `licensesUrl` — Unity Package Manager now shows metadata and links
+- `unity-plugin/LICENSE.md`: copy of licence for UPM inline display
 
 **Tests:**
+- `test_bridge_edge_cases.py`: SHUT_WR vs SHUT_RDWR path coverage
+- `test_bridge_port_rediscovery.py`: `_pinned_port` reset on `ConnectionRefusedError`, full rediscovery cycle
+- `test_package_json.py`: 8 package.json contract tests (required fields, URL format, keyword presence)
 - `PortFileManagerTests.cs`: `SaveRuntimePorts` contract tests
 
 ## [v1.0.2] — 2026-07-28 — Windows port/chat fixes
@@ -63,14 +112,47 @@ No C# changes in this release — documentation-only update.
 **C# + Python — Port baking removed from permanent configs:**
 - `WizardConfigWriter.cs`: `Entry()` no longer emits `UNITY_MCP_PORT` env block — Python uses `~/.unity-biome-mcp/ports/{pid}.port` discovery (updated on every bind including fallbacks)
 - `ConfigureScreen.cs`: Global/Project scope toggle removed (no port to scope), tests updated accordingly
+- `mcp_config_writer.py`: `write_claude_config`, `write_kimi_mcp_config`, `write_agy_settings`, `write_opencode_config` — `UNITY_MCP_PORT` env block only written when `mcp_port != 0`, skipped for fallback-written configs; prevents connection failures after Windows port drift and multi-project desync
+
+<!-- tests: 4749 unit + 284 live + 4 live_cli + C# (compilation pending Unity focus) + 36 reload = 11573+ -->
 
 ## [v1.0.0] — 2026-07-26 — Documentation audit, v1.0.0 release
 
-Version bump only — all changes in this release are documentation-side.
+**Docs — Full audit (38 files, 85+ issues fixed):**
+- 4-cycle audit (analyze→fix→deep-audit→verify) with 36 agents against source code
+- Removed phantom tools from all docs (fuzz_playtest, find_references, semantic_at, save/run_scenario)
+- Fixed all parameter names/defaults against Python+C# source (SET 5-token syntax, WAIT_CAPTURED label+mode, ASSERT_CONSOLE_CLEAN IGNORE keyword, ~= operator removed)
+- Actualized numeric counts across all layers (142 MCP tools, 148 ToolSpec, 4703/284/4/6537/36 tests)
+- Eliminated DRY violations (recompile, material, screenshot, wire_event → single-source + cross-refs)
+- Added documentation for ~20 previously undocumented tools (run_tests_wait, execute_code, etc.)
+- Fixed DSL examples in playtest.md against PlaytestParser.cs (comparison operators, SIMULATE syntax, CAPTURE syntax)
+- New install guide: docs/install/junie.md
 
-## [v0.96.1] — 2026-07-24 — Python-only hotfix (no C# changes)
+**Docs — README:**
+- Removed BETA labels from badge wall, added RELEASE badge
+- Updated all test/tool counts to current values
 
-Version bump only — all fixes in this release are Python-side (Hatch build, Windows relay, port migration).
+<!-- tests: 4703 unit + 284 live + 4 live_cli + 6537 C# + 36 reload = 11564 -->
+
+## [v0.96.1] — 2026-07-24 — Hatch wheel build fix, Windows relay, port migration fallback
+
+**Python — Build:**
+- `pyproject.toml`: added `[tool.hatch.build.targets.wheel] packages = ["src/unity_mcp"]` — fixes wheel build failure after rebrand (project name `unity-biome-mcp` ≠ package dir `unity_mcp`)
+
+**Python — Windows:**
+- `chat_relay.py`: wrapped `loop.add_signal_handler()` in `try/except NotImplementedError` — prevents crash on Windows ProactorEventLoop
+- 2 new unit tests: signal registration (happy path) + `NotImplementedError` guard
+
+**Python — Migration:**
+- `paths.py`: `iter_port_files()` — discovers `.port` files from both `~/.unity-biome-mcp/ports/` and legacy `~/.unity-mcp/ports/`, deduplicates by filename (new dir wins)
+- Updated 4 call sites: `server_filtering.py`, `lockfile.py` (×2), `config/resolver.py`
+- 3 new unit tests: primary dir, legacy dir, deduplication
+
+**Python — Config:**
+- `resolver.py`: `find_python()` now venv-first (was uvx-first) — dev clones get local venv, not uvx
+- `mcp_config_writer.py`, `resolver.py`: `uvx --quiet` flag — suppresses stderr noise in MCP hosts
+- `README.md`: removed hardcoded `UNITY_MCP_PORT=9500` from MCP config example — auto-discovery handles port selection
+- `install.py`: `setup` and `update` now auto-generate `.mcp.json` with venv-based server command
 
 ## [v0.96.0] — 2026-07-24 — Security levels redesign, relay spawner stability
 
@@ -93,9 +175,21 @@ Version bump only — all fixes in this release are Python-side (Hatch build, Wi
 ## [v0.95.0] — 2026-07-24 — Rebrand unity-kiss-mcp → unity-biome-mcp
 
 **Rebrand:**
+- Server name `unity-mcp` → `unity-biome-mcp` (SERVER_NAME, UPM packages, data dir, docs, URLs)
+- Data directory `~/.unity-mcp/` → `~/.unity-biome-mcp/` with auto-migration on first start
 - UPM packages `com.unity-mcp.editor` → `com.unity-biome-mcp.editor`, `com.unity-mcp.reload` → `com.unity-biome-mcp.reload`
+- GitHub repo `unity-kiss-mcp` → `unity-biome-mcp` (301 redirect preserved)
+- Internal identifiers preserved: `unity_mcp` Python module, `UnityMCP` C# namespace, `UNITY_MCP_*` env vars
+- Legacy migration: `_OLD_NAMES = ("unity-mcp",)` strips stale config keys on upgrade
+- 682 files updated, zero regressions across 11764 tests
 
 ## [v0.94.0] — 2026-07-20 — Deprecated code removal, Client Skills migration, Install AI Skills wizard
+
+**Python — Deprecated Removal:**
+- Removed `get_perf` tool stub (use `get_frame_stats`)
+- Removed `run_playtest_file` tool stub (use `run_playtest path=...`)
+- Removed `_DEPRECATED_KEYS` backward-compat dict from gating (15 old→new category aliases)
+- Tool count: 144 → 142 public tools
 
 **C# — Deprecated Removal:**
 - `PlaytestParser.cs`: removed ALIAS keyword support (Phase 1 collection + Phase 2 substitution)
@@ -115,16 +209,30 @@ Version bump only — all fixes in this release are Python-side (Hatch build, Wi
 - 2 agents: `playmode-tester` (Play Mode testing), `unity-editor-developer` (scene building/debugging)
 - 1 script: `claude_to_codex.py` (converts Claude format to Codex format, tomllib optional for Python < 3.11)
 
+**Docs & Assets:**
+- Tool count updated 144 → 142 across README, SVGs, badges, `_meta.json`, GitHub description
+- README: added "AI Skills & Agents" section with Wizard installation guide
+
+
 ---
 
 ## [v0.93.1] — 2026-07-19 — Patch: SpatialHelper nearest-first sort
 
 **C# — SpatialHelper:**
-- `objects_in_radius`: sorts all hits by distance ascending before truncating to `cap`. Previously returned arbitrary order from `FindObjectsByType(SortMode.None)`.
+- `objects_in_radius`: now sorts all hits by distance ascending before truncating to `cap`. Previously returned arbitrary order from `FindObjectsByType(SortMode.None)`, causing non-deterministic results when cap was active.
 
 ---
 
-## [v0.93.0] — 2026-07-19 — Battle recheck fixes: animator aliases, spatial cap, material instance, 7 blocker fixes
+## [v0.93.0] — 2026-07-19 — Battle recheck fixes: run_playtest predicate, animator aliases, spatial cap, 7 blocker fixes
+
+**Python — run_playtest:**
+- `IsPlaytestSuccess` predicate parses both `" OK"` and `"PLAYTEST: X/Y"` formats (fixes false-failure on suite runs).
+
+**Python — console:**
+- `console_mark` token parsing handles `"ts:label"` format.
+
+**Python — screenshot:**
+- `output_path` forwarded to all 3 camera branches (overview/single/default).
 
 **C# — AnimatorControllerHelper:**
 - `get_parameters` / `get_states` alias normalization — compact format (`params=Speed:float:0`).
@@ -134,9 +242,6 @@ Version bump only — all fixes in this release are Python-side (Hatch build, Wi
 
 **C# — ObjectManager.Transfer:**
 - `transfer_object` copy: sets active scene before `Instantiate` so clone lands in target scene.
-
-**C# — CommandRouter.ScreenshotHandlers:**
-- `screenshot` `output_path` forwarded to all 3 camera branches (overview/single/default).
 
 **C# — MaterialHelper:**
 - `target=instance` uses `sharedMaterials` clone instead of `renderer.material` (avoids edit-mode error).
@@ -153,7 +258,7 @@ Version bump only — all fixes in this release are Python-side (Hatch build, Wi
 **C# — CommandRouter:**
 - Timeline `director_path ?? path` fallback for `create` action.
 
-**Test counts:** C# EditMode: pre-existing failures unchanged
+**Test counts:** Python unit 4735 | C# EditMode: pre-existing failures unchanged
 
 ---
 
@@ -544,7 +649,7 @@ Version bump only — all fixes in this release are Python-side (Hatch build, Wi
 ## [v0.79.1] — 2026-07-11 — run_playtest path= parameter, scenarios/fuzzer removal, scene_session merge
 
 **Added:**
-- `run_playtest(path="Playtests/farm.playtest")` — C# reads file server-side; ~15 tokens vs 300-800 inline. `path` and `script` are mutually exclusive. `defs` param works with both modes. `_explicit_path=True` bypasses middleware length check for file paths. Path traversal guard in C# (`GetFullPath` + `StartsWith` check).
+- `run_playtest(path="Playtests/smoke.playtest")` — C# reads file server-side; ~15 tokens vs 300-800 inline. `path` and `script` are mutually exclusive. `defs` param works with both modes. `_explicit_path=True` bypasses middleware length check for file paths. Path traversal guard in C# (`GetFullPath` + `StartsWith` check).
 - `test_playtest_path.py` (Python) + `PlaytestPathTests.cs` (C#) — new tests for file-based playtest execution.
 
 **Removed:**
@@ -586,7 +691,8 @@ Version bump only — all fixes in this release are Python-side (Hatch build, Wi
 - `AliasExpander.GetTable()` used `a.path` only → query aliases lost `|component|field`
 - New `BuildPipePath(a)` helper preserves full pipe path for ValPath aliases
 - `query_state queries=$alias` now resolves to `path|component|field` correctly
-- `run_playtest` without `INCLUDE farm_core.defs` works with PlaytestConfig aliases
+- `run_playtest` can use `PlaytestConfig` aliases without an explicit
+  project-specific `INCLUDE`
 
 **Fixed — Readonly batch blast radius false positive:**
 - `_is_batch_readonly()` in `middleware_guards.py` checks all batch commands against READ_CMDS

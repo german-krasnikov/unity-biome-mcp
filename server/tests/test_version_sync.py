@@ -29,6 +29,12 @@ def project_root(tmp_path: Path) -> Path:
         version = "0.8.2"
         description = "MCP server"
     """), encoding="utf-8")
+    (tmp_path / "server" / "uv.lock").write_text(textwrap.dedent("""\
+        [[package]]
+        name = "unity-biome-mcp"
+        version = "0.8.2"
+        source = { editable = "." }
+    """), encoding="utf-8")
 
     (tmp_path / "unity-plugin" / "package.json").write_text(
         '{\n  "name": "com.unity-biome-mcp.editor",\n  "version": "0.8.2"\n}\n',

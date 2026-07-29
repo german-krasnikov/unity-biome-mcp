@@ -278,6 +278,12 @@ def full_project_root(tmp_path: Path) -> Path:
         name = "unity-biome-mcp"
         version = "0.50.0"
     """), encoding="utf-8")
+    (tmp_path / "server" / "uv.lock").write_text(textwrap.dedent("""\
+        [[package]]
+        name = "unity-biome-mcp"
+        version = "0.50.0"
+        source = { editable = "." }
+    """), encoding="utf-8")
 
     (tmp_path / "unity-plugin" / "package.json").write_text(
         '{\n  "name": "com.unity-biome-mcp.editor",\n  "version": "0.50.0"\n}\n',
@@ -306,6 +312,10 @@ def test_plugin_version_cs_pattern_not_found(tmp_path):
     (tmp_path / "docs" / "assets").mkdir(parents=True)
 
     (tmp_path / "server" / "pyproject.toml").write_text('[project]\nname="x"\nversion="0.1.0"\n', encoding="utf-8")
+    (tmp_path / "server" / "uv.lock").write_text(
+        '[[package]]\nname = "unity-biome-mcp"\nversion = "0.1.0"\n',
+        encoding="utf-8",
+    )
     (tmp_path / "unity-plugin" / "package.json").write_text('{"name":"x","version":"0.1.0"}', encoding="utf-8")
     (tmp_path / "server" / "src" / "unity_mcp" / "__version__.py").write_text('__version__="0.1.0"\n', encoding="utf-8")
     (tmp_path / "docs" / "assets" / "_meta.json").write_text('{"server_version":"0.1.0","plugin_version":"0.1.0"}', encoding="utf-8")

@@ -96,7 +96,8 @@ Always reload before running Unity tests:
 5. Run the focused EditMode or PlayMode tests.
 
 Do not use `get_compile_errors` alone as proof that the new assembly loaded. See
-[reload recovery](.claude/skills/reload-recovery.md) for the escalation ladder.
+the [reload reference](AI/reload-reference.md) for the underlying Unity
+lifecycle and recovery constraints.
 
 ## Code Style
 
