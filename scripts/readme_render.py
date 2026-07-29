@@ -4,11 +4,42 @@ import html
 import json
 import pathlib
 import re
+import xml.etree.ElementTree as ET
+
+
+_MARKER_NAME = r"[A-Z][A-Z0-9_]*"
+_MARKER_TOKEN_RE = re.compile(
+    rf"<!--\s*(?P<closing>/)?BIOME:(?P<name>{_MARKER_NAME})\s*-->"
+)
+_XML_COMMENT_RE = re.compile(r"<!--(?P<body>.*?)-->", re.DOTALL)
+_BIOME_LIKE_RE = re.compile(r"(?i)/?\s*BIOME\s*:")
+_MARKER_PAIR_RE = re.compile(
+    rf"(?P<open><!--\s*BIOME:(?P<name>{_MARKER_NAME})\s*-->)"
+    rf"(?P<value>.*?)"
+    rf"(?P<close><!--\s*/BIOME:(?P=name)\s*-->)",
+    re.DOTALL,
+)
+STATS_SVG_MARKERS = frozenset(
+    {"STATS_DESC", "TOOLS", "TESTS", "VERSION"}
+)
+SVG_MARKER_ALLOWLIST = {
+    "stats.svg": STATS_SVG_MARKERS,
+}
+
+
+def _read_text_exact(path: pathlib.Path) -> str:
+    with path.open("r", encoding="utf-8", newline="") as stream:
+        return stream.read()
+
+
+def _write_text_exact(path: pathlib.Path, content: str) -> None:
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        stream.write(content)
 
 
 def read_meta_json(repo_root: pathlib.Path) -> dict:
     path = repo_root / "docs" / "assets" / "_meta.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(_read_text_exact(path))
 
 
 def _unity_source_label(source: str | None) -> str:
@@ -29,6 +60,7 @@ def stats_summary(meta: dict) -> str:
         "tests_unity",
         "tests_unity_source",
         "tests_live",
+        "server_version",
     )
     missing = [key for key in required if key not in meta or meta[key] is None]
     if missing:
@@ -41,54 +73,113 @@ def stats_summary(meta: dict) -> str:
     unity = meta["tests_unity"]
     live = meta["tests_live"]
     source = _unity_source_label(meta["tests_unity_source"])
+    version = meta["server_version"]
     return (
         f"{tools} registered MCP tools. Test inventory: {total} entries: "
         f"{python} regular Python, {stress} Python stress, {live} live Python, "
-        f"and {unity} Unity source attributes. Unity count source: {source}."
+        f"and {unity} Unity source attributes. Unity count source: {source}. "
+        f"Server package version: v{version}."
     )
 
 
-def _replace_marker(text: str, name: str, value: object) -> str:
-    pattern = re.compile(
-        rf"(<!--\s*STAT:{re.escape(name)}\s*-->).*?(<!--\s*/STAT\s*-->)",
-        re.DOTALL,
-    )
-    marker_count = len(re.findall(rf"<!--\s*STAT:{re.escape(name)}\s*-->", text))
-    if marker_count == 0:
-        return text
-    escaped = html.escape(str(value), quote=False)
-    updated, replacement_count = pattern.subn(
-        lambda match: f"{match.group(1)}{escaped}{match.group(2)}",
-        text,
-    )
-    if marker_count != 1 or replacement_count != 1:
-        raise ValueError(f"Expected exactly one complete STAT:{name} marker pair")
-    return updated
+def _validate_svg_marker_contract(
+    svg: str,
+    expected_markers: frozenset[str],
+) -> None:
+    tokens = list(_MARKER_TOKEN_RE.finditer(svg))
+    recognized_spans = {match.span() for match in tokens}
+    malformed = [
+        match.group(0)
+        for match in _XML_COMMENT_RE.finditer(svg)
+        if _BIOME_LIKE_RE.search(match.group("body"))
+        and match.span() not in recognized_spans
+    ]
+    if malformed:
+        raise ValueError(f"Malformed BIOME marker: {malformed[0]}")
+
+    token_names = {match.group("name") for match in tokens}
+    missing = expected_markers - token_names
+    unexpected = token_names - expected_markers
+    if missing:
+        raise ValueError(
+            f"Missing BIOME marker(s): {', '.join(sorted(missing))}"
+        )
+    if unexpected:
+        raise ValueError(
+            f"Unexpected BIOME marker(s): {', '.join(sorted(unexpected))}"
+        )
+
+    for name in sorted(expected_markers):
+        opens = sum(
+            match.group("name") == name and not match.group("closing")
+            for match in tokens
+        )
+        closes = sum(
+            match.group("name") == name and bool(match.group("closing"))
+            for match in tokens
+        )
+        if opens != 1 or closes != 1:
+            raise ValueError(
+                f"Expected exactly one BIOME:{name} marker pair"
+            )
+
+    active_name: str | None = None
+    for token in tokens:
+        name = token.group("name")
+        if not token.group("closing"):
+            if active_name is not None:
+                raise ValueError("BIOME markers must not be nested")
+            active_name = name
+        else:
+            if active_name != name:
+                raise ValueError("BIOME markers are incomplete or mismatched")
+            active_name = None
+    if active_name is not None:
+        raise ValueError("BIOME markers are incomplete or mismatched")
+
+    pairs = list(_MARKER_PAIR_RE.finditer(svg))
+    if len(pairs) != len(expected_markers):
+        raise ValueError("BIOME markers are incomplete, mismatched, or nested")
+    for pair in pairs:
+        if "<" in pair.group("value"):
+            raise ValueError(
+                f"BIOME:{pair.group('name')} payload must be scalar text"
+            )
 
 
-def substitute_svg_markers(svg: str, meta: dict) -> str:
-    """Replace explicit SVG statistic markers without touching unrelated text."""
+def substitute_svg_markers(
+    svg: str,
+    meta: dict,
+    expected_markers: frozenset[str] = STATS_SVG_MARKERS,
+) -> str:
+    """Replace allowlisted marker payloads while preserving all other SVG bytes."""
     replacements = {
         "TOOLS": meta["tools"],
         "TESTS": meta["tests_total"],
-        "BREAKDOWN": (
-            f"{meta['tests_python']} regular · "
-            f"{meta['tests_stress']} stress · "
-            f"{meta['tests_live']} live · "
-            f"{meta['tests_unity']} Unity"
-        ),
-        "UNITY_SOURCE": _unity_source_label(meta["tests_unity_source"]),
+        "VERSION": f"v{meta['server_version']}",
         "STATS_DESC": stats_summary(meta),
     }
-    for name in replacements:
-        marker_count = len(
-            re.findall(rf"<!--\s*STAT:{re.escape(name)}\s*-->", svg)
-        )
-        if marker_count != 1:
-            raise ValueError(f"Expected exactly one complete STAT:{name} marker pair")
-    for name, value in replacements.items():
-        svg = _replace_marker(svg, name, value)
-    return svg
+    if frozenset(replacements) != expected_markers:
+        raise ValueError("Renderer values do not match the SVG marker allowlist")
+
+    try:
+        ET.fromstring(svg)
+    except ET.ParseError as error:
+        raise ValueError(f"SVG is not valid XML: {error}") from error
+    _validate_svg_marker_contract(svg, expected_markers)
+
+    def replace_payload(match: re.Match[str]) -> str:
+        value = html.escape(str(replacements[match.group("name")]), quote=False)
+        return f"{match.group('open')}{value}{match.group('close')}"
+
+    updated, replacement_count = _MARKER_PAIR_RE.subn(replace_payload, svg)
+    if replacement_count != len(expected_markers):
+        raise ValueError("Not every allowlisted BIOME marker was updated")
+    try:
+        ET.fromstring(updated)
+    except ET.ParseError as error:
+        raise ValueError(f"Generated SVG is not valid XML: {error}") from error
+    return updated
 
 
 def update_readme_stats(readme: str, meta: dict) -> str:
@@ -159,7 +250,7 @@ def make_badge_json(label: str, message: str, color: str) -> dict:
 def _apply_or_check(changes: list[tuple[pathlib.Path, str]], check: bool) -> None:
     stale: list[pathlib.Path] = []
     for path, content in changes:
-        if path.exists() and path.read_text(encoding="utf-8") == content:
+        if path.exists() and _read_text_exact(path) == content:
             if not check:
                 print(f"  unchanged {path.name}")
             continue
@@ -167,7 +258,7 @@ def _apply_or_check(changes: list[tuple[pathlib.Path, str]], check: bool) -> Non
             stale.append(path)
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        _write_text_exact(path, content)
         print(f"  updated {path.name}")
 
     if stale:
@@ -186,13 +277,13 @@ def render(repo_root: pathlib.Path, meta: dict, check: bool = False) -> list[pat
     badges_dir = repo_root / ".github" / "badges"
     tests_badge = make_badge_json(
         "tests",
-        f"{meta['tests_total']} inventoried",
-        "46e6a6",
+        f"{meta['tests_total']:,} inventory",
+        "59a7ff",
     )
     tools_badge = make_badge_json(
         "tools",
         f"{meta.get('tools', '?')} MCP",
-        "e94560",
+        "46e6a6",
     )
     changes.extend(
         [
@@ -208,8 +299,8 @@ def render(repo_root: pathlib.Path, meta: dict, check: bool = False) -> list[pat
     )
 
     readme_path = repo_root / "README.md"
-    changelog = (repo_root / "CHANGELOG.md").read_text(encoding="utf-8")
-    readme = readme_path.read_text(encoding="utf-8")
+    changelog = _read_text_exact(repo_root / "CHANGELOG.md")
+    readme = _read_text_exact(readme_path)
     readme = update_readme_stats(readme, meta)
     readme = inject_changelog_into_readme(
         readme,
@@ -218,10 +309,12 @@ def render(repo_root: pathlib.Path, meta: dict, check: bool = False) -> list[pat
     changes.append((readme_path, readme))
 
     assets_dir = repo_root / "docs" / "assets"
-    for name in ("stats.svg",):
+    for name, expected_markers in SVG_MARKER_ALLOWLIST.items():
         path = assets_dir / name
-        svg = path.read_text(encoding="utf-8")
-        changes.append((path, substitute_svg_markers(svg, meta)))
+        svg = _read_text_exact(path)
+        changes.append(
+            (path, substitute_svg_markers(svg, meta, expected_markers))
+        )
 
     _apply_or_check(changes, check)
     return [path for path, _ in changes]

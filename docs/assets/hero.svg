@@ -1,148 +1,164 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 210" width="640" height="210"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360"
      role="img" aria-labelledby="hero-title hero-desc">
   <title id="hero-title">Unity Biome MCP</title>
-  <desc id="hero-desc">Concept illustration of an AI client sending a live MCP signal through the Unity Biome hub to the Unity Editor.</desc>
+  <desc id="hero-desc">An AI client and the Unity Editor exchange a living MCP signal through the pulsing Unity Biome core.</desc>
 
   <defs>
-    <filter id="hero-glow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="6"/>
+    <linearGradient id="hero-title-gradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d6d6d6"/>
+    </linearGradient>
+    <radialGradient id="hero-core" cx="50%" cy="42%" r="62%">
+      <stop offset="0" stop-color="#effff9"/>
+      <stop offset=".28" stop-color="#46e6a6"/>
+      <stop offset="1" stop-color="#46e6a6" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="hero-green-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="10"/>
     </filter>
-    <filter id="hero-soft-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2.5" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="hero-soft-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="4"/>
     </filter>
+    <marker id="hero-arrow-blue" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#59a7ff"/>
+    </marker>
+    <marker id="hero-arrow-green" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#46e6a6"/>
+    </marker>
   </defs>
 
   <style>
-    .hero-signal {
-      animation: hero-flow 4.8s linear infinite;
+    .hero-route {
+      fill: none;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 12 18;
+      animation: hero-flow 3.8s linear infinite;
     }
-    .hero-core {
-      animation: hero-breathe 3.2s ease-in-out infinite;
+    .hero-core-aura {
+      animation: hero-aura 3.2s ease-in-out infinite;
       transform-box: fill-box;
       transform-origin: center;
     }
-    .hero-pulse {
-      animation: hero-pulse 3.2s ease-out infinite;
+    .hero-core-mark {
+      animation: hero-core-life 2.4s ease-in-out infinite;
       transform-box: fill-box;
       transform-origin: center;
     }
-    .hero-orbit {
-      animation: hero-orbit 8s linear infinite;
-      transform-origin: 320px 118px;
+    .hero-node {
+      animation: hero-node-life 4.2s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
     }
-    .hero-spore-a {
-      animation: hero-drift-a 6.4s ease-in-out infinite;
+    .hero-node-right { animation-delay: -2.1s; }
+    .hero-spore {
+      animation: hero-drift-a 5.2s ease-in-out infinite alternate;
+      transform-box: fill-box;
+      transform-origin: center;
     }
-    .hero-spore-b {
-      animation: hero-drift-b 7.6s ease-in-out infinite;
+    .hero-spore-b { animation-name: hero-drift-b; animation-duration: 6.1s; }
+    .hero-spore-c { animation-delay: -2.4s; animation-duration: 4.5s; }
+    @keyframes hero-flow { to { stroke-dashoffset: -60; } }
+    @keyframes hero-aura {
+      0%, 100% { opacity: .14; transform: scale(.82); }
+      50% { opacity: .48; transform: scale(1.16); }
     }
-    .hero-spore-c {
-      animation: hero-drift-c 5.8s ease-in-out infinite;
+    @keyframes hero-core-life {
+      0%, 100% { transform: scale(.94) rotate(45deg); }
+      50% { transform: scale(1.08) rotate(45deg); }
     }
-    @keyframes hero-flow {
-      from { stroke-dashoffset: 0; }
-      to { stroke-dashoffset: -48; }
-    }
-    @keyframes hero-breathe {
-      0%, 100% { opacity: 0.74; transform: scale(0.92); }
-      48% { opacity: 1; transform: scale(1.11); }
-    }
-    @keyframes hero-pulse {
-      0% { opacity: .42; transform: scale(.72); }
-      78%, 100% { opacity: 0; transform: scale(1.38); }
-    }
-    @keyframes hero-orbit {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+    @keyframes hero-node-life {
+      0%, 100% { opacity: .88; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-3px); }
     }
     @keyframes hero-drift-a {
-      0%, 100% { transform: translate(0, 0); opacity: 0.25; }
-      45% { transform: translate(8px, -5px); opacity: 0.7; }
+      0% { opacity: .16; transform: translate(-8px, 8px) scale(.7); }
+      55% { opacity: .86; transform: translate(10px, -10px) scale(1.2); }
+      100% { opacity: .28; transform: translate(18px, 4px) scale(.82); }
     }
     @keyframes hero-drift-b {
-      0%, 100% { transform: translate(0, 0); opacity: 0.2; }
-      55% { transform: translate(-6px, 7px); opacity: 0.62; }
-    }
-    @keyframes hero-drift-c {
-      0%, 100% { transform: translate(0, 0); opacity: 0.18; }
-      38% { transform: translate(5px, 6px); opacity: 0.55; }
+      0% { opacity: .12; transform: translate(10px, -8px) scale(.76); }
+      50% { opacity: .72; transform: translate(-14px, 10px) scale(1.16); }
+      100% { opacity: .24; transform: translate(4px, -12px) scale(.8); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .hero-signal,
-      .hero-core,
-      .hero-pulse,
-      .hero-orbit,
-      .hero-spore-a,
-      .hero-spore-b,
-      .hero-spore-c {
+      .hero-route, .hero-core-aura, .hero-core-mark, .hero-node, .hero-spore {
         animation: none !important;
       }
+      .hero-route { stroke-dasharray: none; opacity: .72; }
+      .hero-core-aura { opacity: .26; }
+      .hero-core-mark { transform: rotate(45deg); }
+      .motion-particle { display: none; }
+      .hero-spore { opacity: .3; }
     }
   </style>
 
-  <rect width="640" height="210" fill="#2b2b2b"/>
-  <rect x="1" y="1" width="638" height="208" rx="7" fill="none" stroke="#4a4a4a"/>
-
-  <g stroke="#464646" stroke-width="1" opacity="0.42">
-    <path d="M0 42H640M0 84H640M0 126H640M0 168H640"/>
-    <path d="M80 0V210M160 0V210M240 0V210M320 0V210M400 0V210M480 0V210M560 0V210"/>
+  <rect width="1200" height="360" fill="#2b2b2b"/>
+  <rect x="1" y="1" width="1198" height="358" rx="8" fill="none" stroke="#4a4a4a"/>
+  <g stroke="#777" stroke-width="1" opacity=".1">
+    <path d="M0 72H1200M0 144H1200M0 216H1200M0 288H1200"/>
+    <path d="M120 0V360M240 0V360M360 0V360M480 0V360M600 0V360M720 0V360M840 0V360M960 0V360M1080 0V360"/>
   </g>
 
-  <path d="M145 118H262M378 118H495" fill="none" stroke="#5a5a5a" stroke-width="2"/>
-  <path class="hero-signal" d="M145 118H262M378 118H495" fill="none" stroke="#46e6a6"
-        stroke-width="3" stroke-linecap="round" stroke-dasharray="12 12"
-        filter="url(#hero-soft-glow)"/>
-
-  <g>
-    <rect x="35" y="74" width="110" height="88" rx="7" fill="#202020" stroke="#707070"/>
-    <rect x="49" y="88" width="82" height="45" rx="4" fill="#303030" stroke="#59a7ff"/>
-    <circle cx="61" cy="102" r="4" fill="#59a7ff"/>
-    <path d="M74 102H117M61 116H117" stroke="#858585" stroke-width="3" stroke-linecap="round"/>
-    <path d="M70 147H110" stroke="#707070" stroke-width="3" stroke-linecap="round"/>
-    <text x="90" y="186" text-anchor="middle" fill="#d0d0d0" font-size="20"
-          data-mobile-critical="true"
+  <g class="hero-node">
+    <rect x="80" y="104" width="240" height="102" rx="8" fill="#202020"
+          stroke="#59a7ff" stroke-width="2"/>
+    <circle cx="118" cy="136" r="7" fill="#59a7ff"/>
+    <text x="200" y="160" text-anchor="middle" fill="#f2f2f2" font-size="36"
+          font-weight="700" data-mobile-critical="true"
           font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">AI CLIENT</text>
   </g>
 
+  <g class="hero-node hero-node-right">
+    <rect x="880" y="104" width="240" height="102" rx="8" fill="#202020"
+          stroke="#f0a536" stroke-width="2"/>
+    <circle cx="918" cy="136" r="7" fill="#f0a536"/>
+    <text x="1000" y="144" text-anchor="middle" fill="#f2f2f2" font-size="36"
+          font-weight="700" data-mobile-critical="true"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan
+          x="1000">UNITY</tspan><tspan x="1000" dy="38">EDITOR</tspan></text>
+  </g>
+
+  <path d="M320 155H530" stroke="#59a7ff" opacity=".28" stroke-width="2"
+        marker-end="url(#hero-arrow-blue)"/>
+  <path class="hero-route" d="M320 155H530" stroke="#59a7ff"/>
+  <path d="M670 155H880" stroke="#46e6a6" opacity=".3" stroke-width="2"
+        marker-end="url(#hero-arrow-green)"/>
+  <path class="hero-route" d="M670 155H880" stroke="#46e6a6"/>
+
+  <circle class="motion-particle" r="6" fill="#59a7ff">
+    <animateMotion dur="2.8s" repeatCount="indefinite" path="M320 155H530"/>
+  </circle>
+  <circle class="motion-particle" r="6" fill="#46e6a6">
+    <animateMotion dur="3.1s" begin="-1.4s" repeatCount="indefinite" path="M670 155H880"/>
+  </circle>
+
   <g>
-    <circle cx="320" cy="118" r="64" fill="#46e6a6" opacity="0.06" filter="url(#hero-glow)"/>
-    <circle class="hero-pulse" cx="320" cy="118" r="52" fill="none" stroke="#46e6a6" stroke-width="2"/>
-    <circle class="hero-core" cx="320" cy="118" r="49" fill="#46e6a6" opacity="0.16"/>
-    <circle cx="320" cy="118" r="43" fill="#242424" stroke="#46e6a6" stroke-width="2"/>
-    <circle cx="320" cy="118" r="29" fill="#303030" stroke="#46e6a6"/>
-    <path d="M320 96L340 107V129L320 140L300 129V107Z" fill="#46e6a6" opacity="0.92"/>
-    <circle cx="320" cy="118" r="6" fill="#eafff7"/>
-    <g class="hero-orbit">
-      <circle cx="320" cy="59" r="4" fill="#f0a536"/>
-      <circle cx="320" cy="177" r="3" fill="#59a7ff"/>
-    </g>
-    <circle class="hero-spore-a" cx="269" cy="82" r="2.5" fill="#46e6a6"/>
-    <circle class="hero-spore-b" cx="369" cy="89" r="2" fill="#f0a536"/>
-    <circle class="hero-spore-c" cx="276" cy="158" r="2" fill="#59a7ff"/>
-    <circle class="hero-spore-b" cx="382" cy="145" r="2.4" fill="#46e6a6"/>
-    <circle class="hero-spore-a" cx="248" cy="121" r="1.8" fill="#f0a536"/>
-    <circle class="hero-spore-c" cx="397" cy="111" r="1.7" fill="#59a7ff"/>
-    <circle class="hero-spore-a" cx="300" cy="53" r="1.9" fill="#46e6a6"/>
-    <circle class="hero-spore-b" cx="344" cy="177" r="1.6" fill="#f0a536"/>
-    <text x="320" y="195" text-anchor="middle" fill="#46e6a6" font-size="20"
-          data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">BIOME HUB</text>
+    <circle class="hero-core-aura" cx="600" cy="155" r="94" fill="#46e6a6"
+            filter="url(#hero-green-glow)"/>
+    <circle cx="600" cy="155" r="62" fill="none" stroke="#46e6a6"
+            stroke-width="3" opacity=".72"/>
+    <circle cx="600" cy="155" r="43" fill="url(#hero-core)" opacity=".9"/>
+    <rect class="hero-core-mark" x="578" y="133" width="44" height="44" rx="6"
+          fill="#202020" stroke="#46e6a6" stroke-width="3"/>
+    <circle cx="600" cy="155" r="9" fill="#effff9" filter="url(#hero-soft-glow)"/>
   </g>
 
   <g>
-    <rect x="495" y="70" width="110" height="96" rx="7" fill="#202020" stroke="#707070"/>
-    <rect x="509" y="84" width="82" height="54" rx="4" fill="#303030" stroke="#f0a536"/>
-    <path d="M550 93L574 106V128L550 137L526 128V106Z" fill="none" stroke="#f0a536" stroke-width="2"/>
-    <path d="M550 93V116M526 106L550 116L574 106M550 116V137" fill="none" stroke="#f0a536" stroke-width="2"/>
-    <circle cx="522" cy="151" r="4" fill="#46e6a6"/>
-    <path d="M534 151H578" stroke="#707070" stroke-width="3" stroke-linecap="round"/>
-    <text x="550" y="186" text-anchor="middle" fill="#d0d0d0" font-size="20"
-          data-mobile-critical="true"
-          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">UNITY</text>
+    <circle class="hero-spore" cx="380" cy="70" r="4" fill="#46e6a6"/>
+    <circle class="hero-spore hero-spore-b" cx="455" cy="224" r="3" fill="#59a7ff"/>
+    <circle class="hero-spore hero-spore-c" cx="750" cy="75" r="4" fill="#46e6a6"/>
+    <circle class="hero-spore hero-spore-b" cx="810" cy="230" r="3" fill="#f0a536"/>
+    <circle class="hero-spore hero-spore-c" cx="1045" cy="66" r="3" fill="#46e6a6"/>
+    <circle class="hero-spore" cx="142" cy="245" r="3" fill="#59a7ff"/>
   </g>
 
+  <text x="600" y="286" text-anchor="middle" fill="url(#hero-title-gradient)"
+        font-size="64" font-weight="700" data-mobile-critical="true"
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">UNITY BIOME MCP</text>
+  <text x="600" y="329" text-anchor="middle" fill="#46e6a6" font-size="36"
+        font-weight="600" data-mobile-critical="true"
+        font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">AI AND UNITY, ONE LIVING TOOL SURFACE</text>
 </svg>

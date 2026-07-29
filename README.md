@@ -10,15 +10,9 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 
 <br>
 
-<img src="https://img.shields.io/github/license/german-krasnikov/unity-biome-mcp?style=flat-square&labelColor=2b2b2b&color=46e6a6" alt="MIT license">
-<img src="https://img.shields.io/github/v/release/german-krasnikov/unity-biome-mcp?style=flat-square&labelColor=2b2b2b&color=46e6a6&label=release" alt="Latest release">
-<br>
-<img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tools.json&style=flat-square&labelColor=2b2b2b" alt="Registered MCP tools">
-<img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tests.json&style=flat-square&labelColor=2b2b2b" alt="Discovered test inventory">
+<p align="center"><img height="28" src="https://img.shields.io/github/license/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=2b2b2b&color=46e6a6" alt="MIT license"> <img height="28" src="https://img.shields.io/github/v/release/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=2b2b2b&color=46e6a6&label=release" alt="Latest release"> <img height="28" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tools.json&style=for-the-badge&labelColor=2b2b2b" alt="Registered MCP tools"> <img height="28" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tests.json&style=for-the-badge&labelColor=2b2b2b" alt="Discovered test inventory"></p>
 
 </div>
-
-<img src="docs/assets/divider-biome.svg" width="100%" alt="">
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
@@ -136,8 +130,6 @@ The configuration helper supports `claude-code`, `claude-desktop`, `cursor`,
 | Extend Unity Biome MCP | [Plugin Quick Start](docs/plugins/quickstart.md) |
 | Diagnose failures | [Diagnostics](docs/tools/diagnostics.md) |
 
-<img src="docs/assets/divider-biome.svg" width="100%" alt="">
-
 ## What You Can Do
 
 - **Scene and object editing:** inspect and modify GameObjects, components,
@@ -183,8 +175,6 @@ Some typed tools are direct-only and cannot be placed in a batch. See the [Batch
 
 </details>
 
-<img src="docs/assets/divider-biome.svg" width="100%" alt="">
-
 ## Ways to Work
 
 ### External MCP client
@@ -214,10 +204,8 @@ To install them, open **MCP > Install AI Skills**. The installer shows the exact
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 10922 entries: 4264 regular Python, 511 Python stress, 289 live Python, and 5858 Unity source attributes. Unity count source: static source scan.">
+<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 10922 entries: 4264 regular Python, 511 Python stress, 289 live Python, and 5858 Unity source attributes. Unity count source: static source scan. Server package version: v1.4.1.">
 <!-- README_STATS_END -->
-
-<img src="docs/assets/divider-biome.svg" width="100%" alt="">
 
 ## Unity MCP Product Comparison
 
@@ -237,7 +225,7 @@ and records constraints as well as strengths.
 ## Recent Changes
 
 <!-- CHANGELOG_START -->
-**Current release: v1.4.0 (2026-07-29).** [Read the full changelog.](CHANGELOG.md)
+**Current release: v1.4.1 (2026-07-29).** [Read the full changelog.](CHANGELOG.md)
 <!-- CHANGELOG_END -->
 
 ## Contributing

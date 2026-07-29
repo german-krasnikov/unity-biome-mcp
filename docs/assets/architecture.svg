@@ -1,176 +1,203 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 210" width="640" height="210"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 340" width="960" height="340"
      role="img" aria-labelledby="architecture-title architecture-desc">
   <title id="architecture-title">Unity Biome MCP architecture</title>
-  <desc id="architecture-desc">External MCP clients launch the Python MCP server over standard input and output. The server exchanges framed commands with the Unity Editor plugin over localhost TCP. In-Unity Chat reaches the same server and Unity tool surface through its local relay and selected CLI backend.</desc>
+  <desc id="architecture-desc">Two animated local workflows: an external MCP client reaches the Unity plugin through a Python MCP server and TCP bridge; In-Unity Chat passes through its relay and CLI backend before a Python MCP server rejoins the shared TCP bridge and Unity plugin path.</desc>
 
   <defs>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5"
-            markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10Z" fill="#46e6a6"/>
-    </marker>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5"
-            markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10Z" fill="#59a7ff"/>
-    </marker>
-    <filter id="architecture-glow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="3"/>
+    <filter id="architecture-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <filter id="architecture-soft-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.5"/>
     </filter>
   </defs>
 
   <style>
-    .node { fill: #202020; stroke-width: 1.6; }
-    .title {
-      fill: #f0f0f0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-weight: 700;
-      text-anchor: middle;
-    }
-    .protocol {
-      fill: #a8a8a8;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-weight: 600;
-      text-anchor: middle;
-    }
-    .route { fill: none; stroke-width: 1.5; opacity: .38; }
-    .flow {
+    .architecture-lane {
       fill: none;
-      stroke-width: 2.2;
+      stroke-width: 3;
       stroke-linecap: round;
-      stroke-dasharray: 8 12;
-      animation: architecture-flow 3.7s linear infinite;
+      stroke-dasharray: 12 16;
+      animation: architecture-flow 3.4s linear infinite;
     }
-    .server-aura {
-      animation: architecture-aura 3s ease-in-out infinite;
+    .architecture-node {
       transform-box: fill-box;
       transform-origin: center;
+      animation: architecture-breathe 4.8s ease-in-out infinite;
     }
-    .server-node {
-      animation: architecture-life 3.6s ease-in-out infinite;
+    .architecture-node-b { animation-delay: -.8s; }
+    .architecture-node-c { animation-delay: -1.6s; }
+    .architecture-node-d { animation-delay: -2.4s; }
+    .architecture-aura {
       transform-box: fill-box;
       transform-origin: center;
+      animation: architecture-aura 3.2s ease-in-out infinite;
     }
-    .spore {
-      animation: architecture-drift-a 4.4s ease-in-out infinite alternate;
+    .architecture-spore {
       transform-box: fill-box;
       transform-origin: center;
+      animation: architecture-drift-a 4.9s ease-in-out infinite alternate;
     }
-    .spore:nth-of-type(2n) { animation-name: architecture-drift-b; animation-duration: 5.3s; }
-    .spore:nth-of-type(3n) { animation-duration: 3.8s; animation-delay: -2s; }
-    @keyframes architecture-flow { to { stroke-dashoffset: -40; } }
+    .architecture-spore-b {
+      animation-name: architecture-drift-b;
+      animation-duration: 5.8s;
+      animation-delay: -2.1s;
+    }
+    @keyframes architecture-flow { to { stroke-dashoffset: -56; } }
+    @keyframes architecture-breathe {
+      0%, 100% { opacity: .88; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-2px); }
+    }
     @keyframes architecture-aura {
-      0%, 100% { opacity: .1; transform: scale(.88); }
-      50% { opacity: .34; transform: scale(1.13); }
-    }
-    @keyframes architecture-life {
-      0%, 100% { transform: translateY(0); }
-      46% { transform: translateY(-2px); }
+      0%, 100% { opacity: .12; transform: scale(.84); }
+      50% { opacity: .4; transform: scale(1.14); }
     }
     @keyframes architecture-drift-a {
-      0% { opacity: .18; transform: translate(-3px, 3px) scale(.7); }
-      55% { opacity: .82; transform: translate(5px, -4px) scale(1.2); }
-      100% { opacity: .3; transform: translate(8px, 2px) scale(.82); }
+      0% { opacity: .18; transform: translate(-7px, 5px) scale(.72); }
+      55% { opacity: .8; transform: translate(8px, -7px) scale(1.18); }
+      100% { opacity: .28; transform: translate(15px, 4px) scale(.82); }
     }
     @keyframes architecture-drift-b {
-      0% { opacity: .16; transform: translate(4px, -3px) scale(.76); }
-      48% { opacity: .7; transform: translate(-6px, 4px) scale(1.14); }
-      100% { opacity: .25; transform: translate(2px, -5px) scale(.8); }
+      0% { opacity: .14; transform: translate(8px, -5px) scale(.75); }
+      50% { opacity: .7; transform: translate(-11px, 8px) scale(1.12); }
+      100% { opacity: .24; transform: translate(4px, -10px) scale(.8); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .flow, .server-aura, .server-node, .spore { animation: none !important; }
-      .flow { stroke-dasharray: none; opacity: .7; }
-      .server-aura { opacity: .18; }
+      .architecture-lane, .architecture-node, .architecture-aura, .architecture-spore {
+        animation: none !important;
+      }
+      .architecture-lane { stroke-dasharray: none; opacity: .65; }
+      .architecture-aura { opacity: .2; }
+      .architecture-spore { opacity: .28; }
       .motion-particle { display: none; }
-      .spore { opacity: .3; }
     }
   </style>
 
-  <rect width="640" height="210" fill="#2b2b2b"/>
-  <rect x="1" y="1" width="638" height="208" rx="7" fill="none" stroke="#4a4a4a"/>
-  <g stroke="#464646" stroke-width="1" opacity=".22">
-    <path d="M0 42H640M0 105H640M0 168H640"/>
-    <path d="M80 0V210M160 0V210M240 0V210M320 0V210M400 0V210M480 0V210M560 0V210"/>
+  <rect width="960" height="340" rx="8" fill="#2b2b2b"/>
+  <rect x="1" y="1" width="958" height="338" rx="7" fill="none" stroke="#4a4a4a"/>
+  <g stroke="#777" stroke-width="1" opacity=".08">
+    <path d="M0 68H960M0 170H960M0 272H960"/>
+    <path d="M120 0V340M240 0V340M360 0V340M480 0V340M600 0V340M720 0V340M840 0V340"/>
   </g>
 
-  <text x="20" y="26" fill="#a8a8a8" font-size="18" font-weight="700"
+  <text x="480" y="48" text-anchor="middle" fill="#f2f2f2" font-size="34"
+        font-weight="700" data-mobile-critical="true"
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">TWO LOCAL PATHS. ONE UNITY TOOL SURFACE.</text>
+
+  <text x="20" y="90" fill="#59a7ff" font-size="28" font-weight="700"
         data-mobile-critical="true"
         font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">EXTERNAL MCP</text>
-
-  <g>
-    <rect class="node" x="20" y="44" width="150" height="65" rx="6" stroke="#59a7ff"/>
-    <text class="title" x="95" y="84" font-size="20"
-          data-mobile-critical="true">MCP Client</text>
-  </g>
-
-  <g class="server-node">
-    <rect class="server-aura" x="238" y="37" width="164" height="79" rx="10"
-          fill="#46e6a6" filter="url(#architecture-glow)"/>
-    <rect class="node" x="245" y="44" width="150" height="65" rx="6" stroke="#46e6a6"/>
-    <text class="title" x="320" y="84" font-size="20"
-          data-mobile-critical="true">Python MCP</text>
-  </g>
-
-  <g>
-    <rect class="node" x="470" y="44" width="150" height="65" rx="6" stroke="#f0a536"/>
-    <text class="title" x="545" y="84" font-size="18"
-          data-mobile-critical="true">Unity Plugin</text>
-  </g>
-
-  <path class="route" d="M170 76H245" stroke="#59a7ff"
-        marker-start="url(#arrow-blue)" marker-end="url(#arrow-blue)"/>
-  <path class="flow" d="M170 76H245" stroke="#59a7ff"/>
-  <text class="protocol" x="207.5" y="62" font-size="18"
-        data-mobile-critical="true">stdio</text>
-
-  <path class="route" d="M395 76H470" stroke="#46e6a6"
-        marker-start="url(#arrow-green)" marker-end="url(#arrow-green)"/>
-  <path class="flow" d="M395 76H470" stroke="#46e6a6"/>
-  <text class="protocol" x="432.5" y="62" font-size="18"
-        data-mobile-critical="true">TCP</text>
-
-  <circle class="motion-particle" r="3" fill="#59a7ff">
-    <animateMotion dur="2.5s" repeatCount="indefinite" path="M170 76H245"/>
-  </circle>
-  <circle class="motion-particle" r="3" fill="#46e6a6">
-    <animateMotion dur="2.8s" begin="-1.1s" repeatCount="indefinite" path="M395 76H470"/>
-  </circle>
-
-  <text x="20" y="133" fill="#a8a8a8" font-size="18" font-weight="700"
+  <text x="20" y="222" fill="#f0a536" font-size="28" font-weight="700"
         data-mobile-critical="true"
         font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">IN-UNITY CHAT</text>
 
-  <g>
-    <rect class="node" x="20" y="145" width="180" height="48" rx="6" stroke="#59a7ff"/>
-    <text class="title" x="110" y="176" font-size="20"
-          data-mobile-critical="true">Chat + Relay</text>
+  <path d="M200 139H260M440 139H500M680 139H760" stroke="#59a7ff"
+        stroke-width="2" opacity=".24"/>
+  <path class="architecture-lane" d="M200 139H260M440 139H500M680 139H760"
+        stroke="#59a7ff"/>
+  <path d="M200 271H260M440 271H500M680 271H760" stroke="#f0a536"
+        stroke-width="2" opacity=".24"/>
+  <path class="architecture-lane" d="M200 271H260M440 271H500M680 271H760"
+        stroke="#f0a536"/>
+  <path d="M850 232C850 199 690 195 590 178" fill="none" stroke="#46e6a6"
+        stroke-width="2" opacity=".24"/>
+  <path class="architecture-lane" d="M850 232C850 199 690 195 590 178"
+        stroke="#46e6a6"/>
+
+  <g class="architecture-node">
+    <rect x="20" y="100" width="180" height="78" rx="7" fill="#202020"
+          stroke="#59a7ff" stroke-width="2"/>
+    <circle cx="43" cy="120" r="5" fill="#59a7ff"/>
+    <text x="110" y="148" text-anchor="middle" fill="#f2f2f2" font-size="28"
+          font-weight="700" data-mobile-critical="true"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">MCP CLIENT</text>
+  </g>
+  <g class="architecture-node architecture-node-b">
+    <rect x="260" y="100" width="180" height="78" rx="7" fill="#202020"
+          stroke="#46e6a6" stroke-width="2"/>
+    <text x="350" y="148" text-anchor="middle" fill="#f2f2f2" font-size="28"
+          font-weight="700" data-mobile-critical="true"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">PYTHON MCP</text>
+  </g>
+  <g class="architecture-node architecture-node-c">
+    <rect x="500" y="100" width="180" height="78" rx="7" fill="#202020"
+          stroke="#46e6a6" stroke-width="2"/>
+    <text x="590" y="148" text-anchor="middle" fill="#46e6a6" font-size="28"
+          font-weight="700" data-mobile-critical="true"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">TCP BRIDGE</text>
+  </g>
+  <g class="architecture-node architecture-node-d">
+    <rect x="760" y="100" width="180" height="78" rx="7" fill="#202020"
+          stroke="#f0a536" stroke-width="2"/>
+    <text x="850" y="130" text-anchor="middle" fill="#f2f2f2" font-size="28"
+          font-weight="700" data-mobile-critical="true"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan
+          x="850">UNITY</tspan><tspan x="850" dy="30">PLUGIN</tspan></text>
   </g>
 
-  <g>
-    <rect class="node" x="250" y="145" width="150" height="48" rx="6" stroke="#59a7ff"/>
-    <text class="title" x="325" y="176" font-size="20"
-          data-mobile-critical="true">CLI Backend</text>
+  <g class="architecture-node architecture-node-c">
+    <rect x="20" y="232" width="180" height="78" rx="7" fill="#202020"
+          stroke="#f0a536" stroke-width="2"/>
+    <circle cx="43" cy="252" r="5" fill="#f0a536"/>
+    <text x="110" y="280" text-anchor="middle" fill="#f2f2f2" font-size="28"
+          font-weight="700" data-mobile-critical="true"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">CHAT UI</text>
+  </g>
+  <g class="architecture-node architecture-node-d">
+    <rect x="260" y="232" width="180" height="78" rx="7" fill="#202020"
+          stroke="#46e6a6" stroke-width="2"/>
+    <text x="350" y="280" text-anchor="middle" fill="#f2f2f2" font-size="28"
+          font-weight="700" data-mobile-critical="true"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">CHAT RELAY</text>
+  </g>
+  <g class="architecture-node architecture-node-b">
+    <rect x="500" y="232" width="180" height="78" rx="7" fill="#202020"
+          stroke="#59a7ff" stroke-width="2"/>
+    <text x="590" y="261" text-anchor="middle" fill="#f2f2f2" font-size="28"
+          font-weight="700" data-mobile-critical="true"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan
+          x="590">CLI</tspan><tspan x="590" dy="30">BACKEND</tspan></text>
+  </g>
+  <g class="architecture-node">
+    <rect x="760" y="232" width="180" height="78" rx="7" fill="#202020"
+          stroke="#46e6a6" stroke-width="2"/>
+    <text x="850" y="261" text-anchor="middle" fill="#46e6a6" font-size="28"
+          font-weight="700" data-mobile-critical="true"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan
+          x="850">PYTHON</tspan><tspan x="850" dy="30">MCP</tspan></text>
   </g>
 
-  <path class="route" d="M200 169H250" stroke="#59a7ff"
-        marker-start="url(#arrow-blue)" marker-end="url(#arrow-blue)"/>
-  <path class="flow" d="M200 169H250" stroke="#59a7ff"/>
-  <path class="route" d="M325 145V109" stroke="#46e6a6"
-        marker-start="url(#arrow-green)" marker-end="url(#arrow-green)"/>
-  <path class="flow" d="M325 145V109" stroke="#46e6a6"/>
-  <text class="protocol" x="372" y="128" font-size="18"
-        data-mobile-critical="true">MCP stdio</text>
-
-  <circle class="motion-particle" r="2.6" fill="#59a7ff">
-    <animateMotion dur="3s" repeatCount="indefinite" path="M200 169H250"/>
+  <circle class="motion-particle" r="5" fill="#59a7ff" filter="url(#architecture-soft-glow)">
+    <animateMotion dur="2.4s" repeatCount="indefinite" path="M200 139H260"/>
   </circle>
-  <circle class="motion-particle" r="2.8" fill="#46e6a6">
-    <animateMotion dur="3.3s" begin="-1.4s" repeatCount="indefinite" path="M325 145V109"/>
+  <circle class="motion-particle" r="4" fill="#46e6a6" filter="url(#architecture-soft-glow)">
+    <animateMotion dur="2.8s" begin="-.9s" repeatCount="indefinite" path="M440 139H500"/>
+  </circle>
+  <circle class="motion-particle" r="5" fill="#46e6a6" filter="url(#architecture-soft-glow)">
+    <animateMotion dur="2.5s" begin="-1.6s" repeatCount="indefinite" path="M680 139H760"/>
+  </circle>
+  <circle class="motion-particle" r="5" fill="#f0a536" filter="url(#architecture-soft-glow)">
+    <animateMotion dur="2.7s" begin="-.4s" repeatCount="indefinite" path="M200 271H260"/>
+  </circle>
+  <circle class="motion-particle" r="4" fill="#46e6a6" filter="url(#architecture-soft-glow)">
+    <animateMotion dur="3.1s" begin="-1.3s" repeatCount="indefinite" path="M440 271H500"/>
+  </circle>
+  <circle class="motion-particle" r="5" fill="#46e6a6" filter="url(#architecture-soft-glow)">
+    <animateMotion dur="2.6s" begin="-2s" repeatCount="indefinite" path="M680 271H760"/>
+  </circle>
+  <circle class="motion-particle" r="4" fill="#46e6a6" filter="url(#architecture-soft-glow)">
+    <animateMotion dur="3.3s" begin="-1.1s" repeatCount="indefinite"
+                   path="M850 232C850 199 690 195 590 178"/>
   </circle>
 
   <g>
-    <circle class="spore" cx="219" cy="128" r="2" fill="#46e6a6"/>
-    <circle class="spore" cx="420" cy="143" r="1.8" fill="#59a7ff"/>
-    <circle class="spore" cx="448" cy="181" r="2.2" fill="#46e6a6"/>
-    <circle class="spore" cx="580" cy="142" r="1.7" fill="#f0a536"/>
-    <circle class="spore" cx="602" cy="186" r="1.4" fill="#46e6a6"/>
+    <circle class="architecture-aura" cx="729" cy="190" r="33" fill="#46e6a6"
+            filter="url(#architecture-glow)"/>
+    <rect x="719" y="180" width="20" height="20" rx="3" fill="#202020"
+          stroke="#46e6a6" stroke-width="2" transform="rotate(45 729 190)"/>
+    <circle cx="729" cy="190" r="4" fill="#effff9"/>
   </g>
+  <circle class="architecture-spore" cx="216" cy="199" r="3" fill="#46e6a6"/>
+  <circle class="architecture-spore architecture-spore-b" cx="470" cy="80" r="3" fill="#59a7ff"/>
+  <circle class="architecture-spore" cx="716" cy="317" r="3" fill="#f0a536"/>
 </svg>

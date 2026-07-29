@@ -1,132 +1,146 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" width="960" height="280"
      role="img" aria-labelledby="comparison-title comparison-desc">
   <title id="comparison-title">Unity MCP ecosystem comparison</title>
-  <desc id="comparison-desc">
-    Five product nodes share an animated arcade signal line around a glowing
-    Unity Biome MCP core. Motion stops when reduced motion is requested.
-  </desc>
+  <desc id="comparison-desc">Unity MCP Server, MCP for Unity, Unity Biome MCP, AI Game Developer, and MCP Unity share an animated comparison signal line.</desc>
+
   <defs>
-    <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="5"/>
+    <filter id="comparison-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="7"/>
     </filter>
   </defs>
+
   <style>
-    .bg { fill: #2f2f2f; }
-    .frame { fill: none; stroke: #555; stroke-width: 1; }
-    .track { fill: none; stroke: #46e6a6; stroke-width: 2; opacity: .36; }
-    .tick { fill: #2f2f2f; stroke-width: 2; }
-    .label {
-      fill: #cfcfcf;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-weight: 700;
-      letter-spacing: 0;
-      text-anchor: middle;
-    }
-    .title {
-      fill: #f1f1f1;
-      font: 800 27px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      letter-spacing: 0;
-      text-anchor: middle;
-    }
-    .core-aura {
-      fill: #46e6a6;
-      opacity: .28;
-      transform-box: fill-box;
-      transform-origin: center;
-      animation: aura 2.8s ease-in-out infinite;
-    }
-    .core {
-      fill: #2f2f2f;
-      stroke: #46e6a6;
-      stroke-width: 3;
-      transform: rotate(45deg);
-      transform-box: fill-box;
-      transform-origin: center;
-      animation: breathe 2.8s ease-in-out infinite;
-    }
-    .signal {
-      fill: #46e6a6;
-      filter: url(#soft-glow);
-      animation: signal 5.4s cubic-bezier(.45, 0, .55, 1) infinite;
-    }
-    .pulse {
+    .comparison-track {
       fill: none;
       stroke: #46e6a6;
-      stroke-width: 2;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 12 18;
+      opacity: .48;
+      animation: comparison-flow 4.2s linear infinite;
+    }
+    .comparison-node {
       transform-box: fill-box;
       transform-origin: center;
-      animation: pulse 2.8s ease-out infinite;
+      animation: comparison-node 4.6s ease-in-out infinite;
     }
-    .particle {
-      fill: #46e6a6;
-      opacity: .7;
+    .comparison-node-b { animation-delay: -.8s; }
+    .comparison-node-c { animation-delay: -1.6s; }
+    .comparison-node-d { animation-delay: -2.4s; }
+    .comparison-core {
       transform-box: fill-box;
       transform-origin: center;
-      animation: drift 3.7s ease-in-out infinite alternate;
+      animation: comparison-core 2.9s ease-in-out infinite;
     }
-    .p2 { animation-delay: -.9s; animation-duration: 4.6s; }
-    .p3 { animation-delay: -1.8s; animation-duration: 3.2s; }
-    .p4 { animation-delay: -2.6s; animation-duration: 5.1s; }
-    @keyframes aura {
-      0%, 100% { opacity: .16; transform: scale(.86); }
-      50% { opacity: .38; transform: scale(1.16); }
+    .comparison-aura {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: comparison-aura 2.9s ease-in-out infinite;
     }
-    @keyframes breathe {
-      0%, 100% { transform: scale(.96) rotate(45deg); }
-      50% { transform: scale(1.04) rotate(45deg); }
+    .comparison-spore {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: comparison-drift-a 4.8s ease-in-out infinite alternate;
     }
-    @keyframes signal {
-      0% { transform: translateX(0); opacity: 0; }
-      8% { opacity: 1; }
-      50% { opacity: 1; }
-      92% { opacity: 1; }
-      100% { transform: translateX(520px); opacity: 0; }
+    .comparison-spore-b {
+      animation-name: comparison-drift-b;
+      animation-duration: 5.7s;
+      animation-delay: -2.2s;
     }
-    @keyframes pulse {
-      0% { opacity: .75; transform: scale(.45); }
-      75%, 100% { opacity: 0; transform: scale(1.45); }
+    @keyframes comparison-flow { to { stroke-dashoffset: -60; } }
+    @keyframes comparison-node {
+      0%, 100% { opacity: .82; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-3px); }
     }
-    @keyframes drift {
-      0% { transform: translate(-3px, 2px) scale(.8); opacity: .35; }
-      45% { transform: translate(4px, -5px) scale(1.15); opacity: .9; }
-      100% { transform: translate(7px, 3px) scale(.7); opacity: .45; }
+    @keyframes comparison-core {
+      0%, 100% { transform: scale(.94) rotate(45deg); }
+      50% { transform: scale(1.08) rotate(45deg); }
+    }
+    @keyframes comparison-aura {
+      0%, 100% { opacity: .14; transform: scale(.82); }
+      50% { opacity: .44; transform: scale(1.18); }
+    }
+    @keyframes comparison-drift-a {
+      0% { opacity: .16; transform: translate(-8px, 6px) scale(.72); }
+      55% { opacity: .82; transform: translate(10px, -8px) scale(1.18); }
+      100% { opacity: .26; transform: translate(17px, 5px) scale(.8); }
+    }
+    @keyframes comparison-drift-b {
+      0% { opacity: .14; transform: translate(8px, -6px) scale(.74); }
+      50% { opacity: .72; transform: translate(-12px, 9px) scale(1.14); }
+      100% { opacity: .24; transform: translate(5px, -11px) scale(.8); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .core-aura, .core, .signal, .pulse, .particle { animation: none; }
-      .signal { opacity: .8; transform: translateX(260px); }
-      .core-aura { opacity: .25; }
+      .comparison-track, .comparison-node, .comparison-core, .comparison-aura,
+      .comparison-spore {
+        animation: none !important;
+      }
+      .comparison-track { stroke-dasharray: none; opacity: .62; }
+      .comparison-core { transform: rotate(45deg); }
+      .comparison-aura { opacity: .22; }
+      .comparison-spore { opacity: .28; }
+      .motion-particle { display: none; }
     }
   </style>
 
-  <rect class="bg" width="640" height="200" rx="8"/>
-  <rect class="frame" x=".5" y=".5" width="639" height="199" rx="7.5"/>
+  <rect width="960" height="280" rx="8" fill="#2b2b2b"/>
+  <rect x="1" y="1" width="958" height="278" rx="7" fill="none" stroke="#4a4a4a"/>
+  <g stroke="#777" stroke-width="1" opacity=".08">
+    <path d="M0 70H960M0 140H960M0 210H960"/>
+    <path d="M120 0V280M240 0V280M360 0V280M480 0V280M600 0V280M720 0V280M840 0V280"/>
+  </g>
 
-  <text class="title" x="320" y="44" font-size="27"
-        data-mobile-critical="true">UNITY MCP ECOSYSTEM</text>
+  <text x="480" y="48" text-anchor="middle" fill="#f2f2f2" font-size="40"
+        font-weight="700" data-mobile-critical="true"
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">UNITY MCP ECOSYSTEM</text>
+  <text x="480" y="82" text-anchor="middle" fill="#a8a8a8" font-size="28"
+        font-weight="600" data-mobile-critical="true"
+        font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">SOURCE-BACKED PRODUCT COMPARISON</text>
 
-  <path class="track" d="M60 112 H580"/>
-  <circle class="tick" cx="60" cy="112" r="7" stroke="#42a5f5"/>
-  <circle class="tick" cx="190" cy="112" r="7" stroke="#f3a634"/>
-  <circle class="tick" cx="450" cy="112" r="7" stroke="#e94560"/>
-  <circle class="tick" cx="580" cy="112" r="7" stroke="#b6b6b6"/>
+  <path d="M80 156H880" stroke="#46e6a6" stroke-width="2" opacity=".2"/>
+  <path class="comparison-track" d="M80 156H880"/>
+  <circle class="motion-particle" r="6" fill="#46e6a6" filter="url(#comparison-glow)">
+    <animateMotion dur="5.2s" repeatCount="indefinite" path="M80 156H880"/>
+  </circle>
 
-  <circle class="signal" cx="60" cy="112" r="4"/>
-  <circle class="pulse" cx="320" cy="112" r="24"/>
-  <circle class="core-aura" cx="320" cy="112" r="29" filter="url(#soft-glow)"/>
-  <rect class="core" x="301" y="93" width="38" height="38" rx="5"/>
-  <circle class="particle p1" cx="282" cy="96" r="3"/>
-  <circle class="particle p2" cx="354" cy="88" r="2.5"/>
-  <circle class="particle p3" cx="366" cy="131" r="3.5"/>
-  <circle class="particle p4" cx="276" cy="135" r="2"/>
+  <g class="comparison-node">
+    <circle cx="80" cy="156" r="13" fill="#2b2b2b" stroke="#59a7ff" stroke-width="3"/>
+    <circle cx="80" cy="156" r="5" fill="#59a7ff"/>
+  </g>
+  <g class="comparison-node comparison-node-b">
+    <circle cx="280" cy="156" r="13" fill="#2b2b2b" stroke="#f0a536" stroke-width="3"/>
+    <circle cx="280" cy="156" r="5" fill="#f0a536"/>
+  </g>
+  <g>
+    <circle class="comparison-aura" cx="480" cy="156" r="54" fill="#46e6a6"
+            filter="url(#comparison-glow)"/>
+    <rect class="comparison-core" x="457" y="133" width="46" height="46" rx="6"
+          fill="#202020" stroke="#46e6a6" stroke-width="3"/>
+    <circle cx="480" cy="156" r="8" fill="#effff9"/>
+  </g>
+  <g class="comparison-node comparison-node-c">
+    <circle cx="680" cy="156" r="13" fill="#2b2b2b" stroke="#e95b78" stroke-width="3"/>
+    <circle cx="680" cy="156" r="5" fill="#e95b78"/>
+  </g>
+  <g class="comparison-node comparison-node-d">
+    <circle cx="880" cy="156" r="13" fill="#2b2b2b" stroke="#b6b6b6" stroke-width="3"/>
+    <circle cx="880" cy="156" r="5" fill="#b6b6b6"/>
+  </g>
 
-  <text class="label" x="60" y="170" font-size="20"
-        data-mobile-critical="true">UNITY</text>
-  <text class="label" x="190" y="170" font-size="20"
-        data-mobile-critical="true">COPLAY</text>
-  <text class="label" x="320" y="170" font-size="20" fill="#46e6a6"
-        data-mobile-critical="true">BIOME</text>
-  <text class="label" x="450" y="170" font-size="20"
-        data-mobile-critical="true">AI GAME DEV</text>
-  <text class="label" x="580" y="170" font-size="20"
-        data-mobile-critical="true">MCP UNITY</text>
+  <g fill="#d8d8d8" font-size="28" font-weight="700" text-anchor="middle"
+     font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <text x="80" y="213" font-size="28" data-mobile-critical="true"><tspan x="80"
+          textLength="140" lengthAdjust="spacingAndGlyphs">UNITY MCP</tspan><tspan
+          x="80" dy="29">SERVER</tspan></text>
+    <text x="280" y="213" font-size="28" data-mobile-critical="true"><tspan x="280">MCP FOR</tspan><tspan x="280" dy="29">UNITY</tspan></text>
+    <text x="480" y="229" fill="#46e6a6" font-size="28" data-mobile-critical="true">BIOME</text>
+    <text x="680" y="213" font-size="28" data-mobile-critical="true"><tspan x="680">AI GAME</tspan><tspan x="680" dy="29">DEVELOPER</tspan></text>
+    <text x="880" y="229" font-size="28" textLength="140"
+          lengthAdjust="spacingAndGlyphs" data-mobile-critical="true">MCP UNITY</text>
+  </g>
+
+  <circle class="comparison-spore" cx="416" cy="118" r="4" fill="#46e6a6"/>
+  <circle class="comparison-spore comparison-spore-b" cx="546" cy="111" r="3" fill="#59a7ff"/>
+  <circle class="comparison-spore" cx="552" cy="190" r="3" fill="#f0a536"/>
+  <circle class="comparison-spore comparison-spore-b" cx="405" cy="194" r="3" fill="#46e6a6"/>
 </svg>
