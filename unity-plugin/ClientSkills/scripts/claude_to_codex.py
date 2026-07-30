@@ -32,7 +32,7 @@ except ModuleNotFoundError:
     tomllib = None  # Python <3.11: skip TOML validation
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeAlias
+from typing import Union
 
 
 CODEX_AGENT_KEYS = {
@@ -46,7 +46,7 @@ SKILL_REF_NAME = r"[A-Za-z0-9_\-\[\]]+"
 SKILL_FILE_RE = re.compile(rf"\.(?:claude|agents)/skills/({SKILL_REF_NAME})(?:\.md|/SKILL\.md)")
 CLAUDE_SKILL_DIR_RE = re.compile(rf"\.claude/skills/({SKILL_REF_NAME})/")
 SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-FrontmatterValue: TypeAlias = str | list[str]
+FrontmatterValue = Union[str, list]
 IGNORED_RESOURCE_NAMES = {".DS_Store", ".meta"}
 IGNORED_RESOURCE_DIRS = {"__pycache__"}
 IGNORED_RESOURCE_SUFFIXES = {".pyc"}

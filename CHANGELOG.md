@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.1] — 2026-07-30 — Python 3.9 compatibility hotfix
+
+**Fixed:**
+- `claude_to_codex.py` crash on Python 3.9 (`TypeAlias` import, `X | Y` union syntax)
+- Added `from __future__ import annotations` and replaced `TypeAlias` with `Union`
+
 ## [v1.7.0] — 2026-07-30 — Dynamic resources, search context, test stability
 
 **MCP Dynamic Resources:**
