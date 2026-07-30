@@ -212,6 +212,12 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "scene")),
                 required: "query", optional: "root,limit,scene",
                 maxResponseChars: 30000);
+            CommandRegistry.Register("search_context", args => SearchHelper.SearchContext(
+                JsonHelper.ExtractString(args, "query") ?? "",
+                int.TryParse(JsonHelper.ExtractString(args, "limit") ?? "30", out var scl) ? scl : 30,
+                JsonHelper.ExtractString(args, "types")),
+                optional: "query,limit,types",
+                maxResponseChars: 30000);
             CommandRegistry.Register("object_diff", args => ObjectDiffHelper.Diff(
                 JsonHelper.ExtractString(args, "path_a"),
                 JsonHelper.ExtractString(args, "path_b")),

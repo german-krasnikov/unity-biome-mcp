@@ -163,6 +163,22 @@ namespace UnityMCP.Editor
                 CollectMatches(child, q, results, limit, ref totalCount);
         }
 
+        // ── search_context ────────────────────────────────────────────────────────
+        // Delegate injected by SearchContextPlugin ([InitializeOnLoad] in Chat.CLI).
+        // Decouples the assembly boundary: Editor doesn't reference Chat.CLI.
+        public static Func<string, int, string, string> SearchContextProvider { get; internal set; }
+
+        /// <summary>
+        /// Returns tab-separated lines: type\tpath\tname.
+        /// Delegate implementation provided by SearchContextPlugin (Chat.CLI assembly).
+        /// </summary>
+        public static string SearchContext(string query = "", int limit = 30, string types = null)
+        {
+            if (SearchContextProvider == null)
+                throw new InvalidOperationException("SearchContextProvider not initialized (Chat.CLI not loaded)");
+            return SearchContextProvider(query, limit, types);
+        }
+
         private static string BuildEmptyHint(string query, string rootPath = null)
         {
             var stage = PrefabStageUtility.GetCurrentPrefabStage();

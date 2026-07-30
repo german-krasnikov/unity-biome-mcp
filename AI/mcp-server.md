@@ -17,7 +17,7 @@ server/src/unity_mcp/
 ├── middleware_alias.py  # Pure alias functions (stdlib only): parse_aliases_from_hierarchy, parse_aliases_from_get_aliases, resolve_aliases_in_args, strip_alias_block
 ├── middleware_pipeline.py  # wrap_send() — assembles all hooks in order
 ├── plugin_api.py       # Stable public API for external plugins
-├── resources.py        # MCP Resources (4 URIs: hierarchy, console, editor, categories)
+├── resources.py        # MCP Resources: static (hierarchy, console, editor, categories) + dynamic (biome://go/cs/pfb/mat/so) via search_context
 ├── tools/
 │   ├── __init__.py     # Tool module registry
 │   ├── _annotations.py # MCP ToolAnnotations constants (RO, RW, RW_IDEM, DEL)
@@ -243,11 +243,27 @@ errors = await get_console_since(mark, keyword="NullRef", count_only=True)
 
 ### MCP Resources (resources.py)
 
-4 resource URIs registered:
-- `unity://scene/hierarchy` — current scene hierarchy summary
-- `unity://console/errors` — recent console errors
-- `unity://editor/state` — editor state (play mode, scene, selection)
-- `unity://tools/categories` — available tool categories
+Static and dynamic resource URIs registered with `biome://` scheme:
+
+**Static resources** (4):
+- `biome://scene/hierarchy` — current scene hierarchy summary
+- `biome://console/errors` — recent console errors
+- `biome://editor/state` — editor state (play mode, scene, selection)
+- `biome://tools/categories` — available tool categories
+
+**Dynamic resources** (auto-refreshed on connect/reconnect):
+- `biome://go/<path>` — GameObject at hierarchy path; reads via `inspect` command
+- `biome://cs/<path>` — C# script asset; reads via `asset` command
+- `biome://pfb/<path>` — Prefab asset; reads via `prefab` command
+- `biome://mat/<path>` — Material asset; reads via `material` command
+- `biome://so/<path>` — ScriptableObject asset; reads via `scriptable_object` command
+
+**Registration and refresh:**
+- `refresh_dynamic()` queries `search_context` TCP command (no args, max 200 results)
+- C# `SearchContextPlugin` returns TSV: typeCode, path, displayName
+- Python parses TSV and creates `FunctionResource` entries for each result
+- Stale URIs removed, new URIs added on each refresh
+- Called automatically on server lifespan init and on TCP reconnect
 
 ### SamplingService Singleton (v0.57.0, commit 787a397)
 

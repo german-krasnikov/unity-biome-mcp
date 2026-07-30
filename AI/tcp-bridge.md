@@ -48,6 +48,36 @@ Max message size: 10MB.
 {"ev": "going_away", "reason": "domain_reload"}
 ```
 
+### Command: search_context
+
+**Purpose:** Return searchable scene objects and assets for MCP dynamic resource registration and chat mention indexing.
+
+**Request:**
+```json
+{"id": "abc123", "cmd": "search_context", "args": {"query": "", "limit": 200, "types": null}}
+```
+
+**Args:**
+- `query` (string, optional): filter text (empty = all)
+- `limit` (int, optional): max results returned (default 30, capped at 200)
+- `types` (string, optional): restrict to type codes (`"go"` for GameObjects only, or comma-separated: `"go,cs,pfb"`)
+
+**Response Format (TSV):**
+```
+go	/Root/Player	Player
+cs	Assets/Scripts/Player.cs	Player
+pfb	Assets/Prefabs/Enemy	Enemy
+mat	Assets/Materials/Default	Default
+so	Assets/Config/Settings	Settings
+```
+
+Columns:
+1. Type code: `go` (GameObject), `cs` (C# script), `pfb` (prefab), `mat` (material), `so` (scriptable object), `scene`, `tex`, `model`, `audio`, `anim`, `shader`, `folder`, `asset`
+2. Path: hierarchy path (for go), asset path (for others)
+3. Display name: friendly label
+
+**Usage:** Python MCP Server calls this during `refresh_dynamic()` to populate the `biome://` resource catalog.
+
 ## Implementation Notes (for Developer)
 
 ### Python Client (bridge.py + bridge_heartbeat.py + bridge_reload_state.py)

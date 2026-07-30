@@ -187,6 +187,11 @@ async def _refresh_tools_cache(bridge_) -> None:
             pass
 
 
+async def _refresh_resources(bridge_) -> None:
+    from .resources import refresh_dynamic
+    await refresh_dynamic()
+
+
 async def _warm_alias_cache(bridge_) -> None:
     """Seed _alias_cache from Unity alias table on connect/reconnect. Non-fatal."""
     if bridge_ is None or _middleware is None:
@@ -356,6 +361,7 @@ async def lifespan(app):
                 await _warm_alias_cache(active)
                 await _warm_cmd_flags(active)
                 await _push_catalog(active)
+                await _refresh_resources(active)
             _last_refresh_ts: float = 0.0
 
             from .tools.sync import _reset_bump_used as _sync_reset_bump
@@ -374,6 +380,7 @@ async def lifespan(app):
                 asyncio.ensure_future(_warm_alias_cache(slot.bridge))
                 asyncio.ensure_future(_warm_cmd_flags(slot.bridge))
                 asyncio.ensure_future(_push_catalog(slot.bridge))
+                asyncio.ensure_future(_refresh_resources(slot.bridge))
             slot.add_reconnect_callback(_on_reconnect)
             slot.add_reconnect_callback(_sync_reset_bump)
             # gating.reset() is intentionally NOT wired here — automatic heartbeat

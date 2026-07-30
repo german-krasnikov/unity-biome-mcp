@@ -26,6 +26,22 @@ namespace UnityMCP.Editor
         internal const string TempScenePath = "Assets/TestsTemp/__mcp_test_temp.unity";
         private const double StaleTimeoutSec = 600.0; // 10 min max test run
 
+        private static readonly System.Reflection.MethodInfo _clearSceneDirty =
+            typeof(EditorSceneManager).GetMethod("ClearSceneDirtiness",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic,
+                null, new[] { typeof(UnityEngine.SceneManagement.Scene) }, null);
+
+        private static void ClearAllScenesDirty()
+        {
+            if (_clearSceneDirty == null) return;
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (s.isDirty)
+                    _clearSceneDirty.Invoke(null, new object[] { s });
+            }
+        }
+
         // Testable seam — override in tests to avoid Editor-uptime dependency
         internal static Func<double> GetTimeSinceStartup = () => EditorApplication.timeSinceStartup;
         internal static Func<bool> GetIsCompiling    = CommandRouter.DefaultIsCompiling;
@@ -140,17 +156,23 @@ namespace UnityMCP.Editor
 
             try
             {
-                // Unity Test Framework calls SaveCurrentModifiedScenesIfUserWantsTo
-                // which shows a modal dialog on dirty untitled scenes. Pre-save to avoid.
+                // Unity Test Framework runs EnsureUntitledSceneHasBeenSaved (path=="")
+                // and SaveCurrentModifiedScenesIfUserWantsTo (isDirty). Both show modal
+                // dialogs that block the main thread. Force a named clean scene.
                 var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-                if (scene.isDirty && string.IsNullOrEmpty(scene.path))
+                if (scene.isDirty || string.IsNullOrEmpty(scene.path))
                 {
-                    if (!AssetDatabase.IsValidFolder("Assets/TestsTemp"))
-                        AssetDatabase.CreateFolder("Assets", "TestsTemp");
-                    EditorSceneManager.SaveScene(scene, TempScenePath);
+                    if (!string.IsNullOrEmpty(scene.path) && scene.isDirty)
+                        EditorSceneManager.SaveScene(scene);
+                    else
+                    {
+                        var s = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                        var dir = Path.GetDirectoryName(TempScenePath);
+                        if (!Directory.Exists(Path.Combine(Application.dataPath, "..", dir)))
+                            Directory.CreateDirectory(Path.Combine(Application.dataPath, "..", dir));
+                        EditorSceneManager.SaveScene(s, TempScenePath);
+                    }
                 }
-                else if (scene.isDirty)
-                    EditorSceneManager.SaveScene(scene);
 
                 var api = ScriptableObject.CreateInstance<TestRunnerApi>();
                 var collector = new ResultCollector(onComplete, api);
@@ -247,19 +269,17 @@ namespace UnityMCP.Editor
                 TestResultPersistence.Save(formatted);
                 try { _onComplete?.Invoke(formatted); }
                 catch (Exception e) { Debug.LogException(e); }
+                ClearAllScenesDirty();
                 EditorApplication.delayCall += DeleteTempScene;
             }
 
             private static void DeleteTempScene()
             {
-                var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-                if (activeScene.path == TempScenePath)
-                {
-                    // Save silently before NewScene to suppress "Save modified scenes?" dialog
-                    if (activeScene.isDirty)
-                        EditorSceneManager.SaveScene(activeScene);
-                    EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-                }
+                if (_isRunning == 1) return;
+                // Never call NewScene here — it creates an untitled scene that triggers
+                // "Save Scene" file browser on the next test run or TCP operation.
+                // Leave temp scene loaded (named+clean); next run's pre-flight overwrites it.
+                // GlobalTearDown handles final scene restoration.
                 if (AssetDatabase.AssetPathToGUID(TempScenePath) != "")
                     AssetDatabase.DeleteAsset(TempScenePath);
             }

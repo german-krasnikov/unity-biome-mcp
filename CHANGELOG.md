@@ -10,6 +10,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.0] — 2026-07-30 — Dynamic resources, search context, test stability
+
+**MCP Dynamic Resources:**
+- `biome://` URI scheme for dynamic resource discovery (scene GameObjects, project assets)
+- `search_context` TCP command — tab-separated scene GO + asset search with type/limit filtering
+- `SearchContextPlugin` delegate bridge (Editor → Chat.CLI without assembly reference)
+- `AssetMentionIndex` with lazy caching and version-tracked invalidation
+- Resource refresh wired into server lifespan and reconnect lifecycle
+
+**Test run stability:**
+- `SceneDirtiedGuard` — reflection-based `ClearSceneDirtiness` utility prevents "Save Scene?" popup
+- `TestRunner` pre-flight expanded: handles untitled scenes (`path==""`) alongside dirty scenes
+- `DeleteTempScene` race condition fixed — no more `NewScene()` call that creates untitled scene mid-pipeline
+- `TestAssemblySetup.GlobalTearDown` — `Undo.ClearAll()` + `ClearAllScenesDirty()` before scene restore
+
+**Infrastructure:**
+- `VersionTracker.BumpForTest()` test seam for cache invalidation
+- 27 Python resource tests + 2 dynamic resource tests + 16 C# SearchContext NUnit tests
+
 ## [v1.6.0] — 2026-07-30 — Serializer improvements, reload fast-fail, test cleanup
 
 **Serializer text improvements:**

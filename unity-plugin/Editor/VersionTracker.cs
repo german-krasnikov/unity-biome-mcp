@@ -19,5 +19,12 @@ namespace UnityMCP.Editor
         {
             System.Threading.Interlocked.Increment(ref _version);
         }
+
+        // Test seam: force-dirty the version so SceneMentionIndex rebuilds on next Search.
+        // Call after new GameObject() in EditMode tests where hierarchyChanged may not fire synchronously.
+        internal static void BumpForTest()
+        {
+            System.Threading.Interlocked.Increment(ref _version);
+        }
     }
 }

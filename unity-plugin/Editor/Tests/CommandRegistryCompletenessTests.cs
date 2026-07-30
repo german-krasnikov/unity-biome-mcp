@@ -33,7 +33,7 @@ namespace UnityMCP.Editor.Tests
             "ping", "ping_object", "prefab", "profile", "project_settings", "query_state", "recompile",
             "references", "region_clear", "rename_object", "render_analyze", "resolve_scene_refs", "run_playtest", "run_tests", "runtime_snapshot", "scan_scene",
             "scene", "scene_diff", "scene_environment", "scene_health", "screenshot",
-            "scriptable_object", "search_scene", "serialized_field_rename_audit", "set_active", "set_client_label", "set_material", "set_parent",
+            "scriptable_object", "search_context", "search_scene", "serialized_field_rename_audit", "set_active", "set_client_label", "set_material", "set_parent",
             "set_property", "set_property_delta", "set_rect", "set_runtime_property",
             "set_sibling_index", "set_tool_catalog", "shader", "spatial_query", "sync", "sync_playtest_aliases_from_defs", "sync_status", "test_step",
             "timeline", "transfer_object", "undo_last", "unwire_event", "validate_layout",
