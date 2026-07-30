@@ -1,6 +1,6 @@
 [project]
 name = "unity-biome-mcp"
-version = "1.7.1"
+version = "1.7.2"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]
