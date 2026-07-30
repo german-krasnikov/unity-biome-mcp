@@ -1,20 +1,15 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestRunnerTests
+    public class PlaytestRunnerTests : SceneTestBase
     {
         [TearDown]
-        public void TearDown()
-        {
-            ConsoleCapture.Clear();
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        }
+        public void TearDown() => ConsoleCapture.Clear();
 
         // ── ResolveCharacterPath ──────────────────────────────────────────────
 

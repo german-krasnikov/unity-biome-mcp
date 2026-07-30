@@ -1,6 +1,8 @@
 // TDD — RED first. Tests drive ToolPing contract.
 // EditMode: real GameObject creation allowed. EditorGUIUtility.PingObject is no-op in batch.
 using NUnit.Framework;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
 
@@ -15,6 +17,8 @@ namespace UnityMCP.Editor.Chat.Tests
         public void TearDown()
         {
             if (_go != null) Object.DestroyImmediate(_go);
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
         }
 
         // ── ExtractPath ───────────────────────────────────────────────────────

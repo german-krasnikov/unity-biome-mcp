@@ -10,6 +10,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.0] — 2026-07-30 — Serializer improvements, reload fast-fail, test cleanup
+
+**Serializer text improvements:**
+- Animation curves use compact `time:value` format with property aliases (`$pos`, `$rot`, `$scale`)
+- Timeline track binding uses arrow syntax (`→ /ObjectName`)
+- Animator serializer includes transition conditions and exit time
+
+**Bridge and connection:**
+- `send()` fast-fails with `DomainReloadError` during active domain reload (no TCP hang)
+- `RefManager.Invalidate` deferred from connection to first slow-path command
+- `IsSlowPath` seam for fast-path classification (ping, get_version, status, get_enabled_tools)
+
+**Test cleanup hardening:**
+- 22 C# test classes fixed: `SceneTestBase` inheritance, `Undo.ClearAll()` after `NewScene`
+- `SceneCleanTestBase` infrastructure: added `Undo.ClearAll()` to prevent dirty scene flag
+- Python live test fixtures: property mutation revert for gridtest, orphan_guard scene save
+- `PortFileManagerTests`: `ResetForTests()` + try/finally port restore
+
+**Quality gates:**
+- Code reviewer rules hardened: `SceneTestBase` mandatory (Critical), property mutation revert (Major)
+- Test quality checklist updated with scene cleanup and property mutation patterns
+
 ## [v1.5.0] — 2026-07-30 — Client workflow guidance
 
 **Client skills and agents:**

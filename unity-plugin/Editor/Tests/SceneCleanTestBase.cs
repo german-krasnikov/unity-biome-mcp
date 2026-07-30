@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -26,6 +27,7 @@ namespace UnityMCP.Editor.Tests
             var leakedNames = leaked.Select(g => g.name).ToList();
             foreach (var go in leaked)
                 Object.DestroyImmediate(go);
+            Undo.ClearAll();
             if (leakedNames.Count > 0)
                 Assert.Fail($"Test leaked {leakedNames.Count} root objects (cleaned up): " +
                     string.Join(", ", leakedNames));

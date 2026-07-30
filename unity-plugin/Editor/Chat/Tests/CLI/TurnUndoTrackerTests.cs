@@ -1,7 +1,8 @@
 // TDD — RED first. Tests for TurnUndoTracker (scenarios 7-14 + generation test, Feature F6).
 using NUnit.Framework;
-using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
@@ -13,6 +14,13 @@ namespace UnityMCP.Editor.Chat.Tests
 
         [SetUp]
         public void SetUp() => _tracker = new TurnUndoTracker();
+
+        [TearDown]
+        public void TearDown()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
+        }
 
         // --- 7. OnTurnStart → HasRestorableGroup == false (turn not ended yet) --
         [Test]

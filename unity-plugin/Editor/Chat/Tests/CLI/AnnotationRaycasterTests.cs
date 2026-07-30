@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor.Chat.Annotation;
 
@@ -19,7 +21,12 @@ namespace UnityMCP.Editor.Chat.Tests
     internal sealed class AnnotationRaycasterTests
     {
         [SetUp]    public void SetUp()    => AnnotationRaycaster.RaycastFunc = null;
-        [TearDown] public void TearDown() => AnnotationRaycaster.RaycastFunc = null;
+        [TearDown] public void TearDown()
+        {
+            AnnotationRaycaster.RaycastFunc = null;
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
+        }
 
         // ── AnnotationHit ──────────────────────────────────────────────────────
 

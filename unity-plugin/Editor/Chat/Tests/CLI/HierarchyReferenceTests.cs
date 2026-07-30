@@ -1,6 +1,7 @@
 // TDD tests for HierarchyReference parsing and HierarchyResolver fallback chain.
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
 
@@ -9,6 +10,13 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class HierarchyReferenceTests
     {
+        [TearDown]
+        public void TearDown()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
+        }
+
         // ── Parsing ───────────────────────────────────────────────────────────
 
         [Test]

@@ -1,8 +1,9 @@
 // TDD — CopyAsMcpRef: FormatAsRef + CopySelection logic tests.
 // Tests FormatAsRef pipeline and CopySelection behavior without invoking real MenuItems.
 using NUnit.Framework;
-using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
@@ -27,6 +28,8 @@ namespace UnityMCP.Editor.Chat.Tests
             foreach (var go in _created)
                 if (go != null) Object.DestroyImmediate(go);
             ChipKindRegistry.ResetToBuiltIns();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
         }
 
         private GameObject MakeGo(string name)

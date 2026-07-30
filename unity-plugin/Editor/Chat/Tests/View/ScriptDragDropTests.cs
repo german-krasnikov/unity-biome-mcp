@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
 
@@ -12,7 +13,12 @@ namespace UnityMCP.Editor.Chat.Tests
     public class ScriptDragDropTests
     {
         [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [TearDown] public void TearDown()
+        {
+            ChipKindRegistry.ResetToBuiltIns();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
+        }
 
         private List<(Object obj, string path, string name)> _chips;
         private void Capture(Object obj, string path, string name)

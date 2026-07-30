@@ -417,6 +417,9 @@ namespace UnityMCP.Editor
 
         internal static AnimatorController GetController(string path)
         {
+            if (path.EndsWith(".controller", StringComparison.OrdinalIgnoreCase))
+                return AssetDatabase.LoadAssetAtPath<AnimatorController>(path);
+
             var go = ComponentSerializer.FindObject(path);
             if (go == null) throw new InvalidOperationException(ErrorHelper.ObjectNotFound(path));
 

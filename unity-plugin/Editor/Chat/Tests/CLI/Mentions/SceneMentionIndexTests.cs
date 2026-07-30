@@ -3,6 +3,8 @@
 // GameObject creation is used for Search_MatchesByName.
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
 
@@ -23,6 +25,8 @@ namespace UnityMCP.Editor.Chat.Tests
             foreach (var go in _created)
                 if (go != null) Object.DestroyImmediate(go);
             _created.Clear();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
         }
 
         private GameObject CreateGO(string name)

@@ -5,7 +5,7 @@ import struct
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
-from unity_mcp.bridge import UnityBridge
+from unity_mcp.bridge import UnityBridge, DomainReloadError
 from helpers import make_writer, make_idle_probe, reconnect_preamble
 
 
@@ -184,3 +184,16 @@ async def test_reload_gate_always_clears_on_domain_reload():
         "gate.clear() was never called when connected=True; "
         "fix: remove `if not self.connected:` guard before gate.clear()"
     )
+
+
+# ---------------------------------------------------------------------------
+# Fast-fail during active domain reload
+# ---------------------------------------------------------------------------
+
+async def test_send_fast_fails_during_domain_reload():
+    """send() raises DomainReloadError immediately when _reload.is_active()."""
+    bridge = UnityBridge(probe=make_idle_probe())
+    bridge._reload.mark()
+
+    with pytest.raises(DomainReloadError):
+        await bridge.send("ping", {})

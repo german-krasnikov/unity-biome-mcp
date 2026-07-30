@@ -5,14 +5,10 @@ using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
-    public class SceneRefResolverTests
+    public class SceneRefResolverTests : SceneTestBase
     {
         [SetUp]
         public void FreshScene() =>
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
-        [TearDown]
-        public void CleanScene() =>
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         [Test]

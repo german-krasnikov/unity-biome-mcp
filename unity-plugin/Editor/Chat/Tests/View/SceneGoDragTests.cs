@@ -3,6 +3,8 @@
 // No window needed — ProcessDraggedObject is a static method.
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
 using Object = UnityEngine.Object;
@@ -27,6 +29,8 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             ChipKindRegistry.ResetToBuiltIns();
             ChipPillFactory.ColorResolver = null;
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
         }
 
         private void Capture(Object o, string p, string n) => _chips.Add((o, p, n));

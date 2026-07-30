@@ -187,12 +187,8 @@ def main():
   - Socket: `TCP_NODELAY`, `SO_KEEPALIVE` (macOS: idle=60s, interval=10s, count=3)
   - Heartbeat: 15s interval, raw ping, 3 failures → close, 2s polling when disconnected (5s if compile busy)
   - Reconnect backoff (v0.52.7): exponential (5s→60s, reset on success, ±10% jitter), cooldown re-armed on every attempt. Ping verification, fires callbacks
-  - DomainReloadError on Unity `going_away` event frame
-  - **ConnectionRefused on domain reload:** When Unity closes the TCP port during a domain
-    reload, `bridge.send()` receives a `ConnectionRefusedError`. The bridge retries with
-    the same exponential backoff (5s→60s) instead of surfacing the error immediately.
-    Commands issued during a reload (`execute_code`, `get_compile_errors`, etc.) naturally
-    recover without caller retries.
+  - **DomainReloadError fast-fail (v0.81.4):** `send()` raises `DomainReloadError("Domain reload in progress — retry after recompile")` immediately on entry if reload state is active (checked via `_reload.is_active()`). No retry inside send(); caller must handle timeout/retry post-recompile. Reload state tracked independently via `DomainReloadTracker` (90s expiry window, marked when `going_away` event fires or explicit reload detection).
+  - **ConnectionRefused during reload:** When Unity closes TCP during domain reload, bridge detects it through stale reload state + connection failure pattern. Fast-fail gate prevents commands from queuing during reload window.
 
 ### Server Control (server_control.py)
 

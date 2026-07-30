@@ -44,42 +44,46 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd();
         }
 
-        private static void AppendTrackSummary(StringBuilder sb, TrackAsset track, PlayableDirector director)
+        private static void AppendTrackSummary(StringBuilder sb, TrackAsset track, PlayableDirector director, int indent = 0)
         {
             // For GroupTrack, show group and children
             if (track is GroupTrack)
             {
-                sb.Append("[Group] ").AppendLine(track.name);
+                sb.Append(new string(' ', indent * 2)).Append("[Group] ").AppendLine(track.name);
                 foreach (var child in track.GetChildTracks())
-                    AppendTrackSummary(sb, child, director);
+                    AppendTrackSummary(sb, child, director, indent + 1);
                 return;
             }
 
-            sb.Append("[").Append(TrackTypeName(track)).Append("] ").Append(track.name);
+            sb.Append(new string(' ', indent * 2)).Append("[").Append(TrackTypeName(track)).Append("] ").Append(track.name);
 
-            // Binding
+            // Binding (compact: → /Name, silence when unbound)
             if (director != null)
             {
                 var bound = director.GetGenericBinding(track);
                 if (bound != null)
                 {
                     if (bound is GameObject go)
-                        sb.Append(" | bound: /").Append(go.name);
+                        sb.Append(" → /").Append(go.name);
                     else if (bound is Component comp)
-                        sb.Append(" | bound: /").Append(comp.gameObject.name);
+                        sb.Append(" → /").Append(comp.gameObject.name);
                     else
-                        sb.Append(" | bound: ").Append(bound.name);
+                        sb.Append(" → ").Append(bound.name);
                 }
-                else
-                    sb.Append(" | unbound");
+                // unbound: silence
             }
-            else
-                sb.Append(" | unbound");
+            // no director: silence
 
-            // Clip count
+            // Clip / marker count
             int clipCount = 0;
             foreach (var _ in track.GetClips()) clipCount++;
-            sb.Append(" | ").Append(clipCount).Append(clipCount == 1 ? " clip" : " clips");
+            int markerCount = 0;
+            foreach (var _ in track.GetMarkers()) markerCount++;
+
+            if (clipCount == 0 && markerCount > 0)
+                sb.Append(" | ").Append(markerCount).Append(markerCount == 1 ? " marker" : " markers");
+            else
+                sb.Append(" | ").Append(clipCount).Append(clipCount == 1 ? " clip" : " clips");
 
             // Flags
             if (track.muted) sb.Append(" | muted");
@@ -87,14 +91,33 @@ namespace UnityMCP.Editor
 
             sb.AppendLine();
 
-            // Inline clip listing (capped at 10 to keep tokens tight)
-            int ci = 0;
-            foreach (var clip in track.GetClips())
+            // Inline listing (capped at 10)
+            if (clipCount == 0 && markerCount > 0)
             {
-                if (ci >= 10) { sb.AppendLine("  ..."); break; }
-                sb.Append("  ");
-                AppendClip(sb, clip);
-                ci++;
+                int mi = 0;
+                foreach (var marker in track.GetMarkers())
+                {
+                    if (mi >= 10) { sb.Append(new string(' ', indent * 2 + 2)).AppendLine("..."); break; }
+                    sb.Append(new string(' ', indent * 2 + 2));
+                    sb.Append(marker.time.ToString("F1", CultureInfo.InvariantCulture)).Append("s: ");
+                    if (marker is SignalEmitter se && se.asset != null)
+                        sb.Append("\"").Append(se.asset.name).Append("\"");
+                    else
+                        sb.Append(marker.GetType().Name);
+                    sb.AppendLine();
+                    mi++;
+                }
+            }
+            else
+            {
+                int ci = 0;
+                foreach (var clip in track.GetClips())
+                {
+                    if (ci >= 10) { sb.Append(new string(' ', indent * 2 + 2)).AppendLine("..."); break; }
+                    sb.Append(new string(' ', indent * 2 + 2));
+                    AppendClip(sb, clip);
+                    ci++;
+                }
             }
         }
 
@@ -113,12 +136,10 @@ namespace UnityMCP.Editor
                 if (bound != null)
                 {
                     if (bound is Component comp)
-                        sb.Append(" | bound: /").Append(comp.gameObject.name);
+                        sb.Append(" → /").Append(comp.gameObject.name);
                     else if (bound is GameObject go)
-                        sb.Append(" | bound: /").Append(go.name);
+                        sb.Append(" → /").Append(go.name);
                 }
-                else
-                    sb.Append(" | unbound");
             }
             sb.AppendLine();
             sb.AppendLine("---");

@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityMCP.Editor.Chat;
@@ -32,6 +33,8 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (go != null) Object.DestroyImmediate(go);
             _created.Clear();
             ChipKindRegistry.ResetToBuiltIns();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
         }
 
         private GameObject Make(string name)

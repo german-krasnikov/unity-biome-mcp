@@ -180,6 +180,8 @@ class UnityBridge(HeartbeatMixin):
         return self._retry_policy.probe_busy()
 
     async def send(self, cmd: str, args: dict, timeout: float = 30.0) -> dict:
+        if self._reload.is_active():
+            raise DomainReloadError("Domain reload in progress — retry after recompile")
         if self._state == BridgeState.FAILED:
             if not self._reconnect_cooldown_ok():
                 raise ConnectionError("Reconnect cooldown active — retry in a moment")

@@ -24,7 +24,7 @@ namespace UnityMCP.Editor
             var sb = new StringBuilder();
             var paramCount = ctrl.parameters.Length;
             var totalStates = 0;
-            foreach (var l in ctrl.layers) totalStates += l.stateMachine.states.Length;
+            foreach (var l in ctrl.layers) totalStates += CountStates(l.stateMachine);
 
             sb.Append("AnimatorController: ").Append(ctrl.name);
             sb.Append(" | ").Append(ctrl.layers.Length).Append(" layer");
@@ -68,6 +68,8 @@ namespace UnityMCP.Editor
                 sb.Append("states [").Append(layer.name);
                 sb.Append(" w:").Append(layer.defaultWeight.ToString("G4", CultureInfo.InvariantCulture));
                 sb.Append(" blend:").Append(layer.blendingMode.ToString());
+                if (layer.avatarMask != null)
+                    sb.Append(" mask:").Append(layer.avatarMask.name);
                 sb.AppendLine("]:");
                 var defaultState = sm.defaultState;
                 foreach (var cs in sm.states)
@@ -80,10 +82,21 @@ namespace UnityMCP.Editor
                         sb.Append(" | [BT:").Append(motionBt.blendType).Append(' ').Append(motionBt.children.Length).Append("ch]");
                     else if (st.motion != null)
                         sb.Append(" | ").Append(st.motion.name).Append(st.motion.name.EndsWith(".anim") ? "" : ".anim");
-                    sb.Append(" | ").Append(st.speed.ToString("G4", CultureInfo.InvariantCulture)).Append("x");
+                    if (st.speedParameterActive && !string.IsNullOrEmpty(st.speedParameter))
+                        sb.Append(" | speed:").Append(st.speedParameter);
+                    else
+                        sb.Append(" | ").Append(st.speed.ToString("G4", CultureInfo.InvariantCulture)).Append("x");
                     if (!string.IsNullOrEmpty(st.tag))
                         sb.Append(" | tag:").Append(st.tag);
+                    if (!st.writeDefaultValues)
+                        sb.Append(" !wdv");
                     sb.AppendLine();
+                }
+                foreach (var child in sm.stateMachines)
+                {
+                    sb.Append("  [SSM:").Append(child.stateMachine.name)
+                      .Append("] +").Append(CountStates(child.stateMachine))
+                      .AppendLine(" states");
                 }
                 AppendTransitions(sb, sm);
             }
@@ -167,6 +180,14 @@ namespace UnityMCP.Editor
                 sb.Append(" | ").Append(t.duration.ToString("G4", CultureInfo.InvariantCulture)).Append("s");
                 sb.AppendLine();
             }
+        }
+
+        private static int CountStates(AnimatorStateMachine sm)
+        {
+            var count = sm.states.Length;
+            foreach (var child in sm.stateMachines)
+                count += CountStates(child.stateMachine);
+            return count;
         }
 
         public static string SerializeBlendTree(BlendTree bt)

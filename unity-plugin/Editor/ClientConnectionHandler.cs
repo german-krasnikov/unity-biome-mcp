@@ -89,11 +89,16 @@ namespace UnityMCP.Editor
             _                => role,
         };
 
+        // internal so tests can verify fast-path / slow-path classification without TCP.
+        internal static bool IsSlowPath(string cmd) =>
+            cmd != "ping" && cmd != "get_version" && cmd != "status" && cmd != "get_enabled_tools";
+
         private static async Task HandleClientAsync(TcpClient client, ClientSlot slot, int index, long generation,
             string label, CancellationToken clientToken)
         {
             var endPoint = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
             var receivedFirstMessage = false;
+            var refInvalidated = false;
             try
             {
                 using (client)
@@ -126,7 +131,7 @@ namespace UnityMCP.Editor
                             var role = JsonHelper.ExtractString(json, "role");
                             if (!string.IsNullOrEmpty(role)) label = RoleToLabel(role);
                             var ep0 = endPoint; var lbl0 = label;
-                            MainThreadDispatcher.Enqueue(() => { Debug.Log($"[MCP] {lbl0} connected from {ep0}"); RefManager.Invalidate(); });
+                            MainThreadDispatcher.Enqueue(() => Debug.Log($"[MCP] {lbl0} connected from {ep0}"));
                             receivedFirstMessage = true;
                         }
 
@@ -167,12 +172,17 @@ namespace UnityMCP.Editor
                         using var cmdTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSec));
                         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
                             clientToken, cmdTimeout.Token);
+                        // Invalidate on first slow-path command (not on connection, not on fast-path probes).
+                        var needsInvalidate = !refInvalidated;
                         MainThreadDispatcher.Enqueue(() =>
                         {
                             // Skip if Python already gave up (per-command timeout fired and
                             // sent retry:2000) — prevents the queued action running a 2nd time
                             // after Python re-sent it → duplicate mutations.
                             if (MCPServer._shuttingDown || tcs.Task.IsCompleted) { tcs.TrySetCanceled(); return; }
+                            // Set flag inside lambda so it stays false if the guard above cancels.
+                            // Safe: await tcs.Task on pump thread happens-after this write.
+                            if (needsInvalidate) { RefManager.Invalidate(); refInvalidated = true; }
                             try
                             {
                                 CommandRouter.ProcessAsync(json, tcs);

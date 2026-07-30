@@ -394,7 +394,7 @@ async def test_timeline_get_calls_bridge(mock_bridge):
 
 async def test_timeline_get_with_track(mock_bridge):
     """timeline get with track name sends both path and track"""
-    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Animation | Character\nClips: 1\n0.0s-2.0s | Walk | bound: Character"})
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "[Animation] Character → /Character\nClips: 1\n0.0s-2.0s | Walk"})
     result = await timeline(action="get", path="/CutsceneManager", track="Character")
     mock_bridge.send.assert_called_once_with("timeline", {"action": "get", "path": "/CutsceneManager", "track": "Character"}, timeout=30.0)
     assert "Character" in result

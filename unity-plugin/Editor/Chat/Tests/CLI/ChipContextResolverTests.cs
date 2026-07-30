@@ -3,6 +3,8 @@
 // New: custom kind through ResolveAllTyped pipeline.
 using NUnit.Framework;
 using System.Collections.Generic;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
 
@@ -28,6 +30,8 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (go != null) Object.DestroyImmediate(go);
             ChipContextResolver.FindObjectOverride = null;
             ChipKindRegistry.ResetToBuiltIns();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
         }
 
         private GameObject MakeGo(string name, GameObject parent = null)

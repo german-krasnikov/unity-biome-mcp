@@ -2,22 +2,13 @@
 // Run in Unity Test Runner → EditMode.
 using NUnit.Framework;
 using UnityEngine;
-using UnityEditor.SceneManagement;
 using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ObjectComponentTests
+    public class ObjectComponentTests : SceneTestBase
     {
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var go in Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None))
-                if (go.name == "DupObj")
-                    Object.DestroyImmediate(go);
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        }
 
         // ── CreateObject with duplicate name ─────────────────────────────────
 

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class AnimatorCommandAliasTests
+    public class AnimatorCommandAliasTests : SceneTestBase
     {
         private GameObject _go;
         private const string Name = "AnimatorAlias_Test";

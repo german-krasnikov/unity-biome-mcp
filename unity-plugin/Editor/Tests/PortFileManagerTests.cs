@@ -21,6 +21,7 @@ namespace UnityMCP.Editor.Tests
         public void TearDown()
         {
             try { Directory.Delete(_tempDir, recursive: true); } catch { }
+            PortFileManager.ResetForTests();
         }
 
         // ── CleanStalePeerPortFiles ───────────────────────────────────────────
@@ -95,15 +96,24 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SaveRuntimePorts_DoesNotModifySettings()
         {
-            // Derive the same path PortFileManager uses internally.
             var settingsPath = Path.GetFullPath(
                 Path.Combine(UnityEngine.Application.dataPath, "..", "ProjectSettings", "MCPSettings.json"));
+            var portJsonPath = Path.GetFullPath(
+                Path.Combine(UnityEngine.Application.dataPath, "..", "Library", "MCP_Port.json"));
             var before = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
+            var portJsonBefore = File.Exists(portJsonPath) ? File.ReadAllText(portJsonPath) : null;
+            try
+            {
+                PortFileManager.SaveRuntimePorts(9999, 10000);
 
-            PortFileManager.SaveRuntimePorts(9999, 10000);
-
-            var after = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
-            Assert.AreEqual(before, after, "SaveRuntimePorts must not touch MCPSettings.json");
+                var after = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
+                Assert.AreEqual(before, after, "SaveRuntimePorts must not touch MCPSettings.json");
+            }
+            finally
+            {
+                if (portJsonBefore != null) File.WriteAllText(portJsonPath, portJsonBefore);
+                else if (File.Exists(portJsonPath)) File.Delete(portJsonPath);
+            }
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

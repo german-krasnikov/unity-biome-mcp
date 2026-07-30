@@ -10,8 +10,20 @@ Run: pytest tests/live/test_gridtest_movement.py -v -m live
 """
 import asyncio
 import pytest
+import pytest_asyncio
 
 from tests.live.conftest import _data, _reset, PLAYER, COMP
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def reset_grid_speed(play_session):
+    yield
+    try:
+        await play_session.send("set_runtime_property", {
+            "path": PLAYER, "component": COMP, "field": "MoveSpeed", "value": "5"
+        })
+    except Exception:
+        pass
 
 pytestmark = pytest.mark.live
 

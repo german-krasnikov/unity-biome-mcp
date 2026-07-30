@@ -6,14 +6,10 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SceneRefLinterTests
+    public class SceneRefLinterTests : SceneTestBase
     {
         [SetUp]
         public void FreshScene() =>
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
-        [TearDown]
-        public void CleanScene() =>
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         [Test]

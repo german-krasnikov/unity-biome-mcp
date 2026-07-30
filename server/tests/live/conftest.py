@@ -229,6 +229,10 @@ async def _orphan_guard(bridge):
                 )})
             except Exception:
                 pass
+        try:
+            await bridge.send("editor", {"action": "save_scene"})
+        except Exception:
+            pass
         pytest.fail(f"Test leaked {len(leaked)} root objects (cleaned up): {', '.join(leaked)}")
     except Exception:
         pass

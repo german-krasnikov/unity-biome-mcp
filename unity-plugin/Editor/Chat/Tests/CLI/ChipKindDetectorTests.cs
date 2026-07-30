@@ -2,8 +2,9 @@
 // H6: ChipKind enum removed; assertions use ChipKindKeys string constants.
 // ShortPrefix removed — Key IS the prefix.
 using NUnit.Framework;
-using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
@@ -12,7 +13,12 @@ namespace UnityMCP.Editor.Chat.Tests
     public class ChipKindDetectorTests
     {
         [SetUp]  public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [TearDown] public void TearDown()
+        {
+            ChipKindRegistry.ResetToBuiltIns();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Undo.ClearAll();
+        }
 
         // ── Scene GameObject ──────────────────────────────────────────────────
 

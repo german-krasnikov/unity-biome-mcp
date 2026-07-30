@@ -17,6 +17,10 @@ namespace UnityMCP.Editor
         private static int _chatPort;
         private static bool _portsResolved;
 
+#if UNITY_INCLUDE_TESTS
+        internal static void ResetForTests() { _port = 0; _chatPort = 0; _portsResolved = false; }
+#endif
+
         private static string ReadPortFileOrNull()
         {
             try { return File.Exists(PortFilePath) ? File.ReadAllText(PortFilePath) : null; }
