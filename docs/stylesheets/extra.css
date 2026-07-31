@@ -1,0 +1,904 @@
+/* ══════════════════════════════════════════════════════════════════
+   Unity Biome MCP — Pipedream-replica theme for MkDocs Material
+   Source: pipedream.com/docs/ (July 2026)
+   Green-tinted gray palette, 16px radii, border-not-shadow design
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Tokens ──────────────────────────────────────────────────────── */
+
+:root {
+  --pd-primary:       #095c32;
+  --pd-primary-10:    rgba(9, 92, 50, 0.1);
+
+  --pd-gray-50:       #f3f5f4;
+  --pd-gray-100:      #eef0ef;
+  --pd-gray-200:      #dee1e0;
+  --pd-gray-300:      #ced0cf;
+  --pd-gray-400:      #9ea1a0;
+  --pd-gray-500:      #707271;
+  --pd-gray-600:      #505251;
+  --pd-gray-700:      #3e4140;
+  --pd-gray-800:      #252826;
+  --pd-gray-900:      #171918;
+  --pd-gray-950:      #0a0d0b;
+
+  --pd-bg:            #ffffff;
+  --pd-bg-code:       #282d3e;
+  --pd-border:        var(--pd-gray-100);
+  --pd-border-subtle: rgba(10, 13, 11, 0.10);
+
+  /* Animation tokens */
+  --anim-enter:       400ms cubic-bezier(0.22, 1, 0.36, 1);
+  --anim-hover:       200ms ease;
+  --anim-fast:        150ms ease;
+  --anim-stagger:     60ms;
+  --anim-distance:    12px;
+
+  /* Material overrides */
+  --md-primary-fg-color:      var(--pd-bg);
+  --md-primary-bg-color:      var(--pd-gray-900);
+  --md-accent-fg-color:       var(--pd-primary);
+  --md-default-bg-color:      var(--pd-bg);
+  --md-typeset-a-color:       var(--pd-gray-900);
+  --md-typeset-color:         var(--pd-gray-600);
+  --md-code-bg-color:         var(--pd-gray-50);
+}
+
+[data-md-color-scheme="slate"] {
+  --pd-primary:       #19f995;
+  --pd-primary-10:    rgba(25, 249, 149, 0.1);
+
+  --pd-bg:            #090e0e;
+  --pd-bg-code:       #0B0C0E;
+  --pd-border:        var(--pd-gray-800);
+  --pd-border-subtle: rgba(255, 255, 255, 0.10);
+
+  --md-default-bg-color:      var(--pd-bg);
+  --md-default-fg-color:      var(--pd-gray-200);
+  --md-default-fg-color--light: var(--pd-gray-400);
+  --md-primary-fg-color:      var(--pd-bg);
+  --md-primary-bg-color:      var(--pd-gray-200);
+  --md-accent-fg-color:       var(--pd-primary);
+  --md-typeset-a-color:       #ffffff;
+  --md-typeset-color:         var(--pd-gray-400);
+  --md-code-bg-color:         var(--pd-bg-code);
+}
+
+/* ── Typography ──────────────────────────────────────────────────── */
+
+.md-typeset {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--pd-gray-600);
+}
+
+[data-md-color-scheme="slate"] .md-typeset {
+  color: var(--pd-gray-400);
+}
+
+.md-typeset h1 {
+  font-size: 2.25em;
+  font-weight: 800;
+  line-height: 1.111;
+  letter-spacing: -0.025em;
+  color: var(--pd-gray-900);
+  border: none;
+  margin-bottom: 0.889em;
+}
+
+.md-typeset h2 {
+  font-size: 1.625em;
+  font-weight: 700;
+  line-height: 1.333;
+  letter-spacing: -0.025em;
+  margin-top: 2em;
+  padding-bottom: 0;
+  border-bottom: none;
+  color: var(--pd-gray-900);
+}
+
+.md-typeset h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.025em;
+  color: var(--pd-gray-900);
+}
+
+.md-typeset h4 {
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--pd-gray-900);
+}
+
+[data-md-color-scheme="slate"] .md-typeset h1,
+[data-md-color-scheme="slate"] .md-typeset h2,
+[data-md-color-scheme="slate"] .md-typeset h3,
+[data-md-color-scheme="slate"] .md-typeset h4 {
+  color: #ffffff;
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+
+.md-header {
+  background: var(--pd-bg) !important;
+  color: var(--pd-gray-900) !important;
+  box-shadow: none;
+  border-bottom: 1px solid var(--pd-border-subtle);
+  transition: background 0.5s ease;
+}
+
+.md-header--shadow {
+  box-shadow: none;
+  border-bottom: 1px solid var(--pd-border-subtle);
+}
+
+.md-header .md-header__title {
+  color: var(--pd-gray-900);
+  font-weight: 600;
+}
+
+.md-header .md-header__button,
+.md-header .md-header__topic {
+  color: var(--pd-gray-900) !important;
+}
+
+[data-md-color-scheme="slate"] .md-header .md-header__button,
+[data-md-color-scheme="slate"] .md-header .md-header__topic,
+[data-md-color-scheme="slate"] .md-header .md-header__title {
+  color: var(--pd-gray-200) !important;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────── */
+
+.md-tabs {
+  background: var(--pd-bg) !important;
+  border-bottom: 1px solid var(--pd-border-subtle);
+}
+
+.md-tabs__link {
+  color: var(--pd-gray-500) !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 1;
+  transition: color 0.15s ease;
+}
+
+.md-tabs__link:hover {
+  color: var(--pd-gray-900) !important;
+}
+
+[data-md-color-scheme="slate"] .md-tabs__link:hover {
+  color: var(--pd-gray-200) !important;
+}
+
+.md-tabs__link--active {
+  color: var(--pd-primary) !important;
+  border-bottom: 1.5px solid var(--pd-primary);
+}
+
+[data-md-color-scheme="slate"] .md-tabs__link {
+  color: #8e908f !important;
+}
+
+@media screen and (min-width: 76.25em) and (max-width: 100em) {
+  .md-tabs__list {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .md-tabs__list::-webkit-scrollbar { display: none; }
+  .md-tabs__item { flex-shrink: 0; }
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────── */
+
+.md-sidebar--primary {
+  border-right: none;
+}
+
+.md-sidebar--secondary {
+  border-left: none;
+}
+
+.md-nav__link {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--pd-gray-700);
+  border-radius: 12px;
+  padding: 6px 12px 6px 16px;
+  transition: background-color 0.3s ease, color 0.15s ease;
+}
+
+[data-md-color-scheme="slate"] .md-nav__link {
+  color: var(--pd-gray-400);
+}
+
+.md-nav__link:hover {
+  color: var(--pd-gray-900);
+  background: rgba(80, 82, 81, 0.05);
+}
+
+[data-md-color-scheme="slate"] .md-nav__link:hover {
+  color: var(--pd-gray-300);
+  background: rgba(222, 225, 224, 0.05);
+}
+
+.md-nav__link--active {
+  color: var(--pd-primary) !important;
+  background: var(--pd-primary-10) !important;
+  font-weight: 500;
+  text-shadow: -0.15px 0 0 currentColor;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+.md-nav__item--nested > .md-nav__link {
+  font-weight: 600;
+  color: var(--pd-gray-900);
+}
+
+[data-md-color-scheme="slate"] .md-nav__item--nested > .md-nav__link {
+  color: var(--pd-gray-200);
+}
+
+/* TOC (right sidebar) */
+.md-nav--secondary .md-nav__link--active {
+  color: var(--pd-primary) !important;
+  text-shadow: -0.15px 0 0 currentColor;
+}
+
+/* ── Content — full width ────────────────────────────────────────── */
+
+.md-content__inner {
+  max-width: none;
+  margin-top: 0;
+  margin-bottom: 3.5rem;
+  animation: fadeSlideUp var(--anim-enter) both;
+}
+
+/* ── Links — border-bottom, not underline ────────────────────────── */
+
+/* REASON: Two-state underline via ::after with scaleX transform.
+   Resting: thin underline visible (scaleX=1) for discoverability.
+   Hover: color shifts to primary simultaneously with text.
+   transform: scaleX is GPU-composited — zero layout/paint cost.
+   ::after avoids border-bottom which can't animate width smoothly. */
+.md-typeset a {
+  text-decoration: none;
+  color: var(--pd-gray-900);
+  font-weight: inherit;
+  border-bottom: none;
+  position: relative;
+  transition: color var(--anim-hover);
+}
+
+.md-typeset a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 1px;
+  background: var(--pd-border);
+  transform-origin: left;
+  transition: background var(--anim-hover), transform var(--anim-hover);
+}
+
+.md-typeset a:hover {
+  color: var(--pd-primary);
+}
+
+.md-typeset a:hover::after {
+  background: var(--pd-primary);
+}
+
+[data-md-color-scheme="slate"] .md-typeset a {
+  color: #ffffff;
+}
+
+[data-md-color-scheme="slate"] .md-typeset a::after {
+  background: var(--pd-gray-700);
+}
+
+[data-md-color-scheme="slate"] .md-typeset a:hover {
+  color: var(--pd-primary);
+}
+
+[data-md-color-scheme="slate"] .md-typeset a:hover::after {
+  background: var(--pd-primary);
+}
+
+.md-nav a,
+.md-header a,
+.md-tabs a,
+.md-footer a,
+.md-source a,
+.headerlink,
+.md-typeset .md-content__button {
+  border-bottom: none !important;
+  font-weight: inherit;
+}
+
+/* Kill animated underline on non-content links */
+.md-nav a::after,
+.md-header a::after,
+.md-tabs a::after,
+.md-footer a::after,
+.md-source a::after,
+.headerlink::after,
+.md-typeset .md-content__button::after,
+.ubm-hero-actions a::after {
+  display: none !important;
+}
+
+/* ── Code — inline ───────────────────────────────────────────────── */
+
+.md-typeset code {
+  font-size: 0.875em;
+  padding: 0.125em 0.5em;
+  border-radius: 5px;
+  border: none;
+  background: color-mix(in srgb, var(--pd-gray-100) 70%, transparent);
+  color: var(--pd-gray-700);
+}
+
+[data-md-color-scheme="slate"] .md-typeset code {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pd-gray-200);
+}
+
+/* ── Code — blocks ───────────────────────────────────────────────── */
+
+/* REASON: border-color transition on hover gives code blocks a
+   "focus" feel when reading. No layout shift — only color change.
+   Duration matches hover token for consistency. */
+.md-typeset pre {
+  border-radius: 16px;
+  border: 1px solid var(--pd-border-subtle);
+  transition: border-color var(--anim-hover);
+}
+
+.md-typeset pre:hover {
+  border-color: var(--pd-gray-200);
+}
+
+[data-md-color-scheme="slate"] .md-typeset pre:hover {
+  border-color: var(--pd-gray-700);
+}
+
+.md-typeset pre code {
+  font-size: 0.857em;
+  line-height: 1.667;
+  border-radius: 16px;
+  border: none;
+  background: transparent;
+  color: inherit;
+}
+
+[data-md-color-scheme="slate"] .md-typeset pre {
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* ── Tables — minimal ────────────────────────────────────────────── */
+
+.md-typeset table:not([class]) {
+  font-size: 0.875rem;
+  line-height: 1.714;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+.md-typeset table:not([class]) th {
+  background: transparent;
+  font-weight: 600;
+  font-size: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--pd-gray-900);
+  border-bottom: 2px solid var(--pd-border);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  color: #ffffff;
+  border-bottom-color: var(--pd-gray-800);
+}
+
+.md-typeset table:not([class]) td {
+  border-top: 1px solid var(--pd-border);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) td {
+  border-top-color: var(--pd-gray-800);
+}
+
+/* Row hover handled in animation section below */
+
+/* ── Admonitions — full border, rounded ──────────────────────────── */
+
+/* REASON: fadeIn on admonitions — pure opacity, no vertical slide
+   (they're inline callouts, motion would feel wrong in flow). */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 16px;
+  border: 1px solid;
+  border-left-width: 1px;
+  box-shadow: none;
+  font-size: 0.875rem;
+  animation: fadeIn 300ms ease both;
+}
+
+.md-typeset .admonition.note,
+.md-typeset .admonition.info,
+.md-typeset .admonition.abstract,
+.md-typeset details.note,
+.md-typeset details.info {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.md-typeset .admonition.tip,
+.md-typeset .admonition.success,
+.md-typeset details.tip,
+.md-typeset details.success {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.md-typeset .admonition.warning,
+.md-typeset .admonition.caution,
+.md-typeset details.warning,
+.md-typeset details.caution {
+  background: #fefce8;
+  border-color: #fde68a;
+}
+
+.md-typeset .admonition.danger,
+.md-typeset .admonition.failure,
+.md-typeset .admonition.bug,
+.md-typeset details.danger,
+.md-typeset details.failure,
+.md-typeset details.bug {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition.note,
+[data-md-color-scheme="slate"] .md-typeset .admonition.info,
+[data-md-color-scheme="slate"] .md-typeset .admonition.abstract,
+[data-md-color-scheme="slate"] .md-typeset details.note,
+[data-md-color-scheme="slate"] .md-typeset details.info {
+  background: rgba(37, 99, 235, 0.2);
+  border-color: #1e3a5f;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition.tip,
+[data-md-color-scheme="slate"] .md-typeset .admonition.success,
+[data-md-color-scheme="slate"] .md-typeset details.tip,
+[data-md-color-scheme="slate"] .md-typeset details.success {
+  background: rgba(22, 163, 74, 0.2);
+  border-color: #14532d;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition.warning,
+[data-md-color-scheme="slate"] .md-typeset .admonition.caution,
+[data-md-color-scheme="slate"] .md-typeset details.warning,
+[data-md-color-scheme="slate"] .md-typeset details.caution {
+  background: rgba(202, 138, 4, 0.2);
+  border-color: #713f12;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition.danger,
+[data-md-color-scheme="slate"] .md-typeset .admonition.failure,
+[data-md-color-scheme="slate"] .md-typeset .admonition.bug,
+[data-md-color-scheme="slate"] .md-typeset details.danger,
+[data-md-color-scheme="slate"] .md-typeset details.failure,
+[data-md-color-scheme="slate"] .md-typeset details.bug {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: #7f1d1d;
+}
+
+.md-typeset .admonition .admonition-title,
+.md-typeset details summary {
+  border-radius: 16px 16px 0 0;
+  border-bottom: none;
+}
+
+/* ── Search ──────────────────────────────────────────────────────── */
+
+.md-search__form {
+  border-radius: 12px;
+  background: var(--pd-gray-50) !important;
+  border: none;
+  box-shadow: 0 0 0 1px rgba(158, 161, 160, 0.3);
+}
+
+[data-md-color-scheme="slate"] .md-search__form {
+  background: var(--pd-bg) !important;
+  box-shadow: 0 0 0 1px rgba(62, 65, 64, 0.25);
+}
+
+.md-search__form:focus-within {
+  box-shadow: 0 0 0 2px var(--pd-primary);
+  animation: searchPulse 600ms ease;
+}
+
+[data-md-color-scheme="slate"] .md-search__form:focus-within {
+  animation: searchPulseSlate 600ms ease;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+
+.md-footer {
+  background: var(--pd-bg) !important;
+  color: var(--pd-gray-400) !important;
+  border-top: 1px solid var(--pd-border);
+}
+
+[data-md-color-scheme="slate"] .md-footer {
+  border-top-color: rgba(37, 40, 38, 0.5);
+}
+
+.md-footer-meta {
+  background: transparent !important;
+}
+
+/* ── Back to top ─────────────────────────────────────────────────── */
+
+.md-top {
+  background: var(--pd-primary) !important;
+  color: #fff !important;
+  border-radius: 6px;
+  transition: transform var(--anim-hover), opacity var(--anim-hover);
+}
+
+/* ── Hide left sidebar when only 1 nav item ──────────────────────── */
+
+.md-sidebar--primary:has(.md-nav--primary > .md-nav__list > .md-nav__item:only-child) {
+  display: none;
+}
+
+/* ── Hero section (home page) ────────────────────────────────────── */
+
+.ubm-hero {
+  text-align: center;
+  padding: 0.5rem 0 2.5rem;
+  margin: -0.6rem -0.6rem 2.5rem;
+  animation: fadeSlideUp var(--anim-enter) both;
+}
+
+.ubm-hero img {
+  width: 100%;
+  display: block;
+  margin: 0 auto 2rem;
+  border-radius: 0;
+  animation: fadeIn 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ubm-hero h1 {
+  font-size: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.111;
+  color: var(--pd-gray-900);
+  margin-bottom: 0.5rem;
+  border: none;
+}
+
+[data-md-color-scheme="slate"] .ubm-hero h1 {
+  color: #ffffff;
+}
+
+.ubm-hero p {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: var(--pd-gray-600);
+  max-width: 520px;
+  margin: 0 auto 1.5rem;
+}
+
+[data-md-color-scheme="slate"] .ubm-hero p {
+  color: var(--pd-gray-400);
+}
+
+.ubm-hero-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* REASON: translateY(-1px) on hover = micro-lift affordance.
+   scale(0.98) on :active = press-in feedback. Both GPU-composited.
+   Durations kept fast (150ms) for button responsiveness. */
+.ubm-hero-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-bottom: none !important;
+  transition: background var(--anim-fast),
+              box-shadow var(--anim-fast),
+              transform var(--anim-fast),
+              border-color var(--anim-fast);
+}
+
+.ubm-hero-actions a:hover {
+  transform: translateY(-1px);
+}
+
+.ubm-hero-actions a:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.ubm-hero-actions .ubm-btn-primary {
+  background: var(--pd-primary);
+  color: #fff !important;
+}
+
+[data-md-color-scheme="default"] .ubm-hero-actions .ubm-btn-primary {
+  color: #fff !important;
+}
+
+[data-md-color-scheme="slate"] .ubm-hero-actions .ubm-btn-primary {
+  color: var(--pd-gray-950) !important;
+}
+
+[data-md-color-scheme="slate"] .md-top {
+  color: var(--pd-gray-950) !important;
+}
+
+.ubm-hero-actions .ubm-btn-primary:hover {
+  box-shadow: 0 2px 8px rgba(9, 92, 50, 0.25);
+}
+
+[data-md-color-scheme="slate"] .ubm-hero-actions .ubm-btn-primary:hover {
+  box-shadow: 0 2px 8px rgba(25, 249, 149, 0.2);
+}
+
+.ubm-hero-actions .ubm-btn-secondary {
+  background: var(--pd-bg);
+  border: 1px solid var(--pd-border-subtle) !important;
+  color: var(--pd-gray-900) !important;
+}
+
+[data-md-color-scheme="slate"] .ubm-hero-actions .ubm-btn-secondary {
+  color: var(--pd-gray-200) !important;
+}
+
+.ubm-hero-actions .ubm-btn-secondary:hover {
+  border-color: var(--pd-primary) !important;
+}
+
+/* ── Feature cards ───────────────────────────────────────────────── */
+
+.ubm-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin: 1.5rem 0 3rem;
+}
+
+.ubm-feature {
+  padding: 1.25rem;
+  border-radius: 16px;
+  border: 1px solid var(--pd-border-subtle);
+  background: var(--pd-bg);
+  /* REASON: transform+opacity are GPU-composited — no layout/paint cost.
+     border-color is cheap (no geometry change). box-shadow triggers paint
+     but only on hover (not continuous), acceptable tradeoff for depth cue.
+     animation: staggered entry on page load (delays set per nth-child below). */
+  transition: border-color var(--anim-hover),
+              transform var(--anim-hover),
+              box-shadow var(--anim-hover);
+  animation: fadeSlideUp var(--anim-enter) both;
+}
+
+.ubm-feature:hover {
+  border-color: var(--pd-primary);
+  /* REASON: -2px lift + soft shadow creates "picked up" affordance.
+     translateY is GPU-composited. Shadow spread is minimal to avoid
+     heavy paint. Dark mode shadow uses primary glow instead of black. */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(9, 92, 50, 0.08);
+}
+
+[data-md-color-scheme="slate"] .ubm-feature:hover {
+  box-shadow: 0 4px 12px rgba(25, 249, 149, 0.06);
+}
+
+.ubm-feature h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--pd-gray-900);
+}
+
+[data-md-color-scheme="slate"] .ubm-feature h3 {
+  color: #ffffff;
+}
+
+.ubm-feature p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--pd-gray-500);
+  line-height: 1.5;
+}
+
+[data-md-color-scheme="slate"] .ubm-feature p {
+  color: var(--pd-gray-400);
+}
+
+/* ── Scrollbar (dark) ────────────────────────────────────────────── */
+
+[data-md-color-scheme="slate"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-thumb {
+  background: var(--pd-gray-800);
+  border-radius: 3px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Animations — micro-interactions for polish
+   GPU-only: all animations use transform + opacity exclusively.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes ──────────────────────────────────────────────────── */
+
+/* REASON: fade + subtle upward slide. translateY(12px) is small enough
+   to feel natural, large enough to be perceptible. 400ms ease-out-quint
+   decelerates smoothly — content "settles" into place. */
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(var(--anim-distance));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* REASON: pure fade for elements where vertical motion would be odd
+   (inline elements, admonitions already in flow). */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* REASON: one-shot ring expansion on search focus. box-shadow animates
+   from tight ring to wider glow, drawing eye to the input. Runs once
+   (forwards fill) so it doesn't loop/distract. */
+@keyframes searchPulse {
+  0%   { box-shadow: 0 0 0 2px var(--pd-primary); }
+  50%  { box-shadow: 0 0 0 4px rgba(9, 92, 50, 0.15); }
+  100% { box-shadow: 0 0 0 2px var(--pd-primary); }
+}
+
+@keyframes searchPulseSlate {
+  0%   { box-shadow: 0 0 0 2px var(--pd-primary); }
+  50%  { box-shadow: 0 0 0 4px rgba(25, 249, 149, 0.12); }
+  100% { box-shadow: 0 0 0 2px var(--pd-primary); }
+}
+
+/* ── Page load — content entry ──────────────────────────────────── */
+
+/* REASON: MkDocs Material with navigation.instant replaces .md-content
+   innerHTML on navigation. These animations fire on every page load
+   (initial + SPA navigation) because the DOM nodes are fresh each time.
+   Stagger delay on cards creates a "cascade" effect — 60ms apart. */
+
+/* Hero image fade-in handled in hero section above */
+
+/* ── Feature cards — staggered cascade ──────────────────────────── */
+
+/* REASON: each card enters 60ms after the previous. 6 cards = 360ms total
+   stagger + 400ms animation = last card finishes at 760ms. Fast enough
+   to not feel slow, spaced enough to see the wave. */
+.ubm-feature:nth-child(1) { animation-delay: calc(1 * var(--anim-stagger)); }
+.ubm-feature:nth-child(2) { animation-delay: calc(2 * var(--anim-stagger)); }
+.ubm-feature:nth-child(3) { animation-delay: calc(3 * var(--anim-stagger)); }
+.ubm-feature:nth-child(4) { animation-delay: calc(4 * var(--anim-stagger)); }
+.ubm-feature:nth-child(5) { animation-delay: calc(5 * var(--anim-stagger)); }
+.ubm-feature:nth-child(6) { animation-delay: calc(6 * var(--anim-stagger)); }
+
+/* ── Table row hover ────────────────────────────────────────────── */
+
+/* REASON: subtle background tint on row hover aids scanability in
+   data tables. Uses background-color (paint, not layout) — acceptable
+   since tables are small and hover is transient. */
+.md-typeset table:not([class]) tr {
+  transition: background-color var(--anim-fast);
+}
+
+.md-typeset table:not([class]) tbody tr:hover td {
+  background: var(--pd-primary-10);
+}
+
+/* ── Images — full-width responsive ──────────────────────────────── */
+
+.md-typeset img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ── Prose measure + diagram sizing ──────────────────────────────── */
+
+.md-typeset p,
+.md-typeset ol,
+.md-typeset ul,
+.md-typeset blockquote {
+  max-width: 75ch;
+}
+
+.md-content__inner > .md-typeset img[src*="architecture"],
+.md-content__inner > .md-typeset img[src*="stats"] {
+  max-width: 660px;
+  display: block;
+  margin: 1rem auto;
+  border-radius: 12px;
+}
+
+/* ── Footer contrast fix ─────────────────────────────────────────── */
+
+.md-footer {
+  color: #6b6d6c !important;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media screen and (max-width: 56em) {
+  .ubm-features {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .ubm-hero {
+    padding: 2.5rem 1rem 2rem;
+  }
+
+  .ubm-hero h1 {
+    font-size: 2rem;
+  }
+}
+
+@media screen and (max-width: 36em) {
+  .ubm-features {
+    grid-template-columns: 1fr;
+  }
+
+  .ubm-hero-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────── */
+
+/* REASON: prefers-reduced-motion must kill ALL motion — transitions
+   AND keyframe animations. Some users have vestibular disorders;
+   any motion can cause nausea. Instant state changes are fine. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

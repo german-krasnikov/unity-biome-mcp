@@ -13,15 +13,15 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep purple
-      accent: amber
+      primary: white
+      accent: teal
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep purple
-      accent: amber
+      primary: black
+      accent: teal
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -66,9 +66,9 @@ nav:
     - OpenCode: install/opencode.md
     - Junie: install/junie.md
     - Gemini (Deprecated): install/gemini.md
-  - Settings: settings.md
-  - Tools Reference:
+  - Tools:
     - tools/index.md
+    - Settings: settings.md
     - Scene Tools: tools/scene.md
     - Object Tools: tools/objects.md
     - Batch Operations: tools/batch.md
@@ -92,16 +92,16 @@ nav:
     - Region Selection: features/region-tool.md
     - Code Execution: features/code-execution.md
     - Skills & Templates: features/session-skills.md
-  - MCP Chat:
+  - Chat:
     - chat/index.md
     - Chat Backends: chat/backends.md
     - Screenshot Annotation: chat/annotation.md
     - Extending Chip Kinds: chat/extending-chips.md
-  - Plugin Development:
+  - Develop:
     - plugins/index.md
     - Plugin API Reference: plugins/api-reference.md
     - UI Toolkit Best Practices: plugins/ui-toolkit-best-practices.md
-  - Product Comparison: comparison.md
+    - Product Comparison: comparison.md
 
 plugins:
   - search
@@ -142,6 +142,12 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
+
+hooks:
+  - docs/hooks/transform.py
+
+extra_css:
+  - stylesheets/extra.css
 
 extra:
   social:

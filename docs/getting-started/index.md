@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # Getting Started
 
 This guide owns the common package installation and verification flow. Install

@@ -45,12 +45,16 @@ description: "Audit and update all Unity Biome MCP documentation surfaces after 
 | `server/pyproject.toml` | Canonical release version; version changes belong to the release workflow |
 | `server/uv.lock`, `unity-plugin/package.json`, Python/C# version constants, `_meta.json` version fields | Generated version copies managed by `scripts/sync_versions.py` |
 
-## MkDocs Conventions
+## Writing Docs
 
-- Navigation is defined exclusively in `mkdocs.yml` under `nav:`. Do not add YAML front matter to `docs/` files.
-- MkDocs reads the first H1 heading as the page title. No `title:` front matter needed.
-- Section landing pages live at `docs/<section>/index.md`. When creating a new section, create that file and add the section to `mkdocs.yml nav:`.
-- CI runs `mkdocs build --strict` — every file in `nav:` must exist; pages outside `nav:` cause a warning-as-error. Always keep `nav:` and `docs/` in sync.
+- Write standard GitHub-Flavored Markdown (GFM). No renderer-specific syntax.
+- First H1 heading = page title. No `title:` front matter needed.
+- Images in `docs/assets/`. Reference with `![alt](assets/x.svg)` or `<img src="assets/x.svg">`.
+- Collapsible sections: `<details><summary>Title</summary>` (standard HTML).
+- Callouts: `> [!NOTE]`, `> [!WARNING]`, `> [!TIP]` (GitHub Alert Syntax).
+- Diagrams: ` ```mermaid ` fenced code blocks.
+- Links between docs: relative `[text](other-file.md)` or `[text](../section/file.md#anchor)`.
+- A build-time hook (`docs/hooks/transform.py`) converts GFM to the hosted site format automatically. Do NOT add renderer-specific attributes or path prefixes manually.
 
 ## Workflow
 
@@ -220,6 +224,7 @@ Conditional:
 | Changelog or versions changed | Use the release skill's parity checks; verify root/plugin changelog ownership and manifest versions |
 | External comparison changed | Cite direct primary sources, state the comparison date, and distinguish verified facts from inference |
 | `docs/**` or `mkdocs.yml` changed | `mkdocs build --strict` (dry-run, no deploy) |
+| `docs/hooks/transform.py` changed | `mkdocs build --strict` — verify hook transforms work correctly |
 
 Do not run broad Python or Unity suites merely because prose changed. Use the
 verification evidence from the implementation handoff; run targeted checks only

@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.0] — 2026-07-31
+
+**Documentation:**
+- Added MkDocs build-time hook (`docs/hooks/transform.py`) that auto-converts GFM to site format
+- Hook adds `markdown` attributes to HTML blocks and fixes image paths for directory URLs
+- Custom Pipedream-style CSS theme (`docs/stylesheets/extra.css`) with dark/light mode
+- Redesigned docs landing page (`docs/index.md`) with hero section and feature cards
+- Added 43 unit tests for the build hook (`tests/test_docs_transform.py`)
+- Simplified doc-keeper skill: agents write plain GFM, hook handles all transforms
+- Restructured MkDocs navigation from 9 to 7 tabs
+
 ## [v1.8.0] — 2026-07-31
 
 **Documentation Infrastructure:**

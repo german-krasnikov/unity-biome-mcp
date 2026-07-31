@@ -1,9 +1,6 @@
 # Unity MCP Product Comparison
 
-<p align="center">
-  <img src="assets/comparison-hero.svg" width="100%"
-       alt="Unity MCP ecosystem comparison with five product nodes around Unity Biome MCP.">
-</p>
+<img src="assets/comparison-hero.svg" width="100%" alt="Unity MCP ecosystem comparison with five product nodes around Unity Biome MCP.">
 
 This July 29, 2026 snapshot compares publicly documented Unity MCP products.
 It does not assign an overall winner: projects optimize for different Unity

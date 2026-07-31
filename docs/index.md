@@ -1,31 +1,113 @@
-# Unity Biome MCP Documentation
+---
+hide:
+  - navigation
+  - toc
+---
 
-User documentation for connecting an AI assistant to the Unity Editor through Unity Biome MCP.
+<div class="ubm-hero">
+
+<img src="assets/hero.svg" width="100%" alt="Concept illustration of an AI client sending a live MCP signal through Unity Biome MCP to the Unity Editor">
+
+# Unity Biome MCP
+
+Control the Unity Editor from any MCP-compatible AI client — or from chat inside Unity.
+
+<div class="ubm-hero-actions">
+  <a href="getting-started/" class="ubm-btn-primary">Get Started</a>
+  <a href="tools/" class="ubm-btn-secondary">142 Tools</a>
+  <a href="https://github.com/german-krasnikov/unity-biome-mcp" class="ubm-btn-secondary">GitHub</a>
+</div>
+
+</div>
+
+<div class="ubm-features">
+
+<div class="ubm-feature">
+
+### Scene & Objects
+
+Inspect and modify GameObjects, components, assets, materials, shaders, and UI elements.
+
+</div>
+
+<div class="ubm-feature">
+
+### PlayTest DSL
+
+Deterministic test workflows with assertions, wait conditions, sweeps, and visual baselines.
+
+</div>
+
+<div class="ubm-feature">
+
+### Batch Operations
+
+Group compatible operations into a single call with undo-backed rollback on failure.
+
+</div>
+
+<div class="ubm-feature">
+
+### Animation & VFX
+
+Work with clips, Animator controllers, Timeline, particles, materials, and Shader Graph.
+
+</div>
+
+<div class="ubm-feature">
+
+### In-Unity Chat
+
+Ask or Agent mode inside the editor with context chips, undo grouping, and multi-backend support.
+
+</div>
+
+<div class="ubm-feature">
+
+### Plugin System
+
+Extend with project-specific server tools, Unity commands, chat chips, and hook points.
+
+</div>
+
+</div>
 
 ## Start Here
 
-- [Getting Started](getting-started/index.md) - Install the Unity package, configure a client, and verify the first connection
-- [Choose an MCP Client](install/index.md) - Client-specific setup and configuration locations
-- [AI Skills and Agents](install/ai-skills.md) - Install project-local guidance for Claude Code and Codex
-- [Settings](settings.md) - Ports, security, tool visibility, Chat permissions, updates, and rollback
-- [Using MCP Chat](chat/index.md) - Run an end-to-end task inside the Unity Editor
-- [Product Comparison](comparison.md) - Source-backed capabilities, differentiators, and constraints
+| Goal | Guide |
+|---|---|
+| Install and connect | [Getting Started](getting-started/index.md) |
+| Choose an MCP client | [Client Guides](install/index.md) |
+| Install AI skills | [AI Skills and Agents](install/ai-skills.md) |
+| Configure settings | [Settings](settings.md) |
+| Use In-Unity Chat | [MCP Chat](chat/index.md) |
+| Compare products | [Product Comparison](comparison.md) |
 
 ## Tools
 
-- [Tool Reference](tools/index.md)
-- [Tool Decision Guide](features/tool-guide.md)
-- [Scene Tools](tools/scene.md)
-- [Object Tools](tools/objects.md)
-- [Batch Operations](tools/batch.md)
-- [Animation Tools](tools/animation.md)
-- [Shader and Material Tools](tools/shaders.md)
-- [UI Tools](tools/ui.md)
-- [Screenshot Tools](tools/screenshots.md)
-- [Component Tools](tools/components.md)
-- [Asset Tools](tools/assets.md)
-- [Diagnostics](tools/diagnostics.md)
-- [Runtime and Playtest](tools/runtime.md)
+| Category | Reference |
+|---|---|
+| All tools | [Tool Reference](tools/index.md) |
+| Decision guide | [Tool Decision Guide](features/tool-guide.md) |
+| Scene | [Scene Tools](tools/scene.md) |
+| Objects | [Object Tools](tools/objects.md) |
+| Batch | [Batch Operations](tools/batch.md) |
+| Animation | [Animation Tools](tools/animation.md) |
+| Shaders | [Shader & Material Tools](tools/shaders.md) |
+| UI | [UI Tools](tools/ui.md) |
+| Screenshots | [Screenshot & Visual Diff](tools/screenshots.md) |
+| Components | [Component & Event Tools](tools/components.md) |
+| Assets | [Asset Tools](tools/assets.md) |
+| Diagnostics | [Diagnostics](tools/diagnostics.md) |
+| Runtime | [Runtime & Playtest](tools/runtime.md) |
+
+## Architecture
+
+<img src="assets/architecture.svg" width="100%" alt="Architecture diagram: external clients and In-Unity Chat reach the Python MCP server and Unity Editor plugin through their local transport paths">
+
+## Project Inventory
+
+<img src="assets/stats.svg" width="100%" alt="Project inventory stats">
 
 ## Workflows
 
@@ -38,27 +120,6 @@ User documentation for connecting an AI assistant to the Unity Editor through Un
 - [Region Selection](features/region-tool.md)
 - [Code Execution](features/code-execution.md)
 - [Skills and Templates](features/session-skills.md)
-
-## Chat
-
-- [Using MCP Chat](chat/index.md)
-- [Backends](chat/backends.md)
-- [Screenshot Annotation](chat/annotation.md)
-
-## Client Guides
-
-- [AI Skills and Agents](install/ai-skills.md)
-- [Claude Code](install/claude-code.md)
-- [Claude Desktop](install/claude-desktop.md)
-- [Codex](install/codex.md)
-- [Cursor](install/cursor.md)
-- [Windsurf](install/windsurf.md)
-- [VS Code](install/vscode.md)
-- [Kimi](install/kimi.md)
-- [OpenCode](install/opencode.md)
-- [Junie](install/junie.md)
-- [Rider AI Assistant](install/rider.md)
-- [Gemini (deprecated)](install/gemini.md)
 
 ## Developer Reference
 

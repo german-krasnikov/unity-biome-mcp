@@ -1,3 +1,8 @@
+---
+hide:
+  - toc
+---
+
 # Choose an MCP Client
 
 Complete the [prerequisites](../getting-started/index.md#prerequisites) and

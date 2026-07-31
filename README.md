@@ -10,7 +10,7 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 
 <br>
 
-<p align="center"><img height="28" src="https://img.shields.io/github/license/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=2b2b2b&color=46e6a6" alt="MIT license"> <img height="28" src="https://img.shields.io/github/v/release/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=2b2b2b&color=46e6a6&label=release" alt="Latest release"> <img height="28" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tools.json&style=for-the-badge&labelColor=2b2b2b" alt="Registered MCP tools"> <img height="28" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tests.json&style=for-the-badge&labelColor=2b2b2b" alt="Discovered test inventory"></p>
+<p align="center"><a href="https://german-krasnikov.github.io/unity-biome-mcp/"><img height="28" src="https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logo=readthedocs&logoColor=white&labelColor=2b2b2b" alt="Documentation"></a> <img height="28" src="https://img.shields.io/github/license/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=2b2b2b&color=46e6a6" alt="MIT license"> <img height="28" src="https://img.shields.io/github/v/release/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=2b2b2b&color=46e6a6&label=release" alt="Latest release"> <img height="28" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tools.json&style=for-the-badge&labelColor=2b2b2b" alt="Registered MCP tools"> <img height="28" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tests.json&style=for-the-badge&labelColor=2b2b2b" alt="Discovered test inventory"></p>
 
 </div>
 
@@ -210,7 +210,7 @@ Codex synchronization.
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 11021 entries: 4286 regular Python, 511 Python stress, 289 live Python, and 5935 Unity source attributes. Unity count source: static source scan. Server package version: v1.8.0.">
+<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 11021 entries: 4286 regular Python, 511 Python stress, 289 live Python, and 5935 Unity source attributes. Unity count source: static source scan. Server package version: v1.9.0.">
 <!-- README_STATS_END -->
 
 ## Unity MCP Product Comparison
@@ -231,7 +231,7 @@ and records constraints as well as strengths.
 ## Recent Changes
 
 <!-- CHANGELOG_START -->
-**Current release: v1.8.0 (2026-07-31).** [Read the full changelog.](CHANGELOG.md)
+**Current release: v1.9.0 (2026-07-31).** [Read the full changelog.](CHANGELOG.md)
 <!-- CHANGELOG_END -->
 
 ## Contributing
