@@ -164,4 +164,4 @@ No vector command data is sent.
 
 ---
 
-**See also:** [Using MCP Chat](using-chat.md) for the full Chat workflow and [Skills and Templates](../features/session-skills.md) for storing screenshots as baselines.
+**See also:** [Using MCP Chat](index.md) for the full Chat workflow and [Skills and Templates](../features/session-skills.md) for storing screenshots as baselines.

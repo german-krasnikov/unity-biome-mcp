@@ -80,7 +80,7 @@ Chat currently applies the selected model at launch. Stored binary overrides,
 permission options, startup timeouts, and extra arguments are saved but are not
 applied when the relay starts.
 
-See [Using MCP Chat](chat/using-chat.md) for the task workflow and [Chat Backends](chat/backends.md) for process and session behavior.
+See [Using MCP Chat](chat/index.md) for the task workflow and [Chat Backends](chat/backends.md) for process and session behavior.
 
 ## Updates and Rollback
 

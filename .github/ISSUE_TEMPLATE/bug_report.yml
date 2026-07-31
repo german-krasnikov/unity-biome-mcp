@@ -1,0 +1,54 @@
+name: Bug Report
+description: Something isn't working
+labels: ["bug", "status: triage"]
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - MCP Server (Python)
+        - Unity Plugin (C#)
+        - TCP Bridge / Connection
+        - Install / Setup / Doctor
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Run tool X with args...
+        2. Observe error...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs Actual
+      placeholder: |
+        Expected: ...
+        Actual: ...
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      placeholder: |
+        Unity: 6000.x
+        OS: macOS / Windows
+        Python: 3.x
+        MCP Server: vX.Y.Z
+        AI Tool: Claude Code / Cursor / Windsurf
+      description: Run `doctor` tool for full diagnostics
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Output / Logs
+      description: Paste console output, TCP errors, or doctor output
+      render: text
+    validations:
+      required: false

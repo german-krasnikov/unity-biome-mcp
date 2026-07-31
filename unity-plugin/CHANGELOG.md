@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.0] — 2026-07-31
+
+**Documentation Infrastructure:**
+- Migrated documentation site from Jekyll (just-the-docs) to MkDocs Material
+- Added `mkdocs.yml` with Material theme, instant navigation, dark mode, search, code copy, and full navigation tree
+- Added GitHub Actions CI workflow (`.github/workflows/docs.yml`) for automated build and deployment to GitHub Pages
+- Removed Jekyll-specific front matter from all 47 documentation files
+- Renamed section landing pages: `docs/chat/using-chat.md` → `docs/chat/index.md`, `docs/plugins/quickstart.md` → `docs/plugins/index.md`
+- Updated internal documentation cross-references to MkDocs file naming conventions
+- Updated `AI/architecture.md` plugin documentation reference path
+- Updated `.claude/skills/documentation-maintenance/SKILL.md` with MkDocs conventions
+
 ## [v1.7.3] — 2026-07-31 — Intent LLM settings
 
 **Added:**

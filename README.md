@@ -16,7 +16,7 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
-  <a href="#documentation">Documentation</a> ·
+  <a href="https://german-krasnikov.github.io/unity-biome-mcp/">Documentation</a> ·
   <a href="docs/comparison.md">Comparison</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
@@ -122,13 +122,13 @@ The configuration helper supports `claude-code`, `claude-desktop`, `cursor`,
 | Goal | Guide |
 |---|---|
 | Install and connect | [Getting Started](docs/getting-started/index.md) |
-| Choose and configure an MCP client | [Client guides](docs/README.md#client-guides) |
+| Choose and configure an MCP client | [Client guides](docs/install/index.md) |
 | Install project-local AI guidance | [AI Skills and Agents](docs/install/ai-skills.md) |
 | Find a tool for a task | [Tool Guide](docs/features/tool-guide.md) |
 | Use batch safely | [Batch Operations](docs/tools/batch.md) |
 | Build Play Mode workflows | [PlayTest DSL](docs/features/playtest.md) |
 | Configure In-Unity Chat | [Chat Backends](docs/chat/backends.md) |
-| Extend Unity Biome MCP | [Plugin Quick Start](docs/plugins/quickstart.md) |
+| Extend Unity Biome MCP | [Plugin Quick Start](docs/plugins/index.md) |
 | Diagnose failures | [Diagnostics](docs/tools/diagnostics.md) |
 
 ## What You Can Do
@@ -210,7 +210,7 @@ Codex synchronization.
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 11021 entries: 4286 regular Python, 511 Python stress, 289 live Python, and 5935 Unity source attributes. Unity count source: static source scan. Server package version: v1.7.3.">
+<img src="docs/assets/stats.svg" width="100%" alt="142 registered MCP tools. Test inventory: 11021 entries: 4286 regular Python, 511 Python stress, 289 live Python, and 5935 Unity source attributes. Unity count source: static source scan. Server package version: v1.8.0.">
 <!-- README_STATS_END -->
 
 ## Unity MCP Product Comparison
@@ -231,7 +231,7 @@ and records constraints as well as strengths.
 ## Recent Changes
 
 <!-- CHANGELOG_START -->
-**Current release: v1.7.3 (2026-07-31).** [Read the full changelog.](CHANGELOG.md)
+**Current release: v1.8.0 (2026-07-31).** [Read the full changelog.](CHANGELOG.md)
 <!-- CHANGELOG_END -->
 
 ## Contributing

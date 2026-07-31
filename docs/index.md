@@ -8,7 +8,7 @@ User documentation for connecting an AI assistant to the Unity Editor through Un
 - [Choose an MCP Client](install/index.md) - Client-specific setup and configuration locations
 - [AI Skills and Agents](install/ai-skills.md) - Install project-local guidance for Claude Code and Codex
 - [Settings](settings.md) - Ports, security, tool visibility, Chat permissions, updates, and rollback
-- [Using MCP Chat](chat/using-chat.md) - Run an end-to-end task inside the Unity Editor
+- [Using MCP Chat](chat/index.md) - Run an end-to-end task inside the Unity Editor
 - [Product Comparison](comparison.md) - Source-backed capabilities, differentiators, and constraints
 
 ## Tools
@@ -41,7 +41,7 @@ User documentation for connecting an AI assistant to the Unity Editor through Un
 
 ## Chat
 
-- [Using MCP Chat](chat/using-chat.md)
+- [Using MCP Chat](chat/index.md)
 - [Backends](chat/backends.md)
 - [Screenshot Annotation](chat/annotation.md)
 
@@ -62,7 +62,7 @@ User documentation for connecting an AI assistant to the Unity Editor through Un
 
 ## Developer Reference
 
-- [Plugin Quick Start](plugins/quickstart.md)
+- [Plugin Quick Start](plugins/index.md)
 - [Plugin API Reference](plugins/api-reference.md)
 - [Extending Chat Chip Kinds](chat/extending-chips.md)
 - [UI Toolkit Engineering Guide](plugins/ui-toolkit-best-practices.md)

@@ -1,0 +1,153 @@
+site_name: Unity Biome MCP
+site_url: https://german-krasnikov.github.io/unity-biome-mcp/
+site_description: MCP server for Unity Editor — 142 tools for scene, assets, animation, VFX, playtest & more
+site_author: German Krasnikov
+
+repo_url: https://github.com/german-krasnikov/unity-biome-mcp
+repo_name: german-krasnikov/unity-biome-mcp
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - header.autohide
+    - toc.follow
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/index.md
+  - Installation:
+    - install/index.md
+    - AI Skills and Agents: install/ai-skills.md
+    - Claude Code: install/claude-code.md
+    - Claude Desktop: install/claude-desktop.md
+    - Codex: install/codex.md
+    - Cursor: install/cursor.md
+    - Windsurf: install/windsurf.md
+    - VS Code: install/vscode.md
+    - Rider AI Assistant: install/rider.md
+    - Kimi: install/kimi.md
+    - OpenCode: install/opencode.md
+    - Junie: install/junie.md
+    - Gemini (Deprecated): install/gemini.md
+  - Settings: settings.md
+  - Tools Reference:
+    - tools/index.md
+    - Scene Tools: tools/scene.md
+    - Object Tools: tools/objects.md
+    - Batch Operations: tools/batch.md
+    - Component & Event Tools: tools/components.md
+    - Animation Tools: tools/animation.md
+    - Shader & Material Tools: tools/shaders.md
+    - UI Tools: tools/ui.md
+    - Screenshot & Visual Diff: tools/screenshots.md
+    - Asset Tools: tools/assets.md
+    - Runtime & Playtest: tools/runtime.md
+    - Diagnostics: tools/diagnostics.md
+  - Workflows:
+    - features/index.md
+    - Tool Decision Guide: features/tool-guide.md
+    - Prompting Tips: features/prompting-tips.md
+    - Intent Tools: features/intent-tools.md
+    - Playtest DSL: features/playtest.md
+    - Playtest Composer: features/playtest-composer.md
+    - Wait Conditions: features/wait-conditions.md
+    - Prefab Editing: features/prefab-edit.md
+    - Region Selection: features/region-tool.md
+    - Code Execution: features/code-execution.md
+    - Skills & Templates: features/session-skills.md
+  - MCP Chat:
+    - chat/index.md
+    - Chat Backends: chat/backends.md
+    - Screenshot Annotation: chat/annotation.md
+    - Extending Chip Kinds: chat/extending-chips.md
+  - Plugin Development:
+    - plugins/index.md
+    - Plugin API Reference: plugins/api-reference.md
+    - UI Toolkit Best Practices: plugins/ui-toolkit-best-practices.md
+  - Product Comparison: comparison.md
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/german-krasnikov/unity-biome-mcp
+  generator: false
+
+copyright: >-
+  Unity Biome MCP &mdash; open-source MCP server for Unity Editor.

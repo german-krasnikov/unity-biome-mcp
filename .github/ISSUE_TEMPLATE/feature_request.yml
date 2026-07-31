@@ -1,0 +1,37 @@
+name: Feature Request
+description: Propose a new tool or behavior
+labels: ["enhancement", "status: triage"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - New MCP Tool
+        - Unity Plugin
+        - TCP Protocol
+        - Install / DX
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem it solves
+      placeholder: I need to... but currently...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: Describe the tool/feature and its expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: Other approaches you've tried or thought about
+    validations:
+      required: false

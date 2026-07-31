@@ -41,7 +41,7 @@ a resume argument means the backend can consume one. A resume ID selected for a
 per-turn backend is not currently applied to the next turn. Reliable in-Chat
 resume is therefore limited to Claude.
 
-When a backend returns a session ID, **To CLI** copies that backend's resume command. See [Using MCP Chat](using-chat.md#sessions) for the user workflow.
+When a backend returns a session ID, **To CLI** copies that backend's resume command. See [Using MCP Chat](index.md#sessions) for the user workflow.
 
 ## Authentication and Configuration
 
@@ -60,5 +60,5 @@ authentication/configuration to be available before Chat starts. Verify that
 MCP Chat. The relay writes temporary MCP settings for each turn.
 
 For common recovery steps, see
-[Using MCP Chat](using-chat.md#troubleshooting). If a custom model is rejected,
+[Using MCP Chat](index.md#troubleshooting). If a custom model is rejected,
 test its ID with the backend CLI before saving it in Chat Settings.

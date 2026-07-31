@@ -8,7 +8,7 @@ then return here for the appropriate first-connection check.
 
 - Unity 6000.0 or later
 - `uvx`, provided by [uv](https://docs.astral.sh/uv/getting-started/installation/)
-- An MCP-compatible client, or a supported CLI for [MCP Chat](../chat/using-chat.md)
+- An MCP-compatible client, or a supported CLI for [MCP Chat](../chat/index.md)
 
 The server package requires Python 3.10 or later, but `uvx` downloads and
 manages it for the standard package flow. Install Python separately only for a
@@ -63,7 +63,7 @@ listed above. Restart or reload the client after Unity creates the file.
 
 ### Chat-start configuration
 
-The in-Unity Chat relay creates temporary backend-specific MCP configuration when it starts a supported CLI. This is separate from configuring that CLI as an external MCP client. See [Using MCP Chat](../chat/using-chat.md).
+The in-Unity Chat relay creates temporary backend-specific MCP configuration when it starts a supported CLI. This is separate from configuring that CLI as an external MCP client. See [Using MCP Chat](../chat/index.md).
 
 ### Manual clipboard configuration
 
@@ -110,7 +110,7 @@ A successful response contains the active scene's GameObject hierarchy. This fir
 
 A successful turn shows a hierarchy tool call and a summary in the transcript.
 The Chat relay configures its own temporary MCP connection; it does not require
-an external client configuration. Continue with [Using MCP Chat](../chat/using-chat.md).
+an external client configuration. Continue with [Using MCP Chat](../chat/index.md).
 
 ## Diagnose a Failure
 
@@ -160,6 +160,6 @@ Port changes are saved immediately but require an MCP server restart. See [Setti
 
 - [Run a PlayTest workflow](../features/playtest.md)
 - [Configure Settings](../settings.md)
-- [Use MCP Chat](../chat/using-chat.md)
+- [Use MCP Chat](../chat/index.md)
 - [Choose the right tool](../features/tool-guide.md)
 - [Browse the tool reference](../tools/index.md)
