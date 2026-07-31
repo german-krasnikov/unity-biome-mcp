@@ -188,6 +188,9 @@ namespace UnityMCP.Editor
                 ("Summarize",           "summarize",           cfg.Summarize,          null),
                 ("Do Intent",           "do_intent",           cfg.DoIntent,           null),
                 ("Distiller",           "distiller",           cfg.Distiller,          null),
+                ("UI Intent",           "ui_intent",           cfg.UiIntent,           null),
+                ("VFX Intent",          "vfx_intent",          cfg.VfxIntent,          null),
+                ("Animator Intent",     "animator_intent",     cfg.AnimatorIntent,     null),
                 ("NL Composer",         "nl_composer",         cfg.NlComposer,         null),
             };
 

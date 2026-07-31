@@ -48,7 +48,7 @@ async def resolve_tool_schema(tools: str) -> str:
 
 async def set_llm_config(config: str) -> str:
     """Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line).
-    Features: visual_verify, screenshot_describe, visual_diff, do_intent, summarize, distiller."""
+    Features: visual_verify, screenshot_describe, visual_diff, do_intent, ui_intent, vfx_intent, animator_intent, summarize, distiller."""
     parsed = parse_tcp_config(config)
     if not parsed:
         return "err: no valid entries parsed"
