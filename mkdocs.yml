@@ -102,6 +102,7 @@ nav:
     - Plugin API Reference: plugins/api-reference.md
     - UI Toolkit Best Practices: plugins/ui-toolkit-best-practices.md
     - Product Comparison: comparison.md
+  - Wiki: wiki.md
 
 plugins:
   - search

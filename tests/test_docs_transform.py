@@ -292,3 +292,20 @@ class TestOnPageMarkdown:
         assert "![a](assets/x.svg)" in result  # no prefix
         assert 'src="assets/y.svg"' in result  # no prefix
         assert "<details markdown>" in result  # attrs still added
+
+    def test_redirect_to_replaces_content(self):
+        page = _page("wiki.md", "wiki/index.html")
+        page.meta = {"redirect_to": "https://github.com/example/repo/wiki"}
+        md = "This content is ignored"
+        result = on_page_markdown(md, page, DIR_URLS_ON, files=None)
+        assert 'http-equiv="refresh"' in result
+        assert "https://github.com/example/repo/wiki" in result
+        assert "This content is ignored" not in result
+
+    def test_no_redirect_without_meta(self):
+        page = _page("comparison.md", "comparison/index.html")
+        page.meta = {}
+        md = "![a](assets/x.svg)"
+        result = on_page_markdown(md, page, DIR_URLS_ON, files=None)
+        assert "![a](../assets/x.svg)" in result
+        assert "refresh" not in result

@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.1] — 2026-07-31
+
+**Documentation:**
+- Added wiki redirect page (`docs/wiki.md`) with auto-redirect to GitHub Wiki
+- Added redirect support to build hook (`redirect_to` front matter)
+- Added "Wiki" tab in docs site navigation
+- Set up GitHub Wiki with sidebar and footer linking to docs site
+
 ## [v1.9.0] — 2026-07-31
 
 **Documentation:**

@@ -7,7 +7,16 @@ import re
 from pathlib import Path
 
 
+_REDIRECT_TEMPLATE = (
+    '<meta http-equiv="refresh" content="0; url={url}">'
+    '<p>Redirecting to <a href="{url}">{url}</a>...</p>'
+)
+
+
 def on_page_markdown(markdown, page, config, files, **kwargs):
+    redirect_to = getattr(page, "meta", {}).get("redirect_to")
+    if redirect_to:
+        return _REDIRECT_TEMPLATE.format(url=redirect_to)
     markdown = _fix_image_paths(markdown, page, config)
     markdown = _fix_html_img_paths(markdown, page, config)
     markdown = _add_markdown_attr(markdown)
