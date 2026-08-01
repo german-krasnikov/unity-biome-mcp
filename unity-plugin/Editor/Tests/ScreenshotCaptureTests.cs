@@ -1,13 +1,12 @@
 using NUnit.Framework;
 using System.IO;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ScreenshotCaptureTests
+    public class ScreenshotCaptureTests : SceneTestBase
     {
         private GameObject _cameraGo;
 
@@ -24,8 +23,6 @@ namespace UnityMCP.Editor.Tests
         public void TearDown()
         {
             if (_cameraGo != null) Object.DestroyImmediate(_cameraGo);
-            // NoCameraInScene test destroys all cameras — replace dirty scene
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         }
 
         // ── FindCamera fallback to Camera.main ───────────────────────────────
@@ -84,6 +81,25 @@ namespace UnityMCP.Editor.Tests
 
             Assert.Throws<System.ArgumentException>(
                 () => ScreenshotCapture.Capture(16, 16, null));
+        }
+
+        [Test]
+        public void FindCamera_BracketNamedCamera_ReturnsCameraComponent()
+        {
+            // RED: GameObject.Find("[GAMEPLAY]") returns null (Unity bracket-selector bug)
+            // After fix: ComponentSerializer.FindObject finds it correctly
+            var bracketGo = new GameObject("[GAMEPLAY]");
+            var cam = bracketGo.AddComponent<Camera>();
+            try
+            {
+                var found = ScreenshotCapture.FindCamera("[GAMEPLAY]");
+                Assert.That(found, Is.EqualTo(cam),
+                    "FindCamera must find bracket-named cameras via ComponentSerializer.FindObject, not GameObject.Find");
+            }
+            finally
+            {
+                Object.DestroyImmediate(bracketGo);
+            }
         }
 
         [Test]

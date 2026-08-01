@@ -32,6 +32,10 @@ _RUNTIME_ONLY_CMDS: set[str] = {
 # watch_add: raw C# sub-command (not an MCP tool, absent from _SPECS).
 # Must remain runtime-only for the play-mode pre-gate in middleware_guards.
 _RUNTIME_ONLY_CMDS.add("watch_add")
+# set_runtime_property: Python MCP tool removed but C# handler still exists.
+# Middleware keeps routing it correctly (Play Mode gate + write classification).
+_RUNTIME_ONLY_CMDS.add("set_runtime_property")
+WRITE_CMDS.add("set_runtime_property")
 
 # editor actions that are reads; all others (play/stop/pause/step/select) are writes
 _EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})

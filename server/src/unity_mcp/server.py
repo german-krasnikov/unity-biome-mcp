@@ -132,7 +132,7 @@ from .tools.skills import save_skill, use_skill, list_skills, apply_template, sa
 from .tools.spatial import validate_layout, get_spatial_context, scan_scene, check_colliders, autofit_collider, spatial_query
 from .tools.ui import create_ui, set_rect, menu, shader
 from .tools.connection import list_connections, reconnect_unity
-from .tools.runtime import (invoke_method, set_runtime_property, wait_until, move_to, query_state,
+from .tools.runtime import (invoke_method, wait_until, move_to, query_state,
                              test_step, run_playtest, run_playtest_suite,
                              lint_playtest, lint_playtest_suite, validate_playtest_aliases,
                              sync_playtest_aliases_from_defs, export_playtest_aliases_to_defs)

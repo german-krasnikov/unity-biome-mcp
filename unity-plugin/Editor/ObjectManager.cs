@@ -132,10 +132,16 @@ namespace UnityMCP.Editor
                 parentTransform = parentGo.transform;
             }
 
-            Undo.SetTransformParent(go.transform, parentTransform, worldPositionStays, $"Set parent {path}");
-            EditorUtility.SetDirty(go);
-            if (!EditorApplication.isPlaying)
+            if (EditorApplication.isPlaying)
+            {
+                go.transform.SetParent(parentTransform, worldPositionStays);
+            }
+            else
+            {
+                Undo.SetTransformParent(go.transform, parentTransform, worldPositionStays, $"Set parent {path}");
+                EditorUtility.SetDirty(go);
                 EditorSceneManager.MarkSceneDirty(go.scene);
+            }
             return ComponentSerializer.GetPath(go);
         }
 

@@ -198,8 +198,13 @@ namespace UnityMCP.Editor
                 SyncHelper.Ops.ImportPackageSources();
                 SyncHelper.Ops.Refresh();
                 SyncHelper.Ops.RequestScriptCompilation(RequestScriptCompilationOptions.None);
-                if (!EditorApplication.isCompiling)
-                    EditorUtility.RequestScriptReload();
+                // Defer reload request — calling RequestScriptReload synchronously triggers
+                // immediate domain reload that wipes pending delayCall callbacks (B3 fix).
+                EditorApplication.delayCall += () =>
+                {
+                    if (!EditorApplication.isCompiling)
+                        EditorUtility.RequestScriptReload();
+                };
                 InternalEditorUtility.RepaintAllViews();
                 SyncHelper.Ops.StartTickPump();
                 return "force_refresh triggered";
@@ -394,7 +399,6 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "field"),
                 JsonHelper.ExtractString(args, "value")), runtime: true,
                 required: "path,component,field,value", optional: "");
-
             // Write (mutating)
             CommandRegistry.Register("create_object", ExecCreateObject, mutating: true,
                 required: "name", optional: "parent,components,primitive,prefab_path,scene");

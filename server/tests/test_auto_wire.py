@@ -28,11 +28,14 @@ class TestAutoWire:
         args = mock_send.call_args[0][1]
         assert args["dry_run"] == "true"
 
-    async def test_auto_wire_dry_run_default(self, mock_send):
+    async def test_auto_wire_dry_run_default_omitted(self, mock_send):
+        """dry_run=False (default) omits key (Pattern A: C# default is false)."""
         from unity_mcp.tools.auto_wire import auto_wire
         await auto_wire("/Player")
         args = mock_send.call_args[0][1]
-        assert args["dry_run"] == "false"
+        assert "dry_run" not in args, (
+            f"dry_run should be omitted when False, got {args.get('dry_run')!r}"
+        )
 
     async def test_auto_wire_tool_error(self, mock_send):
         from mcp.server.fastmcp.exceptions import ToolError

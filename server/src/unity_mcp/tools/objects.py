@@ -55,7 +55,7 @@ async def find_objects(
 
 async def set_property(path: str | None = None, component: str = "", prop: str = "", value=None,
                        dry_run: bool = False, find_type: str | None = None) -> str:
-    """Set component property (Edit Mode, SerializedObject — use `set_runtime_property` for Play Mode reflection).
+    """Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).
     find_type: component type — bulk-sets prop on all matching objects without specifying paths.
     For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying."""
     args = _args(path=path, find_type=find_type, component=component or None,
@@ -154,7 +154,9 @@ async def set_property_delta(path: str, component: str, prop: str, delta: str) -
 
 async def set_parent(path: str, parent: str | None = None, world_position_stays: bool = True) -> str:
     """Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."""
-    args = {"path": path, "world_position_stays": "true" if world_position_stays else "false"}
+    args: dict = {"path": path}
+    if not world_position_stays:
+        args["world_position_stays"] = "false"
     if parent is not None:
         args["parent"] = parent
     return await _send("set_parent", args)

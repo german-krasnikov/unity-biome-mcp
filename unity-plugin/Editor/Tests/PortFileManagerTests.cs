@@ -1,4 +1,5 @@
 // TDD — RC-5 + RC-2: CleanStalePeerPortFiles and SaveRuntimePorts contracts.
+using System;
 using System.IO;
 using NUnit.Framework;
 using UnityEditor;
@@ -100,8 +101,18 @@ namespace UnityMCP.Editor.Tests
                 Path.Combine(UnityEngine.Application.dataPath, "..", "ProjectSettings", "MCPSettings.json"));
             var portJsonPath = Path.GetFullPath(
                 Path.Combine(UnityEngine.Application.dataPath, "..", "Library", "MCP_Port.json"));
+            var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+            var discoveryPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".unity-biome-mcp", "ports", $"{pid}.port");
+            var chatDiscoveryPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".unity-biome-mcp", "ports", $"{pid}.chat-port");
+
             var before = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
             var portJsonBefore = File.Exists(portJsonPath) ? File.ReadAllText(portJsonPath) : null;
+            var discoveryBefore = File.Exists(discoveryPath) ? File.ReadAllText(discoveryPath) : null;
+            var chatDiscoveryBefore = File.Exists(chatDiscoveryPath) ? File.ReadAllText(chatDiscoveryPath) : null;
             try
             {
                 PortFileManager.SaveRuntimePorts(9999, 10000);
@@ -113,6 +124,15 @@ namespace UnityMCP.Editor.Tests
             {
                 if (portJsonBefore != null) File.WriteAllText(portJsonPath, portJsonBefore);
                 else if (File.Exists(portJsonPath)) File.Delete(portJsonPath);
+
+                // Restore the peer discovery file — WritePortFile writes ~/{pid}.port and
+                // the original finally block did not restore it, leaving port=9999 on disk
+                // after the test, which breaks Python's port discovery.
+                if (discoveryBefore != null) File.WriteAllText(discoveryPath, discoveryBefore);
+                else if (File.Exists(discoveryPath)) File.Delete(discoveryPath);
+
+                if (chatDiscoveryBefore != null) File.WriteAllText(chatDiscoveryPath, chatDiscoveryBefore);
+                else if (File.Exists(chatDiscoveryPath)) File.Delete(chatDiscoveryPath);
             }
         }
 

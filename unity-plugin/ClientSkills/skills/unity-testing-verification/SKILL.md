@@ -18,7 +18,7 @@ claim. Data proves behavior; images prove appearance.
 | Several `.playtest` files | `run_playtest_suite` |
 | One bounded runtime condition | `wait_until` after enabling `RUNTIME` |
 | Trigger one public runtime action | `invoke_method` |
-| Set one runtime-only field | `set_runtime_property` |
+| Set one runtime-only field | `set_property` (works in both modes; use `set_runtime_property` only if avoiding Edit Mode) |
 | Read several runtime values | `query_state` |
 | Visual motion or stability | frame capture plus a separate behavioral assertion |
 

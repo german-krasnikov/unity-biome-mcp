@@ -1,6 +1,6 @@
 {
     "name": "UnityMCP.Runtime.TestHelpers",
-    "rootNamespace": "UnityMCP.Editor.Chat.Tests",
+    "rootNamespace": "UnityMCP.Editor.Tests",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

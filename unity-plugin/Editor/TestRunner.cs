@@ -64,6 +64,16 @@ namespace UnityMCP.Editor
             // Re-register callbacks if tests were running when domain reload occurred.
             // Unity Test Framework preserves execution state; only our callbacks are lost.
             if (!SessionState.GetBool(KeyPending, false)) return;
+            // If domain reload was triggered by Play Mode entry, UTF cannot continue an
+            // EditMode test run — its job pipeline calls EditorSceneManager APIs that are
+            // banned in Play Mode (SaveCurrentModifiedScenesIfUserWantsTo, NewScene).
+            // Clear the stale pending flag instead of re-registering.
+            if (EditorApplication.isPlaying)
+            {
+                SessionState.SetBool(KeyPending, false);
+                SessionState.SetFloat(KeyStartTime, 0f);
+                return;
+            }
             var api = ScriptableObject.CreateInstance<TestRunnerApi>();
             api.RegisterCallbacks(new ResultCollector(null, api, true));
 #endif
@@ -129,6 +139,12 @@ namespace UnityMCP.Editor
 #if UNITY_INCLUDE_TESTS
         public static void Execute(string mode, Action<string> onComplete, string group = null, string filter = null)
         {
+            if (EditorApplication.isPlaying)
+            {
+                onComplete?.Invoke("Error: cannot run tests in Play Mode — stop Play Mode first");
+                return;
+            }
+
             if (GetIsCompiling())
             {
                 onComplete?.Invoke("Error: compilation in progress — poll sync_status and retry after compile completes");
@@ -160,9 +176,11 @@ namespace UnityMCP.Editor
                 // and SaveCurrentModifiedScenesIfUserWantsTo (isDirty). Both show modal
                 // dialogs that block the main thread. Force a named clean scene.
                 var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-                if (scene.isDirty || string.IsNullOrEmpty(scene.path))
+                bool fileMissing = !string.IsNullOrEmpty(scene.path)
+                    && AssetDatabase.AssetPathToGUID(scene.path) == "";
+                if (scene.isDirty || string.IsNullOrEmpty(scene.path) || fileMissing)
                 {
-                    if (!string.IsNullOrEmpty(scene.path) && scene.isDirty)
+                    if (!string.IsNullOrEmpty(scene.path) && (scene.isDirty || fileMissing))
                         EditorSceneManager.SaveScene(scene);
                     else
                     {
@@ -224,6 +242,7 @@ namespace UnityMCP.Editor
                 _onComplete = onComplete;
                 _api = api;
                 _destroyApi = destroyApi;
+                _startTime = DateTime.Now;
             }
 
             public void RunStarted(ITestAdaptor testsToRun)
@@ -276,10 +295,7 @@ namespace UnityMCP.Editor
             private static void DeleteTempScene()
             {
                 if (_isRunning == 1) return;
-                // Never call NewScene here — it creates an untitled scene that triggers
-                // "Save Scene" file browser on the next test run or TCP operation.
-                // Leave temp scene loaded (named+clean); next run's pre-flight overwrites it.
-                // GlobalTearDown handles final scene restoration.
+                if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().path == TempScenePath) return;
                 if (AssetDatabase.AssetPathToGUID(TempScenePath) != "")
                     AssetDatabase.DeleteAsset(TempScenePath);
             }

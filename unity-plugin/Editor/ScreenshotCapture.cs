@@ -165,11 +165,11 @@ namespace UnityMCP.Editor
             return max < 0.01f;
         }
 
-        private static Camera FindCamera(string cameraName)
+        internal static Camera FindCamera(string cameraName)
         {
             if (!string.IsNullOrEmpty(cameraName))
             {
-                var cameraObj = GameObject.Find(cameraName);
+                var cameraObj = ComponentSerializer.FindObject(cameraName);
                 if (cameraObj != null)
                 {
                     var cam = cameraObj.GetComponent<Camera>();

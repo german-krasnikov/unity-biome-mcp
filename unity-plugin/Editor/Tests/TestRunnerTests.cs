@@ -235,7 +235,76 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
-        // ── 8. FinishRun (C7a, review sprint v0.70) ──────────────────────────
+        // ── 8. Domain reload state — ResultCollector._startTime ──────────────
+
+        [Test]
+        public void ResultCollector_Constructor_InitializesStartTime()
+        {
+            var collectorType = typeof(TestRunner).GetNestedType("ResultCollector",
+                BindingFlags.NonPublic);
+            Assert.IsNotNull(collectorType, "ResultCollector nested type must exist");
+
+            var startField = collectorType.GetField("_startTime",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(startField, "_startTime field must exist");
+
+            var ctor = collectorType.GetConstructors(BindingFlags.Instance | BindingFlags.Public)[0];
+            var collector = ctor.Invoke(new object[] { null, null, true });
+            var startTime = (System.DateTime)startField.GetValue(collector);
+
+            var elapsed = (System.DateTime.Now - startTime).TotalSeconds;
+            Assert.Less(elapsed, 5.0,
+                "ResultCollector._startTime must be initialized to ~DateTime.Now in ctor, " +
+                "not DateTime.MinValue (which would give ~63 billion seconds)");
+        }
+
+        [Test]
+        public void GetResults_Pending_StaleCheckDoesNotFire_Within600s()
+        {
+            TestRunner.GetTimeSinceStartup = () => 115.0;
+            SessionState.SetBool(KeyPending, true);
+            SessionState.SetFloat(KeyStartTime, 100f);
+
+            Assert.AreEqual("pending", TestRunner.GetResults(),
+                "15s elapsed < 600s threshold — must return pending, not stale");
+        }
+
+        [Test]
+        public void GetResults_Pending_StaleCheckFires_After600s()
+        {
+            TestRunner.GetTimeSinceStartup = () => 701.0;
+            SessionState.SetBool(KeyPending, true);
+            SessionState.SetFloat(KeyStartTime, 100f);
+
+            Assert.AreEqual("none (stale pending cleared)", TestRunner.GetResults());
+            Assert.IsFalse(SessionState.GetBool(KeyPending, true));
+        }
+
+        [Test]
+        public void GetResults_FloatPrecision_LargeUptime_NoFalseStale()
+        {
+            const double uptime = 86400.123456;
+            TestRunner.GetTimeSinceStartup = () => uptime + 10.0;
+            SessionState.SetBool(KeyPending, true);
+            SessionState.SetFloat(KeyStartTime, (float)uptime);
+
+            Assert.AreEqual("pending", TestRunner.GetResults(),
+                "Float precision loss on 24h uptime must not cause false stale");
+        }
+
+        [Test]
+        public void GetResults_ResultDoesNotContain63BillionSeconds()
+        {
+            const string result = "5 tests: 5 passed (3.2s)";
+            SessionState.SetString(KeyResults, result);
+            SessionState.SetBool(KeyPending, false);
+
+            var r = TestRunner.GetResults();
+            Assert.IsFalse(r.Contains("63921"),
+                "Result must not contain DateTime.MinValue artifact (~63 billion seconds)");
+        }
+
+        // ── 9. FinishRun (C7a, review sprint v0.70) ──────────────────────────
         // Extracted from CommandRouter.AsyncRunTests' completion callback — parses the raw
         // Execute() result into (ok, text), stripping the "Error:" prefix on failure.
 

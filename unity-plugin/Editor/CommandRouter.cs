@@ -65,8 +65,9 @@ namespace UnityMCP.Editor
                 return JsonHelper.FormatBusyResponse(id, "Server initializing. Retry in 2s.", 2000);
             if (IsCompiling() && !IsAllowedDuringCompile(cmd))
                 return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
-            if (IsPlayMode() && IsMutatingCommand(cmd))
-                return JsonHelper.FormatResponse(id, false, null, "Play mode active — changes will be lost. Stop play mode first.");
+            if (IsPlayMode() && IsMutatingCommand(cmd) && cmd != "set_parent")
+                return JsonHelper.FormatResponse(id, false, null,
+                    "Play mode active — changes will be lost. Stop play mode first.");
             if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))
                 return JsonHelper.FormatResponse(id, false, null, "Not in Play Mode. Use editor(action='play') first.");
             if (!IsAlwaysAllowed(cmd) && !IsToolEnabledFn(cmd))

@@ -854,3 +854,86 @@ async def test_sync_unity_emits_reimport_when_recovery_tcp_dead(monkeypatch):
     result = await _sync.sync_unity(timeout=60.0)
     assert "REIMPORT-NEEDED" in result, f"Expected REIMPORT-NEEDED, got {result!r}"
     assert "sync clean" not in result, f"Must NOT be sync clean when TCP dead, got {result!r}"
+
+
+# ── resolve boolean encoding (Pattern A) ─────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_sync_resolve_false_omits_key():
+    """resolve=False (default) omits 'resolve' key from sync command (Pattern A)."""
+    captured: dict = {}
+
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync":
+            captured.update(args or {})
+            return "sync_ack|epoch=1|will_compile=false"
+        if cmd == "sync_status":
+            return "epoch=1|state=idle"
+        return ""
+
+    _sync._send = _send
+    await _sync.sync_unity(resolve=False)
+    assert "resolve" not in captured, (
+        f"'resolve' should be omitted when False, got {captured.get('resolve')!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_sync_resolve_true_sends_string():
+    """resolve=True sends 'resolve': 'true' string to sync command (Pattern A)."""
+    captured: dict = {}
+
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync":
+            captured.update(args or {})
+            return "sync_ack|epoch=1|will_compile=false"
+        if cmd == "sync_status":
+            return "epoch=1|state=idle"
+        return ""
+
+    _sync._send = _send
+    await _sync.sync_unity(resolve=True)
+    assert captured.get("resolve") == "true", (
+        f"Expected 'true' (str), got {captured.get('resolve')!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Sub-task B: file:UPM trap test (T6)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_sync_unity_backgrounded_dispatches_force_refresh_not_recompile(monkeypatch):
+    """Backgrounded editor (state=compiling, dur=0.0) → sync_unity fires force_refresh.
+
+    Regression guard: must NOT dispatch recompile (it misses the .mvfrm nuke step).
+    Recovery is triggered immediately via _FOCUS_HINT_AFTER=0.0.
+    """
+    monkeypatch.setattr(_sync, "_FOCUS_HINT_AFTER", 0.0)
+    monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)  # recovery exits fast
+
+    dispatched: list[str] = []
+
+    async def _send(cmd, args=None, **kwargs):
+        dispatched.append(cmd)
+        if cmd == "sync_status":
+            if "sync" not in dispatched:  # pre-stamp read (before sync dispatched)
+                return "epoch=0|state=idle"
+            return "epoch=1|state=compiling|dur=0.0"
+        if cmd == "sync":
+            return "sync_ack|epoch=1|will_compile=true"
+        if cmd == "force_refresh":
+            return "force_refresh triggered"
+        if cmd == "diagnose":
+            return "main_mvid=absent"  # run_ladder short-circuit
+        return ""
+
+    _sync._send = _send
+    await _sync.sync_unity(timeout=60.0)
+
+    assert "force_refresh" in dispatched, (
+        "sync_unity must dispatch force_refresh for backgrounded editor"
+    )
+    assert "recompile" not in dispatched, (
+        "must NOT dispatch recompile (it misses the .mvfrm nuke step)"
+    )

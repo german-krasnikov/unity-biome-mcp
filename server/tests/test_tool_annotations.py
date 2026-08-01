@@ -46,7 +46,6 @@ IDEM_TOOLS = [
     (asset, "project_settings"),
     (ui, "set_rect"),
     (connection, "reconnect_unity"),
-    (runtime, "set_runtime_property"),
     (runtime, "wait_until"),
 ]
 

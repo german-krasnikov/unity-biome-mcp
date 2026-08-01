@@ -317,5 +317,107 @@ namespace UnityMCP.Editor.Tests
             }
             finally { Object.DestroyImmediate(go); }
         }
+
+        // ── SetPropertyValue — Enum branch (Cycle 2: enumValueFlag fix) ──────
+
+        private (GameObject go, SerializedObject so) MakeEnumGo(string name)
+        {
+            var go = new GameObject(name);
+            go.AddComponent<EnumTestComponent>();
+            return (go, new SerializedObject(go.GetComponent<EnumTestComponent>()));
+        }
+
+        [Test]
+        public void SetPropertyValue_GapEnum_IntUnderlyingValue_SetsCorrectly()
+        {
+            var (go, so) = MakeEnumGo("VP_GapEnumInt");
+            try
+            {
+                var prop = so.FindProperty("_toolType");
+                Assert.IsNotNull(prop, "_toolType must exist on EnumTestComponent");
+                ValueParser.SetPropertyValue(prop, "5");
+                so.ApplyModifiedProperties();
+                Assert.AreEqual(ToolType.Wrench, go.GetComponent<EnumTestComponent>()._toolType);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void SetPropertyValue_FlagsEnum_Bitmask_SetsCorrectly()
+        {
+            var (go, so) = MakeEnumGo("VP_FlagsEnum");
+            try
+            {
+                var prop = so.FindProperty("_perms");
+                Assert.IsNotNull(prop, "_perms must exist on EnumTestComponent");
+                ValueParser.SetPropertyValue(prop, "3");
+                so.ApplyModifiedProperties();
+                Assert.AreEqual(PermFlags.Read | PermFlags.Write, go.GetComponent<EnumTestComponent>()._perms);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void SetPropertyValue_GapEnum_StringNameCaseInsensitive()
+        {
+            var (go, so) = MakeEnumGo("VP_GapEnumCaseInsensitive");
+            try
+            {
+                var prop = so.FindProperty("_toolType");
+                Assert.IsNotNull(prop);
+                ValueParser.SetPropertyValue(prop, "wrench");
+                so.ApplyModifiedProperties();
+                Assert.AreEqual(ToolType.Wrench, go.GetComponent<EnumTestComponent>()._toolType);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void SetPropertyValue_UnityGapEnum_KeyCode_Int()
+        {
+            var (go, so) = MakeEnumGo("VP_KeyCodeInt");
+            try
+            {
+                var prop = so.FindProperty("_keyCode");
+                Assert.IsNotNull(prop, "_keyCode must exist on EnumTestComponent");
+                ValueParser.SetPropertyValue(prop, "32");   // KeyCode.Space = 32
+                so.ApplyModifiedProperties();
+                Assert.AreEqual(KeyCode.Space, go.GetComponent<EnumTestComponent>()._keyCode);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void SetPropertyValue_Enum_StringName_ExactMatch()
+        {
+            var (go, so) = MakeEnumGo("VP_EnumExact");
+            try
+            {
+                var prop = so.FindProperty("_toolType");
+                Assert.IsNotNull(prop);
+                ValueParser.SetPropertyValue(prop, "Wrench");
+                so.ApplyModifiedProperties();
+                Assert.AreEqual(ToolType.Wrench, go.GetComponent<EnumTestComponent>()._toolType);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void SetPropertyValue_Enum_Zero()
+        {
+            var (go, so) = MakeEnumGo("VP_EnumZero");
+            try
+            {
+                var prop = so.FindProperty("_toolType");
+                Assert.IsNotNull(prop);
+                // Set to non-zero first, then reset to zero
+                go.GetComponent<EnumTestComponent>()._toolType = ToolType.Wrench;
+                so.Update();
+                ValueParser.SetPropertyValue(prop, "0");
+                so.ApplyModifiedProperties();
+                Assert.AreEqual(ToolType.None, go.GetComponent<EnumTestComponent>()._toolType);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
     }
 }

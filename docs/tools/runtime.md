@@ -268,7 +268,7 @@ invoke_method path=Enemy2 component=EnemyAI method=Attack
 
 ## set_runtime_property
 
-Modify a component field in Play Mode via reflection (runtime-only).
+Modify a component field at runtime via reflection (Play Mode only).
 
 **Parameters:**
 - `path` (string) — GameObject path
@@ -276,7 +276,7 @@ Modify a component field in Play Mode via reflection (runtime-only).
 - `field` (string) — Field name (public field or property)
 - `value` (string) — New value (inferred type)
 
-**Note:** Only works in Play Mode. Use `set_property` in Edit Mode.
+**Note:** Play Mode only. For convenience, use `set_property()` instead — it works in both Edit and Play Mode and the middleware automatically handles the translation for you.
 
 **Example:**
 

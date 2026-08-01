@@ -150,7 +150,8 @@ async def sync_unity(
 
     # Step 2: trigger sync
     try:
-        ack = await _send("sync", {"resolve": "true" if resolve else "false"})
+        sync_args = {"resolve": "true"} if resolve else {}
+        ack = await _send("sync", sync_args)
     except ConnectionError as e:
         raise ToolError(f"Unity unreachable: {e}") from e
 
@@ -241,8 +242,12 @@ async def _get_errors() -> str:
     """Get compile errors from C# and corroborate with editor_log (both-signals gate).
 
     Delegates to get_corroborated_errors — sentinel-strip lives there (P3 DRY).
+    Swallows ConnectionError/OSError: TCP gone during error fetch is treated as no errors.
     """
-    return await editor_log.get_corroborated_errors(_send)
+    try:
+        return await editor_log.get_corroborated_errors(_send)
+    except (ConnectionError, OSError):
+        return ""
 
 
 def register(mcp, send, args):

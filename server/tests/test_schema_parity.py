@@ -30,6 +30,7 @@ _CS_PROTOCOL_ONLY = {
     "watch_clear",         # sub-action of "watch" MCP tool
     "watch_reset",         # sub-action of "watch" MCP tool
     "search_context",      # internal (resources refresh_dynamic polls this)
+    "set_runtime_property",  # C# handler stays: middleware reroutes set_property here in Play Mode
 }
 
 # _SPECS entries with no dedicated C# command (Python-only MCP tools).

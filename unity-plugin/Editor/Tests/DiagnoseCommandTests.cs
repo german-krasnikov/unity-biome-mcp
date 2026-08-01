@@ -346,5 +346,57 @@ namespace UnityMCP.Editor.Tests
                 DiagnoseCommand.FindInPackages = originalSeam;
             }
         }
+
+        // T1: empty or non-existent srcDir → unknown(no-src) (file: package outside Assets/).
+        [Test]
+        public void GetDllFreshnessToken_Returns_UnknownNoSrc_WhenSrcDirEmpty()
+        {
+            using var scope = new TempDirScope("McpNoSrcTest");
+            var dllPath = Path.Combine(scope.Path, "Fake.dll");
+            File.WriteAllBytes(dllPath, new byte[] { 0 }); // dll exists
+
+            Assert.AreEqual("unknown(no-src)",
+                DiagnoseCommand.GetDllFreshnessToken(dllPath, ""),
+                "empty srcDir → unknown(no-src) (file: package outside Assets/)");
+
+            Assert.AreEqual("unknown(no-src)",
+                DiagnoseCommand.GetDllFreshnessToken(dllPath, "/nonexistent/path/xyz"),
+                "missing srcDir → unknown(no-src)");
+        }
+
+        // T2: FindAsmdefDir returns "" when both Assets/ scan and FindInPackages return null.
+        [Test]
+        public void FindAsmdefDir_Returns_Empty_WhenFindInPackages_ReturnsNull()
+        {
+            var originalSeam = DiagnoseCommand.FindInPackages;
+            try
+            {
+                DiagnoseCommand.FindInPackages = (_) => null; // simulate unregistered package
+                using var tmp = new TempDirScope("McpEmpty");
+                // dataPath has NO .asmdef files
+                var result = DiagnoseCommand.FindAsmdefDir(tmp.Path, "UnityMCP.Missing");
+                Assert.AreEqual("", result,
+                    "When Assets/ scan misses and FindInPackages returns null, must return empty string");
+            }
+            finally { DiagnoseCommand.FindInPackages = originalSeam; }
+        }
+
+        // T8: end-to-end BuildDllFreshness shows unknown(no-src) when package is unreachable.
+        [Test]
+        public void BuildDllFreshness_Returns_UnknownNoSrc_WhenFindInPackagesReturnsNull()
+        {
+            var originalSeam = DiagnoseCommand.FindInPackages;
+            try
+            {
+                DiagnoseCommand.FindInPackages = (_) => null; // package not found
+                var output = DiagnoseCommand.Execute("{}");
+                var dllsLine = System.Linq.Enumerable.FirstOrDefault(
+                    output.Split('\n'), l => l.StartsWith("dlls=")) ?? "";
+                Assert.IsTrue(
+                    dllsLine.Contains("unknown(no-src)") || dllsLine.Contains("unknown(missing)"),
+                    $"When FindInPackages returns null, dll freshness must degrade to unknown token: {dllsLine}");
+            }
+            finally { DiagnoseCommand.FindInPackages = originalSeam; }
+        }
     }
 }

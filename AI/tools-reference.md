@@ -1,5 +1,7 @@
 # MCP Tools Reference
 
+Design standards: `AI/api-design-standards.md`
+
 Tool index organized by category. TIER1 tools (45 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools are discovered dynamically.
 
 Parameter lists are intentionally not duplicated here because the MCP schemas are the runtime contract. Resolve the current schema before calling an unfamiliar tool:

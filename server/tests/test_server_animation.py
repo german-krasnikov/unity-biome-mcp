@@ -134,3 +134,38 @@ async def test_animation_get_clip_path(mock_bridge):
     args = mock_bridge.send.call_args[0][1]
     assert args["action"] == "get_clip_path"
     assert args["clip"] == "Walk"
+
+
+# M15: animator has_exit_time boolean encoding (Pattern A)
+
+async def test_animator_has_exit_time_true_sends_string(mock_bridge):
+    """has_exit_time=True sends string 'true', not Python bool (Pattern A)."""
+    from unity_mcp.server import animator
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "transition added"})
+    await animator(action="add_transition", path="/Char", source="Idle", target="Walk",
+                   has_exit_time=True)
+    args = mock_bridge.send.call_args[0][1]
+    assert args.get("has_exit_time") == "true", (
+        f"Expected 'true' (str), got {args.get('has_exit_time')!r}"
+    )
+
+
+async def test_animator_has_exit_time_false_omitted(mock_bridge):
+    """has_exit_time=False omits the key (Pattern A: C# default is false)."""
+    from unity_mcp.server import animator
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "transition added"})
+    await animator(action="add_transition", path="/Char", source="Idle", target="Walk",
+                   has_exit_time=False)
+    args = mock_bridge.send.call_args[0][1]
+    assert "has_exit_time" not in args, (
+        f"has_exit_time should be omitted when False, got {args.get('has_exit_time')!r}"
+    )
+
+
+async def test_animator_has_exit_time_none_omitted(mock_bridge):
+    """has_exit_time=None (default) omits the key."""
+    from unity_mcp.server import animator
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "transition added"})
+    await animator(action="add_transition", path="/Char", source="Idle", target="Walk")
+    args = mock_bridge.send.call_args[0][1]
+    assert "has_exit_time" not in args

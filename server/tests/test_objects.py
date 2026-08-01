@@ -118,3 +118,25 @@ async def test_get_unity_events_with_path_filter(monkeypatch):
     await get_unity_events(path="/UI")
     call_args = mock.call_args[0]
     assert call_args[1].get("path") == "/UI"
+
+
+# ── set_parent world_position_stays Pattern A′ ───────────────────────────────
+
+async def test_set_parent_wps_default_omitted(monkeypatch):
+    """world_position_stays=True (default) omits key (Pattern A′: C# default is true)."""
+    mock = _setup(monkeypatch)
+    from unity_mcp.tools.objects import set_parent
+    await set_parent(path="/Child", parent="/Root")
+    args = mock.call_args[0][1]
+    assert "world_position_stays" not in args, (
+        f"world_position_stays should be omitted when True, got {args.get('world_position_stays')!r}"
+    )
+
+
+async def test_set_parent_wps_false_sends_string(monkeypatch):
+    """world_position_stays=False sends 'false' string (Pattern A′)."""
+    mock = _setup(monkeypatch)
+    from unity_mcp.tools.objects import set_parent
+    await set_parent(path="/Child", parent="/Root", world_position_stays=False)
+    args = mock.call_args[0][1]
+    assert args["world_position_stays"] == "false"

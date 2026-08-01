@@ -1,0 +1,21 @@
+#!/bin/sh
+# Pre-commit guards: NDA terms + gitignored file protection.
+# Activate: git config core.hooksPath scripts/hooks
+
+# 1. NDA guard — terms loaded from local (gitignored) file
+NDA_FILE="$(git rev-parse --show-toplevel)/scripts/hooks/.nda-terms"
+if [ -f "$NDA_FILE" ]; then
+  T=$(cat "$NDA_FILE" | tr '\n' '|' | sed 's/|$//')
+  if [ -n "$T" ] && git diff --cached | grep -iaE "$T" | grep -viE 'corner|redundant|recommendation' >/dev/null; then
+    echo "BLOCKED: NDA term in staged content. Inspect: git diff --cached | grep -iniE \"$T\""
+    exit 1
+  fi
+fi
+
+# 2. Block any gitignored files from being committed (catches git add -f bypass)
+IGNORED=$(git diff --cached --name-only | git check-ignore --no-index --stdin 2>/dev/null)
+if [ -n "$IGNORED" ]; then
+  echo "BLOCKED: gitignored files staged for commit. Remove with: git rm --cached <file>"
+  echo "$IGNORED"
+  exit 1
+fi

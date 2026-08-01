@@ -125,7 +125,7 @@ set_material path=Player color=#FF0000
 
 ### Property Modification
 
-**set_property:**
+**set_property (works in both Edit and Play Mode):**
 ```
 set_property path=Player component=Transform prop=position value=10,5,0
 set_property path=Enemy component=Health prop=maxHp value=100
@@ -137,7 +137,7 @@ set_property path=Light component=Light prop=intensity value=1.5
 set_property_delta path=Player component=Health prop=hp delta=10
 ```
 
-**set_runtime_property (Play Mode only):**
+**set_runtime_property (Play Mode only — alternative to set_property):**
 ```
 set_runtime_property path=Player component=Health field=hp value=50
 ```

@@ -349,6 +349,7 @@ namespace UnityMCP.Editor
             // Search scene for common character names
             foreach (var name in new[] { "Player", "GridPlayer", "Character", "Hero" })
             {
+                // TODO: replace with ComponentSerializer.FindObject(name) if bracket-named characters are ever needed
                 var go = GameObject.Find(name);
                 if (go != null) return "/" + name;
             }

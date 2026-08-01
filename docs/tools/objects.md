@@ -95,7 +95,7 @@ inspect paths=Player,Enemy components=Health,Rigidbody
 
 ## set_property
 
-Change a component property on a scene object (Edit Mode, SerializedObject).
+Change a component property on a scene object. Works in both Edit Mode (via SerializedObject) and Play Mode (transparently rerouted to reflection-based `set_runtime_property`).
 
 **Parameters:**
 - `path` (string, optional) — GameObject path

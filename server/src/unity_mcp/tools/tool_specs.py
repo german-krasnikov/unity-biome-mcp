@@ -165,7 +165,6 @@ _SPECS: dict[str, ToolSpec] = {
     'set_property': ToolSpec(category='CORE', core=True),
     'set_property_delta': ToolSpec(category='SCENE'),
     'set_rect': ToolSpec(category='MEDIA'),
-    'set_runtime_property': ToolSpec(category='RUNTIME', runtime_only=True),
     'setup_objects': ToolSpec(category='SCENE', tier1=True, direct_only=True),
     'shader': ToolSpec(category='ASSETS'),
     'smart_build': ToolSpec(category='SYSTEM'),

@@ -19,12 +19,6 @@ async def invoke_method(path: str, component: str, method: str, args: str = "") 
         path=path, component=component, method=method, args=args or None))
 
 
-async def set_runtime_property(path: str, component: str, field: str, value: str) -> str:
-    """[Play Mode] Set field/property via reflection. Safe — doesn't use SerializedObject. For Edit Mode serialized mutations, use `set_property`."""
-    return await _send("set_runtime_property", _args(
-        path=path, component=component, field=field, value=value))
-
-
 async def wait_until(path: str, component: str, field: str, value: str,
                      timeout: float = 5.0, negate: bool = False,
                      abort_on_fail: bool = False) -> str:
@@ -108,21 +102,15 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
                        path: "str | None" = None,
                        snapshot_on_failure: bool = False,
                        fresh: bool = False) -> str:
-    """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit test suite, use `run_tests`).
-    Use path= to load a .playtest file from disk (Assets-relative or project-root-relative). script and path are mutually exclusive.
-    script: inline DSL text (mutually exclusive with path).
-    path: Assets-relative or project-root-relative path to a .playtest file (mutually exclusive with script).
+    """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
-    ASSERT_CONSOLE_CLEAN [IGNORE "pat1","pat2"] | SNAPSHOT queries | INVOKE path comp method args |
+    ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args |
     SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |
     ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z |
-    ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | CAPTURE label query |
-    ASSERT_CAPTURED label INCREASED|DECREASED | INVARIANT query op value |
-    SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f.
-    Queries use aliases from PlaytestConfig.asset or pipe format: path|component|field
-    defs: inline VAL definitions ('name path|comp|field' per line), prepended to script.
-    abort_on_fail=True: stops Play Mode on step timeout.
-    snapshot_on_failure=True: on assertion/timeout failure, appends current alias values and recent console errors."""
+    ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value |
+    SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |
+    CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED.
+    defs: inline VAL definitions prepended to script."""
     if script and path:
         raise ValueError("script and path are mutually exclusive")
     if not script and not path:
@@ -164,7 +152,7 @@ run_playtest.__test__ = False  # prevent pytest from collecting as test
 
 
 async def run_playtest_suite(
-    paths: "str | None" = None,
+    pattern: "str | None" = None,
     suite_path: "str | None" = None,
     timeout_per_test: float = 120.0,
     stop_on_fail: bool = False,
@@ -173,17 +161,17 @@ async def run_playtest_suite(
     restart_between: bool = False,
 ) -> str:
     """[Play Mode] Run multiple .playtest files sequentially and return a compact matrix.
-    paths: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,
-           or newline-separated list of project-relative paths.
+    pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,
+             or newline-separated list of project-relative paths.
     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).
-    Exactly one of paths or suite_path must be provided.
+    Exactly one of pattern or suite_path must be provided.
     stop_on_fail=True: abort suite after first failure.
     stop_after=True: exit Play Mode when suite completes.
     auto_play=True: enter Play Mode automatically if not already playing.
     restart_between=True: stop+play between each file to reset runtime state.
     Output: SUITE: X/Y passed (Zs) + per-file line + full failure details."""
-    if paths and suite_path:
-        raise ValueError("paths and suite_path are mutually exclusive")
+    if pattern and suite_path:
+        raise ValueError("pattern and suite_path are mutually exclusive")
     if auto_play:
         import asyncio as _asyncio
         state = await _send("editor", _args(action="state"), timeout=5.0)
@@ -204,16 +192,16 @@ async def run_playtest_suite(
                      if l.strip() and not l.strip().startswith("#")]
         if not file_list:
             return "SUITE: no files in suite"
-    elif not paths:
-        raise ValueError("paths or suite_path required")
-    elif "*" in paths or "?" in paths:
-        file_list_raw = await _send("list_playtest_files", _args(pattern=paths), timeout=10.0)
+    elif not pattern:
+        raise ValueError("pattern or suite_path required")
+    elif "*" in pattern or "?" in pattern:
+        file_list_raw = await _send("list_playtest_files", _args(pattern=pattern), timeout=10.0)
         if file_list_raw.startswith("err:") or file_list_raw == "no files":
             return file_list_raw
         file_list = [f.strip() for f in file_list_raw.strip().split("\n") if f.strip()]
     else:
-        sep = "," if "," in paths else "\n"
-        file_list = [f.strip() for f in paths.split(sep) if f.strip()]
+        sep = "," if "," in pattern else "\n"
+        file_list = [f.strip() for f in pattern.split(sep) if f.strip()]
 
     if not file_list:
         return "SUITE: no files matched"
@@ -333,10 +321,10 @@ async def export_playtest_aliases_to_defs(
     return await _send("export_playtest_aliases_to_defs", _args(asset=asset, defs=defs))
 
 
-async def lint_playtest_suite(paths: "str | None" = None,
+async def lint_playtest_suite(pattern: "str | None" = None,
                               suite_path: "str | None" = None) -> str:
     """Read-only preflight check across multiple .playtest files.
-    paths: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list.
+    pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list.
     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).
     Returns: aggregated lint report, one block per file."""
     if suite_path:
@@ -344,15 +332,15 @@ async def lint_playtest_suite(paths: "str | None" = None,
         file_list = [l.strip() for l in
                      _pathlib.Path(suite_path).read_text(encoding="utf-8").splitlines()
                      if l.strip() and not l.strip().startswith("#")]
-    elif not paths:
-        raise ValueError("paths or suite_path required")
-    elif "*" in paths or "?" in paths:
-        file_list_raw = await _send("list_playtest_files", _args(pattern=paths), timeout=10.0)
+    elif not pattern:
+        raise ValueError("pattern or suite_path required")
+    elif "*" in pattern or "?" in pattern:
+        file_list_raw = await _send("list_playtest_files", _args(pattern=pattern), timeout=10.0)
         if file_list_raw.startswith("err:") or file_list_raw == "no files":
             return file_list_raw
         file_list = [f.strip() for f in file_list_raw.strip().split("\n") if f.strip()]
     else:
-        file_list = [f.strip() for f in paths.split(",") if f.strip()]
+        file_list = [f.strip() for f in pattern.split(",") if f.strip()]
 
     if not file_list:
         return "LINT: no files matched"
@@ -404,7 +392,6 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RO)(resolve_scene_refs)
     mcp.tool(annotations=_RO)(lint_scene_refs)
     mcp.tool(annotations=_RW)(invoke_method)
-    mcp.tool(annotations=_RW_IDEM)(set_runtime_property)
     mcp.tool(annotations=_RW_IDEM)(wait_until)
     mcp.tool(annotations=_RW)(move_to)
     mcp.tool(annotations=_RO)(query_state)

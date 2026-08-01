@@ -48,7 +48,6 @@ from unity_mcp.tools import runtime, diagnostics, watch as watch_mod
 
 RUNTIME_TOOLS = [
     (runtime.invoke_method,        "[Play Mode]"),
-    (runtime.set_runtime_property, "[Play Mode]"),
     (runtime.wait_until,           "[Play Mode]"),
     (runtime.move_to,              "[Play Mode]"),
     (runtime.query_state,          "[Play Mode]"),

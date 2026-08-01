@@ -47,5 +47,36 @@ namespace UnityMCP.Editor.Tests
 
             Assert.That(found, Is.EqualTo(child));
         }
+
+        [Test]
+        public void FindGameObject_PlainBracketRoot_Found()
+        {
+            // Regression lock: plain bracket name (no embedded slash) must resolve
+            // Would fail if traversal ever falls back to Transform.Find("[GAMEPLAY]")
+            var root = new GameObject("[GAMEPLAY]");
+            _toDestroy.Add(root);
+
+            var found = SceneObjectFinder.FindGameObject("/[GAMEPLAY]");
+
+            Assert.That(found, Is.EqualTo(root),
+                "Plain bracket root '[GAMEPLAY]' must be findable by SceneObjectFinder");
+        }
+
+        [Test]
+        public void FindGameObject_NestedBracketSegments_Found()
+        {
+            // Regression lock: all-bracket path segments must resolve to the leaf
+            var root = new GameObject("[GAMEPLAY]");
+            _toDestroy.Add(root);
+            var child = new GameObject("[PLACEMENTS]");
+            child.transform.SetParent(root.transform);
+            var leaf = new GameObject("Repair");
+            leaf.transform.SetParent(child.transform);
+
+            var found = SceneObjectFinder.FindGameObject("[GAMEPLAY]/[PLACEMENTS]/Repair");
+
+            Assert.That(found, Is.EqualTo(leaf),
+                "Nested bracket segments must resolve to the leaf");
+        }
     }
 }

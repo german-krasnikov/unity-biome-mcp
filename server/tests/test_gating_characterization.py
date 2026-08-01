@@ -66,7 +66,7 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "scene_environment", "scene_health", "screenshot", "screenshot_baseline",
     "screenshot_compare", "scriptable_object", "search_scene", "set_active",
     "set_llm_config", "set_material", "set_parent", "set_properties",
-    "set_property", "set_property_delta", "set_rect", "set_runtime_property",
+    "set_property", "set_property_delta", "set_rect",
     "setup_objects", "shader", "smart_build", "snapshot", "spatial_query",
     "sync_playtest_aliases_from_defs",
     "sync_unity", "test_step", "timeline", "transfer_object", "ui_intent",
@@ -103,7 +103,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
     "RUNTIME": {
         "console_mark", "debug", "debug_animator", "debug_physics", "get_console_since",
         "get_frame_stats", "get_memory", "get_metrics", "get_watches",
-        "invoke_method", "move_to", "profile", "query_state", "set_runtime_property",
+        "invoke_method", "move_to", "profile", "query_state",
         "snapshot", "wait_until", "watch",
     },
     "TESTS": {

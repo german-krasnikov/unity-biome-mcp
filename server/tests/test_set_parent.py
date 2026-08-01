@@ -6,7 +6,7 @@ from unity_mcp.tools import objects
 
 
 async def test_set_parent_sends_correct_command(mock_bridge, bridge_response):
-    """set_parent sends cmd=set_parent with path, parent, world_position_stays=true."""
+    """set_parent sends cmd=set_parent with path, parent; omits world_position_stays when default True (Pattern A')."""
     bridge_response(data="ok")
     from unity_mcp.tools.objects import set_parent
     await set_parent(path="/A", parent="/B")
@@ -14,7 +14,7 @@ async def test_set_parent_sends_correct_command(mock_bridge, bridge_response):
     assert mock_bridge.send.call_args[0][0] == "set_parent"
     assert args["path"] == "/A"
     assert args["parent"] == "/B"
-    assert args["world_position_stays"] == "true"
+    assert "world_position_stays" not in args
 
 
 async def test_set_parent_null_parent(mock_bridge, bridge_response):

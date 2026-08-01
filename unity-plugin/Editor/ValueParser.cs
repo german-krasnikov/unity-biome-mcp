@@ -138,17 +138,20 @@ namespace UnityMCP.Editor
                     var v3i = ParseFloats(value, 3);
                     property.vector3IntValue = new Vector3Int((int)v3i[0], (int)v3i[1], (int)v3i[2]); break;
                 case SerializedPropertyType.Enum:
-                    if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var enumIdx))
+                    if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var enumVal))
                     {
-                        if (enumIdx < 0 || enumIdx >= property.enumNames.Length)
-                            throw new ArgumentException($"Enum index {enumIdx} out of range (0..{property.enumNames.Length - 1}): {property.propertyPath}");
-                        property.enumValueIndex = enumIdx;
+                        if (enumVal < 0)
+                            throw new ArgumentException($"Invalid enum value '{value}': negative integers are not valid enum values: {property.propertyPath}");
+                        property.enumValueFlag = enumVal;  // underlying C# int; handles gap-valued + [Flags] enums
                     }
                     else
                     {
                         var idx = Array.IndexOf(property.enumNames, value);
+                        if (idx < 0)
+                            idx = Array.FindIndex(property.enumNames, n => string.Equals(n, value, StringComparison.OrdinalIgnoreCase));
                         if (idx >= 0) property.enumValueIndex = idx;
-                        else throw new ArgumentException($"Invalid enum value: {value}");
+                        else throw new ArgumentException(
+                            $"Invalid enum value '{value}'. Valid: {string.Join(", ", property.enumNames)}: {property.propertyPath}");
                     }
                     break;
                 case SerializedPropertyType.ArraySize:
@@ -200,6 +203,9 @@ namespace UnityMCP.Editor
                 return;
             }
             var fieldType = GetSerializedFieldType(property);
+            if (fieldType == null)
+                Debug.LogWarning($"[MCP] Cannot resolve C# type for '{property.propertyPath}'. " +
+                    "ObjectReference assignment may fail if field expects a specific Component.");
             var refGo = ComponentSerializer.FindObject(value);
             if (refGo != null)
             {
@@ -207,10 +213,19 @@ namespace UnityMCP.Editor
                 {
                     var comp = refGo.GetComponent(fieldType);
                     if (comp == null)
-                        throw new ArgumentException($"Component {fieldType.Name} not found on {value}");
+                        throw new ArgumentException(
+                            $"Type mismatch: field '{property.propertyPath}' expects {fieldType.Name}, " +
+                            $"but '{value}' has no such component.");
                     property.objectReferenceValue = comp;
                 }
-                else property.objectReferenceValue = refGo;
+                else
+                {
+                    property.objectReferenceValue = refGo;
+                    if (property.objectReferenceValue == null && refGo != null)
+                        throw new ArgumentException(
+                            $"Type mismatch: field '{property.propertyPath}' rejected GameObject " +
+                            "(field expects a specific Component).");
+                }
                 return;
             }
             var sepIdx = value.IndexOf("::");
@@ -236,7 +251,14 @@ namespace UnityMCP.Editor
                     throw new ArgumentException($"Component {fieldType.Name} not found on asset: {value}");
                 property.objectReferenceValue = comp;
             }
-            else property.objectReferenceValue = asset;
+            else
+            {
+                property.objectReferenceValue = asset;
+                if (property.objectReferenceValue == null && asset != null)
+                    throw new ArgumentException(
+                        $"Type mismatch: field '{property.propertyPath}' rejected asset " +
+                        "(field expects a specific Component or incompatible type).");
+            }
         }
 
         /// <summary>Split comma-separated array values, respecting parens/brackets.</summary>
@@ -285,6 +307,7 @@ namespace UnityMCP.Editor
                             var ft = lastField.FieldType;
                             type = ft.IsArray ? ft.GetElementType() :
                                    ft.IsGenericType ? ft.GetGenericArguments()[0] : ft;
+                            lastField = null;  // element has no FieldInfo; force final return to use `type`
                         }
                         i++; // skip data[N]
                         continue;
@@ -300,7 +323,7 @@ namespace UnityMCP.Editor
                     if (lastField == null) return null;
                     type = lastField.FieldType;
                 }
-                if (lastField == null) return null;
+                if (lastField == null) return type;  // type holds element type from Array branch
                 var resultType = lastField.FieldType;
                 if (resultType.IsArray) return resultType.GetElementType();
                 if (resultType.IsGenericType) return resultType.GetGenericArguments()[0];

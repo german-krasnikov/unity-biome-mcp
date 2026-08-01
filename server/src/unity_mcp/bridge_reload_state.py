@@ -3,7 +3,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .constants import SESSION_TIMEOUT as DOMAIN_RELOAD_EXPIRY_S
+# Domain reload can take up to 60-90s on slow machines.
+# Must be >= STARTUP_GRACE_S (90s) so Python doesn't flood a dead socket
+# before Unity finishes compiling (would push bridge to FAILED state).
+DOMAIN_RELOAD_EXPIRY_S: float = 90.0
 
 
 @dataclass

@@ -9,7 +9,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CommandRouterTests
+    public class CommandRouterTests : SceneTestBase
     {
         // ── IsAllowedDuringCompile ────────────────────────────────────────────
 
@@ -60,8 +60,8 @@ namespace UnityMCP.Editor.Tests
         [TestCase("unwire_event",    "get_component")]
         [TestCase("manage_component","get_components_list")]
         [TestCase("delete_object",   "get_hierarchy depth=1")]
-        [TestCase("set_parent",      "get_hierarchy depth=1")]
-        [TestCase("batch",           "get_console level=Error")]
+        [TestCase("set_parent",         "get_hierarchy depth=1")]
+        [TestCase("batch",              "get_console level=Error")]
         public void SuggestNext_MutatingCommand_ReturnsSuggestion(string cmd, string expected)
             => Assert.AreEqual(expected, CommandRouter.SuggestNext(cmd));
 
@@ -91,12 +91,12 @@ namespace UnityMCP.Editor.Tests
         public bool Registry_IsMutating_ReadCommands_ReturnFalse(string cmd)
             => CommandRegistry.IsMutating(cmd);
 
-        [TestCase("invoke_method",        ExpectedResult = true)]
-        [TestCase("set_runtime_property", ExpectedResult = true)]
-        [TestCase("wait_until",           ExpectedResult = true)]
-        [TestCase("move_to",              ExpectedResult = true)]
-        [TestCase("query_state",          ExpectedResult = true)]
-        [TestCase("run_playtest",         ExpectedResult = true)]
+        [TestCase("invoke_method",          ExpectedResult = true)]
+        [TestCase("set_runtime_property",   ExpectedResult = true)]
+        [TestCase("wait_until",             ExpectedResult = true)]
+        [TestCase("move_to",                ExpectedResult = true)]
+        [TestCase("query_state",            ExpectedResult = true)]
+        [TestCase("run_playtest",           ExpectedResult = true)]
         public bool Registry_IsRuntime_RuntimeCommands(string cmd)
             => CommandRegistry.IsRuntime(cmd);
 
@@ -224,6 +224,45 @@ namespace UnityMCP.Editor.Tests
             {
                 CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
                 CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
+            }
+        }
+
+        [Test]
+        public void Process_InPlayMode_SetParent_NotBlockedByPlayModeGuard()
+        {
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode  = () => true;
+            try
+            {
+                var json = "{\"id\":\"sp1\",\"cmd\":\"set_parent\",\"args\":{\"path\":\"/NonExistent_XYZ\",\"parent\":\"/X\"}}";
+                var result = CommandRouter.Process(json);
+                StringAssert.DoesNotContain("Play mode active", result);
+            }
+            finally
+            {
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
+            }
+        }
+
+        // ── Batch: set_parent is NOT blocked by Play Mode gate ────────────────
+
+        [Test]
+        public void Batch_InPlayMode_SetParent_NotBlockedByPlayModeGuard()
+        {
+            CommandRouter.IsCompiling = () => false;
+            BatchHelper.IsPlayMode = () => true;
+            try
+            {
+                // set_parent is mutating but explicitly excluded from the Play Mode block.
+                // Result may be an error (object not found) but must NOT contain "BLOCKED".
+                var result = BatchHelper.Execute("set_parent /NonExistent_XYZ /X", "continue", 25000);
+                StringAssert.DoesNotContain("BLOCKED", result);
+            }
+            finally
+            {
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                BatchHelper.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
             }
         }
 

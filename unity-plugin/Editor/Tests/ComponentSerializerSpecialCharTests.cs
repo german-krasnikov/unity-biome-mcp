@@ -25,6 +25,9 @@ namespace UnityMCP.Editor.Tests
         [TestCase("[A/B]")]
         [TestCase("[back\\slash]")]
         [TestCase("Объект")]
+        [TestCase("[GAMEPLAY]")]
+        [TestCase("[PLACEMENTS]")]
+        [TestCase("[UI LAYER]")]
         public void RoundTrip_GetPath_FindObject(string name)
         {
             var go = new GameObject(name);
@@ -43,6 +46,9 @@ namespace UnityMCP.Editor.Tests
         [TestCase("[A/B]")]
         [TestCase("[back\\slash]")]
         [TestCase("Объект")]
+        [TestCase("[GAMEPLAY]")]
+        [TestCase("[PLACEMENTS]")]
+        [TestCase("[UI LAYER]")]
         public void RoundTrip_NestedChild_SpecialParentName(string parentName)
         {
             var parent = new GameObject(parentName);

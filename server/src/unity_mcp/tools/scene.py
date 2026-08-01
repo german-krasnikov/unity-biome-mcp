@@ -70,11 +70,11 @@ async def get_hierarchy(depth: int = 2, root: str | None = None, filter: str | N
     return result
 
 
-async def scene(action: str, path: str | None = None, scene_name: str | None = None) -> str:
+async def scene(action: str, path: str | None = None, scene: str | None = None) -> str:
     """Scene management. action: new|open|save|discard|open_additive|close|set_active|list.
     path: required for open/save/open_additive/close/set_active. list requires no path.
-    scene_name: save/discard target when multiple scenes loaded (identifies by name)."""
-    return await _send("scene", _args(action=action, path=path, scene=scene_name))
+    scene: save/discard target when multiple scenes loaded (identifies by name)."""
+    return await _send("scene", _args(action=action, path=path, scene=scene))
 
 
 async def search_scene(query: str, root: str | None = None, limit: int = 50,

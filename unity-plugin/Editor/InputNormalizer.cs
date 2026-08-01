@@ -183,10 +183,19 @@ namespace UnityMCP.Editor
             if (PropertyAliases.TryGetValue(input, out var alias) && so.FindProperty(alias) != null)
                 return alias;
 
-            // 3. Try m_ prefix
-            var mPrefixed = "m_" + char.ToUpper(input[0]) + input.Substring(1);
-            if (so.FindProperty(mPrefixed) != null)
-                return mPrefixed;
+            // 3+4. Try m_ prefix and _lowerCamelCase — guard: skip for underscore-prefixed inputs
+            //      to prevent double-underscore ("m__field") corruption.
+            if (input[0] != '_')
+            {
+                var mPrefixed = "m_" + char.ToUpper(input[0]) + input.Substring(1);
+                if (so.FindProperty(mPrefixed) != null)
+                    return mPrefixed;
+
+                // 4. Try _lowerCamelCase convention (dominant Unity private [SerializeField] style)
+                var underscored = "_" + char.ToLower(input[0]) + input.Substring(1);
+                if (so.FindProperty(underscored) != null)
+                    return underscored;
+            }
 
             return input;
         }

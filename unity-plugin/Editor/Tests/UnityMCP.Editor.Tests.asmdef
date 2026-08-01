@@ -4,6 +4,7 @@
     "references": [
         "UnityMCP.Editor",
         "UnityMCP.Editor.Chat.CLI",
+        "UnityMCP.Runtime.TestHelpers",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "Unity.Timeline",

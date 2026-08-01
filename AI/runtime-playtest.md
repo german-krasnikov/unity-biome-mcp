@@ -42,6 +42,8 @@ await get_component("/Player", "PlayerController", fields="Health")  # → Healt
 
 **RW_IDEM Annotation:** Idempotent write; safe to retry.
 
+**Note:** For batch operations or convenience, use `set_property()` instead — it works in both Edit and Play Mode, and middleware transparently reroutes to `set_runtime_property` at runtime.
+
 ## wait_until(path, component, field, value, timeout=5.0, negate=False, abort_on_fail=False)
 
 **Purpose:** Poll field until it matches value or timeout (Play Mode only).

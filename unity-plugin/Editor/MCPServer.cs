@@ -113,12 +113,13 @@ namespace UnityMCP.Editor
         {
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
+            // Register WatchdogTick FIRST — so it survives even if PortFileManager throws below.
+            EditorApplication.update += WatchdogTick;
             // Remove port files from dead PIDs before writing our own — prevents stale entries.
             PortFileManager.CleanStalePeerPortFiles();
             // Persist auto-assigned ports so they survive domain reload
             PortFileManager.SavePorts(PortFileManager.Port, PortFileManager.ChatPort);
             EditorApplication.update += MainThreadDispatcher.Drain;
-            EditorApplication.update += WatchdogTick;
             EditorApplication.quitting += OnQuit;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
             CompilationPipeline.compilationStarted += _ => { _isCompiling = true; _compileStartedThisDomain = true; _compileStartTime = DateTime.UtcNow; WriteStateFile("compiling"); };
@@ -144,7 +145,7 @@ namespace UnityMCP.Editor
             if (_shuttingDown) return;
             if (EditorApplication.timeSinceStartup - _lastWatchdogCheck < 5.0) return;
             _lastWatchdogCheck = EditorApplication.timeSinceStartup;
-            if (!IsRunning && !EditorApplication.isCompiling)
+            if (!IsRunning && !IsReallyCompiling)
                 StartAsync();
         }
 
@@ -200,6 +201,10 @@ namespace UnityMCP.Editor
                             // Preserves user intent so next reload retries the configured port, no cascade drift.
                             PortFileManager.SaveRuntimePorts(bindPort, PortFileManager.ChatPort);
                         }
+                        var boundPort = PortFileManager.Port;
+                        if (attempt == 0)
+                            PortFileManager.WritePortFile(boundPort);  // attempt 0 = main thread, safe
+                        // Retries fall through to MainThreadDispatcher.Enqueue at L268
                         break;
                     }
                     catch (SocketException se) when (se.SocketErrorCode == SocketError.AddressAlreadyInUse)
@@ -275,7 +280,8 @@ namespace UnityMCP.Editor
             }
             catch (Exception e)
             {
-                if (!_shuttingDown)
+                // Suppress OperationCanceledException on clean shutdown — CTS cancellation is expected
+                if (!(e is OperationCanceledException && _shuttingDown))
                 {
                     var msg = e.Message; MainThreadDispatcher.Enqueue(() => Debug.LogError($"[MCP] Server error: {msg}"));
                 }
@@ -358,7 +364,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "1.9.1";
+        internal static string PluginVersion => "1.10.0";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {

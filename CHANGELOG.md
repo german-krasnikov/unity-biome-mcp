@@ -10,6 +10,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.10.0] — 2026-08-01
+
+### Added
+- `set_parent` now works in both Edit Mode and Play Mode (unified API)
+- ValueParser: enum gap/flags support, case-insensitive name match
+- InputNormalizer: underscore field name normalization with _lowerCamelCase fallback
+- GetSerializedFieldType improvements for better type inference
+- SetObjectReference null guard for safer object reference handling
+
+### Changed
+- `set_runtime_parent` Python tool removed (use `set_parent` in any mode)
+- `set_runtime_property` Python tool removed (middleware auto-routes `set_property`)
+- ScreenshotCapture.FindCamera uses ComponentSerializer.FindObject (bracket-path support)
+
+### Fixed
+- Domain reload: port file sync, bridge recovery, TCP storm prevention
+- Domain reload: heartbeat deadlock, stale timer, WatchdogTick latch
+- TestRunner: Play Mode guards prevent UTF crash on domain reload
+- SceneHelper.OpenScene: Play Mode guard prevents crash
+- Port file leak: test cleanup restores discovery files after PortFileManager tests
+- CleanStalePeerPortFiles: handles all file types (*.port, *.reload-port, *.chat-port)
+- MCPServer: bind failure always logged (no silent swallow during shutdown)
+- Bridge: going_away detection during version check prevents dead-socket reconnections
+
 ## [v1.9.1] — 2026-07-31
 
 **Documentation:**

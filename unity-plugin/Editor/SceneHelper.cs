@@ -119,10 +119,23 @@ namespace UnityMCP.Editor
             if (!System.IO.File.Exists(path))
                 throw new System.ArgumentException($"Scene not found: {path}");
 
-            // NewScene silently discards dirty state — no save dialog
+            if (EditorApplication.isPlaying)
+                throw new System.InvalidOperationException("Cannot open scenes during Play Mode");
+
             var current = SceneManager.GetActiveScene();
-            if (current.isDirty)
+            bool fileMissing = !string.IsNullOrEmpty(current.path)
+                && AssetDatabase.AssetPathToGUID(current.path) == "";
+
+            if (current.isDirty || fileMissing)
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            current = SceneManager.GetActiveScene();
+            if (string.IsNullOrEmpty(current.path))
+            {
+                if (!AssetDatabase.IsValidFolder("Assets/TestsTemp"))
+                    AssetDatabase.CreateFolder("Assets", "TestsTemp");
+                EditorSceneManager.SaveScene(current, TestRunner.TempScenePath, false);
+            }
 
             var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
             return scene.name;

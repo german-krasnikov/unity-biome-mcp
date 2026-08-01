@@ -16,6 +16,8 @@ namespace UnityMCP.Editor
 
         // Testable seam — delegates to CommandRouter.IsCompiling so tests can inject false.
         internal static Func<bool> IsCompiling = () => CommandRouter.IsCompiling();
+        // Testable seam — tests can inject true to simulate Play Mode.
+        internal static Func<bool> IsPlayMode = () => EditorApplication.isPlaying;
 
         private static readonly Regex _sigilRe = new Regex(@"\$([A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
         private static readonly Regex _errCountRe = new Regex(@"\berr:\s*[1-9]", RegexOptions.Compiled);
@@ -87,12 +89,12 @@ namespace UnityMCP.Editor
                 }
 
                 // Play Mode guards
-                if (EditorApplication.isPlaying && CommandRegistry.IsMutating(cmd))
+                if (IsPlayMode() && CommandRegistry.IsMutating(cmd) && cmd != "set_parent")
                 {
                     sb.AppendLine($"[{i}] BLOCKED: '{cmd}' is mutating, skipped in Play Mode");
                     if (AtomicFail(i)) break; else continue;
                 }
-                if (!EditorApplication.isPlaying && CommandRegistry.IsRuntime(cmd))
+                if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))
                 {
                     sb.AppendLine($"[{i}] BLOCKED: '{cmd}' is runtime-only, skipped outside Play Mode");
                     if (AtomicFail(i)) break; else continue;
@@ -151,7 +153,7 @@ namespace UnityMCP.Editor
                     UndoGroupHelper.CloseNamedGroup(gid);
 
                 // Only the outermost batch flushes physics — once, after all nested ops settle.
-                if (--_batchDepth == 0 && !EditorApplication.isPlaying)
+                if (--_batchDepth == 0 && !IsPlayMode())
                 {
                     Physics.SyncTransforms();
                     Physics2D.SyncTransforms();

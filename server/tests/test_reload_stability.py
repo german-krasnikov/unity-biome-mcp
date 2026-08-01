@@ -28,18 +28,18 @@ _RELOAD = _PROJECT / "unity-plugin-reload"
 # Group A: Compile Detection constants
 # ===========================================================================
 
-def test_domain_reload_expiry_is_120s():
-    """DOMAIN_RELOAD_EXPIRY_S must be 120.0 — 9 assemblies can take 60s+."""
-    assert DOMAIN_RELOAD_EXPIRY_S == 120.0
+def test_domain_reload_expiry_is_90s():
+    """DOMAIN_RELOAD_EXPIRY_S must be 90.0 — aligns with STARTUP_GRACE_S to prevent premature flood."""
+    assert DOMAIN_RELOAD_EXPIRY_S == 90.0
 
 
 def test_disconnect_window_is_120s():
-    """_DISCONNECT_WINDOW_S must match DOMAIN_RELOAD_EXPIRY_S (120s)."""
+    """_DISCONNECT_WINDOW_S must be 120.0 (SESSION_TIMEOUT, separate from DOMAIN_RELOAD_EXPIRY_S)."""
     assert _DISCONNECT_WINDOW_S == 120.0
 
 
 def test_domain_reload_tracker_active_at_60s():
-    """At 60s elapsed, tracker still active — 9 assemblies need 30–60s."""
+    """At 60s elapsed, tracker still active (< 90s expiry)."""
     tracker = DomainReloadTracker()
     with patch("unity_mcp.bridge_reload_state.time") as t:
         t.monotonic.side_effect = [0.0, 60.0]
@@ -47,11 +47,11 @@ def test_domain_reload_tracker_active_at_60s():
         assert tracker.is_active() is True
 
 
-def test_domain_reload_tracker_expires_after_120s():
-    """After 121s, tracker auto-clears and returns False."""
+def test_domain_reload_tracker_expires_after_90s():
+    """After 91s, tracker auto-clears and returns False."""
     tracker = DomainReloadTracker()
     with patch("unity_mcp.bridge_reload_state.time") as t:
-        t.monotonic.side_effect = [0.0, 121.0]
+        t.monotonic.side_effect = [0.0, 91.0]
         tracker.mark()
         assert tracker.is_active() is False
         assert tracker._active is False  # must auto-clear internal flag
@@ -396,3 +396,46 @@ def test_guard_probe_oserror():
     with patch("socket.create_connection", side_effect=OSError("refused")):
         result = mod._probe_guard_locked(9500)
     assert result is None
+
+
+# ===========================================================================
+# Group G: Source Verification — TCP server death fixes
+# ===========================================================================
+
+def test_domain_reload_expiry_aligns_with_startup_grace():
+    """DOMAIN_RELOAD_EXPIRY_S must be >= STARTUP_GRACE_S (90s).
+    If expiry < STARTUP_GRACE, Python stops waiting before Unity finishes
+    compiling and floods the dead socket → bridge transitions to FAILED.
+    """
+    import unity_mcp.bridge as _bridge
+    assert DOMAIN_RELOAD_EXPIRY_S >= _bridge.STARTUP_GRACE_S
+
+
+def test_watchdog_tick_uses_is_really_compiling():
+    """WatchdogTick must use IsReallyCompiling, NOT EditorApplication.isCompiling.
+    EditorApplication.isCompiling can latch to True after domain reload on Windows,
+    preventing the server from ever restarting.
+    """
+    src = (_PLUGIN / "Editor/MCPServer.cs").read_text(encoding="utf-8")
+    # Extract WatchdogTick body — between method signature and the next private static method.
+    start = src.find("private static void WatchdogTick()")
+    end = src.find("\n        private static", start + 1)
+    watchdog_body = src[start:end]
+    assert "IsReallyCompiling" in watchdog_body
+    assert "EditorApplication.isCompiling" not in watchdog_body
+
+
+def test_watchdog_registered_before_port_file_manager():
+    """WatchdogTick must be registered BEFORE PortFileManager calls in static ctor.
+    If PortFileManager throws, WatchdogTick must still be wired up to restart the server.
+    """
+    src = (_PLUGIN / "Editor/MCPServer.cs").read_text(encoding="utf-8")
+    # Scope search to static constructor body only (avoid the public SavePorts wrapper above it)
+    ctor_start = src.find("static MCPServer()")
+    ctor_end = src.find("\n        public static async void StartAsync()", ctor_start)
+    ctor = src[ctor_start:ctor_end]
+    idx_watchdog = ctor.find("EditorApplication.update += WatchdogTick")
+    idx_clean = ctor.find("PortFileManager.CleanStalePeerPortFiles()")
+    idx_save = ctor.find("PortFileManager.SavePorts(")
+    assert idx_watchdog < idx_clean, "WatchdogTick must be registered before CleanStalePeerPortFiles()"
+    assert idx_watchdog < idx_save, "WatchdogTick must be registered before SavePorts()"

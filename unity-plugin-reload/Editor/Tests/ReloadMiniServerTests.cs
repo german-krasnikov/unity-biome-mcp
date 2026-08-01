@@ -200,6 +200,115 @@ namespace UnityMCP.Reload.Tests
         }
     }
 
+    // ── Dispatch coverage: structured fields + null-stream guard + id echo ────
+
+    [TestFixture]
+    public class ReloadMiniServerDispatchTests
+    {
+        // A1: diagnose path wraps output in ok:true and preserves key fields.
+        [Test]
+        public void Dispatch_Diagnose_ContainsStructuredFields()
+        {
+            var response = ReloadMiniServer.DispatchCommand("diagnose", "{}", "d1");
+
+            StringAssert.Contains("\"ok\":true", response);
+            StringAssert.Contains("mvid=", response);
+            StringAssert.Contains("compile=", response);
+        }
+
+        // A2: sync_status route: id round-trip + state= present.
+        [Test]
+        public void Dispatch_SyncStatus_ContainsStateField_ViaMiniServer()
+        {
+            var response = ReloadMiniServer.DispatchCommand("sync_status", "{}", "ss1");
+
+            StringAssert.Contains("\"ok\":true", response);
+            StringAssert.Contains("state=", response);
+            StringAssert.Contains("\"id\":\"ss1\"", response);
+        }
+
+        // A3: null stream → EnqueueMainThread returns error immediately (no queue touch).
+        [Test]
+        public void Dispatch_ForceRefresh_NullStream_ReturnsMainThreadUnavailableError()
+        {
+            var response = ReloadMiniServer.DispatchCommand("force_refresh", "{}", "fr1", null);
+
+            Assert.IsNotNull(response);
+            StringAssert.Contains("\"ok\":false", response);
+            StringAssert.Contains("main thread not available in test context", response);
+        }
+
+        // A4: symmetric with A3 — recompile command, same null-stream guard.
+        [Test]
+        public void Dispatch_Recompile_NullStream_ReturnsMainThreadUnavailableError()
+        {
+            var response = ReloadMiniServer.DispatchCommand("recompile", "{}", "rc1", null);
+
+            StringAssert.Contains("\"ok\":false", response);
+            StringAssert.Contains("main thread not available in test context", response);
+        }
+
+        // A5: id must round-trip in error response (Python-side correlation depends on this).
+        [Test]
+        public void Dispatch_IdIsEchoedInErrorResponse_ForUnknownCommand()
+        {
+            var response = ReloadMiniServer.DispatchCommand("no_such_cmd", "{}", "my-correlation-id-99", null);
+
+            StringAssert.Contains("\"id\":\"my-correlation-id-99\"", response);
+            StringAssert.Contains("\"ok\":false", response);
+        }
+    }
+
+    // ── Port file lifecycle: write + delete via overridable PortsDir seam ────
+
+    [TestFixture]
+    public class ReloadPortResolverLifecycleTests
+    {
+        private string _originalPortsDir;
+        private string _tmpDir;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _originalPortsDir = ReloadPortResolver.PortsDir;
+            _tmpDir = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "ReloadPortResolverTest_" + System.IO.Path.GetRandomFileName());
+            ReloadPortResolver.PortsDir = _tmpDir;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            ReloadPortResolver.PortsDir = _originalPortsDir;
+            try { if (System.IO.Directory.Exists(_tmpDir)) System.IO.Directory.Delete(_tmpDir, true); }
+            catch { }
+        }
+
+        // A6: full port-file lifecycle — write creates file with correct content, delete removes it.
+        [Test]
+        public void ReloadPortResolver_WriteAndDeletePortFile_CreatesAndRemovesFile()
+        {
+            int fakePid = System.Diagnostics.Process.GetCurrentProcess().Id;
+            int port = 9612;
+            string projDir = "/fake/proj/dir";
+
+            ReloadPortResolver.WriteReloadPortFile(fakePid, port, projDir, "TestProj");
+
+            var filePath = System.IO.Path.Combine(_tmpDir, $"{fakePid}.reload-port");
+            Assert.IsTrue(System.IO.File.Exists(filePath),
+                "WriteReloadPortFile must create the .reload-port file");
+            var lines = System.IO.File.ReadAllText(filePath).Split('\n');
+            Assert.AreEqual("9612", lines[0].Trim(), "First line must be the port number");
+            Assert.AreEqual(projDir, lines[1].Trim(), "Second line must be the project directory");
+
+            ReloadPortResolver.DeleteReloadPortFile(fakePid);
+
+            Assert.IsFalse(System.IO.File.Exists(filePath),
+                "DeleteReloadPortFile must remove the .reload-port file");
+        }
+    }
+
     // ── Stress tests: source structure + concurrent Stop (CP-4) ──────────────
 
     [TestFixture]

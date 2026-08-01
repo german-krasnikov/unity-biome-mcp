@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from mcp.server.fastmcp.exceptions import ToolError
 from unity_mcp.server import (
-    invoke_method, set_runtime_property, wait_until, query_state, move_to,
+    invoke_method, wait_until, query_state, move_to,
     set_active, wire_event, unwire_event, run_playtest,
 )
 
@@ -24,17 +24,6 @@ async def test_invoke_method_no_args(mock_bridge):
     await invoke_method("/Player", "PlayerController", "Jump")
     call_args = mock_bridge.send.call_args[0][1]
     assert "args" not in call_args
-
-
-async def test_set_runtime_property_sends_correct_command(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "speed=10"}
-    result = await set_runtime_property("/Player", "PlayerController", "speed", "10")
-    mock_bridge.send.assert_called_once_with(
-        "set_runtime_property",
-        {"path": "/Player", "component": "PlayerController", "field": "speed", "value": "10"},
-        timeout=30.0,
-    )
-    assert result == "speed=10"
 
 
 async def test_wait_until_default_timeout(mock_bridge):
@@ -339,12 +328,12 @@ async def test_run_playtest_suite_suite_path_reads_file_and_runs(tmp_path, monke
 
 @pytest.mark.asyncio
 async def test_run_playtest_suite_paths_and_suite_path_raises(monkeypatch):
-    """paths and suite_path are mutually exclusive."""
+    """pattern and suite_path are mutually exclusive."""
     from unity_mcp.tools import runtime
     monkeypatch.setattr(runtime, "_send", AsyncMock())
     monkeypatch.setattr(runtime, "_args", dict)
     with pytest.raises(ValueError, match="mutually exclusive"):
-        await runtime.run_playtest_suite(paths="Playtests/*.playtest", suite_path="/tmp/x.suite")
+        await runtime.run_playtest_suite(pattern="Playtests/*.playtest", suite_path="/tmp/x.suite")
 
 
 @pytest.mark.asyncio
@@ -376,4 +365,20 @@ async def test_lint_playtest_suite_suite_path_reads_file(tmp_path, monkeypatch):
     monkeypatch.setattr(runtime, "_send", fake_send)
     monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
     result = await runtime.lint_playtest_suite(suite_path=str(suite))
+    assert "LINT: 1/1 clean" in result
+
+
+@pytest.mark.asyncio
+async def test_lint_playtest_suite_pattern_keyword_form(monkeypatch):
+    """lint_playtest_suite accepts pattern= as keyword argument."""
+    from unity_mcp.tools import runtime
+
+    async def fake_send(cmd, args, **kw):
+        if cmd == "list_playtest_files":
+            return "Playtests/a.playtest"
+        return "OK  no issues"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    result = await runtime.lint_playtest_suite(pattern="*.playtest")
     assert "LINT: 1/1 clean" in result

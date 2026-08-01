@@ -110,9 +110,12 @@ async def _save_scene_before_play(_ensure_gridtest_scene):
             'bool ok = UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s); '
             'return ok ? "saved" : "save_failed";'
         )
-        await b.send("execute_code", {"code": code})
-    except Exception:
-        pass
+        result = await b.send("execute_code", {"code": code})
+        data = result.get("data", "")
+        if "saved" not in data:
+            pytest.skip(f"Could not save scene before Play Mode: {data}")
+    except Exception as e:
+        pytest.skip(f"Could not save scene before Play Mode: {e}")
     finally:
         await b.close()
 
@@ -143,8 +146,9 @@ _DESTROY_ORPHANS_CODE = (
 )
 _SAVE_CODE = (
     'var s = UnityEngine.SceneManagement.SceneManager.GetActiveScene(); '
-    'UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s); '
-    'return "saved";'
+    'if (string.IsNullOrEmpty(s.path)) return "skipped-untitled"; '
+    'bool ok = UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s); '
+    'return ok ? "saved" : "save_failed";'
 )
 
 
@@ -197,8 +201,10 @@ async def bridge():
 
 
 _SNAP_CODE = (
-    'return string.Join(",", UnityEngine.SceneManagement.SceneManager'
-    '.GetActiveScene().GetRootGameObjects().Select(go => go.name));'
+    'var _names = new System.Collections.Generic.List<string>(); '
+    'foreach (var go in UnityEngine.SceneManagement.SceneManager'
+    '.GetActiveScene().GetRootGameObjects()) _names.Add(go.name); '
+    'return string.Join(",", _names);'
 )
 
 
@@ -230,7 +236,7 @@ async def _orphan_guard(bridge):
             except Exception:
                 pass
         try:
-            await bridge.send("editor", {"action": "save_scene"})
+            await bridge.send("scene", {"action": "save"})
         except Exception:
             pass
         pytest.fail(f"Test leaked {len(leaked)} root objects (cleaned up): {', '.join(leaked)}")
@@ -258,11 +264,6 @@ async def _enter_play(b: UnityBridge) -> None:
         pass
     for _ in range(20):
         await asyncio.sleep(1)
-        if not b.connected:
-            try:
-                await b.connect()
-            except Exception:
-                continue
         try:
             r = await b.send("editor", {"action": "state"})
             if "playing:True" in r.get("data", ""):
@@ -296,11 +297,6 @@ async def _stop_play(b: UnityBridge) -> None:
         pass
     for _ in range(20):
         await asyncio.sleep(0.5)
-        if not b.connected:
-            try:
-                await b.connect()
-            except Exception:
-                continue
         try:
             r = await b.send("editor", {"action": "state"})
             if "playing:False" in r.get("data", ""):

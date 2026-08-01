@@ -58,7 +58,6 @@ namespace UnityMCP.Editor
             _port = port;
             _chatPort = chatPort;
             _portsResolved = true;
-            WritePortFile(port);
         }
 
         // Fallback-only save: updates runtime files (MCP_Port.json + {pid}.port) but NOT
@@ -83,23 +82,21 @@ namespace UnityMCP.Editor
         }
 
         // Testable overload: accepts the ports directory so tests can pass a temp path.
+        // Iterates all files — handles *.port, *.reload-port, *.chat-port from dead PIDs.
         internal static void CleanStalePeerPortFiles(string dir)
         {
             try
             {
                 if (!Directory.Exists(dir)) return;
                 var currentPid = System.Diagnostics.Process.GetCurrentProcess().Id;
-                foreach (var file in Directory.GetFiles(dir, "*.port"))
+                foreach (var file in Directory.GetFiles(dir))
                 {
-                    var stem = Path.GetFileNameWithoutExtension(file);
-                    if (!int.TryParse(stem, out var pid) || pid == currentPid) continue;
+                    var name = Path.GetFileName(file);
+                    var dot = name.IndexOf('.');
+                    if (dot < 0) continue;
+                    if (!int.TryParse(name.Substring(0, dot), out var pid) || pid == currentPid) continue;
                     try { System.Diagnostics.Process.GetProcessById(pid); }  // alive — skip
-                    catch (ArgumentException)
-                    {
-                        try { File.Delete(file); } catch { }
-                        var chatFile = Path.ChangeExtension(file, ".chat-port");
-                        try { if (File.Exists(chatFile)) File.Delete(chatFile); } catch { }
-                    }
+                    catch (ArgumentException) { try { File.Delete(file); } catch { } }
                 }
             }
             catch { }

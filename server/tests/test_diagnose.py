@@ -727,3 +727,143 @@ def test_verdict_stale_latch_is_wedge_engine():
         f"Stale latch (iscompiling=true + IsReallyCompiling=false + cn_active=true) "
         f"must be WEDGE-ENGINE, got {v!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# NEW: 5 gap tests for _verdict() priority ladder
+# ---------------------------------------------------------------------------
+
+def test_verdict_slot2_undetermined_stamp_yields_unknown():
+    """guard-reject or mid-startup: stamp=UNDETERMINED → UNKNOWN regardless of other fields."""
+    f = _d._DiagnoseFields(
+        mvid="",
+        stamp="UNDETERMINED",
+        compile="idle",
+        iscompiling=False,
+        log="clean",
+    )
+    assert _d._verdict(f) == "UNKNOWN"
+
+
+def test_verdict_slot4_stale_cache():
+    """wedge.kind=stale-cache → STALE-CACHE (disk fixed, domain not reimported)."""
+    from unity_mcp.editor_log import WedgeReport
+    f = _d._DiagnoseFields(
+        mvid="abc-123",
+        stamp="abc-123:100",
+        compile="idle",
+        log="clean",
+    )
+    wedge = WedgeReport(kind="stale-cache")
+    result = _d._verdict(f, wedge=wedge)
+    assert result.startswith("STALE-CACHE")
+
+
+def test_verdict_slot7_cn_active_true_not_wedge():
+    """cn_active=True prevents WEDGE-ENGINE even if iscompiling + stamp_frozen."""
+    f = _d._DiagnoseFields(
+        mvid="abc-123",
+        stamp="abc-123:100",
+        compile="compiling",
+        iscompiling=True,
+        cn_active=True,
+        stamp_frozen=True,
+        is_really_compiling=True,
+        log="absent",
+    )
+    v = _d._verdict(f)
+    assert v != "WEDGE-ENGINE", f"cn_active=true must prevent WEDGE-ENGINE, got {v!r}"
+
+
+def test_verdict_slot13_log_error_yields_fail():
+    """log=CS9999 + no CS in errors + fresh dlls + no wedge → FAIL:CS9999 (slot 13)."""
+    f = _d._DiagnoseFields(
+        mvid="abc-123",
+        stamp="abc-123:100",
+        compile="idle",
+        errors="",
+        all_errors="",
+        log="CS9999",
+        dlls="UnityMCP.Editor:100:fresh",
+    )
+    assert _d._verdict(f) == "FAIL:CS9999"
+
+
+def test_verdict_slot16_empty_stamp_unknown():
+    """stamp="" (not UNDETERMINED, just absent) + no other signals → UNKNOWN fallthrough."""
+    f = _d._DiagnoseFields(
+        mvid="",
+        stamp="",
+        compile="",
+        errors="",
+        log="",
+    )
+    assert _d._verdict(f) == "UNKNOWN"
+
+
+# ---------------------------------------------------------------------------
+# Sub-task B: file:UPM trap tests (T3, T4, T5)
+# ---------------------------------------------------------------------------
+
+IDLE_STALE_PAYLOAD = """\
+mvid=60d2de34-f1b2-4c3d-a5e6-789012345678
+stamp=60d2de34-f1b2-4c3d-a5e6-789012345678:639169455305003280
+compile=idle-stale|300.0
+sync=ready  epoch=0
+iscompiling=false  cn_active=false  started=false  stamp_frozen=false
+dlls=UnityMCP.Editor:639169455305003280:fresh
+errors=
+log=absent
+"""
+
+STALE_CACHE_PAYLOAD = """\
+mvid=60d2de34-f1b2-4c3d-a5e6-789012345678
+stamp=60d2de34-f1b2-4c3d-a5e6-789012345678:639169455305003280
+compile=idle|3.0
+sync=ready  epoch=2
+iscompiling=false  cn_active=false  started=false  stamp_frozen=false
+dlls=UnityMCP.Editor:639169455300000000:stale
+errors=
+log=clean
+"""
+
+
+@pytest.mark.asyncio
+async def test_diagnose_idle_stale_returns_noop():
+    """idle-stale (StaleCeilingSeconds expired) → NO-OP at slot 10."""
+    _d._send = _make_send(IDLE_STALE_PAYLOAD)
+    result = await _d.diagnose()
+    assert result == "NO-OP", f"idle-stale must → NO-OP, got: {result!r}"
+
+
+@pytest.mark.asyncio
+async def test_diagnose_idle_never_with_expected_compile_is_still_noop():
+    """Slot 10 (idle-never→NO-OP) fires BEFORE slot 11 (STALE-DOMAIN check).
+
+    Even with prev_mvid + expected_compile=True, idle-never returns NO-OP.
+    This documents the current slot-ordering behavior; slot 10 pre-empts slot 11.
+    """
+    _d._send = _make_send(NOOP_PAYLOAD)  # compile=idle-never, mvid=60d2de34...
+    result = await _d.diagnose(
+        prev_mvid="60d2de34-f1b2-4c3d-a5e6-789012345678",
+        expected_compile=True,
+    )
+    assert result == "NO-OP", (
+        f"idle-never fires at slot 10 before STALE-DOMAIN at slot 11 — got: {result!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_diagnose_stale_cache_verdict_for_stale_dll_after_clean_compile():
+    """dlls=stale + wedge=stale-cache → STALE-CACHE with reimport hint.
+
+    Validates diagnose.py slot 4: wedge.kind=stale-cache → STALE-CACHE.
+    Mocks detect_wedge to return stale-cache report (no disk log needed in tests).
+    """
+    from unity_mcp.editor_log import WedgeReport
+    _d._send = _make_send(STALE_CACHE_PAYLOAD)
+    with patch("unity_mcp.editor_log.detect_wedge",
+               return_value=WedgeReport(kind="stale-cache")):
+        result = await _d.diagnose()
+    assert result.startswith("STALE-CACHE"), f"stale dll + idle compile → STALE-CACHE, got: {result!r}"
+    assert "reimport" in result.lower(), f"STALE-CACHE must include reimport hint, got: {result!r}"

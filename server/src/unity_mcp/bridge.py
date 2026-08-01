@@ -401,6 +401,8 @@ class UnityBridge(HeartbeatMixin):
             await writer.drain()
             ver_pay = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
             ver_resp = json.loads(ver_pay.decode("utf-8"))
+            if ver_resp.get("ev") == "going_away":
+                raise DomainReloadError("Unity going_away during version check")
             if ver_resp.get("ok") and ver_resp.get("data"):
                 info = parse_version_string(ver_resp["data"])
                 check_protocol_version(PROTOCOL_VERSION, info.proto)

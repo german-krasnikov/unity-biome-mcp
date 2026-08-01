@@ -153,14 +153,14 @@ return obj.transform.position.ToString();
 
 ## Play Mode Notes
 
-`execute_code()` works in both Edit and Play Mode. For structured runtime field changes, prefer `set_property()` or `set_runtime_property()` instead.
+`execute_code()` works in both Edit and Play Mode. For structured runtime field changes, prefer `set_property()` instead of inline code—it works in both modes and handles Play Mode via reflection automatically.
 
 ```python
 # Edit Mode: full access
 await execute_code("GameObject.Find('Player').SetActive(false)")
 
-# Play Mode: also works, but structured tools are preferred
-await set_runtime_property("/Player", "PlayerController", "Health", "50")
+# Play Mode: structured tool preferred
+await set_property("/Player", "PlayerController", "Health", "50")  # transparently rerouted
 ```
 
 ## Timeout & Performance

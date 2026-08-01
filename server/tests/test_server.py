@@ -571,7 +571,7 @@ async def test_animator_add_transition_with_exit_time(mock_bridge):
         "action": "add_transition", "path": "/Player",
         "source": "Jump", "target": "Idle",
         "conditions": "IsGrounded", "exit_time": 0.9,
-        "has_exit_time": True, "duration": 0.15
+        "has_exit_time": "true", "duration": 0.15
     }, timeout=30.0)
     assert "exit" in result
 

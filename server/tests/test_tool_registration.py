@@ -130,9 +130,8 @@ def test_runtime_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # invoke_method, set_runtime_property, wait_until, move_to,
-    # query_state, test_step, run_playtest = 7 tools
-    assert mcp.tool.call_count >= 7
+    # invoke_method, wait_until, move_to, query_state, test_step, run_playtest = 6 tools minimum
+    assert mcp.tool.call_count >= 6
 
 
 # ── Part 4: console.py / screenshot.py / testing.py / editor_control.py
