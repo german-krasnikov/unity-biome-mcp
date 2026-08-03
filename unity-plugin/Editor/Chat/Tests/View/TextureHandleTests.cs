@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class TextureHandleTests
+    public class TextureHandleTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void OwnedTexture_Detached_Destroyed()

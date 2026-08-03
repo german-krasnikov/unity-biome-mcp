@@ -1,7 +1,7 @@
 // Domain-reload-safe lock + pending-state persistence.
 // Prevents assembly reload from killing a live turn; resumes it after reload.
-// Unity-API calls (Lock/Unlock/Disallow/Allow) are guarded by _lockDepth counter
-// so this class is usable from unit tests via OverrideFilePath + ResetForTest.
+// Unity API calls are routed through IReloadGuardOps. The common test base installs
+// a non-native implementation, so unit tests can never latch the editor globally.
 // T6 safe pattern: Disallow → Lock (granular try/catch) → ForceUnlock (Allow + Refresh) + SessionState rebalance.
 using System;
 using System.IO;
@@ -9,21 +9,72 @@ using UnityEditor;
 
 namespace UnityMCP.Editor.Chat
 {
+    internal interface IReloadGuardOps
+    {
+        double TimeSinceStartup { get; }
+        void DisallowAutoRefresh();
+        void AllowAutoRefresh();
+        void LockReloadAssemblies();
+        void UnlockReloadAssemblies();
+        void RefreshAssets();
+        void ScheduleRefresh();
+        void AddWatchdog(EditorApplication.CallbackFunction callback);
+        void RemoveWatchdog(EditorApplication.CallbackFunction callback);
+    }
+
+    /// <summary>Marker for implementations which never touch Unity's native reload state.</summary>
+    internal interface IReloadGuardTestOps : IReloadGuardOps
+    {
+    }
+
+    internal sealed class UnityReloadGuardOps : IReloadGuardOps
+    {
+        public double TimeSinceStartup => EditorApplication.timeSinceStartup;
+
+        public void DisallowAutoRefresh() => AssetDatabase.DisallowAutoRefresh();
+        public void AllowAutoRefresh() => AssetDatabase.AllowAutoRefresh();
+        public void LockReloadAssemblies() => EditorApplication.LockReloadAssemblies();
+        public void UnlockReloadAssemblies() => EditorApplication.UnlockReloadAssemblies();
+        public void RefreshAssets() => AssetDatabase.Refresh();
+
+        public void ScheduleRefresh()
+        {
+            EditorApplication.delayCall += () =>
+            {
+                try { AssetDatabase.Refresh(); } catch { }
+            };
+        }
+
+        public void AddWatchdog(EditorApplication.CallbackFunction callback) =>
+            EditorApplication.update += callback;
+
+        public void RemoveWatchdog(EditorApplication.CallbackFunction callback) =>
+            EditorApplication.update -= callback;
+    }
+
     [InitializeOnLoad]
     internal static class ReloadGuard
     {
         // Default path — Library/ is local/gitignored in every Unity project.
-        private static string _filePath = Path.Combine("Library", "MCP_ChatPendingTurn.txt");
+        private static readonly string DefaultFilePath =
+            Path.Combine("Library", "MCP_ChatPendingTurn.txt");
+        private static string _filePath = DefaultFilePath;
 
         // Marker survives reload — native counter doesn't die even though managed state does.
         private const string LockMarkerKey = "MCP_ReloadGuardLocked";
 
         // Counter (not bool) so OnTurnFinished is always safe even if called extra times.
         private static int _lockDepth;
+        private static bool _autoRefreshDisallowed;
+        private static bool _assembliesLocked;
+        private static bool _watchdogRegistered;
 
         // Watchdog: auto-unlock after ~120s to prevent a hung turn blocking all reloads.
         private static double _lockStartTime;
         private static double _watchdogSeconds = 120.0;
+
+        internal static IReloadGuardOps Ops { get; private set; } = new UnityReloadGuardOps();
+        private static TestIsolationScope _activeTestIsolation;
 
         static ReloadGuard()
         {
@@ -32,19 +83,27 @@ namespace UnityMCP.Editor.Chat
             if (SessionState.GetBool(LockMarkerKey, false))
             {
                 SessionState.EraseBool(LockMarkerKey);
-                try { EditorApplication.UnlockReloadAssemblies(); } catch { }
+                try { Ops.UnlockReloadAssemblies(); } catch { }
                 try
                 {
-                    AssetDatabase.AllowAutoRefresh();
-                    // ponytail: delayCall defers past [InitializeOnLoad] sweep —
-                    // inline Refresh() re-triggers compilationStarted → new latch
-                    EditorApplication.delayCall += () => { try { AssetDatabase.Refresh(); } catch { } };
+                    Ops.AllowAutoRefresh();
+                    // Defer past the InitializeOnLoad sweep. An inline refresh can
+                    // immediately retrigger compilation and acquire a new latch.
+                    Ops.ScheduleRefresh();
                 }
                 catch { }
             }
         }
 
         internal static bool IsLocked => _lockDepth > 0;
+        internal static bool HasPersistedLock =>
+            SessionState.GetBool(LockMarkerKey, false);
+        internal static string FilePath => _filePath;
+        internal static bool HasActiveTestIsolation => _activeTestIsolation != null;
+
+        internal static bool IsTestIsolationOwnedBy(string ownerId) =>
+            _activeTestIsolation != null &&
+            string.Equals(_activeTestIsolation.OwnerId, ownerId, StringComparison.Ordinal);
 
         // ── Lock / Unlock ─────────────────────────────────────────────────────
 
@@ -59,23 +118,33 @@ namespace UnityMCP.Editor.Chat
                 bool locked = false;
                 try
                 {
-                    AssetDatabase.DisallowAutoRefresh();
+                    Ops.DisallowAutoRefresh();
                     disallowed = true;
-                    EditorApplication.LockReloadAssemblies();
+                    Ops.LockReloadAssemblies();
                     locked = true;
                 }
                 catch
                 {
                     // Partial acquisition: roll back Disallow if Lock didn't succeed.
                     if (disallowed && !locked)
-                        try { AssetDatabase.AllowAutoRefresh(); } catch { }
+                        try { Ops.AllowAutoRefresh(); } catch { }
                     // Do NOT increment _lockDepth — turn proceeds without lock.
                     return;
                 }
+                _autoRefreshDisallowed = disallowed;
+                _assembliesLocked = locked;
                 _lockDepth++;
-                SessionState.SetBool(LockMarkerKey, true);
-                _lockStartTime = EditorApplication.timeSinceStartup;
-                EditorApplication.update += WatchdogTick;
+                try
+                {
+                    SessionState.SetBool(LockMarkerKey, true);
+                    _lockStartTime = Ops.TimeSinceStartup;
+                    AddWatchdog();
+                }
+                catch
+                {
+                    ForceUnlock();
+                    return;
+                }
                 return;
             }
             _lockDepth++;
@@ -91,15 +160,19 @@ namespace UnityMCP.Editor.Chat
 
         internal static void ForceUnlock()
         {
-            EditorApplication.update -= WatchdogTick;
-            try { EditorApplication.UnlockReloadAssemblies(); } catch { }
-            try
+            RemoveWatchdog();
+            var persistedLock = SessionState.GetBool(LockMarkerKey, false);
+            if (_assembliesLocked || persistedLock)
+                try { Ops.UnlockReloadAssemblies(); } catch { }
+            if (_autoRefreshDisallowed || persistedLock)
             {
-                AssetDatabase.AllowAutoRefresh();
-                AssetDatabase.Refresh();  // required to re-arm the file watcher; AllowAutoRefresh alone does not
+                try { Ops.AllowAutoRefresh(); } catch { }
+                // Required to re-arm the file watcher; AllowAutoRefresh alone does not.
+                try { Ops.RefreshAssets(); } catch { }
             }
-            catch { }
             SessionState.EraseBool(LockMarkerKey);
+            _autoRefreshDisallowed = false;
+            _assembliesLocked = false;
             _lockDepth = 0;
         }
 
@@ -107,11 +180,25 @@ namespace UnityMCP.Editor.Chat
         {
             if (_lockDepth <= 0)
             {
-                EditorApplication.update -= WatchdogTick;
+                RemoveWatchdog();
                 return;
             }
-            if (EditorApplication.timeSinceStartup - _lockStartTime > _watchdogSeconds)
+            if (Ops.TimeSinceStartup - _lockStartTime > _watchdogSeconds)
                 ForceUnlock();
+        }
+
+        private static void AddWatchdog()
+        {
+            if (_watchdogRegistered) return;
+            Ops.AddWatchdog(WatchdogTick);
+            _watchdogRegistered = true;
+        }
+
+        private static void RemoveWatchdog()
+        {
+            if (!_watchdogRegistered) return;
+            try { Ops.RemoveWatchdog(WatchdogTick); } catch { }
+            _watchdogRegistered = false;
         }
 
         // ── Pending state ─────────────────────────────────────────────────────
@@ -153,15 +240,162 @@ namespace UnityMCP.Editor.Chat
 
         internal static void ResetForTest()
         {
-            // Reset in-memory counter without touching Unity API
-            // (tests run without domain reload machinery).
-            _lockDepth = 0;
+            // Tests run against IReloadGuardTestOps. Always balance an acquired
+            // operation before clearing managed state so a failed fixture cannot
+            // leave Unity's native reload or refresh counters latched.
+            if (_lockDepth > 0 || _assembliesLocked || _autoRefreshDisallowed ||
+                SessionState.GetBool(LockMarkerKey, false))
+                ForceUnlock();
+            else
+                RemoveWatchdog();
             _watchdogSeconds = 120.0; // restore default
-            EditorApplication.update -= WatchdogTick; // prevent stale delegate accumulation across tests
             SessionState.EraseBool(LockMarkerKey);
         }
 
+        internal static void RestoreDefaultFilePathForTest() => _filePath = DefaultFilePath;
+
+        internal static void OverrideOpsForTest(IReloadGuardOps ops)
+        {
+            if (ops == null) throw new ArgumentNullException(nameof(ops));
+            if (_lockDepth > 0 || _assembliesLocked || _autoRefreshDisallowed ||
+                SessionState.GetBool(LockMarkerKey, false))
+                throw new InvalidOperationException(
+                    "ReloadGuard operations cannot be replaced while a lock is held.");
+            Ops = ops;
+        }
+
+        internal static void RestoreOpsForTest(IReloadGuardOps ops) => OverrideOpsForTest(ops);
+
         internal static void OverrideWatchdogSeconds(double s) => _watchdogSeconds = s;
+
+        /// <summary>
+        /// Installs non-native reload operations under an explicit NUnit test owner. Matching
+        /// owners may nest; a different owner identifies an interrupted prior test instead of
+        /// silently accepting its test double as a valid baseline.
+        /// </summary>
+        internal static IDisposable BeginTestIsolation(
+            IReloadGuardTestOps ops,
+            string ownerId)
+        {
+            if (ops == null) throw new ArgumentNullException(nameof(ops));
+            if (string.IsNullOrEmpty(ownerId))
+                throw new ArgumentException("A test-isolation owner id is required.", nameof(ownerId));
+            if (_activeTestIsolation != null &&
+                !string.Equals(_activeTestIsolation.OwnerId, ownerId, StringComparison.Ordinal))
+                throw new InvalidOperationException(
+                    "ReloadGuard test isolation is still owned by another test.");
+
+            var scope = new TestIsolationScope(_activeTestIsolation, ops, ownerId);
+            _activeTestIsolation = scope;
+            return scope;
+        }
+
+        /// <summary>
+        /// Repairs a test scope that belongs to a different test, or an unowned marker seam.
+        /// Returns true when stale state was found so the caller can fail the new test closed.
+        /// </summary>
+        internal static bool RepairOrphanedTestIsolation(string currentOwnerId)
+        {
+            if (IsTestIsolationOwnedBy(currentOwnerId)) return false;
+
+            var orphaned = _activeTestIsolation != null || Ops is IReloadGuardTestOps;
+            if (!orphaned) return false;
+
+            try
+            {
+                ResetForTest();
+            }
+            finally
+            {
+                _filePath = DefaultFilePath;
+                _watchdogSeconds = 120.0;
+                Ops = new UnityReloadGuardOps();
+                _activeTestIsolation = null;
+            }
+            return true;
+        }
+
+        private sealed class TestIsolationScope : IDisposable
+        {
+            private readonly TestIsolationScope _previous;
+            private readonly IReloadGuardOps _previousOps;
+            private readonly string _previousFilePath;
+            private readonly double _previousWatchdogSeconds;
+            private readonly BoolSessionValue _lockMarker;
+            private bool _disposed;
+
+            internal TestIsolationScope(
+                TestIsolationScope previous,
+                IReloadGuardTestOps ops,
+                string ownerId)
+            {
+                _previous = previous;
+                _previousOps = Ops;
+                _previousFilePath = _filePath;
+                _previousWatchdogSeconds = _watchdogSeconds;
+                _lockMarker = BoolSessionValue.Capture(LockMarkerKey);
+                OwnerId = ownerId;
+                OverrideOpsForTest(ops);
+            }
+
+            internal string OwnerId { get; }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                if (!ReferenceEquals(_activeTestIsolation, this))
+                    throw new InvalidOperationException(
+                        "ReloadGuard test-isolation scopes must be disposed in LIFO order.");
+
+                var errors = new System.Collections.Generic.List<Exception>();
+                Restore(ResetForTest, errors);
+                Restore(_lockMarker.Restore, errors);
+                _filePath = _previousFilePath;
+                _watchdogSeconds = _previousWatchdogSeconds;
+                Ops = _previousOps;
+                _activeTestIsolation = _previous;
+                _disposed = true;
+
+                if (errors.Count > 0)
+                    throw new AggregateException(
+                        "ReloadGuard test-isolation restoration failed.", errors);
+            }
+
+            private static void Restore(
+                Action restore,
+                System.Collections.Generic.ICollection<Exception> errors)
+            {
+                try { restore(); }
+                catch (Exception error) { errors.Add(error); }
+            }
+        }
+
+        private readonly struct BoolSessionValue
+        {
+            private readonly string _key;
+            private readonly bool _existed;
+            private readonly bool _value;
+
+            private BoolSessionValue(string key, bool existed, bool value)
+            {
+                _key = key;
+                _existed = existed;
+                _value = value;
+            }
+
+            internal static BoolSessionValue Capture(string key)
+            {
+                var first = SessionState.GetBool(key, false);
+                var second = SessionState.GetBool(key, true);
+                return new BoolSessionValue(key, first == second, first);
+            }
+
+            internal void Restore()
+            {
+                if (_existed) SessionState.SetBool(_key, _value);
+                else SessionState.EraseBool(_key);
+            }
+        }
 
         /// <summary>Expose WatchdogTick for tests to invoke directly without waiting for the timer.</summary>
         internal static void InvokeWatchdogTickForTest() => WatchdogTick();

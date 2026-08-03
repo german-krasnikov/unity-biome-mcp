@@ -11,44 +11,36 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipClickRouterTests
+    public class ChipClickRouterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // T4: single click calls navigateAction
         [Test]
         public void SingleClick_CallsNavigateAction()
         {
-            var window = GetOrCreateTestWindow();
-            try
-            {
-                var pill      = new VisualElement();
-                var callCount = 0;
-                window.rootVisualElement.Add(pill);
-                ChipClickRouter.Register(pill, null, () => callCount++);
+            var window = CreateTestWindow();
+            var pill      = new VisualElement();
+            var callCount = 0;
+            window.rootVisualElement.Add(pill);
+            ChipClickRouter.Register(pill, null, () => callCount++);
 
-                SendClick(pill, clickCount: 1);
+            SendClick(pill, clickCount: 1);
 
-                Assert.AreEqual(1, callCount, "Single click must call navigateAction exactly once");
-            }
-            finally { window.Close(); }
+            Assert.AreEqual(1, callCount, "Single click must call navigateAction exactly once");
         }
 
         // T5: clickCount==2 must not trigger navigate
         [Test]
         public void DoubleClick_DoesNotCallNavigateTwice()
         {
-            var window = GetOrCreateTestWindow();
-            try
-            {
-                var pill      = new VisualElement();
-                var callCount = 0;
-                window.rootVisualElement.Add(pill);
-                ChipClickRouter.Register(pill, null, () => callCount++);
+            var window = CreateTestWindow();
+            var pill      = new VisualElement();
+            var callCount = 0;
+            window.rootVisualElement.Add(pill);
+            ChipClickRouter.Register(pill, null, () => callCount++);
 
-                SendClick(pill, clickCount: 2);
+            SendClick(pill, clickCount: 2);
 
-                Assert.AreEqual(0, callCount, "clickCount==2 event must not trigger navigate");
-            }
-            finally { window.Close(); }
+            Assert.AreEqual(0, callCount, "clickCount==2 event must not trigger navigate");
         }
 
         [Test]
@@ -60,15 +52,11 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void NullNavigateAction_DoesNotThrow()
         {
-            var window = GetOrCreateTestWindow();
-            try
-            {
-                var pill = new VisualElement();
-                window.rootVisualElement.Add(pill);
-                ChipClickRouter.Register(pill, null, null);
-                Assert.DoesNotThrow(() => SendClick(pill, 1));
-            }
-            finally { window.Close(); }
+            var window = CreateTestWindow();
+            var pill = new VisualElement();
+            window.rootVisualElement.Add(pill);
+            ChipClickRouter.Register(pill, null, null);
+            Assert.DoesNotThrow(() => SendClick(pill, 1));
         }
 
         // ── helpers ───────────────────────────────────────────────────────────
@@ -94,10 +82,12 @@ namespace UnityMCP.Editor.Chat.Tests
             }
         }
 
-        private static EditorWindow GetOrCreateTestWindow()
+        private EditorWindow CreateTestWindow()
         {
             LogAssert.ignoreFailingMessages = true;
-            return EditorWindow.GetWindow<ChipClickTestWindow>();
+            var window = CreateOwnedEditorWindow<ChipClickTestWindow>();
+            window.ShowUtility();
+            return window;
         }
 
         private sealed class ChipClickTestWindow : EditorWindow { }

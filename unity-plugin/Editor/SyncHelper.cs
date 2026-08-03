@@ -1,6 +1,7 @@
 // SyncHelper — epoch, trigger, events, ISyncOps seam, IsCompileClean, domain stamp. (v0.23)
 // public everywhere: Tests.dll must access all of this (CS0122 trap).
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Compilation;
@@ -45,7 +46,46 @@ namespace UnityMCP.Editor
         public static event Action<string> OnSyncFailed;
 
         // --- Injectable seam ---
-        public static ISyncOps Ops { get; set; } = new UnitySyncOps();
+        public static ISyncOps Ops { get; private set; } = new UnitySyncOps();
+
+        private static TestIsolationScope _activeTestIsolation;
+
+        // UnityMcpTestBase snapshots and restores this seam around every test, so fixtures
+        // can install a mock without implementing their own teardown protocol.
+        public static void OverrideOpsForTest(ISyncOps replacement)
+        {
+            if (replacement == null)
+                throw new ArgumentNullException(nameof(replacement));
+            Ops = replacement;
+        }
+
+        internal static void RestoreOpsForTest(ISyncOps prior)
+        {
+            Ops = prior ?? throw new ArgumentNullException(nameof(prior));
+        }
+
+        // Tests that exercise stamp transitions must restore the editor's exact baseline.
+        // Keep the SessionState key private so test code cannot accidentally invent another
+        // unbalanced direct-write convention.
+        internal static void OverrideDomainStampForTest(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                SessionState.EraseString(StampKey);
+            else
+                SessionState.SetString(StampKey, value);
+        }
+
+        /// <summary>
+        /// Preserves the complete mutable runtime surface used by sync tests. SessionState
+        /// snapshots retain key existence as well as values so an absent key is not restored
+        /// as an explicit default value.
+        /// </summary>
+        internal static IDisposable BeginTestIsolation()
+        {
+            var scope = new TestIsolationScope(_activeTestIsolation);
+            _activeTestIsolation = scope;
+            return scope;
+        }
 
         static SyncHelper()
         {
@@ -186,6 +226,196 @@ namespace UnityMCP.Editor
             NowSeconds = () => EditorApplication.timeSinceStartup;
             OnSyncComplete = null;
             OnSyncFailed   = null;
+        }
+
+#if UNITY_INCLUDE_TESTS
+        internal static void InvokeSyncCompleteForTest() => OnSyncComplete?.Invoke();
+        internal static void InvokeSyncFailedForTest(string error) => OnSyncFailed?.Invoke(error);
+#endif
+
+        private sealed class TestIsolationScope : IDisposable
+        {
+            private readonly TestIsolationScope _previous;
+            private readonly ISyncOps _ops;
+            private readonly Func<double> _clock;
+            private readonly Action _syncComplete;
+            private readonly Action<string> _syncFailed;
+            private readonly IntSessionValue _epoch;
+            private readonly BoolSessionValue _clean;
+            private readonly StringSessionValue _state;
+            private readonly StringSessionValue _error;
+            private readonly FloatSessionValue _triggerTime;
+            private readonly BoolSessionValue _compileStarted;
+            private readonly StringSessionValue _stamp;
+            private readonly StringSessionValue _stampAtTrigger;
+            private readonly StringSessionValue _allAssemblyErrors;
+            private bool _disposed;
+
+            internal TestIsolationScope(TestIsolationScope previous)
+            {
+                _previous = previous;
+                _ops = Ops;
+                _clock = NowSeconds;
+                _syncComplete = OnSyncComplete;
+                _syncFailed = OnSyncFailed;
+                _epoch = IntSessionValue.Capture(EpochKey);
+                _clean = BoolSessionValue.Capture(CleanKey);
+                _state = StringSessionValue.Capture(StateKey);
+                _error = StringSessionValue.Capture(ErrKey);
+                _triggerTime = FloatSessionValue.Capture(TriggerTimeKey);
+                _compileStarted = BoolSessionValue.Capture(CompileStartedKey);
+                _stamp = StringSessionValue.Capture(StampKey);
+                _stampAtTrigger = StringSessionValue.Capture(StampAtTriggerKey);
+                _allAssemblyErrors = StringSessionValue.Capture(AllAsmErrKey);
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                if (!ReferenceEquals(_activeTestIsolation, this))
+                    throw new InvalidOperationException(
+                        "SyncHelper test-isolation scopes must be disposed in LIFO order.");
+
+                var errors = new System.Collections.Generic.List<Exception>();
+                Restore(_allAssemblyErrors.Restore, errors);
+                Restore(_stampAtTrigger.Restore, errors);
+                Restore(_stamp.Restore, errors);
+                Restore(_compileStarted.Restore, errors);
+                Restore(_triggerTime.Restore, errors);
+                Restore(_error.Restore, errors);
+                Restore(_state.Restore, errors);
+                Restore(_clean.Restore, errors);
+                Restore(_epoch.Restore, errors);
+                Restore(() => OnSyncFailed = _syncFailed, errors);
+                Restore(() => OnSyncComplete = _syncComplete, errors);
+                Restore(() => NowSeconds = _clock, errors);
+                Restore(() => Ops = _ops, errors);
+
+                _activeTestIsolation = _previous;
+                _disposed = true;
+                if (errors.Count > 0)
+                    throw new AggregateException(
+                        "SyncHelper test-isolation restoration failed.", errors);
+            }
+
+            private static void Restore(Action restore, ICollection<Exception> errors)
+            {
+                try { restore(); }
+                catch (Exception error) { errors.Add(error); }
+            }
+        }
+
+        private readonly struct IntSessionValue
+        {
+            private readonly string _key;
+            private readonly bool _existed;
+            private readonly int _value;
+
+            private IntSessionValue(string key, bool existed, int value)
+            {
+                _key = key;
+                _existed = existed;
+                _value = value;
+            }
+
+            internal static IntSessionValue Capture(string key)
+            {
+                var first = SessionState.GetInt(key, int.MinValue);
+                var second = SessionState.GetInt(key, int.MaxValue);
+                return new IntSessionValue(key, first == second, first);
+            }
+
+            internal void Restore()
+            {
+                if (_existed) SessionState.SetInt(_key, _value);
+                else SessionState.EraseInt(_key);
+            }
+        }
+
+        private readonly struct BoolSessionValue
+        {
+            private readonly string _key;
+            private readonly bool _existed;
+            private readonly bool _value;
+
+            private BoolSessionValue(string key, bool existed, bool value)
+            {
+                _key = key;
+                _existed = existed;
+                _value = value;
+            }
+
+            internal static BoolSessionValue Capture(string key)
+            {
+                var first = SessionState.GetBool(key, false);
+                var second = SessionState.GetBool(key, true);
+                return new BoolSessionValue(key, first == second, first);
+            }
+
+            internal void Restore()
+            {
+                if (_existed) SessionState.SetBool(_key, _value);
+                else SessionState.EraseBool(_key);
+            }
+        }
+
+        private readonly struct FloatSessionValue
+        {
+            private readonly string _key;
+            private readonly bool _existed;
+            private readonly float _value;
+
+            private FloatSessionValue(string key, bool existed, float value)
+            {
+                _key = key;
+                _existed = existed;
+                _value = value;
+            }
+
+            internal static FloatSessionValue Capture(string key)
+            {
+                var first = SessionState.GetFloat(key, -1234567.25f);
+                var second = SessionState.GetFloat(key, 7654321.5f);
+                return new FloatSessionValue(key, first.Equals(second), first);
+            }
+
+            internal void Restore()
+            {
+                if (_existed) SessionState.SetFloat(_key, _value);
+                else SessionState.EraseFloat(_key);
+            }
+        }
+
+        private readonly struct StringSessionValue
+        {
+            private readonly string _key;
+            private readonly bool _existed;
+            private readonly string _value;
+
+            private StringSessionValue(string key, bool existed, string value)
+            {
+                _key = key;
+                _existed = existed;
+                _value = value;
+            }
+
+            internal static StringSessionValue Capture(string key)
+            {
+                var firstDefault = "__unity_mcp_absent_" + Guid.NewGuid().ToString("N");
+                var secondDefault = "__unity_mcp_absent_" + Guid.NewGuid().ToString("N");
+                var first = SessionState.GetString(key, firstDefault);
+                var second = SessionState.GetString(key, secondDefault);
+                return new StringSessionValue(
+                    key,
+                    string.Equals(first, second, StringComparison.Ordinal),
+                    first);
+            }
+
+            internal void Restore()
+            {
+                if (_existed) SessionState.SetString(_key, _value);
+                else SessionState.EraseString(_key);
+            }
         }
 
         // --- Private handlers ---

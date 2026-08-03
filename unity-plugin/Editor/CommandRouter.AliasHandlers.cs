@@ -9,13 +9,19 @@ namespace UnityMCP.Editor
 {
     public static partial class CommandRouter
     {
+        internal static Func<string[]> FindPlaytestConfigGuidsForTest;
+
+        private static string[] FindPlaytestConfigGuids() =>
+            FindPlaytestConfigGuidsForTest?.Invoke() ??
+            UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig");
+
         // Returns "--- ALIASES ---\nname=path|comp|field\n---" from PlaytestConfig,
         // or null when no config / no aliases. Called on main thread (AssetDatabase safe).
         internal static string BuildAliasSection(PlaytestConfig config = null)
         {
             if (config == null)
             {
-                foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig"))
+                foreach (var guid in FindPlaytestConfigGuids())
                 {
                     var c = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(
                         UnityEditor.AssetDatabase.GUIDToAssetPath(guid));
@@ -64,7 +70,7 @@ namespace UnityMCP.Editor
         {
             var sources = new List<string>();
             int count = 0;
-            foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig"))
+            foreach (var guid in FindPlaytestConfigGuids())
             {
                 var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
                 var cfg = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(path);
@@ -99,7 +105,7 @@ namespace UnityMCP.Editor
             }
             else
             {
-                foreach (var guid in AssetDatabase.FindAssets("t:PlaytestConfig"))
+                foreach (var guid in FindPlaytestConfigGuids())
                 {
                     var p = AssetDatabase.GUIDToAssetPath(guid);
                     cfg = AssetDatabase.LoadAssetAtPath<PlaytestConfig>(p);
@@ -139,7 +145,7 @@ namespace UnityMCP.Editor
             }
             else
             {
-                foreach (var guid in AssetDatabase.FindAssets("t:PlaytestConfig"))
+                foreach (var guid in FindPlaytestConfigGuids())
                 {
                     var p = AssetDatabase.GUIDToAssetPath(guid);
                     cfg = AssetDatabase.LoadAssetAtPath<PlaytestConfig>(p);
@@ -183,7 +189,7 @@ namespace UnityMCP.Editor
             }
             else
             {
-                foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:PlaytestConfig"))
+                foreach (var guid in FindPlaytestConfigGuids())
                 {
                     var p = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
                     cfg = UnityEditor.AssetDatabase.LoadAssetAtPath<PlaytestConfig>(p);

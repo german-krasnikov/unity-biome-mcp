@@ -10,7 +10,7 @@ namespace UnityMCP.Editor.Tests
     /// (the same path Settings UI uses).
     /// </summary>
     [TestFixture]
-    public class PluginDisabledToolsTests
+    public class PluginDisabledToolsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string ToolDisabled = "blender_do";
         private const string ToolEnabled  = "blender_info";
@@ -20,19 +20,18 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            RegisterCleanup(CommandRouter.InvalidateEnabledToolsCache);
             // Add test commands on top of the populated registry
             CommandRegistry.Register(ToolDisabled, _ => "ok");
             CommandRegistry.Register(ToolEnabled,  _ => "ok");
-            EditorPrefs.SetBool(KeyDisabled, false);
-            EditorPrefs.SetBool(KeyEnabled, true);
+            SetEditorPrefBool(KeyDisabled, false);
+            SetEditorPrefBool(KeyEnabled, true);
             CommandRouter.InvalidateEnabledToolsCache();
         }
 
         [TearDown]
         public void TearDown()
         {
-            EditorPrefs.DeleteKey(KeyDisabled);
-            EditorPrefs.DeleteKey(KeyEnabled);
             CommandRegistry.Clear();
             CommandRegistry.InitDefaults();   // restore built-in commands
             CommandRouter.InvalidateEnabledToolsCache();

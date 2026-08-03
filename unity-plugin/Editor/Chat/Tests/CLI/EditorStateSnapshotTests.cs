@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class EditorStateSnapshotTests
+    public class EditorStateSnapshotTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()

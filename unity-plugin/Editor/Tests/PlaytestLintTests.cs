@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestLintTests
+    public class PlaytestLintTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         const string CleanScript =
             "ASSERT /Player|Transform|localPosition.x > 0\n" +

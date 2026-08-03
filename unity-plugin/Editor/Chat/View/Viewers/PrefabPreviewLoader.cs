@@ -65,7 +65,7 @@ namespace UnityMCP.Editor.Chat
 
             // Only advance the timeout counter when Unity has stopped loading.
             // If still loading, the preview is coming — don't count this frame.
-            if (_asset != null && AssetPreview.IsLoadingAssetPreview(_asset.GetInstanceID()))
+            if (_asset != null && AssetPreview.IsLoadingAssetPreviews())
                 return;
 
             if (++_frame >= _timeoutFrames)

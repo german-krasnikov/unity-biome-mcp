@@ -7,37 +7,29 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SceneRegionStateTests
+    public class SceneRegionStateTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         string _tmpFile;
 
         [SetUp]
         public void SetUp()
         {
-            _tmpFile = Path.GetTempFileName();
-            SceneRegionState.PersistPath = _tmpFile;
-            SceneRegionState.MaxRegions  = 5;
-            SceneRegionState.Clear();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            SceneRegionState.Clear();
-            try { File.Delete(_tmpFile); } catch { }
+            _tmpFile = Path.Combine(Path.GetTempPath(),
+                $"unity-mcp-regions-{Guid.NewGuid():N}.json");
+            RegisterCleanup(SceneRegionState.IsolateForTests(_tmpFile, 5).Dispose);
         }
 
         static RegionSnapshot Snap(string id, int objCount = 2, long created = 0) =>
             new RegionSnapshot
             {
                 Id            = id,
-                SchemaVersion = 1,
+                SchemaVersion = 2,
                 VerticesFlat  = new[] { 0f, 0f, 10f, 0f, 10f, 10f, 0f, 10f },
                 Area          = 100f,
                 CenterX       = 5f, CenterZ = 5f,
                 MinX = 0f, MinZ = 0f, MaxX = 10f, MaxZ = 10f,
                 ObjectPaths   = new string[objCount],
-                ObjectIds     = new int[objCount],
+                ObjectIds     = new string[objCount],
                 TotalCount    = objCount,
                 CreatedTicks  = created == 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() : created,
             };
@@ -153,6 +145,37 @@ namespace UnityMCP.Editor.Chat.Tests
             SceneRegionState.SetRegion(Snap("r1"));
             SceneRegionState.Clear();
             Assert.AreEqual(0, SceneRegionState.All.Count());
+        }
+
+        [Test]
+        public void IsolateForTests_RestoresPathFileCacheVersionAndSessionShadow()
+        {
+            var baseline = Snap("baseline");
+            SceneRegionState.SetRegion(baseline);
+            var baselineBytes = File.ReadAllBytes(_tmpFile);
+            var baselineVersion = SceneRegionState.CurrentVersion;
+            var innerPath = Path.Combine(Path.GetTempPath(),
+                $"unity-mcp-regions-inner-{Guid.NewGuid():N}.json");
+
+            using (SceneRegionState.IsolateForTests(innerPath, 1))
+            {
+                Assert.AreEqual(innerPath, SceneRegionState.PersistPath);
+                Assert.AreEqual(1, SceneRegionState.MaxRegions);
+                Assert.AreEqual(0, SceneRegionState.All.Count());
+                SceneRegionState.SetRegion(Snap("inner"));
+            }
+
+            Assert.AreEqual(_tmpFile, SceneRegionState.PersistPath);
+            Assert.AreEqual(5, SceneRegionState.MaxRegions);
+            Assert.AreEqual(baselineVersion, SceneRegionState.CurrentVersion);
+            Assert.AreSame(baseline, SceneRegionState.GetById("baseline"));
+            Assert.IsFalse(File.Exists(innerPath));
+            CollectionAssert.AreEqual(baselineBytes, File.ReadAllBytes(_tmpFile));
+
+            SceneRegionState.SimulateDomainReload();
+            Assert.IsNotNull(SceneRegionState.GetById("baseline"),
+                "The original file and SessionState shadow must both be restored.");
+            Assert.IsNull(SceneRegionState.GetById("inner"));
         }
 
         // ── RegionSnapshot invariants ─────────────────────────────────────────

@@ -9,7 +9,7 @@ using static UnityMCP.Editor.Chat.Tests.ChipTestHelpers;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipTextInterleaverTests
+    public class ChipTextInterleaverTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
         [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();

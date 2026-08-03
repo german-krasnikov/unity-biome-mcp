@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class UndoGroupStackTests
+    public class UndoGroupStackTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private List<int> _reverted;
 

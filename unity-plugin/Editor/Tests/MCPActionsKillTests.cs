@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MCPActionsKillTests
+    public class MCPActionsKillTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private TempDirScope _scope;
 
@@ -61,15 +61,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void RestartRelay_DoesNotUseTaskRun()
         {
-            var assets = UnityEngine.Application.dataPath;          // …/unity-test-project/Assets
-            var pluginSrc = Path.Combine(assets, "..", "..", "unity-plugin", "Editor", "MCPActions.cs");
-            pluginSrc = Path.GetFullPath(pluginSrc);
-            if (!File.Exists(pluginSrc))
-            {
-                Assert.Ignore($"MCPActions.cs not found at {pluginSrc} — skip in CI");
-                return;
-            }
-            var src = File.ReadAllText(pluginSrc);
+            var src = ReadRequiredPackageSource(typeof(MCPActions), "Editor/MCPActions.cs");
             var start = src.IndexOf("static void RestartRelay");
             Assert.That(start, Is.GreaterThanOrEqualTo(0), "RestartRelay method not found");
             var end = src.IndexOf("\n        }", start);

@@ -203,8 +203,14 @@ await write_file(...)
 result = await await_compile(timeout=30)
 if "clean" not in result:
     return  # Abort, don't run tests
-await run_tests_wait(mode="EditMode")  # preferred over manual poll loop
+result = await run_tests_wait(mode="EditMode")
+# Accept only its reconciled terminal snapshot; TIMEOUT is nonterminal.
 ```
+
+This wrapper is for focused consumer-project verification. When developing Unity
+Biome MCP itself, run repository and disposable-worker C# tests with
+`python3 run_unity_tests.py`; release evidence never comes from an ad hoc MCP
+poll loop.
 
 ---
 
@@ -470,10 +476,14 @@ if "clean" not in compile_result:
     print(f"Compile failed: {compile_result}")
     exit(1)
 
-# 4. Run tests (preferred: run_tests_wait blocks until results arrive)
+# 4. Run tests with correlated request/run identity
 result = await run_tests_wait(mode="EditMode")
 print(f"Tests: {result}")
 ```
+
+For Unity Biome MCP repository/full-suite verification, replace the final MCP
+call with the standalone durable `run_unity_tests.py` command documented in
+[Testing Reliability](../testing-reliability.md).
 
 ---
 

@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestDslExporterTests
+    public class PlaytestDslExporterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── StepToDsl: Move ────────────────────────────────────────────────────────
         [Test]

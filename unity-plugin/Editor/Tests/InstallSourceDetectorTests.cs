@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class InstallSourceDetectorTests
+    public class InstallSourceDetectorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── IsLocalRepoRoot ───────────────────────────────────────────────────
 

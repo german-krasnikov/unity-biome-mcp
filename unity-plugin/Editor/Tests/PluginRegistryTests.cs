@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PluginRegistryTests
+    public class PluginRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private class FakePlugin : IMCPPlugin
         {
@@ -50,12 +50,10 @@ namespace UnityMCP.Editor.Tests
             public IReadOnlyList<string> AdditionalCommands => Array.Empty<string>();
         }
 
-        [TearDown]
-        public void TearDown()
+        [SetUp]
+        public void SetUp()
         {
             PluginRegistry.Clear();
-            // Restore built-in commands if any test called CommandRegistry.Clear()
-            CommandRegistry.InitDefaults();
         }
 
         [Test]
@@ -229,6 +227,27 @@ namespace UnityMCP.Editor.Tests
             var result = PluginRegistry.GetCommandsForPlugin(plugin);
 
             CollectionAssert.Contains(result, "extra_cmd");
+        }
+
+        [Test]
+        public void PreserveStateForTests_RestoresPluginsAndFailureRecordsExactly()
+        {
+            var original = new FakePlugin("Original") { RegisterCommandsThrows = true };
+            PluginRegistry.Register(original);
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error,
+                new System.Text.RegularExpressions.Regex("Original.*RegisterCommands failed"));
+            PluginRegistry.RegisterAllPlugins();
+
+            using (PluginRegistry.PreserveStateForTests())
+            {
+                PluginRegistry.Clear();
+                PluginRegistry.Register(new FakePlugin("Replacement"));
+            }
+
+            Assert.AreEqual(1, PluginRegistry.GetAll().Count);
+            Assert.AreSame(original, PluginRegistry.GetAll()[0]);
+            Assert.AreEqual(1, PluginRegistry.GetFailedPlugins().Count);
+            Assert.AreEqual("Original", PluginRegistry.GetFailedPlugins()[0].Name);
         }
 
         private class FakePluginWithExtra : IMCPPlugin

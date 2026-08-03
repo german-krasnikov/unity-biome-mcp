@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SessionHandoffTests
+    public class SessionHandoffTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── GetResumeCommand ────────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CommandValidatorOptionalParamsTests
+    public class CommandValidatorOptionalParamsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── #5: Optional params that were previously rejected by Validate ────────
 

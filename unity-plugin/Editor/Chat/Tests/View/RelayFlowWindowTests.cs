@@ -1,9 +1,10 @@
 // RelayFlowWindowTests — exercises backend → DrainAndRender → transcript pipeline.
 // Tier A: QueuedFakeBackend (no sleep). Tier B: ProcessFactory (300ms sleep).
 using System.Collections.Generic;
+using System;
 using System.Reflection;
 using System.Text;
-using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine.UIElements;
@@ -50,6 +51,23 @@ namespace UnityMCP.Editor.Chat.Tests
         void ResetToIdle()        => ((ChatActivityState)s_act.GetValue(W)).Done();
         ActivityPhase GetPhase()  => ((ChatActivityState)s_act.GetValue(W)).Phase;
         void RestoreRealBackend() => s_creat?.Invoke(W, null);
+        string BackendSessionId() => ((IChatBackend)s_back.GetValue(W))?.SessionId;
+
+        static async Task WaitUntilAsync(
+            Func<bool> condition, Action poll, string timeoutMessage, int timeoutMs = 2000)
+        {
+            var timeout = Task.Delay(timeoutMs);
+            while (true)
+            {
+                poll?.Invoke();
+                if (condition()) return;
+                var nextPoll = Task.Delay(10);
+                var completed = await Task.WhenAny(nextPoll, timeout);
+                if (completed == timeout)
+                    Assert.Fail(timeoutMessage);
+                await nextPoll;
+            }
+        }
 
         void SetInputText(string text)
         {
@@ -73,24 +91,20 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── SetUp / TearDown ──────────────────────────────────────────────────
 
         [SetUp]
-        public override void SetUp()
+        public void SetUpRelayFlow()
         {
             RelaySpawner.EnsureRunningOverride = () => 19800;
-            base.SetUp();
             _fake = new QueuedFakeBackend();
             s_back.SetValue(W, _fake);
             ArmSending();   // Tier A default: Idle → Sending so DrainAndRender processes events
         }
 
         [TearDown]
-        public override void TearDown()
+        public void TearDownRelayFlow()
         {
             RelayBackend.ProcessFactory        = null;
             RelaySpawner.EnsureRunningOverride = null;
-            RelaySpawner.Stop();
-            SessionState.EraseInt(RelaySpawner.PortKey);
-            SessionState.EraseInt(RelaySpawner.PidKey);
-            base.TearDown();
+            RelaySpawner.StopForTests();
         }
 
         // ── Tier A: Direct drain via QueuedFakeBackend ────────────────────────
@@ -171,15 +185,17 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Tier B: ProcessFactory full stack (real RelayBackend) ─────────────
 
         [Test]
-        public void ProcessFactory_Send_TextDeltaRendered()
+        public async Task ProcessFactory_Send_TextDeltaRendered()
         {
             ResetToIdle();         // CanSend must be true for OnSend
             RestoreRealBackend();  // replace fake with real RelayBackend (uses ProcessFactory)
             RelayBackend.ProcessFactory = () => Proc(ED("t|Hello from relay", "d|sid|0.01|10|5"));
             SetInputText("test message");
             s_send.Invoke(W, null);
-            Thread.Sleep(300);
-            DrainAndRender();
+            await WaitUntilAsync(
+                () => Scroll().Query<Label>().ToList().Exists(l => l.text.Contains("Hello from relay")),
+                DrainAndRender,
+                "Relay text was not rendered");
             var labels = Scroll().Query<Label>().ToList();
             Assert.IsTrue(labels.Exists(l => l.text.Contains("Hello from relay")),
                 "Expected 'Hello from relay' in transcript");
@@ -187,30 +203,32 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void ProcessFactory_Send_ErrorEvent_RenderedAsChip()
+        public async Task ProcessFactory_Send_ErrorEvent_RenderedAsChip()
         {
             ResetToIdle();
             RestoreRealBackend();
             RelayBackend.ProcessFactory = () => Proc(ED("e|Relay error"));
             SetInputText("trigger error");
             s_send.Invoke(W, null);
-            Thread.Sleep(300);
-            DrainAndRender();
+            await WaitUntilAsync(
+                () => Scroll().Query<Label>().ToList().Exists(l => l.text.Contains("Relay error")),
+                DrainAndRender,
+                "Relay error was not rendered");
             Assert.AreEqual(ActivityPhase.Idle, GetPhase());
             var labels = Scroll().Query<Label>().ToList();
             Assert.IsTrue(labels.Exists(l => l.text.Contains("Relay error")));
         }
 
         [Test]
-        public void ProcessFactory_SessionInit_NonTerminal_ActivityStaysActive()
+        public async Task ProcessFactory_SessionInit_NonTerminal_ActivityStaysActive()
         {
             ResetToIdle();
             RestoreRealBackend();
             RelayBackend.ProcessFactory = () => Proc(ED("si|sess-abc"));
             SetInputText("ping");
             s_send.Invoke(W, null);
-            Thread.Sleep(300);
-            DrainAndRender();
+            await WaitUntilAsync(() => BackendSessionId() == "sess-abc", DrainAndRender,
+                "SessionInit was not drained");
             // SessionInit is non-terminal — no TurnDone yet → window stays active
             Assert.AreNotEqual(ActivityPhase.Idle, GetPhase(),
                 "SessionInit alone must not return activity to Idle");

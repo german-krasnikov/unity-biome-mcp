@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipContextMenuTests
+    public class ChipContextMenuTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp() => ChipKindRegistry.ResetToBuiltIns();

@@ -19,8 +19,8 @@ namespace UnityMCP.Editor.Tests
             var parent = new GameObject("RH_Parent");
             var child = new GameObject("RH_Child");
             child.transform.SetParent(parent.transform);
-            _toDestroy.Add(parent);
-            _toDestroy.Add(child);
+            TrackOwnedObject(parent);
+            TrackOwnedObject(child);
 
             // Give parent a component that references the child
             var light = parent.AddComponent<Light>();
@@ -35,7 +35,7 @@ namespace UnityMCP.Editor.Tests
         public void FindReferencesTo_NoIncomingRefs_ContainsFoundLabel()
         {
             var go = new GameObject("RH_Target");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
             // No refs point to it — result contains "found: 0"
             var result = ReferenceHelper.FindReferencesTo("/RH_Target");

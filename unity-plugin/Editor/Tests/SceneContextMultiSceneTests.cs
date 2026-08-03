@@ -24,7 +24,7 @@ namespace UnityMCP.Editor.Tests
         public void QualifyPath_MultiScene_MainSceneGO_HasMainScenePrefix()
         {
             var go = new GameObject("SC_MS_Main");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             var ctx = SceneContext.Current;
             Assert.IsTrue(ctx.IsMulti);
 

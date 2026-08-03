@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MentionPerfTests
+    public class MentionPerfTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Shared mock — mirrors MentionCoordinatorTests.MockSource
         private class PerfMockSource : IMentionSource

@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestForLoopTests
+    public class PlaytestForLoopTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── 1. Basic expansion: 3 iterations → 3 steps ───────────────────────────
 

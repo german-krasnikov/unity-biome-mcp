@@ -5,6 +5,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.TestTools;
+using UnityMCP.Editor.Profiling;
 using Object = UnityEngine.Object;
 
 namespace UnityMCP.Editor.Tests
@@ -122,6 +123,45 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("draw=", result);
         }
 
+        [Test]
+        public void Stats_AvailableBatchCounter_ReportsExactValue()
+        {
+            var original = ProfilerBridge._batchProvider;
+            try
+            {
+                ProfilerBridge._batchProvider = () =>
+                    ProfilerBridge.BatchCountSample.Available(17);
+
+                var result = RenderAnalyzer.Execute(A("stats"));
+
+                StringAssert.Contains("batches=17", result);
+            }
+            finally
+            {
+                ProfilerBridge._batchProvider = original;
+            }
+        }
+
+        [Test]
+        public void Stats_UnavailableBatchCounter_DoesNotMasqueradeAsZero()
+        {
+            var original = ProfilerBridge._batchProvider;
+            try
+            {
+                ProfilerBridge._batchProvider = () =>
+                    ProfilerBridge.BatchCountSample.Unavailable("counter-not-supported");
+
+                var result = RenderAnalyzer.Execute(A("stats"));
+
+                StringAssert.Contains("batches=unavailable(counter-not-supported)", result);
+                StringAssert.DoesNotContain("batches=0", result);
+            }
+            finally
+            {
+                ProfilerBridge._batchProvider = original;
+            }
+        }
+
         // ── Overdraw ─────────────────────────────────────────────────────────
 
         [Test]
@@ -223,6 +263,29 @@ namespace UnityMCP.Editor.Tests
             RenderAnalyzer.Execute(A("stats"));  // saves baseline
             var result = RenderAnalyzer.Execute(A("compare"));
             StringAssert.Contains("COMPARE", result);
+        }
+
+        [Test]
+        public void Compare_UnavailableBatchCounter_DoesNotEmitFalseDelta()
+        {
+            var original = ProfilerBridge._batchProvider;
+            try
+            {
+                ProfilerBridge._batchProvider = () =>
+                    ProfilerBridge.BatchCountSample.Available(9);
+                RenderAnalyzer.Execute(A("stats"));
+                ProfilerBridge._batchProvider = () =>
+                    ProfilerBridge.BatchCountSample.Unavailable("no-frame-sample");
+
+                var result = RenderAnalyzer.Execute(A("compare"));
+
+                StringAssert.Contains("batches: unavailable(no-frame-sample)", result);
+                StringAssert.DoesNotContain("batches: 0", result);
+            }
+            finally
+            {
+                ProfilerBridge._batchProvider = original;
+            }
         }
 
         // ── Execute dispatch ─────────────────────────────────────────────────

@@ -131,8 +131,166 @@ namespace UnityMCP.Editor.RegionTool
         }
 
 #if UNITY_INCLUDE_TESTS
+        /// <summary>
+        /// Starts an isolated region-state transaction for a fixture. The scope
+        /// preserves cache identity, version, path, limit, persisted bytes and the
+        /// SessionState shadow, then restores them exactly on disposal.
+        /// </summary>
+        internal static IDisposable IsolateForTests(string persistPath, int maxRegions)
+        {
+            if (string.IsNullOrWhiteSpace(persistPath))
+                throw new ArgumentException("A test persistence path is required.", nameof(persistPath));
+            if (maxRegions <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxRegions));
+
+            var isolatedPath = Path.GetFullPath(persistPath);
+            if (string.Equals(
+                    Path.GetFullPath(PersistPath),
+                    isolatedPath,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException(
+                    "The isolated path must differ from the production persistence path.",
+                    nameof(persistPath));
+
+            var cacheSnapshot = new Dictionary<string, RegionSnapshot>(_cache);
+            var persistedFile = CaptureFile(PersistPath);
+            var isolatedFile = CaptureFile(isolatedPath);
+            var sessionStateScope = SessionStateHelper.IsolateForTests(
+                "MCP_Test_Region_" + Guid.NewGuid().ToString("N") + "_");
+            var snapshot = new TestStateScope(
+                PersistPath,
+                MaxRegions,
+                _globalVersion,
+                cacheSnapshot,
+                sessionStateScope,
+                persistedFile,
+                isolatedPath,
+                isolatedFile);
+
+            try
+            {
+                PersistPath = isolatedPath;
+                MaxRegions = maxRegions;
+                _cache.Clear();
+                File.Delete(isolatedPath);
+                return snapshot;
+            }
+            catch (Exception setupError)
+            {
+                try
+                {
+                    snapshot.Dispose();
+                }
+                catch (Exception restoreError)
+                {
+                    throw new AggregateException(
+                        "Region test isolation setup and rollback both failed.",
+                        setupError, restoreError);
+                }
+                throw;
+            }
+        }
+
         /// <summary>Simulate domain reload for tests: clears cache and reloads from file + SessionState.</summary>
         internal static void SimulateDomainReload() { _cache.Clear(); Load(); }
+
+        private static FileSnapshot CaptureFile(string path)
+        {
+            if (!File.Exists(path)) return new FileSnapshot(false, null);
+            return new FileSnapshot(true, File.ReadAllBytes(path));
+        }
+
+        private static void RestoreFile(string path, FileSnapshot snapshot)
+        {
+            if (!snapshot.Existed)
+            {
+                File.Delete(path);
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+            File.WriteAllBytes(path, snapshot.Bytes);
+        }
+
+        private readonly struct FileSnapshot
+        {
+            internal readonly bool Existed;
+            internal readonly byte[] Bytes;
+
+            internal FileSnapshot(bool existed, byte[] bytes)
+            {
+                Existed = existed;
+                Bytes = bytes;
+            }
+        }
+
+        private sealed class TestStateScope : IDisposable
+        {
+            private readonly string _persistPath;
+            private readonly int _maxRegions;
+            private readonly int _globalVersion;
+            private readonly Dictionary<string, RegionSnapshot> _cacheSnapshot;
+            private readonly IDisposable _sessionStateScope;
+            private readonly FileSnapshot _persistedFile;
+            private readonly string _isolatedPath;
+            private readonly FileSnapshot _isolatedFile;
+            private bool _disposed;
+
+            internal TestStateScope(
+                string persistPath,
+                int maxRegions,
+                int globalVersion,
+                Dictionary<string, RegionSnapshot> cache,
+                IDisposable sessionStateScope,
+                FileSnapshot persistedFile,
+                string isolatedPath,
+                FileSnapshot isolatedFile)
+            {
+                _persistPath = persistPath;
+                _maxRegions = maxRegions;
+                _globalVersion = globalVersion;
+                _cacheSnapshot = cache;
+                _sessionStateScope = sessionStateScope;
+                _persistedFile = persistedFile;
+                _isolatedPath = isolatedPath;
+                _isolatedFile = isolatedFile;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                _disposed = true;
+                var errors = new List<Exception>();
+
+                TryRestore(() => SceneRegionState._cache.Clear(), errors);
+                TryRestore(() => RestoreFile(_isolatedPath, _isolatedFile), errors);
+
+                PersistPath = _persistPath;
+                MaxRegions = _maxRegions;
+                TryRestore(() =>
+                {
+                    SceneRegionState._cache.Clear();
+                    foreach (var pair in _cacheSnapshot)
+                        SceneRegionState._cache.Add(pair.Key, pair.Value);
+                }, errors);
+                SceneRegionState._globalVersion = _globalVersion;
+                TryRestore(_sessionStateScope.Dispose, errors);
+
+                if (!string.Equals(_persistPath, _isolatedPath, StringComparison.OrdinalIgnoreCase))
+                    TryRestore(() => RestoreFile(_persistPath, _persistedFile), errors);
+
+                if (errors.Count > 0)
+                    throw new AggregateException("Region test isolation rollback failed.", errors);
+            }
+
+            private static void TryRestore(Action restore, ICollection<Exception> errors)
+            {
+                try { restore(); }
+                catch (Exception error) { errors.Add(error); }
+            }
+        }
 #endif
 
         // ── Helpers ───────────────────────────────────────────────────────────

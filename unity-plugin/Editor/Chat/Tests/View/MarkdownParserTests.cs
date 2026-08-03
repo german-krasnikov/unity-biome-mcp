@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MarkdownParserTests
+    public class MarkdownParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Null_DoesNotThrow()

@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MCPDiagnosePanelTests
+    public class MCPDiagnosePanelTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Build_ReturnsNonNull()

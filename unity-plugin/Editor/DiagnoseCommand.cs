@@ -202,14 +202,16 @@ namespace UnityMCP.Editor
 
         // C10: Detect reload-failed markers in Editor.log.
         // Matches the same substrings as Python editor_log_parser.py _RELOAD_FAILED / _RELOAD_ABORTED.
-        // Returns true when "Reloading assemblies failed." OR "Editor compiler errors found.
-        // Will not reload assemblies." appears AFTER the last "Reload assemblies complete." (currency check).
+        // Returns true when the last reload terminal is a failure. Unity 6 logs
+        // "Mono: successfully reloaded assembly" on successful reloads; older/editor-specific
+        // paths may emit "Reload assemblies complete." instead, so either clears a stale failure.
         // Testable overload — accepts injected logPath for NUnit coverage.
         internal static bool DetectReloadFailed(string logPath)
         {
-            const string reloadFailed   = "Reloading assemblies failed.";
-            const string reloadAborted  = "Editor compiler errors found. Will not reload assemblies.";
-            const string reloadComplete = "Reload assemblies complete.";
+            const string reloadFailed    = "Reloading assemblies failed.";
+            const string reloadAborted   = "Editor compiler errors found. Will not reload assemblies.";
+            const string reloadComplete  = "Reload assemblies complete.";
+            const string monoReloaded    = "Mono: successfully reloaded assembly";
             try
             {
                 if (string.IsNullOrEmpty(logPath) || !File.Exists(logPath))
@@ -225,8 +227,10 @@ namespace UnityMCP.Editor
                 int lastFailure = Math.Max(lastFailed, lastAborted);
                 if (lastFailure < 0) return false;
 
-                // If a success marker appears after the last failure, the error is stale
-                int lastSuccess = text.LastIndexOf(reloadComplete, StringComparison.Ordinal);
+                // If any supported success terminal appears after the last failure, it is stale.
+                int lastSuccess = Math.Max(
+                    text.LastIndexOf(reloadComplete, StringComparison.Ordinal),
+                    text.LastIndexOf(monoReloaded, StringComparison.Ordinal));
                 return lastSuccess < lastFailure;
             }
             catch (Exception) { return false; }
@@ -257,33 +261,46 @@ namespace UnityMCP.Editor
                 using (var reader = new StreamReader(fs))
                     text = reader.ReadToEnd();
 
-                // Find last failure header (rfind equivalent via LastIndexOf)
-                const string failHeader = "## Script Compilation Error for:";
-                var idx = text.LastIndexOf(failHeader, StringComparison.Ordinal);
-                if (idx < 0) return CacheAndReturn(logPath, mtime, "clean");
-
-                // Extract CS#### codes from the failure block
-                var block = text.Substring(idx, Math.Min(8192, text.Length - idx));
-                var matches = Regex.Matches(block, @"error (CS\d+)");
-                if (matches.Count == 0) return CacheAndReturn(logPath, mtime, "clean");
-
-                var seen = new System.Collections.Generic.HashSet<string>();
-                var codes = new StringBuilder();
-                foreach (Match m in matches)
-                {
-                    var code = m.Groups[1].Value;
-                    if (seen.Add(code))
-                    {
-                        if (codes.Length > 0) codes.Append(' ');
-                        codes.Append(code);
-                    }
-                }
-                return CacheAndReturn(logPath, mtime, codes.ToString());
+                return CacheAndReturn(logPath, mtime, ParseEditorLogText(text));
             }
             catch (Exception e)
             {
                 return $"error:{e.GetType().Name}";
             }
+        }
+
+        internal static string ParseEditorLogText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "clean";
+
+            const string failHeader    = "## Script Compilation Error for:";
+            const string reloadComplete = "Reload assemblies complete.";
+            const string monoReloaded   = "Mono: successfully reloaded assembly";
+
+            var idx = text.LastIndexOf(failHeader, StringComparison.Ordinal);
+            if (idx < 0) return "clean";
+
+            var lastSuccess = Math.Max(
+                text.LastIndexOf(reloadComplete, StringComparison.Ordinal),
+                text.LastIndexOf(monoReloaded, StringComparison.Ordinal));
+            if (lastSuccess > idx) return "clean";
+
+            var block = text.Substring(idx, Math.Min(8192, text.Length - idx));
+            var matches = Regex.Matches(block, @"error (CS\d+)");
+            if (matches.Count == 0) return "clean";
+
+            var seen = new System.Collections.Generic.HashSet<string>();
+            var codes = new StringBuilder();
+            foreach (Match m in matches)
+            {
+                var code = m.Groups[1].Value;
+                if (seen.Add(code))
+                {
+                    if (codes.Length > 0) codes.Append(' ');
+                    codes.Append(code);
+                }
+            }
+            return codes.ToString();
         }
 
         static string CacheAndReturn(string logPath, long mtime, string result)

@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class IsCodeEditingToolTests
+    public class IsCodeEditingToolTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Name-based detection ──────────────────────────────────────────────
 

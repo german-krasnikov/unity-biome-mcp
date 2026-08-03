@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class JsonMergeHelperTests
+    public class JsonMergeHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── ReplaceEntry: key not found ───────────────────────────────────────
 

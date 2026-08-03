@@ -10,7 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class PluginSettingsInjectionTests
+    public class PluginSettingsInjectionTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    => SettingsProviderRegistry.ResetForTests();
         [TearDown] public void TearDown() => SettingsProviderRegistry.ResetForTests();

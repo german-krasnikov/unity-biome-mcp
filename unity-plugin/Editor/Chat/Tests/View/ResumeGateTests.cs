@@ -1,5 +1,5 @@
 // TDD: Resume gate + debounce — tests #14–#20.
-// SyncHelper.Ops = mock. SyncHelper.ResetForTest() between tests.
+// SyncHelper.OverrideOpsForTest(mock); the common base restores it after every test.
 // #14-#16: test the REAL D6 compile-clean gate in TryResumePendingTurn
 //   via the extracted testable seam (SyncHelper.IsCompileClean + _resumeRetryCount).
 using NUnit.Framework;
@@ -11,7 +11,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ResumeGateTests
+    public class ResumeGateTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private MockSyncOpsForResume _mock;
 
@@ -19,7 +19,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             _mock = new MockSyncOpsForResume();
-            SyncHelper.Ops = _mock;
+            SyncHelper.OverrideOpsForTest(_mock);
             SyncHelper.ResetForTest();
             ReloadGuard.ResetForTest();
         }

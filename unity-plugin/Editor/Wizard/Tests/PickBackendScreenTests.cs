@@ -6,7 +6,7 @@ using UnityMCP.Editor.Wizard.Screens;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PickBackendScreenTests
+    public class PickBackendScreenTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Build_ReturnsNonNull()

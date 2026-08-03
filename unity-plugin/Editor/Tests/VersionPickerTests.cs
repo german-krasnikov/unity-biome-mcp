@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class VersionPickerTests
+    public class VersionPickerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void BuildVersionPickerPage_ReturnsNonNull()
@@ -39,7 +39,7 @@ namespace UnityMCP.Editor.Tests
     }
 
     [TestFixture]
-    public class VersionCoherenceCheckerTests
+    public class VersionCoherenceCheckerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [TearDown]
         public void TearDown()

@@ -8,7 +8,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestProvenanceTests
+    public class PlaytestProvenanceTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── 1. Direct lines have null SourceFile and MacroStack ──────────────────
 

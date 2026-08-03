@@ -4,7 +4,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class AiToolCardFactoryTests
+    public class AiToolCardFactoryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Build_Returns8Cards()

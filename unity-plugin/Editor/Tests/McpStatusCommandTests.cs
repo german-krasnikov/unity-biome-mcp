@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class McpStatusCommandTests
+    public class McpStatusCommandTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()

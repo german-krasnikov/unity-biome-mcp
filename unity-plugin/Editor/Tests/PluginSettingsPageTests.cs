@@ -8,7 +8,7 @@ namespace UnityMCP.Editor.Tests
     /// TDD: Plugins settings page — conditional display based on plugin UI availability.
     /// </summary>
     [TestFixture]
-    public class PluginSettingsPageTests
+    public class PluginSettingsPageTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp() => PluginRegistry.Clear();

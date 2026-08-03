@@ -11,7 +11,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipContextResolverTests
+    public class ChipContextResolverTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private List<GameObject> _created;
 
@@ -30,8 +30,6 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (go != null) Object.DestroyImmediate(go);
             ChipContextResolver.FindObjectOverride = null;
             ChipKindRegistry.ResetToBuiltIns();
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
         private GameObject MakeGo(string name, GameObject parent = null)
@@ -165,7 +163,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void ResolveOne_PathOnly_SceneObject_IncludesInstanceID()
+        public void ResolveOne_PathOnly_SceneObject_IncludesTransientObjectId()
         {
             var go = MakeGo("SceneObj");
             ChipContextResolver.FindObjectOverride = _ => go;
@@ -173,7 +171,7 @@ namespace UnityMCP.Editor.Chat.Tests
             StringAssert.Contains("/SceneObj#", result);
             var parts = result.Split('#');
             Assert.AreEqual(2, parts.Length);
-            Assert.IsTrue(int.TryParse(parts[1], out _));
+            Assert.IsTrue(ulong.TryParse(parts[1], out _));
         }
 
         [Test]
@@ -190,7 +188,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var go = MakeGo("SummaryObj");
             ChipContextResolver.FindObjectOverride = _ => go;
             var result = ChipContextResolver.ResolveOne("/SummaryObj", ChipDepth.Summary);
-            StringAssert.Contains($"#{go.GetInstanceID()}", result);
+            StringAssert.Contains($"#{TransientObjectId.GetWireValue(go)}", result);
         }
 
         [Test]
@@ -200,8 +198,8 @@ namespace UnityMCP.Editor.Chat.Tests
             var go2 = MakeGo("Multi2");
             ChipContextResolver.FindObjectOverride = p => p.Contains("Multi1") ? go1 : go2;
             var result = ChipContextResolver.ResolveAll(new List<string> { "/Multi1", "/Multi2" });
-            StringAssert.Contains($"#{go1.GetInstanceID()}", result);
-            StringAssert.Contains($"#{go2.GetInstanceID()}", result);
+            StringAssert.Contains($"#{TransientObjectId.GetWireValue(go1)}", result);
+            StringAssert.Contains($"#{TransientObjectId.GetWireValue(go2)}", result);
         }
 
         // ── FormatChipRef — string kindKey (H6) ─────────────────────────────
@@ -209,42 +207,42 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void FormatChipRef_Hierarchy_BracketFormatWithInstanceID()
         {
-            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/World/Player", 12345);
+            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/World/Player", "12345");
             Assert.AreEqual("[hierarchy:/World/Player#12345]", result);
         }
 
         [Test]
         public void FormatChipRef_Script_NameOnly_NoBracketID()
         {
-            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Script, "PlayerController", 0);
+            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Script, "PlayerController", "");
             Assert.AreEqual("[script:PlayerController]", result);
         }
 
         [Test]
         public void FormatChipRef_Scene_FullAssetPath()
         {
-            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Scene, "Assets/Scenes/Main.unity", 0);
+            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Scene, "Assets/Scenes/Main.unity", "");
             Assert.AreEqual("[scene:Assets/Scenes/Main.unity]", result);
         }
 
         [Test]
         public void FormatChipRef_Asset_AssetPath()
         {
-            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Asset, "Assets/Fonts/Arial.ttf", 0);
+            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Asset, "Assets/Fonts/Arial.ttf", "");
             Assert.AreEqual("[asset:Assets/Fonts/Arial.ttf]", result);
         }
 
         [Test]
         public void FormatChipRef_Hierarchy_ZeroInstanceID_OmitsHashSuffix()
         {
-            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/Player", 0);
+            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/Player", "");
             Assert.AreEqual("[hierarchy:/Player]", result);
         }
 
         [Test]
         public void FormatChipRef_ScriptableObject_UsesSoPrefix()
         {
-            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.ScriptableObject, "Assets/Data/Cfg.asset", 0);
+            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.ScriptableObject, "Assets/Data/Cfg.asset", "");
             Assert.AreEqual("[so:Assets/Data/Cfg.asset]", result);
         }
 
@@ -253,28 +251,28 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void EmitTyped_DepthNone_ReturnsEmpty()
         {
-            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Script, "Assets/Foo.cs", 0, "none", (p, d) => "RESOLVED");
+            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Script, "Assets/Foo.cs", "", "none", (p, d) => "RESOLVED");
             Assert.AreEqual("", result);
         }
 
         [Test]
         public void EmitTyped_DepthPath_ReturnsBracketOnly()
         {
-            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Script, "Assets/Foo.cs", 0, "path", (p, d) => "RESOLVED");
+            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Script, "Assets/Foo.cs", "", "path", (p, d) => "RESOLVED");
             Assert.AreEqual("[script:Assets/Foo.cs]", result);
         }
 
         [Test]
         public void EmitTyped_DepthPath_Hierarchy_IncludesInstanceID()
         {
-            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", 123, "path", (p, d) => "RESOLVED");
+            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", "123", "path", (p, d) => "RESOLVED");
             Assert.AreEqual("[hierarchy:/Player#123]", result);
         }
 
         [Test]
         public void EmitTyped_DepthSummary_StartsWithBracketThenResolved()
         {
-            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", 123, "summary",
+            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", "123", "summary",
                 (p, d) => "summary-text");
             StringAssert.StartsWith("[hierarchy:/Player#123]", result);
             StringAssert.Contains("summary-text", result);
@@ -283,7 +281,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void EmitTyped_DepthFull_StartsWithBracketThenResolved()
         {
-            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", 0, "full",
+            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", "", "full",
                 (p, d) => "full-dump");
             StringAssert.StartsWith("[hierarchy:/Player]", result);
             StringAssert.Contains("full-dump", result);
@@ -292,7 +290,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void EmitTyped_DepthSummary_Asset_BracketAndAssetPath()
         {
-            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Script, "Assets/Foo.cs", 0, "summary",
+            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Script, "Assets/Foo.cs", "", "summary",
                 (p, d) => p);
             StringAssert.StartsWith("[script:Assets/Foo.cs]", result);
         }
@@ -300,7 +298,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void EmitTyped_UnknownDepth_TreatedAsPath()
         {
-            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Asset, "Assets/X.png", 0, "bogus", (p, d) => "R");
+            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Asset, "Assets/X.png", "", "bogus", (p, d) => "R");
             Assert.AreEqual("[asset:Assets/X.png]", result);
         }
 

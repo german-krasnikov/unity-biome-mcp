@@ -11,24 +11,20 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class WindowsPathProbeTests
+    public class WindowsPathProbeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tempDir;
-
-        [TearDown]
-        public void TearDown()
-        {
-            if (_tempDir != null && System.IO.Directory.Exists(_tempDir))
-            {
-                try { System.IO.Directory.Delete(_tempDir, true); } catch { }
-            }
-            _tempDir = null;
-        }
 
         private string MakeTempDir()
         {
             _tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mcp_probe_dirs_" + Guid.NewGuid().ToString("N"));
             System.IO.Directory.CreateDirectory(_tempDir);
+            RegisterCleanup(() =>
+            {
+                if (System.IO.Directory.Exists(_tempDir))
+                    System.IO.Directory.Delete(_tempDir, true);
+                _tempDir = null;
+            });
             return _tempDir;
         }
 

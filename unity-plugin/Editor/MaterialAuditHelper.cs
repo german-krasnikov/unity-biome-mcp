@@ -34,7 +34,7 @@ namespace UnityMCP.Editor
         {
             CollectAll(out var mats, out var textures, out int instanced);
             long texMem = 0;
-            foreach (var tex in textures.Values) texMem += GetTextureMemory(tex);
+            foreach (var tex in textures) texMem += GetTextureMemory(tex);
 
             var sb = new StringBuilder();
             sb.AppendLine("MATERIAL AUDIT SUMMARY");
@@ -46,7 +46,7 @@ namespace UnityMCP.Editor
 
         private static string Materials()
         {
-            var seen = new HashSet<int>();
+            var seen = new HashSet<Material>();
             var renderers = Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
             var sb = new StringBuilder();
             sb.AppendLine("MATERIALS");
@@ -54,7 +54,7 @@ namespace UnityMCP.Editor
             {
                 foreach (var mat in r.sharedMaterials) // NEVER .materials
                 {
-                    if (mat == null || !seen.Add(mat.GetInstanceID())) continue;
+                    if (mat == null || !seen.Add(mat)) continue;
                     var path = AssetDatabase.GetAssetPath(mat);
                     var instFlag = mat.name.EndsWith(" (Instance)") ? " [INST]" : "";
                     sb.AppendLine($"  {mat.name}{instFlag} shader={mat.shader?.name ?? "none"} path={path ?? "procedural"}");
@@ -68,11 +68,11 @@ namespace UnityMCP.Editor
 
         private static void CollectAll(
             out HashSet<Material> mats,
-            out Dictionary<int, Texture> textures,
+            out HashSet<Texture> textures,
             out int instanced)
         {
             mats = new HashSet<Material>();
-            textures = new Dictionary<int, Texture>();
+            textures = new HashSet<Texture>();
             instanced = 0;
             var renderers = Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
             foreach (var r in renderers)

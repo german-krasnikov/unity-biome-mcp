@@ -68,7 +68,9 @@ def test_themed_tool_has_no_core_or_tier1():
 
 def test_custom_timeout_preserved():
     from unity_mcp.tools.tool_specs import _SPECS
-    assert _SPECS["run_tests"].timeout_s == 300.0
+    assert _SPECS["run_tests"].timeout_s == 30.0
+    assert _SPECS["run_tests_wait"].timeout_s == 1200.0
+    assert _SPECS["get_test_run"].timeout_s == 10.0
     assert _SPECS["ping"].timeout_s == 5.0
     assert _SPECS["get_console"].timeout_s == 10.0
 

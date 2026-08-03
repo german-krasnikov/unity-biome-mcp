@@ -6,15 +6,15 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal class NlComposerBridgeTests
+    internal class NlComposerBridgeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()
         {
             NlComposerBridge.RunProcessOverride    = null;
             NlComposerBridge.ResolveBinaryOverride = null;
-            EditorPrefs.DeleteKey("UnityMCP_Chat_Path_claude");
-            EditorPrefs.DeleteKey("UnityMCP_Chat_Path_codex");
+            DeleteEditorPrefString("UnityMCP_Chat_Path_claude");
+            DeleteEditorPrefString("UnityMCP_Chat_Path_codex");
         }
 
         [TearDown]
@@ -22,8 +22,6 @@ namespace UnityMCP.Editor.Tests
         {
             NlComposerBridge.RunProcessOverride    = null;
             NlComposerBridge.ResolveBinaryOverride = null;
-            EditorPrefs.DeleteKey("UnityMCP_Chat_Path_claude");
-            EditorPrefs.DeleteKey("UnityMCP_Chat_Path_codex");
         }
 
         // ── ParseAsync gating ──────────────────────────────────────────────
@@ -151,7 +149,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ResolveBinary_Claude_ReadsClaudePrefKey()
         {
-            EditorPrefs.SetString("UnityMCP_Chat_Path_claude", "/usr/bin/claude");
+            SetEditorPrefString("UnityMCP_Chat_Path_claude", "/usr/bin/claude");
             var cfg = new SamplingConfig { Backend = "" };
             Assert.AreEqual("/usr/bin/claude", NlComposerBridge.ResolveBinary(cfg));
         }
@@ -159,7 +157,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ResolveBinary_Codex_ReadsCodexPrefKey()
         {
-            EditorPrefs.SetString("UnityMCP_Chat_Path_codex", "/usr/bin/codex");
+            SetEditorPrefString("UnityMCP_Chat_Path_codex", "/usr/bin/codex");
             var cfg = new SamplingConfig { Backend = "codex" };
             Assert.AreEqual("/usr/bin/codex", NlComposerBridge.ResolveBinary(cfg));
         }
@@ -272,12 +270,14 @@ namespace UnityMCP.Editor.Tests
 
     [TestFixture]
     [Category("LiveCLI")]
-    internal class NlComposerBridgeLiveTests
+    [UnityMCP.Editor.Testing.BiomeWorkerOnly(
+        "Invokes an external LLM CLI and is intentionally nondeterministic.")]
+    internal class NlComposerBridgeLiveTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         static string _binary;
 
-        [OneTimeSetUp]
-        public void OneTimeSetUp()
+        [SetUp]
+        public void SetUp()
         {
             NlComposerBridge.ResolveBinaryOverride = null;
             NlComposerBridge.RunProcessOverride = null;
@@ -298,8 +298,8 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
-        [OneTimeTearDown]
-        public void OneTimeTearDown()
+        [TearDown]
+        public void TearDown()
         {
             NlComposerBridge.ResolveBinaryOverride = null;
             NlComposerBridge.RunProcessOverride = null;

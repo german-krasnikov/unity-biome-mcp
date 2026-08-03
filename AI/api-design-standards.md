@@ -124,13 +124,16 @@ has_exit_time="true" if has_exit_time else None,  # Pattern A
 **R4: Sentinels must be machine-parseable.** Fixed prefix + delimited fields. No trailing prose in the parseable part.
 
 ```python
-# WRONG — run_tests return value (current state)
-return f"tests-started|{mode}|poll get_test_results every 5s for up to 2min"
+# WRONG — prose and no durable identity
+return f"tests-started|{mode}|check back later"
 # prose tail leaks into sentinel
 
 # RIGHT
-return f"tests-started|{mode}"
-# callers: result.startswith("tests-started|")
+return (
+    f"tests-started|request_id={request_id}|run_id={run_id}"
+    f"|utf_guid={utf_guid}|state=dispatched"
+)
+# callers retain every identity and query only the exact run
 ```
 
 **R5: Wrapper tools must say "wrapper".** When one tool polls another, its docstring must call out the relationship.
@@ -138,8 +141,11 @@ return f"tests-started|{mode}"
 ```python
 # DO — run_tests_wait docstring
 async def run_tests_wait(...) -> str:
-    """Wrapper around run_tests — blocks until results arrive (polls internally, 2min cap).
-    Fire-and-forget: use run_tests instead."""
+    """Consumer wrapper around the durable direct protocol.
+
+    Resolves one request identity and waits for its exact run to reconcile.
+    Timeout is observational and does not mark the Unity run complete.
+    """
 ```
 
 **R12: Action enum tools must validate and redirect.** When a tool accepts an `action: str` param with a closed enum, the docstring must list valid values. Invalid values must return `err:invalid action '<value>'`, NOT a silent no-op.
@@ -263,4 +269,3 @@ For every new or modified tool — PASS/FAIL:
 ```
 
 **Auto-checks (pytest):** `server/tests/test_api_standards.py` — bool Pattern A, ToolSpec coverage, arg-name parity. Run with `pytest tests/test_api_standards.py -v`.
-

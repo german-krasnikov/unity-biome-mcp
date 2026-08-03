@@ -84,6 +84,53 @@ namespace UnityMCP.Editor.Chat
             return true;
         }
 
+#if UNITY_INCLUDE_TESTS
+        /// <summary>
+        /// Preserves the exact viewer dispatch table and navigation delegates.
+        /// The original viewer instances are restored; built-ins are not reconstructed.
+        /// </summary>
+        internal static IDisposable PreserveStateForTests()
+        {
+            var registry = new List<KeyValuePair<string, IAssetViewer>>(_registry);
+            return new TestIsolationScope(
+                registry,
+                AssetChipProviderBase.ViewerLauncher,
+                ImageChipProvider.ImageFallbackViewer);
+        }
+
+        private sealed class TestIsolationScope : IDisposable
+        {
+            private List<KeyValuePair<string, IAssetViewer>> _registrySnapshot;
+            private Func<string, bool> _viewerLauncher;
+            private Action<string> _imageFallbackViewer;
+
+            internal TestIsolationScope(
+                List<KeyValuePair<string, IAssetViewer>> registrySnapshot,
+                Func<string, bool> viewerLauncher,
+                Action<string> imageFallbackViewer)
+            {
+                _registrySnapshot = registrySnapshot;
+                _viewerLauncher = viewerLauncher;
+                _imageFallbackViewer = imageFallbackViewer;
+            }
+
+            public void Dispose()
+            {
+                if (_registrySnapshot == null) return;
+
+                _registry.Clear();
+                foreach (var pair in _registrySnapshot)
+                    _registry.Add(pair.Key, pair.Value);
+                AssetChipProviderBase.ViewerLauncher = _viewerLauncher;
+                ImageChipProvider.ImageFallbackViewer = _imageFallbackViewer;
+
+                _registrySnapshot = null;
+                _viewerLauncher = null;
+                _imageFallbackViewer = null;
+            }
+        }
+#endif
+
         // Test seam: clear all registrations.
         internal static void Reset()
         {

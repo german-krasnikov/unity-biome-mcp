@@ -5,7 +5,7 @@ using static UnityMCP.Editor.MCPStatusModel;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MCPStatusModelTests
+    public class MCPStatusModelTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── GetState ────────────────────────────────────────────────────────
         [Test] public void GetState_NotRunning_ReturnsDown()

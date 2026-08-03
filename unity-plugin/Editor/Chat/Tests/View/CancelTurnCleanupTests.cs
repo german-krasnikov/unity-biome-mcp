@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class CancelTurnCleanupTests
+    public class CancelTurnCleanupTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    => ReloadGuard.ResetForTest();
         [TearDown] public void TearDown() => ReloadGuard.ResetForTest();

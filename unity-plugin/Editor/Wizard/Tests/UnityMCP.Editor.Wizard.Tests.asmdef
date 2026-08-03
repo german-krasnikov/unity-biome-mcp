@@ -3,6 +3,7 @@
     "rootNamespace": "UnityMCP.Editor.Tests",
     "references": [
         "UnityMCP.Editor",
+        "UnityMCP.Editor.TestSupport",
         "UnityMCP.Editor.Wizard",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

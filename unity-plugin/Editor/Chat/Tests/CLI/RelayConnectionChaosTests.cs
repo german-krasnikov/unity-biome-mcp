@@ -10,7 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelayConnectionChaosTests
+    public class RelayConnectionChaosTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]  public void SetUp()    => RelaySpawner.EnsureRunningOverride = () => 19900;
         [TearDown] public void TearDown()
@@ -18,9 +18,7 @@ namespace UnityMCP.Editor.Chat.Tests
             RelayBackend.ProcessFactory        = null;
             RelaySpawner.EnsureRunningOverride  = null;
             RelaySpawner.TcpAliveOverride       = null;
-            RelaySpawner.Stop();
-            SessionState.EraseInt(RelaySpawner.PortKey);
-            SessionState.EraseInt(RelaySpawner.PidKey);
+            RelaySpawner.StopForTests();
         }
 
         static RelayChatProcess OkProc() =>
@@ -123,13 +121,16 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Spawner lifecycle ─────────────────────────────────────────────────
 
         [Test] public void Spawner_Stop_Idempotent_10x()
-            => Assert.DoesNotThrow(() => { for (int i = 0; i < 10; i++) RelaySpawner.Stop(); });
+            => Assert.DoesNotThrow(() =>
+            {
+                for (int i = 0; i < 10; i++) RelaySpawner.StopForTests();
+            });
 
         [Test] public void Spawner_Stop_ErasesPortKey()
         {
-            SessionState.SetInt(RelaySpawner.PortKey, 9500);
-            RelaySpawner.Stop();
-            Assert.AreEqual(0, SessionState.GetInt(RelaySpawner.PortKey, 0));
+            RelaySpawner.SetSessionForTests(9500, 0);
+            RelaySpawner.StopForTests();
+            Assert.AreEqual(0, RelaySpawner.RelayPort);
         }
 
         [Test] public void Spawner_EnsureRunningOverride_ReturnsCorrectPort()

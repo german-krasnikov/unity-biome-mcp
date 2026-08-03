@@ -4,9 +4,8 @@ using System.Threading;
 
 namespace UnityMCP.Editor
 {
-    // Per-port client state (ring of up to 4 simultaneous clients).
-    // Promoted from a private nested class inside MCPServer (Phase 2, M1) — pure
-    // mechanical move, zero logic changes.
+    // Per-port client state (fixed slots for up to MaxClients simultaneous clients).
+    // Handler registration, not a competing socket read, owns connection liveness.
     internal sealed class ClientSlot
     {
         internal const int MaxClients = 8;
@@ -20,6 +19,7 @@ namespace UnityMCP.Editor
 
         private readonly ClientEntry[] _entries;
         private readonly object _lock = new object();
+        private int _nextReplacementIndex;
 
         // Mutable label — updated by set_client_label command after identification.
         internal volatile string Label;
@@ -31,17 +31,10 @@ namespace UnityMCP.Editor
                 _entries[i] = new ClientEntry();
         }
 
-        private static bool IsSocketAlive(TcpClient client)
+        private static bool IsEntryActive(ClientEntry entry)
         {
-            try
-            {
-                var s = client.Client;
-                if (s == null || !s.Connected) return false;
-                if (s.Poll(0, SelectMode.SelectRead))
-                    return s.Available > 0;
-                return true;
-            }
-            catch { return false; }
+            var cts = entry.Cts;
+            return entry.Client != null && cts != null && !cts.IsCancellationRequested;
         }
 
         // Returns (index, generation, clientCts) for the new entry
@@ -50,23 +43,9 @@ namespace UnityMCP.Editor
         {
             lock (_lock)
             {
-                // Evict dead connections before looking for a slot
-                for (int i = 0; i < MaxClients; i++)
-                {
-                    var c = _entries[i].Client;
-                    if (c != null && !IsSocketAlive(c))
-                    {
-                        try { _entries[i].Cts?.Cancel(); } catch { }
-#if UNITY_EDITOR_WIN
-                        try { c.Client?.SetSocketOption(SocketOptionLevel.Socket,
-                            SocketOptionName.Linger, new LingerOption(true, 0)); } catch (System.Net.Sockets.SocketException) { }
-#endif
-                        try { c.Close(); } catch { }
-                        _entries[i].Client = null;
-                        _entries[i].Cts = null;
-                    }
-                }
-                // Find empty slot first
+                // HandleClientAsync.finally exclusively releases normal entries. Probing
+                // Poll/Available here races that handler's read and can misclassify a live
+                // socket after it consumes the bytes observed by Poll.
                 for (int i = 0; i < MaxClients; i++)
                 {
                     if (_entries[i].Client == null)
@@ -78,24 +57,23 @@ namespace UnityMCP.Editor
                         return (i, gen, cts);
                     }
                 }
-                // All full — evict entry 0 (oldest), shift down, add at end
-                try { _entries[0].Cts?.Cancel(); } catch { }
-                try { _entries[0].Client?.Client?.SetSocketOption(
+                // Capacity is the only eager-eviction boundary. Replace one entry in
+                // place: handlers retain (index, generation), so shifting entries would
+                // let an older handler's finally block clear a different live client.
+                var replacementIndex = _nextReplacementIndex;
+                _nextReplacementIndex = (_nextReplacementIndex + 1) % MaxClients;
+                var replacement = _entries[replacementIndex];
+                var replacedCts = replacement.Cts;
+                try { replacedCts?.Cancel(); } catch { }
+                try { replacement.Client?.Client?.SetSocketOption(
                         SocketOptionLevel.Socket, SocketOptionName.Linger,
                         new LingerOption(true, 0)); } catch { }
-                try { _entries[0].Client?.Close(); } catch { }
-                for (int i = 0; i < MaxClients - 1; i++)
-                {
-                    _entries[i].Client = _entries[i + 1].Client;
-                    _entries[i].Cts = _entries[i + 1].Cts;
-                    _entries[i].Generation = _entries[i + 1].Generation;
-                }
-                var last = MaxClients - 1;
+                try { replacement.Client?.Close(); } catch { }
                 var newCts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
-                var newGen = Interlocked.Increment(ref _entries[last].Generation);
-                _entries[last].Client = client;
-                _entries[last].Cts = newCts;
-                return (last, newGen, newCts);
+                var newGen = Interlocked.Increment(ref replacement.Generation);
+                replacement.Client = client;
+                replacement.Cts = newCts;
+                return (replacementIndex, newGen, newCts);
             }
         }
 
@@ -155,7 +133,7 @@ namespace UnityMCP.Editor
                 lock (_lock)
                 {
                     for (int i = 0; i < MaxClients; i++)
-                        if (_entries[i].Client != null && IsSocketAlive(_entries[i].Client)) return true;
+                        if (IsEntryActive(_entries[i])) return true;
                     return false;
                 }
             }
@@ -168,8 +146,7 @@ namespace UnityMCP.Editor
             {
                 for (int i = 0; i < MaxClients; i++)
                 {
-                    var c = _entries[i].Client;
-                    if (c != null && !IsSocketAlive(c)) count++;
+                    if (_entries[i].Client != null && !IsEntryActive(_entries[i])) count++;
                 }
             }
             return count;
@@ -182,8 +159,9 @@ namespace UnityMCP.Editor
             {
                 for (int i = 0; i < MaxClients; i++)
                 {
-                    var c = _entries[i].Client;
-                    if (c != null && !IsSocketAlive(c))
+                    var entry = _entries[i];
+                    var c = entry.Client;
+                    if (c != null && !IsEntryActive(entry))
                     {
                         try { _entries[i].Cts?.Cancel(); } catch { }
                         try { c.Client?.SetSocketOption(

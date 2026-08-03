@@ -5,7 +5,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class PointByPointModeTests
+    internal class PointByPointModeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         PointByPointMode _mode;
 

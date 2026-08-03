@@ -5,7 +5,7 @@ using UnityEngine.Rendering;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class EnvironmentHelperTests
+    public class EnvironmentHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private Color _savedAmbientLight;
         private bool _savedFog;

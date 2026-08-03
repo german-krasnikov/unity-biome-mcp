@@ -9,7 +9,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class DiagnoseCommandTests
+    public class DiagnoseCommandTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private MockSyncOps _mock;
 
@@ -17,9 +17,9 @@ namespace UnityMCP.Editor.Tests
         public void SetUp()
         {
             _mock = new MockSyncOps();
-            SyncHelper.Ops = _mock;
+            SyncHelper.OverrideOpsForTest(_mock);
             SyncHelper.ResetForTest();
-            SessionState.EraseString("MCP_DomainStamp");
+            SyncHelper.OverrideDomainStampForTest("");
             CompileErrorCapture.Clear();
             // Clean CompileNotifier state so Bee cache-hit logic starts from idle-never
             SessionState.EraseFloat("MCP_CompileStart");
@@ -98,7 +98,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void DiagnoseCommand_Execute_Stamp_UNDETERMINED_WhenNoStamp()
         {
-            SessionState.EraseString("MCP_DomainStamp");
+            SyncHelper.OverrideDomainStampForTest("");
 
             var result = DiagnoseCommand.Execute("{}");
 
@@ -229,6 +229,60 @@ namespace UnityMCP.Editor.Tests
             finally { File.Delete(tmp); }
         }
 
+        [TestCase("Mono: successfully reloaded assembly")]
+        [TestCase("Reload assemblies complete.")]
+        public void DetectReloadFailed_ReturnsFalse_WhenSuccessFollowsFailure(string successMarker)
+        {
+            var tmp = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(tmp,
+                    "Editor compiler errors found. Will not reload assemblies.\n" +
+                    "Reloading assemblies failed.\n" + successMarker);
+                Assert.IsFalse(DiagnoseCommand.DetectReloadFailed(tmp),
+                    "A successful reload after a failure must clear the historical failure latch");
+            }
+            finally { File.Delete(tmp); }
+        }
+
+        [Test]
+        public void DetectReloadFailed_ReturnsTrue_WhenFailureFollowsSuccess()
+        {
+            var tmp = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(tmp,
+                    "Mono: successfully reloaded assembly\n" +
+                    "Editor compiler errors found. Will not reload assemblies.\n" +
+                    "Reloading assemblies failed.");
+                Assert.IsTrue(DiagnoseCommand.DetectReloadFailed(tmp),
+                    "The latest reload terminal is a failure and must remain current");
+            }
+            finally { File.Delete(tmp); }
+        }
+
+        [TestCase("Mono: successfully reloaded assembly")]
+        [TestCase("Reload assemblies complete.")]
+        public void ParseEditorLogText_ReturnsClean_WhenSuccessFollowsCompileError(string successMarker)
+        {
+            var text =
+                "## Script Compilation Error for: Csc Broken.dll\n" +
+                "Broken.cs(1,1): error CS0122: inaccessible\n" + successMarker;
+
+            Assert.AreEqual("clean", DiagnoseCommand.ParseEditorLogText(text));
+        }
+
+        [Test]
+        public void ParseEditorLogText_ReturnsCodes_WhenCompileErrorFollowsSuccess()
+        {
+            var text =
+                "Mono: successfully reloaded assembly\n" +
+                "## Script Compilation Error for: Csc Broken.dll\n" +
+                "Broken.cs(1,1): error CS0122: inaccessible\n";
+
+            Assert.AreEqual("CS0122", DiagnoseCommand.ParseEditorLogText(text));
+        }
+
         // C10: Execute output contains reload_failed= field
         [Test]
         public void DiagnoseCommand_Execute_ContainsReloadFailedField()
@@ -276,7 +330,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void DiagnoseCommand_StampFrozen_True_WhenStampsMatch()
         {
-            SessionState.SetString("MCP_DomainStamp", "FREEZE_STAMP");
+            SyncHelper.OverrideDomainStampForTest("FREEZE_STAMP");
             SessionState.SetString("MCP_StampAtTrigger", "FREEZE_STAMP");
 
             var result = DiagnoseCommand.Execute("{}");

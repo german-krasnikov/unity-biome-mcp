@@ -3,6 +3,7 @@
 // All tests are fully mocked — no real Python relay required.
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityMCP.Editor.Chat;
@@ -10,7 +11,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelayMonkeyTests
+    public class RelayMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private Func<RelayChatProcess> _origProcFactory;
         private Func<int>              _origEnsureOverride;
@@ -28,9 +29,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             RelayBackend.ProcessFactory        = _origProcFactory;
             RelaySpawner.EnsureRunningOverride  = _origEnsureOverride;
-            RelaySpawner.Stop();
-            SessionState.EraseInt(RelaySpawner.PortKey);
-            SessionState.EraseInt(RelaySpawner.PidKey);
+            RelaySpawner.StopForTests();
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -49,7 +48,36 @@ namespace UnityMCP.Editor.Chat.Tests
                                           string model = "m", int mcp = 0)
         {
             RelayBackend.ProcessFactory = () => MakeFakeProc();
-            return new RelayBackend(id, mode, model, mcp);
+            return Own(new RelayBackend(id, mode, model, mcp));
+        }
+
+        private RelayBackend Own(RelayBackend backend)
+        {
+            RegisterCleanup(backend.Stop);
+            return backend;
+        }
+
+        private static async Task WaitUntilAsync(
+            Func<bool> condition, Action poll, string timeoutMessage, int timeoutMs = 2000)
+        {
+            var timeout = Task.Delay(timeoutMs);
+            while (true)
+            {
+                poll?.Invoke();
+                if (condition()) return;
+                var nextPoll = Task.Delay(10);
+                var completed = await Task.WhenAny(nextPoll, timeout);
+                if (completed == timeout)
+                    Assert.Fail(timeoutMessage);
+                await nextPoll;
+            }
+        }
+
+        private static async Task AwaitSignalAsync(Task signal, string timeoutMessage)
+        {
+            var completed = await Task.WhenAny(signal, Task.Delay(2000));
+            Assert.AreSame(signal, completed, timeoutMessage);
+            await signal;
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -238,16 +266,20 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void Backend_DrainEvents_UnknownPrefixLines_Filtered()
+        public async Task Backend_DrainEvents_UnknownPrefixLines_Filtered()
         {
+            var polled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var proc = new RelayChatProcess(json =>
-                json.Contains("events")
-                    ? "{\"ok\":true,\"data\":\"0\\nunknown|garbage\\n1\\nxyz|data\\n\"}"
-                    : "{\"ok\":true,\"data\":\"\"}");
+            {
+                if (!json.Contains("events")) return "{\"ok\":true,\"data\":\"\"}";
+                if (json.Contains("\"after_seq\":1"))
+                    polled.TrySetResult(true);
+                return "{\"ok\":true,\"data\":\"0\\nunknown|garbage\\n1\\nxyz|data\\n\"}";
+            });
             RelayBackend.ProcessFactory = () => proc;
-            var b = new RelayBackend("id", "m", "model", 0);
+            var b = Own(new RelayBackend("id", "m", "model", 0));
             b.Start();
-            System.Threading.Thread.Sleep(200);
+            await AwaitSignalAsync(polled.Task, "Unknown-prefix response was not polled");
             var output = new List<ChatEvent>();
             Assert.DoesNotThrow(() => b.DrainEvents(output));
             Assert.AreEqual(0, output.Count);
@@ -269,7 +301,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void Backend_LongModelName_DoesNotThrow()
         {
             RelayBackend.ProcessFactory = () => MakeFakeProc();
-            var b = new RelayBackend("id", "agent", new string('m', 1000), 0);
+            var b = Own(new RelayBackend("id", "agent", new string('m', 1000), 0));
             Assert.DoesNotThrow(() => b.Start()); b.Stop();
         }
 
@@ -277,15 +309,22 @@ namespace UnityMCP.Editor.Chat.Tests
         public void Backend_UnicodeResumeSessionId_DoesNotThrow()
         {
             RelayBackend.ProcessFactory = () => MakeFakeProc();
-            var b = new RelayBackend("id", "agent", "m", 0, "sessión-こんにちは");
+            var b = Own(new RelayBackend("id", "agent", "m", 0, "sessión-こんにちは"));
             Assert.DoesNotThrow(() => b.Start()); b.Stop();
         }
 
         [Test]
-        public void Backend_DrainEvents_EmptyEventsPoll_ProducesNoOutput()
+        public async Task Backend_DrainEvents_EmptyEventsPoll_ProducesNoOutput()
         {
-            var b = MakeBackend(); b.Start();
-            System.Threading.Thread.Sleep(200);
+            var polled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            RelayBackend.ProcessFactory = () => new RelayChatProcess(json =>
+            {
+                if (json.Contains("events")) polled.TrySetResult(true);
+                return "{\"ok\":true,\"data\":\"\"}";
+            });
+            var b = Own(new RelayBackend("claude", "agent", "m", 0));
+            b.Start();
+            await AwaitSignalAsync(polled.Task, "Empty response was not polled");
             var output = new List<ChatEvent>();
             b.DrainEvents(output);
             Assert.AreEqual(0, output.Count);
@@ -325,7 +364,12 @@ namespace UnityMCP.Editor.Chat.Tests
         // C4. Stop is idempotent
         [Test]
         public void Spawner_Stop_WhenNotRunning_IsIdempotent() =>
-            Assert.DoesNotThrow(() => { RelaySpawner.Stop(); RelaySpawner.Stop(); RelaySpawner.Stop(); });
+            Assert.DoesNotThrow(() =>
+            {
+                RelaySpawner.StopForTests();
+                RelaySpawner.StopForTests();
+                RelaySpawner.StopForTests();
+            });
 
         // C5. int.MaxValue PID almost certainly does not exist
         [Test]
@@ -454,8 +498,8 @@ namespace UnityMCP.Editor.Chat.Tests
         public void Integration_TwoBackendsSameSpawner_Independent()
         {
             RelayBackend.ProcessFactory = () => MakeFakeProc();
-            var b1 = new RelayBackend("id1", "agent", "m", 0);
-            var b2 = new RelayBackend("id2", "ask",   "m", 0);
+            var b1 = Own(new RelayBackend("id1", "agent", "m", 0));
+            var b2 = Own(new RelayBackend("id2", "ask",   "m", 0));
             b1.Start(); b2.Start();
             b1.SendTurn("{\"type\":\"user\"}");
             b2.SetMode("agent");
@@ -476,17 +520,18 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void Integration_SessionIdCapturedFromTurnDone()
+        public async Task Integration_SessionIdCapturedFromTurnDone()
         {
             var proc = new RelayChatProcess(json =>
                 json.Contains("events")
                     ? "{\"ok\":true,\"data\":\"0\\nd|test-sess|0.01|10|5\\n\"}"
                     : "{\"ok\":true,\"data\":\"\"}");
             RelayBackend.ProcessFactory = () => proc;
-            var b = new RelayBackend("id", "agent", "m", 0);
+            var b = Own(new RelayBackend("id", "agent", "m", 0));
             b.Start();
-            System.Threading.Thread.Sleep(200);
-            b.DrainEvents(new List<ChatEvent>());
+            var events = new List<ChatEvent>();
+            await WaitUntilAsync(() => b.SessionId == "test-sess", () => b.DrainEvents(events),
+                "TurnDone did not update SessionId");
             b.Stop();
             Assert.AreEqual("test-sess", b.SessionId);
         }
@@ -495,7 +540,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void Integration_SpecialCharsInModel_DoesNotThrow()
         {
             RelayBackend.ProcessFactory = () => MakeFakeProc();
-            var b = new RelayBackend("id", "agent", "m\"with quotes\"\n", 0);
+            var b = Own(new RelayBackend("id", "agent", "m\"with quotes\"\n", 0));
             Assert.DoesNotThrow(() => b.Start()); b.Stop();
         }
 

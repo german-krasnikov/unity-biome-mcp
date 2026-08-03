@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ScenePillPipelineTests
+    public class ScenePillPipelineTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ChatTranscript _transcript;
         private VisualElement  _container;
@@ -20,7 +20,7 @@ namespace UnityMCP.Editor.Chat.Tests
             ChipKindRegistry.ResetToBuiltIns();
             ChipPillFactory.ColorResolver = null;
             // Ensure kill-switch is off — EditorPrefs persists across sessions.
-            UnityEditor.EditorPrefs.DeleteKey(PrefKeys.DisableSceneNameNorm);
+            DeleteEditorPrefBool(PrefKeys.DisableSceneNameNorm);
             _container  = new VisualElement();
             _transcript = new ChatTranscript(_container,
                 ChatBlockRendererFactory.CreateDefault(null, null));
@@ -32,7 +32,6 @@ namespace UnityMCP.Editor.Chat.Tests
             ChipKindRegistry.ResetToBuiltIns();
             ChipPillFactory.ColorResolver = null;
             ChipPillFactory.AddToContextAction = null;
-            UnityEditor.EditorPrefs.DeleteKey(PrefKeys.DisableSceneNameNorm);
         }
 
         // F15b-C1: scene object name in LLM response → rendered as pill in assistant bubble

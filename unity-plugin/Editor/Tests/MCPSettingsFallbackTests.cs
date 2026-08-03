@@ -6,12 +6,12 @@ namespace UnityMCP.Editor.Tests
     // ── CS5.test.3 — MCPSettings.GetCatalogCategories fallback ───────────────
 
     [TestFixture]
-    public class MCPSettingsFallbackTests
+    public class MCPSettingsFallbackTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string KeyCatalog = "UnityMCP_Catalog";
 
-        [TearDown]
-        public void TearDown() => EditorPrefs.DeleteKey(KeyCatalog);
+        [SetUp]
+        public void SetUp() => DeleteEditorPrefString(KeyCatalog);
 
         [Test]
         public void GetCatalogCategories_CorruptStoredCatalog_ReturnsFallbackDefault()

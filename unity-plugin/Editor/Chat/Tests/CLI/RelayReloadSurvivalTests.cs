@@ -10,7 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelayReloadSurvivalTests
+    public class RelayReloadSurvivalTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private Func<ProcessStartInfo, Process>   _origFactory;
         private Func<(string cmd, string[] argv)> _origResolver;
@@ -24,7 +24,7 @@ namespace UnityMCP.Editor.Chat.Tests
             _origResolver = RelaySpawner.CommandResolver;
             _origTimeout  = RelaySpawner.ReadTimeout;
             _origTcpAlive = RelaySpawner.TcpAliveOverride;
-            RelaySpawner.Stop();
+            RelaySpawner.StopForTests();
             ClearRelaySession();
             ReloadGuard.ResetForTest();
             ReloadGuard.OverrideFilePath(TempStatePath());
@@ -34,7 +34,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [TearDown]
         public void TearDown()
         {
-            RelaySpawner.Stop();
+            RelaySpawner.StopForTests();
             ClearRelaySession();
             RelaySpawner.ProcessFactory  = _origFactory;
             RelaySpawner.CommandResolver = _origResolver;
@@ -65,11 +65,11 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             SetMockRelay(19711);
             RelaySpawner.EnsureRunning();
-            int portBefore = SessionState.GetInt(RelaySpawner.PortKey, 0);
+            int portBefore = RelaySpawner.RelayPort;
 
             RelaySpawner.OnBeforeReload();
 
-            Assert.AreEqual(portBefore, SessionState.GetInt(RelaySpawner.PortKey, 0),
+            Assert.AreEqual(portBefore, RelaySpawner.RelayPort,
                 "Port must not be erased by OnBeforeReload");
         }
 
@@ -78,11 +78,11 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             SetMockRelay(19712);
             RelaySpawner.EnsureRunning();
-            int pidBefore = SessionState.GetInt(RelaySpawner.PidKey, 0);
+            int pidBefore = RelaySpawner.RelayPid;
 
             RelaySpawner.OnBeforeReload();
 
-            Assert.AreEqual(pidBefore, SessionState.GetInt(RelaySpawner.PidKey, 0),
+            Assert.AreEqual(pidBefore, RelaySpawner.RelayPid,
                 "PID must not be erased by OnBeforeReload");
         }
 
@@ -161,8 +161,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void EnsureRunning_AfterReload_RelayDied_Respawns()
         {
             // Place a dead PID in SessionState
-            SessionState.SetInt(RelaySpawner.PortKey, 19722);
-            SessionState.SetInt(RelaySpawner.PidKey,  99999999); // dead PID
+            RelaySpawner.SetSessionForTests(19722, 99999999); // dead PID
 
             int spawnCount = 0;
             SetMockRelay(19723, onSpawn: () => spawnCount++);
@@ -174,8 +173,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void EnsureRunning_AfterReload_RelayDied_ReturnsFreshPort()
         {
-            SessionState.SetInt(RelaySpawner.PortKey, 19724);
-            SessionState.SetInt(RelaySpawner.PidKey,  99999999);
+            RelaySpawner.SetSessionForTests(19724, 99999999);
 
             SetMockRelay(19725);
             var port = RelaySpawner.EnsureRunning();
@@ -308,10 +306,10 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             SetMockRelay(19740);
             RelaySpawner.EnsureRunning();
-            RelaySpawner.Stop();
+            RelaySpawner.StopForTests();
 
-            Assert.AreEqual(0, SessionState.GetInt(RelaySpawner.PortKey, 0));
-            Assert.AreEqual(0, SessionState.GetInt(RelaySpawner.PidKey,  0));
+            Assert.AreEqual(0, RelaySpawner.RelayPort);
+            Assert.AreEqual(0, RelaySpawner.RelayPid);
         }
 
         [Test]
@@ -320,7 +318,7 @@ namespace UnityMCP.Editor.Chat.Tests
             int spawnCount = 0;
             SetMockRelay(19741, onSpawn: () => spawnCount++);
             RelaySpawner.EnsureRunning();
-            RelaySpawner.Stop();
+            RelaySpawner.StopForTests();
             RelaySpawner.EnsureRunning();
             Assert.AreEqual(2, spawnCount, "Stop + EnsureRunning must spawn twice");
         }
@@ -332,8 +330,7 @@ namespace UnityMCP.Editor.Chat.Tests
 
         private static void ClearRelaySession()
         {
-            SessionState.EraseInt(RelaySpawner.PortKey);
-            SessionState.EraseInt(RelaySpawner.PidKey);
+            RelaySpawner.SetSessionForTests(0, 0);
         }
 
         private void SetMockRelay(int port, Action onSpawn = null)

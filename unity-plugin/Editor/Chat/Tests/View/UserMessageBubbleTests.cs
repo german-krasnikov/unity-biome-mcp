@@ -9,7 +9,7 @@ using static UnityMCP.Editor.Chat.Tests.ChipTestHelpers;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class UserMessageBubbleTests
+    public class UserMessageBubbleTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ChatTranscript _transcript;
         private VisualElement  _container;

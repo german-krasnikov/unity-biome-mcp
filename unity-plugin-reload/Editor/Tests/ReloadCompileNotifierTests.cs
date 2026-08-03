@@ -5,7 +5,7 @@ using UnityEditor;
 namespace UnityMCP.Reload.Tests
 {
     [TestFixture]
-    public class ReloadCompileNotifierTests
+    public class ReloadCompileNotifierTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [TearDown]
         public void TearDown()

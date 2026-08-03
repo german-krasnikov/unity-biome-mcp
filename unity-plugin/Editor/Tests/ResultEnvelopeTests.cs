@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ResultEnvelopeTests
+    public class ResultEnvelopeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void ErrorClassifier_UnwrapsTargetInvocationException()

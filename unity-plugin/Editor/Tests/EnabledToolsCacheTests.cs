@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class EnabledToolsCacheTests
+    public class EnabledToolsCacheTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [TearDown] public void TearDown() => CommandRegistry.InitDefaults();
 

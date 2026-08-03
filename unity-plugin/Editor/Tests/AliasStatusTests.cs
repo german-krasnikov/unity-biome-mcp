@@ -7,7 +7,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class AliasStatusTests
+    public class AliasStatusTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _configPath;
         private Dictionary<string, string> _savedOverride;
@@ -18,18 +18,15 @@ namespace UnityMCP.Editor.Tests
             TestPaths.EnsureFolder();
             _configPath = null;
             _savedOverride = AliasExpander._tableOverride;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            AliasExpander._tableOverride = _savedOverride;
-            if (_configPath != null)
+            var savedProvider = CommandRouter.FindPlaytestConfigGuidsForTest;
+            RegisterCleanup(() =>
             {
-                AssetDatabase.DeleteAsset(_configPath);
-                _configPath = null;
-            }
-            AliasExpander.Invalidate();
+                AliasExpander._tableOverride = _savedOverride;
+                AliasExpander.Invalidate();
+                CommandRouter.FindPlaytestConfigGuidsForTest = savedProvider;
+            });
+            CommandRouter.FindPlaytestConfigGuidsForTest =
+                () => System.Array.Empty<string>();
         }
 
         // ── IsStale ────────────────────────────────────────────────────────────
@@ -85,8 +82,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AliasStatus_EmptyWhenNoConfig()
         {
-            Assume.That(AssetDatabase.FindAssets("t:PlaytestConfig").Length, Is.Zero,
-                "PlaytestConfig exists in project — test inconclusive");
+            AliasExpander._tableOverride = new Dictionary<string, string>();
             CommandRegistry.Clear();
             CommandRegistry.InitDefaults();
             var result = CommandRegistry.Execute("alias_status", "{}");
@@ -104,8 +100,13 @@ namespace UnityMCP.Editor.Tests
                 new QueryAlias { alias = "hp",   constValue = "100", type = AliasType.ValConst },
             };
             _configPath = TestPaths.TempFolder + "/AliasStatus_PlaytestConfig.asset";
+            TrackOwnedAsset(_configPath);
             AssetDatabase.CreateAsset(config, _configPath);
             AssetDatabase.SaveAssets();
+            CommandRouter.FindPlaytestConfigGuidsForTest = () => new[]
+            {
+                AssetDatabase.AssetPathToGUID(_configPath)
+            };
 
             CommandRegistry.Clear();
             CommandRegistry.InitDefaults();

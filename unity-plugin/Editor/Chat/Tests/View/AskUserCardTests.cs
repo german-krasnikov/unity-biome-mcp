@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class AskUserCardTests
+    public class AskUserCardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string SingleSelectJson =
             "{\"questions\":[{\"question\":\"Which approach?\",\"header\":\"Approach\"," +

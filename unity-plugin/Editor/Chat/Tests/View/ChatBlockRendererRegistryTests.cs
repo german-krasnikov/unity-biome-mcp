@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChatBlockRendererRegistryTests
+    public class ChatBlockRendererRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ChatBlockRendererRegistry _registry;
 

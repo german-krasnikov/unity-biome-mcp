@@ -5,7 +5,7 @@ using UnityMCP.Editor.Profiling;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class FrameRingBufferTests
+    public class FrameRingBufferTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Empty_Buffer_Returns_Empty_Array()

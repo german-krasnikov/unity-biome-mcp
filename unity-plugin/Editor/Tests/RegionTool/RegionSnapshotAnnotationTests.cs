@@ -6,7 +6,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class RegionSnapshotAnnotationTests
+    internal class RegionSnapshotAnnotationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── CreatePoint ────────────────────────────────────────────────────────
 

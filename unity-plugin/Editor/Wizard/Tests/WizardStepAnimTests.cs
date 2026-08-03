@@ -5,7 +5,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class WizardStepAnimTests
+    public class WizardStepAnimTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void TransitionOut_AddsOutClass()

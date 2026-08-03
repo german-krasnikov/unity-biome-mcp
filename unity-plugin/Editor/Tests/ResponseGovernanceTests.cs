@@ -4,7 +4,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ResponseGovernanceTests
+    public class ResponseGovernanceTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void TruncateResponse_UnderLimit_ReturnsOriginal()

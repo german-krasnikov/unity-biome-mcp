@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipInlinePreviewPanelTests
+    public class ChipInlinePreviewPanelTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         const string AnyPath = "Assets/tex.png";
         const string UnknownPath = "Assets/unknown.txt";

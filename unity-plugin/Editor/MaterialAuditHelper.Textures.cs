@@ -12,7 +12,7 @@ namespace UnityMCP.Editor
     {
         private static string Textures()
         {
-            var seen = new Dictionary<int, Texture>();
+            var seen = new HashSet<Texture>();
             var renderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
             foreach (var r in renderers)
             {
@@ -24,7 +24,7 @@ namespace UnityMCP.Editor
 
             var sb = new StringBuilder();
             sb.AppendLine("TEXTURES");
-            foreach (var tex in seen.Values)
+            foreach (var tex in seen)
             {
                 var mem = GetTextureMemory(tex);
                 var fmt = tex is Texture2D t2d ? t2d.format.ToString() : "?";
@@ -38,12 +38,12 @@ namespace UnityMCP.Editor
         {
             var fpMap = new Dictionary<string, List<Material>>();
             var renderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
-            var seenMats = new HashSet<int>();
+            var seenMats = new HashSet<Material>();
             foreach (var r in renderers)
             {
                 foreach (var mat in r.sharedMaterials) // NEVER .materials
                 {
-                    if (mat == null || !seenMats.Add(mat.GetInstanceID())) continue;
+                    if (mat == null || !seenMats.Add(mat)) continue;
                     var fp = Fingerprint(mat);
                     if (!fpMap.TryGetValue(fp, out var list))
                         fpMap[fp] = list = new List<Material>();
@@ -127,7 +127,7 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd();
         }
 
-        private static void CollectTextures(Material mat, Dictionary<int, Texture> map)
+        private static void CollectTextures(Material mat, HashSet<Texture> textures)
         {
             if (mat.shader == null) return;
             int count = mat.shader.GetPropertyCount();
@@ -138,7 +138,7 @@ namespace UnityMCP.Editor
                 if (tex == null) continue;
                 var path = AssetDatabase.GetAssetPath(tex);
                 if (string.IsNullOrEmpty(path)) continue; // skip procedural textures
-                map[tex.GetInstanceID()] = tex;
+                textures.Add(tex);
             }
         }
 
@@ -148,7 +148,7 @@ namespace UnityMCP.Editor
         /// </summary>
         private static string Fingerprint(Material mat)
         {
-            if (mat.shader == null) return mat.GetInstanceID().ToString();
+            if (mat.shader == null) return TransientObjectId.GetWireValue(mat);
             var sb = new StringBuilder(mat.shader.name);
             var kws = mat.shaderKeywords;
             Array.Sort(kws);

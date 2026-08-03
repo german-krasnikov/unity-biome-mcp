@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SlashRegistryTests
+    public class SlashRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Match_EmptyPrefix_ReturnsAllBuiltins()

@@ -89,6 +89,19 @@ namespace UnityMCP.Editor.Chat
         }
 
 #if UNITY_INCLUDE_TESTS
+        /// <summary>
+        /// Preserve every registration and the exact version/built-in guard values.
+        /// Intended for the common test isolation layer; unlike ResetToBuiltIns it
+        /// cannot discard providers installed by another package.
+        /// </summary>
+        internal static System.IDisposable PreserveStateForTests()
+        {
+            var builtInsRegistered = _builtInsRegistered;
+            var registryScope = ProviderRegistry<IChipKindProvider>.PreserveState(
+                _providers, _byKey, () => _version, value => _version = value);
+            return new RestoreScope(registryScope, builtInsRegistered);
+        }
+
         /// <summary>TEST-ONLY: clear all providers and re-register built-ins.</summary>
         public static void ResetToBuiltIns()
         {
@@ -97,6 +110,27 @@ namespace UnityMCP.Editor.Chat
             _builtInsRegistered = false;
             _version++;
             EnsureBuiltIns();
+        }
+
+        private sealed class RestoreScope : System.IDisposable
+        {
+            private System.IDisposable _registryScope;
+            private readonly bool _builtInsRegistered;
+
+            internal RestoreScope(System.IDisposable registryScope, bool builtInsRegistered)
+            {
+                _registryScope = registryScope;
+                _builtInsRegistered = builtInsRegistered;
+            }
+
+            public void Dispose()
+            {
+                var registryScope = _registryScope;
+                if (registryScope == null) return;
+                _registryScope = null;
+                try { registryScope.Dispose(); }
+                finally { ChipKindRegistry._builtInsRegistered = _builtInsRegistered; }
+            }
         }
 #endif
 

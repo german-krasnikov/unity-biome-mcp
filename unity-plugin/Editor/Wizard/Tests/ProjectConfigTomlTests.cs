@@ -4,7 +4,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ProjectConfigTomlTests
+    public class ProjectConfigTomlTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void BuildFresh_ContainsSectionHeader()

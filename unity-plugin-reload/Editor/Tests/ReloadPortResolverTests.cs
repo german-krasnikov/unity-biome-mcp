@@ -9,7 +9,7 @@ using NUnit.Framework;
 namespace UnityMCP.Reload.Tests
 {
     [TestFixture]
-    public class ReloadPortResolverTests
+    public class ReloadPortResolverTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _origPortFilePath;
         private string _origPortsDir;

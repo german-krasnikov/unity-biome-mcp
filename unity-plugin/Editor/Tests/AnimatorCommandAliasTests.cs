@@ -1,5 +1,4 @@
 using NUnit.Framework;
-using UnityEditor;
 using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
@@ -9,21 +8,18 @@ namespace UnityMCP.Editor.Tests
     {
         private GameObject _go;
         private const string Name = "AnimatorAlias_Test";
-        private const string ControllerPath = "Assets/Animations/" + Name + ".controller";
+        private const string AssetFolder =
+            "Assets/TestsTemp/AnimatorCommandAliasTests";
 
         [SetUp]
         public void SetUp()
         {
+            RegisterCleanup(AnimationHelper.ResetAssetDirectoryForTests);
+            TrackOwnedAsset(AssetFolder);
+            TestPaths.EnsureFolder(AssetFolder);
+            AnimationHelper.SetAssetDirectoryForTests(AssetFolder);
             CommandRouter.RegisterAll();
-            _go = new GameObject(Name);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            if (_go != null)
-                Object.DestroyImmediate(_go);
-            AssetDatabase.DeleteAsset(ControllerPath);
+            _go = TrackOwnedObject(new GameObject(Name));
         }
 
         [Test]

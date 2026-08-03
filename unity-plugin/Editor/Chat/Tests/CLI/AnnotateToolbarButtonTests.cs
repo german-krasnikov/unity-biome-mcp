@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotateToolbarButtonTests
+    internal sealed class AnnotateToolbarButtonTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private AnnotateToolbarButton _btn;
 

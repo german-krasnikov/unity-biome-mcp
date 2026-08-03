@@ -25,7 +25,11 @@ namespace UnityMCP.Editor.Chat
 
         internal static MCPChatWindow FindChatWindow()
         {
-            var windows = Resources.FindObjectsOfTypeAll<MCPChatWindow>();
+            return FindChatWindow(Resources.FindObjectsOfTypeAll<MCPChatWindow>());
+        }
+
+        internal static MCPChatWindow FindChatWindow(MCPChatWindow[] windows)
+        {
             return windows.Length > 0 ? windows[0] : null;
         }
     }

@@ -31,10 +31,14 @@ namespace UnityMCP.Editor.Chat.Tests
     }
 
     [TestFixture]
-    public class PanelProviderRegistryTests
+    public class PanelProviderRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => PanelProviderRegistry.ResetForTests();
-        [TearDown] public void TearDown() => PanelProviderRegistry.ResetForTests();
+        [SetUp]
+        public void SetUp()
+        {
+            RegisterCleanup(PanelProviderRegistry.PreserveStateForTests().Dispose);
+            PanelProviderRegistry.ResetForTests();
+        }
 
         [Test]
         public void Register_NewKey_ReturnsTrue()

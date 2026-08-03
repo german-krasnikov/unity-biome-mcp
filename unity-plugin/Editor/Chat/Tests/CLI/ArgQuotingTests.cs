@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ArgQuotingTests
+    public class ArgQuotingTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Quote (platform-dispatch — existing, macOS/Posix context) ────────────
         [Test] public void Simple_Unchanged()          => Assert.AreEqual("code-reviewer",        ArgQuoting.Quote("code-reviewer"));

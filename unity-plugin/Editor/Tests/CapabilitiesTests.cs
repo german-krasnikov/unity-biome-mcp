@@ -6,14 +6,8 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CapabilitiesTests
+    public class CapabilitiesTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]
-        public void SetUp() => CommandRegistry.InitDefaults();
-
-        [TearDown]
-        public void TearDown() => CommandRegistry.Clear();
-
         [Test]
         public void GetCapabilities_IsRegistered()
         {

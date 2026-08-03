@@ -4,7 +4,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ProjectConfigFormatsTests
+    public class ProjectConfigFormatsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void BuildEntry_ContainsMarkerVersion()

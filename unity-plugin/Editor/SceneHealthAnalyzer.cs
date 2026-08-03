@@ -138,41 +138,50 @@ namespace UnityMCP.Editor
 
         internal static string CheckDuplicateSiblings(GameObject[] all)
         {
-            var parentGroups = new Dictionary<int, List<GameObject>>();
+            var parentGroups = new Dictionary<Transform, List<GameObject>>();
+            var rootObjects = new List<GameObject>();
             foreach (var go in all)
             {
-                int parentId = go.transform.parent != null
-                    ? go.transform.parent.gameObject.GetInstanceID()
-                    : 0;
-                if (!parentGroups.ContainsKey(parentId))
-                    parentGroups[parentId] = new List<GameObject>();
-                parentGroups[parentId].Add(go);
+                var parent = go.transform.parent;
+                if (parent == null)
+                {
+                    rootObjects.Add(go);
+                    continue;
+                }
+                if (!parentGroups.ContainsKey(parent))
+                    parentGroups[parent] = new List<GameObject>();
+                parentGroups[parent].Add(go);
             }
 
             var findings = new List<string>();
-            foreach (var kv in parentGroups)
-            {
-                var nameCounts = new Dictionary<string, int>();
-                foreach (var go in kv.Value)
-                {
-                    if (!nameCounts.ContainsKey(go.name)) nameCounts[go.name] = 0;
-                    nameCounts[go.name]++;
-                }
-                foreach (var nc in nameCounts)
-                {
-                    if (nc.Value <= 1) continue;
-                    var parent = kv.Value[0].transform.parent;
-                    string parentPath = parent != null
-                        ? ComponentSerializer.GetPath(parent.gameObject)
-                        : "/";
-                    findings.Add($"  duplicate siblings \"{nc.Key}\" under {parentPath} (x{nc.Value})");
-                }
-            }
+            AppendDuplicateSiblingFindings(rootObjects, findings);
+            foreach (var siblings in parentGroups.Values)
+                AppendDuplicateSiblingFindings(siblings, findings);
             if (findings.Count == 0) return null;
             var sb = new StringBuilder("WARNING: duplicate sibling names\n");
             for (int i = 0; i < findings.Count && i < ItemCap; i++) sb.AppendLine(findings[i]);
             if (findings.Count > ItemCap) sb.AppendLine($"  ... and {findings.Count - ItemCap} more");
             return sb.ToString().TrimEnd();
+        }
+
+        private static void AppendDuplicateSiblingFindings(List<GameObject> siblings, List<string> findings)
+        {
+            if (siblings.Count == 0) return;
+            var nameCounts = new Dictionary<string, int>();
+            foreach (var go in siblings)
+            {
+                if (!nameCounts.ContainsKey(go.name)) nameCounts[go.name] = 0;
+                nameCounts[go.name]++;
+            }
+            foreach (var nc in nameCounts)
+            {
+                if (nc.Value <= 1) continue;
+                var parent = siblings[0].transform.parent;
+                string parentPath = parent != null
+                    ? ComponentSerializer.GetPath(parent.gameObject)
+                    : "/";
+                findings.Add($"  duplicate siblings \"{nc.Key}\" under {parentPath} (x{nc.Value})");
+            }
         }
 
         internal static string CheckMissingScripts(GameObject[] all)

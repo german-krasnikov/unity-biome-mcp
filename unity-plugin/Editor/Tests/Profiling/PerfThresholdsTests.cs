@@ -6,7 +6,7 @@ using UnityMCP.Editor.Profiling;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PerfThresholdsTests
+    public class PerfThresholdsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void FpsBand_Above50_ReturnsGood() =>

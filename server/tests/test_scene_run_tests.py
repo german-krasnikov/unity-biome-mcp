@@ -4,46 +4,51 @@ from unittest.mock import AsyncMock
 import unity_mcp.tools.testing as scene_mod
 
 
-async def test_run_tests_connection_error_returns_started(monkeypatch):
-    """TCP dies → returns tests-started immediately, no polling."""
+async def test_run_tests_connection_error_returns_unknown(monkeypatch):
+    """TCP death cannot prove whether Unity dispatched the run."""
     async def fake_send(cmd, args={}, **kw):
+        if cmd == "resolve_test_request":
+            return "none"
         raise ConnectionError("going_away")
 
     monkeypatch.setattr(scene_mod, "_send", fake_send)
-    result = await scene_mod.run_tests("EditMode")
-    assert "tests-started" in result
-    assert "EditMode" in result
+    result = await scene_mod.run_tests("EditMode", request_id="req-connection")
+    assert result == (
+        "START-UNKNOWN|request_id=req-connection|reason=ConnectionError"
+    )
 
 
-async def test_run_tests_timeout_returns_started(monkeypatch):
-    """Timeout → returns tests-started immediately."""
+async def test_run_tests_timeout_returns_unknown(monkeypatch):
     async def fake_send(cmd, args={}, **kw):
+        if cmd == "resolve_test_request":
+            return "none"
         raise asyncio.TimeoutError()
 
     monkeypatch.setattr(scene_mod, "_send", fake_send)
-    result = await scene_mod.run_tests("PlayMode")
-    assert "tests-started" in result
-    assert "PlayMode" in result
+    result = await scene_mod.run_tests("PlayMode", request_id="req-timeout")
+    assert result == "START-UNKNOWN|request_id=req-timeout|reason=TimeoutError"
 
 
-async def test_run_tests_full_result_returned_directly(monkeypatch):
-    """Unity returns full result (no domain reload) → returned as-is."""
+async def test_run_tests_requires_protocol_ack(monkeypatch):
     async def fake_send(cmd, args={}, **kw):
+        if cmd == "resolve_test_request":
+            return "none"
         return "passed: 5 failed: 0"
 
     monkeypatch.setattr(scene_mod, "_send", fake_send)
-    result = await scene_mod.run_tests("EditMode")
-    assert "passed: 5" in result
+    result = await scene_mod.run_tests("EditMode", request_id="req-legacy")
+    assert result == "START-UNKNOWN|request_id=req-legacy|reason=invalid-ack"
 
 
-async def test_run_tests_pending_returns_started(monkeypatch):
-    """Unity returns 'pending' → treated as no result."""
+async def test_run_tests_pending_is_not_fabricated_as_started(monkeypatch):
     async def fake_send(cmd, args={}, **kw):
+        if cmd == "resolve_test_request":
+            return "none"
         return "pending"
 
     monkeypatch.setattr(scene_mod, "_send", fake_send)
-    result = await scene_mod.run_tests("EditMode")
-    assert "tests-started" in result
+    result = await scene_mod.run_tests("EditMode", request_id="req-pending")
+    assert result == "START-UNKNOWN|request_id=req-pending|reason=invalid-ack"
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +76,11 @@ async def test_preflight_recovery_retries_on_stale_dll(monkeypatch):
             force_refresh_called = True
             return "ok"
         if cmd == "run_tests":
-            return "passed: 5 failed: 0"
+            request_id = args["request_id"]
+            return (
+                f"tests-started|request_id={request_id}|run_id=run-recovered"
+                "|utf_guid=utf-recovered|state=dispatched"
+            )
         return await original_send(cmd, args, **kw)
 
     monkeypatch.setattr(diag_mod, "diagnose", fake_diagnose)

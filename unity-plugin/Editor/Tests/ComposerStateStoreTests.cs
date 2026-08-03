@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal class ComposerStateStoreTests
+    internal class ComposerStateStoreTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         string _tempFile;
 

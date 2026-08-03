@@ -4,11 +4,8 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class UpdatesPageTests
+    public class UpdatesPageTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => UpdateChecker.ResetForTest();
-        [TearDown] public void TearDown() => UpdateChecker.ResetForTest();
-
         [Test]
         public void BuildUpdatesPage_ReturnsNonNull()
         {

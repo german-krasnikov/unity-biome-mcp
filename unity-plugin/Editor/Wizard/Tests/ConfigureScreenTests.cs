@@ -6,7 +6,7 @@ using UnityMCP.Editor.Wizard.Screens;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ConfigureScreenTests
+    public class ConfigureScreenTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static BackendDescriptor SampleBackend() =>
             System.Array.Find(BackendDescriptor.All, b => b.Key == "claude-code");

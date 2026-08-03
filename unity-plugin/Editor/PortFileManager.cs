@@ -17,10 +17,6 @@ namespace UnityMCP.Editor
         private static int _chatPort;
         private static bool _portsResolved;
 
-#if UNITY_INCLUDE_TESTS
-        internal static void ResetForTests() { _port = 0; _chatPort = 0; _portsResolved = false; }
-#endif
-
         private static string ReadPortFileOrNull()
         {
             try { return File.Exists(PortFilePath) ? File.ReadAllText(PortFilePath) : null; }
@@ -64,11 +60,84 @@ namespace UnityMCP.Editor
         // MCPSettings.json (user intent). Prevents cascade port drift on Windows reload.
         internal static void SaveRuntimePorts(int port, int chatPort)
         {
-            PortResolver.SavePorts(PortFilePath, port, chatPort);
+            var projectPath = Path.GetDirectoryName(Application.dataPath);
+            var persisted = SaveRuntimePortsCore(
+                port,
+                chatPort,
+                PortFilePath,
+                Path.Combine(Application.temporaryCachePath, "mcp_port.txt"),
+                DefaultDiscoveryDirectory(),
+                System.Diagnostics.Process.GetCurrentProcess().Id,
+                projectPath,
+                Path.GetFileName(projectPath),
+                File.WriteAllText,
+                CommitResolvedPorts);
+            if (!persisted)
+                Debug.LogWarning("[MCP] Runtime port persistence failed; keeping the previous resolved ports.");
+        }
+
+        // Path-injected persistence core. Tests exercise runtime persistence through this
+        // method so they cannot overwrite the live editor's cache or discovery endpoint.
+        internal static bool SaveRuntimePortsCore(
+            int port,
+            int chatPort,
+            string runtimePortFilePath,
+            string temporaryCacheFilePath,
+            string discoveryDirectory,
+            int processId,
+            string projectPath,
+            string projectName)
+            => SaveRuntimePortsCore(
+                port,
+                chatPort,
+                runtimePortFilePath,
+                temporaryCacheFilePath,
+                discoveryDirectory,
+                processId,
+                projectPath,
+                projectName,
+                File.WriteAllText,
+                null);
+
+        // The writer and commit callback are injected so failure paths are deterministic in
+        // tests and the production cache update cannot drift from persisted discovery data.
+        internal static bool SaveRuntimePortsCore(
+            int port,
+            int chatPort,
+            string runtimePortFilePath,
+            string temporaryCacheFilePath,
+            string discoveryDirectory,
+            int processId,
+            string projectPath,
+            string projectName,
+            Action<string, string> writeAllText,
+            Action<int, int> commitResolvedPorts)
+        {
+            if (writeAllText == null ||
+                !PortResolver.TrySavePorts(
+                    runtimePortFilePath, port, chatPort, writeAllText))
+                return false;
+
+            if (!WriteRuntimePortFiles(
+                port,
+                chatPort,
+                temporaryCacheFilePath,
+                discoveryDirectory,
+                processId,
+                projectPath,
+                projectName,
+                writeAllText))
+                return false;
+
+            commitResolvedPorts?.Invoke(port, chatPort);
+            return true;
+        }
+
+        private static void CommitResolvedPorts(int port, int chatPort)
+        {
             _port = port;
             _chatPort = chatPort;
             _portsResolved = true;
-            WritePortFile(port);
         }
 
         // Removes port files from dead PIDs to prevent stale discovery entries accumulating
@@ -95,39 +164,87 @@ namespace UnityMCP.Editor
                     var dot = name.IndexOf('.');
                     if (dot < 0) continue;
                     if (!int.TryParse(name.Substring(0, dot), out var pid) || pid == currentPid) continue;
-                    try { System.Diagnostics.Process.GetProcessById(pid); }  // alive — skip
-                    catch (ArgumentException) { try { File.Delete(file); } catch { } }
+                    if (IsProcessAlive(pid)) continue;
+                    try { File.Delete(file); } catch { }
                 }
             }
             catch { }
         }
 
-        internal static void WritePortFile(int port)
+        private static bool IsProcessAlive(int pid)
         {
             try
             {
-                var cachePath = Path.Combine(Application.temporaryCachePath, "mcp_port.txt");
-                File.WriteAllText(cachePath, port.ToString());
+                using (var process = System.Diagnostics.Process.GetProcessById(pid))
+                    return !process.HasExited;
             }
-            catch { }
+            catch
+            {
+                return false;
+            }
+        }
+
+        internal static void WritePortFile(int port)
+        {
+            var projectPath = Path.GetDirectoryName(Application.dataPath);
+            WriteRuntimePortFiles(
+                port,
+                _chatPort,
+                Path.Combine(Application.temporaryCachePath, "mcp_port.txt"),
+                DefaultDiscoveryDirectory(),
+                System.Diagnostics.Process.GetCurrentProcess().Id,
+                projectPath,
+                Path.GetFileName(projectPath),
+                File.WriteAllText);
+        }
+
+        private static bool WriteRuntimePortFiles(
+            int port,
+            int chatPort,
+            string temporaryCacheFilePath,
+            string discoveryDirectory,
+            int processId,
+            string projectPath,
+            string projectName,
+            Action<string, string> writeAllText)
+        {
+            var succeeded = true;
             try
             {
-                var dir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".unity-biome-mcp", "ports");
-                Directory.CreateDirectory(dir);
-                var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
-                var project = Path.GetFileName(Path.GetDirectoryName(Application.dataPath));
-                var info = $"{port}\n{Path.GetDirectoryName(Application.dataPath)}\n{project}";
-                File.WriteAllText(Path.Combine(dir, $"{pid}.port"), info);
-                if (_chatPort > 0)
+                var cacheDirectory = Path.GetDirectoryName(temporaryCacheFilePath);
+                if (!string.IsNullOrEmpty(cacheDirectory))
+                    Directory.CreateDirectory(cacheDirectory);
+                writeAllText(temporaryCacheFilePath, port.ToString());
+            }
+            catch (Exception e)
+            {
+                succeeded = false;
+                Debug.LogWarning($"[MCP] Could not write runtime port cache: {e.Message}");
+            }
+            try
+            {
+                Directory.CreateDirectory(discoveryDirectory);
+                var info = $"{port}\n{projectPath}\n{projectName}";
+                writeAllText(Path.Combine(discoveryDirectory, $"{processId}.port"), info);
+                if (chatPort > 0)
                 {
-                    var chatInfo = $"{_chatPort}\n{Path.GetDirectoryName(Application.dataPath)}\n{project}";
-                    File.WriteAllText(Path.Combine(dir, $"{pid}.chat-port"), chatInfo);
+                    var chatInfo = $"{chatPort}\n{projectPath}\n{projectName}";
+                    writeAllText(
+                        Path.Combine(discoveryDirectory, $"{processId}.chat-port"),
+                        chatInfo);
                 }
             }
-            catch (Exception e) { Debug.LogWarning($"[MCP] Could not write discovery file: {e.Message}"); }
+            catch (Exception e)
+            {
+                succeeded = false;
+                Debug.LogWarning($"[MCP] Could not write discovery file: {e.Message}");
+            }
+            return succeeded;
         }
+
+        private static string DefaultDiscoveryDirectory() => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".unity-biome-mcp", "ports");
 
         internal static void DeletePortFile()
         {
@@ -147,13 +264,15 @@ namespace UnityMCP.Editor
 
         internal static void WriteStateFile(string state)
         {
+            WriteStateFile(state, DefaultStateDirectory());
+        }
+
+        internal static void WriteStateFile(string state, string stateDirectory)
+        {
             try
             {
-                var dir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".unity-biome-mcp", "state");
-                Directory.CreateDirectory(dir);
-                var path = Path.Combine(dir, $"port-{Port}.state");
+                Directory.CreateDirectory(stateDirectory);
+                var path = StateFilePath(stateDirectory);
                 var tmp = path + ".tmp";
                 var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
                 var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
@@ -172,14 +291,24 @@ namespace UnityMCP.Editor
 
         internal static void DeleteStateFile()
         {
+            DeleteStateFile(DefaultStateDirectory());
+        }
+
+        internal static void DeleteStateFile(string stateDirectory)
+        {
             try
             {
-                var path = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".unity-biome-mcp", "state", $"port-{Port}.state");
+                var path = StateFilePath(stateDirectory);
                 if (File.Exists(path)) File.Delete(path);
             }
             catch { }
         }
+
+        internal static string StateFilePath(string stateDirectory) =>
+            Path.Combine(stateDirectory, $"port-{Port}.state");
+
+        internal static string DefaultStateDirectory() => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".unity-biome-mcp", "state");
     }
 }

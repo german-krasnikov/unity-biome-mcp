@@ -6,7 +6,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class RegionRendererTests
+    internal class RegionRendererTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── RenderStyle ───────────────────────────────────────────────────
 

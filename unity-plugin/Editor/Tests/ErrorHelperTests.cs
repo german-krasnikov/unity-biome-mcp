@@ -20,7 +20,7 @@ namespace UnityMCP.Editor.Tests
         public void ObjectNotFound_HasDidYouMean_ForCloseMatch()
         {
             var go = new GameObject("EH_RealObject");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
             // "EH_RealObjec" is 1 char off → should get a suggestion
             var msg = ErrorHelper.ObjectNotFound("/EH_RealObjec");
@@ -59,7 +59,7 @@ namespace UnityMCP.Editor.Tests
         public void ObjectNotFound_MultiScene_RootObjectsIncludeBothScenes()
         {
             var mainGO = new GameObject("EH_MainSceneRoot");
-            _toDestroy.Add(mainGO);
+            TrackOwnedObject(mainGO);
             var additiveGO = CreateIn(_additiveScene, "EH_AdditiveRoot");
 
             var msg = ErrorHelper.ObjectNotFound("/NoSuchObject_XYZ");

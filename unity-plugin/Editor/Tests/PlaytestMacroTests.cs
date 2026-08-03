@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestMacroTests
+    public class PlaytestMacroTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── 1. Basic MACRO + CALL expands to correct steps ───────────────────────
 

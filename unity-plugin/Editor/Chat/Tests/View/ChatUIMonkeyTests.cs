@@ -15,7 +15,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 1. ChatActivityState exhaustive (16) ─────────────────────────────────
 
     [TestFixture]
-    public class ActivityStateMonkeyTests
+    public class ActivityStateMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Initial_Phase_IsIdle()
@@ -176,20 +176,18 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 2. SessionAllowlist exhaustive (12) ──────────────────────────────────
 
     [TestFixture]
-    public class SessionAllowlistMonkeyTests
+    public class SessionAllowlistMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string TestTool   = "MCPMonkeyTest_Tool_A";
         private const string TestTool2  = "MCPMonkeyTest_Tool_B";
         private const string AlwaysTool = "MCPMonkeyTest_Always_C";
 
-        [TearDown]
-        public void Cleanup()
+        [SetUp]
+        public void OwnPersistentAllowlistKeys()
         {
-            // Remove any EditorPrefs keys written by tests
-            var list = new SessionAllowlist();
-            list.RemoveAlways(AlwaysTool);
-            list.RemoveAlways(TestTool);
-            list.RemoveAlways(TestTool2);
+            DeleteEditorPrefBool("MCPChat.AlwaysAllow." + AlwaysTool);
+            DeleteEditorPrefBool("MCPChat.AlwaysAllow." + TestTool);
+            DeleteEditorPrefBool("MCPChat.AlwaysAllow." + TestTool2);
         }
 
         [Test]
@@ -309,7 +307,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 3. IsCodeEditingTool (10) ─────────────────────────────────────────────
 
     [TestFixture]
-    public class IsCodeEditingToolMonkeyTests
+    public class IsCodeEditingToolMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static bool Invoke(ToolCallRecord rec) =>
             MCPChatWindow.IsCodeEditingTool(rec);
@@ -362,7 +360,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 4. ApplySelectedModel (15) ───────────────────────────────────────────
 
     [TestFixture]
-    public class BackendModelMonkeyTests
+    public class BackendModelMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── WithModel(BackendKind.Claude) — replaces CloneWithModel (6) ──────
 
@@ -500,7 +498,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 5. Window state stress — SetMode + flags (18) ────────────────────────
 
     [TestFixture]
-    public class WindowStateMonkeyTests
+    public class WindowStateMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly FieldInfo s_agentMode = typeof(MCPChatWindow)
             .GetField("_agentMode", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -728,7 +726,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 6. HandleEvent safe paths via reflection (15) ────────────────────────
 
     [TestFixture]
-    public class HandleEventMonkeyTests
+    public class HandleEventMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly MethodInfo s_handleEvent = typeof(MCPChatWindow)
             .GetMethod("HandleEvent", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -903,7 +901,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 7. TokenFormat edge cases (10) ────────────────────────────────────────
 
     [TestFixture]
-    public class TokenFormatMonkeyTests
+    public class TokenFormatMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void Abbr_Zero_Returns0()
             => Assert.AreEqual("0", TokenFormat.Abbr(0));
@@ -953,7 +951,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 8. ContextProgressBar edge cases (10) ─────────────────────────────────
 
     [TestFixture]
-    public class ContextProgressBarMonkeyTests
+    public class ContextProgressBarMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Update_ZeroContextWindow_HidesBar()
@@ -1052,7 +1050,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 9. ApproveButtonFactory/Helper monkey (10) ───────────────────────────
 
     [TestFixture]
-    public class ApproveMonkeyTests
+    public class ApproveMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void MakeButton_Click_CallsOnApprove()

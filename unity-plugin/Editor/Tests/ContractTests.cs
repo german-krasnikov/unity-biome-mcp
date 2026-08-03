@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal class ContractTests
+    internal class ContractTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Scenario 1: ReloadGuard session-state key matches Python reload_ladder.py
         [Test]

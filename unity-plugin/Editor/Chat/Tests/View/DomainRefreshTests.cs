@@ -10,7 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class DomainRefreshTests
+    public class DomainRefreshTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Inject minimal transcript so HandleToolRecord doesn't NPE on _transcript.
         // _transcript is internal — direct assignment, no reflection (rename = compile error).
@@ -162,18 +162,17 @@ namespace UnityMCP.Editor.Chat.Tests
                 // We inject the stub directly into _backend after overriding CreateBackend.
                 InjectMinimalTranscript(w);
                 var stub = new StubBackend();
-                typeof(MCPChatWindow)
-                    .GetField("_backend", BindingFlags.NonPublic | BindingFlags.Instance)
-                    .SetValue(w, stub);
+                MCPChatWindow.BackendFactoryForTest = _ => stub;
+                RegisterCleanup(() => MCPChatWindow.BackendFactoryForTest = null);
 
                 // Invoke TryResumePendingTurn — must call stub.SendTurn
-                // NB: CreateBackendWithSession replaces _backend; we re-inject after to capture SendTurn.
-                // Use a simpler approach: check activity phase changed to Sending.
                 typeof(MCPChatWindow)
                     .GetMethod("TryResumePendingTurn", BindingFlags.NonPublic | BindingFlags.Instance)
                     .Invoke(w, null);
 
-                // After TryResumePendingTurn, activity must be Sending (non-idle → SendTurn was called)
+                Assert.AreEqual(1, stub.SentPayloads.Count,
+                    "The resumed payload must be dispatched exactly once.");
+                StringAssert.Contains("fix the bug", stub.SentPayloads[0]);
                 var activity = (ChatActivityState)typeof(MCPChatWindow)
                     .GetField("_activity", BindingFlags.NonPublic | BindingFlags.Instance)
                     .GetValue(w);
@@ -182,6 +181,7 @@ namespace UnityMCP.Editor.Chat.Tests
             }
             finally
             {
+                MCPChatWindow.BackendFactoryForTest = null;
                 Object.DestroyImmediate(w);
                 ReloadGuard.ResetForTest();
                 if (File.Exists(tmpPath)) File.Delete(tmpPath);

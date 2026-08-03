@@ -6,7 +6,7 @@ namespace UnityMCP.Editor.Tests
     // ── CS5.test.4 — MCPStatusBarPalette ChatActive coverage ─────────────────
 
     [TestFixture]
-    public class MCPStatusBarPaletteChatActiveTests
+    public class MCPStatusBarPaletteChatActiveTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Get_ChatActive_ChipBg_IsOpaque_ProSkin()

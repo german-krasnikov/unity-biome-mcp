@@ -6,7 +6,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class ScreenshotToolbarButtonTests
+    internal sealed class ScreenshotToolbarButtonTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ScreenshotToolbarButton _btn;
 

@@ -9,7 +9,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class AssetHelperTests
+    public class AssetHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Reflection helpers ────────────────────────────────────────────────
 

@@ -408,20 +408,12 @@ namespace UnityMCP.Editor
             if (comp is UnityEngine.Rigidbody rb)
             {
                 if (field == "speed")
-#if UNITY_6000_0_OR_NEWER
                     return rb.linearVelocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
-#else
-                    return rb.velocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
-#endif
             }
             if (comp is UnityEngine.Rigidbody2D rb2d)
             {
                 if (field == "speed")
-#if UNITY_6000_0_OR_NEWER
                     return rb2d.linearVelocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
-#else
-                    return rb2d.velocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
-#endif
             }
             return null; // not a virtual field — fall through to ReadFieldInternal
         }

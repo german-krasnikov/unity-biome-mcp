@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestValEdgeCaseTests
+    public class PlaytestValEdgeCaseTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // C1 — Typo in $name: unknown sigil left as-is, no throw
         [Test]

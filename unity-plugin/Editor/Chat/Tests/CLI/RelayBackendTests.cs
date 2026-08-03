@@ -2,13 +2,14 @@
 // All tests use injected fake RelayChatProcess (no real TCP, no relay process).
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelayBackendTests
+    public class RelayBackendTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private List<string>          _sent;
         private Queue<string>         _pendingLines;
@@ -32,6 +33,7 @@ namespace UnityMCP.Editor.Chat.Tests
             RelaySpawner.EnsureRunningOverride = () => 19600;
 
             _backend = new RelayBackend("claude", "agent", "claude-opus-4-5", 9500);
+            RegisterCleanup(_backend.Stop);
             _backend.Start();
         }
 
@@ -40,7 +42,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             RelayBackend.ProcessFactory        = null;
             RelaySpawner.EnsureRunningOverride  = null;
-            RelaySpawner.Stop();
+            RelaySpawner.StopForTests();
         }
 
         // ── Start ────────────────────────────────────────────────────────────
@@ -102,8 +104,24 @@ namespace UnityMCP.Editor.Chat.Tests
             });
         }
 
+        private static async Task WaitUntilAsync(
+            Func<bool> condition, Action poll, string timeoutMessage, int timeoutMs = 2000)
+        {
+            var timeout = Task.Delay(timeoutMs);
+            while (true)
+            {
+                poll?.Invoke();
+                if (condition()) return;
+                var nextPoll = Task.Delay(10);
+                var completed = await Task.WhenAny(nextPoll, timeout);
+                if (completed == timeout)
+                    Assert.Fail(timeoutMessage);
+                await nextPoll;
+            }
+        }
+
         [Test]
-        public void DrainEvents_TextDelta_EmitsEvent()
+        public async Task DrainEvents_TextDelta_EmitsEvent()
         {
             // Inject line directly via fake-proc DrainLines
             var fakeProcWithLine = new RelayChatProcess(json =>
@@ -115,12 +133,12 @@ namespace UnityMCP.Editor.Chat.Tests
             RelayBackend.ProcessFactory = () => fakeProcWithLine;
 
             var b = new RelayBackend("claude", "ask", "", 0);
+            RegisterCleanup(b.Stop);
             b.Start();
 
-            System.Threading.Thread.Sleep(200); // let poll thread fire
-
             var output = new List<ChatEvent>();
-            b.DrainEvents(output);
+            await WaitUntilAsync(() => output.Count > 0, () => b.DrainEvents(output),
+                "Expected text event was not delivered");
 
             b.Stop();
 
@@ -130,7 +148,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void DrainEvents_TurnDone_CapturesSessionId()
+        public async Task DrainEvents_TurnDone_CapturesSessionId()
         {
             var fakeProcWithLine = new RelayChatProcess(json =>
             {
@@ -141,18 +159,19 @@ namespace UnityMCP.Editor.Chat.Tests
             RelayBackend.ProcessFactory = () => fakeProcWithLine;
 
             var b = new RelayBackend("claude", "ask", "", 0);
+            RegisterCleanup(b.Stop);
             b.Start();
-            System.Threading.Thread.Sleep(200);
 
             var output = new List<ChatEvent>();
-            b.DrainEvents(output);
+            await WaitUntilAsync(() => b.SessionId == "my-session", () => b.DrainEvents(output),
+                "TurnDone did not update SessionId");
             b.Stop();
 
             Assert.AreEqual("my-session", b.SessionId);
         }
 
         [Test]
-        public void DrainEvents_ToolCallComplete_ProducesToolRecord()
+        public async Task DrainEvents_ToolCallComplete_ProducesToolRecord()
         {
             // tc| then tr| — should produce two ToolCallRecords (chip + result)
             var fakeProcWithLine = new RelayChatProcess(json =>
@@ -164,19 +183,20 @@ namespace UnityMCP.Editor.Chat.Tests
             RelayBackend.ProcessFactory = () => fakeProcWithLine;
 
             var b = new RelayBackend("claude", "ask", "", 0);
+            RegisterCleanup(b.Stop);
             b.Start();
-            System.Threading.Thread.Sleep(200);
 
             var output  = new List<ChatEvent>();
             var toolOut = new List<ToolCallRecord>();
-            b.DrainEvents(output, toolOut);
+            await WaitUntilAsync(() => toolOut.Count > 0, () => b.DrainEvents(output, toolOut),
+                "Tool call record was not delivered");
             b.Stop();
 
             Assert.IsTrue(toolOut.Count >= 1, "Expected at least one ToolCallRecord");
         }
 
         [Test]
-        public void DrainEvents_AutoReply_WritesBackToProc()
+        public async Task DrainEvents_AutoReply_WritesBackToProc()
         {
             var writtenBack = new List<string>();
             var fakeProcWithLine = new RelayChatProcess(json =>
@@ -190,11 +210,14 @@ namespace UnityMCP.Editor.Chat.Tests
             RelayBackend.ProcessFactory = () => fakeProcWithLine;
 
             var b = new RelayBackend("claude", "ask", "", 0);
+            RegisterCleanup(b.Stop);
             b.Start();
-            System.Threading.Thread.Sleep(200);
 
             var output = new List<ChatEvent>();
-            b.DrainEvents(output);
+            await WaitUntilAsync(
+                () => { lock (writtenBack) return writtenBack.Count > 0; },
+                () => b.DrainEvents(output),
+                "AutoReply was not written back to the process");
             b.Stop();
 
             // AutoReply must NOT appear in output
@@ -257,6 +280,7 @@ namespace UnityMCP.Editor.Chat.Tests
             };
 
             var b = new RelayBackend("claude", "agent", "claude-opus-4-5", 9500);
+            RegisterCleanup(b.Stop);
             b.Start();   // proc #1
             b.Start();   // must Kill proc #1 first, then create proc #2
             b.Stop();
@@ -272,6 +296,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 "{\"ok\":true,\"data\":\"\"}");
 
             var b = new RelayBackend("claude", "agent", "claude-opus-4-5", 9500);
+            RegisterCleanup(b.Stop);
             b.Start();
             b.Stop();    // sets _proc = null
             // Second Start with null _proc must not throw
@@ -281,7 +306,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── m2: accumulator reset ────────────────────────────────────────────
 
         [Test]
-        public void Start_ResetsAccumulator_DirtyStateDoesNotLeak()
+        public async Task Start_ResetsAccumulator_DirtyStateDoesNotLeak()
         {
             var pollCount = 0;
             RelayBackend.ProcessFactory = () => new RelayChatProcess(json =>
@@ -296,12 +321,13 @@ namespace UnityMCP.Editor.Chat.Tests
             });
 
             var b = new RelayBackend("claude", "agent", "claude-opus-4-5", 9500);
+            RegisterCleanup(b.Stop);
             b.Start();
-            System.Threading.Thread.Sleep(200);
 
             var output  = new List<ChatEvent>();
             var toolOut = new List<ToolCallRecord>();
-            b.DrainEvents(output, toolOut); // tc| feeds accumulator — chip open
+            await WaitUntilAsync(() => toolOut.Count > 0, () => b.DrainEvents(output, toolOut),
+                "Tool call did not reach the accumulator");
 
             // Start() again — must reset accumulator
             b.Start();
@@ -339,7 +365,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void SetMode_WhenSessionIdSet_PassesSessionIdToProc()
+        public async Task SetMode_WhenSessionIdSet_PassesSessionIdToProc()
         {
             // Arrange: proc delivers si| event so backend.SessionId gets set
             var sent2 = new List<string>();
@@ -356,10 +382,12 @@ namespace UnityMCP.Editor.Chat.Tests
             });
             RelayBackend.ProcessFactory = () => proc;
             var b = new RelayBackend("claude", "ask", null, 9500);
+            RegisterCleanup(b.Stop);
             b.Start();
 
-            System.Threading.Thread.Sleep(200); // let poll thread fire si|
-            b.DrainEvents(new List<ChatEvent>()); // sets b.SessionId = "sess-relay"
+            var events = new List<ChatEvent>();
+            await WaitUntilAsync(() => b.SessionId == "sess-relay", () => b.DrainEvents(events),
+                "SessionInit did not update SessionId");
             Assert.AreEqual("sess-relay", b.SessionId, "SessionId must be set from si| event");
 
             // Act

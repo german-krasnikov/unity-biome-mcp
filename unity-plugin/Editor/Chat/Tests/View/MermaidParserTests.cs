@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MermaidParserTests
+    public class MermaidParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void GraphTD_Direction()

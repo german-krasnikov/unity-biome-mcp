@@ -1,6 +1,7 @@
-// Value object for hierarchy references: path + instanceID + GlobalObjectId.
+// Value object for hierarchy references: path + transient object ID + GlobalObjectId.
 // Supports both legacy "path #id" and new "path#id@goid" formats.
 using System;
+using System.Globalization;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,20 +10,25 @@ namespace UnityMCP.Editor.Chat
     public readonly struct HierarchyReference
     {
         public string Path { get; }
-        public int InstanceId { get; }
+        public string ObjectId { get; }
         public GlobalObjectId GlobalObjectId { get; }
 
-        public HierarchyReference(string path, int instanceId, GlobalObjectId globalObjectId)
+        public HierarchyReference(string path, string objectId, GlobalObjectId globalObjectId)
         {
             Path = path;
-            InstanceId = instanceId;
+            ObjectId = objectId ?? "";
             GlobalObjectId = globalObjectId;
+        }
+
+        public HierarchyReference(string path, int legacyId, GlobalObjectId globalObjectId)
+            : this(path, legacyId == 0 ? "" : legacyId.ToString(CultureInfo.InvariantCulture), globalObjectId)
+        {
         }
 
         public static HierarchyReference Parse(string rawRef)
         {
             if (string.IsNullOrEmpty(rawRef))
-                return new HierarchyReference("", 0, default);
+                return new HierarchyReference("", "", default);
 
             var working = rawRef;
             GlobalObjectId globalObjectId = default;
@@ -35,27 +41,29 @@ namespace UnityMCP.Editor.Chat
                 GlobalObjectId.TryParse(goidString, out globalObjectId);
             }
 
-            int instanceId = 0;
+            string objectId = "";
             int hashIndex = working.LastIndexOf(" #");
             if (hashIndex >= 0)
             {
-                if (int.TryParse(working.Substring(hashIndex + 2), out var id))
+                var token = working.Substring(hashIndex + 2);
+                if (TransientObjectId.TryParse(token, out _))
                 {
-                    instanceId = id;
+                    objectId = token;
                     working = working.Substring(0, hashIndex).TrimEnd();
                 }
             }
             else
             {
                 hashIndex = working.LastIndexOf('#');
-                if (hashIndex >= 0 && int.TryParse(working.Substring(hashIndex + 1), out var id2))
+                var token = hashIndex >= 0 ? working.Substring(hashIndex + 1) : "";
+                if (hashIndex >= 0 && TransientObjectId.TryParse(token, out _))
                 {
-                    instanceId = id2;
+                    objectId = token;
                     working = working.Substring(0, hashIndex).TrimEnd();
                 }
             }
 
-            return new HierarchyReference(working, instanceId, globalObjectId);
+            return new HierarchyReference(working, objectId, globalObjectId);
         }
     }
 
@@ -75,10 +83,10 @@ namespace UnityMCP.Editor.Chat
                 if (obj is GameObject go) return go;
             }
 
-            // 2. InstanceID.
-            if (reference.InstanceId != 0)
+            // 2. Process-local object ID.
+            if (!string.IsNullOrEmpty(reference.ObjectId) && reference.ObjectId != "0")
             {
-                var obj = EditorUtility.InstanceIDToObject(reference.InstanceId);
+                var obj = TransientObjectId.Resolve(reference.ObjectId);
                 if (obj is GameObject go) return go;
             }
 

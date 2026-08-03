@@ -59,11 +59,11 @@ Together with CORE (15), these make the 45 always-visible TIER1 tools.
 | compile_preflight | Check compile readiness | VERIFY |
 | validate_references | Check all refs valid | VERIFY |
 | lint_scene_refs | 3-pass linter for scene refs in DSL/batch commands | VERIFY |
-| run_tests | Execute NUnit tests | TESTS |
-| run_tests_wait | Synchronous NUnit test runner; blocks until done or timeout | TESTS |
+| run_tests | Low-level nonblocking durable NUnit dispatch | TESTS |
+| run_tests_wait | Preferred interactive correlated NUnit runner | TESTS |
 | run_playtest | Run playtest DSL script | TESTS |
 | lint_playtest | Static DSL preflight — no runtime needed | TESTS |
-| get_test_results | Poll test status | TESTS |
+| get_test_results | Legacy diagnostic result facade; not a verdict | TESTS |
 | discover_tools | Browse or enable a category | SYSTEM |
 | mcp_status | Compact scene/compile/play-mode/alias status snapshot | SYSTEM |
 | alias_status | Returns alias cache state (loaded/count/source/stale) | SYSTEM |
@@ -205,7 +205,11 @@ NUnit, playtest suites, alias sync.
 | sync_playtest_aliases_from_defs | Import .defs → overwrite PlaytestConfig.asset aliases |
 | export_playtest_aliases_to_defs | Export PlaytestConfig.asset aliases → .defs text file |
 | get_test_count | Count available NUnit tests |
-| get_test_progress | Poll test run progress |
+| get_test_run | Read one exact durable test-run snapshot |
+| resolve_test_request | Resolve a lost start ACK by request identity |
+| cancel_test_run | Cancel one exact durable run |
+| list_test_runs | List recent durable runs |
+| get_test_progress | Legacy diagnostic progress facade |
 
 *(Plus run_tests, run_tests_wait, run_playtest, lint_playtest, get_test_results in TIER1)*
 

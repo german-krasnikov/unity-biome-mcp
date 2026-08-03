@@ -10,7 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SetModeTests
+    public class SetModeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Minimal stub implementing IChatBackend for mode-switch tests.
         private sealed class FakeBackend : IChatBackend

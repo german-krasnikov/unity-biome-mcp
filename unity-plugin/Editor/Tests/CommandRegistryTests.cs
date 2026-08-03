@@ -14,7 +14,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CommandRegistryTests
+    public class CommandRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [TearDown]
         public void TearDown()

@@ -5,7 +5,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class CircleModeTests
+    internal class CircleModeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         CircleMode _mode;
 

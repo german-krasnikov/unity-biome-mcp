@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class FingerprintHelperTests
+    public class FingerprintHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static uint InvokeFnv1a(string s)
         {

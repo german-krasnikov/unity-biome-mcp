@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ContextMenuTests
+    public class ContextMenuTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()
@@ -24,18 +24,14 @@ namespace UnityMCP.Editor.Chat.Tests
             ChipKindRegistry.ResetToBuiltIns();
             ChipPillFactory.AddToContextAction = null;
             ChipPillFactory.PendingChips.Clear();
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
-        // F16a: FindChatWindow returns null when no window open
+        // F16a: the window-selection policy returns null for an empty snapshot.
         [Test]
         public void FindChatWindow_NoWindowOpen_ReturnsNull()
         {
-            // If the chat window is already open in the editor, skip this env-sensitive test
-            Assume.That(HierarchyContextMenu.FindChatWindow(), Is.Null,
-                "Chat window is open in editor — environment-sensitive test skipped");
-            var window = HierarchyContextMenu.FindChatWindow();
+            var window = HierarchyContextMenu.FindChatWindow(
+                System.Array.Empty<MCPChatWindow>());
             Assert.IsNull(window);
         }
 
@@ -57,7 +53,8 @@ namespace UnityMCP.Editor.Chat.Tests
             var go = new GameObject("HeroUnit");
             try
             {
-                var chip = new ChipData(ChipKindKeys.Hierarchy, "/" + go.name, go.name, go.GetInstanceID());
+                var chip = new ChipData(ChipKindKeys.Hierarchy, "/" + go.name, go.name,
+                    TransientObjectId.GetWireValue(go));
                 ChipPillFactory.AddToContextAction(chip);
 
                 Assert.AreEqual(ChipKindKeys.Hierarchy, captured.KindKey);
@@ -78,7 +75,7 @@ namespace UnityMCP.Editor.Chat.Tests
             try
             {
                 var chip = new ChipData(ChipKindKeys.Hierarchy,
-                    "/" + go.name, go.name, go.GetInstanceID());
+                    "/" + go.name, go.name, TransientObjectId.GetWireValue(go));
                 ChipPillFactory.AddToContextAction(chip);
 
                 Assert.AreEqual("TestObj", captured.DisplayName);
@@ -96,16 +93,16 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.DoesNotThrow(() => ChipPillFactory.AddToContextAction?.Invoke(chip));
         }
 
-        // F16b: ComponentContextMenu reuses HierarchyContextMenu.FindChatWindow
+        // F16b: both context menus use the same deterministic selection policy.
         [Test]
         public void FindChatWindow_SameResultForBothMenus()
         {
-            // Both menus call the same static — verify consistent result in test env
-            // If window is open, skip env-sensitive null assertion
-            Assume.That(HierarchyContextMenu.FindChatWindow(), Is.Null,
-                "Chat window is open in editor — environment-sensitive test skipped");
-            var fromHierarchy = HierarchyContextMenu.FindChatWindow();
-            Assert.IsNull(fromHierarchy, "No window open in test env");
+            var owned = CreateOwnedEditorWindow<MCPChatWindow>();
+            var candidates = new[] { owned };
+            var fromHierarchy = HierarchyContextMenu.FindChatWindow(candidates);
+            var fromComponent = ComponentContextMenu.FindChatWindow(candidates);
+            Assert.AreSame(owned, fromHierarchy);
+            Assert.AreSame(fromHierarchy, fromComponent);
         }
 
         // Block 5: ComponentContextMenu dual-chip — GO + MonoScript for MonoBehaviour
@@ -121,7 +118,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 // Simulate what the fixed ComponentContextMenu.Execute should call:
                 // chip 1: GO
                 var goChip = new ChipData(ChipKindKeys.Hierarchy,
-                    ComponentSerializer.GetPath(go), go.name, go.GetInstanceID());
+                    ComponentSerializer.GetPath(go), go.name, TransientObjectId.GetWireValue(go));
                 ChipPillFactory.AddToContextAction(goChip);
 
                 // chip 2: MonoScript (simulated — can't call FromMonoBehaviour in test context easily)

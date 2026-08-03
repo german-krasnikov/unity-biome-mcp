@@ -6,7 +6,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class ScreenshotServiceTests
+    internal sealed class ScreenshotServiceTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void Setup()    => ScreenshotService.CaptureFunc = null;
         [TearDown] public void Teardown() => ScreenshotService.CaptureFunc = null;

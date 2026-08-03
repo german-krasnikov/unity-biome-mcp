@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MCPStatusBarPaletteTests
+    public class MCPStatusBarPaletteTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Get_ThreeStates_HaveDistinctChipBgColors_ProSkin()

@@ -46,7 +46,7 @@ namespace UnityMCP.Editor
                 sb.Append(" Asset paths are not scene objects. " +
                           "Use asset(action=find) or prefab(action=edit) for prefab assets.");
 
-            sb.Append(" Use get_hierarchy to see escaped paths, or #instanceId as fallback.");
+            sb.Append(" Use get_hierarchy to see escaped paths, or #entityId as fallback.");
             return sb.ToString();
         }
 

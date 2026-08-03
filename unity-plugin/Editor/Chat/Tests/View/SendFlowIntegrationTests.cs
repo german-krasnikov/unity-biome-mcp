@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SendFlowIntegrationTests
+    public class SendFlowIntegrationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private InlineChipField _chipField;
         private ChatTranscript  _transcript;

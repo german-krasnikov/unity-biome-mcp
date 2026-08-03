@@ -1,5 +1,4 @@
-"""Unit tests for testing.py tool functions (B2 split from scene.py): run_tests,
-get_test_results, get_test_count."""
+"""Unit tests for the durable Unity test-run tools."""
 import asyncio
 import pytest
 from unittest.mock import AsyncMock
@@ -75,16 +74,24 @@ async def test_run_tests_blocked_by_stale_domain(testing_mod, _patch_send, mock_
 
 async def test_run_tests_proceeds_on_clean(testing_mod, _patch_send, mock_diagnose):
     mock_diagnose.return_value = "CLEAN-LIVE"
-    result = await testing_mod.run_tests()
-    assert "tests-started" in result or result == "ok"
-    _patch_send.assert_called_once()
+    ack = (
+        "tests-started|request_id=req-1|run_id=run-1|utf_guid=utf-1|state=dispatched"
+    )
+    _patch_send.side_effect = ["none", ack]
+    result = await testing_mod.run_tests(request_id="req-1")
+    assert result == ack
+    assert _patch_send.await_count == 2
 
 
 async def test_run_tests_degrades_on_diagnose_failure(testing_mod, _patch_send, mock_diagnose):
     mock_diagnose.side_effect = RuntimeError("disk read failed")
-    result = await testing_mod.run_tests()
-    assert "tests-started" in result or result == "ok"
-    _patch_send.assert_called_once()
+    ack = (
+        "tests-started|request_id=req-2|run_id=run-2|utf_guid=utf-2|state=dispatched"
+    )
+    _patch_send.side_effect = ["none", ack]
+    result = await testing_mod.run_tests(request_id="req-2")
+    assert result == ack
+    assert _patch_send.await_count == 2
 
 
 async def test_run_tests_propagates_tool_error(testing_mod, _patch_send, mock_diagnose):
@@ -130,6 +137,11 @@ async def test_get_test_results_returns_pending_on_connection_error(testing_mod,
     assert result == "pending"
 
 
+async def test_get_test_results_forwards_run_identity(testing_mod, _patch_send):
+    await testing_mod.get_test_results("run-7")
+    _patch_send.assert_awaited_once_with("get_test_results", {"run_id": "run-7"})
+
+
 # ── get_test_progress ─────────────────────────────────────────────────────────
 
 async def test_get_test_progress_returns_send_result(testing_mod, _patch_send):
@@ -149,3 +161,32 @@ async def test_get_test_progress_returns_pending_on_exception(testing_mod, _patc
     result = await testing_mod.get_test_progress()
 
     assert result == "pending"
+
+
+async def test_get_test_progress_forwards_run_identity(testing_mod, _patch_send):
+    await testing_mod.get_test_progress("run-8")
+    _patch_send.assert_awaited_once_with("get_test_progress", {"run_id": "run-8"})
+
+
+# -- Exact run protocol -------------------------------------------------------
+
+async def test_resolve_test_request_sends_identity(testing_mod, _patch_send):
+    await testing_mod.resolve_test_request("req-1")
+    _patch_send.assert_awaited_once_with(
+        "resolve_test_request", {"request_id": "req-1"}
+    )
+
+
+async def test_get_test_run_sends_identity(testing_mod, _patch_send):
+    await testing_mod.get_test_run("run-1")
+    _patch_send.assert_awaited_once_with("get_test_run", {"run_id": "run-1"})
+
+
+async def test_cancel_test_run_sends_identity(testing_mod, _patch_send):
+    await testing_mod.cancel_test_run("run-1")
+    _patch_send.assert_awaited_once_with("cancel_test_run", {"run_id": "run-1"})
+
+
+async def test_list_test_runs_clamps_limit(testing_mod, _patch_send):
+    await testing_mod.list_test_runs(1000)
+    _patch_send.assert_awaited_once_with("list_test_runs", {"limit": 100})

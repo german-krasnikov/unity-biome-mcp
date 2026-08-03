@@ -120,7 +120,7 @@ namespace UnityMCP.Editor.RegionTool
                 if (count < cap)
                 {
                     // Format matches ObjectsInRadius: path #id (x,z)
-                    sb.AppendLine($"  {ComponentSerializer.GetPath(go)} #{go.GetInstanceID()} ({F(xz_x)},{F(xz_z)})");
+                    sb.AppendLine($"  {ComponentSerializer.GetPath(go)} #{TransientObjectId.GetWireValue(go)} ({F(xz_x)},{F(xz_z)})");
                     count++;
                 }
             }

@@ -1,13 +1,13 @@
 {
     "name": "UnityMCP.Editor.Chat.Tests.View",
     "rootNamespace": "UnityMCP.Editor.Chat.Tests",
-    "references": ["UnityMCP.Editor", "UnityMCP.Editor.Chat.CLI", "UnityMCP.Editor.Chat.View", "UnityMCP.Editor.Chat.Tests.CLI", "UnityMCP.Runtime.TestHelpers", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+    "references": ["UnityMCP.Editor", "UnityMCP.Editor.TestSupport", "UnityMCP.Editor.Chat.CLI", "UnityMCP.Editor.Chat.View", "UnityMCP.Editor.Chat.Tests.CLI", "UnityMCP.Runtime.TestHelpers", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": ["nunit.framework.dll"],
-    "autoReferenced": true,
+    "autoReferenced": false,
     "defineConstraints": ["UNITY_INCLUDE_TESTS"],
     "versionDefines": [],
     "noEngineReferences": false

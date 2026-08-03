@@ -1,16 +1,11 @@
 using System.Collections.Generic;
 using NUnit.Framework;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
     public class SceneRefResolverTests : SceneTestBase
     {
-        [SetUp]
-        public void FreshScene() =>
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
         [Test]
         public void ResolveOne_LiteralPath_ExistingObject_ReturnsOK()
         {
@@ -89,7 +84,7 @@ namespace UnityMCP.Editor.Tests
         {
             var results = new List<SceneRefResolver.RefResult>
             {
-                new SceneRefResolver.RefResult { Input = "/A", Status = "OK", Path = "/A", Active = true, InstanceId = 1, SceneName = "Test" },
+                new SceneRefResolver.RefResult { Input = "/A", Status = "OK", Path = "/A", Active = true, ObjectId = "1", SceneName = "Test" },
                 new SceneRefResolver.RefResult { Input = "/B", Status = "MISS", Reason = "not found" }
             };
             var formatted = SceneRefResolver.FormatResults(results);

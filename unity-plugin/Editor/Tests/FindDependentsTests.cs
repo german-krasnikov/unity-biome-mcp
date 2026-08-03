@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class FindDependentsTests
+    public class FindDependentsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         static object InvokePrivate(Type type, string method, params object[] args)
         {

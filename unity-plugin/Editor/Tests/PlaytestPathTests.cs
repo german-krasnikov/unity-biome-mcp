@@ -9,7 +9,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestPathTests
+    public class PlaytestPathTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _subDir;
         private string _tempAbsDir;
@@ -46,82 +46,83 @@ namespace UnityMCP.Editor.Tests
         private string RelPath(string filename) =>
             $"Assets/TestsTemp/{_subDir}/{filename}";
 
-        private string GetResult(string argsJson)
+        private static async Task<string> GetResultAsync(string argsJson)
         {
             var json = $"{{\"id\":\"t\",\"cmd\":\"run_playtest\",\"args\":{{{argsJson}}}}}";
-            var tcs = new TaskCompletionSource<string>();
+            var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             CommandRouter.ProcessAsync(json, tcs);
-            Assert.IsTrue(tcs.Task.Wait(TimeSpan.FromSeconds(5)), "TCS did not complete in time");
-            return tcs.Task.Result;
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
+            Assert.AreSame(tcs.Task, completed, "TCS did not complete in time");
+            return await tcs.Task;
         }
 
         // ── Error cases (TCS set immediately, safe in EditMode) ──────────────
 
         [Test]
-        public void Path_FileNotFound_ReturnsError()
+        public async Task Path_FileNotFound_ReturnsError()
         {
-            var result = GetResult("\"path\":\"Assets/nonexistent_xyz.playtest\"");
+            var result = await GetResultAsync("\"path\":\"Assets/nonexistent_xyz.playtest\"");
             StringAssert.Contains("file not found", result);
         }
 
         [Test]
-        public void Path_EmptyString_ReturnsError()
+        public async Task Path_EmptyString_ReturnsError()
         {
-            var result = GetResult("\"path\":\"\"");
+            var result = await GetResultAsync("\"path\":\"\"");
             // empty path → "file not found" (Path.GetFullPath("") resolves to project root, which is a dir not a file)
             StringAssert.Contains("file not found", result);
         }
 
         [Test]
-        public void Path_AndScript_BothPresent_ReturnsError()
+        public async Task Path_AndScript_BothPresent_ReturnsError()
         {
-            var result = GetResult("\"path\":\"foo.playtest\",\"script\":\"# test\"");
+            var result = await GetResultAsync("\"path\":\"foo.playtest\",\"script\":\"# test\"");
             StringAssert.Contains("not both", result);
         }
 
         [Test]
-        public void NeitherPathNorScript_ReturnsError()
+        public async Task NeitherPathNorScript_ReturnsError()
         {
-            var result = GetResult("\"timeout\":\"5\"");
+            var result = await GetResultAsync("\"timeout\":\"5\"");
             StringAssert.Contains("script or path required", result);
         }
 
         // ── Success paths ─────────────────────────────────────────────────────
 
         [Test]
-        public void Path_ValidFile_NoFileNotFoundError()
+        public async Task Path_ValidFile_NoFileNotFoundError()
         {
             File.WriteAllText(Path.Combine(_tempAbsDir, "t.playtest"), "# empty script");
-            var result = GetResult($"\"path\":\"{RelPath("t.playtest")}\"");
+            var result = await GetResultAsync($"\"path\":\"{RelPath("t.playtest")}\"");
             StringAssert.DoesNotContain("file not found", result);
         }
 
         [Test]
-        public void Path_WithDefs_PrependedBeforeScript()
+        public async Task Path_WithDefs_PrependedBeforeScript()
         {
             File.WriteAllText(Path.Combine(_tempAbsDir, "d.playtest"), "# uses $hero");
-            var result = GetResult($"\"path\":\"{RelPath("d.playtest")}\",\"defs\":\"VAL $hero /Player\"");
+            var result = await GetResultAsync($"\"path\":\"{RelPath("d.playtest")}\",\"defs\":\"VAL $hero /Player\"");
             StringAssert.DoesNotContain("file not found", result);
         }
 
         [Test]
-        public void Path_OutsideAssets_InsideProjectRoot_NoError()
+        public async Task Path_OutsideAssets_InsideProjectRoot_NoError()
         {
             var projectRoot = Path.GetDirectoryName(Application.dataPath);
             _externalDir = Path.Combine(projectRoot, "Playtests");
             Directory.CreateDirectory(_externalDir);
             File.WriteAllText(Path.Combine(_externalDir, "test_temp.playtest"), "# temp");
 
-            var result = GetResult("\"path\":\"Playtests/test_temp.playtest\"");
+            var result = await GetResultAsync("\"path\":\"Playtests/test_temp.playtest\"");
             StringAssert.DoesNotContain("file not found", result);
             StringAssert.DoesNotContain("path must be inside project", result);
         }
 
         [Test]
-        public void Script_InlineMode_StillWorks_NoPathError()
+        public async Task Script_InlineMode_StillWorks_NoPathError()
         {
             // regression: inline script must not return file-loading errors
-            var result = GetResult("\"script\":\"# comment only\"");
+            var result = await GetResultAsync("\"script\":\"# comment only\"");
             StringAssert.DoesNotContain("file not found", result);
             StringAssert.DoesNotContain("script or path required", result);
         }

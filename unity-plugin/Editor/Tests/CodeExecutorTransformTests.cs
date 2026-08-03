@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CodeExecutorTransformTests
+    public class CodeExecutorTransformTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── C5: return; in void local function must not become return null; ──────
 

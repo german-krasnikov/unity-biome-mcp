@@ -7,7 +7,7 @@ namespace UnityMCP.Editor.Tests
 {
     /// <summary>Tests for PermissionConfig — deny-set, EditorPrefs-backed.</summary>
     [TestFixture]
-    public class PermissionConfigTests
+    public class PermissionConfigTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // 2 categories, 4 tools — injected via testable ctor.
         private static readonly Dictionary<string, string[]> FakeCatalog =
@@ -17,22 +17,20 @@ namespace UnityMCP.Editor.Tests
                 { "CAT_B", new[] { "tool_b1", "tool_b2" } },
             };
 
-        private readonly List<PermissionConfig> _created = new List<PermissionConfig>();
-
         private PermissionConfig Make(Dictionary<string, string[]> catalog = null)
         {
-            var cfg = new PermissionConfig(
-                "UnityMCP_Test_" + System.Guid.NewGuid().ToString("N") + "_",
-                () => catalog ?? FakeCatalog);
-            _created.Add(cfg);
-            return cfg;
+            var prefix = "UnityMCP_Test_" + System.Guid.NewGuid().ToString("N") + "_";
+            var effectiveCatalog = catalog ?? FakeCatalog;
+            ProtectPermissionPrefs(prefix, effectiveCatalog);
+            return new PermissionConfig(prefix, () => effectiveCatalog);
         }
 
-        [TearDown]
-        public void TearDown()
+        private void ProtectPermissionPrefs(
+            string prefix,
+            Dictionary<string, string[]> catalog)
         {
-            foreach (var cfg in _created) cfg.AllowAll();
-            _created.Clear();
+            foreach (var tool in catalog.Values.SelectMany(values => values).Distinct())
+                ProtectEditorPrefBool(prefix + tool);
         }
 
         [Test]
@@ -59,9 +57,9 @@ namespace UnityMCP.Editor.Tests
         public void SetToolAllowed_False_PersistsAcrossNewInstance()
         {
             var prefix = "UnityMCP_Test_" + System.Guid.NewGuid().ToString("N") + "_";
+            ProtectPermissionPrefs(prefix, FakeCatalog);
             var cfg1 = new PermissionConfig(prefix, () => FakeCatalog);
             var cfg2 = new PermissionConfig(prefix, () => FakeCatalog);
-            _created.Add(cfg1);
             cfg1.SetToolAllowed("tool_b2", false);
             CollectionAssert.DoesNotContain(cfg2.GetAllowedToolIds(), "tool_b2");
         }
@@ -117,7 +115,6 @@ namespace UnityMCP.Editor.Tests
             var cfg = new PermissionConfig(
                 "UnityMCP_Test_" + System.Guid.NewGuid().ToString("N") + "_",
                 () => new Dictionary<string, string[]>());
-            _created.Add(cfg);
             Assert.IsNull(cfg.GetAllowedToolIds());
         }
 
@@ -137,10 +134,11 @@ namespace UnityMCP.Editor.Tests
                 { "CAT_A",   new[] { "tool_a1" } },
                 { "PLUGINS", new[] { "existing_plugin" } },
             };
+            var prefix = "UnityMCP_Test_" + System.Guid.NewGuid().ToString("N") + "_";
+            ProtectPermissionPrefs(prefix, catalog);
             var cfg = new PermissionConfig(
-                "UnityMCP_Test_" + System.Guid.NewGuid().ToString("N") + "_",
+                prefix,
                 () => catalog);
-            _created.Add(cfg);
             var pluginTools = cfg.GetToolStates()
                 .Where(s => s.category == "PLUGINS")
                 .Select(s => s.toolName)
@@ -152,9 +150,9 @@ namespace UnityMCP.Editor.Tests
         public void DefaultPrefix_Constant_MatchesDefaultCtorBehavior()
         {
             // Two explicit-DEFAULT_PREFIX instances share EditorPrefs storage.
+            ProtectPermissionPrefs(PermissionConfig.DEFAULT_PREFIX, FakeCatalog);
             var cfg1 = new PermissionConfig(PermissionConfig.DEFAULT_PREFIX, () => FakeCatalog);
             var cfg2 = new PermissionConfig(PermissionConfig.DEFAULT_PREFIX, () => FakeCatalog);
-            _created.Add(cfg1);
             cfg1.SetToolAllowed("tool_a1", false);
             CollectionAssert.DoesNotContain(cfg2.GetAllowedToolIds(), "tool_a1");
         }
@@ -180,9 +178,11 @@ namespace UnityMCP.Editor.Tests
             // Fails if parameterless ctor drifts to a different prefix (e.g. "..._v2")
             // while leaving DEFAULT_PREFIX constant unchanged.
             var defaultCfg = new PermissionConfig(); // production path: DEFAULT_PREFIX + LiveCatalog
-            _created.Add(defaultCfg); // TearDown → AllowAll cleans DEFAULT_PREFIX prefs
 
-            var firstTool = defaultCfg.GetToolStates().FirstOrDefault().toolName;
+            var states = defaultCfg.GetToolStates();
+            foreach (var state in states)
+                ProtectEditorPrefBool(PermissionConfig.DEFAULT_PREFIX + state.toolName);
+            var firstTool = states.FirstOrDefault().toolName;
             Assume.That(firstTool, Is.Not.Null.And.Not.Empty, "Live catalog must be non-empty");
 
             defaultCfg.SetToolAllowed(firstTool, false);

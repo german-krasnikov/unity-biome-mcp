@@ -8,15 +8,8 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class HierarchyReferenceTests
+    public class HierarchyReferenceTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [TearDown]
-        public void TearDown()
-        {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
-        }
-
         // ── Parsing ───────────────────────────────────────────────────────────
 
         [Test]
@@ -24,8 +17,17 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var href = HierarchyReference.Parse("/Root/Child #12345");
             Assert.AreEqual("/Root/Child", href.Path);
-            Assert.AreEqual(12345, href.InstanceId);
+            Assert.AreEqual("12345", href.ObjectId);
             Assert.AreEqual(0UL, href.GlobalObjectId.targetObjectId);
+        }
+
+        [Test]
+        public void Parse_Unsigned64BitId_PreservesEveryDigit()
+        {
+            var href = HierarchyReference.Parse("/Root/Child#18446744073709551615");
+
+            Assert.AreEqual("/Root/Child", href.Path);
+            Assert.AreEqual("18446744073709551615", href.ObjectId);
         }
 
         [Test]
@@ -37,7 +39,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var raw = $"/Root/Child#12345@{goidString}";
             var href = HierarchyReference.Parse(raw);
             Assert.AreEqual("/Root/Child", href.Path);
-            Assert.AreEqual(12345, href.InstanceId);
+            Assert.AreEqual("12345", href.ObjectId);
             Assert.AreEqual(12345UL, href.GlobalObjectId.targetObjectId);
         }
 
@@ -46,7 +48,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var href = HierarchyReference.Parse("/Root/Child");
             Assert.AreEqual("/Root/Child", href.Path);
-            Assert.AreEqual(0, href.InstanceId);
+            Assert.AreEqual("", href.ObjectId);
         }
 
         [Test]
@@ -54,7 +56,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var href = HierarchyReference.Parse("");
             Assert.AreEqual("", href.Path);
-            Assert.AreEqual(0, href.InstanceId);
+            Assert.AreEqual("", href.ObjectId);
         }
 
         [Test]
@@ -91,7 +93,7 @@ namespace UnityMCP.Editor.Chat.Tests
             try
             {
                 var resolver = new HierarchyResolver();
-                var href = new HierarchyReference("/StalePath", go.GetInstanceID(), default);
+                var href = new HierarchyReference("/StalePath", TransientObjectId.GetWireValue(go), default);
                 var resolved = resolver.Resolve(href);
                 Assert.AreEqual(go, resolved);
             }

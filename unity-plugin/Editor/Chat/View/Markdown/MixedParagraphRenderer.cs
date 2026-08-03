@@ -16,6 +16,29 @@ namespace UnityMCP.Editor.Chat
         /// </summary>
         internal static IPreviewContext ContextOverride;
 
+#if UNITY_INCLUDE_TESTS
+        /// <summary>Preserves the exact injected context instance for a test scope.</summary>
+        internal static IDisposable PreserveStateForTests()
+            => new TestIsolationScope(ContextOverride);
+
+        private sealed class TestIsolationScope : IDisposable
+        {
+            private IPreviewContext _context;
+            private bool _disposed;
+
+            internal TestIsolationScope(IPreviewContext context) => _context = context;
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+
+                ContextOverride = _context;
+                _context = null;
+                _disposed = true;
+            }
+        }
+#endif
+
         /// <summary>
         /// Render a paragraph with mixed text+tag+bare-path content.
         /// Returns a flex-row/wrap VisualElement container marked with md-para--mixed;

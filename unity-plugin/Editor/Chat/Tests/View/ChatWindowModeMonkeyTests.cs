@@ -12,7 +12,7 @@ using Object = UnityEngine.Object;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChatWindowModeMonkeyTests
+    public class ChatWindowModeMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly FieldInfo  s_agent = typeof(MCPChatWindow).GetField("_agentMode",  BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo  s_back  = typeof(MCPChatWindow).GetField("_backend",    BindingFlags.NonPublic | BindingFlags.Instance);

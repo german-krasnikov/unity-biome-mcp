@@ -166,12 +166,14 @@ def test_agents_preload_existing_minimal_skills(repo_root: pathlib.Path) -> None
         "unity-csharp-developer",
         "unity-diagnostics",
         "unity-scene-editor",
+        "unity-test-reviewer",
     }
     expected_colors = {
         "playmode-tester": "cyan",
         "unity-csharp-developer": "green",
         "unity-diagnostics": "yellow",
         "unity-scene-editor": "blue",
+        "unity-test-reviewer": "magenta",
     }
 
     for agent in agents:
@@ -228,11 +230,202 @@ def test_high_value_workflows_use_current_coordination_tools(repo_root: pathlib.
     root = client_root(repo_root) / "skills"
     csharp = (root / "unity-csharp-editing" / "SKILL.md").read_text()
     testing = (root / "unity-testing-verification" / "SKILL.md").read_text()
+    operations = (root / "unity-mcp-operations" / "SKILL.md").read_text()
 
     assert "sync_unity(timeout=60)" in csharp
     assert "await_compile` only when compilation was already started" in csharp
+    assert "run_unity_tests.py" in csharp
+    assert "run_tests_wait" in csharp
+    assert "Do not hand-roll" in csharp
+    assert "One correlated `run_tests_wait" in operations
+    assert "Direct `run_tests` is low-level" in operations
+    assert "run_unity_tests.py" in operations
+    assert "run_unity_tests.py" in testing
+    assert "Do not hand-roll" in testing
     for tool in ("resolve_scene_refs", "lint_playtest", "lint_scene_refs", "validate_playtest_aliases"):
         assert tool in testing
+
+
+def test_canonical_test_authoring_policy_is_complete_and_role_owned(
+    repo_root: pathlib.Path,
+) -> None:
+    root = client_root(repo_root)
+    canonical_path = (
+        root
+        / "skills"
+        / "unity-testing-verification"
+        / "references"
+        / "test-authoring.md"
+    )
+    canonical = canonical_path.read_text()
+
+    required_contract = (
+        "Unity 6000.0.65f1",
+        "Unity `6000.0` minimum",
+        "`1.6.0`",
+        "Editor's built-in Unity Test Framework",
+        "UTF 1.8 was evaluated and rejected",
+        "UnityMcpTestBase",
+        "RegisterCleanup(Action)",
+        "TrackOwnedObject<T>",
+        "CreateOwnedEditorWindow<T>()",
+        "TrackOwnedScene(Scene)",
+        "CreateOwnedPreviewScene()",
+        "Pre-existing Unity or SceneView preview scenes",
+        "TrackOwnedAsset(string)",
+        "[BiomeWorkerOnly",
+        "[BiomeTestFixture]",
+        "[BiomeTest]",
+        "[BiomeSetUp]",
+        "[BiomeTearDown]",
+        "native NUnit/UTF",
+        "[Test] async Task",
+        "[UnityTest]",
+        "[UnitySetUp]",
+        "[UnityTearDown]",
+        "IEnumerator",
+        "forbidden without exception",
+        "async void",
+        "fire-and-forget",
+        "Thread.Sleep",
+        ".Wait()",
+        ".Result",
+        "Task.Delay",
+        "WaitForEditorUpdatesAsync",
+        "Awaitable.NextFrameAsync",
+        "Awaitable.FixedUpdateAsync",
+        "AssetDatabase.Refresh()",
+        "Undo.ClearAll()",
+        "NewScene()",
+        "disposable worker",
+        "unity_state_owner",
+        "request_id",
+        "run_id",
+        "utf_guid",
+        "START-UNKNOWN",
+        "resolve_test_request",
+        "get_test_run",
+        "run_unity_tests.py",
+        "run_tests_wait",
+        "Agents must not recreate",
+        "state=prepared",
+        "ReloadGuard",
+        "CommandRegistry",
+        "UpdateChecker",
+        "RelaySpawner",
+        "RelaySpawnState",
+        "LogAssert",
+        "Sequential Acceptance Lanes",
+        "server/.venv/bin/python -m pytest tests scripts/tests -q",
+        "server/.venv/bin/python -m pytest install/tests -q",
+        "uv run pytest tests -m 'not live' -q",
+        "twice back-to-back",
+        "uv run pytest tests/live -q",
+        "run_unity_fault_injection.py",
+        "--confirm-disposable-worker",
+        "run_unity_domain_reload_acceptance.py",
+        "--prepare-only",
+        "--scenario all",
+    )
+    for required in required_contract:
+        assert required in canonical, required
+    assert "Custom attributes are not the abstraction for executable test business logic" in canonical
+    for forbidden in (
+        "Unity 6000.6",
+        "ITestCommandWrapper",
+        "TestCommandWrapperRegistry",
+        "versionDefines",
+        "UTF body observer",
+    ):
+        assert forbidden not in canonical, forbidden
+
+    skill = (
+        root / "skills" / "unity-testing-verification" / "SKILL.md"
+    ).read_text()
+    assert "references/test-authoring.md" in skill
+    assert "Unity 6000.0.65f1" in skill
+    assert "built-in UTF 1.6.0" in skill
+    assert "Unity 6000.6" not in skill
+    assert "run_unity_tests.py" in skill
+    assert "run_tests_wait" in skill
+    assert "CreateOwnedPreviewScene()" in skill
+    assert "Pre-existing Unity or SceneView preview scenes" in skill
+    for required in (
+        "[UnitySetUp]",
+        "[UnityTearDown]",
+        "IEnumerator",
+        "AssetDatabase.Refresh()",
+        "state=prepared",
+        "Release Test Order",
+        "twice back-to-back",
+    ):
+        assert required in skill, required
+
+    for agent_name in ("unity-csharp-developer", "unity-test-reviewer"):
+        agent = (root / "agents" / f"{agent_name}.md").read_text()
+        assert (
+            ".claude/skills/unity-testing-verification/references/test-authoring.md"
+            in agent
+        )
+        assert "run_id" in agent
+        for required in (
+            "[UnitySetUp]",
+            "[UnityTearDown]",
+            "IEnumerator",
+            "AssetDatabase.Refresh",
+            "state=prepared",
+            "twice back-to-back",
+            "Python live",
+        ):
+            assert required in agent, f"{agent_name}: {required}"
+
+    developer = (root / "agents" / "unity-csharp-developer.md").read_text()
+    reviewer = (root / "agents" / "unity-test-reviewer.md").read_text()
+    assert "[Test] async Task" in developer
+    assert "[UnityTest]" in developer and "forbidden" in developer
+    assert "CreateOwnedEditorWindow" in developer and "GetWindow" in developer
+    assert "native NUnit/UTF" in developer
+    assert "AssetDatabase.Refresh" in developer
+    assert "run_unity_tests.py" in developer
+    assert "run_tests_wait" in developer
+    assert "Required Checklist" in reviewer
+    assert "unity_state_owner" in reviewer
+    assert "native NUnit/UTF" in reviewer
+    assert "BiomeWorkerOnly" in reviewer
+    assert "[UnityTest]" in reviewer and "IEnumerator" in reviewer
+    assert "CreateOwnedEditorWindow" in reviewer and "GetWindow" in reviewer
+    assert "run_unity_tests.py" in reviewer
+    assert "run_tests_wait" in reviewer
+    assert "UTF body observer" not in reviewer
+    assert "the wrapper observes body failure" not in reviewer
+    assert "UNITY_TEST_PLAYER_LOOP_EXCEPTION:" not in canonical
+    assert "UNITY_TEST_PLAYER_LOOP_EXCEPTION:" not in developer
+    assert "UNITY_TEST_PLAYER_LOOP_EXCEPTION:" not in reviewer
+
+    reliability = (repo_root / "docs" / "testing-reliability.md").read_text()
+    for required in (
+        "run_unity_fault_injection.py",
+        "--confirm-disposable-worker",
+        "run_unity_domain_reload_acceptance.py",
+        "--prepare-only",
+        "--scenario all",
+        "state=prepared",
+        "twice back-to-back",
+        "server/.venv/bin/python -m pytest tests scripts/tests -q",
+        "server/.venv/bin/python -m pytest install/tests -q",
+        "uv run pytest tests -m 'not live' -q",
+        "uv run pytest tests/live -q",
+    ):
+        assert required in reliability, required
+
+    converter = load_converter(repo_root)
+    for agent_name in ("playmode-tester", "unity-csharp-developer", "unity-test-reviewer"):
+        frontmatter, _ = converter.split_frontmatter(
+            (root / "agents" / f"{agent_name}.md").read_text()
+        )
+        assert "unity-testing-verification" in converter.frontmatter_string_list(
+            frontmatter, "skills"
+        )
 
 
 def test_installer_accepts_all_supported_release_skill_hashes(repo_root: pathlib.Path) -> None:
@@ -373,7 +566,34 @@ def test_codex_render_preserves_preloads_resources_and_read_only_agents(repo_roo
 
     assert len(skill_files) == 11
     assert any(target.name == "batching.md" for _, target in resources)
+    assert any(target.name == "test-authoring.md" for _, target in resources)
+    test_authoring_resources = [
+        (source, target)
+        for source, target in resources
+        if target.name == "test-authoring.md"
+    ]
+    assert len(test_authoring_resources) == 1
+    source, target = test_authoring_resources[0]
+    canonical_resource = (
+        root
+        / "skills"
+        / "unity-testing-verification"
+        / "references"
+        / "test-authoring.md"
+    )
+    assert source.resolve() == canonical_resource.resolve()
+    assert converter.desired_files([], test_authoring_resources)[target] == (
+        canonical_resource.read_bytes()
+    )
+    assert target.as_posix().endswith(
+        "/unity-testing-verification/references/test-authoring.md"
+    )
     rendered = {generated.path.stem: generated.content for generated in agent_files}
     assert 'sandbox_mode = "read-only"' in rendered["unity-diagnostics"]
+    assert 'sandbox_mode = "read-only"' in rendered["unity-test-reviewer"]
     assert 'sandbox_mode = "read-only"' not in rendered["playmode-tester"]
     assert ".agents/skills/unity-testing-verification/SKILL.md" in rendered["playmode-tester"]
+    assert (
+        ".agents/skills/unity-testing-verification/references/test-authoring.md"
+        in rendered["unity-test-reviewer"]
+    )

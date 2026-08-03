@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class PendingTurnStateLlmPayloadTests
+    public class PendingTurnStateLlmPayloadTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // F1: v6 roundtrip — full-path payload preserved verbatim (paths + bracket block).
         [Test]

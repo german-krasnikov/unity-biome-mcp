@@ -104,6 +104,9 @@ async def test_domain_reload_retry_3rd_attempt():
     with patch("unity_mcp.bridge.asyncio.sleep", new_callable=AsyncMock):
         with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open):
             bridge = UnityBridge("127.0.0.1", 9999, probe=probe)
+            # The retry test replaces asyncio.sleep with an immediate mock. Keep
+            # the unrelated production heartbeat from spinning on that mock.
+            bridge.start_heartbeat = Mock()
             result = await bridge.send("test", {})
 
     assert result["ok"] is True

@@ -8,7 +8,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class FrameDebugHelperTests
+    public class FrameDebugHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Reflection helpers ─────────────────────────────────────────────
 

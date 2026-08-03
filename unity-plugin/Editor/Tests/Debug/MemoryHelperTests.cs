@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MemoryHelperTests
+    public class MemoryHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void GetSnapshot_ReturnsNonEmptyString()

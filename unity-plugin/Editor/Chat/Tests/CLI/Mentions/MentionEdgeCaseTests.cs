@@ -10,7 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MentionEdgeCaseTests
+    public class MentionEdgeCaseTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // 1. Emoji after @ is rejected (not a valid token char)
         [Test]

@@ -6,6 +6,15 @@ namespace UnityMCP.Editor
 {
     public static class UpdateChecker
     {
+        private sealed class RuntimeContext
+        {
+            internal string AvailableVersion;
+            internal bool IsChecking;
+            internal string LastError;
+            internal Action CheckCompleted;
+            internal UnityWebRequest ActiveRequest;
+        }
+
         const string CacheKey     = "UnityMCP.UpdateCache";
         const string CacheTimeKey = "UnityMCP.UpdateCacheTime";
         const string SkipKey      = "UnityMCP.SkippedVersion";
@@ -14,16 +23,40 @@ namespace UnityMCP.Editor
         const string ReleasesUrl = "https://api.github.com/repos/" + RepoSlug + "/releases/latest";
         internal const string RepoGitUrl = "https://github.com/" + RepoSlug + ".git";
 
-        public static string AvailableVersion { get; private set; }
+        private static readonly RuntimeContext ProductionContext = new RuntimeContext();
+        private static RuntimeContext _currentContext = ProductionContext;
+
+        private static RuntimeContext CurrentContext => _currentContext;
+
+        public static string AvailableVersion
+        {
+            get => CurrentContext.AvailableVersion;
+            private set => CurrentContext.AvailableVersion = value;
+        }
+
         public static bool   HasUpdate        => !string.IsNullOrEmpty(AvailableVersion);
-        public static bool   IsChecking       { get; private set; }
-        public static string LastError        { get; private set; }
-        public static event Action CheckCompleted;
-        private static UnityWebRequest _activeRequest;
+        public static bool IsChecking
+        {
+            get => CurrentContext.IsChecking;
+            private set => CurrentContext.IsChecking = value;
+        }
+
+        public static string LastError
+        {
+            get => CurrentContext.LastError;
+            private set => CurrentContext.LastError = value;
+        }
+
+        public static event Action CheckCompleted
+        {
+            add => CurrentContext.CheckCompleted += value;
+            remove => CurrentContext.CheckCompleted -= value;
+        }
 
         /// <summary>Check for updates respecting 24h cache. Safe to call from button.</summary>
         public static void CheckAsync()
         {
+            var context = CurrentContext;
             // Populate from cache first
             var cached  = EditorPrefs.GetString(CacheKey, "");
             var rawTime = EditorPrefs.GetString(CacheTimeKey, "");
@@ -36,44 +69,45 @@ namespace UnityMCP.Editor
                         .AddSeconds(savedAt)).TotalHours;
                 if (hours < CacheTtlHours)
                 {
-                    ApplyVersion(cached);
+                    ApplyVersion(context, cached);
                     return;
                 }
             }
 
-            FetchFromNetwork();
+            FetchFromNetwork(context);
         }
 
         /// <summary>Force network fetch, ignoring cache. Use from "Check for Updates" button.</summary>
         public static void ForceCheckAsync()
         {
-            AvailableVersion = null;
-            LastError = null;
-            FetchFromNetwork();
+            var context = CurrentContext;
+            context.AvailableVersion = null;
+            context.LastError = null;
+            FetchFromNetwork(context);
         }
 
-        static void FetchFromNetwork()
+        static void FetchFromNetwork(RuntimeContext context)
         {
-            if (IsChecking) return;
-            IsChecking = true;
+            if (context.IsChecking) return;
+            context.IsChecking = true;
             var req = UnityWebRequest.Get(ReleasesUrl);
-            _activeRequest = req;
+            context.ActiveRequest = req;
             req.SetRequestHeader("User-Agent", "unity-biome-mcp-update-checker");
-            req.SendWebRequest().completed += _ => OnResponse(req);
+            req.SendWebRequest().completed += _ => OnResponse(context, req);
         }
 
-        static void OnResponse(UnityWebRequest req)
+        static void OnResponse(RuntimeContext context, UnityWebRequest req)
         {
-            if (!ReferenceEquals(req, _activeRequest))
+            if (!ReferenceEquals(req, context.ActiveRequest))
                 return;
-            _activeRequest = null;
-            IsChecking = false;
+            context.ActiveRequest = null;
+            context.IsChecking = false;
             if (req.result != UnityWebRequest.Result.Success)
             {
-                LastError = string.IsNullOrEmpty(req.error)
+                context.LastError = string.IsNullOrEmpty(req.error)
                     ? "Update check failed."
                     : req.error;
-                CheckCompleted?.Invoke();
+                InvokeCheckCompleted(context);
                 req.Dispose();
                 return;
             }
@@ -81,8 +115,8 @@ namespace UnityMCP.Editor
             var tag = ParseTagName(req.downloadHandler.text);
             if (string.IsNullOrEmpty(tag))
             {
-                LastError = "The release response did not contain a version tag.";
-                CheckCompleted?.Invoke();
+                context.LastError = "The release response did not contain a version tag.";
+                InvokeCheckCompleted(context);
                 req.Dispose();
                 return;
             }
@@ -92,23 +126,42 @@ namespace UnityMCP.Editor
             EditorPrefs.SetString(CacheKey,     tag);
             EditorPrefs.SetString(CacheTimeKey, nowEpoch.ToString("F0", System.Globalization.CultureInfo.InvariantCulture));
 
-            ApplyVersion(tag);
-            LastError = null;
-            CheckCompleted?.Invoke();
+            ApplyVersion(context, tag);
+            context.LastError = null;
+            InvokeCheckCompleted(context);
             req.Dispose();
         }
 
         internal static void CancelActiveCheck()
         {
-            var request = _activeRequest;
-            _activeRequest = null;
-            IsChecking = false;
+            CancelActiveCheck(CurrentContext);
+        }
+
+        private static void CancelActiveCheck(RuntimeContext context)
+        {
+            var request = context.ActiveRequest;
+            context.ActiveRequest = null;
+            context.IsChecking = false;
             if (request == null) return;
             try { request.Abort(); } catch { }
             request.Dispose();
         }
 
-        static void ApplyVersion(string tag)
+        private static void InvokeCheckCompleted(RuntimeContext context)
+        {
+            var previous = _currentContext;
+            _currentContext = context;
+            try
+            {
+                context.CheckCompleted?.Invoke();
+            }
+            finally
+            {
+                _currentContext = previous;
+            }
+        }
+
+        static void ApplyVersion(RuntimeContext context, string tag)
         {
             var version = tag.TrimStart('v');
             var skipped = EditorPrefs.GetString(SkipKey, "");
@@ -116,7 +169,7 @@ namespace UnityMCP.Editor
 
             var current = GetCurrentVersion();
             if (IsNewer(version, current))
-                AvailableVersion = version;
+                context.AvailableVersion = version;
         }
 
         static bool IsNewer(string candidate, string current)
@@ -166,18 +219,71 @@ namespace UnityMCP.Editor
         }
 
 #if UNITY_INCLUDE_TESTS
-        public static void ResetForTest()
+        private sealed class TestIsolationScope : IDisposable
         {
-            CancelActiveCheck();
-            AvailableVersion = null;
-            IsChecking = false;
-            LastError = null;
-            CheckCompleted = null;
+            private readonly RuntimeContext _context;
+            private readonly RuntimeContext _previous;
+            private bool _disposed;
+
+            internal TestIsolationScope(RuntimeContext context, RuntimeContext previous)
+            {
+                _context = context;
+                _previous = previous;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                if (!ReferenceEquals(_currentContext, _context))
+                    throw new InvalidOperationException(
+                        "UpdateChecker test-isolation scopes must be disposed in LIFO order.");
+
+                try
+                {
+                    CancelActiveCheck(_context);
+                }
+                finally
+                {
+                    // A request Abort/Dispose failure must never strand the isolated
+                    // context as the process-wide UpdateChecker state.
+                    _context.CheckCompleted = null;
+                    _currentContext = _previous;
+                    _disposed = true;
+                }
+            }
         }
 
-        public static void SetAvailableVersionForTest(string version)
+        internal static IDisposable BeginTestIsolation()
+        {
+            var previous = CurrentContext;
+            var isolated = new RuntimeContext();
+            _currentContext = isolated;
+            return new TestIsolationScope(isolated, previous);
+        }
+
+        internal static void SetAvailableVersionForTest(string version)
         {
             AvailableVersion = version;
+        }
+
+        internal static void SetStateForTest(
+            string availableVersion,
+            bool isChecking,
+            string lastError,
+            UnityWebRequest activeRequest = null)
+        {
+            var context = CurrentContext;
+            context.AvailableVersion = availableVersion;
+            context.IsChecking = isChecking;
+            context.LastError = lastError;
+            context.ActiveRequest = activeRequest;
+        }
+
+        internal static UnityWebRequest ActiveRequestForTest => CurrentContext.ActiveRequest;
+
+        internal static void RaiseCheckCompletedForTest()
+        {
+            InvokeCheckCompleted(CurrentContext);
         }
 #endif
     }

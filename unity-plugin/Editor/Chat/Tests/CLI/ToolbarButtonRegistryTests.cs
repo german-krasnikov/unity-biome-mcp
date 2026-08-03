@@ -23,10 +23,14 @@ namespace UnityMCP.Editor.Chat.Tests
     }
 
     [TestFixture]
-    public class ToolbarButtonRegistryTests
+    public class ToolbarButtonRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ToolbarButtonRegistry.ResetForTests();
-        [TearDown] public void TearDown() => ToolbarButtonRegistry.ResetForTests();
+        [SetUp]
+        public void SetUp()
+        {
+            RegisterCleanup(ToolbarButtonRegistry.PreserveStateForTests().Dispose);
+            ToolbarButtonRegistry.ResetForTests();
+        }
 
         [Test]
         public void Register_NewKey_ReturnsTrue()

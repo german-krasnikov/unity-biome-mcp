@@ -6,50 +6,86 @@ from contextlib import asynccontextmanager
 
 import pytest
 
-from tests.live.conftest import _destroy, _ok, _iid
+from tests.live.conftest import (
+    RUN_OWNED_ROOT,
+    _close_owned_scene,
+    _cs,
+    _delete_owned_asset,
+    _ok,
+    _transient_id_expression,
+    _transient_ref,
+)
 
-_TEMP = "Assets/TestsTemp"
 pytestmark = pytest.mark.live
 
 
 @asynccontextmanager
-async def _make_scenes(bridge, n: int):
+async def _make_scenes(bridge, ownership, n: int):
     """Create n additive scenes. Yield list of names. Cleanup on exit."""
     names = []
     paths = []
     for _ in range(n):
         uid = uuid.uuid4().hex[:8]
         name = f"LiveSS_{uid}"
-        path = f"{_TEMP}/{name}.unity"
-        code = (
-            f'UnityEditor.AssetDatabase.CreateFolder("Assets", "TestsTemp");'
-            'var s = UnityEditor.SceneManagement.EditorSceneManager.NewScene('
-            'UnityEditor.SceneManagement.NewSceneSetup.EmptyScene,'
-            'UnityEditor.SceneManagement.NewSceneMode.Additive);'
-            f'UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s, "{path}");'
-            'return s.name;'
-        )
-        r = await bridge.send("execute_code", {"code": code})
-        names.append(_ok(r).strip())
+        path = f"{RUN_OWNED_ROOT}/{name}.unity"
+        names.append(name)
         paths.append(path)
+    ownership.scene_paths.update(paths)
+    ownership.asset_paths.update(paths)
+    created_paths = []
     try:
+        for path in paths:
+            code = (
+                f'var path = {_cs(path)};'
+                'var fullPath = System.IO.Path.GetFullPath(System.IO.Path.Combine('
+                ' UnityEngine.Application.dataPath, "..", path));'
+                'if (!string.IsNullOrEmpty(UnityEditor.AssetDatabase.AssetPathToGUID(path)) ||'
+                ' System.IO.File.Exists(fullPath)) return "target-exists";'
+                'var s = UnityEditor.SceneManagement.EditorSceneManager.NewScene('
+                'UnityEditor.SceneManagement.NewSceneSetup.EmptyScene,'
+                'UnityEditor.SceneManagement.NewSceneMode.Additive);'
+                'if (!UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s, path)) {'
+                ' UnityEditor.SceneManagement.EditorSceneManager.CloseScene(s, true);'
+                ' return "save-failed";'
+                '}'
+                'return s.path;'
+            )
+            created_path = _ok(
+                await bridge.send("execute_code", {"code": code})
+            ).strip()
+            assert created_path == path, (
+                "additive scene was not saved at its registered path: "
+                f"expected={path}, actual={created_path}"
+            )
+            created_paths.append(path)
         yield names
     finally:
-        for name, path in zip(names, paths):
-            code = (
-                f'var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneByName("{name}");'
-                'if(s.IsValid()) UnityEditor.SceneManagement.EditorSceneManager.CloseScene(s, true);'
-                f'UnityEditor.AssetDatabase.DeleteAsset("{path}");'
-                'return "ok";'
-            )
-            for attempt in range(2):
-                try:
-                    await bridge.send("execute_code", {"code": code})
-                    break
-                except Exception as e:
-                    logging.warning(f"cleanup failed for scene {name} (attempt {attempt + 1}): {e}")
-                    if attempt == 0:
-                        await asyncio.sleep(2)
+        failures = []
+        for path in created_paths:
+            for operation in (_close_owned_scene, _delete_owned_asset):
+                last_error = None
+                for attempt in range(2):
+                    try:
+                        await operation(bridge, path)
+                        last_error = None
+                        break
+                    except Exception as exc:
+                        last_error = exc
+                        logging.warning(
+                            "cleanup failed for %s via %s (attempt %d): %s",
+                            path,
+                            operation.__name__,
+                            attempt + 1,
+                            exc,
+                        )
+                        if attempt == 0:
+                            await asyncio.sleep(2)
+                if last_error is not None:
+                    failures.append(
+                        f"{operation.__name__}({path}): {last_error}"
+                    )
+        if failures:
+            raise AssertionError("multi-scene cleanup failed: " + "; ".join(failures))
 
 
 async def _create_objects(bridge, scene_name: str, prefix: str, count: int) -> list[str]:
@@ -74,8 +110,8 @@ async def _create_objects(bridge, scene_name: str, prefix: str, count: int) -> l
 # Tests
 # ---------------------------------------------------------------------------
 
-async def test_3_scenes_all_hierarchy_headers(bridge):
-    async with _make_scenes(bridge, 3) as scenes:
+async def test_3_scenes_all_hierarchy_headers(bridge, unity_state_owner):
+    async with _make_scenes(bridge, unity_state_owner, 3) as scenes:
         for s in scenes:
             await _create_objects(bridge, s, "Hdr", 1)
         r = await bridge.send("get_hierarchy", {})
@@ -85,8 +121,8 @@ async def test_3_scenes_all_hierarchy_headers(bridge):
         assert data.count("[") >= 3
 
 
-async def test_5_scenes_search_across_all(bridge):
-    async with _make_scenes(bridge, 5) as scenes:
+async def test_5_scenes_search_across_all(bridge, unity_state_owner):
+    async with _make_scenes(bridge, unity_state_owner, 5) as scenes:
         obj_names = []
         for s in scenes:
             names = await _create_objects(bridge, s, "SS5", 1)
@@ -97,9 +133,9 @@ async def test_5_scenes_search_across_all(bridge):
             assert obj in data, f"Object '{obj}' not found in search"
 
 
-async def test_triple_ambiguity(bridge):
+async def test_triple_ambiguity(bridge, unity_state_owner):
     """Same name in 3 scenes triggers ambiguity error."""
-    async with _make_scenes(bridge, 3) as scenes:
+    async with _make_scenes(bridge, unity_state_owner, 3) as scenes:
         shared = f"AmbigObj_{uuid.uuid4().hex[:6]}"
         for s in scenes:
             code = (
@@ -117,9 +153,9 @@ async def test_triple_ambiguity(bridge):
         )
 
 
-async def test_scene_qualified_across_3_scenes(bridge):
+async def test_scene_qualified_across_3_scenes(bridge, unity_state_owner):
     """get_component with 3 different scene-qualified paths works."""
-    async with _make_scenes(bridge, 3) as scenes:
+    async with _make_scenes(bridge, unity_state_owner, 3) as scenes:
         obj_names = []
         for s in scenes:
             names = await _create_objects(bridge, s, "SQ", 1)
@@ -131,9 +167,9 @@ async def test_scene_qualified_across_3_scenes(bridge):
             assert "position" in data.lower(), f"No Transform data for {path}"
 
 
-async def test_deep_nested_qualified_path(bridge):
+async def test_deep_nested_qualified_path(bridge, unity_state_owner):
     """Root/A/B/C in additive → get_component Scene:/Root/A/B/C."""
-    async with _make_scenes(bridge, 1) as scenes:
+    async with _make_scenes(bridge, unity_state_owner, 1) as scenes:
         scene = scenes[0]
         code = (
             f'var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneByName("{scene}");'
@@ -151,9 +187,9 @@ async def test_deep_nested_qualified_path(bridge):
         assert "position" in data.lower(), f"No Transform at deep path {path}"
 
 
-async def test_object_with_spaces(bridge):
+async def test_object_with_spaces(bridge, unity_state_owner):
     """'My Live Object' → search('My Live') finds it."""
-    async with _make_scenes(bridge, 1) as scenes:
+    async with _make_scenes(bridge, unity_state_owner, 1) as scenes:
         uid = uuid.uuid4().hex[:6]
         obj_name = f"My Live Obj {uid}"
         code = (
@@ -168,27 +204,32 @@ async def test_object_with_spaces(bridge):
         assert obj_name in data, f"'{obj_name}' not found in search:\n{data}"
 
 
-async def test_brackets_in_name_via_iid(bridge):
-    """[SECTION/NAME] object findable by #iid."""
-    async with _make_scenes(bridge, 1) as scenes:
+async def test_brackets_in_name_via_transient_id(bridge, unity_state_owner):
+    """[SECTION/NAME] object is findable by transient object ID."""
+    async with _make_scenes(bridge, unity_state_owner, 1) as scenes:
         obj_name = f"[SECTION_{uuid.uuid4().hex[:4]}]"
+        transient_id = await _transient_id_expression(bridge, "go")
         code = (
             f'var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneByName("{scenes[0]}");'
             f'var go = new UnityEngine.GameObject("{obj_name}");'
             'UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, s);'
-            'return "#" + go.GetInstanceID();'
+            f'return "#" + {transient_id};'
         )
         r = await bridge.send("execute_code", {"code": code})
-        iid = _iid(_ok(r))
-        r2 = await bridge.send("get_component", {"path": iid, "type": "Transform"})
+        object_ref = _transient_ref(_ok(r))
+        r2 = await bridge.send(
+            "get_component", {"path": object_ref, "type": "Transform"}
+        )
         data = _ok(r2)
-        assert "position" in data.lower(), f"No Transform for bracket-named obj via {iid}"
+        assert "position" in data.lower(), (
+            f"No Transform for bracket-named obj via {object_ref}"
+        )
 
 
-async def test_stress_30_objects_3_scenes(bridge):
+async def test_stress_30_objects_3_scenes(bridge, unity_state_owner):
     """10 objects × 3 scenes = 30 objects searchable."""
     prefix = f"Stress30_{uuid.uuid4().hex[:4]}"
-    async with _make_scenes(bridge, 3) as scenes:
+    async with _make_scenes(bridge, unity_state_owner, 3) as scenes:
         for s in scenes:
             await _create_objects(bridge, s, prefix, 10)
         r = await bridge.send("search_scene", {"query": prefix, "limit": "50"})
@@ -197,9 +238,9 @@ async def test_stress_30_objects_3_scenes(bridge):
         assert found >= 30, f"Expected 30 objects, found {found} in:\n{data[:500]}"
 
 
-async def test_10_objects_search_limit(bridge):
+async def test_10_objects_search_limit(bridge, unity_state_owner):
     """10 objects in 1 additive, limit=3 → +7 more in result."""
-    async with _make_scenes(bridge, 1) as scenes:
+    async with _make_scenes(bridge, unity_state_owner, 1) as scenes:
         prefix = f"Lim10_{uuid.uuid4().hex[:4]}"
         await _create_objects(bridge, scenes[0], prefix, 10)
         r = await bridge.send("search_scene", {"query": prefix, "limit": "3"})

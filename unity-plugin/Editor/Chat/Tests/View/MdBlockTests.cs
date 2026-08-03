@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MdBlockTests
+    public class MdBlockTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Para_Factory_SetsLines()

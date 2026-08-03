@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ToolVerbMapTests
+    public class ToolVerbMapTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Humanize_KnownTool_ReturnsVerb()

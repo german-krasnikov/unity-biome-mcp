@@ -9,7 +9,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestFrameCaptureTests
+    public class PlaytestFrameCaptureTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Parser: CAPTURE_FRAMES basic ────────────────────────────────────────
 

@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ChangelogReaderTests
+    public class ChangelogReaderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         const string Sample = @"# Changelog
 

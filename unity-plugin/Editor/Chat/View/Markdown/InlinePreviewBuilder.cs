@@ -17,6 +17,43 @@ namespace UnityMCP.Editor.Chat
         /// <summary>Seam: replaces AssetDatabase.LoadAssetAtPath&lt;AudioClip&gt; in AudioPreviewBuilder.</summary>
         internal static Func<string, (float length, int frequency, int channels)?> AudioClipLoader;
 
+#if UNITY_INCLUDE_TESTS
+        /// <summary>Preserves the exact loader delegate instances for a test scope.</summary>
+        internal static IDisposable PreserveStateForTests()
+            => new TestIsolationScope(TextureLoader, AssetPreviewLoader, AudioClipLoader);
+
+        private sealed class TestIsolationScope : IDisposable
+        {
+            private Func<string, Texture2D> _textureLoader;
+            private Func<UnityEngine.Object, Texture2D> _assetPreviewLoader;
+            private Func<string, (float length, int frequency, int channels)?> _audioClipLoader;
+            private bool _disposed;
+
+            internal TestIsolationScope(
+                Func<string, Texture2D> textureLoader,
+                Func<UnityEngine.Object, Texture2D> assetPreviewLoader,
+                Func<string, (float length, int frequency, int channels)?> audioClipLoader)
+            {
+                _textureLoader = textureLoader;
+                _assetPreviewLoader = assetPreviewLoader;
+                _audioClipLoader = audioClipLoader;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+
+                TextureLoader = _textureLoader;
+                AssetPreviewLoader = _assetPreviewLoader;
+                AudioClipLoader = _audioClipLoader;
+                _textureLoader = null;
+                _assetPreviewLoader = null;
+                _audioClipLoader = null;
+                _disposed = true;
+            }
+        }
+#endif
+
         /// <summary>Delegates to the preview registry. Returns null if no builder handles the request.</summary>
         internal static VisualElement Build(string kindKey, string path)
         {

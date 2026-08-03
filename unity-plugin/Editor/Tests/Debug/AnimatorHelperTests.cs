@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class AnimatorHelperTests
+    public class AnimatorHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void GetState_NullAnimator_ThrowsArgumentNullException()

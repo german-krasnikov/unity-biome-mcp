@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PhysicsHelperTests
+    public class PhysicsHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void GetState_NullGameObject_ThrowsArgumentNullException()

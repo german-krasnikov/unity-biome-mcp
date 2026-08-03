@@ -1,143 +1,179 @@
-// TDD: Domain reload ordering invariants.
-// Pins correctness regardless of [InitializeOnLoadMethod] execution order:
-//   TestRunner.ResetOnReload() must NOT clear CommandRegistry.
-// All tests are EditMode-only, synchronous, no scene creation.
+using System;
+using System.IO;
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
-using UnityMCP.Editor;
+using UnityEditor.TestTools.TestRunner.Api;
+using UnityMCP.Editor.TestRuns;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal sealed class DomainReloadOrderTests
+    internal sealed class DomainReloadOrderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        private static readonly FieldInfo IsRunningField =
-            typeof(TestRunner).GetField("_isRunning",
-                BindingFlags.Static | BindingFlags.NonPublic);
-
-        private static readonly MethodInfo ResetOnReloadMethod =
-            typeof(TestRunner).GetMethod("ResetOnReload",
-                BindingFlags.Static | BindingFlags.NonPublic);
-
         [SetUp]
         public void SetUp()
         {
             CommandRegistry.Clear();
             CommandRegistry.InitDefaults();
-            IsRunningField?.SetValue(null, 0);
-            SessionState.SetBool(TestRunner.KeyPending, false);
-            SessionState.SetString(TestRunner.KeyResults, "");
         }
 
         [TearDown]
-        public void TearDown() => SetUp(); // symmetric — restore full registration
-
-        // T1: get_test_results must be readable during compile (P1 guarantee).
-        [Test]
-        public void GetTestResults_IsAllowedDuringCompile()
+        public void TearDown()
         {
-            Assert.IsTrue(CommandRouter.IsAllowedDuringCompile("get_test_results"),
-                "get_test_results must be allowedDuringCompile (P1: SessionState-only read)");
-        }
-
-        // T2: belt-and-suspenders — IsRegistered for the command that reads run_tests output.
-        [Test]
-        public void GetTestResults_IsRegistered_AfterInitDefaults()
-        {
-            Assert.IsTrue(CommandRegistry.IsRegistered("get_test_results"),
-                "get_test_results must be registered after InitDefaults()");
-        }
-
-        // T3: core ordering concern — ResetOnReload must NOT clear CommandRegistry.
-        [Test]
-        public void ResetOnReload_DoesNotClearCommandRegistry()
-        {
-            ResetOnReloadMethod?.Invoke(null, null);
-
-            Assert.IsTrue(CommandRegistry.IsRegistered("get_test_results"),
-                "get_test_results must remain registered after ResetOnReload()");
-            Assert.IsTrue(CommandRegistry.IsRegistered("run_tests"),
-                "run_tests must remain registered after ResetOnReload()");
-            Assert.IsTrue(CommandRegistry.Ready,
-                "CommandRegistry.Ready must remain true after ResetOnReload()");
-        }
-
-        // T4: a pending test run survives domain reload — KeyPending not cleared by ResetOnReload.
-        [Test]
-        public void KeyPending_SurvivesResetOnReload_WhenTrue()
-        {
-            SessionState.SetBool(TestRunner.KeyPending, true);
-
-            ResetOnReloadMethod?.Invoke(null, null);
-
-            Assert.IsTrue(SessionState.GetBool(TestRunner.KeyPending, false),
-                "KeyPending must survive ResetOnReload() — test was still in progress");
-            Assert.IsTrue(TestRunner.IsRunning,
-                "IsRunning must be true when KeyPending survives reload");
-        }
-
-        // T5: explicit _isRunning = 0 reset — pins the field assignment in ResetOnReload.
-        [Test]
-        public void ResetOnReload_Sets_IsRunning_ToZero()
-        {
-            IsRunningField?.SetValue(null, 1); // simulate active test
-
-            ResetOnReloadMethod?.Invoke(null, null);
-
-            Assert.AreEqual(0, (int)IsRunningField.GetValue(null),
-                "_isRunning must be explicitly set to 0 by ResetOnReload()");
-        }
-
-        // T6: both [InitializeOnLoadMethod] orders must leave get_test_results usable.
-        [Test]
-        public void ReloadSequence_BothOrders_GetTestResults_Available()
-        {
-            // Order A: InitDefaults → ResetOnReload (safe order)
             CommandRegistry.Clear();
             CommandRegistry.InitDefaults();
-            ResetOnReloadMethod?.Invoke(null, null);
-            Assert.IsTrue(CommandRegistry.IsRegistered("get_test_results"),
-                "Order A: get_test_results must be registered");
-            Assert.IsTrue(CommandRouter.IsAllowedDuringCompile("get_test_results"),
-                "Order A: get_test_results must be allowedDuringCompile");
-
-            // Order B: ResetOnReload → InitDefaults (worst-case Unity ordering)
-            CommandRegistry.Clear();
-            ResetOnReloadMethod?.Invoke(null, null);
-            CommandRegistry.InitDefaults();
-            Assert.IsTrue(CommandRegistry.IsRegistered("get_test_results"),
-                "Order B: get_test_results must be registered");
-            Assert.IsTrue(CommandRouter.IsAllowedDuringCompile("get_test_results"),
-                "Order B: get_test_results must be allowedDuringCompile");
         }
 
-        // T7: completeness gate — all 4 test-runner commands survive a reload sequence.
         [Test]
-        public void AllCriticalTestCommands_RegisteredAndAllowedAfterReload()
+        public void AllDurableProtocolCommands_AreRegisteredWithCorrectCompileGuards()
         {
-            var commands = new[]
+            var readCommands = new[]
             {
-                (cmd: "run_tests",         mustBeAllowedDuringCompile: false),
-                (cmd: "get_test_results",  mustBeAllowedDuringCompile: true),
-                (cmd: "get_test_progress", mustBeAllowedDuringCompile: true),
-                (cmd: "get_test_count",    mustBeAllowedDuringCompile: true),
+                "resolve_test_request", "get_test_run", "list_test_runs",
+                "get_test_results", "get_test_progress", "get_test_count"
             };
-
-            ResetOnReloadMethod?.Invoke(null, null);
-
-            foreach (var (cmd, mustAllow) in commands)
+            foreach (var command in readCommands)
             {
-                Assert.IsTrue(CommandRegistry.IsRegistered(cmd),
-                    $"{cmd} must be registered after reload sequence");
+                Assert.IsTrue(CommandRegistry.IsRegistered(command), command);
+                Assert.IsTrue(CommandRouter.IsAllowedDuringCompile(command), command);
+            }
 
-                if (mustAllow)
-                    Assert.IsTrue(CommandRouter.IsAllowedDuringCompile(cmd),
-                        $"{cmd} must be allowedDuringCompile");
-                else
-                    Assert.IsFalse(CommandRouter.IsAllowedDuringCompile(cmd),
-                        $"run_tests must NOT be allowedDuringCompile — blocked during compile intentionally");
+            Assert.IsTrue(CommandRegistry.IsRegistered("run_tests"));
+            Assert.IsFalse(CommandRouter.IsAllowedDuringCompile("run_tests"));
+            Assert.IsTrue(CommandRegistry.IsRegistered("cancel_test_run"));
+            Assert.IsTrue(CommandRouter.IsAllowedDuringCompile("cancel_test_run"));
+        }
+
+        [Test]
+        public void TestRunner_HasNoReloadCallbackOrPerRunCollector()
+        {
+            var reset = typeof(TestRunner).GetMethod("ResetOnReload",
+                BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var collector = typeof(TestRunner).GetNestedType("ResultCollector",
+                BindingFlags.Public | BindingFlags.NonPublic);
+
+            Assert.IsNull(reset,
+                "Tests must not be able to reflection-call production callback registration.");
+            Assert.IsNull(collector,
+                "Per-run collectors duplicate global callbacks after domain reload.");
+        }
+
+        [Test]
+        public void ObserverRegistration_IsInitializeOnLoadAndObserverHandlesInfrastructureErrors()
+        {
+            Assert.IsTrue(typeof(TestRunObserverRegistration)
+                .GetCustomAttributes(typeof(InitializeOnLoadAttribute), false).Any());
+            Assert.IsTrue(typeof(IErrorCallbacks).IsAssignableFrom(typeof(TestRunObserver)));
+            Assert.IsNotNull(typeof(TestRunObserverRegistration).TypeInitializer,
+                "The static constructor is the single registration point per domain.");
+        }
+
+        [Test]
+        public void NewStoreInstance_ResumesSameActiveRunWithoutSessionState()
+        {
+            var root = Path.Combine(Path.GetTempPath(),
+                "unity-mcp-reload-order-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var beforeReload = new TestRunStore(root);
+                beforeReload.WriteRun(new TestRunRecord
+                {
+                    run_id = "run-reload",
+                    request_id = "request-reload",
+                    utf_guid = "utf-reload",
+                    lifecycle = TestRunProtocol.Lifecycle.Running,
+                    created_utc = "2026-08-02T12:00:00.0000000Z"
+                });
+                beforeReload.WriteActive(new TestRunPointer
+                {
+                    run_id = "run-reload",
+                    request_id = "request-reload"
+                });
+
+                var afterReload = new TestRunStore(root);
+                var pointer = afterReload.ReadActive();
+                var run = afterReload.ReadRun(pointer.run_id);
+
+                Assert.AreEqual("run-reload", run.run_id);
+                Assert.AreEqual("utf-reload", run.utf_guid);
+                Assert.AreEqual(TestRunProtocol.Lifecycle.Running, run.lifecycle);
+            }
+            finally
+            {
+                if (Directory.Exists(root)) Directory.Delete(root, true);
             }
         }
+
+        [Test]
+        public void ReloadedObserver_DoesNotTrustPartialRootAggregate()
+        {
+            var root = Path.Combine(Path.GetTempPath(),
+                "unity-mcp-reload-aggregate-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var store = new TestRunStore(root);
+                store.WriteRun(new TestRunRecord
+                {
+                    run_id = "run-aggregate",
+                    lifecycle = TestRunProtocol.Lifecycle.Running,
+                    created_utc = "2026-08-02T12:00:00.0000000Z",
+                    build_coherent = true,
+                    utf_version = "1.6.0"
+                });
+                store.AppendEvent("run-aggregate", Event(
+                    TestRunProtocol.EventType.RunStarted, "domain-a"));
+                store.AppendExpectedTest("run-aggregate", new TestLeafManifestEntry
+                {
+                    run_id = "run-aggregate",
+                    unique_name = "suite.before-reload"
+                });
+                store.AppendExpectedTest("run-aggregate", new TestLeafManifestEntry
+                {
+                    run_id = "run-aggregate",
+                    unique_name = "suite.after-reload"
+                });
+                var seal = Event(TestRunProtocol.EventType.ManifestSealed, "domain-a");
+                seal.expected_count = 2;
+                store.SealManifest("run-aggregate", seal);
+                var beforeReload = Event(TestRunProtocol.EventType.TestFinished, "domain-a");
+                beforeReload.unique_name = "suite.before-reload";
+                beforeReload.outcome = TestRunProtocol.LeafOutcome.Failed;
+                store.AppendEvent("run-aggregate", beforeReload);
+                var afterReload = Event(TestRunProtocol.EventType.TestFinished, "domain-b");
+                afterReload.unique_name = "suite.after-reload";
+                afterReload.outcome = TestRunProtocol.LeafOutcome.Passed;
+                store.AppendEvent("run-aggregate", afterReload);
+                var finished = Event(TestRunProtocol.EventType.RunFinished, "domain-b");
+                finished.outcome = TestRunProtocol.RunOutcome.Passed;
+                finished.root_trusted = false;
+                finished.has_aggregate = false;
+                store.AppendEvent("run-aggregate", finished);
+                store.AppendEvent("run-aggregate", Event(
+                    TestRunProtocol.EventType.RunFinalized, "domain-b"));
+
+                var summary = store.Reconcile("run-aggregate");
+
+                Assert.AreEqual(TestRunProtocol.RunOutcome.Failed, summary.outcome);
+                Assert.AreEqual(1, summary.passed);
+                Assert.AreEqual(1, summary.failed);
+                Assert.IsFalse(summary.issues.Any(i =>
+                    i.code == "ROOT_AGGREGATE_CONTRADICTION"));
+            }
+            finally
+            {
+                if (Directory.Exists(root)) Directory.Delete(root, true);
+            }
+        }
+
+        private static TestRunEvent Event(string type, string generation) =>
+            new TestRunEvent
+            {
+                run_id = "run-aggregate",
+                event_type = type,
+                observer_generation = generation,
+                occurred_utc = "2026-08-02T12:00:00.0000000Z"
+            };
     }
 }

@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PortResolverTests
+    public class PortResolverTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── ResolvePort ───────────────────────────────────────────────────────
 

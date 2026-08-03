@@ -4,7 +4,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ArcadePaletteTests
+    public class ArcadePaletteTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Up_MatchesExpectedRGB()

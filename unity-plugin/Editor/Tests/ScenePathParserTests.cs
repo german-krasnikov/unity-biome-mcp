@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ScenePathParserTests
+    public class ScenePathParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Parse_WithScene_ReturnsNameAndPath()

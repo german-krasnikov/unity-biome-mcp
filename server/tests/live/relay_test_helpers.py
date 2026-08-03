@@ -67,6 +67,42 @@ async def _poll_until_done(port: int, timeout: float = 90.0) -> list[str]:
     return events
 
 
+async def _read_relay_port(proc, timeout: float = 10.0) -> int:
+    async def read_until_port() -> int:
+        if proc.stdout is None:
+            raise EOFError("relay stdout pipe is unavailable")
+        while True:
+            raw = await proc.stdout.readline()
+            if not raw:
+                raise EOFError("relay exited before advertising its port")
+            text = raw.decode(errors="replace").strip()
+            if not text.startswith("relay_port:"):
+                continue
+            port = int(text.split(":", 1)[1])
+            if not 1 <= port <= 65535:
+                raise ValueError(f"invalid relay port: {port}")
+            return port
+
+    return await asyncio.wait_for(read_until_port(), timeout=timeout)
+
+
+async def _stop_relay(proc, timeout: float = 5.0) -> None:
+    if proc.returncode is None:
+        try:
+            proc.terminate()
+        except ProcessLookupError:
+            pass
+    try:
+        await asyncio.wait_for(proc.wait(), timeout=timeout)
+    except asyncio.TimeoutError:
+        if proc.returncode is None:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+        await proc.wait()
+
+
 @pytest.fixture
 async def relay_port() -> AsyncGenerator[int, None]:
     """Start a relay subprocess, yield its port, kill on teardown."""
@@ -76,24 +112,11 @@ async def relay_port() -> AsyncGenerator[int, None]:
         stderr=asyncio.subprocess.DEVNULL,
         cwd=os.path.join(os.path.dirname(__file__), "..", ".."),
     )
-    port = None
     try:
-        async with asyncio.timeout(10):
-            while True:
-                line = await proc.stdout.readline()
-                text = line.decode().strip()
-                if text.startswith("relay_port:"):
-                    port = int(text.split(":", 1)[1])
-                    break
-    except (asyncio.TimeoutError, ValueError):
-        proc.terminate()
-        pytest.skip("Could not start relay or parse port")
-        return
-
-    yield port
-
-    proc.terminate()
-    try:
-        await asyncio.wait_for(proc.wait(), timeout=5)
-    except asyncio.TimeoutError:
-        proc.kill()
+        try:
+            port = await _read_relay_port(proc)
+        except (asyncio.TimeoutError, EOFError, ValueError) as exc:
+            pytest.skip(f"Could not start relay or parse port: {exc}")
+        yield port
+    finally:
+        await _stop_relay(proc)

@@ -7,7 +7,7 @@ using UnityMCP.Editor.Profiling;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class AnimatedCounterTests
+    public class AnimatedCounterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void SetTarget_FarFromCurrent_SetsTargetField()

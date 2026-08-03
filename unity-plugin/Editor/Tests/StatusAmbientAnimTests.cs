@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class StatusAmbientAnimTests
+    public class StatusAmbientAnimTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private VisualElement _root;
 

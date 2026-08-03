@@ -5,7 +5,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class RectangleModeTests
+    internal class RectangleModeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         RectangleMode _mode;
 

@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class TokenFormatTests
+    public class TokenFormatTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void Abbr_Zero_ReturnsZero()     => Assert.AreEqual("0",      TokenFormat.Abbr(0));
         [Test] public void Abbr_999_ReturnsAsIs()      => Assert.AreEqual("999",    TokenFormat.Abbr(999));

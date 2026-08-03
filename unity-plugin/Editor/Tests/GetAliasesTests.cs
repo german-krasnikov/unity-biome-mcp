@@ -9,7 +9,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class GetAliasesTests
+    public class GetAliasesTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _configPath;
 
@@ -18,14 +18,11 @@ namespace UnityMCP.Editor.Tests
         {
             TestPaths.EnsureFolder();
             _configPath = null;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            if (_configPath != null)
-                AssetDatabase.DeleteAsset(_configPath);
-            _configPath = null;
+            var savedProvider = CommandRouter.FindPlaytestConfigGuidsForTest;
+            RegisterCleanup(() =>
+                CommandRouter.FindPlaytestConfigGuidsForTest = savedProvider);
+            CommandRouter.FindPlaytestConfigGuidsForTest =
+                () => System.Array.Empty<string>();
         }
 
         private void CreateConfig(List<QueryAlias> aliases)
@@ -33,8 +30,13 @@ namespace UnityMCP.Editor.Tests
             var config = ScriptableObject.CreateInstance<PlaytestConfig>();
             config.aliases = aliases;
             _configPath = TestPaths.TempFolder + "/GetAliasesTest_PlaytestConfig.asset";
+            TrackOwnedAsset(_configPath);
             AssetDatabase.CreateAsset(config, _configPath);
             AssetDatabase.SaveAssets();
+            CommandRouter.FindPlaytestConfigGuidsForTest = () => new[]
+            {
+                AssetDatabase.AssetPathToGUID(_configPath)
+            };
         }
 
         // ── BuildAliasSection ───────────────────────────────────────────────
@@ -42,9 +44,6 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BuildAliasSection_NoConfig_ReturnsNull()
         {
-            // Guard: skip if real PlaytestConfig exists in project outside tests
-            Assume.That(AssetDatabase.FindAssets("t:PlaytestConfig").Length, Is.Zero,
-                "PlaytestConfig exists in project — test inconclusive");
             var result = CommandRouter.BuildAliasSection();
             Assert.IsNull(result);
         }
@@ -113,8 +112,6 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void GetAliases_NoConfig_ReturnsNoAliasesMessage()
         {
-            Assume.That(AssetDatabase.FindAssets("t:PlaytestConfig").Length, Is.Zero,
-                "PlaytestConfig exists — test inconclusive");
             CommandRegistry.Clear();
             CommandRouter.RegisterReadCommands();
             try

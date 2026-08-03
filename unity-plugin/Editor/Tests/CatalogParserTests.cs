@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CatalogParserTests
+    public class CatalogParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Parse_EmptyString_ReturnsEmptyDict()

@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MCPDebugUITests
+    public class MCPDebugUITests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private MCPDebugUI _ui;
 

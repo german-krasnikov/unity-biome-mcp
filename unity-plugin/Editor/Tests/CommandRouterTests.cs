@@ -3,6 +3,7 @@
 //         CommandRegistry flags, BuildResponse (via Process stub),
 //         CommandValidator validation coverage.
 using System.Reflection;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityMCP.Editor;
 
@@ -418,7 +419,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ProcessAsync_RunTests_WhileCompiling_SetsGuardResponse()
+        public async Task ProcessAsync_RunTests_WhileCompiling_SetsGuardResponse()
         {
             CommandRouter.IsCompiling = () => true;
             try
@@ -427,7 +428,7 @@ namespace UnityMCP.Editor.Tests
                 var json = "{\"id\":\"pa1\",\"cmd\":\"run_tests\",\"args\":{}}";
                 CommandRouter.ProcessAsync(json, tcs);
                 Assert.IsTrue(tcs.Task.IsCompleted, "TCS should be set synchronously when guard fires");
-                var result = tcs.Task.Result;
+                var result = await tcs.Task;
                 Assert.IsTrue(result.Contains("\"ok\":false"), result);
                 Assert.IsTrue(result.Contains("retry"), result);
             }
@@ -438,7 +439,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ProcessAsync_WaitUntil_WhileCompiling_SetsGuardResponse()
+        public async Task ProcessAsync_WaitUntil_WhileCompiling_SetsGuardResponse()
         {
             CommandRouter.IsCompiling = () => true;
             try
@@ -447,7 +448,7 @@ namespace UnityMCP.Editor.Tests
                 var json = "{\"id\":\"pa2\",\"cmd\":\"wait_until\",\"args\":{\"path\":\"/x\",\"component\":\"C\",\"field\":\"f\",\"value\":\"v\"}}";
                 CommandRouter.ProcessAsync(json, tcs);
                 Assert.IsTrue(tcs.Task.IsCompleted);
-                var result = tcs.Task.Result;
+                var result = await tcs.Task;
                 Assert.IsTrue(result.Contains("\"ok\":false"), result);
                 Assert.IsTrue(result.Contains("retry"), result);
             }

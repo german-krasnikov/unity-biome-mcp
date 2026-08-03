@@ -13,7 +13,8 @@ if [ -f "$NDA_FILE" ]; then
 fi
 
 # 2. Block any gitignored files from being committed (catches git add -f bypass)
-IGNORED=$(git diff --cached --name-only | git check-ignore --no-index --stdin 2>/dev/null)
+IGNORED=$(git diff --cached --name-only --diff-filter=ACMR |
+  git check-ignore --no-index --stdin 2>/dev/null)
 if [ -n "$IGNORED" ]; then
   echo "BLOCKED: gitignored files staged for commit. Remove with: git rm --cached <file>"
   echo "$IGNORED"

@@ -6,7 +6,7 @@ using UnityMCP.Editor.Profiling;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PerfGraphElementTests
+    public class PerfGraphElementTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void PushValue_IncrementsCount()

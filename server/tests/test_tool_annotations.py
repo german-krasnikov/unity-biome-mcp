@@ -47,6 +47,8 @@ IDEM_TOOLS = [
     (ui, "set_rect"),
     (connection, "reconnect_unity"),
     (runtime, "wait_until"),
+    (testing, "run_tests"),
+    (testing, "cancel_test_run"),
 ]
 
 NON_IDEM_TOOLS = [
@@ -55,6 +57,7 @@ NON_IDEM_TOOLS = [
     (objects, "manage_component"),
     (objects, "wire_event"),
     (scene, "scene"),
+    (testing, "run_tests_wait"),
     # editor mutates editor state (play/pause/stop) — not idempotent
     (editor_control, "editor"),
 ]

@@ -1,7 +1,7 @@
 // 10 built-in IChipKindProvider implementations.
 // All internal — registered by ChipKindRegistry.EnsureBuiltIns().
 // AssetChipProviderBase: shared FormatPayload + Navigate(PingAsset) + DefaultDepth + Create.
-// HierarchyChipProvider: fully custom (instance ID, GlobalObjectId, HierarchyResolver).
+// HierarchyChipProvider: fully custom (transient EntityId, GlobalObjectId, HierarchyResolver).
 // Preview building moved to ChipPreviewBridge (temporary) until the preview registry (Dev 2).
 using System;
 using System.IO;
@@ -82,7 +82,8 @@ namespace UnityMCP.Editor.Chat
             var go = (GameObject)obj;
             var path = ComponentSerializer.GetPath(go);
             var goid = GlobalObjectId.GetGlobalObjectIdSlow(go);
-            return new ChipData(Key, path, FormatHierarchyDisplay(path, go.name), go.GetInstanceID(), goid);
+            return new ChipData(Key, path, FormatHierarchyDisplay(path, go.name),
+                TransientObjectId.GetWireValue(go), goid);
         }
 
         internal static string FormatHierarchyDisplay(string path, string leafName)
@@ -93,8 +94,8 @@ namespace UnityMCP.Editor.Chat
 
         public string FormatPayload(ChipData chip, ChipPayloadContext ctx)
         {
-            var bracket = chip.InstanceID != 0
-                ? $"[{Key}:{chip.Path}#{chip.InstanceID}]"
+            var bracket = !string.IsNullOrEmpty(chip.ObjectId) && chip.ObjectId != "0"
+                ? $"[{Key}:{chip.Path}#{chip.ObjectId}]"
                 : $"[{Key}:{chip.Path}]";
             if (chip.GlobalObjectId.targetObjectId != 0)
                 bracket = bracket.Insert(bracket.Length - 1, $"@{chip.GlobalObjectId}");

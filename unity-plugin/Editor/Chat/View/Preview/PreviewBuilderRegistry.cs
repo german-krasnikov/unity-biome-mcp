@@ -1,5 +1,6 @@
 // Registry of IPreviewBuilder instances. Lower priority = checked first.
 // Adding a new media type = one file implementing IPreviewBuilder + one Register() call.
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -58,6 +59,36 @@ namespace UnityMCP.Editor.Chat
             var builder = Resolve(request.KindKey, request.Path);
             return builder?.Build(request, context);
         }
+
+#if UNITY_INCLUDE_TESTS
+        /// <summary>
+        /// Preserves builder identity, priority ordering and the exact observable version.
+        /// </summary>
+        internal static IDisposable PreserveStateForTests()
+            => new TestIsolationScope(new List<Entry>(_entries), _version);
+
+        private sealed class TestIsolationScope : IDisposable
+        {
+            private List<Entry> _entriesSnapshot;
+            private readonly int _versionSnapshot;
+
+            internal TestIsolationScope(List<Entry> entriesSnapshot, int versionSnapshot)
+            {
+                _entriesSnapshot = entriesSnapshot;
+                _versionSnapshot = versionSnapshot;
+            }
+
+            public void Dispose()
+            {
+                if (_entriesSnapshot == null) return;
+
+                _entries.Clear();
+                _entries.AddRange(_entriesSnapshot);
+                _version = _versionSnapshot;
+                _entriesSnapshot = null;
+            }
+        }
+#endif
 
         /// <summary>TEST-ONLY: clear all registrations.</summary>
         public static void Reset()

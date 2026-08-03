@@ -5,7 +5,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class WizardAnimUtilsTests
+    public class WizardAnimUtilsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void FadeIn_AddsHiddenClass()

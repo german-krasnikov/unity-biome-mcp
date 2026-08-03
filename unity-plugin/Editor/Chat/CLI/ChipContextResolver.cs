@@ -25,12 +25,12 @@ namespace UnityMCP.Editor.Chat
 
         /// <summary>
         /// Serialize a chip ref to the AI-facing bracket format using the string kindKey.
-        /// Hierarchy objects include instance ID: [hierarchy:/Player #12345]
+        /// Hierarchy objects include a transient EntityId: [hierarchy:/Player#12345].
         /// </summary>
-        internal static string FormatChipRef(string kindKey, string path, int instanceID)
+        internal static string FormatChipRef(string kindKey, string path, string objectId)
         {
-            if (kindKey == ChipKindKeys.Hierarchy && instanceID != 0)
-                return $"[{kindKey}:{path}#{instanceID}]";
+            if (kindKey == ChipKindKeys.Hierarchy && !string.IsNullOrEmpty(objectId) && objectId != "0")
+                return $"[{kindKey}:{path}#{objectId}]";
             return $"[{kindKey}:{path}]";
         }
 
@@ -45,7 +45,7 @@ namespace UnityMCP.Editor.Chat
             var provider = ChipKindRegistry.Resolve(obj, assetPath);
             if (provider == null) return null;
             var chip = provider.Create(obj, assetPath);
-            return FormatChipRef(chip.KindKey, chip.Path, chip.InstanceID);
+            return FormatChipRef(chip.KindKey, chip.Path, chip.ObjectId);
         }
 
         /// <summary>
@@ -56,11 +56,11 @@ namespace UnityMCP.Editor.Chat
         /// depth "full"    → bracket + newline + full resolved text.
         /// Any other depth → treated as "path" (safe fallback).
         /// </summary>
-        internal static string EmitTyped(string kindKey, string path, int instanceID, string depth,
+        internal static string EmitTyped(string kindKey, string path, string objectId, string depth,
             Func<string, ChipDepth, string> resolveFn)
         {
             if (depth == "none") return "";
-            var bracket = FormatChipRef(kindKey, path, instanceID);
+            var bracket = FormatChipRef(kindKey, path, objectId);
             if (depth != "summary" && depth != "full") return bracket;
             var chipDepth = depth == "full" ? ChipDepth.Full : ChipDepth.Summary;
             var resolved  = resolveFn(path, chipDepth);
@@ -110,7 +110,7 @@ namespace UnityMCP.Editor.Chat
             {
                 var goForId = FindGo(chipPath);
                 if (goForId != null && goForId)
-                    return chipPath + "#" + goForId.GetInstanceID();
+                    return chipPath + "#" + TransientObjectId.GetWireValue(goForId);
                 return chipPath;
             }
 
@@ -120,7 +120,7 @@ namespace UnityMCP.Editor.Chat
             if (depth == ChipDepth.Summary) return SelectionSummary.Summarize(go, "Context");
 
             var budget = budgetOverride >= 0 ? budgetOverride : FullBudget;
-            var full = ComponentSerializer.SerializeAll(go.GetInstanceID());
+            var full = ComponentSerializer.SerializeAll(TransientObjectId.GetWireValue(go));
             if (full != null && full.Length <= budget) return full;
             return SelectionSummary.Summarize(go, "Context");
         }
@@ -133,7 +133,7 @@ namespace UnityMCP.Editor.Chat
             if (depth == "none") return "";
             var provider = ChipKindRegistry.ForKey(chip.KindKey);
             if (provider == null)
-                return EmitTyped(chip.KindKey, chip.Path, chip.InstanceID, depth,
+                return EmitTyped(chip.KindKey, chip.Path, chip.ObjectId, depth,
                     (p, d) => ResolveOne(p, d));
 
             // Resolve summary for context

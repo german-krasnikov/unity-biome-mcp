@@ -4,7 +4,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class GitInstallUrlForTests
+    public class GitInstallUrlForTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void GitInstallUrlFor_NullRef_ReturnsDefaultUrl()

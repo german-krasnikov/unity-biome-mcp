@@ -3,7 +3,7 @@ using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
-    public class ToolGroupStateTests
+    public class ToolGroupStateTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void FirstTool_SetsPending()
         {

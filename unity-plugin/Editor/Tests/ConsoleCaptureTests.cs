@@ -1,5 +1,6 @@
 // TDD: ConsoleCapture — comma-separated level filter fix.
 using System;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor;
@@ -7,7 +8,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ConsoleCaptureTests
+    public class ConsoleCaptureTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp() => ConsoleCapture.Clear();
@@ -122,12 +123,12 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void GetErrorsSince_ReturnsErrorsAfterTimestamp()
+        public async Task GetErrorsSince_ReturnsErrorsAfterTimestamp()
         {
             ConsoleCapture.InjectForTest("before-error", LogType.Error);
-            System.Threading.Thread.Sleep(20);
+            await Task.Delay(20);
             var since = DateTime.Now;
-            System.Threading.Thread.Sleep(20);
+            await Task.Delay(20);
             ConsoleCapture.InjectForTest("after-error", LogType.Error);
 
             var result = ConsoleCapture.GetErrorsSince(since);
@@ -236,7 +237,7 @@ namespace UnityMCP.Editor.Tests
         // ── S5: sinceSeconds param ──────────────────────────────────────────────
 
         [Test]
-        public void GetLogs_SinceSeconds_FiltersOldEntries()
+        public async Task GetLogs_SinceSeconds_FiltersOldEntries()
         {
             ConsoleCapture.InjectForTest("old entry", LogType.Log);
 
@@ -245,7 +246,7 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("old entry", resultWide);
 
             // sinceSeconds=0.001 → tiny window, entry is already older
-            System.Threading.Thread.Sleep(10);
+            await Task.Delay(10);
             var resultNarrow = ConsoleCapture.GetLogs(sinceSeconds: 0.001f);
             StringAssert.DoesNotContain("old entry", resultNarrow);
         }

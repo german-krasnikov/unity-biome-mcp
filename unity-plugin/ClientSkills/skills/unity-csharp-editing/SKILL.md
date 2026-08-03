@@ -10,6 +10,17 @@ If it is not already loaded, read
 code changes in the user's Unity project. It does not describe Unity Biome MCP
 plugin internals.
 
+When the change creates or modifies a test, also read
+`.claude/skills/unity-testing-verification/references/test-authoring.md` before
+editing. It requires the common test-base hierarchy, native NUnit/UTF
+attributes, Task-first async code, and exact run correlation.
+The conversion rule is hard: a new or modified test may not use `[UnityTest]`
+or return `IEnumerator`; rewrite it as `[Test] async Task` and await Unity
+operations. In UTF 1.6 EditMode UI tests, wait with the common-base
+`WaitForEditorUpdatesAsync`; `Awaitable.NextFrameAsync` depends on the runtime
+player loop and is forbidden there. PlayMode runtime frame boundaries may use
+the matching Unity `Awaitable` API.
+
 ## Workflow
 
 1. Read the complete target file and nearby tests.
@@ -27,7 +38,13 @@ compile_preflight(
    unavailable.
 5. Run `sync_unity(timeout=60)` once to trigger refresh and wait for the edited
    code to become live.
-6. Run focused NUnit tests with `run_tests_wait`.
+6. In an ordinary consumer project, run focused NUnit tests with one correlated
+   `run_tests_wait(mode="EditMode", filter="...")` call. Do not hand-roll
+   `run_tests` plus polling. When changing the Unity Biome MCP repository itself,
+   use `run_unity_tests.py` with `EditMode`, the already-connected repository
+   test `--project`, the focused `--filter`, `--timeout 1800`, and `--json`
+   instead. Do not open a second Unity Editor for an ordinary run; disposable
+   workers are reserved for explicitly destructive acceptance lanes.
 7. Check the console delta from a pre-change mark.
 
 Use `await_compile` only when compilation was already started by another

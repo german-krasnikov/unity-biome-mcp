@@ -18,7 +18,7 @@ namespace UnityMCP.Editor
             public string PropertyPath;
             public string ReferencedPath;
             public string Relation; // "child" | "external" | "asset" | "null"
-            public int ReferencedId;
+            public string ReferencedId;
             public GameObject ReferencedObject;
         }
 
@@ -30,7 +30,7 @@ namespace UnityMCP.Editor
             if (go == null) throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
 
             var sb = new StringBuilder();
-            var visited = new HashSet<int>();
+            var visited = new HashSet<GameObject>();
             AppendReferences(sb, go, path, depth, visited);
 
             if (includeChildren)
@@ -47,7 +47,6 @@ namespace UnityMCP.Editor
             var targetGo = ComponentSerializer.FindObject(path);
             if (targetGo == null) throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
 
-            var targetId = targetGo.GetInstanceID();
             var sb = new StringBuilder();
             int count = 0;
             int scanned = 0;
@@ -58,7 +57,7 @@ namespace UnityMCP.Editor
                 if (!scene.isLoaded || scene.name == "DontDestroyOnLoad") continue;
                 foreach (var root in scene.GetRootGameObjects())
                 {
-                    ScanForReferencesTo(root.transform, targetId, targetGo, sb, ref count, ref scanned);
+                    ScanForReferencesTo(root.transform, targetGo, sb, ref count, ref scanned);
                     if (scanned >= MAX_SCAN)
                     {
                         sb.AppendLine($"(scan limit {MAX_SCAN} reached)");
@@ -74,9 +73,9 @@ namespace UnityMCP.Editor
 
         // --- Internal helpers ---
 
-        private static void AppendReferences(StringBuilder sb, GameObject go, string rootPath, int depth, HashSet<int> visited)
+        private static void AppendReferences(StringBuilder sb, GameObject go, string rootPath, int depth, HashSet<GameObject> visited)
         {
-            if (!visited.Add(go.GetInstanceID())) return;
+            if (!visited.Add(go)) return;
 
             var goPath = ComponentSerializer.GetPath(go);
             var refs = CollectRefs(go);
@@ -111,7 +110,7 @@ namespace UnityMCP.Editor
             }
         }
 
-        private static void AppendReferencesRecursive(StringBuilder sb, GameObject go, string rootPath, int depth, HashSet<int> visited)
+        private static void AppendReferencesRecursive(StringBuilder sb, GameObject go, string rootPath, int depth, HashSet<GameObject> visited)
         {
             AppendReferences(sb, go, rootPath, depth, visited);
             foreach (Transform child in go.transform)
@@ -176,14 +175,14 @@ namespace UnityMCP.Editor
             if (refGo != null)
             {
                 entry.ReferencedPath = ComponentSerializer.GetPath(refGo);
-                entry.ReferencedId = refGo.GetInstanceID();
+                entry.ReferencedId = TransientObjectId.GetWireValue(refGo);
                 entry.ReferencedObject = refGo;
                 entry.Relation = ClassifyRef(goPath, refGo);
             }
             else
             {
                 entry.ReferencedPath = prop.objectReferenceValue.name;
-                entry.ReferencedId = prop.objectReferenceValue.GetInstanceID();
+                entry.ReferencedId = TransientObjectId.GetWireValue(prop.objectReferenceValue);
                 entry.Relation = "asset";
             }
 
@@ -216,7 +215,7 @@ namespace UnityMCP.Editor
             return sep >= 0 ? sep + 2 : 1;
         }
 
-        private static void ScanForReferencesTo(Transform t, int targetId, GameObject targetGo, StringBuilder sb, ref int count, ref int scanned)
+        private static void ScanForReferencesTo(Transform t, GameObject targetGo, StringBuilder sb, ref int count, ref int scanned)
         {
             if (scanned >= MAX_SCAN) return;
             scanned++;
@@ -229,7 +228,7 @@ namespace UnityMCP.Editor
                 var so = new SerializedObject(comp);
                 WalkObjectRefs(so, (p, label) =>
                 {
-                    if (MatchesTarget(p, targetId))
+                    if (MatchesTarget(p, targetGo))
                     {
                         sb.Append(ComponentSerializer.GetPath(go))
                           .Append(" [").Append(comp.GetType().Name).Append("].").AppendLine(label);
@@ -240,15 +239,15 @@ namespace UnityMCP.Editor
             count = localCount;
 
             foreach (Transform child in t)
-                ScanForReferencesTo(child, targetId, targetGo, sb, ref count, ref scanned);
+                ScanForReferencesTo(child, targetGo, sb, ref count, ref scanned);
         }
 
-        private static bool MatchesTarget(SerializedProperty prop, int targetId)
+        private static bool MatchesTarget(SerializedProperty prop, GameObject targetGo)
         {
             if (prop.propertyType != SerializedPropertyType.ObjectReference || prop.objectReferenceValue == null)
                 return false;
-            if (prop.objectReferenceValue is GameObject refGo) return refGo.GetInstanceID() == targetId;
-            if (prop.objectReferenceValue is Component refComp) return refComp.gameObject.GetInstanceID() == targetId;
+            if (prop.objectReferenceValue is GameObject refGo) return refGo == targetGo;
+            if (prop.objectReferenceValue is Component refComp) return refComp.gameObject == targetGo;
             return false;
         }
 

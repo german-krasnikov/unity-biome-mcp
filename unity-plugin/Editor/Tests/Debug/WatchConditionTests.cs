@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class WatchConditionTests
+    public class WatchConditionTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void EmptyCondition_ReturnsFalse() =>
             Assert.IsFalse(WatchCondition.Evaluate("", 5f));

@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class PreviewPathResolverWindowsGuardTests
+    public class PreviewPathResolverWindowsGuardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Component chip path "Root|Transform" — has no extension → false on all platforms
         [Test]

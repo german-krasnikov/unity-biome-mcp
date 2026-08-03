@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class BatchHelperParserTests
+    public class BatchHelperParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── ParseLine ─────────────────────────────────────────────────────────
 

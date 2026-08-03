@@ -13,7 +13,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipPillFactoryTests
+    public class ChipPillFactoryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
         [TearDown] public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
@@ -148,25 +148,22 @@ namespace UnityMCP.Editor.Chat.Tests
         public void AttachReadOnlyBehavior_LeftClick_InvokesNavigate()
         {
             LogAssert.ignoreFailingMessages = true;
-            var window = EditorWindow.GetWindow<PillFactoryTestWindow>();
-            try
-            {
-                var navigated = false;
-                // Use a unique key not in built-ins to avoid duplicate-key guard
-                var provider  = new SpyChipProvider("spy_navigate_kind",
-                    onNavigate: _ => navigated = true);
-                ChipKindRegistry.Register(provider);
+            var window = CreateOwnedEditorWindow<PillFactoryTestWindow>();
+            window.ShowUtility();
+            var navigated = false;
+            // Use a unique key not in built-ins to avoid duplicate-key guard
+            var provider  = new SpyChipProvider("spy_navigate_kind",
+                onNavigate: _ => navigated = true);
+            ChipKindRegistry.Register(provider);
 
-                var chip = new ChipData("spy_navigate_kind", "/TestObj", "TestObj", 0);
-                var pill = ChipPillFactory.Build(chip);
-                window.rootVisualElement.Add(pill);
+            var chip = new ChipData("spy_navigate_kind", "/TestObj", "TestObj", 0);
+            var pill = ChipPillFactory.Build(chip);
+            window.rootVisualElement.Add(pill);
 
-                ChipPillFactory.AttachReadOnlyBehavior(pill, chip);
-                SendClick(pill, 1);
+            ChipPillFactory.AttachReadOnlyBehavior(pill, chip);
+            SendClick(pill, 1);
 
-                Assert.IsTrue(navigated, "AttachReadOnlyBehavior: left-click must call Navigate");
-            }
-            finally { window.Close(); }
+            Assert.IsTrue(navigated, "AttachReadOnlyBehavior: left-click must call Navigate");
         }
 
         // T-CF2: unknown kindKey — left-click must not throw

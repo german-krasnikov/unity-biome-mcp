@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ChatHeaderAnimTests
+    public class ChatHeaderAnimTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private VisualElement _root;
 

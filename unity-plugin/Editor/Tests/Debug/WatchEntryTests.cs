@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class WatchEntryTests
+    public class WatchEntryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void WatchEntry_DefaultValues()

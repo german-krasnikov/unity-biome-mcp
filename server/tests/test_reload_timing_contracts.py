@@ -1,7 +1,7 @@
 """Timing contract tests — pin domain reload recovery constants.
 
 Covers: backoff bounds, hard deadline, startup grace, stall threshold,
-C# TestRunner stale window. No Unity required (marker: not live).
+and the absence of an age-based C# result transition. No Unity required.
 
 Evidence: 141 monkey experiments in Plans/Reload/Monkey/ + RC analysis in
 Plans/Reload/V2/tcp-churn-heartbeat-fix-2026-07.md.
@@ -62,10 +62,11 @@ def test_backoff_max_less_than_startup_grace():
 # Group C: C# structural (text search, no Unity)
 # ===========================================================================
 
-def test_testrunner_stale_timeout_is_600s():
-    """TestRunner.cs StaleTimeoutSec == 600.0 — 10-min cap on test-result polling."""
+def test_testrunner_has_no_age_based_terminal_transition():
+    """Run age is never used to erase or fabricate durable lifecycle state."""
     src = (_PLUGIN / "Editor/TestRunner.cs").read_text(encoding="utf-8")
-    assert "StaleTimeoutSec = 600.0" in src
+    assert "StaleTimeoutSec" not in src
+    assert "KeyStartTime" not in src
 
 
 def test_ping_stall_threshold_is_6():

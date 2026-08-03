@@ -19,7 +19,7 @@ namespace UnityMCP.Editor.Tests
         {
             var addGo = CreateIn(_additiveScene, "TestObj");
             var mainGo = new GameObject("TestObj");
-            _toDestroy.Add(mainGo);
+            TrackOwnedObject(mainGo);
 
             var found = ComponentSerializer.FindObject(_additiveScene.name + ":/TestObj");
 
@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.Tests
         public void FindObject_QualifiedPath_Main()
         {
             var mainGo = new GameObject("TestObj");
-            _toDestroy.Add(mainGo);
+            TrackOwnedObject(mainGo);
             CreateIn(_additiveScene, "TestObj");
 
             var found = ComponentSerializer.FindObject(_savedMainSceneName + ":/TestObj");
@@ -42,7 +42,7 @@ namespace UnityMCP.Editor.Tests
         public void FindObject_UnqualifiedAmbiguous_Throws()
         {
             var go = new GameObject("TestObj");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             CreateIn(_additiveScene, "TestObj");
 
             Assert.Throws<System.ArgumentException>(() => ComponentSerializer.FindObject("/TestObj"));
@@ -63,7 +63,7 @@ namespace UnityMCP.Editor.Tests
         {
             var go = CreateIn(_additiveScene, "InstanceObj");
 
-            var found = ComponentSerializer.FindObject("#" + go.GetInstanceID());
+            var found = ComponentSerializer.FindObject("#" + TransientObjectId.GetWireValue(go));
 
             Assert.That(found, Is.EqualTo(go));
         }
@@ -72,9 +72,9 @@ namespace UnityMCP.Editor.Tests
         public void FindObject_SlashInName_ByInstanceId()
         {
             var go = new GameObject("OBJ/WITH/SLASH");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
-            var found = ComponentSerializer.FindObject("#" + go.GetInstanceID());
+            var found = ComponentSerializer.FindObject("#" + TransientObjectId.GetWireValue(go));
 
             Assert.That(found, Is.EqualTo(go));
         }
@@ -86,7 +86,7 @@ namespace UnityMCP.Editor.Tests
             _additiveScene = default;
 
             var go = new GameObject("OBJ/WITH/SLASH");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
             var found = ComponentSerializer.FindObject("/OBJ/WITH/SLASH");
 
@@ -111,7 +111,7 @@ namespace UnityMCP.Editor.Tests
             _additiveScene = default;
 
             var go = new GameObject("NoPrefixObj");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
             var path = ComponentSerializer.GetPath(go);
 
@@ -156,9 +156,9 @@ namespace UnityMCP.Editor.Tests
         public void MultipleSlashesInName_InstanceIdFallback()
         {
             var go = new GameObject("[MECH/ZONE/TEMPLATE]");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
-            var found = ComponentSerializer.FindObject("#" + go.GetInstanceID());
+            var found = ComponentSerializer.FindObject("#" + TransientObjectId.GetWireValue(go));
 
             Assert.That(found, Is.EqualTo(go));
         }
@@ -192,7 +192,7 @@ namespace UnityMCP.Editor.Tests
         public void FindRoot_ThreeScenes_AmbiguityHasAllThree()
         {
             var s2 = AddScene(); var s3 = AddScene();
-            var go1 = new GameObject("AmbigRoot"); _toDestroy.Add(go1);
+            var go1 = new GameObject("AmbigRoot"); TrackOwnedObject(go1);
             CreateIn(s2, "AmbigRoot"); CreateIn(s3, "AmbigRoot");
 
             var ex = Assert.Throws<System.ArgumentException>(
@@ -203,7 +203,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void UnqualifiedNoSlash_StillAmbiguous()
         {
-            var go = new GameObject("SharedRoot"); _toDestroy.Add(go);
+            var go = new GameObject("SharedRoot"); TrackOwnedObject(go);
             CreateIn(_additiveScene, "SharedRoot");
 
             Assert.Throws<System.ArgumentException>(
@@ -228,7 +228,7 @@ namespace UnityMCP.Editor.Tests
         public void Search_MultiScene_FindsBothScenes()
         {
             var mainGo = new GameObject("Alice_UniqueSearch");
-            _toDestroy.Add(mainGo);
+            TrackOwnedObject(mainGo);
             CreateIn(_additiveScene, "Alice_UniqueSearch");
 
             var result = SearchHelper.Search("Alice_UniqueSearch");
@@ -258,7 +258,7 @@ namespace UnityMCP.Editor.Tests
             _additiveScene = default;
 
             var go = new GameObject("Alice_NoPrefix");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
             var result = SearchHelper.Search("Alice_NoPrefix");
 

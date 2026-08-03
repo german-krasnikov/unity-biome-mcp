@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class CopyAsMcpRefTests
+    public class CopyAsMcpRefTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private System.Collections.Generic.List<GameObject> _created;
 
@@ -28,8 +28,6 @@ namespace UnityMCP.Editor.Chat.Tests
             foreach (var go in _created)
                 if (go != null) Object.DestroyImmediate(go);
             ChipKindRegistry.ResetToBuiltIns();
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
         private GameObject MakeGo(string name)
@@ -39,7 +37,7 @@ namespace UnityMCP.Editor.Chat.Tests
             return go;
         }
 
-        // 1. Hierarchy GO produces bracket ref with instance ID
+        // 1. Hierarchy GO produces bracket ref with transient EntityId
         [Test]
         public void FormatAsRef_HierarchyGO_ReturnsBracketWithId()
         {
@@ -48,7 +46,7 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.IsNotNull(result);
             StringAssert.StartsWith("[hierarchy:/Player#", result);
             StringAssert.EndsWith("]", result);
-            StringAssert.Contains(go.GetInstanceID().ToString(), result);
+            StringAssert.Contains(TransientObjectId.GetWireValue(go), result);
         }
 
         // 2. Null returns null — no throw
@@ -65,7 +63,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var go = MakeGo("Hero");
             var result = ChipContextResolver.FormatAsRef(go);
             var expected = ChipContextResolver.FormatChipRef(
-                ChipKindKeys.Hierarchy, "/" + go.name, go.GetInstanceID());
+                ChipKindKeys.Hierarchy, "/" + go.name, TransientObjectId.GetWireValue(go));
             Assert.AreEqual(expected, result);
         }
 

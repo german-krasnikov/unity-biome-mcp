@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ErrorResolverButtonTests
+    public class ErrorResolverButtonTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── GroupErrors ────────────────────────────────────────────────────
 

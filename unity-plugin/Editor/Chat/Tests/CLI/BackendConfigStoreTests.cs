@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class BackendConfigStoreTests
+    public class BackendConfigStoreTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tempPath;
 

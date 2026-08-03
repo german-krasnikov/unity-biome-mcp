@@ -11,7 +11,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ImageViewerWindowTests
+    public class ImageViewerWindowTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── CalcPixelRatio (pure seam — GREEN immediately) ───────────────────
 

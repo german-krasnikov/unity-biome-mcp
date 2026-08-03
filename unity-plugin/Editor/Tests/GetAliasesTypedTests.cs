@@ -7,7 +7,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class GetAliasesTypedTests
+    public class GetAliasesTypedTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private readonly List<Object> _created = new List<Object>();
 

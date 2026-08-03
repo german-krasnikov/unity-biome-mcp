@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using NUnit.Framework;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
@@ -8,10 +7,6 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class SceneRefLinterTests : SceneTestBase
     {
-        [SetUp]
-        public void FreshScene() =>
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
         [Test]
         public void LintScript_EmptyScript_ReturnsEmpty()
         {

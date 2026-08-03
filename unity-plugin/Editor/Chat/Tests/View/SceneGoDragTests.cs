@@ -12,7 +12,7 @@ using Object = UnityEngine.Object;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SceneGoDragTests
+    public class SceneGoDragTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private List<(Object obj, string path, string name)> _chips;
 
@@ -29,8 +29,6 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             ChipKindRegistry.ResetToBuiltIns();
             ChipPillFactory.ColorResolver = null;
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
         private void Capture(Object o, string p, string n) => _chips.Add((o, p, n));

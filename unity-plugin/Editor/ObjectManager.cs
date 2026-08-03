@@ -179,16 +179,20 @@ namespace UnityMCP.Editor
             Undo.DestroyObjectImmediate(go);
         }
 
-        public static void DeleteObject(int instanceId, bool force = false)
+        public static void DeleteObjectById(string objectId, bool force = false)
         {
-            var go = ComponentSerializer.FindObjectById(instanceId);
+            var go = ComponentSerializer.FindObjectById(objectId);
             if (go == null)
-                throw new ArgumentException($"Object not found: #{instanceId}");
+                throw new ArgumentException($"Object not found: #{objectId}");
             if (!force && go.transform.childCount > 0)
                 throw new ArgumentException(
-                    $"'#{instanceId}' has {go.transform.childCount} children. Pass force=true to delete with all descendants.");
+                    $"'#{objectId}' has {go.transform.childCount} children. Pass force=true to delete with all descendants.");
             Undo.DestroyObjectImmediate(go);
         }
+
+        public static void DeleteObject(int legacyId, bool force = false)
+            => DeleteObjectById(
+                legacyId.ToString(System.Globalization.CultureInfo.InvariantCulture), force);
 
         public static void ManageComponent(string path, string type, string action)
         {

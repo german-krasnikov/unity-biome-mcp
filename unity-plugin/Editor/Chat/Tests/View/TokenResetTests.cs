@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class TokenResetTests
+    public class TokenResetTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly FieldInfo s_inputTokens  = typeof(MCPChatWindow)
             .GetField("_inputTokens",  BindingFlags.NonPublic | BindingFlags.Instance);

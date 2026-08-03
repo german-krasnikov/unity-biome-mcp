@@ -46,8 +46,12 @@ Tools are organized into a 15-tool Core and eight task-oriented categories. Use 
 
 **Run tests & playtests**
 - [run_playtest](../features/playtest.md#run_playtest-parameters) — Execute DSL-based test scenarios
-- [run_tests](scene.md#run_tests) — Execute NUnit tests
-- [run_tests_wait](scene.md#run_tests_wait) — Run tests and block until results
+- [run_tests](scene.md#run_tests) — Low-level nonblocking NUnit dispatch
+- [run_tests_wait](scene.md#run_tests_wait) — Preferred interactive correlated NUnit runner
+- [get_test_run](scene.md#get_test_run) — Poll one exact durable NUnit run
+- [resolve_test_request](scene.md#resolve_test_request) — Resolve a lost start acknowledgment
+- [cancel_test_run](scene.md#cancel_test_run) — Cancel one exact durable NUnit run
+- [list_test_runs](scene.md#list_test_runs) — Inspect recent durable NUnit runs
 - [test_step](runtime.md#test_step) — Single assertion within a test
 
 **Take screenshots**

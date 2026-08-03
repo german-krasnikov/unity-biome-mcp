@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class AssistantBubbleNormalizationTests
+    public class AssistantBubbleNormalizationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ChatTranscript _transcript;
         private VisualElement  _container;

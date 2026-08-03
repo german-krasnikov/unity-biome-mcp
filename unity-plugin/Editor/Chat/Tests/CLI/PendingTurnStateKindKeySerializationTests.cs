@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class PendingTurnStateKindKeySerializationTests
+    public class PendingTurnStateKindKeySerializationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── v4 KindKeys roundtrip ─────────────────────────────────────────────
 

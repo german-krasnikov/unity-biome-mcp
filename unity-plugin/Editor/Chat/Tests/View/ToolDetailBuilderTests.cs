@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ToolDetailBuilderTests
+    public class ToolDetailBuilderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static VisualElement MakeChip() =>
             new VisualElement { name = "tool-chip" };

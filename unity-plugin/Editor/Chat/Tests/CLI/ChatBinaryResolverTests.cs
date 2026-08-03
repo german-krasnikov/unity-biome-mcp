@@ -7,14 +7,18 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChatBinaryResolverTests
+    public class ChatBinaryResolverTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()
         {
             ChatBinaryResolver.WhichOverride = null;
-            EditorPrefs.DeleteKey(ChatBinaryResolver.PrefKey);
-            EditorPrefs.DeleteKey(ChatBinaryResolver.CodexPrefKey);
+            RegisterCleanup(ChatBinaryResolver.ResetCacheForTests);
+            DeleteEditorPrefString(ChatBinaryResolver.PrefKey);
+            DeleteEditorPrefString(ChatBinaryResolver.CodexPrefKey);
+            DeleteEditorPrefString(ChatBinaryResolver.KimiPrefKey);
+            DeleteEditorPrefString(ChatBinaryResolver.OpenCodePrefKey);
+            DeleteEditorPrefString(ChatBinaryResolver.GeminiPrefKey);
             ChatBinaryResolver.ResetCacheForTests();
         }
 
@@ -22,11 +26,6 @@ namespace UnityMCP.Editor.Chat.Tests
         public void TearDown()
         {
             ChatBinaryResolver.WhichOverride = null;
-            EditorPrefs.DeleteKey(ChatBinaryResolver.PrefKey);
-            EditorPrefs.DeleteKey(ChatBinaryResolver.CodexPrefKey);
-            EditorPrefs.DeleteKey(ChatBinaryResolver.KimiPrefKey);
-            EditorPrefs.DeleteKey(ChatBinaryResolver.OpenCodePrefKey);
-            EditorPrefs.DeleteKey(ChatBinaryResolver.GeminiPrefKey);
         }
 
         [Test]
@@ -35,7 +34,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var invoked = false;
             ChatBinaryResolver.WhichOverride = _ => { invoked = true; return "/usr/local/bin/claude"; };
 
-            EditorPrefs.SetString(ChatBinaryResolver.PrefKey, "/custom/claude");
+            SetEditorPrefString(ChatBinaryResolver.PrefKey, "/custom/claude");
             var result = ChatBinaryResolver.Resolve();
 
             Assert.AreEqual("/custom/claude", result);
@@ -87,7 +86,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var invoked = false;
             ChatBinaryResolver.WhichOverride = _ => { invoked = true; return null; };
 
-            EditorPrefs.SetString(ChatBinaryResolver.CodexPrefKey, "/custom/codex.cmd");
+            SetEditorPrefString(ChatBinaryResolver.CodexPrefKey, "/custom/codex.cmd");
             var result = ChatBinaryResolver.Resolve("codex");
 
             Assert.AreEqual("/custom/codex.cmd", result);

@@ -14,7 +14,7 @@ using Object = UnityEngine.Object;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SelectorRestoreTests
+    public class SelectorRestoreTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string PrefKey = "MCPChat.SelectedBackend";
 
@@ -23,10 +23,7 @@ namespace UnityMCP.Editor.Chat.Tests
         private static readonly FieldInfo s_backends = typeof(MCPChatWindow).GetField("_backends",      BindingFlags.NonPublic | BindingFlags.Instance);
 
         [SetUp]
-        public void SetUp() => EditorPrefs.DeleteKey(PrefKey);
-
-        [TearDown]
-        public void TearDown() => EditorPrefs.DeleteKey(PrefKey);
+        public void SetUp() => DeleteEditorPrefString(PrefKey);
 
         [Test]
         public void Restore_KnownBackendByKind_SetsCorrectSelectedKind()
@@ -34,7 +31,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
-                EditorPrefs.SetString(PrefKey, BackendKind.Codex.ToString());
+                SetEditorPrefString(PrefKey, BackendKind.Codex.ToString());
 
                 w.RestoreSelectedBackendFromPrefs();
 
@@ -49,7 +46,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
-                EditorPrefs.SetString(PrefKey, "Ghost");
+                SetEditorPrefString(PrefKey, "Ghost");
                 LogAssert.Expect(LogType.Warning, new Regex("Ghost"));
 
                 Assert.DoesNotThrow(() => w.RestoreSelectedBackendFromPrefs());
@@ -75,7 +72,7 @@ namespace UnityMCP.Editor.Chat.Tests
                     new BackendSpec("My Custom Agent (renamed)", "my-custom-agent", true, BackendKind.Claude),
                 };
                 s_backends.SetValue(w, specs);
-                EditorPrefs.SetString(PrefKey, "my-custom-agent"); // stable id, not the renamed DisplayName
+                SetEditorPrefString(PrefKey, "my-custom-agent"); // stable id, not the renamed DisplayName
 
                 w.RestoreSelectedBackendFromPrefs();
 
@@ -113,7 +110,7 @@ namespace UnityMCP.Editor.Chat.Tests
                     new BackendSpec("LegacyAgent", "legacy-agent", true, BackendKind.Claude),
                 };
                 s_backends.SetValue(w, specs);
-                EditorPrefs.SetString(PrefKey, "LegacyAgent"); // old format: DisplayName
+                SetEditorPrefString(PrefKey, "LegacyAgent"); // old format: DisplayName
 
                 w.RestoreSelectedBackendFromPrefs();
 

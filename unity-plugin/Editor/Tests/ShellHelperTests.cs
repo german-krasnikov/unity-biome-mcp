@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal class ShellHelperTests
+    internal class ShellHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [TearDown]
         public void TearDown() => ShellHelper.ResetForTests();

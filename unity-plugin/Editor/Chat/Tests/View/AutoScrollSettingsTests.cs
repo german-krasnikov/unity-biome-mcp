@@ -7,15 +7,12 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class AutoScrollSettingsTests
+    public class AutoScrollSettingsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string PrefKey = "MCPChat.AutoScroll";
 
         [SetUp]
-        public void SetUp() => EditorPrefs.DeleteKey(PrefKey);
-
-        [TearDown]
-        public void TearDown() => EditorPrefs.DeleteKey(PrefKey);
+        public void SetUp() => DeleteEditorPrefBool(PrefKey);
 
         // RED: _autoScrollEnabled field must NOT exist after F22 removes it.
         // After fix: Drain reads EditorPrefs directly — no field.
@@ -39,14 +36,14 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void AutoScrollPref_CanBeSetFalse()
         {
-            EditorPrefs.SetBool(PrefKey, false);
+            SetEditorPrefBool(PrefKey, false);
             Assert.IsFalse(EditorPrefs.GetBool(PrefKey, true));
         }
 
         [Test]
         public void AutoScrollPref_CanBeSetTrue()
         {
-            EditorPrefs.SetBool(PrefKey, true);
+            SetEditorPrefBool(PrefKey, true);
             Assert.IsTrue(EditorPrefs.GetBool(PrefKey, true));
         }
 

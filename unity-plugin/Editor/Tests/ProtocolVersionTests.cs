@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ProtocolVersionTests
+    public class ProtocolVersionTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void GetVersion_ReturnsNewFormat()

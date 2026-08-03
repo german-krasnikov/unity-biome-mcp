@@ -144,12 +144,14 @@ namespace UnityMCP.Reload
             return "";
         }
 
-        // C10: detect reload-failed markers in Editor.log.
+        // C10: detect a current reload failure in Editor.log.
         // Testable overload with injected logPath.
         public static bool DetectReloadFailed(string logPath)
         {
-            const string reloadFailed  = "Reloading assemblies failed.";
-            const string reloadAborted = "Editor compiler errors found. Will not reload assemblies.";
+            const string reloadFailed    = "Reloading assemblies failed.";
+            const string reloadAborted   = "Editor compiler errors found. Will not reload assemblies.";
+            const string reloadComplete  = "Reload assemblies complete.";
+            const string monoReloaded    = "Mono: successfully reloaded assembly";
             try
             {
                 if (string.IsNullOrEmpty(logPath) || !File.Exists(logPath))
@@ -158,8 +160,16 @@ namespace UnityMCP.Reload
                 using (var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 using (var reader = new StreamReader(fs))
                     text = reader.ReadToEnd();
-                return text.IndexOf(reloadFailed,  StringComparison.Ordinal) >= 0
-                    || text.IndexOf(reloadAborted, StringComparison.Ordinal) >= 0;
+
+                int lastFailure = Math.Max(
+                    text.LastIndexOf(reloadFailed, StringComparison.Ordinal),
+                    text.LastIndexOf(reloadAborted, StringComparison.Ordinal));
+                if (lastFailure < 0) return false;
+
+                int lastSuccess = Math.Max(
+                    text.LastIndexOf(reloadComplete, StringComparison.Ordinal),
+                    text.LastIndexOf(monoReloaded, StringComparison.Ordinal));
+                return lastSuccess < lastFailure;
             }
             catch (Exception) { return false; }
         }
@@ -179,31 +189,46 @@ namespace UnityMCP.Reload
                 using (var reader = new StreamReader(fs))
                     text = reader.ReadToEnd();
 
-                const string failHeader = "## Script Compilation Error for:";
-                var idx = text.LastIndexOf(failHeader, StringComparison.Ordinal);
-                if (idx < 0) return "clean";
-
-                var block = text.Substring(idx, Math.Min(8192, text.Length - idx));
-                var matches = Regex.Matches(block, @"error (CS\d+)");
-                if (matches.Count == 0) return "clean";
-
-                var seen = new System.Collections.Generic.HashSet<string>();
-                var codes = new StringBuilder();
-                foreach (Match m in matches)
-                {
-                    var code = m.Groups[1].Value;
-                    if (seen.Add(code))
-                    {
-                        if (codes.Length > 0) codes.Append(' ');
-                        codes.Append(code);
-                    }
-                }
-                return codes.ToString();
+                return ParseEditorLogText(text);
             }
             catch (Exception e)
             {
                 return $"error:{e.GetType().Name}";
             }
+        }
+
+        internal static string ParseEditorLogText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "clean";
+
+            const string failHeader     = "## Script Compilation Error for:";
+            const string reloadComplete = "Reload assemblies complete.";
+            const string monoReloaded   = "Mono: successfully reloaded assembly";
+
+            var idx = text.LastIndexOf(failHeader, StringComparison.Ordinal);
+            if (idx < 0) return "clean";
+
+            var lastSuccess = Math.Max(
+                text.LastIndexOf(reloadComplete, StringComparison.Ordinal),
+                text.LastIndexOf(monoReloaded, StringComparison.Ordinal));
+            if (lastSuccess > idx) return "clean";
+
+            var block = text.Substring(idx, Math.Min(8192, text.Length - idx));
+            var matches = Regex.Matches(block, @"error (CS\d+)");
+            if (matches.Count == 0) return "clean";
+
+            var seen = new System.Collections.Generic.HashSet<string>();
+            var codes = new StringBuilder();
+            foreach (Match m in matches)
+            {
+                var code = m.Groups[1].Value;
+                if (seen.Add(code))
+                {
+                    if (codes.Length > 0) codes.Append(' ');
+                    codes.Append(code);
+                }
+            }
+            return codes.ToString();
         }
 
         static string GetEditorLogPath()

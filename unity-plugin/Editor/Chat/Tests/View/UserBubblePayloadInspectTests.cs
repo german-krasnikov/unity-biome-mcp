@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class UserBubblePayloadInspectTests
+    public class UserBubblePayloadInspectTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ChatTranscript _transcript;
         private VisualElement  _container;

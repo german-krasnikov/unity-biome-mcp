@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class ModelContextWindowsTests
+    internal sealed class ModelContextWindowsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [TestCase("claude-opus-4",     BackendKind.Claude,      200_000)]
         [TestCase("claude-sonnet-4-6", BackendKind.Claude,      200_000)]

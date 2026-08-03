@@ -47,7 +47,7 @@ namespace UnityMCP.Editor.Chat
                         if (boundBefore && boundAfter)
                         {
                             sb.Append(ChipContextResolver.FormatChipRef(
-                                chip.KindKey, chip.Path, chip.InstanceID));
+                                chip.KindKey, chip.Path, chip.ObjectId));
                             pos     = after;
                             matched = true;
                             break;

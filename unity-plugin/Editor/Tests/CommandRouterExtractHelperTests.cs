@@ -10,7 +10,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CommandRouterExtractHelperTests
+    public class CommandRouterExtractHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string Key = "offset";
         private static readonly Vector3 Default = new Vector3(9f, 9f, 9f);

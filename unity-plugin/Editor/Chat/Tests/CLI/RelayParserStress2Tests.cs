@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelayParserStress2Tests
+    public class RelayParserStress2Tests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Payload size extremes
         [Test] public void Parse_TextDelta_1Char_Preserved()

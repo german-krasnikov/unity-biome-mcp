@@ -47,7 +47,7 @@ namespace UnityMCP.Editor.Tests
             ReferenceHelper.WalkObjectRefs(so, (p, label) =>
             {
                 // All AudioSource refs are null with instanceId=0 (empty slots) — not dangling.
-                if (p.objectReferenceInstanceIDValue == 0 && p.objectReferenceValue == null)
+                if (!TransientObjectId.HasSerializedReference(p) && p.objectReferenceValue == null)
                     found = true; // walker reaches ObjectReference fields
             });
             Assert.IsTrue(found, "WalkObjectRefs must visit at least one ObjectReference on AudioSource");

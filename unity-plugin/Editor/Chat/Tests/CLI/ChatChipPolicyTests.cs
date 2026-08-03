@@ -6,13 +6,13 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChatChipPolicyTests
+    public class ChatChipPolicyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [TearDown]
-        public void TearDown()
+        [SetUp]
+        public void SetUp()
         {
             foreach (var name in new[] { "GameObject", "Material", "Texture", "AnimationClip", "MonoScript", "Mesh", "AudioClip", "ScriptableObject" })
-                EditorPrefs.DeleteKey($"MCPChat.ChipAllow.{name}");
+                DeleteEditorPrefBool($"MCPChat.ChipAllow.{name}");
         }
 
         [Test] public void Prefab_Allowed()     => Assert.IsTrue(ChatChipPolicy.IsAllowedAssetType(typeof(UnityEngine.GameObject)));
@@ -38,28 +38,28 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void Material_DisabledByPref_Rejected()
         {
-            EditorPrefs.SetBool("MCPChat.ChipAllow.Material", false);
+            SetEditorPrefBool("MCPChat.ChipAllow.Material", false);
             Assert.IsFalse(ChatChipPolicy.IsAllowedAssetType(typeof(UnityEngine.Material)));
         }
 
         [Test]
         public void Material_EnabledByPref_Allowed()
         {
-            EditorPrefs.SetBool("MCPChat.ChipAllow.Material", true);
+            SetEditorPrefBool("MCPChat.ChipAllow.Material", true);
             Assert.IsTrue(ChatChipPolicy.IsAllowedAssetType(typeof(UnityEngine.Material)));
         }
 
         [Test]
         public void Default_NoPrefsSet_MaterialAllowed()
         {
-            EditorPrefs.DeleteKey("MCPChat.ChipAllow.Material");
+            DeleteEditorPrefBool("MCPChat.ChipAllow.Material");
             Assert.IsTrue(ChatChipPolicy.IsAllowedAssetType(typeof(UnityEngine.Material)));
         }
 
         [Test]
         public void Texture2D_DisabledViaTextureKey()
         {
-            EditorPrefs.SetBool("MCPChat.ChipAllow.Texture", false);
+            SetEditorPrefBool("MCPChat.ChipAllow.Texture", false);
             Assert.IsFalse(ChatChipPolicy.IsAllowedAssetType(typeof(UnityEngine.Texture2D)));
         }
 

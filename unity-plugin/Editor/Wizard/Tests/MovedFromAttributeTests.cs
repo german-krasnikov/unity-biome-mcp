@@ -4,7 +4,7 @@ using UnityEngine.Scripting.APIUpdating;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MovedFromAttributeTests
+    public class MovedFromAttributeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void MCPStatusWindow_HasMovedFromAttribute()

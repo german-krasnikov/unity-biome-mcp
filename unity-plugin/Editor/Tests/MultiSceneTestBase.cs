@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.IO;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -8,69 +8,49 @@ using UnityEngine.SceneManagement;
 
 namespace UnityMCP.Editor.Tests
 {
-    public abstract class MultiSceneTestBase
+    public abstract class MultiSceneTestBase : SceneTestBase
     {
         protected Scene _additiveScene;
-        protected readonly List<GameObject> _toDestroy = new();
-        protected readonly List<Scene> _extraScenes = new();
-        private readonly List<string> _extraPaths = new();
+        private readonly List<Scene> _extraScenes = new();
         private string _tempPath;
         private string _additiveTempPath;
         protected string _savedMainSceneName;
 
         [SetUp]
-        public virtual void SetUp()
+        public void PrepareMultiSceneFixture()
         {
+            _extraScenes.Clear();
             TestPaths.EnsureFolder();
             var current = SceneManager.GetActiveScene();
             _tempPath = TestPaths.TempFolder + $"/{GetType().Name}_temp.unity";
+            TrackOwnedAsset(_tempPath);
             if (string.IsNullOrEmpty(current.path))
-                EditorSceneManager.SaveScene(current, _tempPath);
+            {
+                if (!EditorSceneManager.SaveScene(current, _tempPath))
+                    throw new InvalidOperationException($"Could not save owned test scene '{_tempPath}'.");
+            }
             _savedMainSceneName = current.name;
-            _additiveScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+
+            _additiveScene = CreateOwnedAdditiveScene();
             _additiveTempPath = TestPaths.TempFolder + $"/{GetType().Name}_additive_temp.unity";
-            EditorSceneManager.SaveScene(_additiveScene, _additiveTempPath);
+            TrackOwnedAsset(_additiveTempPath);
+            if (!EditorSceneManager.SaveScene(_additiveScene, _additiveTempPath))
+                throw new InvalidOperationException(
+                    $"Could not save owned additive scene '{_additiveTempPath}'.");
             // Restore main scene as active — NewScene(Additive) hijacks it
             SceneManager.SetActiveScene(current);
         }
 
-        [TearDown]
-        public virtual void TearDown()
-        {
-            foreach (var go in _toDestroy)
-                if (go != null) Object.DestroyImmediate(go);
-            _toDestroy.Clear();
-            foreach (var s in _extraScenes)
-                if (s.IsValid()) EditorSceneManager.CloseScene(s, true);
-            _extraScenes.Clear();
-            foreach (var p in _extraPaths)
-                if (p != null && File.Exists(p)) AssetDatabase.DeleteAsset(p);
-            _extraPaths.Clear();
-            if (_additiveScene.IsValid())
-                EditorSceneManager.CloseScene(_additiveScene, true);
-            _additiveScene = default;
-            if (_additiveTempPath != null && File.Exists(_additiveTempPath))
-                AssetDatabase.DeleteAsset(_additiveTempPath);
-            // Replace the active dirty scene BEFORE deleting its backing file (unconditionally).
-            // DestroyImmediate above marks it dirty; without this, any dirty scene that lacks
-            // a backing file triggers the "Save Scene?" dialog on the next test or Unity focus.
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            if (_tempPath != null && File.Exists(_tempPath))
-                AssetDatabase.DeleteAsset(_tempPath);
-        }
-
         protected GameObject CreateIn(Scene scene, string name)
         {
-            var go = new GameObject(name);
-            _toDestroy.Add(go);
+            var go = TrackOwnedObject(new GameObject(name));
             SceneManager.MoveGameObjectToScene(go, scene);
             return go;
         }
 
         protected GameObject CreateChild(GameObject parent, string name)
         {
-            var go = new GameObject(name);
-            _toDestroy.Add(go);
+            var go = TrackOwnedObject(new GameObject(name));
             go.transform.SetParent(parent.transform);
             return go;
         }
@@ -78,10 +58,11 @@ namespace UnityMCP.Editor.Tests
         protected Scene AddScene()
         {
             var active = SceneManager.GetActiveScene();
-            var s = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            var s = CreateOwnedAdditiveScene();
             var path = TestPaths.TempFolder + $"/{GetType().Name}_extra_{_extraScenes.Count}.unity";
-            EditorSceneManager.SaveScene(s, path);
-            _extraPaths.Add(path);
+            TrackOwnedAsset(path);
+            if (!EditorSceneManager.SaveScene(s, path))
+                throw new InvalidOperationException($"Could not save owned test scene '{path}'.");
             _extraScenes.Add(s);
             // Restore active scene — NewScene(Additive) hijacks it
             SceneManager.SetActiveScene(active);

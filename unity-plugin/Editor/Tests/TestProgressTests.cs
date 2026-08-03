@@ -1,104 +1,195 @@
-// TDD: TestRunner progress tracking + result persistence tests.
-// Covers: GetProgress() state machine, ETA calculation, TestResultPersistence roundtrip,
-//         and ResetOnReload result restoration.
+using System;
 using System.IO;
 using NUnit.Framework;
-using UnityEditor;
-using UnityMCP.Editor;
+using UnityEditor.TestTools.TestRunner.Api;
+using UnityMCP.Editor.TestRuns;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal sealed class TestProgressTests
+    internal sealed class TestProgressTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        private TempDirScope _tempDir;
+        private string _root;
+        private TestRunStore _store;
+        private TestRunService _service;
 
         [SetUp]
         public void SetUp()
         {
-            _tempDir = new TempDirScope("mcp_progress_test");
-            SessionState.SetBool(TestRunner.KeyPending, false);
-            SessionState.SetString(TestRunner.KeyProgress, "");
-            SessionState.SetString(TestRunner.KeyResults, "");
-            TestRunner.TestResultPersistence.FilePathOverride =
-                System.IO.Path.Combine(_tempDir.Path, "test-results.txt");
+            _root = Path.Combine(Path.GetTempPath(),
+                "unity-mcp-progress-" + Guid.NewGuid().ToString("N"));
+            _store = new TestRunStore(_root);
+            _service = new TestRunService(
+                _store,
+                new NoopEnvironment(),
+                new NoopFramework(),
+                () => new TestRunBuildFingerprint { IsCoherent = true, UtfVersion = "1.6.0" },
+                () => false,
+                () => false,
+                () => true,
+                () => "2026-08-02T12:00:10.0000000Z");
         }
 
         [TearDown]
         public void TearDown()
         {
-            TestRunner.TestResultPersistence.FilePathOverride = null;
-            _tempDir.Dispose();
-        }
-
-        // ── GetProgress state machine ─────────────────────────────────────────
-
-        [Test]
-        public void GetProgress_NoTestRunning_ReturnsIdle()
-        {
-            SessionState.SetBool(TestRunner.KeyPending, false);
-
-            Assert.AreEqual("idle", TestRunner.GetProgress());
+            if (Directory.Exists(_root)) Directory.Delete(_root, true);
         }
 
         [Test]
-        public void GetProgress_RunningNoProgress_ReturnsPendingNoProgressYet()
+        public void NoDurableRun_ProjectsIdleAndNone()
         {
-            SessionState.SetBool(TestRunner.KeyPending, true);
-            SessionState.SetString(TestRunner.KeyProgress, "");
-
-            Assert.AreEqual("pending|no-progress-yet", TestRunner.GetProgress());
+            Assert.AreEqual("idle", _service.GetLegacyProgress(null));
+            Assert.AreEqual("none", _service.GetLegacyResults(null));
         }
 
         [Test]
-        public void GetProgress_Running_ReturnsProgressString()
+        public void PreparedRunWithoutManifest_ProjectsCorrelatedPending()
         {
-            SessionState.SetBool(TestRunner.KeyPending, true);
-            SessionState.SetString(TestRunner.KeyProgress, "10|9|1|0|100|5.0");
+            WriteRunningRun();
 
-            var result = TestRunner.GetProgress();
-
-            StringAssert.StartsWith("running|", result);
-            StringAssert.Contains("10|9|1|0|100|5.0", result);
+            Assert.AreEqual("pending|run_id=run-progress|no-progress-yet",
+                _service.GetLegacyProgress(null));
+            Assert.AreEqual("pending", _service.GetLegacyResults(null));
         }
 
         [Test]
-        public void GetProgress_CalculatesEta()
+        public void ProgressIsReplayedFromLeafEvidenceNotMutableCounters()
         {
-            // rate = 5.0s / 10 tests = 0.5s/test; remaining = 90 * 0.5 = 45s
-            SessionState.SetBool(TestRunner.KeyPending, true);
-            SessionState.SetString(TestRunner.KeyProgress, "10|9|1|0|100|5.0");
+            WriteRunningRun();
+            AddExpected("suite.a");
+            AddExpected("suite.b");
+            Seal(2);
+            Finish("suite.a", TestRunProtocol.LeafOutcome.Passed);
 
-            var result = TestRunner.GetProgress();
+            var progress = _service.GetLegacyProgress("run-progress");
 
-            StringAssert.Contains("eta=45s", result);
+            StringAssert.StartsWith("running|1|1|0|0|2|10.0|", progress);
+            StringAssert.Contains("|run_id=run-progress", progress);
         }
 
-        // ── TestResultPersistence ─────────────────────────────────────────────
-
         [Test]
-        public void TestResultPersistence_SaveAndLoad_Roundtrip()
+        public void TerminalProjectionIncludesEveryOutcomeAndExactExpectedTotal()
         {
-            const string data = "42 tests: 41 passed, 1 FAILED (3.7s)";
+            WriteRunningRun();
+            AddExpected("suite.pass");
+            AddExpected("suite.skip");
+            AddExpected("suite.cancel");
+            Seal(3);
+            Finish("suite.pass", TestRunProtocol.LeafOutcome.Passed);
+            Finish("suite.skip", TestRunProtocol.LeafOutcome.Skipped);
+            Finish("suite.cancel", TestRunProtocol.LeafOutcome.Cancelled);
+            _store.AppendEvent("run-progress", new TestRunEvent
+            {
+                run_id = "run-progress",
+                event_type = TestRunProtocol.EventType.RunFinished,
+                outcome = TestRunProtocol.RunOutcome.Cancelled,
+                observer_generation = "progress-gen",
+                root_trusted = true,
+                duration_seconds = 4.25,
+                occurred_utc = "2026-08-02T12:00:04.2500000Z"
+            });
+            _store.AppendEvent("run-progress", new TestRunEvent
+            {
+                run_id = "run-progress",
+                event_type = TestRunProtocol.EventType.RunFinalized,
+                occurred_utc = "2026-08-02T12:00:04.3000000Z"
+            });
 
-            TestRunner.TestResultPersistence.Save(data);
-            var loaded = TestRunner.TestResultPersistence.Load();
+            var results = _service.GetLegacyResults("run-progress");
+            var progress = _service.GetLegacyProgress("run-progress");
 
-            Assert.AreEqual(data, loaded);
+            Assert.AreEqual(
+                "3 tests: 1 passed, 0 failed, 1 skipped, 0 inconclusive, " +
+                "1 cancelled, 0 invalid (4.3s) outcome=cancelled",
+                results);
+            Assert.AreEqual("idle|run_id=run-progress|outcome=cancelled", progress);
         }
 
-        // ── ResetOnReload restore ─────────────────────────────────────────────
-
         [Test]
-        public void ResetOnReload_RestoresPersistedResults()
+        public void RunIdentityPreventsReadingAnotherRunsResult()
         {
-            const string data = "5 tests: 5 passed (1.2s)";
-            TestRunner.TestResultPersistence.Save(data);
-            SessionState.SetString(TestRunner.KeyResults, ""); // simulate domain reload clearing volatile state
+            WriteRunningRun();
 
-            TestRunner.RestorePersistedResults();
+            Assert.AreEqual("none", _service.GetLegacyResults("run-other"));
+            Assert.AreEqual("idle", _service.GetLegacyProgress("run-other"));
+        }
 
-            Assert.AreEqual(data, SessionState.GetString(TestRunner.KeyResults, ""));
+        private void WriteRunningRun()
+        {
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = "run-progress",
+                request_id = "request-progress",
+                lifecycle = TestRunProtocol.Lifecycle.Running,
+                created_utc = "2026-08-02T12:00:00.0000000Z",
+                started_utc = "2026-08-02T12:00:00.0000000Z",
+                build_coherent = true,
+                utf_version = "1.6.0"
+            });
+            _store.AppendEvent("run-progress", new TestRunEvent
+            {
+                run_id = "run-progress",
+                event_type = TestRunProtocol.EventType.RunStarted,
+                observer_generation = "progress-gen",
+                occurred_utc = "2026-08-02T12:00:00.0000000Z"
+            });
+            _store.WriteActive(new TestRunPointer
+            {
+                run_id = "run-progress",
+                request_id = "request-progress",
+                updated_utc = "2026-08-02T12:00:00.0000000Z"
+            });
+        }
+
+        private void AddExpected(string name)
+        {
+            _store.AppendExpectedTest("run-progress", new TestLeafManifestEntry
+            {
+                run_id = "run-progress",
+                unique_name = name,
+                full_name = name
+            });
+        }
+
+        private void Seal(int count)
+        {
+            _store.SealManifest("run-progress", new TestRunEvent
+            {
+                run_id = "run-progress",
+                event_type = TestRunProtocol.EventType.ManifestSealed,
+                expected_count = count
+            });
+        }
+
+        private void Finish(string name, string outcome)
+        {
+            _store.AppendEvent("run-progress", new TestRunEvent
+            {
+                run_id = "run-progress",
+                event_type = TestRunProtocol.EventType.TestFinished,
+                unique_name = name,
+                full_name = name,
+                outcome = outcome,
+                result_state = outcome
+            });
+        }
+
+        private sealed class NoopEnvironment : ITestRunEnvironmentController
+        {
+            public TestRunEnvironmentRecord Prepare(
+                TestRunStore store, string runId, string utcNow) =>
+                new TestRunEnvironmentRecord { run_id = runId };
+
+            public void Restore(TestRunStore store, string runId, string utcNow) { }
+        }
+
+        private sealed class NoopFramework : ITestFrameworkDriver
+        {
+            public string Execute(ExecutionSettings settings) => "guid";
+            public bool Cancel(string utfGuid) => true;
+            public UtfRunActivity Probe(string utfGuid) => UtfRunActivity.Active;
+            public UtfRunActivity ProbeAny() => UtfRunActivity.Inactive;
         }
     }
 }

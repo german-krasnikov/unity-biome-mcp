@@ -10,7 +10,7 @@ using UnityEngine.TestTools;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestVarTests
+    public class PlaytestVarTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── VAL: static parse-time sigil expansion ──────────────────────────────
 

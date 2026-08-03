@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SettingsNavControllerTests
+    public class SettingsNavControllerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private VisualElement _host;
         private SettingsNavController _nav;

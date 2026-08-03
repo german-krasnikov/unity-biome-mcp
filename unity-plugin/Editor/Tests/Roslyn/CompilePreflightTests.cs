@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CompilePreflightTests
+    public class CompilePreflightTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── RoslynLoader ──────────────────────────────────────────────────────
 

@@ -7,7 +7,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class GdSnapshotSerializerTests
+    internal class GdSnapshotSerializerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── ToAliasLines: point ───────────────────────────────────────────────
 

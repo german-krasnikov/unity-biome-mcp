@@ -94,33 +94,76 @@ async def test_reload_during_sync_bridge_reconnects():
 
 
 # ---------------------------------------------------------------------------
-# S3: Reload during run_tests — fire-and-forget survives, run_tests_wait polls
+# S3: Reload during run_tests -- lost ACK is resolved by request identity
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_reload_during_run_tests_fire_and_forget():
+async def test_reload_during_run_tests_resolves_lost_ack():
     _testing._send = _send_with([
-        ConnectionError("0 bytes: domain reload"),     # run_tests TCP death
-        "pending",                                      # poll 1
-        "4959 tests: 4957 passed, 2 skipped (128.1s)", # poll 2 — results
+        "none",
+        ConnectionError("0 bytes: domain reload"),
     ])
 
     with patch("unity_mcp.tools.diagnose.diagnose", new=AsyncMock(return_value="CLEAN-LIVE")):
-        r_run = await _testing.run_tests("EditMode")
+        r_run = await _testing.run_tests("EditMode", request_id="req-fire")
 
-    assert r_run.startswith("tests-started|EditMode"), f"Expected fire-and-forget ack, got {r_run!r}"
+    assert r_run == "START-UNKNOWN|request_id=req-fire|reason=ConnectionError"
 
-    # Restore _send for the poll loop (run_tests_wait calls run_tests again)
+    ack = (
+        "tests-started|request_id=req-wait|run_id=run-wait"
+        "|utf_guid=utf-wait|state=dispatched"
+    )
+    terminal = json.dumps({
+        "request_id": "req-wait",
+        "run_id": "run-wait",
+        "utf_guid": "utf-wait",
+        "state": "terminal",
+        "lifecycle": "terminal",
+        "outcome": "passed",
+        "source": "mcp",
+        "mode": "EditMode",
+        "filter": "",
+        "is_terminal": True,
+        "execution_finished": True,
+        "cleanup_complete": True,
+        "run_started_observed": True,
+        "manifest_complete": True,
+        "run_finished_observed": True,
+        "build_coherent": True,
+        "utf_xml_scope": "complete",
+        "expected_count": 6964,
+        "declared_expected_count": 6964,
+        "readable_manifest_count": 6964,
+        "completed_expected_count": 6964,
+        "unique_terminal_count": 6964,
+        "unmaterialized_expected_count": 0,
+        "missing_count": 0,
+        "unexpected_count": 0,
+        "conflict_count": 0,
+        "passed": 6962,
+        "failed": 0,
+        "skipped": 2,
+        "inconclusive": 0,
+        "cancelled": 0,
+        "invalid": 0,
+        "counts": {"expected": 6964, "finished": 6964, "passed": 6962, "skipped": 2},
+        "issues": [],
+    })
     _testing._send = _send_with([
-        ConnectionError("0 bytes: domain reload"),     # run_tests TCP death again
-        "pending",
-        "4959 tests: 4957 passed, 2 skipped (128.1s)",
+        ConnectionError("0 bytes: domain reload"),
+        "none",
+        ack,
+        terminal,
     ])
     with patch("unity_mcp.tools.diagnose.diagnose", new=AsyncMock(return_value="CLEAN-LIVE")):
-        r_wait = await _testing.run_tests_wait("EditMode", poll_interval=0.001)
+        r_wait = await _testing.run_tests_wait(
+            "EditMode", timeout=3.0, poll_interval=1.0, request_id="req-wait"
+        )
 
-    assert "4959 tests" in r_wait
-    assert "passed" in r_wait
+    decoded = json.loads(r_wait)
+    assert decoded["run_id"] == "run-wait"
+    assert decoded["outcome"] == "passed"
+    assert decoded["counts"]["finished"] == 6964
 
 
 # ---------------------------------------------------------------------------

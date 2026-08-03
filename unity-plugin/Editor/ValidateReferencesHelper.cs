@@ -65,10 +65,10 @@ namespace UnityMCP.Editor
         private static void CheckRef(SerializedProperty prop, string propName, string goPath,
             string compType, StringBuilder sb, ref int ok, ref int errors, ref int missing, bool verbose)
         {
-            var instanceId = prop.objectReferenceInstanceIDValue;
+            var hasObjectId = TransientObjectId.HasSerializedReference(prop);
             var value = prop.objectReferenceValue;
 
-            if (instanceId != 0 && value == null)
+            if (hasObjectId && value == null)
             {
                 sb.Append("[MISSING] ").Append(goPath)
                   .Append(" [").Append(compType).Append("].").AppendLine(propName);

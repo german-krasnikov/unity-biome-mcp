@@ -21,9 +21,9 @@ namespace UnityMCP.Editor.Chat
             if (string.IsNullOrEmpty(path)) return;
             var assetPath  = cap != null ? AssetDatabase.GetAssetPath(cap) : path;
             var kindKey    = ChipKindDetector.Detect(cap, assetPath ?? path);
-            var instanceID = cap != null ? cap.GetInstanceID() : 0;
+            var objectId   = cap != null ? TransientObjectId.GetWireValue(cap) : "";
 
-            _chipField?.AddChip(new ChipData(kindKey, path, displayName, instanceID));
+            _chipField?.AddChip(new ChipData(kindKey, path, displayName, objectId));
 
             UpdateAutoHeight();
         }

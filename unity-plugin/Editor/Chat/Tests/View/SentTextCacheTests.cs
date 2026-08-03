@@ -12,7 +12,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SentTextCacheTests
+    public class SentTextCacheTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── FIX A: SentTextCache ──────────────────────────────────────────────
 

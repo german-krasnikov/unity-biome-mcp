@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class UserTextCleanerTests
+    public class UserTextCleanerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void Strip_SingleMention()
             => Assert.AreEqual("what", UserTextCleaner.Strip("@Player what"));

@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat.Annotation;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotationRasterizerTests
+    internal sealed class AnnotationRasterizerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Constructor_BufferIsTransparent()

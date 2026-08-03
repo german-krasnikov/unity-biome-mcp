@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PluginToolGroupingTests
+    public class PluginToolGroupingTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private class NoSubPlugin : IMCPPlugin
         {

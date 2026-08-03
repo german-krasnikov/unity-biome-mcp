@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MentionFuzzyScorerTests
+    public class MentionFuzzyScorerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // 1. Exact match → 1000
         [Test]

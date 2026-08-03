@@ -29,6 +29,28 @@ def _make_ok_reader(msg_id="0001"):
     return reader
 
 
+def _project_identity_chunks(project_path):
+    response = {
+        "id": "project-identity",
+        "ok": True,
+        "data": str(project_path),
+    }
+    payload = json.dumps(response).encode()
+    return [struct.pack("!I", len(payload)), payload]
+
+
+def _make_identity_reader(project_path, *, reconnect=True):
+    chunks = []
+    if reconnect:
+        chunks.extend(reconnect_preamble()[:2])
+    chunks.extend(_project_identity_chunks(project_path))
+    if reconnect:
+        chunks.extend(reconnect_preamble()[2:])
+    reader = AsyncMock()
+    reader.readexactly = AsyncMock(side_effect=chunks)
+    return reader
+
+
 # ---------------------------------------------------------------------------
 # 1. Discoverer returns new port — bridge._port updates
 # ---------------------------------------------------------------------------
@@ -298,3 +320,129 @@ async def test_full_cycle_refused_then_rediscovers():
 
     assert bridge._port == 9502
     discoverer.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Candidate identity: a live stale PID must not trust a reused TCP port
+# ---------------------------------------------------------------------------
+
+async def test_live_pinned_pid_foreign_project_rediscovers_matching_editor(tmp_path):
+    """A responsive old port is rejected when another project now owns it."""
+    expected_project = tmp_path / "expected-project"
+    foreign_project = tmp_path / "foreign-project"
+    expected_project.mkdir()
+    foreign_project.mkdir()
+    connected_to = []
+    writers = {}
+
+    async def mock_open(host, port):
+        connected_to.append(port)
+        writer = make_writer()
+        writers[port] = writer
+        project = foreign_project if port == 9500 else expected_project
+        return _make_identity_reader(project), writer
+
+    discoverer = Mock(return_value=9501)
+    bridge = UnityBridge(
+        "127.0.0.1",
+        9500,
+        probe=make_idle_probe(),
+        port_discoverer=discoverer,
+        expected_project_path=expected_project,
+    )
+    bridge._pinned_port = 9500
+    bridge._pinned_pid = 12345
+
+    def pid_for_port(port, project_path=None):
+        return 12345 if port == 9500 else 23456
+
+    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open), \
+         patch("unity_mcp.bridge.is_pid_alive", return_value=True), \
+         patch("unity_mcp.lockfile.read_pid_from_port_file", side_effect=pid_for_port), \
+         patch.object(bridge, "start_heartbeat"):
+        await bridge._reconnect(fire_callbacks=False)
+
+    assert connected_to == [9500, 9501]
+    assert writers[9500].close.call_count == 1
+    assert bridge._port == 9501
+    assert bridge._pinned_port == 9501
+    assert bridge._pinned_pid == 23456
+    discoverer.assert_called_once()
+
+
+async def test_discovered_foreign_project_is_rejected_before_accept(tmp_path):
+    expected_project = tmp_path / "expected-project"
+    foreign_project = tmp_path / "foreign-project"
+    expected_project.mkdir()
+    foreign_project.mkdir()
+    writer = make_writer()
+
+    async def mock_open(host, port):
+        return _make_identity_reader(foreign_project), writer
+
+    bridge = UnityBridge(
+        "127.0.0.1",
+        9500,
+        probe=make_idle_probe(),
+        port_discoverer=Mock(return_value=9501),
+        expected_project_path=expected_project,
+    )
+
+    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open):
+        with pytest.raises(ConnectionError, match="Refusing Unity on port 9501"):
+            await bridge._reconnect(fire_callbacks=False)
+
+    assert bridge._port == 9500
+    assert bridge._reader is None
+    assert bridge._writer is None
+    writer.close.assert_called_once()
+
+
+async def test_initial_connect_rejects_foreign_project_before_assign(tmp_path):
+    expected_project = tmp_path / "expected-project"
+    foreign_project = tmp_path / "foreign-project"
+    expected_project.mkdir()
+    foreign_project.mkdir()
+    writer = make_writer()
+    reader = _make_identity_reader(foreign_project, reconnect=False)
+    bridge = UnityBridge(
+        "127.0.0.1",
+        9500,
+        probe=make_idle_probe(),
+        expected_project_path=expected_project,
+    )
+
+    with patch.object(
+        bridge_mod.asyncio, "open_connection", return_value=(reader, writer)
+    ):
+        with pytest.raises(ConnectionError, match="Refusing Unity on port 9500"):
+            await bridge.connect()
+
+    assert bridge._reader is None
+    assert bridge._writer is None
+    assert bridge._pinned_port is None
+    writer.close.assert_called_once()
+
+
+def test_pid_lookup_filters_reused_port_by_canonical_project(tmp_path):
+    from unity_mcp.lockfile import read_pid_from_port_file
+
+    expected_project = tmp_path / "expected-project"
+    foreign_project = tmp_path / "foreign-project"
+    expected_project.mkdir()
+    foreign_project.mkdir()
+    expected_alias = tmp_path / "expected-alias"
+    expected_alias.symlink_to(expected_project, target_is_directory=True)
+
+    foreign_record = tmp_path / "111.port"
+    expected_record = tmp_path / "222.port"
+    foreign_record.write_text(f"9500\n{foreign_project}\nforeign\n", encoding="utf-8")
+    expected_record.write_text(f"9500\n{expected_alias}\nexpected\n", encoding="utf-8")
+
+    with patch(
+        "unity_mcp.lockfile._iter_port_files",
+        return_value=[foreign_record, expected_record],
+    ), patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        pid = read_pid_from_port_file(9500, project_path=expected_project)
+
+    assert pid == 222

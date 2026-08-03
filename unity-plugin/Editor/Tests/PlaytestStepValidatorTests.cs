@@ -5,7 +5,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal class PlaytestStepValidatorTests
+    internal class PlaytestStepValidatorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // --- GetValidationError ---
 

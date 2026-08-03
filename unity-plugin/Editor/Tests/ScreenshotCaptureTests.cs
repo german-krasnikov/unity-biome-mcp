@@ -8,6 +8,7 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class ScreenshotCaptureTests : SceneTestBase
     {
+        private const string AssetFolder = "Assets/TestsTemp/Screenshots";
         private GameObject _cameraGo;
 
         [SetUp]
@@ -105,18 +106,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Process_OverviewScreenshot_HonorsOutputPath()
         {
-            TestPaths.EnsureFolder("Assets/TestsTemp/Screenshots");
-            var output = "Assets/TestsTemp/Screenshots/overview_requested.png";
+            TrackOwnedAsset(AssetFolder);
+            TestPaths.EnsureFolder(AssetFolder);
+            var output = AssetFolder + "/overview_requested.png";
             var fullPath = Path.GetFullPath(output);
-            if (File.Exists(fullPath)) File.Delete(fullPath);
 
             var json = "{\"cmd\":\"screenshot\",\"id\":\"shot1\",\"args\":{\"camera\":\"overview\",\"width\":\"32\",\"height\":\"32\",\"output_path\":\"" + output + "\"}}";
             var result = CommandRouter.Process(json);
 
             Assert.IsTrue(File.Exists(fullPath), result);
             StringAssert.Contains(fullPath, result);
-
-            AssetDatabase.DeleteAsset(output);
         }
     }
 }

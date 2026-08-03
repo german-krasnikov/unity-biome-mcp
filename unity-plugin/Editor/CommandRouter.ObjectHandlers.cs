@@ -65,7 +65,7 @@ namespace UnityMCP.Editor
                 }
                 else
                 {
-                    sb.AppendLine(ComponentSerializer.SerializeAll(go.GetInstanceID()));
+                    sb.AppendLine(ComponentSerializer.SerializeAll(TransientObjectId.GetWireValue(go)));
                 }
             }
             return ApplyFieldsCompress(args, sb.ToString().TrimEnd());
@@ -123,18 +123,18 @@ namespace UnityMCP.Editor
 
         private static string ExecGetComponentsList(string args)
         {
-            var id = ExtractInt(args, "id", -1);
-            if (id == -1)
+            var id = JsonHelper.ExtractString(args, "id");
+            if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("id is required");
-            var result = ComponentSerializer.ListComponents(id);
+            var result = ComponentSerializer.ListComponentsById(id);
             if (result == null) throw new InvalidOperationException($"Object not found: #{id}");
             return result;
         }
 
         private static string ExecGetObjectDetail(string args)
         {
-            var id = ExtractInt(args, "id", -1);
-            if (id == -1)
+            var id = JsonHelper.ExtractString(args, "id");
+            if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("id is required");
             var result = ComponentSerializer.SerializeAll(id);
             if (result == null) throw new InvalidOperationException($"Object not found: #{id}");
@@ -244,17 +244,17 @@ namespace UnityMCP.Editor
 
         private static string ExecDeleteObject(string args)
         {
-            var id = ExtractInt(args, "id", -1);
+            var id = JsonHelper.ExtractString(args, "id");
             var path = JsonHelper.ExtractString(args, "path");
             var force = JsonHelper.ExtractString(args, "force") == "true";
             GameObject go;
-            if (id != -1) go = ComponentSerializer.FindObjectById(id);
+            if (!string.IsNullOrEmpty(id)) go = ComponentSerializer.FindObjectById(id);
             else if (!string.IsNullOrEmpty(path)) go = ComponentSerializer.FindObject(path, strict: true);
             else throw new ArgumentException("id or path required");
             if (go == null) throw new ArgumentException(ErrorHelper.ObjectNotFound(path ?? $"#{id}"));
             var parentGo = go.transform.parent?.gameObject;
-            var label = id != -1 ? $"#{id}" : path;
-            if (id != -1) ObjectManager.DeleteObject(id, force);
+            var label = !string.IsNullOrEmpty(id) ? $"#{id}" : path;
+            if (!string.IsNullOrEmpty(id)) ObjectManager.DeleteObjectById(id, force);
             else ObjectManager.DeleteObject(path, force);
             if (parentGo != null)
                 return $"Deleted {label}\n--- parent ---\n{HierarchySerializer.SerializeSubtree(parentGo)}";
@@ -269,7 +269,7 @@ namespace UnityMCP.Editor
             ObjectManager.ManageComponent(path, type, action);
             var go = ComponentSerializer.FindObject(path);
             if (go == null) return "ok";
-            var list = ComponentSerializer.ListComponents(go.GetInstanceID());
+            var list = ComponentSerializer.ListComponentsById(TransientObjectId.GetWireValue(go));
             var csv = list.Replace('\n', ',').TrimEnd(',');
             return action == "add"
                 ? $"Added: {type}. Components: {csv}"

@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat.Annotation;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotationCompositorTests
+    internal sealed class AnnotationCompositorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private byte[] MakeTestPng()
         {

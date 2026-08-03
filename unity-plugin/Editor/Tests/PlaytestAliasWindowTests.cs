@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestAliasWindowTests
+    public class PlaytestAliasWindowTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── FormatVALBlock ──────────────────────────────────────────────────────
 

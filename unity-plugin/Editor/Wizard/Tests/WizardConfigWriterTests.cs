@@ -6,7 +6,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class WizardConfigWriterTests
+    public class WizardConfigWriterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tmpDir;
 
@@ -15,12 +15,11 @@ namespace UnityMCP.Editor.Tests
         {
             _tmpDir = Path.Combine(Path.GetTempPath(), $"WizardConfigWriterTests_{Guid.NewGuid():N}");
             Directory.CreateDirectory(_tmpDir);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            try { if (Directory.Exists(_tmpDir)) Directory.Delete(_tmpDir, true); } catch { }
+            RegisterCleanup(() =>
+            {
+                if (Directory.Exists(_tmpDir))
+                    Directory.Delete(_tmpDir, true);
+            });
         }
 
         // ── RestoreConfig ─────────────────────────────────────────────────────

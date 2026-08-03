@@ -194,11 +194,11 @@ namespace UnityMCP.Editor
                 value = value.Substring(1, value.Length - 2);
             if (value.StartsWith("#"))
             {
-                if (!int.TryParse(value.Substring(1), NumberStyles.Integer, CultureInfo.InvariantCulture, out var instanceId))
-                    throw new ArgumentException($"Invalid instance ID: {value}");
-                var resolved = EditorUtility.InstanceIDToObject(instanceId);
+                if (!TransientObjectId.TryParse(value, out var objectId))
+                    throw new ArgumentException($"Invalid entity ID: {value}");
+                var resolved = objectId.Resolve();
                 if (resolved == null)
-                    throw new ArgumentException($"No object found for instance ID: {value}");
+                    throw new ArgumentException($"No object found for entity ID: {value}");
                 property.objectReferenceValue = resolved;
                 return;
             }

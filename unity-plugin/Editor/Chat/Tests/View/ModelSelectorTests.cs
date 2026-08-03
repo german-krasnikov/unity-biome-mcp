@@ -6,25 +6,17 @@ using UnityEditor;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ModelSelectorTests
+    public class ModelSelectorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()
         {
-            EditorPrefs.DeleteKey("MCPChat.SelectedModel.Claude");
-            EditorPrefs.DeleteKey("MCPChat.SelectedModel.Codex");
-            EditorPrefs.DeleteKey("MCPChat.SelectedModel.Antigravity");
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            EditorPrefs.DeleteKey("MCPChat.SelectedModel.Claude");
-            EditorPrefs.DeleteKey("MCPChat.SelectedModel.Codex");
-            EditorPrefs.DeleteKey("MCPChat.SelectedModel.Antigravity");
-            EditorPrefs.DeleteKey("MCPChat.SelectedModel.Claude.custom");
-            EditorPrefs.DeleteKey("MCPChat.SelectedModel.Codex.custom");
-            EditorPrefs.DeleteKey("MCPChat.SelectedModel.Antigravity.custom");
+            DeleteEditorPrefString("MCPChat.SelectedModel.Claude");
+            DeleteEditorPrefString("MCPChat.SelectedModel.Codex");
+            DeleteEditorPrefString("MCPChat.SelectedModel.Antigravity");
+            DeleteEditorPrefString("MCPChat.SelectedModel.Claude.custom");
+            DeleteEditorPrefString("MCPChat.SelectedModel.Codex.custom");
+            DeleteEditorPrefString("MCPChat.SelectedModel.Antigravity.custom");
         }
 
         // ── ModelPresets backward-compat alias ────────────────────────────────
@@ -61,7 +53,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void ModelPref_CanRoundTrip()
         {
-            EditorPrefs.SetString("MCPChat.SelectedModel.Claude", "Opus");
+            SetEditorPrefString("MCPChat.SelectedModel.Claude", "Opus");
             Assert.AreEqual("Opus", EditorPrefs.GetString("MCPChat.SelectedModel.Claude", ""));
         }
 

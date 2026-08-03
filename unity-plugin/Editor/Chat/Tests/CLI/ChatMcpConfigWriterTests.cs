@@ -11,13 +11,13 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── GetOrCreateConfigPath install-source tests ────────────────────────────
 
     [TestFixture]
-    public class ChatMcpConfigWriterInstallSourceTests
+    public class ChatMcpConfigWriterInstallSourceTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [TearDown]
-        public void TearDown()
+        [SetUp]
+        public void SetUp()
         {
-            InstallSourceDetector.ClearTestOverride();
-            ChatMcpConfigWriter.ClearPackageRootForTest();
+            RegisterCleanup(InstallSourceDetector.ClearTestOverride);
+            RegisterCleanup(ChatMcpConfigWriter.ClearPackageRootForTest);
         }
 
         [Test]
@@ -49,22 +49,22 @@ namespace UnityMCP.Editor.Chat.Tests
         }
     }
     [TestFixture]
-    public class ChatMcpConfigWriterTests
+    public class ChatMcpConfigWriterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tmpDir;
 
         [SetUp]
         public void SetUp()
         {
+            InstallSourceDetector.SetSourceForTest(InstallSourceDetector.Source.Git);
+            RegisterCleanup(InstallSourceDetector.ClearTestOverride);
             _tmpDir = Path.Combine(Path.GetTempPath(), "ChatMcpConfigWriterTests_" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tmpDir);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            if (Directory.Exists(_tmpDir))
-                Directory.Delete(_tmpDir, true);
+            RegisterCleanup(() =>
+            {
+                if (Directory.Exists(_tmpDir))
+                    Directory.Delete(_tmpDir, true);
+            });
         }
 
         // ── 1. DeriveServerPath ───────────────────────────────────────────────

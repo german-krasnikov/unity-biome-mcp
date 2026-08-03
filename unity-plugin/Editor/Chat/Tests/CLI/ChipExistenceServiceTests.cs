@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipExistenceServiceTests
+    public class ChipExistenceServiceTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         ChipExistenceService _service;
 

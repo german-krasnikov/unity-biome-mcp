@@ -5,21 +5,17 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ScriptableObjectHelperTests
+    public class ScriptableObjectHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        const string TempPath = "Assets/TestsTemp/SOHelper_OrphanTest.asset";
-        const string EchoPath = "Assets/TestsTemp/SOHelper_EchoTest.asset";
+        const string AssetFolder = "Assets/TestsTemp/ScriptableObjectHelperTests";
+        const string TempPath = AssetFolder + "/SOHelper_OrphanTest.asset";
+        const string EchoPath = AssetFolder + "/SOHelper_EchoTest.asset";
 
         [SetUp]
-        public void SetUp() => TestPaths.EnsureFolder();
-
-        [TearDown]
-        public void TearDown()
+        public void SetUp()
         {
-            if (AssetDatabase.LoadAssetAtPath<ScriptableObject>(TempPath) != null)
-                AssetDatabase.DeleteAsset(TempPath);
-            if (AssetDatabase.LoadAssetAtPath<ScriptableObject>(EchoPath) != null)
-                AssetDatabase.DeleteAsset(EchoPath);
+            TrackOwnedAsset(AssetFolder);
+            TestPaths.EnsureFolder(AssetFolder);
         }
 
         [Test]

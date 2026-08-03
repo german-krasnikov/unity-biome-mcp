@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestAliasModularityTests
+    public class PlaytestAliasModularityTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // E1 — VarRegistry injectable delegate: unit-testable without Unity runtime
         [Test]

@@ -130,7 +130,7 @@ unity-biome-mcp/
 │   │   │   ├── scene.py        # scene, hierarchy, search + save_session/load_session/screenshot_baseline/screenshot_compare (merged from scene_session.py v0.79.1; multi-scene support)
 │   │   │   ├── console.py      # get_console, get_compile_errors split from scene.py (v0.70.0); playtests ROI sprint: +console_mark (timestamp watermark, pure Python), +get_console_since (logs after watermark)
 │   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)
-│   │   │   ├── testing.py      # run_tests, recompile, await_compile split from scene.py (v0.70.0); playtests ROI sprint: +run_tests_wait (blocking run_tests + poll loop, returns final result or TIMEOUT)
+│   │   │   ├── testing.py      # durable test request/run protocol; run_tests_wait is the correlated consumer wrapper, while repository workers use run_unity_tests.py
 │   │   │   ├── editor_control.py # editor control commands split from scene.py (v0.70.0)
 │   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (script= OR path= mutually exclusive, abort_on_fail, defs, snapshot_on_failure; _TCP_POLL/STEP/PLAYTEST_BUFFER constants; module-level SamplingService singleton); playtests ROI sprint: +run_playtest_suite (glob/comma/newline list → SUITE: X/Y matrix, stop_on_fail, stop_after); v0.85.1: -run_playtest_file removed (use run_playtest path=)
 │   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set; batch accepts validate_aliases=True for dry-run alias check (v0.78.9)
@@ -410,9 +410,9 @@ unity-biome-mcp/
 │       │   ├── MarkdownInlineFormatterTests.cs # Rich-text formatting (bold, italic, code, links) (v0.42.0)
 │       │   ├── UpdatesPageTests.cs        # Changelog rendering + update check UI (v0.42.0)
 │       │   ├── LevelUpTests.cs            # LevelUp panel state machine, animation, release diff parsing (12 tests, v0.44.0)
-│       │   ├── SceneTestBase.cs           # Abstract TearDown base (v0.78.8): calls EditorSceneManager.NewScene in TearDown to prevent "Save Scene?" dialog across 36 test classes
-│       │   ├── SceneCleanTestBase.cs      # Abstract leak-detection base (v0.80.1): snapshots root GameObject IDs in [SetUp], auto-destroys + fails on leaked objects in [TearDown]
-│       │   ├── MultiSceneTestBase.cs      # Base class for multi-scene tests (DRY consolidation v0.24.3+v0.25.0: saves additive scenes, captures main scene name before NewScene)
+│       │   ├── SceneTestBase.cs           # Thin compatibility specialization of UnityMcpTestBase; exposes managed-scene reset without owning lifecycle
+│       │   ├── SceneCleanTestBase.cs      # Approved leak-check specialization; common UnityMcpTestBase still owns final scene/object/asset rollback
+│       │   ├── MultiSceneTestBase.cs      # Multi-scene specialization; exact additive scenes are registered with the common ownership transaction
 │       │   ├── MultiSceneFinderTests.cs   # Object finding across scenes + reference scanning (v0.24.3)
 │       │   ├── PortResolverTests.cs       # 25+4 NUnit tests (port validation, fallback, dual-port edge cases, v0.52.6: chat collision guard)
 │       │   ├── MCPServerStartGuardTests.cs # 3 NUnit tests (ShouldStartServer batch mode guard, v0.52.6)
@@ -931,7 +931,7 @@ unity-biome-mcp/
 │       ├── UnityMCP.Runtime.TestHelpers.asmdef # Separate assembly for test utilities
 │       └── TestHelpers/
 │           └── TestDummyMB.cs             # Dummy MonoBehaviour for AddComponent<> in editor tests (moved from Editor/Chat/Tests v0.25.0)
-├── unity-test-project/          # Unity 6000.3 project used to run the plugin's NUnit suites
+├── unity-test-project/          # Unity 6000.0.65f1 / built-in UTF 1.6 canonical test project
 │   ├── Assets/Tests/Editor/     # NUnit test files
 │   ├── Assets/Animations/       # Animation clips + controllers
 │   ├── Assets/Scenes/

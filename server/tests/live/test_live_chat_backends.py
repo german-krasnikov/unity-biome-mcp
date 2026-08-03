@@ -1,6 +1,7 @@
 """Live tests for all CLI backends via relay TCP.
 
-Run on demand: UNITY_MCP_PORT=<port> pytest tests/live/test_live_chat_backends.py -m live_chat -v
+Run on demand: UNITY_MCP_RUN_LIVE_CLI=1 UNITY_MCP_PORT=<port>
+pytest tests/live/test_live_chat_backends.py -m live_cli -v
 
 Each test makes ~1 real API call (~$0.001-0.01).
 Requires the respective CLI tool installed and a valid API key.
@@ -16,13 +17,14 @@ from .relay_test_helpers import (
     _relay_cmd, _parse_events, _poll_until_done, _turn_line, relay_port,
 )
 
+pytestmark = [pytest.mark.live, pytest.mark.live_cli, pytest.mark.live_chat]
+
 
 def _skip_if_missing(binary: str) -> None:
     if not shutil.which(binary):
         pytest.skip(f"{binary!r} not in PATH")
 
 
-@pytest.mark.live_chat
 async def test_claude_ask_responds_hello(relay_port: int) -> None:
     """Claude backend: start → send prompt via stdin → get t| + d| events."""
     _skip_if_missing("claude")
@@ -47,7 +49,6 @@ async def test_claude_ask_responds_hello(relay_port: int) -> None:
     assert "hello" in full, f"Expected 'hello' in output: {full!r}"
 
 
-@pytest.mark.live_chat
 async def test_kimi_ask_responds_hello(relay_port: int) -> None:
     """Kimi backend: deferred start → send triggers spawn with -p <prompt> → get t| + d| events."""
     _skip_if_missing("kimi")
@@ -72,7 +73,6 @@ async def test_kimi_ask_responds_hello(relay_port: int) -> None:
     assert "hello" in full, f"Expected 'hello' in output: {full!r}"
 
 
-@pytest.mark.live_chat
 async def test_agy_ask_responds_hello(relay_port: int) -> None:
     """Agy (Gemini) backend: start with prompt → get t| + d|/e| events."""
     _skip_if_missing("agy")
@@ -92,7 +92,6 @@ async def test_agy_ask_responds_hello(relay_port: int) -> None:
         assert "hello" in full, f"Expected 'hello' in output: {full!r}"
 
 
-@pytest.mark.live_chat
 async def test_opencode_ask_responds_hello(relay_port: int) -> None:
     """OpenCode backend: start with prompt → parse NDJSON → get t| + d| events."""
     _skip_if_missing("opencode")
@@ -112,7 +111,6 @@ async def test_opencode_ask_responds_hello(relay_port: int) -> None:
     assert "hello" in full, f"Expected 'hello' in output: {full!r}"
 
 
-@pytest.mark.live_chat
 async def test_codex_ask_responds_hello(relay_port: int) -> None:
     """Codex backend: start (deferred) → send prompt → get t| + d| events."""
     _skip_if_missing("codex")

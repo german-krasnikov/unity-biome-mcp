@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal class NlCommandWindowLogicTests
+    internal class NlCommandWindowLogicTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()
@@ -163,11 +163,11 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BackendSwitch_CodexPrefKey_UsedForResolution()
         {
-            EditorPrefs.SetString("UnityMCP_Chat_Path_codex", "/usr/local/bin/codex");
+            SetEditorPrefString("UnityMCP_Chat_Path_codex", "/usr/local/bin/codex");
             var cfg    = new SamplingConfig { Model = "gpt-4o", Backend = "codex" };
             var binary = NlComposerBridge.ResolveBinary(cfg);
             Assert.AreEqual("/usr/local/bin/codex", binary);
-            EditorPrefs.DeleteKey("UnityMCP_Chat_Path_codex");
+            DeleteEditorPrefString("UnityMCP_Chat_Path_codex");
         }
 
         [Test]

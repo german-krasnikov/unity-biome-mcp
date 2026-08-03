@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SparklineHelperTests
+    public class SparklineHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Null_ReturnsEmpty() =>

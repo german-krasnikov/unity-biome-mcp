@@ -11,7 +11,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class RelaySpawnerTests
+    public class RelaySpawnerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private Func<ProcessStartInfo, Process>   _origFactory;
         private Func<(string cmd, string[] argv)> _origResolver;
@@ -26,14 +26,14 @@ namespace UnityMCP.Editor.Tests
             _origTimeout    = RelaySpawner.ReadTimeout;
             _origRetryDelay = RelaySpawner.RetryDelay;
             RelaySpawner.RetryDelay = TimeSpan.Zero; // keep tests fast
-            RelaySpawner.Stop();
+            RelaySpawner.StopForTests();
             ClearSessionState();
         }
 
         [TearDown]
         public void TearDown()
         {
-            RelaySpawner.Stop();
+            RelaySpawner.StopForTests();
             ClearSessionState();
             RelaySpawner.ProcessFactory   = _origFactory;
             RelaySpawner.CommandResolver  = _origResolver;
@@ -126,7 +126,7 @@ namespace UnityMCP.Editor.Tests
         {
             SetMockRelay(port: 19702);
             RelaySpawner.EnsureRunning();
-            Assert.AreEqual(19702, SessionState.GetInt("MCPChat_Relay_Port", 0));
+            Assert.AreEqual(19702, RelaySpawner.RelayPort);
         }
 
         [Test]
@@ -134,7 +134,7 @@ namespace UnityMCP.Editor.Tests
         {
             SetMockRelay(port: 19703);
             RelaySpawner.EnsureRunning();
-            Assert.Greater(SessionState.GetInt("MCPChat_Relay_PID", 0), 0);
+            Assert.Greater(RelaySpawner.RelayPid, 0);
         }
 
         [Test]
@@ -225,8 +225,7 @@ namespace UnityMCP.Editor.Tests
             var liveRelay = SpawnFakeRelay(19800);
             try
             {
-                SessionState.SetInt("MCPChat_Relay_Port", 19800);
-                SessionState.SetInt("MCPChat_Relay_PID",  liveRelay.Id);
+                RelaySpawner.SetSessionForTests(19800, liveRelay.Id);
 
                 // TcpAliveOverride: bypass real TCP probe (port 19800 has no listener in tests)
                 RelaySpawner.TcpAliveOverride = port => true;
@@ -254,8 +253,7 @@ namespace UnityMCP.Editor.Tests
             var liveRelay = SpawnFakeRelay(19801);
             try
             {
-                SessionState.SetInt("MCPChat_Relay_Port", 19801);
-                SessionState.SetInt("MCPChat_Relay_PID",  liveRelay.Id);
+                RelaySpawner.SetSessionForTests(19801, liveRelay.Id);
 
                 // TcpAliveOverride: bypass real TCP probe (port 19801 has no listener in tests)
                 RelaySpawner.TcpAliveOverride = port => true;
@@ -278,8 +276,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void EnsureRunning_WhenPidDead_Respawns()
         {
-            SessionState.SetInt("MCPChat_Relay_Port", 19802);
-            SessionState.SetInt("MCPChat_Relay_PID",  99999999); // dead PID
+            RelaySpawner.SetSessionForTests(19802, 99999999); // dead PID
 
             int spawnCount = 0;
             SetMockRelay(port: 19803);
@@ -361,8 +358,7 @@ namespace UnityMCP.Editor.Tests
             var liveProc = SpawnFakeRelay(19860);
             try
             {
-                SessionState.SetInt("MCPChat_Relay_Port", 19860);
-                SessionState.SetInt("MCPChat_Relay_PID",  liveProc.Id);
+                RelaySpawner.SetSessionForTests(19860, liveProc.Id);
 
                 // TCP probe returns false: relay crashed, PID reused by another process
                 RelaySpawner.TcpAliveOverride = port => false;
@@ -390,8 +386,7 @@ namespace UnityMCP.Editor.Tests
             var liveProc = SpawnFakeRelay(19870);
             try
             {
-                SessionState.SetInt("MCPChat_Relay_Port", 19870);
-                SessionState.SetInt("MCPChat_Relay_PID",  liveProc.Id);
+                RelaySpawner.SetSessionForTests(19870, liveProc.Id);
 
                 // TCP probe returns true: relay genuinely alive
                 RelaySpawner.TcpAliveOverride = port => true;
@@ -457,8 +452,8 @@ namespace UnityMCP.Editor.Tests
         {
             SetMockRelay(port: 19900);
             RelaySpawner.EnsureRunning();
-            RelaySpawner.Stop();
-            Assert.AreEqual(0, SessionState.GetInt("MCPChat_Relay_Port", 0));
+            RelaySpawner.StopForTests();
+            Assert.AreEqual(0, RelaySpawner.RelayPort);
         }
 
         [Test]
@@ -466,8 +461,8 @@ namespace UnityMCP.Editor.Tests
         {
             SetMockRelay(port: 19901);
             RelaySpawner.EnsureRunning();
-            RelaySpawner.Stop();
-            Assert.AreEqual(0, SessionState.GetInt("MCPChat_Relay_PID", 0));
+            RelaySpawner.StopForTests();
+            Assert.AreEqual(0, RelaySpawner.RelayPid);
         }
 
         [Test]
@@ -475,7 +470,7 @@ namespace UnityMCP.Editor.Tests
         {
             SetMockRelay(port: 19902);
             RelaySpawner.EnsureRunning();
-            RelaySpawner.Stop();
+            RelaySpawner.StopForTests();
             Assert.IsFalse(RelaySpawner.IsRunning);
         }
 
@@ -594,6 +589,7 @@ namespace UnityMCP.Editor.Tests
             RelaySpawner.ReadTimeout     = TimeSpan.FromMilliseconds(100);
             RelaySpawner.CommandResolver = () => ("bash", Array.Empty<string>());
             var spawned = new List<Process>();
+            var spawnedPids = new List<int>();
             int calls = 0;
             RelaySpawner.ProcessFactory = _ =>
             {
@@ -602,6 +598,7 @@ namespace UnityMCP.Editor.Tests
                     ? SpawnBashProcess("-c \"exec sleep 60\"")  // hangs → triggers timeout
                     : SpawnBashProcess("-c \"echo relay_port:19921; exec sleep 60\"");
                 spawned.Add(p);
+                spawnedPids.Add(p.Id);
                 return p;
             };
 
@@ -609,9 +606,12 @@ namespace UnityMCP.Editor.Tests
             {
                 var port = RelaySpawner.EnsureRunning();
                 Assert.AreEqual(19921, port);
-                Assert.IsTrue(spawned[0].HasExited, "First zombie must be killed before retry");
-                Assert.IsTrue(spawned[1].HasExited, "Second zombie must be killed before retry");
-                Assert.IsFalse(spawned[2].HasExited, "Successful process must still be alive");
+                Assert.IsFalse(RelaySpawner.IsProcessAlive(spawnedPids[0]),
+                    "First zombie must be killed before retry");
+                Assert.IsFalse(RelaySpawner.IsProcessAlive(spawnedPids[1]),
+                    "Second zombie must be killed before retry");
+                Assert.IsTrue(RelaySpawner.IsProcessAlive(spawnedPids[2]),
+                    "Successful process must still be alive");
             }
             finally
             {
@@ -626,8 +626,7 @@ namespace UnityMCP.Editor.Tests
             var liveProc = SpawnBashProcess("-c \"exec sleep 60\"");
             try
             {
-                SessionState.SetInt("MCPChat_Relay_Port", 19931);
-                SessionState.SetInt("MCPChat_Relay_PID",  liveProc.Id);
+                RelaySpawner.SetSessionForTests(19931, liveProc.Id);
                 // No TcpAliveOverride — real TCP to port 19931 has no listener in tests.
                 // Old code: IsTcpAlive fails → LooksAlreadyRunning = false → cold path.
                 // New code: IsProcessAlive(live) = true → fast path → EnsureRunningOverride called.
@@ -683,8 +682,7 @@ namespace UnityMCP.Editor.Tests
 
         private static void ClearSessionState()
         {
-            SessionState.EraseInt("MCPChat_Relay_Port");
-            SessionState.EraseInt("MCPChat_Relay_PID");
+            RelaySpawner.SetSessionForTests(0, 0);
         }
     }
 }

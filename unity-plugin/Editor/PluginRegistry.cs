@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
+#if UNITY_INCLUDE_TESTS
+using System;
+#endif
 
 namespace UnityMCP.Editor
 {
@@ -66,6 +69,47 @@ namespace UnityMCP.Editor
         public static IReadOnlyList<IMCPPlugin> GetAll() => _plugins;
 
         public static IReadOnlyList<IMCPPlugin> All => _plugins;
+
+#if UNITY_INCLUDE_TESTS
+        /// <summary>
+        /// Preserve the exact plugin registry for a test scope, including failures
+        /// recorded by the latest registration pass. Restore keeps original plugin
+        /// instances and ordering instead of reconstructing a built-in subset.
+        /// </summary>
+        internal static IDisposable PreserveStateForTests()
+        {
+            var plugins = new List<IMCPPlugin>(_plugins);
+            var failures = new List<(string Name, string Error)>(_failedPlugins);
+            return new RestoreScope(plugins, failures);
+        }
+
+        private sealed class RestoreScope : IDisposable
+        {
+            private List<IMCPPlugin> _pluginsSnapshot;
+            private List<(string Name, string Error)> _failuresSnapshot;
+
+            internal RestoreScope(
+                List<IMCPPlugin> plugins,
+                List<(string Name, string Error)> failures)
+            {
+                _pluginsSnapshot = plugins;
+                _failuresSnapshot = failures;
+            }
+
+            public void Dispose()
+            {
+                if (_pluginsSnapshot == null) return;
+
+                _plugins.Clear();
+                _plugins.AddRange(_pluginsSnapshot);
+                _failedPlugins.Clear();
+                _failedPlugins.AddRange(_failuresSnapshot);
+
+                _pluginsSnapshot = null;
+                _failuresSnapshot = null;
+            }
+        }
+#endif
 
         internal static void Clear()
         {

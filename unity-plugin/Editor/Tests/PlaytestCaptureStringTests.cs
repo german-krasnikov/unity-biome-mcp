@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestCaptureStringTests
+    public class PlaytestCaptureStringTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── 1. ASSERT_CHANGED parsed correctly ────────────────────────────────────
 

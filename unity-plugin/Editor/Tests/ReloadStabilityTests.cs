@@ -8,7 +8,7 @@ namespace UnityMCP.Editor.Tests
     // ── Group 1: ComputeStamp multi-assembly (SD-1) ───────────────────────────
 
     [TestFixture]
-    public class ComputeStampStressTests
+    public class ComputeStampStressTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // T-A: stamp always contains ';' (SD-1: each MVID appended with ';')
         [Test]

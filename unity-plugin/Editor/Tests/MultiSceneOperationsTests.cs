@@ -14,16 +14,15 @@ namespace UnityMCP.Editor.Tests
     public class MultiSceneOperationsTests : MultiSceneTestBase
     {
         // ── TransferObjectTests ───────────────────────────────────────────────
-        // These tests use _go directly and need their own creation/cleanup,
-        // so we use _toDestroy tracking from base for cleanup.
+        // These tests use the object directly while the common ownership scope
+        // remains responsible for cleanup.
 
         private GameObject _transferGo;
 
-        public override void SetUp()
+        [SetUp]
+        public void SetUpTransferObject()
         {
-            base.SetUp();
-            _transferGo = new GameObject("TransferObj");
-            _toDestroy.Add(_transferGo);
+            _transferGo = TrackOwnedObject(new GameObject("TransferObj"));
         }
 
         [Test]
@@ -42,7 +41,7 @@ namespace UnityMCP.Editor.Tests
         public void Move_ChildObject_AutoUnparents()
         {
             var parent = new GameObject("TransferParent");
-            _toDestroy.Add(parent);
+            TrackOwnedObject(parent);
             _transferGo.transform.SetParent(parent.transform);
 
             ObjectManager.TransferObject("/TransferParent/TransferObj", "move", _additiveScene.name, null, true);
@@ -103,7 +102,7 @@ namespace UnityMCP.Editor.Tests
         {
             // parentGo lives in the main (active) scene; clone would land in additive — mismatch
             var parentGo = new GameObject("WrongSceneParent");
-            _toDestroy.Add(parentGo);
+            TrackOwnedObject(parentGo);
 
             Assert.Throws<System.ArgumentException>(() =>
                 ObjectManager.TransferObject("/TransferObj", "copy", _additiveScene.name,
@@ -129,21 +128,6 @@ namespace UnityMCP.Editor.Tests
         // ── CreateObjectSceneTests ────────────────────────────────────────────
 
         private const string ObjName = "CreateInScene_TestObj";
-
-        public override void TearDown()
-        {
-            // Clean up CreateObject stray GOs not in _toDestroy
-            var stray = GameObject.Find(ObjName);
-            if (stray != null) Object.DestroyImmediate(stray);
-
-            if (_additiveScene.IsValid())
-            {
-                foreach (var root in _additiveScene.GetRootGameObjects())
-                    if (root != null && root.name == ObjName) Object.DestroyImmediate(root);
-            }
-
-            base.TearDown();
-        }
 
         [Test]
         public void CreateObject_WithScene_CreatesInIt()
@@ -190,8 +174,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Diff_IdenticalObjects_ReturnsIdentical()
         {
-            var a = new GameObject("Twin"); _toDestroy.Add(a);
-            var b = new GameObject("Twin2"); _toDestroy.Add(b);
+            var a = new GameObject("Twin"); TrackOwnedObject(a);
+            var b = new GameObject("Twin2"); TrackOwnedObject(b);
             var result = ObjectDiffHelper.Diff(ComponentSerializer.GetPath(a), ComponentSerializer.GetPath(b));
             Assert.That(result, Does.Contain("identical"));
         }
@@ -199,8 +183,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Diff_DifferentComponents_Listed()
         {
-            var a = new GameObject("ObjA"); _toDestroy.Add(a);
-            var b = new GameObject("ObjB"); _toDestroy.Add(b);
+            var a = new GameObject("ObjA"); TrackOwnedObject(a);
+            var b = new GameObject("ObjB"); TrackOwnedObject(b);
             a.AddComponent<BoxCollider>();
             b.AddComponent<SphereCollider>();
 
@@ -211,8 +195,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Diff_DifferentProperties_Shows()
         {
-            var a = new GameObject("PropA"); _toDestroy.Add(a);
-            var b = new GameObject("PropB"); _toDestroy.Add(b);
+            var a = new GameObject("PropA"); TrackOwnedObject(a);
+            var b = new GameObject("PropB"); TrackOwnedObject(b);
             a.transform.position = new Vector3(1, 0, 0);
             b.transform.position = new Vector3(5, 0, 0);
 
@@ -223,9 +207,9 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Diff_DifferentChildren_Listed()
         {
-            var a = new GameObject("ParentA"); _toDestroy.Add(a);
-            var b = new GameObject("ParentB"); _toDestroy.Add(b);
-            var child = new GameObject("ChildOnly"); _toDestroy.Add(child);
+            var a = new GameObject("ParentA"); TrackOwnedObject(a);
+            var b = new GameObject("ParentB"); TrackOwnedObject(b);
+            var child = new GameObject("ChildOnly"); TrackOwnedObject(child);
             child.transform.SetParent(a.transform);
 
             var result = ObjectDiffHelper.Diff(ComponentSerializer.GetPath(a), ComponentSerializer.GetPath(b));
@@ -235,7 +219,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Diff_ObjectNotFound_ReturnsError()
         {
-            var a = new GameObject("RealObj"); _toDestroy.Add(a);
+            var a = new GameObject("RealObj"); TrackOwnedObject(a);
             var result = ObjectDiffHelper.Diff(ComponentSerializer.GetPath(a), "/NonExistentXYZ999");
             Assert.That(result, Does.Contain("not found").IgnoreCase.Or.Contain("error").IgnoreCase);
         }
@@ -342,7 +326,7 @@ namespace UnityMCP.Editor.Tests
             SceneContext.InvalidateCache();
 
             var go = new GameObject("SingleSceneObj_Bug1");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
             var result = ObjectManager.FindObjects("SingleSceneObj_Bug1", null, null, null);
 
@@ -355,7 +339,7 @@ namespace UnityMCP.Editor.Tests
         public void FindReferencesTo_MultiScene_ScansAllScenes()
         {
             var target = new GameObject("RefTarget_Bug2");
-            _toDestroy.Add(target);
+            TrackOwnedObject(target);
 
             var referencer = CreateIn(_additiveScene, "Referencer_Bug2");
             var refComp = referencer.AddComponent<ReferencerComponent>();
@@ -375,9 +359,9 @@ namespace UnityMCP.Editor.Tests
             _additiveScene = default;
 
             var target = new GameObject("RefTarget_Single_Bug2");
-            _toDestroy.Add(target);
+            TrackOwnedObject(target);
             var referencer = new GameObject("Referencer_Single_Bug2");
-            _toDestroy.Add(referencer);
+            TrackOwnedObject(referencer);
 
             var refComp = referencer.AddComponent<ReferencerComponent>();
             refComp.target = target;

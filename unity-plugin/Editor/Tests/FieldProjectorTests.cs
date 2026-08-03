@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class FieldProjectorTests
+    public class FieldProjectorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string S =
             "[Transform]\nm_LocalPosition.x: 5\nm_LocalPosition.y: 3\n" +

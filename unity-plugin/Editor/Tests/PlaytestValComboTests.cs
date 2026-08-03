@@ -8,7 +8,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestValComboTests
+    public class PlaytestValComboTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // A1 — VAL used inside MACRO body: expands after CALL phase
         [Test]

@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MermaidLayoutTests
+    public class MermaidLayoutTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static MermaidGraph Chain(MermaidDir dir, params string[] ids)
         {

@@ -5,6 +5,7 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityMCP.Editor.Profiling;
 using Object = UnityEngine.Object;
 
 namespace UnityMCP.Editor
@@ -73,17 +74,17 @@ namespace UnityMCP.Editor
             }
 
             int draws   = UnityStats.drawCalls;
-            int batches = UnityStats.batches;
+            var batches = ProfilerBridge.CollectBatchCount();
             int setPass = UnityStats.setPassCalls;
             int shadows = UnityStats.shadowCasters;
             bool live   = draws > 0;
 
             var sb = new StringBuilder();
             sb.AppendLine($"RENDER STATS{(live ? "" : " [WARN:open SceneView for live counters]")}");
-            sb.Append($"draw={draws} batches={batches} tris={FormatNum(totalTris)} verts={FormatNum(totalVerts)} setpass={setPass} shadows={shadows} skinned={skinned}");
+            sb.Append($"draw={draws} batches={FormatBatchCount(batches)} tris={FormatNum(totalTris)} verts={FormatNum(totalVerts)} setpass={setPass} shadows={shadows} skinned={skinned}");
             if (detail == "full")
                 sb.Append($"\nstatic={UnityStats.staticBatchedDrawCalls} dynamic={UnityStats.dynamicBatchedDrawCalls} instanced={UnityStats.instancedBatchedDrawCalls}");
-            SaveBaseline(draws, batches, setPass, shadows, totalTris, totalVerts);
+            SaveBaseline(draws, batches.IsAvailable ? batches.Value : -1, setPass, shadows, totalTris, totalVerts);
             return sb.ToString().TrimEnd();
         }
 
@@ -130,13 +131,13 @@ namespace UnityMCP.Editor
             if (_baseline == null) return "err:no baseline — call render_analyze(action=stats) first";
 
             int draws   = UnityStats.drawCalls;
-            int batches = UnityStats.batches;
+            var batches = ProfilerBridge.CollectBatchCount();
             int setPass = UnityStats.setPassCalls;
 
             var sb = new StringBuilder();
             sb.AppendLine($"COMPARE (vs {_baselineTime ?? "last stats"})");
             AppendDelta(sb, "draw calls", BGet("draws"), draws);
-            AppendDelta(sb, "batches",    BGet("batches"), batches);
+            AppendBatchDelta(sb, BGet("batches"), batches);
             AppendDelta(sb, "set-pass",   BGet("setPass"), setPass);
             return sb.ToString().TrimEnd();
         }
@@ -151,6 +152,26 @@ namespace UnityMCP.Editor
             string pct  = old > 0 ? $" ({sign}{delta * 100 / old}%)" : "";
             string tag  = delta < 0 ? " GOOD" : delta > 0 ? " WARN" : "";
             sb.AppendLine($"  {label}: {now} ({sign}{delta}{pct}){tag}");
+        }
+
+        private static void AppendBatchDelta(
+            StringBuilder sb,
+            long old,
+            ProfilerBridge.BatchCountSample current)
+        {
+            if (old < 0)
+            {
+                sb.AppendLine("  batches: unavailable(baseline-unavailable)");
+                return;
+            }
+
+            if (!current.IsAvailable)
+            {
+                sb.AppendLine($"  batches: {FormatBatchCount(current)}");
+                return;
+            }
+
+            AppendDelta(sb, "batches", old, current.Value);
         }
 
         private static void SaveBaseline(int draws, int batches, int setPass, int shadows, long tris, long verts)
@@ -187,6 +208,9 @@ namespace UnityMCP.Editor
         internal static string FormatNum(long n) =>
             n >= 1_000_000 ? $"{n / 1_000_000.0:F1}M" :
             n >= 1_000     ? $"{n / 1_000.0:F1}K" : n.ToString();
+
+        internal static string FormatBatchCount(ProfilerBridge.BatchCountSample sample) =>
+            sample.IsAvailable ? sample.Value.ToString() : $"unavailable({sample.UnavailableReason})";
 
         internal static void ClearBaselineForTest() { _baseline = null; _baselineTime = null; }
     }

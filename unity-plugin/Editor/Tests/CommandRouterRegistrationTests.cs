@@ -11,7 +11,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CommandRouterRegistrationTests
+    public class CommandRouterRegistrationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly string[] MetaCommands =
         {

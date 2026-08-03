@@ -13,7 +13,7 @@ using Object = UnityEngine.Object;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipNavigationIntegrationTests
+    public class ChipNavigationIntegrationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private IChipKindProvider    _provider;
         private readonly List<GameObject> _created = new List<GameObject>();
@@ -33,8 +33,6 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (go != null) Object.DestroyImmediate(go);
             _created.Clear();
             ChipKindRegistry.ResetToBuiltIns();
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
         private GameObject Make(string name)
@@ -74,7 +72,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void Navigate_ByInstanceId_SetsActiveGameObject()
         {
             var go = Make("IdTarget");
-            var id = go.GetInstanceID();
+            var id = TransientObjectId.GetWireValue(go);
             _provider.Navigate($"/IdTarget#{id}");
             Assert.AreEqual(go, Selection.activeGameObject);
         }
@@ -102,13 +100,13 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(0, handled.Count, "scene GOs must not populate handledPaths");
         }
 
-        // B7 — Create() sets InstanceID to go.GetInstanceID()
+        // B7 - Create() stores the object's EntityId raw value as a string.
         [Test]
         public void HierarchyChipProvider_Create_SetsInstanceId()
         {
             var go   = Make("IdChip");
             var chip = _provider.Create(go, "");
-            Assert.AreEqual(go.GetInstanceID(), chip.InstanceID);
+            Assert.AreEqual(TransientObjectId.GetWireValue(go), chip.ObjectId);
         }
     }
 }

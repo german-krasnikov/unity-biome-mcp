@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestAliasStressTests
+    public class PlaytestAliasStressTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // D1 — 100 VAL aliases: parse completes under 200ms
         [Test]

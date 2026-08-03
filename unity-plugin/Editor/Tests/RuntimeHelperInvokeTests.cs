@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class RuntimeHelperInvokeTests
+    public class RuntimeHelperInvokeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── ErrorClassifier.FormatError ───────────────────────────────────────
 

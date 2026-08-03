@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ComponentChipProviderTests
+    public class ComponentChipProviderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         ComponentChipProvider _provider;
 
@@ -25,8 +25,6 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             ComponentChipProvider.FindObjectOverride = null;
             ChipKindRegistry.ResetToBuiltIns();
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
         // ── Registration ──────────────────────────────────────────────────────

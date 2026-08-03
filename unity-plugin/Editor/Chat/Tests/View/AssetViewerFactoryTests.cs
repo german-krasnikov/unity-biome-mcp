@@ -14,14 +14,8 @@ namespace UnityMCP.Editor.Chat.Tests
     }
 
     [TestFixture]
-    public class AssetViewerFactoryTests
+    public class AssetViewerFactoryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]
-        public void SetUp() => AssetViewerFactory.Reset();
-
-        [TearDown]
-        public void TearDown() => AssetViewerFactory.Reset();
-
         [Test]
         public void Register_ThenForPath_ReturnsViewer()
         {
@@ -93,25 +87,36 @@ namespace UnityMCP.Editor.Chat.Tests
 
             Assert.AreSame(second, viewer);
         }
+
+        [Test]
+        public void PreserveStateForTests_RestoresRegistryAndDelegatesExactly()
+        {
+            var originalViewer = new FakeViewer();
+            Func<string, bool> originalLauncher = _ => false;
+            Action<string> originalFallback = _ => { };
+            AssetViewerFactory.Register(".biome_scope_original", originalViewer);
+            AssetChipProviderBase.ViewerLauncher = originalLauncher;
+            ImageChipProvider.ImageFallbackViewer = originalFallback;
+
+            using (AssetViewerFactory.PreserveStateForTests())
+            {
+                AssetViewerFactory.Reset();
+                AssetViewerFactory.Register(".biome_scope_added", new FakeViewer());
+                AssetChipProviderBase.ViewerLauncher = _ => true;
+                ImageChipProvider.ImageFallbackViewer = null;
+            }
+
+            Assert.AreSame(originalViewer,
+                AssetViewerFactory.ForPath("Assets/value.biome_scope_original"));
+            Assert.IsNull(AssetViewerFactory.ForPath("Assets/value.biome_scope_added"));
+            Assert.AreSame(originalLauncher, AssetChipProviderBase.ViewerLauncher);
+            Assert.AreSame(originalFallback, ImageChipProvider.ImageFallbackViewer);
+        }
     }
 
     [TestFixture]
-    public class ViewerLauncherSeamTests
+    public class ViewerLauncherSeamTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]
-        public void SetUp()
-        {
-            AssetViewerFactory.Reset();
-            AssetChipProviderBase.ViewerLauncher = null;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            AssetViewerFactory.Reset();
-            AssetChipProviderBase.ViewerLauncher = null;
-        }
-
         [Test]
         public void ViewerLauncher_Set_CalledOnNavigate()
         {
@@ -187,7 +192,7 @@ namespace UnityMCP.Editor.Chat.Tests
     }
 
     [TestFixture]
-    public class AudioUtilProxyTests
+    public class AudioUtilProxyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void TypeLookup_DoesNotThrow()
@@ -226,22 +231,8 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── BUG 1: ImageChipProvider.Navigate should use ViewerLauncher, not OpenURL ──────────
 
     [TestFixture]
-    public class ImageChipProviderNavigateTests
+    public class ImageChipProviderNavigateTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]
-        public void SetUp()
-        {
-            AssetChipProviderBase.ViewerLauncher = null;
-            ImageChipProvider.ImageFallbackViewer = null;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            AssetChipProviderBase.ViewerLauncher = null;
-            ImageChipProvider.ImageFallbackViewer = null;
-        }
-
         [Test]
         public void Navigate_WhenViewerLauncherHandles_DoesNotCallFallback()
         {
@@ -262,6 +253,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             // Arrange
             string capturedUrl = null;
+            AssetChipProviderBase.ViewerLauncher = null;
             ImageChipProvider.ImageFallbackViewer = url => capturedUrl = url;
 
             // Act
@@ -278,7 +270,6 @@ namespace UnityMCP.Editor.Chat.Tests
             // BUG 1: original code skips ViewerLauncher for ImageChipProvider entirely.
             // After fix, .bmp/.gif should route through ViewerLauncher when registered.
             var fake = new FakeViewer();
-            AssetViewerFactory.Reset();
             AssetViewerFactory.Register(".bmp", fake);
             AssetChipProviderBase.ViewerLauncher = AssetViewerFactory.TryShow;
 
@@ -291,7 +282,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── NRE: ModelChipProvider.Create / AudioChipProvider.Create with null obj ───────────
 
     [TestFixture]
-    public class AssetChipProviderNullObjTests
+    public class AssetChipProviderNullObjTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ModelChipProvider inherits AssetChipProviderBase.Create which does obj.name → NRE
         [Test]
@@ -333,10 +324,10 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── BUG 8: AssetViewerFactory.RegisterBuiltIns missing .bmp and .gif ────────────────
 
     [TestFixture]
-    public class AssetViewerFactoryBuiltInCoverageTests
+    public class AssetViewerFactoryBuiltInCoverageTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => AssetViewerFactory.ReRegisterBuiltIns();
-        [TearDown] public void TearDown() => AssetViewerFactory.Reset();
+        [SetUp]
+        public void SetUp() => AssetViewerFactory.ReRegisterBuiltIns();
 
         [Test]
         public void RegisterBuiltIns_Bmp_HasViewer()

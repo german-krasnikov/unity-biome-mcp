@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class EnterKeySendTests
+    public class EnterKeySendTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Classify_Return_NoAlt_Send()

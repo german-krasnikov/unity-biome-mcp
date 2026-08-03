@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SlashPopupTests
+    public class SlashPopupTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private VisualElement _inputContainer;
         private TextField     _field;

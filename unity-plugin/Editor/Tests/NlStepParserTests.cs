@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal class NlStepParserTests
+    internal class NlStepParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Fragment splitting ──────────────────────────────────────────────
 

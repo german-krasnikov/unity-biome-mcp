@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PendingAskRegistryTests
+    public class PendingAskRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void Setup()
@@ -25,7 +25,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Complete_ResolvesTask_TaskResultMatchesInput()
+        public async Task Complete_ResolvesTask_TaskResultMatchesInput()
         {
             var id = "test-002";
             PendingAskRegistry.Register(id);
@@ -34,7 +34,7 @@ namespace UnityMCP.Editor.Tests
             PendingAskRegistry.Complete(id, "{\"q\":\"a\"}");
 
             Assert.IsTrue(tcs.Task.IsCompleted);
-            Assert.AreEqual("{\"q\":\"a\"}", tcs.Task.Result);
+            Assert.AreEqual("{\"q\":\"a\"}", await tcs.Task);
         }
 
         [Test]
@@ -121,7 +121,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Ask_TaskCancelled_ResolvesWithCancelledJson()
+        public async Task Ask_TaskCancelled_ResolvesWithCancelledJson()
         {
             string requestId = null;
             var task = PendingAskRegistry.Ask("[]", (id, _) => requestId = id);
@@ -129,11 +129,11 @@ namespace UnityMCP.Editor.Tests
             PendingAskRegistry.Cancel(requestId);
 
             Assert.IsTrue(task.IsCompleted);
-            Assert.AreEqual("{\"cancelled\":true}", task.Result);
+            Assert.AreEqual("{\"cancelled\":true}", await task);
         }
 
         [Test]
-        public void Ask_TaskCompleted_ResolvesWithAnswerJson()
+        public async Task Ask_TaskCompleted_ResolvesWithAnswerJson()
         {
             string requestId = null;
             var task = PendingAskRegistry.Ask("[]", (id, _) => requestId = id);
@@ -141,7 +141,7 @@ namespace UnityMCP.Editor.Tests
             PendingAskRegistry.Complete(requestId, "{\"a\":1}");
 
             Assert.IsTrue(task.IsCompleted);
-            Assert.AreEqual("{\"a\":1}", task.Result);
+            Assert.AreEqual("{\"a\":1}", await task);
         }
     }
 }

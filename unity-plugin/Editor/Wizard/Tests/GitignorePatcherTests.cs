@@ -5,7 +5,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class GitignorePatcherTests
+    public class GitignorePatcherTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly string[] Paths =
         {

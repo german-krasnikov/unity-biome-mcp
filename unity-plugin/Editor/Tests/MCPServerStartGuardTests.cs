@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MCPServerStartGuardTests
+    public class MCPServerStartGuardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void ShouldStartServer_BatchMode_ReturnsFalse()

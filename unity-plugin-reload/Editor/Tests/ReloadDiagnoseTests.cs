@@ -1,12 +1,13 @@
 // TDD: ReloadDiagnoseCommand — формат, латч-сигнатура, DllFreshness, DetectReloadFailed.
 using System.IO;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 
 namespace UnityMCP.Reload.Tests
 {
     [TestFixture]
-    public class ReloadDiagnoseTests
+    public class ReloadDiagnoseTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Execute_ReturnsAllRequiredFields()
@@ -90,6 +91,62 @@ namespace UnityMCP.Reload.Tests
             finally { File.Delete(tmpLog); }
         }
 
+        [TestCase("Mono: successfully reloaded assembly")]
+        [TestCase("Reload assemblies complete.")]
+        public void DetectReloadFailed_SuccessAfterFailure_ReturnsFalse(string successMarker)
+        {
+            var tmpLog = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(tmpLog,
+                    "Editor compiler errors found. Will not reload assemblies.\n" +
+                    "Reloading assemblies failed.\n" + successMarker);
+                var result = ReloadDiagnoseCommand.DetectReloadFailed(tmpLog);
+                Assert.IsFalse(result,
+                    "A successful reload after a failure must clear the historical failure latch");
+            }
+            finally { File.Delete(tmpLog); }
+        }
+
+        [Test]
+        public void DetectReloadFailed_FailureAfterSuccess_ReturnsTrue()
+        {
+            var tmpLog = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(tmpLog,
+                    "Mono: successfully reloaded assembly\n" +
+                    "Editor compiler errors found. Will not reload assemblies.\n" +
+                    "Reloading assemblies failed.");
+                var result = ReloadDiagnoseCommand.DetectReloadFailed(tmpLog);
+                Assert.IsTrue(result,
+                    "The latest reload terminal is a failure and must remain current");
+            }
+            finally { File.Delete(tmpLog); }
+        }
+
+        [TestCase("Mono: successfully reloaded assembly")]
+        [TestCase("Reload assemblies complete.")]
+        public void ParseEditorLogText_SuccessAfterCompileError_ReturnsClean(string successMarker)
+        {
+            var text =
+                "## Script Compilation Error for: Csc Broken.dll\n" +
+                "Broken.cs(1,1): error CS0122: inaccessible\n" + successMarker;
+
+            Assert.AreEqual("clean", ReloadDiagnoseCommand.ParseEditorLogText(text));
+        }
+
+        [Test]
+        public void ParseEditorLogText_CompileErrorAfterSuccess_ReturnsCode()
+        {
+            var text =
+                "Mono: successfully reloaded assembly\n" +
+                "## Script Compilation Error for: Csc Broken.dll\n" +
+                "Broken.cs(1,1): error CS0122: inaccessible\n";
+
+            Assert.AreEqual("CS0122", ReloadDiagnoseCommand.ParseEditorLogText(text));
+        }
+
         [Test]
         public void Execute_ContainsMainMvid()
         {
@@ -98,7 +155,7 @@ namespace UnityMCP.Reload.Tests
         }
 
         [Test]
-        public void Execute_UsesVolatileCache_NotApplicationDataPath()
+        public async Task Execute_UsesVolatileCache_NotApplicationDataPath()
         {
             // F1/F7: BuildDllFreshness must read project root from CachedProjectRoot volatile field,
             // not Application.dataPath (which throws on ThreadPool — unity-plugin-reload trap).
@@ -110,12 +167,14 @@ namespace UnityMCP.Reload.Tests
             // it, but production code runs inline on ThreadPool).
             string result = null;
             System.Exception ex = null;
-            var task = System.Threading.Tasks.Task.Run(() =>
+            var task = Task.Run(() =>
             {
                 try { result = ReloadDiagnoseCommand.Execute(); }
                 catch (System.Exception e) { ex = e; }
             });
-            task.Wait(5000);
+            var completed = await Task.WhenAny(task, Task.Delay(5000));
+            Assert.AreSame(task, completed, "Execute() did not complete within 5s");
+            await task;
             // The test proves the code path exists and executes — the volatile cache guards it.
             Assert.IsNull(ex, $"Execute() threw (F1/F7 volatile cache not applied): {ex}");
             Assert.IsNotNull(result, "Execute() must return non-null result");

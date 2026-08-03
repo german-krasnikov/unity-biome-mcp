@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal class PlaytestComposerTests
+    internal class PlaytestComposerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Red 1: Bind sets EnumField to step.type
         [Test]

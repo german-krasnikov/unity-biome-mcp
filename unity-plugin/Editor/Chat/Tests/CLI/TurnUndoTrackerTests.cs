@@ -8,19 +8,12 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class TurnUndoTrackerTests
+    public class TurnUndoTrackerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private TurnUndoTracker _tracker;
 
         [SetUp]
         public void SetUp() => _tracker = new TurnUndoTracker();
-
-        [TearDown]
-        public void TearDown()
-        {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
-        }
 
         // --- 7. OnTurnStart → HasRestorableGroup == false (turn not ended yet) --
         [Test]

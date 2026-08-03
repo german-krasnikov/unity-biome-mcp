@@ -269,6 +269,35 @@ namespace UnityMCP.Editor
             Ready = false;
         }
 
+        // Exact registry ownership for UnityMcpTestBase. A copy preserves built-ins,
+        // plugin commands, delegates, readiness, and the caller trust context rather than
+        // rebuilding an approximation with InitDefaults() after a test.
+        internal sealed class TestSnapshot
+        {
+            private readonly Dictionary<string, Entry> _entries =
+                new Dictionary<string, Entry>(_commands);
+            private readonly bool _ready = Ready;
+            private readonly bool _callerIsPlugin = CallerIsPlugin;
+
+            internal void Restore()
+            {
+                _commands.Clear();
+                foreach (var pair in _entries)
+                    _commands.Add(pair.Key, pair.Value);
+                Ready = _ready;
+                CallerIsPlugin = _callerIsPlugin;
+            }
+        }
+
+        internal static TestSnapshot CaptureForTest() => new TestSnapshot();
+
+        internal static void RestoreForTest(TestSnapshot snapshot)
+        {
+            if (snapshot == null)
+                throw new ArgumentNullException(nameof(snapshot));
+            snapshot.Restore();
+        }
+
         public static string GetDescription(string cmd) =>
             _commands.TryGetValue(cmd, out var e) ? e.Description : null;
 

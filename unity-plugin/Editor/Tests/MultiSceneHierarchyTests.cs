@@ -13,15 +13,15 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class MultiSceneHierarchyTests : MultiSceneTestBase
     {
-        public override void SetUp()
+        [SetUp]
+        public void ResetHierarchyCacheBeforeTest()
         {
             HierarchySerializer.ResetIncrementalCache();
-            base.SetUp();
         }
 
-        public override void TearDown()
+        [TearDown]
+        public void ResetHierarchyCacheAfterTest()
         {
-            base.TearDown();
             HierarchySerializer.ResetIncrementalCache();
         }
 
@@ -43,7 +43,7 @@ namespace UnityMCP.Editor.Tests
             // Need at least one root in each scene so phantom-header stripping keeps the headers.
             CreateIn(_additiveScene, "EmitHeaders_AdditiveObj");
             var go = new GameObject("EmitHeaders_MainObj");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
             var result = HierarchySerializer.Serialize();
             Assert.That(result, Does.Match(@"(?m)^\["));
@@ -53,7 +53,7 @@ namespace UnityMCP.Editor.Tests
         public void MultiScene_ObjectsUnderCorrectScene()
         {
             var go = new GameObject("AdditiveObj");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             SceneManager.MoveGameObjectToScene(go, _additiveScene);
 
             var result = HierarchySerializer.Serialize();
@@ -67,7 +67,7 @@ namespace UnityMCP.Editor.Tests
         public void MultiScene_RootParam_NoHeaders()
         {
             var go = new GameObject("RootParamGo");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             var result = HierarchySerializer.Serialize(root: "RootParamGo");
             Assert.That(result, Does.Not.Match(@"(?m)^\["));
         }
@@ -85,7 +85,7 @@ namespace UnityMCP.Editor.Tests
             string hash1 = FingerprintHelper.Fingerprint(null, 99);
 
             var go = new GameObject("FingerprintObj");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             SceneManager.MoveGameObjectToScene(go, _additiveScene);
             string hash2 = FingerprintHelper.Fingerprint(null, 99);
 
@@ -96,7 +96,7 @@ namespace UnityMCP.Editor.Tests
         public void MultiScene_Filter_MatchesAcrossScenes()
         {
             var go = new GameObject("UniqueFilterTarget");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             SceneManager.MoveGameObjectToScene(go, _additiveScene);
 
             var result = HierarchySerializer.Serialize(filter: "UniqueFilterTarget");
@@ -118,7 +118,7 @@ namespace UnityMCP.Editor.Tests
         {
             var go = new GameObject("CompObj");
             go.AddComponent<Camera>();
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             SceneManager.MoveGameObjectToScene(go, _additiveScene);
 
             var result = HierarchySerializer.Serialize(components: true);
@@ -141,7 +141,7 @@ namespace UnityMCP.Editor.Tests
         public void MultiScene_EmptyAdditiveScene_NoPhantomHeader_WithFilter()
         {
             var activeGo = new GameObject("PhantomTestOnlyActive");
-            _toDestroy.Add(activeGo);
+            TrackOwnedObject(activeGo);
 
             var result = HierarchySerializer.Serialize(filter: "PhantomTestOnlyActive");
 
@@ -167,10 +167,10 @@ namespace UnityMCP.Editor.Tests
         public void MultiScene_MAX_NODES_CrossScene_Truncates()
         {
             var go = new GameObject("TruncParent");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             var child = new GameObject("TruncChild");
             child.transform.SetParent(go.transform);
-            _toDestroy.Add(child);
+            TrackOwnedObject(child);
             SceneManager.MoveGameObjectToScene(go, _additiveScene);
 
             var result = HierarchySerializer.Serialize(depth: 0);
@@ -182,7 +182,7 @@ namespace UnityMCP.Editor.Tests
         public void MultiScene_Summary_WithRoot_NoHeaders()
         {
             var go = new GameObject("SummaryRootObj");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
 
             var result = HierarchySerializer.SerializeSummary(root: "SummaryRootObj");
 
@@ -205,11 +205,11 @@ namespace UnityMCP.Editor.Tests
         public void Hierarchy_SceneFilter_OnlyTargetScene()
         {
             var addGo = new GameObject("AdditiveOnly_SceneFilter");
-            _toDestroy.Add(addGo);
+            TrackOwnedObject(addGo);
             SceneManager.MoveGameObjectToScene(addGo, _additiveScene);
 
             var activeGo = new GameObject("ActiveOnly_SceneFilter");
-            _toDestroy.Add(activeGo);
+            TrackOwnedObject(activeGo);
 
             var result = HierarchySerializer.Serialize(scene: _additiveScene.name);
             Assert.That(result, Does.Contain("AdditiveOnly_SceneFilter"), "Should contain additive scene object");
@@ -228,7 +228,7 @@ namespace UnityMCP.Editor.Tests
         public void Hierarchy_NoFilter_AllScenes()
         {
             var go = new GameObject("NoFilterObj");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             SceneManager.MoveGameObjectToScene(go, _additiveScene);
 
             var result = HierarchySerializer.Serialize();
@@ -239,11 +239,11 @@ namespace UnityMCP.Editor.Tests
         public void Search_SceneFilter_OnlyTargetScene()
         {
             var addGo = new GameObject("SearchAdditiveTarget");
-            _toDestroy.Add(addGo);
+            TrackOwnedObject(addGo);
             SceneManager.MoveGameObjectToScene(addGo, _additiveScene);
 
             var activeGo = new GameObject("SearchAdditiveTarget");
-            _toDestroy.Add(activeGo);
+            TrackOwnedObject(activeGo);
 
             var result = SearchHelper.Search("SearchAdditiveTarget", scene: _additiveScene.name);
             Assert.That(result, Does.Contain(_additiveScene.name + ":/"),
@@ -254,7 +254,7 @@ namespace UnityMCP.Editor.Tests
         public void Search_NoFilter_AllScenes()
         {
             var go = new GameObject("SearchNoFilterObj");
-            _toDestroy.Add(go);
+            TrackOwnedObject(go);
             SceneManager.MoveGameObjectToScene(go, _additiveScene);
 
             var result = SearchHelper.Search("SearchNoFilterObj");
@@ -316,7 +316,7 @@ namespace UnityMCP.Editor.Tests
         public void ThreeScenes_Ambiguity_AllThreeNamed()
         {
             var s1 = AddScene(); var s2 = AddScene();
-            var go0 = new GameObject("TripleAmbig"); _toDestroy.Add(go0);
+            var go0 = new GameObject("TripleAmbig"); TrackOwnedObject(go0);
             CreateIn(s1, "TripleAmbig"); CreateIn(s2, "TripleAmbig");
             var ex = Assert.Throws<System.ArgumentException>(() => ComponentSerializer.FindObject("/TripleAmbig"));
             Assert.That(ex.Message, Does.Contain("3 scenes"));
@@ -386,7 +386,7 @@ namespace UnityMCP.Editor.Tests
         public void ThreeScenes_Filter_MatchOnlyInActive()
         {
             var s1 = AddScene(); var s2 = AddScene();
-            var go = new GameObject("ActiveOnlyObj"); _toDestroy.Add(go);
+            var go = new GameObject("ActiveOnlyObj"); TrackOwnedObject(go);
             var result = HierarchySerializer.Serialize(filter: "ActiveOnlyObj");
             Assert.That(result, Does.Contain("ActiveOnlyObj"));
             Assert.That(result, Does.Not.Contain("[" + s1.name + "]"), "s1 phantom");
@@ -404,10 +404,10 @@ namespace UnityMCP.Editor.Tests
             additiveChild.transform.SetParent(additiveRoot.transform);
 
             var activeGo = new GameObject("AmbigRoot_C3");
-            _toDestroy.Add(activeGo);
+            TrackOwnedObject(activeGo);
             var activeChild = new GameObject("ActiveOnlyChild_C3");
             activeChild.transform.SetParent(activeGo.transform);
-            _toDestroy.Add(activeChild);
+            TrackOwnedObject(activeChild);
 
             var result = HierarchySerializer.Serialize(
                 root: "AmbigRoot_C3",

@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Reload.Tests
 {
     [TestFixture]
-    public class ReloadPluginTests
+    public class ReloadPluginTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void ShouldStart_BatchMode_ReturnsFalse()

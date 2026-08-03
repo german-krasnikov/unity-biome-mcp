@@ -10,7 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class RelayCommandResolverTests
+    public class RelayCommandResolverTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string UvxPrefKey = "UnityMCP_Chat_Path_uvx";
         private const string UvPrefKey  = "UnityMCP_Chat_Path_uv";
@@ -24,10 +24,11 @@ namespace UnityMCP.Editor.Tests
         {
             _origVersionResolver = RelayCommandResolver.VersionResolver;
             _origWhichOverride   = ChatBinaryResolver.WhichOverride;
+            RegisterCleanup(ChatBinaryResolver.ResetCacheForTests);
             // A real Setup Wizard run on this machine may have persisted a EditorPrefs override
             // for uvx/uv — delete them so ChatBinaryResolver.Resolve(...) actually reaches WhichOverride.
-            EditorPrefs.DeleteKey(UvxPrefKey);
-            EditorPrefs.DeleteKey(UvPrefKey);
+            DeleteEditorPrefString(UvxPrefKey);
+            DeleteEditorPrefString(UvPrefKey);
             ChatBinaryResolver.ResetCacheForTests();
         }
 
@@ -36,8 +37,6 @@ namespace UnityMCP.Editor.Tests
         {
             RelayCommandResolver.VersionResolver = _origVersionResolver;
             ChatBinaryResolver.WhichOverride      = _origWhichOverride;
-            EditorPrefs.DeleteKey(UvxPrefKey);
-            EditorPrefs.DeleteKey(UvPrefKey);
             ChatBinaryResolver.ResetCacheForTests();
             InstallSourceDetector.ClearTestOverride();
             ChatMcpConfigWriter.ClearPackageRootForTest();

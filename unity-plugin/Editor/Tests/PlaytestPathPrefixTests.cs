@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestPathPrefixTests
+    public class PlaytestPathPrefixTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── 1. Prefix applied to path VAL values ──────────────────────────────────
 

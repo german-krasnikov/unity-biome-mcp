@@ -20,6 +20,8 @@ namespace UnityMCP.Editor
         // Injectable clock seam for unit tests (avoids dependency on EditorApplication.timeSinceStartup).
         internal static Func<float> NowSecondsFloat = () => (float)EditorApplication.timeSinceStartup;
 
+        private static TestIsolationScope _activeTestIsolation;
+
         static CompileNotifier()
         {
             CompilationPipeline.compilationStarted += _ =>
@@ -73,6 +75,118 @@ namespace UnityMCP.Editor
             if (last <= 0f && SessionState.GetFloat(StartKey, 0f) <= 0f)
                 return "idle-never|0";
             return "idle|" + durStr;
+        }
+
+        /// <summary>
+        /// Preserves the complete mutable notifier state for a test, including whether each
+        /// SessionState key existed. Scopes may nest but must unwind in reverse order.
+        /// </summary>
+        internal static IDisposable BeginTestIsolation()
+        {
+            var scope = new TestIsolationScope(_activeTestIsolation);
+            _activeTestIsolation = scope;
+            return scope;
+        }
+
+        private sealed class TestIsolationScope : IDisposable
+        {
+            private readonly TestIsolationScope _previous;
+            private readonly Func<float> _clock;
+            private readonly FloatSessionValue _start;
+            private readonly FloatSessionValue _duration;
+            private readonly BoolSessionValue _failed;
+            private bool _disposed;
+
+            internal TestIsolationScope(TestIsolationScope previous)
+            {
+                _previous = previous;
+                _clock = NowSecondsFloat;
+                _start = FloatSessionValue.Capture(StartKey);
+                _duration = FloatSessionValue.Capture(DurationKey);
+                _failed = BoolSessionValue.Capture(FailedKey);
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                if (!ReferenceEquals(_activeTestIsolation, this))
+                    throw new InvalidOperationException(
+                        "CompileNotifier test-isolation scopes must be disposed in LIFO order.");
+
+                var errors = new System.Collections.Generic.List<Exception>();
+                Restore(_failed.Restore, errors);
+                Restore(_duration.Restore, errors);
+                Restore(_start.Restore, errors);
+                Restore(() => NowSecondsFloat = _clock, errors);
+                _activeTestIsolation = _previous;
+                _disposed = true;
+
+                if (errors.Count > 0)
+                    throw new AggregateException(
+                        "CompileNotifier test-isolation restoration failed.", errors);
+            }
+
+            private static void Restore(
+                Action restore,
+                System.Collections.Generic.ICollection<Exception> errors)
+            {
+                try { restore(); }
+                catch (Exception error) { errors.Add(error); }
+            }
+        }
+
+        private readonly struct FloatSessionValue
+        {
+            private readonly string _key;
+            private readonly bool _existed;
+            private readonly float _value;
+
+            private FloatSessionValue(string key, bool existed, float value)
+            {
+                _key = key;
+                _existed = existed;
+                _value = value;
+            }
+
+            internal static FloatSessionValue Capture(string key)
+            {
+                var first = SessionState.GetFloat(key, -1234567.25f);
+                var second = SessionState.GetFloat(key, 7654321.5f);
+                return new FloatSessionValue(key, first.Equals(second), first);
+            }
+
+            internal void Restore()
+            {
+                if (_existed) SessionState.SetFloat(_key, _value);
+                else SessionState.EraseFloat(_key);
+            }
+        }
+
+        private readonly struct BoolSessionValue
+        {
+            private readonly string _key;
+            private readonly bool _existed;
+            private readonly bool _value;
+
+            private BoolSessionValue(string key, bool existed, bool value)
+            {
+                _key = key;
+                _existed = existed;
+                _value = value;
+            }
+
+            internal static BoolSessionValue Capture(string key)
+            {
+                var first = SessionState.GetBool(key, false);
+                var second = SessionState.GetBool(key, true);
+                return new BoolSessionValue(key, first == second, first);
+            }
+
+            internal void Restore()
+            {
+                if (_existed) SessionState.SetBool(_key, _value);
+                else SessionState.EraseBool(_key);
+            }
         }
     }
 }

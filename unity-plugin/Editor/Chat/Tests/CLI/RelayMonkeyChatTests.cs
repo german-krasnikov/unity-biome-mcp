@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityMCP.Editor.Chat;
@@ -10,16 +11,14 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelayMonkeyChatTests
+    public class RelayMonkeyChatTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]  public void SetUp()    => RelaySpawner.EnsureRunningOverride = () => 19800;
         [TearDown] public void TearDown()
         {
             RelayBackend.ProcessFactory        = null;
             RelaySpawner.EnsureRunningOverride  = null;
-            RelaySpawner.Stop();
-            SessionState.EraseInt(RelaySpawner.PortKey);
-            SessionState.EraseInt(RelaySpawner.PidKey);
+            RelaySpawner.StopForTests();
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -45,16 +44,49 @@ namespace UnityMCP.Editor.Chat.Tests
         static RelayChatProcess OkProc() =>
             new RelayChatProcess(j => "{\"ok\":true,\"data\":\"\"}");
 
-        RelayBackend Start(string data, string id="claude", string mode="agent")
+        async Task<RelayBackend> StartAsync(string data, string id="claude", string mode="agent")
         {
-            RelayBackend.ProcessFactory = () => Proc(data);
-            var b = new RelayBackend(id, mode, "m", 0); b.Start();
-            System.Threading.Thread.Sleep(200);
+            var expectedAfterSeq = Math.Max(-1, (data.Split('\n').Length - 1) / 2 - 1);
+            var polled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            RelayBackend.ProcessFactory = () => new RelayChatProcess(j =>
+            {
+                if (!j.Contains("\"cmd\":\"events\"")) return "{\"ok\":true,\"data\":\"\"}";
+                if (expectedAfterSeq < 0 || j.Contains($"\"after_seq\":{expectedAfterSeq}"))
+                    polled.TrySetResult(true);
+                return $"{{\"ok\":true,\"data\":\"{JE(data)}\"}}";
+            });
+            var b = Own(new RelayBackend(id, mode, "m", 0));
+            b.Start();
+            var completed = await Task.WhenAny(polled.Task, Task.Delay(2000));
+            Assert.AreSame(polled.Task, completed, "Relay event stream was not polled");
+            await polled.Task;
             return b;
         }
 
         List<ChatEvent> Drain(RelayBackend b, List<ToolCallRecord> recs = null)
         { var ev = new List<ChatEvent>(); b.DrainEvents(ev, recs); b.Stop(); return ev; }
+
+        RelayBackend Own(RelayBackend backend)
+        {
+            RegisterCleanup(backend.Stop);
+            return backend;
+        }
+
+        static async Task WaitUntilAsync(
+            Func<bool> condition, Action poll, string timeoutMessage, int timeoutMs = 2000)
+        {
+            var timeout = Task.Delay(timeoutMs);
+            while (true)
+            {
+                poll?.Invoke();
+                if (condition()) return;
+                var nextPoll = Task.Delay(10);
+                var completed = await Task.WhenAny(nextPoll, timeout);
+                if (completed == timeout)
+                    Assert.Fail(timeoutMessage);
+                await nextPoll;
+            }
+        }
 
         // ══════════════════════════════════════════════════════════════════════
         // A. Unity tool-command parsing (32 tests via TestCase)
@@ -140,9 +172,9 @@ namespace UnityMCP.Editor.Chat.Tests
         // ══════════════════════════════════════════════════════════════════════
 
         // B1. si → t → d: all three kinds present, session captured
-        [Test] public void Seq_SiTextDone_AllPresent()
+        [Test] public async Task Seq_SiTextDone_AllPresent()
         {
-            var b = Start(ED("si|s1","t|hi","d|s1|0.01|10|5"));
+            var b = await StartAsync(ED("si|s1","t|hi","d|s1|0.01|10|5"));
             var ev = Drain(b);
             Assert.AreEqual("s1", b.SessionId);
             Assert.IsTrue(ev.Exists(e => e.Kind == ChatEventKind.SessionInit));
@@ -151,121 +183,121 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         // B2. 20 text deltas → exactly 20 TextDelta events
-        [Test] public void Seq_20TextDeltas_All20()
+        [Test] public async Task Seq_20TextDeltas_All20()
         {
             var lines = new string[20]; for (int i = 0; i < 20; i++) lines[i] = $"t|w{i}";
-            Assert.AreEqual(20, Drain(Start(ED(lines))).FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
+            Assert.AreEqual(20, Drain(await StartAsync(ED(lines))).FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
         }
 
         // B3. tc + tr → ToolCallRecord produced
-        [Test] public void Seq_ToolCallAndResult_RecordProduced()
+        [Test] public async Task Seq_ToolCallAndResult_RecordProduced()
         {
             var recs = new List<ToolCallRecord>();
             var ev   = new List<ChatEvent>();
-            var b    = Start(ED("tc|create_object|t1|{\"n\":\"X\"}", "tr|t1|true|ok"));
+            var b    = await StartAsync(ED("tc|create_object|t1|{\"n\":\"X\"}", "tr|t1|true|ok"));
             b.DrainEvents(ev, recs); b.Stop();
             Assert.IsTrue(recs.Count >= 1, $"Expected records, got 0; events={ev.Count}");
         }
 
         // B4. Error mid-stream — captured, events before/after still processed
-        [Test] public void Seq_ErrorMidStream_Captured()
+        [Test] public async Task Seq_ErrorMidStream_Captured()
         {
-            var ev = Drain(Start(ED("t|before","e|boom","t|after")));
+            var ev = Drain(await StartAsync(ED("t|before","e|boom","t|after")));
             Assert.IsTrue(ev.Exists(e => e.Kind == ChatEventKind.Error && e.Text == "boom"));
             Assert.IsTrue(ev.Exists(e => e.Kind == ChatEventKind.TextDelta && e.Text == "before"));
         }
 
         // B5. Heartbeats interleaved — ≥2 heartbeats in output
-        [Test] public void Seq_Heartbeats_Included() =>
-            Assert.IsTrue(Drain(Start(ED("hb|","t|x","hb|"))).FindAll(e => e.Kind == ChatEventKind.Heartbeat).Count >= 2);
+        [Test] public async Task Seq_Heartbeats_Included() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("hb|","t|x","hb|"))).FindAll(e => e.Kind == ChatEventKind.Heartbeat).Count >= 2);
 
         // B6. RateLimit — text preserved
-        [Test] public void Seq_RateLimit_TextPreserved() =>
-            Assert.IsTrue(Drain(Start(ED("rl|wait 30s"))).Exists(e => e.Kind == ChatEventKind.RateLimit && e.Text == "wait 30s"));
+        [Test] public async Task Seq_RateLimit_TextPreserved() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("rl|wait 30s"))).Exists(e => e.Kind == ChatEventKind.RateLimit && e.Text == "wait 30s"));
 
         // B7. SessionState — state field preserved
-        [Test] public void Seq_SessionState_StatePreserved() =>
-            Assert.IsTrue(Drain(Start(ED("ss|connecting"))).Exists(e => e.Kind == ChatEventKind.SessionState && e.State == "connecting"));
+        [Test] public async Task Seq_SessionState_StatePreserved() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("ss|connecting"))).Exists(e => e.Kind == ChatEventKind.SessionState && e.State == "connecting"));
 
         // B8. AutoReply must NOT appear in DrainEvents output
-        [Test] public void Seq_AutoReply_NotForwardedToUI() =>
-            Assert.IsFalse(Drain(Start(ED("ar|{\"type\":\"auto\"}"))).Exists(e => e.Kind == ChatEventKind.AutoReply));
+        [Test] public async Task Seq_AutoReply_NotForwardedToUI() =>
+            Assert.IsFalse(Drain(await StartAsync(ED("ar|{\"type\":\"auto\"}"))).Exists(e => e.Kind == ChatEventKind.AutoReply));
 
         // B9. ToolProgress — pct and text correct
-        [Test] public void Seq_ToolProgress_PctCorrect() =>
-            Assert.IsTrue(Drain(Start(ED("tp|75.5|Uploading"))).Exists(e =>
+        [Test] public async Task Seq_ToolProgress_PctCorrect() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("tp|75.5|Uploading"))).Exists(e =>
                 e.Kind == ChatEventKind.ToolProgress && Math.Abs(e.Percentage - 75.5f) < 0.01f));
 
         // B10. TurnDone zero fields
-        [Test] public void Seq_TurnDone_ZeroFields() =>
-            Assert.IsTrue(Drain(Start(ED("d|s1|0|0|0"))).Exists(e =>
+        [Test] public async Task Seq_TurnDone_ZeroFields() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("d|s1|0|0|0"))).Exists(e =>
                 e.Kind == ChatEventKind.TurnDone && e.SessionId == "s1" && e.InputTokens == 0));
 
         // B11. Multiple TurnDone → SessionId is last
-        [Test] public void Seq_MultipleTurnDone_LastWins()
+        [Test] public async Task Seq_MultipleTurnDone_LastWins()
         {
-            var b = Start(ED("d|s1|0|0|0","d|s2|0|0|0")); Drain(b); Assert.AreEqual("s2", b.SessionId);
+            var b = await StartAsync(ED("d|s1|0|0|0","d|s2|0|0|0")); Drain(b); Assert.AreEqual("s2", b.SessionId);
         }
 
         // B12. si then d → TurnDone session wins
-        [Test] public void Seq_SiThenDone_DoneSessionWins()
+        [Test] public async Task Seq_SiThenDone_DoneSessionWins()
         {
-            var b = Start(ED("si|init","d|done|0|0|0")); Drain(b); Assert.AreEqual("done", b.SessionId);
+            var b = await StartAsync(ED("si|init","d|done|0|0|0")); Drain(b); Assert.AreEqual("done", b.SessionId);
         }
 
         // B13. Full realistic turn: si → 3×t → tc → tr → d
-        [Test] public void Seq_RealisticTurn_AllPresent()
+        [Test] public async Task Seq_RealisticTurn_AllPresent()
         {
             var recs = new List<ToolCallRecord>();
             var ev   = new List<ChatEvent>();
-            var b    = Start(ED("si|r1","t|A","t|B","t|C","tc|create_object|t1|{\"n\":\"E\"}","tr|t1|true|ok","d|r1|0.05|500|150"));
+            var b    = await StartAsync(ED("si|r1","t|A","t|B","t|C","tc|create_object|t1|{\"n\":\"E\"}","tr|t1|true|ok","d|r1|0.05|500|150"));
             b.DrainEvents(ev, recs); b.Stop();
             Assert.AreEqual(3, ev.FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
             Assert.IsTrue(recs.Count >= 1); Assert.AreEqual("r1", b.SessionId);
         }
 
         // B14. PermissionPrompt in sequence
-        [Test] public void Seq_PermissionPrompt_Captured() =>
-            Assert.IsTrue(Drain(Start(ED("pp|bash|r1|{}"))).Exists(e =>
+        [Test] public async Task Seq_PermissionPrompt_Captured() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("pp|bash|r1|{}"))).Exists(e =>
                 e.Kind == ChatEventKind.PermissionPrompt && e.Text == "bash" && e.RequestId == "r1"));
 
         // B15. AskUser — requestId captured
-        [Test] public void Seq_AskUser_RequestId() =>
-            Assert.IsTrue(Drain(Start(ED("au|rq2|{\"q\":\"?\"}"))).Exists(e =>
+        [Test] public async Task Seq_AskUser_RequestId() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("au|rq2|{\"q\":\"?\"}"))).Exists(e =>
                 e.Kind == ChatEventKind.AskUser && e.RequestId == "rq2"));
 
         // B16. Empty data → 0 events, no crash
-        [Test] public void Seq_Empty_NoEvents()
+        [Test] public async Task Seq_Empty_NoEvents()
         {
-            var ev = new List<ChatEvent>(); var b = Start("");
+            var ev = new List<ChatEvent>(); var b = await StartAsync("");
             Assert.DoesNotThrow(() => b.DrainEvents(ev)); b.Stop(); Assert.AreEqual(0, ev.Count);
         }
 
         // B17. Unknown prefix lines → filtered, valid pass
-        [Test] public void Seq_UnknownPrefix_Filtered() =>
-            Assert.AreEqual(2, Drain(Start(ED("t|a","JUNK|x","t|b"))).FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
+        [Test] public async Task Seq_UnknownPrefix_Filtered() =>
+            Assert.AreEqual(2, Drain(await StartAsync(ED("t|a","JUNK|x","t|b"))).FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
 
         // B18. 3 tool calls → ≥3 records
-        [Test] public void Seq_ThreeToolCalls_ThreePlusRecords()
+        [Test] public async Task Seq_ThreeToolCalls_ThreePlusRecords()
         {
             var recs = new List<ToolCallRecord>(); var ev = new List<ChatEvent>();
-            var b = Start(ED("tc|set_property|t1|{}","tc|set_property|t2|{}","tc|set_property|t3|{}"));
+            var b = await StartAsync(ED("tc|set_property|t1|{}","tc|set_property|t2|{}","tc|set_property|t3|{}"));
             b.DrainEvents(ev, recs); b.Stop();
             Assert.IsTrue(recs.Count >= 3, $"Got {recs.Count}");
         }
 
         // B19. Drain twice → second drain empty
-        [Test] public void Seq_DrainTwice_SecondEmpty()
+        [Test] public async Task Seq_DrainTwice_SecondEmpty()
         {
-            var b = Start(ED("t|a","t|b"));
+            var b = await StartAsync(ED("t|a","t|b"));
             var e1 = new List<ChatEvent>(); var e2 = new List<ChatEvent>();
             b.DrainEvents(e1); b.DrainEvents(e2); b.Stop();
             Assert.IsTrue(e1.Count > 0); Assert.AreEqual(0, e2.Count);
         }
 
         // B20. TurnDone large token counts preserved
-        [Test] public void Seq_TurnDone_LargeTokens() =>
-            Assert.IsTrue(Drain(Start(ED("d|big|9.99|1000000|500000"))).Exists(e =>
+        [Test] public async Task Seq_TurnDone_LargeTokens() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("d|big|9.99|1000000|500000"))).Exists(e =>
                 e.Kind == ChatEventKind.TurnDone && e.InputTokens == 1_000_000 && e.OutputTokens == 500_000));
 
         // ══════════════════════════════════════════════════════════════════════
@@ -278,7 +310,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var sent = new List<string>();
             RelayBackend.ProcessFactory = () => SentProc(sent);
-            var b = new RelayBackend("claude","agent","m",0); b.Start(); lock (sent) sent.Clear();
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.Start(); lock (sent) sent.Clear();
             b.SetMode(mode);
             lock (sent) Assert.IsTrue(sent.Exists(j => j.Contains("\"cmd\":\"set_mode\"") && j.Contains($"\"mode\":\"{mode}\"")));
             b.Stop();
@@ -289,7 +321,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetMode_SpecialChars_Sent(string mode)
         {
             var sent = new List<string>(); RelayBackend.ProcessFactory = () => SentProc(sent);
-            var b = new RelayBackend("claude","agent","m",0); b.Start(); lock (sent) sent.Clear();
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.Start(); lock (sent) sent.Clear();
             b.SetMode(mode);
             lock (sent) Assert.IsTrue(sent.Exists(j => j.Contains("\"cmd\":\"set_mode\"")));
             b.Stop();
@@ -299,7 +331,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void SetMode_100Flips_NoException()
         {
             RelayBackend.ProcessFactory = () => OkProc();
-            var b = new RelayBackend("claude","agent","m",0); b.Start();
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.Start();
             Assert.DoesNotThrow(() => { for (int i = 0; i < 100; i++) b.SetMode(i%2==0?"agent":"ask"); });
             b.Stop();
         }
@@ -310,7 +342,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void Backend_Id_InStartJson(string id)
         {
             var sent = new List<string>(); RelayBackend.ProcessFactory = () => SentProc(sent);
-            new RelayBackend(id,"agent","m",0).Start();
+            Own(new RelayBackend(id,"agent","m",0)).Start();
             lock (sent) Assert.IsTrue(sent[0].Contains($"\"backend\":\"{id}\""), sent[0]);
         }
 
@@ -318,7 +350,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Backend_ResumeId_InStartJson()
         {
             var sent = new List<string>(); RelayBackend.ProcessFactory = () => SentProc(sent);
-            new RelayBackend("claude","agent","m",0,"resume-xyz").Start();
+            Own(new RelayBackend("claude","agent","m",0,"resume-xyz")).Start();
             lock (sent) Assert.IsTrue(sent[0].Contains("\"resume_session_id\":\"resume-xyz\""), sent[0]);
         }
 
@@ -326,7 +358,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Backend_NoResumeId_FieldAbsent()
         {
             var sent = new List<string>(); RelayBackend.ProcessFactory = () => SentProc(sent);
-            new RelayBackend("claude","agent","m",0).Start();
+            Own(new RelayBackend("claude","agent","m",0)).Start();
             lock (sent) Assert.IsFalse(sent[0].Contains("resume_session_id"), sent[0]);
         }
 
@@ -334,7 +366,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Backend_IsRunning_Lifecycle()
         {
             RelayBackend.ProcessFactory = () => OkProc();
-            var b = new RelayBackend("claude","agent","m",0); b.Start();
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.Start();
             Assert.IsTrue(b.IsRunning); b.Stop(); Assert.IsFalse(b.IsRunning);
         }
 
@@ -342,7 +374,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Backend_SendTurnAutoStarts()
         {
             var sent = new List<string>(); RelayBackend.ProcessFactory = () => SentProc(sent);
-            var b = new RelayBackend("claude","agent","m",0); b.SendTurn("{\"type\":\"user\"}");
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.SendTurn("{\"type\":\"user\"}");
             lock (sent) Assert.IsTrue(sent.Exists(j => j.Contains("\"cmd\":\"start\"")));
             b.Stop();
         }
@@ -351,7 +383,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Backend_SendControlResponse_WritesSendCmd()
         {
             var sent = new List<string>(); RelayBackend.ProcessFactory = () => SentProc(sent);
-            var b = new RelayBackend("claude","agent","m",0); b.Start(); lock (sent) sent.Clear();
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.Start(); lock (sent) sent.Clear();
             b.SendControlResponse("{\"allow\":true}");
             lock (sent) Assert.IsTrue(sent.Exists(j => j.Contains("\"cmd\":\"send\"")));
             b.Stop();
@@ -361,7 +393,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Backend_ModelField_InStartJson()
         {
             var sent = new List<string>(); RelayBackend.ProcessFactory = () => SentProc(sent);
-            new RelayBackend("claude","agent","sonnet-4-5",0).Start();
+            Own(new RelayBackend("claude","agent","sonnet-4-5",0)).Start();
             lock (sent) Assert.IsTrue(sent[0].Contains("\"model\":\"sonnet-4-5\""), sent[0]);
         }
 
@@ -370,81 +402,83 @@ namespace UnityMCP.Editor.Chat.Tests
         // ══════════════════════════════════════════════════════════════════════
 
         // D1. 50 text deltas → exactly 50
-        [Test] public void Stress_50TextDeltas_All50()
+        [Test] public async Task Stress_50TextDeltas_All50()
         {
             var lines = new string[50]; for (int i = 0; i < 50; i++) lines[i] = $"t|w{i}";
-            Assert.AreEqual(50, Drain(Start(ED(lines))).FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
+            Assert.AreEqual(50, Drain(await StartAsync(ED(lines))).FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
         }
 
         // D2. 10 tool calls → ≥10 records
-        [Test] public void Stress_10ToolCalls_AtLeast10Records()
+        [Test] public async Task Stress_10ToolCalls_AtLeast10Records()
         {
             var lines = new string[10]; for (int i = 0; i < 10; i++) lines[i] = $"tc|create_object|t{i}|{{\"n\":{i}}}";
             var recs = new List<ToolCallRecord>(); var ev = new List<ChatEvent>();
-            var b = Start(ED(lines)); b.DrainEvents(ev, recs); b.Stop();
+            var b = await StartAsync(ED(lines)); b.DrainEvents(ev, recs); b.Stop();
             Assert.IsTrue(recs.Count >= 10, $"Got {recs.Count}");
         }
 
         // D3. Mix: 5 tools + 5 text — both counts correct
-        [Test] public void Stress_ToolsAndText_MixedCounts()
+        [Test] public async Task Stress_ToolsAndText_MixedCounts()
         {
             var lines = new string[10];
             for (int i = 0; i < 5; i++) lines[i] = $"tc|set_property|m{i}|{{}}";
             for (int i = 5; i < 10; i++) lines[i] = $"t|tok{i}";
             var recs = new List<ToolCallRecord>(); var ev = new List<ChatEvent>();
-            var b = Start(ED(lines)); b.DrainEvents(ev, recs); b.Stop();
+            var b = await StartAsync(ED(lines)); b.DrainEvents(ev, recs); b.Stop();
             Assert.IsTrue(recs.Count >= 5);
             Assert.AreEqual(5, ev.FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
         }
 
         // D4. DrainEvents with null toolOutput → no NullReferenceException
-        [Test] public void Stress_NullToolOutput_NoException()
+        [Test] public async Task Stress_NullToolOutput_NoException()
         {
-            var b = Start(ED("tc|create_object|t1|{}","tr|t1|true|ok"));
+            var b = await StartAsync(ED("tc|create_object|t1|{}","tr|t1|true|ok"));
             Assert.DoesNotThrow(() => { var ev = new List<ChatEvent>(); b.DrainEvents(ev, null); b.Stop(); });
         }
 
         // D5. 10KB text delta preserved
-        [Test] public void Stress_10KBTextDelta_FullyPreserved()
+        [Test] public async Task Stress_10KBTextDelta_FullyPreserved()
         {
             var big = new string('Z', 10_000);
-            Assert.IsTrue(Drain(Start(ED($"t|{big}"))).Exists(e => e.Kind == ChatEventKind.TextDelta && e.Text.Length == 10_000));
+            Assert.IsTrue(Drain(await StartAsync(ED($"t|{big}"))).Exists(e => e.Kind == ChatEventKind.TextDelta && e.Text.Length == 10_000));
         }
 
         // D6. 100 SendTurns without DrainEvents — no crash
         [Test] public void Stress_100SendTurns_NoException()
         {
             RelayBackend.ProcessFactory = () => OkProc();
-            var b = new RelayBackend("claude","agent","m",0); b.Start();
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.Start();
             Assert.DoesNotThrow(() => { for (int i = 0; i < 100; i++) b.SendTurn($"{{\"t\":{i}}}"); });
             b.Stop();
         }
 
         // D7. TurnDone with negative cost — no crash
-        [Test] public void Stress_TurnDone_NegativeCost_NoException()
+        [Test] public async Task Stress_TurnDone_NegativeCost_NoException()
         {
-            Assert.DoesNotThrow(() => Drain(Start(ED("d|s1|-0.5|100|50"))));
+            var b = await StartAsync(ED("d|s1|-0.5|100|50"));
+            Assert.DoesNotThrow(() => Drain(b));
         }
 
         // D8. Empty tool id in tc| — no crash
-        [Test] public void Stress_EmptyToolId_NoException()
+        [Test] public async Task Stress_EmptyToolId_NoException()
         {
-            Assert.DoesNotThrow(() => { var ev = new List<ChatEvent>(); var b = Start(ED("tc|get_hierarchy||{}")); b.DrainEvents(ev); b.Stop(); });
+            var b = await StartAsync(ED("tc|get_hierarchy||{}"));
+            Assert.DoesNotThrow(() => { var ev = new List<ChatEvent>(); b.DrainEvents(ev); b.Stop(); });
         }
 
         // D9. SessionInit empty id — event produced, no crash
-        [Test] public void Stress_SessionInit_EmptyId_EventProduced() =>
-            Assert.IsTrue(Drain(Start(ED("si|"))).Exists(e => e.Kind == ChatEventKind.SessionInit));
+        [Test] public async Task Stress_SessionInit_EmptyId_EventProduced() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("si|"))).Exists(e => e.Kind == ChatEventKind.SessionInit));
 
         // D10. Error with empty message — event produced
-        [Test] public void Stress_Error_EmptyMessage_EventProduced() =>
-            Assert.IsTrue(Drain(Start(ED("e|"))).Exists(e => e.Kind == ChatEventKind.Error && e.Text == ""));
+        [Test] public async Task Stress_Error_EmptyMessage_EventProduced() =>
+            Assert.IsTrue(Drain(await StartAsync(ED("e|"))).Exists(e => e.Kind == ChatEventKind.Error && e.Text == ""));
 
         // D11. Multiple Stop/Start cycles — DrainEvents still works
         [Test] public void Stress_MultipleStopStart_DrainWorks()
         {
             RelayBackend.ProcessFactory = () => OkProc();
-            var b = new RelayBackend("claude","agent","m",0);
+            var b = Own(new RelayBackend("claude","agent","m",0));
             for (int i = 0; i < 3; i++) { b.Start(); b.Stop(); }
             Assert.DoesNotThrow(() => b.DrainEvents(new List<ChatEvent>()));
         }
@@ -453,20 +487,20 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Stress_RelayError_ThrowsOnStart()
         {
             RelayBackend.ProcessFactory = () => new RelayChatProcess(j => "{\"ok\":false,\"err\":\"down\"}");
-            Assert.Throws<InvalidOperationException>(() => new RelayBackend("claude","agent","m",0).Start());
+            Assert.Throws<InvalidOperationException>(() => Own(new RelayBackend("claude","agent","m",0)).Start());
         }
 
         // D13. SessionInit only → SessionId captured via DrainEvents
-        [Test] public void Stress_SessionInitOnly_SessionIdCaptured()
+        [Test] public async Task Stress_SessionInitOnly_SessionIdCaptured()
         {
-            var b = Start(ED("si|init-only")); Drain(b); Assert.AreEqual("init-only", b.SessionId);
+            var b = await StartAsync(ED("si|init-only")); Drain(b); Assert.AreEqual("init-only", b.SessionId);
         }
 
         // D14. Very long backend ID — no crash
         [Test] public void Stress_VeryLongBackendId_NoException()
         {
             RelayBackend.ProcessFactory = () => OkProc();
-            var b = new RelayBackend(new string('x',1000),"agent","m",0);
+            var b = Own(new RelayBackend(new string('x',1000),"agent","m",0));
             Assert.DoesNotThrow(() => b.Start()); b.Stop();
         }
 
@@ -474,7 +508,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Stress_McpPortZero_DoesNotThrow()
         {
             RelayBackend.ProcessFactory = () => OkProc();
-            var b = new RelayBackend("claude","agent","m",0);
+            var b = Own(new RelayBackend("claude","agent","m",0));
             Assert.DoesNotThrow(() => b.Start()); b.Stop();
         }
 
@@ -482,7 +516,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Stress_50ModeFlips_FinalModeIsAsk()
         {
             var sent = new List<string>(); RelayBackend.ProcessFactory = () => SentProc(sent);
-            var b = new RelayBackend("claude","agent","m",0); b.Start();
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.Start();
             for (int i = 0; i < 50; i++) b.SetMode(i%2==0?"agent":"ask");
             b.Stop();
             lock (sent) Assert.IsTrue(sent.Exists(j => j.Contains("\"mode\":\"ask\"")));
@@ -492,7 +526,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Stress_UnicodeBackendId_NoException()
         {
             RelayBackend.ProcessFactory = () => OkProc();
-            var b = new RelayBackend("バック","agent","m",0);
+            var b = Own(new RelayBackend("バック","agent","m",0));
             Assert.DoesNotThrow(() => b.Start()); b.Stop();
         }
 
@@ -548,11 +582,11 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(1, out_.Count);
         }
 
-        [Test] public void Seq_WhitespaceLines_NoTextDelta() =>
-            Assert.AreEqual(0, Drain(Start(ED("   ","\t"))).FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
+        [Test] public async Task Seq_WhitespaceLines_NoTextDelta() =>
+            Assert.AreEqual(0, Drain(await StartAsync(ED("   ","\t"))).FindAll(e => e.Kind == ChatEventKind.TextDelta).Count);
 
         // E8. AutoReply written back to proc stdin via send command
-        [Test] public void Seq_AutoReply_WrittenBackToProc()
+        [Test] public async Task Seq_AutoReply_WrittenBackToProc()
         {
             var written = new List<string>();
             var proc = new RelayChatProcess(json =>
@@ -562,8 +596,13 @@ namespace UnityMCP.Editor.Chat.Tests
                 return "{\"ok\":true,\"data\":\"\"}";
             });
             RelayBackend.ProcessFactory = () => proc;
-            var b = new RelayBackend("claude","agent","m",0); b.Start();
-            System.Threading.Thread.Sleep(200); b.DrainEvents(new List<ChatEvent>()); b.Stop();
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.Start();
+            var events = new List<ChatEvent>();
+            await WaitUntilAsync(
+                () => { lock (written) return written.Count > 0; },
+                () => b.DrainEvents(events),
+                "AutoReply was not written back to the process");
+            b.Stop();
             Assert.IsTrue(written.Count > 0, "AutoReply must be written back via send cmd");
         }
 
@@ -579,7 +618,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Backend_Dispose_MultipleTimes_NoException()
         {
             RelayBackend.ProcessFactory = () => OkProc();
-            var b = new RelayBackend("claude","agent","m",0); b.Start();
+            var b = Own(new RelayBackend("claude","agent","m",0)); b.Start();
             Assert.DoesNotThrow(() => { b.Dispose(); b.Dispose(); b.Dispose(); });
         }
     }

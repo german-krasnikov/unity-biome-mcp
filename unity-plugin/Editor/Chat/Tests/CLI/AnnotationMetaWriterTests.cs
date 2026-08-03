@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotationMetaWriterTests
+    internal sealed class AnnotationMetaWriterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void Read_NullPath_ReturnsEmpty()
             => Assert.AreEqual("", AnnotationMetaWriter.Read(null));

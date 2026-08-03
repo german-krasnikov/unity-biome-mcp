@@ -18,7 +18,9 @@
 // `#if !UNITY_INCLUDE_TESTS` branch of RelayBackend.cs (that branch never compiles into test
 // assemblies) — that wiring requires manual/PlayMode verification against a real relay process.
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityMCP.Editor;
 using UnityMCP.Editor.Chat;
@@ -26,20 +28,18 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelaySpawnStateTests
+    public class RelaySpawnStateTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        private ConcurrentQueue<Action> _dispatcherQueue;
+
         [SetUp]
         public void SetUp()
         {
-            RelaySpawnState.ResetForTests();
-            MainThreadDispatcher.Clear();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            RelaySpawnState.ResetForTests();
-            MainThreadDispatcher.Clear();
+            _dispatcherQueue = new ConcurrentQueue<Action>();
+            var ownedQueue = _dispatcherQueue;
+            RegisterCleanup(() => MainThreadDispatcher.Clear(ownedQueue));
+            RelaySpawnState.DispatchOverride = action =>
+                MainThreadDispatcher.Enqueue(_dispatcherQueue, action);
         }
 
         // ── Fast path: relay already running ──────────────────────────────────
@@ -77,7 +77,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Cold-start path: PrepareSpawn (main thread) → ExecuteSpawn (ThreadPool) ─
 
         [Test]
-        public void RequestSpawn_NotRunning_PreparePlanRunsSynchronously_OnCallingThread()
+        public async Task RequestSpawn_NotRunning_PreparePlanRunsSynchronously_OnCallingThread()
         {
             RelaySpawnState.LooksAlreadyRunningOverride = () => false;
             var callingThreadId = Thread.CurrentThread.ManagedThreadId;
@@ -96,11 +96,11 @@ namespace UnityMCP.Editor.Chat.Tests
                 "PrepareSpawn must run on the calling thread — it touches Editor APIs and must " +
                 "happen before any ThreadPool hop, not inside one");
 
-            WaitForPendingToClear();
+            await WaitForPendingToClearAsync();
         }
 
         [Test]
-        public void RequestSpawn_NotRunning_ExecutePlanRunsOffCallingThread()
+        public async Task RequestSpawn_NotRunning_ExecutePlanRunsOffCallingThread()
         {
             RelaySpawnState.LooksAlreadyRunningOverride = () => false;
             var callingThreadId = Thread.CurrentThread.ManagedThreadId;
@@ -116,7 +116,7 @@ namespace UnityMCP.Editor.Chat.Tests
             int? readyPort = null;
             RelaySpawnState.RequestSpawn(port => readyPort = port, err => Assert.Fail(err));
 
-            WaitForPendingToClear();
+            await WaitForPendingToClearAsync();
 
             Assert.AreNotEqual(-1, executeThreadId, "ExecutePlan must have run");
             Assert.AreNotEqual(callingThreadId, executeThreadId,
@@ -147,7 +147,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void RequestSpawn_NotRunning_ExecutePlanThrows_OnErrorCarriesMessage()
+        public async Task RequestSpawn_NotRunning_ExecutePlanThrows_OnErrorCarriesMessage()
         {
             RelaySpawnState.LooksAlreadyRunningOverride = () => false;
             RelaySpawnState.PreparePlanOverride = () =>
@@ -158,7 +158,7 @@ namespace UnityMCP.Editor.Chat.Tests
             string error = null;
             RelaySpawnState.RequestSpawn(port => Assert.Fail("onReady must not fire"), msg => error = msg);
 
-            WaitForPendingToClear();
+            await WaitForPendingToClearAsync();
 
             Assert.AreEqual("relay crashed mid-spawn", error);
             Assert.AreEqual("relay crashed mid-spawn", RelaySpawnState.Error);
@@ -166,28 +166,40 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void RequestSpawn_SecondCallWhilePending_IsNoOp_DoesNotDoubleExecute()
+        public async Task RequestSpawn_SecondCallWhilePending_IsNoOp_DoesNotDoubleExecute()
         {
             RelaySpawnState.LooksAlreadyRunningOverride = () => false;
             RelaySpawnState.PreparePlanOverride = () =>
                 new RelaySpawner.SpawnPlan("bash", Array.Empty<string>(), true, TimeSpan.FromSeconds(1));
             var executeCount = 0;
-            var gate = new ManualResetEventSlim(false);
-            RelaySpawnState.ExecutePlanOverride = plan =>
+            var entered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            RelaySpawnState.ExecutePlanAsyncOverride = async plan =>
             {
                 Interlocked.Increment(ref executeCount);
-                gate.Wait(2000);
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
                 return (19703, 4243);
             };
 
             RelaySpawnState.RequestSpawn(port => { }, err => { });
-            Assert.IsTrue(RelaySpawnState.IsPending);
+            try
+            {
+                await AwaitSignalAsync(entered.Task,
+                    "Timed out waiting for the first spawn to enter ExecutePlan");
+                Assert.IsTrue(RelaySpawnState.IsPending);
 
-            // Second call while the first spawn is still in flight must not start another one.
-            RelaySpawnState.RequestSpawn(port => { }, err => { });
+                // The first spawn is held at a deterministic gate while this call is made.
+                RelaySpawnState.RequestSpawn(port => { }, err => { });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
 
-            gate.Set();
-            WaitForPendingToClear();
+            await WaitForPendingToClearAsync();
 
             Assert.AreEqual(1, executeCount, "A spawn already in flight must not be started twice");
         }
@@ -196,16 +208,26 @@ namespace UnityMCP.Editor.Chat.Tests
 
         // Manually pumps MainThreadDispatcher.Drain() — the same call EditorApplication.update
         // wires up in MCPServer.StartAsync — until the background spawn's continuation has run.
-        private static void WaitForPendingToClear(int timeoutMs = 3000)
+        private static async Task AwaitSignalAsync(Task signal, string timeoutMessage)
         {
-            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-            while (DateTime.UtcNow < deadline)
+            var completed = await Task.WhenAny(signal, Task.Delay(3000));
+            Assert.AreSame(signal, completed, timeoutMessage);
+            await signal;
+        }
+
+        private async Task WaitForPendingToClearAsync(int timeoutMs = 3000)
+        {
+            var timeout = Task.Delay(timeoutMs);
+            while (RelaySpawnState.IsPending)
             {
-                MainThreadDispatcher.Drain();
+                MainThreadDispatcher.Drain(_dispatcherQueue);
                 if (!RelaySpawnState.IsPending) return;
-                Thread.Sleep(10);
+                var nextPoll = Task.Delay(10);
+                var completed = await Task.WhenAny(nextPoll, timeout);
+                if (completed == timeout)
+                    Assert.Fail("Timed out waiting for background spawn to resolve");
+                await nextPoll;
             }
-            Assert.Fail("Timed out waiting for background spawn to resolve");
         }
     }
 }

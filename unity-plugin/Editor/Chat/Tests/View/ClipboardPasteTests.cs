@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ClipboardPasteTests
+    public class ClipboardPasteTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void ClipboardImageReader_TryRead_DoesNotThrow()

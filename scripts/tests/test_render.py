@@ -953,9 +953,9 @@ class TestCommittedReadme:
         )
         assert block is not None
         badges = block.group("badges")
-        assert badges.count("<img ") == 4
-        assert badges.count('height="28"') == 4
-        assert badges.count("style=for-the-badge") == 4
+        assert badges.count("<img ") == 5
+        assert badges.count('height="28"') == 5
+        assert badges.count("style=for-the-badge") == 5
         assert "<br" not in badges
         assert "&nbsp;" not in badges
 

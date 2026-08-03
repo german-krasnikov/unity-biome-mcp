@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MentionPopupTests
+    public class MentionPopupTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private VisualElement _anchor;
         private MentionPopup  _popup;

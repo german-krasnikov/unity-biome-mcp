@@ -242,7 +242,9 @@ await run_playtest(
 
 **Notes:**
 - The call blocks until Unity returns the playtest report or the timeout expires.
-- Do not poll `get_test_results`; that polling workflow belongs to `run_tests`, not `run_playtest`.
+- Do not poll `get_test_results`. `run_playtest` returns its own report; ordinary
+  NUnit callers use `run_tests_wait`, while only low-level protocol clients poll
+  an exact `get_test_run(run_id)`.
 - Domain reload: Transparently reconnects mid-script if compilation detected
 
 ## run_playtest_suite(paths=None, suite_path=None, timeout_per_test=120.0, stop_on_fail=False, stop_after=True, auto_play=False, restart_between=False)
@@ -380,15 +382,19 @@ workflows.
 
 **RO Annotation:** Read-only.
 
-## run_tests_wait(mode="EditMode", filter="", timeout=180.0, poll_interval=5.0)
+## run_tests_wait(mode="EditMode", filter="", timeout=900.0, poll_interval=5.0)
 
-**Purpose:** Synchronous NUnit test runner. Fires `run_tests` then polls `get_test_results` internally until done or timeout. Avoids the manual poll loop.
+**Purpose:** Preferred consumer-project NUnit runner. Preserves one durable
+request/run identity, resolves an uncertain start, and polls the exact
+`get_test_run(run_id)` snapshot until reconciliation or an observational timeout.
+Unity Biome MCP repository/disposable-worker runs use `run_unity_tests.py`.
 
 **mode:** `"EditMode"` or `"PlayMode"`.
 
 **filter:** Pipe-separated test class names.
 
-**timeout:** Max wait in seconds (default 180).
+**timeout:** Max wait in seconds (default 900). Timeout is nonterminal and does
+not change the Unity run lifecycle.
 
 **poll_interval:** Seconds between polls (default 5).
 

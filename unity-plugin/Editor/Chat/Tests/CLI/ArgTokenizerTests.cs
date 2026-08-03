@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ArgTokenizerTests
+    public class ArgTokenizerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Split_Empty_ReturnsEmpty()

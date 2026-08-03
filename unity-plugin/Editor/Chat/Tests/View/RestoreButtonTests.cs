@@ -10,7 +10,7 @@ namespace UnityMCP.Editor.Chat.Tests
     /// This is the most important correctness rule for F6 (architecture §risk #6).
     /// </summary>
     [TestFixture]
-    public class RestoreButtonTests
+    public class RestoreButtonTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // --- 16. Button enabled for its turn index while that turn still exists ---
         [Test]

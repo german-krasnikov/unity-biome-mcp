@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CommandRegistryGuardFlagsTests
+    public class CommandRegistryGuardFlagsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string FakeCmd = "test_guard_flag_fake_cmd";
 
@@ -56,6 +56,7 @@ namespace UnityMCP.Editor.Tests
         private static readonly string[] ExpectedAlwaysAllowed =
         {
             "ping", "get_enabled_tools", "get_disabled_tools", "set_tool_catalog", "diagnose", "ask_user",
+            "cancel_test_run",
         };
 
         [Test]
@@ -73,7 +74,8 @@ namespace UnityMCP.Editor.Tests
         {
             "ping", "get_console", "clear_console", "screenshot", "get_enabled_tools", "compile_status",
             "get_disabled_tools", "set_tool_catalog", "sync_status", "get_compile_errors", "diagnose",
-            "force_refresh", "get_test_results", "get_test_count", "execute_code", "ask_user", "compile_preflight",
+            "force_refresh", "get_test_results", "get_test_count", "get_test_run", "list_test_runs",
+            "resolve_test_request", "cancel_test_run", "execute_code", "ask_user", "compile_preflight",
         };
 
         [Test]

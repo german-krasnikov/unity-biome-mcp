@@ -18,14 +18,12 @@ namespace UnityMCP.Editor.Chat.Tests
     }
 
     [TestFixture]
-    internal sealed class AnnotationRaycasterTests
+    internal sealed class AnnotationRaycasterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    => AnnotationRaycaster.RaycastFunc = null;
         [TearDown] public void TearDown()
         {
             AnnotationRaycaster.RaycastFunc = null;
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
         // ── AnnotationHit ──────────────────────────────────────────────────────

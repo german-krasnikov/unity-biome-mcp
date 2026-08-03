@@ -18,8 +18,9 @@ namespace UnityMCP.Editor.Chat
         internal const string PortKey = "MCPChat_Relay_Port";
         internal const string PidKey  = "MCPChat_Relay_PID";
 
-        internal static int  RelayPort => SessionState.GetInt(PortKey, 0);
-        internal static bool IsRunning  => _process != null && !_process.HasExited;
+        internal static int  RelayPort => ReadPort();
+        internal static int  RelayPid  => ReadPid();
+        internal static bool IsRunning => CurrentProcess != null && !CurrentProcess.HasExited;
 
         internal static event Action OnAfterReloadResume;
 
@@ -42,6 +43,147 @@ namespace UnityMCP.Editor.Chat
         private static DateTime _tcpAliveExpiry;
         private static bool     _tcpAliveResult;
 
+#if UNITY_INCLUDE_TESTS
+        private sealed class TestRuntime : IDisposable
+        {
+            internal readonly TestRuntime Previous;
+            internal int Port;
+            internal int Pid;
+            internal Process Process;
+            private readonly Func<ProcessStartInfo, Process> _processFactory;
+            private readonly Func<(string cmd, string[] argv)> _commandResolver;
+            private readonly TimeSpan _readTimeout;
+            private readonly TimeSpan _retryDelay;
+            private readonly Func<int> _ensureRunningOverride;
+            private readonly Func<int, bool> _tcpAliveOverride;
+            private readonly Func<RelayChatProcess> _relayBackendProcessFactory;
+            private readonly DateTime _tcpAliveExpiry;
+            private readonly bool _tcpAliveResult;
+            private bool _disposed;
+
+            internal TestRuntime(TestRuntime previous)
+            {
+                Previous = previous;
+                _processFactory = ProcessFactory;
+                _commandResolver = CommandResolver;
+                _readTimeout = ReadTimeout;
+                _retryDelay = RetryDelay;
+                _ensureRunningOverride = EnsureRunningOverride;
+                _tcpAliveOverride = TcpAliveOverride;
+                _relayBackendProcessFactory = RelayBackend.ProcessFactory;
+                _tcpAliveExpiry = RelaySpawner._tcpAliveExpiry;
+                _tcpAliveResult = RelaySpawner._tcpAliveResult;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                if (!ReferenceEquals(_testRuntime, this))
+                    throw new InvalidOperationException(
+                        "Relay test-isolation scopes must be disposed in reverse order.");
+
+                try { Process?.Kill(); } catch { }
+                try { Process?.Dispose(); } catch { }
+                Process = null;
+                Port = 0;
+                Pid = 0;
+                ProcessFactory = _processFactory;
+                CommandResolver = _commandResolver;
+                ReadTimeout = _readTimeout;
+                RetryDelay = _retryDelay;
+                EnsureRunningOverride = _ensureRunningOverride;
+                TcpAliveOverride = _tcpAliveOverride;
+                RelayBackend.ProcessFactory = _relayBackendProcessFactory;
+                RelaySpawner._tcpAliveExpiry = _tcpAliveExpiry;
+                RelaySpawner._tcpAliveResult = _tcpAliveResult;
+                _testRuntime = Previous;
+                _disposed = true;
+            }
+        }
+
+        private static TestRuntime _testRuntime;
+
+        internal static IDisposable BeginTestIsolation()
+        {
+            var scope = new TestRuntime(_testRuntime);
+            _testRuntime = scope;
+            return scope;
+        }
+
+        internal static void StopForTests()
+        {
+            RequireTestRuntime();
+            Stop();
+        }
+
+        internal static void SetSessionForTests(int port, int pid)
+        {
+            var runtime = RequireTestRuntime();
+            runtime.Port = port;
+            runtime.Pid = pid;
+        }
+
+        private static TestRuntime RequireTestRuntime()
+        {
+            return _testRuntime ?? throw new InvalidOperationException(
+                "Relay test state requires an active UnityMcpTestBase isolation scope.");
+        }
+#endif
+
+        private static Process CurrentProcess
+        {
+            get
+            {
+#if UNITY_INCLUDE_TESTS
+                if (_testRuntime != null) return _testRuntime.Process;
+#endif
+                return _process;
+            }
+            set
+            {
+#if UNITY_INCLUDE_TESTS
+                if (_testRuntime != null)
+                {
+                    _testRuntime.Process = value;
+                    return;
+                }
+#endif
+                _process = value;
+            }
+        }
+
+        private static int ReadPort()
+        {
+#if UNITY_INCLUDE_TESTS
+            if (_testRuntime != null) return _testRuntime.Port;
+#endif
+            return SessionState.GetInt(PortKey, 0);
+        }
+
+        private static int ReadPid()
+        {
+#if UNITY_INCLUDE_TESTS
+            if (_testRuntime != null) return _testRuntime.Pid;
+#endif
+            return SessionState.GetInt(PidKey, 0);
+        }
+
+        private static void WriteSession(int port, int pid)
+        {
+#if UNITY_INCLUDE_TESTS
+            if (_testRuntime != null)
+            {
+                _testRuntime.Port = port;
+                _testRuntime.Pid = pid;
+                return;
+            }
+#endif
+            if (port > 0) SessionState.SetInt(PortKey, port);
+            else SessionState.EraseInt(PortKey);
+            if (pid > 0) SessionState.SetInt(PidKey, pid);
+            else SessionState.EraseInt(PidKey);
+        }
+
         static RelaySpawner()
         {
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
@@ -55,13 +197,13 @@ namespace UnityMCP.Editor.Chat
 #if UNITY_INCLUDE_TESTS
             if (EnsureRunningOverride != null) return EnsureRunningOverride();
 #endif
-            var port = SessionState.GetInt(PortKey, 0);
-            var pid  = SessionState.GetInt(PidKey,  0);
+            var port = ReadPort();
+            var pid  = ReadPid();
             if (port > 0 && IsProcessAlive(pid) && IsTcpAlive(port))
             {
                 // Reattach handle after domain reload (_process is null post-reload)
-                if (_process == null || _process.HasExited)
-                    try { _process = Process.GetProcessById(pid); } catch { /* process died */ }
+                if (CurrentProcess == null || CurrentProcess.HasExited)
+                    try { CurrentProcess = Process.GetProcessById(pid); } catch { /* process died */ }
                 return port;
             }
             return Spawn();
@@ -70,12 +212,12 @@ namespace UnityMCP.Editor.Chat
         /// <summary>Kill relay process. Called on Unity quit or Stop().</summary>
         internal static void Stop()
         {
-            try { _process?.Kill(); } catch { /* already gone */ }
-            _process = null;
+            try { CurrentProcess?.Kill(); } catch { /* already gone */ }
+            try { CurrentProcess?.Dispose(); } catch { }
+            CurrentProcess = null;
             try
             {
-                SessionState.EraseInt(PortKey);
-                SessionState.EraseInt(PidKey);
+                WriteSession(0, 0);
             }
             catch { /* editor shutting down */ }
         }
@@ -86,10 +228,10 @@ namespace UnityMCP.Editor.Chat
         internal static void OnAfterReload()
         {
             // Re-attach _process handle lost during domain reload so IsRunning stays true.
-            var port = SessionState.GetInt(PortKey, 0);
-            var pid  = SessionState.GetInt(PidKey,  0);
+            var port = ReadPort();
+            var pid  = ReadPid();
             if (port > 0 && pid > 0 && IsProcessAlive(pid))
-                try { _process = Process.GetProcessById(pid); } catch { }
+                try { CurrentProcess = Process.GetProcessById(pid); } catch { }
             OnAfterReloadResume?.Invoke();
         }
 
@@ -159,8 +301,9 @@ namespace UnityMCP.Editor.Chat
                 catch (Exception ex)
                 {
                     last = ex;
-                    try { _process?.Kill(); } catch { }
-                    _process = null;
+                    try { CurrentProcess?.Kill(); } catch { }
+                    try { CurrentProcess?.Dispose(); } catch { }
+                    CurrentProcess = null;
                 }
             }
             throw last!;
@@ -180,19 +323,20 @@ namespace UnityMCP.Editor.Chat
             if (plan.Argv != null)
                 foreach (var a in plan.Argv) psi.ArgumentList.Add(a);
 
-            _process = ProcessFactory(psi);
-            if (_process == null)
+            var process = ProcessFactory(psi);
+            CurrentProcess = process;
+            if (process == null)
                 throw new InvalidOperationException("[MCP Relay] Process.Start returned null");
 
             // Always drain stderr: captures Python import errors for local installs,
             // uvx download progress for non-local. Buffer shared with catch block below.
             var stderrSb   = new StringBuilder();
-            var stderrTask = Task.Run(() => DrainRelayStderr(_process, stderrSb));
+            var stderrTask = Task.Run(() => DrainRelayStderr(process, stderrSb));
 
             try
             {
-                var port = ReadRelayPortWithTimeout(_process.StandardOutput, plan.Timeout);
-                return (port, _process.Id);
+                var port = ReadRelayPortWithTimeout(process.StandardOutput, plan.Timeout);
+                return (port, process.Id);
             }
             catch (InvalidOperationException)
             {
@@ -209,8 +353,7 @@ namespace UnityMCP.Editor.Chat
         // MAIN THREAD ONLY — SessionState is an Editor API.
         internal static void CommitSpawn(int port, int pid)
         {
-            SessionState.SetInt(PortKey, port);
-            SessionState.SetInt(PidKey,  pid);
+            WriteSession(port, pid);
         }
 
         // Pure — testable without waiting out the real timeout.

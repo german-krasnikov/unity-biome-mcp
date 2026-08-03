@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class PluginToolbarButtonTests
+    public class PluginToolbarButtonTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    => ToolbarButtonRegistry.ResetForTests();
         [TearDown] public void TearDown() => ToolbarButtonRegistry.ResetForTests();

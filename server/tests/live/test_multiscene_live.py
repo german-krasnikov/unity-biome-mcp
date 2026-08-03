@@ -1,13 +1,19 @@
 """Live integration tests for multi-scene support."""
-import logging
 import uuid
 
 import pytest
 import pytest_asyncio
 
-from tests.live.conftest import _destroy, _ok, _iid
-
-_TEMP_FOLDER = "Assets/TestsTemp"
+from tests.live.conftest import (
+    RUN_OWNED_ROOT,
+    _close_owned_scene,
+    _cs,
+    _delete_owned_asset,
+    _destroy,
+    _ok,
+    _transient_id_expression,
+    _transient_ref,
+)
 
 pytestmark = pytest.mark.live
 
@@ -17,47 +23,66 @@ pytestmark = pytest.mark.live
 # ---------------------------------------------------------------------------
 
 @pytest_asyncio.fixture
-async def additive_scene(bridge):
+async def additive_scene(bridge, unity_state_owner):
     """Open a new empty additive scene. Yield its name. Close on teardown."""
     uid = uuid.uuid4().hex[:8]
     scene_name = f"LiveMS_{uid}"
-    scene_path = f"{_TEMP_FOLDER}/{scene_name}.unity"
+    scene_path = f"{RUN_OWNED_ROOT}/{scene_name}.unity"
+    unity_state_owner.scene_paths.add(scene_path)
+    unity_state_owner.asset_paths.add(scene_path)
     code = (
-        f'UnityEditor.AssetDatabase.CreateFolder("Assets", "TestsTemp");'
+        f'var path = {_cs(scene_path)};'
+        'var fullPath = System.IO.Path.GetFullPath(System.IO.Path.Combine('
+        ' UnityEngine.Application.dataPath, "..", path));'
+        'if (!string.IsNullOrEmpty(UnityEditor.AssetDatabase.AssetPathToGUID(path)) ||'
+        ' System.IO.File.Exists(fullPath)) return "target-exists";'
         'var s = UnityEditor.SceneManagement.EditorSceneManager.NewScene('
         'UnityEditor.SceneManagement.NewSceneSetup.EmptyScene, '
         'UnityEditor.SceneManagement.NewSceneMode.Additive);'
-        f'UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s, "{scene_path}");'
-        'return s.name;'
+        'if (!UnityEditor.SceneManagement.EditorSceneManager.SaveScene(s, path)) {'
+        ' UnityEditor.SceneManagement.EditorSceneManager.CloseScene(s, true);'
+        ' return "save-failed";'
+        '}'
+        'return s.path;'
     )
     r = await bridge.send("execute_code", {"code": code})
-    name = _ok(r).strip()
-    yield name
+    created_path = _ok(r).strip()
+    assert created_path == scene_path, (
+        f"additive scene was not saved at its registered path: {created_path}"
+    )
     try:
-        close_code = (
-            f'var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneByName("{name}");'
-            'if(s.IsValid()) { UnityEditor.SceneManagement.EditorSceneManager.CloseScene(s, true); }'
-            f'UnityEditor.AssetDatabase.DeleteAsset("{scene_path}");'
-            'return "closed";'
-        )
-        await bridge.send("execute_code", {"code": close_code})
-    except Exception as e:
-        logging.warning("additive_scene cleanup failed for %r: %s", name, e)
+        yield scene_name
+    finally:
+        errors = []
+        try:
+            await _close_owned_scene(bridge, scene_path)
+        except Exception as exc:
+            errors.append(str(exc))
+        try:
+            await _delete_owned_asset(bridge, scene_path)
+        except Exception as exc:
+            errors.append(str(exc))
+        if errors:
+            raise AssertionError(
+                f"additive_scene cleanup failed for {scene_path}: "
+                + "; ".join(errors)
+            )
 
 
 @pytest_asyncio.fixture
 async def additive_obj(bridge, additive_scene):
-    """Create a GameObject in the additive scene. Yield (name, iid_string)."""
+    """Create a GameObject in the additive scene. Yield (name, transient ID)."""
     obj_name = f"Live_{uuid.uuid4().hex[:8]}"
+    transient_id = await _transient_id_expression(bridge, "go")
     code = (
         f'var go = new UnityEngine.GameObject("{obj_name}");'
         f'var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneByName("{additive_scene}");'
         'UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, s);'
-        'return "#" + go.GetInstanceID();'
+        f'return "#" + {transient_id};'
     )
     r = await bridge.send("execute_code", {"code": code})
-    iid = _iid(_ok(r))
-    yield obj_name, iid
+    object_ref = _transient_ref(_ok(r))
+    yield obj_name, object_ref
     # scene teardown handles cleanup via CloseScene(removeScene=true)
 
 
@@ -113,25 +138,28 @@ async def test_ambiguity_error(bridge, additive_obj, additive_scene):
         await _destroy(bridge, obj_name)
 
 
-async def test_instance_id_cross_scene(bridge, additive_obj):
-    """get_component with #instanceId should work regardless of scene."""
-    _, iid = additive_obj
-    r = await bridge.send("get_component", {"path": iid, "type": "Transform"})
+async def test_transient_id_cross_scene(bridge, additive_obj):
+    """get_component with a #transientObjectId works regardless of scene."""
+    _, object_ref = additive_obj
+    r = await bridge.send("get_component", {"path": object_ref, "type": "Transform"})
     data = _ok(r)
     assert "position" in data.lower(), f"No position in Transform data:\n{data}"
 
 
-async def test_slash_in_name_via_iid(bridge, additive_scene):
-    """Object with '/' in name should be findable by instance ID."""
+async def test_slash_in_name_via_transient_id(bridge, additive_scene):
+    """Object with '/' in its name is findable by transient object ID."""
     slash_name = f"Live_slash/{uuid.uuid4().hex[:6]}"
+    transient_id = await _transient_id_expression(bridge, "go")
     code = (
         f'var go = new UnityEngine.GameObject("{slash_name}");'
         f'var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneByName("{additive_scene}");'
         'UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, s);'
-        'return "#" + go.GetInstanceID();'
+        f'return "#" + {transient_id};'
     )
     r = await bridge.send("execute_code", {"code": code})
-    iid = _iid(_ok(r))
-    r2 = await bridge.send("get_component", {"path": iid, "type": "Transform"})
+    object_ref = _transient_ref(_ok(r))
+    r2 = await bridge.send(
+        "get_component", {"path": object_ref, "type": "Transform"}
+    )
     data = _ok(r2)
     assert "position" in data.lower(), f"No position for slash-named object:\n{data}"

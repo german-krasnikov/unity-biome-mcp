@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat.Annotation;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotationIconsTests
+    internal sealed class AnnotationIconsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void Icons_PenNotNull()     => Assert.IsNotNull(AnnotationIcons.Pen);
         [Test] public void Icons_LineNotNull()    => Assert.IsNotNull(AnnotationIcons.Line);

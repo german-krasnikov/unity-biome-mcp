@@ -25,10 +25,14 @@ namespace UnityMCP.Editor.Chat.Tests
     }
 
     [TestFixture]
-    public class SettingsProviderRegistryTests
+    public class SettingsProviderRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => SettingsProviderRegistry.ResetForTests();
-        [TearDown] public void TearDown() => SettingsProviderRegistry.ResetForTests();
+        [SetUp]
+        public void SetUp()
+        {
+            RegisterCleanup(SettingsProviderRegistry.PreserveStateForTests().Dispose);
+            SettingsProviderRegistry.ResetForTests();
+        }
 
         [Test]
         public void Register_NewKey_ReturnsTrue()
@@ -109,6 +113,27 @@ namespace UnityMCP.Editor.Chat.Tests
 
             Assert.Greater(v1, v0);
             Assert.Greater(v2, v1);
+        }
+
+        [Test]
+        public void PreserveStateForTests_RestoresIdentityOrderAndVersionExactly()
+        {
+            var first = new FakeSettingsProvider("first", order: 200);
+            var second = new FakeSettingsProvider("second", order: 100);
+            SettingsProviderRegistry.Register(first);
+            SettingsProviderRegistry.Register(second);
+            var version = SettingsProviderRegistry.Version;
+
+            using (SettingsProviderRegistry.PreserveStateForTests())
+            {
+                SettingsProviderRegistry.ResetForTests();
+                SettingsProviderRegistry.Register(new FakeSettingsProvider("replacement"));
+            }
+
+            Assert.AreEqual(version, SettingsProviderRegistry.Version);
+            Assert.AreEqual(2, SettingsProviderRegistry.All.Count);
+            Assert.AreSame(second, SettingsProviderRegistry.All[0]);
+            Assert.AreSame(first, SettingsProviderRegistry.All[1]);
         }
     }
 }

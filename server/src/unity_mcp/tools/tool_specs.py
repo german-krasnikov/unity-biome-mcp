@@ -52,6 +52,7 @@ _SPECS: dict[str, ToolSpec] = {
     # Public batch() tool always overrides -- see tools/batch.py timeout param.
     'batch': ToolSpec(category='CORE', core=True, timeout_s=120.0),
     'budget_status': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
+    'cancel_test_run': ToolSpec(category='TESTS', timeout_s=10.0),
     'check_colliders': ToolSpec(category='SCENE', mutability='read'),
     'checkpoint': ToolSpec(category='SYSTEM'),
     # timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
@@ -95,6 +96,7 @@ _SPECS: dict[str, ToolSpec] = {
     'get_test_count': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
     'get_test_progress': ToolSpec(category='TESTS', mutability='read'),
     'get_test_results': ToolSpec(category='TESTS', tier1=True, mutability='read'),
+    'get_test_run': ToolSpec(category='TESTS', tier1=True, timeout_s=10.0, mutability='read'),
     'get_unity_events': ToolSpec(category='SCENE', mutability='read'),
     'get_version': ToolSpec(category='_INTERNAL', timeout_s=5.0),
     'get_watches': ToolSpec(category='RUNTIME', mutability='read'),
@@ -105,6 +107,7 @@ _SPECS: dict[str, ToolSpec] = {
     'lint_playtest_suite': ToolSpec(category='TESTS', timeout_s=120.0, mutability='read', direct_only=True),
     'lint_scene_refs': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
     'list_connections': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
+    'list_test_runs': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
     'list_playtest_files': ToolSpec(category='_INTERNAL', timeout_s=10.0, mutability='read'),
     'list_skills': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'list_templates': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
@@ -134,14 +137,15 @@ _SPECS: dict[str, ToolSpec] = {
     'set_sibling_index': ToolSpec(category='SCENE'),
     'render_analyze': ToolSpec(category='MEDIA', mutability='read'),
     'resolve_scene_refs': ToolSpec(category='VERIFY', core=True, timeout_s=15.0, mutability='read'),
+    'resolve_test_request': ToolSpec(category='TESTS', tier1=True, timeout_s=10.0, mutability='read'),
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
     # timeout+20.0 explicitly.
     'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, runtime_only=True, mutability='read'),
     'run_playtest_suite': ToolSpec(category='TESTS', timeout_s=3600.0, mutability='read', direct_only=True),
     'runtime_snapshot': ToolSpec(category='RUNTIME', mutability='read'),
-    'run_tests': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, mutability='read'),
-    'run_tests_wait': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, mutability='read', direct_only=True),
+    'run_tests': ToolSpec(category='TESTS', tier1=True, timeout_s=30.0),
+    'run_tests_wait': ToolSpec(category='TESTS', tier1=True, timeout_s=1200.0, direct_only=True),
     'save_session': ToolSpec(category='SYSTEM'),
     'save_skill': ToolSpec(category='SYSTEM'),
     'save_template': ToolSpec(category='SYSTEM'),

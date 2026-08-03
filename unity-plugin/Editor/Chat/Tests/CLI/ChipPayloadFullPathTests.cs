@@ -8,7 +8,7 @@ using static UnityMCP.Editor.Chat.Tests.ChipTestHelpers;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipPayloadFullPathTests
+    public class ChipPayloadFullPathTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
         [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();

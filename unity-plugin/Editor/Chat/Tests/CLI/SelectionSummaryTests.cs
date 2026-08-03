@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SelectionSummaryTests
+    public class SelectionSummaryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private GameObject _go;
 
@@ -20,8 +20,6 @@ namespace UnityMCP.Editor.Chat.Tests
         public void TearDown()
         {
             if (_go != null) Object.DestroyImmediate(_go);
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
         [Test]
@@ -135,13 +133,13 @@ namespace UnityMCP.Editor.Chat.Tests
             StringAssert.StartsWith("[Selection:", result);
         }
 
-        // ── F4: instance ID in summary ───────────────────────────────────────
+        // ── F4: transient EntityId in summary ────────────────────────────────
 
         [Test]
         public void SelectionSummary_Summarize_IncludesInstanceID()
         {
             _go = new GameObject("IdObj");
-            var id     = _go.GetInstanceID();
+            var id     = TransientObjectId.GetWireValue(_go);
             var result = SelectionSummary.Summarize(_go);
             StringAssert.Contains($"#{id}", result);
         }

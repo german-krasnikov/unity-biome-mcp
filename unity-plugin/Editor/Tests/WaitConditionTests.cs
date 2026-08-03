@@ -11,7 +11,7 @@ namespace UnityMCP.Editor.Tests
     // ── Method dispatch via () suffix ────────────────────────────────────────────
 
     [TestFixture]
-    public class RuntimeHelperMethodSuffixTests
+    public class RuntimeHelperMethodSuffixTests : SceneTestBase
     {
         private class MethodTestComp : MonoBehaviour
         {
@@ -35,12 +35,6 @@ namespace UnityMCP.Editor.Tests
         {
             _go = new GameObject("RHMethodSuffix_Test");
             _comp = _go.AddComponent<MethodTestComp>();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         }
 
         [Test]
@@ -89,7 +83,7 @@ namespace UnityMCP.Editor.Tests
     // ── AND/OR parser ────────────────────────────────────────────────────────────
 
     [TestFixture]
-    public class PlaytestParserAndOrTests
+    public class PlaytestParserAndOrTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void WaitUntil_NoConditions_QueriesNull()
@@ -156,7 +150,7 @@ namespace UnityMCP.Editor.Tests
     // ── Abort-on-fail parse ──────────────────────────────────────────────────────
 
     [TestFixture]
-    public class PlaytestParserAbortTests
+    public class PlaytestParserAbortTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Parse_WaitUntilWithAbortToken_SetsAbortOnFail()
@@ -204,7 +198,7 @@ namespace UnityMCP.Editor.Tests
     // ── EvalCompound pure unit tests ─────────────────────────────────────────────
 
     [TestFixture]
-    public class PlaytestRunnerCompoundWaitTests
+    public class PlaytestRunnerCompoundWaitTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static Func<string, string> ConstFn(string v) => _ => v;
 

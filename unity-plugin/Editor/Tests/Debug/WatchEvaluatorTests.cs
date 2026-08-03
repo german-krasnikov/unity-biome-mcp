@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class WatchEvaluatorTests
+    public class WatchEvaluatorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private class TestObj { public int hp = 42; public string label = "hero"; }
 

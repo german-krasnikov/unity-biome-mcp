@@ -11,7 +11,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SyncHelperTests
+    public class SyncHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private MockSyncOps _mock;
 
@@ -19,12 +19,11 @@ namespace UnityMCP.Editor.Tests
         public void SetUp()
         {
             _mock = new MockSyncOps();
-            SyncHelper.Ops = _mock;
+            SyncHelper.OverrideOpsForTest(_mock);
             SyncHelper.ResetForTest();
-            // FIX#3: explicitly erase stamp so tests start with a known-empty stamp,
-            // regardless of run order (static ctor seeds it; ResetForTest preserves it
-            // for production correctness, but tests need isolation).
-            UnityEditor.SessionState.EraseString("MCP_DomainStamp");
+            // Exercise stamp transitions through the owned seam. UnityMcpTestBase restores
+            // the exact editor baseline after every test.
+            SyncHelper.OverrideDomainStampForTest("");
         }
 
         [TearDown]
@@ -188,7 +187,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AfterReload_Stores_NonEmpty_Stamp()
         {
-            // SetUp explicitly erases MCP_DomainStamp (Commit C / FIX#3) so we start clean
+            // SetUp installs an owned empty domain stamp so we start clean.
             Assert.IsEmpty(SyncHelper.CurrentDomainStamp, "stamp empty after SetUp erase");
             SyncHelper.SimulateAfterAssemblyReload();
             Assert.IsNotEmpty(SyncHelper.CurrentDomainStamp, "stamp set after reload");
@@ -201,11 +200,11 @@ namespace UnityMCP.Editor.Tests
         {
             // Simulate cold-start: stamp erased, then re-seeded via the same path as
             // the static ctor bootstrap.
-            UnityEditor.SessionState.EraseString("MCP_DomainStamp");
+            SyncHelper.OverrideDomainStampForTest("");
             var s = SyncHelper.ComputeStamp();
             Assert.IsNotEmpty(s, "ComputeStamp must return non-empty so cold-start seeding works");
             if (!string.IsNullOrEmpty(s))
-                UnityEditor.SessionState.SetString("MCP_DomainStamp", s);
+                SyncHelper.OverrideDomainStampForTest(s);
             Assert.IsNotEmpty(SyncHelper.CurrentDomainStamp, "stamp non-empty after cold-start seed");
         }
 
@@ -344,7 +343,7 @@ namespace UnityMCP.Editor.Tests
             UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
             UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
             // Current domain stamp is different (reload happened)
-            UnityEditor.SessionState.SetString("MCP_DomainStamp", "NEW_STAMP");
+            SyncHelper.OverrideDomainStampForTest("NEW_STAMP");
             _mock.IsCompilingAfterRefresh = false; // no real compile in progress
 
             var status = SyncHelper.GetSyncStatus();
@@ -358,7 +357,7 @@ namespace UnityMCP.Editor.Tests
             UnityEditor.SessionState.SetString("MCP_StampAtTrigger", "SAME_STAMP");
             UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
             UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
-            UnityEditor.SessionState.SetString("MCP_DomainStamp", "SAME_STAMP");
+            SyncHelper.OverrideDomainStampForTest("SAME_STAMP");
             _mock.IsCompilingAfterRefresh = false;
 
             var status = SyncHelper.GetSyncStatus();
@@ -372,7 +371,7 @@ namespace UnityMCP.Editor.Tests
             UnityEditor.SessionState.SetString("MCP_StampAtTrigger", "OLD_STAMP");
             UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
             UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
-            UnityEditor.SessionState.SetString("MCP_DomainStamp", "NEW_STAMP");
+            SyncHelper.OverrideDomainStampForTest("NEW_STAMP");
             _mock.IsCompilingAfterRefresh = true; // compile is running
 
             var status = SyncHelper.GetSyncStatus();
@@ -393,7 +392,7 @@ namespace UnityMCP.Editor.Tests
         public void GetSyncStatus_StampValue_MatchesCurrentDomainStamp()
         {
             // Inject a known stamp
-            UnityEditor.SessionState.SetString("MCP_DomainStamp", "KNOWN_STAMP");
+            SyncHelper.OverrideDomainStampForTest("KNOWN_STAMP");
             var status = SyncHelper.GetSyncStatus();
             StringAssert.Contains("stamp=KNOWN_STAMP", status,
                 "stamp= value must match CurrentDomainStamp");
@@ -407,7 +406,7 @@ namespace UnityMCP.Editor.Tests
             UnityEditor.SessionState.SetString("MCP_StampAtTrigger", "FROZEN_STAMP");
             UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
             UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
-            UnityEditor.SessionState.SetString("MCP_DomainStamp", "FROZEN_STAMP"); // same → frozen
+            SyncHelper.OverrideDomainStampForTest("FROZEN_STAMP"); // same → frozen
             _mock.IsCompilingAfterRefresh = true;   // iscompiling=true
             // CompileNotifier.IsCompiling reads SessionState "MCP_CompileStart" (>0 = active)
             // Leave at 0 so cn_active=false → engine-wedge scenario
@@ -433,7 +432,7 @@ namespace UnityMCP.Editor.Tests
             // Set up wedge: state=compiling, started=true, stamp frozen, not IsCompiling
             UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
             UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
-            UnityEditor.SessionState.SetString("MCP_DomainStamp", stamp);
+            SyncHelper.OverrideDomainStampForTest(stamp);
             UnityEditor.SessionState.SetString("MCP_StampAtTrigger", stamp);
             var epochBefore = SyncHelper.CurrentEpoch;
             _mock.IsCompilingAfterRefresh = false;
@@ -451,7 +450,7 @@ namespace UnityMCP.Editor.Tests
             // Simulate Play-initiated compile: StampAtTrigger is empty
             UnityEditor.SessionState.EraseString("MCP_StampAtTrigger");
             // Pre-set a domain stamp
-            UnityEditor.SessionState.SetString("MCP_DomainStamp", "PLAY_STAMP");
+            SyncHelper.OverrideDomainStampForTest("PLAY_STAMP");
 
             SyncHelper.SimulateCompilationStarted();
 
@@ -540,7 +539,7 @@ namespace UnityMCP.Editor.Tests
         public void OnCompileStarted_DoesNotOverwriteExistingStampAtTrigger()
         {
             UnityEditor.SessionState.SetString("MCP_StampAtTrigger", "EXISTING");
-            UnityEditor.SessionState.SetString("MCP_DomainStamp", "OTHER");
+            SyncHelper.OverrideDomainStampForTest("OTHER");
 
             SyncHelper.SimulateCompilationStarted();
 
@@ -568,7 +567,7 @@ namespace UnityMCP.Editor.Tests
             UnityEditor.SessionState.SetString("MCP_StampAtTrigger", "OLD_STAMP");
             UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
             UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
-            UnityEditor.SessionState.SetString("MCP_DomainStamp", "NEW_STAMP");
+            SyncHelper.OverrideDomainStampForTest("NEW_STAMP");
             _mock.IsCompilingAfterRefresh = false;
             _mock.ScriptCompilationFailedOnFinish = true; // compile failed
 
@@ -660,7 +659,7 @@ namespace UnityMCP.Editor.Tests
     // ── R2: force_refresh + ImportPackageSources tests (C1-C5) ───────────────
 
     [TestFixture]
-    public class ForceRefreshTests
+    public class ForceRefreshTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private MockSyncOps _mock;
 
@@ -668,9 +667,9 @@ namespace UnityMCP.Editor.Tests
         public void SetUp()
         {
             _mock = new MockSyncOps();
-            SyncHelper.Ops = _mock;
+            SyncHelper.OverrideOpsForTest(_mock);
             SyncHelper.ResetForTest();
-            UnityEditor.SessionState.EraseString("MCP_DomainStamp");
+            SyncHelper.OverrideDomainStampForTest("");
         }
 
         [TearDown]
@@ -748,17 +747,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ImportPackageSources_DoesNotDeleteDigestCache()
         {
-            // Find SyncHelper.cs relative to Assets folder
-            var assets = UnityEngine.Application.dataPath;          // …/unity-test-project/Assets
-            var pluginSrc = System.IO.Path.Combine(assets,
-                "..", "..", "unity-plugin", "Editor", "SyncHelper.cs");
-            pluginSrc = System.IO.Path.GetFullPath(pluginSrc);
-            if (!System.IO.File.Exists(pluginSrc))
-            {
-                Assert.Ignore($"SyncHelper.cs not found at {pluginSrc} — skip in CI");
-                return;
-            }
-            var src = System.IO.File.ReadAllText(pluginSrc);
+            var src = ReadRequiredPackageSource(typeof(SyncHelper), "Editor/SyncHelper.cs");
             StringAssert.DoesNotContain("tundra.digestcache", src,
                 "CP-2: tundra.digestcache deletion corrupts Bee artifact graph — must be removed");
         }

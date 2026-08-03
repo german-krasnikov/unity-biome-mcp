@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RiskClassifierTests
+    public class RiskClassifierTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void Classify_Bash_ReturnsHigh()
             => Assert.AreEqual(RiskLevel.High, RiskClassifier.Classify("Bash"));

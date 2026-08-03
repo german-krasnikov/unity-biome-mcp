@@ -8,62 +8,29 @@ Phase 3 checks:
 Run: pytest -m live tests/live/test_sync_e2e.py -v
 """
 import asyncio
-import os
 import time
 
 import pytest
-import pytest_asyncio
 
 import unity_mcp.tools.sync as _sync_mod
-from unity_mcp.bridge import UnityBridge
-from tests.live.conftest import _connect_with_retry
 
 pytestmark = pytest.mark.live
-
-HOST = os.environ.get("UNITY_MCP_HOST", "127.0.0.1")
-PORT = int(os.environ.get("UNITY_MCP_PORT", "9500"))
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-async def _raw_probe(cmd: str, args: dict = {}) -> dict:
-    """Direct TCP probe — bypasses all middleware, works even during isCompiling."""
-    import struct, json
-    r, w = await asyncio.wait_for(asyncio.open_connection(HOST, PORT), 3)
-    m = json.dumps({"cmd": cmd, "args": args}).encode()
-    w.write(struct.pack(">I", len(m)) + m)
-    await w.drain()
-    n = struct.unpack(">I", await asyncio.wait_for(r.readexactly(4), 10))[0]
-    d = json.loads(await asyncio.wait_for(r.readexactly(n), 10))
-    w.close()
-    return d
-
-
-async def _bridge_send(cmd: str, args: dict) -> str:
-    """Send via raw TCP, return data string. Compatible with sync._send signature."""
-    d = await _raw_probe(cmd, args)
-    if not d.get("ok", True):
-        err = d.get("err", "unknown error")
-        raise ConnectionError(f"[{cmd}] {err}")
-    return d.get("data", "")
-
 
 # ---------------------------------------------------------------------------
 # E2E-2: No-op detection
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_sync_unity_noop_when_stamp_unchanged():
+async def test_sync_unity_noop_when_stamp_unchanged(bridge):
     """E2E-2: sync_unity returns 'sync clean (no-op)' when stamp doesn't change.
 
     We call sync twice in quick succession. The second call sees will_compile=False
     (nothing changed) and fast-paths to no-op. Proves the no-op predicate works
     against a real Unity connection.
     """
-    # First probe: get_version must be reachable
-    ver = await _raw_probe("get_version")
+    # The shared bridge remains pinned to this project while rediscovering its
+    # current port after any domain reload performed by an earlier live test.
+    ver = await bridge.send("get_version", {})
     assert ver.get("ok", True), f"get_version failed: {ver}"
 
     # We need will_compile=false for the no-op path.

@@ -29,7 +29,7 @@ namespace UnityMCP.Editor.Chat
             var sb = new StringBuilder("[");
             sb.Append(tag); sb.Append(": ");
             sb.Append(path);
-            sb.Append(" #"); sb.Append(go.GetInstanceID());
+            sb.Append(" #"); sb.Append(TransientObjectId.GetWireValue(go));
 
             // Collect non-Transform component names
             var names = new List<string>(comps.Length);

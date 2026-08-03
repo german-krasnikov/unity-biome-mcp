@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ToolCallAccumulatorMonkeyTests
+    public class ToolCallAccumulatorMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ToolCallAccumulator _acc;
         [SetUp] public void SetUp() => _acc = new ToolCallAccumulator();

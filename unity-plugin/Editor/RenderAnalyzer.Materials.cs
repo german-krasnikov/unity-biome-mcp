@@ -10,16 +10,15 @@ namespace UnityMCP.Editor
         private static string Materials(string path, string detail)
         {
             var renderers = GetRenderers(path);
-            var groups = new Dictionary<int, (string name, string shader, int count)>();
+            var groups = new Dictionary<Material, (string name, string shader, int count)>();
             foreach (var r in renderers)
             foreach (var mat in r.sharedMaterials)
             {
                 if (mat == null) continue;
-                int id = mat.GetInstanceID();
-                if (groups.TryGetValue(id, out var g))
-                    groups[id] = (g.name, g.shader, g.count + 1);
+                if (groups.TryGetValue(mat, out var g))
+                    groups[mat] = (g.name, g.shader, g.count + 1);
                 else
-                    groups[id] = (mat.name, mat.shader?.name ?? "null", 1);
+                    groups[mat] = (mat.name, mat.shader?.name ?? "null", 1);
             }
 
             var sb = new StringBuilder();

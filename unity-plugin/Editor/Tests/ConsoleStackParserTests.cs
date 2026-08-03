@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ConsoleStackParserTests
+    public class ConsoleStackParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [TearDown]
         public void TearDown() => ConsoleCapture.Clear();

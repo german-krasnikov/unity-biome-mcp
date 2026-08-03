@@ -441,10 +441,9 @@ namespace UnityMCP.Editor
             var ctrl = animator.runtimeAnimatorController as AnimatorController;
             if (ctrl == null)
             {
-                var dir = "Assets/Animations";
-                if (!AssetDatabase.IsValidFolder(dir))
-                    AssetDatabase.CreateFolder("Assets", "Animations");
+                var dir = AnimationHelper.AssetDirectory;
                 var ctrlPath = $"{dir}/{go.name}.controller";
+                AssetHelper.EnsureDirectory(ctrlPath);
                 ctrl = AnimatorController.CreateAnimatorControllerAtPath(ctrlPath);
                 animator.runtimeAnimatorController = ctrl;
             }
@@ -472,7 +471,7 @@ namespace UnityMCP.Editor
             // Try Assets/Animations/{name}
             if (!clipPath.Contains("/"))
             {
-                var withDir = $"Assets/Animations/{clipPath}";
+                var withDir = $"{AnimationHelper.AssetDirectory}/{clipPath}";
                 clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(withDir);
                 if (clip != null) return clip;
             }

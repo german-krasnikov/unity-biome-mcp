@@ -6,7 +6,7 @@ using UnityMCP.Editor.Profiling;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ProfileAnalyzerTests
+    public class ProfileAnalyzerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static FrameSample[] MakeSamples(int count, float dt, float cpu, long mono)
         {

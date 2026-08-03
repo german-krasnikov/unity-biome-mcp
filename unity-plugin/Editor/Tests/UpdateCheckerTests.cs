@@ -1,13 +1,12 @@
+using System;
 using NUnit.Framework;
+using UnityEngine.Networking;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class UpdateCheckerTests
+    public class UpdateCheckerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]
-        public void SetUp() => UpdateChecker.ResetForTest();
-
         [Test]
         public void HasUpdate_FalseWhenNoVersion()
         {
@@ -24,6 +23,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SkipVersion_ClearsAvailableVersion()
         {
+            ProtectEditorPrefString("UnityMCP.SkippedVersion");
             UpdateChecker.SetAvailableVersionForTest("1.99.0");
             UpdateChecker.SkipVersion();
             Assert.IsFalse(UpdateChecker.HasUpdate);
@@ -33,6 +33,41 @@ namespace UnityMCP.Editor.Tests
         public void SkipVersion_WhenNoVersion_DoesNotThrow()
         {
             Assert.DoesNotThrow(() => UpdateChecker.SkipVersion());
+        }
+
+        [Test]
+        public void TestIsolation_NestedScope_RestoresExactOuterState()
+        {
+            var outerRequest = UnityWebRequest.Get("https://example.invalid/update-check");
+            UpdateChecker.SetStateForTest("1.2.3", true, "outer-error", outerRequest);
+            var outerCompletions = 0;
+            Action outerHandler = () => outerCompletions++;
+            UpdateChecker.CheckCompleted += outerHandler;
+
+            using (UpdateChecker.BeginTestIsolation())
+            {
+                Assert.IsNull(UpdateChecker.AvailableVersion);
+                Assert.IsFalse(UpdateChecker.IsChecking);
+                Assert.IsNull(UpdateChecker.LastError);
+                Assert.IsNull(UpdateChecker.ActiveRequestForTest);
+
+                var innerCompletions = 0;
+                UpdateChecker.SetStateForTest("9.9.9", true, "inner-error");
+                UpdateChecker.CheckCompleted += () => innerCompletions++;
+                UpdateChecker.RaiseCheckCompletedForTest();
+
+                Assert.AreEqual(1, innerCompletions);
+                Assert.AreEqual(0, outerCompletions);
+            }
+
+            Assert.AreEqual("1.2.3", UpdateChecker.AvailableVersion);
+            Assert.IsTrue(UpdateChecker.IsChecking);
+            Assert.AreEqual("outer-error", UpdateChecker.LastError);
+            Assert.AreSame(outerRequest, UpdateChecker.ActiveRequestForTest);
+
+            UpdateChecker.RaiseCheckCompletedForTest();
+            Assert.AreEqual(1, outerCompletions);
+            UpdateChecker.CheckCompleted -= outerHandler;
         }
     }
 }

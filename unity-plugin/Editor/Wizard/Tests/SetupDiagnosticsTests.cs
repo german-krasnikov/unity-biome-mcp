@@ -6,7 +6,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SetupDiagnosticsTests
+    public class SetupDiagnosticsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void BuildClaudeCodeSnippet_ContainsPort()

@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestAliasHelperTypedTests
+    public class PlaytestAliasHelperTypedTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── FormatLine: ValPath ────────────────────────────────────────────────
 

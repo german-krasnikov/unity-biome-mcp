@@ -2,30 +2,14 @@
 // RevertToBeforeGroup / CanRevert (scenarios 1-6, Feature F6).
 using NUnit.Framework;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class UndoGroupHelperTests
+    public class UndoGroupHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]
-        public void SetUp()
-        {
-            Undo.ClearAll();
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            Undo.ClearAll();
-            // Replace scene to destroy any GameObjects leaked by failed undo operations
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        }
-
         // --- 1. OpenNamedGroup returns a non-negative id -----------------------
         [Test]
         public void OpenNamedGroup_ReturnsNonNegativeId()

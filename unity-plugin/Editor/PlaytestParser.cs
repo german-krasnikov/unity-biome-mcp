@@ -1207,7 +1207,9 @@ namespace UnityMCP.Editor
         }
 
         // keywords that end the value in ASSERT/WAIT_UNTIL/INVARIANT
-        private static readonly HashSet<string> _Ops = new HashSet<string> { "==", "!=", ">=", "<=", ">", "<" };
+        private static readonly HashSet<string> _Ops = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+            { "==", "!=", ">=", "<=", ">", "<", "contains" };
         private static readonly HashSet<string> _StopKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "TIMEOUT", "AS", "AND", "OR", "ABORT" };
 

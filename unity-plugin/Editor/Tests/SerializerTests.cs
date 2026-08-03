@@ -717,34 +717,32 @@ namespace UnityMCP.Editor.Tests
                 "    ENDCG } }\n" +
                 "}\n";
 
+            TrackOwnedAsset(folder);
+            TestPaths.EnsureFolder(folder);
+            System.IO.File.WriteAllText(
+                System.IO.Path.Combine(UnityEngine.Application.dataPath, "../" + assetPath),
+                shaderSrc);
+
+            LogAssert.ignoreFailingMessages = true;
             try
             {
-                TestPaths.EnsureFolder(folder);
-
-                System.IO.File.WriteAllText(
-                    System.IO.Path.Combine(UnityEngine.Application.dataPath, "../" + assetPath),
-                    shaderSrc);
-
-                LogAssert.ignoreFailingMessages = true;
-                AssetDatabase.Refresh();
-                LogAssert.ignoreFailingMessages = false;
-
-                var loaded = AssetDatabase.LoadAssetAtPath<Shader>(assetPath);
-                Assert.IsNotNull(loaded, "Shader asset not created at " + assetPath);
-
-                string result = null;
-                Assert.DoesNotThrow(() => result = ShaderSerializer.Serialize(assetPath, "shader"));
-                Assert.IsNotNull(result);
-                StringAssert.Contains("_IntProp", result);
-                StringAssert.Contains("42", result);
+                AssetDatabase.ImportAsset(assetPath,
+                    ImportAssetOptions.ForceUpdate |
+                    ImportAssetOptions.ForceSynchronousImport);
             }
             finally
             {
-                LogAssert.ignoreFailingMessages = true;
-                if (AssetDatabase.IsValidFolder(folder))
-                    AssetDatabase.DeleteAsset(folder);
                 LogAssert.ignoreFailingMessages = false;
             }
+
+            var loaded = AssetDatabase.LoadAssetAtPath<Shader>(assetPath);
+            Assert.IsNotNull(loaded, "Shader asset not created at " + assetPath);
+
+            string result = null;
+            Assert.DoesNotThrow(() => result = ShaderSerializer.Serialize(assetPath, "shader"));
+            Assert.IsNotNull(result);
+            StringAssert.Contains("_IntProp", result);
+            StringAssert.Contains("42", result);
         }
     }
 
@@ -762,17 +760,12 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            TrackOwnedAsset(AssetFolder);
             TestPaths.EnsureFolder(AssetFolder);
             _timeline = ScriptableObject.CreateInstance<TimelineAsset>();
             AssetDatabase.CreateAsset(_timeline, AssetPath);
             AssetDatabase.SaveAssets();
             _timeline = AssetDatabase.LoadAssetAtPath<TimelineAsset>(AssetPath);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            AssetDatabase.DeleteAsset(AssetPath);
         }
 
         // ── TrackTypeName ─────────────────────────────────────────────────────
@@ -977,7 +970,7 @@ namespace UnityMCP.Editor.Tests
     // ─────────────────────────────────────────────────────────────────────────
 
     [TestFixture]
-    public class AnimatorControllerHelperParseConditionTests
+    public class AnimatorControllerHelperParseConditionTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ParseCondition(string condStr, AnimatorController ctrl)
         // ctrl is only used to look up existing params for Trigger/Bool type gating.
@@ -990,15 +983,9 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            TrackOwnedAsset(CtrlFolder);
             TestPaths.EnsureFolder(CtrlFolder);
             _ctrl = AnimatorController.CreateAnimatorControllerAtPath(CtrlPath);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            AssetDatabase.DeleteAsset(CtrlPath);
-            AssetDatabase.Refresh();
         }
 
         [Test]
@@ -1074,7 +1061,7 @@ namespace UnityMCP.Editor.Tests
     // ─────────────────────────────────────────────────────────────────────────
 
     [TestFixture]
-    public class AnimatorControllerHelperFindStateTests
+    public class AnimatorControllerHelperFindStateTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private AnimatorController _ctrl;
         private static readonly string CtrlFolder = TestPaths.ForFixture("AnimControllerFindStateTests");
@@ -1083,15 +1070,9 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            TrackOwnedAsset(CtrlFolder);
             TestPaths.EnsureFolder(CtrlFolder);
             _ctrl = AnimatorController.CreateAnimatorControllerAtPath(CtrlPath);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            AssetDatabase.DeleteAsset(CtrlPath);
-            AssetDatabase.Refresh();
         }
 
         [Test]
@@ -1119,7 +1100,7 @@ namespace UnityMCP.Editor.Tests
     // ─────────────────────────────────────────────────────────────────────────
 
     [TestFixture]
-    public class AnimatorControllerSerializerOverviewTests
+    public class AnimatorControllerSerializerOverviewTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private AnimatorController _ctrl;
         private static readonly string CtrlFolder = TestPaths.ForFixture("AnimCtrlSerializerOverviewTests");
@@ -1128,15 +1109,9 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            TrackOwnedAsset(CtrlFolder);
             TestPaths.EnsureFolder(CtrlFolder);
             _ctrl = AnimatorController.CreateAnimatorControllerAtPath(CtrlPath);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            AssetDatabase.DeleteAsset(CtrlPath);
-            AssetDatabase.Refresh();
         }
 
         // T01: mask: present when AvatarMask assigned

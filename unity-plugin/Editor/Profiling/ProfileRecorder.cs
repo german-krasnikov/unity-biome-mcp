@@ -51,8 +51,11 @@ namespace UnityMCP.Editor.Profiling
         // Resets all static state for test isolation
         internal static void Reset()
         {
+            EditorApplication.update -= Tick;
+            ProfilerBridge.Shutdown();
             _buffer.Clear();
             _state = RecordState.Idle;
+            _mode = default;
             _activeSessionId = null;
             _sessionCounter = 0;
             _sessions.Clear();

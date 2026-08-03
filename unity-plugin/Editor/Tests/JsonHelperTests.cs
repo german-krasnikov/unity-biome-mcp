@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class JsonHelperTests
+    public class JsonHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── FormatResponse ───────────────────────────────────────────────────
 

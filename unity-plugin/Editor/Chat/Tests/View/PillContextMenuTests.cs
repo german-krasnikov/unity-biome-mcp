@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class PillContextMenuTests
+    public class PillContextMenuTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()
@@ -55,7 +55,7 @@ namespace UnityMCP.Editor.Chat.Tests
 
             Assert.AreEqual("/Enemy",              received.Path);
             Assert.AreEqual("Enemy",               received.DisplayName);
-            Assert.AreEqual(42,                    received.InstanceID);
+            Assert.AreEqual("42",                  received.ObjectId);
             Assert.AreEqual(ChipKindKeys.Hierarchy, received.KindKey);
         }
 
@@ -67,7 +67,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var chip = RefParser.Parse(ChipKindKeys.Hierarchy, "/Root/Player #99");
             Assert.AreEqual("/Root/Player",        chip.Path);
             Assert.AreEqual("Player",              chip.DisplayName);
-            Assert.AreEqual(99,                    chip.InstanceID);
+            Assert.AreEqual("99",                  chip.ObjectId);
             Assert.AreEqual(ChipKindKeys.Hierarchy, chip.KindKey);
         }
 

@@ -6,20 +6,19 @@ namespace UnityMCP.Editor
     internal static class RefManager
     {
         private static Dictionary<string, GameObject> _refToObj = new Dictionary<string, GameObject>();
-        private static Dictionary<int, string> _idToRef = new Dictionary<int, string>();
+        private static Dictionary<GameObject, string> _objectToRef = new Dictionary<GameObject, string>();
         private static int _counter = 0;
 
         /// <summary>Assign ref to GO. Returns existing ref if already mapped.</summary>
         public static string Assign(GameObject go)
         {
-            var id = go.GetInstanceID();
-            if (_idToRef.TryGetValue(id, out var existing)) return existing;
+            if (_objectToRef.TryGetValue(go, out var existing)) return existing;
             var r = GenerateRef(_counter++);
             // Ring-wrap: evict old GO's _idToRef entry before overwriting the slot
             if (_refToObj.TryGetValue(r, out var old) && old != null)
-                _idToRef.Remove(old.GetInstanceID());
+                _objectToRef.Remove(old);
             _refToObj[r] = go;
-            _idToRef[id] = r;
+            _objectToRef[go] = r;
             return r;
         }
 
@@ -39,7 +38,7 @@ namespace UnityMCP.Editor
         public static void Invalidate()
         {
             _refToObj.Clear();
-            _idToRef.Clear();
+            _objectToRef.Clear();
             _counter = 0;
         }
 
@@ -50,14 +49,12 @@ namespace UnityMCP.Editor
                 if (kv.Value == null) stale.Add(kv.Key);
             foreach (var r in stale)
             {
-                // Can't get instanceID from destroyed GO, so just clear both maps
-                // Rebuild idToRef from remaining live entries
+                // Rebuild reverse lookup from remaining live entries.
                 _refToObj.Remove(r);
             }
-            // Rebuild _idToRef from surviving entries
-            _idToRef.Clear();
+            _objectToRef.Clear();
             foreach (var kv in _refToObj)
-                if (kv.Value != null) _idToRef[kv.Value.GetInstanceID()] = kv.Key;
+                if (kv.Value != null) _objectToRef[kv.Value] = kv.Key;
         }
 
         /// <summary>$a-$z (n=0..25), $aa-$zz (n=26..701), wraps at 702</summary>

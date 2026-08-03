@@ -4,7 +4,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class RenderStateAnnotationTests
+    internal class RenderStateAnnotationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void DrawAnnotation_NullAnnotationType_DoesNotThrow()

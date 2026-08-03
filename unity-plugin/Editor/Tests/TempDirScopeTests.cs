@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class TempDirScopeTests
+    public class TempDirScopeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Constructor_CreatesDirectory()

@@ -10,7 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class InputChipClickTests
+    public class InputChipClickTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
         [TearDown] public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
@@ -20,29 +20,25 @@ namespace UnityMCP.Editor.Chat.Tests
         public void InputPill_LeftClick_CallsNavigate()
         {
             LogAssert.ignoreFailingMessages = true;
-            var window = EditorWindow.GetWindow<InputChipTestWindow>();
-            try
-            {
-                var navigated = false;
-                var provider  = new SpyProvider("spy_input_nav", onNavigate: _ => navigated = true);
-                ChipKindRegistry.Register(provider);
+            var window = CreateTestWindow();
+            var navigated = false;
+            var provider  = new SpyProvider("spy_input_nav", onNavigate: _ => navigated = true);
+            ChipKindRegistry.Register(provider);
 
-                var field = new InlineChipField();
-                window.rootVisualElement.Add(field);
+            var field = new InlineChipField();
+            window.rootVisualElement.Add(field);
 
-                var chip = new ChipData("spy_input_nav", "/TestObj", "TestObj", 0);
-                field.AddChip(chip);
+            var chip = new ChipData("spy_input_nav", "/TestObj", "TestObj", 0);
+            field.AddChip(chip);
 
-                // Pill is the first child of the internal pill row (index 0 in _pillRow).
-                // We access it via the InlineChipField's first child that has children.
-                var pill = FindFirstPill(field);
-                Assert.IsNotNull(pill, "pill must exist after AddChip");
+            // Pill is the first child of the internal pill row (index 0 in _pillRow).
+            // We access it via the InlineChipField's first child that has children.
+            var pill = FindFirstPill(field);
+            Assert.IsNotNull(pill, "pill must exist after AddChip");
 
-                SendClick(pill, 1);
+            SendClick(pill, 1);
 
-                Assert.IsTrue(navigated, "single click on input chip must call Navigate");
-            }
-            finally { window.Close(); }
+            Assert.IsTrue(navigated, "single click on input chip must call Navigate");
         }
 
         // T2: double-click must NOT trigger navigation (clickCount==2 guard in ChipClickRouter)
@@ -50,25 +46,21 @@ namespace UnityMCP.Editor.Chat.Tests
         public void InputPill_DoubleClick_DoesNotCallNavigate()
         {
             LogAssert.ignoreFailingMessages = true;
-            var window = EditorWindow.GetWindow<InputChipTestWindow>();
-            try
-            {
-                var navigated = false;
-                var provider  = new SpyProvider("spy_input_dbl", onNavigate: _ => navigated = true);
-                ChipKindRegistry.Register(provider);
+            var window = CreateTestWindow();
+            var navigated = false;
+            var provider  = new SpyProvider("spy_input_dbl", onNavigate: _ => navigated = true);
+            ChipKindRegistry.Register(provider);
 
-                var field = new InlineChipField();
-                window.rootVisualElement.Add(field);
+            var field = new InlineChipField();
+            window.rootVisualElement.Add(field);
 
-                field.AddChip(new ChipData("spy_input_dbl", "/TestObj", "TestObj", 0));
-                var pill = FindFirstPill(field);
-                Assert.IsNotNull(pill);
+            field.AddChip(new ChipData("spy_input_dbl", "/TestObj", "TestObj", 0));
+            var pill = FindFirstPill(field);
+            Assert.IsNotNull(pill);
 
-                SendClick(pill, 2);
+            SendClick(pill, 2);
 
-                Assert.IsFalse(navigated, "double-click must not trigger Navigate");
-            }
-            finally { window.Close(); }
+            Assert.IsFalse(navigated, "double-click must not trigger Navigate");
         }
 
         // T3: unknown kindKey — click must not throw (graceful null provider)
@@ -89,29 +81,25 @@ namespace UnityMCP.Editor.Chat.Tests
         public void InputPill_RemoveButton_DoesNotNavigate()
         {
             LogAssert.ignoreFailingMessages = true;
-            var window = EditorWindow.GetWindow<InputChipTestWindow>();
-            try
-            {
-                var navigated = false;
-                var provider  = new SpyProvider("spy_input_rm", onNavigate: _ => navigated = true);
-                ChipKindRegistry.Register(provider);
+            var window = CreateTestWindow();
+            var navigated = false;
+            var provider  = new SpyProvider("spy_input_rm", onNavigate: _ => navigated = true);
+            ChipKindRegistry.Register(provider);
 
-                var field = new InlineChipField();
-                window.rootVisualElement.Add(field);
+            var field = new InlineChipField();
+            window.rootVisualElement.Add(field);
 
-                field.AddChip(new ChipData("spy_input_rm", "/TestObj", "TestObj", 0));
-                var pill = FindFirstPill(field);
-                Assert.IsNotNull(pill);
+            field.AddChip(new ChipData("spy_input_rm", "/TestObj", "TestObj", 0));
+            var pill = FindFirstPill(field);
+            Assert.IsNotNull(pill);
 
-                var removeBtn = pill.Q<Button>(className: "inline-chip-remove");
-                Assert.IsNotNull(removeBtn, "input pill must have a remove button");
+            var removeBtn = pill.Q<Button>(className: "inline-chip-remove");
+            Assert.IsNotNull(removeBtn, "input pill must have a remove button");
 
-                // Clicking remove triggers Button.clicked, not ClickEvent on pill
-                removeBtn.SendEvent(new ClickEvent { target = removeBtn });
+            // Clicking remove triggers Button.clicked, not ClickEvent on pill
+            removeBtn.SendEvent(new ClickEvent { target = removeBtn });
 
-                Assert.IsFalse(navigated, "remove button click must not trigger Navigate");
-            }
-            finally { window.Close(); }
+            Assert.IsFalse(navigated, "remove button click must not trigger Navigate");
         }
 
         // T5: each pill routes click to its own path, not a shared one
@@ -123,25 +111,28 @@ namespace UnityMCP.Editor.Chat.Tests
             ChipKindRegistry.Register(provider);
 
             LogAssert.ignoreFailingMessages = true;
-            var window = EditorWindow.GetWindow<InputChipTestWindow>();
-            try
-            {
-                var field = new InlineChipField();
-                window.rootVisualElement.Add(field);
-                field.AddChip(new ChipData("spy_multi", "/A", "A", 0));
-                field.AddChip(new ChipData("spy_multi", "/B", "B", 0));
+            var window = CreateTestWindow();
+            var field = new InlineChipField();
+            window.rootVisualElement.Add(field);
+            field.AddChip(new ChipData("spy_multi", "/A", "A", 0));
+            field.AddChip(new ChipData("spy_multi", "/B", "B", 0));
 
-                var pills = GetAllPills(field);
-                SendClick(pills[0], 1);
-                SendClick(pills[1], 1);
+            var pills = GetAllPills(field);
+            SendClick(pills[0], 1);
+            SendClick(pills[1], 1);
 
-                CollectionAssert.AreEqual(new[] { "/A", "/B" }, navigated,
-                    "each pill must navigate to its own path");
-            }
-            finally { window.Close(); }
+            CollectionAssert.AreEqual(new[] { "/A", "/B" }, navigated,
+                "each pill must navigate to its own path");
         }
 
         // ── helpers ───────────────────────────────────────────────────────────
+
+        private EditorWindow CreateTestWindow()
+        {
+            var window = CreateOwnedEditorWindow<InputChipTestWindow>();
+            window.ShowUtility();
+            return window;
+        }
 
         private static VisualElement FindFirstPill(InlineChipField field)
         {

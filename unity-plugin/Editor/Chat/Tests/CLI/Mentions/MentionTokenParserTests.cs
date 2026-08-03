@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MentionTokenParserTests
+    public class MentionTokenParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static PositionedChip PC(int offset)
             => new PositionedChip(new ChipData(ChipKindKeys.Hierarchy, "/x", "x", 0), offset);

@@ -6,25 +6,27 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PluginUIHelpersTests
+    public class PluginUIHelpersTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         const string PID = "TestPlugin_UIHelpers";
-        const string KEY = "test_key";
+        const string TextKey = "test_text";
+        const string ToggleKey = "test_toggle";
+        const string FloatKey = "test_float";
+        const string IntKey = "test_int";
+        const string DropdownKey = "test_dropdown";
 
         EditorWindow _win;
 
         [SetUp]
         public void SetUp()
         {
-            _win = EditorWindow.CreateInstance<EditorWindow>();
+            DeleteEditorPrefString(PluginConfig.BuildKey(PID, TextKey));
+            DeleteEditorPrefBool(PluginConfig.BuildKey(PID, ToggleKey));
+            DeleteEditorPrefFloat(PluginConfig.BuildKey(PID, FloatKey));
+            DeleteEditorPrefInt(PluginConfig.BuildKey(PID, IntKey));
+            DeleteEditorPrefString(PluginConfig.BuildKey(PID, DropdownKey));
+            _win = CreateOwnedEditorWindow<EditorWindow>();
             _win.ShowUtility();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            PluginConfig.Delete(PID, KEY);
-            if (_win != null) _win.Close();
         }
 
         // ── MakeCard ────────────────────────────────────────────────────────
@@ -58,31 +60,31 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AddTextField_InitFromDefault_WhenNoSavedValue()
         {
-            var el = PluginUIHelpers.AddTextField(new VisualElement(), "L", PID, KEY, "myDefault");
+            var el = PluginUIHelpers.AddTextField(new VisualElement(), "L", PID, TextKey, "myDefault");
             Assert.AreEqual("myDefault", el.value);
         }
 
         [Test]
         public void AddTextField_InitFromSaved_WhenValueExists()
         {
-            PluginConfig.SetString(PID, KEY, "saved");
-            var el = PluginUIHelpers.AddTextField(new VisualElement(), "L", PID, KEY, "myDefault");
+            PluginConfig.SetString(PID, TextKey, "saved");
+            var el = PluginUIHelpers.AddTextField(new VisualElement(), "L", PID, TextKey, "myDefault");
             Assert.AreEqual("saved", el.value);
         }
 
         [Test]
         public void AddTextField_CallbackWritesToPluginConfig()
         {
-            var el = PluginUIHelpers.AddTextField(_win.rootVisualElement, "L", PID, KEY);
+            var el = PluginUIHelpers.AddTextField(_win.rootVisualElement, "L", PID, TextKey);
             el.value = "written";
-            Assert.AreEqual("written", PluginConfig.GetString(PID, KEY));
+            Assert.AreEqual("written", PluginConfig.GetString(PID, TextKey));
         }
 
         [Test]
         public void AddTextField_AddedToParent()
         {
             var parent = new VisualElement();
-            var el = PluginUIHelpers.AddTextField(parent, "L", PID, KEY);
+            var el = PluginUIHelpers.AddTextField(parent, "L", PID, TextKey);
             Assert.IsTrue(parent.Contains(el));
         }
 
@@ -91,16 +93,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AddToggle_InitFromDefault()
         {
-            var el = PluginUIHelpers.AddToggle(new VisualElement(), "L", PID, KEY, defaultValue: true);
+            var el = PluginUIHelpers.AddToggle(new VisualElement(), "L", PID, ToggleKey, defaultValue: true);
             Assert.IsTrue(el.value);
         }
 
         [Test]
         public void AddToggle_CallbackWritesToPluginConfig()
         {
-            var el = PluginUIHelpers.AddToggle(_win.rootVisualElement, "L", PID, KEY, defaultValue: false);
+            var el = PluginUIHelpers.AddToggle(_win.rootVisualElement, "L", PID, ToggleKey, defaultValue: false);
             el.value = true;
-            Assert.IsTrue(PluginConfig.GetBool(PID, KEY));
+            Assert.IsTrue(PluginConfig.GetBool(PID, ToggleKey));
         }
 
         // ── AddSlider ───────────────────────────────────────────────────────
@@ -108,16 +110,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AddSlider_InitFromDefault()
         {
-            var el = PluginUIHelpers.AddSlider(new VisualElement(), "L", PID, KEY, 0.5f, 0f, 1f);
+            var el = PluginUIHelpers.AddSlider(new VisualElement(), "L", PID, FloatKey, 0.5f, 0f, 1f);
             Assert.AreEqual(0.5f, el.value, 0.001f);
         }
 
         [Test]
         public void AddSlider_CallbackWritesToPluginConfig()
         {
-            var el = PluginUIHelpers.AddSlider(_win.rootVisualElement, "L", PID, KEY, 0f, 0f, 1f);
+            var el = PluginUIHelpers.AddSlider(_win.rootVisualElement, "L", PID, FloatKey, 0f, 0f, 1f);
             el.value = 0.75f;
-            Assert.AreEqual(0.75f, PluginConfig.GetFloat(PID, KEY), 0.001f);
+            Assert.AreEqual(0.75f, PluginConfig.GetFloat(PID, FloatKey), 0.001f);
         }
 
         // ── AddIntSlider ────────────────────────────────────────────────────
@@ -125,16 +127,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AddIntSlider_InitFromDefault()
         {
-            var el = PluginUIHelpers.AddIntSlider(new VisualElement(), "L", PID, KEY, 5, 0, 10);
+            var el = PluginUIHelpers.AddIntSlider(new VisualElement(), "L", PID, IntKey, 5, 0, 10);
             Assert.AreEqual(5, el.value);
         }
 
         [Test]
         public void AddIntSlider_CallbackWritesToPluginConfig()
         {
-            var el = PluginUIHelpers.AddIntSlider(_win.rootVisualElement, "L", PID, KEY, 0, 0, 10);
+            var el = PluginUIHelpers.AddIntSlider(_win.rootVisualElement, "L", PID, IntKey, 0, 0, 10);
             el.value = 7;
-            Assert.AreEqual(7, PluginConfig.GetInt(PID, KEY));
+            Assert.AreEqual(7, PluginConfig.GetInt(PID, IntKey));
         }
 
         // ── AddDropdown ─────────────────────────────────────────────────────
@@ -142,45 +144,45 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AddDropdown_InitFromDefault_FirstChoice()
         {
-            var el = PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, KEY, new[] { "A", "B", "C" });
+            var el = PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, DropdownKey, new[] { "A", "B", "C" });
             Assert.AreEqual("A", el.value);
         }
 
         [Test]
         public void AddDropdown_InitFromSaved()
         {
-            PluginConfig.SetString(PID, KEY, "B");
-            var el = PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, KEY, new[] { "A", "B", "C" });
+            PluginConfig.SetString(PID, DropdownKey, "B");
+            var el = PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, DropdownKey, new[] { "A", "B", "C" });
             Assert.AreEqual("B", el.value);
         }
 
         [Test]
         public void AddDropdown_CallbackWritesToPluginConfig()
         {
-            var el = PluginUIHelpers.AddDropdown(_win.rootVisualElement, "L", PID, KEY, new[] { "A", "B", "C" });
+            var el = PluginUIHelpers.AddDropdown(_win.rootVisualElement, "L", PID, DropdownKey, new[] { "A", "B", "C" });
             el.value = "C";
-            Assert.AreEqual("C", PluginConfig.GetString(PID, KEY));
+            Assert.AreEqual("C", PluginConfig.GetString(PID, DropdownKey));
         }
 
         [Test]
         public void AddDropdown_NullChoices_ThrowsArgumentException()
         {
             Assert.Throws<System.ArgumentException>(() =>
-                PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, KEY, null));
+                PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, DropdownKey, null));
         }
 
         [Test]
         public void AddDropdown_EmptyChoices_ThrowsArgumentException()
         {
             Assert.Throws<System.ArgumentException>(() =>
-                PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, KEY, new string[0]));
+                PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, DropdownKey, new string[0]));
         }
 
         [Test]
         public void AddDropdown_SavedValueNotInChoices_FallsBackToDefault()
         {
-            PluginConfig.SetString(PID, KEY, "Deleted");
-            var el = PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, KEY, new[] { "A", "B" }, "A");
+            PluginConfig.SetString(PID, DropdownKey, "Deleted");
+            var el = PluginUIHelpers.AddDropdown(new VisualElement(), "L", PID, DropdownKey, new[] { "A", "B" }, "A");
             Assert.AreEqual("A", el.value);
         }
     }

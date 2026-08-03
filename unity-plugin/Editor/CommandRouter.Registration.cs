@@ -297,10 +297,25 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("get_changes", args => ChangeWatcher.GetChanges(
                 JsonHelper.ExtractString(args, "clear") != "false"),
                 required: "", optional: "clear");
-            CommandRegistry.Register("get_test_results", _ => TestRunner.GetResults(),
-                required: "", optional: "", allowedDuringCompile: true);  // P1: SessionState-only read
-            CommandRegistry.Register("get_test_progress", _ => TestRunner.GetProgress(),
-                required: "", optional: "", allowedDuringCompile: true);  // SessionState-only read, safe during reload
+            CommandRegistry.Register("resolve_test_request", args => TestRunner.ResolveRequest(
+                    JsonHelper.ExtractString(args, "request_id")),
+                required: "request_id", optional: "", allowedDuringCompile: true);
+            CommandRegistry.Register("get_test_run", args => TestRunner.GetRun(
+                    JsonHelper.ExtractString(args, "run_id")),
+                required: "run_id", optional: "", allowedDuringCompile: true);
+            CommandRegistry.Register("list_test_runs", args => TestRunner.ListRuns(
+                    ExtractInt(args, "limit", 20)),
+                required: "", optional: "limit", allowedDuringCompile: true);
+            CommandRegistry.Register("cancel_test_run", args => TestRunner.CancelRun(
+                    JsonHelper.ExtractString(args, "run_id")),
+                required: "run_id", optional: "", alwaysAllowed: true,
+                allowedDuringCompile: true);
+            CommandRegistry.Register("get_test_results", args => TestRunner.GetResults(
+                    JsonHelper.ExtractString(args, "run_id")),
+                required: "", optional: "run_id", allowedDuringCompile: true);
+            CommandRegistry.Register("get_test_progress", args => TestRunner.GetProgress(
+                    JsonHelper.ExtractString(args, "run_id")),
+                required: "", optional: "run_id", allowedDuringCompile: true);
             CommandRegistry.Register("get_test_count", _ => TestRunner.GetTestCount(),
                 required: "", optional: "", allowedDuringCompile: true);  // discovery-only, no test run
 
@@ -501,7 +516,8 @@ namespace UnityMCP.Editor
 
         internal static void RegisterAsyncCommands()
         {
-            CommandRegistry.RegisterAsync("run_tests", AsyncRunTests, required: "", optional: "mode,filter,group");
+            CommandRegistry.RegisterAsync("run_tests", AsyncRunTests,
+                required: "request_id", optional: "mode,filter,group");
             CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "", optional: "questions",
                 alwaysAllowed: true, allowedDuringCompile: true);  // UI-only card, no assembly access
             CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, runtime: true,

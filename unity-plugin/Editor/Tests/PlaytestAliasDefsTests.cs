@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestAliasDefsTests
+    public class PlaytestAliasDefsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── ParseDefsToAliases ────────────────────────────────────────────────
 

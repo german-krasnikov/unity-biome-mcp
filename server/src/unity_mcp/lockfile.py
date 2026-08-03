@@ -145,23 +145,46 @@ def cleanup_stale_locks(port: int, lock_dir: Path = None) -> int:
     return cleaned
 
 
-def read_pid_from_port_file(port: int) -> Optional[int]:
+def _canonical_project_path(value: str | Path) -> str:
+    """Return a comparison-safe project path without requiring it to exist."""
+    return os.path.normcase(os.path.realpath(os.path.abspath(os.fspath(value))))
+
+
+def read_pid_from_port_file(
+    port: int,
+    project_path: str | Path | None = None,
+) -> Optional[int]:
     """Read Unity PID from port files matching the given port.
 
     Checks both ~/.unity-biome-mcp/ports and legacy ~/.unity-mcp/ports.
-    Skips dead PIDs to avoid false-positive process-dead signals.
+    Skips dead PIDs to avoid false-positive process-dead signals. When
+    project_path is supplied, only a discovery record for that canonical
+    project may identify the process. This prevents a reused port owned by a
+    different live Editor from taking over a pinned bridge.
     """
+    expected_project = (
+        _canonical_project_path(project_path) if project_path is not None else None
+    )
+    candidates: list[tuple[float, int]] = []
     for f in _iter_port_files("*.port", _ports_dir()):
         try:
             lines = f.read_text(encoding="utf-8", errors="replace").strip().split("\n")
             if int(lines[0]) != port:
                 continue
+            if expected_project is not None:
+                if len(lines) < 2 or not lines[1].strip():
+                    continue
+                if _canonical_project_path(lines[1].strip()) != expected_project:
+                    continue
             pid = int(f.stem)
             if is_pid_alive(pid):
-                return pid
+                candidates.append((f.stat().st_mtime, pid))
         except (ValueError, IndexError, OSError):
             continue
-    return None
+    if not candidates:
+        return None
+    candidates.sort(reverse=True)
+    return candidates[0][1]
 
 
 def _tcp_probe(port: int, timeout: float = 0.2) -> bool:

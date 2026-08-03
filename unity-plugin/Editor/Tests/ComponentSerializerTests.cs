@@ -386,14 +386,14 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void FindObjectById_ValidId_ReturnsGameObject()
         {
-            var result = ComponentSerializer.FindObjectById(_go.GetInstanceID());
+            var result = ComponentSerializer.FindObjectById(TransientObjectId.GetWireValue(_go));
             Assert.AreEqual(_go, result);
         }
 
         [Test]
         public void FindObjectById_InvalidId_ReturnsNull()
         {
-            var result = ComponentSerializer.FindObjectById(0);
+            var result = ComponentSerializer.FindObjectById("0");
             Assert.IsNull(result);
         }
 
@@ -442,13 +442,13 @@ namespace UnityMCP.Editor.Tests
             _toDestroy.Add(b);
 
             var ex = Assert.Throws<System.ArgumentException>(() => ComponentSerializer.FindObject("DupTest"));
-            // Message must say "matches" and contain "#" for instance IDs
+            // Message must say "matches" and contain "#" for transient EntityIds.
             StringAssert.Contains("matches", ex.Message);
             StringAssert.Contains("#", ex.Message);
             // Two different IDs must appear — hints are unique
-            Assert.AreNotEqual(a.GetInstanceID(), b.GetInstanceID());
-            StringAssert.Contains(a.GetInstanceID().ToString(), ex.Message);
-            StringAssert.Contains(b.GetInstanceID().ToString(), ex.Message);
+            Assert.AreNotEqual(TransientObjectId.GetWireValue(a), TransientObjectId.GetWireValue(b));
+            StringAssert.Contains(TransientObjectId.GetWireValue(a), ex.Message);
+            StringAssert.Contains(TransientObjectId.GetWireValue(b), ex.Message);
         }
     }
 
@@ -574,7 +574,7 @@ namespace UnityMCP.Editor.Tests
         public void SerializeSubtree_ComponentsFlag_AppendsComponentList()
         {
             _root.AddComponent<Camera>();
-            var result = ComponentSerializer.SerializeAll(_root.GetInstanceID());
+            var result = ComponentSerializer.SerializeAll(TransientObjectId.GetWireValue(_root));
             Assert.IsNotNull(result);
             Assert.IsTrue(result.Contains("Camera"), $"Camera component missing: '{result}'");
         }

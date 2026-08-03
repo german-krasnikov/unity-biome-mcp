@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CompileNotifierTests
+    public class CompileNotifierTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()
@@ -127,5 +127,47 @@ namespace UnityMCP.Editor.Tests
             StringAssert.StartsWith("compiling", status,
                 $"G14: elapsed under ceiling must still return compiling, got: {status}");
         }
+
+        [Test]
+        public void TestIsolation_RestoresExactKeyExistenceValuesAndClock()
+        {
+            const string startKey = "MCP_CompileStart";
+            const string durationKey = "MCP_LastDuration";
+            const string failedKey = "MCP_CompileFailed";
+            UnityEditor.SessionState.SetFloat(startKey, 21.5f);
+            UnityEditor.SessionState.EraseFloat(durationKey);
+            UnityEditor.SessionState.SetBool(failedKey, false);
+            System.Func<float> baselineClock = () => 4321f;
+            CompileNotifier.NowSecondsFloat = baselineClock;
+
+            var scope = CompileNotifier.BeginTestIsolation();
+            try
+            {
+                UnityEditor.SessionState.SetFloat(startKey, 99f);
+                UnityEditor.SessionState.SetFloat(durationKey, 88f);
+                UnityEditor.SessionState.SetBool(failedKey, true);
+                CompileNotifier.NowSecondsFloat = () => 777f;
+
+                scope.Dispose();
+
+                Assert.That(UnityEditor.SessionState.GetFloat(startKey, 0f), Is.EqualTo(21.5f));
+                Assert.That(HasFloatSessionKey(durationKey), Is.False);
+                Assert.That(HasBoolSessionKey(failedKey), Is.True);
+                Assert.That(UnityEditor.SessionState.GetBool(failedKey, true), Is.False);
+                Assert.That(CompileNotifier.NowSecondsFloat, Is.SameAs(baselineClock));
+            }
+            finally
+            {
+                scope.Dispose();
+            }
+        }
+
+        private static bool HasFloatSessionKey(string key) =>
+            UnityEditor.SessionState.GetFloat(key, -123f).Equals(
+                UnityEditor.SessionState.GetFloat(key, 456f));
+
+        private static bool HasBoolSessionKey(string key) =>
+            UnityEditor.SessionState.GetBool(key, false) ==
+            UnityEditor.SessionState.GetBool(key, true);
     }
 }

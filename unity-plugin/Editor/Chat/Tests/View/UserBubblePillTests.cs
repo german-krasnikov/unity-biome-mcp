@@ -12,7 +12,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class UserBubblePillTests
+    public class UserBubblePillTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
         [TearDown] public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
@@ -110,32 +110,29 @@ namespace UnityMCP.Editor.Chat.Tests
         public void UserBubblePill_LeftClick_CallsNavigate()
         {
             LogAssert.ignoreFailingMessages = true;
-            var window = EditorWindow.GetWindow<UserBubbleTestWindow>();
-            try
+            var window = CreateOwnedEditorWindow<UserBubbleTestWindow>();
+            window.ShowUtility();
+            var navigated = false;
+            var provider  = new UserBubbleSpyProvider("spy_ub_kind",
+                onNavigate: _ => navigated = true);
+            ChipKindRegistry.Register(provider);
+
+            var t     = MakeTranscript(out var container);
+            window.rootVisualElement.Add(container);
+            var chips = new List<ChipData>
             {
-                var navigated = false;
-                var provider  = new UserBubbleSpyProvider("spy_ub_kind",
-                    onNavigate: _ => navigated = true);
-                ChipKindRegistry.Register(provider);
+                new ChipData("spy_ub_kind", "/TestUBObj", "TestUBObj", 0),
+            };
+            t.AppendUserBubble("msg", chips);
 
-                var t     = MakeTranscript(out var container);
-                window.rootVisualElement.Add(container);
-                var chips = new List<ChipData>
-                {
-                    new ChipData("spy_ub_kind", "/TestUBObj", "TestUBObj", 0),
-                };
-                t.AppendUserBubble("msg", chips);
+            var strip = container.Q(className: "user-chip-strip");
+            Assert.IsNotNull(strip, "chip strip must exist");
+            var pill = strip.Q(className: "inline-chip-pill");
+            Assert.IsNotNull(pill, "pill must exist in strip");
 
-                var strip = container.Q(className: "user-chip-strip");
-                Assert.IsNotNull(strip, "chip strip must exist");
-                var pill = strip.Q(className: "inline-chip-pill");
-                Assert.IsNotNull(pill, "pill must exist in strip");
+            SendClick(pill, 1);
 
-                SendClick(pill, 1);
-
-                Assert.IsTrue(navigated, "left-click on user bubble pill must call Navigate");
-            }
-            finally { window.Close(); }
+            Assert.IsTrue(navigated, "left-click on user bubble pill must call Navigate");
         }
 
         // T-UB3: right-click context menu on user bubble pill has per-kind navigation items

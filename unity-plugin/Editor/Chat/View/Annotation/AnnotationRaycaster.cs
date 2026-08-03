@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using UnityEngine;
 
@@ -40,15 +41,21 @@ namespace UnityMCP.Editor.Chat.Annotation
     {
         internal readonly Vector3 WorldPos;
         internal readonly string  ObjectPath;
-        internal readonly int     InstanceId;
+        internal readonly string  ObjectId;
         internal readonly bool    DidHit;
 
-        internal AnnotationHit(Vector3 worldPos, string objectPath, int instanceId)
+        internal AnnotationHit(Vector3 worldPos, string objectPath, string objectId)
         {
             WorldPos   = worldPos;
             ObjectPath = objectPath;
-            InstanceId = instanceId;
+            ObjectId   = objectId;
             DidHit     = true;
+        }
+
+        internal AnnotationHit(Vector3 worldPos, string objectPath, int legacyId)
+            : this(worldPos, objectPath,
+                legacyId == 0 ? "" : legacyId.ToString(CultureInfo.InvariantCulture))
+        {
         }
 
         internal static readonly AnnotationHit Miss = default;
@@ -104,7 +111,7 @@ namespace UnityMCP.Editor.Chat.Annotation
                 }
                 var p = hit.WorldPos;
                 sb.Append($"  {name} → {hit.ObjectPath} ({p.x:F1},{p.y:F1},{p.z:F1})");
-                if (hit.InstanceId != 0) sb.Append($" #{hit.InstanceId}");
+                if (!string.IsNullOrEmpty(hit.ObjectId) && hit.ObjectId != "0") sb.Append($" #{hit.ObjectId}");
                 if (tool == AnnotationTool.Text && !string.IsNullOrEmpty(text))
                     sb.Append($" \"{text}\"");
                 sb.AppendLine();
@@ -119,14 +126,14 @@ namespace UnityMCP.Editor.Chat.Annotation
             if (Physics.Raycast(ray, out RaycastHit hit, 1000f))
             {
                 var path = ComponentSerializer.GetPath(hit.transform.gameObject);
-                return new AnnotationHit(hit.point, path, hit.transform.gameObject.GetInstanceID());
+                return new AnnotationHit(hit.point, path, TransientObjectId.GetWireValue(hit.transform.gameObject));
             }
 
             // Fallback: y=0 plane
             if (Mathf.Abs(ray.direction.y) > 0.001f)
             {
                 float t = -ray.origin.y / ray.direction.y;
-                if (t > 0f) return new AnnotationHit(ray.GetPoint(t), "(ground)", 0);
+                if (t > 0f) return new AnnotationHit(ray.GetPoint(t), "(ground)", "");
             }
 
             return AnnotationHit.Miss;

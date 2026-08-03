@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class PendingTurnStateStalenessTests
+    public class PendingTurnStateStalenessTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Staleness_ActiveTurn_OldTimestamp_ShouldDiscard()

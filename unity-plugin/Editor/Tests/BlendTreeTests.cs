@@ -10,7 +10,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class BlendTreeTests
+    public class BlendTreeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private AnimatorController _ctrl;
         private static readonly string CtrlFolder = TestPaths.ForFixture("BlendTreeTests");
@@ -20,15 +20,9 @@ namespace UnityMCP.Editor.Tests
         public void SetUp()
         {
             CommandRegistry.InitDefaults();
+            TrackOwnedAsset(CtrlFolder);
             TestPaths.EnsureFolder(CtrlFolder);
             _ctrl = AnimatorController.CreateAnimatorControllerAtPath(CtrlPath);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            AssetDatabase.DeleteAsset(CtrlPath);
-            AssetDatabase.Refresh();
         }
 
         // 1. AddBlendTree 1D creates state with BlendTree motion + children

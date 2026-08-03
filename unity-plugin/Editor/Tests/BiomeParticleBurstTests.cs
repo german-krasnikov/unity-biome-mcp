@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class BiomeParticleBurstTests
+    public class BiomeParticleBurstTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Emit_CreatesSinglePooledBurst()

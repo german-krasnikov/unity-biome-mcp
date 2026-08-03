@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat.Annotation;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotationHistoryTests
+    internal sealed class AnnotationHistoryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private AnnotationHistory _history;
         private IAnnotationCommand _cmd;

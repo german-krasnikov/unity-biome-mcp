@@ -6,7 +6,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RegionChipProviderTests
+    public class RegionChipProviderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         string _tmpFile;
         RegionChipProvider _provider;
@@ -14,24 +14,16 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            _tmpFile = Path.GetTempFileName();
-            SceneRegionState.PersistPath = _tmpFile;
-            SceneRegionState.MaxRegions  = 20;
-            SceneRegionState.Clear();
+            _tmpFile = Path.Combine(Path.GetTempPath(),
+                $"unity-mcp-region-provider-{Guid.NewGuid():N}.json");
+            RegisterCleanup(SceneRegionState.IsolateForTests(_tmpFile, 20).Dispose);
+            RegisterCleanup(ChipKindRegistry.PreserveStateForTests().Dispose);
             ChipKindRegistry.ResetToBuiltIns();
             // RegionChipProvider self-registers via [InitializeOnLoad] on domain load.
             // ResetToBuiltIns() clears it, so manually re-register for test isolation.
             ChipKindRegistry.Register(new RegionChipProvider());
             _provider = ChipKindRegistry.ForKey("region") as RegionChipProvider;
             Assert.IsNotNull(_provider, "RegionChipProvider must be registered via [InitializeOnLoad]");
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            SceneRegionState.Clear();
-            ChipKindRegistry.ResetToBuiltIns();
-            try { File.Delete(_tmpFile); } catch { }
         }
 
         // ── Registration ──────────────────────────────────────────────────────
@@ -171,12 +163,12 @@ namespace UnityMCP.Editor.Chat.Tests
         static RegionSnapshot MakeSnap(string id, int objCount = 3)
         {
             var paths = new string[objCount];
-            var ids   = new int[objCount];
+            var ids   = new string[objCount];
             for (int i = 0; i < objCount; i++) paths[i] = $"/Object_{i}";
             return new RegionSnapshot
             {
                 Id            = id,
-                SchemaVersion = 1,
+                SchemaVersion = 2,
                 VerticesFlat  = new[] { 0f, 0f, 10f, 0f, 10f, 10f, 0f, 10f },
                 Area          = 100f,
                 CenterX       = 5f, CenterZ = 5f,

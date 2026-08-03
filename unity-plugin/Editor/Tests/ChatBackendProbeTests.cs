@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ChatBackendProbeTests
+    public class ChatBackendProbeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void IsChatBackendRunning_NoWindow_ReturnsFalse()

@@ -9,6 +9,7 @@ import socket
 import struct
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional
 from .constants import DEFAULT_PORT, SESSION_TIMEOUT
 
@@ -94,13 +95,18 @@ class BridgeState(enum.Enum):
     FAILED = "failed"  # startup grace expired
 
 
+class _CandidateIdentityError(ConnectionError):
+    """A TCP endpoint answered, but could not prove it is the intended Editor."""
+
+
 class UnityBridge(HeartbeatMixin):
     """TCP client for Unity Editor communication."""
 
     def __init__(self, host: str = "127.0.0.1", port: Optional[int] = None,
                  probe: Optional[CompileStateProbe] = None,
                  port_discoverer: Optional[Callable[[], int]] = None,
-                 is_retry_safe: Optional[Callable[[str], bool]] = None):
+                 is_retry_safe: Optional[Callable[[str], bool]] = None,
+                 expected_project_path: str | os.PathLike[str] | None = None):
         self._host = host
         try:
             self._port = port or int(os.environ.get("UNITY_MCP_PORT", str(DEFAULT_PORT)))
@@ -110,8 +116,15 @@ class UnityBridge(HeartbeatMixin):
         self._writer = None
         self._counter = 0
         self._lock = asyncio.Lock()
-        self._probe: CompileStateProbe = probe if probe is not None else CompileStateProbe(
-            CompileStateProbe.autodetect_project_path(port=self._port), port=self._port
+        detected_project = None
+        if probe is None:
+            detected_project = CompileStateProbe.autodetect_project_path(port=self._port)
+            self._probe = CompileStateProbe(detected_project, port=self._port)
+        else:
+            self._probe = probe
+        project_path = expected_project_path or detected_project
+        self._expected_project_path: Optional[str] = (
+            self._canonical_project_path(project_path) if project_path else None
         )
         self._first_failure_ts: Optional[float] = None
         self._reconnect_started_at: Optional[float] = None
@@ -153,11 +166,19 @@ class UnityBridge(HeartbeatMixin):
         self._on_reconnect_callbacks.append(fn)
 
     async def connect(self):
-        self._reader, self._writer = await asyncio.wait_for(
+        reader, writer = await asyncio.wait_for(
             asyncio.open_connection(self._host, self._port),
             timeout=CONNECT_TIMEOUT,
         )
-        _apply_socket_options(self._writer.get_extra_info("socket"))
+        _apply_socket_options(writer.get_extra_info("socket"))
+        try:
+            await self._verify_candidate_project(reader, writer, self._port)
+        except BaseException:
+            await self._close_candidate(writer)
+            raise
+        self._reader = reader
+        self._writer = writer
+        self._pin_candidate(self._port)
 
     def should_retry(self, error: Exception, attempt: int, session_deadline: float,
                       cmd: str = "") -> tuple[bool, float, str]:
@@ -203,10 +224,16 @@ class UnityBridge(HeartbeatMixin):
                                msg_id: str, timeout: float, session_deadline: float) -> dict:
         attempt = 0
         result = None
-        # Cooldown gate: fail-fast on FIRST attempt only — prevent burst reconnect storms.
-        # Retries within this call are already gated by the sleep(delay) in the retry loop.
-        if not self.connected and not self._reconnect_cooldown_ok():
-            raise ConnectionError("Reconnect cooldown active — retry in a moment")
+        # Join the connection lock before applying the first-attempt cooldown.
+        # A concurrent sender may be performing the one shared reconnect; after
+        # it completes, this sender can reuse the live socket without starting
+        # another reconnect or being rejected as a storm.
+        if not self.connected:
+            async with self._lock:
+                if not self.connected and not self._reconnect_cooldown_ok():
+                    raise ConnectionError(
+                        "Reconnect cooldown active — retry in a moment"
+                    )
         while attempt <= MAX_RETRIES:
             if time.monotonic() > session_deadline:
                 raise TimeoutError(f"Session deadline ({SESSION_TIMEOUT}s) exceeded")
@@ -333,85 +360,140 @@ class UnityBridge(HeartbeatMixin):
             raise DomainReloadError(f"Unity domain reload: {data.get('reason', 'unknown')}")
         return data
 
-    async def _reconnect(self, fire_callbacks: bool = True):
-        await self.close()
-        if self._port_discoverer is not None:
-            try:
-                # B2: explicit None guard — is_pid_alive(None) returns False (intentional
-                # fallthrough), but we want deliberate bypass when pid is unknown.
-                if (self._pinned_port is not None and self._pinned_pid is not None
-                        and is_pid_alive(self._pinned_pid)):
-                    new_port = self._pinned_port
-                else:
-                    import inspect
-                    kw = {"skip_probe": True} if "skip_probe" in inspect.signature(self._port_discoverer).parameters else {}
-                    new_port = self._port_discoverer(**kw)
-                # B3: None means no live candidates — preserve current port.
-                if new_port is not None and new_port != self._port:
-                    self._port = new_port
-                    self._probe = CompileStateProbe(
-                        CompileStateProbe.autodetect_project_path(port=new_port), port=new_port)
-                    # C8: RetryPolicy holds probe by reference — keep it in sync
-                    # so a post-migration busy-check doesn't consult a stale probe
-                    # still pointed at the old port.
-                    self._retry_policy.probe = self._probe
-            except Exception:
-                pass
+    @staticmethod
+    def _canonical_project_path(path: str | os.PathLike[str]) -> str:
+        """Canonicalize a Unity project path without requiring it to exist."""
+        return os.path.normcase(os.path.realpath(os.path.abspath(os.fspath(path))))
+
+    @staticmethod
+    async def _close_candidate(writer) -> None:
+        writer.close()
         try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(self._host, self._port),
-                timeout=CONNECT_TIMEOUT,
+            await writer.wait_closed()
+        except Exception:
+            pass
+
+    async def _verify_candidate_project(self, reader, writer, port: int) -> None:
+        """Reject an endpoint that cannot prove it owns the expected project."""
+        if self._expected_project_path is None:
+            return
+
+        request_id = "project-identity"
+        request = json.dumps(
+            {
+                "id": request_id,
+                "cmd": "editor",
+                "args": {"action": "project_path"},
+            },
+            ensure_ascii=False,
+        ).encode("utf-8")
+        frame_write(writer, request)
+        await writer.drain()
+        try:
+            payload = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
+            response = json.loads(payload.decode("utf-8"))
+        except (asyncio.TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise _CandidateIdentityError(
+                f"Unity on port {port} did not return a valid project identity"
+            ) from exc
+
+        if not isinstance(response, dict) or response.get("ev") == "going_away":
+            raise _CandidateIdentityError(
+                f"Unity on port {port} became unavailable during project identity check"
             )
-        except ConnectionRefusedError:
-            # Port was valid when pinned but Unity stopped listening (port drift).
-            # Other errors (TimeoutError, OSError) keep the pin — they indicate
-            # transient network issues, not a port change.
-            self._pinned_port = None
-            self._pinned_pid = None
-            raise
+        if response.get("id") != request_id or not response.get("ok"):
+            raise _CandidateIdentityError(
+                f"Unity on port {port} did not confirm its project identity"
+            )
+        reported = response.get("data")
+        if not isinstance(reported, str) or not reported.strip():
+            raise _CandidateIdentityError(
+                f"Unity on port {port} returned an empty project identity"
+            )
+        actual = self._canonical_project_path(reported.strip())
+        if actual != self._expected_project_path:
+            raise _CandidateIdentityError(
+                f"Refusing Unity on port {port}: expected project "
+                f"{self._expected_project_path!r}, received {actual!r}"
+            )
+
+    def _discover_port(self) -> Optional[int]:
+        if self._port_discoverer is None:
+            return None
+        try:
+            import inspect
+            parameters = inspect.signature(self._port_discoverer).parameters
+            kwargs = {"skip_probe": True} if "skip_probe" in parameters else {}
+            return self._port_discoverer(**kwargs)
+        except Exception:
+            return None
+
+    async def _open_reconnect_candidate(self, port: int):
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(self._host, port),
+            timeout=CONNECT_TIMEOUT,
+        )
         _apply_socket_options(writer.get_extra_info("socket"))
         try:
             self._counter += 1
             ping_id = f"rc{self._counter:04x}"
-            _client = os.environ.get("UNITY_MCP_CLIENT", "")
-            _role = _client or "mcp"
-            ping = json.dumps({"id": ping_id, "cmd": "ping", "role": _role, "args": {}}, ensure_ascii=False).encode("utf-8")
+            client = os.environ.get("UNITY_MCP_CLIENT", "")
+            ping = json.dumps(
+                {"id": ping_id, "cmd": "ping", "role": client or "mcp", "args": {}},
+                ensure_ascii=False,
+            ).encode("utf-8")
             frame_write(writer, ping)
             await writer.drain()
-            # Read ping response directly from local reader (not self._reader)
-            # to avoid _reader/_writer desync during the await window.
-            pay_bytes = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
-            pong = json.loads(pay_bytes.decode("utf-8"))
+            pong_payload = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
+            pong = json.loads(pong_payload.decode("utf-8"))
             if pong.get("ev") == "going_away":
                 raise DomainReloadError("Unity going_away during reconnect")
             if not pong.get("ok"):
                 raise ConnectionError("Unity ping failed after reconnect")
-        except BaseException:
-            writer.close()
-            try:
-                await writer.wait_closed()
-            except Exception:
-                pass
-            raise
-        # Protocol version check (non-fatal except Python < Unity proto)
-        try:
-            ver_msg = json.dumps({"id": "ver", "cmd": "get_version", "args": {}},
-                                 ensure_ascii=False).encode("utf-8")
-            frame_write(writer, ver_msg)
-            await writer.drain()
-            ver_pay = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
-            ver_resp = json.loads(ver_pay.decode("utf-8"))
-            if ver_resp.get("ev") == "going_away":
-                raise DomainReloadError("Unity going_away during version check")
-            if ver_resp.get("ok") and ver_resp.get("data"):
-                info = parse_version_string(ver_resp["data"])
-                check_protocol_version(PROTOCOL_VERSION, info.proto)
-        except ConnectionError:
-            raise  # Python < Unity proto — hard error per spec
-        except Exception as e:
-            logger.warning("Protocol version check failed (non-fatal): %s", e)
 
-        # Atomic: assign both only after ping succeeds, no await between them.
+            # Verify ownership before interpreting any optional protocol data.
+            # A reused port may answer ping/get_version successfully while
+            # belonging to a completely different Unity project.
+            await self._verify_candidate_project(reader, writer, port)
+
+            # Protocol version check is non-fatal unless Unity requires a newer
+            # Python protocol.
+            try:
+                version_message = json.dumps(
+                    {"id": "ver", "cmd": "get_version", "args": {}},
+                    ensure_ascii=False,
+                ).encode("utf-8")
+                frame_write(writer, version_message)
+                await writer.drain()
+                version_payload = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
+                version_response = json.loads(version_payload.decode("utf-8"))
+                if version_response.get("ev") == "going_away":
+                    raise DomainReloadError("Unity going_away during version check")
+                if version_response.get("ok") and version_response.get("data"):
+                    info = parse_version_string(version_response["data"])
+                    check_protocol_version(PROTOCOL_VERSION, info.proto)
+            except ConnectionError:
+                raise
+            except Exception as exc:
+                logger.warning("Protocol version check failed (non-fatal): %s", exc)
+
+            return reader, writer
+        except BaseException:
+            await self._close_candidate(writer)
+            raise
+
+    def _accept_candidate(self, port: int, reader, writer) -> None:
+        if port != self._port:
+            self._port = port
+            project = (
+                Path(self._expected_project_path)
+                if self._expected_project_path is not None
+                else CompileStateProbe.autodetect_project_path(port=port)
+            )
+            self._probe = CompileStateProbe(project, port=port)
+            self._retry_policy.probe = self._probe
+
+        # Atomic: assign both only after every candidate check has passed.
         self._reader = reader
         self._writer = writer
         self._first_failure_ts = None
@@ -422,13 +504,63 @@ class UnityBridge(HeartbeatMixin):
         self._reload_gate.set()
         self._ping_stall_failures = 0
         self._last_reconnect_at = time.monotonic()
-        # Pin port+pid so future reconnects stay on same Unity instance while alive.
-        self._pinned_port = self._port
+        self._pin_candidate(port)
+
+    def _pin_candidate(self, port: int) -> None:
+        self._pinned_port = port
+        self._pinned_pid = self._candidate_pid(port)
+
+    def _candidate_pid(self, port: int) -> Optional[int]:
         try:
             from unity_mcp.lockfile import read_pid_from_port_file
-            self._pinned_pid = read_pid_from_port_file(self._port)
+            return read_pid_from_port_file(
+                port, project_path=self._expected_project_path
+            )
         except Exception:
+            return None
+
+    async def _reconnect(self, fire_callbacks: bool = True):
+        await self.close()
+        pinned_is_live = (
+            self._pinned_port is not None
+            and self._pinned_pid is not None
+            and is_pid_alive(self._pinned_pid)
+        )
+        if pinned_is_live and self._expected_project_path is not None:
+            discovered_pid = self._candidate_pid(self._pinned_port)
+            if discovered_pid is not None and discovered_pid != self._pinned_pid:
+                # A newer discovery record now owns this project/port tuple.
+                # Treat the old live PID as stale and re-enter project-aware discovery.
+                self._pinned_port = None
+                self._pinned_pid = None
+                pinned_is_live = False
+        candidate_port = self._pinned_port if pinned_is_live else self._discover_port()
+        if candidate_port is None:
+            candidate_port = self._port
+
+        try:
+            reader, writer = await self._open_reconnect_candidate(candidate_port)
+        except _CandidateIdentityError:
+            # A live PID only proves that an old discovery record still has an
+            # owner. The port itself may already have been reused by another
+            # Editor. Reject it, then discover and verify a fresh candidate.
+            if not pinned_is_live or self._port_discoverer is None:
+                raise
+            self._pinned_port = None
             self._pinned_pid = None
+            discovered_port = self._discover_port()
+            if discovered_port is None or discovered_port == candidate_port:
+                raise
+            reader, writer = await self._open_reconnect_candidate(discovered_port)
+            candidate_port = discovered_port
+        except ConnectionRefusedError:
+            # Port was valid when pinned but Unity stopped listening (port drift).
+            # Other errors (TimeoutError, OSError) keep the pin — they indicate
+            # transient network issues, not a port change.
+            self._pinned_port = None
+            self._pinned_pid = None
+            raise
+        self._accept_candidate(candidate_port, reader, writer)
         self.start_heartbeat(self._heartbeat_interval)
         if fire_callbacks:
             for cb in self._on_reconnect_callbacks:

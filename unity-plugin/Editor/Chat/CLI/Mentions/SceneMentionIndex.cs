@@ -18,15 +18,15 @@ namespace UnityMCP.Editor.Chat
             public readonly string NameLower;
             public readonly uint   CharMask;
             public readonly string Path;
-            public readonly int    InstanceID;
+            public readonly string ObjectId;
 
-            public Entry(string name, string nameLower, uint mask, string path, int instanceID)
+            public Entry(string name, string nameLower, uint mask, string path, string objectId)
             {
                 Name       = name;
                 NameLower  = nameLower;
                 CharMask   = mask;
                 Path       = path;
-                InstanceID = instanceID;
+                ObjectId   = objectId;
             }
         }
 
@@ -62,7 +62,7 @@ namespace UnityMCP.Editor.Chat
                 var score = MentionFuzzyScorer.Score(lower, e.NameLower, e.Name);
                 if (score <= 0) continue;
 
-                var chip = new ChipData(ChipKindKeys.Hierarchy, e.Path, e.Name, e.InstanceID);
+                var chip = new ChipData(ChipKindKeys.Hierarchy, e.Path, e.Name, e.ObjectId);
                 results.Add(new MentionCandidate(chip, score, IconName));
             }
         }
@@ -103,7 +103,7 @@ namespace UnityMCP.Editor.Chat
                 var lower = name.ToLowerInvariant();
                 var mask  = MentionFuzzyScorer.BuildCharMask(lower);
                 var path  = ComponentSerializer.GetPath(go);
-                _entries.Add(new Entry(name, lower, mask, path, go.GetInstanceID()));
+                _entries.Add(new Entry(name, lower, mask, path, TransientObjectId.GetWireValue(go)));
 
                 for (int i = t.childCount - 1; i >= 0; i--)
                     stack.Push(t.GetChild(i));

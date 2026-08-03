@@ -256,24 +256,40 @@ diff = await scene_diff()
 
 ## run_tests
 
-Start NUnit tests in EditMode or PlayMode without waiting for completion. Prefer `run_tests_wait()` for normal workflows; use `run_tests()` only when the caller must remain non-blocking.
+Dispatch NUnit tests in EditMode or PlayMode and return the durable run identity
+without waiting for completion. `run_tests_wait()` is the correlated convenience
+wrapper for callers that can wait.
+
+For an ordinary interactive MCP session, prefer `run_tests_wait()` so the agent
+does not implement recovery and polling itself. This low-level dispatch API is
+for callers that need nonblocking control. Unity Biome MCP repository and
+disposable-worker runs use `python3 run_unity_tests.py` instead; full and release
+runs must not be driven by an ad hoc MCP polling loop.
 
 **Parameters:**
 - `mode` (string, default="EditMode") — "EditMode" | "PlayMode"
 - `filter` (string, optional) — Pipe-separated test class names for fast focused runs
+- `request_id` (string, optional) — Stable caller identity; reuse it when resolving an uncertain start
 
-**Returns:** A final result when Unity responds immediately, or `tests-started|{mode}|...` when the run continues asynchronously.
+**Returns:**
+`tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched`, or
+`START-UNKNOWN|request_id=...|reason=...` when dispatch may have happened but
+the acknowledgment was lost.
 
 **Example:**
 
 ```python
-# Start an asynchronous Edit Mode run
-result = await run_tests(mode="EditMode")
-# If this returns tests-started, query get_test_results() later.
+# Start an asynchronous Edit Mode run and retain every returned identifier.
+ack = await run_tests(mode="EditMode")
+# Poll get_test_run(run_id=...) for this exact run.
 
 # Run only failing tests (much faster)
-await run_tests(mode="EditMode", filter="HealthTest|DamageTest")
+ack = await run_tests(mode="EditMode", filter="HealthTest|DamageTest")
 ```
+
+If the result is `START-UNKNOWN`, call
+`resolve_test_request(request_id=...)` with that same request ID. Do not dispatch
+a replacement run.
 
 **Full workflow:**
 1. Run all EditMode tests first (fast gate)
@@ -284,15 +300,22 @@ await run_tests(mode="EditMode", filter="HealthTest|DamageTest")
 
 ## run_tests_wait
 
-Run tests and block until results arrive. Wraps the manual `run_tests` + poll loop.
+Dispatch tests and wait until that exact durable run becomes terminal. The
+wrapper preserves `request_id`/`run_id` correlation across transport loss and
+domain reload. This is the default NUnit entry point for consumer-project MCP
+sessions. Repository/disposable-worker verification uses the standalone
+`run_unity_tests.py` runner.
 
 **Parameters:**
 - `mode` (string, default="EditMode") — "EditMode" | "PlayMode"
 - `filter` (string, optional) — Pipe-separated test class names
-- `timeout` (float, default=180.0) — Max seconds to wait
+- `timeout` (float, default=900.0) — Max seconds to wait
 - `poll_interval` (float, default=5.0) — Seconds between status polls
+- `request_id` (string, optional) — Stable caller identity
 
-**Returns:** Final test result summary, `"TIMEOUT: <last_status>"`, or `"BLOCKED: <reason>"`.
+**Returns:** A reconciled terminal JSON snapshot, `TIMEOUT|request_id=...|run_id=...`,
+`START-UNKNOWN|...`, a protocol error, or `BLOCKED: <reason>`. A timeout is
+observational and does not mark the Unity run complete.
 
 **Example:**
 
@@ -308,19 +331,83 @@ result = await run_tests_wait(mode="EditMode", filter="HealthTest|DamageTest", t
 
 ## get_test_results
 
-Poll test execution status after `run_tests()`.
+Legacy result facade. Pass the exact `run_id` to avoid reading a stale latest
+run; uncorrelated output is diagnostic only.
 
-**Parameters:** None
+**Parameters:**
+- `run_id` (string, optional) — Durable run identity
 
 **Output:** Test result summary with pass/fail counts, or "pending" if still running.
 
 **Example:**
 
 ```python
-# After run_tests()...
-result = await get_test_results()
-# → "EditMode: 150 passed, 0 failed (45.2s)"
-# → "pending" (still running)
+# Prefer get_test_run for acceptance.
+result = await get_test_results(run_id=run_id)
+```
+
+---
+
+## get_test_run
+
+Return the durable JSON snapshot for one exact run.
+
+**Parameters:**
+- `run_id` (string, required) — Value returned by `run_tests` or `resolve_test_request`
+
+Only a reconciled `state="terminal"` snapshot is completion evidence. Check its
+`outcome`, expected/missing/unexpected test sets, issues, and cleanup state; a
+partial count is not success.
+
+```python
+snapshot = await get_test_run(run_id=run_id)
+```
+
+---
+
+## resolve_test_request
+
+Resolve a potentially lost start acknowledgment without starting another run.
+
+```python
+status = await resolve_test_request(request_id=request_id)
+```
+
+Use the returned `run_id` for all further polling.
+
+---
+
+## cancel_test_run
+
+Request cancellation of one exact run. Cancellation is asynchronous, so keep
+polling `get_test_run(run_id=...)` until the run reaches a reconciled terminal
+state.
+
+```python
+status = await cancel_test_run(run_id=run_id)
+```
+
+---
+
+## list_test_runs
+
+List recent durable runs, newest first. This is a diagnostic and recovery aid;
+do not substitute a "latest" entry for the `run_id` returned by your dispatch.
+
+```python
+runs = await list_test_runs(limit=20)
+```
+
+---
+
+## get_test_progress
+
+Legacy progress facade. Always pass `run_id` when using it; prefer
+`get_test_run` for acceptance because the durable snapshot includes lifecycle,
+outcome, manifest, issues, and cleanup evidence.
+
+```python
+progress = await get_test_progress(run_id=run_id)
 ```
 
 ---
@@ -413,7 +500,7 @@ await editor("stop")
 | Verify scene structure | get_hierarchy + search_scene | `hier = await get_hierarchy()` |
 | Track hierarchy changes | scene_diff | `await scene_diff(); ...; diff = await scene_diff()` |
 | Visual regression testing | screenshot_baseline + screenshot_compare | `await screenshot_baseline(name="x"); diff = await screenshot_compare(name="x")` |
-| Run tests after changes | run_tests_wait | `result = await run_tests_wait(mode="EditMode")` |
+| Run tests after changes in a consumer project | run_tests_wait | `result = await run_tests_wait(mode="EditMode")` |
 | Load scenes additively | scene("open_additive") | `await scene("open_additive", path="AdditiveScene")` |
 
 ---

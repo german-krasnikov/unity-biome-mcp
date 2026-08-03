@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat.Annotation;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotationCanvasTests
+    internal sealed class AnnotationCanvasTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Constructor_DoesNotThrow()

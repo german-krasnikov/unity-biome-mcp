@@ -1,68 +1,59 @@
-// [UnityTest] screenshot tests — open a real MCPChatWindow, capture screenshots.
-// Requires UnityEngine.TestRunner (Play Mode or Editor coroutines).
-using System.Collections;
 using System.IO;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChatWindowScreenshotTests
+    [Explicit("Interactive screenshot tests run only in the dedicated GUI lane.")]
+    [Category("UnityMCP.InteractiveVisual")]
+    public class ChatWindowScreenshotTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private MCPChatWindow _window;
 
-        [UnitySetUp]
-        public IEnumerator SetUp()
+        [SetUp]
+        public async Task SetUp()
         {
             if (Application.isBatchMode)
             {
                 Assert.Ignore("Screenshot tests require a GUI; skipping in batch mode.");
-                yield break;
+                return;
             }
 
-            _window = EditorWindow.GetWindow<MCPChatWindow>("MCP Chat Test");
+            _window = CreateOwnedEditorWindow<MCPChatWindow>();
+            _window.titleContent = new GUIContent("MCP Chat Test");
             _window.minSize = new Vector2(400, 600);
             _window.position = new Rect(100, 100, 400, 600);
             _window.Show();
             _window.Focus();
-            yield return null;
-            yield return null;
-            yield return null;
+            await WaitForEditorUpdatesAsync(3);
         }
 
-        [TearDown]
-        public void TearDown()
+        [Test]
+        public async Task Screenshot_EmptyWindow()
         {
-            if (_window != null) _window.Close();
-        }
-
-        [UnityTest]
-        public IEnumerator Screenshot_EmptyWindow()
-        {
-            yield return null;
+            await WaitForEditorUpdatesAsync();
             var path = CaptureWindow(_window, "empty_chat");
             Assert.IsTrue(File.Exists(path), $"Screenshot not saved at {path}");
             Assert.Greater(new FileInfo(path).Length, 1000, "PNG too small");
         }
 
-        [UnityTest]
-        public IEnumerator Screenshot_WithChipsAdded()
+        [Test]
+        public async Task Screenshot_WithChipsAdded()
         {
             _window.InsertInlineChip(null, "/Player", "Player");
             _window.InsertInlineChip(null, "/Enemy",  "Enemy");
-            yield return null;
-            yield return null;
+            await WaitForEditorUpdatesAsync(2);
             var path = CaptureWindow(_window, "chips_added");
             Assert.IsTrue(File.Exists(path));
         }
 
         // ── utility ───────────────────────────────────────────────────────────
 
-        private static string CaptureWindow(EditorWindow window, string prefix)
+        private string CaptureWindow(EditorWindow window, string prefix)
         {
             float scale = EditorGUIUtility.pixelsPerPoint;
             var pos = window.position;
@@ -76,9 +67,14 @@ namespace UnityMCP.Editor.Chat.Tests
             var png = tex.EncodeToPNG();
             Object.DestroyImmediate(tex);
 
-            var dir      = Path.Combine(Application.dataPath, "..", "ScreenShots");
+            var dir = Path.Combine(Path.GetTempPath(), "UnityMCP", "Screenshots",
+                System.Guid.NewGuid().ToString("N"));
+            RegisterCleanup(() =>
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            });
             Directory.CreateDirectory(dir);
-            var filename = $"{System.DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{prefix}.png";
+            var filename = prefix + ".png";
             var path     = Path.Combine(dir, filename);
             File.WriteAllBytes(path, png);
             TestContext.WriteLine($"Screenshot saved: {path}");

@@ -6,7 +6,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestDropHelperMemberTests
+    public class PlaytestDropHelperMemberTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Test types — nested plain C# classes (no scene needed) ───────────
 

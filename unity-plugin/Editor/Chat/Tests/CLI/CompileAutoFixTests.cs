@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class CompileAutoFixTests
+    public class CompileAutoFixTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private CompileAutoFix _fix;
         private string         _lastDetectedErrors;

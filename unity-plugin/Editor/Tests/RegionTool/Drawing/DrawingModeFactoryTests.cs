@@ -5,7 +5,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class DrawingModeFactoryTests
+    internal class DrawingModeFactoryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Create_Lasso_ReturnsLassoMode()

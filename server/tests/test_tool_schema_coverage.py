@@ -122,13 +122,24 @@ def test_resolve_tool_schema_returns_full_schema():
 
 def test_fastmcp_run_tests_schema_has_params():
     props = _props("run_tests")
-    assert "mode" in props
+    for p in ("mode", "filter", "request_id"):
+        assert p in props, f"'run_tests' missing param '{p}'"
 
 
 def test_fastmcp_run_tests_wait_schema_has_params():
     props = _props("run_tests_wait")
-    for p in ("mode", "filter", "timeout"):
+    for p in ("mode", "filter", "timeout", "poll_interval", "request_id"):
         assert p in props, f"'run_tests_wait' missing param '{p}'"
+
+
+@pytest.mark.parametrize("tool_name,param", [
+    ("resolve_test_request", "request_id"),
+    ("get_test_run", "run_id"),
+    ("cancel_test_run", "run_id"),
+    ("list_test_runs", "limit"),
+])
+def test_fastmcp_durable_test_tools_have_identity_params(tool_name, param):
+    assert param in _props(tool_name), f"'{tool_name}' missing param '{param}'"
 
 
 def test_fastmcp_discover_tools_schema_has_category():

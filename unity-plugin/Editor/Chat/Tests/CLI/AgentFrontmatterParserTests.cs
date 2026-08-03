@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class AgentFrontmatterParserTests
+    public class AgentFrontmatterParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string SampleFrontmatter =
             "---\nname: code-reviewer\ndescription: \"Reviews code\"\nmodel: sonnet\n---\n\nBody here.";

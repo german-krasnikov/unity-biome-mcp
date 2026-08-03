@@ -6,18 +6,19 @@
 // the continuation to the ambient SynchronizationContext (or ThreadPool if context is null).
 //
 // WITH ConfigureAwait(false): the continuation is posted to ThreadPool (context ignored).
-//   → t.Wait(2000) on the BLOCKING test thread sees the task complete → true → GREEN.
+//   → the dedicated witness thread sees the task complete → GREEN.
 //
 // WITHOUT ConfigureAwait(false): the continuation is posted to NeverPumpingSyncContext.
-//   The test thread is BLOCKING in t.Wait() → it never pumps the stalled context
-//   → continuation never runs → WriteAsync never completes → SendAsync deadlocks
-//   → t.Wait(2000) times out → false → RED.
+//   The context never dispatches its queue, so the continuation never runs and
+//   the asynchronously awaited witness reaches its bounded timeout → RED.
 //
 // This is the canonical ConfigureAwait(false) correctness test. The TCP-level test below
 // validates multi-client liveness but is NOT a regression witness for the focus-loss bug.
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -28,111 +29,456 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ConnectionStabilityTests
+    public class ConnectionStabilityTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // T-C#1: THE internal-seam regression witness.
         // Directly calls ClientConnectionHandler.SendAsync (internal) under a NeverPumpingSyncContext.
         // Phase 2 M1: SendAsync/ReadExactAsync moved from MCPServer to ClientConnectionHandler.
         // With ConfigureAwait(false): stream continuations run on ThreadPool → task completes.
-        // Without it: continuations posted to stalled context → deadlock → Wait times out.
+        // Without it: continuations posted to stalled context → async witness times out.
         //
         // RED/GREEN proof (run in gated NUnit phase):
         //   Strip .ConfigureAwait(false) from SendAsync's two awaits → test must go RED.
         //   Restore → test must go GREEN.
         [Test, Timeout(5000)]
-        public void SendAsync_CompletesUnderStalledSyncContext()
+        public async Task SendAsync_CompletesUnderStalledSyncContext()
         {
-            var prev = SynchronizationContext.Current;
-            var stalled = new NeverPumpingSyncContext();
-            SynchronizationContext.SetSynchronizationContext(stalled);
-            try
-            {
-                var stream = new AsyncYieldStream();
-                // BLOCKING wait — the test thread holds the stalled context but never pumps it.
-                Task t = ClientConnectionHandler.SendAsync(stream, "{\"ok\":true,\"data\":\"pong\"}", CancellationToken.None);
-                bool done = t.Wait(2000);
-                Assert.IsTrue(done,
-                    "SendAsync deadlocked under stalled SynchronizationContext. " +
-                    "ConfigureAwait(false) is missing from WriteAsync or FlushAsync in SendAsync.");
-                Assert.IsNull(t.Exception, $"SendAsync threw: {t.Exception}");
-            }
-            finally
-            {
-                SynchronizationContext.SetSynchronizationContext(prev);
-            }
+            var stream = new AsyncYieldStream();
+            var witness = RunUnderStalledContext(() =>
+                ClientConnectionHandler.SendAsync(
+                    stream, "{\"ok\":true,\"data\":\"pong\"}", CancellationToken.None));
+
+            var operation = await AwaitWitnessAsync(witness,
+                "SendAsync deadlocked under stalled SynchronizationContext. " +
+                "ConfigureAwait(false) is missing from WriteAsync or FlushAsync in SendAsync.");
+            await operation;
         }
 
         // T-C#1b: Same witness for ReadExactAsync.
         [Test, Timeout(5000)]
-        public void ReadExactAsync_CompletesUnderStalledSyncContext()
+        public async Task ReadExactAsync_CompletesUnderStalledSyncContext()
         {
-            var prev = SynchronizationContext.Current;
-            SynchronizationContext.SetSynchronizationContext(new NeverPumpingSyncContext());
-            try
-            {
-                var stream = new AsyncYieldStream();
-                var buffer = new byte[4];
-                Task<bool> t = ClientConnectionHandler.ReadExactAsync(stream, buffer, CancellationToken.None);
-                bool done = t.Wait(2000);
-                Assert.IsTrue(done,
-                    "ReadExactAsync deadlocked under stalled SynchronizationContext. " +
-                    "ConfigureAwait(false) is missing from ReadAsync in ReadExactAsync.");
-                Assert.IsTrue(t.Result, "ReadExactAsync returned false (stream returned 0 bytes)");
-            }
-            finally
-            {
-                SynchronizationContext.SetSynchronizationContext(prev);
-            }
+            var stream = new AsyncYieldStream();
+            var buffer = new byte[4];
+            var witness = RunUnderStalledContext(() =>
+                ClientConnectionHandler.ReadExactAsync(stream, buffer, CancellationToken.None));
+
+            var operation = (Task<bool>)await AwaitWitnessAsync(witness,
+                "ReadExactAsync deadlocked under stalled SynchronizationContext. " +
+                "ConfigureAwait(false) is missing from ReadAsync in ReadExactAsync.");
+            Assert.IsTrue(await operation, "ReadExactAsync returned false (stream returned 0 bytes)");
         }
 
         // T-C#2: Multi-client TCP liveness.
-        // DOWNGRADED CLAIM: validates that 4 TCP clients can ping/pong concurrently while
-        // MCPServer is running. Does NOT prove ConfigureAwait(false) prevents the focus-loss
+        // DOWNGRADED CLAIM: validates that the production accept loop can serve 4 TCP
+        // clients concurrently. Does NOT prove ConfigureAwait(false) prevents the focus-loss
         // bug — that proof is T-C#1/T-C#1b (internal-seam) + test_focus_loss_zero_reconnects
-        // (Python live test). Included for multi-client liveness regression coverage.
+        // (Python live test). The listener is fixture-owned so the test cannot depend on the
+        // live MCP singleton or on any preceding fixture.
         [Test, Timeout(15000)]
-        public void MultiClientPingLiveness()
+        public async Task MultiClientPingLiveness()
         {
-            if (!MCPServer.IsRunning)
-                Assert.Ignore("MCPServer not running in this test environment");
-
-            int port = MCPServer.ServerPort;
             const int clientCount = 4;
-            var results = new string[clientCount];
-            var errors = new string[clientCount];
-            var barrier = new CountdownEvent(clientCount);
-
-            var threads = new Thread[clientCount];
-            for (int i = 0; i < clientCount; i++)
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            Task acceptLoop = null;
+            Task allClients = null;
+            listener.Start();
+            try
             {
-                int idx = i;
-                threads[idx] = new Thread(() =>
+                var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                acceptLoop = ClientConnectionHandler.RunAcceptLoop(
+                    listener, slot, "liveness-test", lifetime, lifetime.Token);
+
+                var results = new string[clientCount];
+                var errors = new string[clientCount];
+                var allConnected = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var connectedCount = 0;
+                var clients = new Task[clientCount];
+                for (int i = 0; i < clientCount; i++)
                 {
-                    try
+                    int idx = i;
+                    clients[idx] = Task.Run(async () =>
                     {
-                        using var c = new TcpClient("127.0.0.1", port);
-                        var s = c.GetStream();
-                        s.ReadTimeout = 3000;
-                        s.WriteTimeout = 3000;
-                        barrier.Signal();
-                        if (!barrier.Wait(3000)) { errors[idx] = "Barrier timeout"; return; }
+                        try
+                        {
+                            using var client = new TcpClient();
+                            await client.ConnectAsync("127.0.0.1", port)
+                                .ConfigureAwait(false);
+                            var stream = client.GetStream();
+                            stream.ReadTimeout = 3000;
+                            stream.WriteTimeout = 3000;
+                            if (Interlocked.Increment(ref connectedCount) == clientCount)
+                                allConnected.TrySetResult(true);
+                            var released = await Task.WhenAny(
+                                    allConnected.Task, Task.Delay(3000))
+                                .ConfigureAwait(false);
+                            if (released != allConnected.Task)
+                            {
+                                errors[idx] = "Start-gate timeout";
+                                return;
+                            }
 
-                        var ping = $"{{\"id\":\"m{idx}\",\"cmd\":\"ping\",\"args\":{{}}}}";
-                        TcpSendFrame(s, ping);
-                        results[idx] = TcpReadFrame(s);
-                    }
-                    catch (Exception e) { errors[idx] = e.Message; }
-                });
-                threads[idx].IsBackground = true;
-                threads[idx].Start();
+                            var ping = $"{{\"id\":\"m{idx}\",\"cmd\":\"ping\",\"args\":{{}}}}";
+                            TcpSendFrame(stream, ping);
+                            results[idx] = TcpReadFrame(stream);
+                        }
+                        catch (Exception exception)
+                        {
+                            errors[idx] = exception.Message;
+                        }
+                    });
+                }
+
+                allClients = Task.WhenAll(clients);
+                var completed = await Task.WhenAny(
+                        allClients, Task.Delay(5000))
+                    .ConfigureAwait(false);
+                Assert.AreSame(allClients, completed, "Clients did not complete within 5s");
+                await allClients.ConfigureAwait(false);
+
+                for (int i = 0; i < clientCount; i++)
+                {
+                    Assert.IsNull(errors[i], $"Client {i} threw: {errors[i]}");
+                    Assert.IsNotNull(results[i], $"Client {i} received no response");
+                    StringAssert.Contains("pong", results[i], $"Client {i}: {results[i]}");
+                }
             }
-            for (int i = 0; i < clientCount; i++)
+            finally
             {
-                Assert.IsTrue(threads[i].Join(5000), $"Client {i} thread did not complete within 5s");
-                Assert.IsNull(errors[i], $"Client {i} threw: {errors[i]}");
-                Assert.IsNotNull(results[i], $"Client {i} received no response");
-                StringAssert.Contains("pong", results[i], $"Client {i}: {results[i]}");
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                listener.Stop();
+                if (allClients != null && !allClients.IsCompleted)
+                {
+                    var clientsStopped = await Task.WhenAny(
+                            allClients, Task.Delay(3000))
+                        .ConfigureAwait(false);
+                    if (clientsStopped != allClients)
+                        throw new TimeoutException("Fixture-owned MCP clients did not stop.");
+                    await allClients.ConfigureAwait(false);
+                }
+                if (acceptLoop != null)
+                {
+                    var stopped = await Task.WhenAny(
+                            acceptLoop, Task.Delay(2000))
+                        .ConfigureAwait(false);
+                    if (stopped != acceptLoop)
+                        throw new TimeoutException("Fixture-owned MCP accept loop did not stop.");
+                    await acceptLoop.ConfigureAwait(false);
+                }
             }
+        }
+
+        [Test]
+        public void ClientSlot_Add_DoesNotEvictBeforeHandlerClear()
+        {
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            using var first = new TcpClient();
+            using var second = new TcpClient();
+            CancellationTokenSource firstClient = null;
+            CancellationTokenSource secondClient = null;
+            try
+            {
+                firstClient = slot.Add(first, lifetime.Token).clientCts;
+                secondClient = slot.Add(second, lifetime.Token).clientCts;
+                var occupied = new List<TcpClient>();
+                slot.ForEach(occupied.Add);
+
+                CollectionAssert.AreEquivalent(new[] { first, second }, occupied,
+                    "Only the connection handler may clear an occupied slot; " +
+                    "Add must not race the handler with a socket health probe.");
+            }
+            finally
+            {
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                firstClient?.Dispose();
+                secondClient?.Dispose();
+            }
+        }
+
+        [Test]
+        public void ClientSlot_LivenessIsOwnedByHandlerRegistration()
+        {
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            using var client = new TcpClient();
+            var handle = slot.Add(client, lifetime.Token);
+            try
+            {
+                Assert.IsTrue(slot.AnyConnected,
+                    "An occupied handler slot is authoritative even when a socket snapshot is stale.");
+                Assert.AreEqual(0, slot.CountPhantoms());
+                Assert.AreEqual(0, slot.KillPhantoms(),
+                    "Liveness inspection must not close a client owned by an active handler.");
+
+                var occupied = new List<TcpClient>();
+                slot.ForEach(occupied.Add);
+                CollectionAssert.AreEqual(new[] { client }, occupied);
+
+                slot.Clear(handle.index, handle.generation);
+                Assert.IsFalse(slot.AnyConnected);
+            }
+            finally
+            {
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                handle.clientCts.Dispose();
+            }
+        }
+
+        [Test, Timeout(5000)]
+        public async Task ClientSlot_LivenessInspectionDoesNotCloseLiveReadableSocket()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            using var lifetime = new CancellationTokenSource();
+            using var peer = new TcpClient();
+            TcpClient accepted = null;
+            CancellationTokenSource clientCts = null;
+            try
+            {
+                var accept = listener.AcceptTcpClientAsync();
+                await peer.ConnectAsync(
+                    IPAddress.Loopback,
+                    ((IPEndPoint)listener.LocalEndpoint).Port);
+                accepted = await accept;
+                var inspectedSlot = new ClientSlot();
+                clientCts = inspectedSlot.Add(accepted, lifetime.Token).clientCts;
+
+                var payload = new byte[] { 0x5a };
+                await peer.GetStream().WriteAsync(payload, 0, payload.Length);
+                Assert.IsTrue(inspectedSlot.AnyConnected);
+                Assert.AreEqual(0, inspectedSlot.CountPhantoms());
+                Assert.AreEqual(0, inspectedSlot.KillPhantoms());
+
+                var received = new byte[1];
+                var read = accepted.GetStream().ReadAsync(received, 0, received.Length);
+                var completed = await Task.WhenAny(read, Task.Delay(1000));
+                Assert.AreSame(read, completed, "Readable socket was reset during inspection.");
+                Assert.AreEqual(1, await read);
+                Assert.AreEqual(0x5a, received[0],
+                    "Liveness inspection must neither consume nor reset a readable socket.");
+
+                inspectedSlot.DisconnectAll();
+            }
+            finally
+            {
+                lifetime.Cancel();
+                accepted?.Dispose();
+                clientCts?.Dispose();
+                listener.Stop();
+            }
+        }
+
+        [Test, Timeout(10000)]
+        public async Task ClientSlot_RemoteEofIsReleasedByHandlerFinally()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            Task acceptLoop = null;
+            var peer = new TcpClient();
+            listener.Start();
+            try
+            {
+                acceptLoop = ClientConnectionHandler.RunAcceptLoop(
+                    listener, slot, "eof-test", lifetime, lifetime.Token);
+                await peer.ConnectAsync(
+                    IPAddress.Loopback,
+                    ((IPEndPoint)listener.LocalEndpoint).Port);
+                var stream = peer.GetStream();
+                TcpSendFrame(stream, "{\"id\":\"eof\",\"cmd\":\"ping\",\"args\":{}}");
+                StringAssert.Contains("pong", TcpReadFrame(stream));
+                Assert.IsTrue(slot.AnyConnected);
+
+                peer.Dispose();
+                await AwaitConditionAsync(
+                    () => !slot.AnyConnected,
+                    TimeSpan.FromSeconds(3),
+                    "Remote EOF was not released by HandleClientAsync.finally.");
+                Assert.AreEqual(0, slot.CountPhantoms(),
+                    "Normal EOF must clear the slot instead of leaving manual cleanup work.");
+                Assert.AreEqual(0, slot.KillPhantoms());
+            }
+            finally
+            {
+                peer.Dispose();
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                listener.Stop();
+                if (acceptLoop != null)
+                {
+                    var stopped = await Task.WhenAny(acceptLoop, Task.Delay(2000));
+                    Assert.AreSame(acceptLoop, stopped, "Fixture-owned accept loop did not stop.");
+                    await acceptLoop;
+                }
+            }
+        }
+
+        [Test]
+        public void ClientSlot_CapacityReplacementPreservesHandlerIdentity()
+        {
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            var clients = Enumerable.Range(0, ClientSlot.MaxClients + 2)
+                .Select(_ => new TcpClient())
+                .ToArray();
+            var handles = new (int index, long generation, CancellationTokenSource clientCts)[clients.Length];
+            try
+            {
+                for (var i = 0; i < clients.Length; i++)
+                    handles[i] = slot.Add(clients[i], lifetime.Token);
+
+                var occupied = new List<TcpClient>();
+                slot.ForEach(occupied.Add);
+                Assert.AreEqual(ClientSlot.MaxClients, occupied.Count);
+                CollectionAssert.DoesNotContain(occupied, clients[0]);
+                CollectionAssert.DoesNotContain(occupied, clients[1]);
+                CollectionAssert.Contains(occupied, clients[ClientSlot.MaxClients]);
+                CollectionAssert.Contains(occupied, clients[ClientSlot.MaxClients + 1]);
+
+                slot.Clear(handles[0].index, handles[0].generation);
+                slot.Clear(handles[1].index, handles[1].generation);
+                occupied.Clear();
+                slot.ForEach(occupied.Add);
+                Assert.AreEqual(ClientSlot.MaxClients, occupied.Count,
+                    "The evicted handler's stale generation must not clear its replacement.");
+
+                for (var i = 2; i < ClientSlot.MaxClients; i++)
+                    slot.Clear(handles[i].index, handles[i].generation);
+                occupied.Clear();
+                slot.ForEach(occupied.Add);
+                CollectionAssert.AreEqual(
+                    new[] { clients[ClientSlot.MaxClients], clients[ClientSlot.MaxClients + 1] },
+                    occupied,
+                    "Unrelated handlers must retain their original slot identity across replacement.");
+
+                for (var i = ClientSlot.MaxClients; i < handles.Length; i++)
+                    slot.Clear(handles[i].index, handles[i].generation);
+                Assert.IsFalse(slot.AnyConnected);
+            }
+            finally
+            {
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                foreach (var client in clients) client.Dispose();
+                foreach (var handle in handles) handle.clientCts?.Dispose();
+            }
+        }
+
+        [Test]
+        public void BoundPortResolution_UsesActualEndpoint()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            try
+            {
+                var actualPort = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+                Assert.IsTrue(MCPServer.TryGetBoundPort(listener, out var publishedPort));
+                Assert.AreEqual(actualPort, publishedPort);
+                Assert.Greater(publishedPort, 0);
+            }
+            finally
+            {
+                listener.Stop();
+            }
+
+            Assert.IsFalse(MCPServer.TryGetBoundPort(listener, out _));
+            Assert.IsFalse(MCPServer.TryGetBoundPort(null, out _));
+        }
+
+        [Test, Timeout(10000)]
+        public async Task BoundPortResolution_IsRaceSafeDuringStopStart()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            try
+            {
+                var readers = new Task[4];
+                for (var readerIndex = 0; readerIndex < readers.Length; readerIndex++)
+                {
+                    readers[readerIndex] = Task.Run(() =>
+                    {
+                        for (var iteration = 0; iteration < 5000; iteration++)
+                        {
+                            if (MCPServer.TryGetBoundPort(listener, out var port))
+                                Assert.Greater(port, 0);
+                        }
+                    });
+                }
+
+                var churn = Task.Run(() =>
+                {
+                    for (var iteration = 0; iteration < 250; iteration++)
+                    {
+                        listener.Stop();
+                        listener.Start();
+                    }
+                });
+
+                await Task.WhenAll(readers.Concat(new[] { churn }));
+            }
+            finally
+            {
+                listener.Stop();
+            }
+        }
+
+        private static Task<Task> RunUnderStalledContext(Func<Task> operation)
+        {
+            var completion = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            new Thread(() =>
+            {
+                SynchronizationContext.SetSynchronizationContext(new NeverPumpingSyncContext());
+                try
+                {
+                    var task = operation();
+                    task.ContinueWith(
+                        completed => completion.TrySetResult(completed),
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(null);
+                }
+            }) { IsBackground = true, Name = "UnityMCP.StalledContextWitness" }.Start();
+            return completion.Task;
+        }
+
+        private static async Task<Task> AwaitWitnessAsync(Task<Task> witness, string timeoutMessage)
+        {
+            var completed = await Task.WhenAny(witness, Task.Delay(3000));
+            Assert.AreSame(witness, completed, timeoutMessage);
+            try
+            {
+                return await witness;
+            }
+            catch (TimeoutException)
+            {
+                Assert.Fail(timeoutMessage);
+                return null;
+            }
+        }
+
+        private static async Task AwaitConditionAsync(
+            Func<bool> condition, TimeSpan timeout, string timeoutMessage)
+        {
+            var deadline = DateTime.UtcNow + timeout;
+            while (!condition() && DateTime.UtcNow < deadline)
+                await Task.Delay(10);
+            Assert.IsTrue(condition(), timeoutMessage);
         }
 
         // ── TCP protocol helpers (used by T-C#2) ─────────────────────────────
@@ -175,12 +521,12 @@ namespace UnityMCP.Editor.Tests
     //   After WriteAsync completes on ThreadPool, the continuation of `await WriteAsync`
     //   is scheduled on ThreadPool (ambient SyncContext ignored) → FlushAsync is called
     //   from ThreadPool → it completes → continuation runs on ThreadPool → task completes.
-    //   t.Wait(2000) on the blocking test thread returns true → GREEN.
+    //   the dedicated witness thread sees the task complete → GREEN.
     //
     // WITHOUT ConfigureAwait(false):
     //   After WriteAsync completes on ThreadPool, the continuation of `await WriteAsync`
     //   is posted to NeverPumpingSyncContext (the ambient context) → never executes.
-    //   t.Wait(2000) on the blocking test thread (which never pumps) times out → RED.
+    //   the dedicated witness thread (which never pumps) times out → RED.
     //
     // Task.Yield() is NOT used here because it posts to the ambient SyncContext at
     // the call site — making WriteAsync itself deadlock before returning, regardless

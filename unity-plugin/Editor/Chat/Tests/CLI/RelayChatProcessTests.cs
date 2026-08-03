@@ -3,13 +3,13 @@
 // All log accesses are locked — poll thread writes concurrently.
 using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelayChatProcessTests
+    public class RelayChatProcessTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private RelayChatProcess _sut;
 
@@ -60,6 +60,20 @@ namespace UnityMCP.Editor.Chat.Tests
         private static int LogCount(List<string> log)
         {
             lock (log) return log.Count;
+        }
+
+        private static async Task WaitUntilAsync(
+            Func<bool> condition, string timeoutMessage, int timeoutMs = 2000)
+        {
+            var timeout = Task.Delay(timeoutMs);
+            while (!condition())
+            {
+                var nextPoll = Task.Delay(10);
+                var completed = await Task.WhenAny(nextPoll, timeout);
+                if (completed == timeout)
+                    Assert.Fail(timeoutMessage);
+                await nextPoll;
+            }
         }
 
         // ── IsRunning ─────────────────────────────────────────────────────────
@@ -116,7 +130,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void DrainLines_AfterEventsArrival_ReturnsLine()
+        public async Task DrainLines_AfterEventsArrival_ReturnsLine()
         {
             bool delivered = false;
             _sut = Spawn(json =>
@@ -125,15 +139,18 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (!delivered) { delivered = true; return "{\"ok\":true,\"data\":\"0\\nfirst line\\n\"}"; }
                 return "{\"ok\":true,\"data\":\"\"}";
             }, out _);
-            Thread.Sleep(250);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count > 0;
+            }, "Expected event line was not delivered");
             Assert.Greater(output.Count, 0, "Expected at least one line");
             Assert.AreEqual("first line", output[0]);
         }
 
         [Test]
-        public void DrainLines_MultipleLines_AllReturned()
+        public async Task DrainLines_MultipleLines_AllReturned()
         {
             bool delivered = false;
             _sut = Spawn(json =>
@@ -142,9 +159,12 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (!delivered) { delivered = true; return "{\"ok\":true,\"data\":\"0\\nA\\n1\\nB\\n2\\nC\\n\"}"; }
                 return "{\"ok\":true,\"data\":\"\"}";
             }, out _);
-            Thread.Sleep(250);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count >= 3;
+            }, "Expected three event lines were not delivered");
             Assert.AreEqual(3, output.Count, $"Expected 3 lines, got {output.Count}");
             Assert.AreEqual("A", output[0]);
             Assert.AreEqual("B", output[1]);
@@ -152,7 +172,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void DrainLines_CalledTwice_SecondCallIsEmpty()
+        public async Task DrainLines_CalledTwice_SecondCallIsEmpty()
         {
             bool delivered = false;
             _sut = Spawn(json =>
@@ -161,8 +181,12 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (!delivered) { delivered = true; return "{\"ok\":true,\"data\":\"0\\nhello\\n\"}"; }
                 return "{\"ok\":true,\"data\":\"\"}";
             }, out _);
-            Thread.Sleep(250);
-            var first  = new List<string>(); _sut.DrainLines(first);
+            var first = new List<string>();
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(first);
+                return first.Count > 0;
+            }, "Expected event line was not delivered");
             var second = new List<string>(); _sut.DrainLines(second);
             Assert.AreEqual(0, second.Count, "Second drain must be empty");
         }
@@ -179,40 +203,44 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── WriteLine ─────────────────────────────────────────────────────────
 
         [Test]
-        public void WriteLine_SendsSendCommand()
+        public async Task WriteLine_SendsSendCommand()
         {
             _sut = Spawn(out var log);
             _sut.WriteLine("hello");
-            Thread.Sleep(50);
+            await WaitUntilAsync(() => LogContains(log, "\"cmd\":\"send\""),
+                "send cmd was not observed");
             Assert.IsTrue(LogContains(log, "\"cmd\":\"send\""),
                 "send cmd must be present after WriteLine");
         }
 
         [Test]
-        public void WriteLine_SendsLineField()
+        public async Task WriteLine_SendsLineField()
         {
             _sut = Spawn(out var log);
             _sut.WriteLine("test message");
-            Thread.Sleep(50);
+            await WaitUntilAsync(() => LogContains(log, "test message"),
+                "send payload was not observed");
             Assert.IsTrue(LogContains(log, "test message"),
                 "text must appear in send payload");
         }
 
         [Test]
-        public void WriteLine_SpecialChars_EscapedInJson()
+        public async Task WriteLine_SpecialChars_EscapedInJson()
         {
             _sut = Spawn(out var log);
             _sut.WriteLine("say \"hi\"");
-            Thread.Sleep(50);
+            await WaitUntilAsync(() => LogContains(log, "\\\""),
+                "escaped send payload was not observed");
             Assert.IsTrue(LogContains(log, "\\\""), "quote must be escaped in JSON");
         }
 
         [Test]
-        public void WriteLine_WhenNotRunning_DoesNotSend()
+        public async Task WriteLine_WhenNotRunning_DoesNotSend()
         {
             _sut = Spawn(out var log);
             _sut.Kill();
-            Thread.Sleep(150); // let poll thread exit
+            // Observation window is the assertion: the stopped poll loop must remain quiescent.
+            await Task.Delay(150);
             int before = LogCount(log);
             _sut.WriteLine("should be dropped");
             int after = LogCount(log);
@@ -220,7 +248,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void WriteLine_RelayError_EnqueuesErrorAndStops()
+        public async Task WriteLine_RelayError_EnqueuesErrorAndStops()
         {
             bool spawnDone = false;
             _sut = new RelayChatProcess(json =>
@@ -231,9 +259,12 @@ namespace UnityMCP.Editor.Chat.Tests
             });
             _sut.SpawnViaRelay(0, "/bin/cli", new string[0], EmptyEnv, EmptyStrip);
             _sut.WriteLine("hello");
-            Thread.Sleep(50);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count > 0;
+            }, "Relay error line was not delivered");
             Assert.Greater(output.Count, 0, "Error line must be enqueued");
             Assert.IsTrue(output.Exists(l => l.StartsWith("e|") && l.Contains("binary")),
                 $"Expected e|relay:... error, got: {string.Join(", ", output)}");
@@ -318,18 +349,20 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Background poll ───────────────────────────────────────────────────
 
         [Test]
-        public void PollLoop_CallsEventsCommand_WhenRunning()
+        public async Task PollLoop_CallsEventsCommand_WhenRunning()
         {
             _sut = Spawn(out var log);
-            Thread.Sleep(250);
+            await WaitUntilAsync(() => LogContains(log, "\"events\""),
+                "events cmd was not called by poll thread");
             Assert.IsTrue(LogContains(log, "\"events\""), "events cmd must be called by poll thread");
         }
 
         [Test]
-        public void PollLoop_EventsCmd_IncludesAfterSeqField()
+        public async Task PollLoop_EventsCmd_IncludesAfterSeqField()
         {
             _sut = Spawn(out var log);
-            Thread.Sleep(250);
+            await WaitUntilAsync(() => LogContains(log, "\"events\""),
+                "events cmd was not called by poll thread");
             var snap = SnapLog(log);
             var evCmd = snap.Find(j => j.Contains("\"events\""));
             Assert.IsNotNull(evCmd, "No events cmd found");
@@ -337,7 +370,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void PollLoop_OnRelayException_SetsIsRunningFalse()
+        public async Task PollLoop_OnRelayException_SetsIsRunningFalse()
         {
             bool spawnDone = false;
             _sut = new RelayChatProcess(json =>
@@ -346,12 +379,13 @@ namespace UnityMCP.Editor.Chat.Tests
                 throw new Exception("relay died");
             });
             _sut.SpawnViaRelay(0, "/bin/cli", new string[0], EmptyEnv, EmptyStrip);
-            Thread.Sleep(400);
+            await WaitUntilAsync(() => !_sut.IsRunning,
+                "Relay exception did not stop the poll loop");
             Assert.IsFalse(_sut.IsRunning, "IsRunning must be false after relay exception");
         }
 
         [Test]
-        public void PollLoop_OnRelayException_EnqueuesSyntheticErrorLine()
+        public async Task PollLoop_OnRelayException_EnqueuesSyntheticErrorLine()
         {
             bool spawnDone = false;
             _sut = new RelayChatProcess(json =>
@@ -360,15 +394,18 @@ namespace UnityMCP.Editor.Chat.Tests
                 throw new Exception("relay died");
             });
             _sut.SpawnViaRelay(0, "/bin/cli", new string[0], EmptyEnv, EmptyStrip);
-            Thread.Sleep(400);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count > 0;
+            }, "Synthetic relay error was not delivered");
             Assert.Greater(output.Count, 0, "Synthetic error line must be enqueued");
             Assert.IsTrue(output[0].StartsWith("e|"), $"expected pipe error 'e|...' but got: {output[0]}");
         }
 
         [Test]
-        public void PollLoop_SyntheticError_ContainsExceptionMessage()
+        public async Task PollLoop_SyntheticError_ContainsExceptionMessage()
         {
             bool spawnDone = false;
             _sut = new RelayChatProcess(json =>
@@ -377,22 +414,27 @@ namespace UnityMCP.Editor.Chat.Tests
                 throw new Exception("relay disconnected!");
             });
             _sut.SpawnViaRelay(0, "/bin/cli", new string[0], EmptyEnv, EmptyStrip);
-            Thread.Sleep(400);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count > 0;
+            }, "Synthetic relay error was not delivered");
             Assert.Greater(output.Count, 0, "Synthetic error must be enqueued");
             Assert.IsTrue(output[0].Contains("relay disconnected"),
                 $"exception msg not in synthetic line: {output[0]}");
         }
 
         [Test]
-        public void PollLoop_AfterKill_StopsPolling()
+        public async Task PollLoop_AfterKill_StopsPolling()
         {
             _sut = Spawn(out var log);
-            Thread.Sleep(200);
+            await WaitUntilAsync(() => LogContains(log, "\"events\""),
+                "Initial events poll was not observed");
             int countBefore = LogCount(log);
             _sut.Kill();
-            Thread.Sleep(300);
+            // Observation window is the assertion: no recurring polls are allowed after Kill.
+            await Task.Delay(300);
             int countAfter = LogCount(log);
             // At most: 1 kill cmd + 1 in-flight poll = 2 extra calls
             Assert.That(countAfter - countBefore, Is.LessThanOrEqualTo(2),
@@ -400,31 +442,33 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void PollLoop_EmptyEventsResponse_NoLinesQueued()
+        public async Task PollLoop_EmptyEventsResponse_NoLinesQueued()
         {
             _sut = Spawn(json =>
                 json.Contains("events") ? "{\"ok\":true,\"data\":\"\"}" : "{\"ok\":true,\"data\":\"\"}",
-                out _);
-            Thread.Sleep(250);
+                out var log);
+            await WaitUntilAsync(() => LogContains(log, "\"events\""),
+                "Empty events response was not polled");
             var output = new List<string>();
             _sut.DrainLines(output);
             Assert.AreEqual(0, output.Count, "Empty events must not queue lines");
         }
 
         [Test]
-        public void PollLoop_NullDataInEventsResponse_NoLinesQueued()
+        public async Task PollLoop_NullDataInEventsResponse_NoLinesQueued()
         {
             _sut = Spawn(json =>
                 json.Contains("events") ? "{\"ok\":true}" : "{\"ok\":true,\"data\":\"\"}",
-                out _);
-            Thread.Sleep(250);
+                out var log);
+            await WaitUntilAsync(() => LogContains(log, "\"events\""),
+                "Missing-data events response was not polled");
             var output = new List<string>();
             _sut.DrainLines(output);
             Assert.AreEqual(0, output.Count, "Missing data field must not queue lines");
         }
 
         [Test]
-        public void PollLoop_SeqTracking_SecondPollUsesUpdatedAfterSeq()
+        public async Task PollLoop_SeqTracking_SecondPollUsesUpdatedAfterSeq()
         {
             var seqArgs   = new List<string>();
             bool spawnDone = false;
@@ -442,7 +486,10 @@ namespace UnityMCP.Editor.Chat.Tests
                     : "{\"ok\":true,\"data\":\"\"}";
             });
             _sut.SpawnViaRelay(0, "/bin/cli", new string[0], EmptyEnv, EmptyStrip);
-            Thread.Sleep(350); // two 100ms polls + margin
+            await WaitUntilAsync(() =>
+            {
+                lock (seqArgs) return seqArgs.Count >= 2;
+            }, "Expected at least two event polls");
 
             lock (seqArgs)
             {
@@ -522,7 +569,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── ParseEvents / C4: newline de-escape ───────────────────────────────
 
         [Test]
-        public void ParseEvents_EventLineWithEscapedNewline_DeescapedCorrectly()
+        public async Task ParseEvents_EventLineWithEscapedNewline_DeescapedCorrectly()
         {
             // Python escapes \n in event text as literal 2-char backslash+n before sending.
             // In JSON: "0\nhello\\nworld\n" decodes to:  seq=0, text="hello\nworld" (2-char \n)
@@ -538,9 +585,12 @@ namespace UnityMCP.Editor.Chat.Tests
                 }
                 return "{\"ok\":true,\"data\":\"\"}";
             }, out _);
-            Thread.Sleep(250);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count > 0;
+            }, "Escaped-newline event was not delivered");
             Assert.AreEqual(1, output.Count, "Expected exactly one line");
             Assert.IsTrue(output[0].Contains("\n"),
                 $"Deescaped newline not present: [{output[0]}]");
@@ -549,7 +599,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void ParseEvents_MultipleEventsWithEscapedNewlines_AllDelivered()
+        public async Task ParseEvents_MultipleEventsWithEscapedNewlines_AllDelivered()
         {
             // Two events: seq=0 "a\nb" (embedded newline), seq=1 "c"
             // JSON data: "0\na\\nb\n1\nc\n"
@@ -564,9 +614,12 @@ namespace UnityMCP.Editor.Chat.Tests
                 }
                 return "{\"ok\":true,\"data\":\"\"}";
             }, out _);
-            Thread.Sleep(250);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count >= 2;
+            }, "Expected events were not delivered");
             Assert.AreEqual(2, output.Count, $"Expected 2 lines, got {output.Count}");
             Assert.IsTrue(output[0].Contains("\n"), "First event must have embedded newline");
             Assert.AreEqual("c", output[1]);
@@ -575,7 +628,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Tool call / result pass-through ───────────────────────────────────
 
         [Test]
-        public void DrainLines_ToolCallEvent_DeliversTcLine()
+        public async Task DrainLines_ToolCallEvent_DeliversTcLine()
         {
             bool delivered = false;
             _sut = Spawn(json =>
@@ -584,16 +637,19 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (!delivered) { delivered = true; return "{\"ok\":true,\"data\":\"0\\ntc|bash|tid1|{}\\n\"}"; }
                 return "{\"ok\":true,\"data\":\"\"}";
             }, out _);
-            Thread.Sleep(250);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count > 0;
+            }, "Tool-call event was not delivered");
             Assert.AreEqual(1, output.Count, "Expected one tc| line");
             Assert.IsTrue(output[0].StartsWith("tc|"), $"Expected tc| prefix, got: {output[0]}");
             Assert.IsTrue(output[0].Contains("bash"),  $"Tool name missing: {output[0]}");
         }
 
         [Test]
-        public void DrainLines_ToolResultEvent_DeliversTrLine()
+        public async Task DrainLines_ToolResultEvent_DeliversTrLine()
         {
             bool delivered = false;
             _sut = Spawn(json =>
@@ -602,15 +658,18 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (!delivered) { delivered = true; return "{\"ok\":true,\"data\":\"0\\ntr|tid1|true|output\\n\"}"; }
                 return "{\"ok\":true,\"data\":\"\"}";
             }, out _);
-            Thread.Sleep(250);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count > 0;
+            }, "Tool-result event was not delivered");
             Assert.AreEqual(1, output.Count, "Expected one tr| line");
             Assert.IsTrue(output[0].StartsWith("tr|"), $"Expected tr| prefix, got: {output[0]}");
         }
 
         [Test]
-        public void DrainLines_ToolCallSequence_AllThreeEventsDeliveredInOrder()
+        public async Task DrainLines_ToolCallSequence_AllThreeEventsDeliveredInOrder()
         {
             bool delivered = false;
             _sut = Spawn(json =>
@@ -624,9 +683,12 @@ namespace UnityMCP.Editor.Chat.Tests
                 }
                 return "{\"ok\":true,\"data\":\"\"}";
             }, out _);
-            Thread.Sleep(250);
             var output = new List<string>();
-            _sut.DrainLines(output);
+            await WaitUntilAsync(() =>
+            {
+                _sut.DrainLines(output);
+                return output.Count >= 3;
+            }, "Tool-call sequence was not delivered");
             Assert.AreEqual(3, output.Count, $"Expected 3 events, got {output.Count}: [{string.Join(", ", output)}]");
             Assert.IsTrue(output[0].StartsWith("tc|"), $"Event 0 must be tc|, got: {output[0]}");
             Assert.IsTrue(output[1].StartsWith("t|"),  $"Event 1 must be t|, got: {output[1]}");

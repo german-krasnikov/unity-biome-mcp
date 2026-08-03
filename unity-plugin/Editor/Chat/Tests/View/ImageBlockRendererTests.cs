@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ImageBlockRendererTests
+    public class ImageBlockRendererTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── IsImageFile ───────────────────────────────────────────────────────
 

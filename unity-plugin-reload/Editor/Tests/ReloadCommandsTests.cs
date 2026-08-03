@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Reload.Tests
 {
     [TestFixture]
-    public class ReloadCommandsTests
+    public class ReloadCommandsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Commands_ContainsAllSixCommands()

@@ -3,12 +3,13 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CodeExecutorSecurityWhitespaceBypassTests
+    public class CodeExecutorSecurityWhitespaceBypassTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        private SecurityLevel _savedLevel;
-
-        [SetUp]    public void SetUp()    { _savedLevel = MCPSettings.GetSecurityLevel(); MCPSettings.SetSecurityLevel(SecurityLevel.Standard); }
-        [TearDown] public void TearDown() { MCPSettings.SetSecurityLevel(_savedLevel); }
+        [SetUp] public void SetUp()
+        {
+            ProtectEditorPrefInt("UnityMCP_SecurityLevel");
+            MCPSettings.SetSecurityLevel(SecurityLevel.Standard);
+        }
 
         // ── CS4.arch.2: whitespace/newline bypass ────────────────────────────
 

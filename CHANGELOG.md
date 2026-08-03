@@ -10,6 +10,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.10.3] — 2026-08-03
+
+### Added
+- Durable test runner (`run_unity_tests.py`): request_id/run_id/utf_guid correlation, manifest validation, reconciled terminal evidence
+- Domain reload acceptance harness (`run_unity_domain_reload_acceptance.py`): automated multi-cycle reload stability verification
+- Fault injection runner (`run_unity_fault_injection.py`): cleanup fault lanes for test isolation validation
+- Unity test worker creator (`create_unity_test_worker.py`): disposable worker project provisioning
+- `UnityMcpTestBase`: canonical C# test base with owned cleanup, scene isolation, domain reload guards
+- `docs/testing-reliability.md`: comprehensive testing reliability guide
+- Windows bootstrap installer (`install/bootstrap.ps1`)
+- `unity-test-reviewer` agent for C# test quality audits
+
+### Changed
+- TestRunner: cleanup order enforced (owned objects → scene restore → Undo), prevents dirty scene dialog
+- TestRunner: domain reload resilience — guards against stale DLL, UTF state corruption, run_id drift
+- Live test infrastructure: verified worker gate, project path validation, lease-based ownership
+- Pre-commit hook: extended with test source hygiene checks
+
+### Fixed
+- EditMode tests no longer trigger "unsaved scene" dialog on completion
+- Active Editor test runs stabilized: no interference from concurrent domain reloads
+- Test isolation hardened: cross-test state leaks eliminated via owned cleanup protocol
+- Bridge port rediscovery resilience improved for reload scenarios
+
 ## [v1.10.0] — 2026-08-01
 
 ### Added

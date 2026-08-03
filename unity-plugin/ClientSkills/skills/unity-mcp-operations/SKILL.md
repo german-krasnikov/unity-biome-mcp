@@ -38,7 +38,8 @@ matches the current scene and schema.
 | Set properties across several objects | `configure_objects(config=...)` as a standalone call |
 | Set several properties on one object | `set_properties(path=..., props=...)` |
 | Several compatible synchronous Unity commands | `batch(...)` |
-| NUnit run with completion result | `run_tests_wait(...)` as a standalone call |
+| Consumer-project NUnit run | One correlated `run_tests_wait(...)` call |
+| Explicit nonblocking test dispatch or recovery | `run_tests(...)`, then only `get_test_run(run_id=...)` for that exact run |
 | Repeatable Play Mode scenario | `run_playtest(...)` or `run_playtest_suite(...)` |
 | Stable repeated batch sequence | `save_skill(...)`, then `use_skill(...)` |
 | Stable parameterized scene scaffold | `save_template(...)`, then `apply_template(...)` |
@@ -46,6 +47,23 @@ matches the current scene and schema.
 
 Do not infer batchability from `direct_only=False`. Some asynchronous and
 special-dispatch commands are still rejected by Unity's batch executor.
+
+Use `run_tests_wait` for an ordinary interactive NUnit run. It owns the
+correlation state machine; do not reproduce that polling loop in an agent.
+Repository and disposable-worker verification uses the repository's standalone
+`run_unity_tests.py` runner instead.
+
+Direct `run_tests` is low-level nonblocking/recovery API, not the default. It is
+dispatch, not completion. Preserve its `request_id`, `run_id`, and `utf_guid`,
+and accept only the reconciled terminal snapshot returned for that exact
+`run_id`. On `START-UNKNOWN`, resolve the original `request_id` with
+`resolve_test_request`; do not start another run. Uncorrelated
+`get_test_results()` and `get_test_progress()` values are diagnostic only.
+A structured `ok=false` response with a positive numeric `retry` field is a
+temporary initialization state: wait, rediscover the endpoint for the same
+canonical project, and preserve the same request. Once `run_id` exists,
+re-resolve that request, require the same run, and continue polling it; never
+dispatch again. A bound listener endpoint outranks configured/cached port state.
 
 ## Capability Map
 

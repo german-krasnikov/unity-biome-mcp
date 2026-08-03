@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class DefaultStripperTests
+    public class DefaultStripperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Build a two-field snippet so we can verify removal + retention separately.
         private static string Line(string kv) => $"[C]\n{kv}\nother: keep\n";

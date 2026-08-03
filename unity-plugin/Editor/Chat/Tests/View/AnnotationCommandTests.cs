@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat.Annotation;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotationCommandTests
+    internal sealed class AnnotationCommandTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly Color32 Red = new Color32(255, 0, 0, 255);
 

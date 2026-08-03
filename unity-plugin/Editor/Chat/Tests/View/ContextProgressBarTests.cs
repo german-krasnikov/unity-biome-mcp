@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class ContextProgressBarTests
+    internal sealed class ContextProgressBarTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Update_ZeroWindow_HidesElement()

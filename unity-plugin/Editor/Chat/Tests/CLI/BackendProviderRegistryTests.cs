@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class BackendProviderRegistryTests
+    public class BackendProviderRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Minimal stub — no binary check needed for registry unit tests.
         private sealed class StubProvider : IBackendProvider

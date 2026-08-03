@@ -12,7 +12,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChatMcpConfigWriterEncodingTests
+    public class ChatMcpConfigWriterEncodingTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tmpDir;
 
@@ -21,12 +21,11 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             _tmpDir = Path.Combine(Path.GetTempPath(), $"unity-biome-mcp-chatenc-{Guid.NewGuid():N}");
             Directory.CreateDirectory(_tmpDir);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            try { Directory.Delete(_tmpDir, true); } catch { }
+            RegisterCleanup(() =>
+            {
+                if (Directory.Exists(_tmpDir))
+                    Directory.Delete(_tmpDir, true);
+            });
         }
 
         [Test]

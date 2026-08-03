@@ -5,16 +5,12 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class PolygonDetailTests
+    internal class PolygonDetailTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         const string PrefKey = "MCP_PolygonDetailLevel";
-        int _savedPref;
 
         [SetUp]
-        public void SetUp() => _savedPref = EditorPrefs.GetInt(PrefKey, (int)PolygonDetailLevel.Normal);
-
-        [TearDown]
-        public void TearDown() => EditorPrefs.SetInt(PrefKey, _savedPref);
+        public void SetUp() => ProtectEditorPrefInt(PrefKey);
 
         // ── Epsilon range ────────────────────────────────────────────────────────
 
@@ -85,7 +81,7 @@ namespace UnityMCP.Editor.Tests.RegionTool
         [Test]
         public void Default_NoPref_ReturnsNormal()
         {
-            EditorPrefs.DeleteKey(PrefKey);
+            DeleteEditorPrefInt(PrefKey);
             Assert.AreEqual(PolygonDetailLevel.Normal, PolygonDetailSettings.Default);
         }
 

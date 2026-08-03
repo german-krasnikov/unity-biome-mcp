@@ -1,33 +1,22 @@
-"""Wall-clock (real-time) live validation for connection-stability fixes.
+"""Deterministic wall-clock validation for connection-stability fixes.
 
-These tests use REAL wall-clock time — no mocked time.monotonic/asyncio.sleep.
-Marked @pytest.mark.live to exclude from the default unit-test run.
+These tests use real wall-clock time but do not require a Unity process.
 
 Scenarios:
   1. Anti-spam: dead-port reconnect loop runs ~80s wall-clock;
      proves intervals grow 5→10→20→40→60s, cap ≤66s, ≤7 attempts.
   2. Long session / no thread leak: 2000 ticks, mock only TCP I/O;
      backoff logic + timers run real; thread count stable.
-  3. Crash-recovery / no port drift: Unity on 9602 is REAL;
-     backoff unwinds to dead-port, then discoverer returns 9602,
-     bridge reconnects there (not 9500), backoff resets.
-
 Discriminating line per test documented below each assert.
 """
 import asyncio
 import socket
-import struct
-import threading
 import time
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
-import json
-
-import pytest
+from unittest.mock import patch
 
 from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, BACKOFF_MAX_S, HeartbeatMixin
 from unity_mcp.bridge_reload_state import DomainReloadTracker
-from unity_mcp.bridge import BridgeState, STARTUP_GRACE_S
-import unity_mcp.bridge as bridge_mod
+from unity_mcp.bridge import BridgeState
 
 
 # ---------------------------------------------------------------------------
@@ -78,8 +67,7 @@ class _RealTimeBridge(HeartbeatMixin):
 # Scenario 1: Anti-spam — real wall-clock, dead port, ~80s run
 # ---------------------------------------------------------------------------
 
-@pytest.mark.live
-async def test_antispam_dead_port_real_wallclock():
+async def test_antispam_dead_port_real_wallclock(unused_tcp_port):
     """S1: Backoff dampens connect spam on a dead port over 80s wall-clock.
 
     Proves:
@@ -96,7 +84,9 @@ async def test_antispam_dead_port_real_wallclock():
       - Remove cap `BACKOFF_MAX_S` check
         → intervals could exceed 66s → FAIL (c).
     """
-    assert _port_is_dead(9999), "Port 9999 must be free for this test"
+    assert _port_is_dead(unused_tcp_port), (
+        f"Allocated dead port {unused_tcp_port} unexpectedly became occupied"
+    )
 
     bridge = _RealTimeBridge()
 
@@ -104,12 +94,12 @@ async def test_antispam_dead_port_real_wallclock():
         # Real socket attempt to confirm port is dead (fast reject)
         try:
             _, w = await asyncio.wait_for(
-                asyncio.open_connection("127.0.0.1", 9999), timeout=1.0
+                asyncio.open_connection("127.0.0.1", unused_tcp_port), timeout=1.0
             )
             w.close()
         except Exception:
             pass
-        raise ConnectionRefusedError("port 9999 dead")
+        raise ConnectionRefusedError(f"port {unused_tcp_port} dead")
 
     bridge._reconnect_fn = _always_fail
 
@@ -173,7 +163,6 @@ async def test_antispam_dead_port_real_wallclock():
 # Scenario 2: Long session — real timers, mock TCP only, no thread leak
 # ---------------------------------------------------------------------------
 
-@pytest.mark.live
 async def test_long_session_no_thread_leak_real_timers():
     """S2: _hard_exit_scheduled double-Timer guard + backoff bounds + reset.
 
@@ -288,143 +277,6 @@ async def test_long_session_no_thread_leak_real_timers():
 
 
 # ---------------------------------------------------------------------------
-# Scenario 3: Crash-recovery — real Unity on 9602, no port drift
-# ---------------------------------------------------------------------------
-
-@pytest.mark.live
-async def test_crash_recovery_to_live_unity_no_drift():
-    """S3: Backoff pre-saturated → discoverer returns live Unity port →
-    bridge port resolves to live port, backoff resets to MIN, no 9500 drift.
-
-    Strategy: use REAL UnityBridge._reconnect (discoverer is called inside it).
-    Mock asyncio.open_connection: first DEAD_CALLS invocations raise ConnectionRefusedError
-    (simulating dead port 9999); then real TCP to live Unity takes over.
-    This proves that:
-      (a) None-guard in _reconnect preserves port when discoverer returns None (calls 1-2).
-      (b) When discoverer returns live_port, bridge updates _port and connects.
-      (c) Backoff resets after _heartbeat_tick sees success.
-      (d) Port is never 9500 (no None→9500 silent fallback).
-
-    Discriminating lines:
-      - Remove None-guard `if new_port is not None and new_port != self._port`
-        (bridge.py:~321) → when discoverer returns None, port silently becomes None or
-        9500 → FAIL (d). This is the primary behavioral guard for (a)/(b).
-      - Remove `self._reconnect_backoff = BACKOFF_MIN_S` reset in _heartbeat_tick
-        → backoff stays BACKOFF_MAX_S → FAIL (c).
-      Note: `_pinned_pid is not None` is NOT a behavioral discriminator here —
-      `is_pid_alive(None)` already returns False (lockfile.py:68), so the pinned-path
-      is skipped identically with or without that guard. The discriminating gate is the
-      None-guard above and the backoff-reset line.
-    """
-    import os
-    from unittest.mock import AsyncMock, MagicMock, patch
-    from unity_mcp.bridge import UnityBridge, CONNECT_TIMEOUT
-    from unity_mcp.compile_state import CompileStateProbe
-
-    # Discover live Unity port from port files
-    live_port = _discover_live_port()
-    if live_port is None:
-        pytest.skip("No live Unity port files found — Unity not running")
-
-    if not _port_is_alive(live_port):
-        pytest.skip(f"Port {live_port} not responding — Unity may have stopped")
-
-    # Probe mock: idle
-    probe = MagicMock(spec=CompileStateProbe)
-    probe.is_unity_busy.return_value = False
-    probe.has_strong_busy_signal.return_value = False
-    probe.is_process_dead.return_value = False
-    probe.estimated_remaining_s.return_value = 5.0
-    probe.has_project = True
-    probe.mark_recompile_issued = MagicMock()
-
-    # Discoverer: None for first DEAD_CALLS, then live_port
-    DEAD_CALLS = 2
-    discover_results = [None] * DEAD_CALLS + [live_port]
-    discover_log: list[int | None] = []
-
-    def discoverer(skip_probe=False):
-        result = discover_results.pop(0) if discover_results else live_port
-        discover_log.append(result)
-        return result
-
-    bridge = UnityBridge(
-        "127.0.0.1",
-        port=9999,  # dead port
-        probe=probe,
-        port_discoverer=discoverer,
-    )
-    bridge._pinned_pid = None   # bypass pin → discoverer called
-    bridge._reconnect_backoff = BACKOFF_MAX_S  # pre-saturate
-
-    # open_connection call counter — first DEAD_CALLS fail, then real TCP
-    open_conn_calls = [0]
-    _real_open_connection = asyncio.open_connection
-
-    async def _selective_open_connection(host, port, **kw):
-        open_conn_calls[0] += 1
-        if open_conn_calls[0] <= DEAD_CALLS:
-            # Simulate failure to connect (port was still 9999 at this point)
-            raise ConnectionRefusedError(f"simulated dead (call {open_conn_calls[0]})")
-        # Real TCP connection to Unity
-        return await _real_open_connection(host, port, **kw)
-
-    import unity_mcp.bridge as bm
-
-    with patch.object(bm, "STARTUP_GRACE_S", 9999.0), \
-         patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=os.getppid()), \
-         patch.object(bridge_mod.asyncio, "open_connection",
-                      side_effect=_selective_open_connection):
-
-        for _ in range(DEAD_CALLS + 3):
-            bridge._last_reconnect_at = 0.0
-            bridge._reconnect_started_at = time.monotonic() - 1.0
-
-            with patch("unity_mcp.bridge_heartbeat.asyncio.sleep", new=AsyncMock()):
-                await bridge._heartbeat_tick(15.0)
-
-            if bridge._port == live_port:
-                break
-
-    port_after = bridge._port
-    backoff_after = bridge._reconnect_backoff
-
-    # Close connection cleanly
-    if bridge._writer is not None:
-        try:
-            bridge._writer.close()
-            await asyncio.wait_for(bridge._writer.wait_closed(), timeout=1.0)
-        except Exception:
-            pass
-
-    # (a)/(b): Port must be live_port, not stuck at 9999
-    assert port_after == live_port, (
-        f"Port did not update to live Unity port {live_port}, got {port_after}. "
-        f"discover_log={discover_log}. None-guard or discoverer broken?"
-    )
-    # (d): No silent drift to 9500
-    assert port_after != 9500, (
-        f"Port drifted to 9500 (None→9500 fallback active). None-guard missing. "
-        f"discover_log={discover_log}"
-    )
-    # (c): Backoff resets to MIN after success (via _heartbeat_tick)
-    assert backoff_after == BACKOFF_MIN_S, (
-        f"Backoff not reset: {backoff_after}s (expected {BACKOFF_MIN_S}s). "
-        f"Reset line missing from _heartbeat_tick? discover_log={discover_log}"
-    )
-    # Discoverer was consulted — pin bypass worked
-    assert len(discover_log) >= DEAD_CALLS + 1, (
-        f"Discoverer called only {len(discover_log)} times (expected ≥{DEAD_CALLS+1}). "
-        "Pin guard (_pinned_pid is not None check) broken?"
-    )
-
-    print(
-        f"\nS3 crash-recovery: port {port_after} (live Unity {live_port}), "
-        f"backoff={backoff_after}s, discover_log={discover_log}"
-    )
-
-
-# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -437,31 +289,3 @@ def _port_is_dead(port: int) -> bool:
             return False
         except (ConnectionRefusedError, OSError):
             return True
-
-
-def _port_is_alive(port: int) -> bool:
-    """True if 127.0.0.1:port responds to a TCP connect."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(2.0)
-        try:
-            s.connect(("127.0.0.1", port))
-            return True
-        except (ConnectionRefusedError, OSError):
-            return False
-
-
-def _discover_live_port() -> int | None:
-    """Read port from ~/.unity-biome-mcp/ports/*.port files.
-
-    Uses os.path.expanduser("~") to bypass the _isolate_home conftest fixture
-    that redirects Path.home() to a tmp dir for isolation.
-    """
-    import pathlib
-    import os
-    real_home = pathlib.Path(os.path.expanduser("~"))
-    for p in real_home.glob(".unity-biome-mcp/ports/*.port"):
-        try:
-            return int(p.read_text(encoding="utf-8").split("\n")[0])
-        except Exception:
-            continue
-    return None

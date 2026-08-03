@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class RuntimeHelperReloadTests
+    public class RuntimeHelperReloadTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static List<TaskCompletionSource<string>> GetActiveTcs()
         {
@@ -41,7 +41,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ActiveTcs_ManualAdd_SimulateReloadCancels()
+        public async Task ActiveTcs_ManualAdd_SimulateReloadCancels()
         {
             var list = GetActiveTcs();
             var tcs = new TaskCompletionSource<string>();
@@ -57,7 +57,7 @@ namespace UnityMCP.Editor.Tests
             }
 
             Assert.IsTrue(tcs.Task.IsCompleted);
-            Assert.That(tcs.Task.Result, Does.StartWith("err:domain reload"));
+            Assert.That(await tcs.Task, Does.StartWith("err:domain reload"));
             Assert.AreEqual(0, list.Count);
         }
     }

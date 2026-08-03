@@ -1,6 +1,6 @@
 import errno
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, call, patch, MagicMock
 from mcp.server.fastmcp.exceptions import ToolError
 
 from unity_mcp.server import (
@@ -215,28 +215,44 @@ async def test_get_object_detail_raises_on_error(mock_bridge):
 
 async def test_run_tests_calls_bridge(mock_bridge):
     """Test run_tests sends correct command to bridge"""
-    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "tests: 5 passed, 0 failed\nTime: 1.2s"})
+    ack = "tests-started|request_id=req-1|run_id=run-1|utf_guid=utf-1|state=dispatched"
+    mock_bridge.send = AsyncMock(side_effect=[
+        {"ok": True, "data": "none"},
+        {"ok": True, "data": ack},
+    ])
     with patch("unity_mcp.tools.diagnose.diagnose", new=AsyncMock(return_value="CLEAN-LIVE")):
-        result = await run_tests(mode="EditMode")
-    mock_bridge.send.assert_called_once_with("run_tests", {"mode": "EditMode"}, timeout=8.0)
-    assert "passed" in result
+        result = await run_tests(mode="EditMode", request_id="req-1")
+    assert mock_bridge.send.await_args_list == [
+        call("resolve_test_request", {"request_id": "req-1"}, timeout=10.0),
+        call("run_tests", {"mode": "EditMode", "request_id": "req-1"}, timeout=8.0),
+    ]
+    assert result == ack
 
 
 async def test_run_tests_default_mode(mock_bridge):
     """Test run_tests defaults to EditMode"""
-    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "tests: 3 passed, 0 failed"})
+    ack = "tests-started|request_id=req-2|run_id=run-2|utf_guid=utf-2|state=dispatched"
+    mock_bridge.send = AsyncMock(side_effect=[
+        {"ok": True, "data": "none"},
+        {"ok": True, "data": ack},
+    ])
     with patch("unity_mcp.tools.diagnose.diagnose", new=AsyncMock(return_value="CLEAN-LIVE")):
-        result = await run_tests()
-    mock_bridge.send.assert_called_once_with("run_tests", {"mode": "EditMode"}, timeout=8.0)
-    assert "passed" in result
+        result = await run_tests(request_id="req-2")
+    assert mock_bridge.send.await_args_list == [
+        call("resolve_test_request", {"request_id": "req-2"}, timeout=10.0),
+        call("run_tests", {"mode": "EditMode", "request_id": "req-2"}, timeout=8.0),
+    ]
+    assert result == ack
 
 
-async def test_run_tests_error_returns_started(mock_bridge):
-    """run_tests error on initial send → returns tests-started immediately."""
-    mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Test framework not available"})
+async def test_run_tests_error_returns_unknown(mock_bridge):
+    mock_bridge.send = AsyncMock(side_effect=[
+        {"ok": True, "data": "none"},
+        {"ok": False, "err": "Test framework not available"},
+    ])
     with patch("unity_mcp.tools.diagnose.diagnose", new=AsyncMock(return_value="CLEAN-LIVE")):
-        result = await run_tests()
-    assert "tests-started" in result
+        result = await run_tests(request_id="req-error")
+    assert result == "START-UNKNOWN|request_id=req-error|reason=ToolError"
 
 
 async def test_get_test_results_calls_bridge(mock_bridge):
@@ -261,22 +277,24 @@ async def test_get_test_results_returns_none_when_no_run(mock_bridge):
     assert result == "none"
 
 
-async def test_run_tests_playmode_disconnect_returns_started(mock_bridge):
-    """run_tests PlayMode: on disconnect, returns tests-started immediately."""
-    mock_bridge.send = AsyncMock(side_effect=ToolError("Unity connection lost"))
+async def test_run_tests_playmode_disconnect_returns_unknown(mock_bridge):
+    mock_bridge.send = AsyncMock(side_effect=[
+        {"ok": True, "data": "none"},
+        ToolError("Unity connection lost"),
+    ])
     with patch("unity_mcp.tools.diagnose.diagnose", new=AsyncMock(return_value="CLEAN-LIVE")):
-        result = await run_tests(mode="PlayMode")
-    assert "tests-started" in result
-    assert "PlayMode" in result
+        result = await run_tests(mode="PlayMode", request_id="req-play")
+    assert result == "START-UNKNOWN|request_id=req-play|reason=ToolError"
 
 
-async def test_run_tests_editmode_disconnect_returns_started(mock_bridge):
-    """run_tests EditMode: ToolError caught → returns tests-started."""
-    mock_bridge.send = AsyncMock(side_effect=ToolError("Unity connection lost"))
+async def test_run_tests_editmode_disconnect_returns_unknown(mock_bridge):
+    mock_bridge.send = AsyncMock(side_effect=[
+        {"ok": True, "data": "none"},
+        ToolError("Unity connection lost"),
+    ])
     with patch("unity_mcp.tools.diagnose.diagnose", new=AsyncMock(return_value="CLEAN-LIVE")):
-        result = await run_tests(mode="EditMode")
-    assert "tests-started" in result
-    assert "EditMode" in result
+        result = await run_tests(mode="EditMode", request_id="req-edit")
+    assert result == "START-UNKNOWN|request_id=req-edit|reason=ToolError"
 
 
 async def test_scene_new_calls_bridge(mock_bridge):
@@ -1476,4 +1494,3 @@ async def test_lifespan_releases_lock_on_normal_exit(monkeypatch):
         pass
 
     assert released == [fake_fd]
-

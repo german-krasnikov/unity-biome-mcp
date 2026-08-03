@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ApproveFlowTests
+    public class ApproveFlowTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Test_ApproveGuard_NullSessionId_NoOp()

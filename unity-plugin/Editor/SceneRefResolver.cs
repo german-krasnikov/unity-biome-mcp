@@ -16,7 +16,7 @@ namespace UnityMCP.Editor
             public string Path;
             public string Reason;
             public bool Active;
-            public int InstanceId;
+            public string ObjectId;
             public string SceneName;
             public List<(string field, string status)> Fields;
         }
@@ -166,7 +166,7 @@ namespace UnityMCP.Editor
             r.Status = "OK";
             r.Path = ComponentSerializer.GetPath(go);
             r.Active = go.activeSelf;
-            r.InstanceId = go.GetInstanceID();
+            r.ObjectId = TransientObjectId.GetWireValue(go);
             r.SceneName = go.scene.name;
         }
 
@@ -180,7 +180,7 @@ namespace UnityMCP.Editor
                 if (r.Status == "OK")
                 {
                     sb.Append('\t').Append(r.Active ? "active" : "inactive");
-                    sb.Append("\tiid=").Append(r.InstanceId);
+                    sb.Append("\tiid=").Append(r.ObjectId);
                     if (!string.IsNullOrEmpty(r.SceneName)) sb.Append("\tscene=").Append(r.SceneName);
                 }
                 if (!string.IsNullOrEmpty(r.Reason)) sb.Append('\t').Append(r.Reason);

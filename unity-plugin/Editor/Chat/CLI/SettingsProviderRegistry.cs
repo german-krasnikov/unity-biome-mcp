@@ -23,6 +23,10 @@ namespace UnityMCP.Editor.Chat
                 key, x => x.Key, _providers, _byKey, ref _version);
 
 #if UNITY_INCLUDE_TESTS
+        internal static System.IDisposable PreserveStateForTests()
+            => ProviderRegistry<ISettingsProvider>.PreserveState(
+                _providers, _byKey, () => _version, value => _version = value);
+
         public static void ResetForTests()
             => ProviderRegistry<ISettingsProvider>.Reset(_providers, _byKey, ref _version);
 #endif

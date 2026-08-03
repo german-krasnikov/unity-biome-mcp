@@ -10,7 +10,7 @@ using static UnityMCP.Editor.Chat.Tests.TestStringHelpers;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SceneObjectNormalizationTests
+    public class SceneObjectNormalizationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
         [TearDown] public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }

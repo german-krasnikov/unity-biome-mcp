@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class InlinePreviewBuilderTests
+    public class InlinePreviewBuilderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         const string TexturePath = "Assets/tex.png";
         const string AudioPath   = "Assets/sound.wav";
@@ -24,15 +24,6 @@ namespace UnityMCP.Editor.Chat.Tests
             InlinePreviewBuilder.AudioClipLoader = null;
             ChipKindRegistry.ResetToBuiltIns();
             AssetViewerFactory.ReRegisterBuiltIns();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            InlinePreviewBuilder.TextureLoader = null;
-            InlinePreviewBuilder.AssetPreviewLoader = null;
-            InlinePreviewBuilder.AudioClipLoader = null;
-            AssetViewerFactory.Reset();
         }
 
         [Test]
@@ -175,6 +166,29 @@ namespace UnityMCP.Editor.Chat.Tests
             InlinePreviewBuilder.AssetPreviewLoader = _ => { callCount++; return Texture2D.whiteTexture; };
             InlinePreviewBuilder.Build(ChipKindKeys.Model, ModelPath);
             Assert.AreEqual(1, callCount, "AssetPreviewLoader seam must be called once");
+        }
+
+        [Test]
+        public void PreserveStateForTests_RestoresExactLoaderDelegates()
+        {
+            Func<string, Texture2D> textureLoader = _ => Texture2D.whiteTexture;
+            Func<UnityEngine.Object, Texture2D> assetLoader = _ => Texture2D.blackTexture;
+            Func<string, (float length, int frequency, int channels)?> audioLoader =
+                _ => (1f, 22050, 1);
+            InlinePreviewBuilder.TextureLoader = textureLoader;
+            InlinePreviewBuilder.AssetPreviewLoader = assetLoader;
+            InlinePreviewBuilder.AudioClipLoader = audioLoader;
+
+            using (InlinePreviewBuilder.PreserveStateForTests())
+            {
+                InlinePreviewBuilder.TextureLoader = null;
+                InlinePreviewBuilder.AssetPreviewLoader = null;
+                InlinePreviewBuilder.AudioClipLoader = null;
+            }
+
+            Assert.AreSame(textureLoader, InlinePreviewBuilder.TextureLoader);
+            Assert.AreSame(assetLoader, InlinePreviewBuilder.AssetPreviewLoader);
+            Assert.AreSame(audioLoader, InlinePreviewBuilder.AudioClipLoader);
         }
     }
 }

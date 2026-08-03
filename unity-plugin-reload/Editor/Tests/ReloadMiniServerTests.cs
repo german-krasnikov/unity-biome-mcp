@@ -1,17 +1,18 @@
 // TDD: ReloadMiniServer — queue drain, unknown-command dispatch, bind-retry.
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
-using UnityEngine;
 
 namespace UnityMCP.Reload.Tests
 {
     [TestFixture]
-    public class ReloadMiniServerTests
+    public class ReloadMiniServerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── BindListener tests ────────────────────────────────────────────
 
@@ -76,44 +77,72 @@ namespace UnityMCP.Reload.Tests
 
 
         [Test]
-        public void M1_AbandonedLambda_DoesNotExecuteDispatch()
+        public void MainThreadDispatchGate_TimeoutBeforeDrainPreventsDispatch()
         {
-            // M1 race: lambda is ENQUEUED, then timeout fires (sets abandoned=1), THEN queue drains.
-            // Prove: dispatch side-effect does NOT execute when abandoned flag is set before drain.
-            // This is the real concurrent ordering: enqueue → timeout → drain (not: timeout → enqueue).
-            var queue = new System.Collections.Concurrent.ConcurrentQueue<Action>();
-            int abandoned = 0;
-            bool sideEffectFired = false;
-
-            // Step 1: enqueue lambda FIRST (represents EnqueueMainThread before Wait times out).
+            var gate = new ReloadMainThreadDispatchGate();
+            var queue = new ConcurrentQueue<Action>();
+            var dispatchCount = 0;
             queue.Enqueue(() =>
             {
-                // Guard mirrors EnqueueMainThread's lambda guard.
-                if (Volatile.Read(ref abandoned) != 0) return;
-                sideEffectFired = true; // phantom mutation — must NOT run after timeout
+                if (gate.TryStart()) dispatchCount++;
             });
 
-            // Step 2: simulate timeout — set abandoned AFTER lambda is already queued.
-            Interlocked.Exchange(ref abandoned, 1);
-
-            // Step 3: drain queue (simulates EditorApplication.update after timeout).
+            Assert.IsTrue(gate.TryAbandon());
             while (queue.TryDequeue(out var action))
                 action();
 
-            Assert.IsFalse(sideEffectFired,
-                "M1: dispatch side-effect must NOT fire when timeout sets abandoned before drain");
+            Assert.AreEqual(0, dispatchCount,
+                "A command abandoned before dequeue must never mutate Editor state.");
+            Assert.IsFalse(gate.HasStarted);
         }
+
         [Test]
-        public void QueueDrain_ExecutesEnqueuedAction()
+        public void MainThreadDispatchGate_DispatchStartPreventsFalseAbandonment()
         {
-            bool executed = false;
-            ReloadMiniServer.UpdateQueue.Enqueue(() => executed = true);
+            var gate = new ReloadMainThreadDispatchGate();
 
-            // Drain the queue manually (simulates EditorApplication.update).
-            while (ReloadMiniServer.UpdateQueue.TryDequeue(out var action))
-                action();
+            Assert.IsTrue(gate.TryStart());
+            Assert.IsFalse(gate.TryAbandon(),
+                "A timeout must not claim abandonment after dispatch has started.");
+            Assert.IsTrue(gate.HasStarted);
+        }
 
-            Assert.IsTrue(executed, "Enqueued action must execute after dequeue");
+        [Test]
+        public void MainThreadDispatch_AcceptsBeforeInvokingMutation()
+        {
+            var gate = new ReloadMainThreadDispatchGate();
+            var order = new List<string>();
+
+            Assert.IsTrue(gate.TryStart());
+            gate.ExecuteStarted(
+                () => order.Add("accepted"),
+                () => order.Add("dispatch"));
+
+            CollectionAssert.AreEqual(new[] { "accepted", "dispatch" }, order);
+            Assert.IsFalse(gate.TryAbandon());
+        }
+
+        [Test]
+        public void LifecycleGeneration_InvalidatesWorkCapturedBeforeAdvance()
+        {
+            var generation = new ReloadMiniServerGeneration();
+            var queue = new ConcurrentQueue<Action>();
+            var dispatchCount = 0;
+            var first = generation.Advance();
+            queue.Enqueue(generation.Bind(first, () => dispatchCount++));
+
+            Assert.IsTrue(generation.IsCurrent(first));
+            Assert.AreEqual(first, generation.Current);
+
+            var second = generation.Advance();
+            while (queue.TryDequeue(out var staleAction)) staleAction();
+            queue.Enqueue(generation.Bind(second, () => dispatchCount++));
+            while (queue.TryDequeue(out var currentAction)) currentAction();
+
+            Assert.IsFalse(generation.IsCurrent(first));
+            Assert.IsTrue(generation.IsCurrent(second));
+            Assert.AreEqual(1, dispatchCount,
+                "Only work captured for the current lifecycle may execute.");
         }
 
         [Test]
@@ -172,9 +201,13 @@ namespace UnityMCP.Reload.Tests
         }
 
         [Test]
-        public void Stop_CompletesQuicklyWithActiveClient()
+        [UnityMCP.Editor.Testing.BiomeWorkerOnly(
+            "Stops the live reload listener and must run only in a disposable worker.")]
+        public async Task Stop_CompletesQuicklyWithActiveClient()
         {
-            ReloadMiniServer.Start(19760);
+            var server = ReloadMiniServerWorkerHarness.Create();
+            server.Restart(19760);
+            RegisterCleanup(server.Stop);
             if (ReloadMiniServer.ActualPort == 0)
             {
                 Assert.Ignore("Port bind failed — skip in CI");
@@ -183,27 +216,34 @@ namespace UnityMCP.Reload.Tests
             TcpClient tc = null;
             try
             {
-                tc = new TcpClient("127.0.0.1", ReloadMiniServer.ActualPort);
-                Thread.Sleep(50); // let AcceptLoop register the client
-                var stopDone = false;
-                var t = new Thread(() => { ReloadMiniServer.Stop(); stopDone = true; });
-                t.Start();
-                bool joined = t.Join(3000);
-                Assert.IsTrue(joined, "Stop() must complete in < 3s with active client");
-                Assert.IsTrue(stopDone);
+                tc = new TcpClient();
+                await tc.ConnectAsync("127.0.0.1", ReloadMiniServer.ActualPort);
+                using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+                {
+                    await ReloadMiniServerTestAwait.WaitUntilAsync(
+                        () => ReloadMiniServerTestAwait.ActiveClientCount > 0,
+                        timeout.Token,
+                        "AcceptLoop did not register the active client within 3s");
+
+                    var stopTask = Task.Run((Action)server.Stop);
+                    await ReloadMiniServerTestAwait.WaitForTaskAsync(
+                        stopTask, timeout.Token,
+                        "Stop() must complete in < 3s with an active client");
+                }
             }
             finally
             {
                 try { tc?.Close(); } catch { }
-                ReloadMiniServer.Stop(); // idempotent cleanup
             }
+            Assert.AreEqual(0, ReloadMiniServer.ActualPort,
+                "A stopped listener must not advertise a stale port.");
         }
     }
 
     // ── Dispatch coverage: structured fields + null-stream guard + id echo ────
 
     [TestFixture]
-    public class ReloadMiniServerDispatchTests
+    public class ReloadMiniServerDispatchTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // A1: diagnose path wraps output in ok:true and preserves key fields.
         [Test]
@@ -262,7 +302,7 @@ namespace UnityMCP.Reload.Tests
     // ── Port file lifecycle: write + delete via overridable PortsDir seam ────
 
     [TestFixture]
-    public class ReloadPortResolverLifecycleTests
+    public class ReloadPortResolverLifecycleTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _originalPortsDir;
         private string _tmpDir;
@@ -274,15 +314,13 @@ namespace UnityMCP.Reload.Tests
             _tmpDir = System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),
                 "ReloadPortResolverTest_" + System.IO.Path.GetRandomFileName());
+            RegisterCleanup(() =>
+            {
+                if (System.IO.Directory.Exists(_tmpDir))
+                    System.IO.Directory.Delete(_tmpDir, true);
+            });
+            RegisterCleanup(() => ReloadPortResolver.PortsDir = _originalPortsDir);
             ReloadPortResolver.PortsDir = _tmpDir;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            ReloadPortResolver.PortsDir = _originalPortsDir;
-            try { if (System.IO.Directory.Exists(_tmpDir)) System.IO.Directory.Delete(_tmpDir, true); }
-            catch { }
         }
 
         // A6: full port-file lifecycle — write creates file with correct content, delete removes it.
@@ -312,41 +350,109 @@ namespace UnityMCP.Reload.Tests
     // ── Stress tests: source structure + concurrent Stop (CP-4) ──────────────
 
     [TestFixture]
-    public class ReloadMiniServerStressTests
+    public class ReloadMiniServerStressTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // T-E: AcceptLoop sets client.ReceiveTimeout = 30_000 (source verification)
         [Test]
         public void AcceptLoop_SetsReceiveTimeout_InSource()
         {
-            var p = System.IO.Path.GetFullPath(System.IO.Path.Combine(
-                Application.dataPath, "..", "..", "unity-plugin-reload/Editor/ReloadMiniServer.cs"));
-            if (!System.IO.File.Exists(p)) { Assert.Ignore($"Source not found: {p}"); return; }
-            var src = System.IO.File.ReadAllText(p);
+            var src = ReadRequiredPackageSource(
+                typeof(ReloadMiniServer), "Editor/ReloadMiniServer.cs");
             StringAssert.Contains("ReceiveTimeout = 30_000", src,
                 "CP-4: AcceptLoop must set client.ReceiveTimeout = 30_000 to bound blocking reads");
         }
 
         // T-F: Stop() + concurrent blocking reader — no deadlock/exception
         [Test]
-        public void Stop_ConcurrentHandleClient_DoesNotThrow()
+        [UnityMCP.Editor.Testing.BiomeWorkerOnly(
+            "Stops the live reload listener and must run only in a disposable worker.")]
+        public async Task Stop_ConcurrentHandleClient_DoesNotThrow()
         {
-            ReloadMiniServer.Start(19770);
+            var server = ReloadMiniServerWorkerHarness.Create();
+            server.Restart(19770);
+            RegisterCleanup(server.Stop);
             if (ReloadMiniServer.ActualPort == 0) { Assert.Ignore("Port bind failed — skip"); return; }
 
             Exception caught = null;
-            var client = new TcpClient("127.0.0.1", ReloadMiniServer.ActualPort);
-            var reader = new Thread(() =>
+            var client = new TcpClient();
+            await client.ConnectAsync("127.0.0.1", ReloadMiniServer.ActualPort);
+            var reader = Task.Run(() =>
             {
                 try { client.GetStream().Read(new byte[4], 0, 4); }
                 catch { } // SocketException on close = expected
             });
-            reader.Start();
-            Thread.Sleep(30); // let AcceptLoop register the client
-            try { ReloadMiniServer.Stop(); }
-            catch (Exception e) { caught = e; }
-            finally { try { client.Close(); } catch { } }
-            reader.Join(2000);
+            try
+            {
+                using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+                {
+                    await ReloadMiniServerTestAwait.WaitUntilAsync(
+                        () => ReloadMiniServerTestAwait.ActiveClientCount > 0,
+                        timeout.Token,
+                        "AcceptLoop did not register the concurrent reader within 3s");
+
+                    var stopTask = Task.Run(() =>
+                    {
+                        try { server.Stop(); }
+                        catch (Exception e) { caught = e; }
+                    });
+                    await ReloadMiniServerTestAwait.WaitForTaskAsync(
+                        stopTask, timeout.Token,
+                        "Stop() did not complete within 3s with a concurrent reader");
+                }
+            }
+            finally
+            {
+                try { client.Close(); } catch { }
+            }
+
+            using (var readerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
+            {
+                await ReloadMiniServerTestAwait.WaitForTaskAsync(
+                    reader, readerTimeout.Token,
+                    "Concurrent reader did not exit within 2s after Stop()");
+            }
             Assert.IsNull(caught, $"Stop() must not throw with concurrent reader: {caught}");
+        }
+    }
+
+    internal static class ReloadMiniServerTestAwait
+    {
+        internal static int ActiveClientCount
+        {
+            get
+            {
+                var field = typeof(ReloadMiniServer).GetField(
+                    "_activeClients", BindingFlags.NonPublic | BindingFlags.Static);
+                var clients = field?.GetValue(null) as ConcurrentDictionary<int, TcpClient>;
+                return clients?.Count ?? 0;
+            }
+        }
+
+        internal static async Task WaitUntilAsync(
+            Func<bool> predicate,
+            CancellationToken cancellationToken,
+            string timeoutMessage)
+        {
+            try
+            {
+                while (!predicate())
+                    await Task.Delay(10, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw new TimeoutException(timeoutMessage);
+            }
+        }
+
+        internal static async Task WaitForTaskAsync(
+            Task task,
+            CancellationToken cancellationToken,
+            string timeoutMessage)
+        {
+            var cancellation = Task.Delay(Timeout.Infinite, cancellationToken);
+            if (await Task.WhenAny(task, cancellation) != task)
+                throw new TimeoutException(timeoutMessage);
+            await task;
         }
     }
 }

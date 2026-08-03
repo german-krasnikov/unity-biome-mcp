@@ -5,7 +5,7 @@ using UnityMCP.Editor.Profiling;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ProfileRecorderTests
+    public class ProfileRecorderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private float _fakeTime = 0f;
 
@@ -20,8 +20,21 @@ namespace UnityMCP.Editor.Tests
         [TearDown]
         public void TearDown()
         {
+            ProfileRecorder.Reset();
             ProfileRecorder._frameProvider = ProfilerBridge.CollectFrame;
             ProfileRecorder._realtime = () => UnityEngine.Time.realtimeSinceStartup;
+        }
+
+        [Test]
+        public void Reset_WhileRecording_StopsAndCanStartAgain()
+        {
+            ProfileRecorder.Dispatch("start", "{\"mode\":\"manual\"}");
+
+            ProfileRecorder.Reset();
+
+            StringAssert.Contains("idle", ProfileRecorder.Dispatch("status", "{}"));
+            StringAssert.Contains("started",
+                ProfileRecorder.Dispatch("start", "{\"mode\":\"manual\"}"));
         }
 
         [Test]

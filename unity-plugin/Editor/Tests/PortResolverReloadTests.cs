@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PortResolverReloadTests
+    public class PortResolverReloadTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private TempDirScope _scope;
         private string _tmpFile;
@@ -71,7 +71,7 @@ namespace UnityMCP.Editor.Tests
     }
 
     [TestFixture]
-    public class MCPServerReloadPortTests
+    public class MCPServerReloadPortTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private TempDirScope _scope;
         private string _tmpFile;

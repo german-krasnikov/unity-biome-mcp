@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine.UIElements;
@@ -5,7 +6,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class LevelUpReleaseDiffTests
+    public class LevelUpReleaseDiffTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         static List<ChangelogReader.Entry> Entries(params (string ver, string content)[] items)
         {
@@ -76,11 +77,8 @@ namespace UnityMCP.Editor.Tests
     }
 
     [TestFixture]
-    public class LevelUpPanelTests
+    public class LevelUpPanelTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => UpdateChecker.ResetForTest();
-        [TearDown] public void TearDown() => UpdateChecker.ResetForTest();
-
         [Test]
         public void LevelUpPanel_Build_ReturnsNull_WhenNoUpdate()
         {
@@ -98,7 +96,7 @@ namespace UnityMCP.Editor.Tests
     }
 
     [TestFixture]
-    public class LevelUpAnimatorTests
+    public class LevelUpAnimatorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void LevelUpAnimator_Build_ReturnsVisualElement()

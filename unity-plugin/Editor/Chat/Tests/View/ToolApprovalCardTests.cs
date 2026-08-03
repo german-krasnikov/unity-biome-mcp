@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ToolApprovalCardTests
+    public class ToolApprovalCardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ToolApprovalCard Make(
             string toolName = "Bash",

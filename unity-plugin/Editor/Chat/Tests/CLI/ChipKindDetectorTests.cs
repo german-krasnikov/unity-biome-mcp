@@ -10,14 +10,12 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipKindDetectorTests
+    public class ChipKindDetectorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]  public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
         [TearDown] public void TearDown()
         {
             ChipKindRegistry.ResetToBuiltIns();
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
         // ── Scene GameObject ──────────────────────────────────────────────────

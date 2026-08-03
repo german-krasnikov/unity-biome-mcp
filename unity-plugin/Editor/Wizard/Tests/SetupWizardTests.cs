@@ -7,14 +7,10 @@ using UnityMCP.Editor.Wizard.Screens;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SetupWizardTests
+    public class SetupWizardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [TearDown]
-        public void TearDown()
-        {
-            // Clean up EditorPref set during tests
-            EditorPrefs.DeleteKey("MCPWizard.Done");
-        }
+        [SetUp]
+        public void SetUp() => DeleteEditorPrefBool("MCPWizard.Done");
 
         // ── Screen factory tests ──────────────────────────────────────────────
 

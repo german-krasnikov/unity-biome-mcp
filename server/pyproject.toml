@@ -1,6 +1,6 @@
 [project]
 name = "unity-biome-mcp"
-version = "1.10.0"
+version = "1.10.3"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]
@@ -46,7 +46,7 @@ filterwarnings = [
 ]
 markers = [
     "live: requires running Unity Editor with MCP plugin on :9500",
-    "live_cli: also calls real claude CLI (~$0.001/call) — opt-in via 'pytest -m \"live and live_cli\"'",
+    "live_cli: paid external CLI/API call; opt-in with UNITY_MCP_RUN_LIVE_CLI=1",
     "monkey: stress/chaos tests for chat_relay (connection storms, process leaks, protocol torture)",
     "live_chat: requires running Unity + MCPChatWindow; subset of live",
 ]
@@ -57,5 +57,3 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/unity_mcp"]
-
-

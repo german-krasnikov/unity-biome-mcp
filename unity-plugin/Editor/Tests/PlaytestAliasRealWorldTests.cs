@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestAliasRealWorldTests
+    public class PlaytestAliasRealWorldTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // B1 — Full combat scenario: VAL + VAR + WAIT_UNTIL + INVOKE
         [Test]

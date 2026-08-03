@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelayEventParserTests
+    public class RelayEventParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Parse_TextDelta_ReturnsTextDelta()

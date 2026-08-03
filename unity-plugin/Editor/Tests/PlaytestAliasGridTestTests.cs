@@ -9,14 +9,8 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestAliasGridTestTests
+    public class PlaytestAliasGridTestTests : SceneTestBase
     {
-        [TearDown]
-        public void TearDown()
-        {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        }
-
         // ── Category A: VAL on Real GridTest Paths (parse-time) ─────────────────
 
         // A1 — Basic VAL expands to GridPlayer query

@@ -4,7 +4,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ProjectConfigTargetsTests
+    public class ProjectConfigTargetsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void RelativePathFor_KnownKey_ReturnsPath()

@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SessionButtonTests
+    public class SessionButtonTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Phase 3: tooltip updated to "Session menu" (now a dropdown with New Session + Resume CLI).
         [Test]

@@ -16,6 +16,31 @@ namespace UnityMCP.Editor
         internal static bool HasConnectionSubscribers => OnBuildConnection != null;
         internal static void ResetConnectionEvent() => OnBuildConnection = null;
 
+#if UNITY_INCLUDE_TESTS
+        /// <summary>
+        /// Preserve the complete invocation list for a test scope. This keeps
+        /// subscribers installed by Chat or third-party packages alive across tests.
+        /// </summary>
+        internal static IDisposable PreserveConnectionEventForTests()
+            => new ConnectionEventScope(OnBuildConnection);
+
+        private sealed class ConnectionEventScope : IDisposable
+        {
+            private Action<VisualElement> _snapshot;
+            private bool _disposed;
+
+            internal ConnectionEventScope(Action<VisualElement> snapshot) => _snapshot = snapshot;
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                OnBuildConnection = _snapshot;
+                _snapshot = null;
+                _disposed = true;
+            }
+        }
+#endif
+
         internal static void InvokeConnectionViaReflection(VisualElement root)
         {
             try

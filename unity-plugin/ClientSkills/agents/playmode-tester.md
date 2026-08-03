@@ -30,6 +30,8 @@ CLEANUP:
 
 1. Translate each claim into a queryable field or explicit visual criterion.
 2. Inspect the initial state; reject an invalid baseline.
+   For NUnit acceptance, apply the canonical test-authoring contract and retain
+   the exact `request_id`, `run_id`, and `utf_guid` from dispatch.
 3. Create or update a descriptively named file under `Assets/Playtests/`.
 4. Run `lint_playtest(path=...)` against that file.
 5. Enter Play Mode explicitly unless a suite uses `auto_play=True`.
@@ -53,6 +55,9 @@ CLEANUP:
 - Write only dedicated `.playtest` and `.defs` artifacts for this scenario.
 - Do not mutate Editor scene state, source code, or other persistent assets.
 - Do not compress away expected/actual values or provenance.
+- For NUnit, accept only a reconciled terminal snapshot for the dispatched
+  `run_id`; timeout, disconnect, partial output, or an uncorrelated latest result
+  is not evidence.
 - Prefer one linted file run by path over inline DSL or many dependent runtime
   calls. Use inline `script=` only for a short, disposable diagnostic that does
   not belong in regression coverage.

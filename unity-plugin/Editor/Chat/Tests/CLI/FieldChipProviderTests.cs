@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class FieldChipProviderTests
+    public class FieldChipProviderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         FieldChipProvider _provider;
 

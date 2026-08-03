@@ -1,11 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityMCP.Editor.TestRuns;
 
 #if UNITY_INCLUDE_TESTS
 using UnityEditor.TestTools.TestRunner.Api;
@@ -13,398 +10,229 @@ using UnityEditor.TestTools.TestRunner.Api;
 
 namespace UnityMCP.Editor
 {
+    /// <summary>
+    /// MCP facade for Unity Test Framework. The durable store and one global
+    /// observer own lifecycle truth; this facade only dispatches and projects it.
+    /// </summary>
     public static class TestRunner
     {
-        private static int _isRunning;
-        private static double _runStartedAt;
-        internal const string KeyPending = "UnityMCP_tests_pending";
-        internal const string KeyResults = "UnityMCP_test_results";
-        internal const string KeyProgress = "UnityMCP_test_progress";
-        private const string KeyStartTime = "UnityMCP_tests_start";
+        internal const string TempScenePath = "Assets/TestsTemp/__mcp_test_temp.unity";
         private const string KeyTestCount = "UnityMCP_test_count";
         private const string KeyCountDiscovering = "UnityMCP_count_discovering";
-        internal const string TempScenePath = "Assets/TestsTemp/__mcp_test_temp.unity";
-        private const double StaleTimeoutSec = 600.0; // 10 min max test run
+        private const string KeyTestCountFingerprint = "UnityMCP_test_count_fingerprint";
+        private const string KeyCountGeneration = "UnityMCP_test_count_generation";
+        private static readonly string CountDomainGeneration = Guid.NewGuid().ToString("N");
 
-        private static readonly System.Reflection.MethodInfo _clearSceneDirty =
-            typeof(EditorSceneManager).GetMethod("ClearSceneDirtiness",
-                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic,
-                null, new[] { typeof(UnityEngine.SceneManagement.Scene) }, null);
+#if UNITY_INCLUDE_TESTS
+        private static TestRunService _service;
 
-        private static void ClearAllScenesDirty()
+        private static TestRunService Service => _service ?? (_service = new TestRunService(
+            ProductionStore(),
+            new UnityTestRunEnvironmentController(),
+            new UnityTestFrameworkDriver(),
+            TestRunBuildFingerprintProbe.Capture,
+            () => EditorApplication.isPlaying,
+            CommandRouter.DefaultIsCompiling,
+            () => SyncHelper.IsCompileClean,
+            UtcNow));
+#endif
+
+        internal static TestRunStore ProductionStore() => TestRunStore.ForProject(
+            Path.GetFullPath(Path.Combine(Application.dataPath, "..")));
+
+        internal static bool IsRunning
         {
-            if (_clearSceneDirty == null) return;
-            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            get
             {
-                var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
-                if (s.isDirty)
-                    _clearSceneDirty.Invoke(null, new object[] { s });
+                try
+                {
+                    var store = ProductionStore();
+                    return store.TryReadActive(out var pointer) &&
+                           store.TryReadRun(pointer.run_id, out var run) &&
+                           run.lifecycle != TestRunProtocol.Lifecycle.Terminal;
+                }
+                catch
+                {
+                    return false;
+                }
             }
         }
 
-        // Testable seam — override in tests to avoid Editor-uptime dependency
-        internal static Func<double> GetTimeSinceStartup = () => EditorApplication.timeSinceStartup;
-        internal static Func<bool> GetIsCompiling    = CommandRouter.DefaultIsCompiling;
-        internal static Func<bool> GetIsCompileClean = () => SyncHelper.IsCompileClean;
+        public static string GetResults() => GetResults(null);
 
-        internal static bool IsRunning => _isRunning == 1
-            || SessionState.GetBool(KeyPending, false);
-
-        [InitializeOnLoadMethod]
-        private static void ResetOnReload()
+        public static string GetResults(string runId)
         {
-            _isRunning = 0;
-            // Restore persisted results instead of unconditionally clearing.
-            // Domain reload wipes volatile SessionState; file-backed results survive.
-            RestorePersistedResults();
-            // Clear cached count — new assemblies may have been compiled.
-            SessionState.SetString(KeyTestCount, "");
-            SessionState.SetBool(KeyCountDiscovering, false);
 #if UNITY_INCLUDE_TESTS
-            // Re-register callbacks if tests were running when domain reload occurred.
-            // Unity Test Framework preserves execution state; only our callbacks are lost.
-            if (!SessionState.GetBool(KeyPending, false)) return;
-            // If domain reload was triggered by Play Mode entry, UTF cannot continue an
-            // EditMode test run — its job pipeline calls EditorSceneManager APIs that are
-            // banned in Play Mode (SaveCurrentModifiedScenesIfUserWantsTo, NewScene).
-            // Clear the stale pending flag instead of re-registering.
-            if (EditorApplication.isPlaying)
-            {
-                SessionState.SetBool(KeyPending, false);
-                SessionState.SetFloat(KeyStartTime, 0f);
-                return;
-            }
-            var api = ScriptableObject.CreateInstance<TestRunnerApi>();
-            api.RegisterCallbacks(new ResultCollector(null, api, true));
+            return Service.GetLegacyResults(runId);
+#else
+            return "none";
 #endif
         }
 
-        /// <summary>Returns stored test results, "pending" if running, or "none" if no run.</summary>
-        public static string GetResults()
-        {
-            if (SessionState.GetBool(KeyPending, false))
-            {
-                // Clear stale pending flag (crashed/cancelled test run)
-                var start = SessionState.GetFloat(KeyStartTime, 0f);
-                if (start > 0f && GetTimeSinceStartup() - start > StaleTimeoutSec)
-                {
-                    SessionState.SetBool(KeyPending, false);
-                    return "none (stale pending cleared)";
-                }
-                return "pending";
-            }
-            var r = SessionState.GetString(KeyResults, "");
-            return string.IsNullOrEmpty(r) ? "none" : r;
-        }
+        public static string GetProgress() => GetProgress(null);
 
-        /// <summary>Returns real-time test progress: "idle", "pending|no-progress-yet", or "running|ran|passed|failed|skipped|total|elapsed|eta=Ns".</summary>
-        public static string GetProgress()
+        public static string GetProgress(string runId)
         {
-            if (!SessionState.GetBool(KeyPending, false))
-                return "idle";
-            var p = SessionState.GetString(KeyProgress, "");
-            if (string.IsNullOrEmpty(p))
-                return "pending|no-progress-yet";
-            var parts = p.Split('|');
-            if (parts.Length >= 6
-                && int.TryParse(parts[0], out var ran)
-                && int.TryParse(parts[4], out var total)
-                && double.TryParse(parts[5], System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var elapsed)
-                && ran > 0 && total > 0)
-            {
-                var rate = elapsed / ran;
-                var remaining = (total - ran) * rate;
-                return $"running|{p}|eta={remaining:F0}s";
-            }
-            return $"running|{p}";
-        }
-
-        /// <summary>Restores last persisted test results into SessionState (called on domain reload).</summary>
-        internal static void RestorePersistedResults()
-        {
-            var persisted = TestResultPersistence.Load();
-            SessionState.SetString(KeyResults, persisted ?? "");
-        }
-
-        /// <summary>Parses a raw Execute() completion result into (ok, text) for the async
-        /// command router, ending the current undo group unconditionally first (C7a, review
-        /// sprint v0.70 — extracted from CommandRouter.AsyncRunTests' completion callback).</summary>
-        internal static (bool ok, string text) FinishRun(string result)
-        {
-            UndoGroupHelper.EndGroup();
-            return result.StartsWith("Error:") ? (false, result.Substring(7)) : (true, result);
-        }
-
 #if UNITY_INCLUDE_TESTS
-        public static void Execute(string mode, Action<string> onComplete, string group = null, string filter = null)
+            return Service.GetLegacyProgress(runId);
+#else
+            return "idle";
+#endif
+        }
+
+        public static string ResolveRequest(string requestId)
         {
-            if (EditorApplication.isPlaying)
-            {
-                onComplete?.Invoke("Error: cannot run tests in Play Mode — stop Play Mode first");
-                return;
-            }
+#if UNITY_INCLUDE_TESTS
+            return Service.Resolve(requestId);
+#else
+            return "none";
+#endif
+        }
 
-            if (GetIsCompiling())
-            {
-                onComplete?.Invoke("Error: compilation in progress — poll sync_status and retry after compile completes");
-                return;
-            }
+        public static string GetRun(string runId)
+        {
+#if UNITY_INCLUDE_TESTS
+            return Service.GetRunJson(runId);
+#else
+            return "none";
+#endif
+        }
 
-            if (!GetIsCompileClean())
-            {
-                onComplete?.Invoke("Error: domain reload pending — poll sync_status and retry after reload completes");
-                return;
-            }
+        public static string CancelRun(string runId)
+        {
+#if UNITY_INCLUDE_TESTS
+            return Service.Cancel(runId);
+#else
+            return "cancel-rejected|run_id=" + (runId ?? "") + "|reason=utf-unavailable";
+#endif
+        }
 
-            if (_isRunning == 1 && GetTimeSinceStartup() - _runStartedAt > 120.0)
-                _isRunning = 0;
+        public static string ListRuns(int limit = 20)
+        {
+#if UNITY_INCLUDE_TESTS
+            return Service.ListRunsJson(limit);
+#else
+            return "{\"schema_version\":1,\"runs\":[]}";
+#endif
+        }
 
-            if (System.Threading.Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
-            {
-                onComplete("Error: test run already in progress");
-                return;
-            }
-            _runStartedAt = EditorApplication.timeSinceStartup;
-            SessionState.SetBool(KeyPending, true);
-            SessionState.SetFloat(KeyStartTime, (float)EditorApplication.timeSinceStartup);
-            SessionState.SetString(KeyResults, "");
+        /// <summary>
+        /// Dispatches synchronously and invokes onComplete with the immediate GUID
+        /// acknowledgement. RunFinished is intentionally not awaited here.
+        /// </summary>
+        public static void Execute(
+            string mode,
+            Action<string> onComplete,
+            string group = null,
+            string filter = null) =>
+            Execute(mode, onComplete, group, filter,
+                "direct-" + Guid.NewGuid().ToString("N"));
 
+        public static void Execute(
+            string mode,
+            Action<string> onComplete,
+            string group,
+            string filter,
+            string requestId)
+        {
+            if (onComplete == null) throw new ArgumentNullException(nameof(onComplete));
+#if UNITY_INCLUDE_TESTS
             try
             {
-                // Unity Test Framework runs EnsureUntitledSceneHasBeenSaved (path=="")
-                // and SaveCurrentModifiedScenesIfUserWantsTo (isDirty). Both show modal
-                // dialogs that block the main thread. Force a named clean scene.
-                var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-                bool fileMissing = !string.IsNullOrEmpty(scene.path)
-                    && AssetDatabase.AssetPathToGUID(scene.path) == "";
-                if (scene.isDirty || string.IsNullOrEmpty(scene.path) || fileMissing)
-                {
-                    if (!string.IsNullOrEmpty(scene.path) && (scene.isDirty || fileMissing))
-                        EditorSceneManager.SaveScene(scene);
-                    else
-                    {
-                        var s = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-                        var dir = Path.GetDirectoryName(TempScenePath);
-                        if (!Directory.Exists(Path.Combine(Application.dataPath, "..", dir)))
-                            Directory.CreateDirectory(Path.Combine(Application.dataPath, "..", dir));
-                        EditorSceneManager.SaveScene(s, TempScenePath);
-                    }
-                }
-
-                var api = ScriptableObject.CreateInstance<TestRunnerApi>();
-                var collector = new ResultCollector(onComplete, api);
-                api.RegisterCallbacks(collector);
-
-                var f = new Filter { testMode = ParseMode(mode) };
-                if (!string.IsNullOrEmpty(group)) f.groupNames = new[] { group };
-                if (!string.IsNullOrEmpty(filter)) f.groupNames = filter.Split(new[] { '|' }, System.StringSplitOptions.RemoveEmptyEntries);
-                api.Execute(new ExecutionSettings(f));
+                onComplete(Service.Start(requestId, mode, group, filter));
             }
             catch (Exception e)
             {
-                System.Threading.Interlocked.Exchange(ref _isRunning, 0);
-                SessionState.SetBool(KeyPending, false);
-                SessionState.SetFloat(KeyStartTime, 0f);
-                onComplete($"Error: {e.Message}");
+                onComplete("Error: " + e.Message);
             }
+#else
+            onComplete("Error: com.unity.test-framework package not installed");
+#endif
         }
 
-        private static TestMode ParseMode(string mode)
+        internal static (bool ok, string text) FinishRun(string result)
         {
-            if (string.IsNullOrEmpty(mode) || mode == "EditMode")
-                return TestMode.EditMode;
-            if (mode == "PlayMode")
-                return TestMode.PlayMode;
-            Debug.LogWarning($"[MCP] Unknown test mode '{mode}', defaulting to EditMode");
-            return TestMode.EditMode;
+            UndoGroupHelper.EndGroup();
+            if (result != null && result.StartsWith("Error:", StringComparison.Ordinal))
+                return (false, result.Substring(6).TrimStart());
+            return (true, result ?? "");
         }
 
-        private class ResultCollector : ICallbacks
-        {
-            private readonly Action<string> _onComplete;
-            private readonly TestRunnerApi _api;
-            private readonly bool _destroyApi;
-            private readonly List<TestCaseResult> _results = new List<TestCaseResult>();
-            private DateTime _startTime;
-            private int _totalCount;
-
-            private struct TestCaseResult
-            {
-                public string Name;
-                public string Status;
-                public double Duration;
-                public string Message;
-            }
-
-            public ResultCollector(Action<string> onComplete, TestRunnerApi api, bool destroyApi = false)
-            {
-                _onComplete = onComplete;
-                _api = api;
-                _destroyApi = destroyApi;
-                _startTime = DateTime.Now;
-            }
-
-            public void RunStarted(ITestAdaptor testsToRun)
-            {
-                _startTime = DateTime.Now;
-                _totalCount = testsToRun.TestCaseCount;
-                SessionState.SetString(KeyProgress, $"0|0|0|0|{_totalCount}|0.0");
-            }
-
-            public void TestStarted(ITestAdaptor test) { }
-
-            public void TestFinished(ITestResultAdaptor result)
-            {
-                if (!result.Test.IsSuite)
-                {
-                    _results.Add(new TestCaseResult
-                    {
-                        Name = result.Test.FullName,
-                        Status = result.TestStatus.ToString(),
-                        Duration = result.Duration,
-                        Message = result.Message
-                    });
-                    var ran = _results.Count;
-                    var passed = _results.Count(r => r.Status == "Passed");
-                    var failed = _results.Count(r => r.Status == "Failed");
-                    var skipped = _results.Count(r => r.Status == "Skipped");
-                    var elapsed = (DateTime.Now - _startTime).TotalSeconds;
-                    SessionState.SetString(KeyProgress,
-                        $"{ran}|{passed}|{failed}|{skipped}|{_totalCount}|{elapsed:F1}");
-                }
-            }
-
-            public void RunFinished(ITestResultAdaptor result)
-            {
-                _api.UnregisterCallbacks(this);
-                if (_destroyApi) UnityEngine.Object.DestroyImmediate(_api);
-                System.Threading.Interlocked.Exchange(ref _isRunning, 0);
-                var formatted = FormatResults();
-                SessionState.SetString(KeyResults, formatted);
-                SessionState.SetString(KeyProgress, "");
-                SessionState.SetBool(KeyPending, false);
-                SessionState.SetFloat(KeyStartTime, 0f);
-                TestResultPersistence.Save(formatted);
-                try { _onComplete?.Invoke(formatted); }
-                catch (Exception e) { Debug.LogException(e); }
-                ClearAllScenesDirty();
-                EditorApplication.delayCall += DeleteTempScene;
-            }
-
-            private static void DeleteTempScene()
-            {
-                if (_isRunning == 1) return;
-                if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().path == TempScenePath) return;
-                if (AssetDatabase.AssetPathToGUID(TempScenePath) != "")
-                    AssetDatabase.DeleteAsset(TempScenePath);
-            }
-
-            private string FormatResults()
-            {
-                var elapsed = (DateTime.Now - _startTime).TotalSeconds;
-                var passed = _results.Count(r => r.Status == "Passed");
-                var failed = _results.Count(r => r.Status == "Failed");
-                var skipped = _results.Count(r => r.Status == "Skipped");
-
-                var sb = new StringBuilder();
-                sb.AppendFormat("{0} tests: {1} passed", _results.Count, passed);
-                if (failed > 0) sb.AppendFormat(", {0} FAILED", failed);
-                if (skipped > 0) sb.AppendFormat(", {0} skipped", skipped);
-                sb.AppendFormat(" ({0:F1}s)", elapsed);
-
-                foreach (var r in _results.Where(r => r.Status == "Failed"))
-                {
-                    sb.AppendLine();
-                    sb.AppendFormat("FAIL {0} ({1:F2}s)", r.Name, r.Duration);
-                    if (!string.IsNullOrEmpty(r.Message))
-                    {
-                        sb.AppendLine();
-                        sb.Append("  ").Append(r.Message);
-                    }
-                }
-
-                return sb.ToString();
-            }
-        }
-        /// <summary>Discovery-only: returns total|edit=N|play=M. First call returns "discovering", subsequent calls return cached result.</summary>
+#if UNITY_INCLUDE_TESTS
+        /// <summary>
+        /// Discovery-only count. It has no lifecycle role and may use a small
+        /// SessionState cache because a stale count can never certify a run.
+        /// </summary>
         public static string GetTestCount()
         {
+            var build = TestRunBuildFingerprintProbe.Capture();
+            if (!build.IsCoherent)
+                return "unavailable|build-incoherent|" + build.Error;
+            var fingerprint = build.Fingerprint ?? "";
             var cached = SessionState.GetString(KeyTestCount, "");
-            if (!string.IsNullOrEmpty(cached)) return cached;
+            if (!string.IsNullOrEmpty(cached) && string.Equals(
+                    SessionState.GetString(KeyTestCountFingerprint, ""), fingerprint,
+                    StringComparison.Ordinal))
+                return cached;
+            SessionState.SetString(KeyTestCount, "");
 
-            if (SessionState.GetBool(KeyCountDiscovering, false)) return "discovering";
+            var sameDomain = string.Equals(
+                SessionState.GetString(KeyCountGeneration, ""),
+                CountDomainGeneration, StringComparison.Ordinal);
+            if (SessionState.GetBool(KeyCountDiscovering, false) && sameDomain)
+                return "discovering";
 
             SessionState.SetBool(KeyCountDiscovering, true);
-            int editCount = 0, playCount = 0;
-            int pending = 2;
-
+            SessionState.SetString(KeyCountGeneration, CountDomainGeneration);
+            var editCount = 0;
+            var playCount = 0;
+            var pending = 2;
             var api = ScriptableObject.CreateInstance<TestRunnerApi>();
-            api.RetrieveTestList(TestMode.EditMode, root =>
+            try
             {
-                editCount = root.TestCaseCount;
-                if (--pending == 0) StoreCount(api, editCount, playCount);
-            });
-            api.RetrieveTestList(TestMode.PlayMode, root =>
+                api.RetrieveTestList(TestMode.EditMode, root =>
+                {
+                    editCount = root?.TestCaseCount ?? 0;
+                    if (System.Threading.Interlocked.Decrement(ref pending) == 0)
+                        StoreCount(api, editCount, playCount, fingerprint,
+                            CountDomainGeneration);
+                });
+                api.RetrieveTestList(TestMode.PlayMode, root =>
+                {
+                    playCount = root?.TestCaseCount ?? 0;
+                    if (System.Threading.Interlocked.Decrement(ref pending) == 0)
+                        StoreCount(api, editCount, playCount, fingerprint,
+                            CountDomainGeneration);
+                });
+            }
+            catch
             {
-                playCount = root.TestCaseCount;
-                if (--pending == 0) StoreCount(api, editCount, playCount);
-            });
+                UnityEngine.Object.DestroyImmediate(api);
+                SessionState.SetBool(KeyCountDiscovering, false);
+                throw;
+            }
             return "discovering";
         }
 
-        private static void StoreCount(TestRunnerApi api, int editCount, int playCount)
+        private static void StoreCount(
+            TestRunnerApi api,
+            int editCount,
+            int playCount,
+            string fingerprint,
+            string generation)
         {
             UnityEngine.Object.DestroyImmediate(api);
-            var total = editCount + playCount;
-            var result = $"{total}|edit={editCount}|play={playCount}";
-            SessionState.SetString(KeyTestCount, result);
+            if (!string.Equals(SessionState.GetString(KeyCountGeneration, ""),
+                    generation, StringComparison.Ordinal)) return;
+            SessionState.SetString(KeyTestCount,
+                (editCount + playCount) + "|edit=" + editCount + "|play=" + playCount);
+            SessionState.SetString(KeyTestCountFingerprint, fingerprint);
             SessionState.SetBool(KeyCountDiscovering, false);
         }
 #else
-        public static void Execute(string mode, Action<string> onComplete, string group = null, string filter = null)
-        {
-            onComplete("Error: com.unity.test-framework package not installed");
-        }
-
         public static string GetTestCount() => "0|edit=0|play=0";
 #endif
 
-        /// <summary>File-backed persistence for test results — survives domain reload.
-        /// Saves/loads from ~/.unity-biome-mcp/test-results/port-{port}.txt.</summary>
-        internal static class TestResultPersistence
-        {
-            // Seam: redirect to temp dir in tests to avoid touching real ~/.unity-biome-mcp/
-            internal static string FilePathOverride = null;
-
-            private static string FilePath => FilePathOverride ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-biome-mcp", "test-results",
-                $"port-{PortFileManager.Port}.txt");
-
-            internal static void Save(string results)
-            {
-                try
-                {
-                    var path = FilePath;
-                    Directory.CreateDirectory(Path.GetDirectoryName(path));
-                    var tmp = path + ".tmp";
-                    File.WriteAllText(tmp, results);
-                    try { File.Delete(path); } catch { }
-                    File.Move(tmp, path);
-                }
-                catch { }
-            }
-
-            internal static string Load()
-            {
-                try
-                {
-                    var path = FilePath;
-                    return File.Exists(path) ? File.ReadAllText(path) : null;
-                }
-                catch { return null; }
-            }
-        }
+        private static string UtcNow() => DateTime.UtcNow.ToString("O");
     }
 }

@@ -38,10 +38,14 @@ namespace UnityMCP.Editor.Chat.Tests
     }
 
     [TestFixture]
-    public class ChipKindRegistryTests
+    public class ChipKindRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]
+        public void SetUp()
+        {
+            RegisterCleanup(ChipKindRegistry.PreserveStateForTests().Dispose);
+            ChipKindRegistry.ResetToBuiltIns();
+        }
 
         // (a) Resolve routes Mesh to FakeProvider
         [Test]

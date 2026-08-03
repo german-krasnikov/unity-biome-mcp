@@ -6,7 +6,7 @@ namespace UnityMCP.Editor.Tests
     // Additive overload regression guard — existing WizardConfigWriterTests /
     // GitInstallUrlForTests must stay green and unedited (zero-behavior-change contract).
     [TestFixture]
-    public class WizardConfigWriterOverloadTests
+    public class WizardConfigWriterOverloadTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string CustomUrl =
             "git+https://example.com/fork.git@v9.9.9#subdirectory=server";

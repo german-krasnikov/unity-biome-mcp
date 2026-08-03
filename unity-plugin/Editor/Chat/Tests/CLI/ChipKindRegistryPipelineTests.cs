@@ -9,10 +9,14 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipKindRegistryPipelineTests
+    public class ChipKindRegistryPipelineTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]
+        public void SetUp()
+        {
+            RegisterCleanup(ChipKindRegistry.PreserveStateForTests().Dispose);
+            ChipKindRegistry.ResetToBuiltIns();
+        }
 
         // (c) Full pipeline: ResolveAllTyped → FormatPayload emits [custom_widget:...]
         [Test]
@@ -140,6 +144,23 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = ChipKindRegistry.Register(bad);
             Assert.IsFalse(result);
             Assert.IsNull(ChipKindRegistry.ForKey("INVALID KEY!"));
+        }
+
+        [Test]
+        public void PreserveStateForTests_RestoresProviderIdentityAndVersionExactly()
+        {
+            var provider = new FakeProvider();
+            ChipKindRegistry.Register(provider);
+            var version = ChipKindRegistry.Version;
+
+            using (ChipKindRegistry.PreserveStateForTests())
+            {
+                ChipKindRegistry.ResetToBuiltIns();
+                Assert.IsNull(ChipKindRegistry.ForKey(provider.Key));
+            }
+
+            Assert.AreEqual(version, ChipKindRegistry.Version);
+            Assert.AreSame(provider, ChipKindRegistry.ForKey(provider.Key));
         }
 
         private sealed class BadKeyProvider : IChipKindProvider

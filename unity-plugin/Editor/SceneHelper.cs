@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityMCP.Editor.TestRuns;
 
 namespace UnityMCP.Editor
 {
@@ -132,8 +133,7 @@ namespace UnityMCP.Editor
             current = SceneManager.GetActiveScene();
             if (string.IsNullOrEmpty(current.path))
             {
-                if (!AssetDatabase.IsValidFolder("Assets/TestsTemp"))
-                    AssetDatabase.CreateFolder("Assets", "TestsTemp");
+                TestRunAssetOwnership.EnsureRoot();
                 EditorSceneManager.SaveScene(current, TestRunner.TempScenePath, false);
             }
 

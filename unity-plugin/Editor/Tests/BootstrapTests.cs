@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class BootstrapTests
+    public class BootstrapTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void MCPServer_CallsInitDefaults_BeforeTcpBind()

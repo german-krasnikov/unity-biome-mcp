@@ -5,7 +5,7 @@ namespace UnityMCP.Editor.Tests
     // ── CS5.test.5 — MCPStatusModel.GetSub(State) coverage ───────────────────
 
     [TestFixture]
-    public class MCPStatusModelGetSubStateTests
+    public class MCPStatusModelGetSubStateTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void GetSub_State_Down_ReturnsServerStopped()

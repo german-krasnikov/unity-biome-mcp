@@ -2,13 +2,14 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MCPBatchAtomicTests
+    public class MCPBatchAtomicTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private List<GameObject> _toDestroy = new List<GameObject>();
 

@@ -4,7 +4,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class BackendDescriptorTests
+    public class BackendDescriptorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void AllBackends_HaveNonEmptyNames()

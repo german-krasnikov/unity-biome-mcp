@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class JsonArrayScanTests
+    public class JsonArrayScanTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static string Next(string json, ref int pos)
             => JsonArrayScan.ExtractNextObject(json, ref pos);

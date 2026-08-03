@@ -6,42 +6,37 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class RelayTcpClientTests
+    public class RelayTcpClientTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private TcpListener          _listener;
         private int                  _port;
         private RelayTcpClient       _sut;
-        private ManualResetEventSlim _serverDone;
+        private Task                 _serverTask;
 
         [SetUp]
         public void SetUp()
         {
             _listener = new TcpListener(IPAddress.Loopback, 0);
             _listener.Start();
+            RegisterCleanup(() => _listener?.Stop());
             _port = ((IPEndPoint)_listener.LocalEndpoint).Port;
             _sut  = new RelayTcpClient();
-            _serverDone = new ManualResetEventSlim(false);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            _sut?.Dispose();
-            try { _listener?.Stop(); } catch { }
+            RegisterCleanup(() => _sut?.Dispose());
+            _serverTask = null;
         }
 
         // ── Server helpers ─────────────────────────────────────────────────────
 
-        // Start a server thread that accepts one client and invokes handler.
+        // Start a tracked server worker that accepts one client and invokes handler.
         private void StartServer(Action<NetworkStream> handler)
         {
-            new Thread(() =>
+            _serverTask = Task.Run(() =>
             {
                 try
                 {
@@ -49,8 +44,20 @@ namespace UnityMCP.Editor.Chat.Tests
                     handler(client.GetStream());
                 }
                 catch { /* expected in error-path tests */ }
-                finally { _serverDone.Set(); }
-            }) { IsBackground = true }.Start();
+            });
+        }
+
+        private void StartAsyncServer(Func<NetworkStream, Task> handler)
+        {
+            _serverTask = Task.Run(async () =>
+            {
+                try
+                {
+                    using var client = _listener.AcceptTcpClient();
+                    await handler(client.GetStream());
+                }
+                catch { /* expected in error-path tests */ }
+            });
         }
 
         // Read one frame (header + payload) from stream. Returns payload bytes.
@@ -99,7 +106,13 @@ namespace UnityMCP.Editor.Chat.Tests
             }
         }
 
-        private void WaitServer(int ms = 2000) => _serverDone.Wait(ms);
+        private async Task WaitServerAsync(int timeoutMs = 2000)
+        {
+            Assert.IsNotNull(_serverTask, "Server worker was not started");
+            var completed = await Task.WhenAny(_serverTask, Task.Delay(timeoutMs));
+            Assert.AreSame(_serverTask, completed, $"Server worker did not complete within {timeoutMs}ms");
+            await _serverTask;
+        }
 
         // ── Group 1: IsConnected state ─────────────────────────────────────────
 
@@ -110,32 +123,32 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void Connect_ValidPort_IsConnectedTrue()
+        public async Task Connect_ValidPort_IsConnectedTrue()
         {
             StartServer(_ => { });
             _sut.Connect(_port);
             Assert.IsTrue(_sut.IsConnected);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void IsConnected_AfterClose_IsFalse()
+        public async Task IsConnected_AfterClose_IsFalse()
         {
             StartServer(_ => { });
             _sut.Connect(_port);
             _sut.Close();
             Assert.IsFalse(_sut.IsConnected);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void IsConnected_AfterDispose_IsFalse()
+        public async Task IsConnected_AfterDispose_IsFalse()
         {
             StartServer(_ => { });
             _sut.Connect(_port);
             _sut.Dispose();
             Assert.IsFalse(_sut.IsConnected);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
@@ -145,11 +158,11 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void Dispose_Idempotent_DoesNotThrow()
+        public async Task Dispose_Idempotent_DoesNotThrow()
         {
             StartServer(_ => { });
             _sut.Connect(_port);
-            WaitServer();
+            await WaitServerAsync();
             Assert.DoesNotThrow(() =>
             {
                 _sut.Dispose();
@@ -161,7 +174,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Group 2: Send-side framing ─────────────────────────────────────────
 
         [Test]
-        public void SendCommand_Writes4ByteBigEndianHeader()
+        public async Task SendCommand_Writes4ByteBigEndianHeader()
         {
             byte[] header = null;
             StartServer(s =>
@@ -172,14 +185,14 @@ namespace UnityMCP.Editor.Chat.Tests
             });
             _sut.Connect(_port);
             _sut.SendCommand("{\"cmd\":\"ping\"}");
-            WaitServer();
+            await WaitServerAsync();
 
             Assert.IsNotNull(header);
             Assert.AreEqual(4, header.Length);
         }
 
         [Test]
-        public void SendCommand_HeaderValueMatchesUtf8ByteCount()
+        public async Task SendCommand_HeaderValueMatchesUtf8ByteCount()
         {
             const string json = "{\"cmd\":\"test\",\"x\":42}";
             var expected = (uint)Encoding.UTF8.GetByteCount(json);
@@ -192,13 +205,13 @@ namespace UnityMCP.Editor.Chat.Tests
             });
             _sut.Connect(_port);
             _sut.SendCommand(json);
-            WaitServer();
+            await WaitServerAsync();
 
             Assert.AreEqual(expected, actual);
         }
 
         [Test]
-        public void SendCommand_PayloadMatchesInputUtf8Bytes()
+        public async Task SendCommand_PayloadMatchesInputUtf8Bytes()
         {
             const string json = "{\"cmd\":\"spawn\"}";
             byte[] expected = Encoding.UTF8.GetBytes(json);
@@ -210,13 +223,13 @@ namespace UnityMCP.Editor.Chat.Tests
             });
             _sut.Connect(_port);
             _sut.SendCommand(json);
-            WaitServer();
+            await WaitServerAsync();
 
             CollectionAssert.AreEqual(expected, actual);
         }
 
         [Test]
-        public void SendCommand_AsciiString_HeaderEqualsStringLength()
+        public async Task SendCommand_AsciiString_HeaderEqualsStringLength()
         {
             // For pure ASCII, UTF-8 byte count == string length
             const string json = "{\"a\":1}";
@@ -229,13 +242,13 @@ namespace UnityMCP.Editor.Chat.Tests
             });
             _sut.Connect(_port);
             _sut.SendCommand(json);
-            WaitServer();
+            await WaitServerAsync();
 
             Assert.AreEqual((uint)json.Length, headerLen);
         }
 
         [Test]
-        public void SendCommand_MultibyteUtf8_HeaderEqualsEncodedByteCount()
+        public async Task SendCommand_MultibyteUtf8_HeaderEqualsEncodedByteCount()
         {
             // "héllo" — 'é' is 2 bytes in UTF-8
             const string json = "{\"msg\":\"héllo\"}";
@@ -248,7 +261,7 @@ namespace UnityMCP.Editor.Chat.Tests
             });
             _sut.Connect(_port);
             _sut.SendCommand(json);
-            WaitServer();
+            await WaitServerAsync();
 
             Assert.AreEqual((uint)Encoding.UTF8.GetByteCount(json), headerLen);
         }
@@ -256,7 +269,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Group 3: Receive-side framing ──────────────────────────────────────
 
         [Test]
-        public void SendCommand_ReturnsResponseString()
+        public async Task SendCommand_ReturnsResponseString()
         {
             const string resp = "{\"ok\":true,\"data\":\"pong\"}";
             StartServer(s =>
@@ -268,11 +281,11 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = _sut.SendCommand("{\"cmd\":\"ping\"}");
 
             Assert.AreEqual(resp, result);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_EchoRoundtrip_ReturnsInput()
+        public async Task SendCommand_EchoRoundtrip_ReturnsInput()
         {
             const string json = "{\"cmd\":\"events\",\"args\":{\"after_seq\":0}}";
             StartServer(s =>
@@ -284,11 +297,11 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = _sut.SendCommand(json);
 
             Assert.AreEqual(json, result);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_ServerSendsDifferentResponse_ReturnsServerResponse()
+        public async Task SendCommand_ServerSendsDifferentResponse_ReturnsServerResponse()
         {
             StartServer(s =>
             {
@@ -299,11 +312,11 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = _sut.SendCommand("{\"cmd\":\"send\"}");
 
             StringAssert.Contains("no session", result);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_EmptyResponse_ReturnsEmptyString()
+        public async Task SendCommand_EmptyResponse_ReturnsEmptyString()
         {
             StartServer(s =>
             {
@@ -314,11 +327,11 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = _sut.SendCommand("{\"cmd\":\"test\"}");
 
             Assert.AreEqual("", result);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_LargeResponse_AllBytesPreserved()
+        public async Task SendCommand_LargeResponse_AllBytesPreserved()
         {
             // 64 KB response
             var big = new string('Z', 65536);
@@ -331,13 +344,13 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = _sut.SendCommand("{\"cmd\":\"events\"}");
 
             Assert.AreEqual(big, result);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         // ── Group 4: Size limits ───────────────────────────────────────────────
 
         [Test]
-        public void SendCommand_100KB_Accepted()
+        public async Task SendCommand_100KB_Accepted()
         {
             var payload = new string('A', 102400);
             StartServer(s =>
@@ -349,22 +362,22 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = _sut.SendCommand(payload);
 
             Assert.AreEqual(payload, result);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_ExceedsMaxMessage_ThrowsInvalidOperation()
+        public async Task SendCommand_ExceedsMaxMessage_ThrowsInvalidOperation()
         {
-            // Client must be connected, but server never receives anything
-            StartServer(s => { Thread.Sleep(200); }); // accept and wait
+            StartAsyncServer(async _ => await Task.Delay(200));
             _sut.Connect(_port);
 
             var huge = new string('x', RelayTcpClient.MaxMessage + 1);
             Assert.Throws<InvalidOperationException>(() => _sut.SendCommand(huge));
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_ServerSendsOversizedResponse_ThrowsInvalidOperation()
+        public async Task SendCommand_ServerSendsOversizedResponse_ThrowsInvalidOperation()
         {
             StartServer(s =>
             {
@@ -378,7 +391,7 @@ namespace UnityMCP.Editor.Chat.Tests
             _sut.Connect(_port);
 
             Assert.Throws<InvalidOperationException>(() => _sut.SendCommand("{\"cmd\":\"x\"}"));
-            WaitServer();
+            await WaitServerAsync();
         }
 
         // ── Group 5: Error handling ────────────────────────────────────────────
@@ -390,22 +403,22 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void SendCommand_AfterClose_ThrowsInvalidOperation()
+        public async Task SendCommand_AfterClose_ThrowsInvalidOperation()
         {
             StartServer(_ => { });
             _sut.Connect(_port);
-            WaitServer();
+            await WaitServerAsync();
             _sut.Close();
 
             Assert.Throws<InvalidOperationException>(() => _sut.SendCommand("{\"cmd\":\"ping\"}"));
         }
 
         [Test]
-        public void SendCommand_AfterDispose_ThrowsInvalidOperation()
+        public async Task SendCommand_AfterDispose_ThrowsInvalidOperation()
         {
             StartServer(_ => { });
             _sut.Connect(_port);
-            WaitServer();
+            await WaitServerAsync();
             _sut.Dispose();
 
             Assert.Throws<InvalidOperationException>(() => _sut.SendCommand("{\"cmd\":\"ping\"}"));
@@ -424,25 +437,20 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void SendCommand_ServerClosesImmediately_ThrowsIOException()
+        public async Task SendCommand_ServerClosesImmediately_ThrowsIOException()
         {
             // Server closes the connection right after accepting — no response written.
             // Client write may succeed (data sent before RST) or fail (ECONNRESET);
             // either way the subsequent read raises IOException (EndOfStream or SocketError).
-            new Thread(() =>
-            {
-                try { using var c = _listener.AcceptTcpClient(); /* dispose = close */ }
-                catch { }
-                finally { _serverDone.Set(); }
-            }) { IsBackground = true }.Start();
+            StartServer(_ => { }); // returning closes the accepted socket immediately
 
             _sut.Connect(_port);
             Assert.That(() => _sut.SendCommand("{\"cmd\":\"ping\"}"), Throws.InstanceOf<IOException>());
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_ServerClosesAfterReadingRequest_ThrowsEndOfStream()
+        public async Task SendCommand_ServerClosesAfterReadingRequest_ThrowsEndOfStream()
         {
             StartServer(s =>
             {
@@ -452,32 +460,32 @@ namespace UnityMCP.Editor.Chat.Tests
             _sut.Connect(_port);
 
             Assert.Throws<EndOfStreamException>(() => _sut.SendCommand("{\"cmd\":\"ping\"}"));
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_ReadTimeout_ThrowsIOException()
+        public async Task SendCommand_ReadTimeout_ThrowsIOException()
         {
             var fast = new RelayTcpClient(timeoutMs: 100);
             try
             {
-                StartServer(s =>
+                StartAsyncServer(async s =>
                 {
                     try { ReadFrame(s); } catch { }
-                    Thread.Sleep(500); // hold without responding → triggers client timeout
+                    await Task.Delay(500); // withholding the response is the timeout stimulus
                 });
                 fast.Connect(_port);
 
                 Assert.Throws<IOException>(() => fast.SendCommand("{\"cmd\":\"ping\"}"));
             }
             finally { fast.Dispose(); }
-            WaitServer(1000);
+            await WaitServerAsync(1000);
         }
 
         // ── Group 6: Concurrency ───────────────────────────────────────────────
 
         [Test]
-        public void SendCommand_ConcurrentCallers_SerializedByLock()
+        public async Task SendCommand_ConcurrentCallers_SerializedByLock()
         {
             // 3 threads call SendCommand concurrently; lock ensures sequential framing
             var results = new string[3];
@@ -491,16 +499,18 @@ namespace UnityMCP.Editor.Chat.Tests
             });
             _sut.Connect(_port);
 
-            var threads = new Thread[3];
+            var callers = new Task[3];
             for (int i = 0; i < 3; i++)
             {
                 var idx = i;
                 var msg = $"{{\"n\":{idx}}}";
-                threads[idx] = new Thread(() => results[idx] = _sut.SendCommand(msg));
+                callers[idx] = Task.Run(() => results[idx] = _sut.SendCommand(msg));
             }
-            foreach (var t in threads) t.Start();
-            foreach (var t in threads) t.Join(3000);
-            WaitServer();
+            var allCallers = Task.WhenAll(callers);
+            var completed = await Task.WhenAny(allCallers, Task.Delay(3000));
+            Assert.AreSame(allCallers, completed, "Concurrent callers did not complete within 3s");
+            await allCallers;
+            await WaitServerAsync();
 
             // All results are non-null — no deadlock, no corruption
             foreach (var r in results)
@@ -508,7 +518,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void SendCommand_MultipleSequential_AllSucceed()
+        public async Task SendCommand_MultipleSequential_AllSucceed()
         {
             StartServer(s =>
             {
@@ -525,11 +535,11 @@ namespace UnityMCP.Editor.Chat.Tests
                 var msg = $"{{\"i\":{i}}}";
                 Assert.AreEqual(msg, _sut.SendCommand(msg));
             }
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_BackToBack3_FramingPreserved()
+        public async Task SendCommand_BackToBack3_FramingPreserved()
         {
             var cmds    = new[] { "{\"cmd\":\"a\"}", "{\"cmd\":\"b\"}", "{\"cmd\":\"c\"}" };
             var captured = new string[3];
@@ -546,17 +556,17 @@ namespace UnityMCP.Editor.Chat.Tests
 
             for (int i = 0; i < 3; i++)
                 _sut.SendCommand(cmds[i]);
-            WaitServer();
+            await WaitServerAsync();
 
             CollectionAssert.AreEqual(cmds, captured);
         }
 
         [Test]
-        public void DoubleClose_DoesNotThrow()
+        public async Task DoubleClose_DoesNotThrow()
         {
             StartServer(_ => { });
             _sut.Connect(_port);
-            WaitServer();
+            await WaitServerAsync();
             Assert.DoesNotThrow(() =>
             {
                 _sut.Close();
@@ -567,7 +577,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Group 7: Edge cases ────────────────────────────────────────────────
 
         [Test]
-        public void SendCommand_SpecialJsonChars_Preserved()
+        public async Task SendCommand_SpecialJsonChars_Preserved()
         {
             const string json = "{\"msg\":\"hello\\\"world\\\"\",\"tab\":\"\\t\"}";
             StartServer(s =>
@@ -579,11 +589,11 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = _sut.SendCommand(json);
 
             Assert.AreEqual(json, result);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_UnicodePayload_Preserved()
+        public async Task SendCommand_UnicodePayload_Preserved()
         {
             const string json = "{\"msg\":\"日本語テスト\"}";
             StartServer(s =>
@@ -595,11 +605,11 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = _sut.SendCommand(json);
 
             Assert.AreEqual(json, result);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void SendCommand_RequestAndResponseDifferentSizes_BothCorrect()
+        public async Task SendCommand_RequestAndResponseDifferentSizes_BothCorrect()
         {
             // Small request, large response
             var bigResp = "{\"data\":\"" + new string('Y', 4096) + "\"}";
@@ -612,15 +622,15 @@ namespace UnityMCP.Editor.Chat.Tests
             var result = _sut.SendCommand("{\"cmd\":\"e\"}");
 
             Assert.AreEqual(bigResp, result);
-            WaitServer();
+            await WaitServerAsync();
         }
 
         [Test]
-        public void IsConnected_AfterDoubleClose_IsFalse()
+        public async Task IsConnected_AfterDoubleClose_IsFalse()
         {
             StartServer(_ => { });
             _sut.Connect(_port);
-            WaitServer();
+            await WaitServerAsync();
             _sut.Close();
             _sut.Close();
 
@@ -628,11 +638,11 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void Dispose_ClosesUnderlyingSocket()
+        public async Task Dispose_ClosesUnderlyingSocket()
         {
             StartServer(_ => { });
             _sut.Connect(_port);
-            WaitServer();
+            await WaitServerAsync();
             _sut.Dispose();
 
             // After dispose, IsConnected is false — stream and socket are nulled

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
+using UnityMCP.Editor.TestRuns;
 
 namespace UnityMCP.Editor
 {
@@ -12,6 +13,22 @@ namespace UnityMCP.Editor
     {
         private static readonly string[] Vec3Suffixes = { ".x", ".y", ".z" };
         private static readonly string[] ColorSuffixes = { ".r", ".g", ".b", ".a" };
+        private const string DefaultAssetDirectory = "Assets/Animations";
+        private static string _assetDirectory = DefaultAssetDirectory;
+
+        internal static string AssetDirectory => _assetDirectory;
+
+        internal static void SetAssetDirectoryForTests(string assetDirectory)
+        {
+            _assetDirectory = TestRunAssetOwnership
+                .RequireOwnedAssetPath(assetDirectory)
+                .TrimEnd('/');
+        }
+
+        internal static void ResetAssetDirectoryForTests()
+        {
+            _assetDirectory = DefaultAssetDirectory;
+        }
 
         private static Type ResolveComponentType(string typeName)
         {
@@ -405,7 +422,7 @@ namespace UnityMCP.Editor
         {
             if (name.IndexOf('/') >= 0 || name.IndexOf('\\') >= 0)
                 throw new ArgumentException($"clipName must not contain path separators: {name}");
-            var assetPath = $"Assets/Animations/{name}.anim";
+            var assetPath = $"{AssetDirectory}/{name}.anim";
             AssetHelper.EnsureDirectory(assetPath);
             AssetDatabase.CreateAsset(clip, assetPath);
             AssetDatabase.SaveAssets();

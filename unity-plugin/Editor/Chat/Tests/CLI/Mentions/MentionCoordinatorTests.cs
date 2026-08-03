@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MentionCoordinatorTests
+    public class MentionCoordinatorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private class MockSource : IMentionSource
         {

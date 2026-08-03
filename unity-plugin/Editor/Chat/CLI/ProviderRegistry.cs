@@ -68,6 +68,36 @@ namespace UnityMCP.Editor.Chat
             return true;
         }
 
+#if UNITY_INCLUDE_TESTS
+        /// <summary>
+        /// Preserve the registry exactly for a test scope. Restore bypasses the
+        /// registration API so provider identity, order and version all return to
+        /// their original values without dropping third-party registrations.
+        /// </summary>
+        internal static IDisposable PreserveState(
+            List<T> providers,
+            Dictionary<string, T> byKey,
+            Func<int> getVersion,
+            Action<int> setVersion)
+        {
+            var providerSnapshot = new List<T>(providers);
+            var keySnapshot = new List<KeyValuePair<string, T>>(byKey);
+            var versionSnapshot = getVersion();
+
+            return new RestoreScope(() =>
+            {
+                providers.Clear();
+                providers.AddRange(providerSnapshot);
+
+                byKey.Clear();
+                foreach (var pair in keySnapshot)
+                    byKey.Add(pair.Key, pair.Value);
+
+                setVersion(versionSnapshot);
+            });
+        }
+#endif
+
         /// <summary>Clear all entries (test use only).</summary>
         internal static void Reset(
             List<T>               providers,
@@ -78,5 +108,21 @@ namespace UnityMCP.Editor.Chat
             byKey.Clear();
             version++;
         }
+
+#if UNITY_INCLUDE_TESTS
+        private sealed class RestoreScope : IDisposable
+        {
+            private Action _restore;
+
+            internal RestoreScope(Action restore) => _restore = restore;
+
+            public void Dispose()
+            {
+                var restore = _restore;
+                _restore = null;
+                restore?.Invoke();
+            }
+        }
+#endif
     }
 }

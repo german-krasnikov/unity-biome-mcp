@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class EncodingTests
+    public class EncodingTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private TempDirScope _scope;
 

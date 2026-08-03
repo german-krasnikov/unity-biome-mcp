@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ErrorClassifierTests
+    public class ErrorClassifierTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void ClassifyError_ArgumentException_ReturnsValidation()

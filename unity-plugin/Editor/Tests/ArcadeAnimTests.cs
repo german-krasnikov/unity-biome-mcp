@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ArcadeAnimTests
+    public class ArcadeAnimTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void AnimateClass_AddsHiddenClass_Immediately()

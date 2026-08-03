@@ -31,9 +31,9 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd();
         }
 
-        public static string SerializeAll(int instanceId)
+        public static string SerializeAll(string objectId)
         {
-            var go = FindObjectById(instanceId);
+            var go = FindObjectById(objectId);
             if (go == null) return null;
 
             var sb = new StringBuilder();
@@ -54,6 +54,9 @@ namespace UnityMCP.Editor
 
             return sb.ToString().TrimEnd();
         }
+
+        public static string SerializeAll(int legacyId)
+            => SerializeAll(legacyId.ToString(CultureInfo.InvariantCulture));
 
         private static void SerializeComponent(StringBuilder sb, Component component)
         {
@@ -83,12 +86,15 @@ namespace UnityMCP.Editor
             return ListComponentsInternal(go);
         }
 
-        public static string ListComponents(int instanceId)
+        public static string ListComponentsById(string objectId)
         {
-            var go = FindObjectById(instanceId);
+            var go = FindObjectById(objectId);
             if (go == null) return null;
             return ListComponentsInternal(go);
         }
+
+        public static string ListComponents(int legacyId)
+            => ListComponentsById(legacyId.ToString(CultureInfo.InvariantCulture));
 
         private static string ListComponentsInternal(GameObject go)
         {
@@ -143,10 +149,10 @@ namespace UnityMCP.Editor
                 case SerializedPropertyType.ObjectReference:
                     if (prop.objectReferenceValue == null) return "null";
                     if (prop.objectReferenceValue is GameObject refGo)
-                        return $"{GetPath(refGo)} #{refGo.GetInstanceID()}";
+                        return $"{GetPath(refGo)} #{TransientObjectId.GetWireValue(refGo)}";
                     if (prop.objectReferenceValue is Component refComp)
-                        return $"{GetPath(refComp.gameObject)} #{refComp.gameObject.GetInstanceID()} ({refComp.GetType().Name})";
-                    return $"{prop.objectReferenceValue.name} #{prop.objectReferenceValue.GetInstanceID()}";
+                        return $"{GetPath(refComp.gameObject)} #{TransientObjectId.GetWireValue(refComp.gameObject)} ({refComp.GetType().Name})";
+                    return $"{prop.objectReferenceValue.name} #{TransientObjectId.GetWireValue(prop.objectReferenceValue)}";
                 case SerializedPropertyType.LayerMask:
                     var lsb = new StringBuilder();
                     AppendLayerMask(lsb, prop.intValue);

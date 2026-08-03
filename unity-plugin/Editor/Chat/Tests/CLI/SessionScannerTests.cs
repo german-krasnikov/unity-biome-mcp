@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SessionScannerTests
+    public class SessionScannerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tempDir;
         private Func<string> _origHome;
@@ -15,18 +15,20 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            _tempDir      = Path.Combine(Path.GetTempPath(), "SessionScannerTests_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempDir);
             _origHome    = SessionScanner.HomeDir;
             _origProject = SessionScanner.ProjectDir;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            SessionScanner.HomeDir    = _origHome;
-            SessionScanner.ProjectDir = _origProject;
-            try { Directory.Delete(_tempDir, true); } catch { }
+            _tempDir = Path.Combine(Path.GetTempPath(), "SessionScannerTests_" + Guid.NewGuid().ToString("N"));
+            RegisterCleanup(() =>
+            {
+                if (Directory.Exists(_tempDir))
+                    Directory.Delete(_tempDir, true);
+            });
+            RegisterCleanup(() =>
+            {
+                SessionScanner.HomeDir = _origHome;
+                SessionScanner.ProjectDir = _origProject;
+            });
+            Directory.CreateDirectory(_tempDir);
         }
 
         // ── EncodeCwd ───────────────────────────────────────────────────────────

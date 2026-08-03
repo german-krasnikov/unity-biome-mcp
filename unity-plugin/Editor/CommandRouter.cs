@@ -199,11 +199,12 @@ namespace UnityMCP.Editor
             var mode = JsonHelper.ExtractString(argsJson, "mode");
             var group = JsonHelper.ExtractString(argsJson, "group");
             var filter = JsonHelper.ExtractString(argsJson, "filter");
+            var requestId = JsonHelper.ExtractString(argsJson, "request_id");
             TestRunner.Execute(mode, result =>
             {
                 var (ok, text) = TestRunner.FinishRun(result);
                 tcs.TrySetResult(ok ? BuildResponse(id, text) : JsonHelper.FormatResponse(id, false, null, text));
-            }, group, filter);
+            }, group, filter, requestId);
         }
 
         // Bridges an inner async Task<string> to the outer TCS, formatting a fault

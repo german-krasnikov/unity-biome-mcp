@@ -10,6 +10,7 @@ Additive gates — only enabled ones run:
 Returns PASS when all enabled gates pass, FAIL at the first gate that fails.
 """
 from __future__ import annotations
+import json
 import re
 from ._common import bind
 from . import code_intel as _ci
@@ -31,11 +32,82 @@ def _is_errors_clean(result: str) -> bool:
     return not r or "error cs" not in r.lower()
 
 
-def _is_tests_pass(result: str) -> bool:
-    if result.startswith(("BLOCKED:", "TIMEOUT:", "tests-started")):
+def _snapshot_count(snapshot: dict, *names: str) -> int | None:
+    counts = snapshot.get("counts")
+    sources = (counts, snapshot) if isinstance(counts, dict) else (snapshot,)
+    for source in sources:
+        for name in names:
+            value = source.get(name)
+            if isinstance(value, int) and not isinstance(value, bool):
+                return value
+    return None
+
+
+def _is_snapshot_pass(snapshot: dict) -> bool:
+    if not isinstance(snapshot.get("request_id"), str) or not snapshot["request_id"]:
         return False
-    m = re.search(r"(\d+) failed", result)
-    return not (m and int(m.group(1)) > 0)
+    if not isinstance(snapshot.get("run_id"), str) or not snapshot["run_id"]:
+        return False
+    if not isinstance(snapshot.get("utf_guid"), str) or not snapshot["utf_guid"]:
+        return False
+    state = snapshot.get("state")
+    lifecycle = snapshot.get("lifecycle")
+    if state is not None and lifecycle is not None and state != lifecycle:
+        return False
+    if (state or lifecycle) != "terminal" or snapshot.get("outcome") != "passed":
+        return False
+    if snapshot.get("is_terminal") is not True:
+        return False
+    if snapshot.get("execution_finished") is not True:
+        return False
+    if snapshot.get("cleanup_complete") is not True:
+        return False
+    if snapshot.get("build_coherent") is not True:
+        return False
+    if snapshot.get("utf_version") != "1.6.0":
+        return False
+    if snapshot.get("manifest_complete") is not True:
+        return False
+    if snapshot.get("run_started_observed") is not True:
+        return False
+    if snapshot.get("run_finished_observed") is not True:
+        return False
+
+    expected = _snapshot_count(snapshot, "expected", "expected_count")
+    completed = _snapshot_count(
+        snapshot, "completed", "finished", "completed_expected_count"
+    )
+    missing = _snapshot_count(snapshot, "missing", "missing_count")
+    unexpected = _snapshot_count(snapshot, "unexpected", "unexpected_count")
+    conflicts = _snapshot_count(snapshot, "conflicts", "conflict", "conflict_count")
+    if expected is None or completed is None or expected <= 0:
+        return False
+    if completed != expected:
+        return False
+    if (missing, unexpected, conflicts) != (0, 0, 0):
+        return False
+
+    errors = snapshot.get("errors")
+    if errors not in (None, []):
+        return False
+    issues = snapshot.get("issues")
+    return isinstance(issues, list) and not any(
+        isinstance(issue, dict) and issue.get("severity") == "error"
+        for issue in issues
+    )
+
+
+def _is_tests_pass(result: str) -> bool:
+    stripped = result.strip()
+    if stripped.startswith((
+        "BLOCKED:", "TIMEOUT", "START-UNKNOWN", "PROTOCOL-ERROR", "tests-started",
+    )):
+        return False
+    try:
+        snapshot = json.loads(stripped)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return False
+    return isinstance(snapshot, dict) and _is_snapshot_pass(snapshot)
 
 
 def _is_suite_pass(result: str) -> bool:
@@ -48,6 +120,17 @@ def _is_suite_pass(result: str) -> bool:
 
 
 def _extract_ratio(result: str) -> str:
+    try:
+        snapshot = json.loads(result)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        snapshot = None
+    if isinstance(snapshot, dict):
+        expected = _snapshot_count(snapshot, "expected", "expected_count")
+        completed = _snapshot_count(
+            snapshot, "completed", "finished", "completed_expected_count"
+        )
+        if expected is not None and completed is not None:
+            return f"{completed}/{expected}"
     m = re.search(r"\d+/\d+", result)
     if m:
         return m.group(0)

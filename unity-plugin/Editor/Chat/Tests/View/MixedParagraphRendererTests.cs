@@ -12,7 +12,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class MixedParagraphRendererTests
+    public class MixedParagraphRendererTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp()
@@ -22,17 +22,6 @@ namespace UnityMCP.Editor.Chat.Tests
             ChipPillFactory.ColorResolver = null;
             InlinePreviewBuilder.TextureLoader = _ => Texture2D.whiteTexture;
             AssetViewerFactory.ReRegisterBuiltIns();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            LogAssert.ignoreFailingMessages = false;
-            ChipKindRegistry.ResetToBuiltIns();
-            ChipPillFactory.ColorResolver = null;
-            InlinePreviewBuilder.TextureLoader = null;
-            AssetViewerFactory.Reset();
-            MixedParagraphRenderer.ContextOverride = null;
         }
 
         [Test]
@@ -107,22 +96,15 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.IsNotNull(wrapper);
 
             // Attach to a real panel so DetachFromPanelEvent fires on removal.
-            var window = GetOrCreateTestWindow();
-            try
-            {
-                window.rootVisualElement.Add(wrapper);
-                Assert.AreEqual(0, service.DisposedCount,
-                    "subscription must not be disposed while attached");
+            var window = CreateTestWindow();
+            window.rootVisualElement.Add(wrapper);
+            Assert.AreEqual(0, service.DisposedCount,
+                "subscription must not be disposed while attached");
 
-                window.rootVisualElement.Remove(wrapper);
+            window.rootVisualElement.Remove(wrapper);
 
-                Assert.AreEqual(1, service.DisposedCount,
-                    "subscription must be disposed on detach");
-            }
-            finally
-            {
-                window.Close();
-            }
+            Assert.AreEqual(1, service.DisposedCount,
+                "subscription must be disposed on detach");
         }
 
         [Test]
@@ -138,28 +120,36 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.IsFalse(panel.style.display == DisplayStyle.Flex,
                 "preview panel must be hidden initially");
 
-            var window = GetOrCreateTestWindow();
-            try
-            {
-                window.rootVisualElement.Add(wrapper);
+            var window = CreateTestWindow();
+            window.rootVisualElement.Add(wrapper);
 
-                var click = new ClickEvent();
-                Assert.IsTrue(SetClickCount(click, 1),
-                    "test must be able to set clickCount via reflection");
-                click.target = pill;
-                pill.SendEvent(click);
+            var click = new ClickEvent();
+            Assert.IsTrue(SetClickCount(click, 1),
+                "test must be able to set clickCount via reflection");
+            click.target = pill;
+            pill.SendEvent(click);
 
-                // Single click now calls navigate — preview panel stays hidden.
-                Assert.IsFalse(panel.style.display == DisplayStyle.Flex,
-                    "single click must NOT toggle preview panel (navigate instead)");
-            }
-            finally
-            {
-                window.Close();
-            }
+            // Single click now calls navigate — preview panel stays hidden.
+            Assert.IsFalse(panel.style.display == DisplayStyle.Flex,
+                "single click must NOT toggle preview panel (navigate instead)");
         }
 
         // ── helpers ───────────────────────────────────────────────────────────
+
+        [Test]
+        public void PreserveStateForTests_RestoresExactContextInstance()
+        {
+            var original = new MprPreviewContext(
+                new FakeChipExistenceService { ExistsImpl = (_, __) => true });
+            var replacement = new MprPreviewContext(
+                new FakeChipExistenceService { ExistsImpl = (_, __) => false });
+            MixedParagraphRenderer.ContextOverride = original;
+
+            using (MixedParagraphRenderer.PreserveStateForTests())
+                MixedParagraphRenderer.ContextOverride = replacement;
+
+            Assert.AreSame(original, MixedParagraphRenderer.ContextOverride);
+        }
 
         sealed class MprPreviewContext : IPreviewContext
         {
@@ -171,11 +161,13 @@ namespace UnityMCP.Editor.Chat.Tests
                 => ExistenceService = existenceService;
         }
 
-        static EditorWindow GetOrCreateTestWindow()
+        EditorWindow CreateTestWindow()
         {
             // EditorWindow creation in batchmode logs GUI errors; ignore them for this test.
             LogAssert.ignoreFailingMessages = true;
-            return EditorWindow.GetWindow<MprTestEditorWindow>();
+            var window = CreateOwnedEditorWindow<MprTestEditorWindow>();
+            window.ShowUtility();
+            return window;
         }
 
         static bool SetClickCount(ClickEvent evt, int count)

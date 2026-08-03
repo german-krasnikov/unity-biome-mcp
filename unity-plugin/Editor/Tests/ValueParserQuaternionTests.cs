@@ -4,7 +4,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ValueParserQuaternionTests
+    public class ValueParserQuaternionTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void ParseQuaternion_ThreeFloats_EulerConversion()

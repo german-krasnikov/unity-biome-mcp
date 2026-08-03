@@ -8,15 +8,10 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ResponseTagPillTests
+    public class ResponseTagPillTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown()
-        {
-            ChipKindRegistry.ResetToBuiltIns();
-            ChipPillFactory.ColorResolver = null;
-            MixedParagraphRenderer.ContextOverride = null;
-        }
+        [SetUp]
+        public void SetUp() => ChipKindRegistry.ResetToBuiltIns();
 
         // ── HasTags ───────────────────────────────────────────────────────────
 
@@ -115,7 +110,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var d = RefParser.Parse("hierarchy", "/Root/Child #-33506");
             Assert.AreEqual("/Root/Child", d.Path);
-            Assert.AreEqual(-33506,        d.InstanceID);
+            Assert.AreEqual("-33506",      d.ObjectId);
             Assert.AreEqual("Child",       d.DisplayName);
         }
 
@@ -124,7 +119,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var d = RefParser.Parse("hierarchy", "/Root/Child");
             Assert.AreEqual("/Root/Child", d.Path);
-            Assert.AreEqual(0,             d.InstanceID);
+            Assert.AreEqual("",            d.ObjectId);
             Assert.AreEqual("Child",       d.DisplayName);
         }
 
@@ -134,14 +129,14 @@ namespace UnityMCP.Editor.Chat.Tests
             var d = RefParser.Parse("script", "Assets/Scripts/Foo.cs");
             Assert.AreEqual("Assets/Scripts/Foo.cs", d.Path);
             Assert.AreEqual("Foo.cs",                d.DisplayName);
-            Assert.AreEqual(0,                       d.InstanceID);
+            Assert.AreEqual("",                      d.ObjectId);
         }
 
         [Test]
         public void RefParser_NegativeInstanceId_ParsedCorrectly()
         {
             var d = RefParser.Parse("hierarchy", "/Cam #-1");
-            Assert.AreEqual(-1, d.InstanceID);
+            Assert.AreEqual("-1", d.ObjectId);
         }
 
         // ── MixedParagraphRenderer VE assembly ───────────────────────────────
@@ -247,7 +242,7 @@ namespace UnityMCP.Editor.Chat.Tests
             // RefParser must produce path "/Player" (no #id) from "/Player #12345"
             var data = RefParser.Parse("hierarchy", "/Player #12345");
             Assert.AreEqual("/Player", data.Path, "RefParser must strip #id suffix for Navigate use");
-            Assert.AreEqual(12345,     data.InstanceID);
+            Assert.AreEqual("12345",   data.ObjectId);
             Assert.AreEqual("Player",  data.DisplayName);
         }
 

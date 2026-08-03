@@ -11,25 +11,15 @@ namespace UnityMCP.Editor.Tests
     public class PlaytestGlobalAliasTests : SceneTestBase
     {
         private PlaytestConfig _config;
-        private string _assetConfigPath;
 
         [SetUp]
         public void SetUp()
         {
             _config = ScriptableObject.CreateInstance<PlaytestConfig>();
-            _assetConfigPath = null;
-        }
-
-        [TearDown]
-        public void TearDownConfig()
-        {
-            if (_config) Object.DestroyImmediate(_config);
-            if (_assetConfigPath != null)
+            RegisterCleanup(() =>
             {
-                AssetDatabase.DeleteAsset(_assetConfigPath);
-                _assetConfigPath = null;
-                AliasExpander.Invalidate();
-            }
+                if (_config) Object.DestroyImmediate(_config);
+            });
         }
 
         // 1. Config alias expands in ASSERT step when injected via cfgBlock
@@ -178,11 +168,6 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void GetTable_Matches_BuildAliasSection()
         {
-            // Guard: skip if unrelated PlaytestConfig exists (would pollute FindAssets)
-            Assume.That(AssetDatabase.FindAssets("t:PlaytestConfig").Length, Is.Zero,
-                "PlaytestConfig exists in project — test inconclusive");
-
-            TestPaths.EnsureFolder();
             var alias = new QueryAlias
             {
                 alias = "counter",
@@ -191,22 +176,19 @@ namespace UnityMCP.Editor.Tests
                 component = "ZoneComp",
                 field = "Remaining"
             };
-            // Save as real asset so FindAssets("t:PlaytestConfig") can find it
             _config.aliases = new List<QueryAlias> { alias };
-            _assetConfigPath = TestPaths.TempFolder + "/GetTable_Match_PlaytestConfig.asset";
-            AssetDatabase.CreateAsset(_config, _assetConfigPath);
-            _config = null; // now owned by AssetDatabase, don't DestroyImmediate in TearDown
-            AssetDatabase.SaveAssets();
-
-            // Force GetTable reload so it picks up the new asset
-            AliasExpander.Invalidate();
-            AliasExpander._tableOverride = null;
+            var savedOverride = AliasExpander._tableOverride;
+            RegisterCleanup(() => AliasExpander._tableOverride = savedOverride);
+            AliasExpander._tableOverride = new Dictionary<string, string>
+            {
+                { "counter", "/Zone/Counter|ZoneComp|Remaining" }
+            };
 
             // What GetTable() builds (tested via ExpandText)
             var expanded = AliasExpander.ExpandText("$counter");
 
             // What BuildAliasSection emits: "--- ALIASES ---\ncounter=<value>\n---"
-            var section = CommandRouter.BuildAliasSection();
+            var section = CommandRouter.BuildAliasSection(_config);
             Assert.IsNotNull(section, "BuildAliasSection returned null");
             var lines = section.Split('\n');
             // Find the "counter=..." line

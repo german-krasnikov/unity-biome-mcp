@@ -6,7 +6,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class AgentSearchPathTests
+    public class AgentSearchPathTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Helper — expected ".claude/agents" path under a base dir
         private static string A(string baseDir) =>

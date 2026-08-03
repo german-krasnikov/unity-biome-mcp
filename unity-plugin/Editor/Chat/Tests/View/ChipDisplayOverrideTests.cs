@@ -12,7 +12,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipDisplayOverrideTests
+    public class ChipDisplayOverrideTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tempPath;
 

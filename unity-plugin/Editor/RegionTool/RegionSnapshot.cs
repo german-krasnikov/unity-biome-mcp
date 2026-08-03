@@ -16,7 +16,7 @@ namespace UnityMCP.Editor.RegionTool
     {
         // Identity
         public string Id;
-        public int    SchemaVersion = 1;
+        public int    SchemaVersion = 2;
 
         // Geometry (XZ plane — Y always 0 in MVP)
         public float[] VerticesFlat;  // [x0,z0, x1,z1, ...]
@@ -31,7 +31,7 @@ namespace UnityMCP.Editor.RegionTool
 
         // Objects (capped at 50)
         public string[] ObjectPaths;  // ComponentSerializer.GetPath() results
-        public int[]    ObjectIds;    // GetInstanceID() — parallel with ObjectPaths
+        public string[] ObjectIds;    // EntityId raw values as decimal strings; parallel with ObjectPaths
         public int      TotalCount;   // true count before cap
         public bool     Truncated;    // true if TotalCount > 50
 
@@ -92,11 +92,11 @@ namespace UnityMCP.Editor.RegionTool
 
             int cap   = Math.Min(objects.Length, 50);
             var paths = new string[cap];
-            var ids   = new int[cap];
+            var ids   = new string[cap];
             for (int i = 0; i < cap; i++)
             {
                 paths[i] = ComponentSerializer.GetPath(objects[i]);
-                ids[i]   = objects[i].GetInstanceID();
+                ids[i]   = TransientObjectId.GetWireValue(objects[i]);
             }
 
             var centroid = polygon.Centroid();
@@ -105,7 +105,7 @@ namespace UnityMCP.Editor.RegionTool
             return new RegionSnapshot
             {
                 Id              = id,
-                SchemaVersion   = 1,
+                SchemaVersion   = 2,
                 VerticesFlat    = flat,
                 Area            = polygon.Area(),
                 CenterX         = centroid.x,
@@ -142,7 +142,7 @@ namespace UnityMCP.Editor.RegionTool
             return new RegionSnapshot
             {
                 Id             = id,
-                SchemaVersion  = 1,
+                SchemaVersion  = 2,
                 AnnotationType = "point",
                 Label          = label,
                 VerticesFlat   = new[] { xz.x, xz.y },
@@ -152,7 +152,7 @@ namespace UnityMCP.Editor.RegionTool
                 MinX = xz.x, MinZ = xz.y, MaxX = xz.x, MaxZ = xz.y,
                 SceneName      = sceneName ?? "",
                 ObjectPaths    = paths,
-                ObjectIds      = new int[paths.Length], // parallel; 0 = not populated (annotations use path-based lookup)
+                ObjectIds      = new string[paths.Length], // null = not populated (annotations use path-based lookup)
                 TotalCount     = paths.Length,
                 CreatedTicks   = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             };
@@ -189,7 +189,7 @@ namespace UnityMCP.Editor.RegionTool
             return new RegionSnapshot
             {
                 Id               = id,
-                SchemaVersion    = 1,
+                SchemaVersion    = 2,
                 AnnotationType   = "polyline",
                 Label            = label,
                 VerticesFlat     = flat,
@@ -202,7 +202,7 @@ namespace UnityMCP.Editor.RegionTool
                                    + "," + dir.y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
                 SceneName        = sceneName ?? "",
                 ObjectPaths      = nearPaths ?? Array.Empty<string>(),
-                ObjectIds        = new int[(nearPaths?.Length ?? 0)], // parallel; 0 = not populated
+                ObjectIds        = new string[(nearPaths?.Length ?? 0)], // parallel; null = not populated
                 TotalCount       = nearPaths?.Length ?? 0,
                 CreatedTicks     = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             };
@@ -216,7 +216,7 @@ namespace UnityMCP.Editor.RegionTool
             return new RegionSnapshot
             {
                 Id               = id,
-                SchemaVersion    = 1,
+                SchemaVersion    = 2,
                 AnnotationType   = "measurement",
                 Label            = label,
                 VerticesFlat     = new[] { a.x, a.y, b.x, b.y },
@@ -228,7 +228,7 @@ namespace UnityMCP.Editor.RegionTool
                 LengthOrDistance = dist,
                 SceneName        = sceneName ?? "",
                 ObjectPaths      = Array.Empty<string>(),
-                ObjectIds        = Array.Empty<int>(),
+                ObjectIds        = Array.Empty<string>(),
                 TotalCount       = 0,
                 CreatedTicks     = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             };

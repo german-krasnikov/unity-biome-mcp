@@ -7,7 +7,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ClientConnectionHandlerTests
+    public class ClientConnectionHandlerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Fast-path commands must NOT trigger ref invalidation.
         [TestCase("ping")]

@@ -5,13 +5,10 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class BatchRejectionTests
+    public class BatchRejectionTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void SetUp() => CommandRegistry.Clear();
-
-        [TearDown]
-        public void TearDown() => CommandRegistry.Clear();
 
         [Test]
         public void BatchRejection_AsyncCmd_NotBatchable()

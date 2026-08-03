@@ -81,12 +81,14 @@ namespace UnityMCP.Editor.Chat
                     // Give up: discard pending state to avoid zombie resume.
                     ReloadGuard.ClearPendingState();
                     _resumeRetryCount = 0;
+                    CancelPendingTurnResume();
                     return;
                 }
-                _resumeRetryCount++;
-                EditorApplication.delayCall += TryResumePendingTurn;
+                if (SchedulePendingTurnResume())
+                    _resumeRetryCount++;
                 return;
             }
+            CancelPendingTurnResume();
             _resumeRetryCount = 0;  // reset on success path
 
             var pending = ReloadGuard.LoadPendingState();
@@ -161,6 +163,27 @@ namespace UnityMCP.Editor.Chat
                 _lastEventTime = EditorApplication.timeSinceStartup; // watchdog reset
                 if (_activity.Send()) OnActivityChanged();
             }
+        }
+
+        private bool SchedulePendingTurnResume()
+        {
+            if (_resumeDelayScheduled) return false;
+            _resumeDelayScheduled = true;
+            EditorApplication.delayCall += ResumePendingTurnAfterDelay;
+            return true;
+        }
+
+        private void ResumePendingTurnAfterDelay()
+        {
+            _resumeDelayScheduled = false;
+            TryResumePendingTurn();
+        }
+
+        private void CancelPendingTurnResume()
+        {
+            if (!_resumeDelayScheduled) return;
+            EditorApplication.delayCall -= ResumePendingTurnAfterDelay;
+            _resumeDelayScheduled = false;
         }
 
         private double InactivityTimeoutSec

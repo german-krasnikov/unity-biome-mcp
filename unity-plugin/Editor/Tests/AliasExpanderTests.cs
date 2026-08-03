@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class AliasExpanderTests
+    public class AliasExpanderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void Setup() => AliasExpander._tableOverride = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)

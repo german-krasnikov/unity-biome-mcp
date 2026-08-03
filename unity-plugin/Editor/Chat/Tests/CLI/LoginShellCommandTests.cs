@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class LoginShellCommandTests
+    public class LoginShellCommandTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void ShellQuoteSingle_Plain_WrapsInSingleQuotes()

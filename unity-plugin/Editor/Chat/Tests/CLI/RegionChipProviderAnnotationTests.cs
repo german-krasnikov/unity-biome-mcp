@@ -11,7 +11,7 @@ namespace UnityMCP.Editor.Chat.Tests
     /// point, polyline, measurement (Phase 1A).
     /// </summary>
     [TestFixture]
-    public class RegionChipProviderAnnotationTests
+    public class RegionChipProviderAnnotationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         string _tmpFile;
         RegionChipProvider _provider;
@@ -19,21 +19,13 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            _tmpFile = Path.GetTempFileName();
-            SceneRegionState.PersistPath = _tmpFile;
-            SceneRegionState.MaxRegions  = 20;
-            SceneRegionState.Clear();
+            _tmpFile = Path.Combine(Path.GetTempPath(),
+                $"unity-mcp-region-annotation-{Guid.NewGuid():N}.json");
+            RegisterCleanup(SceneRegionState.IsolateForTests(_tmpFile, 20).Dispose);
+            RegisterCleanup(ChipKindRegistry.PreserveStateForTests().Dispose);
             ChipKindRegistry.ResetToBuiltIns();
             ChipKindRegistry.Register(new RegionChipProvider());
             _provider = ChipKindRegistry.ForKey("region") as RegionChipProvider;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            SceneRegionState.Clear();
-            ChipKindRegistry.ResetToBuiltIns();
-            try { File.Delete(_tmpFile); } catch { }
         }
 
         // ── Point summary ─────────────────────────────────────────────────────

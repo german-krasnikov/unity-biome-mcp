@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestParserEdgeCaseTests
+    public class PlaytestParserEdgeCaseTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── CS4.arch.5: MOVE TO missing position ────────────────────────────
 

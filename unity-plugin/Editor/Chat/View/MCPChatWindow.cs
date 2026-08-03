@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -32,6 +33,7 @@ namespace UnityMCP.Editor.Chat
         // Resets to 0 on success; gives up after MaxResumeRetries+1 calls with !IsCompileClean.
         internal int  _resumeRetryCount;
         internal const int MaxResumeRetries = 30;
+        private bool _resumeDelayScheduled;
         private TextField          _input;
         private Label              _tokenReadout;
         // Tier 2 (chat-relay-upm-fix.md): shown while RelaySpawnState.RequestSpawn() cold-starts
@@ -130,6 +132,7 @@ namespace UnityMCP.Editor.Chat
             EditorApplication.hierarchyChanged -= RefreshResolver;
             AssemblyReloadEvents.beforeAssemblyReload -= SaveStateBeforeReload;
             RelaySpawner.OnAfterReloadResume -= TryResumePendingTurn;
+            CancelPendingTurnResume();
             _autoFix.OnErrorsDetected -= InjectCompileErrors;
             _autoFix.Unsubscribe();
             ChipPillFactory.AddToContextAction = null;
@@ -248,12 +251,19 @@ namespace UnityMCP.Editor.Chat
 
         private void CreateBackendWithSession(string resumeSessionId, BackendConfigStore store = null)
         {
+            if (BackendFactoryForTest != null)
+            {
+                _backend = BackendFactoryForTest(resumeSessionId);
+                return;
+            }
             var backendId  = BackendProviderRegistry.KindToId(_selectedKind);
             var sysPrompt  = ChipSystemPrompt.ForBackend(_selectedKind);
             _backend = new RelayBackend(backendId, _agentMode ? "agent" : "ask",
                                         _selectedModel, MCPServer.ServerChatPort, resumeSessionId,
                                         sysPrompt);
         }
+
+        internal static Func<string, IChatBackend> BackendFactoryForTest;
 
         internal static BackendConfigStore ApplySelectedModel(
             BackendConfigStore src, BackendKind kind, string selectedModel)

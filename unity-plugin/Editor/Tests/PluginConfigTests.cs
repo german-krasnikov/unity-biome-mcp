@@ -4,66 +4,72 @@ using UnityEditor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PluginConfigTests
+    public class PluginConfigTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string Id1 = "TestPlugin_Alpha";
         private const string Id2 = "TestPlugin_Beta";
-        private const string Key = "test_key";
-
-        [TearDown]
-        public void TearDown()
-        {
-            EditorPrefs.DeleteKey(PluginConfig.BuildKey(Id1, Key));
-            EditorPrefs.DeleteKey(PluginConfig.BuildKey(Id2, Key));
-        }
+        private const string StringKey = "test_string";
+        private const string BoolKey = "test_bool";
+        private const string IntKey = "test_int";
+        private const string FloatKey = "test_float";
 
         [Test]
         public void SetString_ThenGet_RoundTrips()
         {
-            PluginConfig.SetString(Id1, Key, "hello");
-            Assert.AreEqual("hello", PluginConfig.GetString(Id1, Key));
+            ProtectEditorPrefString(PluginConfig.BuildKey(Id1, StringKey));
+            PluginConfig.SetString(Id1, StringKey, "hello");
+            Assert.AreEqual("hello", PluginConfig.GetString(Id1, StringKey));
         }
 
         [Test]
         public void GetString_MissingKey_ReturnsDefault()
-            => Assert.AreEqual("def", PluginConfig.GetString(Id1, Key, "def"));
+        {
+            DeleteEditorPrefString(PluginConfig.BuildKey(Id1, StringKey));
+            Assert.AreEqual("def", PluginConfig.GetString(Id1, StringKey, "def"));
+        }
 
         [Test]
         public void SetBool_ThenGet_RoundTrips()
         {
-            PluginConfig.SetBool(Id1, Key, false);
-            Assert.IsFalse(PluginConfig.GetBool(Id1, Key, defaultValue: true));
+            ProtectEditorPrefBool(PluginConfig.BuildKey(Id1, BoolKey));
+            PluginConfig.SetBool(Id1, BoolKey, false);
+            Assert.IsFalse(PluginConfig.GetBool(Id1, BoolKey, defaultValue: true));
         }
 
         [Test]
         public void SetInt_ThenGet_RoundTrips()
         {
-            PluginConfig.SetInt(Id1, Key, 42);
-            Assert.AreEqual(42, PluginConfig.GetInt(Id1, Key));
+            ProtectEditorPrefInt(PluginConfig.BuildKey(Id1, IntKey));
+            PluginConfig.SetInt(Id1, IntKey, 42);
+            Assert.AreEqual(42, PluginConfig.GetInt(Id1, IntKey));
         }
 
         [Test]
         public void SetFloat_ThenGet_RoundTrips()
         {
-            PluginConfig.SetFloat(Id1, Key, 3.14f);
-            Assert.AreEqual(3.14f, PluginConfig.GetFloat(Id1, Key), delta: 0.001f);
+            ProtectEditorPrefFloat(PluginConfig.BuildKey(Id1, FloatKey));
+            PluginConfig.SetFloat(Id1, FloatKey, 3.14f);
+            Assert.AreEqual(3.14f, PluginConfig.GetFloat(Id1, FloatKey), delta: 0.001f);
         }
 
         [Test]
         public void Delete_AfterSet_ReturnsDefault()
         {
-            PluginConfig.SetString(Id1, Key, "val");
-            PluginConfig.Delete(Id1, Key);
-            Assert.AreEqual("def", PluginConfig.GetString(Id1, Key, "def"));
+            ProtectEditorPrefString(PluginConfig.BuildKey(Id1, StringKey));
+            PluginConfig.SetString(Id1, StringKey, "val");
+            PluginConfig.Delete(Id1, StringKey);
+            Assert.AreEqual("def", PluginConfig.GetString(Id1, StringKey, "def"));
         }
 
         [Test]
         public void TwoPlugins_SameKey_StoredSeparately()
         {
-            PluginConfig.SetString(Id1, Key, "alpha_value");
-            PluginConfig.SetString(Id2, Key, "beta_value");
-            Assert.AreEqual("alpha_value", PluginConfig.GetString(Id1, Key));
-            Assert.AreEqual("beta_value", PluginConfig.GetString(Id2, Key));
+            ProtectEditorPrefString(PluginConfig.BuildKey(Id1, StringKey));
+            ProtectEditorPrefString(PluginConfig.BuildKey(Id2, StringKey));
+            PluginConfig.SetString(Id1, StringKey, "alpha_value");
+            PluginConfig.SetString(Id2, StringKey, "beta_value");
+            Assert.AreEqual("alpha_value", PluginConfig.GetString(Id1, StringKey));
+            Assert.AreEqual("beta_value", PluginConfig.GetString(Id2, StringKey));
         }
 
         [Test]

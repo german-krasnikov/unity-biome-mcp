@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ZoomPanManipulatorTests
+    public class ZoomPanManipulatorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private VisualElement _viewport;
         private VisualElement _content;

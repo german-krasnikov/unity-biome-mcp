@@ -5,7 +5,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class SceneMcpOverlayTests
+    internal class SceneMcpOverlayTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
         public void ResetToolSeams()

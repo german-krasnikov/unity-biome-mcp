@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class AssetPreviewServiceTests
+    public class AssetPreviewServiceTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         AssetPreviewService _service;
         int _assetLoadCalls;

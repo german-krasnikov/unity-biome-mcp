@@ -7,7 +7,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class UserTurnBuilderImageTests
+    public class UserTurnBuilderImageTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Build_EmptyImageList_SameAsTextOnly()

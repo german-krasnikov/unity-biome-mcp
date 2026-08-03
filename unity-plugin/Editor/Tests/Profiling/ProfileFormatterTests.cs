@@ -5,7 +5,7 @@ using UnityMCP.Editor.Profiling;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ProfileFormatterTests
+    public class ProfileFormatterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void FormatSummary_ContainsSessionId()

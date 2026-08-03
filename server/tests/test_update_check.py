@@ -67,11 +67,11 @@ def test_check_for_update_network_error(tmp_path, monkeypatch):
 def test_check_for_update_uses_cache(tmp_path, monkeypatch):
     cache_file = tmp_path / "cache.json"
     monkeypatch.setattr("unity_mcp._update_check.CACHE_FILE", cache_file)
-    cache_file.write_text(json.dumps({"ts": time.time(), "latest": "0.99.0"}), encoding="utf-8")
+    cache_file.write_text(json.dumps({"ts": time.time(), "latest": "99.99.0"}), encoding="utf-8")
     with patch("urllib.request.urlopen") as mock_url:
         result = check_for_update()
         mock_url.assert_not_called()
-    assert result == "0.99.0"
+    assert result == "99.99.0"
 
 
 def test_check_for_update_no_update(tmp_path, monkeypatch):
@@ -88,12 +88,12 @@ def test_check_for_update_no_update(tmp_path, monkeypatch):
 def test_check_for_update_fetches_github(tmp_path, monkeypatch):
     monkeypatch.setattr("unity_mcp._update_check.CACHE_FILE", tmp_path / "cache.json")
     mock_resp = MagicMock()
-    mock_resp.read.return_value = json.dumps({"tag_name": "v0.99.0"}).encode()
+    mock_resp.read.return_value = json.dumps({"tag_name": "v99.99.0"}).encode()
     mock_resp.__enter__ = lambda s: s
     mock_resp.__exit__ = MagicMock(return_value=False)
     with patch("urllib.request.urlopen", return_value=mock_resp):
         result = check_for_update()
-    assert result == "0.99.0"
+    assert result == "99.99.0"
     # Cache was written
     assert (tmp_path / "cache.json").exists()
 

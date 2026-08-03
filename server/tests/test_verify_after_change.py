@@ -2,6 +2,7 @@
 
 All I/O mocked at the imported-module boundary.
 """
+import json
 import pytest
 from unittest.mock import AsyncMock, patch
 
@@ -31,9 +32,117 @@ def test_is_compile_clean_variants():
     assert not _is_compile_clean("1 compilation error(s):")
 
 
+def _run_snapshot(
+    *,
+    state="terminal",
+    outcome="passed",
+    expected=10,
+    completed=10,
+    missing=0,
+    unexpected=0,
+    conflicts=0,
+    errors=None,
+):
+    return json.dumps({
+        "request_id": "req-1",
+        "run_id": "run-1",
+        "utf_guid": "utf-1",
+        "state": state,
+        "outcome": outcome,
+        "is_terminal": state == "terminal",
+        "execution_finished": state == "terminal",
+        "cleanup_complete": state == "terminal",
+        "build_coherent": True,
+        "utf_version": "1.6.0",
+        "manifest_complete": True,
+        "run_started_observed": True,
+        "run_finished_observed": state == "terminal",
+        "counts": {
+            "expected": expected,
+            "completed": completed,
+            "missing": missing,
+            "unexpected": unexpected,
+            "conflicts": conflicts,
+        },
+        "errors": [] if errors is None else errors,
+        "issues": [],
+    })
+
+
+@pytest.mark.parametrize("result", [
+    _run_snapshot(outcome="failed"),
+    _run_snapshot(outcome="incomplete"),
+    _run_snapshot(outcome="invalid"),
+    _run_snapshot(state="running", completed=4),
+    _run_snapshot(completed=9, missing=1),
+    _run_snapshot(unexpected=1),
+    _run_snapshot(conflicts=1),
+    _run_snapshot(errors=["observer failure"]),
+    "TIMEOUT|request_id=req-1|run_id=run-1|snapshot={}",
+    "START-UNKNOWN|request_id=req-1|reason=TimeoutError",
+    "tests-started|request_id=req-1|run_id=run-1|utf_guid=utf-1|state=dispatched",
+    "unstructured success text",
+])
+def test_test_gate_fails_closed_for_non_proven_results(result):
+    assert not _v._is_tests_pass(result)
+
+
+def test_test_gate_accepts_only_complete_terminal_pass_snapshot():
+    result = _run_snapshot()
+    assert _v._is_tests_pass(result)
+    assert _v._extract_ratio(result) == "10/10"
+
+
+def test_test_gate_accepts_reconciler_summary_field_names():
+    result = json.dumps({
+        "run_id": "run-1",
+        "request_id": "req-1",
+        "utf_guid": "utf-1",
+        "lifecycle": "terminal",
+        "outcome": "passed",
+        "is_terminal": True,
+        "execution_finished": True,
+        "cleanup_complete": True,
+        "build_coherent": True,
+        "utf_version": "1.6.0",
+        "manifest_complete": True,
+        "run_started_observed": True,
+        "run_finished_observed": True,
+        "expected_count": 10,
+        "completed_expected_count": 10,
+        "missing_count": 0,
+        "unexpected_count": 0,
+        "conflict_count": 0,
+        "issues": [],
+    })
+    assert _v._is_tests_pass(result)
+    assert _v._extract_ratio(result) == "10/10"
+
+
+def test_test_gate_rejects_legacy_summaries_without_durable_evidence():
+    assert not _v._is_tests_pass("EditMode: 10/10 passed, 0 failed")
+    assert not _v._is_tests_pass("10 tests: 8 passed, 0 failed, 2 skipped")
+
+
+@pytest.mark.parametrize("field", [
+    "is_terminal",
+    "execution_finished",
+    "cleanup_complete",
+    "build_coherent",
+    "manifest_complete",
+    "run_started_observed",
+    "run_finished_observed",
+])
+def test_test_gate_rejects_missing_or_false_protocol_guarantee(field):
+    snapshot = json.loads(_run_snapshot())
+    snapshot[field] = False
+    assert not _v._is_tests_pass(json.dumps(snapshot))
+
+
 def _patch_all(compile_result="compile clean (5s)", errors="",
-               console="", tests="EditMode: 10/10 passed, 0 failed",
+               console="", tests=None,
                suite="SUITE: 3/3 passed (12s)"):
+    tests = _run_snapshot() if tests is None else tests
     return [
         patch(_AWAIT_COMPILE, AsyncMock(return_value=compile_result)),
         patch(_GET_ERRORS, AsyncMock(return_value=errors)),
@@ -49,7 +158,7 @@ async def test_verify_all_pass():
         patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (5s)")),
         patch(_GET_ERRORS, AsyncMock(return_value="")),
         patch(_GET_CONSOLE_SINCE, AsyncMock(return_value="")),
-        patch(_RUN_TESTS_WAIT, AsyncMock(return_value="EditMode: 10/10 passed, 0 failed")),
+        patch(_RUN_TESTS_WAIT, AsyncMock(return_value=_run_snapshot())),
         patch(_RUN_SUITE, AsyncMock(return_value="SUITE: 3/3 passed (12s)")),
     ):
         result = await _v.verify_after_change(
@@ -161,7 +270,7 @@ async def test_verify_stops_on_first_failure():
 
 @pytest.mark.asyncio
 async def test_verify_timeout_passed_to_run_tests_wait():
-    mock_tests = AsyncMock(return_value="EditMode: 5/5 passed, 0 failed")
+    mock_tests = AsyncMock(return_value=_run_snapshot(expected=5, completed=5))
     with (
         patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (1s)")),
         patch(_GET_ERRORS, AsyncMock(return_value="")),

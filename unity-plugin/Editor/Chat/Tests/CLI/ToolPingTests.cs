@@ -9,7 +9,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ToolPingTests
+    public class ToolPingTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private GameObject _go;
 
@@ -17,8 +17,6 @@ namespace UnityMCP.Editor.Chat.Tests
         public void TearDown()
         {
             if (_go != null) Object.DestroyImmediate(_go);
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll();
         }
 
         // ── ExtractPath ───────────────────────────────────────────────────────

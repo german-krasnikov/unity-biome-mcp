@@ -6,9 +6,12 @@ Run with:
 Requires: Unity running, MCP plugin loaded, MCPChatWindow namespace available.
 All C# snippets live in chat_ui_helpers — zero inline C# here.
 """
+import asyncio
+
 import pytest
 import pytest_asyncio
 
+from tests.live.conftest import _connect_with_retry, make_live_bridge
 from tests.live.chat_ui_helpers import (
     CLOSE_WINDOW,
     FIND_WINDOW,
@@ -29,7 +32,6 @@ from tests.live.chat_ui_helpers import (
     IS_IMAGE_EXT_NULL,
     IS_IMAGE_EXT_EMPTY,
     exec_ok,
-    open_window,
     ensure_window,
     get_field,
     get_dropdown,
@@ -56,15 +58,44 @@ pytestmark = [pytest.mark.live, pytest.mark.live_chat]
 # Fixtures
 # ────────────────────────────────────────────────────────────────────────────
 
-@pytest_asyncio.fixture(scope="session")
-async def chat_session(bridge):
-    """Open MCPChatWindow once for the whole session; close after."""
-    await open_window(bridge)
-    yield bridge
+@pytest_asyncio.fixture(scope="module", autouse=True)
+async def _chat_window_owner():
+    """Own every chat window created by this module and prove teardown."""
+    bridge = make_live_bridge()
     try:
-        await exec_ok(bridge, CLOSE_WINDOW)
-    except Exception:
-        pass
+        await _connect_with_retry(bridge)
+        baseline = await exec_ok(bridge, FIND_WINDOW)
+        if baseline != "none":
+            pytest.fail(
+                "chat UI live tests require no pre-existing MCPChatWindow; "
+                "refusing to close an unowned window"
+            )
+    except BaseException:
+        await bridge.close()
+        raise
+
+    try:
+        yield
+    finally:
+        errors = []
+        try:
+            await exec_ok(bridge, STOP_BACKEND_IF_PRESENT)
+        except Exception as exc:
+            errors.append(f"backend stop failed: {exc}")
+        try:
+            await exec_ok(bridge, CLOSE_WINDOW)
+            for _ in range(20):
+                remaining = await exec_ok(bridge, FIND_WINDOW)
+                if remaining == "none":
+                    break
+                await asyncio.sleep(0.1)
+            else:
+                errors.append(f"chat window cleanup left state: {remaining}")
+        except Exception as exc:
+            errors.append(f"chat window cleanup failed: {exc}")
+        await bridge.close()
+        if errors:
+            raise AssertionError("; ".join(errors))
 
 
 @pytest_asyncio.fixture
@@ -179,7 +210,7 @@ async def test_input_read_after_set(w, text):
     """GET_INPUT after set_input returns the same text."""
     set_result = await exec_ok(w, set_input(text))
     if set_result in ("no_input", "no_window"):
-        pytest.skip(f"_input not accessible: {set_result}")
+        pytest.fail(f"_input not accessible: {set_result}")
     got = await exec_ok(w, GET_INPUT)
     assert got == text, f"expected {text!r}, got {got!r}"
 
@@ -190,7 +221,7 @@ async def test_input_clear(w, text):
     await exec_ok(w, set_input(text))
     clear_result = await exec_ok(w, CLEAR_INPUT)
     if clear_result in ("no_input", "no_window"):
-        pytest.skip(f"_input not accessible: {clear_result}")
+        pytest.fail(f"_input not accessible: {clear_result}")
     assert clear_result == ""
 
 
@@ -199,7 +230,7 @@ async def test_input_unicode(w, text):
     """Unicode text round-trips through _input without corruption."""
     result = await exec_ok(w, set_input_and_read(text))
     if result in ("no_input", "no_window"):
-        pytest.skip(f"_input not accessible: {result}")
+        pytest.fail(f"_input not accessible: {result}")
     assert result == text, f"unicode round-trip failed: {result!r} != {text!r}"
 
 
@@ -216,7 +247,7 @@ async def test_input_special_chars(w, text):
     """Special chars (quotes, backslash, tab) round-trip without corruption."""
     result = await exec_ok(w, set_input_and_read(text))
     if result in ("no_input", "no_window"):
-        pytest.skip(f"_input not accessible: {result}")
+        pytest.fail(f"_input not accessible: {result}")
     assert result == text, f"special chars round-trip failed: {result!r} != {text!r}"
 
 
@@ -230,7 +261,7 @@ async def test_mode_initial_read(w, seed):
     result = await exec_ok(w, GET_AGENT_MODE)
     assert result in ("True", "False", "no_window"), f"unexpected: {result}"
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
 
 
 @pytest.mark.parametrize("n", [1, 2, 3, 5, 10])
@@ -238,7 +269,7 @@ async def test_mode_set_ask(w, n):
     """set_mode(False) N times → _agentMode == False."""
     result = await exec_ok(w, set_mode_n(agent=False, n=n))
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     assert result == "False", f"expected False after ask mode, got {result}"
 
 
@@ -247,7 +278,7 @@ async def test_mode_set_agent(w, n):
     """set_mode(True) N times → _agentMode == True."""
     result = await exec_ok(w, set_mode_n(agent=True, n=n))
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     assert result == "True", f"expected True after agent mode, got {result}"
 
 
@@ -258,7 +289,7 @@ async def test_mode_toggle_sequence(w, n):
     await exec_ok(w, set_mode(agent=False))
     result = await exec_ok(w, toggle_mode_n(n))
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     expected = "True" if n % 2 == 1 else "False"
     assert result == expected, f"after {n} toggles expected {expected}, got {result}"
 
@@ -270,7 +301,7 @@ async def test_mode_ask_btn_css(w, n):
     await exec_ok(w, set_mode_n(agent=False, n=n + 1))
     result = await exec_ok(w, ASK_BTN_STATE)
     if result in ("no_window", "null"):
-        pytest.skip(f"_askBtn not accessible: {result}")
+        pytest.fail(f"_askBtn not accessible: {result}")
     assert result == "active", f"ask button not active in Ask mode: {result}"
 
 
@@ -283,7 +314,7 @@ async def test_model_dropdown_has_value(w, n):
     """_modelDropdown has a non-null selected value."""
     result = await exec_ok(w, get_dropdown("_modelDropdown"))
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     assert result != "null", f"_modelDropdown value is null (seed {n})"
 
 
@@ -292,7 +323,7 @@ async def test_agent_dropdown_has_value(w, n):
     """_agentDropdown has a non-null selected value."""
     result = await exec_ok(w, get_dropdown("_agentDropdown"))
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     assert result != "null", f"_agentDropdown value is null (seed {n})"
 
 
@@ -325,7 +356,7 @@ async def test_model_dropdown_choices_nonempty(w, n):
     """_modelDropdown has at least one choice available."""
     count_str = await exec_ok(w, get_dropdown_count("_modelDropdown"))
     if count_str in ("no_window", "null"):
-        pytest.skip(f"_modelDropdown not accessible: {count_str}")
+        pytest.fail(f"_modelDropdown not accessible: {count_str}")
     assert int(count_str) > 0, f"_modelDropdown has 0 choices (seed {n})"
 
 
@@ -339,7 +370,7 @@ async def test_backend_field_accessible(w, n):
     result = await exec_ok(w, GET_BACKEND)
     # "null" means backend field is None (fresh window); "no_window" is a skip
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     assert isinstance(result, str), f"unexpected (seed {n})"
 
 
@@ -348,7 +379,7 @@ async def test_backend_is_running_readable(w, n):
     """IsRunning property on _backend (if non-null) returns True or False."""
     result = await exec_ok(w, GET_BACKEND_RUNNING)
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     valid = {"True", "False", "null", "no_IsRunning"}
     assert result in valid, f"unexpected IsRunning value: {result} (seed {n})"
 
@@ -358,7 +389,7 @@ async def test_activity_phase_readable(w, n):
     """_activity.Phase is readable without exception."""
     result = await exec_ok(w, GET_ACTIVITY_PHASE)
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     assert isinstance(result, str) and result not in ("", "no_window"), (
         f"unexpected Phase value: {result!r} (seed {n})"
     )
@@ -369,7 +400,7 @@ async def test_backend_stop_when_idle(w, n):
     """Calling Stop on backend (when idle) doesn't crash execute_code."""
     result = await exec_ok(w, STOP_BACKEND_IF_PRESENT)
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     # Either "stopped" or "no_backend" are valid outcomes
     assert result in ("stopped", "no_backend"), f"unexpected: {result} (seed {n})"
 
@@ -381,7 +412,7 @@ async def test_backend_null_after_close(bridge, n):
     # After reopen, OnEnable calls CreateBackend(), so _backend should be non-null
     # RelayBackend or similar type name expected; "null" would indicate a bug
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     # We accept both null and a type name — OnEnable timing may vary
     assert isinstance(result, str), f"unexpected type (seed {n})"
 
@@ -395,7 +426,7 @@ async def test_transcript_accessible(w, n):
     """_transcript internal field is accessible via reflection."""
     result = await exec_ok(w, GET_TRANSCRIPT)
     if result == "no_window":
-        pytest.skip("window not found")
+        pytest.fail("window not found")
     # "null" should not happen (CreateGUI sets _transcript), but tolerate it
     assert isinstance(result, str), f"unexpected (seed {n})"
 
@@ -458,7 +489,7 @@ async def test_image_ext_true(bridge, ext):
     """Known image extensions return 'True' from IsImageExtension."""
     result = await exec_ok(bridge, is_image_ext(ext))
     if result == "method_not_found":
-        pytest.skip("IsImageExtension not accessible via reflection")
+        pytest.fail("IsImageExtension not accessible via reflection")
     assert result == "True", f"expected True for {ext!r}, got {result!r}"
 
 
@@ -467,7 +498,7 @@ async def test_image_ext_false(bridge, ext):
     """Non-image extensions return 'False' from IsImageExtension."""
     result = await exec_ok(bridge, is_image_ext(ext))
     if result == "method_not_found":
-        pytest.skip("IsImageExtension not accessible via reflection")
+        pytest.fail("IsImageExtension not accessible via reflection")
     assert result == "False", f"expected False for {ext!r}, got {result!r}"
 
 
@@ -481,7 +512,7 @@ async def test_image_ext_boundary(bridge, ext, expected):
     """Edge cases for IsImageExtension (uppercase tolerated, missing dot not)."""
     result = await exec_ok(bridge, is_image_ext(ext))
     if result == "method_not_found":
-        pytest.skip("IsImageExtension not accessible via reflection")
+        pytest.fail("IsImageExtension not accessible via reflection")
     assert result == expected, f"IsImageExtension({ext!r}) = {result!r}, want {expected!r}"
 
 
@@ -490,7 +521,7 @@ async def test_image_ext_case_insensitive(bridge, ext):
     """IsImageExtension is case-insensitive for standard image extensions."""
     result = await exec_ok(bridge, is_image_ext(ext))
     if result == "method_not_found":
-        pytest.skip("IsImageExtension not accessible via reflection")
+        pytest.fail("IsImageExtension not accessible via reflection")
     assert result == "True", f"expected True for uppercase {ext!r}, got {result!r}"
 
 

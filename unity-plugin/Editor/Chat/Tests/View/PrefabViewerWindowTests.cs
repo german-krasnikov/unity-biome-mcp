@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class PrefabPreviewLoaderTests
+    public class PrefabPreviewLoaderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // --- Loader cancel tests ---
 
@@ -85,7 +85,7 @@ namespace UnityMCP.Editor.Chat.Tests
     }
 
     [TestFixture]
-    public class PrefabViewerWindowTests
+    public class PrefabViewerWindowTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // --- BuildUI tests via internal static helper ---
 

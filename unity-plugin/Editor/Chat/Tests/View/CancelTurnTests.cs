@@ -8,7 +8,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class CancelTurnTests
+    public class CancelTurnTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static ChatActivityState GetActivity(MCPChatWindow w)
         {

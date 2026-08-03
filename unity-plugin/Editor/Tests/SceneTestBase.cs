@@ -1,16 +1,13 @@
-using NUnit.Framework;
-using UnityEditor;
-using UnityEditor.SceneManagement;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
-    public abstract class SceneTestBase
+    public abstract class SceneTestBase : UnityMcpTestBase
     {
-        [TearDown]
+        // Kept public for compatibility with focused cleanup tests and callers.
         public void CleanDirtyScene()
         {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Undo.ClearAll(); // reset dirty flag — Undo stack persists across NewScene in Unity 6
+            ResetManagedTestScene();
         }
     }
 }

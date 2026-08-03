@@ -5,7 +5,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class ProfilerHelperTests
+    public class ProfilerHelperTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void GetSnapshot_ReturnsNonEmptyString()

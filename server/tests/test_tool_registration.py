@@ -249,10 +249,7 @@ def test_b2_split_modules_wired_into_register_all():
 
 
 def test_b2_split_total_tool_count_unchanged(monkeypatch):
-    """The 20 tools formerly defined directly in scene.py must still total 20
-    across the 5 files (scene's own 6 + console's 3 + screenshot's 1 + testing's 4
-    + editor_control's 6), independent of scene.py's separate scene.py
-    delegation (5 tools, unaffected by this split)."""
+    """Split modules include the durable test-run protocol tools."""
     monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)
     import unity_mcp.tools.scene as scene_mod
     import unity_mcp.tools.console as console_mod
@@ -269,4 +266,4 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
     scene_own = scene_total - 5
     total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    assert total == 23
+    assert total == 27

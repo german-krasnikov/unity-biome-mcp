@@ -5,7 +5,7 @@ using UnityMCP.Editor.UI;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal sealed class IconCanvasTests
+    internal sealed class IconCanvasTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private readonly System.Collections.Generic.List<Texture2D> _textures = new();
 

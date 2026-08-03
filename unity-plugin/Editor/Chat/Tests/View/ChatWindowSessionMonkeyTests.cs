@@ -11,7 +11,7 @@ using Object = UnityEngine.Object;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChatWindowSessionMonkeyTests
+    public class ChatWindowSessionMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly FieldInfo s_inp   = typeof(MCPChatWindow).GetField("_inputTokens",    BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo s_out   = typeof(MCPChatWindow).GetField("_outputTokens",   BindingFlags.NonPublic | BindingFlags.Instance);

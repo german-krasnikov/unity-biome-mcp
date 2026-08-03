@@ -7,7 +7,7 @@ using UnityEngine.TestTools;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class LocalPluginUpdaterTests
+    public class LocalPluginUpdaterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         class FakeRunner : LocalPluginUpdater.IProcessRunner
         {

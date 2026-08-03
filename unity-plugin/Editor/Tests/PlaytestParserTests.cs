@@ -8,7 +8,7 @@ using UnityMCP.Editor;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestParserTests
+    public class PlaytestParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Compare: numeric equality ────────────────────────────────────────────
 

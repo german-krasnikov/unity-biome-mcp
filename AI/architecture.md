@@ -376,17 +376,16 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
 
 5. **Per-command timeouts (C#)**: run_tests=130s, run_playtest=130s, batch=65s, wait_until/move_to/test_step=30s, default=25s
 
-**run_tests Fire-and-Forget (v0.32.0)** — `run_tests(mode="EditMode"|"PlayMode", filter=None)` returns immediately with message `"tests-started|{mode}|poll get_test_results every 5s for up to 2min"`. Does NOT poll internally. User/caller must poll `get_test_results()` externally. **Why:** avoids TCP blocking on domain reload (Editor.log clears "compiling" status before port 9700 restored). Initial send() uses short 8s timeout (fire-and-forget). If `DomainReloadError` caught, returns immediately. Bridge resilience: when `DomainReloadError` occurs, pins `domain_reload_in_progress=True` for all subsequent retries within that send() call, preventing `_probe_busy()` from returning False too early. `get_test_results` allowed during compile (added to CommandRouter.IsAllowedDuringCompile, v0.31.1 P1 fix). **External polling pattern:**
+**Durable test runs** — consumer agents normally call `run_tests_wait`, which owns exact-run correlation and recovery. Unity Biome MCP repository and disposable-worker runs use `run_unity_tests.py`. Direct `run_tests(mode, filter, request_id)` is the low-level nonblocking API and returns `request_id`, `run_id`, `utf_guid`, and `state`; only explicit protocol clients should drive it:
 ```python
-result = await run_tests(mode="EditMode")  # → "tests-started|EditMode|..."
-# Now poll externally:
-import asyncio
-for _ in range(24):  # 2min @ 5s intervals  
-    await asyncio.sleep(5)
-    result = await get_test_results()
-    if result not in ("pending", "none"):
-        return result
+ack = await run_tests(mode="EditMode", request_id=stable_request_id)
+# tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched
+snapshot = await get_test_run(run_id=run_id)
 ```
+The low-level caller resolves `START-UNKNOWN` with the same request identity,
+never redispatches a dispatched run, and accepts only a reconciled terminal
+snapshot. Uncorrelated `get_test_results` and `get_test_progress` are legacy
+diagnostics, not verdicts.
 
 6. **Post-mutation features**: console error capture, SuggestNext (recommends verification tool), auto-return parent subtree after create/delete
 
@@ -875,12 +874,29 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 - `ask(question)` — NL read-only question → deterministic route → Haiku summarize
 - `animator_intent`, `vfx_intent`, `ui_intent` — domain-specific NL intent tools (Tier2, discoverable via discover_tools)
 
-### Test Infrastructure (C#: TestRunner + MultiSceneTestBase, v0.25.0)
-- **TestRunner.cs**: Wraps Unity Test Framework API with SessionState-based pending tracking. Exposes Execute(mode, onComplete, group, **filter**) with pipe-separated test class filtering. **filter="Class1|Class2"** runs ONLY matching groupNames (~2s vs ~65s full suite). **v0.78.11 `DeleteTempScene`**: `EditorApplication.delayCall` hook added to `RunFinished`. After test completion, if the active scene is still the temp scene (`Assets/TestsTemp/__mcp_test_temp.unity`), it creates a fresh empty scene first (prevents "Save Scene?" dialog), then deletes the temp asset via `AssetDatabase.DeleteAsset`. `TempScenePath` promoted to `internal const` for test access.
-- **Filter.groupNames** conversion: `filter.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries)` parses pipe-separated class names into UTF framework groupNames array
-- **MultiSceneTestBase** (v0.25.0): Shared DRY base for multi-scene test suites. Saves/restores additive scenes before AddScene() to preserve real scene names (vs Unity temporary names). Captures main scene name in SetUp to unblock NewScene scene-change behavior. Eliminates test-file duplication across MultiSceneFinderTests, MultiSceneHierarchyTests, MultiSceneOperationsTests
-- **ObjectDiffHelper** (v0.25.0): Now compares Transform properties (Position, Rotation, Scale, LocalScale) alongside all other components. Improves object diff accuracy for verification gates
-- **Compile Check Gate** (MANDATORY before NUnit): TCP `get_compile_errors` must pass before running NUnit tests. Unity runs stale DLL on compilation failure; tests invalid against old code. Editor.log unreliable. Implement as: `run_tests(mode="EditMode")` catches compile via early test failure, OR manual `await get_compile_errors()` in Python
+### Durable Test Infrastructure
+- **TestRunService / TestRunObserver / TestRunStore**: one immutable
+  `request_id -> run_id -> utf_guid` identity, atomic manifest and leaf events,
+  reload-safe reconciliation, explicit terminal outcome, and durable environment
+  restoration evidence. A timeout or transport disconnect is never completion.
+- **UnityMcpTestBase**: mandatory per-test transaction for the run-owned ordinary
+  scene, exact object/window/asset/preview ownership, global test seams, bounded
+  EditMode Task waits, and observable cleanup failures. Compatibility bases such
+  as `SceneTestBase` and `MultiSceneTestBase` specialize this contract; they do
+  not replace its lifecycle.
+- **Scene isolation**: the runner snapshots the user's ordinary scene setup once
+  per run, switches UTF to a clean owned scene, and restores the snapshot without
+  saving unknown dirty state. Preview scenes are never guessed or closed: tests
+  use `CreateOwnedPreviewScene()`, while durable count drift fail-stops the next
+  test and invalidates final cleanup evidence.
+- **Invocation**: repository runs use `run_unity_tests.py`; consumer projects use
+  one `run_tests_wait`. Direct `run_tests`/`get_test_run` is reserved for protocol
+  tests and recovery tooling.
+- **Compile gate**: before NUnit, require `sync_status` ready and `diagnose` with
+  `compile=idle`, fresh assemblies, `errors=No compilation errors`, `log=clean`,
+  and `reload_failed=false`. A stale DLL must never count as test evidence.
+- **ObjectDiffHelper**: compares Transform properties (Position, Rotation, Scale,
+  LocalScale) alongside other components for verification gates.
 
 ### Playtest System (C#: PlaytestRunner + PlaytestParser)
 - DSL commands (25): MOVE, WAIT, WAIT_UNTIL, ASSERT, ASSERT_CONSOLE_CLEAN, ASSERT_BATCH, ASSERT_NEAR, TELEPORT, SNAPSHOT, INVOKE, SET, LOG, TIMESCALE, CAPTURE, ASSERT_CAPTURED, INVARIANT, ASSERT_CONSERVED, SIMULATE, MONITOR, TRACE_FLOW, ASSERT_CTA, MOVE_PATH, SECTION, WAIT_CAPTURED (capture then wait for condition), SWEEP_PATH (sequential waypoint traversal, expands to N MOVE steps)
@@ -954,7 +970,7 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 
 - **Console watermarks** (`tools/console.py`): `console_mark(label)` — pure Python, no TCP, returns a `mark:<timestamp>[:<label>]` string. `get_console_since(mark_id, level, count)` — computes age from timestamp and passes `since=` to `get_console`. Pattern: mark before an operation, query after to see only new logs. Category: DEBUG tier1.
 
-- **run_tests_wait** (`tools/testing.py`): Blocking wrapper around fire-and-forget `run_tests`. Starts tests, polls `get_test_results()` every `poll_interval` seconds until result is not `pending`/`none`, returns final result or `TIMEOUT: <last>`. Category: TESTS tier1.
+- **run_tests_wait** (`tools/testing.py`): Preferred consumer-project wrapper around the durable direct protocol. Preserves one request/run identity, resolves a lost ACK, polls `get_test_run(run_id)` to reconciliation, and returns an observational `TIMEOUT` without marking the Unity run complete. Category: TESTS tier1. Repository/disposable-worker verification uses `run_unity_tests.py`.
 
 - **Playtest suite runner** (`tools/runtime.py`):
   - `run_playtest_suite(paths, ...)` — multi-file runner. `paths` accepts glob pattern (resolves via `list_playtest_files` C# command), comma-separated list, or newline list. Returns compact `SUITE: X/Y passed (Zs)` header + per-file line + failure details. `stop_on_fail` aborts suite on first failure; `stop_after` exits Play Mode on completion.

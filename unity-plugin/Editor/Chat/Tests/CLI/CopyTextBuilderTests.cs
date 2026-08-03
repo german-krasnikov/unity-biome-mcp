@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class CopyTextBuilderTests
+    public class CopyTextBuilderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── ForUser ───────────────────────────────────────────────────────────
 

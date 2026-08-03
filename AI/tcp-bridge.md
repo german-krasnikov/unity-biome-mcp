@@ -276,17 +276,16 @@ timeouts. Its disconnected-startup guard is not a tool-call deadline.
 - Non-atomic batch follows `on_error`; the default `continue` processes remaining operations
 - Prevents partial state corruption when timeout interrupts mid-batch
 
-**run_tests Fire-and-Forget (v0.32.0)**
-- `run_tests()` returns immediately (8s send timeout) with message `"tests-started|{mode}|poll get_test_results every 5s for up to 2min"`
-- Does NOT poll internally — caller must poll `get_test_results()` externally
+**Durable test dispatch**
+- Consumer agents use `run_tests_wait()`; repository/disposable-worker runs use `run_unity_tests.py`
+- Direct `run_tests()` is low-level nonblocking API and returns `request_id`, `run_id`, `utf_guid`, and `state`
+- An explicit protocol caller polls only `get_test_run(run_id)` for that exact run
 - `run_playtest()` is synchronous and returns its final playtest report; do not poll `get_test_results()` for it
-- On `DomainReloadError`: returns immediately (no wait)
-- **Why:** avoids TCP blocking when domain reload clears socket before port 9700 restored
+- On an uncertain start, resolve the original `request_id`; never create a replacement request
+- Timeout, disconnect, or port movement is nonterminal until the exact durable snapshot reconciles
 
-**P1 (Cycle 17+) Fix — Compile Guard Allowlist for Test Results**
-- `get_test_results` added to `IsAllowedDuringCompile` allowlist in CommandRouter.cs
-- Reads SessionState only (no main thread dispatch) — safe during compile + domain reload
-- Fixes blocking of test result polling during domain reload, causing -32000 errors
+Legacy `get_test_results` and `get_test_progress` remain diagnostic facades. An
+uncorrelated latest result is never acceptance evidence.
 
 **P0 (Cycle 17+) Fix — Domain Reload Sticky Flag**
 - `_domain_reload_in_progress` flag now auto-expires after 90s (v0.42.1: increased from 30s to 90s for 9-assembly window), cleared on successful reconnect

@@ -7,7 +7,7 @@ using UnityMCP.Editor.Wizard;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class SkillsInstallerTests
+    public class SkillsInstallerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tmp;
 

@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat.Annotation;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotationEditorWindowTests
+    internal sealed class AnnotationEditorWindowTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [TearDown]
         public void Cleanup()

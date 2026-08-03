@@ -12,7 +12,7 @@ namespace UnityMCP.Editor.Chat.Tests
     /// Fix: SessionStateHelper shadows every snap in SessionState; Load() recovers from it.
     /// </summary>
     [TestFixture]
-    public class RegionSnapReloadTests
+    public class RegionSnapReloadTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         string _tmpFile;
         RegionChipProvider _provider;
@@ -20,21 +20,13 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            _tmpFile = Path.GetTempFileName();
-            SceneRegionState.PersistPath = _tmpFile;
-            SceneRegionState.MaxRegions  = 20;
-            SceneRegionState.Clear();
+            _tmpFile = Path.Combine(Path.GetTempPath(),
+                $"unity-mcp-region-reload-{Guid.NewGuid():N}.json");
+            RegisterCleanup(SceneRegionState.IsolateForTests(_tmpFile, 20).Dispose);
+            RegisterCleanup(ChipKindRegistry.PreserveStateForTests().Dispose);
             ChipKindRegistry.ResetToBuiltIns();
             ChipKindRegistry.Register(new RegionChipProvider());
             _provider = ChipKindRegistry.ForKey("region") as RegionChipProvider;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            SceneRegionState.Clear(); // also calls SessionStateHelper.ClearAll()
-            ChipKindRegistry.ResetToBuiltIns();
-            try { File.Delete(_tmpFile); } catch { }
         }
 
         // ── Group A — Domain reload survival ─────────────────────────────────
@@ -256,14 +248,14 @@ namespace UnityMCP.Editor.Chat.Tests
             return new RegionSnapshot
             {
                 Id           = id,
-                SchemaVersion = 1,
+                SchemaVersion = 2,
                 AnnotationType = "region",
                 VerticesFlat = new[] { 0f, 0f, 10f, 0f, 10f, 10f, 0f, 10f },
                 Area         = area,
                 CenterX      = 5f, CenterZ = 5f,
                 MinX = 0f, MinZ = 0f, MaxX = 10f, MaxZ = 10f,
                 ObjectPaths  = paths,
-                ObjectIds    = new int[objCount],
+                ObjectIds    = new string[objCount],
                 TotalCount   = objCount,
                 CreatedTicks = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             };

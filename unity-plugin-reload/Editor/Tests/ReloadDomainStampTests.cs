@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Reload.Tests
 {
     [TestFixture]
-    public class ReloadDomainStampTests
+    public class ReloadDomainStampTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void ComputeStamp_ReturnsNonEmpty()

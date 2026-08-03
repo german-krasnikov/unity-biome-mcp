@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class InputHeightCalcTests
+    public class InputHeightCalcTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private InputHeightCalc _calc;
 

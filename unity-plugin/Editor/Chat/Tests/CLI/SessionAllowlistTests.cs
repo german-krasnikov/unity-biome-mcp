@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class SessionAllowlistTests
+    public class SessionAllowlistTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string TestTool = "TestTool_SAL_" + nameof(SessionAllowlistTests);
         private SessionAllowlist _list;
@@ -14,11 +14,8 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             _list = new SessionAllowlist();
-            EditorPrefs.DeleteKey("MCPChat.AlwaysAllow." + TestTool);
+            DeleteEditorPrefBool("MCPChat.AlwaysAllow." + TestTool);
         }
-
-        [TearDown]
-        public void TearDown() => EditorPrefs.DeleteKey("MCPChat.AlwaysAllow." + TestTool);
 
         [Test]
         public void IsAutoApproved_NotAdded_ReturnsFalse()

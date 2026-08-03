@@ -2,12 +2,11 @@
 using System;
 using System.IO;
 using NUnit.Framework;
-using UnityEditor;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PortFileManagerTests
+    public class PortFileManagerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tempDir;
 
@@ -15,14 +14,12 @@ namespace UnityMCP.Editor.Tests
         public void SetUp()
         {
             _tempDir = Path.Combine(Path.GetTempPath(), "PortFileManagerTests_" + System.Guid.NewGuid().ToString("N"));
+            RegisterCleanup(() =>
+            {
+                if (Directory.Exists(_tempDir))
+                    Directory.Delete(_tempDir, recursive: true);
+            });
             Directory.CreateDirectory(_tempDir);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            try { Directory.Delete(_tempDir, recursive: true); } catch { }
-            PortFileManager.ResetForTests();
         }
 
         // ── CleanStalePeerPortFiles ───────────────────────────────────────────
@@ -97,43 +94,99 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SaveRuntimePorts_DoesNotModifySettings()
         {
-            var settingsPath = Path.GetFullPath(
-                Path.Combine(UnityEngine.Application.dataPath, "..", "ProjectSettings", "MCPSettings.json"));
-            var portJsonPath = Path.GetFullPath(
-                Path.Combine(UnityEngine.Application.dataPath, "..", "Library", "MCP_Port.json"));
-            var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
-            var discoveryPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-biome-mcp", "ports", $"{pid}.port");
+            const int processId = 4242;
+            var settingsPath = Path.Combine(_tempDir, "ProjectSettings", "MCPSettings.json");
+            var portJsonPath = Path.Combine(_tempDir, "Library", "MCP_Port.json");
+            var temporaryCachePath = Path.Combine(_tempDir, "Temp", "mcp_port.txt");
+            var discoveryDirectory = Path.Combine(_tempDir, "discovery");
+            var discoveryPath = Path.Combine(discoveryDirectory, $"{processId}.port");
             var chatDiscoveryPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-biome-mcp", "ports", $"{pid}.chat-port");
+                discoveryDirectory, $"{processId}.chat-port");
+            Directory.CreateDirectory(Path.GetDirectoryName(settingsPath));
+            File.WriteAllText(settingsPath, "{\"port\":9500,\"chatPort\":9501}");
+            var before = File.ReadAllText(settingsPath);
 
-            var before = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
-            var portJsonBefore = File.Exists(portJsonPath) ? File.ReadAllText(portJsonPath) : null;
-            var discoveryBefore = File.Exists(discoveryPath) ? File.ReadAllText(discoveryPath) : null;
-            var chatDiscoveryBefore = File.Exists(chatDiscoveryPath) ? File.ReadAllText(chatDiscoveryPath) : null;
-            try
-            {
-                PortFileManager.SaveRuntimePorts(9999, 10000);
+            var persisted = PortFileManager.SaveRuntimePortsCore(
+                9999,
+                10000,
+                portJsonPath,
+                temporaryCachePath,
+                discoveryDirectory,
+                processId,
+                "/tmp/isolated-project",
+                "isolated-project");
 
-                var after = File.Exists(settingsPath) ? File.ReadAllText(settingsPath) : null;
-                Assert.AreEqual(before, after, "SaveRuntimePorts must not touch MCPSettings.json");
-            }
-            finally
-            {
-                if (portJsonBefore != null) File.WriteAllText(portJsonPath, portJsonBefore);
-                else if (File.Exists(portJsonPath)) File.Delete(portJsonPath);
+            Assert.IsTrue(persisted);
+            Assert.AreEqual(before, File.ReadAllText(settingsPath),
+                "Runtime persistence must not touch MCPSettings.json.");
+            Assert.AreEqual(9999,
+                PortResolver.ResolvePort(null, null, File.ReadAllText(portJsonPath), 0));
+            Assert.AreEqual(10000,
+                PortResolver.ResolveChatPort(
+                    null, null, File.ReadAllText(portJsonPath), 9999, 0));
+            Assert.AreEqual("9999", File.ReadAllText(temporaryCachePath));
+            Assert.AreEqual(
+                "9999\n/tmp/isolated-project\nisolated-project",
+                File.ReadAllText(discoveryPath));
+            Assert.AreEqual(
+                "10000\n/tmp/isolated-project\nisolated-project",
+                File.ReadAllText(chatDiscoveryPath));
+        }
 
-                // Restore the peer discovery file — WritePortFile writes ~/{pid}.port and
-                // the original finally block did not restore it, leaving port=9999 on disk
-                // after the test, which breaks Python's port discovery.
-                if (discoveryBefore != null) File.WriteAllText(discoveryPath, discoveryBefore);
-                else if (File.Exists(discoveryPath)) File.Delete(discoveryPath);
+        [Test]
+        public void SaveRuntimePorts_RuntimeJsonWriteFails_DoesNotCommitResolvedPorts()
+        {
+            var committed = false;
 
-                if (chatDiscoveryBefore != null) File.WriteAllText(chatDiscoveryPath, chatDiscoveryBefore);
-                else if (File.Exists(chatDiscoveryPath)) File.Delete(chatDiscoveryPath);
-            }
+            var persisted = PortFileManager.SaveRuntimePortsCore(
+                9999,
+                10000,
+                Path.Combine(_tempDir, "Library", "MCP_Port.json"),
+                Path.Combine(_tempDir, "Temp", "mcp_port.txt"),
+                Path.Combine(_tempDir, "discovery"),
+                4242,
+                "/tmp/isolated-project",
+                "isolated-project",
+                (_, __) => throw new IOException("deterministic writer failure"),
+                (_, __) => committed = true);
+
+            Assert.IsFalse(persisted);
+            Assert.IsFalse(committed,
+                "Resolved ports must not be committed when MCP_Port.json persistence fails.");
+        }
+
+        [Test]
+        public void SaveRuntimePorts_DiscoveryWriteFails_DoesNotCommitResolvedPorts()
+        {
+            const int processId = 4242;
+            var discoveryDirectory = Path.Combine(_tempDir, "discovery");
+            var discoveryPath = Path.Combine(discoveryDirectory, $"{processId}.port");
+            var committed = false;
+            UnityEngine.TestTools.LogAssert.Expect(
+                UnityEngine.LogType.Warning,
+                "[MCP] Could not write discovery file: deterministic discovery failure");
+
+            var persisted = PortFileManager.SaveRuntimePortsCore(
+                9999,
+                10000,
+                Path.Combine(_tempDir, "Library", "MCP_Port.json"),
+                Path.Combine(_tempDir, "Temp", "mcp_port.txt"),
+                discoveryDirectory,
+                processId,
+                "/tmp/isolated-project",
+                "isolated-project",
+                (path, contents) =>
+                {
+                    if (path == discoveryPath)
+                        throw new IOException("deterministic discovery failure");
+                    File.WriteAllText(path, contents);
+                },
+                (_, __) => committed = true);
+
+            Assert.IsFalse(persisted);
+            Assert.IsFalse(committed,
+                "Resolved ports must not be committed when discovery persistence fails.");
+            Assert.IsFalse(File.Exists(discoveryPath));
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

@@ -3,15 +3,15 @@
 using System.IO;
 using System.Reflection;
 using NUnit.Framework;
-using UnityEngine;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ReloadGuardTests
+    public class ReloadGuardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tmpPath;
+        private RecordingReloadGuardOps _ops;
 
         [SetUp]
         public void SetUp()
@@ -19,6 +19,8 @@ namespace UnityMCP.Editor.Chat.Tests
             _tmpPath = Path.Combine(Path.GetTempPath(), $"ReloadGuardTest_{System.Guid.NewGuid()}.txt");
             ReloadGuard.OverrideFilePath(_tmpPath); // test seam
             ReloadGuard.ResetForTest();              // clear in-memory lock counter
+            _ops = new RecordingReloadGuardOps();
+            ReloadGuard.OverrideOpsForTest(_ops);
         }
 
         [TearDown]
@@ -139,6 +141,38 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.IsFalse(ReloadGuard.IsLocked);
         }
 
+        [Test]
+        public void ResetForTest_BalancesEveryAcquiredOperation()
+        {
+            ReloadGuard.OnTurnStarted();
+
+            ReloadGuard.ResetForTest();
+
+            Assert.That(_ops.DisallowCount, Is.EqualTo(1));
+            Assert.That(_ops.LockCount, Is.EqualTo(1));
+            Assert.That(_ops.UnlockCount, Is.EqualTo(1));
+            Assert.That(_ops.AllowCount, Is.EqualTo(1));
+            Assert.That(_ops.RefreshCount, Is.EqualTo(1));
+            Assert.That(_ops.Watchdogs, Is.EqualTo(0));
+            Assert.That(ReloadGuard.IsLocked, Is.False);
+            Assert.That(ReloadGuard.HasPersistedLock, Is.False);
+        }
+
+        [Test]
+        public void FailedAssemblyLock_RollsBackAutoRefreshWithoutPublishingLock()
+        {
+            _ops.ThrowOnLock = true;
+
+            ReloadGuard.OnTurnStarted();
+
+            Assert.That(_ops.DisallowCount, Is.EqualTo(1));
+            Assert.That(_ops.LockCount, Is.EqualTo(1));
+            Assert.That(_ops.AllowCount, Is.EqualTo(1));
+            Assert.That(_ops.UnlockCount, Is.EqualTo(0));
+            Assert.That(ReloadGuard.IsLocked, Is.False);
+            Assert.That(ReloadGuard.HasPersistedLock, Is.False);
+        }
+
         // CH4.test.4: watchdog fires and force-unlocks when timeout exceeded
         [Test]
         public void WatchdogTick_AfterTimeout_ForceUnlocks()
@@ -242,12 +276,44 @@ namespace UnityMCP.Editor.Chat.Tests
             ReloadGuard.OnTurnFinished();
             Assert.IsFalse(ReloadGuard.IsLocked, "unlocked after second finish");
         }
+
+        private sealed class RecordingReloadGuardOps : IReloadGuardTestOps
+        {
+            public int DisallowCount { get; private set; }
+            public int AllowCount { get; private set; }
+            public int LockCount { get; private set; }
+            public int UnlockCount { get; private set; }
+            public int RefreshCount { get; private set; }
+            public int Watchdogs { get; private set; }
+            public bool ThrowOnLock { get; set; }
+            public double TimeSinceStartup => UnityEditor.EditorApplication.timeSinceStartup;
+
+            public void DisallowAutoRefresh() => DisallowCount++;
+            public void AllowAutoRefresh() => AllowCount++;
+            public void UnlockReloadAssemblies() => UnlockCount++;
+            public void RefreshAssets() => RefreshCount++;
+            public void ScheduleRefresh() { }
+
+            public void LockReloadAssemblies()
+            {
+                LockCount++;
+                if (ThrowOnLock) throw new System.InvalidOperationException("expected lock failure");
+            }
+
+            public void AddWatchdog(UnityEditor.EditorApplication.CallbackFunction callback) =>
+                Watchdogs++;
+
+            public void RemoveWatchdog(UnityEditor.EditorApplication.CallbackFunction callback)
+            {
+                if (Watchdogs > 0) Watchdogs--;
+            }
+        }
     }
 
     // ── Stress tests: _lockDepth and source structure (SH-2, SD-2) ───────────
 
     [TestFixture]
-    public class ReloadGuardStressTests
+    public class ReloadGuardStressTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]    public void SetUp()    => ReloadGuard.ResetForTest();
         [TearDown] public void TearDown() => ReloadGuard.ResetForTest();
@@ -271,35 +337,35 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void OnTurnStarted_LockDepthIncrementNotInFinallyBlock()
         {
-            var src = ResolveSource("unity-plugin/Editor/Chat/CLI/ReloadGuard.cs");
-            if (src == null) return;
-            // Old broken form had _lockDepth++ in finally {} → over-increment on exception.
-            // Verify the pattern "finally" immediately followed by "{" then "_lockDepth++" is absent.
-            var idxFinally = src.IndexOf("finally", System.StringComparison.Ordinal);
-            var idxLock    = src.IndexOf("_lockDepth++;", System.StringComparison.Ordinal);
-            // If there's no finally block at all, the fix is definitely safe
-            if (idxFinally == -1) return;
-            // _lockDepth++ must appear AFTER the finally keyword (success path, not finally body)
-            Assert.IsTrue(idxLock > idxFinally || idxLock == -1,
-                "SH-2: _lockDepth++ must not be the first statement in the finally block");
+            var src = ReadRequiredPackageSource(
+                typeof(ReloadGuard), "Editor/Chat/CLI/ReloadGuard.cs");
+            var methodStart = src.IndexOf(
+                "internal static void OnTurnStarted()", System.StringComparison.Ordinal);
+            Assert.That(methodStart, Is.GreaterThanOrEqualTo(0),
+                "OnTurnStarted source was not found");
+            var methodEnd = src.IndexOf(
+                "internal static void OnTurnFinished()", methodStart,
+                System.StringComparison.Ordinal);
+            Assert.That(methodEnd, Is.GreaterThan(methodStart),
+                "OnTurnStarted source boundary was not found");
+
+            var method = src.Substring(methodStart, methodEnd - methodStart);
+            StringAssert.DoesNotContain("finally", method,
+                "SH-2: OnTurnStarted must not increment lock depth from a finally block");
+            Assert.That(method.IndexOf("_lockDepth++;", System.StringComparison.Ordinal),
+                Is.GreaterThan(method.IndexOf(
+                    "Ops.LockReloadAssemblies();", System.StringComparison.Ordinal)),
+                "SH-2: lock depth must increment only after reload lock acquisition succeeds");
         }
 
         // T-G: ForceUnlock source contains AssetDatabase.Refresh() (SD-2)
         [Test]
         public void ForceUnlock_SourceContainsAssetDatabaseRefresh()
         {
-            var src = ResolveSource("unity-plugin/Editor/Chat/CLI/ReloadGuard.cs");
-            if (src == null) return;
+            var src = ReadRequiredPackageSource(
+                typeof(ReloadGuard), "Editor/Chat/CLI/ReloadGuard.cs");
             StringAssert.Contains("AssetDatabase.Refresh()", src,
                 "SD-2: ForceUnlock must call AssetDatabase.Refresh() to re-arm the file watcher");
-        }
-
-        private static string ResolveSource(string pluginRelPath)
-        {
-            var p = System.IO.Path.GetFullPath(System.IO.Path.Combine(
-                Application.dataPath, "..", "..", pluginRelPath));
-            if (!System.IO.File.Exists(p)) { Assert.Ignore($"Source not found: {p}"); return null; }
-            return System.IO.File.ReadAllText(p);
         }
     }
 }

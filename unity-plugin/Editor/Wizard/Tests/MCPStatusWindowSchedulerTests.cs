@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MCPStatusWindowSchedulerTests
+    public class MCPStatusWindowSchedulerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly BindingFlags NonPublicInstance =
             BindingFlags.NonPublic | BindingFlags.Instance;

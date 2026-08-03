@@ -86,8 +86,53 @@ namespace UnityMCP.Editor
             if (killed > 0) UnityEngine.Debug.Log($"[MCP] Killed {killed} phantom connection(s)");
             return killed;
         }
-        public static int ServerPort => PortFileManager.Port;
-        public static int ServerChatPort => PortFileManager.ChatPort;
+        public static int ServerPort
+        {
+            get
+            {
+                return TryGetBoundPort(_listener, out var port)
+                    ? port
+                    : PortFileManager.Port;
+            }
+        }
+
+        public static int ServerChatPort
+        {
+            get
+            {
+                return TryGetBoundPort(_chatListener, out var port)
+                    ? port
+                    : PortFileManager.ChatPort;
+            }
+        }
+
+        internal static bool TryGetBoundPort(TcpListener listener, out int port)
+        {
+            port = 0;
+            try
+            {
+                var socket = listener?.Server;
+                if (socket == null || !socket.IsBound)
+                    return false;
+                if (!(socket.LocalEndPoint is IPEndPoint endpoint) || endpoint.Port <= 0)
+                    return false;
+
+                port = endpoint.Port;
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            catch (SocketException)
+            {
+                return false;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
         // Reads reloadPort from MCP_Port.json. Returns 0 if reload-package is not installed.
         public static int ServerReloadPort => PortFileManager.ServerReloadPort;
         public static double CompileElapsedSeconds => _isCompiling

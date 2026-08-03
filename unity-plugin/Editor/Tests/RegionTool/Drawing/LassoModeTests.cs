@@ -5,7 +5,7 @@ using UnityMCP.Editor.RegionTool;
 namespace UnityMCP.Editor.Tests.RegionTool
 {
     [TestFixture]
-    internal class LassoModeTests
+    internal class LassoModeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         LassoMode _mode;
 

@@ -6,7 +6,7 @@ using static UnityMCP.Editor.Chat.Tests.ChipTestHelpers;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChipSequenceExtraTests
+    public class ChipSequenceExtraTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private InlineChipField _chipField;
 

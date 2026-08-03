@@ -3,6 +3,7 @@
     "rootNamespace": "UnityMCP.Reload.Tests",
     "references": [
         "UnityMCP.Reload",
+        "UnityMCP.Editor.TestSupport",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

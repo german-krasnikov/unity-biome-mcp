@@ -4,7 +4,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    internal sealed class AnnotatedScreenshotChipProviderTests
+    internal sealed class AnnotatedScreenshotChipProviderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void Key_IsAnnotatedScreenshot()
         {

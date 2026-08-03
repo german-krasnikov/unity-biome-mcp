@@ -11,7 +11,7 @@ using Object = UnityEngine.Object;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChatWindowModelChaosTests
+    public class ChatWindowModelChaosTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly FieldInfo s_kind  = typeof(MCPChatWindow).GetField("_selectedKind",  BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo s_model = typeof(MCPChatWindow).GetField("_selectedModel", BindingFlags.NonPublic | BindingFlags.Instance);

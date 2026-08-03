@@ -91,19 +91,19 @@ namespace UnityMCP.Editor
         private static void AppendGPUInstancing(StringBuilder sb, Renderer[] renderers, string detail)
         {
             int enabled = 0, couldEnable = 0;
-            var matGroups = new Dictionary<int, (Material mat, int count)>();
+            var matGroups = new Dictionary<Material, int>();
             foreach (var r in renderers)
             foreach (var mat in r.sharedMaterials)
             {
                 if (mat == null) continue;
-                int id = mat.GetInstanceID();
-                matGroups.TryGetValue(id, out var g);
-                matGroups[id] = (mat, g.count + 1);
+                matGroups.TryGetValue(mat, out var count);
+                matGroups[mat] = count + 1;
             }
 
             foreach (var kv in matGroups)
             {
-                var (mat, count) = kv.Value;
+                var mat = kv.Key;
+                var count = kv.Value;
                 if (mat.enableInstancing) enabled++;
                 else if (count > 1) couldEnable++;
             }
@@ -138,7 +138,7 @@ namespace UnityMCP.Editor
             if (mat == null) return "no-material";
             return isSRP
                 ? $"srp:{mat?.shader?.name ?? "none"}:{mat.renderQueue}"
-                : $"mat:{mat.GetInstanceID()}:{mat.renderQueue}";
+                : $"mat:{TransientObjectId.GetWireValue(mat)}:{mat.renderQueue}";
         }
     }
 }

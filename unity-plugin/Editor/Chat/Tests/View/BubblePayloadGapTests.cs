@@ -10,7 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class BubblePayloadGapTests
+    public class BubblePayloadGapTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ChatTranscript _transcript;
         private VisualElement  _container;

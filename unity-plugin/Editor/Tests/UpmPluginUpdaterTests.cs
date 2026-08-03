@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class UpmPluginUpdaterTests
+    public class UpmPluginUpdaterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void BuildUrl_ContainsVersionTag()

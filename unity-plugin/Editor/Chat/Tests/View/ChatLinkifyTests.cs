@@ -5,7 +5,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ChatLinkifyTests
+    public class ChatLinkifyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Resolver that matches any name starting with "GO_"
         private static string ResolveObj(string name) =>

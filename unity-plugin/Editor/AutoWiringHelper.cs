@@ -125,12 +125,12 @@ namespace UnityMCP.Editor
 
         private static List<Transform> BuildScope(GameObject go)
         {
-            var seen  = new HashSet<int>();
+            var seen  = new HashSet<Transform>();
             var scope = new List<Transform>();
 
             void Add(Transform t)
             {
-                if (t == null || !seen.Add(t.GetInstanceID())) return;
+                if (t == null || !seen.Add(t)) return;
                 scope.Add(t);
             }
 

@@ -3,7 +3,7 @@ using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
-    public class ChatActivityStateTests
+    public class ChatActivityStateTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void Initial_Phase_Is_Idle()
             => Assert.AreEqual(ActivityPhase.Idle, new ChatActivityState().Phase);

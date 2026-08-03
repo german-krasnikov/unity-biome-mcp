@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Tests
     // ── MaterialHelper.FormatProperty — all 6 type branches ─────────────────
 
     [TestFixture]
-    public class MaterialHelperFormatPropertyTests
+    public class MaterialHelperFormatPropertyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private Material _mat;
 
@@ -127,8 +127,11 @@ namespace UnityMCP.Editor.Tests
     // ── PrefabHelper — pure-logic branch ────────────────────────────────────
 
     [TestFixture]
-    public class PrefabHelperExecuteTests
+    public class PrefabHelperExecuteTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        private static readonly string AssetFolder =
+            TestPaths.ForFixture(nameof(PrefabHelperExecuteTests));
+
         [Test]
         public void Execute_InvalidAction_ThrowsArgumentException()
         {
@@ -158,67 +161,57 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Execute_EditAction_RoundTrip_PersistsPropertyChange()
         {
-            var tmpPath = "Assets/MCPTests/EditRoundTrip.prefab";
-            AssetHelper.EnsureDirectory(tmpPath);
+            var tmpPath = AssetFolder + "/EditRoundTrip.prefab";
+            TrackOwnedAsset(AssetFolder);
+            TestPaths.EnsureFolder(AssetFolder);
 
             var go = new GameObject("EditTarget");
             go.AddComponent<BoxCollider>();
             PrefabUtility.SaveAsPrefabAsset(go, tmpPath);
             UnityEngine.Object.DestroyImmediate(go);
-            AssetDatabase.Refresh();
+            AssetDatabase.ImportAsset(tmpPath,
+                ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
 
-            try
-            {
-                var argsJson = "{\"asset_path\":\"" + tmpPath + "\"," +
-                               "\"component\":\"BoxCollider\"," +
-                               "\"prop\":\"m_IsTrigger\",\"value\":\"true\"}";
-                var result = PrefabHelper.Execute("edit", argsJson);
-                StringAssert.Contains("ok", result);
+            var argsJson = "{\"asset_path\":\"" + tmpPath + "\"," +
+                           "\"component\":\"BoxCollider\"," +
+                           "\"prop\":\"m_IsTrigger\",\"value\":\"true\"}";
+            var result = PrefabHelper.Execute("edit", argsJson);
+            StringAssert.Contains("ok", result);
 
-                AssetDatabase.ImportAsset(tmpPath, ImportAssetOptions.ForceUpdate);
-                var loaded = AssetDatabase.LoadAssetAtPath<GameObject>(tmpPath);
-                var col = loaded.GetComponent<BoxCollider>();
-                Assert.IsTrue(col.isTrigger, "isTrigger should be true after prefab edit");
-            }
-            finally
-            {
-                AssetDatabase.DeleteAsset(tmpPath);
-                if (AssetDatabase.IsValidFolder("Assets/MCPTests"))
-                    AssetDatabase.DeleteAsset("Assets/MCPTests");
-            }
+            AssetDatabase.ImportAsset(tmpPath,
+                ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+            var loaded = AssetDatabase.LoadAssetAtPath<GameObject>(tmpPath);
+            var col = loaded.GetComponent<BoxCollider>();
+            Assert.IsTrue(col.isTrigger, "isTrigger should be true after prefab edit");
         }
 
         [Test]
         public void Execute_EditAction_PathTargetsPrefabChild_NotRoot()
         {
-            var tmpPath = "Assets/TestsTemp/PrefabChildTarget.prefab";
-            TestPaths.EnsureFolder("Assets/TestsTemp");
+            var tmpPath = AssetFolder + "/PrefabChildTarget.prefab";
+            TrackOwnedAsset(AssetFolder);
+            TestPaths.EnsureFolder(AssetFolder);
 
             var root = new GameObject("PrefabRoot");
             var child = new GameObject("Child");
             child.transform.SetParent(root.transform, false);
             PrefabUtility.SaveAsPrefabAsset(root, tmpPath);
             UnityEngine.Object.DestroyImmediate(root);
-            AssetDatabase.Refresh();
+            AssetDatabase.ImportAsset(tmpPath,
+                ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
 
-            try
-            {
-                var argsJson = "{\"asset_path\":\"" + tmpPath + "\"," +
-                               "\"path\":\"Child\"," +
-                               "\"component\":\"Transform\"," +
-                               "\"prop\":\"localScale\",\"value\":\"2,2,2\"}";
-                var result = PrefabHelper.Execute("edit", argsJson);
-                StringAssert.Contains("ok", result);
+            var argsJson = "{\"asset_path\":\"" + tmpPath + "\"," +
+                           "\"path\":\"Child\"," +
+                           "\"component\":\"Transform\"," +
+                           "\"prop\":\"localScale\",\"value\":\"2,2,2\"}";
+            var result = PrefabHelper.Execute("edit", argsJson);
+            StringAssert.Contains("ok", result);
 
-                AssetDatabase.ImportAsset(tmpPath, ImportAssetOptions.ForceUpdate);
-                var loaded = AssetDatabase.LoadAssetAtPath<GameObject>(tmpPath);
-                Assert.AreEqual(Vector3.one, loaded.transform.localScale);
-                Assert.AreEqual(new Vector3(2f, 2f, 2f), loaded.transform.Find("Child").localScale);
-            }
-            finally
-            {
-                AssetDatabase.DeleteAsset(tmpPath);
-            }
+            AssetDatabase.ImportAsset(tmpPath,
+                ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+            var loaded = AssetDatabase.LoadAssetAtPath<GameObject>(tmpPath);
+            Assert.AreEqual(Vector3.one, loaded.transform.localScale);
+            Assert.AreEqual(new Vector3(2f, 2f, 2f), loaded.transform.Find("Child").localScale);
         }
     }
 
@@ -247,16 +240,10 @@ namespace UnityMCP.Editor.Tests
     {
         const string TimelinePath = "Assets/TestsTemp/TimelinePathCreatesDirector.playable";
 
-        [TearDown]
-        public void DeleteTimelineAsset()
-        {
-            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(TimelinePath) != null)
-                AssetDatabase.DeleteAsset(TimelinePath);
-        }
-
         [Test]
         public void Process_CreateTimeline_UsesPathAsDirectorWhenDirectorPathOmitted()
         {
+            TrackOwnedAsset(TimelinePath);
             TestPaths.EnsureFolder("Assets/TestsTemp");
             var json = "{\"cmd\":\"timeline\",\"id\":\"tl1\",\"args\":{\"action\":\"create\",\"path\":\"/MCP_TimelineDirector\",\"asset_path\":\"" + TimelinePath + "\"}}";
 
@@ -274,20 +261,11 @@ namespace UnityMCP.Editor.Tests
     // ── ErrorHelper — prefab asset hint ─────────────────────────────────────
 
     [TestFixture]
-    public class ErrorHelperPrefabHintTests
+    public class ErrorHelperPrefabHintTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]
-        public void SetUp() =>
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
-        [TearDown]
-        public void TearDown() =>
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
         [Test]
         public void ObjectNotFound_AssetsPrefabPath_ContainsPrefabHint()
         {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var msg = ErrorHelper.ObjectNotFound("Assets/Prefabs/Enemy.prefab");
             StringAssert.Contains("prefab(action=\"edit\"", msg);
         }
@@ -295,7 +273,6 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ObjectNotFound_AssetPathNonPrefab_ContainsGenericAssetHint()
         {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var msg = ErrorHelper.ObjectNotFound("Assets/Data/Config.asset");
             StringAssert.Contains("Asset paths are not scene objects", msg);
         }
@@ -303,7 +280,6 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ObjectNotFound_ScenePath_NoAssetHint()
         {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var msg = ErrorHelper.ObjectNotFound("Player/Health");
             StringAssert.DoesNotContain("Assets/", msg);
         }
@@ -312,16 +288,8 @@ namespace UnityMCP.Editor.Tests
     // ── SceneHelper — pure guard branches ───────────────────────────────────
 
     [TestFixture]
-    public class SceneHelperGuardTests
+    public class SceneHelperGuardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]
-        public void SetUp() =>
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
-        [TearDown]
-        public void TearDown() =>
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
         // SaveScene with no path on untitled scene throws
         [Test]
         public void SaveScene_NullPath_UntitledScene_ThrowsArgumentException()
@@ -362,20 +330,12 @@ namespace UnityMCP.Editor.Tests
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var tmpPath = TestPaths.TempFolder + "/_HelperTest_Temp.unity";
+            TrackOwnedAsset(tmpPath);
             TestPaths.EnsureFolder();
-            try
-            {
-                var result = SceneHelper.SaveScene(tmpPath);
-                Assert.AreEqual(tmpPath, result);
-            }
-            finally
-            {
-                // Cleanup: load a new scene then delete the file
-                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-                if (File.Exists(tmpPath)) File.Delete(tmpPath);
-                if (File.Exists(tmpPath + ".meta")) File.Delete(tmpPath + ".meta");
-                AssetDatabase.Refresh();
-            }
+
+            var result = SceneHelper.SaveScene(tmpPath);
+
+            Assert.AreEqual(tmpPath, result);
         }
     }
 
@@ -468,7 +428,7 @@ namespace UnityMCP.Editor.Tests
     // ── MCPServer.FormatStatusResponse — pure string formatting ──────────────
 
     [TestFixture]
-    public class MCPServerStatusTests
+    public class MCPServerStatusTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
 
         [Test]
@@ -519,37 +479,34 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void WriteStateFile_CreatesFile_DeleteStateFile_RemovesIt()
         {
-            // Use internal access (internal methods)
-            var port = MCPServer.ServerPort;
-            var statePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-biome-mcp", "state", $"port-{port}.state");
+            var stateDirectory = Path.Combine(Path.GetTempPath(),
+                "unity-mcp-helper-state-" + Guid.NewGuid().ToString("N"));
+            var statePath = PortFileManager.StateFilePath(stateDirectory);
 
             try
             {
-                MCPServer.WriteStateFile("test_state");
+                PortFileManager.WriteStateFile("test_state", stateDirectory);
                 Assert.IsTrue(File.Exists(statePath), "State file should exist after WriteStateFile");
 
                 var contents = File.ReadAllText(statePath);
                 StringAssert.Contains("test_state", contents);
 
-                MCPServer.DeleteStateFile();
+                PortFileManager.DeleteStateFile(stateDirectory);
                 Assert.IsFalse(File.Exists(statePath), "State file should be gone after DeleteStateFile");
             }
             finally
             {
-                if (File.Exists(statePath)) File.Delete(statePath);
+                if (Directory.Exists(stateDirectory)) Directory.Delete(stateDirectory, true);
             }
         }
 
         [Test]
         public void WriteStateFile_ContainsPidAndTimestamp()
         {
-            MCPServer.WriteStateFile("ready");
-            var port = MCPServer.ServerPort;
-            var statePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-biome-mcp", "state", $"port-{port}.state");
+            var stateDirectory = Path.Combine(Path.GetTempPath(),
+                "unity-mcp-helper-state-" + Guid.NewGuid().ToString("N"));
+            PortFileManager.WriteStateFile("ready", stateDirectory);
+            var statePath = PortFileManager.StateFilePath(stateDirectory);
 
             try
             {
@@ -566,7 +523,7 @@ namespace UnityMCP.Editor.Tests
             }
             finally
             {
-                MCPServer.DeleteStateFile();
+                if (Directory.Exists(stateDirectory)) Directory.Delete(stateDirectory, true);
             }
         }
 

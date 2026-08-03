@@ -25,11 +25,11 @@ namespace UnityMCP.Editor
                 throw new System.ArgumentException($"Stale ref: {path}. Call get_hierarchy to refresh.");
             }
 
-            if (path.StartsWith("#") && int.TryParse(path.Substring(1), out var iid))
+            if (path.StartsWith("#") && TransientObjectId.TryParse(path, out var objectId))
             {
-                var byId = FindObjectById(iid);
+                var byId = FindObjectById(objectId.WireValue);
                 if (byId != null) return byId;
-                throw new System.ArgumentException($"Instance ID {path} not found");
+                throw new System.ArgumentException($"Entity ID {path} not found");
             }
 
             // Scene-qualified path: "SceneName:/RootObj/Child"
@@ -130,11 +130,14 @@ namespace UnityMCP.Editor
             return null;
         }
 
-        internal static GameObject FindObjectById(int instanceId)
+        internal static GameObject FindObjectById(string objectId)
         {
-            var obj = EditorUtility.InstanceIDToObject(instanceId);
+            var obj = TransientObjectId.Resolve(objectId);
             return obj as GameObject;
         }
+
+        internal static GameObject FindObjectById(int legacyId)
+            => FindObjectById(legacyId.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
         private static GameObject FindRoot(string name)
         {
@@ -164,10 +167,10 @@ namespace UnityMCP.Editor
                         {
                             if (ambiguous.Count == 0)
                             {
-                                ambiguous.Add($"{foundScene}:/{name} (#{found.GetInstanceID()})");
+                                ambiguous.Add($"{foundScene}:/{name} (#{TransientObjectId.GetWireValue(found)})");
                                 ambiguousScenes.Add(foundScene);
                             }
-                            ambiguous.Add($"{scene.name}:/{name} (#{root.GetInstanceID()})");
+                            ambiguous.Add($"{scene.name}:/{name} (#{TransientObjectId.GetWireValue(root)})");
                             ambiguousScenes.Add(scene.name);
                         }
                     }
@@ -180,7 +183,7 @@ namespace UnityMCP.Editor
                     ? $"found in {ambiguousScenes.Count} scenes"
                     : $"matches {ambiguous.Count} objects";
                 throw new System.ArgumentException(
-                    $"Ambiguous: '{name}' {desc}. Use instance ID: " + string.Join(" or ", ambiguous));
+                    $"Ambiguous: '{name}' {desc}. Use entity ID: " + string.Join(" or ", ambiguous));
             }
             return found;
         }

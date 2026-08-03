@@ -79,7 +79,15 @@ namespace UnityMCP.Editor
         }
 
         internal static void SavePorts(string filePath, int port, int chatPort)
+            => TrySavePorts(filePath, port, chatPort, System.IO.File.WriteAllText);
+
+        internal static bool TrySavePorts(
+            string filePath,
+            int port,
+            int chatPort,
+            System.Action<string, string> writeAllText)
         {
+            var tmp = filePath + ".tmp";
             try
             {
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(filePath));
@@ -91,12 +99,17 @@ namespace UnityMCP.Editor
                 var json = reloadPort.HasValue
                     ? $"{{\"port\":{port},\"chatPort\":{chatPort},\"reloadPort\":{reloadPort.Value}}}"
                     : $"{{\"port\":{port},\"chatPort\":{chatPort}}}";
-                var tmp = filePath + ".tmp";
-                System.IO.File.WriteAllText(tmp, json);
+                writeAllText(tmp, json);
                 if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
                 System.IO.File.Move(tmp, filePath);
+                return true;
             }
-            catch { }
+            catch
+            {
+                try { if (System.IO.File.Exists(tmp)) System.IO.File.Delete(tmp); }
+                catch { }
+                return false;
+            }
         }
 
         // Write user intent to ProjectSettings/MCPSettings.json (survives Library purge).
