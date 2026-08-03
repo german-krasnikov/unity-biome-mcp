@@ -198,3 +198,41 @@ async def test_asset_import_settings_dump_all(mock_bridge):
     await asset(action="import_settings", path="Assets/T.png")
     args = mock_bridge.send.call_args[0][1]
     assert args == {"action": "import_settings", "path": "Assets/T.png"}
+
+
+# ---------------------------------------------------------------------------
+# Pipeline gap extensions: read_text / write_text / reimport / class_name
+# ---------------------------------------------------------------------------
+
+async def test_asset_read_text_sends_action(mock_bridge):
+    """read_text action forwards path to bridge."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:read\npath:Assets/f.txt\nsize:5\ncontent:hello"})
+    await asset(action="read_text", path="Assets/f.txt")
+    args = mock_bridge.send.call_args[0][1]
+    assert args == {"action": "read_text", "path": "Assets/f.txt"}
+
+
+async def test_asset_write_text_passes_content(mock_bridge):
+    """write_text action forwards content to bridge."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write\npath:Assets/f.txt\nsize:4"})
+    await asset(action="write_text", path="Assets/f.txt", content="data")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["action"] == "write_text"
+    assert args["content"] == "data"
+
+
+async def test_asset_reimport_sends_action(mock_bridge):
+    """reimport action forwards path to bridge."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:reimport\npath:Assets/t.png"})
+    await asset(action="reimport", path="Assets/t.png")
+    args = mock_bridge.send.call_args[0][1]
+    assert args == {"action": "reimport", "path": "Assets/t.png"}
+
+
+async def test_asset_class_name_maps_to_class_key(mock_bridge):
+    """class_name Python param maps to 'class' key in bridge args (reserved word workaround)."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok: Assets/Cfg.asset"})
+    await asset(action="create", type="ScriptableObject", path="Assets/Cfg.asset", class_name="GameConfig")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["class"] == "GameConfig"
+    assert "class_name" not in args

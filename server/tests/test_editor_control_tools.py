@@ -94,3 +94,33 @@ async def test_get_capabilities_sends_command(ec_mod, _patch_send):
     call_args = _patch_send.call_args
     assert call_args[0][0] == "get_capabilities"
     assert call_args[0][1] == {}
+
+
+# ── editor multi-select (paths param) ────────────────────────────────────────
+
+async def test_editor_select_paths_sends_paths(ec_mod, _patch_send):
+    """paths param is forwarded for multi-select."""
+    await ec_mod.editor(action="select", paths="/Player,/Enemy")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "editor"
+    assert call_args[0][1]["paths"] == "/Player,/Enemy"
+    assert call_args[0][1]["action"] == "select"
+
+
+async def test_editor_select_single_path_omits_paths(ec_mod, _patch_send):
+    """paths is absent from args when not provided."""
+    await ec_mod.editor(action="select", path="/Player")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][1].get("path") == "/Player"
+    assert "paths" not in call_args[0][1]
+
+
+async def test_editor_paths_and_path_together(ec_mod, _patch_send):
+    """Both path and paths can be sent simultaneously."""
+    await ec_mod.editor(action="select", path="/Player", paths="/Player,/Enemy")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][1]["path"] == "/Player"
+    assert call_args[0][1]["paths"] == "/Player,/Enemy"

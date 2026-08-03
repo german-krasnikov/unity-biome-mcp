@@ -10,6 +10,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.11.0] — 2026-08-03
+
+### Added
+- `bake` MCP tool: trigger lighting and occlusion bake operations from Claude (`BakeHelper.cs`)
+- `build` MCP tool: invoke Unity BuildPipeline player builds with target/path control (`BuildHelper.cs`)
+- `package` MCP tool: list, add, and remove Unity Package Manager packages (`PackageManagerHelper.cs`)
+- `project_settings` tool: read/write PlayerSettings, QualitySettings, Physics, and Time fields (`ProjectSettingsHelper.cs` extended)
+- `asset` tool: import, move, copy, delete, and query asset database entries (`AssetDatabaseHelper.cs` extended)
+- `navmesh_query` tool: bake NavMesh, query agent positions, and sample paths (`NavMeshHelper.cs` extended)
+- `editor` tool extensions: editor state, pause/play control, and layout management (`EditorStateHelper.cs` extended)
+
+### Changed
+- `CommandRouter`: registered 3 new command handlers (bake, build, package) and extended 4 existing handlers
+- `tool_specs.py`: ToolSpec entries added for all new and extended tools
+
 ## [v1.10.3] — 2026-08-03
 
 ### Added

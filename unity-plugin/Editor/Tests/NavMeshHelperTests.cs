@@ -59,6 +59,25 @@ namespace UnityMCP.Editor.Tests
             var raycast = NavMeshHelper.Execute("{\"action\":\"raycast\",\"from\":\"0,0,0\",\"to\":\"1,0,1\"}");
             Assert.That(raycast, Does.Not.StartWith("ERR"));
         }
+
+        // ── Pipeline gap: get_settings / set_settings ─────────────────────────
+
+        [Test]
+        public void GetSettings_ReturnsAgentData()
+        {
+            var result = NavMeshHelper.Execute("{\"action\":\"get_settings\"}");
+            Assert.That(result, Does.Contain("agentRadius"));
+            Assert.That(result, Does.Contain("agentHeight"));
+        }
+
+        [Test]
+        public void SetSettings_NoNavMeshSurface_ReturnsGraceful()
+        {
+            // In EditMode with no NavMeshSurface in scene: returns guidance error, no crash.
+            var result = NavMeshHelper.Execute("{\"action\":\"set_settings\",\"agentRadius\":\"0.5\"}");
+            Assert.That(result.Contains("err:no NavMeshSurface") || result.Contains("updated"),
+                "Expected graceful degradation, got: " + result);
+        }
     }
 }
 #endif

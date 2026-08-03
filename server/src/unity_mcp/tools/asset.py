@@ -10,21 +10,30 @@ async def asset(action: str, path: str | None = None, type: str | None = None,
                 source: str | None = None, dest: str | None = None,
                 prop: str | None = None, value: str | None = None,
                 recursive: bool = False, labels: str | None = None,
-                output: str | None = None, include_deps: bool = True) -> str:
-    """Asset database. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial. move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem)."""
+                output: str | None = None, include_deps: bool = True,
+                content: str | None = None,
+                class_name: str | None = None) -> str:
+    """Asset database. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."""
     return await _send("asset", _args(
         action=action, path=path, type=type, name=name, folder=folder,
         source=source, dest=dest, prop=prop, value=value,
         recursive="true" if recursive else None, labels=labels,
         output=output,
-        include_deps="false" if not include_deps else None))
+        include_deps="false" if not include_deps else None,
+        content=content,
+        **{"class": class_name} if class_name is not None else {}))
 
 
 async def project_settings(action: str, target: str, prop: str | None = None,
-                           value: str | None = None, index: int | None = None) -> str:
-    """Project settings. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player."""
+                           value: str | None = None, index: int | None = None,
+                           build_target: str | None = None) -> str:
+    """Project settings. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input.
+    tags set: prop=remove value=<tag> to remove; else adds.
+    quality set prop=currentLevel: calls SetQualityLevel().
+    player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP)."""
     return await _send("project_settings", _args(
-        action=action, target=target, prop=prop, value=value, index=index))
+        action=action, target=target, prop=prop, value=value, index=index,
+        build_target=build_target))
 
 
 async def material(action: str, path: str | None = None, object_path: str | None = None,

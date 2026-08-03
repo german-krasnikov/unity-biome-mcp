@@ -15,13 +15,15 @@ namespace UnityMCP.Editor
             var action = JsonHelper.ExtractString(args, "action");
             switch (action)
             {
-                case "sample":  return SamplePosition(args);
-                case "path":    return CalculatePath(args);
-                case "raycast": return DoRaycast(args);
-                case "bake":    return Bake();
-                case "status":  return Status();
-                case "clear":   return Clear();
-                default:        throw new System.ArgumentException($"unknown navmesh action: {action}");
+                case "sample":       return SamplePosition(args);
+                case "path":         return CalculatePath(args);
+                case "raycast":      return DoRaycast(args);
+                case "bake":         return Bake();
+                case "status":       return Status();
+                case "clear":        return Clear();
+                case "get_settings": return GetSettings(args);
+                case "set_settings": return SetSettings(args);
+                default:             throw new System.ArgumentException($"unknown navmesh action: {action}");
             }
         }
 
@@ -49,6 +51,50 @@ namespace UnityMCP.Editor
         {
             UnityEditor.AI.NavMeshBuilder.ClearAllNavMeshes();
             return "cleared";
+        }
+
+        private static string GetSettings(string args)
+        {
+            int count = NavMesh.GetSettingsCount();
+            var sb = new StringBuilder();
+            sb.Append("agents:").AppendLine(count.ToString());
+            for (int i = 0; i < count; i++)
+            {
+                var s = NavMesh.GetSettingsByIndex(i);
+                var name = NavMesh.GetSettingsNameFromID(s.agentTypeID);
+                sb.Append("name:").AppendLine(name);
+                sb.Append("agentRadius:").AppendLine(s.agentRadius.ToString("G4", IC));
+                sb.Append("agentHeight:").AppendLine(s.agentHeight.ToString("G4", IC));
+                sb.Append("agentClimb:").AppendLine(s.agentClimb.ToString("G4", IC));
+                sb.Append("agentSlope:").AppendLine(s.agentSlope.ToString("G4", IC));
+                sb.Append("voxelSize:").AppendLine(s.voxelSize.ToString("G4", IC));
+                if (i < count - 1) sb.AppendLine("---");
+            }
+            return sb.ToString().TrimEnd();
+        }
+
+        private static string SetSettings(string args)
+        {
+#if UNITYMCP_HAS_AI_NAVIGATION
+            var surfaces = Object.FindObjectsOfType<Unity.AI.Navigation.NavMeshSurface>();
+            if (surfaces.Length > 0)
+            {
+                float agentRadius = JsonHelper.ExtractFloat(args, "agentRadius");
+                float agentHeight = JsonHelper.ExtractFloat(args, "agentHeight");
+                float agentClimb  = JsonHelper.ExtractFloat(args, "agentClimb");
+                float agentSlope  = JsonHelper.ExtractFloat(args, "agentSlope");
+                foreach (var s in surfaces)
+                {
+                    if (agentRadius > 0) s.agentRadius = agentRadius;
+                    if (agentHeight > 0) s.agentHeight = agentHeight;
+                    if (agentClimb  > 0) s.agentClimb  = agentClimb;
+                    if (agentSlope  > 0) s.agentSlope  = agentSlope;
+                    UnityEditor.EditorUtility.SetDirty(s);
+                }
+                return $"updated {surfaces.Length} NavMeshSurface(s)";
+            }
+#endif
+            return "err:no NavMeshSurface found. Legacy baking: set agent settings via Navigation window → Agents tab, then bake.";
         }
 
         private static string SamplePosition(string args)

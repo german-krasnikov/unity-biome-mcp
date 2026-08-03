@@ -89,3 +89,46 @@ async def test_navmesh_clear_sends_command(mock_bridge):
     sent = mock_bridge.send.call_args[0][1]
     assert sent["action"] == "clear"
     assert result == "cleared"
+
+
+# ---------------------------------------------------------------------------
+# Pipeline gap extensions: get_settings / set_settings / agent params
+# ---------------------------------------------------------------------------
+
+async def test_navmesh_get_settings_sends_action(mock_bridge):
+    """get_settings action forwards to Unity."""
+    mock_bridge.send.return_value = {"ok": True, "data": "agents:1\nname:Humanoid\nagentRadius:0.5"}
+    result = await navmesh_query(action="get_settings")
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["action"] == "get_settings"
+    assert "agents" in result
+
+
+async def test_navmesh_set_settings_sends_action(mock_bridge):
+    """set_settings action forwards agent params to Unity."""
+    mock_bridge.send.return_value = {"ok": True, "data": "updated 1 NavMeshSurface(s)"}
+    await navmesh_query(action="set_settings", agentRadius=0.5)
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["action"] == "set_settings"
+    assert sent["agentRadius"] == 0.5
+
+
+async def test_navmesh_agent_params_omitted_when_none(mock_bridge):
+    """Agent params not included in args when not provided."""
+    mock_bridge.send.return_value = {"ok": True, "data": "agents:1"}
+    await navmesh_query(action="get_settings")
+    sent = mock_bridge.send.call_args[0][1]
+    assert "agentRadius" not in sent
+    assert "agentHeight" not in sent
+
+
+async def test_navmesh_set_settings_all_agent_params(mock_bridge):
+    """All agent params forwarded when provided."""
+    mock_bridge.send.return_value = {"ok": True, "data": "updated 1 NavMeshSurface(s)"}
+    await navmesh_query(action="set_settings", agentRadius=0.4, agentHeight=1.8,
+                        agentClimb=0.35, agentSlope=45.0)
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["agentRadius"] == 0.4
+    assert sent["agentHeight"] == 1.8
+    assert sent["agentClimb"] == 0.35
+    assert sent["agentSlope"] == 45.0

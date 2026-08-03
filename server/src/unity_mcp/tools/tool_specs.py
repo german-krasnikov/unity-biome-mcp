@@ -45,6 +45,7 @@ _SPECS: dict[str, ToolSpec] = {
     'auto_fix': ToolSpec(category='SYSTEM', mutability='read'),
     'auto_wire': ToolSpec(category='COMPONENTS'),
     'autofit_collider': ToolSpec(category='SCENE'),
+    'bake': ToolSpec(category='ASSETS'),
     'await_compile': ToolSpec(category='VERIFY', tier1=True, mutability='read', direct_only=True),
     # timeout_s live for 9 internal _send("batch",...) callers w/o explicit timeout
     # (animator_intent_tool.py:119, skills.py:61, autobatch.py:69/98/136,
@@ -52,6 +53,8 @@ _SPECS: dict[str, ToolSpec] = {
     # Public batch() tool always overrides -- see tools/batch.py timeout param.
     'batch': ToolSpec(category='CORE', core=True, timeout_s=120.0),
     'budget_status': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
+    'build': ToolSpec(category='SYSTEM', timeout_s=300.0),
+    'package': ToolSpec(category='ASSETS', timeout_s=60.0),
     'cancel_test_run': ToolSpec(category='TESTS', timeout_s=10.0),
     'check_colliders': ToolSpec(category='SCENE', mutability='read'),
     'checkpoint': ToolSpec(category='SYSTEM'),

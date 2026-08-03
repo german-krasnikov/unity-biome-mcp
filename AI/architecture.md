@@ -94,7 +94,7 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
    - **Meta Tools Refactored (v0.69.0, v0.78.9: +alias_status)**: `tools/meta.py` extracts discover_tools, doctor, resolve_tool_schema, set_llm_config from server.py composition root into standard register() pattern — same signature as other tools modules, uses bind(). **v0.78.9**: `alias_status()` MCP tool added — sends `alias_status` command (no args) to C# and returns alias table health: loaded/empty/stale state, count, and source. Annotated read-only (`RO`). Improves composability and testability.
    - **RetryPolicy Extraction (review sprint v0.70.0, C8)**: NEW `bridge_retry.py` module extracts retry decision logic from UnityBridge.should_retry() into unified **RetryPolicy** class. Consolidates exception-path retries + hint-path retries (Unity 'retry' JSON sentinel) behind single `is_retry_safe` gate, preventing bypass bugs.
    - **BridgeResult Unwrapping (review sprint v0.70.0, C1)**: NEW `bridge_result.py` with `unwrap_bridge_result(dict) → (ok, data, err, file)` pure function. Eliminates inline unpacking & error handling scattered across 50+ call sites.
-   - **142 MCP tools registered** (v0.70.0: scene split → +1 deduplicated register call, net +0 tools; tool count 124→121 via watch consolidation B4; v0.79.1: -5 tools: run_scenario/save_scenario/load_scenario/list_scenarios + fuzz_playtest removed with scenarios.py + fuzzer.py; playtests ROI sprint: +17 tools). Gating: TIER1 + themed categories (derived from tool_specs._SPECS). External plugins can add more tools dynamically. `_UnstructuredMCP(FastMCP)` subclass forces `structured_output=False` on all tools. Ungated (always visible): `get_test_results`, `budget_status`, `diagnose`.
+   - **145 MCP tools registered** (v0.70.0: scene split → +1 deduplicated register call, net +0 tools; tool count 124→121 via watch consolidation B4; v0.79.1: -5 tools: run_scenario/save_scenario/load_scenario/list_scenarios + fuzz_playtest removed with scenarios.py + fuzzer.py; playtests ROI sprint: +17 tools; pipeline-gap sprint: +3 tools: bake, build, package). Gating: TIER1 + themed categories (derived from tool_specs._SPECS). External plugins can add more tools dynamically. `_UnstructuredMCP(FastMCP)` subclass forces `structured_output=False` on all tools. Ungated (always visible): `get_test_results`, `budget_status`, `diagnose`.
    - **Config Module (v0.42.0+v0.44.0, v0.71.0: shared SERVER_NAME constant)**: `server/src/unity_mcp/config/` extended with TOML merger for Codex backend. `merge_toml_mcp(path, section)` merges MCP config into TOML with diff-based updates (preserves user settings). Python 3.9 compat: `Optional[X]` instead of `X | None`. ValueError raised on corrupt JSON. **Stale entry cleanup (v0.44.0)**: strips `[mcp_servers.unity]` duplicates on first write, creates .bak backup. **v0.47.1**: `validator.py` skips json.loads for TOML clients, checks string presence in configs. Adds 25 new tests (v0.42.0) + 9 new tests (v0.44.0) + 151 new tests (v0.47.1: 73 Python + 78 C# in test_config_gaps.py). **v0.71.0: Shared SERVER_NAME Constant (config/merger.py)**: `SERVER_NAME = "unity-biome-mcp"`. `_OLD_NAMES = ("unity-mcp",)` migration tuple strips stale keys on every write (orphaned duplicates cannot persist). All config paths now use `SERVER_NAME` key (JSON `mcpServers[unity-biome-mcp]`, TOML `[mcp_servers.unity-biome-mcp]`). MCP_BLANKET derived in backend_def.py as `f"mcp__{SERVER_NAME}"` = `"mcp__unity-biome-mcp"`
    - **CodeExecutor.SecurityScan (v0.31.0, v0.89.0: SecurityLevel)**: Hardened pipeline — (1) strip C# comments via regex (2) whitespace densification (3) OrdinalIgnoreCase matching (4) 11 new blocked patterns (EditorApplication.Exit, Application.Quit, Environment.FailFast, ExportPackage, ImportPackage, OpenProject, ProjectWindowUtil, using-aliases for System.IO/Diagnostics/Net/Reflection). **v0.89.0**: `SecurityLevel` enum (`Standard`/`AllowAll`/`Strict`) — three pre-computed pattern sets; `AllowAll` skips ALL security scans (no pattern matching, no regex — all C# APIs available); `Standard` blocks unsafe namespaces + `.GetValue(/.SetValue(/.Invoke(`; `Strict` additionally blocks `GetField(/GetProperty(/GetFields(/GetProperties(`; `AllowAll` is the default. Security error messages include actionable `Suggestion:` hints. `using Object = UnityEngine.Object` added to auto-usings. User `using` directives hoisted above wrapper. **v1.4.0**: `ReplaceTopLevelReturns` uses brace-depth-aware regex to rewrite bare `return;` statements only at top level (not inside local functions). Using-hoisting regex accepts lowercase namespace names and underscores (e.g., `using system.text;`, `using _helpers;`). `return;` auto-replaced with `return null;` only for bare top-level returns.
    - **In-Unity Chat System (v0.66.6+)**: Unified RelayBackend on C# side communicates with Python chat_relay.py sidecar. Five backends are managed server-side (Claude, Codex, Kimi, Agy, OpenCode) via `backend_def.py` with CLI argument builders and stream transforms. C# dispatches semantic commands; the relay owns CLI protocols, binary resolution, model selection, and event normalization. See the Chat Relay System section below.
@@ -252,11 +252,16 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
   - Stats: FPS (avg/min/max/P99), CPU/GPU time (ms), draw calls, batches, triangles, memory (Mono/GC), GC count
   - Ring buffer zero-copy iteration, compare verdict (STABLE/IMPROVED/REGRESSED)
   - Category: PROFILING (gated, v0.60.0+)
-  
+
 - **get_frame_stats MCP Tool**: Instant one-shot snapshot (dt, fps, cpu, gpu, draw calls, batches, triangles)
   - No parameters, fast path (allowed during compile)
   - Category: PROFILING
-  
+
+- **bake MCP Tool (pipeline-gap sprint)**:
+  - Lighting bake operations: `start` (async fire-and-forget BakeAsync), `status` (poll completion), `cancel`, `clear`, `settings`
+  - Occlusion bake operations: `start` (async via MainThreadDispatcher), `status`, `clear`
+  - Category: ASSETS (write)
+
 - **render_analyze MCP Tool (9 actions)**:
   - `stats` — draw calls, batches, triangles, setpass, shadow counts
   - `overdraw` — opaque/transparent/particles/UI counts per viewport
@@ -268,13 +273,13 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
   - `probe_audit` — probe count, placement density, missing coverage detection
   - `frame_debug` — reflection-based Frame Debugger batch-break-cause analysis
   - Category: RENDERING
-  
+
 - **material_audit MCP Tool (3 actions)**:
   - `summary` — total material count, memory usage, compression stats per platform
   - `materials` — per-material breakdown (name, shader, property count, instance count)
   - `duplicates` — fingerprint-based dedup (shader+keywords+properties, excluding textures)
   - Category: ASSETS
-  
+
 - **analyze_lod_culling MCP Tool**:
   - LOD group analysis: coverage (% of high-poly objects with LOD), poly reduction ratio per level
   - CrossFade warnings, poly density heatmap
@@ -282,12 +287,28 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
   - Recommendations for high-poly objects missing LOD
   - Category: RENDERING
 
+- **build MCP Tool (pipeline-gap sprint, 300s timeout)**:
+  - BuildPipeline player builder: `build` action (async via MainThreadDispatcher)
+  - Parameters: target (StandaloneWindows64|StandaloneOSX|Android|iOS|WebGL, default active), scenes (comma-sep asset paths, default Build Settings), path (output, default Builds/<target>), dev (development build flag)
+  - Category: SYSTEM
+
+- **package MCP Tool (pipeline-gap sprint, 60s timeout)**:
+  - PackageManager async operations via EditorApplication.update pump
+  - Actions: `list` (installed packages), `search` (requires query), `add` (requires name, version optional), `remove` (requires name)
+  - Category: ASSETS
+
+- **Tool Extensions (pipeline-gap sprint)**:
+  - **asset**: +`read_text` (path), +`write_text` (path+content), +`reimport` (path), +`create` AnimatorController/ScriptableObject (class= required for SO)
+  - **editor**: +`paths` param for multi-select via comma-sep list (e.g., "/Player,/Enemy,/NPC")
+  - **navmesh_query**: +`get_settings` (list all NavMesh agent type settings), +`set_settings` (update NavMeshSurface agent params: agentRadius, agentHeight, agentClimb, agentSlope)
+  - **project_settings**: +`graphics`, `audio`, `input` targets (extending tags|layers|sorting_layers|quality|physics|time|player); +`build_target` param for ScriptingBackend (Standalone|iOS|Android|etc) value setting; +tag removal via prop=remove; +quality SetQualityLevel() via prop=currentLevel
+
 - **On-Demand Activation Pattern**:
   * ProfilerBridge lazy-init (no [InitializeOnLoadMethod] overhead)
   * ProfileRecorder subscribes to EditorApplication.update ONLY during active recording
   * FrameDebugHelper lazy reflection (instantiated only on render_analyze frame_debug action)
   * Zero cost by default — no profiler handles, no per-frame tick until explicitly called
-  
+
 - **Gating Categories (v0.60.0)**:
   * New: PROFILING, RENDERING, DEBUG (aliases: 'profiling', 'rendering', 'debug', 'perf')
   * Debug tools moved from TIER1 → DEBUG category: debug, snapshot, watch_add/get/remove/clear/reset, get_metrics
@@ -303,35 +324,35 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
   * Draw calls, batches, triangles counters
   * Threshold-based coloring (good/warn/crit)
   * Toggled via SceneView overlay dropdown (≡ → MCP Profiler)
-  
+
 - **PerfWindow EditorWindow** (opened via MCP → Performance menu):
   * **Performance tab**: 120-frame FPS line graph (Painter2D), CPU/GPU fill bars, frame stats (current/avg/P99/max), Record button
   * **Rendering tab**: Snapshot stats grid (draw calls, batches, setpass, triangles, vertices, shadows, pipeline badge), Save Baseline + Compare buttons, verdict badges
   * **Sessions tab**: Session list with checkboxes, two-session comparison (IMPROVED/REGRESSED/STABLE), auto-capture on Play mode toggle
   * **Memory tab**: Mono heap bar (used/total MB), GC Gen0 counter with flash animation, texture memory, total managed
-  
+
 - **PerfGraphElement** — Reusable UITK VisualElement:
   * Line + fill graph rendering via Painter2D.generateVisualContent
   * Zero-alloc: ring buffer with CopyValuesTo(FrameSample[] dest) scratch array
   * Animator callbacks for smooth updates
-  
+
 - **PerfThresholds** — Color band classification:
   * Methods: FpsBand, FrameTimeBand, DrawCallBand, TriBand, MemBand (→ color enum)
   * Smooth Color32.Lerp gradients between bands
   * ColorForBand(band) → Color, FpsColor(fps) → Color, etc.
-  
+
 - **AnimatedCounter Label** — Exponential ease lerp (0.3s):
   * Updates on scheduler tick (paused when stable)
   * Zero allocation at rest
-  
+
 - **RecordIndicator** — UI Toolkit transition:
   * Scheduled USS state toggle for the red recording dot (#e94560)
   * Triggered when PerfWindow.Record = true and paused with the panel lifecycle
-  
+
 - **FrameRingBuffer Enhancement** (v0.61.0):
   * Added `CopyTo(FrameSample[] dest)` zero-alloc bulk export
   * Used by PerfGraphElement to extract samples for rendering
-  
+
 - **Styling**:
   * Animations use supported USS transitions plus short scheduled state changes
   * Colors from ArcadePalette: good=#3ad29f, warn=#e8a23a, crit=#e94560
@@ -345,19 +366,19 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
   * **ErrorResolverButton.cs** (IToolbarButtonProvider): Adds "Fix Errors" button to MCPChatWindow toolbar
   * **MCPChatWindow.ErrorResolver.cs** (partial): InjectMessage(prompt) routes user-facing agent presets (Syntax, Semantic, Domain) as message contexts. Captures compile error context + code snippet, injects into chat history as human message
   * Enables error-driven development: compile, fix errors in Chat immediately
-  
+
 - **scene_health MCP Tool** — 7-check scene hierarchy audit:
   * **Focus modes**: all | hierarchy (>10 depth) | naming (CamelCase/reserved) | duplicates (sibling names) | origins (>5000 units away) | missing (scripts) | empty (GameObjects) | disabled (roots)
   * **Severity tags**: CRITICAL (blocking) | WARNING (performance) | INFO (conventions) | OK (clean)
   * **SceneHealthAnalyzer.cs** (C# helper): 7 static check methods — CheckMissingScripts, CheckDeepHierarchy, CheckBadNaming, CheckDuplicateSiblings, CheckEmptyObjects, CheckWorldOrigin, CheckDisabledRoots. Returns formatted output with path + issue description per check
   * Category: VERIFY (gated)
-  
+
 - **auto_wire MCP Tool** — Semantic ObjectReference field filling:
   * **3-Priority Matching Logic**: (1) exact field name match in scene, (2) contains field name (substring), (3) type-only match
   * **Dry-run Mode**: preview changes without applying (returns: wired count, ambiguous matches, no-match count)
   * **AutoWiringHelper.cs** (C# helper): FindMatchingObjects(field, priority) returns candidates, SetObjectReference(obj, field, value) writes to SerializedObject
   * Category: RW (mutating)
-  
+
 - **compile_preflight MCP Tool** — Dry-run C# validation:
   * **No Domain Reload**: validates via Roslyn in-process analysis (vs. Editor compiler)
   * **Syntax + Type Binding**: checks C# grammar + type resolution without invoking Unity's full compile pipeline
@@ -417,7 +438,7 @@ diagnostics, not verdicts.
      * **Registry classes**: `SettingsProviderRegistry`, `ToolbarButtonRegistry`, `PanelProviderRegistry` — all use `Register()` + discovery via `[InitializeOnLoad]` pattern
      * **MCPChatWindow hook points**: Settings foldout + toolbar + left/right panels all query registries on window open, render provider content dynamically
      * **Tests**: 72 PluginSettingsInjectionTests, 105 PluginToolbarButtonTests (button state, click handlers, lifecycle)
-   
+
    - **Image Drag-Drop + Clipboard Paste (CLI v0.34.0)**:
      * **ClipboardImageReader.cs** (142 LOC): Platform-specific clipboard image read (macOS: NSPasteboard Foundation PInvoke, Windows: CF_DIB check stub, Linux: xclip subprocess). Returns PNG bytes or null, never throws.
      * **ImageAttachmentStore.cs** (96 LOC): Stores pasted/dropped images with temp file lifecycle. `AttachImage(bytes)` → saves to Library/.unitymcp_images/, returns relative path. `GetAttachedPaths()` → list of stored images. `Cleanup()` → removes stale files on session end.
@@ -425,18 +446,18 @@ diagnostics, not verdicts.
      * **MCPChatWindow.Chips.cs** (partial): DragAndDrop.paths routing — external files/folders (Finder drag) detected, filtered for images, attached same as paste.
      * **UserTurnBuilder.cs** extended: Embeds image references in user turn JSON as `image_url` blocks (Claude SDK protocol).
      * **Tests**: 37 ClipboardPasteTests (platform detection, mime-check, file write), 154 ImageDragDropTests (path filtering, attachment, multiple images), 76 UserTurnBuilderImageTests (turn JSON serialization with images)
-   
+
    - **Inline Image Thumbnails in Chat (View v0.34.0)**:
      * **InlineImageThumbnail.cs** (70 LOC): Renders thumbnail strips in chat paragraphs (max 100px height, click→full viewer)
      * **MixedParagraphRenderer** extended: Detects `[img src="..."]` markdown, calls InlineImageThumbnail for rendering
      * **Tests**: 116 InlineImageThumbnailTests (sizing, fallback on missing image, click navigation)
-   
+
    - **Prefab Preview Window (View v0.34.0)**:
      * **PrefabViewerWindow.cs** (151 LOC): EditorWindow displaying prefab 3D preview (camera orbit, zoom controls)
      * **PrefabPreviewLoader.cs** (82 LOC): Instantiates prefab in temporary scene, loads preview scene, destroys on close
      * **Wired**: Asset chip right-click "View" or MCPChatWindow chip click (via BuiltInChipProviders.ViewerLauncher seam) routes to PrefabViewerWindow.Open()
      * **Tests**: 198 PrefabViewerWindowTests (window lifecycle, prefab loading, camera controls, cleanup)
-   
+
    - **3D Asset Viewers (View v0.34.0)**:
      * **AssetViewerFactory.cs** (83 LOC): Registry + factory for extensible media viewers. Wires WindowType → `IAssetViewer` implementations
      * **ModelViewerWindow.cs** (151 LOC): Displays .fbx/.obj/.blend/.dae models (instant load via import settings, camera orbit/zoom)
@@ -446,17 +467,17 @@ diagnostics, not verdicts.
      * **IAssetViewer interface**: Plugins implement to add custom viewers (e.g., video player, shader preview)
      * **BuiltInChipProviders extended**: `AssetChipProviderBase.ViewerLauncher` seam — wired by AssetViewerFactory [InitializeOnLoad]. Chip Navigate() checks `ViewerLauncher?.Invoke(path)` first; if true, viewer handled; else falls back to ping
      * **Tests**: 224 AssetViewerFactoryTests (factory dispatch, plugin registration, viewer lifecycle), 198 PrefabViewerWindowTests (see above)
-   
+
    - **Chip Kind Extensions (View v0.34.0)**:
      * **ChipKindKeys extended**: Added Image, Model, Audio (beyond existing Hierarchy/Scene/Script/Prefab/Material/Texture/ScriptableObject/Asset/Folder)
      * **BuiltInChipProviders extended**: `ModelChipProvider` (priority 450, handles .fbx/.obj/.blend/.dae), `AudioChipProvider` (priority 550, handles .wav/.mp3/.ogg/.aiff), `ImageChipProvider` (priority 50, handles external .png/.jpg/.bmp/.gif/.webp/.tiff — obj==null only)
      * **Tests**: 84 new tests for new providers (MdBlock rendering, chip detection)
-   
+
    - **ProviderRegistry Consolidation (CLI v0.34.0)**:
      * **ProviderRegistry.cs** (82 LOC, new): Base class for extensible provider registries (DRY consolidation across Settings/Toolbar/Panel registries). Single `Register()` + `Resolve()` pattern, optional priority ordering
      * **KeyRegex hoisting**: Moved `_KeyRegex` to non-generic companion to avoid static-in-generic reflection issues (C# generic type safety)
      * **Tests**: 57 ProviderRegistryTests (concurrent registration, key uniqueness, priority ordering)
-   
+
    - **Tests Summary (v0.34.0)**:
      * Python: No new tests (0 changes to server/)
      * C#: 1402 new tests across CLI + View assemblies
@@ -523,12 +544,12 @@ Root cause: v0.42.0 asmdef split (7→9 assemblies) amplified 3 latent bugs into
 - Aggregates into single STALE verdict if ANY assembly diverges
 - **v0.66.0: GetDllFreshnessToken ~ prefix filter** — skips files starting with ~ (Unity ignores them; prevents false-positive stale detection from editor temp files)
 
-**ReloadGuard (C# CLI assembly)**: 
+**ReloadGuard (C# CLI assembly)**:
 - Constructor barrier calls `AssetDatabase.Refresh()` on init
 - `ForceUnlock()` triggers additional `AssetDatabase.Refresh()` + `RequestScriptCompilation()`
 - Exception-safe: asymmetric lock rollback in `OnTurnStarted` to prevent deadlock
 
-**PID Liveness Check (lockfile.py)**: 
+**PID Liveness Check (lockfile.py)**:
 - Port file discovery now verifies process is alive via `_is_zombie(pid)` check
 - Blocks stale PID lockfiles from ghosting commands (fast server restart without wait)
 
@@ -1369,7 +1390,7 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
     - **UX/Formatting (View-specific):** EnterKeySend, EnterKeyLogic, ChatRefAction, CopyTextBuilder, InputHeightCalc, TokenFormat
     - **Rendering:** Markdown/ (MdBlock, MarkdownParser, MarkdownParser.Blocks, MarkdownInline, IChatBlockRenderer, ChatBlockRendererRegistry, ChatBlockRendererFactory, MarkdownBlockRenderer, MarkdownBlockRenderer.Table, MarkdownBlockRenderer.List, ImageBlockRenderer, ChatLinkify), Mermaid/ (MermaidGraph, MermaidParser, MermaidLayout, MermaidLayout.Layers, MermaidBlockRenderer, MermaidView, MermaidEdgePainter)
     - **Styling:** MCPChatWindow.uss, ApproveButtonFactory, ApproveHelper
-  - **Test Suites (v0.66.6+, 300+ new relay tests)** (60+ NUnit files, split by assembly): 
+  - **Test Suites (v0.66.6+, 300+ new relay tests)** (60+ NUnit files, split by assembly):
     - CLI tests (RelayBackendTests, RelayEventParserTests, RelayBackendConstructionMonkeyTests, RelayBackendDrainMonkeyTests, RelayChatProcessTests, RelaySpawnerTests, ToolVerbMapTests, PendingTurnStateTests, SentTextCacheTests, ArgTokenizerTests, ArgQuotingTests, BackendConfigStoreTests, ChatActivityStateTests, ChatMcpConfigWriterTests, ChatBinaryResolverTests, ChipContextResolverTests, ChipKindDetectorTests, BareNameNormalizerTests)
     - View tests (ToolApprovalCardTests, AskUserCardTests, EnterKeySendTests, RestoreButtonTests, TurnUndoTrackerTests, SlashRegistryTests, SlashPopupTests, InlineChipModelTests, InlineChipFieldTests, ChipPillFactoryTests, ChipDisplayOverrideTests, ApproveFlowTests, ResponseTagInlinerTests, ResponseTagPillTests, MixedParagraphRendererTests, NewSessionTests, TokenResetTests, SelectionSummaryTests, NormalizationPipelineTests, Markdown/Mermaid render tests, ChatLinkifyTests)
 

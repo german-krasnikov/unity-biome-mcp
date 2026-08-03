@@ -228,7 +228,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "path_b")),
                 required: "path_a,path_b", optional: "");
             CommandRegistry.Register("editor", ExecEditor,
-                required: "", optional: "action,path");
+                required: "", optional: "action,path,paths");
             CommandRegistry.Register("ping_object", args =>
                 EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path")),
                 required: "path", optional: "");
@@ -365,7 +365,7 @@ namespace UnityMCP.Editor
                 required: "action", optional: "path,target,distance,radius,component,cell_size,layer_mask,center,vertices,region_id,cap");
 #if UNITY_MODULE_AI || UNITY_AI_NAVIGATION
             CommandRegistry.Register("navmesh", NavMeshHelper.Execute,
-                required: "action", optional: "center,max_distance,area_mask,from,to");
+                required: "action", optional: "center,max_distance,area_mask,from,to,agentRadius,agentHeight,agentClimb,agentSlope");
 #endif
 
             // Code execution via Roslyn (non-mutating: allowed in Play Mode).
@@ -497,9 +497,9 @@ namespace UnityMCP.Editor
             // create/move/delete each need different fields) — flat contract is intentionally
             // loose here (required: "action" only, everything else optional). See Issue 23 plan.
             CommandRegistry.RegisterAction("asset", AssetDatabaseHelper.Execute, mutating: true,
-                optional: "path,type,name,folder,source,dest,prop,value,recursive,labels,output,include_deps");
+                optional: "path,type,name,folder,source,dest,prop,value,recursive,labels,output,include_deps,content,class");
             CommandRegistry.RegisterAction("project_settings", ProjectSettingsHelper.Execute, mutating: true,
-                required: "target", optional: "prop,value,index");
+                required: "target", optional: "prop,value,index,build_target");
             CommandRegistry.RegisterAction("material", MaterialHelper.Execute, mutating: true,
                 optional: "path,object_path,shader,prop,value,source,targets,slot,filter,target");
             CommandRegistry.RegisterAction("prefab", PrefabHelper.Execute, mutating: true,
@@ -508,6 +508,14 @@ namespace UnityMCP.Editor
                 optional: "path,type,prop,value,filter,fields");
             CommandRegistry.RegisterAction("scene_environment", EnvironmentHelper.Execute, mutating: true,
                 optional: "prop,value");
+
+            // Bake: lighting (async fire-and-forget) + occlusion (synchronous).
+            // Uses Register (not RegisterAction) because 'action' is optional — defaults to "start".
+            CommandRegistry.Register("bake", argsJson =>
+            {
+                var act = JsonHelper.ExtractString(argsJson, "action") ?? "start";
+                return BakeHelper.Execute(act, argsJson);
+            }, mutating: true, required: "target", optional: "action");
 
             // Spatial mutation: region_clear (delete objects inside polygon)
             CommandRegistry.Register("region_clear", args => SpatialHelper.RegionClear(args), mutating: true,
@@ -528,6 +536,10 @@ namespace UnityMCP.Editor
                 required: "path,position", optional: "checks_before,checks_after,wait_after,timeout");
             CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: true,
                 required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh");
+            CommandRegistry.RegisterAsync("build", AsyncBuild,
+                required: "action", optional: "target,scenes,path,dev");
+            CommandRegistry.RegisterAsync("package", AsyncPackage,
+                required: "action", optional: "name,version,query");
         }
     }
 }

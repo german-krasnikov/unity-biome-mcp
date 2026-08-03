@@ -48,7 +48,7 @@ namespace UnityMCP.Editor
             return string.IsNullOrEmpty(comps) ? $"path:{path}" : $"path:{path}\n{comps}";
         }
 
-        public static string Control(string action, string path)
+        public static string Control(string action, string path, string argsJson = null)
         {
             switch (action)
             {
@@ -62,8 +62,11 @@ namespace UnityMCP.Editor
                     EditorApplication.isPlaying = false;
                     return "ok";
                 case "select":
+                    var paths = argsJson != null ? JsonHelper.ExtractString(argsJson, "paths") : null;
+                    if (!string.IsNullOrEmpty(paths))
+                        return SelectMulti(paths);
                     if (string.IsNullOrEmpty(path))
-                        throw new System.ArgumentException("path required for select action");
+                        throw new System.ArgumentException("path or paths required for select");
                     var go = ComponentSerializer.FindObject(path);
                     if (go == null)
                         throw new System.ArgumentException(ErrorHelper.ObjectNotFound(path));
@@ -75,6 +78,29 @@ namespace UnityMCP.Editor
                     throw new System.ArgumentException(
                         ErrorHelper.InvalidAction(action, new[] { "state", "play", "pause", "stop", "select", "project_path" }));
             }
+        }
+
+        private static string SelectMulti(string commaList)
+        {
+            var parts = commaList.Split(',');
+            var objects = new System.Collections.Generic.List<Object>();
+            var notFound = new System.Collections.Generic.List<string>();
+            foreach (var p in parts)
+            {
+                var trimmed = p.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+                var found = ComponentSerializer.FindObject(trimmed);
+                if (found == null) notFound.Add(trimmed);
+                else objects.Add(found);
+            }
+            if (objects.Count == 0)
+                throw new System.ArgumentException($"No objects found: {commaList}");
+            Selection.objects = objects.ToArray();
+            var sb = new StringBuilder();
+            sb.Append($"ok:selected {objects.Count}");
+            foreach (var o in objects) sb.Append('\n').Append(ComponentSerializer.GetPath((GameObject)o));
+            if (notFound.Count > 0) sb.Append('\n').Append($"not_found:{string.Join(",", notFound)}");
+            return sb.ToString();
         }
     }
 }

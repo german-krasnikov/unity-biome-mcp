@@ -95,3 +95,52 @@ async def test_error_from_unity(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Unknown target: invalid"})
     with pytest.raises(ToolError, match="Unknown target"):
         await project_settings(action="get", target="invalid")
+
+
+# ---------------------------------------------------------------------------
+# Pipeline gap extensions: graphics / audio / input / build_target
+# ---------------------------------------------------------------------------
+
+async def test_get_graphics(mock_bridge):
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "renderPipeline:none\ncolorSpace:Linear"})
+    result = await project_settings(action="get", target="graphics")
+    mock_bridge.send.assert_called_once_with(
+        "project_settings", {"action": "get", "target": "graphics"}, timeout=30.0
+    )
+    assert "renderPipeline" in result
+
+
+async def test_get_audio(mock_bridge):
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "masterVolume:1\nrolloffScale:1"})
+    result = await project_settings(action="get", target="audio")
+    mock_bridge.send.assert_called_once_with(
+        "project_settings", {"action": "get", "target": "audio"}, timeout=30.0
+    )
+    assert "masterVolume" in result
+
+
+async def test_get_input(mock_bridge):
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Horizontal\nVertical\nFire1"})
+    result = await project_settings(action="get", target="input")
+    mock_bridge.send.assert_called_once_with(
+        "project_settings", {"action": "get", "target": "input"}, timeout=30.0
+    )
+    assert "Horizontal" in result
+
+
+async def test_set_player_scripting_backend_passes_build_target(mock_bridge):
+    """build_target is forwarded when setting ScriptingBackend."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await project_settings(action="set", target="player", prop="ScriptingBackend",
+                           value="IL2CPP", build_target="iOS")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["build_target"] == "iOS"
+    assert args["prop"] == "ScriptingBackend"
+
+
+async def test_build_target_omitted_when_none(mock_bridge):
+    """build_target is absent from args when not provided (no None keys sent)."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await project_settings(action="set", target="player", prop="companyName", value="Acme")
+    args = mock_bridge.send.call_args[0][1]
+    assert "build_target" not in args

@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEditorInternal;
 
 namespace UnityMCP.Editor
@@ -18,15 +19,18 @@ namespace UnityMCP.Editor
 
             return target switch
             {
-                "tags"           => action == "get" ? GetTags()           : AddTag(value ?? prop),
+                "tags"           => action == "get" ? GetTags()           : (prop == "remove" ? RemoveTag(value) : AddTag(value ?? prop)),
                 "layers"         => action == "get" ? GetLayers()         : SetLayer(
                     indexStr != null ? int.Parse(indexStr) : throw new System.Exception("'index' is required for layers set"), value),
                 "sorting_layers" => action == "get" ? GetSortingLayers() : throw new System.Exception("sorting_layers is read-only"),
-                "quality"        => action == "get" ? GetQuality()        : SetViaReflection(typeof(QualitySettings), prop, value),
+                "quality"        => action == "get" ? GetQuality()        : SetQuality(prop, value),
                 "physics"        => action == "get" ? GetPhysics()        : SetPhysics(prop, value),
                 "time"           => action == "get" ? GetTime()           : SetViaReflection(typeof(Time), prop, value),
-                "player"         => action == "get" ? GetPlayer()         : SetViaReflection(typeof(PlayerSettings), prop, value),
-                _ => throw new System.Exception($"Unknown target '{target}'. Valid: tags, layers, sorting_layers, quality, physics, time, player")
+                "player"         => action == "get" ? GetPlayer()         : SetPlayer(prop, value, argsJson),
+                "graphics"       => action == "get" ? GetGraphics()       : SetGraphics(prop, value),
+                "audio"          => action == "get" ? GetAudio()          : throw new System.Exception("audio is read-only via this tool"),
+                "input"          => action == "get" ? GetInput()          : throw new System.Exception("input axes are read-only"),
+                _ => throw new System.Exception($"Unknown target '{target}'. Valid: tags, layers, sorting_layers, quality, physics, time, player, graphics, audio, input")
             };
         }
 
@@ -49,6 +53,23 @@ namespace UnityMCP.Editor
             tagsProp.GetArrayElementAtIndex(tagsProp.arraySize - 1).stringValue = tag;
             tm.ApplyModifiedProperties();
             return "ok";
+        }
+
+        static string RemoveTag(string tag)
+        {
+            if (string.IsNullOrEmpty(tag)) throw new System.Exception("value is required for tag remove");
+            var tm = LoadTagManager();
+            var tagsProp = tm.FindProperty("tags");
+            for (int i = 0; i < tagsProp.arraySize; i++)
+            {
+                if (tagsProp.GetArrayElementAtIndex(i).stringValue == tag)
+                {
+                    tagsProp.DeleteArrayElementAtIndex(i);
+                    tm.ApplyModifiedProperties();
+                    return "ok";
+                }
+            }
+            throw new System.Exception($"Tag '{tag}' not found");
         }
 
         // ── layers ────────────────────────────────────────────────────────────
@@ -96,6 +117,16 @@ namespace UnityMCP.Editor
                    $"pixelLightCount: {QualitySettings.pixelLightCount}\n" +
                    $"antiAliasing: {QualitySettings.antiAliasing}\n" +
                    $"currentLevel: {level} ({QualitySettings.names[level]})";
+        }
+
+        static string SetQuality(string prop, string value)
+        {
+            if (prop == "currentLevel")
+            {
+                QualitySettings.SetQualityLevel(int.Parse(value), applyExpensiveChanges: true);
+                return "ok";
+            }
+            return SetViaReflection(typeof(QualitySettings), prop, value);
         }
 
         // ── physics ───────────────────────────────────────────────────────────
@@ -156,14 +187,80 @@ namespace UnityMCP.Editor
             $"productName: {PlayerSettings.productName}\n" +
             $"bundleVersion: {PlayerSettings.bundleVersion}";
 
+        static string SetPlayer(string prop, string value, string argsJson)
+        {
+            if (prop == "ScriptingBackend")
+            {
+                var buildTargetStr = JsonHelper.ExtractString(argsJson, "build_target") ?? "Standalone";
+                if (!System.Enum.TryParse(buildTargetStr, ignoreCase: true, out BuildTargetGroup group))
+                    throw new System.Exception($"Invalid build_target '{buildTargetStr}'. Valid: {string.Join(", ", System.Enum.GetNames(typeof(BuildTargetGroup)))}");
+                if (!System.Enum.TryParse(value, ignoreCase: true, out ScriptingImplementation backend))
+                    throw new System.Exception($"Invalid ScriptingBackend '{value}'. Valid: Mono2x, IL2CPP, WinRTDotNET");
+                PlayerSettings.SetScriptingBackend(group, backend);
+                return "ok";
+            }
+            return SetViaReflection(typeof(PlayerSettings), prop, value);
+        }
+
+        // ── graphics ─────────────────────────────────────────────────────────
+
+        static string GetGraphics()
+        {
+            var rpa = GraphicsSettings.defaultRenderPipeline;
+            return $"renderPipeline:{(rpa != null ? rpa.name : "none")}\n" +
+                   $"colorSpace:{PlayerSettings.colorSpace}\n" +
+                   $"transparencySortMode:{GraphicsSettings.transparencySortMode}\n" +
+                   $"lightsUseLinearIntensity:{GraphicsSettings.lightsUseLinearIntensity}";
+        }
+
+        static string SetGraphics(string prop, string value)
+        {
+            if (prop == "colorSpace")
+            {
+                PlayerSettings.colorSpace = (ColorSpace)System.Enum.Parse(typeof(ColorSpace), value, ignoreCase: true);
+                return "ok";
+            }
+            return SetViaReflection(typeof(GraphicsSettings), prop, value);
+        }
+
+        // ── audio ─────────────────────────────────────────────────────────────
+
+        static string GetAudio()
+        {
+            var so = LoadProjectSettingsAsset("AudioManager");
+            var volume = so.FindProperty("m_Volume")?.floatValue ?? 1f;
+            var rolloff = so.FindProperty("m_RolloffScale")?.floatValue ?? 1f;
+            var mode = so.FindProperty("m_DefaultSpeakerMode")?.intValue ?? 2;
+            return $"masterVolume:{volume}\nrolloffScale:{rolloff}\ndefaultSpeakerMode:{mode}";
+        }
+
+        // ── input ─────────────────────────────────────────────────────────────
+
+        static string GetInput()
+        {
+            var so = LoadProjectSettingsAsset("InputManager");
+            var axes = so.FindProperty("m_Axes");
+            var sb = new StringBuilder();
+            for (int i = 0; i < axes.arraySize; i++)
+            {
+                var axis = axes.GetArrayElementAtIndex(i);
+                var n = axis.FindPropertyRelative("m_Name")?.stringValue ?? "";
+                var desc = axis.FindPropertyRelative("descriptiveName")?.stringValue ?? "";
+                sb.AppendLine(string.IsNullOrEmpty(desc) ? n : $"{n} ({desc})");
+            }
+            return sb.ToString().TrimEnd();
+        }
+
         // ── helpers ───────────────────────────────────────────────────────────
 
-        static SerializedObject LoadTagManager()
+        static SerializedObject LoadProjectSettingsAsset(string managerName)
         {
-            var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset");
-            if (assets.Length == 0) throw new System.Exception("TagManager.asset not found");
+            var assets = AssetDatabase.LoadAllAssetsAtPath($"ProjectSettings/{managerName}.asset");
+            if (assets.Length == 0) throw new System.Exception($"{managerName}.asset not found");
             return new SerializedObject(assets[0]);
         }
+
+        static SerializedObject LoadTagManager() => LoadProjectSettingsAsset("TagManager");
 
         static string SetViaReflection(System.Type type, string prop, string value)
         {
@@ -183,6 +280,5 @@ namespace UnityMCP.Editor
             pi.SetValue(null, parsed);
             return "ok";
         }
-
     }
 }

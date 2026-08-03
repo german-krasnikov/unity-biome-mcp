@@ -7,10 +7,12 @@ _send = None
 _args = None
 
 
-async def editor(action: str = "state", path: str | None = None) -> str:
-    """Editor state/control. action: state|play|pause|stop|select|project_path. select needs path."""
+async def editor(action: str = "state", path: str | None = None,
+                 paths: str | None = None) -> str:
+    """Editor state/control. action: state|play|pause|stop|select|project_path.
+    select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC")."""
     t = 15.0 if action in ("play", "stop", "pause") else 30.0
-    return await _send("editor", _args(action=action, path=path), timeout=t)
+    return await _send("editor", _args(action=action, path=path, paths=paths), timeout=t)
 
 
 async def ping_object(path: str) -> str:

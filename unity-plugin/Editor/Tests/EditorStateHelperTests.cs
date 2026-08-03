@@ -73,5 +73,20 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void GetSelection_IsRegistered()
             => Assert.IsTrue(CommandRegistry.IsRegistered("get_selection"));
+
+        // ── Multi-select (paths param) ────────────────────────────────────────
+
+        [Test]
+        public void Control_SelectMulti_TwoValidPaths_ReturnsOkSelected2()
+        {
+            var a = TrackOwnedObject(new GameObject("MultiSelectA"));
+            var b = TrackOwnedObject(new GameObject("MultiSelectB"));
+
+            var result = EditorStateHelper.Control("select", null,
+                $"{{\"paths\":\"{ComponentSerializer.GetPath(a)},{ComponentSerializer.GetPath(b)}\"}}");
+
+            StringAssert.StartsWith("ok:selected 2", result);
+            Assert.AreEqual(2, UnityEditor.Selection.objects.Length);
+        }
     }
 }

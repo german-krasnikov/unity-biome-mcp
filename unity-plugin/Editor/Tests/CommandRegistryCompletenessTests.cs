@@ -18,7 +18,7 @@ namespace UnityMCP.Editor.Tests
         private static readonly string[] BaseCommands =
         {
             "alias_status", "analyze_lod_culling", "animation", "animator", "ask_user", "asset", "auto_wire",
-            "autofit_collider", "batch", "cancel_test_run", "check_colliders", "checkpoint", "clear_console",
+            "autofit_collider", "bake", "batch", "build", "cancel_test_run", "check_colliders", "checkpoint", "clear_console",
             "compile_preflight", "compile_status", "create_object", "create_ui", "debug_animator",
             "debug_physics", "delete_object", "diagnose", "editor", "execute_code", "find_objects",
             "export_playtest_aliases_to_defs",
@@ -29,7 +29,7 @@ namespace UnityMCP.Editor.Tests
             "get_schema", "get_selection", "get_spatial_context", "get_test_count",
             "get_test_progress", "get_test_results", "get_unity_events", "get_watches", "inspect", "invoke_method", "lint_playtest",
             "lint_scene_refs", "list_playtest_files", "list_test_runs", "manage_component",
-            "material", "material_audit", "menu", "move_to", "object_diff", "particle",
+            "material", "material_audit", "menu", "move_to", "object_diff", "package", "particle",
             "ping", "ping_object", "prefab", "profile", "project_settings", "query_state", "recompile",
             "references", "region_clear", "rename_object", "render_analyze", "resolve_scene_refs", "resolve_test_request", "run_playtest", "run_tests", "runtime_snapshot", "scan_scene",
             "scene", "scene_diff", "scene_environment", "scene_health", "screenshot",

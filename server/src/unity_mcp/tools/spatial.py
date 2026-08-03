@@ -103,19 +103,29 @@ async def region_clear(vertices: str, dry_run: bool = True,
 
 async def navmesh_query(action: str, center: str | None = None,
                         from_pos: str | None = None, to: str | None = None,
-                        max_distance: float = 5.0, area_mask: int = -1) -> str:
-    """NavMesh queries and management. action: sample|path|raycast|bake|status|clear.
+                        max_distance: float = 5.0, area_mask: int = -1,
+                        agentRadius: float | None = None,
+                        agentHeight: float | None = None,
+                        agentClimb: float | None = None,
+                        agentSlope: float | None = None) -> str:
+    """NavMesh queries and management. action: sample|path|raycast|bake|status|clear|get_settings|set_settings.
     sample: find nearest walkable point to center.
     path: calculate path from from_pos to to.
     raycast: NavMesh raycast from from_pos toward to.
     bake: build NavMesh (NavMeshSurface components or legacy NavMeshBuilder).
     status: triangulation stats (triangles, vertices, areas).
-    clear: remove all baked NavMesh data."""
+    clear: remove all baked NavMesh data.
+    get_settings: list all NavMesh agent type settings.
+    set_settings: update NavMeshSurface agent params (agentRadius/agentHeight/agentClimb/agentSlope)."""
     d: dict = {"action": action, "area_mask": str(area_mask)}
     if center: d["center"] = center
     if from_pos: d["from"] = from_pos
     if to: d["to"] = to
     if action == "sample": d["max_distance"] = str(max_distance)
+    if agentRadius is not None: d["agentRadius"] = agentRadius
+    if agentHeight is not None: d["agentHeight"] = agentHeight
+    if agentClimb is not None: d["agentClimb"] = agentClimb
+    if agentSlope is not None: d["agentSlope"] = agentSlope
     result = await _send("navmesh", _args(**d))
     if "Command not registered: navmesh" in result:
         return "NavMesh unavailable: AI Navigation package not installed in this project."

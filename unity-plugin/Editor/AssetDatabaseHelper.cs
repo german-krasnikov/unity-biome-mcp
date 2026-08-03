@@ -1,6 +1,8 @@
 using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEngine;
 
 namespace UnityMCP.Editor
@@ -8,7 +10,7 @@ namespace UnityMCP.Editor
     internal static class AssetDatabaseHelper
     {
         const int MaxFindResults = 200;
-        static readonly string[] ValidActions = { "find", "get_info", "create", "move", "validate_move", "duplicate", "delete", "get_dependencies", "find_dependents", "import_settings", "export_package", "import_package" };
+        static readonly string[] ValidActions = { "find", "get_info", "create", "move", "validate_move", "duplicate", "delete", "get_dependencies", "find_dependents", "import_settings", "export_package", "import_package", "read_text", "write_text", "reimport" };
 
         internal static string Execute(string action, string argsJson)
         {
@@ -26,6 +28,9 @@ namespace UnityMCP.Editor
                 case "import_settings": return ImportSettings(argsJson);
                 case "export_package": return ExportPackage(argsJson);
                 case "import_package": return ImportPackage(argsJson);
+                case "read_text":      return ReadText(argsJson);
+                case "write_text":     return WriteText(argsJson);
+                case "reimport":       return Reimport(argsJson);
                 default:                throw new System.Exception(ErrorHelper.InvalidAction(action, ValidActions));
             }
         }
@@ -129,8 +134,28 @@ namespace UnityMCP.Editor
                 case "PhysicMaterial":
                     asset = new PhysicsMaterial();
                     break;
+                case "AnimatorController":
+                {
+                    var ctrl = AnimatorController.CreateAnimatorControllerAtPath(path);
+                    AssetDatabase.SaveAssets();
+                    return "ok: " + path;
+                }
+                case "ScriptableObject":
+                {
+                    var className = JsonHelper.ExtractString(argsJson, "class");
+                    if (string.IsNullOrEmpty(className))
+                        throw new System.Exception("class is required for ScriptableObject create");
+                    var found = TypeCache.GetTypesDerivedFrom<ScriptableObject>()
+                        .FirstOrDefault(t => t.Name == className);
+                    if (found == null)
+                        throw new System.Exception($"ScriptableObject type not found: {className}");
+                    var so = ScriptableObject.CreateInstance(found);
+                    AssetDatabase.CreateAsset(so, path);
+                    AssetDatabase.SaveAssets();
+                    return "ok: " + path;
+                }
                 default:
-                    throw new System.Exception($"Unsupported create type '{type}'. Valid: Folder|Material|PhysicMaterial");
+                    throw new System.Exception($"Unsupported create type '{type}'. Valid: Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject");
             }
 
             AssetDatabase.CreateAsset(asset, path);
@@ -360,6 +385,50 @@ namespace UnityMCP.Editor
                 total += n;
             }
             return true;
+        }
+
+        static string ReadText(string argsJson)
+        {
+            var path = JsonHelper.ExtractString(argsJson, "path");
+            if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
+            ValidatePath(path);
+            var abs = Path.GetFullPath(path);
+            if (!File.Exists(abs)) throw new System.Exception($"File not found: {path}");
+            var content = File.ReadAllText(abs, System.Text.Encoding.UTF8);
+            var size = System.Text.Encoding.UTF8.GetByteCount(content);
+            const int MaxBytes = 65536;
+            var truncated = size > MaxBytes;
+            if (truncated) content = content.Substring(0, MaxBytes / 2) + "\n...(truncated)";
+            var sb = new StringBuilder();
+            sb.Append("ok:read\npath:").Append(path).Append("\nsize:").Append(size);
+            if (truncated) sb.Append("\ntruncated:true");
+            sb.Append("\ncontent:").Append(content);
+            return sb.ToString();
+        }
+
+        static string WriteText(string argsJson)
+        {
+            var path = JsonHelper.ExtractString(argsJson, "path");
+            var content = JsonHelper.ExtractString(argsJson, "content") ?? "";
+            if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
+            ValidatePath(path);
+            AssetHelper.EnsureDirectory(path);
+            var abs = Path.GetFullPath(path);
+            File.WriteAllText(abs, content, System.Text.Encoding.UTF8);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.Default);
+            var size = System.Text.Encoding.UTF8.GetByteCount(content);
+            return $"ok:write\npath:{path}\nsize:{size}";
+        }
+
+        static string Reimport(string argsJson)
+        {
+            var path = JsonHelper.ExtractString(argsJson, "path");
+            if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
+            ValidatePath(path);
+            if (AssetDatabase.GetMainAssetTypeAtPath(path) == null)
+                throw new System.Exception($"Asset not found: {path}");
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            return $"ok:reimport\npath:{path}";
         }
 
         static System.Collections.Generic.List<string> ReadPackageManifest(string packagePath)

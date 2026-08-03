@@ -4,10 +4,19 @@ render_analyze dispatches to RenderAnalyzer.cs on the Unity side.
 FrameDebugHelper.cs handles frame_debug action via reflection.
 """
 from ._common import bind
-from ._annotations import RO as _RO
+from ._annotations import RO as _RO, RW as _RW
 
 _send = None
 _args = None
+
+
+async def bake(target: str, action: str | None = None) -> str:
+    """Bake operations.
+    target: lighting|occlusion.
+    action (lighting): start(default)|status|cancel|clear|settings.
+    action (occlusion): start(default)|status|clear.
+    Poll status after start — lighting bake is async."""
+    return await _send("bake", _args(target=target, action=action))
 
 
 async def render_analyze(
@@ -33,4 +42,5 @@ async def render_analyze(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
+    mcp.tool(annotations=_RW)(bake)
     mcp.tool(annotations=_RO)(render_analyze)

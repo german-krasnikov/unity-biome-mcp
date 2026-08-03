@@ -114,15 +114,17 @@ unity-biome-mcp/
 │   │   ├── debug/              # Debug subsystem (v0.59.0: state capture + watch system)
 │   │   │   ├── __init__.py
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
-│   │   ├── tools/              # Tool modules (44 files + __init__, playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
+│   │   ├── tools/              # Tool modules (46 files + __init__, pipeline-gap sprint: +build.py, +packages.py; playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
-│   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 148 entries (142 user-visible + 6 _INTERNAL)
+│   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 151 entries (145 user-visible + 6 _INTERNAL)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
 │   │   │   ├── meta.py         # Meta tools: discover_tools, doctor, resolve_tool_schema, set_llm_config, alias_status in register(mcp, send, args) pattern (v0.69.0, v0.78.9: +alias_status)
 │   │   │   ├── profiling.py    # Profile MCP tool: session-based profiling, frame stats, performance analysis (v0.60.0, 412 LOC)
-│   │   │   ├── rendering.py    # Render analysis MCP tools: draw calls, batching, lights, LOD culling (v0.60.0, 618 LOC)
+│   │   │   ├── rendering.py    # Render analysis + bake MCP tools: draw calls, batching, lights, LOD culling, bake operations (v0.60.0, +bake pipeline-gap sprint)
 │   │   │   ├── auto_wire.py    # Auto-wiring tool: fill ObjectRef fields by semantic name/type matching (v0.62.0)
 │   │   │   ├── scene_health.py # Scene health audit: hierarchy depth, naming, duplicates, origins, missing scripts (v0.62.0)
+│   │   │   ├── build.py        # BuildPipeline player builder (async via MainThreadDispatcher, pipeline-gap sprint)
+│   │   │   ├── packages.py     # PackageManager async operations via EditorApplication.update pump (pipeline-gap sprint)
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
 │   │   │   ├── transaction.py  # scene_change_plan + apply_scene_change: pre-flight (compile/console/resolve_scene_refs/checkpoint) → plan_id (TTL 600s) → guarded apply with verify + save (playtests ROI sprint)
 │   │   │   ├── verify.py       # verify_after_change: 5-gate additive pipeline (await_compile → get_compile_errors → console_since → run_tests_wait → run_playtest_suite); returns PASS or FAIL with skipped gates listed (playtests ROI sprint)
@@ -131,15 +133,15 @@ unity-biome-mcp/
 │   │   │   ├── console.py      # get_console, get_compile_errors split from scene.py (v0.70.0); playtests ROI sprint: +console_mark (timestamp watermark, pure Python), +get_console_since (logs after watermark)
 │   │   │   ├── screenshot.py   # screenshot, screenshot_compare split from scene.py (v0.70.0)
 │   │   │   ├── testing.py      # durable test request/run protocol; run_tests_wait is the correlated consumer wrapper, while repository workers use run_unity_tests.py
-│   │   │   ├── editor_control.py # editor control commands split from scene.py (v0.70.0)
+│   │   │   ├── editor_control.py # editor control commands split from scene.py (v0.70.0); pipeline-gap sprint: +paths param for multi-select (comma-sep list)
 │   │   │   ├── runtime.py      # invoke_method, wait_until (abort_on_fail), move_to, run_playtest (script= OR path= mutually exclusive, abort_on_fail, defs, snapshot_on_failure; _TCP_POLL/STEP/PLAYTEST_BUFFER constants; module-level SamplingService singleton); playtests ROI sprint: +run_playtest_suite (glob/comma/newline list → SUITE: X/Y matrix, stop_on_fail, stop_after); v0.85.1: -run_playtest_file removed (use run_playtest path=)
 │   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set; batch accepts validate_aliases=True for dry-run alias check (v0.78.9)
 │   │   │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
 │   │   │   ├── skills.py       # save/use/list_skill, apply/save/list_template + _skills_dir
-│   │   │   ├── spatial.py      # validate_layout, get_spatial_context, scan_scene, check_colliders (path=optional, fixed v0.79.1), spatial_query, objects_in_polygon (v0.46.0: polygon validation + vertices param)
+│   │   │   ├── spatial.py      # validate_layout, get_spatial_context, scan_scene, check_colliders (path=optional, fixed v0.79.1), spatial_query, objects_in_polygon (v0.46.0: polygon validation + vertices param); navmesh_query +get_settings, +set_settings (pipeline-gap sprint)
 │   │   │   ├── ui.py           # create_ui, set_rect, menu, shader
 │   │   │   ├── animation.py    # animation, timeline, animator, particle
-│   │   │   ├── asset.py        # asset, material, prefab, scriptable_object, project_settings, validate_move (v0.30.4)
+│   │   │   ├── asset.py        # asset, material, prefab, scriptable_object, project_settings, validate_move (v0.30.4); pipeline-gap sprint: +read_text, +write_text, +reimport, +create AnimatorController/ScriptableObject, +project_settings graphics|audio|input targets, +build_target
 │   │   │   ├── connection.py   # list_connections, reconnect_unity
 │   │   │   ├── autobatch.py    # setup_objects, set_properties, configure_objects (v0.55.10: _quote_if_spaces, _DOTTED_KV_RE lookahead)
 │   │   │   ├── gating.py       # TIER1 + category-based capability filtering (v0.29.37; v0.83.0: _THEMED_CATEGORY_KEYS reduced 18→8 — SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM; _CATEGORY_ALIAS dict for backward-compat legacy name mapping; register_tools() resolves aliases before populating themed groups; FORCE_VISIBLE removed v0.70.0)
@@ -340,11 +342,14 @@ unity-biome-mcp/
 │       ├── ParticleHelper.cs + ParticleSerializer.cs  # 10 presets
 │       ├── ShaderHelper.cs + ShaderSerializer.cs + ShaderGraphHelper.cs + ShaderGraphHelper.Mutations.cs  # +110 LOC: SetNodeValue, ConnectPorts, AddNode (v0.77.0)
 │       ├── UIHelper.cs + LayoutValidator.cs
-│       ├── AssetDatabaseHelper.cs + AssetHelper.cs
+│       ├── AssetDatabaseHelper.cs + AssetHelper.cs  # pipeline-gap sprint: +read_text, +write_text, +reimport, +create AnimatorController/ScriptableObject
+│       ├── BakeHelper.cs                  # Lighting + occlusion bake operations via BakeAsync + MainThreadDispatcher (pipeline-gap sprint)
+│       ├── BuildHelper.cs                 # BuildPipeline player builder with target/scenes/path/dev params (pipeline-gap sprint)
+│       ├── PackageManagerHelper.cs        # PackageManager async operations via EditorApplication.update pump (pipeline-gap sprint)
 │       ├── ReferenceHelper.cs + ValidateReferencesHelper.cs
 │       ├── SearchHelper.cs                 # Scene queries + multi-scene scanning (v0.24.3: all-scene support)
 │       ├── SceneHelper.cs                  # Scene management: open additive, close, set active, list (v0.24.3)
-│       ├── ProjectSettingsHelper.cs + MaterialHelper.cs
+│       ├── ProjectSettingsHelper.cs + MaterialHelper.cs  # pipeline-gap sprint: ProjectSettings +graphics, +audio, +input targets, +RemoveTag, +SetQualityLevel, +ScriptingBackend with build_target
 │       ├── PrefabHelper.cs + ScriptableObjectHelper.cs
 │       ├── GameStateHelper.cs + TestRunner.cs # TestRunner v0.25.0: filter param, SessionState-based pending tracking; v0.78.11: TempScenePath internal const + DeleteTempScene (delayCall cleanup after run: replaces active temp scene, deletes asset)
 │       ├── ConsoleCapture.cs               # Logs → text (Issue 27: orchestrates ring buffer + problem persistence)
@@ -922,7 +927,8 @@ unity-biome-mcp/
 │       │   ├── UnityMCP.Editor.Chat.View.asmdef # View assembly: UI windows, rendering, cards (depends on CLI)
 │       ├── ChatSettingsHook.cs            # Event hook: fires on MCPSettings rebuild
 │       ├── AssemblyInfo.cs                # InternalsVisibleTo("UnityMCP.Editor.Chat.*")
-│       ├── MenuHelper.cs + SceneHelper.cs + EditorStateHelper.cs
+│       ├── MenuHelper.cs + SceneHelper.cs + EditorStateHelper.cs  # pipeline-gap sprint: EditorStateHelper +multi-select via paths param
+│       ├── NavMeshHelper.cs                 # NavMesh query + settings (pipeline-gap sprint: +get_settings, +set_settings)
 │       ├── JsonHelper.cs + StringDistance.cs + UndoGroupHelper.cs + UndoGroupStack.cs (v0.64.0: T5 undo tool)
 │       ├── FileOutputHelper.cs             # ScreenshotsDir = <ProjectRoot>/ScreenShots/ (v0.23.0)
 │       ├── VersionTracker.cs

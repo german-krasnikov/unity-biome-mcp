@@ -251,7 +251,7 @@ namespace UnityMCP.Editor
             var action = JsonHelper.ExtractString(args, "action") ?? "state";
             if (action == "state")
                 return EditorStateHelper.GetState();
-            return EditorStateHelper.Control(action, JsonHelper.ExtractString(args, "path"));
+            return EditorStateHelper.Control(action, JsonHelper.ExtractString(args, "path"), args);
         }
 
         private static string ExecAnimatorConsolidated(string args)

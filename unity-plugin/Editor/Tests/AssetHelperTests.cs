@@ -299,5 +299,81 @@ namespace UnityMCP.Editor.Tests
                 ExecAssetAction("import_package", "{\"path\":\"/nonexistent/pkg.unitypackage\"}"));
             StringAssert.Contains("not found", ex.InnerException.Message);
         }
+
+        // ── Pipeline gap: read_text / write_text / reimport / AnimatorController / ScriptableObject ─────
+
+        private const string TempFolder = "Assets/TestsTemp/AssetHelperExt";
+
+        [Test]
+        public void ReadText_ValidPath_ReturnsContent()
+        {
+            TrackOwnedAsset(TempFolder);
+            AssetHelper.EnsureDirectory(TempFolder + "/file.txt");
+            var abs = System.IO.Path.GetFullPath(TempFolder + "/file.txt");
+            System.IO.File.WriteAllText(abs, "hello", System.Text.Encoding.UTF8);
+            UnityEditor.AssetDatabase.ImportAsset(TempFolder + "/file.txt",
+                UnityEditor.ImportAssetOptions.ForceSynchronousImport);
+
+            var result = AssetDatabaseHelper.Execute("read_text",
+                $"{{\"path\":\"{TempFolder}/file.txt\"}}");
+
+            StringAssert.StartsWith("ok:read", result);
+            StringAssert.Contains("hello", result);
+        }
+
+        [Test]
+        public void ReadText_InvalidPath_ThrowsArgumentException()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                AssetDatabaseHelper.Execute("read_text", "{\"path\":\"/tmp/bad.txt\"}"));
+            StringAssert.Contains("must start with", ex.Message);
+        }
+
+        [Test]
+        public void WriteText_Roundtrip_WritesFile()
+        {
+            TrackOwnedAsset(TempFolder);
+            AssetHelper.EnsureDirectory(TempFolder + "/out.txt");
+
+            var result = AssetDatabaseHelper.Execute("write_text",
+                $"{{\"path\":\"{TempFolder}/out.txt\",\"content\":\"testdata\"}}");
+
+            StringAssert.StartsWith("ok:write", result);
+            var abs = System.IO.Path.GetFullPath(TempFolder + "/out.txt");
+            Assert.IsTrue(System.IO.File.Exists(abs));
+            Assert.AreEqual("testdata", System.IO.File.ReadAllText(abs, System.Text.Encoding.UTF8));
+        }
+
+        [Test]
+        public void Reimport_NonExistentAsset_Throws()
+        {
+            var ex = Assert.Throws<System.Exception>(() =>
+                AssetDatabaseHelper.Execute("reimport",
+                    "{\"path\":\"Assets/NonExistent_AssetHelperExt.png\"}"));
+            StringAssert.Contains("Asset not found", ex.Message);
+        }
+
+        [Test]
+        public void CreateAnimatorController_CreatesAsset()
+        {
+            TrackOwnedAsset(TempFolder);
+            AssetHelper.EnsureDirectory(TempFolder + "/Ctrl.controller");
+
+            var result = AssetDatabaseHelper.Execute("create",
+                $"{{\"type\":\"AnimatorController\",\"path\":\"{TempFolder}/Ctrl.controller\"}}");
+
+            StringAssert.StartsWith("ok:", result);
+            var type = UnityEditor.AssetDatabase.GetMainAssetTypeAtPath(TempFolder + "/Ctrl.controller");
+            Assert.AreEqual(typeof(UnityEditor.Animations.AnimatorController), type);
+        }
+
+        [Test]
+        public void CreateScriptableObject_MissingClass_Throws()
+        {
+            var ex = Assert.Throws<System.Exception>(() =>
+                AssetDatabaseHelper.Execute("create",
+                    $"{{\"type\":\"ScriptableObject\",\"path\":\"{TempFolder}/S.asset\"}}"));
+            StringAssert.Contains("class is required", ex.Message);
+        }
     }
 }

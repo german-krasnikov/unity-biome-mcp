@@ -207,6 +207,32 @@ namespace UnityMCP.Editor
             }, group, filter, requestId);
         }
 
+        private static void AsyncBuild(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            var action = JsonHelper.ExtractString(argsJson, "action");
+            var target = JsonHelper.ExtractString(argsJson, "target");
+            var scenes = JsonHelper.ExtractString(argsJson, "scenes");
+            var path   = JsonHelper.ExtractString(argsJson, "path");
+            var dev    = JsonHelper.ExtractString(argsJson, "dev") == "true";
+            var inner  = new TaskCompletionSource<string>();
+            BuildHelper.Execute(action, target, scenes, path, dev, inner);
+            CompleteFromInner(id, inner.Task, tcs, "build",
+                r => !r.StartsWith("err:"));
+        }
+
+        private static void AsyncPackage(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            var action  = JsonHelper.ExtractString(argsJson, "action");
+            var name    = JsonHelper.ExtractString(argsJson, "name");
+            var version = JsonHelper.ExtractString(argsJson, "version");
+            var query   = JsonHelper.ExtractString(argsJson, "query");
+            var inner   = new TaskCompletionSource<string>();
+            MainThreadDispatcher.Enqueue(() =>
+                PackageManagerHelper.Execute(action, name, version, query, inner));
+            CompleteFromInner(id, inner.Task, tcs, "package",
+                r => !r.StartsWith("err:"));
+        }
+
         // Bridges an inner async Task<string> to the outer TCS, formatting a fault
         // uniformly as "{label} error: ...". Collapses 4x identical ContinueWith copy-paste.
         // isSuccess: optional predicate on the result string; null = always success.

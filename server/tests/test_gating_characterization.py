@@ -42,7 +42,7 @@ _TIER1_SNAPSHOT = frozenset({
 _ALL_KNOWN_SNAPSHOT = frozenset({
     "analyze_lod_culling", "animation", "animator", "animator_intent",
     "apply_template", "ask", "ask_user", "asset", "auto_fix", "auto_wire",
-    "autofit_collider", "await_compile", "batch", "budget_status",
+    "autofit_collider", "await_compile", "bake", "batch", "budget_status", "build",
     "cancel_test_run", "check_colliders", "checkpoint", "compile_preflight", "configure_objects",
     "create_object", "create_ui", "debug", "debug_animator", "debug_physics",
     "delete_object", "diagnose", "discover_tools", "do", "doctor", "editor",
@@ -88,7 +88,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
         "transfer_object",
     },
     "COMPONENTS": {"auto_wire", "references", "unwire_event", "wire_event"},
-    "ASSETS": {"asset", "material", "material_audit", "prefab", "project_settings",
+    "ASSETS": {"asset", "bake", "material", "material_audit", "prefab", "project_settings",
                "scriptable_object", "shader"},
     "MEDIA": {
         "analyze_lod_culling", "animation", "animator", "create_ui", "particle",
@@ -116,7 +116,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
     },
     "SYSTEM": {
         "alias_status", "animator_intent", "apply_template", "ask", "ask_user",
-        "auto_fix", "budget_status", "checkpoint", "discover_tools", "doctor",
+        "auto_fix", "budget_status", "build", "checkpoint", "discover_tools", "doctor",
         "execute_code", "fingerprint", "get_capabilities", "get_changes",
         "get_enabled_tools", "get_schema", "list_connections", "list_skills",
         "list_templates", "load_session", "mcp_status", "menu", "permission_prompt",
@@ -135,12 +135,12 @@ _CATEGORY_SIZES_SNAPSHOT = {
 
 _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "apply_scene_change": 120.0,
-    "ask_user": 300.0, "batch": 120.0, "compile_preflight": 60.0,
+    "ask_user": 300.0, "batch": 120.0, "build": 300.0, "compile_preflight": 60.0,
     "execute_code": 60.0, "export_package": 120.0, "fingerprint": 10.0,
     "cancel_test_run": 10.0, "get_console": 10.0, "get_hierarchy": 15.0,
     "get_test_count": 10.0, "get_test_run": 10.0, "get_version": 5.0,
     "import_package": 120.0,
-    "lint_playtest": 60.0, "lint_playtest_suite": 120.0,
+    "lint_playtest": 60.0, "lint_playtest_suite": 120.0, "package": 60.0,
     "list_playtest_files": 10.0, "list_test_runs": 10.0,
     "ping": 5.0, "resolve_test_request": 10.0, "run_playtest": 300.0,
     "run_playtest_suite": 3600.0, "run_tests_wait": 1200.0,
