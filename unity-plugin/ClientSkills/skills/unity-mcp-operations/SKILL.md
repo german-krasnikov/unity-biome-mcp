@@ -43,6 +43,9 @@ matches the current scene and schema.
 | Repeatable Play Mode scenario | `run_playtest(...)` or `run_playtest_suite(...)` |
 | Stable repeated batch sequence | `save_skill(...)`, then `use_skill(...)` |
 | Stable parameterized scene scaffold | `save_template(...)`, then `apply_template(...)` |
+| Build a player | `build(action="build", target="...")` |
+| UPM package operation | `package(action="list"|"search"|"add"|"remove", ...)` |
+| Lighting or occlusion bake | `bake(target="lighting"|"occlusion", action="start"|"status")` |
 | Unknown or gated capability | `discover_tools(...)`, then `resolve_tool_schema(...)` |
 
 Do not infer batchability from `direct_only=False`. Some asynchronous and
@@ -72,7 +75,7 @@ dispatch again. A bound listener endpoint outranks configured/cached port state.
 | `CORE` | this skill or `unity-scene-authoring` |
 | `SCENE` | `unity-scene-authoring`, `unity-ui-authoring`, or `unity-physics-spatial` |
 | `COMPONENTS` | `unity-scene-authoring` |
-| `ASSETS` | `unity-assets-prefabs` or `unity-materials-shaders` |
+| `ASSETS` | `unity-assets-prefabs`, `unity-materials-shaders`, or this skill for build/package/bake |
 | `MEDIA` | `unity-animation`, `unity-ui-authoring`, `unity-materials-shaders`, or `unity-particles-vfx` |
 | `VERIFY` | `unity-csharp-editing`, `unity-testing-verification`, or `unity-diagnostics-performance` |
 | `RUNTIME` | `unity-testing-verification`, `unity-diagnostics-performance`, or `unity-physics-spatial` |

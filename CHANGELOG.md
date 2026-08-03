@@ -10,6 +10,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.12.0] — 2026-08-03
+
+### Added
+- `docs/tools/tests.md` — new page documenting 9 testing tools (run_tests, run_tests_wait, get_test_run, etc.)
+- `docs/tools/spatial.md` — new page documenting 9 spatial tools (spatial_query, navmesh_query, check_colliders, etc.)
+- Documentation for 35+ previously undocumented tools across assets, runtime, diagnostics, and scene categories
+- `bake`, `build`, `package`, `render_analyze` tool documentation in assets.md
+- Debug, profiling, watch, snapshot tool documentation in runtime.md
+- `verify_after_change`, `scene_health`, `validate_references`, `serialized_field_rename_audit` documentation in diagnostics.md
+- Transactional scene edit docs (`scene_change_plan`, `apply_scene_change`) in scene.md
+- Path escaping syntax documentation (v1.4.0: `\/`, `[bracket]`) in playtest.md
+- Code execution QoL features (v0.89.0) in code-execution.md
+
+### Fixed
+- Removed ghost tool `set_runtime_property` from all user-facing documentation
+- Fixed `scene_name` → `scene` parameter name in scene.md
+- Fixed `paths` → `pattern` parameter name for `run_playtest_suite` and `lint_playtest_suite`
+- Fixed `set_property` Play Mode claim (Edit Mode only; Play Mode writes lost on stop)
+- Fixed `build` action parameter documented as optional (now correctly marked required)
+- Fixed `find_objects` batch example using wrong param names
+- Fixed broken intent-tools.md anchor links
+- Fixed `scene_health` focus options to match C# source (hierarchy/naming/duplicates/origins/missing/empty/disabled)
+- Marked `audio` and `input` as read-only project_settings targets in ClientSkills
+
+### Changed
+- DRY cleanup: wire_event/unwire_event canonical in components.md only (forwarding stubs elsewhere)
+- DRY cleanup: console_mark/get_console_since canonical in diagnostics.md only
+- DRY cleanup: resolve_scene_refs/lint_scene_refs canonical in diagnostics.md only
+- Actualized AI/ docs: tool counts (148 user-visible, 154 total, 47 TIER1, ~5088 tests)
+- Actualized 7 ClientSkills + 1 agent for v1.10–v1.11 (build/package/bake routing, transactional edits, path escaping, execute_code QoL)
+- Replaced duplicate Token-Saving Patterns in prompting-tips.md with cross-link to tool-guide.md
+
 ## [v1.11.0] — 2026-08-03
 
 ### Added

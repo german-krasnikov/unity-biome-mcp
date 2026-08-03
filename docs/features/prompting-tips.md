@@ -64,36 +64,7 @@ Fail 2: event target path wrong → validate_references
 
 ## Token-Saving Patterns
 
-**Batch multiple operations**
-Use `batch` for two or more compatible operations to avoid repeated tool-call
-envelopes.
-
-```
-await batch("op1\nop2\nop3")
-```
-
-**Use inspect for bulk reads**
-Reading 3+ objects → `inspect` saves tokens vs loop of `get_component`.
-
-```
-await inspect(paths="Player,Enemy1,Enemy2", components="Health,Damage")  # 1 call
-```
-
-**Search before creating**
-Use `search_scene` before `create_object` to avoid duplicates.
-
-```
-existing = await search_scene(query="Cube*")
-if not existing:
-    await create_object(name="Cube")
-```
-
-**Use natural language when unsure**
-The `do` tool understands English and translates to optimal tools automatically, often more concise than manual tool picking.
-
-```
-await do("create 5 red cubes in a line starting at origin")
-```
+See [Tool Decision Guide](tool-guide.md#when-to-use-batch) and [Tool Decision Guide: inspect](tool-guide.md#when-to-use-inspect) for core patterns like `batch`, `inspect`, and `do`.
 
 ## Common Patterns
 

@@ -53,6 +53,8 @@ installed:
 
 ```text
 navmesh_query(action="status")
+navmesh_query(action="get_settings")
+navmesh_query(action="set_settings", agent_type="Humanoid", speed=5.0)
 navmesh_query(
   action="path",
   from_pos="(0,0,0)",
@@ -60,8 +62,10 @@ navmesh_query(
 )
 ```
 
-Use `sample` before path claims when endpoints may be off-mesh. Treat `bake`
-and `clear` as explicit project mutations, not read-only analysis.
+Use `sample` before path claims when endpoints may be off-mesh. Use
+`get_settings` and `set_settings` to inspect and configure agent types.
+Treat `bake` and `clear` as explicit project mutations, not read-only
+analysis.
 
 For bounded cleanup or placement regions, preview first:
 

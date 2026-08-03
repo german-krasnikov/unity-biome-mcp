@@ -3,8 +3,19 @@
 Agents write GitHub-friendly markdown; this hook fixes paths and attributes at build time.
 """
 
+import json
 import re
 from pathlib import Path
+
+_META_CACHE = None
+
+
+def _load_meta(config):
+    global _META_CACHE
+    if _META_CACHE is None:
+        meta_path = Path(config["docs_dir"]) / "assets" / "_meta.json"
+        _META_CACHE = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+    return _META_CACHE
 
 
 _REDIRECT_TEMPLATE = (
@@ -17,10 +28,23 @@ def on_page_markdown(markdown, page, config, files, **kwargs):
     redirect_to = getattr(page, "meta", {}).get("redirect_to")
     if redirect_to:
         return _REDIRECT_TEMPLATE.format(url=redirect_to)
+    markdown = _substitute_meta(markdown, config)
     markdown = _fix_image_paths(markdown, page, config)
     markdown = _fix_html_img_paths(markdown, page, config)
     markdown = _add_markdown_attr(markdown)
     return markdown
+
+
+def _substitute_meta(md, config):
+    """Replace {{ meta.KEY }} placeholders with values from _meta.json."""
+    meta = _load_meta(config)
+    if not meta:
+        return md
+    return re.sub(
+        r"\{\{\s*meta\.(\w+)\s*\}\}",
+        lambda m: str(meta.get(m.group(1), m.group(0))),
+        md,
+    )
 
 
 def _page_depth(page, config):

@@ -7,7 +7,7 @@ Manage prefabs, materials, ScriptableObjects, and project settings. Control the 
 Core asset database operations: search, copy, move, delete, import/export.
 
 **Parameters:**
-- `action` (string) — "find" | "get_info" | "create" | "move" | "validate_move" | "duplicate" | "delete" | "get_dependencies" | "find_dependents" | "import_settings" | "export_package" | "import_package"
+- `action` (string) — "find" | "get_info" | "create" | "move" | "validate_move" | "duplicate" | "delete" | "get_dependencies" | "find_dependents" | "import_settings" | "export_package" | "import_package" | "read_text" | "write_text" | "reimport"
 - `path` (string) — Asset path (Assets-relative)
 - `type` (string, optional) — Asset type filter
 - `name` (string, optional) — Name for search
@@ -16,6 +16,9 @@ Core asset database operations: search, copy, move, delete, import/export.
 - `recursive` (bool, default=false) — Include subfolders
 - `output` (string, optional) — Export destination
 - `include_deps` (bool, default=true) — Include dependencies
+- `labels` (string, optional) — Comma-separated labels filter for find action
+- `content` (string, optional) — Text content for write_text action
+- `class_name` (string, optional) — Class name for ScriptableObject creation
 
 **Actions:**
 
@@ -33,6 +36,9 @@ Core asset database operations: search, copy, move, delete, import/export.
 | import_settings | Configure import params | path, prop, value | `asset("import_settings", path="Assets/Mesh.fbx", prop="importer_type", value="humanoid")` |
 | export_package | Create .unitypackage | path, output | `asset("export_package", path="Assets/MyFeature", output="/tmp/export.unitypackage")` |
 | import_package | Load .unitypackage | path (file system) | `asset("import_package", path="/tmp/export.unitypackage")` |
+| read_text | Read text file asset | path | `asset("read_text", path="Assets/Config.txt")` |
+| write_text | Write or update text file | path, content | `asset("write_text", path="Assets/Config.txt", content="key=value")` |
+| reimport | Force re-import asset | path | `asset("reimport", path="Assets/Models/Player.fbx")` |
 
 **Example:**
 
@@ -63,6 +69,15 @@ await asset("export_package", path="Assets/MyFeature", output="/tmp/feature.unit
 
 # Import package
 await asset("import_package", path="/tmp/feature.unitypackage")
+
+# Read text file
+config = await asset("read_text", path="Assets/Config.txt")
+
+# Write text file
+await asset("write_text", path="Assets/Config.txt", content="gameVersion=1.0\nmaxPlayers=16")
+
+# Re-import asset (forces AssetDatabase refresh)
+await asset("reimport", path="Assets/Models/Player.fbx")
 ```
 
 ---
@@ -309,17 +324,36 @@ Access and modify project-wide settings.
 
 **Parameters:**
 - `action` (string) — "get" | "set"
-- `target` (string) — Setting category: "tags" | "layers" | "sorting_layers" | "quality" | "physics" | "time" | "player"
+- `target` (string) — Setting category: "tags" | "layers" | "sorting_layers" | "quality" | "physics" | "time" | "player" | "graphics" | "audio" | "input"
 - `prop` (string, optional) — Property name within the target category
 - `value` (string, optional) — New value
 - `index` (int, optional) — Index for array-based settings (e.g., layers)
+- `build_target` (string, optional) — Build target for ScriptingBackend: "Standalone" | "iOS" | "Android" | etc. (required when setting ScriptingBackend)
 
 **Actions:**
 
-| Action | Purpose | Example |
-|--------|---------|---------|
-| get | Read project setting | `project_settings("get", target="physics")` |
-| set | Modify setting | `project_settings("set", target="physics", prop="gravity", value="0,-15,0")` |
+| Target | Action | Purpose | Example |
+|--------|--------|---------|---------|
+| tags | get | List all tags | `project_settings("get", target="tags")` |
+| tags | set | Add tag (prop or value) | `project_settings("set", target="tags", prop="Enemy")` |
+| tags | set (remove) | Remove tag | `project_settings("set", target="tags", prop="remove", value="Obsolete")` |
+| layers | get | List layers 0–31 | `project_settings("get", target="layers")` |
+| layers | set | Set layer name at index | `project_settings("set", target="layers", index=8, value="Enemy")` |
+| sorting_layers | get | List sorting layers | `project_settings("get", target="sorting_layers")` |
+| quality | get | Quality settings (shadow, LOD, etc.) | `project_settings("get", target="quality")` |
+| quality | set (currentLevel) | Switch quality level | `project_settings("set", target="quality", prop="currentLevel", value="2")` |
+| quality | set (property) | Adjust via reflection | `project_settings("set", target="quality", prop="shadowDistance", value="50")` |
+| physics | get | Physics settings (gravity, solver, collision matrix) | `project_settings("get", target="physics")` |
+| physics | set | Modify physics | `project_settings("set", target="physics", prop="gravity", value="0,-15,0")` |
+| time | get | Time settings (fixedDeltaTime, timeScale, etc.) | `project_settings("get", target="time")` |
+| time | set | Modify time property | `project_settings("set", target="time", prop="fixedDeltaTime", value="0.02")` |
+| player | get | Player settings (company, product name, version) | `project_settings("get", target="player")` |
+| player | set (ScriptingBackend) | Set IL2CPP/Mono backend | `project_settings("set", target="player", prop="ScriptingBackend", value="IL2CPP", build_target="Standalone")` |
+| player | set (property) | Modify player property | `project_settings("set", target="player", prop="companyName", value="MyStudio")` |
+| graphics | get | Graphics settings (render pipeline, color space, etc.) | `project_settings("get", target="graphics")` |
+| graphics | set | Modify graphics | `project_settings("set", target="graphics", prop="colorSpace", value="Linear")` |
+| audio | get | Audio settings (master volume, rolloff, speaker mode) — read-only | `project_settings("get", target="audio")` |
+| input | get | Input axes (Horizontal, Vertical, etc.) — read-only | `project_settings("get", target="input")` |
 
 **Example:**
 
@@ -336,8 +370,226 @@ time = await project_settings("get", target="time")
 # Read tags
 tags = await project_settings("get", target="tags")
 
-# Set a layer by index
-await project_settings("set", target="layers", prop="layer", value="MyLayer", index=8)
+# Add a tag
+await project_settings("set", target="tags", prop="Enemy")
+
+# Remove a tag
+await project_settings("set", target="tags", prop="remove", value="Obsolete")
+
+# Set a layer by index (0-5 reserved, use 6+)
+await project_settings("set", target="layers", index=8, value="EnemyLayer")
+
+# Switch quality level
+await project_settings("set", target="quality", prop="currentLevel", value="2")
+
+# Set scripting backend (requires build_target)
+await project_settings("set", target="player", prop="ScriptingBackend", value="IL2CPP", build_target="Standalone")
+
+# Read graphics settings
+graphics = await project_settings("get", target="graphics")
+
+# Set color space to linear
+await project_settings("set", target="graphics", prop="colorSpace", value="Linear")
+
+# Read audio settings (read-only)
+audio = await project_settings("get", target="audio")
+
+# Read input axes (read-only)
+input_axes = await project_settings("get", target="input")
+```
+
+---
+
+## build
+
+Build player executables for target platforms.
+
+**Parameters:**
+- `action` (string, required) — Build action (e.g., "build")
+- `target` (string, optional) — Build target: "StandaloneWindows64" | "StandaloneOSX" | "Android" | "iOS" | "WebGL" (default: active build target)
+- `scenes` (string, optional) — Comma-separated scene asset paths (default: Build Settings scene list)
+- `path` (string, optional) — Output path (default: Builds/<target>)
+- `dev` (bool, default=false) — Development build flag (enables logging, profiler, slower startup)
+
+**Actions:**
+
+| Action | Purpose | Required Params | Example |
+|--------|---------|-----------------|---------|
+| build | Build player | action | `build("build")` or `build("build", target="iOS", path="Builds/iOS")` |
+
+**Example:**
+
+```python
+# Build for active target (Standalone)
+result = await build("build")
+
+# Build for iOS with custom path
+result = await build("build", target="iOS", path="Builds/iOS", scenes="Assets/Scenes/Menu.unity,Assets/Scenes/Main.unity")
+
+# Development build (logging + profiler enabled)
+result = await build("build", target="Android", dev=True, path="Builds/Android/dev")
+```
+
+---
+
+## package
+
+Package Manager operations: list, search, add, or remove packages.
+
+**Parameters:**
+- `action` (string) — "list" | "search" | "add" | "remove"
+- `name` (string, optional) — Package name (required for add/remove)
+- `version` (string, optional) — Package version (optional for add, e.g., "1.2.3")
+- `query` (string, optional) — Search query (required for search)
+
+**Actions:**
+
+| Action | Purpose | Required Params | Example |
+|--------|---------|-----------------|---------|
+| list | List all installed packages | action | `package("list")` |
+| search | Search registry by name | query | `package("search", query="UI")` |
+| add | Install package | name [, version] | `package("add", name="com.unity.textmeshpro")` |
+| remove | Uninstall package | name | `package("remove", name="com.unity.textmeshpro")` |
+
+**Example:**
+
+```python
+# List installed packages
+packages = await package("list")
+
+# Search for UI packages
+results = await package("search", query="UI")
+
+# Add a package (latest version)
+await package("add", name="com.unity.textmeshpro")
+
+# Add specific version
+await package("add", name="com.unity.textmeshpro", version="3.0.6")
+
+# Remove package
+await package("remove", name="com.unity.textmeshpro")
+```
+
+---
+
+## bake
+
+Lighting and occlusion bake operations.
+
+**Parameters:**
+- `target` (string) — "lighting" | "occlusion"
+- `action` (string, optional, default="start") — Specific action:
+  - Lighting: "start" | "status" | "cancel" | "clear" | "settings"
+  - Occlusion: "start" | "status" | "clear"
+
+**Actions:**
+
+| Target | Action | Purpose | Example |
+|--------|--------|---------|---------|
+| lighting | start | Begin async lighting bake | `bake("lighting")` or `bake("lighting", action="start")` |
+| lighting | status | Poll bake progress | `bake("lighting", action="status")` |
+| lighting | cancel | Cancel running bake | `bake("lighting", action="cancel")` |
+| lighting | clear | Clear all lightmaps | `bake("lighting", action="clear")` |
+| lighting | settings | Get bake settings (mode, resolution, bounces, etc.) | `bake("lighting", action="settings")` |
+| occlusion | start | Synchronous occlusion bake (blocks until done) | `bake("occlusion")` or `bake("occlusion", action="start")` |
+| occlusion | status | Check bake status and data size | `bake("occlusion", action="status")` |
+| occlusion | clear | Clear occlusion data | `bake("occlusion", action="clear")` |
+
+**Example:**
+
+```python
+# Start async lighting bake (fire-and-forget)
+await bake("lighting")
+
+# Poll lighting status
+status = await bake("lighting", action="status")
+# Returns: "status:baking\nprogress:0.45" or "status:idle"
+
+# Get lighting bake settings
+settings = await bake("lighting", action="settings")
+
+# Cancel if needed
+await bake("lighting", action="cancel")
+
+# Synchronous occlusion bake (waits until complete)
+result = await bake("occlusion")
+
+# Check occlusion status
+status = await bake("occlusion", action="status")
+# Returns: status (running|idle), baked (true|false), bytes (data size)
+
+# Clear occlusion data
+await bake("occlusion", action="clear")
+```
+
+---
+
+## render_analyze
+
+Rendering analysis and optimization audit: draw calls, batching, materials, shaders, lights, and frame debug data.
+
+**Parameters:**
+- `action` (string) — Analysis type: "stats" | "materials" | "shaders" | "lights" | "batching" | "overdraw" | "audit" | "compare" | "frame_debug" | "shadow_audit" | "probe_audit" | "light_optimize"
+- `path` (string, optional) — Subtree root for analysis (default: whole scene)
+- `detail` (string, default="brief") — "brief" | "full"
+- `baseline_id` (string, optional) — Baseline snapshot ID for compare action
+- `max_events` (int, optional) — Max frame debug events to fetch (for frame_debug action)
+
+**Actions:**
+
+| Action | Purpose | Example |
+|--------|---------|---------|
+| stats | Draw calls, batches, triangles, vertices, set-pass (from UnityStats) | `render_analyze("stats")` |
+| materials | List all materials in scene | `render_analyze("materials", detail="full")` |
+| shaders | List all shaders and variants in use | `render_analyze("shaders")` |
+| lights | Analyze light count, types, shadows, culling | `render_analyze("lights")` |
+| batching | SRP Batcher, static/dynamic/GPU instancing analysis | `render_analyze("batching")` |
+| overdraw | Overdraw heat map and problem areas | `render_analyze("overdraw", path="Canvas")` |
+| audit | Full rendering health check (all sections, brief) | `render_analyze("audit")` |
+| compare | Diff against last baseline snapshot | `render_analyze("compare", baseline_id="snap_2024_01_15")` |
+| frame_debug | Per-draw-call data (pauses rendering briefly) | `render_analyze("frame_debug", max_events=100)` |
+| shadow_audit | Shadow map usage and cascade analysis | `render_analyze("shadow_audit")` |
+| probe_audit | Light probe density and coverage | `render_analyze("probe_audit", path="GameArea")` |
+| light_optimize | Optimization suggestions (lights, baking, LOD) | `render_analyze("light_optimize")` |
+
+**Example:**
+
+```python
+# Quick rendering stats (draw calls, batches, triangles)
+stats = await render_analyze("stats")
+
+# Audit materials in scene
+materials = await render_analyze("materials", detail="brief")
+
+# Full shader analysis
+shaders = await render_analyze("shaders", detail="full")
+
+# Check light count and shadow settings
+lights = await render_analyze("lights")
+
+# Analyze batching efficiency (SRP Batcher, instancing)
+batching = await render_analyze("batching")
+
+# Detect overdraw problem areas
+overdraw = await render_analyze("overdraw")
+
+# Full rendering health check
+audit = await render_analyze("audit", detail="full")
+
+# Per-draw-call frame debug (pauses rendering)
+frame_data = await render_analyze("frame_debug", max_events=50)
+
+# Shadow map usage
+shadow_info = await render_analyze("shadow_audit")
+
+# Light probe coverage (in a specific area)
+probes = await render_analyze("probe_audit", path="Player/CameraArea")
+
+# Get optimization recommendations
+recommendations = await render_analyze("light_optimize")
+
+# Analyze subtree rendering
+subtree_stats = await render_analyze("stats", path="UI/HUD")
 ```
 
 ---
@@ -434,6 +686,10 @@ refs = await references("get", path="Assets/Prefabs/Player.prefab", children=Tru
 | Create variant | prefab("create_variant") | `await prefab("create_variant", base_path="Assets/Enemy.prefab", variant_path="Assets/Variants/EnemyFast.prefab")` |
 | Organize assets | asset("move") + asset("create") | `await asset("create", type="Folder", path="Assets/Materials"); await asset("move", source="Assets/Old.mat", dest="Assets/Materials/Old.mat")` |
 | Export for sharing | asset("export_package") | `await asset("export_package", path="Assets/MyFeature", output="/tmp/export.unitypackage")` |
+| Bake and verify | bake("lighting") + bake("lighting", action="status") | Start bake, poll status until idle |
+| Rendering audit | render_analyze("audit") | `result = await render_analyze("audit", detail="full")` → full health check |
+| Build player | build("build") | `await build("build", target="iOS", path="Builds/iOS")` |
+| Manage packages | package("add") + package("remove") | `await package("add", name="com.unity.textmeshpro", version="3.0.6")` |
 
 ---
 

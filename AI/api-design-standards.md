@@ -8,7 +8,7 @@ Reference for Architects, Developers, and Reviewers. Read before designing or re
 
 ## 1. Scope
 
-Covers all 142+ MCP tools: Python-side definition (`server/src/unity_mcp/tools/`) and C#-side command registration (`unity-plugin/Editor/Commands/`).
+Covers all 148+ MCP tools: Python-side definition (`server/src/unity_mcp/tools/`) and C#-side command registration (`unity-plugin/Editor/Commands/`).
 
 **No backward compatibility.** Deprecated tools are deleted — not shimmed, not aliased, not marked legacy. The API surface must contain only actively used, non-redundant tools. When a tool is identified as a duplicate or anti-pattern, it is removed from both Python and C# sides in the same PR.
 

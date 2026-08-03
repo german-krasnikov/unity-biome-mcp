@@ -6,6 +6,8 @@ Convert natural language requests into scene operations automatically.
 
 Intent tools use Haiku (fast LLM) to translate plain English into structured operations. Costs ~$0.0001 per intent call.
 
+**Note:** Intent tools are configurable via **MCP → Settings → LLM Sampling** in the Unity Editor. They are `direct_only` tools and cannot be used in `batch` commands.
+
 | Tool | Purpose | Example |
 |------|---------|---------|
 | `do` | Create/modify scene objects | "create a cube at position 5,0,0" |
@@ -49,7 +51,7 @@ await ask("where is the nearest collectible?")
 
 **Rejection:** Mutating questions like "add health to player" are rejected — use `do()` instead.
 
-## animator_intent(target, intent, dry_run=False)
+## animator_intent(target, intent, dry_run=False) {#animator_intent}
 
 Setup Animator Controller parameters, states, and transitions from natural language.
 
@@ -68,7 +70,7 @@ await animator_intent("Enemy", "attack animation", dry_run=True)
 
 **Supported transitions:** Speed comparisons (`>`, `<`), bool checks, custom conditions.
 
-## vfx_intent(target, intent, kind="auto", dry_run=False)
+## vfx_intent(target, intent, kind="auto", dry_run=False) {#vfx_intent}
 
 Configure particle systems with presets or custom properties.
 
@@ -95,7 +97,7 @@ await vfx_intent("Dust", "small dust particles, slow fade")
 
 **Customization:** If preset name not recognized, Haiku designs custom particle properties (colorOverLifetime, sizeOverLifetime, speed curves).
 
-## ui_intent(intent, parent=None, template=None, dry_run=False)
+## ui_intent(intent, parent=None, template=None, dry_run=False) {#ui_intent}
 
 Create UI hierarchies (Canvas, panels, buttons) from natural language.
 

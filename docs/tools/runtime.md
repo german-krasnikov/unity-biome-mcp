@@ -37,7 +37,7 @@ The [Playtest Guide](../features/playtest.md) is the canonical reference for DSL
 Run multiple `.playtest` files sequentially and return a compact pass/fail matrix.
 
 **Parameters:**
-- `paths` (string, optional) — Glob pattern (e.g. `Playtests/*.playtest`), comma-separated, or newline-separated list of project-relative paths (mutually exclusive with `suite_path`)
+- `pattern` (string, optional) — Glob pattern (e.g. `Playtests/*.playtest`), comma-separated, or newline-separated list of project-relative paths (mutually exclusive with `suite_path`)
 - `suite_path` (string, optional) — Absolute path to a `.suite` file (lines = project-relative `.playtest` paths, `#` = comment)
 - `timeout_per_test` (float, default=120.0) — Max seconds per individual test
 - `stop_on_fail` (bool, default=false) — Abort suite after first failure
@@ -51,11 +51,11 @@ Run multiple `.playtest` files sequentially and return a compact pass/fail matri
 
 ```python
 # Run all playtests in a directory
-result = await run_playtest_suite(paths="Playtests/*.playtest")
+result = await run_playtest_suite(pattern="Playtests/*.playtest")
 
 # Run specific files with restart between each
 result = await run_playtest_suite(
-    paths="Playtests/combat.playtest,Playtests/movement.playtest",
+    pattern="Playtests/combat.playtest,Playtests/movement.playtest",
     restart_between=True,
     stop_on_fail=True
 )
@@ -97,7 +97,7 @@ result = await lint_playtest(script="ASSERT Player/Health == 100\nASSERT_CONSOLE
 Read-only preflight check across multiple `.playtest` files.
 
 **Parameters:**
-- `paths` (string, optional) — Glob pattern (e.g. `Playtests/*.playtest`) or comma-separated list (mutually exclusive with `suite_path`)
+- `pattern` (string, optional) — Glob pattern (e.g. `Playtests/*.playtest`) or comma-separated list (mutually exclusive with `suite_path`)
 - `suite_path` (string, optional) — Absolute path to a `.suite` file
 
 **Returns:** Aggregated lint report with `LINT: X/Y clean` header, one block per file.
@@ -105,7 +105,7 @@ Read-only preflight check across multiple `.playtest` files.
 **Example:**
 
 ```python
-result = await lint_playtest_suite(paths="Playtests/*.playtest")
+result = await lint_playtest_suite(pattern="Playtests/*.playtest")
 ```
 
 ---
@@ -178,41 +178,13 @@ result = await export_playtest_aliases_to_defs(
 
 ## resolve_scene_refs
 
-Read-only scene reference resolver. Resolves `$alias`, `/path`, or `t:Type` tokens against the live scene.
-
-**Parameters:**
-- `refs` (string) — Comma-separated list of `$alias`, `/path`, or `t:Type` tokens
-- `fields` (string, optional) — Comma-separated field names to check existence on matched component
-
-**Returns:** One tab-aligned line per ref: `OK`|`MISS`|`AMB` + path + details.
-
-**Example:**
-
-```python
-result = await resolve_scene_refs(refs="$player,/Enemy,t:Camera")
-result = await resolve_scene_refs(refs="$player", fields="hp,maxHp")
-```
+See [Diagnostics: resolve_scene_refs](diagnostics.md#resolve_scene_refs).
 
 ---
 
 ## lint_scene_refs
 
-Read-only linter for scene references in DSL scripts or batch commands.
-
-**Parameters:**
-- `path` (string, optional) — Project-relative path to `.playtest` file (mutually exclusive with `snippet`)
-- `snippet` (string, optional) — Inline DSL or batch commands to lint (mutually exclusive with `path`)
-
-**Checks:** Unresolved aliases, embedded aliases, missing objects, ambiguous names.
-
-**Returns:** `OK: no issues` or severity-tagged issues (`ERROR`/`WARN`) with `file:line:token`.
-
-**Example:**
-
-```python
-result = await lint_scene_refs(path="Playtests/combat.playtest")
-result = await lint_scene_refs(snippet="ASSERT /Player|Health|hp == 100")
-```
+See [Diagnostics: lint_scene_refs](diagnostics.md#lint_scene_refs).
 
 ---
 
@@ -261,36 +233,6 @@ await invoke_method(path="Weapon", component="WeaponController", method="Fire", 
 await batch("""
 invoke_method path=Enemy1 component=EnemyAI method=Attack
 invoke_method path=Enemy2 component=EnemyAI method=Attack
-""")
-```
-
----
-
-## set_runtime_property
-
-Modify a component field at runtime via reflection (Play Mode only).
-
-**Parameters:**
-- `path` (string) — GameObject path
-- `component` (string) — Component name
-- `field` (string) — Field name (public field or property)
-- `value` (string) — New value (inferred type)
-
-**Note:** Play Mode only. For convenience, use `set_property()` instead — it works in both Edit and Play Mode and the middleware automatically handles the translation for you.
-
-**Example:**
-
-```python
-# Modify health at runtime
-await set_runtime_property("Player", "Health", "hp", "50")
-
-# Modify velocity
-await set_runtime_property("Player", "Rigidbody", "velocity", "0,10,0")
-
-# Batch modifications
-await batch("""
-set_runtime_property path=Player component=Health field=hp value=100
-set_runtime_property path=Enemy component=Health field=hp value=50
 """)
 ```
 
@@ -396,7 +338,9 @@ result = await test_step(
 
 ## animator_intent
 
-Natural language control for animator state machines (Category: Intent).
+Natural language control for animator state machines. See [Intent Tools Guide](../features/intent-tools.md#animator_intent) for full documentation.
+
+**Note:** `direct_only=True` — cannot be used in `batch`. Call directly.
 
 **Parameters:**
 - `target` (string, required) — GameObject path (e.g., "Player", "NPC/Animator")
@@ -416,7 +360,9 @@ result = await animator_intent(target="Enemy", intent="set walk speed to 2.0")
 
 ## vfx_intent
 
-Natural language VFX and particle control (Category: Intent).
+Natural language VFX and particle control. See [Intent Tools Guide](../features/intent-tools.md#vfx_intent) for presets and examples.
+
+**Note:** `direct_only=True` — cannot be used in `batch`. Call directly.
 
 **Parameters:**
 - `target` (string, required) — GameObject path (e.g., "Player", "Particles/Emitter")
@@ -437,7 +383,246 @@ result = await vfx_intent(target="Enemy", intent="fade out particle system", dry
 
 ## ui_intent
 
-Natural language UI manipulation. See [UI Tools — ui_intent](ui.md#ui_intent) for full documentation.
+Natural language UI manipulation. See [UI Tools — ui_intent](ui.md#ui_intent) for full documentation and [Intent Tools Guide](../features/intent-tools.md#ui_intent) for examples.
+
+**Note:** `direct_only=True` — cannot be used in `batch`. Call directly.
+
+---
+
+## debug
+
+AI-assisted scene debug: gather diagnostic context based on symptom description (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`).
+
+**Parameters:**
+- `symptom` (string, optional) — Natural language description ("enemy doesn't move", "button not clickable")
+- `path` (string, optional) — Target object path ("/Enemy_01")
+- `gather` (string, optional) — Override tool list as comma-separated names ("inspect,get_console,screenshot")
+
+**Returns:** Structured diagnostic text for LLM analysis with context-appropriate tools.
+
+**Example:**
+
+```python
+# Describe problem, tool gathers relevant context
+result = await debug(symptom="enemy doesn't move", path="/Enemy_01")
+
+# Custom tool selection
+result = await debug(symptom="button not responding", gather="inspect,screenshot")
+```
+
+---
+
+## debug_animator
+
+[Play Mode] Read Animator state: layers, transitions, parameters, and current animation.
+
+**Parameters:**
+- `path` (string) — Scene path to GameObject with Animator component
+
+**Returns:** Animator configuration and current state.
+
+**Example:**
+
+```python
+state = await debug_animator(path="Player")
+# → Shows layers, transitions, active parameters, current clip
+```
+
+---
+
+## debug_physics
+
+[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects.
+
+**Parameters:**
+- `path` (string) — Scene path to GameObject with Rigidbody
+- `radius` (float, default=5.0) — Overlap sphere radius (meters) for nearby object detection
+
+**Returns:** Rigidbody state, active colliders, contact list, nearby bodies.
+
+**Example:**
+
+```python
+state = await debug_physics(path="Player")
+state = await debug_physics(path="Enemy", radius=10.0)
+```
+
+---
+
+## profile
+
+Profile CPU/GPU/memory over time. Session-based with compare and focus options.
+
+**Parameters:**
+- `action` (string) — `start` | `stop` | `status` | `analyze` | `compare` | `list_sessions`
+- `duration` (float, default=5.0) — Seconds to capture (for `start` with `mode="burst"`)
+- `session` (string, optional) — Session ID or name
+- `compare_with` (string, optional) — Session ID to diff against
+- `focus` (string, optional) — Narrow analysis to `gc` | `rendering` | `physics` | `cpu`
+- `mode` (string, default="burst") — `burst` (auto-stop after duration) | `manual` (explicit stop) | `triggered` (on spike)
+- `threshold_ms` (float, default=33.3) — Frame time threshold for spike detection (mode="triggered")
+
+**Example:**
+
+```python
+# Start burst profiling (auto-stops after 5s)
+await profile(action="start", duration=5.0)
+await profile(action="analyze", focus="gc")
+
+# Manual session
+await profile(action="start", mode="manual")
+# ... run gameplay ...
+await profile(action="stop")
+await profile(action="compare", compare_with="reference_session")
+```
+
+---
+
+## get_frame_stats
+
+Current frame performance snapshot: FPS, CPU, GPU, memory, draw calls. No session needed.
+
+**Parameters:**
+- `include` (string, optional) — Narrow output (e.g., `"gc"` for GC stats only)
+
+**Returns:** Frame time, FPS, GPU time, draw calls, memory usage.
+
+**Example:**
+
+```python
+stats = await get_frame_stats()
+gc_only = await get_frame_stats(include="gc")
+```
+
+---
+
+## get_memory
+
+Memory snapshot with asset-type breakdown.
+
+**Parameters:**
+- `include` (string, default="all") — `all` | `textures` | `meshes` | `audio` | `gc` — narrow the asset-type breakdown
+
+**Returns:** Total memory and per-type allocation.
+
+**Example:**
+
+```python
+# Full breakdown
+total = await get_memory()
+
+# Textures only
+textures = await get_memory(include="textures")
+```
+
+---
+
+## get_metrics
+
+Telemetry snapshot: uptime, command counts, timing statistics.
+
+**Parameters:**
+- `format` (string, default="text") — `text` | `json`
+- `reset` (bool, default=false) — Clear counters atomically after snapshot
+
+**Returns:** Metrics in requested format.
+
+**Example:**
+
+```python
+metrics = await get_metrics()
+metrics_json = await get_metrics(format="json")
+metrics = await get_metrics(reset=True)  # Snapshot and clear
+```
+
+---
+
+## watch
+
+[Play Mode] Manage field watches with conditional triggers.
+
+**Parameters:**
+- `action` (string) — `add` | `remove` | `clear` | `reset`
+- `watch_id` (string, optional) — Watch identifier (required for `remove`/`reset`)
+- `path` (string, optional) — GameObject path (required for `add`)
+- `component` (string, optional) — Component type (required for `add`)
+- `field` (string, optional) — Field name (required for `add`)
+- `condition` (string, optional) — Comparison (`"< 10"`, `"> 0"`, `"== null"`)
+- `trigger_action` (string, default="log") — `log` | `pause` — action when condition met
+- `interval_ms` (int, default=500) — Poll interval in milliseconds
+
+**Returns:** Watch ID on add, status on other actions.
+
+**Example:**
+
+```python
+# Add watch with trigger condition
+id = await watch(action="add", path="Player", component="Health", 
+                field="hp", condition="< 20", trigger_action="pause")
+
+# View all watches
+await get_watches()
+
+# Remove watch
+await watch(action="remove", watch_id=id)
+
+# Clear all
+await watch(action="clear")
+```
+
+---
+
+## get_watches
+
+Get all active watches and recent log entries.
+
+**Parameters:** None
+
+**Returns:** Compact list of watch definitions and triggered events.
+
+**Example:**
+
+```python
+watches = await get_watches()
+```
+
+---
+
+## snapshot
+
+Capture or compare object state snapshots.
+
+**Parameters:**
+- `path` (string) — Object path ("/Enemy_01")
+- `label` (string, default="default") — Snapshot label ("before", "after")
+- `compare` (string, optional) — Label to diff against (empty = capture only)
+
+**Returns:** Capture: `"snapshot 'label' saved (N fields)"`. Compare: structured diff or error.
+
+**Example:**
+
+```python
+# Capture before state
+await snapshot(path="/Player", label="before_attack")
+
+# ... trigger attack ...
+
+# Compare before and after
+diff = await snapshot(path="/Player", label="after_attack", compare="before_attack")
+# → Shows field changes: ~ hp: 100 → 85
+```
+
+---
+
+## console_mark
+
+See [Diagnostics: console_mark](diagnostics.md#console_mark).
+
+---
+
+## get_console_since
+
+See [Diagnostics: get_console_since](diagnostics.md#get_console_since).
 
 ---
 
@@ -447,8 +632,8 @@ Natural language UI manipulation. See [UI Tools — ui_intent](ui.md#ui_intent) 
 |------|------|---------|
 | Run a deterministic scenario | run_playtest | See the [Playtest Guide](../features/playtest.md) |
 | Lint before run | lint_playtest | `await lint_playtest(path="Playtests/combat.playtest")` |
-| Suite run | run_playtest_suite | `await run_playtest_suite(paths="Playtests/*.playtest")` |
+| Suite run | run_playtest_suite | `await run_playtest_suite(pattern="Playtests/*.playtest")` |
 | Method invocation | invoke_method | `await invoke_method("Enemy", "HealthComponent", "TakeDamage", args="10")` |
-| Runtime modification | set_runtime_property + batch | `await batch("set_runtime_property path=Player component=Health field=hp value=50")` |
+| Runtime modification | invoke_method + batch | `await invoke_method("Player", "Health", "SetHp", args="50")` |
 
 **See also:** [Scene Tools](scene.md) for Play Mode control (editor play/stop), [Objects](objects.md) for component access, [Diagnostics](diagnostics.md) for compile gates.

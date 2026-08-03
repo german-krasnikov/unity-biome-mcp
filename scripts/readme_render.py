@@ -338,6 +338,21 @@ def _apply_or_check(changes: list[tuple[pathlib.Path, str]], check: bool) -> Non
         print("OK - all generated files are up to date")
 
 
+def _sync_repo_description(meta: dict) -> None:
+    """Update GitHub repo description with current tool count."""
+    import shutil
+    import subprocess
+
+    if not shutil.which("gh"):
+        return
+    tools = meta.get("tools", "?")
+    desc = f"MCP server for Unity Editor — {tools} tools for scene, assets, animation, VFX, playtest & more"
+    subprocess.run(
+        ["gh", "repo", "edit", "--description", desc],
+        check=False, capture_output=True,
+    )
+
+
 def render(repo_root: pathlib.Path, meta: dict, check: bool = False) -> list[pathlib.Path]:
     """Regenerate every output controlled by the README metadata pipeline."""
     changes: list[tuple[pathlib.Path, str]] = []
@@ -376,6 +391,17 @@ def render(repo_root: pathlib.Path, meta: dict, check: bool = False) -> list[pat
     )
     changes.append((readme_path, readme))
 
+    mkdocs_path = repo_root / "mkdocs.yml"
+    mkdocs_text = _read_text_exact(mkdocs_path)
+    mkdocs_text = re.sub(
+        r"^(site_description:\s*MCP server for Unity Editor\s*—\s*)\d+(\s*tools.*)$",
+        rf"\g<1>{meta.get('tools', '?')}\2",
+        mkdocs_text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    changes.append((mkdocs_path, mkdocs_text))
+
     assets_dir = repo_root / "docs" / "assets"
     for name, expected_markers in SVG_MARKER_ALLOWLIST.items():
         path = assets_dir / name
@@ -385,4 +411,6 @@ def render(repo_root: pathlib.Path, meta: dict, check: bool = False) -> list[pat
         )
 
     _apply_or_check(changes, check)
+    if not check:
+        _sync_repo_description(meta)
     return [path for path, _ in changes]

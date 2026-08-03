@@ -142,7 +142,8 @@ ASSERT /Player|HP|value > 0 AS "player must survive boss"
 - Start with `TIMEOUT 30` on first run — tighten after you know the baseline.
 - Use `ABORT` on critical gates to stop the entire playtest early.
 - Combine AND conditions for multi-field checks instead of chaining WAIT_UNTIL lines.
+- For GameObjects with slashes in their names, use `\/` (e.g., `WAIT_UNTIL /Day\/Night|Health == 100`). See [Playtest Guide](playtest.md) for full path escaping rules.
 
 ---
 
-**See also:** [Playtest Guide](playtest.md) — full DSL, fire-and-forget pattern, report compression.
+**See also:** [Playtest Guide](playtest.md) — full DSL, path escaping, fire-and-forget pattern, report compression.

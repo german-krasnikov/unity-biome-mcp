@@ -25,11 +25,13 @@ scene(action="list")
 scene(action="open_additive", path="Assets/Scenes/Lighting.unity")
 scene(action="set_active", path="Assets/Scenes/Lighting.unity")
 scene_environment(action="get")
+scene_environment(action="set", fog_enabled="true", fog_density=0.1)
 ```
 
 Use explicit scene paths in multi-scene work. Inspect the live tool schema
 before transferring objects between scenes, and save or discard each loaded
-scene deliberately.
+scene deliberately. `scene_environment` manages fog, skybox, and ambient
+lighting settings.
 
 ## Canonical Operations
 
@@ -64,6 +66,9 @@ set_property(
 )
 ```
 
+Use `ping_object(path="/Target")` to highlight and select an object in the
+Editor hierarchy. Use `get_selection()` to read the currently selected object.
+
 ## References And Events
 
 Inspect before remapping or wiring:
@@ -84,6 +89,25 @@ validate_references(path="/HUD", depth=3)
 Apply `auto_wire(..., dry_run=False)` only when every proposed match is
 unambiguous. Use `unwire_event` with an explicit listener index unless clearing
 the entire event is intended.
+
+## Transactional Scene Edits
+
+For multi-object mutations that must succeed or revert together, use atomic
+transactional edits:
+
+```text
+scene_change_plan(goal="Add spawner", targets="/Checkpoint")
+apply_scene_change(
+  plan_id="abc123",
+  commands="""
+create_object name=Spawner parent=/Checkpoint
+manage_component path=/Checkpoint/Spawner type=ParticleSystem action=add
+"""
+)
+```
+
+`scene_change_plan` declares intent and returns a plan ID. `apply_scene_change`
+executes the commands with built-in rollback on failure.
 
 ## Safety Rules
 

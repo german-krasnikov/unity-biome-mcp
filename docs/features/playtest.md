@@ -201,6 +201,29 @@ Aliases work in `batch` and all direct MCP tools. Suffix preserved: `$alias|Comp
 
 Use `INCLUDE path/to/file.defs` to import alias definitions from external files.
 
+## Path Special Characters
+
+Handle literal slashes and backslashes in GameObject names using backslash escaping or bracket protection.
+
+**Escaping Rules:**
+- `\/` — literal forward slash in the GameObject name
+- `\\` — literal backslash in the GameObject name
+- `[Name/With/Slashes]` — bracket protection (entire segment as one path component, no escaping needed)
+
+**Examples:**
+```
+# GameObject named "Day/Night"
+ASSERT /Day\/Night|Health|hp == 100
+
+# GameObject named "Folder\Path" (Windows-style)
+ASSERT /Folder\\Path|Component|field == value
+
+# Using brackets for "Zone A/Zone B"
+ASSERT /[Zone A/Zone B]/Child|Comp|field == value
+```
+
+Round-trip guarantee: `GetPath(go)` → parse → `FindObject(path)` always finds the original object.
+
 ## GameObject Property Shorthands
 
 Assert on GameObject properties without specifying a component:

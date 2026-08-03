@@ -50,6 +50,16 @@ compile_preflight(
 Use `await_compile` only when compilation was already started by another
 action. It does not trigger refresh or compilation.
 
+## Execute Code Helpers
+
+When using `execute_code`, these convenience transforms are applied:
+
+- `return;` is automatically rewritten as `return null;` for consistency with
+  void-context return expectations.
+- User `using` directives are automatically hoisted to scope top.
+- `using Object = UnityEngine.Object;` is automatically injected for common
+  reference disambiguation.
+
 ## Serialized Field Rename
 
 ```text

@@ -277,6 +277,13 @@ return $"mass={rb.mass}";
 
 ---
 
+## doctor vs diagnose
+
+- **`doctor`** — Auto-repair health check. Fixes stale port files, retries connection. Use when setup is broken or connection needs cleanup.
+- **`diagnose`** — Read-only compile/reload verdict. No mutations. Use to understand current state after a change.
+
+---
+
 ## diagnose
 
 Lightweight non-blocking diagnostics. Reads Unity compile/reload fact-signals atomically and returns a single typed verdict.
@@ -309,6 +316,194 @@ verdict = await diagnose()
 
 # After sync with MVID tracking
 verdict = await diagnose(prev_mvid="abc123", expected_compile=True)
+```
+
+---
+
+## verify_after_change
+
+Single atomic 5-gate verification after code/scene changes. Runs only enabled gates; returns PASS when all pass, FAIL at first failure.
+
+**Parameters:**
+- `changed_files` (string, default="") — Optional context; not used in gate logic
+- `test_filter` (string, default="") — NUnit filter applied to `run_tests_mode` (e.g., "ClassName" or "ClassName.MethodName")
+- `run_tests_mode` (string, default="") — Enable tests gate: "EditMode" or "PlayMode" (empty = skip tests)
+- `playtests` (string, default="") — Enable playtests gate: glob pattern or paths (e.g., "Playtests/*.playtest"; empty = skip)
+- `mark_id` (string, default="") — Enable console gate: mark ID from `console_mark()` (empty = skip)
+- `timeout` (float, default=300.0) — Max seconds for entire verification
+
+**Gates (runs in order, stops at first failure):**
+
+| Gate | When Enabled | Fails If |
+|------|--------------|----------|
+| 1. `await_compile` | Always | Compile takes longer than timeout |
+| 2. `get_compile_errors` | Always | CS errors found |
+| 3. `get_console_since` | If `mark_id` provided | Error/Exception/Assert logs since mark |
+| 4. `run_tests_wait` | If `run_tests_mode` provided | Tests fail or timeout |
+| 5. `run_playtest_suite` | If `playtests` provided | Any playtest fails |
+
+**Returns:**
+- `"PASS: compile + errors_clean + console_clean + tests(12/12) + playtests(3/3)"` — All enabled gates pass
+- `"FAIL: <gate> gate failed\n  <detail>\nnext gates skipped: console, tests, playtests"` — Stops at first failure
+
+**Example:**
+
+```python
+# Just compile check
+result = await verify_after_change()
+
+# Compile + tests
+result = await verify_after_change(run_tests_mode="EditMode")
+
+# Compile + console + playtests
+mark = await console_mark(label="before_change")
+# ... make changes ...
+result = await verify_after_change(mark_id=mark, playtests="Playtests/*.playtest")
+
+# Full verification with all gates
+mark = await console_mark()
+result = await verify_after_change(
+    mark_id=mark,
+    run_tests_mode="EditMode",
+    playtests="Playtests/core/*.playtest",
+    timeout=600
+)
+```
+
+**When to use:** After any significant change to verify compilation, references, console health, tests, and gameplay all at once.
+
+---
+
+## scan_scene
+
+See [Spatial: scan_scene](spatial.md#scan_scene).
+
+---
+
+## scene_health
+
+Scene hierarchy and health audit with focus options. Returns severity-tagged findings.
+
+**Parameters:**
+- `focus` (string, default="all") — Audit focus: "all" | "hierarchy" | "naming" | "duplicates" | "origins" | "missing" | "empty" | "disabled"
+
+**Severity Tags:**
+- `CRITICAL` — Blocking issues (e.g., missing root, circular refs)
+- `WARNING` — Likely problems (e.g., orphaned objects, duplicate names)
+- `INFO` — Informational findings
+- `OK` — All checks passed
+
+**Example:**
+
+```python
+# Full audit
+result = await scene_health()
+
+# Check naming only
+result = await scene_health(focus="naming")
+
+# Check for disabled objects
+result = await scene_health(focus="disabled")
+```
+
+---
+
+## validate_references
+
+Validate all ObjectReference fields under a path recursively. Reports broken and missing refs; summary shows error/ok counts.
+
+**Parameters:**
+- `path` (string) — Scene path to root of validation (e.g., "/Player")
+- `depth` (int, default=3) — Recursion depth: 1 = immediate children only, 3-5 = full subtree
+- `verbose` (bool, default=false) — Include `[OK]` lines; off by default to save tokens
+- `ignore_optional` (bool, default=false) — Skip fields marked `[Optional]` to reduce noise
+
+**Output:** Per-field status (`[ERROR]`, `[MISSING]`, or `[OK]`) + summary line.
+
+**Example:**
+
+```python
+# Quick top-level check
+result = await validate_references(path="/Player", depth=1)
+
+# Full subtree, verbose
+result = await validate_references(path="/Player", depth=5, verbose=True)
+
+# Skip optional fields
+result = await validate_references(path="/Enemies", ignore_optional=True)
+```
+
+---
+
+## resolve_scene_refs
+
+Read-only scene reference resolver. Resolves `$alias`, `/path`, or `t:Type` tokens against the live scene.
+
+**Parameters:**
+- `refs` (string) — Comma-separated list of `$alias`, `/path`, or `t:Type` tokens
+- `fields` (string, optional) — Comma-separated field names to check existence on matched component
+
+**Returns:** One tab-aligned line per ref: `OK`|`MISS`|`AMB` (ambiguous) + path + details.
+
+**Example:**
+
+```python
+result = await resolve_scene_refs(refs="$player,/Enemy,t:Camera")
+result = await resolve_scene_refs(refs="$player", fields="hp,maxHp")
+```
+
+---
+
+## lint_scene_refs
+
+Read-only linter for scene references in DSL scripts or batch commands. Checks for unresolved aliases, missing objects, and ambiguous names without executing anything.
+
+**Parameters:**
+- `path` (string, optional) — Project-relative path to `.playtest` file (mutually exclusive with `snippet`)
+- `snippet` (string, optional) — Inline DSL or batch commands to lint (mutually exclusive with `path`)
+
+**Checks:** Unresolved aliases, embedded aliases, missing objects, ambiguous names.
+
+**Returns:** `OK: no issues` or severity-tagged issues (`ERROR`/`WARN`) with `file:line:token`.
+
+**Example:**
+
+```python
+result = await lint_scene_refs(path="Playtests/combat.playtest")
+result = await lint_scene_refs(snippet="ASSERT /Player|Health|hp == 100")
+```
+
+---
+
+## serialized_field_rename_audit
+
+Audit `[SerializeField]` rename safety. Detects stale serialized values and suggests migration actions.
+
+**Parameters:**
+- `type` (string) — Fully-qualified or simple component type name (e.g., "MyNamespace.PlayerStats" or "PlayerStats")
+- `old_field` (string) — Field name as it exists in serialized assets (before rename)
+- `new_field` (string) — Renamed field name in current C# source
+- `include` (string, default="prefabs,scenes,scriptable_objects") — Comma-separated scan targets
+
+**Returns:** Four-field summary: `has_formerly_serialized_as`, `stale_assets`, `safe_to_remove_attribute`, `recommended_actions`.
+
+**Example:**
+
+```python
+# Audit a renamed field
+result = await serialized_field_rename_audit(
+    type="PlayerStats",
+    old_field="health",
+    new_field="hp"
+)
+
+# Scan only prefabs
+result = await serialized_field_rename_audit(
+    type="EnemyController",
+    old_field="speed",
+    new_field="moveSpeed",
+    include="prefabs"
+)
 ```
 
 ---

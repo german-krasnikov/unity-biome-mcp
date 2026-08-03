@@ -172,56 +172,6 @@ result = await ui_intent(intent="Confirmation dialog with message and OK button"
 - Elements: text, button, image, panel, layout
 - Describe anchor, size, color, text content
 
----
-
-## get_spatial_context
-
-Analyze collider configuration around an object. Returns collider info, approach vectors, and nearby objects within radius.
-
-**Parameters:**
-- `path` (string) — Scene path to target object
-- `radius` (float, default=5.0) — Search radius in meters
-
-**Output:** Collider bounds, approach vectors, nearby objects within radius.
-
-**Example:**
-
-```python
-# Check spatial context around player
-context = await get_spatial_context(path="Player", radius=5.0)
-
-# Verify enemy has clear approach
-context = await get_spatial_context(path="Enemy", radius=10.0)
-```
-
----
-
-## validate_layout
-
-Check for trigger overlaps. Warns if triggers are closer than minimum distance.
-
-**Parameters:**
-- `root` (string, default="/") — Root path to scan (default: whole scene)
-- `min_distance` (float, default=3.0) — Minimum distance between triggers in meters
-
-**Output:** List of trigger overlaps or warnings.
-
-**Example:**
-
-```python
-# Validate whole scene triggers (3m minimum spacing)
-result = await validate_layout()
-
-# Check specific subtree with 5m minimum
-result = await validate_layout(root="Dungeon", min_distance=5.0)
-```
-
-**Use Cases:**
-- Verify trigger zones don't overlap
-- Validate level design trigger placement
-- Pre-playtest sanity check
-
----
 
 ## Common Patterns
 
@@ -231,9 +181,7 @@ result = await validate_layout(root="Dungeon", min_distance=5.0)
 | Create HUD layout | create_ui (multiple) | Create Canvas, then Panel, then Image/Text children |
 | Fine-tune UI position | set_rect | `await set_rect(path="Canvas/Button", anchor="top-left", pos="10,-10")` |
 | Generate UI from description | ui_intent | `await ui_intent(intent="Health bar and score counter")` |
-| Verify trigger spacing | validate_layout | `await validate_layout(min_distance=3.0)` |
-| Check object colliders | get_spatial_context | `await get_spatial_context(path="Enemy", radius=5.0)` |
 
 ---
 
-**See also:** [Scene Tools](scene.md) for screenshot with UI, [Objects Tools](objects.md) for component management.
+**See also:** [Scene Tools](scene.md) for screenshot with UI, [Spatial Tools](spatial.md) for collision and trigger analysis, [Objects Tools](objects.md) for component management.

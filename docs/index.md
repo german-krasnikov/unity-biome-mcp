@@ -14,7 +14,7 @@ Control the Unity Editor from any MCP-compatible AI client — or from chat insi
 
 <div class="ubm-hero-actions">
   <a href="getting-started/" class="ubm-btn-primary">Get Started</a>
-  <a href="tools/" class="ubm-btn-secondary">142 Tools</a>
+  <a href="tools/" class="ubm-btn-secondary">{{ meta.tools }} Tools</a>
   <a href="https://github.com/german-krasnikov/unity-biome-mcp" class="ubm-btn-secondary">GitHub</a>
 </div>
 

@@ -20,6 +20,9 @@ Quick reference: "Which tool should I use?" — based on Firecrawl MCP's decisio
 | Debug compilation issues | `get_compile_errors` | Check if there are C# compilation errors | `await get_compile_errors()` |
 | Read console output | `get_console` | See all Debug.Log messages and errors | `await get_console()` |
 | Run diagnostics | `doctor` | Check MCP health, connections, and common issues | `await doctor()` |
+| Bake lighting or occlusion | `bake` | Bake lights (async) or precalculated occlusion culling | `await bake(target="lighting", action="start")` |
+| Build a player | `build` | Create a standalone player for Windows, macOS, Android, iOS, or WebGL | `await build(action="build", target="StandaloneOSX", dev=True)` |
+| Manage UPM packages | `package` | List, search, add, or remove UPM packages | `await package(action="add", name="com.unity.cinemachine")` |
 | Do multiple things at once | `batch` | Chain 2+ operations in a single call | `await batch("create_object name=A\ncreate_object name=B")` |
 | Give a vague instruction | `do` | Natural language → automatic tool selection | `await do("create a red cube at the origin")` |
 

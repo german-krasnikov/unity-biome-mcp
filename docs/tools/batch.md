@@ -57,7 +57,7 @@ manage_component path=Player type=Health action=add
 |----------|----------|
 | **Object CRUD** | create_object, delete_object, set_active, set_parent, transfer_object |
 | **Components** | manage_component, wire_event, unwire_event, set_material |
-| **Properties** | set_property, set_property_delta, set_runtime_property |
+| **Properties** | set_property, set_property_delta |
 | **Reads** | get_component, get_components_list, get_object_detail, find_objects, inspect |
 | **Scene** | search_scene, get_hierarchy |
 | **Assets** | asset, material, prefab, scriptable_object, project_settings |
@@ -125,7 +125,7 @@ set_material path=Player color=#FF0000
 
 ### Property Modification
 
-**set_property (works in both Edit and Play Mode):**
+**set_property (Edit Mode; Play Mode writes are lost on stop):**
 ```
 set_property path=Player component=Transform prop=position value=10,5,0
 set_property path=Enemy component=Health prop=maxHp value=100
@@ -135,11 +135,6 @@ set_property path=Light component=Light prop=intensity value=1.5
 **set_property_delta:**
 ```
 set_property_delta path=Player component=Health prop=hp delta=10
-```
-
-**set_runtime_property (Play Mode only — alternative to set_property):**
-```
-set_runtime_property path=Player component=Health field=hp value=50
 ```
 
 ### Reading Data
@@ -171,7 +166,7 @@ search_scene query=Enemy
 
 **find_objects:**
 ```
-find_objects query=Rigidbody type=component
+find_objects component=Rigidbody
 ```
 
 ### Asset Operations
@@ -207,6 +202,9 @@ object_diff path_a=PlayerTemplate path_b=Player
 ```
 
 **validate_references:**
+
+See [Diagnostics: validate_references](diagnostics.md#validate_references).
+
 ```
 validate_references path=Player depth=3
 ```

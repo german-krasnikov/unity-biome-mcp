@@ -12,7 +12,7 @@ unity-biome-mcp/
 │   ├── src/unity_mcp/
 │   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
-│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 142 registered MCP tools
+│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 148 registered MCP tools
 │   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
 │   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0)
 │   │   ├── bridge_retry.py     # RetryPolicy class + unwrap_bridge_result() extracted (v0.70.0)
@@ -116,7 +116,7 @@ unity-biome-mcp/
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
 │   │   ├── tools/              # Tool modules (46 files + __init__, pipeline-gap sprint: +build.py, +packages.py; playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
-│   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 151 entries (145 user-visible + 6 _INTERNAL)
+│   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 154 entries (148 user-visible + 6 _INTERNAL)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
 │   │   │   ├── meta.py         # Meta tools: discover_tools, doctor, resolve_tool_schema, set_llm_config, alias_status in register(mcp, send, args) pattern (v0.69.0, v0.78.9: +alias_status)
 │   │   │   ├── profiling.py    # Profile MCP tool: session-based profiling, frame stats, performance analysis (v0.60.0, 412 LOC)

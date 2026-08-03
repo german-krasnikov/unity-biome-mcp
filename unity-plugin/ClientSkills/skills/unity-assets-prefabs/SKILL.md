@@ -76,9 +76,22 @@ project_settings(
 ```
 
 Use only the supported targets `tags`, `layers`, `sorting_layers`, `quality`,
-`physics`, `time`, and `player`. Resolve the live schema before changing
-quality, physics, time, or player properties. `sorting_layers` is read-only;
-inspect it with `action="get"` and do not attempt to set it.
+`physics`, `time`, `player`, `graphics`, `audio`, and `input`. Resolve the live
+schema before changing quality, physics, time, player, or graphics
+properties. `sorting_layers`, `audio`, and `input` are read-only; inspect them
+with `action="get"` and do not attempt to set them. For ScriptingBackend configuration, use the `build_target`
+parameter when supported by the backend variant.
+
+## Build, Package, And Bake
+
+```text
+build(action="build", target="StandaloneOSX")
+package(action="list")
+bake(target="lighting", action="start")
+```
+
+Use `build` for player builds with explicit target platform. Use `package` for
+UPM package operations. Use `bake` for lightmap and occlusion culling baking.
 
 ## Rules
 

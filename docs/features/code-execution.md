@@ -72,6 +72,39 @@ These patterns are **not checked** when the level is AllowAll.
 
 When a pattern is blocked, the error message includes a suggestion where available (e.g., "Use `SerializedObject.FindProperty()` instead of `GetField(`").
 
+## Code Quality of Life Features
+
+The code wrapper automatically handles three common patterns:
+
+**Void snippets → object return:**
+```python
+# Before: bare `return;` would fail (CS0161: void method must return)
+await execute_code("""
+Debug.Log("done");
+return;
+""")
+# After: `return;` is auto-replaced with `return null;` (compiles successfully)
+```
+
+**Using directives auto-hoisted:**
+```python
+await execute_code("""
+using System.Text;
+var sb = new StringBuilder();
+sb.Append("hello");
+return sb.ToString();
+""")
+# Using statements automatically moved above the class wrapper, no manual hoist needed.
+```
+
+**UnityEngine.Object alias auto-injected:**
+```python
+await execute_code("""
+var list = new List<Object>();  // Resolves to UnityEngine.Object
+""")
+# `using Object = UnityEngine.Object;` is auto-included in every script.
+```
+
 ## Undo Integration
 
 ```python
@@ -160,7 +193,7 @@ return obj.transform.position.ToString();
 await execute_code("GameObject.Find('Player').SetActive(false)")
 
 # Play Mode: structured tool preferred
-await set_property("/Player", "PlayerController", "Health", "50")  # transparently rerouted
+await invoke_method("/Player", "PlayerController", "SetHealth", args="50")  # runtime reflection
 ```
 
 ## Timeout & Performance

@@ -66,6 +66,8 @@ Do not return a transcript of every tool call.
 | Ordinary multi-object creation | `setup_objects` |
 | Properties across objects | `configure_objects` |
 | Compatible synchronous commands | atomic `batch` |
+| Safe multi-object mutation | `scene_change_plan` + `apply_scene_change` |
+| Highlight and select | `ping_object` |
 | Risky scene mutation | explicit preflight, mutation, readback, references, console |
 | Exact visual acceptance | screenshot after data verification |
 | Persistent C# behavior | hand off to `unity-csharp-developer` |

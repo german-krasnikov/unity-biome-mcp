@@ -28,7 +28,7 @@ MCP run results.
 | Several `.playtest` files | `run_playtest_suite` |
 | One bounded runtime condition | `wait_until` after enabling `RUNTIME` |
 | Trigger one public runtime action | `invoke_method` |
-| Set one runtime-only field | `set_property` (works in both modes; use `set_runtime_property` only if avoiding Edit Mode) |
+| Set one runtime-only field | `set_property` (works in both modes; invoke for runtime-only mutations) |
 | Read several runtime values | `query_state` |
 | Visual motion or stability | frame capture plus a separate behavioral assertion |
 
@@ -89,6 +89,10 @@ run_playtest_suite(
 Treat the suite matrix as coordination output, not sole acceptance evidence.
 When an individual report is missing or ambiguous, rerun that saved file with
 `run_playtest(path=...)` and keep its exact result.
+
+For path syntax with special characters, use backslash escaping (`\/` for literal
+`/`, `\\` for literal `\`) or bracket protection (`[Zone A/Zone B]` protects
+embedded slashes without escaping).
 
 Keep reusable aliases in a `.defs` artifact. Run `validate_playtest_aliases`
 against `PlaytestConfig.asset` before synchronization; choose one direction

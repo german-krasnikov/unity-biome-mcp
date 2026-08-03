@@ -2,7 +2,7 @@
 
 Design standards: `AI/api-design-standards.md`
 
-Tool index organized by category. TIER1 tools (45 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools are discovered dynamically.
+Tool index organized by category. TIER1 tools (47 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools are discovered dynamically.
 
 Parameter lists are intentionally not duplicated here because the MCP schemas are the runtime contract. Resolve the current schema before calling an unfamiliar tool:
 
@@ -39,9 +39,9 @@ The minimum 15 tools needed for any Unity task. Always visible, no gating.
 | scene_change_plan | Pre-flight gate + checkpoint before scene edits |
 | verify_after_change | 5-gate pipeline: compile → errors → console → tests → playtests |
 
-## Non-Core TIER1 Tools (30 — always visible)
+## Non-Core TIER1 Tools (32 — always visible)
 
-Together with CORE (15), these make the 45 always-visible TIER1 tools.
+Together with CORE (15), these make the 47 always-visible TIER1 tools.
 
 | Tool | Purpose | Category |
 | ------ | --------- | ---------- |
@@ -64,6 +64,8 @@ Together with CORE (15), these make the 45 always-visible TIER1 tools.
 | run_playtest | Run playtest DSL script | TESTS |
 | lint_playtest | Static DSL preflight — no runtime needed | TESTS |
 | get_test_results | Legacy diagnostic result facade; not a verdict | TESTS |
+| get_test_run | Read one exact durable test-run snapshot | TESTS |
+| resolve_test_request | Resolve a lost start ACK by request identity | TESTS |
 | discover_tools | Browse or enable a category | SYSTEM |
 | mcp_status | Compact scene/compile/play-mode/alias status snapshot | SYSTEM |
 | alias_status | Returns alias cache state (loaded/count/source/stale) | SYSTEM |
@@ -120,7 +122,7 @@ Component event wiring.
 | auto_wire | Auto-wire compatible fields by type |
 | references | Find asset references |
 
-### ASSETS (7 tools)
+### ASSETS (9 tools)
 
 Asset database: import/export, prefab, ScriptableObject, project settings.
 
@@ -133,6 +135,8 @@ Asset database: import/export, prefab, ScriptableObject, project settings.
 | shader | Find shader, list properties |
 | material | Assign/inspect material |
 | material_audit | Audit material usage and performance |
+| bake | Lighting and occlusion bake operations |
+| package | PackageManager operations (list/search/add/remove) |
 
 ### MEDIA (14 tools)
 
@@ -192,7 +196,7 @@ Play Mode operations, performance, debugging, watches.
 
 *(Plus console_mark + get_console_since in TIER1)*
 
-### TESTS (13 tools)
+### TESTS (11 tools)
 
 NUnit, playtest suites, alias sync.
 
@@ -205,15 +209,13 @@ NUnit, playtest suites, alias sync.
 | sync_playtest_aliases_from_defs | Import .defs → overwrite PlaytestConfig.asset aliases |
 | export_playtest_aliases_to_defs | Export PlaytestConfig.asset aliases → .defs text file |
 | get_test_count | Count available NUnit tests |
-| get_test_run | Read one exact durable test-run snapshot |
-| resolve_test_request | Resolve a lost start ACK by request identity |
 | cancel_test_run | Cancel one exact durable run |
 | list_test_runs | List recent durable runs |
 | get_test_progress | Legacy diagnostic progress facade |
 
-*(Plus run_tests, run_tests_wait, run_playtest, lint_playtest, get_test_results in TIER1)*
+*(Plus run_tests, run_tests_wait, run_playtest, lint_playtest, get_test_results, get_test_run, resolve_test_request in TIER1)*
 
-### SYSTEM (36 tools)
+### SYSTEM (37 tools)
 
 Meta, session skills, templates, config, code tools.
 
@@ -233,6 +235,7 @@ Meta, session skills, templates, config, code tools.
 | get_schema | Inspect class/type schema |
 | auto_fix | Apply code fix suggestion |
 | smart_build | Rebuild affected assemblies |
+| build | Player builder (async, multiplatform) |
 | checkpoint | Save named revision |
 | menu | Execute Editor menu item |
 | get_capabilities | List all registered C# commands |

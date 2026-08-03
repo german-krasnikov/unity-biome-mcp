@@ -17,6 +17,8 @@ or `MEDIA` only when needed.
 3. `console_mark`, reproduce once, then `get_console_since(mark_id=...)`.
 4. Targeted hierarchy or component inspection.
 5. `scan_scene`, `scene_health`, or domain-specific diagnostics.
+5.5. `verify_after_change()` for 5-gate verification (compile clean, references valid,
+   console clean, scene scan, screenshot).
 6. Runtime snapshot, watch, frame statistics, or profile in Play Mode.
 7. Screenshot only for a visual symptom.
 
@@ -59,6 +61,8 @@ watch(action="clear")
 | Rendering or overdraw | `render_analyze` |
 | Many runtime fields | `query_state` or `runtime_snapshot` |
 | One changing field | a bounded `watch`, then clear it |
+| Serialized field rename safety | `serialized_field_rename_audit` |
+| Scene integrity check | `scene_health(focus="...")` with options: `all`, `hierarchy`, `naming`, `duplicates`, `origins`, `missing`, `empty`, or `disabled` |
 
 Resolve schemas for gated probes in one request and enable only their category.
 

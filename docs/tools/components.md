@@ -2,11 +2,34 @@
 
 Connect and disconnect UnityEvent persistent listeners. Wire UI buttons to methods, trigger events, and manage event callbacks without manual serialization.
 
-> **Note:** `wire_event` and `unwire_event` are registered in [Object Tools](objects.md#wire_event). This page provides extended examples and workflows.
-
 ## wire_event
 
-See [Object Tools — wire_event](objects.md#wire_event) for parameters.
+Connect a button, trigger, or other event to a method.
+
+**Parameters:**
+- `path` (string) — Object with the event
+- `component` (string) — Component type owning the event field
+- `event` (string) — Serialized field name (e.g., "onClick", "_onComplete", "onTriggerEnter")
+- `target` (string) — Target scene path or asset path
+- `method` (string) — Method name (e.g., "SetActive", "Play", "TakeDamage")
+- `arg_type` (string, default="void") — "void" | "bool" | "int" | "float" | "string" | "object"
+- `arg_value` (string, optional) — Required when arg_type != void
+
+**Example:**
+
+```python
+# Connect button click
+await wire_event(path="UI/StartButton", component="Button", event="onClick", 
+                target="GameManager", method="StartGame")
+
+# Connect trigger with damage argument
+await wire_event(path="Spike", component="Collider", event="onTriggerEnter",
+                target="Player", method="TakeDamage", arg_type="int", arg_value="10")
+
+# Connect UI event with string argument
+await wire_event(path="UI/QuitButton", component="Button", event="onClick",
+                target="GameManager", method="QuitGame")
+```
 
 **Common Patterns:**
 
@@ -19,7 +42,23 @@ See [Object Tools — wire_event](objects.md#wire_event) for parameters.
 
 ## unwire_event
 
-See [Object Tools — unwire_event](objects.md#unwire_event) for parameters.
+Disconnect an event listener from a UnityEvent.
+
+**Parameters:**
+- `path` (string) — Event source GameObject
+- `component` (string) — Component type owning the event field
+- `event` (string) — Serialized field name (e.g., "onClick")
+- `index` (int, optional) — Remove specific entry (0-based). Omit to clear all.
+
+**Example:**
+
+```python
+# Clear all listeners on onClick
+await unwire_event(path="UI/Button", component="Button", event="onClick")
+
+# Remove specific listener at index 0
+await unwire_event(path="UI/Button", component="Button", event="onClick", index=0)
+```
 
 ---
 

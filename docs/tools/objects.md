@@ -95,7 +95,7 @@ inspect paths=Player,Enemy components=Health,Rigidbody
 
 ## set_property
 
-Change a component property on a scene object. Works in both Edit Mode (via SerializedObject) and Play Mode (transparently rerouted to reflection-based `set_runtime_property`).
+Change a component property on a scene object. Edit Mode only (via SerializedObject). For Play Mode runtime changes, use `invoke_method` or `execute_code`.
 
 **Parameters:**
 - `path` (string, optional) — GameObject path
@@ -290,48 +290,13 @@ await set_parent("Widget", parent="Canvas/Panel", world_position_stays=False)
 
 ## wire_event
 
-Connect a button or event to a method.
-
-**Parameters:**
-- `path` (string) — Object with the event
-- `component` (string) — Component type owning the event field
-- `event` (string) — Serialized field name (e.g., "onClick", "_onComplete")
-- `target` (string) — Target scene path or asset path
-- `method` (string) — Method name (e.g., "SetActive", "Play")
-- `arg_type` (string, default="void") — "void" | "bool" | "int" | "float" | "string" | "object"
-- `arg_value` (string, optional) — Required when arg_type != void
-
-**Example:**
-
-```python
-# Connect button click
-await wire_event("UI/StartButton", "Button", "onClick", "GameManager", "StartGame")
-
-# Connect UI event
-await wire_event("UI/QuitButton", "Button", "onClick", "GameManager", "QuitGame")
-```
+See [Component Tools: wire_event](components.md#wire_event).
 
 ---
 
 ## unwire_event
 
-Disconnect an event listener.
-
-**Parameters:**
-- `path` (string) — Event source
-- `component` (string) — Component type owning the event field
-- `event` (string) — Serialized field name (e.g., "onClick")
-- `index` (int, optional) — Remove specific entry (0-based). Omit to clear all.
-
-**Example:**
-
-```python
-# Clear all listeners on onClick
-await unwire_event("UI/Button", "Button", "onClick")
-
-# Remove specific listener at index 0
-await unwire_event("UI/Button", "Button", "onClick", index=0)
-```
+See [Component Tools: unwire_event](components.md#unwire_event).
 
 ---
 

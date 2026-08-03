@@ -46,12 +46,12 @@ Tools are organized into a 15-tool Core and eight task-oriented categories. Use 
 
 **Run tests & playtests**
 - [run_playtest](../features/playtest.md#run_playtest-parameters) — Execute DSL-based test scenarios
-- [run_tests](scene.md#run_tests) — Low-level nonblocking NUnit dispatch
-- [run_tests_wait](scene.md#run_tests_wait) — Preferred interactive correlated NUnit runner
-- [get_test_run](scene.md#get_test_run) — Poll one exact durable NUnit run
-- [resolve_test_request](scene.md#resolve_test_request) — Resolve a lost start acknowledgment
-- [cancel_test_run](scene.md#cancel_test_run) — Cancel one exact durable NUnit run
-- [list_test_runs](scene.md#list_test_runs) — Inspect recent durable NUnit runs
+- [run_tests](tests.md#run_tests) — Low-level nonblocking NUnit dispatch
+- [run_tests_wait](tests.md#run_tests_wait) — Preferred interactive correlated NUnit runner
+- [get_test_run](tests.md#get_test_run) — Poll one exact durable NUnit run
+- [resolve_test_request](tests.md#resolve_test_request) — Resolve a lost start acknowledgment
+- [cancel_test_run](tests.md#cancel_test_run) — Cancel one exact durable NUnit run
+- [list_test_runs](tests.md#list_test_runs) — Inspect recent durable NUnit runs
 - [test_step](runtime.md#test_step) — Single assertion within a test
 
 **Take screenshots**
@@ -59,8 +59,14 @@ Tools are organized into a 15-tool Core and eight task-oriented categories. Use 
 - [screenshot_baseline](screenshots.md#screenshot_baseline) — Save reference image
 - [screenshot_compare](screenshots.md#screenshot_compare) — Visual diff against baseline
 
-**Debug problems**
+**Debug & Verify**
 - [doctor](diagnostics.md#doctor) — Health check with auto-fix
+- [verify_after_change](diagnostics.md#verify_after_change) — 5-gate verification (compile, errors, console, tests, playtests)
+- [scan_scene](diagnostics.md#scan_scene) — Scene infrastructure audit
+- [scene_health](diagnostics.md#scene_health) — Hierarchy and health checks
+- [validate_references](diagnostics.md#validate_references) — ObjectReference field validation
+- [resolve_scene_refs](diagnostics.md#resolve_scene_refs) — Resolve paths and aliases
+- [lint_scene_refs](diagnostics.md#lint_scene_refs) — Lint DSL and batch references
 - [get_console](diagnostics.md#get_console) — Read console errors & warnings
 - [get_compile_errors](diagnostics.md#get_compile_errors) — C# compile status
 - [reconnect_unity](diagnostics.md#reconnect_unity) — Restart TCP connection
@@ -175,6 +181,8 @@ This helps your AI assistant optimize its decision tree — it only offers tools
 
 - **[Scene Tools](scene.md)** — Inspect and modify scenes
 - **[Object Tools](objects.md)** — Create, edit, and manage GameObjects
+- **[Testing Tools](tests.md)** — Run and manage NUnit tests
+- **[Spatial Tools](spatial.md)** — Analyze geometry, colliders, and layout
 - **[Batch Operations](batch.md)** — Combine multiple tools for token savings
 - **[Animation Tools](animation.md)** — Animation clips, timelines, state machines
 - **[Shader & Material Tools](shaders.md)** — Material properties and shader control
