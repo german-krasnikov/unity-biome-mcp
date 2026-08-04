@@ -41,3 +41,7 @@ updates:
     reviewers:
       - "german-krasnikov"
     open-pull-requests-limit: 5
+    groups:
+      all-actions:
+        patterns:
+          - "*"
