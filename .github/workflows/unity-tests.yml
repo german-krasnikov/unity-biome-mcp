@@ -45,7 +45,7 @@ jobs:
             build-target: StandaloneWindows64
             hub-version: ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set UPM cache path
         id: upm-path
