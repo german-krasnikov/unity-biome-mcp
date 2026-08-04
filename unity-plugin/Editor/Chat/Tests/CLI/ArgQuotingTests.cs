@@ -14,7 +14,8 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Space_Wrapped()              => Assert.AreEqual("\"a b\"",              ArgQuoting.Quote("a b"));
         [Test] public void PathWithSpace_Wrapped()      => Assert.AreEqual("\"/Users/John Doe/x\"", ArgQuoting.Quote("/Users/John Doe/x"));
         [Test] public void EmbeddedQuotes_Escaped()     => Assert.AreEqual("\"say \\\"hi\\\"\"",   ArgQuoting.Quote("say \"hi\""));
-        [Test] public void Backslash_EscapedAndWrapped() => Assert.AreEqual("\"a\\\\b\"",          ArgQuoting.Quote("a\\b"));
+        [Test, UnityMCP.Editor.Testing.SkipOnWindows("Windows backslash quoting differs from POSIX — separate QuoteWindows tests cover it")]
+        public void Backslash_EscapedAndWrapped() => Assert.AreEqual("\"a\\\\b\"",          ArgQuoting.Quote("a\\b"));
         [Test] public void Dollar_WrappedNotEscaped()   => Assert.AreEqual("\"$HOME\"",            ArgQuoting.Quote("$HOME"));
 
         // ── QuotePosix — explicit tests ──────────────────────────────────────────

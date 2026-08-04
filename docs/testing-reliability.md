@@ -489,6 +489,92 @@ and explicit paid-lane skips.
 The disposable worker exists for explicitly destructive fault and domain-reload
 lanes, not for routine focused or full-suite execution.
 
+## GitHub Actions CI
+
+Continuous integration runs EditMode tests on GitHub Actions across three
+platforms (Linux, macOS, Windows) in parallel. The workflow fires on push to
+feature branches (`feat/**`, `feature/**`, `fix/**`) and master when paths include
+`unity-plugin/**`, `unity-test-project/**`, or the workflow file itself; it also
+runs on `workflow_dispatch` (manual trigger) and pull requests to master.
+
+### Workflow behavior
+
+Each platform matrix job:
+
+1. Checks out the repository.
+2. Caches UPM packages (`packages-lock.json`-keyed) to speed up Editor setup.
+3. Runs Unity `6000.0.65f1` in headless mode (`-batchmode -nographics`).
+4. Executes the full EditMode test suite (`-runTests -testPlatform EditMode`).
+5. Captures NUnit results to `artifacts/editmode-results.xml`.
+6. Reports results via `dorny/test-reporter@v1` (NUnit format).
+7. Publishes a job summary with pass/fail/skip table per platform.
+8. Uploads test results and (on failure) the Unity Editor log as artifacts.
+
+Parallel execution across Linux, macOS, and Windows serves two purposes: earlier
+feedback on platform-specific issues and faster overall CI duration. The build
+target per platform (`StandaloneLinux64`, `StandaloneOSX`, `StandaloneWindows64`)
+ensures any platform-dependent compilation errors surface immediately.
+
+### Test attribute: RequiresGraphicsDevice
+
+Tests that depend on GPU functionality are marked with
+`[RequiresGraphicsDevice]`. This NUnit custom attribute implements
+`IApplyToTest` and checks `SystemInfo.graphicsDeviceType`:
+
+- If graphics device type is `Null` (headless mode), the test is skipped with
+  reason "Requires graphics device (skipped in headless mode)".
+- If a graphics device is available, the test runs normally.
+
+This allows the same test suite to run in both interactive Editor (with GPU) and
+headless CI (no GPU) without duplicating test code.
+
+### Test attribute: SkipOnWindows
+
+Tests with known platform-specific failures on Windows are marked with
+`[SkipOnWindows("reason")]`. This NUnit custom attribute checks
+`Application.platform == RuntimePlatform.WindowsEditor`:
+
+- If running on Windows, the test is skipped with the provided reason.
+- On macOS and Linux, the test runs normally.
+
+Use this attribute for tests with path-separator issues, shell differences, or
+subprocess behavior that differs on Windows and require a separate fix. The
+reason is customizable; default is "Known Windows platform incompatibility —
+fix tracked separately".
+
+### CI results and reporting
+
+Job summaries are generated in Python and appended to the GitHub job summary
+markdown. Each summary includes:
+
+```
+## ✅ EditMode Tests — Linux
+| Passed | Failed | Skipped | Total |
+|:------:|:------:|:-------:|:-----:|
+| **1234** | **0** | **18** | **1252** |
+```
+
+Failed tests trigger artifact uploads for the full NUnit XML (`editmode-results.xml`)
+and the Editor log (`unity.log`) for diagnosis.
+
+NUnit test results are parsed and reported as check runs via the standard GitHub
+Checks API. Failed assertions appear as annotations on the commit.
+
+### Diagram: CI matrix
+
+```
+feat/* push
+    ↓
+[CI Triggered]
+    ↓
+├─ Linux (ubuntu-latest)      ─→ UPM cache → Setup → Tests (EditMode)
+├─ macOS (macos-latest)       ─→ UPM cache → Setup → Tests (EditMode)
+└─ Windows (windows-2022)     ─→ UPM cache → Setup → Tests (EditMode)
+    ↓
+All pass → ✅ checks pass
+Any fail → ❌ check fail + artifacts uploaded
+```
+
 Historical release evidence, superseded by later executable test-runner changes:
 **PASSED on 2026-08-03** against disposable worker
 `/private/tmp/unity-mcp-worker-final4-20260802`, Unity `6000.0.65f1`, built-in

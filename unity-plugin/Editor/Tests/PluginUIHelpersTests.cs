@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.Tests
 {
-    [TestFixture]
+    [TestFixture, UnityMCP.Editor.Testing.RequiresGraphicsDevice]
     public class PluginUIHelpersTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         const string PID = "TestPlugin_UIHelpers";

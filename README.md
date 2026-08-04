@@ -12,6 +12,8 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 
 <p align="center"><a href="https://german-krasnikov.github.io/unity-biome-mcp/"><img height="28" src="https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logo=readthedocs&logoColor=white&labelColor=2b2b2b" alt="Documentation"></a> <img height="28" src="https://img.shields.io/github/license/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=2b2b2b&color=46e6a6" alt="MIT license"> <img height="28" src="https://img.shields.io/github/v/release/german-krasnikov/unity-biome-mcp?style=for-the-badge&labelColor=2b2b2b&color=46e6a6&label=release" alt="Latest release"> <img height="28" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tools.json&style=for-the-badge&labelColor=2b2b2b" alt="Registered MCP tools"> <img height="28" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/german-krasnikov/unity-biome-mcp/master/.github/badges/tests.json&style=for-the-badge&labelColor=2b2b2b" alt="Discovered test inventory"></p>
 
+<p align="center"><img height="28" src="https://img.shields.io/github/actions/workflow/status/german-krasnikov/unity-biome-mcp/ci-python.yml?branch=master&label=Python%20CI&style=for-the-badge&labelColor=2b2b2b&logo=python&logoColor=white" alt="Python CI"> <img height="28" src="https://img.shields.io/github/actions/workflow/status/german-krasnikov/unity-biome-mcp/unity-tests.yml?branch=master&job=EditMode%20Tests%20%28Linux%29&label=Linux&style=for-the-badge&labelColor=2b2b2b&logo=linux&logoColor=white" alt="Linux EditMode Tests"> <img height="28" src="https://img.shields.io/github/actions/workflow/status/german-krasnikov/unity-biome-mcp/unity-tests.yml?branch=master&job=EditMode%20Tests%20%28macOS%29&label=macOS&style=for-the-badge&labelColor=2b2b2b&logo=apple&logoColor=white" alt="macOS EditMode Tests"> <img height="28" src="https://img.shields.io/github/actions/workflow/status/german-krasnikov/unity-biome-mcp/unity-tests.yml?branch=master&job=EditMode%20Tests%20%28Windows%29&label=Windows&style=for-the-badge&labelColor=2b2b2b&logo=windows&logoColor=white" alt="Windows EditMode Tests"></p>
+
 </div>
 
 <p align="center">
@@ -210,7 +212,7 @@ Codex synchronization.
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="148 registered MCP tools. Test inventory: 11575 entries: 4577 regular Python, 511 Python stress, 287 live Python, and 6200 Unity source attributes. Unity count source: static source scan. Server package version: v1.13.0.">
+<img src="docs/assets/stats.svg" width="100%" alt="148 registered MCP tools. Test inventory: 11574 entries: 4577 regular Python, 511 Python stress, 287 live Python, and 6199 Unity source attributes. Unity count source: static source scan. Server package version: v1.14.0.">
 <!-- README_STATS_END -->
 
 ## Unity MCP Product Comparison
@@ -231,7 +233,7 @@ and records constraints as well as strengths.
 ## Recent Changes
 
 <!-- CHANGELOG_START -->
-**Current release: v1.13.0 (2026-08-04).** [Read the full changelog.](CHANGELOG.md)
+**Current release: v1.14.0 (2026-08-04).** [Read the full changelog.](CHANGELOG.md)
 <!-- CHANGELOG_END -->
 
 ## Contributing

@@ -403,6 +403,11 @@ unity-biome-mcp/
 │       ├── MCPActions.cs                  # Shared actions (Restart, Kill, Reimport)
 │       ├── MCPStatusModel.cs              # Pure state logic (no deps) — maps connection state → display
 │       ├── MCPStatusBarWidget.cs          # Injects MCP pill into AppStatusBar via reflection
+│       ├── TestSupport/                   # Test infrastructure attributes (v1.12.0, separate asmdef)
+│       │   ├── UnityMCP.Editor.TestSupport.asmdef
+│       │   ├── BiomeWorkerOnlyAttribute.cs # [BiomeWorkerOnly("reason")] — NUnit-style reason-required marker for per-test disposable-worker-only execution (no one-time setup/teardown — guard runs pre-fixture in UnityMcpTestBase.SetUp)
+│       │   ├── RequiresGraphicsDeviceAttribute.cs # [RequiresGraphicsDevice] — NUnit IApplyToTest skips test if GraphicsDeviceType == Null (headless CI); sets RunState.Ignored with skip reason
+│       │   └── SkipOnWindowsAttribute.cs # [SkipOnWindows("reason")] — NUnit IApplyToTest skips test on Windows (RuntimePlatform.WindowsEditor), reason customizable; default is "Known Windows platform incompatibility — fix tracked separately"
 │       ├── Tests/                         # Editor tests asmdef (references core, v0.26.0: +[TestFixture] to 6 classes, v0.42.0: Wizard tests moved to separate asmdef, v0.62.0: +helper tests)
 │       │   ├── UnityMCP.Editor.Tests.asmdef
 │       │   ├── Helpers/                  # Test infrastructure (v0.26.0)

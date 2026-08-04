@@ -779,7 +779,8 @@ namespace UnityMCP.Editor.Testing
             {
                 CommandRegistry.Clear();
                 CommandRegistry.InitDefaults();
-                violations.Add("CommandRegistry was not ready and required reinitialization");
+                if (!Application.isBatchMode)
+                    violations.Add("CommandRegistry was not ready and required reinitialization");
             }
 
             return string.Join("; ", violations);

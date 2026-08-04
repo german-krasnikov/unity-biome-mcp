@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
-    [TestFixture]
+    [TestFixture, UnityMCP.Editor.Testing.RequiresGraphicsDevice]
     public class ScreenshotCaptureTests : SceneTestBase
     {
         private const string AssetFolder = "Assets/TestsTemp/Screenshots";

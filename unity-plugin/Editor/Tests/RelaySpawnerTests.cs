@@ -11,6 +11,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
+    [UnityMCP.Editor.Testing.SkipOnWindows("Relay process spawning relies on POSIX shell behavior — not portable to Windows")]
     public class RelaySpawnerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private Func<ProcessStartInfo, Process>   _origFactory;

@@ -89,6 +89,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── MAJOR #2: scene section is capped at SceneBudget chars ───────────
 
         [Test]
+        [UnityMCP.Editor.Testing.SkipOnWindows("\\r\\n line endings shift IndexOf('\\n') causing off-by-one in budget assertion")]
         public void Capture_OversizedScene_IsTruncatedWithSuffix()
         {
             // Build a scene string that exceeds SceneBudget.

@@ -64,8 +64,7 @@ unity-plugin/inf/
 
 Logs/
 
-# Unity test project (exclude entire test project from repo)
-unity-test-project/
+# Unity test project (track source, exclude generated)
 unity-test-project/Library/
 unity-test-project/Temp/
 unity-test-project/Obj/
@@ -91,6 +90,13 @@ unity-test-project/*.sln.DotSettings.user
 unity-test-project/.utmp/
 unity-test-project/Recordings/
 unity-test-project/inf/
+unity-test-project/ScreenShots/
+unity-test-project/MemoryCaptures/
+unity-test-project/mono_crash.*
+unity-test-project/sysinfo.txt
+unity-test-project/Packages/packages-lock.json
+unity-test-project/InitTestScene*.unity*
+unity-test-project/Assets/InitTestScene*.unity*
 
 # Secrets
 .env*

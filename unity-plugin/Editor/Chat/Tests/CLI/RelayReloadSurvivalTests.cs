@@ -10,6 +10,7 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
+    [UnityMCP.Editor.Testing.SkipOnWindows("Relay process management uses POSIX signals — not portable to Windows")]
     public class RelayReloadSurvivalTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private Func<ProcessStartInfo, Process>   _origFactory;

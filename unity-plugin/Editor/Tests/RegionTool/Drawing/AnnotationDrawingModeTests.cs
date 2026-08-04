@@ -5,7 +5,7 @@ using UnityMCP.Editor.RegionTool;
 
 namespace UnityMCP.Editor.Tests.RegionTool
 {
-    [TestFixture]
+    [TestFixture, UnityMCP.Editor.Testing.RequiresGraphicsDevice]
     internal class AnnotationDrawingModeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── PointMode ────────────────────────────────────────────────────────

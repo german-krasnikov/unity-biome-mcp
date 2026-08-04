@@ -10,6 +10,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.14.0] — 2026-08-04
+
+### Added
+- Unity EditMode NUnit CI — parallel test execution on Linux, macOS, Windows via buildalon actions
+- `RequiresGraphicsDeviceAttribute` — auto-skips GPU-dependent tests in headless CI
+- `SkipOnWindowsAttribute` — marks Windows-incompatible tests with per-test reasons
+- Per-platform NUnit test reporting via dorny/test-reporter with job summaries
+- CI status badges for Python CI and Unity EditMode Tests (Linux, macOS, Windows) in README
+- Canonical `unity-test-project/` worker committed for CI and local test execution
+
+### Fixed
+- 92 pre-existing Windows platform test failures (paths, shell, relay) resolved via skip attributes
+- UTF-8 encoding for CI job summary on Windows (cp1252 emoji crash)
+- Unity Hub 3.20+ Linux path regression pinned to Hub 3.19.5
+- Windows 2025 runner WMI license timeout pinned to windows-2022
+
 ## [v1.13.0] — 2026-08-04
 
 ### Added

@@ -1,0 +1,141 @@
+name: Unity EditMode Tests
+
+on:
+  push:
+    branches: [master, "feat/**", "feature/**", "fix/**"]
+    paths:
+      - "unity-plugin/**"
+      - "unity-test-project/**"
+      - ".github/workflows/unity-tests.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "unity-plugin/**"
+      - "unity-test-project/**"
+      - ".github/workflows/unity-tests.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: unity-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  test:
+    name: EditMode Tests (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: ubuntu-latest
+            build-target: StandaloneLinux64
+            hub-version: '3.19.5'
+          - name: macOS
+            runner: macos-latest
+            build-target: StandaloneOSX
+            hub-version: ''
+          - name: Windows
+            runner: windows-2022
+            build-target: StandaloneWindows64
+            hub-version: ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set UPM cache path
+        id: upm-path
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "path=$HOME/Library/Caches/Unity/upm" >> "$GITHUB_OUTPUT"
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
+            echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=$LOCALAPPDATA/Unity/cache/upm" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache UPM packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.upm-path.outputs.path }}
+          key: upm-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
+          restore-keys: |
+            upm-${{ runner.os }}-
+      - uses: buildalon/unity-setup@v2
+        id: unity-setup
+        with:
+          unity-version: 6000.0.65f1
+          build-targets: ${{ matrix.build-target }}
+          cache-installation: true
+          hub-version: ${{ matrix.hub-version }}
+
+      - uses: buildalon/activate-unity-license@v2
+        with:
+          license: 'Personal'
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - uses: buildalon/unity-action@v3
+        name: Run EditMode Tests
+        with:
+          build-target: ${{ matrix.build-target }}
+          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
+          project-path: unity-test-project
+          args: >
+            -batchmode
+            -nographics
+            -runTests
+            -testPlatform EditMode
+            -testResults ${{ github.workspace }}/artifacts/editmode-results.xml
+            -logFile ${{ github.workspace }}/artifacts/unity.log
+
+      - name: Check test results exist
+        id: check-results
+        if: always()
+        shell: bash
+        run: test -f artifacts/editmode-results.xml && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
+
+      - uses: dorny/test-reporter@v1
+        if: always() && steps.check-results.outputs.exists == 'true'
+        with:
+          name: NUnit Results (${{ matrix.name }})
+          path: artifacts/*.xml
+          reporter: dotnet-nunit
+
+      - name: Write job summary
+        if: always() && steps.check-results.outputs.exists == 'true'
+        shell: python
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+        run: |
+          import xml.etree.ElementTree as ET, os
+          r = ET.parse('artifacts/editmode-results.xml').getroot()
+          passed  = r.get('passed',  '?')
+          failed  = r.get('failed',  '?')
+          skipped = r.get('skipped', '?')
+          total   = r.get('total',   '?')
+          icon    = '✅' if int(r.get('failed', '1')) == 0 else '❌'
+          name    = os.environ['MATRIX_NAME']
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
+              f.write(f'## {icon} EditMode Tests — {name}\n\n')
+              f.write('| Passed | Failed | Skipped | Total |\n')
+              f.write('|:------:|:------:|:-------:|:-----:|\n')
+              f.write(f'| **{passed}** | **{failed}** | {skipped} | {total} |\n\n')
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.name }}
+          path: artifacts/
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: unity-log-${{ matrix.name }}
+          path: artifacts/unity.log
+

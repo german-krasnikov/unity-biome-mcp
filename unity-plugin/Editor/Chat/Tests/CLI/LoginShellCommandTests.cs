@@ -1,10 +1,13 @@
 using NUnit.Framework;
 using System.Diagnostics;
+using System.IO;
+using UnityEngine;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
+    [UnityMCP.Editor.Testing.SkipOnWindows("LoginShellCommand assumes /bin/bash — not available on Windows")]
     public class LoginShellCommandTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
@@ -51,14 +54,20 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             // -lic: login (-l) + interactive (-i) + command (-c); interactive needed for PATH resolution on macOS
             var s = LoginShellCommand.BuildArguments("\"$1\" auth status", "/usr/bin/claude");
-            Assert.AreEqual("-lic '\"$1\" auth status' zsh '/usr/bin/claude'", s);
+            var shellName = SystemInfo.operatingSystemFamily == OperatingSystemFamily.Linux
+                ? (File.Exists("/bin/bash") ? "bash" : "sh")
+                : "zsh";
+            Assert.AreEqual($"-lic '\"$1\" auth status' {shellName} '/usr/bin/claude'", s);
         }
 
         [Test]
         public void Create_SetsCorrectFileName()
         {
             var psi = LoginShellCommand.Create("\"$1\" auth status", "/usr/bin/claude");
-            Assert.AreEqual("/bin/zsh", psi.FileName);
+            var expected = SystemInfo.operatingSystemFamily == OperatingSystemFamily.Linux
+                ? (File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh")
+                : "/bin/zsh";
+            Assert.AreEqual(expected, psi.FileName);
         }
 
         [Test]

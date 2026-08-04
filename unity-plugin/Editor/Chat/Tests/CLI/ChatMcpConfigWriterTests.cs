@@ -70,6 +70,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── 1. DeriveServerPath ───────────────────────────────────────────────
 
         [Test]
+        [UnityMCP.Editor.Testing.SkipOnWindows("Hardcoded Unix paths — Path.GetFullPath adds Windows drive letter")]
         public void DeriveServerPath_BasicRoot_ReturnsNormalizedPath()
         {
             var root = "/Users/dev/unity-biome-mcp/unity-plugin";
@@ -78,6 +79,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
+        [UnityMCP.Editor.Testing.SkipOnWindows("Hardcoded Unix paths — Path.GetFullPath adds Windows drive letter")]
         public void DeriveServerPath_TrailingSlash_ReturnsNormalizedPath()
         {
             var root = "/Users/dev/unity-biome-mcp/unity-plugin/";
@@ -213,6 +215,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── 8. ResolvePythonCommand no venv, no uv → python3 fallback ─────────
 
         [Test]
+        [UnityMCP.Editor.Testing.SkipOnWindows("Windows uses 'python' not 'python3' — fallback differs by platform")]
         public void ResolvePythonCommand_NoVenvNoUv_ReturnsPython3Fallback()
         {
             var serverDir = Path.Combine(_tmpDir, "server");
