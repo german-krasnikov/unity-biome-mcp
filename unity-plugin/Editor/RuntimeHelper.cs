@@ -42,11 +42,26 @@ namespace UnityMCP.Editor
                 throw new ArgumentException(ErrorHelper.ComponentNotFound(componentType, go));
 
             var methods = comp.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-            var method = methods.FirstOrDefault(m => m.Name == methodName);
-            if (method == null)
+            var candidates = methods.Where(m => m.Name == methodName).ToList();
+            if (candidates.Count == 0)
             {
                 var names = string.Join(", ", methods.Select(m => $"{m.Name}({string.Join(",", m.GetParameters().Select(p => p.ParameterType.Name))})"));
                 throw new ArgumentException($"Method '{methodName}' not found. Available: {names}");
+            }
+
+            MethodInfo method;
+            if (candidates.Count == 1)
+            {
+                method = candidates[0];
+            }
+            else
+            {
+                int suppliedParts = string.IsNullOrEmpty(args) ? 0 : args.Split(',').Length;
+                int ParamScore(MethodInfo m) => m.GetParameters().Sum(p =>
+                    p.ParameterType == typeof(Vector3) ? 3 :
+                    p.ParameterType == typeof(Vector2) ? 2 : 1);
+                method = candidates.FirstOrDefault(m => ParamScore(m) == suppliedParts)
+                      ?? candidates[0];
             }
 
             var parameters = method.GetParameters();
@@ -389,9 +404,9 @@ namespace UnityMCP.Editor
             if (parameters.Length == 0) return new object[0];
             if (string.IsNullOrEmpty(args))
             {
-                if (parameters.Length > 0)
-                    throw new ArgumentException($"Expected {parameters.Length} args ({string.Join(", ", parameters.Select(p => p.ParameterType.Name))}), got 0");
-                return new object[0];
+                if (parameters.All(p => p.HasDefaultValue))
+                    return parameters.Select(p => p.DefaultValue).ToArray();
+                throw new ArgumentException($"Expected {parameters.Length} args ({string.Join(", ", parameters.Select(p => p.ParameterType.Name))}), got 0");
             }
 
             var parts = args.Split(',');
@@ -404,7 +419,14 @@ namespace UnityMCP.Editor
                 var pType = parameters[i].ParameterType;
                 int consume = pType == typeof(Vector3) ? 3 : pType == typeof(Vector2) ? 2 : 1;
                 if (partIdx + consume > parts.Length)
+                {
+                    if (parameters[i].HasDefaultValue)
+                    {
+                        result[i] = parameters[i].DefaultValue;
+                        continue;
+                    }
                     throw new ArgumentException($"Not enough args for param {i} ({pType.Name}), need {consume} parts from index {partIdx}, have {parts.Length}");
+                }
                 try
                 {
                     var chunk = string.Join(",", parts.Skip(partIdx).Take(consume).Select(s => s.Trim()));

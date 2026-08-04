@@ -14,6 +14,29 @@ _args = None
 # Tools that require their typed MCP wrapper (Python DSL expansion) — rejected inside batch.
 _dsl_tools: set[str] = set()
 
+# Python-only params that don't exist in C# — strip before forwarding to batch.
+# Key: command name, Value: set of param names to remove.
+_PYTHON_ONLY_PARAMS: dict[str, set[str]] = {
+    "get_component": {"full"},
+    "inspect": {"full"},
+}
+
+_STRIP_RE = re.compile(r'\b({keys})=\S+\s*')
+
+
+def _strip_python_params(line: str) -> str:
+    parts = line.strip().split(None, 1)
+    if len(parts) < 2:
+        return line
+    cmd = parts[0]
+    params_to_strip = _PYTHON_ONLY_PARAMS.get(cmd)
+    if not params_to_strip:
+        return line
+    rest = parts[1]
+    for p in params_to_strip:
+        rest = re.sub(rf'\b{p}=\S+\s*', '', rest)
+    return f"{cmd} {rest}".rstrip()
+
 
 async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
                 atomic: bool = False, validate_aliases: bool = False) -> str:
@@ -31,12 +54,13 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
             if spec and spec.direct_only:
                 pre_errors.append(f"[{i}] err: '{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
                 continue
-            clean.append(line)
+            clean.append(_strip_python_params(line))
             orig_indices.append(i)
         if pre_errors and not clean:
             raise ToolError("\n".join(pre_errors))
         commands = "\n".join(clean)
     else:
+        stripped: list[str] = []
         for line in commands.splitlines():
             cmd = line.strip().split()[0] if line.strip() else ""
             if cmd in _dsl_tools:
@@ -44,6 +68,8 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
             spec = _SPECS.get(cmd)
             if spec and spec.direct_only:
                 raise ToolError(f"'{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
+            stripped.append(_strip_python_params(line))
+        commands = "\n".join(stripped)
     timeout_ms = max(1000, int((timeout - 5) * 1000))
     args = {"commands": commands}
     if on_error != "continue":

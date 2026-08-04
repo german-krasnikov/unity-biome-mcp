@@ -102,7 +102,13 @@ namespace UnityMCP.Editor
 
             var go = ComponentSerializer.FindObject(path);
             if (go == null)
+            {
+                // Ref and transient-ID paths throw inside FindObject when stale.
+                // Defensive check: if somehow a ref-like path slips through null, surface as STALE_CACHE.
+                if (path.StartsWith("#") || RefManager.IsRef(path))
+                    throw new StaleCacheException($"Stale cache: {path}. Call get_hierarchy to refresh.");
                 throw new InvalidOperationException(ErrorHelper.ObjectNotFound(path));
+            }
 
             var result = ComponentSerializer.Serialize(path, type);
             if (result == null)

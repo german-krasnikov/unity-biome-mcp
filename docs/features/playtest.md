@@ -91,6 +91,33 @@ await lint_playtest(path="Assets/Playtests/combat.playtest")
 
 `lint_playtest_suite(paths=..., suite_path=...)` lints multiple files at once.
 
+## Setup and Teardown
+
+Use `SETUP` and `TEARDOWN` blocks to organize initialization and cleanup.
+
+```python
+SETUP
+  # Runs before main steps
+  TELEPORT /Player 0,0,0
+  ASSERT /Player|Health == 100
+SETUP_END
+
+# Main test steps
+ASSERT /Player|Score > 0
+
+TEARDOWN
+  # Always runs, even if test failed
+  ASSERT_CONSOLE_CLEAN
+  LOG Test complete
+TEARDOWN_END
+```
+
+**Behavior:**
+- **SETUP** runs before main steps. If any SETUP step fails, the runner skips remaining SETUP steps and jumps directly to TEARDOWN (if present). Main steps do NOT execute.
+- **TEARDOWN** always runs at the end, after main steps (success or failure), for cleanup. All TEARDOWN steps execute in full.
+- Use SETUP for one-time initialization (spawn objects, set state).
+- Use TEARDOWN for verification of final state and log collection.
+
 ## DSL Quick Reference
 
 ### Core Commands
@@ -100,6 +127,7 @@ await lint_playtest(path="Assets/Playtests/combat.playtest")
 | `MOVE` | Walk to position | `MOVE /Player TO 5,0,0` |
 | `MOVE_PATH` | Walk through waypoints | `MOVE_PATH 0,0,0 > 5,0,0 > 10,0,0 TIMEOUT 15` |
 | `TELEPORT` | Instant move | `TELEPORT /Player 0,0,0` |
+| `SET_ACTIVE` | Toggle active | `SET_ACTIVE /Boss false` |
 | `WAIT` | Sleep | `WAIT 2.0` |
 | `WAIT_UNTIL` | Poll condition | `WAIT_UNTIL /Player\|Health == 100 TIMEOUT 10` |
 | `WAIT_CAPTURED` | Poll captured value | `WAIT_CAPTURED hp_before INCREASED TIMEOUT 10` |

@@ -78,3 +78,30 @@ def test_double_delete_different_paths_no_warn(mw):
     """Deleting two different objects is fine."""
     commands = "delete_object path=/A\ndelete_object path=/B"
     assert mw.scan_batch_conflicts(commands) is None
+
+
+# ─── ID-only delete cases (P-12440-032) ──────────────────────────────────────
+
+def test_id_only_deletes_no_false_warning(mw):
+    """Four ID-only deletes (no path) must produce no warnings — empty string is not a conflict key."""
+    commands = "\n".join([
+        "delete_object id=abc1",
+        "delete_object id=abc2",
+        "delete_object id=abc3",
+        "delete_object id=abc4",
+    ])
+    assert mw.scan_batch_conflicts(commands) is None
+
+
+def test_id_double_delete_warns(mw):
+    """Same ID deleted twice must produce a double-delete warning."""
+    commands = "delete_object id=abc123\ndelete_object id=abc123"
+    warn = mw.scan_batch_conflicts(commands)
+    assert warn is not None
+    assert "delete" in warn.lower(), warn
+
+
+def test_id_only_delete_skips_empty_key(mw):
+    """delete_object with neither path nor id must not crash and must not warn."""
+    commands = "delete_object\ndelete_object"
+    assert mw.scan_batch_conflicts(commands) is None

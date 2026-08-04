@@ -45,10 +45,22 @@ namespace UnityMCP.Editor
             ParseResult parseResult = null;
             List<PlaytestStep> steps;
             PlaytestVarRegistry varRegistry;
+            int setupEndIdx = 0;       // exclusive; 0 = no setup
+            int teardownStartIdx = 0;  // inclusive; 0 = no teardown (set after building combined list)
             try
             {
                 parseResult = PlaytestParser.Parse(resolvedScript);
-                steps = parseResult.Steps;
+                // Build combined list: [setup | main | teardown]
+                var setupSteps    = parseResult.SetupSteps    ?? new List<PlaytestStep>();
+                var mainSteps     = parseResult.Steps;
+                var teardownSteps = parseResult.TeardownSteps ?? new List<PlaytestStep>();
+                var allSteps = new List<PlaytestStep>(setupSteps.Count + mainSteps.Count + teardownSteps.Count);
+                allSteps.AddRange(setupSteps);
+                setupEndIdx = allSteps.Count;
+                allSteps.AddRange(mainSteps);
+                teardownStartIdx = allSteps.Count;
+                allSteps.AddRange(teardownSteps);
+                steps = allSteps;
                 varRegistry = new PlaytestVarRegistry();
                 if (parseResult.VarDefs != null)
                     foreach (var kv in parseResult.VarDefs)
@@ -75,11 +87,21 @@ namespace UnityMCP.Editor
             var state = new PlaytestState();
             DateTime stepStartUtc = DateTime.Now;
             PlaytestStep currentExpanded = null; // VAR-expanded clone of current step
+            int failedBeforeStep = 0;           // captured before each step to detect setup failures
 
             void AdvanceStep()
             {
-                CheckStepConsoleErrors(steps[stepIdx], stepIdx, stepStartUtc, results);
+                int prevFailed = failedBeforeStep; // compare against pre-step snapshot
+                if (CheckStepConsoleErrors(steps[stepIdx], stepIdx, stepStartUtc, results))
+                    failed++;
+                bool thisStepFailed = failed > prevFailed;
                 stepIdx++;
+                // If a setup step failed, skip main steps and jump to teardown
+                if (thisStepFailed && setupEndIdx > 0 && stepIdx <= setupEndIdx && stepIdx < teardownStartIdx)
+                {
+                    results.Add("--- SETUP FAILED: skipping main steps");
+                    stepIdx = teardownStartIdx;
+                }
                 stepStartUtc = DateTime.Now;
                 currentExpanded = null;
                 phase = Phase.Ready;
@@ -145,6 +167,7 @@ namespace UnityMCP.Editor
                 switch (phase)
                 {
                     case Phase.Ready:
+                        failedBeforeStep = failed; // capture before step so AdvanceStep can detect failures
                         currentExpanded = varRegistry.HasAny ? varRegistry.ExpandStep(step) : step;
                         ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state, snapOnFail);
                         if (phase == Phase.Done) AdvanceStep();
@@ -516,12 +539,13 @@ namespace UnityMCP.Editor
 
         internal const int StepConsoleErrorMax = 3;
 
-        internal static void CheckStepConsoleErrors(PlaytestStep step, int stepIdx, DateTime stepStart, List<string> results)
+        internal static bool CheckStepConsoleErrors(PlaytestStep step, int stepIdx, DateTime stepStart, List<string> results)
         {
-            if (step.Type == StepType.AssertConsoleClean) return;
+            if (step.Type == StepType.AssertConsoleClean) return false;
             var errors = ConsoleCapture.GetErrorsSince(stepStart, StepConsoleErrorMax);
-            if (errors != null)
-                results.Add($"[{stepIdx + 1}] CONSOLE_ERR during {step.Type}: {errors}");
+            if (errors == null) return false;
+            results.Add($"[{stepIdx + 1}] CONSOLE_ERR during {step.Type}: {errors}");
+            return true;
         }
     }
 }

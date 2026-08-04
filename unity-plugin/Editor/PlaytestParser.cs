@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic }
+    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic, SetActive, Setup, Teardown }
 
     /// <summary>A script line with origin metadata (file, line number, macro call chain).</summary>
     internal struct SourcedLine
@@ -83,6 +83,10 @@ namespace UnityMCP.Editor
     internal class ParseResult : IEnumerable<PlaytestStep>
     {
         public List<PlaytestStep> Steps;
+        /// <summary>Steps in the SETUP block. Null if no SETUP block was declared.</summary>
+        public List<PlaytestStep> SetupSteps;
+        /// <summary>Steps in the TEARDOWN block. Null if no TEARDOWN block was declared.</summary>
+        public List<PlaytestStep> TeardownSteps;
         /// <summary>Raw @-query strings keyed by VAR name (without $). Null if none declared.</summary>
         public Dictionary<string, string> VarDefs;
         /// <summary>Non-fatal parse warnings (e.g. unresolved $sigil typos). Null if none.</summary>
@@ -124,7 +128,9 @@ namespace UnityMCP.Editor
             "SET_DEFAULT_TIMEOUT", "ASSERT_ONE_ACTIVE",
             "PATH_PREFIX", "FOR", "END_FOR", "ASSERT_CHANGED",
             "CAPTURE_FRAMES", "ASSERT_FRAMES_DIFFER", "ASSERT_FRAMES_STATIC",
-            "COMMENT", "END_COMMENT"
+            "COMMENT", "END_COMMENT",
+            "SET_ACTIVE",
+            "SETUP", "TEARDOWN"
         };
 
         public static ParseResult Parse(string script, IncludeResolver resolver = null)
@@ -218,10 +224,14 @@ namespace UnityMCP.Editor
             // Phase 1.1 + Phase 2: parse commands; collect VAR definitions
             var varDefs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var steps = new List<PlaytestStep>();
+            List<PlaytestStep> setupSteps = null;
+            List<PlaytestStep> teardownSteps = null;
             string pendingLabel = null;
             bool hasGlobalAbort = false;
             float defaultTimeout = 0f;
             string currentSection = null;
+            // Tracks current DSL block section: 0=Main, 1=Setup, 2=Teardown
+            int parsingSection = 0;
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -449,6 +459,14 @@ namespace UnityMCP.Editor
                         step.Type = StepType.Invoke;
                         step.Path = tokens[1]; step.Component = tokens[2]; step.Method = tokens[3];
                         step.Args = tokens.Length > 4 ? tokens[4] : "";
+                        break;
+
+                    case "SET_ACTIVE":
+                        if (tokens.Length < 3)
+                            throw new ArgumentException("SET_ACTIVE syntax: SET_ACTIVE /path true|false");
+                        step.Type  = StepType.SetActive;
+                        step.Path  = tokens[1];
+                        step.Value = tokens[2];
                         break;
 
                     case "SET":
@@ -872,6 +890,16 @@ namespace UnityMCP.Editor
                     case "END_COMMENT":
                         continue; // stray END_COMMENT — silently skip
 
+                    case "SETUP":
+                        parsingSection = 1;
+                        setupSteps = setupSteps ?? new List<PlaytestStep>();
+                        continue; // section marker — no step emitted
+
+                    case "TEARDOWN":
+                        parsingSection = 2;
+                        teardownSteps = teardownSteps ?? new List<PlaytestStep>();
+                        continue; // section marker — no step emitted
+
                     default:
                         throw new ArgumentException($"Unknown command: {cmd}");
                 }
@@ -881,7 +909,12 @@ namespace UnityMCP.Editor
                 step.SectionContext = currentSection;
                 step.Label = pendingLabel;
                 pendingLabel = null;
-                steps.Add(step);
+                switch (parsingSection)
+                {
+                    case 1: setupSteps.Add(step); break;
+                    case 2: teardownSteps.Add(step); break;
+                    default: steps.Add(step); break;
+                }
             }
 
             // Phase 0.8: warn on unresolved $sigils (always — even without any VAL/VAR defs)
@@ -908,6 +941,8 @@ namespace UnityMCP.Editor
             return new ParseResult
             {
                 Steps = steps,
+                SetupSteps = setupSteps,
+                TeardownSteps = teardownSteps,
                 VarDefs = varDefs.Count > 0 ? varDefs : null,
                 Warnings = warnings,
                 HasGlobalAbort = hasGlobalAbort,

@@ -335,6 +335,38 @@ namespace UnityMCP.Editor.Tests
             Assert.That(result, Does.Not.StartWith("err:"));
         }
 
+        // ── Non-mesh renderer subtype guards ────────────────────────────────
+
+        [Test]
+        public void Stats_LineRenderer_SkipsNonMeshRenderer()
+        {
+            var go = new GameObject("LineRend");
+            _gos.Add(go);
+            var lr = go.AddComponent<LineRenderer>();
+            lr.positionCount = 2;
+            lr.SetPositions(new[] { Vector3.zero, Vector3.up });
+
+            var result = RenderAnalyzer.Execute(A("stats"));
+
+            Assert.That(result, Does.Not.StartWith("err:"));
+            StringAssert.Contains("tris=", result);
+        }
+
+        [Test]
+        public void Overdraw_TrailRenderer_IsCountedAsOpaqueZeroTris()
+        {
+            // Non-mesh renderers skip MeshFilter lookup — defensive guard for transitional objects.
+            var go = new GameObject("TrailRend");
+            _gos.Add(go);
+            go.AddComponent<TrailRenderer>();
+
+            var result = RenderAnalyzer.Execute(A("overdraw"));
+
+            // opaque=1 (trail treated as opaque), but tris contribution should be 0
+            Assert.That(result, Does.Not.StartWith("err:"));
+            StringAssert.Contains("opaque=1(0)", result);
+        }
+
         [Test]
         public void Execute_UnknownAction_ThrowsInvalidOperation()
         {

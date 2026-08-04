@@ -233,7 +233,7 @@ async def run_playtest_suite(
             abort_on_fail=None),
             timeout=timeout_per_test + _TCP_PLAYTEST_BUFFER)
         elapsed = _time.monotonic() - t0
-        passed = raw.startswith("PLAYTEST:") and "FAIL" not in raw
+        passed = raw.startswith("PLAYTEST:") and "FAIL" not in raw and "CONSOLE_ERR" not in raw
         results.append((filepath, raw, elapsed, passed))
         if stop_on_fail and not passed:
             break

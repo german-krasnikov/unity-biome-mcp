@@ -33,6 +33,8 @@ def _make_send(ack_response: str, status_seq, errors_response: str = ""):
             return errors_response
         if cmd == "diagnose":
             return "main_mvid=absent"
+        if cmd == "warm_type_cache":
+            return "ok:types=42"
         raise AssertionError(f"Unexpected cmd: {cmd}")
 
     return _send

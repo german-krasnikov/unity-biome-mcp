@@ -168,6 +168,8 @@ namespace UnityMCP.Editor
                 maxResponseChars: 20000);
             CommandRegistry.Register("clear_console", _ => { ConsoleCapture.Clear(); return "ok"; },
                 required: "", optional: "", allowedDuringCompile: true);
+            CommandRegistry.Register("console_clear_buffer", _ => { ConsoleCapture.ClearDroppedCount(); return "ok"; },
+                required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("get_compile_errors", _ => CompileErrorCapture.GetErrors(),
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("compile_status",
@@ -181,6 +183,11 @@ namespace UnityMCP.Editor
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("recompile", _ => { UnityEditor.AssetDatabase.Refresh(); return "ok"; },
                 required: "", optional: "");
+            CommandRegistry.Register("warm_type_cache", _ =>
+            {
+                var count = UnityEditor.TypeCache.GetTypesDerivedFrom<Component>().Count;
+                return $"ok:types={count}";
+            }, required: "", optional: "", allowedDuringCompile: false);
             // G11: force_refresh — CLASS-A recovery sequence for file: UPM packages.
             // 1. ImportPackageSources: targeted ImportAsset bypasses dead directory-monitor.
             // 2. Refresh: whole-DB rescan as fallback for multi-file/asmdef edits.
@@ -503,7 +510,7 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAction("material", MaterialHelper.Execute, mutating: true,
                 optional: "path,object_path,shader,prop,value,source,targets,slot,filter,target");
             CommandRegistry.RegisterAction("prefab", PrefabHelper.Execute, mutating: true,
-                optional: "path,asset_path,base_path,variant_path,recursive,component,prop,value,add_component,remove_component,child_path,mode,scope,format");
+                optional: "path,asset_path,base_path,variant_path,parent,recursive,component,prop,value,add_component,remove_component,child_path,mode,scope,format");
             CommandRegistry.RegisterAction("scriptable_object", ScriptableObjectHelper.Execute, mutating: true,
                 optional: "path,type,prop,value,filter,fields");
             CommandRegistry.RegisterAction("scene_environment", EnvironmentHelper.Execute, mutating: true,

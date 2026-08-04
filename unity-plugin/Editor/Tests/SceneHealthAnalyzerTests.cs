@@ -144,6 +144,37 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(checks.Contains("disabled"));
         }
 
+        // ── CheckMissingMeshes ─────────────────────────────────────────────
+
+        [Test]
+        public void CheckMissingMeshes_ReportsMeshFilterWithNullSharedMesh()
+        {
+            var go = MakeGO("Broken");
+            go.AddComponent<MeshFilter>(); // sharedMesh is null by default
+            var result = SceneHealthAnalyzer.CheckMissingMeshes(new[] { go });
+            Assert.IsNotNull(result);
+            StringAssert.Contains("MISSING_MESH", result);
+            StringAssert.Contains("Broken", result);
+        }
+
+        [Test]
+        public void CheckMissingMeshes_ReturnsNull_WhenNoMeshFilterMissing()
+        {
+            var go = MakeGO("Clean");
+            // No MeshFilter at all — should not report
+            var result = SceneHealthAnalyzer.CheckMissingMeshes(new[] { go });
+            Assert.IsNull(result);
+        }
+
+        [Test]
+        public void CheckMissingMeshes_SkipsObjectsWithoutMeshFilter()
+        {
+            var go = MakeGO("NoFilter");
+            go.AddComponent<BoxCollider>(); // has a component, just not MeshFilter
+            var result = SceneHealthAnalyzer.CheckMissingMeshes(new[] { go });
+            Assert.IsNull(result);
+        }
+
         // ── Analyze integration ────────────────────────────────────────────
 
         [Test]

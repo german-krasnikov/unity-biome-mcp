@@ -20,6 +20,9 @@ STAMP2 = "bbbb2222:ts2"
 def _send_with(responses: list):
     """AsyncMock that pops and returns/raises items in order."""
     async def _impl(*_args, **_kwargs):
+        cmd = _args[0] if _args else ""
+        if cmd == "warm_type_cache":
+            return "ok:types=42"
         item = responses.pop(0)
         if isinstance(item, BaseException):
             raise item
@@ -202,11 +205,17 @@ async def test_wedge_recovery_force_refresh_heals():
     ]
     _sync._send = _send_with(sync_responses)
 
-    # time.monotonic call order in sync + _attempt_recovery:
-    # 1: deadline=0+300=300, 2: started=0.0, 3: loop deadline check=1.0,
-    # 4: focus-hint check=20.0 (20-0=20>15 → fires), 5: recovery deadline=20+30=50,
-    # 6: recovery while check=21.0 (21<50 → polls)
-    monotonic_values = [0.0, 0.0, 1.0, 20.0, 20.0, 21.0]
+    # time.monotonic call order in sync + _attempt_recovery (with timed_send):
+    # 1: deadline=0+300, 2: timed_send pre-stamp remaining, 3: started=0.0,
+    # 4: loop deadline check=1.0, 5: timed_send poll remaining, 6: focus-hint=20.0,
+    # 7: recovery_deadline min(300,20+30)=50, 8: recovery while check=21.0,
+    # 9: timed_send recovery remaining
+    # time.monotonic call order (with _timed_send in polling + recovery):
+    # 1: deadline=0+300, 2: started=0.0,
+    # 3: loop check=1.0, 4: _timed_send remaining=1.0, 5: focus-hint=20.0 (20-0>15→fires),
+    # 6: recovery_deadline min(300,20+30)=50, 7: recovery while=21.0 (21<50→yes),
+    # 8: _timed_send remaining=21.0 (50-21=29>0)
+    monotonic_values = [0.0, 0.0, 1.0, 1.0, 20.0, 20.0, 21.0, 21.0]
 
     with patch("unity_mcp.tools.sync.time") as mock_time, \
          patch("unity_mcp.tools.sync._send_with_fallback", new=AsyncMock(return_value=None)), \

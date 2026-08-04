@@ -18,6 +18,7 @@ _CS_PROTOCOL_ONLY = {
     "set_client_label",    # session metadata — not an MCP tool
     "get_aliases",         # alias cache seeding by Python middleware
     "clear_console",       # not exposed as a named MCP tool
+    "console_clear_buffer",  # internal (resets dropped-problem count without clearing ring buffer)
     "compile_status",      # internal (await_compile polls this)
     "sync",                # internal (Python sync_unity → this)
     "sync_status",         # internal polling
@@ -31,6 +32,7 @@ _CS_PROTOCOL_ONLY = {
     "watch_reset",         # sub-action of "watch" MCP tool
     "search_context",      # internal (resources refresh_dynamic polls this)
     "set_runtime_property",  # C# handler stays: middleware reroutes set_property here in Play Mode
+    "warm_type_cache",     # internal (sync_unity warms TypeCache after domain reload)
 }
 
 # _SPECS entries with no dedicated C# command (Python-only MCP tools).
@@ -137,4 +139,18 @@ def test_tier1_tools_are_accounted_for():
     assert not missing, (
         f"tier1 tools with no C# command and not Python-only: {sorted(missing)}\n"
         "→ Register in C#, or add to _PYTHON_ONLY in this test."
+    )
+
+
+def test_discover_tools_categories_match_specs():
+    """Every static (non-plugin) tool in CATEGORIES has a ToolSpec."""
+    from unity_mcp.tools.gating import _THEMED_CATEGORIES
+    specs = set(_specs().keys())
+    all_category_tools = set()
+    for tools in _THEMED_CATEGORIES.values():
+        all_category_tools |= set(tools)
+    ghost = all_category_tools - specs
+    assert not ghost, (
+        f"Tools in _THEMED_CATEGORIES but missing from _SPECS: {sorted(ghost)}\n"
+        "→ Add to _SPECS in tool_specs.py, or remove from category."
     )

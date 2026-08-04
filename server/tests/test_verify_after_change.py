@@ -269,6 +269,34 @@ async def test_verify_stops_on_first_failure():
 
 
 @pytest.mark.asyncio
+async def test_verify_console_gate_ignores_dropped_count_line():
+    """Synthetic dropped-count line should not trigger console gate failure."""
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (2s)")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_GET_CONSOLE_SINCE, AsyncMock(return_value="[+3 older problem entries dropped]")),
+    ):
+        result = await _v.verify_after_change(mark_id=MARK)
+    assert "PASS" in result
+    assert "console_clean" in result
+
+
+@pytest.mark.asyncio
+async def test_verify_console_gate_fails_on_real_error_with_dropped_line():
+    """Real error alongside dropped-count line must still fail."""
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (2s)")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_GET_CONSOLE_SINCE, AsyncMock(
+            return_value="[Error] NullReferenceException\n[+2 older problem entries dropped]"
+        )),
+    ):
+        result = await _v.verify_after_change(mark_id=MARK)
+    assert "FAIL" in result
+    assert "NullReferenceException" in result
+
+
+@pytest.mark.asyncio
 async def test_verify_timeout_passed_to_run_tests_wait():
     mock_tests = AsyncMock(return_value=_run_snapshot(expected=5, completed=5))
     with (

@@ -45,7 +45,7 @@ jobs:
             build-target: StandaloneWindows64
             hub-version: ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set UPM cache path
         id: upm-path
@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: Cache UPM packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.upm-path.outputs.path }}
           key: upm-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
@@ -100,7 +100,7 @@ jobs:
         shell: bash
         run: test -f artifacts/editmode-results.xml && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
 
-      - uses: dorny/test-reporter@v1
+      - uses: dorny/test-reporter@v3
         if: always() && steps.check-results.outputs.exists == 'true'
         with:
           name: NUnit Results (${{ matrix.name }})
@@ -127,13 +127,13 @@ jobs:
               f.write('|:------:|:------:|:-------:|:-----:|\n')
               f.write(f'| **{passed}** | **{failed}** | {skipped} | {total} |\n\n')
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-${{ matrix.name }}
           path: artifacts/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: unity-log-${{ matrix.name }}

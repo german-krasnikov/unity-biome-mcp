@@ -91,7 +91,37 @@ await prefab("edit",
    # → Enemy1 inherits MaxHP=150 from prefab
    ```
 
-## Supported Operations
+## instantiate
+
+Instantiate a prefab as a scene object with optional parent assignment.
+
+**Parameters:**
+- `asset_path` (string) — Path to prefab asset (e.g., "Assets/Prefabs/Enemy.prefab")
+- `name` (string, optional) — Name for the spawned object; defaults to prefab name
+- `parent` (string, optional) — Parent GameObject path; if omitted, spawns at scene root
+- `scene` (string, optional) — Scene name (for multi-scene projects)
+
+**Example:**
+
+```python
+# Spawn at scene root
+await prefab("instantiate", asset_path="Assets/Prefabs/Enemy.prefab")
+
+# Spawn under a parent with custom name
+await prefab("instantiate",
+             asset_path="Assets/Prefabs/Enemy.prefab",
+             name="Enemy1",
+             parent="Enemies")
+
+# Equivalent to:
+await create_object(name="Enemy1", parent="Enemies", prefab_path="Assets/Prefabs/Enemy.prefab")
+```
+
+**Difference from create_object:** The `prefab` instantiate action is optimized for prefab workflows; `create_object` with `prefab_path` is equivalent and more general-purpose.
+
+---
+
+## Supported Operations (edit)
 
 ✅ **Can edit:**
 - Public properties (int, float, string, bool, Vector3, Quaternion)

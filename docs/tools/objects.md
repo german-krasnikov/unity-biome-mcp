@@ -113,6 +113,7 @@ Change a component property on a scene object. Edit Mode only (via SerializedObj
 - `"1,0,0,1"` → Quaternion (normalized)
 - `"#FF0000"` → Color (hex)
 - Plain text → string
+- `""` (empty string) or `"null"` → null/none (clears ObjectReference fields)
 
 **Example:**
 

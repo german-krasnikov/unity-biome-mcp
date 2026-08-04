@@ -99,6 +99,22 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(100, ReferenceHelper.MAX_ARRAY);
         }
 
+        // ── ValidateReferences_RootPath_Resolves ─────────────────────────────
+
+        [Test]
+        public void ValidateReferences_RootPath_WithLeadingSlash_Resolves()
+        {
+            var result = ValidateReferencesHelper.Validate("/" + _go.name, depth: 1, ignoreOptional: false);
+            StringAssert.Contains("0 ERROR", result);
+        }
+
+        [Test]
+        public void ValidateReferences_RootPath_WithoutSlash_Resolves()
+        {
+            var result = ValidateReferencesHelper.Validate(_go.name, depth: 1, ignoreOptional: false);
+            StringAssert.Contains("0 ERROR", result);
+        }
+
         // ── RemapReferences_ChangesTargetPath ────────────────────────────────
 
         [Test]

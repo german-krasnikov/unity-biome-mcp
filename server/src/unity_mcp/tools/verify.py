@@ -20,6 +20,8 @@ from . import runtime as _rt
 from . import testing as _test
 from ._common import bind
 
+_DROPPED_RE = re.compile(r"\[\+\d+ older problem entries dropped\]")
+
 _send = None
 _args = None
 
@@ -204,7 +206,8 @@ async def verify_after_change(
             console_result = await _con.get_console_since(
                 mark_id, level="error,exception,assert"
             )
-            if console_result.strip() and console_result.strip() != "no logs":
+            filtered = _DROPPED_RE.sub("", console_result).strip()
+            if filtered and filtered != "no logs":
                 return _fail("console_since", console_result, remaining_optional)
             passed.append("console_clean")
         except Exception as e:

@@ -22,7 +22,7 @@ namespace UnityMCP.Editor
             {
                 var resolved = RefManager.Resolve(path);
                 if (resolved != null) return resolved;
-                throw new System.ArgumentException($"Stale ref: {path}. Call get_hierarchy to refresh.");
+                throw new StaleCacheException($"Stale ref: {path}. Call get_hierarchy to refresh.");
             }
 
             if (path.StartsWith("#") && TransientObjectId.TryParse(path, out var objectId))

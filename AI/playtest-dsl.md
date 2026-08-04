@@ -52,6 +52,45 @@ Only the rightmost `/` before the path body is split by the parser. Slashes insi
   - Backslash escapes: `\"` and `\[` inside quotes; `\/` and `\\` in paths
 - **ParseQOV** (Query-Operator-Value): Scans tokens for operators (`==`, `!=`, `>`, `<`, `>=`, `<=`), extracts query/op/value. Empty op = bool shorthand (e.g., `ASSERT $flag` = `ASSERT $flag == True`)
 
+## Setup and Teardown Blocks
+
+### SETUP
+
+Declare a block of steps that run before the main test steps. If any step in the SETUP block fails, execution skips directly to the TEARDOWN block (if present) rather than continuing to main steps.
+
+```
+SETUP
+  TELEPORT /Player 0,0,0
+  ASSERT /Player|Health|hp == 100
+SETUP_END
+
+# main steps
+ASSERT /Player|Score > 0
+```
+
+**Syntax:** `SETUP` → steps → `SETUP_END` (no other tokens required)
+
+If SETUP fails, remaining SETUP steps execute, then TEARDOWN runs. Main steps and TEARDOWN still execute in full for cleanup, but the test report indicates setup failure.
+
+---
+
+### TEARDOWN
+
+Declare a cleanup block that runs after main steps complete (success or failure). Useful for reverting test state or capturing final diagnostics.
+
+```
+TEARDOWN
+  LOG Test finished
+  ASSERT_CONSOLE_CLEAN
+TEARDOWN_END
+```
+
+**Syntax:** `TEARDOWN` → steps → `TEARDOWN_END`
+
+TEARDOWN steps always execute in full, even if earlier steps failed. Their results are included in the report. If TEARDOWN is explicitly reached (no SETUP failure), main steps ran to completion.
+
+---
+
 ## Step Types (Alphabetical)
 
 ### ALIAS (removed — use VAL)
@@ -397,6 +436,7 @@ Call public method on component via reflection.
 ```
 INVOKE Player Rigidbody AddForce 10,0,0
 INVOKE Enemy HealthComponent TakeDamage 25
+INVOKE /Player PlayerController Heal           # no arguments
 ```
 
 **Syntax:** `INVOKE path component method [args]`  
@@ -405,6 +445,26 @@ INVOKE Enemy HealthComponent TakeDamage 25
 **method:** method name (token 3)  
 **args:** single token of space-joined arguments (token 4, optional)  
 **Returns:** "PASS" if method executed, "ERR" if component/method not found
+
+**Overload matching (v1.15.0):** Arity-based resolution — if the method is overloaded, the system picks the overload whose parameter count matches the provided args. If multiple overloads match (e.g., two zero-arg variants), the first declaration wins. Optional C# parameters are supported; callers may omit trailing optional arguments.
+
+---
+
+### SET_ACTIVE
+
+Set a GameObject's active state in the hierarchy.
+
+```
+SET_ACTIVE /Player true
+SET_ACTIVE /Boss false
+```
+
+**Syntax:** `SET_ACTIVE path active_state`  
+**path:** GameObject path  
+**active_state:** `true` or `false`  
+**Returns:** "PASS" if state was set, "ERR" if path not found
+
+**Difference from MOVE/INVOKE:** SET_ACTIVE is a first-class DSL command optimized for readability in play-mode test scripts. Equivalent to reflection: `SetActive(bool)`.
 
 ---
 
@@ -897,6 +957,7 @@ On failure, the provenance is appended inline:
 - **PASS:** condition satisfied
 - **FAIL:** condition false or timeout expired
 - **ERR:** exception during evaluation (e.g., path not found, component missing)
+- **CONSOLE_ERR:** A console error/exception occurred during step execution. This increments the failed-step count even if other assertions passed.
 - **Result format:** `[step_number] COMMAND ... — PASS/FAIL/ERR`
 - **Failure provenance:** source file, line, macro chain, and section label appended on FAIL (see Provenance Tracking above)
 - **Failure snapshot** (`snapshot_on_failure=true`): on FAIL or ERR, appends current `$sigil` values and recent console errors inline — controlled by `run_playtest(snapshot_on_failure=True)` or `run_playtest(path="...", snapshot_on_failure=True)`

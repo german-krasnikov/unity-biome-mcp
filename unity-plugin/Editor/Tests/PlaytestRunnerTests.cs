@@ -222,6 +222,47 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(report.Contains('\n'), "CONSOLE_ERR should force expanded report");
         }
 
+        // ── CheckStepConsoleErrors return value ───────────────────────────────
+
+        [Test]
+        [UnityMCP.Editor.Testing.SkipOnWindows("DateTime.Now low resolution on Windows causes timestamp filter to exclude injected entries")]
+        public void CheckStepConsoleErrors_WithErrors_ReturnsTrue()
+        {
+            var before = DateTime.Now;
+            ConsoleCapture.InjectForTest("Error!", LogType.Error);
+            var step = new PlaytestStep { Type = StepType.Set };
+            var results = new List<string>();
+
+            bool hadErrors = PlaytestRunner.CheckStepConsoleErrors(step, 0, before, results);
+
+            Assert.IsTrue(hadErrors);
+        }
+
+        [Test]
+        public void CheckStepConsoleErrors_NoErrors_ReturnsFalse()
+        {
+            var before = DateTime.Now;
+            var step = new PlaytestStep { Type = StepType.Set };
+            var results = new List<string>();
+
+            bool hadErrors = PlaytestRunner.CheckStepConsoleErrors(step, 0, before, results);
+
+            Assert.IsFalse(hadErrors);
+        }
+
+        [Test]
+        public void CheckStepConsoleErrors_AssertConsoleClean_ReturnsFalse()
+        {
+            var before = DateTime.Now;
+            ConsoleCapture.InjectForTest("error", LogType.Error);
+            var step = new PlaytestStep { Type = StepType.AssertConsoleClean };
+            var results = new List<string>();
+
+            bool hadErrors = PlaytestRunner.CheckStepConsoleErrors(step, 0, before, results);
+
+            Assert.IsFalse(hadErrors, "AssertConsoleClean step should not count as console error");
+        }
+
         // ── EvalCompound short-circuit ────────────────────────────────────────
 
         [Test]
@@ -610,6 +651,90 @@ namespace UnityMCP.Editor.Tests
             bool done = PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
             Assert.IsFalse(done, "Polling ASSERT must not complete synchronously");
             Assert.AreEqual(0, results.Count, "No result before polling resolves");
+        }
+
+        // ── SET_ACTIVE DSL command ────────────────────────────────────────────────
+
+        [Test]
+        public void ParseSetActive_True_ProducesCorrectStep()
+        {
+            var result = PlaytestParser.Parse("SET_ACTIVE /Player true");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(StepType.SetActive, result[0].Type);
+            Assert.AreEqual("/Player", result[0].Path);
+            Assert.AreEqual("true", result[0].Value);
+        }
+
+        [Test]
+        public void ParseSetActive_False_ProducesCorrectStep()
+        {
+            var result = PlaytestParser.Parse("SET_ACTIVE /Enemy false");
+            Assert.AreEqual(StepType.SetActive, result[0].Type);
+            Assert.AreEqual("false", result[0].Value);
+        }
+
+        // ── SETUP/TEARDOWN DSL blocks ─────────────────────────────────────────────
+
+        [Test]
+        public void Parse_NoSetupTeardown_SetupAndTeardownListsAreNull()
+        {
+            var result = PlaytestParser.Parse("ASSERT /X|C|f == 1");
+            Assert.IsNull(result.SetupSteps, "SetupSteps should be null with no SETUP block");
+            Assert.IsNull(result.TeardownSteps, "TeardownSteps should be null with no TEARDOWN block");
+        }
+
+        [Test]
+        public void Parse_SetupBlock_StepsGoToSetupList()
+        {
+            var script = "SETUP\nSET_ACTIVE /TestEnv true\nLOG seeding";
+            var result = PlaytestParser.Parse(script);
+            Assert.IsNotNull(result.SetupSteps);
+            Assert.AreEqual(2, result.SetupSteps.Count);
+            Assert.AreEqual(StepType.SetActive, result.SetupSteps[0].Type);
+            Assert.AreEqual(StepType.Log, result.SetupSteps[1].Type);
+            Assert.AreEqual(0, result.Count, "Main Steps should be empty");
+        }
+
+        [Test]
+        public void Parse_TeardownBlock_StepsGoToTeardownList()
+        {
+            var script = "TEARDOWN\nSET_ACTIVE /TestEnv false";
+            var result = PlaytestParser.Parse(script);
+            Assert.IsNotNull(result.TeardownSteps);
+            Assert.AreEqual(1, result.TeardownSteps.Count);
+            Assert.AreEqual(StepType.SetActive, result.TeardownSteps[0].Type);
+            Assert.AreEqual(0, result.Count, "Main Steps should be empty");
+        }
+
+        [Test]
+        public void Parse_SetupThenTeardown_MainStepsBeforeSetupKeyword()
+        {
+            var script = "ASSERT /Main|C|f == 1\nSETUP\nSET_ACTIVE /Env true\nTEARDOWN\nSET_ACTIVE /Env false";
+            var result = PlaytestParser.Parse(script);
+            Assert.AreEqual(1, result.Count, "One main step before SETUP");
+            Assert.AreEqual(StepType.Assert, result[0].Type);
+            Assert.AreEqual(1, result.SetupSteps.Count);
+            Assert.AreEqual(1, result.TeardownSteps.Count);
+        }
+
+        [Test]
+        public void Parse_SetupAndTeardown_SectionsAreIndependent()
+        {
+            var script = "SETUP\nSET_ACTIVE /A true\nSET_ACTIVE /B true\nTEARDOWN\nSET_ACTIVE /A false";
+            var result = PlaytestParser.Parse(script);
+            Assert.AreEqual(2, result.SetupSteps.Count);
+            Assert.AreEqual(1, result.TeardownSteps.Count);
+            Assert.AreEqual(0, result.Count);
+        }
+
+        [Test]
+        public void Parse_SetupInDslKeywords_IsBlocked()
+        {
+            // SETUP and TEARDOWN must be in _DSL_KEYWORDS so they cannot be used as VAL values
+            Assert.IsTrue(PlaytestParser._DSL_KEYWORDS.Contains("SETUP"),
+                "SETUP must be in _DSL_KEYWORDS");
+            Assert.IsTrue(PlaytestParser._DSL_KEYWORDS.Contains("TEARDOWN"),
+                "TEARDOWN must be in _DSL_KEYWORDS");
         }
     }
 }

@@ -318,6 +318,56 @@ namespace UnityMCP.Editor.Tests
             finally { Object.DestroyImmediate(go); }
         }
 
+        // ── SetObjectReference null/empty clearing (P-12440-081, P-12440-129) ──
+
+        [Test]
+        public void SetObjectReference_NullString_ClearsReference()
+        {
+            var go = new GameObject("VP_ObjRefNullStr");
+            go.AddComponent<MeshFilter>();
+            try
+            {
+                var so = new SerializedObject(go.GetComponent<MeshFilter>());
+                var prop = so.FindProperty("m_Mesh");
+                Assert.IsNotNull(prop, "m_Mesh must exist on MeshFilter");
+                ValueParser.SetPropertyValue(prop, "null");
+                Assert.IsNull(prop.objectReferenceValue, "objectReferenceValue must be null");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void SetObjectReference_EmptyString_ClearsReference()
+        {
+            var go = new GameObject("VP_ObjRefEmptyStr");
+            go.AddComponent<MeshFilter>();
+            try
+            {
+                var so = new SerializedObject(go.GetComponent<MeshFilter>());
+                var prop = so.FindProperty("m_Mesh");
+                Assert.IsNotNull(prop, "m_Mesh must exist on MeshFilter");
+                ValueParser.SetPropertyValue(prop, "");
+                Assert.IsNull(prop.objectReferenceValue, "objectReferenceValue must be null");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void SetObjectReference_CSharpNull_ClearsReference()
+        {
+            var go = new GameObject("VP_ObjRefCSharpNull");
+            go.AddComponent<MeshFilter>();
+            try
+            {
+                var so = new SerializedObject(go.GetComponent<MeshFilter>());
+                var prop = so.FindProperty("m_Mesh");
+                Assert.IsNotNull(prop, "m_Mesh must exist on MeshFilter");
+                Assert.DoesNotThrow(() => ValueParser.SetPropertyValue(prop, null));
+                Assert.IsNull(prop.objectReferenceValue, "objectReferenceValue must be null");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
         // ── SetPropertyValue — Enum branch (Cycle 2: enumValueFlag fix) ──────
 
         private (GameObject go, SerializedObject so) MakeEnumGo(string name)

@@ -55,8 +55,9 @@ def _make_send(ack_response: str, status_seq, errors_response: str = "",
         if cmd == "get_compile_errors":
             return errors_response
         if cmd == "diagnose":
-            # run_ladder escalation probe: main_mvid=absent → REIMPORT-NEEDED short-circuit
             return "main_mvid=absent"
+        if cmd == "warm_type_cache":
+            return "ok:types=42"
         raise AssertionError(f"Unexpected cmd: {cmd}")
 
     return _send
@@ -325,8 +326,9 @@ def _make_send_with_stamp(pre_status: str, ack: str, status_seq, errors_response
         if cmd == "get_compile_errors":
             return errors_response
         if cmd == "diagnose":
-            # run_ladder escalation probe: main_mvid=absent → REIMPORT-NEEDED short-circuit
             return "main_mvid=absent"
+        if cmd == "warm_type_cache":
+            return "ok:types=42"
         raise AssertionError(f"Unexpected cmd: {cmd}")
 
     return _send
@@ -626,9 +628,9 @@ async def test_recovery_called_exactly_once(monkeypatch):
 
     real_attempt_recovery = _sync._attempt_recovery
 
-    async def _spy_recovery(send, mvid_pre, send_reload=None):
+    async def _spy_recovery(send, mvid_pre, send_reload=None, **kwargs):
         recovery_calls.append(mvid_pre)
-        return await real_attempt_recovery(send, mvid_pre, send_reload)
+        return await real_attempt_recovery(send, mvid_pre, send_reload, **kwargs)
 
     monkeypatch.setattr(_sync, "_attempt_recovery", _spy_recovery)
 
@@ -937,3 +939,87 @@ async def test_sync_unity_backgrounded_dispatches_force_refresh_not_recompile(mo
     assert "recompile" not in dispatched, (
         "must NOT dispatch recompile (it misses the .mvfrm nuke step)"
     )
+
+
+# ---------------------------------------------------------------------------
+# IF-1: timed_send deadline propagation
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_timed_send_raises_when_deadline_past():
+    """Expired deadline raises TimeoutError without calling send."""
+    import asyncio
+    import time
+    from unity_mcp.tools.sync import _timed_send as timed_send
+
+    send = AsyncMock()
+    with pytest.raises(asyncio.TimeoutError):
+        await timed_send(send, "sync_status", {}, time.monotonic() - 1.0)
+    send.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_timed_send_cancels_slow_send():
+    """Send that exceeds deadline is cancelled."""
+    import asyncio
+    import time
+    from unity_mcp.tools.sync import _timed_send as timed_send
+
+    async def slow_send(cmd, args):
+        fut = asyncio.get_event_loop().create_future()
+        await fut  # never resolves
+
+    t0 = time.monotonic()
+    with pytest.raises(asyncio.TimeoutError):
+        await timed_send(slow_send, "sync_status", {}, time.monotonic() + 0.05)
+    elapsed = time.monotonic() - t0
+    assert elapsed < 1.0
+
+
+# ---------------------------------------------------------------------------
+# IF-3: warm_type_cache after sync_unity
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_sync_warms_type_cache_after_ready():
+    """sync_unity calls warm_type_cache after reaching ready state."""
+    calls = []
+
+    async def _send(cmd, args=None, **kw):
+        calls.append(cmd)
+        if cmd == "sync_status":
+            return "epoch=1|state=ready|stamp=mvid1:tick1"
+        if cmd == "sync":
+            return "sync_ack|epoch=1|will_compile=true"
+        if cmd == "get_compile_errors":
+            return ""
+        if cmd == "warm_type_cache":
+            return "ok:types=42"
+        return ""
+
+    _sync._send = _send
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "sync clean" in result
+    assert "warm_type_cache" in calls
+
+
+@pytest.mark.asyncio
+async def test_sync_survives_warm_cache_connection_error():
+    """sync_unity returns 'sync clean' even if warm_type_cache raises."""
+    calls = []
+
+    async def _send(cmd, args=None, **kw):
+        calls.append(cmd)
+        if cmd == "sync_status":
+            return "epoch=1|state=ready|stamp=mvid1:tick1"
+        if cmd == "sync":
+            return "sync_ack|epoch=1|will_compile=true"
+        if cmd == "get_compile_errors":
+            return ""
+        if cmd == "warm_type_cache":
+            raise ConnectionError("TCP gone")
+        return ""
+
+    _sync._send = _send
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "sync clean" in result

@@ -153,6 +153,31 @@ errors = await get_console_since(mark_id=mark, level="error")
 
 ---
 
+## console_clear_buffer
+
+Reset the console dropped-message counter. Use when prior tests left a stale count that should not affect the current session.
+
+**Parameters:** None
+
+**Returns:** Status string confirming the buffer was cleared.
+
+**Behavior:**
+- Resets the internal "problems dropped" counter (reported by `ASSERT_CONSOLE_CLEAN`)
+- Does NOT remove existing log entries from the console ring buffer
+- Does NOT clear the in-Editor console UI
+
+**Example:**
+
+```python
+# After a prior failed test left dropped messages
+await console_clear_buffer()
+
+# Now ASSERT_CONSOLE_CLEAN will not report stale drops
+await run_playtest(script="ASSERT_CONSOLE_CLEAN")
+```
+
+---
+
 ## recompile
 
 Trigger Unity to reimport C# scripts. Returns immediately.
@@ -388,10 +413,13 @@ Scene hierarchy and health audit with focus options. Returns severity-tagged fin
 - `focus` (string, default="all") — Audit focus: "all" | "hierarchy" | "naming" | "duplicates" | "origins" | "missing" | "empty" | "disabled"
 
 **Severity Tags:**
-- `CRITICAL` — Blocking issues (e.g., missing root, circular refs)
+- `CRITICAL` — Blocking issues (e.g., missing root, circular refs, MeshFilter with null sharedMesh)
 - `WARNING` — Likely problems (e.g., orphaned objects, duplicate names)
 - `INFO` — Informational findings
 - `OK` — All checks passed
+
+**Checks (v1.15.0):**
+- MeshFilter components with null `sharedMesh` property are now flagged as CRITICAL, preventing runtime rendering errors.
 
 **Example:**
 

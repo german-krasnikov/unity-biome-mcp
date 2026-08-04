@@ -50,7 +50,7 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 
 **Fix**: Replaced with `_batchDepth` int counter. `InBatch` property now returns `_batchDepth > 0`. `Physics.Sync` fires only at the outermost exit (`--_batchDepth == 0`). `finally` block still decrements on mid-batch exceptions, preventing leaks.
 
-### Python Batch Guard (DSL-Tool + direct_only Enforcement)
+### Python Batch Guard (DSL-Tool + direct_only Enforcement + Parameter Stripping)
 
 Plugins can register DSL-expansion tools via `register_dsl_tools()` from `plugin_api.py`. These tools are rejected by Python `batch()` with ToolError — they require Python-side processing before reaching C#. Always call them as typed MCP tools.
 
@@ -58,6 +58,10 @@ When a registered DSL tool is called via batch, Python raises ToolError immediat
 ```
 ToolError: <tool_name> requires typed MCP tool (Python DSL expansion), not batch
 ```
+
+**Python-only parameter stripping (v1.15.0):** Before forwarding batch commands to C#, Python strips any parameters that are Python-only (not defined in the C# CommandRegistry). This allows the batch caller to use shorthand or middleware-expanded params without triggering validation errors on the C# side. The stripped params are consumed by Python middleware and not sent to Unity.
+
+Example: A hypothetical `Python-only_flag=true` parameter would be stripped from the text before TCP dispatch, allowing downstream C# validators to succeed.
 
 **direct_only tools (v0.87.0):** Tools with `direct_only=True` in ToolSpec are also rejected by `batch()`. These tools have complex return values or side-effects incompatible with batch's line-indexed output format. 31 tools are direct_only: `animator_intent`, `ask`, `await_compile`, `budget_status`, `configure_objects`, `console_mark`, `debug`, `discover_tools`, `do`, `doctor`, `get_console_since`, `get_metrics`, `lint_playtest_suite`, `list_connections`, `list_skills`, `list_templates`, `mcp_status`, `navmesh_query`, `release_smoke`, `resolve_tool_schema`, `run_playtest_suite`, `run_tests_wait`, `screenshot_baseline`, `screenshot_compare`, `set_properties`, `setup_objects`, `snapshot`, `ui_intent`, `validate_playtest_aliases`, `vfx_intent`, `watch`.
 

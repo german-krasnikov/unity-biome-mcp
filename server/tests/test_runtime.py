@@ -248,6 +248,23 @@ async def test_run_playtest_suite_restart_between_false_no_editor_cmds(monkeypat
     assert not editor_cmds
 
 
+@pytest.mark.asyncio
+async def test_run_playtest_suite_console_err_counts_as_failure(monkeypatch):
+    """CONSOLE_ERR in raw report (no FAIL token) must mark suite entry as failed."""
+    from unity_mcp.tools import runtime
+
+    async def fake_send(cmd, args, **kw):
+        if cmd == "list_playtest_files":
+            return "a.playtest"
+        return "PLAYTEST: 2/2 (1.0s)\n[1] CONSOLE_ERR during Set: NullRef"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    result = await runtime.run_playtest_suite("Playtests/*.playtest", stop_after=False, auto_play=False)
+    assert "0/1" in result, f"Expected 0/1 passed, got:\n{result}"
+    assert "FAIL" in result, f"Expected FAIL in report, got:\n{result}"
+
+
 # ── #17: runtime_snapshot ──────────────────────────────────────────────────────
 
 async def test_runtime_snapshot_passes_type(monkeypatch):

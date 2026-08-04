@@ -154,6 +154,11 @@ to bypass middleware path resolution.
 
 **fresh:** If True, reload the active scene before the first playtest step.
 
+**Setup/Teardown Blocks (v1.15.0):**
+- `SETUP` → steps → `SETUP_END`: Runs before main steps. If any SETUP step fails, the runner skips remaining SETUP steps and jumps to TEARDOWN (if present), then finishes. Main steps do NOT execute in this case.
+- `TEARDOWN` → steps → `TEARDOWN_END`: Runs after main steps (success or failure). TEARDOWN always executes in full for cleanup. Results are included in the report.
+- Use SETUP for one-time initialization (spawn objects, set state). Use TEARDOWN for cleanup (verify final state, collect logs).
+
 ```python
 defs = "VAL $hp /Player|Health|hp\nVAL $pos /Player|Transform|position"
 await run_playtest(script, defs=defs)
@@ -402,6 +407,25 @@ not change the Unity run lifecycle.
 
 **RW_IDEM Annotation:** Idempotent mutating.
 
+## console_clear_buffer()
+
+**Purpose:** Reset the dropped-message counter and shrink the console ring buffer without clearing existing log entries. Use when `ASSERT_CONSOLE_CLEAN` reports a stale dropped-message count that should not affect the current session.
+
+**Behavior:**
+- Clears the internal "problems dropped" counter (used by ASSERT_CONSOLE_CLEAN summary)
+- Does NOT remove already-logged messages from the ring buffer
+- Does NOT affect the console in the Editor UI
+
+**Example:**
+```python
+# Console had 3 dropped messages from prior test
+await console_clear_buffer()
+# Now ASSERT_CONSOLE_CLEAN will not report those pre-session drops
+await run_playtest(script="ASSERT_CONSOLE_CLEAN")
+```
+
+**RW Annotation:** Mutating (modifies console state).
+
 ## console_mark(label="")
 
 **Purpose:** Create a timestamp watermark. Pure Python — no TCP call. Returns `mark_id` string encoding `time.time()`.
@@ -435,9 +459,11 @@ Pass the returned `mark_id` to `get_console_since()` to retrieve only logs produ
 2. `get_compile_errors` — confirm zero errors
 
 **Gates (optional):**
-3. `get_console_since mark_id` — if `mark_id` provided
+3. `get_console_since mark_id` — if `mark_id` provided (filters out synthetic dropped-count console lines)
 4. `run_tests_wait mode filter` — if `run_tests_mode` provided
 5. `run_playtest_suite playtests` — if `playtests` provided
+
+**Console filtering (v1.15.0):** The gate automatically filters synthetic console lines that report dropped-message counts, preventing stale counts from the prior session from failing the gate. Real error/warning/log entries are not filtered.
 
 **Returns:** `"PASS: gate1 + gate2 + ..."` or `"FAIL: <gate> gate failed\n  <detail>\nnext gates skipped: ..."`.
 

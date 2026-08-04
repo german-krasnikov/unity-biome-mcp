@@ -158,6 +158,11 @@ namespace UnityMCP.Editor
             }
         }
 
+        public static void ClearDroppedCount()
+        {
+            lock (_lock) { _droppedProblemCount = 0; }
+        }
+
         // --- helpers ---
 
         // Issue 27 (Step 4): explicit marker instead of silently dropping evicted problem entries.

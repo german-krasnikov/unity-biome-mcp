@@ -188,7 +188,7 @@ namespace UnityMCP.Editor
 
         private static void SetObjectReference(SerializedProperty property, string value)
         {
-            if (value == "null") { property.objectReferenceValue = null; return; }
+            if (string.IsNullOrEmpty(value) || value == "null") { property.objectReferenceValue = null; return; }
             // Defensive: strip one surrounding quote pair if present
             if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"')
                 value = value.Substring(1, value.Length - 2);

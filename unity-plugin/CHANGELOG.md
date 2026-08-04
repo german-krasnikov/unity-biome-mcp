@@ -10,6 +10,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.15.0] — 2026-08-05
+
+### Added
+- **SETUP/TEARDOWN DSL blocks** — playtest scripts support setup/teardown sections; setup failure skips main steps and jumps to teardown
+- **SET_ACTIVE** — first-class playtest DSL command for toggling GameObject active state
+- **console_clear_buffer** — MCP command resets dropped-problem count without clearing the ring buffer
+- **warm_type_cache** — automatic TypeCache refresh after `sync_unity` prevents stale `manage_component`
+- **STALE_CACHE error code** — `get_component` returns structured error for stale ref/entity lookups
+- **prefab instantiate** — new `prefab` action with optional `parent` parameter for instantiation under a target object
+- **discover_tools cross-check** — startup validation ensures CATEGORIES tools have matching ToolSpec entries
+
+### Fixed
+- **INVOKE** — supports optional C# parameters and arity-based overload matching
+- **batch conflict analyzer** — uses `id` as key for ID-only deletes (no false warnings)
+- **batch Python-only params** — strips `full` parameter before forwarding to C# TCP
+- **CONSOLE_ERR** — during playtest step now correctly increments failed count
+- **verify_after_change** — ignores synthetic dropped-count console lines
+- **sync_unity** — inner sends respect outer deadline (no double-timeout)
+- **editor(play)** — polls until Play Mode is stable instead of returning immediately
+- **set_property** — accepts null/empty to clear ObjectReference fields
+- **scene_health** — reports MeshFilter with null sharedMesh
+- **render_analyze** — guards MeshFilter lookup by renderer subtype (no crash on non-MeshRenderer)
+- **validate_references** — root-level paths with leading slash resolve correctly
+- **discover_tools** — static categories cross-check (not plugin-injected)
+- **CommandRegistry snapshot** — updated for `console_clear_buffer` and `warm_type_cache`
+
+### Changed
+- Bump `actions/upload-pages-artifact` 3 → 5, `softprops/action-gh-release` 2 → 3
+
 ## [v1.14.0] — 2026-08-04
 
 ### Added

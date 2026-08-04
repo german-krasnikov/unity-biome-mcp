@@ -243,3 +243,29 @@ async def test_batch_remaps_line_numbers_after_direct_only_filter(mock_bridge, b
     assert "[1] ok: /A" in result        # C# [1] → original line 1 (unchanged)
     assert "[3] ok: root" in result      # C# [2] → original line 3 (remapped)
     assert "[2] ok:" not in result       # C# [2] was remapped away
+
+
+async def test_batch_strips_python_only_full_param(mock_bridge, bridge_response):
+    """full=true on get_component is stripped before forwarding to C# (Python-only param)."""
+    bridge_response(data="[0] ok: Transform")
+    await batch(commands="get_component path=/A type=Transform full=true")
+    sent = mock_bridge.send.call_args[0][1]["commands"]
+    assert "full=" not in sent
+    assert "path=/A" in sent
+    assert "type=Transform" in sent
+
+
+async def test_batch_strips_python_only_full_on_error_stop(mock_bridge, bridge_response):
+    """full=true stripped in on_error=stop path too."""
+    bridge_response(data="[0] ok: Transform")
+    await batch(commands="get_component path=/A type=Transform full=true", on_error="stop")
+    sent = mock_bridge.send.call_args[0][1]["commands"]
+    assert "full=" not in sent
+
+
+async def test_batch_preserves_non_python_params(mock_bridge, bridge_response):
+    """compress=true is NOT stripped (it's a valid C# param)."""
+    bridge_response(data="[0] ok: Transform")
+    await batch(commands="get_component path=/A type=Transform compress=true")
+    sent = mock_bridge.send.call_args[0][1]["commands"]
+    assert "compress=true" in sent

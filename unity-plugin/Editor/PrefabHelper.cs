@@ -13,13 +13,14 @@ namespace UnityMCP.Editor
             {
                 "save"           => Save(argsJson),
                 "create_variant" => CreateVariant(argsJson),
+                "instantiate"    => Instantiate(argsJson),
                 "apply"          => Apply(argsJson),
                 "revert"         => Revert(argsJson),
                 "get_overrides"  => GetOverrides(argsJson),
                 "unpack"         => Unpack(argsJson),
                 "edit"           => Edit(argsJson),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "save", "create_variant", "apply", "revert", "get_overrides", "unpack", "edit" }))
+                    new[] { "save", "create_variant", "instantiate", "apply", "revert", "get_overrides", "unpack", "edit" }))
             };
         }
 
@@ -66,6 +67,29 @@ namespace UnityMCP.Editor
             {
                 UnityEngine.Object.DestroyImmediate(instance);
             }
+        }
+
+        private static string Instantiate(string args)
+        {
+            var assetPath = JsonHelper.ExtractString(args, "asset_path")
+                ?? throw new ArgumentException("asset_path is required");
+            var parentPath = JsonHelper.ExtractString(args, "parent");
+
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath)
+                ?? throw new InvalidOperationException($"Prefab not found: {assetPath}");
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            Undo.RegisterCreatedObjectUndo(instance, "Instantiate Prefab");
+
+            if (!string.IsNullOrEmpty(parentPath))
+            {
+                var parent = ComponentSerializer.FindObject(parentPath)
+                    ?? throw new ArgumentException(ErrorHelper.ObjectNotFound(parentPath));
+                Undo.SetTransformParent(instance.transform, parent.transform, "Reparent Prefab Instance");
+            }
+
+            var path = ComponentSerializer.GetPath(instance);
+            return $"ok: {path}\nasset: {assetPath}";
         }
 
         private static string Apply(string args)

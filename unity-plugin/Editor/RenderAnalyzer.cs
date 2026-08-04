@@ -64,7 +64,7 @@ namespace UnityMCP.Editor
                 {
                     Mesh m = null;
                     if (r is SkinnedMeshRenderer smr) { m = smr.sharedMesh; skinned++; }
-                    else m = r.GetComponent<MeshFilter>()?.sharedMesh;
+                    else if (r is MeshRenderer) m = r.GetComponent<MeshFilter>()?.sharedMesh;
                     if (m == null) continue;
                     for (int s = 0; s < m.subMeshCount; s++)
                         totalTris += (long)m.GetIndexCount(s) / 3;
@@ -190,9 +190,9 @@ namespace UnityMCP.Editor
 
         private static long GetRendererTris(Renderer r)
         {
-            Mesh m = r is SkinnedMeshRenderer smr
-                ? smr.sharedMesh
-                : r.GetComponent<MeshFilter>()?.sharedMesh;
+            Mesh m = r is SkinnedMeshRenderer smr ? smr.sharedMesh
+                : r is MeshRenderer ? r.GetComponent<MeshFilter>()?.sharedMesh
+                : null;
             if (m == null) return 0;
             long t = 0;
             try

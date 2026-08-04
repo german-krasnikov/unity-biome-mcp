@@ -161,11 +161,13 @@ Read editor state, control Play Mode, select a GameObject, or return the project
 | Action | Purpose | Example |
 |--------|---------|---------|
 | state | Return current Play Mode and editor state | `editor()` |
-| play | Enter Play Mode | `editor("play")` |
+| play | Enter Play Mode and wait until stable | `editor("play")` |
 | pause | Pause Play Mode | `editor("pause")` |
 | stop | Exit Play Mode | `editor("stop")` |
 | select | Highlight object in Hierarchy | `editor("select", path="Player")` |
 | project_path | Return the current Unity project path | `editor("project_path")` |
+
+**Play Mode Stability (v1.15.0):** The `play` action now polls until Play Mode is ready for commands, preventing race conditions where steps start before physics, animations, or initialization finish. Returns after the first stable state poll.
 
 **Example:**
 

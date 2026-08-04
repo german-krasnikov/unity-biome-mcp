@@ -131,6 +131,24 @@ namespace UnityMCP.Editor
                     phase = Phase.Done;
                     break;
 
+                case StepType.SetActive:
+                    try
+                    {
+                        var go = ComponentSerializer.FindObject(step.Path);
+                        if (go == null) throw new ArgumentException($"Object not found: {step.Path}");
+                        bool active = ValueParser.ParseBool(step.Value);
+                        go.SetActive(active);
+                        results.Add($"{label} SET_ACTIVE {step.Path} → {(active ? "active" : "inactive")}");
+                        passed++;
+                    }
+                    catch (Exception e)
+                    {
+                        results.Add($"{label} SET_ACTIVE — ERR: {e.Message}");
+                        failed++;
+                    }
+                    phase = Phase.Done;
+                    break;
+
                 case StepType.Log:
                     results.Add($"{label} LOG {step.Message}");
                     passed++;

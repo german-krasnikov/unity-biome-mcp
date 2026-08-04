@@ -13,7 +13,7 @@ namespace UnityMCP.Editor
         const int ItemCap = 20;
 
         static readonly HashSet<string> _allChecks = new HashSet<string>
-            { "hierarchy", "naming", "duplicates", "origins", "missing", "empty", "disabled" };
+            { "hierarchy", "naming", "duplicates", "origins", "missing", "missing_mesh", "empty", "disabled" };
 
         static readonly Dictionary<string, HashSet<string>> _focusMap =
             new Dictionary<string, HashSet<string>>
@@ -22,7 +22,7 @@ namespace UnityMCP.Editor
                 { "naming",     new HashSet<string> { "naming", "duplicates" } },
                 { "duplicates", new HashSet<string> { "duplicates" } },
                 { "origins",    new HashSet<string> { "origins" } },
-                { "missing",    new HashSet<string> { "missing" } },
+                { "missing",    new HashSet<string> { "missing", "missing_mesh" } },
                 { "empty",      new HashSet<string> { "empty" } },
                 { "disabled",   new HashSet<string> { "disabled" } },
             };
@@ -36,8 +36,9 @@ namespace UnityMCP.Editor
             sb.AppendLine($"SCENE HEALTH (focus={focus ?? "all"})");
 
             var findings = new List<string>();
-            if (checks.Contains("missing"))    AddFinding(findings, CheckMissingScripts(all));
-            if (checks.Contains("hierarchy"))  AddFinding(findings, CheckDeepHierarchy(all));
+            if (checks.Contains("missing"))       AddFinding(findings, CheckMissingScripts(all));
+            if (checks.Contains("missing_mesh"))  AddFinding(findings, CheckMissingMeshes(all));
+            if (checks.Contains("hierarchy"))     AddFinding(findings, CheckDeepHierarchy(all));
             if (checks.Contains("naming"))     AddFinding(findings, CheckBadNaming(all));
             if (checks.Contains("duplicates")) AddFinding(findings, CheckDuplicateSiblings(all));
             if (checks.Contains("empty"))      AddFinding(findings, CheckEmptyObjects(all));
@@ -197,6 +198,22 @@ namespace UnityMCP.Editor
             }
             if (missing.Count == 0) return null;
             var sb = new StringBuilder("CRITICAL: MissingScript\n");
+            for (int i = 0; i < missing.Count && i < ItemCap; i++) sb.AppendLine(missing[i]);
+            if (missing.Count > ItemCap) sb.AppendLine($"  ... and {missing.Count - ItemCap} more");
+            return sb.ToString().TrimEnd();
+        }
+
+        internal static string CheckMissingMeshes(GameObject[] all)
+        {
+            var missing = new List<string>();
+            foreach (var go in all)
+            {
+                var mf = go.GetComponent<MeshFilter>();
+                if (mf != null && mf.sharedMesh == null)
+                    missing.Add($"  {ComponentSerializer.GetPath(go)}");
+            }
+            if (missing.Count == 0) return null;
+            var sb = new StringBuilder($"MISSING_MESH: MeshFilter.sharedMesh==null — {missing.Count} objects\n");
             for (int i = 0; i < missing.Count && i < ItemCap; i++) sb.AppendLine(missing[i]);
             if (missing.Count > ItemCap) sb.AppendLine($"  ... and {missing.Count - ItemCap} more");
             return sb.ToString().TrimEnd();

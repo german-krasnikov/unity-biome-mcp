@@ -17,6 +17,7 @@ namespace UnityMCP.Editor
                 e = tie.InnerException;
             return e switch
             {
+                StaleCacheException       => "STALE_CACHE",  // must precede InvalidOperationException
                 ArgumentNullException     => "VALIDATION",
                 ArgumentException         => "VALIDATION",
                 KeyNotFoundException      => "NOT_FOUND",
@@ -36,5 +37,14 @@ namespace UnityMCP.Editor
                 e = tie.InnerException;
             return $"{Classify(e)}: {e.Message}";
         }
+    }
+
+    /// <summary>
+    /// Thrown when a path or ref resolved successfully before but is no longer valid —
+    /// caller should call get_hierarchy to refresh and retry.
+    /// </summary>
+    internal class StaleCacheException : InvalidOperationException
+    {
+        public StaleCacheException(string message) : base(message) { }
     }
 }

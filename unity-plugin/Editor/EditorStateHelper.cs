@@ -53,8 +53,19 @@ namespace UnityMCP.Editor
             switch (action)
             {
                 case "play":
+                    if (EditorApplication.isPlaying)
+                        return "already_playing";
                     EditorApplication.isPlaying = true;
-                    return "ok";
+                    var playDeadline = EditorApplication.timeSinceStartup + 5.0;
+                    while (EditorApplication.timeSinceStartup < playDeadline)
+                    {
+                        if (EditorApplication.isPlaying && !EditorApplication.isCompiling)
+                            return "entered";
+                        System.Threading.Thread.Sleep(100);
+                    }
+                    if (EditorApplication.isCompiling)
+                        return "compile_pending";
+                    return EditorApplication.isPlaying ? "entered" : "timeout";
                 case "pause":
                     EditorApplication.isPaused = !EditorApplication.isPaused;
                     return "ok";

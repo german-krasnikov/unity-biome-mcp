@@ -199,12 +199,15 @@ class MiddlewareGuardsMixin:
 
             elif cmd == "delete_object":
                 path = kv.get("path", "")
+                obj_id = kv.get("id", "")
+                conflict_key = obj_id or path
                 name = path.split("/")[-1] if path else ""
-                if name in created_names:
+                if name and name in created_names:
                     warnings.append(f"⚠ BATCH: create+delete '{name}' is a no-op")
-                if path in deleted_paths:
-                    warnings.append(f"⚠ BATCH: double-delete on '{path}'")
-                deleted_paths.add(path)
+                if conflict_key and conflict_key in deleted_paths:
+                    warnings.append(f"⚠ BATCH: double-delete on '{conflict_key}'")
+                if conflict_key:
+                    deleted_paths.add(conflict_key)
 
             elif cmd == "manage_component":
                 path = kv.get("path", "")
