@@ -8,19 +8,21 @@ Sequence (ref §13):
   5. Reconnect transparently on DomainReloadError
   6. Return errors or "sync clean"
 """
-from ._common import bind
 import asyncio
 import time
 from pathlib import Path
 
 from mcp.server.fastmcp.exceptions import ToolError
 
-from unity_mcp.bridge import DomainReloadError
 from unity_mcp import editor_log
+from unity_mcp.bridge import DomainReloadError
 from unity_mcp.constants import SESSION_TIMEOUT as _DEFAULT_TIMEOUT
 from unity_mcp.lockfile import read_reload_port
-from unity_mcp.tools.reload_ladder import make_reload_send, _send_with_fallback, run_ladder as _run_ladder
+from unity_mcp.tools.reload_ladder import _send_with_fallback, make_reload_send
+from unity_mcp.tools.reload_ladder import run_ladder as _run_ladder
 from unity_mcp.utils import parse_pipe_fields
+
+from ._common import bind
 
 _send = None
 
@@ -133,7 +135,7 @@ async def sync_unity(
         if pkg is None:
             raise ToolError("bump=True requires unity-plugin/package.json (not found — standalone install?)")
         from unity_mcp.scripts.bump_version import bump_patch
-        new_ver = bump_patch(pkg)
+        bump_patch(pkg)
         resolve = True  # bump implies resolve
         _bump_used = True
 

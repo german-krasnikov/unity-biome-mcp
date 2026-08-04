@@ -12,16 +12,30 @@ import tempfile
 
 from .backend_def import (
     BACKENDS,
-    OUTPUT_FORMAT_STREAM_JSON, OUTPUT_FORMAT_PLAIN_TEXT,
-    OUTPUT_FORMAT_CODEX_JSON, OUTPUT_FORMAT_OPENCODE_JSON, OUTPUT_FORMAT_KIMI_JSON,
+    OUTPUT_FORMAT_CODEX_JSON,
+    OUTPUT_FORMAT_KIMI_JSON,
+    OUTPUT_FORMAT_OPENCODE_JSON,
+    OUTPUT_FORMAT_PLAIN_TEXT,
+    OUTPUT_FORMAT_STREAM_JSON,
 )
 from .bridge_socket import frame_write
-from .cli_session import CliSession, SessionMeta, BufLine, KILL_WAIT, PPID_POLL, MAX_FRAME, _find_free_port
-from .relay_buffer import RelayBuffer, MAX_BUF
+from .cli_session import (  # noqa: F401
+    KILL_WAIT,
+    MAX_FRAME,
+    PPID_POLL,
+    BufLine,
+    CliSession,
+    SessionMeta,
+    _find_free_port,
+)
+from .relay_buffer import MAX_BUF, RelayBuffer  # noqa: F401
 from .stream_transform import (
-    _ToolCallAcc, _transform_line,
-    _transform_plain_text_line, _transform_codex_line, _transform_opencode_line,
+    _ToolCallAcc,
+    _transform_codex_line,
     _transform_kimi_line,
+    _transform_line,
+    _transform_opencode_line,
+    _transform_plain_text_line,
 )
 
 _TRANSFORM_FNS = {

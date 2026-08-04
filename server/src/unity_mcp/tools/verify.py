@@ -10,13 +10,15 @@ Additive gates — only enabled ones run:
 Returns PASS when all enabled gates pass, FAIL at the first gate that fails.
 """
 from __future__ import annotations
+
 import json
 import re
-from ._common import bind
+
 from . import code_intel as _ci
 from . import console as _con
-from . import testing as _test
 from . import runtime as _rt
+from . import testing as _test
+from ._common import bind
 
 _send = None
 _args = None

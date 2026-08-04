@@ -18,10 +18,11 @@ Sends the diagnose TCP command, parses the text wire-format, applies the
 Priority order: first match wins (see _verdict).
 """
 from __future__ import annotations
-from ._common import bind
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from ._common import bind
 
 if TYPE_CHECKING:
     from unity_mcp.editor_log import WedgeReport
@@ -181,7 +182,7 @@ def _parse_dlls(dlls_str: str) -> list[tuple[str, str]]:
 def _verdict(
     fields: _DiagnoseFields,
     prev_mvid: str = "",
-    wedge: "WedgeReport | None" = None,
+    wedge: WedgeReport | None = None,
     expected_compile: bool = True,
 ) -> str:
     """Apply §3 protocol priority order. Returns ONE verdict string.

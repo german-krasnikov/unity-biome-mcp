@@ -1,5 +1,6 @@
 """get_metrics MCP tool — read-only telemetry snapshot."""
 import json as _json
+
 from ..metrics import METRICS
 from ._annotations import RO as _RO
 from ._common import bind

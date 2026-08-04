@@ -5,7 +5,6 @@ PathResolverMixin is mixed into Middleware; methods bind to the same `self`
 """
 import re
 import time
-from typing import Optional
 
 from .utils import _levenshtein
 
@@ -88,7 +87,7 @@ class PathResolverMixin:
                 self.known_paths.add(f"{current_scene}:{full_path}")
                 self.path_to_scene[full_path] = current_scene
 
-    def validate_path(self, path: str) -> Optional[str]:
+    def validate_path(self, path: str) -> str | None:
         if not self.known_paths:
             return None
         if path.startswith("$") or path.startswith("#"):
@@ -131,8 +130,9 @@ class PathResolverMixin:
             mutations_paths = [k[0] for k in self._last_writes.keys() if k and k[0]]
 
         if self._disambig is None:
-            from .clarifier import Disambiguator
             from collections import deque
+
+            from .clarifier import Disambiguator
             self._disambig = Disambiguator(
                 recent_paths=recent,
                 clean_paths=clean,
@@ -197,7 +197,7 @@ class PathResolverMixin:
                 self._negative_path_cache = {k: v for k, v in self._negative_path_cache.items() if v > cutoff}
         return path, ""
 
-    def find_from_cache(self, name: Optional[str]) -> Optional[str]:
+    def find_from_cache(self, name: str | None) -> str | None:
         """Return paths from cache matching name as last segment. None if no hit."""
         if not name or not self.known_paths:
             return None

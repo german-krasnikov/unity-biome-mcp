@@ -1,7 +1,8 @@
 """AskExecutor — runs a ToolPlan's steps via _send."""
-from typing import Callable
-from .plans import ToolPlan
+from collections.abc import Callable
+
 from .. import editor_log
+from .plans import ToolPlan
 
 
 class AskExecutor:

@@ -1,4 +1,5 @@
 import pathlib
+
 import pytest
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.parent

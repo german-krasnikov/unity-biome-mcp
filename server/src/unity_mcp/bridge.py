@@ -8,29 +8,29 @@ import re
 import socket
 import struct
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+
 from .constants import DEFAULT_PORT, SESSION_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
+from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, HeartbeatMixin
+from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
+from unity_mcp.bridge_retry import RetryPolicy
 from unity_mcp.bridge_socket import (
-    DomainReloadError,
-    _apply_socket_options,
     _TCP_KEEPALIVE_DARWIN,
     _TCP_KEEPINTVL_DARWIN,
-    frame_read,
-    frame_write,
+    DomainReloadError,
+    _apply_socket_options,
     frame_read_with_timeout,
+    frame_write,
 )
-from unity_mcp.bridge_heartbeat import HeartbeatMixin, BACKOFF_MIN_S
-from unity_mcp.bridge_reload_state import DomainReloadTracker, DOMAIN_RELOAD_EXPIRY_S
-from unity_mcp.bridge_retry import RetryPolicy
 from unity_mcp.compile_state import CompileStateProbe
 from unity_mcp.crash_log import CrashLogger
-from unity_mcp.metrics import METRICS
 from unity_mcp.lockfile import is_pid_alive
+from unity_mcp.metrics import METRICS
 
 # Re-export so existing `from .bridge import DomainReloadError` keeps working
 __all__ = [
@@ -102,10 +102,10 @@ class _CandidateIdentityError(ConnectionError):
 class UnityBridge(HeartbeatMixin):
     """TCP client for Unity Editor communication."""
 
-    def __init__(self, host: str = "127.0.0.1", port: Optional[int] = None,
-                 probe: Optional[CompileStateProbe] = None,
-                 port_discoverer: Optional[Callable[[], int]] = None,
-                 is_retry_safe: Optional[Callable[[str], bool]] = None,
+    def __init__(self, host: str = "127.0.0.1", port: int | None = None,
+                 probe: CompileStateProbe | None = None,
+                 port_discoverer: Callable[[], int] | None = None,
+                 is_retry_safe: Callable[[str], bool] | None = None,
                  expected_project_path: str | os.PathLike[str] | None = None):
         self._host = host
         try:
@@ -123,29 +123,29 @@ class UnityBridge(HeartbeatMixin):
         else:
             self._probe = probe
         project_path = expected_project_path or detected_project
-        self._expected_project_path: Optional[str] = (
+        self._expected_project_path: str | None = (
             self._canonical_project_path(project_path) if project_path else None
         )
-        self._first_failure_ts: Optional[float] = None
-        self._reconnect_started_at: Optional[float] = None
-        self._hard_deadline_started_at: Optional[float] = None
+        self._first_failure_ts: float | None = None
+        self._reconnect_started_at: float | None = None
+        self._hard_deadline_started_at: float | None = None
         self._state: BridgeState = BridgeState.DISCONNECTED
         self._on_reconnect_callbacks: list = []
         self._crash_log = CrashLogger()
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._heartbeat_task: asyncio.Task | None = None
         self._heartbeat_interval: float = 15.0
         self._ping_failures: int = 0
         self._ping_stall_failures: int = 0
         self._last_reconnect_at: float = 0.0
         self._min_reconnect_interval: float = MIN_RECONNECT_INTERVAL  # kept for compat
         self._reconnect_backoff: float = BACKOFF_MIN_S
-        self._port_discoverer: Optional[Callable[[], int]] = port_discoverer
+        self._port_discoverer: Callable[[], int] | None = port_discoverer
         self._reload: DomainReloadTracker = DomainReloadTracker()
         self._reload_gate: asyncio.Event = asyncio.Event()
         self._reload_gate.set()  # open by default; wait() returns immediately
         self._ppid_mismatch_count: int = 0
-        self._pinned_port: Optional[int] = None
-        self._pinned_pid: Optional[int] = None
+        self._pinned_port: int | None = None
+        self._pinned_pid: int | None = None
         self._bridge_id: str = f"br-{os.getpid():x}-{id(self) & 0xFFFF:04x}"
         self._is_retry_safe: Callable[[str], bool] = is_retry_safe or (lambda cmd: False)
         self._retry_policy = RetryPolicy(
@@ -211,7 +211,7 @@ class UnityBridge(HeartbeatMixin):
                 async with self._lock:
                     await self._reconnect(fire_callbacks=False)
             except Exception:
-                raise ConnectionError(self._describe_failure(cmd, ConnectionRefusedError()))
+                raise ConnectionError(self._describe_failure(cmd, ConnectionRefusedError())) from None
         self._counter += 1
         msg_id = f"{self._counter:04x}"
         payload = json.dumps({"id": msg_id, "cmd": cmd, "args": args}, ensure_ascii=False).encode("utf-8")
@@ -417,7 +417,7 @@ class UnityBridge(HeartbeatMixin):
                 f"{self._expected_project_path!r}, received {actual!r}"
             )
 
-    def _discover_port(self) -> Optional[int]:
+    def _discover_port(self) -> int | None:
         if self._port_discoverer is None:
             return None
         try:
@@ -510,7 +510,7 @@ class UnityBridge(HeartbeatMixin):
         self._pinned_port = port
         self._pinned_pid = self._candidate_pid(port)
 
-    def _candidate_pid(self, port: int) -> Optional[int]:
+    def _candidate_pid(self, port: int) -> int | None:
         try:
             from unity_mcp.lockfile import read_pid_from_port_file
             return read_pid_from_port_file(

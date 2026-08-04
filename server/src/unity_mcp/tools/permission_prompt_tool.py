@@ -1,6 +1,7 @@
 """permission_prompt — --permission-prompt-tool MCP handler for Claude CLI."""
 import json
 import sys
+
 from ._annotations import RO as _RO
 from ._common import bind
 

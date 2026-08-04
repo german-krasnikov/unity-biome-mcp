@@ -1,0 +1,125 @@
+name: CI Python
+
+on:
+  push:
+    branches: [master, "feat/**", "feature/**", "fix/**"]
+    paths:
+      - "server/**"
+      - "install/**"
+      - "scripts/**"
+      - ".github/workflows/ci-python.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "server/**"
+      - "install/**"
+      - "scripts/**"
+      - ".github/workflows/ci-python.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-python-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install ruff
+      - run: ruff check --config server/pyproject.toml server/src/ install/ scripts/ --output-format=github
+
+  test:
+    name: Test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install server with dev deps
+        working-directory: server
+        run: pip install ".[dev]"
+
+      - name: Run server unit tests
+        working-directory: server
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+        run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short
+
+      - name: Run install tests
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+        run: python -m pytest install/tests/ -q --tb=short
+
+      - name: Run scripts tests
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+        run: python -m pytest scripts/tests/ -q --tb=short
+
+  readme-check:
+    name: README check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install server (needed for fact collection)
+        working-directory: server
+        run: pip install ".[dev]"
+
+      - name: Check facts
+        run: python scripts/update_readme.py --check-facts
+
+      - name: Check rendered outputs
+        run: python scripts/update_readme.py --check
+
+  badge:
+    name: Update badges
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install server (needed for fact collection)
+        working-directory: server
+        run: pip install ".[dev]"
+
+      - name: Regenerate badges
+        run: python scripts/update_readme.py --all
+
+      - name: Commit badge updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/badges/*.json
+          git diff --staged --quiet && echo "No badge changes" && exit 0
+          git commit -m "chore: update badges [skip ci]"
+          git push

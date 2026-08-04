@@ -46,7 +46,8 @@ def assign_indices(
                Use union(before_paths, after_paths) for paired diff calls.
                If None, falls back to paths from rects (single-frame mode).
     """
-    _key = lambda p: hashlib.sha256(p.encode()).hexdigest()
+    def _key(p: str) -> str:
+        return hashlib.sha256(p.encode()).hexdigest()
 
     if path_pool is None:
         # Solo mode — current behavior preserved

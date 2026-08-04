@@ -3,8 +3,8 @@
 Enable with UNITY_MCP_SPECULATION=1.
 """
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Optional, Callable, Awaitable
 
 from .console_levels import PROBLEM_LEVELS
 
@@ -22,9 +22,9 @@ class SpeculativeLayer:
         self.enabled = enabled
         self._hits: int = 0
         self._misses: int = 0
-        self._last_prediction: Optional[str] = None
+        self._last_prediction: str | None = None
 
-    def predict(self, cmd: str, args: dict, result: str) -> Optional[Prediction]:
+    def predict(self, cmd: str, args: dict, result: str) -> Prediction | None:
         if cmd == "set_property" and args.get("prop", "").endswith("Reference"):
             return Prediction(
                 "get_component",

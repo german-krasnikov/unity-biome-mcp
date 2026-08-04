@@ -1,5 +1,6 @@
 """UI authoring + visual asset tools: create_ui, set_rect, menu, shader."""
-from ._annotations import RW as _RW, RW_IDEM as _RW_IDEM
+from ._annotations import RW as _RW
+from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 
 _send = None

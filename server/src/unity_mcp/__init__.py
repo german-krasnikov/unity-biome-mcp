@@ -1,6 +1,7 @@
 """Unity Biome MCP Server - Control Unity Editor from Claude Code."""
 
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
+
 try:
     __version__ = version("unity-biome-mcp")
 except PackageNotFoundError:

@@ -7,9 +7,7 @@ Unity writes ~/.unity-biome-mcp/state/port-{port}.state with:
   line 3: epoch (NEW — sync_unity epoch; absent in pre-0.21 state files)
 """
 import time
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional
+from dataclasses import dataclass
 
 from .constants import SESSION_TIMEOUT as _STALE_SECONDS
 from .paths import unity_mcp_dir
@@ -30,7 +28,7 @@ class UnityState:
         return (time.time() - self.timestamp) > _STALE_SECONDS
 
 
-def read_state_for_port(port: int) -> Optional[UnityState]:
+def read_state_for_port(port: int) -> UnityState | None:
     """Read Unity state from ~/.unity-biome-mcp/state/port-{port}.state."""
     path = unity_mcp_dir() / "state" / f"port-{port}.state"
     try:

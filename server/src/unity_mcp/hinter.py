@@ -4,9 +4,8 @@ Appends a single [HINT: ... — saves ~Ntok] line when a known anti-pattern is d
 Self-suppressing after 2 consecutive ignores. Cooldown: 8 calls between emits per pattern.
 """
 from collections import deque
-from typing import Optional
 
-from .hinter_patterns import Call, Pattern, _key, _PATTERNS
+from .hinter_patterns import _PATTERNS, Call, Pattern, _key
 
 # Re-exports for backward compatibility
 __all__ = ["ToolHinter", "Call", "Pattern"]
@@ -22,7 +21,7 @@ class ToolHinter:
         self._ignored: dict[str, int] = {}
         self._suppressed: set[str] = set()
         self._call_idx: int = 0
-        self._last_hint_pattern: Optional[str] = None
+        self._last_hint_pattern: str | None = None
         self._patterns: list[Pattern] = list(_PATTERNS)
 
     def _check_adoption(self, cmd: str) -> None:
@@ -52,7 +51,7 @@ class ToolHinter:
                 M.inc(f"hint.suppressed.{pid}")
             self._last_hint_pattern = None
 
-    def observe(self, cmd: str, args: dict) -> Optional[str]:
+    def observe(self, cmd: str, args: dict) -> str | None:
         if not self.enabled:
             return None
 
@@ -61,7 +60,7 @@ class ToolHinter:
 
         call = Call(cmd=cmd, key=_key(cmd, args))
 
-        hint_result: Optional[str] = None
+        hint_result: str | None = None
         for pat in self._patterns:
             if pat.id in self._suppressed:
                 continue

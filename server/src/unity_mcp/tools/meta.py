@@ -5,13 +5,13 @@ register(mcp, send, args) pattern used by every other tools/*.py module.
 """
 from mcp.server.fastmcp import Context
 
+from ..doctor import format_report, run_doctor
+from ..llm_config import apply_config, parse_tcp_config
+from . import code_intel as _ci
 from ._annotations import RO as _RO
 from ._common import bind
 from .gating import discover_tools as _discover_tools_impl
 from .schema_registry import _registry as _schema_registry
-from ..doctor import run_doctor, format_report
-from ..llm_config import parse_tcp_config, apply_config
-from . import code_intel as _ci
 
 _send = None
 _args = None

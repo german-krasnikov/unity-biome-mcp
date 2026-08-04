@@ -12,23 +12,21 @@ import argparse
 import pathlib
 import sys
 
-
 SCRIPTS_DIR = pathlib.Path(__file__).parent
 REPO_ROOT = SCRIPTS_DIR.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from readme_render import (  # noqa: E402
-    generate_changelog_summary,
-    inject_changelog_into_readme,
-    make_badge_json,
-    parse_latest_changelog,
+    generate_changelog_summary,  # noqa: F401 — re-export
+    inject_changelog_into_readme,  # noqa: F401 — re-export
+    make_badge_json,  # noqa: F401 — re-export
+    parse_latest_changelog,  # noqa: F401 — re-export
     read_meta_json,
     render,
-    stats_summary,
-    substitute_svg_markers,
-    update_readme_stats,
+    stats_summary,  # noqa: F401 — re-export
+    substitute_svg_markers,  # noqa: F401 — re-export
+    update_readme_stats,  # noqa: F401 — re-export
 )
-
 
 _FACTS_ATTRS = {
     "count_mcp_tools",

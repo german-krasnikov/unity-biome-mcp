@@ -3,7 +3,6 @@ import socket
 import struct
 import sys
 
-
 _TCP_KEEPALIVE_DARWIN = 0x10
 _TCP_KEEPINTVL_DARWIN = 0x101
 _TCP_KEEPCNT_DARWIN   = 0x102

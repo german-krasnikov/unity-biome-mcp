@@ -1,11 +1,10 @@
 import asyncio
 import importlib.util
 import json
-from pathlib import Path
 import struct
+from pathlib import Path
 
 import pytest
-
 
 MODULE_PATH = Path(__file__).resolve().parents[2] / "run_unity_tests.py"
 SPEC = importlib.util.spec_from_file_location("standalone_unity_tests", MODULE_PATH)

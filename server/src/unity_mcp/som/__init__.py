@@ -1,5 +1,5 @@
 """Set-of-Mark (SoM) visual annotation package."""
-from .overlay import annotate
 from .extract import parse_rects
+from .overlay import annotate
 
 __all__ = ["annotate", "parse_rects"]

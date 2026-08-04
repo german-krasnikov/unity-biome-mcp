@@ -1,7 +1,10 @@
 """Bulk command execution + reference inspection/validation."""
 import re
+
 from mcp.server.fastmcp.exceptions import ToolError
-from ._annotations import RO as _RO, RW as _RW
+
+from ._annotations import RO as _RO
+from ._annotations import RW as _RW
 from ._common import bind
 from .tool_specs import _SPECS
 

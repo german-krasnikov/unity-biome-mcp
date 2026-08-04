@@ -4,13 +4,11 @@ Enable with UNITY_MCP_INFERENCE=1.
 """
 from collections import Counter, deque
 from dataclasses import dataclass, field
-from typing import Optional
-
 
 PRIMITIVES = ["Cube", "Sphere", "Cylinder", "Capsule", "Plane", "Quad"]
 
 
-def infer_primitive(name: str) -> Optional[str]:
+def infer_primitive(name: str) -> str | None:
     name_lower = name.lower()
     for p in PRIMITIVES:
         if name_lower.endswith(p.lower()):
@@ -18,7 +16,7 @@ def infer_primitive(name: str) -> Optional[str]:
     return None
 
 
-def infer_parent(ctx: "SessionContext") -> Optional[str]:
+def infer_parent(ctx: "SessionContext") -> str | None:
     if len(ctx.recent_creates) < 3:
         return None
     parents = [c[2] for c in ctx.recent_creates if c[2]]
@@ -30,8 +28,8 @@ def infer_parent(ctx: "SessionContext") -> Optional[str]:
 
 @dataclass
 class SessionContext:
-    last_path: Optional[str] = None
-    last_component: Optional[str] = None
+    last_path: str | None = None
+    last_component: str | None = None
     recent_creates: deque = field(default_factory=lambda: deque(maxlen=5))
 
     def record(self, cmd: str, args: dict, result: str) -> None:

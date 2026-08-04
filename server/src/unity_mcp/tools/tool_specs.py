@@ -6,8 +6,8 @@ timeout only) get exactly one ToolSpec entry here. gating.py derives its
 _CORE_TOOLS/_THEMED_CATEGORIES/TIER1/_ALL_KNOWN collections from this dict at
 import time instead of hand-typing 4 separately-drifting literals.
 """
-from typing import Literal
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,6 @@
 """Build pipeline MCP tool."""
-from ._common import bind
 from ._annotations import RW as _RW
+from ._common import bind
 
 _send = None
 _args = None

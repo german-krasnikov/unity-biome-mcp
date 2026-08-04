@@ -1,6 +1,10 @@
-from ._annotations import RO as _RO, RW as _RW, RW_IDEM as _RW_IDEM, DEL as _DEL
-from unity_mcp.input_normalizer import normalize_value as _normalize_value
 from unity_mcp.compressor import project_fields as _project_fields
+from unity_mcp.input_normalizer import normalize_value as _normalize_value
+
+from ._annotations import DEL as _DEL
+from ._annotations import RO as _RO
+from ._annotations import RW as _RW
+from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 
 _send = None

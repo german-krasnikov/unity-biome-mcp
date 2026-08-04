@@ -1,7 +1,7 @@
 """Canonical path helpers for ~/.unity-biome-mcp directory layout."""
 import sys
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 _NEW = ".unity-biome-mcp"
 _OLD = ".unity-mcp"

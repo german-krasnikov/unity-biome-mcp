@@ -9,7 +9,6 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 import gen_changelog_svg as gen
 
-
 # ---------------------------------------------------------------------------
 # Parser tests
 # ---------------------------------------------------------------------------
@@ -117,7 +116,7 @@ class TestLayout:
         n = min(len(versions), gen._MAX_NODES)
         displayed = versions[-n:] if len(versions) > n else versions
         lo = gen.layout(displayed)
-        for i, (op, rings) in enumerate(zip(lo.opacities[:len(displayed)], lo.ring_counts[:len(displayed)])):
+        for i, (op, rings) in enumerate(zip(lo.opacities[:len(displayed)], lo.ring_counts[:len(displayed)], strict=False)):
             expected = 3 if op >= 0.75 else 1
             assert rings == expected, f"node {i}: opacity={op}, expected rings={expected}, got {rings}"
 
@@ -259,7 +258,6 @@ class TestXmlEscape:
         # And the SVG must still parse as valid XML
         root = ET.fromstring(svg)
         # Find the text element containing our caption
-        ns = {"svg": "http://www.w3.org/2000/svg"}
         texts = root.findall(".//{http://www.w3.org/2000/svg}text")
         caption_texts = [t.text for t in texts if t.text and "a & b < c" in t.text]
         assert len(caption_texts) >= 1, "Escaped caption must appear as decoded text in XML tree"

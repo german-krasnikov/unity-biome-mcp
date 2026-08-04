@@ -4,8 +4,8 @@ On mismatch, returns Mismatch(msg). Silent on match or no rule.
 """
 import math
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Callable, Awaitable, Optional
 
 from unity_mcp.metrics import METRICS
 
@@ -16,7 +16,7 @@ class Mismatch:
     msg: str
 
 
-ReflectFn = Callable[[dict, str, Callable[..., Awaitable[str]]], Awaitable[Optional[Mismatch]]]
+ReflectFn = Callable[[dict, str, Callable[..., Awaitable[str]]], Awaitable[Mismatch | None]]
 _RULES: dict[str, ReflectFn] = {}
 
 
@@ -72,7 +72,7 @@ def _values_close(expected: str, actual: str) -> bool:
         try:
             prefix_match = all(
                 math.isclose(float(ep), float(ap), rel_tol=1e-4, abs_tol=1e-5)
-                for ep, ap in zip(e_parts, a_parts)
+                for ep, ap in zip(e_parts, a_parts, strict=False)
             )
             if prefix_match:
                 return True
@@ -93,7 +93,7 @@ async def reflect(
     args: dict,
     response: str,
     send_fn: Callable[..., Awaitable[str]],
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     METRICS.inc("reflect.checked")
     rule = _RULES.get(cmd)
     if rule is None:
@@ -110,4 +110,4 @@ async def reflect(
 
 
 # ── Auto-discovery: trigger rule registration ─────────────────────────────────
-from . import rules_objects, rules_runtime, rules_batch  # noqa: E402,F401
+from . import rules_batch, rules_objects, rules_runtime  # noqa: E402,F401

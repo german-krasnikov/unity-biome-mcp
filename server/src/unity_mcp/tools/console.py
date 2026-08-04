@@ -1,7 +1,8 @@
 """Console logs + compilation error reporting (B2: split from scene.py)."""
 import time as _time
 
-from ._annotations import RO as _RO, RW_IDEM as _RW_IDEM
+from ._annotations import RO as _RO
+from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 
 _send = None

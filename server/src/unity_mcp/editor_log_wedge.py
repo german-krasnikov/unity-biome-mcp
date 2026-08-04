@@ -7,10 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .editor_log_parser import (
+    classify_failure_currency,
     get_editor_log_path,
     get_editor_prev_log_path,
     parse_build_failure,
-    classify_failure_currency,
 )
 
 

@@ -1,12 +1,46 @@
-from . import scene, objects, asset, animation, connection, runtime, autobatch
-from . import batch, codegen, skills, spatial, ui
-from . import do_tool, ask_tool, ask_user_tool, permission_prompt_tool
-from . import animator_intent_tool, vfx_intent_tool, ui_intent_tool
-from . import budget_tool, code_intel, sync, diagnose, watch, debug_tool, diagnostics
-from . import profiling, rendering, scene_health, auto_wire, meta, build, packages
-from . import console, screenshot, testing, editor_control, verify, transaction
-from .metrics_tool import register as register_metrics
 from ..debug import snapshots as snapshot_tool
+from . import (
+    animation,
+    animator_intent_tool,
+    ask_tool,
+    ask_user_tool,
+    asset,
+    auto_wire,
+    autobatch,
+    batch,
+    budget_tool,
+    build,
+    code_intel,
+    codegen,
+    connection,
+    console,
+    debug_tool,
+    diagnose,
+    diagnostics,
+    do_tool,
+    editor_control,
+    meta,
+    objects,
+    packages,
+    permission_prompt_tool,
+    profiling,
+    rendering,
+    runtime,
+    scene,
+    scene_health,
+    screenshot,
+    skills,
+    spatial,
+    sync,
+    testing,
+    transaction,
+    ui,
+    ui_intent_tool,
+    verify,
+    vfx_intent_tool,
+    watch,
+)
+from .metrics_tool import register as register_metrics
 
 
 def register_all(mcp, send, args, *, get_slot, get_middleware=None,

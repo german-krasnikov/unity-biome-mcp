@@ -1,7 +1,8 @@
 """MCP Resources — live Unity context exposed as resource URIs."""
 import asyncio
 import time
-from typing import Callable
+from collections.abc import Callable
+
 from .console_levels import PROBLEM_LEVELS
 
 _send = None

@@ -1,5 +1,4 @@
 """SchemaGuard: pre-flight validator that blocks known typos before TCP send."""
-from typing import Optional
 
 from .schema_cache import SchemaCache
 from .utils import _levenshtein
@@ -16,7 +15,7 @@ class SchemaGuard:
         self._mw = mw
         self._cache = cache
 
-    async def validate(self, cmd: str, args: dict, send_fn) -> Optional[str]:
+    async def validate(self, cmd: str, args: dict, send_fn) -> str | None:
         """Returns 4-line block envelope on bad input, None on pass.
 
         Catches all exceptions internally (fail-open).
@@ -37,7 +36,7 @@ class SchemaGuard:
 
     # ── set_property ─────────────────────────────────────────────────────────
 
-    async def _validate_set_property(self, args: dict, send_fn) -> Optional[str]:
+    async def _validate_set_property(self, args: dict, send_fn) -> str | None:
         path = args.get("path", "")
         component = args.get("component", "")
         prop = args.get("prop", "")
@@ -73,7 +72,7 @@ class SchemaGuard:
 
     # ── manage_component add ─────────────────────────────────────────────────
 
-    async def _validate_manage_add(self, args: dict, send_fn) -> Optional[str]:
+    async def _validate_manage_add(self, args: dict, send_fn) -> str | None:
         type_name = args.get("type", "")
         if not type_name:
             return None
@@ -95,7 +94,7 @@ class SchemaGuard:
 
     # ── wire_event ───────────────────────────────────────────────────────────
 
-    async def _validate_wire_event(self, args: dict, send_fn) -> Optional[str]:
+    async def _validate_wire_event(self, args: dict, send_fn) -> str | None:
         target_path = args.get("target_path", "")
         target_comp = args.get("target_component", "")
         if not target_path or not target_comp:
@@ -111,7 +110,7 @@ class SchemaGuard:
 
     # ── helpers ──────────────────────────────────────────────────────────────
 
-    async def _fetch_props(self, component: str, send_fn) -> Optional[frozenset]:
+    async def _fetch_props(self, component: str, send_fn) -> frozenset | None:
         """Return props frozenset from cache or via get_schema. None on unknown state."""
         from .metrics import METRICS
         cached = self._cache.get(component)

@@ -1,7 +1,10 @@
 import os
 import re
 import time
-from ._annotations import RO as _RO, RW as _RW, DEL as _DEL
+
+from ._annotations import DEL as _DEL
+from ._annotations import RO as _RO
+from ._annotations import RW as _RW
 from ._common import bind
 
 _RE_SLOT = re.compile(r'slot_\d+\s+\[\]\s+#')

@@ -10,6 +10,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.13.0] — 2026-08-04
+
+### Added
+- GitHub Actions CI pipeline — ruff linting, pytest matrix (Python 3.11/3.12), README facts check, badge auto-update
+- CodeQL security scanning for Python (weekly schedule + push/PR triggers)
+- Dependabot configuration for pip and GitHub Actions dependency updates
+- GitHub Release automation from CHANGELOG.md extraction on tag push
+- Release preflight workflow for pre-release validation
+- Version consistency check as PR gate
+- PR auto-labeling via labeler (area labels for server, plugin, docs, CI, scripts)
+- CODEOWNERS file for code ownership and review routing
+- Pull request template with checklist and test evidence tiers
+- Ruff linting configuration in `server/pyproject.toml` (E/F/I/UP/B rule sets)
+
+### Fixed
+- Codebase-wide ruff violations across 133 files (import sorting, unused imports, typing modernization)
+- Relay pipeline test race condition on Python 3.12 (`wait_for_events` accumulates until terminal event)
+- Pre-existing test failures in scripts/tests (stale SKILL.md kwargs, missing mkdocs.yml fixture)
+- Re-exports in server.py, chat_relay.py, describer.py, update_readme.py preserved with `# noqa: F401`
+
 ## [v1.12.0] — 2026-08-03
 
 ### Added

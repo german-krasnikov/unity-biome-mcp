@@ -1,0 +1,24 @@
+# Default — all files
+* @german-krasnikov
+
+# Python server
+server/src/unity_mcp/ @german-krasnikov
+
+# C# Unity plugin
+unity-plugin/Editor/ @german-krasnikov
+
+# Security-critical — require explicit review
+unity-plugin/Editor/CodeExecutor.cs @german-krasnikov
+unity-plugin/Editor/MCPServer.cs @german-krasnikov
+unity-plugin/Editor/AssetDatabaseHelper.cs @german-krasnikov
+server/src/unity_mcp/bridge_socket.py @german-krasnikov
+server/src/unity_mcp/chat_relay.py @german-krasnikov
+
+# Infrastructure
+.github/ @german-krasnikov
+install/ @german-krasnikov
+SECURITY.md @german-krasnikov
+
+# Docs
+docs/ @german-krasnikov
+mkdocs.yml @german-krasnikov

@@ -54,7 +54,7 @@ installed:
 ```text
 navmesh_query(action="status")
 navmesh_query(action="get_settings")
-navmesh_query(action="set_settings", agent_type="Humanoid", speed=5.0)
+navmesh_query(action="set_settings", agentRadius=0.4, agentHeight=1.8, agentClimb=0.4, agentSlope=45.0)
 navmesh_query(
   action="path",
   from_pos="(0,0,0)",

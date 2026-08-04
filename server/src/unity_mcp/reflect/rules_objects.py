@@ -1,16 +1,15 @@
 """Reflection rules for object-mutation commands."""
 import re
-from typing import Callable, Awaitable, Optional
+from collections.abc import Awaitable, Callable
 
-from . import register_rule, Mismatch, _parse_snapshot, _values_close
-
+from . import Mismatch, _parse_snapshot, _values_close, register_rule
 
 # ── set_property ──────────────────────────────────────────────────────────────
 
 @register_rule("set_property")
 async def _rule_set_property(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     if args.get("dry_run") == "true":
         return None
     if "Failed" in response or "Error" in response:
@@ -37,7 +36,7 @@ async def _rule_set_property(
 @register_rule("set_property_delta")
 async def _rule_set_property_delta(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     if "Failed" in response or "Error" in response:
         return None
     if " → " not in response:
@@ -51,7 +50,7 @@ async def _rule_set_property_delta(
 @register_rule("set_active")
 async def _rule_set_active(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     m = re.search(r"active=(\w+)", response, re.IGNORECASE)
     if not m:
         return None  # no active= token in response — cannot verify
@@ -68,7 +67,7 @@ async def _rule_set_active(
 @register_rule("create_object")
 async def _rule_create_object(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     name = args.get("name", "")
     parent = args.get("parent", "")
 
@@ -94,7 +93,7 @@ async def _rule_create_object(
 @register_rule("delete_object")
 async def _rule_delete_object(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     # C# ExecDeleteObject takes id (int) and returns "Deleted #12345" — path never echoed.
     if "deleted" not in response.lower():
         return Mismatch("delete_object: response does not confirm deletion")
@@ -106,7 +105,7 @@ async def _rule_delete_object(
 @register_rule("manage_component")
 async def _rule_manage_component(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     # C# ExecManageComponent returns "Added: {type}. Components: a,b,c" or
     # "Removed: {type}. Remaining: a,b,c" (Cycle 6d format).
     action = args.get("action", "").lower()
@@ -129,7 +128,7 @@ async def _rule_manage_component(
 @register_rule("wire_event")
 async def _rule_wire_event(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     low = response.lower()
     if "wired" not in low and "connected" not in low:
         return Mismatch("wire_event: no 'wired'/'connected' confirmation in response")

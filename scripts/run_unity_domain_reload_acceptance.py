@@ -16,24 +16,22 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from dataclasses import dataclass
 import hashlib
 import json
 import os
-from pathlib import Path
 import shutil
 import socket
 import sys
 import time
 import uuid
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 import run_unity_tests as durable  # noqa: E402
-
 
 UNITY_VERSION = "6000.0.65f1"
 UNITY_REVISION = "a18e2220bd50"
@@ -846,7 +844,7 @@ async def _run_scenario_once(
         project, request_id, run_id, target_reloads
     )
     if len(port_history) != target_reloads + 1 or any(
-        left == right for left, right in zip(port_history, port_history[1:])
+        left == right for left, right in zip(port_history, port_history[1:], strict=False)
     ):
         raise AcceptanceError(f"MCP port did not change at every reload: {port_history}")
     if tuple(port_history[1:]) != replacement_ports:

@@ -1,6 +1,8 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
-from ._annotations import RO as _RO, RW as _RW, RW_IDEM as _RW_IDEM
 from ..sampling import sampling_service as _sampling
+from ._annotations import RO as _RO
+from ._annotations import RW as _RW
+from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 
 _send = None

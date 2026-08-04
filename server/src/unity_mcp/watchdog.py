@@ -4,7 +4,7 @@ Enable with UNITY_MCP_WATCHDOG=1.
 """
 import asyncio
 import time
-from typing import Optional, Callable
+from collections.abc import Callable
 
 from .console_levels import PROBLEM_LEVELS
 from .middleware_types import is_write
@@ -19,10 +19,10 @@ class ProactiveWatchdog:
         self.interval = interval
         self._budget_gate = budget_gate
         self._counter: int = 0
-        self._pending_alert: Optional[str] = None
-        self._last_alert_hash: Optional[int] = None
+        self._pending_alert: str | None = None
+        self._last_alert_hash: int | None = None
         self._last_alert_time: float = 0.0
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
 
     def maybe_trigger(self, cmd: str, args: dict | None = None) -> None:
         if not is_write(cmd, args):
@@ -65,7 +65,7 @@ class ProactiveWatchdog:
         except Exception:
             pass
 
-    def consume_alert(self) -> Optional[str]:
+    def consume_alert(self) -> str | None:
         alert, self._pending_alert = self._pending_alert, None
         return alert
 

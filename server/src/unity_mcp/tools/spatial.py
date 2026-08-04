@@ -1,5 +1,6 @@
 """Spatial / scene-analysis queries: layout, context, scan, raycast, colliders."""
-from ._annotations import RO as _RO, RW as _RW
+from ._annotations import RO as _RO
+from ._annotations import RW as _RW
 from ._common import bind
 
 _send = None
@@ -48,7 +49,7 @@ def _validate_polygon(vertices: str | None) -> None:
         try:
             x, z = float(parts[0]), float(parts[1])
         except ValueError:
-            raise ToolError(f"vertex {i}: non-numeric '{pair.strip()}'")
+            raise ToolError(f"vertex {i}: non-numeric '{pair.strip()}'") from None
         if abs(x) > 100_000 or abs(z) > 100_000:
             raise ToolError(f"vertex {i}: coordinates out of range (max 100000)")
 

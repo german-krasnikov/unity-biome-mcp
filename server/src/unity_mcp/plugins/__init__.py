@@ -1,7 +1,7 @@
 import logging
 import os
-import sys
 import pkgutil
+import sys
 from importlib import import_module
 
 log = logging.getLogger(__name__)

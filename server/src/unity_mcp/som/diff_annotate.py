@@ -1,7 +1,7 @@
 """Helper: annotate before/after images with SoM circles, call sampling."""
 import os
 import tempfile
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..sampling import SamplingService
@@ -11,15 +11,16 @@ async def diff_with_annotation(
     before: str,
     after: str,
     rects: list,
-    rects_after: Optional[list],
+    rects_after: list | None,
     prompt: str,
     sampling: "SamplingService",
     feature: str,
-) -> Optional[str]:
+) -> str | None:
     """Annotate both frames with SoM circles, call sampling, cleanup."""
     from PIL import Image
-    from .overlay import annotate
+
     from .extract import build_path_pool
+    from .overlay import annotate
 
     # Build canonical pool once from union of both frames — ensures circles and
     # legend share the same index space (fixes index mismatch on subset frames).

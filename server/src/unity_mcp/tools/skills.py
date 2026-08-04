@@ -1,9 +1,12 @@
 """Persistent reusable-code library: learned skills + scene templates."""
+import json
 import os
 import re
-import json
 import time
-from ._annotations import RO as _RO, RW as _RW, RW_IDEM as _RW_IDEM
+
+from ._annotations import RO as _RO
+from ._annotations import RW as _RW
+from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 
 _send = None

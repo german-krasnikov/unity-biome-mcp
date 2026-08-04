@@ -1,7 +1,7 @@
 """Adaptive routing: decide skip/run based on budget + priority + hit rate."""
 import os
-from dataclasses import dataclass, field
-from typing import Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
 
 
 @dataclass
@@ -11,13 +11,13 @@ class RouteDecision:
 
 
 class BudgetRouter:
-    def __init__(self, tracker, hit_rate_provider: Optional[Callable] = None):
+    def __init__(self, tracker, hit_rate_provider: Callable | None = None):
         """hit_rate_provider: callable(feature) -> float | None"""
         self._tracker = tracker
         self._hit_rate = hit_rate_provider or (lambda _f: None)
 
     def should_run(self, feature: str, difficulty: float,
-                   confidence_hint: Optional[float] = None) -> RouteDecision:
+                   confidence_hint: float | None = None) -> RouteDecision:
         if os.environ.get("UNITY_MCP_BUDGET_DISABLED") == "1":
             return RouteDecision(True, "ok_disabled")
 

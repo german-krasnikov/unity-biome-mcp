@@ -10,7 +10,6 @@ import shlex
 import subprocess
 import sys
 
-
 CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 TOOL_CALL_RE = re.compile(r"(?<![.`/])\b([a-z][a-z0-9_]+)\(")
@@ -104,7 +103,7 @@ def tool_specs(repo_root: pathlib.Path) -> dict[str, str]:
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if node.target.id == "_SPECS" and isinstance(node.value, ast.Dict):
                 specs: dict[str, str] = {}
-                for key, value in zip(node.value.keys, node.value.values):
+                for key, value in zip(node.value.keys, node.value.values, strict=False):
                     if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
                         continue
                     category = None

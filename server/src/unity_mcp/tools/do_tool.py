@@ -1,13 +1,13 @@
 """do() meta-tool: NL intent → Haiku plan → validate → batch execute."""
-from typing import Optional
 from mcp.server.fastmcp.exceptions import ToolError
-from ..sampling import sampling_service as _sampling
+
+from ..do_intent.executor import Executor
 from ..do_intent.planner import Planner
 from ..do_intent.validator import validate_plan
-from ..do_intent.executor import Executor
+from ..sampling import sampling_service as _sampling
 from ._annotations import RW as _RW
-from .intent_common import sanitize_intent
 from ._common import bind
+from .intent_common import sanitize_intent
 
 # Module-level references — patched in tests
 _send = None

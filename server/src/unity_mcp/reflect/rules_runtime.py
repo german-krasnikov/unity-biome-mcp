@@ -1,14 +1,14 @@
 """Reflection rules for runtime / UI mutation commands."""
 import re
-from typing import Callable, Awaitable, Optional
+from collections.abc import Awaitable, Callable
 
-from . import register_rule, Mismatch, _values_close
+from . import Mismatch, _values_close, register_rule
 
 
 @register_rule("set_runtime_property")
 async def _rule_set_runtime_property(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     # C# RuntimeHelper returns "field=value" (e.g. "health=100"), no snapshot block.
     if "Failed" in response or "Error" in response:
         return None

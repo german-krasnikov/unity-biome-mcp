@@ -4,7 +4,6 @@ import pathlib
 import re
 import subprocess
 
-
 REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 RELEASE_HELPER = REPO_ROOT / "scripts" / "release.sh"
 

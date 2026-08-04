@@ -5,11 +5,12 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from .bridge_socket import frame_write, frame_read_with_timeout
-from .lockfile import is_pid_alive
-from .paths import ports_dir as _ports_dir_canonical, unity_mcp_dir
-from .doctor_report import CheckResult, USER_MESSAGES, format_report  # re-exported
+from .bridge_socket import frame_read_with_timeout, frame_write
 from .constants import DEFAULT_PORT
+from .doctor_report import USER_MESSAGES, CheckResult, format_report  # re-exported
+from .lockfile import is_pid_alive
+from .paths import ports_dir as _ports_dir_canonical
+from .paths import unity_mcp_dir
 
 __all__ = ["CheckResult", "USER_MESSAGES", "format_report",
            "check_python_version", "check_port_file", "check_lockfile",

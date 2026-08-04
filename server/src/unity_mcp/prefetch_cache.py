@@ -7,13 +7,12 @@ from __future__ import annotations
 
 import time
 from collections import OrderedDict
-from typing import Callable, Optional, Tuple
-
+from collections.abc import Callable
 
 # Verification gates per CLAUDE.md — write CMD → predicted next read CMD+args
 # After write succeeds, fire the predicted read in BACKGROUND, populate cache.
 # When agent's next call matches, serve from cache.
-GATE_PRIORS: dict[str, Callable[[dict], Optional[Tuple[str, dict]]]] = {
+GATE_PRIORS: dict[str, Callable[[dict], tuple[str, dict] | None]] = {
     "set_property": lambda a: (
         ("get_component", {"path": a["path"], "type": a["component"]})
         if a.get("path") and a.get("component") else None
@@ -52,7 +51,7 @@ class PrefetchCache:
         self._store: OrderedDict[tuple, tuple[str, float]] = OrderedDict()
         self._stats = {"hits": 0, "misses": 0, "puts": 0, "evicts": 0, "invals": 0}
 
-    def get(self, cmd: str, args: dict) -> Optional[str]:
+    def get(self, cmd: str, args: dict) -> str | None:
         """Returns cached result or None if miss/expired."""
         key = (cmd, _frozen_args(args))
         entry = self._store.get(key)

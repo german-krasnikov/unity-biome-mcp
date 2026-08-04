@@ -6,20 +6,24 @@ Each feature is independent and stateless per Middleware instance.
 import atexit
 import os
 import time
-from collections import deque, OrderedDict
-from typing import Optional
+from collections import OrderedDict, deque
 
-from .prefetch_cache import PrefetchCache
-from .middleware_types import (
-    BLAST_RADIUS, WRITE_CMDS, READ_CMDS, _STRIP_CMDS, _READ_CACHEABLE, CircuitBreaker,
-)
-from .middleware_guards import MiddlewareGuardsMixin
-from .middleware_reads import MiddlewareReadsMixin
 from .middleware_async import MiddlewareAsyncMixin
+from .middleware_guards import MiddlewareGuardsMixin
 from .middleware_paths import PathResolverMixin
 
 # Re-export for backward compat
 from .middleware_pipeline import wrap_send  # noqa: F401
+from .middleware_reads import MiddlewareReadsMixin
+from .middleware_types import (
+    _READ_CACHEABLE,
+    _STRIP_CMDS,
+    BLAST_RADIUS,
+    READ_CMDS,
+    WRITE_CMDS,
+    CircuitBreaker,
+)
+from .prefetch_cache import PrefetchCache
 
 __all__ = [
     "Middleware", "CircuitBreaker", "wrap_send",
@@ -35,7 +39,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._RETRY_TTL = float(os.environ.get("UNITY_MCP_RETRY_TTL", "5.0"))
         self._RETRY_MAX = 32
         self.confidence: float = 1.0
-        self.sampling: Optional["SamplingService"] = None  # type: ignore[name-defined]
+        self.sampling: SamplingService | None = None  # type: ignore[name-defined]  # noqa: F821
         self._mutation_log = None
         log_dir = os.environ.get("UNITY_MCP_LOG_DIR")
         if log_dir:
@@ -64,7 +68,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._mutation_count: int = 0
         self._last_success: float = time.time()
         self._consecutive_writes: int = 0
-        self.scene_brief: Optional["SceneBrief"] = None  # type: ignore[name-defined]
+        self.scene_brief: SceneBrief | None = None  # type: ignore[name-defined]  # noqa: F821
         self._component_cache: OrderedDict = OrderedDict()  # path -> {component_names}
         self._MAX_COMPONENTS = 256
         # Tier C features
@@ -87,11 +91,11 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._disambig_enabled: bool = os.environ.get("UNITY_MCP_DISAMBIG", "1") != "0"
         self._disambig = None  # lazy
         # PrefetchCache (Item 1)
-        self._prefetch_cache: Optional[PrefetchCache] = (
+        self._prefetch_cache: PrefetchCache | None = (
             PrefetchCache() if os.environ.get("UNITY_MCP_PREFETCH_CACHE", "1") != "0" else None
         )
         # HierarchyDiff (Item 2)
-        self._last_hierarchy_full: Optional[str] = None
+        self._last_hierarchy_full: str | None = None
         self._hierarchy_call_id: int = 0
         # SchemaGuard
         self.schema_cache = None

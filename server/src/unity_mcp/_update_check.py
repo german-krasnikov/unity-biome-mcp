@@ -1,8 +1,8 @@
 import json
 import logging
-import pathlib
 import time
 import urllib.request
+
 from unity_mcp import __version__
 from unity_mcp.config.resolver import GIT_INSTALL_URL
 from unity_mcp.paths import unity_mcp_dir

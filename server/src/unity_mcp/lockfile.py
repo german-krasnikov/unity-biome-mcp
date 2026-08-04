@@ -1,13 +1,14 @@
 """PID lockfile — per-session presence file, no SIGTERM."""
 import logging
 import os
-from .constants import DEFAULT_PORT
 import socket
 import sys
 from pathlib import Path
-from typing import Optional
 
-from .paths import ports_dir as _ports_dir, unity_mcp_dir, iter_port_files as _iter_port_files
+from .constants import DEFAULT_PORT
+from .paths import iter_port_files as _iter_port_files
+from .paths import ports_dir as _ports_dir
+from .paths import unity_mcp_dir
 
 log = logging.getLogger("unity_mcp.lockfile")
 
@@ -54,7 +55,7 @@ def _write_pid(fd: int) -> None:
     os.write(fd, f"{os.getpid()}\n".encode())
 
 
-def _read_pid_from_fd(fd: int) -> Optional[int]:
+def _read_pid_from_fd(fd: int) -> int | None:
     """Read PID from bytes 0-31. Always readable — outside the locked region."""
     os.lseek(fd, 0, os.SEEK_SET)
     data = os.read(fd, 32).decode(errors="ignore").strip()
@@ -64,7 +65,7 @@ def _read_pid_from_fd(fd: int) -> Optional[int]:
         return None
 
 
-def is_pid_alive(pid: Optional[int]) -> bool:
+def is_pid_alive(pid: int | None) -> bool:
     """Return True if the process with given PID exists."""
     if pid is None:
         return False
@@ -101,7 +102,7 @@ def acquire_lock(lock_dir=None, port: int = DEFAULT_PORT) -> int:
         _lock_nb(fd)
     except (BlockingIOError, OSError):
         os.close(fd)
-        raise RuntimeError(f"Cannot acquire exclusive lock for port {port} (PID {os.getpid()} already holds it)")
+        raise RuntimeError(f"Cannot acquire exclusive lock for port {port} (PID {os.getpid()} already holds it)") from None
 
     _write_pid(fd)
     _lock_paths[fd] = str(lock_file)
@@ -153,7 +154,7 @@ def _canonical_project_path(value: str | Path) -> str:
 def read_pid_from_port_file(
     port: int,
     project_path: str | Path | None = None,
-) -> Optional[int]:
+) -> int | None:
     """Read Unity PID from port files matching the given port.
 
     Checks both ~/.unity-biome-mcp/ports and legacy ~/.unity-mcp/ports.
@@ -228,7 +229,7 @@ def cleanup_stale_port_files(tcp_probe: bool = False) -> int:
     return cleaned
 
 
-def read_reload_port() -> Optional[int]:
+def read_reload_port() -> int | None:
     """Discover reload mini-server port from ~/.unity-biome-mcp/ports/{pid}.reload-port."""
     ports_dir = _ports_dir()
     if not ports_dir.exists():
@@ -267,7 +268,7 @@ def read_reload_port() -> Optional[int]:
     return candidates[0][1]
 
 
-def read_project_path_from_port_file(port: int) -> Optional[Path]:
+def read_project_path_from_port_file(port: int) -> Path | None:
     """Read Unity project path from port files matching the given port.
 
     Checks both ~/.unity-biome-mcp/ports and legacy ~/.unity-mcp/ports.

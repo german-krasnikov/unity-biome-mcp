@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Optional
+
 
 @dataclass
 class DistillResult:
@@ -93,7 +93,7 @@ class ResponseDistiller:
     def _distill_sections(self, text: str, focus: tuple[str, ...]) -> str:
         """Section-mode for inspect output. Keep `--- /path ---` blocks matching focus."""
         current_section: list[str] = []
-        current_path: Optional[str] = None
+        current_path: str | None = None
         kept_sections: list[str] = []
         skipped_count = 0
         preamble: list[str] = []  # pre-header lines (e.g. "Objects: 12")
@@ -165,7 +165,7 @@ class ResponseDistiller:
             return False
         return True
 
-    async def distill_haiku(self, cmd: str, text: str, focus: tuple[str, ...]) -> Optional[DistillResult]:
+    async def distill_haiku(self, cmd: str, text: str, focus: tuple[str, ...]) -> DistillResult | None:
         """Async Haiku-based distillation. Returns None if sampling disabled or validation fails."""
         if self._sampling is None or cmd not in self._haiku_cmds:
             return None

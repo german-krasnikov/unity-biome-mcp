@@ -5,10 +5,10 @@ decide(), hint-path Unity 'retry' JSON sentinel via allow_hint_retry()) behind
 one is_retry_safe gate, closing the class of bug where a second ad-hoc retry
 path could silently bypass the safety gate (C1 / A1).
 """
-from dataclasses import dataclass
-from typing import Callable
 import asyncio
 import time
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from .bridge_reload_state import DomainReloadTracker
 from .compile_state import CompileStateProbe

@@ -7,7 +7,6 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 from .lockfile import is_pid_alive
 from .paths import unity_mcp_dir
@@ -18,11 +17,11 @@ _IS_WIN = sys.platform == "win32"
 _DEFAULT_LOCK_DIR = unity_mcp_dir()
 
 
-def _lock_dir_resolved(lock_dir: Optional[Path]) -> Path:
+def _lock_dir_resolved(lock_dir: Path | None) -> Path:
     return Path(lock_dir) if lock_dir else _DEFAULT_LOCK_DIR
 
 
-def list_servers(lock_dir: Optional[Path] = None) -> list[dict]:
+def list_servers(lock_dir: Path | None = None) -> list[dict]:
     """Return info for all live server processes found in lock_dir.
 
     Each entry: {"port": int, "pid": int, "lock_path": Path}
@@ -48,9 +47,9 @@ def list_servers(lock_dir: Optional[Path] = None) -> list[dict]:
 
 def stop_server(
     port: int,
-    lock_dir: Optional[Path] = None,
+    lock_dir: Path | None = None,
     timeout: float = 10.0,
-    _signal_override: Optional[int] = None,
+    _signal_override: int | None = None,
     _kill_fn=None,
 ) -> bool:
     """Stop the server listening on port. Returns True if stopped cleanly.

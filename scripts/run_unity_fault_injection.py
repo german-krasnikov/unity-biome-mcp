@@ -10,16 +10,15 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from dataclasses import dataclass
 import json
-from pathlib import Path
 import re
 import socket
 import struct
 import sys
 import time
 import uuid
-
+from dataclasses import dataclass
+from pathlib import Path
 
 UTF_VERSION = "1.6.0"
 CATEGORY = "UnityMCP.FaultInjection"

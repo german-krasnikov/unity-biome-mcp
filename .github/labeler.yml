@@ -1,0 +1,29 @@
+'area: mcp-server':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'server/**'
+
+'area: unity-plugin':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'unity-plugin/**'
+
+'area: tcp-bridge':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'server/src/unity_mcp/bridge*.py'
+          - 'unity-plugin/Editor/MCPServer.cs'
+          - 'unity-plugin/Editor/ClientConnectionHandler.cs'
+
+'area: install':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'install/**'
+          - 'install.py'
+
+'documentation':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - 'mkdocs.yml'
+          - '*.md'

@@ -1,9 +1,10 @@
-from typing import Optional
-from ..sampling import SamplingService
+
 from ..degrade import degrade, wrap_degraded
+from ..sampling import SamplingService
+from ..sampling_postproc import is_refusal as _is_refusal  # noqa: F401 — re-export
+from ..sampling_postproc import normalize  # noqa: F401 — re-export
 from .cache import FingerprintCache
 from .prompts import resolve, resolve_som
-from ..sampling_postproc import normalize, is_refusal as _is_refusal  # backward-compat re-export
 
 _cache_singleton = FingerprintCache()
 
@@ -20,8 +21,8 @@ class ScreenshotDescriber:
         scene_fp: "str | None",
         *,
         mark: bool = False,
-        rects: Optional[list] = None,
-        legend: Optional[str] = None,
+        rects: list | None = None,
+        legend: str | None = None,
     ) -> str:
         if mark and legend and legend != "(no marks)":
             prompt, _ = resolve_som(prompt_key, legend)

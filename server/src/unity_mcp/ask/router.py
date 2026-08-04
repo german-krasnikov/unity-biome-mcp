@@ -1,7 +1,7 @@
 """Keyword regex router — deterministic 80% of ask() questions."""
 import re
-from typing import Optional
-from .plans import ToolPlan, CANONICAL_PLANS
+
+from .plans import CANONICAL_PLANS, ToolPlan
 
 # Mutating verbs that make a question a command, not a query
 _MUTATING_RE = re.compile(
@@ -36,7 +36,7 @@ def is_mutating(question: str) -> bool:
     return bool(_MUTATING_RE.match(question))
 
 
-def route(question: str) -> Optional[ToolPlan]:
+def route(question: str) -> ToolPlan | None:
     """
     Return ToolPlan for question, or None if out-of-scope / no match.
     Returns None (not error) — caller decides what to do with unmatched questions.

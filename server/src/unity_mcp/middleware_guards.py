@@ -1,9 +1,8 @@
 """Write-guard methods for Middleware (mixin)."""
 import json
 import time
-from typing import Optional
 
-from .middleware_types import BLAST_RADIUS, WRITE_CMDS, READ_CMDS, _RUNTIME_ONLY_CMDS, ACTION_READS, is_write
+from .middleware_types import _RUNTIME_ONLY_CMDS, ACTION_READS, BLAST_RADIUS, READ_CMDS, is_write
 from .utils import parse_kv_line
 
 
@@ -32,7 +31,7 @@ class MiddlewareGuardsMixin:
 
     # ── Feature 1: Retry Watchdog ─────────────────────────────────────────
 
-    def check_retry(self, cmd: str, args: dict) -> Optional[str]:
+    def check_retry(self, cmd: str, args: dict) -> str | None:
         if not is_write(cmd, args):
             return None
         h = hash((cmd, json.dumps(args, sort_keys=True)))
@@ -49,7 +48,7 @@ class MiddlewareGuardsMixin:
 
     # ── Feature 3: Taint Tracking ─────────────────────────────────────────
 
-    def check_taint(self, cmd: str, args: dict) -> Optional[str]:
+    def check_taint(self, cmd: str, args: dict) -> str | None:
         if cmd != "set_property":
             return None
         prop = args.get("prop", "")
@@ -64,7 +63,7 @@ class MiddlewareGuardsMixin:
 
     # ── Feature 6: Dead Write Elimination ────────────────────────────────
 
-    def check_dead_write(self, cmd: str, args: dict) -> Optional[str]:
+    def check_dead_write(self, cmd: str, args: dict) -> str | None:
         if cmd != "set_property":
             return None
         key = (args.get("path"), args.get("component"), args.get("prop"))
@@ -88,7 +87,7 @@ class MiddlewareGuardsMixin:
 
     # ── Feature N: Blast Radius Tags ─────────────────────────────────────────
 
-    def check_blast_radius(self, cmd: str, args: dict | None = None) -> Optional[str]:
+    def check_blast_radius(self, cmd: str, args: dict | None = None) -> str | None:
         if cmd == "batch" and args:
             cmds_text = args.get("commands", "")
             if _is_batch_readonly(cmds_text):
@@ -110,7 +109,7 @@ class MiddlewareGuardsMixin:
 
     # ── Feature N: Incremental Verification ──────────────────────────────────
 
-    def check_verification_needed(self, cmd: str, args: dict | None = None) -> Optional[str]:
+    def check_verification_needed(self, cmd: str, args: dict | None = None) -> str | None:
         if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
             return None
         if is_write(cmd, args):
@@ -121,7 +120,7 @@ class MiddlewareGuardsMixin:
 
     # ── Feature: Play Mode Required Guard ────────────────────────────────────
 
-    def check_play_mode_required(self, cmd: str) -> Optional[str]:
+    def check_play_mode_required(self, cmd: str) -> str | None:
         """Block runtime-only commands when editor is confirmed in edit mode."""
         if not self._play_state_known:
             return None  # state unknown — don't block
@@ -160,7 +159,7 @@ class MiddlewareGuardsMixin:
 
     # ── Feature 12: Workflow Phase FSM ───────────────────────────────────────
 
-    def transition(self, cmd: str, args: dict | None = None) -> Optional[str]:
+    def transition(self, cmd: str, args: dict | None = None) -> str | None:
         if not is_write(cmd, args) or (cmd == "batch" and args and _is_batch_readonly(args.get("commands", ""))):
             self._consecutive_writes = 0
             return None
@@ -172,7 +171,7 @@ class MiddlewareGuardsMixin:
 
     # ── Feature: Batch Conflict Scan ─────────────────────────────────────────
 
-    def scan_batch_conflicts(self, commands: str) -> Optional[str]:
+    def scan_batch_conflicts(self, commands: str) -> str | None:
         """Detect conflicts in batch command text. Returns warning or None."""
         if not commands:
             return None

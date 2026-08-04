@@ -1,11 +1,12 @@
 """vfx_intent — NL → VFX DSL → particle batch commands."""
 import re
-from typing import Optional
+
 from mcp.server.fastmcp.exceptions import ToolError
+
 from ..sampling import sampling_service as _sampling
-from .intent_common import strip_fences, build_batch_line, run_intent_pipeline
 from ._annotations import RW as _RW
 from ._common import bind
+from .intent_common import build_batch_line, run_intent_pipeline
 
 _send = None
 
@@ -58,7 +59,7 @@ Intent: {intent}
 Output ONLY the DSL, no explanation, no fences."""
 
 
-def get_preset_config(name: str) -> Optional[dict]:
+def get_preset_config(name: str) -> dict | None:
     return _PRESETS.get(name)
 
 
@@ -95,7 +96,7 @@ def build_vfx_batch(target: str, data: dict) -> list[str]:
     for mod, state in data.get("modules", []):
         enabled = "true" if state.upper() == "ENABLED" else "false"
         lines.append(build_batch_line("particle", action="set", path=target, module=mod, prop="enabled", value=enabled))
-    for prop, grad in data.get("gradients", []):
+    for _prop, grad in data.get("gradients", []):
         lines.append(build_batch_line("particle", action="set", path=target, module="colorOverLifetime", prop="enabled", value="true"))
         lines.append(build_batch_line("particle", action="set", path=target, module="colorOverLifetime", prop="gradient", value=grad))
     return lines

@@ -1,7 +1,9 @@
 """Post-call hook registry for middleware pipeline."""
 from __future__ import annotations
+
 import asyncio
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .middleware import Middleware
@@ -18,7 +20,7 @@ def register_post(cmd: str) -> Callable[[PostHookFn], PostHookFn]:
     return decorator
 
 
-async def run_post_hooks(cmd: str, args: dict, result: str, mw: "Middleware") -> str:
+async def run_post_hooks(cmd: str, args: dict, result: str, mw: Middleware) -> str:
     """Run all registered post-call hooks for cmd in registration order."""
     for hook in POST_HOOKS.get(cmd, []):
         if asyncio.iscoroutinefunction(hook):

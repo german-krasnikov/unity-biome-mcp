@@ -5,7 +5,8 @@ Zero overhead on success path. NO retry inside ladder.
 """
 import inspect
 import os
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from .metrics import METRICS
 
@@ -64,7 +65,7 @@ async def degrade(
     return (last_name, None)
 
 
-def wrap_degraded(feature: str, step: str, value: Optional[Any]) -> str:
+def wrap_degraded(feature: str, step: str, value: Any | None) -> str:
     """Format degraded surface marker.
 
     value is None → '[DEGRADED:feature:step:no_fallback]'

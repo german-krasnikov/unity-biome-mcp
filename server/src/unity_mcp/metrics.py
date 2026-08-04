@@ -10,10 +10,11 @@ import os
 import statistics
 import time
 from collections import defaultdict, deque
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator, Optional
 
-from .metrics_report import _p95, format_report as _format_report
+from .metrics_report import _p95
+from .metrics_report import format_report as _format_report
 
 # Re-exports for backward compatibility
 __all__ = [

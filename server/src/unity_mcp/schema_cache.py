@@ -1,6 +1,5 @@
 """SchemaCache: lazy LRU cache for component property schemas."""
 from collections import OrderedDict
-from typing import Optional
 
 
 class SchemaCache:
@@ -10,7 +9,7 @@ class SchemaCache:
         self._max = max_size
         self._data: OrderedDict[str, frozenset] = OrderedDict()
 
-    def get(self, type_name: str) -> Optional[frozenset]:
+    def get(self, type_name: str) -> frozenset | None:
         """Return cached props or None if not cached."""
         if type_name not in self._data:
             return None

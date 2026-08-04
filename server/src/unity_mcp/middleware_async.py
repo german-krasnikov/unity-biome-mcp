@@ -2,7 +2,7 @@
 import asyncio
 import json
 import os
-from typing import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 
 
 class MiddlewareAsyncMixin:
@@ -17,8 +17,8 @@ class MiddlewareAsyncMixin:
         cmd: str = "",
         args: dict | None = None,
     ) -> str:
-        from .middleware_types import is_write
         from .middleware_guards import _is_batch_readonly
+        from .middleware_types import is_write
         if os.environ.get("UNITY_MCP_AUTO_STATE", "1") == "0":
             return result
         if cmd and not is_write(cmd, args):

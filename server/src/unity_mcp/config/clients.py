@@ -2,8 +2,8 @@
 import os
 import pathlib
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 
 @dataclass
@@ -13,7 +13,7 @@ class ClientInfo:
     scope: str  # "global" or "project"
     stdout_only: bool = False  # if True: print config to stdout instead of writing file
     root_key: str = "mcpServers"  # JSON key that holds server entries
-    entry_transformer: Optional[Callable[[dict], dict]] = field(default=None, repr=False)
+    entry_transformer: Callable[[dict], dict] | None = field(default=None, repr=False)
     is_toml: bool = False  # Codex uses TOML, not JSON
 
 

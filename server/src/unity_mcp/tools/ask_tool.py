@@ -1,8 +1,8 @@
 """ask() meta-tool: NL question → router → Unity tools → Haiku summarize."""
-from ..sampling import sampling_service as _sampling
-from ..ask.router import route, is_mutating
 from ..ask.executor import AskExecutor
+from ..ask.router import is_mutating, route
 from ..ask.summarizer import Summarizer
+from ..sampling import sampling_service as _sampling
 from ._annotations import RO as _RO
 from ._common import bind
 

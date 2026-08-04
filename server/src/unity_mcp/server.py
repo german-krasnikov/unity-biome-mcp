@@ -1,12 +1,13 @@
 from unity_mcp._preflight import run_preflight
+
 run_preflight()
 
 import asyncio
 import logging
 import os
-import sys
 import threading
 import time
+
 os.environ.setdefault("UNITY_MCP_DISTILL", "1")
 log = logging.getLogger("unity_mcp.server")
 
@@ -77,6 +78,7 @@ def _start_idle_watchdog() -> threading.Thread | None:
 
 
 from contextlib import asynccontextmanager
+
 from mcp.server.fastmcp import FastMCP
 
 
@@ -89,68 +91,117 @@ class _UnstructuredMCP(FastMCP):
                          structured_output=False)
 
 
+
 from mcp.server.fastmcp.exceptions import ToolError
+
 from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
-from .lockfile import acquire_lock, release_lock, cleanup_stale_locks
+from .lockfile import acquire_lock, cleanup_stale_locks, release_lock
+from .middleware import Middleware, wrap_send
 from .plugins import load_plugins
-from .tools import register_all
 from .server_filtering import (
-    _strip_deferred_schemas,
-    push_catalog as _push_catalog,
-    filter_tools as _filter_tools_pure,
-    install_list_tools_filter,
+    _strip_deferred_schemas,  # noqa: F401  # re-exported; tests import from unity_mcp.server
     install_initialized_hook,
+    install_list_tools_filter,
+)
+from .server_filtering import (
+    filter_tools as _filter_tools_pure,
+)
+from .server_filtering import (
+    push_catalog as _push_catalog,
+)
+from .server_filtering import (
     read_unity_port as _read_unity_port,
 )
 from .server_lifespan import build_middleware, init_budget, wire_circuit_breaker
+from .tools import register_all
+from .tools.animation import animation, animator, particle, timeline  # noqa: F401
+from .tools.animator_intent_tool import animator_intent  # noqa: F401
+from .tools.asset import asset, get_enabled_tools, material, prefab, project_settings, scriptable_object  # noqa: F401
+from .tools.autobatch import configure_objects, set_properties, setup_objects  # noqa: F401
+from .tools.batch import batch, references, validate_references  # noqa: F401
+from .tools.code_intel import compile_preflight  # noqa: F401
+from .tools.codegen import auto_fix, execute_code, get_schema, smart_build  # noqa: F401
+from .tools.connection import list_connections, reconnect_unity  # noqa: F401
+from .tools.console import get_compile_errors, get_console, recompile  # noqa: F401
+from .tools.editor_control import checkpoint, editor  # noqa: F401
+from .tools.meta import discover_tools, doctor, resolve_tool_schema, set_llm_config  # noqa: F401
+from .tools.metrics_tool import get_metrics  # noqa: F401
+from .tools.objects import (  # noqa: F401
+    create_object,
+    delete_object,
+    find_objects,
+    get_component,
+    get_components_list,
+    get_object_detail,
+    inspect,
+    manage_component,
+    object_diff,
+    set_active,
+    set_material,
+    set_parent,
+    set_property,
+    set_property_delta,
+    set_sibling_index,
+    unwire_event,
+    wire_event,
+)
+from .tools.runtime import (  # noqa: F401
+    export_playtest_aliases_to_defs,
+    invoke_method,
+    lint_playtest,
+    lint_playtest_suite,
+    move_to,
+    query_state,
+    run_playtest,
+    run_playtest_suite,
+    sync_playtest_aliases_from_defs,
+    test_step,
+    validate_playtest_aliases,
+    wait_until,
+)
 
-# Re-export tool functions for test imports
-from .tools.scene import (
-    compress_hierarchy, get_hierarchy, scene, search_scene,
-    fingerprint, get_changes, scene_diff, save_session, load_session,
-    screenshot_baseline, screenshot_compare,
-)
-from .tools.console import get_console, get_compile_errors, recompile
-from .tools.screenshot import screenshot
-from .tools.testing import run_tests, get_test_results
-from .tools.editor_control import editor, checkpoint
-from .tools.objects import (
-    get_component, inspect, get_components_list, find_objects,
-    set_property, create_object, set_active, wire_event, unwire_event,
-    delete_object, manage_component, get_object_detail, set_material,
-    set_property_delta, set_parent, object_diff, set_sibling_index,
-)
-from .tools.asset import (
-    asset, project_settings, material, prefab, scriptable_object, get_enabled_tools,
-)
-from .tools.animation import animation, timeline, animator, particle
 # Re-exported for tests that import these from `unity_mcp.server` (split from advanced.py: F19).
-from .tools.batch import batch, references, validate_references
-from .tools.codegen import execute_code, get_schema, auto_fix, smart_build
-from .tools.skills import save_skill, use_skill, list_skills, apply_template, save_template, list_templates
-from .tools.spatial import validate_layout, get_spatial_context, scan_scene, check_colliders, autofit_collider, spatial_query
-from .tools.ui import create_ui, set_rect, menu, shader
-from .tools.connection import list_connections, reconnect_unity
-from .tools.runtime import (invoke_method, wait_until, move_to, query_state,
-                             test_step, run_playtest, run_playtest_suite,
-                             lint_playtest, lint_playtest_suite, validate_playtest_aliases,
-                             sync_playtest_aliases_from_defs, export_playtest_aliases_to_defs)
-from .tools.watch import watch, get_watches
-from .tools.autobatch import setup_objects, set_properties, configure_objects
-from .tools.code_intel import compile_preflight
-from .tools.animator_intent_tool import animator_intent
-from .tools.vfx_intent_tool import vfx_intent
-from .tools.ui_intent_tool import ui_intent
-from .tools.metrics_tool import get_metrics
-from .tools.meta import discover_tools, doctor, resolve_tool_schema, set_llm_config
-from .middleware import wrap_send, Middleware
-
-from typing import Optional
+# Re-export tool functions for test imports
+from .tools.scene import (  # noqa: F401
+    compress_hierarchy,
+    fingerprint,
+    get_changes,
+    get_hierarchy,
+    load_session,
+    save_session,
+    scene,
+    scene_diff,
+    screenshot_baseline,
+    screenshot_compare,
+    search_scene,
+)
+from .tools.screenshot import screenshot  # noqa: F401
+from .tools.skills import (  # noqa: F401
+    apply_template,
+    list_skills,
+    list_templates,
+    save_skill,
+    save_template,
+    use_skill,
+)
+from .tools.spatial import (  # noqa: F401
+    autofit_collider,
+    check_colliders,
+    get_spatial_context,
+    scan_scene,
+    spatial_query,
+    validate_layout,
+)
+from .tools.testing import get_test_results, run_tests  # noqa: F401
+from .tools.ui import create_ui, menu, set_rect, shader  # noqa: F401
+from .tools.ui_intent_tool import ui_intent  # noqa: F401
+from .tools.vfx_intent_tool import vfx_intent  # noqa: F401
+from .tools.watch import get_watches, watch  # noqa: F401
 
 # Disabled-tools state lives here so tests can mutate srv._disabled_tools_cache directly.
-_disabled_tools_cache: Optional[set] = None
-_refresh_tools_lock: Optional[asyncio.Lock] = None
+_disabled_tools_cache: set | None = None
+_refresh_tools_lock: asyncio.Lock | None = None
 
 
 async def _refresh_tools_cache(bridge_) -> None:
@@ -212,7 +263,7 @@ async def _warm_cmd_flags(bridge_) -> None:
     except Exception:
         return  # TCP down — hardcoded baseline stays active
     data = resp.get("data", "") if resp else ""
-    from .middleware_types import WRITE_CMDS, _RUNTIME_ONLY_CMDS
+    from .middleware_types import _RUNTIME_ONLY_CMDS, WRITE_CMDS
     for line in data.splitlines():
         if line.startswith("mutating_cmds:"):
             WRITE_CMDS.update(c for c in line[14:].split(",") if c)
@@ -227,7 +278,6 @@ async def _filter_tools(tools: list, bridge_) -> list:
 
 
 from .timeout_categories import (
-    DEFAULT_TIMEOUT,
     TIMEOUT_CATEGORIES,
     get_timeout,
 )
@@ -235,9 +285,9 @@ from .timeout_categories import (
 # Backward-compat alias used by tests that import COMMAND_TIMEOUTS from server.
 COMMAND_TIMEOUTS = TIMEOUT_CATEGORIES
 
-slot: Optional[ConnectionSlot] = None
-manager: Optional[ConnectionSlot] = None  # backward-compat alias for tests/conftest
-_middleware: Optional[Middleware] = None
+slot: ConnectionSlot | None = None
+manager: ConnectionSlot | None = None  # backward-compat alias for tests/conftest
+_middleware: Middleware | None = None
 _wrapped_send = None
 _budget_tracker = None
 _budget_router = None
@@ -255,7 +305,7 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     try:
         result = await bridge.send(cmd, args, timeout=timeout)
     except asyncio.CancelledError:
-        raise ToolError("Operation cancelled. Retry the command.")
+        raise ToolError("Operation cancelled. Retry the command.") from None
     except (ConnectionError, TimeoutError, OSError) as e:
         ue = getattr(e, "unity_error", None)
         if ue is None:
@@ -418,6 +468,7 @@ load_plugins(mcp, _send, _args)
 
 
 from .resources import register as register_resources
+
 register_resources(mcp, _send, _args)
 
 

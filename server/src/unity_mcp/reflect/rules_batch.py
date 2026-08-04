@@ -1,10 +1,10 @@
 """Reflection rules for batch commands — parse sub-ops, cap warnings at 3."""
 import re
-from typing import Callable, Awaitable, Optional
+from collections.abc import Awaitable, Callable
 
-from . import register_rule, Mismatch, reflect as _reflect
 from ..utils import parse_kv_line
-
+from . import Mismatch, register_rule
+from . import reflect as _reflect
 
 _SUB_RESP_HEADER = re.compile(r"^\[(\d+)\]")
 
@@ -41,7 +41,7 @@ def _parse_batch_commands(commands: str) -> list[tuple[str, dict]]:
 @register_rule("batch")
 async def _rule_batch(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Optional[Mismatch]:
+) -> Mismatch | None:
     commands_str = args.get("commands", "")
     if not commands_str:
         return None

@@ -3,7 +3,8 @@
 Enable: UNITY_MCP_SCENE_BRIEF=1
 """
 import os
-from typing import Optional, Callable, Awaitable
+from collections.abc import Awaitable, Callable
+
 from .console_levels import PROBLEM_LEVELS
 from .sampling import SamplingService
 
@@ -18,7 +19,7 @@ _SUMMARY_PROMPT = (
 
 class SceneBrief:
     def __init__(self):
-        self.brief: Optional[str] = None
+        self.brief: str | None = None
         self._injected: bool = False
 
     @property
@@ -35,7 +36,7 @@ class SceneBrief:
         self.brief = None
         self._injected = False
 
-    async def ensure(self, send_raw: Callable[..., Awaitable[str]]) -> Optional[str]:
+    async def ensure(self, send_raw: Callable[..., Awaitable[str]]) -> str | None:
         """Return cached brief, or generate one via Haiku. Returns None when disabled."""
         if not self.enabled:
             return None

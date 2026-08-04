@@ -2,14 +2,14 @@
 import asyncio
 import os
 import time
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from .bridge_result import unwrap_bridge_result
-from .prefetch_cache import GATE_PRIORS
-from .compressor import strip_defaults
-from .middleware_types import WRITE_CMDS, _READ_CACHEABLE, _STRIP_CMDS
-from .middleware_hooks import run_post_hooks, register_post
 from . import middleware_alias as _alias_hooks  # noqa: F401 — trigger hook registration
+from .bridge_result import unwrap_bridge_result
+from .compressor import strip_defaults
+from .middleware_hooks import register_post, run_post_hooks
+from .middleware_types import _READ_CACHEABLE, _STRIP_CMDS, WRITE_CMDS
+from .prefetch_cache import GATE_PRIORS
 
 if TYPE_CHECKING:
     from .middleware import Middleware

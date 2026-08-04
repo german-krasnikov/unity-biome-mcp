@@ -1,6 +1,8 @@
 """Human-readable report formatting for doctor check results."""
 from __future__ import annotations
+
 from dataclasses import dataclass
+
 from unity_mcp.config.resolver import GIT_INSTALL_URL
 
 

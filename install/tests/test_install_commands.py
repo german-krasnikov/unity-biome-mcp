@@ -16,9 +16,9 @@ inst = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(inst)
 
 # Lazy references — functions don't exist until Green phase
-cmd_configure = lambda *a, **kw: inst.cmd_configure(*a, **kw)
-cmd_uninstall = lambda *a, **kw: inst.cmd_uninstall(*a, **kw)
-cmd_update = lambda *a, **kw: inst.cmd_update(*a, **kw)
+def cmd_configure(*a, **kw): return inst.cmd_configure(*a, **kw)
+def cmd_uninstall(*a, **kw): return inst.cmd_uninstall(*a, **kw)
+def cmd_update(*a, **kw): return inst.cmd_update(*a, **kw)
 
 MOD = "install_script"  # module name for patch()
 
@@ -438,16 +438,15 @@ def test_stop_subcommand_registered():
     import argparse as _ap
     # Reconstruct the parser the same way main() does
     p = _ap.ArgumentParser()
-    sub = p.add_subparsers(dest="cmd")
+    p.add_subparsers(dest="cmd")
     # Simulate what main() should register; verify it doesn't error
     # We test this by calling parse_args on a fresh module import
-    result = inst.main.__code__  # just check it's callable
     assert callable(inst.main)
 
 
 def test_stop_argparse_requires_port():
     """'stop' without --port should fail argparse (SystemExit)."""
-    import subprocess, sys
+    import subprocess
     r = subprocess.run(
         [sys.executable, str(REPO_ROOT / "install.py"), "stop"],
         capture_output=True, encoding="utf-8"

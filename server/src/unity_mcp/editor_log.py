@@ -15,23 +15,23 @@ The errors live in the ##### Output block BEFORE the header (lines 79707-79733 i
 """
 from pathlib import Path
 
+from .editor_log_freshness import (  # noqa: F401 — re-export
+    check_dll_freshness,
+    find_plugin_source_dir,
+    find_plugin_source_files,
+)
 from .editor_log_parser import (  # noqa: F401 — re-export for back-compat
+    BuildFailure,
+    classify_failure_currency,
     get_editor_log_path,
     get_editor_prev_log_path,
-    parse_compile_errors_from_log,
     parse_build_failure,
-    classify_failure_currency,
-    BuildFailure,
-)
-from .editor_log_freshness import (  # noqa: F401 — re-export
-    find_plugin_source_files,
-    find_plugin_source_dir,
-    check_dll_freshness,
+    parse_compile_errors_from_log,
 )
 from .editor_log_wedge import (  # noqa: F401 — re-export
     WedgeReport,
-    detect_wedge,
     crosscheck_error_on_disk,
+    detect_wedge,
 )
 
 # Module-level cached state for centralized corroboration

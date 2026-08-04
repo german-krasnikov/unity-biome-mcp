@@ -1,8 +1,8 @@
 """Pattern data for ToolHinter — predicates, match tables, and static lookup data."""
 import os
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from .middleware import WRITE_CMDS as _WRITE_CMDS
 

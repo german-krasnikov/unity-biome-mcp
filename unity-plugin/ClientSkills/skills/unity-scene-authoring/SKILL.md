@@ -25,7 +25,8 @@ scene(action="list")
 scene(action="open_additive", path="Assets/Scenes/Lighting.unity")
 scene(action="set_active", path="Assets/Scenes/Lighting.unity")
 scene_environment(action="get")
-scene_environment(action="set", fog_enabled="true", fog_density=0.1)
+scene_environment(action="set", prop="fog", value="true")
+scene_environment(action="set", prop="fogDensity", value="0.1")
 ```
 
 Use explicit scene paths in multi-scene work. Inspect the live tool schema

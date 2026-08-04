@@ -2,9 +2,9 @@
 
 Reduces multi-step setup to a single tool call.
 """
-from ._common import bind
+from ..utils import _KV_RE, parse_kv
 from ._annotations import RW as _RW
-from ..utils import parse_kv, _KV_RE
+from ._common import bind
 
 _send = None
 

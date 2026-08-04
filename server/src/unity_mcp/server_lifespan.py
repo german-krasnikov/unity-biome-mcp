@@ -5,17 +5,17 @@ All functions are pure-ish: they mutate the Middleware object passed in
 but have no hidden side-effects beyond that.
 """
 import os
-from typing import Optional
+
 from .middleware import Middleware
 
 
-def build_middleware(send_raw_fn) -> Optional[Middleware]:
+def build_middleware(send_raw_fn) -> Middleware | None:
     """Construct and configure Middleware from environment flags.
 
     Returns None if no middleware feature is enabled.
     send_raw_fn is the raw bridge send callable (needed by speculation/watchdog).
     """
-    mw: Optional[Middleware] = None
+    mw: Middleware | None = None
 
     def _mw() -> Middleware:
         nonlocal mw
@@ -40,7 +40,7 @@ def build_middleware(send_raw_fn) -> Optional[Middleware]:
         _mw().speculation = SpeculativeLayer(send_raw_fn)
 
     if os.environ.get("UNITY_MCP_LESSONS"):
-        from .lessons import LessonStore, LessonRecorder
+        from .lessons import LessonRecorder, LessonStore
         from .paths import unity_mcp_dir
         store = LessonStore(unity_mcp_dir() / "lessons.json")
         _mw().lessons = store
@@ -51,19 +51,19 @@ def build_middleware(send_raw_fn) -> Optional[Middleware]:
         _mw().watchdog = ProactiveWatchdog(send_raw_fn)
 
     if os.environ.get("UNITY_MCP_INFERENCE"):
-        from .inference import SessionContext, Inferrer
+        from .inference import Inferrer, SessionContext
         _mw().session = SessionContext()
         _mw().inferrer = Inferrer()
 
     return mw
 
 
-def init_budget(mw: Optional[Middleware]) -> tuple:
+def init_budget(mw: Middleware | None) -> tuple:
     """Initialize budget tracker+router. Returns (tracker, router) or (None, None)."""
     if os.environ.get("UNITY_MCP_BUDGET", "1") == "0":
         return None, None
 
-    from .budget import CostTracker, BudgetRouter
+    from .budget import BudgetRouter, CostTracker
     from .sampling import init_budget as _init_budget_sampling
 
     session_cap = float(os.environ.get("UNITY_MCP_HAIKU_BUDGET", "0.50"))
@@ -84,13 +84,15 @@ def init_budget(mw: Optional[Middleware]) -> tuple:
     return tracker, router
 
 
-def wire_circuit_breaker(mw: Optional[Middleware], bridge) -> None:
+def wire_circuit_breaker(mw: Middleware | None, bridge) -> None:
     """Wire compile-state probe into middleware circuit breaker."""
     if mw is None or bridge is None:
         return
     probe = getattr(bridge, "_probe", None)
     if probe is None:
         return
-    ready_fn = lambda: not probe.has_strong_busy_signal()
+    def ready_fn() -> bool:
+        return not probe.has_strong_busy_signal()
+
     mw._circuit_ready_fn = ready_fn
     mw.circuit._is_ready_fn = ready_fn

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .utils import _levenshtein
 
@@ -53,7 +52,7 @@ class Disambiguator:
         ranked.sort(key=lambda x: -x.score)
         return ranked
 
-    def decide(self, query: str, candidates: list[str]) -> Optional[tuple[str, str]]:
+    def decide(self, query: str, candidates: list[str]) -> tuple[str, str] | None:
         """Returns (chosen_path, marker) on auto-resolve, None on block."""
         if not candidates:
             return None

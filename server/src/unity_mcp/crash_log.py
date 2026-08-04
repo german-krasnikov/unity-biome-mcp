@@ -4,12 +4,11 @@ import json
 import time
 import traceback
 from pathlib import Path
-from typing import Optional
 
 from .paths import unity_mcp_dir
 
 
-def _crash_path(log_dir: Optional[Path] = None) -> Path:
+def _crash_path(log_dir: Path | None = None) -> Path:
     return Path(log_dir or unity_mcp_dir()) / "crash.jsonl"
 
 
@@ -35,7 +34,7 @@ class CrashLogger:
 
     MAX_BYTES = 15 * 1024 * 1024  # 15 MB
 
-    def __init__(self, log_dir: Optional[Path] = None, max_entries: int = 500):
+    def __init__(self, log_dir: Path | None = None, max_entries: int = 500):
         self._path = _crash_path(log_dir)
         self._closed = False
         self._max_entries = max_entries

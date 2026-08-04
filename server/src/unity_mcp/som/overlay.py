@@ -4,7 +4,9 @@ Draws numbered circles at top-left of each rect, 2px stroke box,
 8-color palette cycling by index. Collision avoidance via diagonal push.
 """
 from __future__ import annotations
+
 import re
+
 from PIL import Image, ImageDraw, ImageFont
 
 LABEL_R = 11        # circle radius px
@@ -29,7 +31,7 @@ def _index_color(index: int) -> tuple[int, int, int]:
     return PALETTE[(index - 1) % len(PALETTE)]
 
 
-def _load_font(size: int = 14) -> "ImageFont.ImageFont | None":
+def _load_font(size: int = 14) -> ImageFont.ImageFont | None:
     try:
         return ImageFont.truetype("DejaVuSans.ttf", size)
     except Exception:
@@ -122,7 +124,7 @@ def annotate(
     centers = _compute_centers([r for _, r in indexed])
     centers = _resolve_collisions(centers)
 
-    for (idx, rect), (cx, cy) in zip(indexed, centers):
+    for (idx, rect), (cx, cy) in zip(indexed, centers, strict=False):
         color = _index_color(idx)
         x, y, w, h = rect.get("x", 0), rect.get("y", 0), rect.get("w", 0), rect.get("h", 0)
 

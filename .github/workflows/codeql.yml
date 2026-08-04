@@ -1,0 +1,50 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'server/src/**'
+      - 'install/**'
+      - 'scripts/**'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'server/src/**'
+      - 'install/**'
+      - 'scripts/**'
+  schedule:
+    - cron: '25 4 * * 1'  # Monday 04:25 UTC
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          config: |
+            paths:
+              - server/src
+              - install
+              - scripts
+            paths-ignore:
+              - '**/tests/**'
+              - '**/__pycache__/**'
+              - '**/test_*'
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"

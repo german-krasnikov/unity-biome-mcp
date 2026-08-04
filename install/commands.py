@@ -12,7 +12,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 # ── pure helpers ──────────────────────────────────────────────────────────────
 
 def check_python() -> bool:

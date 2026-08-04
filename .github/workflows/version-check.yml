@@ -1,0 +1,36 @@
+name: Version check
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "server/pyproject.toml"
+      - "server/uv.lock"
+      - "unity-plugin/package.json"
+      - "server/src/unity_mcp/__version__.py"
+      - "unity-plugin/Editor/MCPServer.cs"
+      - "docs/assets/_meta.json"
+      - "CHANGELOG.md"
+      - "unity-plugin/CHANGELOG.md"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Version sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check version artifacts in sync
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+        run: python scripts/sync_versions.py --check
+
+      - name: Check changelogs match
+        run: diff CHANGELOG.md unity-plugin/CHANGELOG.md

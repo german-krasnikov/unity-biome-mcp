@@ -1,0 +1,40 @@
+name: release-preflight
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to check (e.g. 1.12.0)'
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -e "server[dev]"
+
+      - name: Run preflight
+        env:
+          VERSION_INPUT: ${{ github.event.inputs.version }}
+        run: |
+          if [ -n "$VERSION_INPUT" ]; then
+            bash scripts/release.sh --preflight "$VERSION_INPUT"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            bash scripts/release.sh --preflight "${GITHUB_REF_NAME#v}"
+          else
+            bash scripts/release.sh --preflight
+          fi

@@ -3,13 +3,13 @@ import pathlib
 import re
 import shutil
 import sys
-from typing import Optional
 
-from unity_mcp.paths import ports_dir as _ports_dir_canonical, iter_port_files as _iter_port_files_canonical
 from unity_mcp.constants import DEFAULT_PORT
+from unity_mcp.paths import iter_port_files as _iter_port_files_canonical
+from unity_mcp.paths import ports_dir as _ports_dir_canonical
 
 
-def _which(name: str) -> Optional[str]:
+def _which(name: str) -> str | None:
     """Wrapper around shutil.which for monkeypatching in tests."""
     return shutil.which(name)
 
@@ -24,7 +24,7 @@ def _iter_port_files(pattern: str):
     return _iter_port_files_canonical(pattern, _ports_dir())
 
 
-def find_server_dir() -> Optional[pathlib.Path]:
+def find_server_dir() -> pathlib.Path | None:
     """Attempt to find local server installation directory.
 
     Returns None for uvx-managed installs (path not reliably discoverable).

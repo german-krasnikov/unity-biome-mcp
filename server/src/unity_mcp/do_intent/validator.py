@@ -1,12 +1,12 @@
 """Static plan validation for do() tool."""
-from typing import Optional
-from .catalog import ALLOWED, FORBIDDEN
+
 from ..utils import parse_kv_line as _parse_line
+from .catalog import ALLOWED, FORBIDDEN
 
 MAX_LINES = 50
 
 
-def validate_plan(plan: str, scene_paths: set[str]) -> Optional[str]:
+def validate_plan(plan: str, scene_paths: set[str]) -> str | None:
     """
     Validate Haiku-generated plan text.
     Returns error string or None if valid.

@@ -1,7 +1,7 @@
 """Constants and CircuitBreaker for Unity Biome MCP middleware."""
 import time
-from .tools.tool_specs import _SPECS as _TOOL_SPECS
 
+from .tools.tool_specs import _SPECS as _TOOL_SPECS
 
 _STRIP_CMDS: frozenset = frozenset({"get_component", "inspect", "get_object_detail"})
 

@@ -1,0 +1,47 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Extract changelog section
+        id: changelog
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          python3 -c "
+          import pathlib, re, os
+          tag = os.environ['TAG_NAME']
+          text = pathlib.Path('CHANGELOG.md').read_text(encoding='utf-8')
+          pattern = rf'(## \[{re.escape(tag)}\].*?)(?=\n## \[v|\Z)'
+          match = re.search(pattern, text, re.DOTALL)
+          if not match:
+              print(f'::warning::No CHANGELOG section found for {tag}')
+              body = f'Release {tag}'
+          else:
+              body = match.group(1).strip()
+          output = pathlib.Path(os.environ['GITHUB_OUTPUT'])
+          with output.open('a', encoding='utf-8') as f:
+              f.write('body<<CHANGELOG_EOF\n')
+              f.write(body + '\n')
+              f.write('CHANGELOG_EOF\n')
+          "
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.body }}
+          draft: false
+          prerelease: false

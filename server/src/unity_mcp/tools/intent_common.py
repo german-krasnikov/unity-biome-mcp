@@ -1,6 +1,8 @@
 """Shared DSL utilities for Tier B intent tools."""
-from typing import Callable, Optional
+from collections.abc import Callable
+
 from mcp.server.fastmcp.exceptions import ToolError
+
 from ..sampling_postproc import strip_fences  # backward-compat re-export
 from ..utils import parse_kv  # consolidated — was local copy
 
@@ -49,7 +51,7 @@ async def run_intent_pipeline(
     parse_fn: Callable,
     build_fn: Callable,
     dry_run: bool,
-    validate_fn: Optional[Callable[[dict], Optional[str]]] = None,
+    validate_fn: Callable[[dict], str | None] | None = None,
 ) -> str:
     """Common tail shared by all intent tools: generate → strip → parse → [validate] → build → execute."""
     dsl_raw = await sampling.generate(prompt, feature=feature)

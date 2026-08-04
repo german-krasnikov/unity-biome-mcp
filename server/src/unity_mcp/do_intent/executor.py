@@ -1,6 +1,7 @@
 """Executor for do() tool — runs batch + 1 retry on partial failure."""
 import re
-from typing import Optional, Callable, Set
+from collections.abc import Callable
+
 from ..sampling_postproc import normalize
 from .validator import validate_plan
 
@@ -33,7 +34,7 @@ class Executor:
         self,
         plan: str,
         original_intent: str = "",
-        scene_paths: Optional[Set[str]] = None,
+        scene_paths: set[str] | None = None,
     ) -> str:
         result = await self._send("batch", {"commands": plan, "on_error": "continue"})
         result_str = str(result)

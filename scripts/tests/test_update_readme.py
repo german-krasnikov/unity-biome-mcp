@@ -6,7 +6,6 @@ import sys
 
 import pytest
 
-
 SCRIPTS_DIR = pathlib.Path(__file__).parent.parent
 REPO_ROOT = SCRIPTS_DIR.parent
 sys.path.insert(0, str(SCRIPTS_DIR))

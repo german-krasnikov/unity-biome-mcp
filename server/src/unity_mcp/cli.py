@@ -6,12 +6,11 @@ spawn invokes `unity-biome-mcp` with zero argv — argv is non-empty only when a
 typed a subcommand at a terminal.
 """
 import sys
-from typing import Optional
 
 _SUBCOMMANDS = ("configure", "doctor", "version", "uninstall")
 
 
-def dispatch(argv: list[str]) -> Optional[int]:
+def dispatch(argv: list[str]) -> int | None:
     """None -> zero-arg / not our concern -> caller starts the MCP server.
     int -> exit code, a known subcommand ran (or argv[0] was unrecognized -> 1)."""
     if not argv:
@@ -33,9 +32,10 @@ def dispatch(argv: list[str]) -> Optional[int]:
 
 def _cmd_configure(argv: list[str]) -> int:
     import argparse
+
+    from .config.backup import backup
     from .config.clients import CLIENT_REGISTRY, detect_installed
     from .config.merger import merge_mcp_config, merge_toml_mcp
-    from .config.backup import backup
     from .config.resolver import build_server_entry
 
     p = argparse.ArgumentParser(prog="unity-biome-mcp configure", add_help=False)
@@ -68,7 +68,8 @@ def _cmd_configure(argv: list[str]) -> int:
 
 def _cmd_doctor(argv: list[str]) -> int:
     import asyncio
-    from .doctor import run_doctor, format_report
+
+    from .doctor import format_report, run_doctor
     fix = "--fix" in argv
     results = asyncio.run(run_doctor(fix=fix))
     print(format_report(results))
@@ -83,9 +84,10 @@ def _cmd_version(argv: list[str]) -> int:
 
 def _cmd_uninstall(argv: list[str]) -> int:
     import argparse
+
+    from .config.backup import backup
     from .config.clients import CLIENT_REGISTRY, detect_installed
     from .config.merger import remove_mcp_entry, remove_toml_mcp_entry
-    from .config.backup import backup
 
     p = argparse.ArgumentParser(prog="unity-biome-mcp uninstall", add_help=False)
     p.add_argument("--tool", choices=list(CLIENT_REGISTRY))

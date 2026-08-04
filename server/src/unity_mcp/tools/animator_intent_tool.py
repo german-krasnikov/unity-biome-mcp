@@ -1,10 +1,10 @@
 """animator_intent — NL → animator DSL → batch commands."""
 import re
-from typing import Optional
+
 from ..sampling import sampling_service as _sampling
-from .intent_common import build_batch_line, run_intent_pipeline
 from ._annotations import RW as _RW
 from ._common import bind
+from .intent_common import build_batch_line, run_intent_pipeline
 
 _send = None
 
@@ -55,7 +55,7 @@ def parse_animator_dsl(dsl: str) -> dict:
     return result
 
 
-def validate_animator_dsl(data: dict) -> Optional[str]:
+def validate_animator_dsl(data: dict) -> str | None:
     state_names = {s[0] for s in data["states"]}
     param_names = {p[0] for p in data["params"]}
     for t in data["transitions"]:

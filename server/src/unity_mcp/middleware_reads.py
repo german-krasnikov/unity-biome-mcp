@@ -1,7 +1,6 @@
 """Read/cache methods for Middleware (mixin)."""
-from typing import Optional
 
-from .middleware_types import WRITE_CMDS, READ_CMDS, is_write
+from .middleware_types import is_write
 
 
 class MiddlewareReadsMixin:
@@ -62,7 +61,7 @@ class MiddlewareReadsMixin:
         if cmd == "get_component" and "path" in args and "type" in args:
             self._lru_add_component(args["path"], args["type"])
         elif cmd == "inspect" and "[" in result:
-            current_path: Optional[str] = None
+            current_path: str | None = None
             for line in result.split("\n"):
                 stripped = line.strip()
                 if stripped.startswith("---") and stripped.endswith("---"):
@@ -76,7 +75,7 @@ class MiddlewareReadsMixin:
                     if current_path in self._component_cache:
                         self._component_cache[current_path].add(stripped[1:-1])
 
-    def check_component_exists(self, path: str, component: str) -> Optional[str]:
+    def check_component_exists(self, path: str, component: str) -> str | None:
         """Return warning if component definitely not on object (from cache). None = ok/unknown."""
         if path not in self._component_cache:
             return None

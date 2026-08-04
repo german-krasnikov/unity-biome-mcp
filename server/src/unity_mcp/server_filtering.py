@@ -3,16 +3,19 @@
 Pure, stateless helpers. State (_disabled_tools_cache, _refresh_tools_lock)
 lives in server.py so tests can mutate srv._disabled_tools_cache directly.
 """
+import asyncio
 import logging
 import os
 import socket
-from pathlib import Path
-from .constants import DEFAULT_PORT
+from pathlib import Path  # noqa: F401  # re-exported; tests mock unity_mcp.server_filtering.Path
 
+from .constants import DEFAULT_PORT
 from .lockfile import is_pid_alive as _is_pid_alive
-from .paths import ports_dir as _ports_dir, iter_port_files as _iter_port_files
-from .tools.gating import filter_by_tier, get_catalog, _CORE_TOOLS
-from .tools.schema_registry import _registry as _schema_registry, STUB_SCHEMA
+from .paths import iter_port_files as _iter_port_files
+from .paths import ports_dir as _ports_dir
+from .tools.gating import _CORE_TOOLS, filter_by_tier, get_catalog
+from .tools.schema_registry import STUB_SCHEMA
+from .tools.schema_registry import _registry as _schema_registry
 
 # Core tools keep full schemas; all others get stub schema on ListTools.
 _SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
@@ -244,6 +247,7 @@ def install_initialized_hook(mcp_server, get_slot):
     Logs at DEBUG on send failure instead of silently dropping the error.
     """
     import asyncio
+
     import mcp.types as mcp_types
     logger = logging.getLogger("unity_mcp")
 

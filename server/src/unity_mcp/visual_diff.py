@@ -1,10 +1,10 @@
 import hashlib
 import time
-from typing import Optional
-from .sampling import SamplingService
+
 from .metrics import METRICS
+from .sampling import SamplingService
 from .sampling_postproc import normalize
-from .visual_diff_pixel import PixelDiff, _pixel_diff, _format_pixel, DiffMode, DIFF_PROMPTS
+from .visual_diff_pixel import DIFF_PROMPTS, DiffMode, PixelDiff, _format_pixel, _pixel_diff
 
 # Re-exports for backward compatibility
 __all__ = [
@@ -19,7 +19,7 @@ class DiffCache:
 
     def __init__(self, max_entries: int = 64, ttl: float = 300.0):
         from collections import OrderedDict
-        self._store: "OrderedDict[str, tuple[str, float]]" = OrderedDict()
+        self._store: OrderedDict[str, tuple[str, float]] = OrderedDict()
         self._max = max_entries
         self._ttl = ttl
 
@@ -34,7 +34,7 @@ class DiffCache:
         return (f"{self._hash_file(before)}:{self._hash_file(after)}:"
                 f"{hashlib.md5(prompt.encode()).hexdigest()[:8]}")
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         entry = self._store.get(key)
         if not entry:
             METRICS.inc("diffcache.miss")
@@ -72,7 +72,7 @@ def _build_som_prompt(base_prompt: str, legend: str) -> str:
 
 def _build_legend_for_diff(
     rects: list[dict],
-    rects_after: Optional[list[dict]],
+    rects_after: list[dict] | None,
 ) -> str:
     """Build a combined legend with stable indices for before+after frames."""
     from .som.extract import assign_indices, build_path_pool
@@ -89,12 +89,12 @@ def _build_legend_for_diff(
 
 
 async def visual_diff(before: str, after: str, *, mode: str = "auto",
-                      question: Optional[str] = None,
+                      question: str | None = None,
                       pixel_threshold: float = 1.0,
-                      sampling: Optional[SamplingService] = None,
+                      sampling: SamplingService | None = None,
                       mark: bool = False,
-                      rects: Optional[list] = None,
-                      rects_after: Optional[list] = None) -> str:
+                      rects: list | None = None,
+                      rects_after: list | None = None) -> str:
     """Three-tier visual diff: pixel -> structural -> targeted (Haiku).
 
     mark=True: annotate both frames with SoM numbered overlays and inject

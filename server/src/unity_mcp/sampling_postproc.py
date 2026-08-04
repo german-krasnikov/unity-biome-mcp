@@ -8,7 +8,7 @@ Pure functions, no state, no I/O, no async.
 from __future__ import annotations
 
 import re
-from typing import Literal, Optional, Tuple
+from typing import Literal
 
 OutputKind = Literal["sentinel", "description", "dsl", "verdict"]
 
@@ -66,7 +66,7 @@ def strip_conversational(text: str) -> str:
     return stripped
 
 
-def normalize(text: Optional[str], kind: OutputKind = "description") -> Tuple[Optional[str], bool]:
+def normalize(text: str | None, kind: OutputKind = "description") -> tuple[str | None, bool]:
     """Returns (normalized_text, is_refusal).
 
     - None input → (None, False) — degraded upstream, don't double-wrap

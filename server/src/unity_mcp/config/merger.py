@@ -4,7 +4,7 @@ import os
 import pathlib
 import re
 import shutil
-from typing import Callable, Optional
+from collections.abc import Callable
 
 # Our MCP server name (config key). "unity-biome-mcp" — one "mcp", and distinct from
 # the foreign bare [mcp_servers.unity] (CoplayDev) that the TOML strip removes.
@@ -28,7 +28,7 @@ def merge_mcp_config(
     config_path: pathlib.Path,
     server_entry: dict,
     root_key: str = "mcpServers",
-    entry_transformer: Optional[Callable[[dict], dict]] = None,
+    entry_transformer: Callable[[dict], dict] | None = None,
 ) -> None:
     """Read → parse → patch unity-biome-mcp entry → write. Creates file if missing."""
     if config_path.exists():

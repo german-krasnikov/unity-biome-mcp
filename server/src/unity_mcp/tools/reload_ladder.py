@@ -1,10 +1,13 @@
 """reload_ladder — T0-T5 reload-recovery ladder. MVID-delta = only heal proof (A1)."""
-import asyncio, json, logging, time  # noqa: E401
+import asyncio  # noqa: E401
+import json
+import logging
+import time
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Callable, Awaitable
 
-from unity_mcp.bridge_socket import frame_write, frame_read
-from unity_mcp.tools.diagnose import _parse_diagnose, _DiagnoseFields, _verdict
+from unity_mcp.bridge_socket import frame_read, frame_write
+from unity_mcp.tools.diagnose import _DiagnoseFields, _parse_diagnose, _verdict
 
 log = logging.getLogger("unity_mcp.reload_ladder")
 

@@ -14,11 +14,9 @@ import ast
 import json
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
-from typing import Optional
 
 
 def _find_pytest_python(repo_root: pathlib.Path) -> str:
@@ -26,9 +24,6 @@ def _find_pytest_python(repo_root: pathlib.Path) -> str:
     venv_python = repo_root / "server" / ".venv" / "bin" / "python"
     if venv_python.exists():
         return str(venv_python)
-    brew = shutil.which("python3.12") or shutil.which("python3.11")
-    if brew:
-        return brew
     return sys.executable
 
 try:
@@ -81,7 +76,7 @@ def _count_public_tool_specs(specs_file: pathlib.Path) -> int:
     return count
 
 
-def count_mcp_tools(src_dir: pathlib.Path) -> Optional[int]:
+def count_mcp_tools(src_dir: pathlib.Path) -> int | None:
     """Count public tools from ToolSpec SSOT, with a generic source fallback.
 
     Reproduce: python3 -c "
@@ -227,7 +222,7 @@ def count_unity_tests(plugin_dir: pathlib.Path) -> TestCount:
     return TestCount(count, "static_grep")
 
 
-def read_server_version(pyproject: pathlib.Path) -> Optional[str]:
+def read_server_version(pyproject: pathlib.Path) -> str | None:
     """Read version from server/pyproject.toml.
 
     Reproduce: grep -m1 '^version' server/pyproject.toml
@@ -242,7 +237,7 @@ def read_server_version(pyproject: pathlib.Path) -> Optional[str]:
     return data.get("project", {}).get("version")
 
 
-def read_plugin_version(package_json: pathlib.Path) -> Optional[str]:
+def read_plugin_version(package_json: pathlib.Path) -> str | None:
     """Read version from unity-plugin/package.json.
 
     Reproduce: python3 -c "import json; print(json.load(open('unity-plugin/package.json'))['version'])"

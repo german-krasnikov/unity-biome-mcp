@@ -7,9 +7,8 @@ import hashlib
 import json
 import os
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -58,10 +57,10 @@ class LessonStore:
                 victim = min(self._lessons.items(), key=lambda kv: kv[1].last_seen)[0]
                 del self._lessons[victim]
 
-    def find_by_sig(self, sig: str) -> Optional[Lesson]:
+    def find_by_sig(self, sig: str) -> Lesson | None:
         return self._lessons.get(sig)
 
-    def hint_for(self, cmd: str, args: dict) -> Optional[str]:
+    def hint_for(self, cmd: str, args: dict) -> str | None:
         from .metrics import METRICS
         sig = _sig(cmd, args)
         lesson = self._lessons.get(sig)

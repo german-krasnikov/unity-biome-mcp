@@ -9,7 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .config.merger import SERVER_NAME, _OLD_NAMES
+from .config.merger import _OLD_NAMES, SERVER_NAME
 
 
 def resolve_server_cmd() -> tuple[str, list[str]]:

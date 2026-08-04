@@ -1,13 +1,13 @@
 """Single-slot Unity connection holder. One bridge, optional port switch."""
 import asyncio
-from typing import Optional
+
 from .bridge import UnityBridge
 from .constants import DEFAULT_PORT
 
 
 class ConnectionSlot:
     def __init__(self, port_discoverer=None, on_port_change=None, is_retry_safe=None):
-        self._bridge: Optional[UnityBridge] = None
+        self._bridge: UnityBridge | None = None
         self._port: int = DEFAULT_PORT
         self._host: str = "127.0.0.1"
         self._reconnect_callbacks: list = []
@@ -16,7 +16,7 @@ class ConnectionSlot:
         self._is_retry_safe = is_retry_safe
 
     @property
-    def bridge(self) -> Optional[UnityBridge]:
+    def bridge(self) -> UnityBridge | None:
         return self._bridge
 
     @property

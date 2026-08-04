@@ -1,7 +1,6 @@
 """Universal LLM profile system — DRY replacement for hardcoded model/timeout in sampling.py."""
-from dataclasses import dataclass, field
-from typing import Optional
 import os
+from dataclasses import dataclass
 
 __all__ = ["LlmProfile", "get_profile", "set_profile", "apply_config", "reset", "parse_tcp_config"]
 
@@ -11,7 +10,7 @@ class LlmProfile:
     model: str = "haiku"
     max_turns: int = 1
     timeout: float = 15.0
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
     backend: str = "claude"  # "" or absent → "claude" (backward compat)
 
     def to_cli_args(self) -> list[str]:

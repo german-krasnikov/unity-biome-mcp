@@ -8,12 +8,13 @@ find_references and semantic_at were removed (S2) — no C# handler was ever
 shipped for them, so every call raised ToolError("Command not registered: ...").
 Dead wrappers are pure token waste; re-add them if/when a real C# handler ships.
 """
-from ._common import bind
 import asyncio
 import time
 from typing import Any
 
 from unity_mcp.utils import parse_pipe_fields
+
+from ._common import bind
 
 _send = None
 

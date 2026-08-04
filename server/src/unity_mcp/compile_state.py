@@ -6,23 +6,23 @@ is_unity_busy() always False.
 import os
 import time
 from pathlib import Path
-from typing import Optional
 
 from unity_mcp.constants import SESSION_TIMEOUT as _DISCONNECT_WINDOW_S
-from unity_mcp.lockfile import read_pid_from_port_file, is_pid_alive, read_project_path_from_port_file
+from unity_mcp.lockfile import is_pid_alive, read_pid_from_port_file, read_project_path_from_port_file
 from unity_mcp.unity_state import read_state_for_port
+
 _DEFAULT_REMAINING_S = 5.0  # TODO(FM-26 G16w): derive from real diagnose state, not a fabricated 5.0s default
 _MAX_REMAINING_S = 60.0
 
 
 class CompileStateProbe:
-    def __init__(self, unity_project_path: Optional[Path] = None,
-                 port: Optional[int] = None) -> None:
+    def __init__(self, unity_project_path: Path | None = None,
+                 port: int | None = None) -> None:
         self._path = unity_project_path
-        self._port: Optional[int] = port
-        self._last_disconnect_ts: Optional[float] = None
-        self._compile_elapsed: Optional[float] = None
-        self._last_known_duration: Optional[float] = None
+        self._port: int | None = port
+        self._last_disconnect_ts: float | None = None
+        self._compile_elapsed: float | None = None
+        self._last_known_duration: float | None = None
 
     @property
     def has_project(self) -> bool:
@@ -133,7 +133,7 @@ class CompileStateProbe:
             pass
 
     @staticmethod
-    def autodetect_project_path(port: Optional[int] = None) -> Optional[Path]:
+    def autodetect_project_path(port: int | None = None) -> Path | None:
         """Resolve Unity project path: UNITY_MCP_PROJECT_PATH env override FIRST, then port-file autodetect."""
         p = os.environ.get("UNITY_MCP_PROJECT_PATH")
         if p:

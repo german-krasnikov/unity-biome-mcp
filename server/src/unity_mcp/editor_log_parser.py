@@ -62,7 +62,7 @@ def parse_compile_errors_from_log(log_path: Path, max_bytes: int = 256_000) -> "
     Never raises.
     """
     try:
-        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(log_path, encoding="utf-8", errors="replace") as f:
             text = f.read()
     except (OSError, PermissionError):
         return []

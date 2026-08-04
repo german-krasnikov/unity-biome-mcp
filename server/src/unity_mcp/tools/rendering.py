@@ -3,8 +3,9 @@
 render_analyze dispatches to RenderAnalyzer.cs on the Unity side.
 FrameDebugHelper.cs handles frame_debug action via reflection.
 """
+from ._annotations import RO as _RO
+from ._annotations import RW as _RW
 from ._common import bind
-from ._annotations import RO as _RO, RW as _RW
 
 _send = None
 _args = None

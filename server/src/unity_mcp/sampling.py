@@ -5,7 +5,6 @@ Uses `claude -p` for cheap/fast verification. Zero API keys needed.
 """
 import asyncio
 import os
-from typing import Optional
 
 CLAUDE_CMD = os.environ.get("UNITY_MCP_CLAUDE_CMD", "claude")
 
@@ -43,7 +42,7 @@ async def _record_async(feature: str, has_image: bool = None) -> None:
 class SamplingService:
     """Claude CLI calls for server-side verification."""
 
-    _semaphore: Optional[asyncio.Semaphore] = None
+    _semaphore: asyncio.Semaphore | None = None
 
     @classmethod
     def _get_semaphore(cls) -> asyncio.Semaphore:
@@ -56,12 +55,12 @@ class SamplingService:
     def enabled(self) -> bool:
         return os.environ.get("UNITY_MCP_VISUAL_VERIFY") == "1"
 
-    async def _run(self, args: list, timeout: float) -> Optional[str]:
+    async def _run(self, args: list, timeout: float) -> str | None:
         """Spawn subprocess; kill it on timeout/error to prevent zombies."""
         async with self._get_semaphore():
             return await self._run_inner(args, timeout)
 
-    async def _run_inner(self, args: list, timeout: float) -> Optional[str]:
+    async def _run_inner(self, args: list, timeout: float) -> str | None:
         from .metrics import METRICS
         METRICS.inc("sampling.calls")
         try:
@@ -106,10 +105,10 @@ class SamplingService:
     async def verify_visual(
         self,
         prompt: str,
-        screenshot_path: Optional[str] = None,
+        screenshot_path: str | None = None,
         *,
         feature: str = "visual_verify",
-    ) -> Optional[str]:
+    ) -> str | None:
         if not self.enabled:
             return None
         if not _gate(feature, 0.7):
@@ -132,7 +131,7 @@ class SamplingService:
         prompt: str,
         *,
         feature: str = "do_intent",
-    ) -> Optional[str]:
+    ) -> str | None:
         """Raw text generation via claude CLI. No system prompt added."""
         if not self.enabled:
             return None
@@ -150,7 +149,7 @@ class SamplingService:
         image_path: str,
         *,
         feature: str = "screenshot_describe",
-    ) -> Optional[str]:
+    ) -> str | None:
         """Image -> text via Haiku. Pure description, no PASS/FAIL framing."""
         if not self.enabled or not os.path.isfile(image_path):
             return None
@@ -171,7 +170,7 @@ class SamplingService:
         prompt: str,
         *,
         feature: str = "visual_diff",
-    ) -> Optional[str]:
+    ) -> str | None:
         """Send TWO images + prompt to Haiku for semantic comparison."""
         if not self.enabled:
             return None
@@ -193,7 +192,7 @@ class SamplingService:
         instruction: str = "Summarize concisely",
         *,
         feature: str = "summarize",
-    ) -> Optional[str]:
+    ) -> str | None:
         if not self.enabled:
             return None
         if not _gate(feature, 0.2):

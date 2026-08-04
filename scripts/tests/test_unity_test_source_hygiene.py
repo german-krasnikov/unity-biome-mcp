@@ -5,7 +5,6 @@ from __future__ import annotations
 import pathlib
 import re
 
-
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 CSHARP_ROOTS = (
     REPO_ROOT / "unity-plugin",

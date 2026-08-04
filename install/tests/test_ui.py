@@ -2,7 +2,6 @@
 import io
 import os
 import sys
-import threading
 import time
 import unittest
 from pathlib import Path
@@ -12,16 +11,16 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
 from install.ui import (
+    Spinner,
     _color_ok,
     _unicode_ok,
-    ok,
-    fail,
-    info,
-    skip,
     box,
     err_box,
+    fail,
+    info,
+    ok,
     prompt_yn,
-    Spinner,
+    skip,
 )
 
 

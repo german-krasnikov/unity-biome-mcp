@@ -7,7 +7,7 @@ import html
 import pathlib
 import re
 import sys
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 import changelog_svg_templates as T
 
@@ -22,11 +22,11 @@ class Version(NamedTuple):
 
 
 class Layout(NamedTuple):
-    xs: List[float]
-    opacities: List[float]
-    ring_counts: List[int]
-    packets: List[int]
-    begins: List[float]
+    xs: list[float]
+    opacities: list[float]
+    ring_counts: list[int]
+    packets: list[int]
+    begins: list[float]
     viewbox_w: int
 
 
@@ -42,9 +42,9 @@ _STOP_RE = re.compile(r'^## Earlier history', re.IGNORECASE)
 _VER_HEADING_RE = re.compile(r'^## \[v')
 
 
-def parse_changelog(text: str) -> List[Version]:
+def parse_changelog(text: str) -> list[Version]:
     """Parse CHANGELOG.md text → list of Version, oldest-first."""
-    versions: List[Version] = []
+    versions: list[Version] = []
     lines = text.splitlines()
     i = 0
     while i < len(lines):
@@ -82,7 +82,7 @@ def parse_changelog(text: str) -> List[Version]:
 _MAX_NODES = 8
 
 
-def layout(versions: List[Version]) -> Layout:
+def layout(versions: list[Version]) -> Layout:
     """Compute layout for up to _MAX_NODES versions + 1 future node."""
     n = len(versions)
     total = n + 1
@@ -183,7 +183,7 @@ def render_packets(x: float, y: float, count: int, node_idx: int, is_future: boo
     color_a = "#888899" if is_future else "#3ad29f"
     color_b = "#888899" if is_future else "#ccccff"
     opacity_max = "0.5" if is_future else "0.7"
-    parts: List[str] = []
+    parts: list[str] = []
     for p in range(count):
         dur = 2.6 + (p * 0.4 + node_idx * 0.1) % 1.4
         begin = p * 0.8
@@ -221,22 +221,22 @@ def render_label(x: float, y: float, ver: str, caption: str, begin: float, is_fu
 # Private render helpers for render_svg
 # ---------------------------------------------------------------------------
 
-def _render_nodes(lo: Layout, versions: List[Version], y: int) -> List[str]:
+def _render_nodes(lo: Layout, versions: list[Version], y: int) -> list[str]:
     n = len(versions)
     out = ['  <!-- LAYER 4: version nodes -->']
-    for i, ver in enumerate(versions):
+    for i, _ver in enumerate(versions):
         out.append(render_node(lo.xs[i], y, lo.opacities[i], lo.ring_counts[i], i == n - 1))
     out.append(render_future_node(lo.xs[n], y))
     return out
 
 
-def _render_labels(lo: Layout, versions: List[Version], y: int, n_orig: int) -> List[str]:
+def _render_labels(lo: Layout, versions: list[Version], y: int, n_orig: int) -> list[str]:
     n = len(versions)
     prefix_caption = versions[0].caption
     if n_orig > _MAX_NODES:
         prefix_caption = "… " + prefix_caption
     out = ['  <!-- LAYER 8: typewriter labels -->',
-           f'  <g text-anchor="middle" font-family="ui-monospace, \'SFMono-Regular\', Menlo, Consolas, monospace">',
+           '  <g text-anchor="middle" font-family="ui-monospace, \'SFMono-Regular\', Menlo, Consolas, monospace">',
            T.CAPTION]
     for i, ver in enumerate(versions):
         cap = prefix_caption if i == 0 else ver.caption
@@ -250,7 +250,7 @@ def _render_labels(lo: Layout, versions: List[Version], y: int, n_orig: int) -> 
 # Main assembler
 # ---------------------------------------------------------------------------
 
-def render_svg(versions: List[Version]) -> str:
+def render_svg(versions: list[Version]) -> str:
     """Assemble the full SVG string from parsed versions."""
     n_orig = len(versions)
     if n_orig > _MAX_NODES:
@@ -270,11 +270,11 @@ def render_svg(versions: List[Version]) -> str:
     first, last = versions[0].ver, versions[-1].ver
     aria = f"Unity Biome MCP changelog — animated heartbeat timeline of releases v{first} through v{last}"
 
-    lines: List[str] = [
+    lines: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} 360" width="100%" height="360"'
         f' preserveAspectRatio="xMidYMid meet" role="img" aria-label="{aria}">',
         T.DEFS,
-        f'  <!-- LAYER 0: background -->',
+        '  <!-- LAYER 0: background -->',
         f'  <rect width="{w}" height="360" fill="url(#bgGlow)"/>',
         T.GRID.format(w=w, w3=w3, w2=w2, w23=w23),
         T.SCANLINES.format(w=w),
@@ -282,13 +282,13 @@ def render_svg(versions: List[Version]) -> str:
     ]
     lines.extend(_render_nodes(lo, versions, y))
     lines += [
-        f'  <!-- LAYER 5: TCP data packets -->',
+        '  <!-- LAYER 5: TCP data packets -->',
         '  <g fill="#ccccff">',
         *[render_packets(lo.xs[i], y, lo.packets[i], i, is_future=False) for i in range(n)],
         render_packets(lo.xs[n], y, lo.packets[n], n, is_future=True),
         '  </g>',
         T.SCANBEAM.format(w=w),
-        f'  <!-- LAYER 7: vignette -->',
+        '  <!-- LAYER 7: vignette -->',
         f'  <rect width="{w}" height="360" fill="url(#vignette)"/>',
     ]
     lines.extend(_render_labels(lo, versions, y, n_orig))

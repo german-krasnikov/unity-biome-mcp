@@ -1,9 +1,7 @@
 """stdlib-only terminal UI for the unity-biome-mcp installer."""
-import io
 import os
 import sys
 import threading
-import time
 
 # ── Platform detection ──────────────────────────────────────────────────────
 

@@ -1,10 +1,11 @@
 """ui_intent — NL → UI DSL → create_ui/set_rect batch commands."""
-from typing import Optional
+
 from mcp.server.fastmcp.exceptions import ToolError
+
 from ..sampling import sampling_service as _sampling
-from .intent_common import strip_fences, parse_indent_tree, parse_kv, build_batch_line, run_intent_pipeline
 from ._annotations import RW as _RW
 from ._common import bind
+from .intent_common import build_batch_line, parse_indent_tree, parse_kv, run_intent_pipeline
 
 _send = None
 
@@ -53,7 +54,7 @@ Intent: {intent}
 Output ONLY the DSL, no explanation, no fences."""
 
 
-def get_template_dsl(name: str) -> Optional[str]:
+def get_template_dsl(name: str) -> str | None:
     return _TEMPLATES.get(name)
 
 
@@ -88,7 +89,7 @@ def _node_path(node: dict, name_map: dict) -> str:
     return "/" + "/".join(parts)
 
 
-def build_ui_batch(nodes: list[dict], parent: Optional[str]) -> list[str]:
+def build_ui_batch(nodes: list[dict], parent: str | None) -> list[str]:
     name_map = {n["name"]: n for n in nodes}
     lines = []
     for node in nodes:
@@ -131,7 +132,7 @@ def build_ui_batch(nodes: list[dict], parent: Optional[str]) -> list[str]:
     return lines
 
 
-async def ui_intent(intent: str, parent: Optional[str] = None, template: Optional[str] = None, dry_run: bool = False) -> str:
+async def ui_intent(intent: str, parent: str | None = None, template: str | None = None, dry_run: bool = False) -> str:
     """Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.
 
     template: hud|menu|dialog|grid. dry_run=True skips execution.

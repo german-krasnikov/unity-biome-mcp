@@ -51,15 +51,21 @@ def event_lines(resp: dict) -> list[str]:
 
 
 async def wait_for_events(relay: ChatRelay, after: int = -1, timeout: float = 2.0) -> list[str]:
-    """Poll _cmd_events until at least one event appears or timeout expires."""
+    """Poll _cmd_events, accumulating until terminal d| or e| event or timeout."""
     deadline = asyncio.get_event_loop().time() + timeout
+    all_lines: list[str] = []
+    current_after = after
     while asyncio.get_event_loop().time() < deadline:
-        resp = await relay._cmd_events({"after_seq": after, "timeout_ms": 200})
-        lines = event_lines(resp)
-        if lines:
-            return lines
+        resp = await relay._cmd_events({"after_seq": current_after, "timeout_ms": 200})
+        batch = event_lines(resp)
+        if batch:
+            all_lines.extend(batch)
+            parts = resp["data"].splitlines()
+            current_after = int(parts[-2])
+            if any(l.startswith(("d|", "e|")) for l in batch):
+                return all_lines
         await asyncio.sleep(0.05)
-    return []
+    return all_lines
 
 
 async def spawn(relay: ChatRelay, script: str, transform: bool = True) -> None:

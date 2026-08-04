@@ -9,10 +9,8 @@ from collections import Counter
 
 import pytest
 
-
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 import readme_render as rr
-
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 ASSETS = REPO_ROOT / "docs" / "assets"
@@ -378,6 +376,10 @@ class TestRenderOwnership:
             (assets / name).write_bytes(payload)
             curated[name] = payload
 
+        rr._write_text_exact(
+            tmp_path / "mkdocs.yml",
+            "site_description: MCP server for Unity Editor — 142 tools registered\n",
+        )
         rr.render(tmp_path, SAMPLE_META)
 
         for name, expected in curated.items():
