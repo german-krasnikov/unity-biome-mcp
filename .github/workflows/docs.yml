@@ -6,6 +6,9 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
+      - 'scripts/generate_schema_page.py'
+      - 'server/src/unity_mcp/**'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -28,6 +31,21 @@ jobs:
           python-version: '3.12'
 
       - run: pip install mkdocs-material mkdocs-minify-plugin
+
+      - name: Install server (needed for tool export)
+        working-directory: server
+        run: pip install ".[dev]"
+
+      - name: Generate tool schema page
+        run: |
+          mkdir -p reports docs/tools-schema
+          python scripts/export_tools.py --format toolsmith --out reports/tools-toolsmith.json
+          pip install mcp-tool-card-linter==1.0.0
+          mcp-tool-card-linter lint --tools-file reports/tools-toolsmith.json --json-report reports/toolsmith.json --fail-on never || true
+          python scripts/generate_schema_page.py \
+            --tools reports/tools-toolsmith.json \
+            --scores reports/toolsmith.json \
+            --out docs/tools-schema/index.md
 
       - run: mkdocs build --strict
 

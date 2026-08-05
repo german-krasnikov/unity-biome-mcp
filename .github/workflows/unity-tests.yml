@@ -182,6 +182,6 @@ jobs:
           git add docs/quality/data/unity-tests.json
           git diff --staged --quiet && echo "No changes" && exit 0
           git commit -m "chore: update C# test results [skip ci]"
-          git pull --rebase origin master
+          git pull --rebase -X theirs origin master
           git push
 

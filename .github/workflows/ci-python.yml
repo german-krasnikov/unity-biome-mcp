@@ -260,12 +260,19 @@ jobs:
             --latest docs/quality/data/latest.json \
             --history docs/quality/data/history.json
 
+      - name: Generate tool schema page
+        run: |
+          python scripts/generate_schema_page.py \
+            --tools reports/tools-toolsmith.json \
+            --scores reports/toolsmith.json \
+            --out docs/tools-schema/index.md
+
       - name: Commit badge updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/badges/*.json docs/quality/data/*.json docs/quality/REPORT.md
+          git add .github/badges/*.json docs/quality/data/*.json docs/quality/REPORT.md docs/tools-schema/index.md
           git diff --staged --quiet && echo "No badge changes" && exit 0
           git commit -m "chore: update badges + quality data [skip ci]"
-          git pull --rebase origin master
+          git pull --rebase -X theirs origin master
           git push

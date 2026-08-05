@@ -99,6 +99,8 @@ nav:
     - Chat Backends: chat/backends.md
     - Screenshot Annotation: chat/annotation.md
     - Extending Chip Kinds: chat/extending-chips.md
+  - Quality:
+    - Tool Schema: tools-schema/index.md
   - Develop:
     - plugins/index.md
     - Plugin API Reference: plugins/api-reference.md

@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.18.1] — 2026-08-05
+
+### Added
+- **MCP Tool Schema page** (`docs/tools-schema/`) — auto-generated MkDocs page with per-tool parameter tables, JSON schemas, and toolsmith quality scores; deployed to GitHub Pages under Quality tab
+- **`scripts/generate_schema_page.py`** — renders tool schema page from exported definitions + toolsmith lint report; supports both audit and lint report formats
+- **Docs workflow schema generation** — docs CI generates tool schema page at build time with full toolsmith scores
+
+### Changed
+- **Score badge thresholds** — red 0–59, yellow 60–79, green 80+ (was 70/90)
+- **CI rebase strategy** — `git pull --rebase -X theirs` for auto-generated data conflicts
+
 ## [v1.18.0] — 2026-08-05
 
 ### Added
