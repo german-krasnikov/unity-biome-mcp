@@ -16,6 +16,8 @@ from .constants import DEFAULT_PORT, SESSION_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
+import contextlib
+
 from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, HeartbeatMixin
 from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
 from unity_mcp.bridge_retry import RetryPolicy
@@ -274,11 +276,9 @@ class UnityBridge(HeartbeatMixin):
                     jitter = random.uniform(0, delay * 0.1)
                     if reason == "domain_reload":
                         self._reload_gate.clear()
-                        try:
+                        with contextlib.suppress(asyncio.TimeoutError):
                             await asyncio.wait_for(
                                 self._reload_gate.wait(), timeout=delay + jitter)
-                        except asyncio.TimeoutError:
-                            pass
                     else:
                         await asyncio.sleep(delay + jitter)
                     continue
@@ -368,10 +368,8 @@ class UnityBridge(HeartbeatMixin):
     @staticmethod
     async def _close_candidate(writer) -> None:
         writer.close()
-        try:
+        with contextlib.suppress(Exception):
             await writer.wait_closed()
-        except Exception:
-            pass
 
     async def _verify_candidate_project(self, reader, writer, port: int) -> None:
         """Reject an endpoint that cannot prove it owns the expected project."""
@@ -564,10 +562,8 @@ class UnityBridge(HeartbeatMixin):
         self.start_heartbeat(self._heartbeat_interval)
         if fire_callbacks:
             for cb in self._on_reconnect_callbacks:
-                try:
+                with contextlib.suppress(Exception):
                     cb()
-                except Exception:
-                    pass
 
     @property
     def connected(self) -> bool:
@@ -593,12 +589,8 @@ class UnityBridge(HeartbeatMixin):
         if w:
             sock = w.get_extra_info("socket")
             if sock is not None:
-                try:
+                with contextlib.suppress(OSError):
                     sock.shutdown(socket.SHUT_WR if os.name == "nt" else socket.SHUT_RDWR)
-                except OSError:
-                    pass
             w.close()
-            try:
+            with contextlib.suppress(Exception):
                 await asyncio.wait_for(w.wait_closed(), timeout=2.0)
-            except Exception:
-                pass

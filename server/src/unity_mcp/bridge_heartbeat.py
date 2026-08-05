@@ -72,7 +72,7 @@ class HeartbeatMixin:
         while True:
             try:
                 await self._heartbeat_tick(interval)
-            except asyncio.CancelledError:
+            except asyncio.CancelledError:  # noqa: PERF203
                 return
             except Exception:
                 # Safety net: never let heartbeat task die silently.
@@ -90,8 +90,7 @@ class HeartbeatMixin:
                 self.stop_heartbeat()
                 return
             return  # skip tick, recheck next heartbeat
-        else:
-            self._ppid_mismatch_count = 0
+        self._ppid_mismatch_count = 0
         if not self.connected:
             # Track cumulative disconnected time for startup-grace deadline.
             if self._reconnect_started_at is None:

@@ -296,8 +296,7 @@ def _verdict(
     if prev_mvid and fields.mvid and fields.mvid == prev_mvid:
         if expected_compile:
             return "STALE-DOMAIN"   # slot 11: compile was expected, MVID froze → stale
-        else:
-            return "NO-OP"          # slot 12: cache-hit / no compile expected → clean
+        return "NO-OP"          # slot 12: cache-hit / no compile expected → clean
 
     # 13. Log errors
     if fields.log not in ("clean", "absent", ""):

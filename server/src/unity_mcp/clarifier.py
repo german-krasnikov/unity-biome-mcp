@@ -8,10 +8,13 @@ auto-resolve if margin >= 2. Else block with candidate listing.
 """
 from __future__ import annotations
 
-from collections import deque
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from .utils import _levenshtein
+
+if TYPE_CHECKING:
+    from collections import deque
 
 
 @dataclass

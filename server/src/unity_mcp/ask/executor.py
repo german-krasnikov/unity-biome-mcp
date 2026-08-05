@@ -18,6 +18,6 @@ class AskExecutor:
                 if tool == "get_compile_errors":
                     result = editor_log.corroborate(str(result))
                 results.append(str(result))
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
                 results.append(f"ERROR: {e}")
         return results

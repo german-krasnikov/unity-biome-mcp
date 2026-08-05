@@ -16,16 +16,36 @@ jobs:
   preflight:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: '3.12'
 
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: "20"
+
       - name: Install dependencies
-        run: pip install -e "server[dev]"
+        run: |
+          pip install -e "server[dev]"
+          pip install mcp-tool-card-linter==1.0.0
+
+      - name: Tool quality gate (soft)
+        run: |
+          python scripts/export_tools.py --format toolsmith --out /tmp/tools-toolsmith.json
+          python scripts/export_tools.py --format mcplint --out /tmp/tools-mcplint.json
+          mcp-toolsmith lint --tools-file /tmp/tools-toolsmith.json --json-report /tmp/toolsmith.json --fail-on never
+          npx -y mcp-lint@0.5.3 check /tmp/tools-mcplint.json > /tmp/mcplint.txt 2>&1 || true
+          python scripts/quality_delta.py \
+            --toolsmith /tmp/toolsmith.json \
+            --mcplint /tmp/mcplint.txt \
+            --history docs/quality/data/history.json \
+            --out-latest /tmp/latest.json \
+            --out-comment /tmp/pr-comment.md \
+            --out-badge /tmp/quality.json || echo "::warning::Quality regression detected"
 
       - name: Run preflight
         env:

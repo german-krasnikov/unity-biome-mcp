@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import time
 from collections import OrderedDict
-from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Verification gates per CLAUDE.md — write CMD → predicted next read CMD+args
 # After write succeeds, fire the predicted read in BACKGROUND, populate cache.

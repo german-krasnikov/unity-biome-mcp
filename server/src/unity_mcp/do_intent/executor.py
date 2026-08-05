@@ -11,11 +11,7 @@ _ERR_LINE_RE = re.compile(r"^\[\d+\]\s+err:", re.IGNORECASE)
 
 def _count_failures(result: str) -> list[str]:
     """Extract failed lines from batch result — matches '[N] err:' format."""
-    failed = []
-    for line in result.splitlines():
-        if _ERR_LINE_RE.match(line):
-            failed.append(line)
-    return failed
+    return [line for line in result.splitlines() if _ERR_LINE_RE.match(line)]
 
 
 def _is_partial(result: str) -> bool:

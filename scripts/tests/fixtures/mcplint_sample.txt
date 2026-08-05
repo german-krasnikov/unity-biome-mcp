@@ -1,0 +1,4 @@
+some_tool
+  ✖ Missing description (M001)
+  ✖ No examples (M002)
+  ⚠ Description too short (W001)

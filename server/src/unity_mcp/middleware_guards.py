@@ -232,8 +232,7 @@ class MiddlewareGuardsMixin:
                 actual = actual.strip()
                 if actual == value:
                     return result + f"\n[VERIFIED: {prop}={value}]"
-                else:
-                    return result + f"\n[VERIFY FAIL: expected {value}, got {actual}]"
+                return result + f"\n[VERIFY FAIL: expected {value}, got {actual}]"
         return result
 
     def log_mutation(self, cmd: str, args: dict, result: str) -> None:

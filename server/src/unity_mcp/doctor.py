@@ -2,7 +2,7 @@
 import asyncio
 import json
 import sys
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from .bridge_socket import frame_read_with_timeout, frame_write
@@ -59,10 +59,8 @@ async def check_port_file(fix: bool = False) -> CheckResult:
 
     if fix and stale:
         for f in stale:
-            try:
+            with suppress(OSError):
                 f.unlink()
-            except OSError:
-                pass
         stale = []
         if not live:
             return CheckResult(
@@ -102,10 +100,8 @@ async def check_lockfile(fix: bool = False) -> CheckResult:
 
     if fix:
         for f in stale:
-            try:
+            with suppress(OSError):
                 f.unlink()
-            except OSError:
-                pass
         return CheckResult("lockfile", True, f"Cleaned {len(stale)} stale lockfile(s)")
 
     return CheckResult(
@@ -138,10 +134,8 @@ async def _tcp_connect(port: int, timeout: float = 3.0):
         yield r, w
     finally:
         w.close()
-        try:
+        with suppress(Exception):
             await asyncio.wait_for(w.wait_closed(), timeout=1.0)
-        except Exception:
-            pass
 
 
 async def check_tcp_connection(port: int = 0) -> CheckResult:

@@ -127,7 +127,7 @@ class PathResolverMixin:
         clean = set(self._clean_paths.keys()) if hasattr(self, "_clean_paths") else set()
         mutations_paths = []
         if hasattr(self, "_last_writes"):
-            mutations_paths = [k[0] for k in self._last_writes.keys() if k and k[0]]
+            mutations_paths = [k[0] for k in self._last_writes if k and k[0]]
 
         if self._disambig is None:
             from collections import deque

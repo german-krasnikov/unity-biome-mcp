@@ -3,6 +3,7 @@ from unity_mcp._preflight import run_preflight
 run_preflight()
 
 import asyncio
+import contextlib
 import logging
 import os
 import threading
@@ -28,10 +29,8 @@ def _handle_sigterm(signum, frame) -> None:
     _sigterm_state["requested"] = True
     lock_fd = _sigterm_state.get("lock_fd")
     if lock_fd is not None:
-        try:
+        with contextlib.suppress(Exception):
             release_lock(lock_fd)
-        except Exception:
-            pass
         _sigterm_state["lock_fd"] = None
     os._exit(0)
 
@@ -77,7 +76,7 @@ def _start_idle_watchdog() -> threading.Thread | None:
     return t
 
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from mcp.server.fastmcp import FastMCP
 
@@ -448,10 +447,8 @@ async def lifespan(app):
         if slot and slot.bridge:
             slot.bridge.stop_heartbeat()
         if _middleware and _middleware.watchdog:
-            try:
+            with suppress(Exception):
                 await _middleware.watchdog.cancel()
-            except Exception:
-                pass
         if slot:
             await slot.close()
         if lock_fd is not None:
@@ -486,10 +483,8 @@ def main():
     _start_idle_watchdog()
     import signal
     if hasattr(signal, "SIGPIPE"):
-        try:
+        with suppress(OSError, ValueError):
             signal.signal(signal.SIGPIPE, signal.SIG_IGN)
-        except (OSError, ValueError):
-            pass
 
     # SIGTERM -> graceful shutdown.
     # POSIX only: on Windows, TerminateProcess (taskkill) does NOT invoke Python
@@ -502,10 +497,8 @@ def main():
     # (without cancellable=True) for readline(), which deadlocks under task
     # cancellation when stdin is still open.
     if hasattr(signal, "SIGTERM"):
-        try:
+        with suppress(OSError, ValueError):  # restricted environments
             signal.signal(signal.SIGTERM, _handle_sigterm)
-        except (OSError, ValueError):
-            pass  # restricted environments
 
     from unity_mcp.crash_log import log_crash
     transport = os.environ.get("UNITY_MCP_TRANSPORT", "stdio")

@@ -100,24 +100,28 @@ def tool_specs(repo_root: pathlib.Path) -> dict[str, str]:
     source = repo_root / "server" / "src" / "unity_mcp" / "tools" / "tool_specs.py"
     tree = ast.parse(source.read_text())
     for node in tree.body:
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            if node.target.id == "_SPECS" and isinstance(node.value, ast.Dict):
-                specs: dict[str, str] = {}
-                for key, value in zip(node.value.keys, node.value.values, strict=False):
-                    if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
-                        continue
-                    category = None
-                    if isinstance(value, ast.Call):
-                        for keyword in value.keywords:
-                            if (
-                                keyword.arg == "category"
-                                and isinstance(keyword.value, ast.Constant)
-                                and isinstance(keyword.value.value, str)
-                            ):
-                                category = keyword.value.value
-                    assert category is not None, key.value
-                    specs[key.value] = category
-                return specs
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "_SPECS"
+            and isinstance(node.value, ast.Dict)
+        ):
+            specs: dict[str, str] = {}
+            for key, value in zip(node.value.keys, node.value.values, strict=False):
+                if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                    continue
+                category = None
+                if isinstance(value, ast.Call):
+                    for keyword in value.keywords:
+                        if (
+                            keyword.arg == "category"
+                            and isinstance(keyword.value, ast.Constant)
+                            and isinstance(keyword.value.value, str)
+                        ):
+                            category = keyword.value.value
+                assert category is not None, key.value
+                specs[key.value] = category
+            return specs
     raise AssertionError("_SPECS dictionary not found")
 
 

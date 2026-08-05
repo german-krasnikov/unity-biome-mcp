@@ -394,7 +394,7 @@ class TestCommittedAssets:
         for path in ASSETS.glob("*.svg"):
             try:
                 ET.fromstring(path.read_text(encoding="utf-8"))
-            except ET.ParseError as error:
+            except ET.ParseError as error:  # noqa: PERF203
                 pytest.fail(f"{path.name} is not valid XML: {error}")
 
     @pytest.mark.parametrize(

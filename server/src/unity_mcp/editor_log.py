@@ -13,7 +13,8 @@ succeeds (ExitCode=0 would be the last ExitCode, giving a false-negative).
 
 The errors live in the ##### Output block BEFORE the header (lines 79707-79733 in real log).
 """
-from pathlib import Path
+
+from typing import TYPE_CHECKING
 
 from .editor_log_freshness import (  # noqa: F401 — re-export
     check_dll_freshness,
@@ -33,6 +34,9 @@ from .editor_log_wedge import (  # noqa: F401 — re-export
     crosscheck_error_on_disk,
     detect_wedge,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Module-level cached state for centralized corroboration
 _cor_project_path = None

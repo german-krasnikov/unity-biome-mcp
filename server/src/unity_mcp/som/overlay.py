@@ -88,8 +88,7 @@ def _leaf(path: str) -> str:
     """Return leaf path component, sanitized — saves ~200 tokens per call."""
     leaf = path.rsplit("/", 1)[-1] if "/" in path else path
     leaf = _LEAF_STRIP.sub("", leaf)
-    leaf = leaf.replace("Legend:", "")
-    return leaf
+    return leaf.replace("Legend:", "")
 
 
 def _build_legend(indexed: list[tuple[int, dict]]) -> str:

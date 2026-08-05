@@ -3,6 +3,7 @@
 Enable with UNITY_MCP_WATCHDOG=1.
 """
 import asyncio
+import contextlib
 import time
 from collections.abc import Callable
 
@@ -34,10 +35,8 @@ class ProactiveWatchdog:
             if not self._budget_gate():
                 return
             if self._task is None or self._task.done():
-                try:
+                with contextlib.suppress(RuntimeError):  # no event loop in sync context
                     self._task = asyncio.get_running_loop().create_task(self._scan())
-                except RuntimeError:
-                    pass  # no event loop in sync context
 
     async def _scan(self) -> None:
         try:
@@ -72,7 +71,5 @@ class ProactiveWatchdog:
     async def cancel(self) -> None:
         if self._task and not self._task.done():
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, asyncio.TimeoutError, Exception):
                 await asyncio.wait_for(self._task, 2.0)
-            except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
-                pass

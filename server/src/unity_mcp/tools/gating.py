@@ -89,9 +89,11 @@ def _rebuild_categories() -> dict[str, set[str]]:
     # Include each themed key directly so new-style category names work in CATEGORIES
     for key in _THEMED_CATEGORIES:
         rebuilt[key] = set(_THEMED_CATEGORIES[key])
-    for key, tools in globals().get("CATEGORIES", {}).items():
-        if key not in _CATEGORY_ALIAS and key not in _THEMED_CATEGORIES:
-            rebuilt[key] = tools
+    rebuilt.update({
+        key: tools
+        for key, tools in globals().get("CATEGORIES", {}).items()
+        if key not in _CATEGORY_ALIAS and key not in _THEMED_CATEGORIES
+    })
     return rebuilt
 
 

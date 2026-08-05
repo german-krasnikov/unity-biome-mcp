@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import re
 import socket
@@ -184,7 +185,7 @@ def advertised_ports(project: Path, requested_port: int | None) -> list[int]:
             advertised_project = Path(lines[1]).resolve()
             if advertised_project == project.resolve():
                 matches.append((port_file.stat().st_mtime, port))
-        except (OSError, ValueError, IndexError):
+        except (OSError, ValueError, IndexError):  # noqa: PERF203
             continue
     matches.sort(reverse=True)
     ports = list(dict.fromkeys(port for _, port in matches))
@@ -228,7 +229,7 @@ async def verified_port(
             if actual == project.resolve():
                 return port
             errors.append(f"{port}: serves {actual}")
-        except (OSError, ConnectionError, asyncio.TimeoutError, FaultLaneError) as error:
+        except (OSError, ConnectionError, asyncio.TimeoutError, FaultLaneError) as error:  # noqa: PERF203
             errors.append(f"{port}: {type(error).__name__}: {error}")
     raise FaultLaneError(
         f"No responsive MCP endpoint belongs to {project}: " + "; ".join(errors)
@@ -404,16 +405,14 @@ async def start_exact_run(
         deadline,
         poll_interval,
     )
-    try:
+    # Dispatch may have succeeded. Resolve the same request identity; never retry it.
+    with contextlib.suppress(OSError, ConnectionError, asyncio.TimeoutError, TransportUncertain):
         initial = await call(
             port,
             "run_tests",
             command_args,
             timeout=30.0,
         )
-    except (OSError, ConnectionError, asyncio.TimeoutError, TransportUncertain):
-        # Dispatch may have succeeded. Resolve the same request identity; never retry it.
-        pass
     run_id = await resolve_run_id(
         project,
         requested_port,

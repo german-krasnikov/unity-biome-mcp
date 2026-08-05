@@ -9,6 +9,7 @@ Sequence (ref §13):
   6. Return errors or "sync clean"
 """
 import asyncio
+import contextlib
 import time
 from pathlib import Path
 
@@ -249,11 +250,10 @@ async def sync_unity(
                             return "sync clean"  # healed via force_refresh
                         # BLOCKER1: T1 failed → escalate to run_ladder T2-T5
                         return await _run_ladder(_send, send_reload=_send_reload, start_tier=2)
-                    else:
-                        # will_compile=false (cache-hit / no-change): frozen MVID is clean.
-                        # expected_compile threading (item 1 / A5): never STALE-DOMAIN here.
-                        await _warm_type_cache()
-                        return "sync clean (no-op, cache-hit)"
+                    # will_compile=false (cache-hit / no-change): frozen MVID is clean.
+                    # expected_compile threading (item 1 / A5): never STALE-DOMAIN here.
+                    await _warm_type_cache()
+                    return "sync clean (no-op, cache-hit)"
             errors = await _get_errors()
             if not errors:
                 await _warm_type_cache()
@@ -277,10 +277,8 @@ async def _get_errors() -> str:
 
 
 async def _warm_type_cache() -> None:
-    try:
+    with contextlib.suppress(ConnectionError, OSError):
         await _send("warm_type_cache", {})
-    except (ConnectionError, OSError):
-        pass
 
 
 def register(mcp, send, args):

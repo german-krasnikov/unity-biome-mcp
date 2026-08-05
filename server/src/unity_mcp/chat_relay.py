@@ -4,6 +4,7 @@ Entry: python -m unity_mcp.chat_relay
 Protocol: 4-byte BE length prefix + JSON, same as MCP bridge.
 """
 import asyncio
+import contextlib
 import json
 import os
 import signal
@@ -75,10 +76,8 @@ class ChatRelay:
                              writer: asyncio.StreamWriter) -> None:
         # B4: displace previous client (relay is single-client by design)
         if self._current_writer is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._current_writer.close()
-            except Exception:
-                pass
         self._current_writer = writer
         try:
             while True:
@@ -326,10 +325,8 @@ class ChatRelay:
     async def _kill_current(self) -> None:
         if self._drain_task is not None:
             self._drain_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._drain_task
-            except (asyncio.CancelledError, Exception):
-                pass
             self._drain_task = None
         if self._session is not None:
             await self._session.kill()

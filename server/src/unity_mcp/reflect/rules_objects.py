@@ -117,9 +117,8 @@ async def _rule_manage_component(
     if action == "add":
         if leaf and leaf not in low:
             return Mismatch(f"manage_component add: '{component}' not confirmed in response")
-    elif action == "remove":
-        if "removed:" not in low:
-            return Mismatch("manage_component remove: expected 'Removed:' in response")
+    elif action == "remove" and "removed:" not in low:
+        return Mismatch("manage_component remove: expected 'Removed:' in response")
     return None
 
 

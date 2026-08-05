@@ -73,7 +73,7 @@ def discover_port() -> int:
         for f in ports.glob("*.port"):
             try:
                 return int(f.read_text(encoding="utf-8").split("\n")[0])
-            except (ValueError, OSError):
+            except (ValueError, OSError):  # noqa: PERF203
                 continue
     return 9500
 

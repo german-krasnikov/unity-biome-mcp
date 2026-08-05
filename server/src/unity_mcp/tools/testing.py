@@ -1,6 +1,7 @@
 """Unity Test Framework orchestration with durable run identity."""
 
 import asyncio
+import contextlib
 import json
 import math
 import re
@@ -263,10 +264,8 @@ async def _preflight() -> str | None:
                     f"BLOCKED: {verdict} -- auto-recovery exhausted after "
                     f"{max_retries} attempts"
                 )
-            try:
+            with contextlib.suppress(Exception):
                 await _send("force_refresh", {})
-            except Exception:
-                pass
             await asyncio.sleep(10)
     except _ToolError:
         raise

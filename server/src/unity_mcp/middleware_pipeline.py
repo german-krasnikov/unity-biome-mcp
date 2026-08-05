@@ -119,13 +119,12 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
                 args = {**args, "path": resolved}
 
         # SchemaGuard pre-flight validation
-        if mw.schema_guard is not None:
-            if not _no_validate:
-                block = await mw.schema_guard.validate(cmd, args, send_fn)
-                if block is not None:
-                    from .metrics import METRICS
-                    METRICS.inc("validate.blocked")
-                    return _early_return(block)
+        if mw.schema_guard is not None and not _no_validate:
+            block = await mw.schema_guard.validate(cmd, args, send_fn)
+            if block is not None:
+                from .metrics import METRICS
+                METRICS.inc("validate.blocked")
+                return _early_return(block)
 
         # P1: Component existence pre-check (blocks when cache confirms absence)
         if cmd == "set_property" and "component" in args:

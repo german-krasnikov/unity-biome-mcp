@@ -76,7 +76,7 @@ def find_port() -> int:
     for port_file in _iter_port_files("*.port"):
         try:
             return int(port_file.read_text(encoding="utf-8").split("\n")[0])
-        except (ValueError, OSError):
+        except (ValueError, OSError):  # noqa: PERF203
             continue
     return DEFAULT_PORT
 

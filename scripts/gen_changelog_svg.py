@@ -137,8 +137,7 @@ def render_node(x: float, y: float, opacity: float, rings: int, is_supernova: bo
     """Render a version node group (rings + halo + core + dot)."""
     cx, cy = f"{x:.1f}", f"{y:.1f}"
     parts = [f'<g opacity="{opacity:.2f}">']
-    for k in range(rings):
-        parts.append(_ring(x, y, f"{k * 0.6:.1f}s"))
+    parts.extend(_ring(x, y, f"{k * 0.6:.1f}s") for k in range(rings))
     if is_supernova:
         parts.append(
             f'<circle cx="{cx}" cy="{cy}" r="14" fill="none" stroke="#e94560" stroke-width="2">'

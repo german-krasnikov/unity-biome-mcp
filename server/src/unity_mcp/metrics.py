@@ -11,7 +11,7 @@ import statistics
 import time
 from collections import defaultdict, deque
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 from .metrics_report import _p95
 from .metrics_report import format_report as _format_report
@@ -47,17 +47,15 @@ class MetricsRegistry:
         try:
             os.makedirs(log_dir, exist_ok=True)
             path = os.path.join(log_dir, "metrics.jsonl")
-            self._jsonl_f = open(path, "a", encoding="utf-8")
+            self._jsonl_f = open(path, "a", encoding="utf-8")  # noqa: SIM115
             atexit.register(self._close)
         except Exception:
             self._jsonl_f = None
 
     def _close(self) -> None:
         if self._jsonl_f:
-            try:
+            with suppress(Exception):
                 self._jsonl_f.close()
-            except Exception:
-                pass
             self._jsonl_f = None
 
     def inc(self, key: str, n: int = 1) -> None:
@@ -142,11 +140,10 @@ def timed(key: str):
                 with METRICS.timer(key):
                     return await fn(*args, **kwargs)
             return awrapper
-        else:
-            def wrapper(*args, **kwargs):
-                with METRICS.timer(key):
-                    return fn(*args, **kwargs)
-            return wrapper
+        def wrapper(*args, **kwargs):
+            with METRICS.timer(key):
+                return fn(*args, **kwargs)
+        return wrapper
     return decorator
 
 
@@ -158,9 +155,8 @@ def counted(key: str):
                 METRICS.inc(key)
                 return await fn(*args, **kwargs)
             return awrapper
-        else:
-            def wrapper(*args, **kwargs):
-                METRICS.inc(key)
-                return fn(*args, **kwargs)
-            return wrapper
+        def wrapper(*args, **kwargs):
+            METRICS.inc(key)
+            return fn(*args, **kwargs)
+        return wrapper
     return decorator

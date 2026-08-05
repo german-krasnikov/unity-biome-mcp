@@ -1,13 +1,17 @@
 """reload_ladder — T0-T5 reload-recovery ladder. MVID-delta = only heal proof (A1)."""
 import asyncio  # noqa: E401
+import contextlib
 import json
 import logging
 import time
-from collections.abc import Awaitable, Callable
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from unity_mcp.bridge_socket import frame_read, frame_write
 from unity_mcp.tools.diagnose import _DiagnoseFields, _parse_diagnose, _verdict
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+    from pathlib import Path
 
 log = logging.getLogger("unity_mcp.reload_ladder")
 
@@ -79,10 +83,8 @@ async def _t1(send, baseline: str) -> "str | None":
     return await _poll_mvid_delta(send, baseline, _T1_POLL_S, _T1_MAX_POLLS)
 
 async def _t2(send, baseline: str) -> "str | None":
-    try:
+    with contextlib.suppress(ConnectionError, OSError):
         await send("recompile", {})
-    except (ConnectionError, OSError):
-        pass
     await asyncio.sleep(_T2_SLEEP_S)
     return await _t1(send, baseline)
 

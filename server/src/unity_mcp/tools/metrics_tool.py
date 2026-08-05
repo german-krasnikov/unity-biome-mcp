@@ -26,8 +26,7 @@ def _format_snapshot(snap: dict) -> str:
     c = snap.get("counters", {})
     if c:
         lines.append("")
-        for k in sorted(c):
-            lines.append(f"  {k}: {c[k]}")
+        lines.extend(f"  {k}: {c[k]}" for k in sorted(c))
     return "\n".join(lines)
 
 

@@ -29,9 +29,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.12"
 
@@ -46,11 +46,11 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -62,7 +62,21 @@ jobs:
         working-directory: server
         env:
           PYTHONWARNDEFAULTENCODING: "1"
-        run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short
+        run: |
+          ARGS="tests/ -m 'not live and not monkey' -q --tb=short"
+          if [ "${{ matrix.python-version }}" = "3.12" ]; then
+            python -m pytest $ARGS --cov=unity_mcp --cov-report=xml:coverage.xml --cov-report=term-missing
+          else
+            python -m pytest $ARGS
+          fi
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45  # v5
+        with:
+          files: server/coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Run install tests
         env:
@@ -78,9 +92,9 @@ jobs:
     name: README check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.12"
 
@@ -94,17 +108,80 @@ jobs:
       - name: Check rendered outputs
         run: python scripts/update_readme.py --check
 
+  tool-quality:
+    name: Tool Quality
+    runs-on: ubuntu-latest
+    needs: [test]
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: "20"
+
+      - name: Install server
+        working-directory: server
+        run: pip install ".[dev]"
+
+      - name: Install mcp-tool-card-linter
+        run: pip install mcp-tool-card-linter==1.0.0
+
+      - name: Export tools (toolsmith format)
+        run: python scripts/export_tools.py --format toolsmith --out reports/tools-toolsmith.json
+
+      - name: Export tools (mcplint format)
+        run: python scripts/export_tools.py --format mcplint --out reports/tools-mcplint.json
+
+      - name: Run mcp-tool-card-linter
+        run: mcp-toolsmith lint --tools-file reports/tools-toolsmith.json --json-report reports/toolsmith.json --fail-on never
+
+      - name: Run mcp-lint
+        run: npx -y mcp-lint@0.5.3 check reports/tools-mcplint.json > reports/mcplint.txt 2>&1 || true
+
+      - name: Compute quality delta
+        run: |
+          python scripts/quality_delta.py \
+            --toolsmith reports/toolsmith.json \
+            --mcplint reports/mcplint.txt \
+            --history docs/quality/data/history.json \
+            --out-latest docs/quality/data/latest.json \
+            --out-comment reports/pr-comment.md \
+            --out-badge .github/badges/quality.json \
+            || true
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: tool-quality-reports
+          path: reports/
+          retention-days: 30
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043  # v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: reports/pr-comment.md
+          comment-tag: tool-quality-report
+
   badge:
     name: Update badges
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    needs: test
+    needs: [test, tool-quality]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.12"
 
@@ -115,11 +192,42 @@ jobs:
       - name: Regenerate badges
         run: python scripts/update_readme.py --all
 
+      - name: Install mcp-tool-card-linter
+        run: pip install mcp-tool-card-linter==1.0.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: "20"
+
+      - name: Export tools
+        run: |
+          python scripts/export_tools.py --format toolsmith --out reports/tools-toolsmith.json
+          python scripts/export_tools.py --format mcplint --out reports/tools-mcplint.json
+
+      - name: Run linters
+        run: |
+          mcp-toolsmith lint --tools-file reports/tools-toolsmith.json --json-report reports/toolsmith.json --fail-on never
+          npx -y mcp-lint@0.5.3 check reports/tools-mcplint.json > reports/mcplint.txt 2>&1 || true
+
+      - name: Generate quality data
+        run: |
+          python scripts/quality_delta.py \
+            --toolsmith reports/toolsmith.json \
+            --mcplint reports/mcplint.txt \
+            --history docs/quality/data/history.json \
+            --out-latest docs/quality/data/latest.json \
+            --out-comment reports/pr-comment.md \
+            --out-badge .github/badges/quality.json \
+            || echo "::warning::Quality regression detected"
+          python scripts/quality_delta.py --append \
+            --latest docs/quality/data/latest.json \
+            --history docs/quality/data/history.json
+
       - name: Commit badge updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/badges/*.json
+          git add .github/badges/*.json docs/quality/data/*.json
           git diff --staged --quiet && echo "No badge changes" && exit 0
-          git commit -m "chore: update badges [skip ci]"
+          git commit -m "chore: update badges + quality data [skip ci]"
           git push

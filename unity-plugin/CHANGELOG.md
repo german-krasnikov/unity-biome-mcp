@@ -10,6 +10,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.17.0] — 2026-08-05
+
+### Added
+- **Quality pipeline infrastructure** — three new scripts for automated linter validation and metrics tracking
+  - `export_tools.py` — exports MCP tool definitions to JSON (toolsmith or mcplint format) for schema linting
+  - `quality_delta.py` — parses linter reports (mcp-toolsmith, mcp-lint), computes quality metrics, writes dashboard data
+  - `check_skills_freshness.py` — static validation: scans skills/agents for stale references, tool spec parity, version mismatches (7 checks)
+- **Tool Quality Dashboard** — MkDocs page at `/docs/quality/` with inline JS rendering latest linter metrics, score history sparkline, per-linter breakdown
+- **CI quality gates** — `tool-quality` job in ci-python.yml runs export_tools + linters + quality_delta; release-preflight enforces quality checks
+- **pytest-cov + Codecov integration** — `.github/codecov.yml` configuration, pyproject.toml coverage config
+- **5 Hypothesis property-based tests** (`test_property_based.py`) — TCP framing, JSON serialization, command envelope round-trips, bridge protocol invariants
+- **GitHub Actions SHA-pinning** — all 8 workflows (17 unique actions) pinned to commit SHAs for supply-chain security
+
+### Changed
+- **Ruff rules expanded** — added SIM (simplify), C4 (comprehensions), RET (return), TCH (type-checking), PERF (performance); fixed 103 violations across 54 files
+- **Tool quality metric baseline established** — mcp-tool-card-linter + mcp-lint running on every PR
+
 ## [v1.16.0] — 2026-08-05
 
 ### Added

@@ -51,8 +51,10 @@ async def setup_objects(specs: str) -> str:
                 f"prop=m_LocalPosition value={kv['pos']}"
             )
         if "components" in kv:
-            for comp in kv["components"].split(","):
-                lines.append(f"manage_component path={full_path} type={comp.strip()} action=add")
+            lines.extend(
+                f"manage_component path={full_path} type={comp.strip()} action=add"
+                for comp in kv["components"].split(",")
+            )
 
     if not full_paths:
         return "No valid object specs found"
@@ -84,9 +86,7 @@ async def set_properties(path: str, props: str) -> str:
     if not lines:
         return "No valid property pairs found"
 
-    for comp in sorted(components):
-        lines.append(f"get_component path={path} type={comp}")
-
+    lines.extend(f"get_component path={path} type={comp}" for comp in sorted(components))
     return await _send("batch", {"commands": "\n".join(lines), "on_error": "continue"})
 
 

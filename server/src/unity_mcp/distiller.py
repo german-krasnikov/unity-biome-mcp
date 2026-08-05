@@ -161,9 +161,7 @@ class ResponseDistiller:
             if p not in orig_paths:
                 return False
         # Well-formed: balanced brackets if any
-        if distilled.count("[") != distilled.count("]"):
-            return False
-        return True
+        return distilled.count("[") == distilled.count("]")
 
     async def distill_haiku(self, cmd: str, text: str, focus: tuple[str, ...]) -> DistillResult | None:
         """Async Haiku-based distillation. Returns None if sampling disabled or validation fails."""

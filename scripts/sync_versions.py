@@ -187,7 +187,7 @@ def _sync(root: Path, version: str, *, update_canonical: bool) -> None:
         for written_name, written_path, original in reversed(written):
             try:
                 _atomic_write_bytes(written_path, original)
-            except Exception as rollback_error:
+            except Exception as rollback_error:  # noqa: PERF203
                 rollback_errors.append(
                     f"{written_name}: {rollback_error}"
                 )

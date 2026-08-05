@@ -82,12 +82,14 @@ def build_animator_batch(target: str, data: dict) -> list[str]:
         lines.append(build_batch_line("animator", path=target, action="add_state", states=states_str))
     if data["default"]:
         lines.append(build_batch_line("animator", path=target, action="set_default", state=data["default"]))
-    for t in data["transitions"]:
-        lines.append(build_batch_line(
+    lines.extend(
+        build_batch_line(
             "animator", path=target, action="add_transition",
             source=t["source"], target=t["target"], duration=t["duration"],
             conditions=t["condition"],
-        ))
+        )
+        for t in data["transitions"]
+    )
     return lines
 
 

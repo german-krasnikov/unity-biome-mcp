@@ -1,5 +1,6 @@
 """Subprocess wrapper for one CLI backend session."""
 import asyncio
+import contextlib
 import os
 import socket
 from dataclasses import dataclass, field
@@ -70,10 +71,9 @@ class CliSession:
             raise RuntimeError(f"process dead (exit={self._proc.returncode})")
         data = (line + "\n").encode("utf-8")
         self._proc.stdin.write(data)
-        try:
+        # data was already written; kernel buffer full — continue
+        with contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(self._proc.stdin.drain(), timeout=5.0)
-        except asyncio.TimeoutError:
-            pass  # data was already written; kernel buffer full — continue
 
     async def read_stdout_line(self) -> str | None:
         """Read one stdout line. Returns None on EOF."""
@@ -92,10 +92,8 @@ class CliSession:
             self._proc.terminate()
             await asyncio.wait_for(self._proc.wait(), timeout=KILL_WAIT)
         except (asyncio.TimeoutError, ProcessLookupError):
-            try:
+            with contextlib.suppress(ProcessLookupError):
                 self._proc.kill()
-            except ProcessLookupError:
-                pass
 
     def close_stdin(self) -> None:
         if self._proc and self._proc.stdin:
@@ -104,10 +102,8 @@ class CliSession:
     async def wait(self, timeout: float = 2.0) -> None:
         """Wait for the process to exit so returncode is populated (avoids EOF/returncode race)."""
         if self._proc is not None:
-            try:
+            with contextlib.suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(self._proc.wait(), timeout=timeout)
-            except asyncio.TimeoutError:
-                pass
 
     async def drain_stderr(self, max_bytes: int = 2048, timeout: float = 1.0) -> str:
         """Read captured stderr (backend crash reason). Empty string if none/unavailable."""

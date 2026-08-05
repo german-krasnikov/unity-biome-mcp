@@ -7,8 +7,11 @@ approach: never locks the data file itself, preventing data corruption.
 from __future__ import annotations
 
 import sys
-from contextlib import contextmanager
-from pathlib import Path
+from contextlib import contextmanager, suppress
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @contextmanager
@@ -20,8 +23,7 @@ def locked(path: Path):
     """
     sentinel = path.with_suffix(path.suffix + ".lock")
     sentinel.parent.mkdir(parents=True, exist_ok=True)
-    f = open(sentinel, "w", encoding="utf-8")
-    try:
+    with open(sentinel, "w", encoding="utf-8") as f:
         if sys.platform == "win32":
             import msvcrt  # deferred: win32-only, functional only on Windows
             f.seek(0)
@@ -40,9 +42,5 @@ def locked(path: Path):
             try:
                 yield
             finally:
-                try:
+                with suppress(Exception):
                     fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                except Exception:
-                    pass
-    finally:
-        f.close()

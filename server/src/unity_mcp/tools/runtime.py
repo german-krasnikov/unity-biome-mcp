@@ -1,4 +1,6 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
+import contextlib
+
 from ..sampling import sampling_service as _sampling
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
@@ -239,10 +241,8 @@ async def run_playtest_suite(
             break
 
     if stop_after:
-        try:
+        with contextlib.suppress(Exception):  # best-effort
             await _send("editor", _args(action="stop"), timeout=10.0)
-        except Exception:
-            pass  # best-effort
 
     return _format_suite_report(results, _time.monotonic() - suite_start)
 

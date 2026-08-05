@@ -44,7 +44,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         log_dir = os.environ.get("UNITY_MCP_LOG_DIR")
         if log_dir:
             os.makedirs(log_dir, exist_ok=True)
-            self._mutation_log = open(os.path.join(log_dir, "mutations.jsonl"), "a", encoding="utf-8")
+            self._mutation_log = open(os.path.join(log_dir, "mutations.jsonl"), "a", encoding="utf-8")  # noqa: SIM115
             atexit.register(lambda: self._mutation_log.close() if self._mutation_log else None)
         self._clean_paths: OrderedDict = OrderedDict()
         self._MAX_PATHS = 256

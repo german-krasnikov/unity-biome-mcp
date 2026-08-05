@@ -128,33 +128,29 @@ class TestSpinner(unittest.TestCase):
     def test_spinner_context_manager(self):
         # Should not raise; start and stop cleanly
         buf = io.StringIO()
-        with patch("sys.stderr", buf):
-            with Spinner("loading"):
-                time.sleep(0.05)
+        with patch("sys.stderr", buf), Spinner("loading"):
+            time.sleep(0.05)
         # After exit, no exception
 
     def test_spinner_shows_label(self):
         buf = io.StringIO()
-        with patch("sys.stderr", buf):
-            with Spinner("my task"):
-                time.sleep(0.1)
+        with patch("sys.stderr", buf), Spinner("my task"):
+            time.sleep(0.1)
         output = buf.getvalue()
         self.assertIn("my task", output)
 
     def test_spinner_shows_step(self):
         buf = io.StringIO()
-        with patch("sys.stderr", buf):
-            with Spinner("doing", step="[1/4]"):
-                time.sleep(0.1)
+        with patch("sys.stderr", buf), Spinner("doing", step="[1/4]"):
+            time.sleep(0.1)
         output = buf.getvalue()
         self.assertIn("[1/4]", output)
 
     def test_spinner_clears_on_exit(self):
         # On exit, spinner writes \r to clear the line
         buf = io.StringIO()
-        with patch("sys.stderr", buf):
-            with Spinner("work"):
-                time.sleep(0.05)
+        with patch("sys.stderr", buf), Spinner("work"):
+            time.sleep(0.05)
         output = buf.getvalue()
         self.assertIn("\r", output)
 

@@ -52,11 +52,13 @@ def _count_public_tool_specs(specs_file: pathlib.Path) -> int:
         ):
             specs_dict = node.value
             break
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
-            if any(isinstance(target, ast.Name) and target.id == "_SPECS"
-                   for target in node.targets):
-                specs_dict = node.value
-                break
+        if (
+            isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Dict)
+            and any(isinstance(target, ast.Name) and target.id == "_SPECS" for target in node.targets)
+        ):
+            specs_dict = node.value
+            break
 
     if specs_dict is None:
         raise ValueError(f"_SPECS dictionary not found in {specs_file}")

@@ -2,6 +2,7 @@
 
 Pure stdlib. No network calls. No wildcard kills.
 """
+import contextlib
 import logging
 import os
 import sys
@@ -122,10 +123,8 @@ def _posix_stop(pid, lock_path, timeout, signal_override, kill_fn):
         time.sleep(0.1)
     # SIGKILL fallback
     log.warning("stop_server: SIGTERM timeout for PID %d, sending SIGKILL", pid)
-    try:
+    with contextlib.suppress(ProcessLookupError, OSError):
         _do_kill(pid, _signal.SIGKILL)
-    except (ProcessLookupError, OSError):
-        pass
 
 
 def _windows_stop(pid, lock_path, timeout, kill_fn):

@@ -3,11 +3,12 @@
 Pure, stateless helpers. State (_disabled_tools_cache, _refresh_tools_lock)
 lives in server.py so tests can mutate srv._disabled_tools_cache directly.
 """
-import asyncio
+import contextlib
 import logging
 import os
 import socket
 from pathlib import Path  # noqa: F401  # re-exported; tests mock unity_mcp.server_filtering.Path
+from typing import TYPE_CHECKING
 
 from .constants import DEFAULT_PORT
 from .lockfile import is_pid_alive as _is_pid_alive
@@ -16,6 +17,9 @@ from .paths import ports_dir as _ports_dir
 from .tools.gating import _CORE_TOOLS, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
+
+if TYPE_CHECKING:
+    import asyncio
 
 # Core tools keep full schemas; all others get stub schema on ListTools.
 _SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
@@ -163,15 +167,13 @@ def read_unity_port(skip_probe: bool = False) -> int | None:
             port = int(lines[0])
             pid = int(f.stem)
             if not _is_pid_alive(pid):
-                try: f.unlink()
-                except OSError: pass
+                with contextlib.suppress(OSError): f.unlink()
                 continue
             project_path = lines[1] if len(lines) > 1 else ""
             project = lines[2] if len(lines) > 2 else "?"
             candidates.append((f.stat().st_mtime, port, project, pid, project_path))
         except (ValueError, OSError):
-            try: f.unlink()
-            except OSError: pass
+            with contextlib.suppress(OSError): f.unlink()
 
     if not candidates:
         # B3: skip_probe reconnect → no live targets → None (caller preserves self._port).
@@ -220,10 +222,8 @@ def install_list_tools_filter(mcp_server, get_disabled_cache_fn):
 
     async def _filtered_tools_handler(req):
         global _active_session
-        try:
+        with contextlib.suppress(LookupError):
             _active_session = mcp_server._mcp_server.request_context.session
-        except LookupError:
-            pass
         result = await original_handler(req)
         # Capture full schemas into registry BEFORE stripping
         for t in result.root.tools:

@@ -3,6 +3,7 @@
 Pure stdlib, instance-local state. Degrades gracefully: unknown project path =>
 is_unity_busy() always False.
 """
+import contextlib
 import os
 import time
 from pathlib import Path
@@ -34,9 +35,7 @@ class CompileStateProbe:
     def is_unity_busy(self) -> bool:
         if self._recent_disconnect():
             return True
-        if self._lock_file_exists():
-            return True
-        return False
+        return bool(self._lock_file_exists())
 
     def is_process_dead(self) -> bool:
         """True when we know the Unity process is dead (PID found but not alive)."""
@@ -72,8 +71,7 @@ class CompileStateProbe:
         except OSError:
             return True   # TCP not yet up = genuinely starting
         finally:
-            try: s.close()
-            except OSError: pass
+            with contextlib.suppress(OSError): s.close()
 
     def has_strong_busy_signal(self) -> bool:
         """State file (authoritative) → startup window → lock file.
@@ -104,9 +102,9 @@ class CompileStateProbe:
                     return True
                 # State present but not busy → not busy (fresh=clean or stale=not-busy).
                 return False
-            elif self.is_process_dead():
+            if self.is_process_dead():
                 return False
-            elif self.is_startup_in_progress():
+            if self.is_startup_in_progress():
                 return True
         return self._lock_file_exists()
 

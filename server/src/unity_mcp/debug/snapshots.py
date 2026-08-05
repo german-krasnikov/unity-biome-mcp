@@ -1,4 +1,5 @@
 """Object state snapshots with diffing. In-memory, no C# changes."""
+import contextlib
 
 _send = None
 _snapshots: dict[str, dict] = {}  # label → {path, state, console}
@@ -66,10 +67,8 @@ async def snapshot(path: str, label: str = "default", compare: str = "") -> str:
     parsed = parse_inspect_output(state_raw)
 
     console = ""
-    try:
+    with contextlib.suppress(Exception):
         console = await _send("get_console", {"count": 10})
-    except Exception:
-        pass
 
     _snapshots[label] = {"path": path, "state": parsed, "console": console}
 

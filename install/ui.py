@@ -40,34 +40,22 @@ def _c(code: str, text: str) -> str:
 # ── Status functions ─────────────────────────────────────────────────────────
 
 def ok(msg: str) -> None:
-    if _unicode_ok():
-        sym = _c("32", "✓")
-    else:
-        sym = "[OK]"
+    sym = _c("32", "✓") if _unicode_ok() else "[OK]"
     print(f"  {sym}  {msg}")
 
 
 def fail(msg: str) -> None:
-    if _unicode_ok():
-        sym = _c("31", "✗")
-    else:
-        sym = "[FAIL]"
+    sym = _c("31", "✗") if _unicode_ok() else "[FAIL]"
     print(f"  {sym}  {msg}")
 
 
 def info(msg: str) -> None:
-    if _unicode_ok():
-        sym = _c("33", "○")
-    else:
-        sym = "[-]"
+    sym = _c("33", "○") if _unicode_ok() else "[-]"
     print(f"  {sym}  {msg}")
 
 
 def skip(msg: str) -> None:
-    if _unicode_ok():
-        sym = _c("38;5;240", "–")
-    else:
-        sym = "[SKIP]"
+    sym = _c("38;5;240", "–") if _unicode_ok() else "[SKIP]"
     print(f"  {sym}  {msg}")
 
 

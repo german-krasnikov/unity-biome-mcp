@@ -45,7 +45,7 @@ jobs:
             build-target: StandaloneWindows64
             hub-version: ''
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       - name: Set UPM cache path
         id: upm-path
@@ -60,13 +60,13 @@ jobs:
           fi
 
       - name: Cache UPM packages
-        uses: actions/cache@v6
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
         with:
           path: ${{ steps.upm-path.outputs.path }}
           key: upm-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
           restore-keys: |
             upm-${{ runner.os }}-
-      - uses: buildalon/unity-setup@v2
+      - uses: buildalon/unity-setup@1a2acb0efbce77c0f90b79ced6a9c6a37ae534c2  # v2
         id: unity-setup
         with:
           unity-version: 6000.0.65f1
@@ -74,13 +74,13 @@ jobs:
           cache-installation: true
           hub-version: ${{ matrix.hub-version }}
 
-      - uses: buildalon/activate-unity-license@v2
+      - uses: buildalon/activate-unity-license@87b3a82bac7ca7609eacdb2bec31c8a8a142ed9a  # v2
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
           password: ${{ secrets.UNITY_PASSWORD }}
 
-      - uses: buildalon/unity-action@v3
+      - uses: buildalon/unity-action@4de595732434e4da7726086a95a75eda832bd03d  # v3
         name: Run EditMode Tests
         with:
           build-target: ${{ matrix.build-target }}
@@ -100,7 +100,7 @@ jobs:
         shell: bash
         run: test -f artifacts/editmode-results.xml && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
 
-      - uses: dorny/test-reporter@v3
+      - uses: dorny/test-reporter@3eeb9fc888e82e8be2fb356bbeec2750231672bc  # v1
         if: always() && steps.check-results.outputs.exists == 'true'
         with:
           name: NUnit Results (${{ matrix.name }})
@@ -127,13 +127,13 @@ jobs:
               f.write('|:------:|:------:|:-------:|:-----:|\n')
               f.write(f'| **{passed}** | **{failed}** | {skipped} | {total} |\n\n')
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: always()
         with:
           name: test-results-${{ matrix.name }}
           path: artifacts/
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: failure()
         with:
           name: unity-log-${{ matrix.name }}

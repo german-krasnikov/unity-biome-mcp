@@ -8,6 +8,8 @@ import os
 
 CLAUDE_CMD = os.environ.get("UNITY_MCP_CLAUDE_CMD", "claude")
 
+import contextlib
+
 from .llm_config import get_profile  # noqa: E402
 
 _budget_tracker = None
@@ -85,10 +87,8 @@ class SamplingService:
         except asyncio.TimeoutError:
             METRICS.inc("sampling.timeout")
             proc.kill()
-            try:
+            with contextlib.suppress(asyncio.TimeoutError, Exception):
                 await asyncio.wait_for(proc.wait(), 2.0)
-            except (asyncio.TimeoutError, Exception):
-                pass
             return None
         except BaseException as e:
             if proc.returncode is None:

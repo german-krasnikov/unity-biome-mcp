@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import socket
 import struct
 import sys
@@ -18,10 +19,8 @@ def _apply_socket_options(sock) -> None:
         return
 
     def _try(level, opt, val):
-        try:
+        with contextlib.suppress(OSError):
             setsockopt(level, opt, val)
-        except OSError:
-            pass
 
     _try(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     _try(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -40,13 +39,11 @@ def _apply_socket_options(sock) -> None:
         # SIO_KEEPALIVE_VALS: (onoff=1, keepalivetime_ms=60000, keepaliveinterval_ms=10000)
         # Best-effort — app-level heartbeat (15s) handles faster liveness checks.
         import struct
-        try:
+        with contextlib.suppress(Exception):
             sock.ioctl(
                 socket.SIO_KEEPALIVE_VALS,
                 struct.pack("III", 1, 60_000, 10_000),
             )
-        except Exception:
-            pass
 
 
 # ── TCP framing helpers ───────────────────────────────────────────────────────

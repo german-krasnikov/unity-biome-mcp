@@ -96,7 +96,7 @@ def build_ui_batch(nodes: list[dict], parent: str | None) -> list[str]:
         elem_parent = node.get("parent") or parent
         attrs = node["attrs"]
         # create_ui call
-        create_args = dict(type=node["type"].capitalize(), name=node["name"])
+        create_args = {"type": node["type"].capitalize(), "name": node["name"]}
         if elem_parent:
             create_args["parent"] = elem_parent
         if "color" in attrs:
@@ -157,8 +157,7 @@ async def ui_intent(intent: str, parent: str | None = None, template: str | None
     prompt = _PROMPT_TEMPLATE.format(parent=sanitize_intent(parent or "root"), intent=sanitize_intent(intent))
 
     def _parse_and_validate(dsl: str):
-        nodes = parse_ui_dsl(dsl)
-        return nodes  # empty list handled by pipeline's empty-build check
+        return parse_ui_dsl(dsl)
 
     return await run_intent_pipeline(
         send=_send, sampling=_sampling, prompt=prompt, feature="ui_intent",

@@ -194,11 +194,7 @@ def parse_build_failure(text: str) -> BuildFailure:
     bf.failed_dlls = _RE_FAILED_DLL.findall(text)
 
     # Collect CS error codes and their surrounding line context
-    errors: list[str] = []
-    for line in text.splitlines():
-        if re.search(r"error CS\d+:", line):
-            errors.append(line.strip())
-    bf.cs_errors = errors
+    bf.cs_errors = [line.strip() for line in text.splitlines() if re.search(r"error CS\d+:", line)]
 
     # block_offset = position of the last reload-terminal event
     last = -1

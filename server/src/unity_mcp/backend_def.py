@@ -93,7 +93,7 @@ def _which_windows_registry(binary: str) -> str | None:
             with winreg.OpenKey(root, subkey) as key:
                 value, _ = winreg.QueryValueEx(key, "Path")
                 raw_dirs += value.split(";")
-        except OSError:
+        except OSError:  # noqa: PERF203
             continue
 
     fallbacks = ["%APPDATA%/npm", "%USERPROFILE%/.cargo/bin", "%LOCALAPPDATA%/uv/bin"]

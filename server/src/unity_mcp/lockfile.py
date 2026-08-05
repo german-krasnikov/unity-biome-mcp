@@ -1,4 +1,5 @@
 """PID lockfile — per-session presence file, no SIGTERM."""
+import contextlib
 import logging
 import os
 import socket
@@ -111,16 +112,12 @@ def acquire_lock(lock_dir=None, port: int = DEFAULT_PORT) -> int:
 
 def release_lock(fd: int) -> None:
     """Unlock, unlink the presence file, and close the fd."""
-    try:
+    with contextlib.suppress(OSError):
         _unlock(fd)
-    except OSError:
-        pass
     path = _lock_paths.pop(fd, None)
     if path:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(path)
-        except OSError:
-            pass
     os.close(fd)
 
 

@@ -363,9 +363,8 @@ def test_cmd_update_reinstall_failure_exits_1_and_does_not_print_done(capsys):
     with patch.object(inst, "_has_uvx", lambda: True), \
          patch.object(inst, "_reinstall_uvx",
                        side_effect=subprocess.CalledProcessError(1, ["uvx"])), \
-         patch.object(inst, "_reconfigure_detected_clients", lambda: None):
-        with pytest.raises(SystemExit) as exc_info:
-            cmd_update(_args(port=0))
+         patch.object(inst, "_reconfigure_detected_clients", lambda: None), pytest.raises(SystemExit) as exc_info:
+        cmd_update(_args(port=0))
 
     assert exc_info.value.code == 1
     out = capsys.readouterr().out
