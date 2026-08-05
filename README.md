@@ -14,6 +14,8 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 
 <p align="center"><img height="28" src="https://img.shields.io/github/actions/workflow/status/german-krasnikov/unity-biome-mcp/ci-python.yml?branch=master&label=Python%20CI&style=for-the-badge&labelColor=2b2b2b&logo=python&logoColor=white" alt="Python CI"> <img height="28" src="https://img.shields.io/github/actions/workflow/status/german-krasnikov/unity-biome-mcp/unity-tests.yml?branch=master&job=EditMode%20Tests%20%28Linux%29&label=Linux&style=for-the-badge&labelColor=2b2b2b&logo=linux&logoColor=white" alt="Linux EditMode Tests"> <img height="28" src="https://img.shields.io/github/actions/workflow/status/german-krasnikov/unity-biome-mcp/unity-tests.yml?branch=master&job=EditMode%20Tests%20%28macOS%29&label=macOS&style=for-the-badge&labelColor=2b2b2b&logo=apple&logoColor=white" alt="macOS EditMode Tests"> <img height="28" src="https://img.shields.io/github/actions/workflow/status/german-krasnikov/unity-biome-mcp/unity-tests.yml?branch=master&job=EditMode%20Tests%20%28Windows%29&label=Windows&style=for-the-badge&labelColor=2b2b2b&logo=windows&logoColor=white" alt="Windows EditMode Tests"></p>
 
+<p align="center"><a href="https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp"><img src="https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/badges/card.svg" alt="unity-biome-mcp MCP server"></a></p>
+
 </div>
 
 <p align="center">
