@@ -242,7 +242,7 @@ def test_append_history_trims():
 def test_main_mode_a_writes_all_files(tmp_path, monkeypatch):
     toolsmith = tmp_path / "toolsmith.json"
     toolsmith.write_text(
-        json.dumps({"summary": {"total_errors": 5, "total_warnings": 10, "average_score": 80.5}}),
+        json.dumps({"summary": {"issues_by_severity": {"error": 5, "warning": 10}, "score": 80.5}}),
         encoding="utf-8",
     )
     mcplint = tmp_path / "mcplint.txt"
@@ -276,6 +276,88 @@ def test_main_mode_a_writes_all_files(tmp_path, monkeypatch):
     assert latest.exists()
     assert comment.exists()
     assert badge.exists()
+
+
+# ---------------------------------------------------------------------------
+# render_report
+# ---------------------------------------------------------------------------
+
+
+def test_render_report_basic():
+    out = qd.render_report(_current(), _toolsmith_file(), _mcplint_file())
+    assert "# Quality Report" in out
+    assert "## Project Overview" in out
+    assert "## Tool Quality" in out
+    assert "mcp-tool-card-linter" in out
+
+
+def test_render_report_with_test_results(tmp_path):
+    tr = tmp_path / "tests.json"
+    tr.write_text(json.dumps({"suites": [
+        {"name": "Python Server", "passed": 4886, "failed": 0, "skipped": 3, "total": 4889},
+        {"name": "C# EditMode (Linux)", "passed": 3286, "failed": 4, "skipped": 0, "total": 3290},
+    ]}), encoding="utf-8")
+    out = qd.render_report(_current(), _toolsmith_file(), _mcplint_file(), test_results_paths=[tr])
+    assert "## Test Results" in out
+    assert "Python Server" in out
+    assert "4886" in out
+    assert "C# EditMode (Linux)" in out
+
+
+def test_render_report_with_coverage(tmp_path):
+    cov = tmp_path / "coverage.json"
+    cov.write_text(json.dumps({
+        "modules": [{"name": "unity_mcp", "statements": 1000, "covered": 930, "missed": 70, "coverage": 93.0}],
+        "total": {"statements": 1000, "covered": 930, "missed": 70, "coverage": 93.0},
+    }), encoding="utf-8")
+    out = qd.render_report(_current(), _toolsmith_file(), _mcplint_file(), coverage_path=cov)
+    assert "## Code Coverage" in out
+    assert "93.0%" in out
+
+
+def test_render_report_without_optional_sections():
+    out = qd.render_report(_current(), _toolsmith_file(), _mcplint_file())
+    assert "## Test Results" not in out
+    assert "## Code Coverage" not in out
+
+
+def test_main_mode_a_with_report(tmp_path, monkeypatch):
+    toolsmith = tmp_path / "toolsmith.json"
+    toolsmith.write_text(
+        json.dumps({"summary": {"issues_by_severity": {"error": 5, "warning": 10}, "score": 80.5}}),
+        encoding="utf-8",
+    )
+    mcplint = tmp_path / "mcplint.txt"
+    mcplint.write_text("✖ err\n⚠ warn\n", encoding="utf-8")
+    history = tmp_path / "history.json"
+    latest = tmp_path / "latest.json"
+    comment = tmp_path / "pr-comment.md"
+    badge = tmp_path / "quality.json"
+    report = tmp_path / "REPORT.md"
+
+    import subprocess
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **kw: type("R", (), {"stdout": "abc1234\n", "returncode": 0})(),
+    )
+
+    sys.argv = [
+        "quality_delta.py",
+        "--toolsmith", str(toolsmith),
+        "--mcplint", str(mcplint),
+        "--history", str(history),
+        "--out-latest", str(latest),
+        "--out-comment", str(comment),
+        "--out-badge", str(badge),
+        "--out-report", str(report),
+    ]
+    with contextlib.suppress(SystemExit):
+        qd.main()
+
+    assert report.exists()
+    text = report.read_text(encoding="utf-8")
+    assert "# Quality Report" in text
 
 
 def test_main_mode_b_appends(tmp_path, monkeypatch):

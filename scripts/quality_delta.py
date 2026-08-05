@@ -6,6 +6,7 @@ Mode B: --append latest to history
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime
 import json
 import pathlib
@@ -30,12 +31,12 @@ def parse_toolsmith(path: pathlib.Path) -> dict:
 
     if "summary" in data:
         s = data["summary"]
+        sev = s.get("issues_by_severity", {})
         return {
-            "errors": int(s.get("total_errors", 0)),
-            "warnings": int(s.get("total_warnings", 0)),
-            "avg_score": float(s.get("average_score", 0.0)),
+            "errors": int(sev.get("error", 0)) + int(sev.get("critical", 0)),
+            "warnings": int(sev.get("warning", 0)),
+            "avg_score": float(s.get("score", 0.0)),
         }
-    # top-level fallback
     return {
         "errors": int(data.get("errors", 0)),
         "warnings": int(data.get("warnings", 0)),
@@ -186,6 +187,175 @@ def render_pr_comment(current: dict, baseline: dict | None, delta: dict) -> str:
     return "\n\n".join(parts) + "\n"
 
 
+def render_report(
+    current: dict,
+    toolsmith_path: pathlib.Path,
+    mcplint_path: pathlib.Path,
+    *,
+    test_results_paths: list[pathlib.Path] | None = None,
+    coverage_path: pathlib.Path | None = None,
+) -> str:
+    """Full public REPORT.md with all quality data."""
+    lines = [
+        "# Quality Report",
+        "",
+        f"> Auto-generated on **{current['date']}** from commit "
+        f"`{current['commit']}` (v{current['version']})",
+        "",
+    ]
+
+    # --- Project Overview ---
+    lines += [
+        "## Project Overview",
+        "",
+        "| Metric | Value |",
+        "|--------|-------|",
+        f"| Version | v{current['version']} |",
+        f"| Commit | `{current['commit']}` |",
+        f"| Date | {current['date']} |",
+    ]
+    try:
+        data = json.loads(toolsmith_path.read_text(encoding="utf-8"))
+        tool_count = data.get("summary", {}).get("tools_scanned", 0)
+        if tool_count:
+            lines.append(f"| MCP Tools | {tool_count} |")
+    except Exception:
+        pass
+    lines.append("")
+
+    # --- Test Results ---
+    all_suites: list[dict] = []
+    for trp in test_results_paths or []:
+        with contextlib.suppress(Exception):
+            data = json.loads(trp.read_text(encoding="utf-8"))
+            all_suites.extend(data.get("suites", []))
+    if all_suites:
+        lines += [
+            "## Test Results",
+            "",
+            "| Suite | Passed | Failed | Skipped | Total | Status |",
+            "|-------|--------|--------|---------|-------|--------|",
+        ]
+        for suite in all_suites:
+            name = suite.get("name", "?")
+            passed = suite.get("passed", 0)
+            failed = suite.get("failed", 0)
+            skipped = suite.get("skipped", 0)
+            total = suite.get("total", passed + failed + skipped)
+            status = "✅" if failed == 0 else "❌"
+            lines.append(f"| {name} | {passed} | {failed} | {skipped} | {total} | {status} |")
+        lines.append("")
+
+    # --- Coverage ---
+    cov_data = None
+    if coverage_path:
+        with contextlib.suppress(Exception):
+            cov_data = json.loads(coverage_path.read_text(encoding="utf-8"))
+    if cov_data:
+        lines += [
+            "## Code Coverage",
+            "",
+            "| Module | Statements | Covered | Missed | Coverage |",
+            "|--------|------------|---------|--------|----------|",
+        ]
+        for mod in cov_data.get("modules", []):
+            name = mod.get("name", "?")
+            stmts = mod.get("statements", 0)
+            covered = mod.get("covered", 0)
+            missed = mod.get("missed", 0)
+            pct = mod.get("coverage", 0.0)
+            lines.append(f"| {name} | {stmts} | {covered} | {missed} | {pct:.1f}% |")
+        total = cov_data.get("total", {})
+        if total:
+            lines.append(
+                f"| **Total** | **{total.get('statements', 0)}** "
+                f"| **{total.get('covered', 0)}** "
+                f"| **{total.get('missed', 0)}** "
+                f"| **{total.get('coverage', 0.0):.1f}%** |"
+            )
+        lines.append("")
+
+    # --- Tool Quality Summary ---
+    lines += [
+        "## Tool Quality",
+        "",
+        "| Linter | Errors | Warnings | Score |",
+        "|--------|--------|----------|-------|",
+        f"| mcp-tool-card-linter | {current['toolsmith_errors']} "
+        f"| {current['toolsmith_warnings']} | {current['toolsmith_avg_score']}/100 |",
+        f"| mcp-lint | {current['mcplint_errors']} "
+        f"| {current['mcplint_warnings']} | — |",
+        "",
+    ]
+
+    # Per-tool breakdown from toolsmith JSON
+    try:
+        data = json.loads(toolsmith_path.read_text(encoding="utf-8"))
+        tools = data.get("tools", [])
+        if tools:
+            lines += [
+                "### Per-Tool Scores",
+                "",
+                "<details>",
+                f"<summary>{len(tools)} tools scored (click to expand)</summary>",
+                "",
+                "| Tool | Score | Errors | Warnings | Risk |",
+                "|------|-------|--------|----------|------|",
+            ]
+            for t in sorted(tools, key=lambda x: x.get("score", 0)):
+                name = t.get("name", "?")
+                score = t.get("score", 0)
+                findings = t.get("findings", [])
+                errs = sum(1 for f in findings if f.get("severity") in ("error", "critical"))
+                warns = sum(1 for f in findings if f.get("severity") == "warning")
+                risk = t.get("risk", "—")
+                lines.append(f"| `{name}` | {score} | {errs} | {warns} | {risk} |")
+            lines += ["", "</details>", ""]
+    except Exception:
+        pass
+
+    # mcplint issues grouped by tool
+    try:
+        text = mcplint_path.read_text(encoding="utf-8")
+        mcplint_lines = text.strip().splitlines()
+        if mcplint_lines:
+            lines += [
+                "### Cross-Client Issues (mcp-lint)",
+                "",
+                "<details>",
+                "<summary>Issues by tool (click to expand)</summary>",
+                "",
+            ]
+            current_tool = None
+            issues: list[str] = []
+            for raw in mcplint_lines:
+                stripped = raw.strip()
+                if not stripped:
+                    continue
+                if not raw.startswith(" ") and not raw.startswith("\t"):
+                    if current_tool and issues:
+                        lines.append(f"#### `{current_tool}`")
+                        lines.append("")
+                        for iss in issues:
+                            lines.append(f"- {iss}")
+                        lines.append("")
+                    current_tool = stripped
+                    issues = []
+                elif "✖" in stripped or "⚠" in stripped:
+                    issues.append(stripped)
+            if current_tool and issues:
+                lines.append(f"#### `{current_tool}`")
+                lines.append("")
+                for iss in issues:
+                    lines.append(f"- {iss}")
+                lines.append("")
+            lines += ["</details>", ""]
+    except Exception:
+        pass
+
+    return "\n".join(lines)
+
+
 def make_badge(current: dict) -> dict:
     """shields.io JSON badge."""
     total_errors = current["toolsmith_errors"] + current["mcplint_errors"]
@@ -250,6 +420,9 @@ def main() -> None:
     parser.add_argument("--out-latest", type=pathlib.Path)
     parser.add_argument("--out-comment", type=pathlib.Path)
     parser.add_argument("--out-badge", type=pathlib.Path)
+    parser.add_argument("--out-report", type=pathlib.Path)
+    parser.add_argument("--test-results", type=pathlib.Path, nargs="*", default=[])
+    parser.add_argument("--coverage", type=pathlib.Path)
     # Mode B
     parser.add_argument("--latest", type=pathlib.Path)
     args = parser.parse_args()
@@ -276,6 +449,14 @@ def main() -> None:
     _write_json(args.out_latest, current)
     _write_text(args.out_comment, render_pr_comment(current, baseline, delta))
     _write_json(args.out_badge, make_badge(current))
+
+    if args.out_report:
+        report = render_report(
+            current, args.toolsmith, args.mcplint,
+            test_results_paths=args.test_results or [],
+            coverage_path=args.coverage,
+        )
+        _write_text(args.out_report, report)
 
     sys.exit(1 if regression else 0)
 

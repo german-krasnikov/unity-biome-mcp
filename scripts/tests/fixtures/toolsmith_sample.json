@@ -1,1 +1,1 @@
-{"summary": {"total_errors": 5, "total_warnings": 10, "average_score": 80.5}}
+{"summary": {"issues_by_severity": {"critical": 0, "error": 5, "warning": 10, "info": 50}, "score": 80.5, "tools_scanned": 148}}

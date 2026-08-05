@@ -63,11 +63,10 @@ jobs:
         env:
           PYTHONWARNDEFAULTENCODING: "1"
         run: |
-          ARGS="tests/ -m 'not live and not monkey' -q --tb=short"
           if [ "${{ matrix.python-version }}" = "3.12" ]; then
-            python -m pytest $ARGS --cov=unity_mcp --cov-report=xml:coverage.xml --cov-report=term-missing
+            python -m pytest tests/ -m "not live and not monkey" -q --tb=short --cov=unity_mcp --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=reports/server-junit.xml
           else
-            python -m pytest $ARGS
+            python -m pytest tests/ -m "not live and not monkey" -q --tb=short
           fi
 
       - name: Upload coverage to Codecov
@@ -81,12 +80,37 @@ jobs:
       - name: Run install tests
         env:
           PYTHONWARNDEFAULTENCODING: "1"
-        run: python -m pytest install/tests/ -q --tb=short
+        run: |
+          if [ "${{ matrix.python-version }}" = "3.12" ]; then
+            python -m pytest install/tests/ -q --tb=short --junitxml=server/reports/install-junit.xml
+          else
+            python -m pytest install/tests/ -q --tb=short
+          fi
 
       - name: Run scripts tests
         env:
           PYTHONWARNDEFAULTENCODING: "1"
-        run: python -m pytest scripts/tests/ -q --tb=short
+        run: |
+          if [ "${{ matrix.python-version }}" = "3.12" ]; then
+            python -m pytest scripts/tests/ -q --tb=short --junitxml=server/reports/scripts-junit.xml
+          else
+            python -m pytest scripts/tests/ -q --tb=short
+          fi
+
+      - name: Collect test results
+        if: matrix.python-version == '3.12'
+        run: |
+          python scripts/collect_test_results.py --add-pytest server/reports/server-junit.xml --suite "Python Server (3.12)" --platform linux --out server/reports/tests.json
+          python scripts/collect_test_results.py --add-pytest server/reports/install-junit.xml --suite "Python Install" --platform linux --out server/reports/tests.json
+          python scripts/collect_test_results.py --add-pytest server/reports/scripts-junit.xml --suite "Python Scripts" --platform linux --out server/reports/tests.json
+
+      - name: Upload test results
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: test-results
+          path: server/reports/tests.json
+          retention-days: 30
 
   readme-check:
     name: README check
@@ -199,6 +223,13 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Download test results
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: test-results
+          path: reports/
+        continue-on-error: true
+
       - name: Export tools
         run: |
           python scripts/export_tools.py --format toolsmith --out reports/tools-toolsmith.json
@@ -211,6 +242,10 @@ jobs:
 
       - name: Generate quality data
         run: |
+          TEST_ARGS=""
+          for f in reports/tests.json docs/quality/data/unity-tests.json; do
+            [ -f "$f" ] && TEST_ARGS="$TEST_ARGS $f"
+          done
           python scripts/quality_delta.py \
             --toolsmith reports/toolsmith.json \
             --mcplint reports/mcplint.txt \
@@ -218,6 +253,8 @@ jobs:
             --out-latest docs/quality/data/latest.json \
             --out-comment reports/pr-comment.md \
             --out-badge .github/badges/quality.json \
+            --out-report docs/quality/REPORT.md \
+            ${TEST_ARGS:+--test-results $TEST_ARGS} \
             || echo "::warning::Quality regression detected"
           python scripts/quality_delta.py --append \
             --latest docs/quality/data/latest.json \
@@ -227,7 +264,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/badges/*.json docs/quality/data/*.json
+          git add .github/badges/*.json docs/quality/data/*.json docs/quality/REPORT.md
           git diff --staged --quiet && echo "No badge changes" && exit 0
           git commit -m "chore: update badges + quality data [skip ci]"
+          git pull --rebase origin master
           git push

@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "date": "2026-08-05",
+    "version": "1.17.0",
+    "commit": "48b072c",
+    "toolsmith_errors": 0,
+    "toolsmith_warnings": 0,
+    "toolsmith_avg_score": 0.0,
+    "mcplint_errors": 695,
+    "mcplint_warnings": 1156
+  },
+  {
+    "date": "2026-08-05",
+    "version": "1.17.0",
+    "commit": "26bafdc",
+    "toolsmith_errors": 19,
+    "toolsmith_warnings": 597,
+    "toolsmith_avg_score": 72.82,
+    "mcplint_errors": 695,
+    "mcplint_warnings": 1156
+  },
+  {
+    "date": "2026-08-05",
+    "version": "1.17.0",
+    "commit": "6f3593c",
+    "toolsmith_errors": 19,
+    "toolsmith_warnings": 597,
+    "toolsmith_avg_score": 72.82,
+    "mcplint_errors": 695,
+    "mcplint_warnings": 1156
+  },
+  {
+    "date": "2026-08-05",
+    "version": "1.17.0",
+    "commit": "4894453",
+    "toolsmith_errors": 19,
+    "toolsmith_warnings": 597,
+    "toolsmith_avg_score": 72.82,
+    "mcplint_errors": 695,
+    "mcplint_warnings": 1156
+  }
+]

@@ -105,7 +105,6 @@ nav:
     - UI Toolkit Best Practices: plugins/ui-toolkit-best-practices.md
     - Test Reliability: testing-reliability.md
     - Product Comparison: comparison.md
-    - Tool Quality: quality/index.md
   - Wiki: wiki.md
 
 plugins:
