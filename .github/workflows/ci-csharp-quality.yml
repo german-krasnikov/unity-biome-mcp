@@ -1,0 +1,45 @@
+name: C# Quality (SonarCloud)
+
+on:
+  push:
+    branches: [master, "feat/**", "feature/**", "fix/**"]
+    paths:
+      - "unity-plugin/**"
+      - "unity-plugin-reload/**"
+      - "sonar-project.properties"
+      - ".github/workflows/ci-csharp-quality.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "unity-plugin/**"
+      - "unity-plugin-reload/**"
+      - "sonar-project.properties"
+      - ".github/workflows/ci-csharp-quality.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: csharp-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@ffc3010689be73b8e5ae0c57ce35968afd7909e8  # v5.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.verbose=false

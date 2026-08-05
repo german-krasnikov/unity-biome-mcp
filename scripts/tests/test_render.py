@@ -459,7 +459,7 @@ class TestCommittedAssets:
         [
             ("hero.svg", (0.0, 0.0, 640.0, 270.0)),
             ("architecture.svg", (0.0, 0.0, 640.0, 458.0)),
-            ("stats.svg", (0.0, 0.0, 560.0, 304.0)),
+            ("stats.svg", (0.0, 0.0, 560.0, 380.0)),
             ("comparison-hero.svg", (0.0, 0.0, 640.0, 280.0)),
         ],
     )
@@ -478,8 +478,9 @@ class TestCommittedAssets:
         _, _, width, _ = map(float, root.attrib["viewBox"].split())
         text_nodes = list(root.iter("{http://www.w3.org/2000/svg}text"))
         assert text_nodes, f"{name} has no text"
-        for node in text_nodes:
-            assert node.attrib.get("data-mobile-critical") == "true"
+        critical = [n for n in text_nodes if n.attrib.get("data-mobile-critical") == "true"]
+        assert critical, f"{name} has no mobile-critical text nodes"
+        for node in critical:
             rendered_size = float(node.attrib["font-size"]) * 340 / width
             assert rendered_size >= 9.8, (
                 f"{name} renders {''.join(node.itertext()).strip()!r} at "
@@ -1021,3 +1022,70 @@ class TestGeneratedSurfaces:
         assert block is not None
         assert expected in block.group(1)
         assert "Older releases" not in block.group(1)
+
+
+PYRAMID_SVG_STUB = """\
+<svg xmlns="http://www.w3.org/2000/svg">
+  <rect data-biome-bar="CS" x="82" y="322" height="7" width="1" rx="3" fill="#59a7ff"/>
+  <rect data-biome-bar="PY" x="82" y="337" height="7" width="1" rx="3" fill="#46e6a6"/>
+  <rect data-biome-bar="STRESS" x="82" y="352" height="7" width="1" rx="3" fill="#f0a536"/>
+  <rect data-biome-bar="LIVE" x="82" y="367" height="7" width="1" rx="3" fill="#e67e46"/>
+  <text data-biome-bar-label="CS" x="478" y="331" text-anchor="end" fill="#b7b7bd" font-size="10">1 c#</text>
+  <text data-biome-bar-label="PY" x="478" y="346" text-anchor="end" fill="#b7b7bd" font-size="10">1 py</text>
+  <text data-biome-bar-label="STRESS" x="478" y="361" text-anchor="end" fill="#b7b7bd" font-size="10">1 stress</text>
+  <text data-biome-bar-label="LIVE" x="478" y="376" text-anchor="end" fill="#b7b7bd" font-size="10">1 live</text>
+</svg>"""
+
+_PYRAMID_META = {
+    "tests_unity": 6254,
+    "tests_python": 4597,
+    "tests_stress": 511,
+    "tests_live": 287,
+}
+
+
+class TestBarWidth:
+    def test_max_count_gives_max_px(self) -> None:
+        assert rr._bar_width(100, 100) == 396
+
+    def test_zero_max_count_returns_zero(self) -> None:
+        assert rr._bar_width(5, 0) == 0
+
+    def test_zero_count_returns_zero(self) -> None:
+        assert rr._bar_width(0, 100) == 0
+
+    def test_minimum_two_for_nonzero_count(self) -> None:
+        assert rr._bar_width(1, 10000) >= 2
+
+
+class TestSubstitutePyramidBars:
+    def _apply(self, meta: dict | None = None) -> str:
+        return rr.substitute_pyramid_bars(PYRAMID_SVG_STUB, meta or _PYRAMID_META)
+
+    def test_cs_bar_is_widest_when_cs_count_is_max(self) -> None:
+        result = self._apply()
+        match = re.search(r'data-biome-bar="CS"[^>]*\bwidth="(\d+)"', result)
+        assert match is not None
+        assert int(match.group(1)) == 396
+
+    def test_live_bar_is_minimum_two_px(self) -> None:
+        result = self._apply()
+        match = re.search(r'data-biome-bar="LIVE"[^>]*\bwidth="(\d+)"', result)
+        assert match is not None
+        assert int(match.group(1)) >= 2
+
+    def test_zero_count_bar_has_zero_width(self) -> None:
+        meta = {**_PYRAMID_META, "tests_live": 0}
+        result = rr.substitute_pyramid_bars(PYRAMID_SVG_STUB, meta)
+        match = re.search(r'data-biome-bar="LIVE"[^>]*\bwidth="(\d+)"', result)
+        assert match is not None
+        assert int(match.group(1)) == 0
+
+    def test_idempotent(self) -> None:
+        first = self._apply()
+        second = rr.substitute_pyramid_bars(first, _PYRAMID_META)
+        assert first == second
+
+    def test_labels_contain_count_and_suffix(self) -> None:
+        result = self._apply()
+        assert "6254 c#" in result

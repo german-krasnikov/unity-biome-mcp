@@ -59,7 +59,9 @@ def main(argv: list[str] | None = None) -> None:
     output = export_json(fmt=args.format)
 
     if args.out:
-        pathlib.Path(args.out).write_text(output, encoding="utf-8")
+        out = pathlib.Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(output, encoding="utf-8")
     else:
         print(output)
 

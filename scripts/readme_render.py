@@ -63,6 +63,16 @@ def _unity_source_label(source: str | None) -> str:
     return labels.get(source, "unknown")
 
 
+_BAR_MAX_PX: int = 396
+
+
+def _bar_width(count: int, max_count: int, max_px: int = _BAR_MAX_PX) -> int:
+    """Return pixel width, minimum 2 to keep bar visible, 0 when count=0."""
+    if max_count == 0 or count == 0:
+        return 0
+    return max(2, round(max_px * count / max_count))
+
+
 def stats_summary(meta: dict) -> str:
     """Return the canonical accessible description for generated inventory."""
     required = (
@@ -249,6 +259,41 @@ def substitute_svg_markers(
     return updated
 
 
+_BIOME_BAR_RE = re.compile(
+    r'(<rect\b[^>]*\bdata-biome-bar="(?P<name>[A-Z_]+)"[^>]*\bwidth=")[0-9]+(")',
+    re.DOTALL,
+)
+_BIOME_BAR_LABEL_RE = re.compile(
+    r'(<text\b[^>]*\bdata-biome-bar-label="(?P<name>[A-Z_]+)"[^>]*>)[^<]*(</text>)'
+)
+
+_BAR_KEY_MAP = {
+    "CS": "tests_unity",
+    "PY": "tests_python",
+    "STRESS": "tests_stress",
+    "LIVE": "tests_live",
+}
+_BAR_SUFFIX = {"CS": " c#", "PY": " py", "STRESS": " stress", "LIVE": " live"}
+
+
+def substitute_pyramid_bars(svg: str, meta: dict) -> str:
+    """Replace bar widths and labels in the pyramid section of the SVG."""
+    counts = {k: meta[v] for k, v in _BAR_KEY_MAP.items()}
+    max_count = max(counts.values()) if counts else 1
+
+    def replace_width(m: re.Match) -> str:
+        w = _bar_width(counts[m.group("name")], max_count)
+        return f"{m.group(1)}{w}{m.group(3)}"
+
+    def replace_label(m: re.Match) -> str:
+        n = m.group("name")
+        return f"{m.group(1)}{counts[n]}{_BAR_SUFFIX[n]}{m.group(3)}"
+
+    return _BIOME_BAR_LABEL_RE.sub(
+        replace_label, _BIOME_BAR_RE.sub(replace_width, svg)
+    )
+
+
 def update_readme_stats(readme: str, meta: dict) -> str:
     """Regenerate the stats image tag from the same facts used by stats.svg."""
     pattern = re.compile(
@@ -405,9 +450,9 @@ def render(repo_root: pathlib.Path, meta: dict, check: bool = False) -> list[pat
     for name, expected_markers in SVG_MARKER_ALLOWLIST.items():
         path = assets_dir / name
         svg = _read_text_exact(path)
-        changes.append(
-            (path, substitute_svg_markers(svg, meta, expected_markers))
-        )
+        svg = substitute_svg_markers(svg, meta, expected_markers)
+        svg = substitute_pyramid_bars(svg, meta)
+        changes.append((path, svg))
 
     _apply_or_check(changes, check)
     if not check:

@@ -10,6 +10,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] — 2026-08-05
+
+### Added
+- C# code coverage via Unity Code Coverage 1.2.6, uploaded to Codecov with `csharp` flag and `carryforward` support
+- SonarCloud source-only C# quality scan (`ci-csharp-quality.yml`) with PR decoration
+- OpenSSF Scorecard workflow with OIDC auth, SARIF upload, and weekly schedule
+- Test pyramid visualization in `stats.svg` — 4 data-driven horizontal bars (C#/Python/Stress/Live)
+- Codecov flag separation: `python` and `csharp` flags with independent `carryforward`
+- SonarCloud and OpenSSF Scorecard badges in README
+
+### Changed
+- Python Codecov upload now tagged with `flags: python`
+- `stats.svg` height expanded 304 → 380px for pyramid section
+
 ## [v1.18.1] — 2026-08-05
 
 ### Added

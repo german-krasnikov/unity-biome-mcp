@@ -1,6 +1,6 @@
 {
   "name": "com.unity-biome-mcp.editor",
-  "version": "1.18.1",
+  "version": "1.19.0",
   "displayName": "Unity Biome MCP",
   "description": "Control Unity Editor from Claude, Codex, Cursor, and other AI assistants via MCP for scene editing, playtests, screenshots, and batch workflows.",
   "unity": "6000.0",

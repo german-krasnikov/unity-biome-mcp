@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 304" width="560" height="304"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" width="560" height="380"
      role="img" aria-labelledby="stats-title stats-desc">
   <title id="stats-title">Unity Biome MCP project inventory</title>
-  <desc id="stats-desc" data-biome-marker="STATS_DESC"><!-- BIOME:STATS_DESC -->148 registered MCP tools. Test inventory: 11649 entries: 4597 regular Python, 511 Python stress, 287 live Python, and 6254 Unity source attributes. Unity count source: static source scan. Server package version: v1.18.1.<!-- /BIOME:STATS_DESC --></desc>
+  <desc id="stats-desc" data-biome-marker="STATS_DESC"><!-- BIOME:STATS_DESC -->148 registered MCP tools. Test inventory: 11649 entries: 4597 regular Python, 511 Python stress, 287 live Python, and 6254 Unity source attributes. Unity count source: static source scan. Server package version: v1.19.0.<!-- /BIOME:STATS_DESC --></desc>
 
   <defs>
     <filter id="stats-core-glow" x="-80%" y="-80%" width="260%" height="260%">
@@ -136,8 +136,8 @@
     }
   </style>
 
-  <rect width="560" height="304" rx="8" fill="#2b2b2b"/>
-  <rect x="1" y="1" width="558" height="302" rx="7" fill="none" stroke="#4a4a4a"/>
+  <rect width="560" height="380" rx="8" fill="#2b2b2b"/>
+  <rect x="1" y="1" width="558" height="378" rx="7" fill="none" stroke="#4a4a4a"/>
 
   <path d="M280 142V162" stroke="#46e6a6" stroke-width="1.5" opacity=".22"/>
   <circle class="stats-bridge" cx="280" cy="152" r="4" fill="#46e6a6"
@@ -247,5 +247,34 @@
     <text x="280" y="283" text-anchor="middle" fill="#b7b7bd" font-size="17"
           data-biome-marker="BREAKDOWN_SECONDARY"
           data-mobile-critical="true"><!-- BIOME:BREAKDOWN_SECONDARY -->287 live / 6254 Unity<!-- /BIOME:BREAKDOWN_SECONDARY --></text>
+  </g>
+
+  <!-- second bridge -->
+  <path d="M280 292V306" stroke="#59a7ff" stroke-width="1.5" opacity=".15"/>
+
+  <!-- pyramid section -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <text x="280" y="316" text-anchor="middle" fill="#888" font-size="11"
+          font-weight="600" letter-spacing="1.5">TEST PYRAMID</text>
+
+    <rect data-biome-bar="CS"
+          x="82" y="322" height="7" width="396" rx="3" fill="#59a7ff" opacity=".85"/>
+    <text data-biome-bar-label="CS"
+          x="478" y="331" text-anchor="end" fill="#b7b7bd" font-size="10">6254 c#</text>
+
+    <rect data-biome-bar="PY"
+          x="82" y="337" height="7" width="291" rx="3" fill="#46e6a6" opacity=".85"/>
+    <text data-biome-bar-label="PY"
+          x="478" y="346" text-anchor="end" fill="#b7b7bd" font-size="10">4597 py</text>
+
+    <rect data-biome-bar="STRESS"
+          x="82" y="352" height="7" width="32" rx="3" fill="#f0a536" opacity=".85"/>
+    <text data-biome-bar-label="STRESS"
+          x="478" y="361" text-anchor="end" fill="#b7b7bd" font-size="10">511 stress</text>
+
+    <rect data-biome-bar="LIVE"
+          x="82" y="367" height="7" width="18" rx="3" fill="#e67e46" opacity=".85"/>
+    <text data-biome-bar-label="LIVE"
+          x="478" y="376" text-anchor="end" fill="#b7b7bd" font-size="10">287 live</text>
   </g>
 </svg>

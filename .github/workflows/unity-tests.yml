@@ -36,14 +36,20 @@ jobs:
             runner: ubuntu-latest
             build-target: StandaloneLinux64
             hub-version: '3.19.5'
+            coverage-args: >-
+              -enableCodeCoverage
+              -coverageResultsPath ${{ github.workspace }}/artifacts/coverage
+              -coverageOptions assemblyFilters:+UnityMCP*,-*Tests*,-*TestSupport*,-*TestHelpers*;generateAdditionalMetrics
           - name: macOS
             runner: macos-latest
             build-target: StandaloneOSX
             hub-version: ''
+            coverage-args: ''
           - name: Windows
             runner: windows-2022
             build-target: StandaloneWindows64
             hub-version: ''
+            coverage-args: ''
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
@@ -93,6 +99,7 @@ jobs:
             -testPlatform EditMode
             -testResults ${{ github.workspace }}/artifacts/editmode-results.xml
             -logFile ${{ github.workspace }}/artifacts/unity.log
+            ${{ matrix.coverage-args }}
 
       - name: Check test results exist
         id: check-results
@@ -132,6 +139,15 @@ jobs:
         with:
           name: test-results-${{ matrix.name }}
           path: artifacts/
+
+      - name: Upload C# coverage to Codecov
+        if: matrix.name == 'Linux'
+        uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45  # v5
+        with:
+          files: ${{ github.workspace }}/artifacts/coverage/*.xml
+          flags: csharp
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: failure()
