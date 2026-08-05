@@ -214,7 +214,7 @@ unity-biome-mcp/
 │       ├── test_server_animation.py      # M11–M14 animation actions: color curves hex, set_wrap, set_framerate, get_clip_path (13 tests)
 │       ├── test_server_particle.py       # M16–M17 particle actions: trails module, play/stop/pause (18 tests)
 │       ├── test_server_material.py       # Material actions: get_errors, list_shaders, set_fields
-│       ├── test_server_shader.py         # ShaderGraphHelper mutations: graph_set_value, graph_connect, graph_add_node
+│       ├── test_server_shader.py         # ShaderGraphHelper mutations: graph_set_value, graph_connect, graph_add_node, graph_get_layout, graph_set_layout, graph_auto_layout
 │       ├── test_server_objects_extra.py  # clone_object action tests
 │       ├── test_objects.py               # objects tool: find_type param, IsNullOrEmpty guard (v0.90.0)
 │       ├── test_console.py               # console tool: get_console watermark, get_console_since keyword/count_only (v0.90.0)
@@ -340,7 +340,7 @@ unity-biome-mcp/
 │       ├── AnimatorControllerHelper.cs + AnimatorControllerSerializer.cs
 │       ├── TimelineHelper.cs + TimelineSerializer.cs
 │       ├── ParticleHelper.cs + ParticleSerializer.cs  # 10 presets
-│       ├── ShaderHelper.cs + ShaderSerializer.cs + ShaderGraphHelper.cs + ShaderGraphHelper.Mutations.cs  # +110 LOC: SetNodeValue, ConnectPorts, AddNode (v0.77.0)
+│       ├── ShaderHelper.cs + ShaderSerializer.cs + ShaderGraphHelper.cs + ShaderGraphHelper.Mutations.cs + ShaderGraphHelper.Layout.cs  # +110 LOC: SetNodeValue, ConnectPorts, AddNode (v0.77.0); +322 LOC: GetLayout, SetLayout, AutoLayout (v1.15.0)
 │       ├── UIHelper.cs + LayoutValidator.cs
 │       ├── AssetDatabaseHelper.cs + AssetHelper.cs  # pipeline-gap sprint: +read_text, +write_text, +reimport, +create AnimatorController/ScriptableObject
 │       ├── BakeHelper.cs                  # Lighting + occlusion bake operations via BakeAsync + MainThreadDispatcher (pipeline-gap sprint)

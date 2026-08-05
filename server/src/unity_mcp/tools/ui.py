@@ -68,9 +68,12 @@ async def shader(
     default_value: str | None = None,
     reference_name: str | None = None,
     new_name: str | None = None,
+    layout: str | None = None,
+    h_gap: float | None = None,
+    v_gap: float | None = None,
 ) -> str:
     """Read or write shader assets (.shader / .shadergraph). Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network.
-    action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action).
+    action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional).
     For material shader assignment use `material` tool instead."""
     return await _send("shader", _args(
         action=action, path=path, target=target, preset=preset,
@@ -81,7 +84,7 @@ async def shader(
         input_node=input_node, input_slot=input_slot,
         edge_action=edge_action, name=name, type=type,
         default_value=default_value, reference_name=reference_name,
-        new_name=new_name))
+        new_name=new_name, layout=layout, h_gap=h_gap, v_gap=v_gap))
 
 
 def register(mcp, send, args):

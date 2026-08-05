@@ -440,9 +440,19 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "path"),
                     JsonHelper.ExtractString(args, "name"),
                     JsonHelper.ExtractString(args, "new_name")),
+                "graph_get_layout" => ShaderGraphHelper.GetLayout(
+                    JsonHelper.ExtractString(args, "path")),
+                "graph_set_layout" => ShaderGraphHelper.SetLayout(
+                    JsonHelper.ExtractString(args, "path"),
+                    JsonHelper.ExtractString(args, "layout")),
+                "graph_auto_layout" => ShaderGraphHelper.AutoLayout(
+                    JsonHelper.ExtractString(args, "path"),
+                    ParseOptFloat(args, "h_gap") ?? 80f,
+                    ParseOptFloat(args, "v_gap") ?? 50f),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
                     new[] { "get", "create", "set", "graph_get", "graph_create", "graph_node", "graph_edge",
-                            "graph_add_property", "graph_remove_property", "graph_rename_property" }))
+                            "graph_add_property", "graph_remove_property", "graph_rename_property",
+                            "graph_get_layout", "graph_set_layout", "graph_auto_layout" }))
             };
         }
 

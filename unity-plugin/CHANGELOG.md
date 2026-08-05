@@ -10,6 +10,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.16.0] — 2026-08-05
+
+### Added
+- **Shader Graph auto-layout** — `graph_auto_layout` action detects and resolves overlapping nodes via BFS topological sort (layered layout with configurable h_gap/v_gap)
+- **Shader Graph get/set layout** — `graph_get_layout` reads node positions, `graph_set_layout` writes them back; both support full and short format
+- **Overlap detection** — `CountOverlaps` O(n²) pairwise AABB check reports overlap count before and after layout
+- **Cycle guard** — `ComputeLayout` BFS terminates in O(n²) iterations even with cyclic edges
+- **ShaderGraph editor window guard** — `AutoLayout` refuses to run if the Shader Graph editor is open (prevents file/editor conflicts)
+
 ## [v1.15.0] — 2026-08-05
 
 ### Added

@@ -253,3 +253,69 @@ async def test_shader_graph_add_property_default_type_omitted(mock_bridge):
     call_args = mock_bridge.send.call_args[0]
     assert call_args[1]["name"] == "X"
     assert "type" not in call_args[1]
+
+
+# Phase: shader graph layout actions
+
+async def test_shader_graph_get_layout_sends_correct_params(mock_bridge):
+    """graph_get_layout forwards action and path to bridge."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "[abc] 100,200 160x120\n[def] 320,200 160x120"})
+    result = await shader(action="graph_get_layout", path="Assets/Test.shadergraph")
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[0] == "shader"
+    assert call_args[1]["action"] == "graph_get_layout"
+    assert call_args[1]["path"] == "Assets/Test.shadergraph"
+    assert "[abc]" in result
+
+
+async def test_shader_graph_set_layout_sends_correct_params(mock_bridge):
+    """graph_set_layout forwards action, path, and layout text to bridge."""
+    layout_text = "[abc] 100,200 160x120\n[def] 320,200 160x120"
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "layout applied: 2 nodes"})
+    result = await shader(action="graph_set_layout", path="Assets/Test.shadergraph", layout=layout_text)
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["action"] == "graph_set_layout"
+    assert call_args[1]["path"] == "Assets/Test.shadergraph"
+    assert call_args[1]["layout"] == layout_text
+    assert "layout applied" in result
+
+
+async def test_shader_graph_auto_layout_sends_correct_params(mock_bridge):
+    """graph_auto_layout forwards action and path; no h_gap/v_gap when not provided."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "auto-layout applied: 5 nodes"})
+    result = await shader(action="graph_auto_layout", path="Assets/Test.shadergraph")
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["action"] == "graph_auto_layout"
+    assert call_args[1]["path"] == "Assets/Test.shadergraph"
+    assert "h_gap" not in call_args[1]
+    assert "v_gap" not in call_args[1]
+    assert "auto-layout" in result
+
+
+async def test_shader_graph_auto_layout_with_custom_gaps(mock_bridge):
+    """graph_auto_layout with h_gap and v_gap forwards both to bridge."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "auto-layout applied: 5 nodes"})
+    await shader(action="graph_auto_layout", path="Assets/Test.shadergraph", h_gap=100.0, v_gap=60.0)
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1]["h_gap"] == 100.0
+    assert call_args[1]["v_gap"] == 60.0
+
+
+async def test_shader_graph_get_layout_none_params_stripped(mock_bridge):
+    """graph_get_layout does not send layout, h_gap, v_gap when they are None."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "[abc] 0,0 160x120"})
+    await shader(action="graph_get_layout", path="Assets/Test.shadergraph")
+    call_args = mock_bridge.send.call_args[0]
+    assert "layout" not in call_args[1]
+    assert "h_gap" not in call_args[1]
+    assert "v_gap" not in call_args[1]
+
+
+async def test_shader_graph_set_layout_forwards_layout_param(mock_bridge):
+    """graph_set_layout passes layout param through to bridge."""
+    layout_text = "[node1] 50,100 160x120"
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "layout applied: 1 nodes"})
+    await shader(action="graph_set_layout", path="Assets/Shaders/Graph.shadergraph", layout=layout_text)
+    call_args = mock_bridge.send.call_args[0]
+    assert "layout" in call_args[1]
+    assert call_args[1]["layout"] == layout_text

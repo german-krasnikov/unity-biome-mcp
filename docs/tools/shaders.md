@@ -7,7 +7,7 @@ Inspect, create, and modify shader assets, materials, and Shader Graph networks.
 Read or write shader assets (.shader / .shadergraph). Inspect shader properties and keywords, create new shaders from presets or raw HLSL, or edit Shader Graph node networks.
 
 **Parameters:**
-- `action` (string) — "get" | "create" | "set" | "graph_get" | "graph_create" | "graph_node" | "graph_edge"
+- `action` (string) — "get" | "create" | "set" | "graph_get" | "graph_create" | "graph_node" | "graph_edge" | "graph_get_layout" | "graph_set_layout" | "graph_auto_layout"
 - `path` (string) — Shader asset path (Assets/...)
 - `target` (string, optional) — Shader compilation target
 - `preset` (string, optional) — Shader preset: "unlit" | "lit" | "transparent"
@@ -30,6 +30,9 @@ Read or write shader assets (.shader / .shadergraph). Inspect shader properties 
 - `default_value` (string, optional) — Default value (for graph_node property)
 - `reference_name` (string, optional) — Shader reference name (for graph_node property)
 - `new_name` (string, optional) — New name for rename operations
+- `layout` (string, optional) — Compact node layout text (for graph_set_layout)
+- `h_gap` (number, optional) — Horizontal spacing in pixels for auto-layout (default 80)
+- `v_gap` (number, optional) — Vertical spacing in pixels for auto-layout (default 50)
 
 **Actions:**
 
@@ -42,6 +45,9 @@ Read or write shader assets (.shader / .shadergraph). Inspect shader properties 
 | graph_create | New .shadergraph | path | `shader("graph_create", path="Assets/Shaders/NewGraph.shadergraph")` |
 | graph_node | Add/remove/configure node | path, node_type, node_id, node_action | `shader("graph_node", path="Assets/Shaders/MyGraph.shadergraph", node_type="ColorNode", node_id="node_1", node_action="add")` |
 | graph_edge | Connect/disconnect slots | path, output_node, output_slot, input_node, input_slot, edge_action | `shader("graph_edge", path="Assets/Shaders/MyGraph.shadergraph", output_node="node_1", output_slot=0, input_node="node_2", input_slot=0, edge_action="connect")` |
+| graph_get_layout | Read node positions | path | `shader("graph_get_layout", path="Assets/Shaders/MyGraph.shadergraph")` |
+| graph_set_layout | Apply node positions | path, layout | `shader("graph_set_layout", path="Assets/Shaders/MyGraph.shadergraph", layout="<node_id> x,y WxH\n...")` |
+| graph_auto_layout | Auto-arrange nodes by data flow | path, h_gap (optional), v_gap (optional) | `shader("graph_auto_layout", path="Assets/Shaders/MyGraph.shadergraph", h_gap=100, v_gap=60)` |
 
 **Example:**
 
@@ -72,6 +78,17 @@ await shader("graph_edge", path="Assets/Shaders/MyGraph.shadergraph",
             output_node="node_1", output_slot=0,
             input_node="node_2", input_slot=0,
             edge_action="connect")
+
+# Read node positions
+layout = await shader("graph_get_layout", path="Assets/Shaders/MyGraph.shadergraph")
+
+# Save and restore node layout
+await shader("graph_set_layout", path="Assets/Shaders/MyGraph.shadergraph",
+            layout=layout)
+
+# Auto-arrange nodes
+await shader("graph_auto_layout", path="Assets/Shaders/MyGraph.shadergraph",
+            h_gap=100, v_gap=60)
 ```
 
 **Use Cases:**
@@ -100,6 +117,9 @@ Create and configure materials. See [Asset Tools — material](assets.md#materia
 | Change material color | material("set", path, prop, value) | `await material("set", path="Assets/Materials/Player.mat", prop="_Color", value="#FF0000")` |
 | Apply material to scene object | material("copy", source, targets) | `await material("copy", source="Assets/Materials/Base.mat", targets="Player")` |
 | Build Shader Graph | shader("graph_create") → shader("graph_node") → shader("graph_edge") | Sequential node/edge operations |
+| Save node layout | shader("graph_get_layout", path) | `await shader("graph_get_layout", path="Assets/Shaders/MyGraph.shadergraph")` |
+| Restore node layout | shader("graph_set_layout", path, layout) | `await shader("graph_set_layout", path="Assets/Shaders/MyGraph.shadergraph", layout=...)` |
+| Auto-arrange nodes | shader("graph_auto_layout", path) | `await shader("graph_auto_layout", path="Assets/Shaders/MyGraph.shadergraph", h_gap=100, v_gap=60)` |
 
 ---
 

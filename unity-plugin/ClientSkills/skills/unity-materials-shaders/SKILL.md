@@ -49,6 +49,8 @@ shader(action="get", path="Assets/Shaders/BiomePulse.shader")
 - Distinguish shared, instance, and asset mutation explicitly.
 - Keep Shader Graph node and edge edits small and verify graph structure after
   each logical group.
+- Save node layout with `graph_get_layout` before major graph changes; restore
+  with `graph_set_layout` or use `graph_auto_layout` for topological re-arrangement.
 - Run material or render diagnostics after bulk shader changes.
 - Use a screenshot only for appearance; inspect material/shader data for exact
   assignments.
