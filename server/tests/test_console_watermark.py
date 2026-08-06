@@ -129,3 +129,34 @@ async def test_roundtrip_mark_then_since(mod, monkeypatch):
 
     assert len(since_values) == 1
     assert 0 < since_values[0] < 5  # elapsed seconds since mark: positive and recent
+
+
+# ── P-051: MCP-internal synthetic truncation lines ────────────────────────────
+
+async def test_get_console_since_filters_mcp_internal_lines(mod, monkeypatch):
+    """P-051: synthetic '[+N older problem entries dropped]' tagged #MCP_INTERNAL
+    must be stripped before returning — not treated as a real Unity log entry."""
+    async def fake_get_console(count, level, since, keyword=None, count_only=False):
+        return (
+            "[Error] 12:34:56.789 Some real error\n"
+            "#MCP_INTERNAL [+3 older problem entries dropped]"
+        )
+
+    monkeypatch.setattr(mod, "get_console", fake_get_console)
+    mark = await mod.console_mark()
+    result = await mod.get_console_since(mark)
+
+    assert "#MCP_INTERNAL" not in result
+    assert "Some real error" in result
+
+
+async def test_get_console_since_filters_mcp_internal_only_line(mod, monkeypatch):
+    """P-051: when ONLY the synthetic line is present, result should be empty string."""
+    async def fake_get_console(count, level, since, keyword=None, count_only=False):
+        return "#MCP_INTERNAL [+1 older problem entries dropped]"
+
+    monkeypatch.setattr(mod, "get_console", fake_get_console)
+    mark = await mod.console_mark()
+    result = await mod.get_console_since(mark)
+
+    assert result == ""

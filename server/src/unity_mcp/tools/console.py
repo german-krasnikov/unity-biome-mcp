@@ -66,8 +66,11 @@ async def get_console_since(mark_id: str, level: str | None = None,
     since_s = _time.time() - ts
     if since_s < 0:
         return "err: mark_id timestamp in future"
-    return await get_console(count=count, level=level, since=since_s,
-                             keyword=keyword, count_only=count_only)
+    raw = await get_console(count=count, level=level, since=since_s,
+                            keyword=keyword, count_only=count_only)
+    # P-051: strip MCP-internal synthetic metadata lines (e.g. dropped-count suffix)
+    lines = [l for l in raw.splitlines() if not l.startswith("#MCP_INTERNAL ")]
+    return "\n".join(lines)
 
 
 def register(mcp, send, args):
