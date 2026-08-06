@@ -51,6 +51,7 @@ markers = [
     "live_cli: paid external CLI/API call; opt-in with UNITY_MCP_RUN_LIVE_CLI=1",
     "monkey: stress/chaos tests for chat_relay (connection storms, process leaks, protocol torture)",
     "live_chat: requires running Unity + MCPChatWindow; subset of live",
+    "timeout: per-test timeout override (pytest-timeout)",
 ]
 
 [tool.ruff]

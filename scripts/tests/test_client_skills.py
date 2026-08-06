@@ -98,7 +98,7 @@ def shipped_markdown(repo_root: pathlib.Path) -> list[pathlib.Path]:
 
 def tool_specs(repo_root: pathlib.Path) -> dict[str, str]:
     source = repo_root / "server" / "src" / "unity_mcp" / "tools" / "tool_specs.py"
-    tree = ast.parse(source.read_text())
+    tree = ast.parse(source.read_text(encoding="utf-8"))
     for node in tree.body:
         if (
             isinstance(node, ast.AnnAssign)
@@ -130,7 +130,7 @@ def tool_signatures(repo_root: pathlib.Path) -> dict[str, set[str]]:
     signatures: dict[str, set[str]] = {}
     root = repo_root / "server" / "src" / "unity_mcp" / "tools"
     for path in root.glob("*.py"):
-        tree = ast.parse(path.read_text())
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in tree.body:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in names:
                 signatures[node.name] = {
@@ -151,11 +151,11 @@ def test_skills_use_current_directory_shape_and_metadata(repo_root: pathlib.Path
         assert SAFE_ID_RE.fullmatch(directory.name)
         skill_file = directory / "SKILL.md"
         assert skill_file.exists()
-        frontmatter, _ = converter.split_frontmatter(skill_file.read_text())
+        frontmatter, _ = converter.split_frontmatter(skill_file.read_text(encoding="utf-8"))
         assert frontmatter.get("name") == directory.name
         description = frontmatter.get("description")
         assert isinstance(description, str) and description.startswith("Use ")
-        assert len(skill_file.read_text().splitlines()) < 500
+        assert len(skill_file.read_text(encoding="utf-8").splitlines()) < 500
 
 
 def test_agents_preload_existing_minimal_skills(repo_root: pathlib.Path) -> None:
@@ -180,7 +180,7 @@ def test_agents_preload_existing_minimal_skills(repo_root: pathlib.Path) -> None
     }
 
     for agent in agents:
-        frontmatter, _ = converter.split_frontmatter(agent.read_text())
+        frontmatter, _ = converter.split_frontmatter(agent.read_text(encoding="utf-8"))
         assert frontmatter.get("name") == agent.stem
         assert frontmatter.get("model") == "claude-sonnet-4-6"
         assert frontmatter.get("color") == expected_colors[agent.stem]
@@ -195,7 +195,7 @@ def test_operations_skill_routes_every_category_and_domain(repo_root: pathlib.Pa
         / "skills"
         / "unity-mcp-operations"
         / "SKILL.md"
-    ).read_text()
+    ).read_text(encoding="utf-8")
     skill_names = {
         directory.name
         for directory in (client_root(repo_root) / "skills").iterdir()
@@ -231,9 +231,9 @@ def test_every_public_tool_has_source_derived_skill_owners(repo_root: pathlib.Pa
 
 def test_high_value_workflows_use_current_coordination_tools(repo_root: pathlib.Path) -> None:
     root = client_root(repo_root) / "skills"
-    csharp = (root / "unity-csharp-editing" / "SKILL.md").read_text()
-    testing = (root / "unity-testing-verification" / "SKILL.md").read_text()
-    operations = (root / "unity-mcp-operations" / "SKILL.md").read_text()
+    csharp = (root / "unity-csharp-editing" / "SKILL.md").read_text(encoding="utf-8")
+    testing = (root / "unity-testing-verification" / "SKILL.md").read_text(encoding="utf-8")
+    operations = (root / "unity-mcp-operations" / "SKILL.md").read_text(encoding="utf-8")
 
     assert "sync_unity(timeout=60)" in csharp
     assert "await_compile` only when compilation was already started" in csharp
@@ -260,7 +260,7 @@ def test_canonical_test_authoring_policy_is_complete_and_role_owned(
         / "references"
         / "test-authoring.md"
     )
-    canonical = canonical_path.read_text()
+    canonical = canonical_path.read_text(encoding="utf-8")
 
     required_contract = (
         "Unity 6000.0.65f1",
@@ -344,7 +344,7 @@ def test_canonical_test_authoring_policy_is_complete_and_role_owned(
 
     skill = (
         root / "skills" / "unity-testing-verification" / "SKILL.md"
-    ).read_text()
+    ).read_text(encoding="utf-8")
     assert "references/test-authoring.md" in skill
     assert "Unity 6000.0.65f1" in skill
     assert "built-in UTF 1.6.0" in skill
@@ -365,7 +365,7 @@ def test_canonical_test_authoring_policy_is_complete_and_role_owned(
         assert required in skill, required
 
     for agent_name in ("unity-csharp-developer", "unity-test-reviewer"):
-        agent = (root / "agents" / f"{agent_name}.md").read_text()
+        agent = (root / "agents" / f"{agent_name}.md").read_text(encoding="utf-8")
         assert (
             ".claude/skills/unity-testing-verification/references/test-authoring.md"
             in agent
@@ -382,8 +382,8 @@ def test_canonical_test_authoring_policy_is_complete_and_role_owned(
         ):
             assert required in agent, f"{agent_name}: {required}"
 
-    developer = (root / "agents" / "unity-csharp-developer.md").read_text()
-    reviewer = (root / "agents" / "unity-test-reviewer.md").read_text()
+    developer = (root / "agents" / "unity-csharp-developer.md").read_text(encoding="utf-8")
+    reviewer = (root / "agents" / "unity-test-reviewer.md").read_text(encoding="utf-8")
     assert "[Test] async Task" in developer
     assert "[UnityTest]" in developer and "forbidden" in developer
     assert "CreateOwnedEditorWindow" in developer and "GetWindow" in developer
@@ -405,7 +405,7 @@ def test_canonical_test_authoring_policy_is_complete_and_role_owned(
     assert "UNITY_TEST_PLAYER_LOOP_EXCEPTION:" not in developer
     assert "UNITY_TEST_PLAYER_LOOP_EXCEPTION:" not in reviewer
 
-    reliability = (repo_root / "docs" / "testing-reliability.md").read_text()
+    reliability = (repo_root / "docs" / "testing-reliability.md").read_text(encoding="utf-8")
     for required in (
         "run_unity_fault_injection.py",
         "--confirm-disposable-worker",
@@ -424,7 +424,7 @@ def test_canonical_test_authoring_policy_is_complete_and_role_owned(
     converter = load_converter(repo_root)
     for agent_name in ("playmode-tester", "unity-csharp-developer", "unity-test-reviewer"):
         frontmatter, _ = converter.split_frontmatter(
-            (root / "agents" / f"{agent_name}.md").read_text()
+            (root / "agents" / f"{agent_name}.md").read_text(encoding="utf-8")
         )
         assert "unity-testing-verification" in converter.frontmatter_string_list(
             frontmatter, "skills"
@@ -434,7 +434,7 @@ def test_canonical_test_authoring_policy_is_complete_and_role_owned(
 def test_installer_accepts_all_supported_release_skill_hashes(repo_root: pathlib.Path) -> None:
     installer = (
         repo_root / "unity-plugin" / "Editor" / "Wizard" / "SkillsInstaller.cs"
-    ).read_text()
+    ).read_text(encoding="utf-8")
 
     for tag in ("v0.94.0", "v0.95.0", "v0.96.0"):
         result = subprocess.run(
@@ -461,7 +461,7 @@ def test_installer_accepts_all_supported_release_skill_hashes(repo_root: pathlib
 
 def test_public_client_guidance_is_english_portable_and_linked(repo_root: pathlib.Path) -> None:
     for path in shipped_markdown(repo_root):
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         assert not CYRILLIC_RE.search(text), path
         assert "/Users/" not in text, path
         assert not re.search(r"[A-Za-z]:\\Users\\", text), path
@@ -476,7 +476,7 @@ def test_public_client_guidance_is_english_portable_and_linked(repo_root: pathli
 def test_ai_docs_preserve_internal_skill_ownership(repo_root: pathlib.Path) -> None:
     # Internal contributor skills and packaged consumer skills are separate surfaces.
     for relative_path, skill_path in INTERNAL_AI_SKILL_REFERENCES.items():
-        text = (repo_root / relative_path).read_text()
+        text = (repo_root / relative_path).read_text(encoding="utf-8")
         assert skill_path in text, f"{relative_path}: missing internal skill {skill_path}"
 
 
@@ -485,7 +485,7 @@ def test_shipped_tool_calls_exist_and_stale_forms_are_absent(repo_root: pathlib.
     calls: set[str] = set()
 
     for path in shipped_markdown(repo_root):
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         for bad in KNOWN_BAD_FORMS:
             assert bad not in text, f"{path}: stale form {bad}"
         for pattern in KNOWN_BAD_PATTERNS:
@@ -499,7 +499,7 @@ def test_python_style_examples_use_current_keyword_arguments(repo_root: pathlib.
     signatures = tool_signatures(repo_root)
 
     for path in shipped_markdown(repo_root):
-        for block in FENCED_TEXT_RE.findall(path.read_text()):
+        for block in FENCED_TEXT_RE.findall(path.read_text(encoding="utf-8")):
             if "# INVALID:" in block:
                 continue
             try:

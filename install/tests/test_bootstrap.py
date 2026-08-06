@@ -1,8 +1,8 @@
 """Tests for bootstrap install scripts (syntax + content validation)."""
 import os
 import shutil
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -34,7 +34,7 @@ def _find_bash() -> str:
                     install_path, _ = winreg.QueryValueEx(key, "InstallPath")
                     if r := _try(Path(install_path) / "bin" / "bash.exe"):
                         return r
-            except OSError:
+            except OSError:  # noqa: PERF203
                 pass
     except ImportError:
         pass

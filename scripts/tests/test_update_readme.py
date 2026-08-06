@@ -97,6 +97,7 @@ class TestCommand:
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
         )
         assert result.returncode == 0, result.stdout + result.stderr
