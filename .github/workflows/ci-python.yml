@@ -65,7 +65,7 @@ jobs:
         run: pip install ".[dev]"
 
       - name: Run server unit tests (with coverage)
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         timeout-minutes: 10
         working-directory: server
         env:
@@ -73,7 +73,7 @@ jobs:
         run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short --cov=unity_mcp --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=reports/server-junit.xml
 
       - name: Run server unit tests
-        if: matrix.python-version != '3.12'
+        if: "!(matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest')"
         timeout-minutes: 10
         working-directory: server
         env:
