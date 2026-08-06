@@ -859,6 +859,42 @@ async def test_wire_event_object_arg_type(mock_bridge):
     )
 
 
+async def test_wire_event_target_component_type_forwarded(mock_bridge):
+    """wire_event forwards target_component_type to Unity for overload disambiguation."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Wired"})
+    await wire_event(
+        path="/Button", component="Button", event="onClick",
+        target="/Player", method="SetTrigger",
+        target_component_type="Animator"
+    )
+    args = mock_bridge.send.call_args[0][1]
+    assert args["target_component_type"] == "Animator"
+
+
+async def test_wire_event_parameter_types_forwarded(mock_bridge):
+    """wire_event forwards parameter_types to Unity for exact overload matching."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Wired"})
+    await wire_event(
+        path="/Button", component="Button", event="onClick",
+        target="/Player", method="SetTrigger",
+        target_component_type="Animator", parameter_types="string"
+    )
+    args = mock_bridge.send.call_args[0][1]
+    assert args["parameter_types"] == "string"
+
+
+async def test_wire_event_omits_new_params_when_none(mock_bridge):
+    """wire_event does not send target_component_type/parameter_types when not provided."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Wired"})
+    await wire_event(
+        path="/Btn", component="Button", event="onClick",
+        target="/Target", method="SetActive"
+    )
+    args = mock_bridge.send.call_args[0][1]
+    assert "target_component_type" not in args
+    assert "parameter_types" not in args
+
+
 async def test_get_component_returns_unity_event_expanded(mock_bridge):
     """get_component passes through UnityEvent expanded format from Unity."""
     mock_bridge.send = AsyncMock(return_value={
