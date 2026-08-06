@@ -57,7 +57,11 @@ namespace UnityMCP.Editor
                     {
                         if (targetScene.IsValid())
                             SceneManager.SetActiveScene(targetScene);
-                        clone = UnityEngine.Object.Instantiate(go);
+                        // Preserve prefab connection: use PrefabUtility when source is a prefab instance
+                        var prefabAsset = PrefabUtility.GetCorrespondingObjectFromOriginalSource(go);
+                        clone = prefabAsset != null
+                            ? PrefabUtility.InstantiatePrefab(prefabAsset, targetScene) as GameObject
+                            : UnityEngine.Object.Instantiate(go);
                     }
                     finally
                     {

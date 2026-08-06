@@ -308,3 +308,38 @@ async def test_verify_timeout_passed_to_run_tests_wait():
     mock_tests.assert_awaited_once()
     _, kwargs = mock_tests.call_args
     assert kwargs.get("timeout") == 250.0 or mock_tests.call_args.args[2] == 250.0
+
+
+# ── G47: restart_between ──────────────────────────────────────────────────────
+
+_STOP_PLAY = "unity_mcp.tools.verify._stop_play_mode"
+
+
+@pytest.mark.asyncio
+async def test_verify_restart_between_stops_play_before_playtests():
+    """restart_between=True calls _stop_play_mode before playtest suite."""
+    stop_mock = AsyncMock()
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_STOP_PLAY, stop_mock),
+        patch(_RUN_SUITE, AsyncMock(return_value="SUITE: 1/1 passed (1.0s)")),
+    ):
+        result = await _v.verify_after_change(playtests="t.playtest", restart_between=True)
+    assert "PASS" in result
+    stop_mock.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_verify_restart_between_false_no_stop():
+    """restart_between=False (default) must not call _stop_play_mode."""
+    stop_mock = AsyncMock()
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_STOP_PLAY, stop_mock),
+        patch(_RUN_SUITE, AsyncMock(return_value="SUITE: 1/1 passed (1.0s)")),
+    ):
+        result = await _v.verify_after_change(playtests="t.playtest", restart_between=False)
+    assert "PASS" in result
+    stop_mock.assert_not_called()

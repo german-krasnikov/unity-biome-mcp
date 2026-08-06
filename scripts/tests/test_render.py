@@ -950,17 +950,19 @@ class TestCommittedReadme:
 
     def test_primary_badges_are_large_horizontal_and_compact(self) -> None:
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        block = re.search(
+        rows = re.findall(
             r'<p align="center">(?P<badges>.*?img\.shields\.io.*?)</p>',
             readme,
         )
-        assert block is not None
-        badges = block.group("badges")
-        assert badges.count("<img ") == 5
-        assert badges.count('height="28"') == 5
-        assert badges.count("style=for-the-badge") == 5
-        assert "<br" not in badges
-        assert "&nbsp;" not in badges
+        assert len(rows) >= 3
+        badges = " ".join(rows)
+        img_count = badges.count("<img ")
+        assert img_count >= 10
+        assert badges.count('height="28"') == img_count
+        assert badges.count("style=for-the-badge") >= img_count - 1  # glama badge excluded
+        for row in rows:
+            assert "<br" not in row
+            assert "&nbsp;" not in row
 
     def test_contributor_links_are_actionable(self) -> None:
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")

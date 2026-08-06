@@ -1,6 +1,6 @@
 # Tools Reference
 
-Tools are organized into a 15-tool Core and eight task-oriented categories. Use the live catalog to discover the tools available in your installed version.
+Tools are organized into a 13-tool Core and eight task-oriented categories. Use the live catalog to discover the tools available in your installed version.
 
 ## How Tools Work
 
@@ -14,7 +14,7 @@ Tools are organized into a 15-tool Core and eight task-oriented categories. Use 
 
 | Category | Purpose |
 |----------|---------|
-| **Core** | 15 always-visible tools for hierarchy inspection, component access, object changes, batching, and verification |
+| **Core** | 13 always-visible tools for hierarchy inspection, component access, object changes, batching, and verification |
 | **SCENE** | Scene and object lifecycle, hierarchy queries, spatial context, and scene changes |
 | **COMPONENTS** | Component references and event wiring |
 | **ASSETS** | Prefabs, materials, shaders, ScriptableObjects, and project settings |
@@ -81,10 +81,10 @@ Tools are organized into a 15-tool Core and eight task-oriented categories. Use 
 
 ## TIER1 Tools (Always Available)
 
-**Core (15):**
+**Core (13):**
 - get_hierarchy, get_component, inspect, set_property, create_object
 - manage_component, batch, editor, get_console, get_compile_errors
-- execute_code, resolve_scene_refs, scene_change_plan, apply_scene_change, verify_after_change
+- execute_code, compile_preflight, mcp_status
 
 **Other TIER1 tools:** Run `discover_tools(enable=False, structured=True)` and look for entries tagged `tier1`. This keeps the reference aligned with the installed version.
 

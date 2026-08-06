@@ -2,7 +2,7 @@
 
 Design standards: `AI/api-design-standards.md`
 
-Tool index organized by category. TIER1 tools (47 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools are discovered dynamically.
+Tool index organized by category. TIER1 tools (33 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools are discovered dynamically.
 
 Parameter lists are intentionally not duplicated here because the MCP schemas are the runtime contract. Resolve the current schema before calling an unfamiliar tool:
 
@@ -17,9 +17,9 @@ await discover_tools(category="SCENE", enable=False, structured=True)
 
 **v0.84.0 breaking changes:** `create_ui`/`set_rect` params renamed (`fontSize`→`font_size`, `offsetMin`→`offset_min`, `offsetMax`→`offset_max`); `object_diff` params renamed (`pathA`→`path_a`, `pathB`→`path_b`).
 
-## CORE Tools (15 — always visible, zero setup)
+## CORE Tools (13 — always visible, zero setup)
 
-The minimum 15 tools needed for any Unity task. Always visible, no gating.
+The minimum 13 tools needed for any Unity task. Always visible, no gating.
 
 | Tool | Purpose |
 | ------ | --------- |
@@ -33,15 +33,13 @@ The minimum 15 tools needed for any Unity task. Always visible, no gating.
 | get_console | Read Editor.log tail |
 | get_compile_errors | List C# compile errors |
 | editor | Open Editor windows / control play mode |
-| apply_scene_change | Execute planned mutations with post-verify and save |
 | execute_code | Run C# in Editor |
-| resolve_scene_refs | Resolve $alias, /path, t:Type refs to scene paths |
-| scene_change_plan | Pre-flight gate + checkpoint before scene edits |
-| verify_after_change | 5-gate pipeline: compile → errors → console → tests → playtests |
+| compile_preflight | Check compile readiness before proceeding |
+| mcp_status | Compact scene/compile/play-mode/alias status snapshot |
 
-## Non-Core TIER1 Tools (32 — always visible)
+## Non-Core TIER1 Tools (20 — always visible)
 
-Together with CORE (15), these make the 47 always-visible TIER1 tools.
+Together with CORE (13), these make the 33 always-visible TIER1 tools.
 
 | Tool | Purpose | Category |
 | ------ | --------- | ---------- |
@@ -49,34 +47,23 @@ Together with CORE (15), these make the 47 always-visible TIER1 tools.
 | set_parent | Reparent GameObject | SCENE |
 | set_active | Toggle active flag | SCENE |
 | scene | List/load/save scenes | SCENE |
+| scene_change_plan | Pre-flight gate + checkpoint before scene edits | SCENE |
+| apply_scene_change | Execute planned mutations with post-verify and save | SCENE |
 | search_scene | Find objects by pattern | SCENE |
-| configure_objects | Batch configure components | SCENE |
-| setup_objects | Batch create + wire objects | SCENE |
 | screenshot | Capture frame | MEDIA |
-| get_console_since | Console entries after a watermark | RUNTIME |
-| console_mark | Create timestamp watermark for log slicing | RUNTIME |
 | await_compile | Block until compile done | VERIFY |
-| compile_preflight | Check compile readiness | VERIFY |
 | validate_references | Check all refs valid | VERIFY |
 | lint_scene_refs | 3-pass linter for scene refs in DSL/batch commands | VERIFY |
+| verify_after_change | 5-gate pipeline: compile → errors → console → tests → playtests | VERIFY |
 | run_tests | Low-level nonblocking durable NUnit dispatch | TESTS |
 | run_tests_wait | Preferred interactive correlated NUnit runner | TESTS |
 | run_playtest | Run playtest DSL script | TESTS |
-| lint_playtest | Static DSL preflight — no runtime needed | TESTS |
-| get_test_results | Legacy diagnostic result facade; not a verdict | TESTS |
-| get_test_run | Read one exact durable test-run snapshot | TESTS |
-| resolve_test_request | Resolve a lost start ACK by request identity | TESTS |
+| run_playtest_suite | Run multiple .playtest files in sequence | TESTS |
 | discover_tools | Browse or enable a category | SYSTEM |
-| mcp_status | Compact scene/compile/play-mode/alias status snapshot | SYSTEM |
-| alias_status | Returns alias cache state (loaded/count/source/stale) | SYSTEM |
-| release_smoke | Run status + aliases + compile gates in one call | SYSTEM |
-| ask | Query LLM about scene | SYSTEM |
-| ask_user | Prompt human | SYSTEM |
 | permission_prompt | Gate sensitive ops | SYSTEM |
 | reconnect_unity | Reconnect TCP socket | SYSTEM |
 | resolve_tool_schema | Deferred schema fetch | SYSTEM |
 | sync_unity | Reload and restart | SYSTEM |
-| undo_last | Revert last N editor operations | SYSTEM |
 
 ---
 

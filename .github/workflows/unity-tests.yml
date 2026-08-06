@@ -38,7 +38,6 @@ jobs:
             hub-version: '3.19.5'
             coverage-args: >-
               -enableCodeCoverage
-              -coverageResultsPath ${{ github.workspace }}/artifacts/coverage
               -coverageOptions assemblyFilters:+UnityMCP*,-*Tests*,-*TestSupport*,-*TestHelpers*;generateAdditionalMetrics
           - name: macOS
             runner: macos-latest
@@ -140,14 +139,29 @@ jobs:
           name: test-results-${{ matrix.name }}
           path: artifacts/
 
-      - name: Upload C# coverage to Codecov
+      - name: Find coverage reports
         if: matrix.name == 'Linux'
+        id: cov-files
+        shell: bash
+        run: echo "files=$(find unity-test-project/CodeCoverage -name '*.xml' -type f | paste -sd ',' -)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload C# coverage to Codecov
+        if: matrix.name == 'Linux' && steps.cov-files.outputs.files != ''
         uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45  # v5
         with:
-          files: ${{ github.workspace }}/artifacts/coverage/*.xml
+          files: ${{ steps.cov-files.outputs.files }}
           flags: csharp
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test analytics to Codecov
+        if: matrix.name == 'Linux' && !cancelled()
+        uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45  # v5
+        with:
+          files: artifacts/editmode-results.xml
+          flags: csharp
+          token: ${{ secrets.CODECOV_TOKEN }}
+          report_type: test_results
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: failure()

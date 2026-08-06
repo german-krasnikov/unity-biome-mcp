@@ -207,5 +207,35 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual("hello world", result[0].Value);
         }
+
+        // ── G16: SETUP_END / TEARDOWN_END recognized by parser ────────────────────
+
+        [Test]
+        public void Parser_SetupEnd_NoException()
+        {
+            Assert.DoesNotThrow(() => PlaytestParser.Parse("SETUP\nLOG s\nSETUP_END\nLOG m"));
+        }
+
+        [Test]
+        public void Parser_TeardownEnd_NoException()
+        {
+            Assert.DoesNotThrow(() => PlaytestParser.Parse("TEARDOWN\nLOG t\nTEARDOWN_END\nLOG m"));
+        }
+
+        [Test]
+        public void Parser_SetupEnd_ResetsToMainSection()
+        {
+            var result = PlaytestParser.Parse("SETUP\nLOG s\nSETUP_END\nLOG main");
+            Assert.AreEqual(1, result.SetupSteps?.Count ?? 0, "One step in SETUP section");
+            Assert.AreEqual(1, result.Steps.Count, "One step in main section after SETUP_END");
+        }
+
+        [Test]
+        public void Parser_TeardownEnd_ResetsToMainSection()
+        {
+            var result = PlaytestParser.Parse("TEARDOWN\nLOG t\nTEARDOWN_END\nLOG main");
+            Assert.AreEqual(1, result.TeardownSteps?.Count ?? 0, "One step in TEARDOWN section");
+            Assert.AreEqual(1, result.Steps.Count, "One step in main section after TEARDOWN_END");
+        }
     }
 }

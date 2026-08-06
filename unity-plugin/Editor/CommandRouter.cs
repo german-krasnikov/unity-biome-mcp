@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
 
@@ -342,8 +343,22 @@ namespace UnityMCP.Editor
             var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
             var snapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true";
             var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
+            var beforeHook = JsonHelper.ExtractString(argsJson, "before_hook");
+            var afterHook = JsonHelper.ExtractString(argsJson, "after_hook");
+
+            if (!string.IsNullOrEmpty(beforeHook))
+                CodeExecutor.Execute(beforeHook, "MCP before_hook");
+
             var inner = new TaskCompletionSource<string>();
             PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh);
+
+            if (!string.IsNullOrEmpty(afterHook))
+            {
+                var capturedHook = afterHook;
+                inner.Task.ContinueWith(_ =>
+                    EditorApplication.delayCall += () => CodeExecutor.Execute(capturedHook, "MCP after_hook"));
+            }
+
             CompleteFromInner(id, inner.Task, tcs, "run_playtest",
                 IsPlaytestSuccess);
         }

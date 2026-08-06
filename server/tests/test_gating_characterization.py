@@ -11,32 +11,26 @@ _CORE_TOOLS_SNAPSHOT = frozenset({
     "batch", "create_object", "editor",
     "get_compile_errors", "get_component", "get_console", "get_hierarchy",
     "inspect", "manage_component", "set_property",
-    # sprint1-2: 5 tools promoted tier1→core (#04 execute_code, #15 scene/verify tools)
+    # sprint1-2: execute_code promoted (#04)
     "execute_code",
-    "apply_scene_change", "resolve_scene_refs", "scene_change_plan", "verify_after_change",
+    # P-12440 Phase 1: compile_preflight + mcp_status promoted; 4 scene/verify demoted
+    "compile_preflight", "mcp_status",
 })
 
 _TIER1_SNAPSHOT = frozenset({
-    # CORE 10 (Wave 2: 'do' demoted to SYSTEM direct_only)
-    "batch", "create_object", "editor",
+    # 13 CORE tools
+    "batch", "compile_preflight", "create_object", "editor", "execute_code",
     "get_compile_errors", "get_component", "get_console", "get_hierarchy",
-    "inspect", "manage_component", "set_property",
-    # tier1=True non-core
-    # Phase 1a: delete_object/set_parent/scene/search_scene promoted from CORE to SCENE tier1
-    "alias_status", "apply_scene_change", "ask", "ask_user", "await_compile",
-    "compile_preflight", "configure_objects", "console_mark",
+    "inspect", "manage_component", "mcp_status", "set_property",
+    # 20 TIER1-only (non-core) — P-12440 Phase 1
+    "apply_scene_change", "await_compile",
     "delete_object", "discover_tools",
-    # Phase 1b: execute_code/set_active/validate_references/undo_last promoted
-    "execute_code",
-    "get_console_since", "get_test_results", "get_test_run",
-    "lint_playtest", "lint_scene_refs",
-    "mcp_status", "permission_prompt", "reconnect_unity", "release_smoke",
-    "resolve_scene_refs", "resolve_test_request", "resolve_tool_schema",
-    "run_playtest", "run_tests", "run_tests_wait",
+    "lint_scene_refs",
+    "permission_prompt", "reconnect_unity", "resolve_tool_schema",
+    "run_playtest", "run_playtest_suite", "run_tests", "run_tests_wait",
     "scene", "scene_change_plan", "screenshot",
     "search_scene", "set_active", "set_parent",
-    "setup_objects", "sync_unity",
-    "undo_last", "validate_references", "verify_after_change",
+    "sync_unity", "validate_references", "verify_after_change",
 })
 
 _ALL_KNOWN_SNAPSHOT = frozenset({

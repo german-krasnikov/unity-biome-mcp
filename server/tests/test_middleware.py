@@ -659,14 +659,51 @@ def test_middleware_init_no_log_dir_by_default(monkeypatch):
 
 # ── CircuitBreaker HALF_OPEN probe flag ───────────────────────────────────────
 
-def test_circuit_breaker_half_open_allows_only_one_probe():
-    """In HALF_OPEN state, only the first request passes; subsequent ones are blocked."""
+def test_circuit_breaker_half_open_allows_all_concurrent():
+    """In HALF_OPEN state, ALL requests pass (P-092: no false 'Circuit OPEN' for concurrent
+    requests while probe is in flight). The circuit closes on success, re-opens on enough
+    failures — concurrent requests are not blocked by the probe slot."""
     cb = CircuitBreaker(threshold=1, cooldown=0.0)
     cb.record_failure()  # → OPEN
     cb.state = CircuitBreaker.HALF_OPEN
     cb._probe_in_flight = False
-    assert cb.allow_request()
-    assert not cb.allow_request()
+    assert cb.allow_request()   # first request passes
+    assert cb.allow_request()   # second also passes (not blocked)
+
+
+# P-092 / G15: concurrent requests must not trip circuit when all succeed
+async def test_circuit_stays_closed_on_concurrent_success():
+    """G15: 3 concurrent requests all succeeding must not produce any 'Circuit OPEN'
+    response, even if circuit is in HALF_OPEN while the first probe runs.
+
+    Root cause: HALF_OPEN probe slot blocks subsequent concurrent requests
+    immediately with 'Circuit OPEN', even though the probe (first request)
+    succeeds and closes the circuit. The others should pass through.
+
+    asyncio.sleep(0) inside send_fn ensures a true event-loop yield, so
+    R2 and R3 call allow_request() while R1's probe is still in flight."""
+    import asyncio
+    mw = Middleware()
+    # Force OPEN circuit with expired cooldown → HALF_OPEN on first allow_request()
+    mw.circuit.failures = mw.circuit.threshold
+    mw.circuit.state = CircuitBreaker.OPEN
+    mw.circuit.opened_at = 0.0  # cooldown already expired
+
+    async def succeed(cmd, args, timeout=0):
+        await asyncio.sleep(0)  # force event-loop switch so R2/R3 see HALF_OPEN
+        return "ok"
+
+    wrapped = wrap_send(succeed, mw)
+    results = await asyncio.gather(
+        wrapped("get_hierarchy", {}),
+        wrapped("get_hierarchy", {}),
+        wrapped("get_hierarchy", {}),
+    )
+    circuit_open_responses = [r for r in results if "Circuit OPEN" in r or "circuit" in r.lower()]
+    assert circuit_open_responses == [], (
+        f"Concurrent requests got 'Circuit OPEN': {circuit_open_responses}"
+    )
+    assert mw.circuit.get_status() == "CLOSED"
 
 
 def test_circuit_breaker_half_open_resets_after_success():

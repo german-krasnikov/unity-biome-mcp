@@ -22,6 +22,26 @@ namespace UnityMCP.Editor
                 return SetActive(path, active);
             }
 
+            // Intercept "layer" / "m_layer" — maps to GameObject.layer (int)
+            if (normProp is "layer" or "m_layer")
+            {
+                var go = ComponentSerializer.FindObjectOrThrow(path);
+                if (dryRun)
+                    return $"DRY-RUN: layer would change {go.layer} → {value}";
+                int layerIdx;
+                if (!int.TryParse(value, out layerIdx))
+                {
+                    layerIdx = LayerMask.NameToLayer(value);
+                    if (layerIdx < 0)
+                        throw new ArgumentException($"Invalid layer: '{value}'. Use layer index (int) or layer name.");
+                }
+                Undo.RecordObject(go, "Set Layer");
+                go.layer = layerIdx;
+                if (!EditorApplication.isPlaying && go.scene.IsValid())
+                    EditorSceneManager.MarkSceneDirty(go.scene);
+                return go.layer.ToString();
+            }
+
             var (_, comp) = ResolveComponent(path, component);
 
             var so = new SerializedObject(comp);

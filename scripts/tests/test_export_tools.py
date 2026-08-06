@@ -148,3 +148,29 @@ def test_main_out_file(tmp_path):
     assert out.exists()
     data = json.loads(out.read_text(encoding="utf-8"))
     assert "tools" in data
+
+
+# ── G50: versioned catalog ─────────────────────────────────────────────────────
+
+def test_toolsmith_format_has_version_field():
+    """Toolsmith export must include a version field for schema drift detection."""
+    mod = _load_export_tools()
+    result = json.loads(mod.export_json(fmt="toolsmith"))
+    assert "version" in result, "toolsmith format must include a version field"
+    assert isinstance(result["version"], str)
+    assert len(result["version"]) > 0
+
+
+def test_toolsmith_version_is_stable():
+    """version field is deterministic across two calls (same specs → same hash)."""
+    mod = _load_export_tools()
+    v1 = json.loads(mod.export_json(fmt="toolsmith"))["version"]
+    v2 = json.loads(mod.export_json(fmt="toolsmith"))["version"]
+    assert v1 == v2
+
+
+def test_mcplint_format_has_no_version_field():
+    """mcplint format is a bare array — no version wrapper."""
+    mod = _load_export_tools()
+    result = json.loads(mod.export_json(fmt="mcplint"))
+    assert isinstance(result, list)  # bare array, no version

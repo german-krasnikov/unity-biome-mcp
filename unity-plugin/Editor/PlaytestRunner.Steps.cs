@@ -171,6 +171,10 @@ namespace UnityMCP.Editor
                             ? PlaytestPositionResolver.Resolve(step.RawPosition)
                             : step.Position;
                         Physics.SyncTransforms();
+                        // G28: explicitly sync Rigidbody position so the physics world
+                        // reflects the new location without waiting for the next FixedUpdate.
+                        var rb = tgo.GetComponent<Rigidbody>();
+                        if (rb != null) rb.position = tgo.transform.position;
                         results.Add($"{label} TELEPORT {step.Path} → {step.Position}");
                         passed++;
                     }
@@ -299,8 +303,14 @@ namespace UnityMCP.Editor
                     break;
 
                 case StepType.AssertConserved:
+                    float? conservedExpected = null;
+                    if (!string.IsNullOrEmpty(step.Value) &&
+                        float.TryParse(step.Value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var parsedExpected))
+                        conservedExpected = parsedExpected;
                     state.StartConserved(step.Queries, step.Delay, config,
-                        q => { var (p, c, f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p, c, f); });
+                        q => { var (p, c, f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p, c, f); },
+                        expectedSum: conservedExpected);
                     results.Add($"{label} ASSERT_CONSERVED registered");
                     passed++;
                     phase = Phase.Done;

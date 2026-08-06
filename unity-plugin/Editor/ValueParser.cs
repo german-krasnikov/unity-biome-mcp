@@ -221,6 +221,20 @@ namespace UnityMCP.Editor
                 else
                 {
                     property.objectReferenceValue = refGo;
+                    // G3: when fieldType is unknown (C++ backed), Unity may coerce GameObject to
+                    // Transform or reject it (null). Try each component to find one the field accepts.
+                    var stored = property.objectReferenceValue;
+                    if ((stored == null || stored is Transform) && refGo != null)
+                    {
+                        foreach (var comp in refGo.GetComponents<Component>())
+                        {
+                            if (comp is Transform) continue;
+                            property.objectReferenceValue = comp;
+                            var candidate = property.objectReferenceValue;
+                            if (candidate != null && !(candidate is Transform)) return;
+                        }
+                        property.objectReferenceValue = refGo; // restore if no component matched
+                    }
                     if (property.objectReferenceValue == null && refGo != null)
                         throw new ArgumentException(
                             $"Type mismatch: field '{property.propertyPath}' rejected GameObject " +

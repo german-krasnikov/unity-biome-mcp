@@ -105,6 +105,15 @@ jobs:
           python scripts/collect_test_results.py --add-pytest server/reports/install-junit.xml --suite "Python Install" --platform linux --out server/reports/tests.json
           python scripts/collect_test_results.py --add-pytest server/reports/scripts-junit.xml --suite "Python Scripts" --platform linux --out server/reports/tests.json
 
+      - name: Upload test analytics to Codecov
+        if: matrix.python-version == '3.12' && !cancelled()
+        uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45  # v5
+        with:
+          files: server/reports/server-junit.xml,server/reports/install-junit.xml,server/reports/scripts-junit.xml
+          flags: python
+          token: ${{ secrets.CODECOV_TOKEN }}
+          report_type: test_results
+
       - name: Upload test results
         if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4

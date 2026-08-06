@@ -240,6 +240,7 @@ class UnityBridge(HeartbeatMixin):
             if time.monotonic() > session_deadline:
                 raise TimeoutError(f"Session deadline ({SESSION_TIMEOUT}s) exceeded")
 
+            _payload_sent = False
             try:
                 async with self._lock:
                     if not self.connected:
@@ -248,6 +249,7 @@ class UnityBridge(HeartbeatMixin):
                         METRICS.inc("reconnect.send_path")
                     frame_write(self._writer, payload)
                     await self._writer.drain()
+                    _payload_sent = True
                     try:
                         result = await asyncio.wait_for(
                             self._read_response(), timeout=timeout)
@@ -259,6 +261,12 @@ class UnityBridge(HeartbeatMixin):
                     RuntimeError) as e:
                 if isinstance(e, DomainReloadError):
                     self._reload.mark()
+                elif isinstance(e, asyncio.TimeoutError) and _payload_sent and self._reload.is_active():
+                    # P-183: read timeout after payload delivered → Unity was processing
+                    # the command (not reloading). Clear stale reload flag so next
+                    # send() isn't immediately blocked by DomainReloadError.
+                    self._reload.clear()
+                    self._reload_gate.set()
                 async with self._lock:
                     await self.close()
                 if self._first_failure_ts is None:

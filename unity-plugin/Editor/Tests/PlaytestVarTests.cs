@@ -386,5 +386,28 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("PlayerController", result[0].Component);
         }
 
+        // ── G7: VarRegistry re-reads fresh value each ExpandStep call ──────────
+
+        [Test]
+        public void VarRegistry_ExpandStep_ReadsFreshValueEachCall()
+        {
+            int callCount = 0;
+            var registry = new PlaytestVarRegistry((p, c, f) => (++callCount).ToString());
+            registry.Register("x", "@/Obj|Comp|field");
+            var step = new PlaytestStep
+            {
+                Type  = StepType.Assert,
+                Query = "/Obj|Comp|field",
+                Op    = "==",
+                Value = "$x"
+            };
+
+            var exp1 = registry.ExpandStep(step);
+            var exp2 = registry.ExpandStep(step);
+
+            Assert.AreEqual("1", exp1.Value, "First expansion should read value 1");
+            Assert.AreEqual("2", exp2.Value, "Second expansion must not be cached — live read each time");
+        }
+
     }
 }

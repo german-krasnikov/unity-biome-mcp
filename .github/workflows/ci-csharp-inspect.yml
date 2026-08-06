@@ -1,0 +1,153 @@
+name: C# InspectCode
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "unity-plugin/**"
+      - "unity-plugin-reload/**"
+      - "unity-test-project/**"
+      - ".github/workflows/ci-csharp-inspect.yml"
+      - ".editorconfig"
+  pull_request:
+    branches: [master]
+    paths:
+      - "unity-plugin/**"
+      - "unity-plugin-reload/**"
+      - "unity-test-project/**"
+      - ".github/workflows/ci-csharp-inspect.yml"
+      - ".editorconfig"
+  workflow_dispatch:
+
+concurrency:
+  group: csharp-inspect-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: InspectCode
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Set UPM cache path
+        id: upm-path
+        run: echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
+
+      - name: Cache UPM packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: ${{ steps.upm-path.outputs.path }}
+          key: upm-Linux-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
+          restore-keys: upm-Linux-
+
+      - uses: buildalon/unity-setup@1a2acb0efbce77c0f90b79ced6a9c6a37ae534c2  # v2
+        id: unity-setup
+        with:
+          unity-version: 6000.0.65f1
+          build-targets: StandaloneLinux64
+          cache-installation: true
+          hub-version: '3.19.5'
+
+      - uses: buildalon/activate-unity-license@87b3a82bac7ca7609eacdb2bec31c8a8a142ed9a  # v2
+        with:
+          license: 'Personal'
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Generate .sln and .csproj
+        uses: buildalon/unity-action@4de595732434e4da7726086a95a75eda832bd03d  # v3
+        with:
+          build-target: StandaloneLinux64
+          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
+          project-path: unity-test-project
+          args: -batchmode -nographics -executeMethod Packages.Rider.Editor.RiderScriptEditor.SyncSolution -quit
+
+      - name: Verify .sln generated
+        run: |
+          SLN=$(find unity-test-project -maxdepth 1 -name "*.sln" -newer unity-test-project/ProjectSettings/ProjectVersion.txt | head -1)
+          if [ -z "$SLN" ]; then
+            echo "::warning::SyncSolution did not generate .sln, using committed fallback"
+            SLN=$(find unity-test-project -maxdepth 1 -name "*.sln" | head -1)
+          fi
+          echo "sln=$SLN" >> "$GITHUB_OUTPUT"
+          echo "Found: $SLN"
+          ls unity-test-project/*.csproj 2>/dev/null | wc -l | xargs -I{} echo "Generated {} .csproj files"
+        id: sln
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9  # v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install JetBrains ReSharper CLI
+        run: dotnet tool install -g JetBrains.ReSharper.GlobalTools
+
+      - name: Run InspectCode
+        run: |
+          jb inspectcode "${{ steps.sln.outputs.sln }}" \
+            --output=inspectcode-report.xml \
+            --format=Xml \
+            --severity=WARNING \
+            --no-build \
+            2>&1 | tee inspectcode.log
+
+      - name: Summarise results
+        if: always()
+        shell: python
+        run: |
+          import xml.etree.ElementTree as ET, os, pathlib
+
+          report = pathlib.Path("inspectcode-report.xml")
+          summary = os.environ["GITHUB_STEP_SUMMARY"]
+
+          if not report.exists():
+              with open(summary, "a") as f:
+                  f.write("## InspectCode\n\nReport not generated.\n")
+              raise SystemExit(0)
+
+          root = ET.parse(report).getroot()
+          type_sev = {t.get("Id"): t.get("Severity", "HINT") for t in root.findall(".//IssueType")}
+          issues = root.findall(".//Issue")
+
+          counts = {"ERROR": 0, "WARNING": 0, "SUGGESTION": 0, "HINT": 0}
+          for issue in issues:
+              sev = type_sev.get(issue.get("TypeId"), "HINT")
+              counts[sev] = counts.get(sev, 0) + 1
+
+          top = {}
+          for issue in issues:
+              tid = issue.get("TypeId", "?")
+              sev = type_sev.get(tid, "HINT")
+              desc = next((t.get("Description", tid) for t in root.findall(".//IssueType") if t.get("Id") == tid), tid)
+              top.setdefault((sev, desc), 0)
+              top[(sev, desc)] += 1
+
+          icon = "✅" if counts["ERROR"] == 0 else "❌"
+          with open(summary, "a") as f:
+              f.write(f"## {icon} InspectCode — C# static analysis\n\n")
+              f.write("| Severity | Count |\n")
+              f.write("|----------|-------|\n")
+              for sev in ("ERROR", "WARNING", "SUGGESTION", "HINT"):
+                  f.write(f"| {sev.capitalize()} | {counts[sev]} |\n")
+              f.write(f"\n**Total issues:** {len(issues)}\n\n")
+              f.write("<details><summary>Top issues</summary>\n\n")
+              f.write("| Count | Severity | Description |\n")
+              f.write("|------:|----------|-------------|\n")
+              for (sev, desc), cnt in sorted(top.items(), key=lambda x: -x[1])[:15]:
+                  f.write(f"| {cnt} | {sev} | {desc} |\n")
+              f.write("\n</details>\n")
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: inspectcode-report
+          path: |
+            inspectcode-report.xml
+            inspectcode.log
+          retention-days: 14

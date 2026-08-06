@@ -18,6 +18,7 @@ _dsl_tools: set[str] = set()
 # Key: command name, Value: set of param names to remove.
 _PYTHON_ONLY_PARAMS: dict[str, set[str]] = {
     "get_component": {"full"},
+    "get_hierarchy": {"full"},
     "inspect": {"full"},
 }
 

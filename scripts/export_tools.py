@@ -41,11 +41,22 @@ def _load_tools() -> list[dict]:
     return result
 
 
+def _spec_version() -> str:
+    """8-char sha256 of sorted spec names+categories — detects schema drift."""
+    import hashlib  # noqa: PLC0415
+    from unity_mcp.tools.tool_specs import _SPECS  # noqa: PLC0415
+    payload = json.dumps(
+        sorted((name, spec.category) for name, spec in _SPECS.items()),
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(payload).hexdigest()[:8]
+
+
 def export_json(fmt: Literal["toolsmith", "mcplint"] = "toolsmith") -> str:
     tools = _load_tools()
     if fmt == "mcplint":
         return json.dumps(tools, indent=2)
-    return json.dumps({"tools": tools}, indent=2)
+    return json.dumps({"version": _spec_version(), "tools": tools}, indent=2)
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -54,7 +54,7 @@ namespace UnityMCP.Editor
                 var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."))
                     + Path.DirectorySeparatorChar;
                 if (!fullPath.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
-                    throw new ArgumentException($"outputPath must be within project: {outputPath}");
+                    throw new ArgumentException($"outputPath must be within project (e.g. 'ScreenShots/my.png'): {outputPath}");
                 var dir = Path.GetDirectoryName(fullPath);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);

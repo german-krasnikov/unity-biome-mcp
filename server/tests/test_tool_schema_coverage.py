@@ -12,8 +12,9 @@ from unity_mcp.tools.batch import batch
 # Existing signature-level guards (fast, no server import)
 # ---------------------------------------------------------------------------
 
-def test_alias_status_in_tier1():
-    assert "alias_status" in TIER1, "alias_status must be tier1=True in tool_specs.py"
+def test_alias_status_not_in_tier1():
+    """P-12440 Phase 1: alias_status demoted from TIER1 to themed SYSTEM."""
+    assert "alias_status" not in TIER1, "alias_status must NOT be tier1 after P-12440 Phase 1"
 
 
 def test_compress_param_in_get_component():
@@ -78,7 +79,8 @@ def test_every_core_tool_has_nonempty_properties():
     from unity_mcp.tools.gating import _CORE_TOOLS
 
     # Confirmed param-less core tools (empty properties is expected)
-    NO_PARAM_TOOLS = {"get_compile_errors", "get_enabled_tools", "list_connections"}
+    NO_PARAM_TOOLS = {"get_compile_errors", "get_enabled_tools", "list_connections",
+                      "mcp_status"}  # P-12440: mcp_status promoted to core; no params
 
     failures = []
     for name in sorted(_CORE_TOOLS - NO_PARAM_TOOLS):

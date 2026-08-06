@@ -277,7 +277,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("fingerprint", args => FingerprintHelper.Fingerprint(
                 JsonHelper.ExtractString(args, "path"),
                 ExtractInt(args, "depth", 3)),
-                required: "path", optional: "depth");
+                required: "", optional: "path,depth");
             CommandRegistry.Register("scan_scene", _ => ScanHelper.Scan(),
                 required: "", optional: "");
             CommandRegistry.Register("render_analyze", args =>

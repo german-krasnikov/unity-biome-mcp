@@ -175,6 +175,8 @@ namespace UnityMCP.Editor
                     var cam = cameraObj.GetComponent<Camera>();
                     if (cam != null) return cam;
                 }
+                // Named camera not found — log warning before falling back
+                Debug.LogWarning($"[Screenshot] Camera '{cameraName}' not found; falling back to Main Camera.");
             }
 
             if (Camera.main != null) return Camera.main;

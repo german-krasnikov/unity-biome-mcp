@@ -236,3 +236,34 @@ async def test_set_properties_no_space_value_not_quoted(mock_send):
     cmds = _batch_cmds(mock_send)
     assert 'value=(1,0,0)' in cmds
     assert 'value="(1,0,0)"' not in cmds
+
+
+# ── G11: setup_objects with parent=#ID creates invalid paths ─────────────────
+
+async def test_g11_setup_objects_parent_instance_id_no_leading_slash(mock_send):
+    """G11: parent=#12345 must NOT produce /#12345/Name — use #12345/Name instead."""
+    from unity_mcp.tools.autobatch import setup_objects
+    await setup_objects("Child parent=#12345")
+    cmds = _batch_cmds(mock_send)
+    # Must NOT have /#12345 (leading slash before instance ID)
+    assert "/#12345" not in cmds, "Instance-ID parent must not get a leading slash prepended"
+    # Must have #12345/Child as the object path
+    assert "#12345/Child" in cmds, "Path should be #12345/Child, not /#12345/Child"
+
+
+async def test_g11_setup_objects_parent_instance_id_with_pos(mock_send):
+    """G11: set_property path after #ID parent must also be correct."""
+    from unity_mcp.tools.autobatch import setup_objects
+    await setup_objects("Child parent=#99 pos=(1,0,0)")
+    cmds = _batch_cmds(mock_send)
+    assert "path=#99/Child" in cmds, "set_property must use valid path #99/Child"
+    assert "path=/#99" not in cmds, "No leading slash before instance-ID"
+
+
+async def test_g11_setup_objects_regular_parent_unaffected(mock_send):
+    """G11 fix must not break normal named parent paths."""
+    from unity_mcp.tools.autobatch import setup_objects
+    await setup_objects("Child parent=Root pos=(1,0,0)")
+    cmds = _batch_cmds(mock_send)
+    assert "/Root/Child" in cmds, "Normal parent should still produce /Root/Child path"
+    assert "/#" not in cmds, "No instance-ID-like paths for a normal parent"

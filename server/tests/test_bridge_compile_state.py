@@ -328,6 +328,68 @@ def test_busy_branch_consults_diagnose_not_fabricated_countdown():
 
 
 # ---------------------------------------------------------------------------
+# P-183 / G17: reload flag cleared after play timeout
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_reload_cleared_after_play_timeout():
+    """P-183 / G17: after a play-mode read timeout, _reload.is_active() must be False.
+
+    Bug: when asyncio.TimeoutError fires AFTER the payload was delivered to Unity,
+    a stale DomainReloadTracker mark keeps blocking subsequent send() calls for up
+    to 90s with DomainReloadError — even though Unity finished reloading.
+
+    Fix: _send_with_retry clears _reload when asyncio.TimeoutError occurs after
+    _payload_sent=True, proving Unity was processing the command (not reloading).
+
+    Setup: _reload is marked INSIDE read_effect (after payload sent, before timeout),
+    simulating a going_away response that arrived concurrently with a play command.
+    Subsequent reads raise IncompleteReadError to fail retries fast."""
+    probe = _make_probe(busy=False)
+    preamble = reconnect_preamble()
+    call_idx = 0
+    bridge_ref: list = [None]
+    _marked_once = [False]
+
+    async def read_effect(n):
+        nonlocal call_idx
+        if call_idx < len(preamble):
+            chunk = preamble[call_idx]
+            call_idx += 1
+            return chunk
+        # First post-preamble read: mark _reload mid-flight (stale going_away scenario)
+        # then stall so asyncio.wait_for fires TimeoutError with _payload_sent=True.
+        if not _marked_once[0]:
+            _marked_once[0] = True
+            if bridge_ref[0] is not None:
+                bridge_ref[0]._reload.mark()
+            await asyncio.sleep(9999)  # timeout=0.05s fires → asyncio.TimeoutError
+        # Subsequent calls (retry reconnects): fail fast, no re-marking
+        raise asyncio.IncompleteReadError(b"", n)
+
+    reader = AsyncMock()
+    reader.readexactly = AsyncMock(side_effect=read_effect)
+    writer = make_writer()
+
+    with patch("unity_mcp.bridge.asyncio.open_connection", return_value=(reader, writer)):
+        bridge_ref[0] = UnityBridge(probe=probe)
+        await bridge_ref[0].connect()
+
+        # Precondition: _reload NOT active before send()
+        assert not bridge_ref[0]._reload.is_active(), "precondition: _reload must be inactive"
+
+        # send() proceeds (no pre-existing reload), payload is written,
+        # read_effect marks _reload and stalls → asyncio.TimeoutError fires
+        with pytest.raises((ConnectionError, TimeoutError, asyncio.TimeoutError)):
+            await bridge_ref[0].send("run_playtest", {}, timeout=0.05)
+
+    # P-183: _reload must be cleared because timeout arrived after payload sent
+    assert not bridge_ref[0]._reload.is_active(), (
+        "_reload must be cleared after play-mode timeout so next request isn't blocked"
+    )
+
+
+# ---------------------------------------------------------------------------
 # SH-8: bridge.__init__ passes port to autodetect_project_path
 # ---------------------------------------------------------------------------
 

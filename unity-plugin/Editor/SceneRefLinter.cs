@@ -41,6 +41,9 @@ namespace UnityMCP.Editor
             var issues = new List<LintIssue>();
             if (string.IsNullOrEmpty(script)) return issues;
 
+            // INCLUDE lines (and other meta keywords) are in _skipLineKeys and are skipped entirely,
+            // so filenames are never linted as scene paths.
+            // G14: comma-separated path tokens (e.g. "/A|T,/B|T") are split before path checking below.
             var lines = script.Split('\n');
             for (int i = 0; i < lines.Length; i++)
             {
@@ -53,40 +56,49 @@ namespace UnityMCP.Editor
                 if (_skipLineKeys.Contains(tokens[0])) continue;
 
                 int lineNo = i + 1;
-                foreach (var token in tokens)
+                foreach (var rawToken in tokens)
                 {
-                    if (!IsPathToken(token)) continue;
+                    // G14: split comma-separated path tokens (e.g. ASSERT_BATCH /A|Comp,/B|Comp)
+                    var subTokens = rawToken.Contains(',')
+                        ? rawToken.Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries)
+                        : new[] { rawToken };
 
-                    // Embedded $alias inside a path (not at start) — not supported.
-                    if (token[0] != '$' && token.IndexOf('$') > 0)
+                    foreach (var token in subTokens)
                     {
-                        issues.Add(new LintIssue
-                        {
-                            Severity = "ERROR", Line = lineNo, Token = token,
-                            Message = "embedded alias not supported — use $alias as a standalone token",
-                        });
-                        continue;
-                    }
+                        var t = token.Trim();
+                        if (!IsPathToken(t)) continue;
 
-                    var r = SceneRefResolver.ResolveOne(token, System.Array.Empty<string>());
-                    if (r.Status == "MISS")
-                    {
-                        bool isAlias = token[0] == '$';
-                        issues.Add(new LintIssue
+                        // Embedded $alias inside a path (not at start) — not supported.
+                        if (t[0] != '$' && t.IndexOf('$') > 0)
                         {
-                            Severity = "ERROR", Line = lineNo, Token = token,
-                            Message = isAlias
-                                ? $"unresolved alias: {token}"
-                                : $"object not found: {token}",
-                        });
-                    }
-                    else if (r.Status == "AMB")
-                    {
-                        issues.Add(new LintIssue
+                            issues.Add(new LintIssue
+                            {
+                                Severity = "ERROR", Line = lineNo, Token = t,
+                                Message = "embedded alias not supported — use $alias as a standalone token",
+                            });
+                            continue;
+                        }
+
+                        var r = SceneRefResolver.ResolveOne(t, System.Array.Empty<string>());
+                        if (r.Status == "MISS")
                         {
-                            Severity = "WARN", Line = lineNo, Token = token,
-                            Message = $"ambiguous — {r.Reason}",
-                        });
+                            bool isAlias = t[0] == '$';
+                            issues.Add(new LintIssue
+                            {
+                                Severity = "ERROR", Line = lineNo, Token = t,
+                                Message = isAlias
+                                    ? $"unresolved alias: {t}"
+                                    : $"object not found: {t}",
+                            });
+                        }
+                        else if (r.Status == "AMB")
+                        {
+                            issues.Add(new LintIssue
+                            {
+                                Severity = "WARN", Line = lineNo, Token = t,
+                                Message = $"ambiguous — {r.Reason}",
+                            });
+                        }
                     }
                 }
             }

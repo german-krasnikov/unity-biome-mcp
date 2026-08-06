@@ -12,6 +12,7 @@ async def _default_send(cmd, args, **kw):
     if cmd == "batch": return "3/3 ok"
     if cmd == "validate_references": return "0 broken"
     if cmd == "scene": return "saved"
+    if cmd == "editor": return "state: editing"
     return ""
 
 
@@ -65,6 +66,17 @@ class TestSceneChangePlan:
         result = await tr.scene_change_plan("test goal")
         assert "plan_id=" in result, f"plan not created: {result}"
         assert "compile=clean" in result
+
+    async def test_play_mode_rejected(self, monkeypatch):
+        """G20: scene_change_plan must reject when Unity is in Play Mode."""
+        async def playing_send(cmd, args, **kw):
+            if cmd == "editor": return "state: playing"
+            return "compile clean"
+        monkeypatch.setattr(tr, "_send", playing_send)
+        result = await tr.scene_change_plan("mutate scene")
+        assert "FAIL" in result.upper()
+        assert "play" in result.lower()
+        assert not tr._plans
 
     async def test_compile_clean_csharp_sentinel_with_period(self, monkeypatch):
         """C# sentinel 'No compilation errors.' (period suffix) must also pass."""
@@ -161,3 +173,18 @@ class TestApplySceneChange:
 
         result = await tr.apply_scene_change(plan_id, "[]", save=False)
         assert "refs=ok" in result
+
+    async def test_apply_graceful_on_validate_error(self, monkeypatch):
+        # G5: apply_scene_change must not propagate exception from validate_references
+        plan_id = self._insert_plan()
+
+        async def err_send(cmd, args, **kw):
+            if cmd == "batch": return "2/2 ok"
+            if cmd == "validate_references": raise Exception("NullReferenceException: verify phase")
+            if cmd == "scene": return "saved"
+            return ""
+        monkeypatch.setattr(tr, "_send", err_send)
+
+        result = await tr.apply_scene_change(plan_id, "[]")
+        assert "mutations=ok" in result
+        assert "refs=unchecked" in result

@@ -181,7 +181,7 @@ namespace UnityMCP.Editor
             }
 
             return unresolved.Count == 0
-                ? "ok: all aliases resolved"
+                ? "ok: validation-only — 0 mutations executed; all aliases resolved"
                 : "unresolved: " + string.Join(", ", unresolved);
         }
 

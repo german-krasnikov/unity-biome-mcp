@@ -52,6 +52,7 @@ namespace UnityMCP.Editor
             var sb = new StringBuilder();
             sb.AppendLine($"Position: ({pos.x.ToString("F1", IC)},{pos.y.ToString("F1", IC)},{pos.z.ToString("F1", IC)})");
 
+            Physics.SyncTransforms();
             foreach (var col in go.GetComponentsInChildren<Collider>())
             {
                 var type = col.isTrigger ? "TRIGGER" : "SOLID";
@@ -59,7 +60,6 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"  {col.gameObject.name} [{type}] center=({bounds.center.x.ToString("F1", IC)},{bounds.center.y.ToString("F1", IC)},{bounds.center.z.ToString("F1", IC)}) size=({bounds.size.x.ToString("F1", IC)},{bounds.size.y.ToString("F1", IC)},{bounds.size.z.ToString("F1", IC)})");
             }
 
-            Physics.SyncTransforms();
             sb.AppendLine("Approach vectors:");
             var dirs = new (string name, Vector3 dir)[] {
                 ("N", Vector3.forward), ("S", Vector3.back),

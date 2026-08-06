@@ -130,7 +130,7 @@ namespace UnityMCP.Editor
             "CAPTURE_FRAMES", "ASSERT_FRAMES_DIFFER", "ASSERT_FRAMES_STATIC",
             "COMMENT", "END_COMMENT",
             "SET_ACTIVE",
-            "SETUP", "TEARDOWN"
+            "SETUP", "SETUP_END", "TEARDOWN", "TEARDOWN_END"
         };
 
         public static ParseResult Parse(string script, IncludeResolver resolver = null)
@@ -208,7 +208,8 @@ namespace UnityMCP.Editor
             var lines = expandedSourced.Select(sl => sl.Text).ToArray();
 
             // Phase 0.7: collect VAL definitions and expand $sigils in all lines
-            var vals = CollectVals(lines);
+            var collisionWarnings = new List<string>();
+            var vals = CollectVals(lines, collisionWarnings);
             if (vals.Count > 0)
                 lines = lines.Select(l => {
                     // For VAR declarations, preserve the $name token; only expand the @-query
@@ -458,7 +459,8 @@ namespace UnityMCP.Editor
                     case "INVOKE":
                         step.Type = StepType.Invoke;
                         step.Path = tokens[1]; step.Component = tokens[2]; step.Method = tokens[3];
-                        step.Args = tokens.Length > 4 ? tokens[4] : "";
+                        // G2: join all remaining tokens so multi-arg calls like "42 true" are preserved
+                        step.Args = tokens.Length > 4 ? string.Join(" ", tokens, 4, tokens.Length - 4) : "";
                         break;
 
                     case "SET_ACTIVE":
@@ -588,6 +590,16 @@ namespace UnityMCP.Editor
                         var overIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "OVER");
                         if (overIdx >= 0 && overIdx + 1 < tokens.Length)
                             step.Delay = float.Parse(tokens[overIdx + 1], CultureInfo.InvariantCulture);
+                        // find == numeric RHS (e.g. == 100 OVER 5); skip CONSTANT keyword
+                        var eqIdx = Array.FindIndex(tokens, t => t == "==");
+                        if (eqIdx >= 0 && eqIdx + 1 < tokens.Length)
+                        {
+                            var rhsTok = tokens[eqIdx + 1].ToUpperInvariant() == "CONSTANT"
+                                ? (eqIdx + 2 < tokens.Length ? tokens[eqIdx + 2] : null)
+                                : tokens[eqIdx + 1];
+                            if (rhsTok != null && float.TryParse(rhsTok, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+                                step.Value = rhsTok;
+                        }
                         break;
                     }
 
@@ -806,7 +818,8 @@ namespace UnityMCP.Editor
                             throw new ArgumentException("INVOKE_REPEAT syntax: INVOKE_REPEAT <count> <path> <comp> <method> [args]");
                         int repeatCount = int.Parse(tokens[1]);
                         var irPath = tokens[2]; var irComp = tokens[3]; var irMethod = tokens[4];
-                        var irArgs = tokens.Length > 5 ? tokens[5] : "";
+                        // G2: join all remaining tokens so multi-arg calls are preserved
+                        var irArgs = tokens.Length > 5 ? string.Join(" ", tokens, 5, tokens.Length - 5) : "";
 
                         bool firstInvoke = true;
                         for (int ri = 0; ri < repeatCount; ri++)
@@ -895,10 +908,18 @@ namespace UnityMCP.Editor
                         setupSteps = setupSteps ?? new List<PlaytestStep>();
                         continue; // section marker — no step emitted
 
+                    case "SETUP_END":
+                        parsingSection = 0; // G16: return to main section
+                        continue;
+
                     case "TEARDOWN":
                         parsingSection = 2;
                         teardownSteps = teardownSteps ?? new List<PlaytestStep>();
                         continue; // section marker — no step emitted
+
+                    case "TEARDOWN_END":
+                        parsingSection = 0; // G16: return to main section
+                        continue;
 
                     default:
                         throw new ArgumentException($"Unknown command: {cmd}");
@@ -918,7 +939,7 @@ namespace UnityMCP.Editor
             }
 
             // Phase 0.8: warn on unresolved $sigils (always — even without any VAL/VAR defs)
-            List<string> warnings = null;
+            List<string> warnings = collisionWarnings.Count > 0 ? collisionWarnings : null;
             foreach (var expandedLine in lines)
             {
                 var lt = expandedLine.Trim();
@@ -995,7 +1016,7 @@ namespace UnityMCP.Editor
         }
 
         // Phase 0.7: collect VAL definitions with topo-sort cycle detection
-        internal static Dictionary<string, string> CollectVals(string[] lines)
+        internal static Dictionary<string, string> CollectVals(string[] lines, List<string> warnings = null)
         {
             // First pass: gather raw unexpanded values
             var raw = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1011,7 +1032,10 @@ namespace UnityMCP.Editor
                     throw new ArgumentException(
                         $"VAL '{parts[1]}': value cannot start with a DSL keyword (got '{firstWord}'). " +
                         $"Tip: wrap in quotes if it's a literal string value.");
-                raw[parts[1].TrimStart('$')] = parts[2];
+                var key = parts[1].TrimStart('$');
+                if (warnings != null && raw.ContainsKey(key))
+                    warnings.Add($"Alias collision: local VAL ${key} shadows earlier definition (was '{raw[key]}', now '{parts[2]}')");
+                raw[key] = parts[2];
             }
             if (raw.Count == 0) return raw;
 

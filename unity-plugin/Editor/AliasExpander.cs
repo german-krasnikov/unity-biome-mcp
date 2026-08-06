@@ -58,12 +58,21 @@ namespace UnityMCP.Editor
             var table = _tableOverride ?? (_table ??= GetTable());
             if (table.Count == 0) return text;
 
-            return PlaytestParser.SigilRegex.Replace(text, m =>
+            // G8: expand up to 3 levels to resolve nested aliases ($outer → $inner → value).
+            // Stop early if no more sigils or text didn't change (cycle/unknown sigil).
+            for (int pass = 0; pass < 3; pass++)
             {
-                var name = m.Groups[1].Value;
-                if (!table.TryGetValue(name, out var v)) return m.Value;  // unknown → intact
-                return jsonEscape ? JsonHelper.EscapeJson(v) : v;
-            });
+                if (!text.Contains('$')) break;
+                var expanded = PlaytestParser.SigilRegex.Replace(text, m =>
+                {
+                    var name = m.Groups[1].Value;
+                    if (!table.TryGetValue(name, out var v)) return m.Value;  // unknown → intact
+                    return jsonEscape ? JsonHelper.EscapeJson(v) : v;
+                });
+                if (expanded == text) break;  // no progress — unknown sigils remain
+                text = expanded;
+            }
+            return text;
         }
 
         private static Dictionary<string, string> GetTable()

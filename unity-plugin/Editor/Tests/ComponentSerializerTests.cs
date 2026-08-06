@@ -450,6 +450,18 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains(TransientObjectId.GetWireValue(a), ex.Message);
             StringAssert.Contains(TransientObjectId.GetWireValue(b), ex.Message);
         }
+
+        // ── G9: Serialize succeeds for just-created objects without cache refresh ──
+
+        [Test]
+        public void NewlyCreatedObject_SerializeTransform_ReturnsNonNull()
+        {
+            var go = new GameObject("G9NewObject");
+            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(go));
+
+            var result = ComponentSerializer.Serialize("/G9NewObject", "Transform");
+            Assert.IsNotNull(result, "Serialize should succeed for a newly created object without cache refresh");
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────

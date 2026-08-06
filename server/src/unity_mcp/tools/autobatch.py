@@ -40,8 +40,14 @@ async def setup_objects(specs: str) -> str:
             cmd += f" parent={parent}"
         lines.append(cmd)
 
-        # Compute full path: /Parent/Name when parent is set
-        parent_norm = f"/{parent}" if parent and not parent.startswith("/") else parent
+        # Compute full path: /Parent/Name when parent is set.
+        # G11: don't prepend / to #ID refs (instance IDs); they're not scene paths.
+        if parent.startswith("#"):
+            parent_norm = parent  # keep as-is: #12345
+        elif parent and not parent.startswith("/"):
+            parent_norm = f"/{parent}"
+        else:
+            parent_norm = parent
         full_path = f"{parent_norm}/{name}" if parent_norm else f"/{name}"
         full_paths.append(full_path)
 

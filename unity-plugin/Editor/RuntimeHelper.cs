@@ -71,8 +71,8 @@ namespace UnityMCP.Editor
             {
                 var result = method.Invoke(comp, parsed);
                 if (result == null) return "void";
-                if (result is float rf) return rf.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
-                if (result is double rd) return rd.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
+                if (result is float rf) return rf.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+                if (result is double rd) return rd.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
                 return result.ToString();
             }
             catch (TargetInvocationException e)
@@ -394,8 +394,8 @@ namespace UnityMCP.Editor
                 items.Append("]");
                 return items.ToString();
             }
-            if (current is float f) return f.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
-            if (current is double d) return d.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
+            if (current is float f) return f.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+            if (current is double d) return d.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
             return current?.ToString();
         }
 

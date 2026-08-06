@@ -75,17 +75,29 @@ def test_custom_timeout_preserved():
     assert _SPECS["get_console"].timeout_s == 10.0
 
 
-def test_core_count_is_15():
-    """Sprint1-2: CORE expanded from 10 to 15 (execute_code + 4 verify/scene tools promoted)."""
+def test_core_count_is_13():
+    """P-12440 Phase 1: CORE shrunk from 15 to 13 (compile_preflight+mcp_status in, 4 scene/verify out)."""
     from unity_mcp.tools.tool_specs import _SPECS
-    assert sum(1 for s in _SPECS.values() if s.core) == 15
+    assert sum(1 for s in _SPECS.values() if s.core) == 13
 
 
 def test_tier1_count_in_bounds():
-    """Tier1 (non-core) count: prevents silent creep past 55; floor 30 guards against mass removal."""
+    """Tier1 (non-core) count: P-12440 Phase 1 target is 20; guard [18, 22]."""
     from unity_mcp.tools.tool_specs import _SPECS
     count = sum(1 for s in _SPECS.values() if s.tier1 and not s.core)
-    assert 30 <= count <= 55, (
-        f"Tier1 non-core count is {count} — outside [30, 55] bounds. "
+    assert 18 <= count <= 22, (
+        f"Tier1 non-core count is {count} — outside [18, 22] bounds. "
         "Update this range intentionally if the tier1 set changed."
     )
+
+
+# P-301 / G12: run_playtest_suite must be tier1 so filter_by_tier keeps it visible
+def test_run_playtest_suite_is_tier1():
+    """G12: run_playtest_suite must be tier1=True so it survives filter_by_tier.
+    Without tier1, it lives in _ALL_KNOWN but not TIER1 — filter_by_tier drops it,
+    making it invisible to clients even though mcp.tool() registered it."""
+    from unity_mcp.tools.tool_specs import _SPECS
+    from unity_mcp.tools.gating import TIER1
+    spec = _SPECS["run_playtest_suite"]
+    assert spec.tier1 is True, "run_playtest_suite must be tier1=True to appear in gateway"
+    assert "run_playtest_suite" in TIER1

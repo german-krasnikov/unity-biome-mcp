@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using UnityEngine;
 
@@ -31,6 +32,35 @@ namespace UnityMCP.Editor
         static ConsoleCapture()
         {
             Application.logMessageReceived += OnLogReceived;
+            // G10: hook Unity's built-in Console.Clear so our buffer stays in sync.
+            HookUnityConsoleClear();
+        }
+
+        // G10: subscribe to Unity's internal console-cleared event via reflection
+        // (no public API — event name varies between Editor builds).
+        private static void HookUnityConsoleClear()
+        {
+            try
+            {
+                var logEntries = typeof(UnityEditor.EditorApplication).Assembly
+                    .GetType("UnityEditor.LogEntries");
+                if (logEntries == null) return;
+                var evt = logEntries.GetEvent("onClearDevelopmentConsole",
+                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                if (evt == null) return;
+                evt.AddEventHandler(null, new Action(OnUnityConsoleClear));
+            }
+            catch { /* Graceful fallback — event not available in this Editor build */ }
+        }
+
+        private static void OnUnityConsoleClear()
+        {
+            lock (_lock)
+            {
+                ConsoleRingBuffer.Reset();
+                ConsoleProblemPersistence.Clear();
+                _droppedProblemCount = 0;
+            }
         }
 
         private static void OnLogReceived(string message, string stackTrace, LogType type)
@@ -112,13 +142,21 @@ namespace UnityMCP.Editor
                     return selected.Count.ToString();
 
                 var sb = new StringBuilder();
-                foreach (var e in selected)
+                // Single-pass: output each unique run once with a repeat count suffix
+                for (int di = 0; di < selected.Count; )
                 {
+                    var e = selected[di];
+                    int run = 1;
+                    while (di + run < selected.Count &&
+                           selected[di + run].Message == e.Message &&
+                           selected[di + run].Type == e.Type) run++;
                     var fileLoc = ConsoleStackParser.ExtractFileLocation(e.StackTrace);
+                    string suffix = run > 1 ? $" (x{run})" : "";
                     if (fileLoc != null)
-                        sb.AppendFormat("[{0}] {1:HH:mm:ss.fff} {2} @ {3}\n", e.Type, e.Timestamp, e.Message, fileLoc);
+                        sb.AppendFormat("[{0}] {1:HH:mm:ss.fff} {2}{3} @ {4}\n", e.Type, e.Timestamp, e.Message, suffix, fileLoc);
                     else
-                        sb.AppendFormat("[{0}] {1:HH:mm:ss.fff} {2}\n", e.Type, e.Timestamp, e.Message);
+                        sb.AppendFormat("[{0}] {1:HH:mm:ss.fff} {2}{3}\n", e.Type, e.Timestamp, e.Message, suffix);
+                    di += run;
                 }
                 return AppendDroppedSuffix(sb.ToString().TrimEnd('\n'));
             }
@@ -200,6 +238,10 @@ namespace UnityMCP.Editor
                 ConsoleProblemPersistence.SimulateDomainReloadForTest();
             }
         }
+
+        /// <summary>Test seam: simulate Unity's built-in Console.Clear (Editor menu / API)
+        /// without going through MCP's clear_console command. G10 fix.</summary>
+        internal static void SimulateUnityConsoleClearForTest() => OnUnityConsoleClear();
 #endif
     }
 }

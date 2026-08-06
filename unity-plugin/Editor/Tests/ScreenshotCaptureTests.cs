@@ -52,9 +52,21 @@ namespace UnityMCP.Editor.Tests
         public void Capture_WithUnknownCameraName_FallsBackToMainCamera()
         {
             // Unknown name → Camera.main fallback (no exception)
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Warning,
+                new System.Text.RegularExpressions.Regex(".*DoesNotExist.*"));
             var result = ScreenshotCapture.Capture(16, 16, "DoesNotExist");
             Assert.IsNotNull(result);
             Assert.IsNotEmpty(result);
+        }
+
+        [Test]
+        public void FindCamera_UnknownName_LogsWarning()
+        {
+            // G19: FindCamera must warn when named camera not found and falling back.
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Warning,
+                new System.Text.RegularExpressions.Regex(".*UnknownCamG19.*"));
+            var cam = ScreenshotCapture.FindCamera("UnknownCamG19");
+            Assert.IsNotNull(cam, "should fall back to Camera.main");
         }
 
         [Test]

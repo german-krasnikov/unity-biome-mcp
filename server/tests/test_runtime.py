@@ -399,3 +399,30 @@ async def test_lint_playtest_suite_pattern_keyword_form(monkeypatch):
     monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
     result = await runtime.lint_playtest_suite(pattern="*.playtest")
     assert "LINT: 1/1 clean" in result
+
+
+# ── G48: run_playtest lifecycle hooks ─────────────────────────────────────────
+
+async def test_run_playtest_before_hook_passes_arg(mock_bridge):
+    """before_hook is forwarded to the C# bridge."""
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+    await run_playtest("ASSERT_CONSOLE_CLEAN", before_hook="Debug.Log('setup');")
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent.get("before_hook") == "Debug.Log('setup');"
+
+
+async def test_run_playtest_after_hook_passes_arg(mock_bridge):
+    """after_hook is forwarded to the C# bridge."""
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+    await run_playtest("ASSERT_CONSOLE_CLEAN", after_hook="Debug.Log('teardown');")
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent.get("after_hook") == "Debug.Log('teardown');"
+
+
+async def test_run_playtest_hooks_default_omitted(mock_bridge):
+    """before_hook and after_hook absent from bridge call by default."""
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+    await run_playtest("ASSERT_CONSOLE_CLEAN")
+    sent = mock_bridge.send.call_args[0][1]
+    assert "before_hook" not in sent
+    assert "after_hook" not in sent

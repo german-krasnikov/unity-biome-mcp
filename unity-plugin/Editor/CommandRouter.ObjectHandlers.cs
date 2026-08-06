@@ -141,7 +141,7 @@ namespace UnityMCP.Editor
         {
             var id = JsonHelper.ExtractString(args, "id");
             if (string.IsNullOrEmpty(id))
-                throw new ArgumentException("id is required");
+                throw new ArgumentException("id is required (instanceID as '#123' or scene path like '/Parent/Object')");
             var result = ComponentSerializer.SerializeAll(id);
             if (result == null) throw new InvalidOperationException($"Object not found: #{id}");
             return result;

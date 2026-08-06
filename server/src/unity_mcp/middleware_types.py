@@ -126,10 +126,8 @@ class CircuitBreaker:
                 self._probe_in_flight = True
                 return True
             return False
-        # HALF_OPEN: allow only the first probe request
-        if self._probe_in_flight:
-            return False
-        self._probe_in_flight = True
+        # HALF_OPEN: allow all concurrent requests so no request is falsely
+        # reported as "Circuit OPEN" while a probe is in flight (P-092).
         return True
 
     def get_status(self) -> str:

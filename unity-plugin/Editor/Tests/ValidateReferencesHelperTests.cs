@@ -1,6 +1,7 @@
 // TDD — ValidateReferencesHelper + ReferenceHelper.WalkObjectRefs coverage.
 // EditMode tests — run in Unity Test Runner (Window > General > Test Runner > EditMode).
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -113,6 +114,64 @@ namespace UnityMCP.Editor.Tests
         {
             var result = ValidateReferencesHelper.Validate(_go.name, depth: 1, ignoreOptional: false);
             StringAssert.Contains("0 ERROR", result);
+        }
+
+        // ── G4: Billboard particle renderer — no false MISSING for mesh field ───
+
+        [Test]
+        public void ValidateReferences_BillboardParticleRenderer_NoFalseMissing()
+        {
+            // G4: Billboard render mode doesn't use a mesh.
+            // validate_references must not report the m_Mesh field as MISSING.
+            _go.AddComponent<ParticleSystem>();
+            var renderer = _go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            var path = ComponentSerializer.GetPath(_go);
+
+            var result = ValidateReferencesHelper.Validate(path, depth: 1, ignoreOptional: false);
+
+            StringAssert.DoesNotContain("MISSING", result,
+                "Billboard renderer must not report m_Mesh as MISSING");
+        }
+
+        // ── G51: AllowNull — intentionally null fields not reported as MISSING ──
+
+        // Test component with one [AllowNull]-marked field and one unmarked field.
+        private class AllowNullTestComp : MonoBehaviour
+        {
+            [AllowNull] public AudioClip optionalClip;
+            public AudioClip requiredClip;
+        }
+
+        [Test]
+        public void ValidateReferences_AllowNull_AttributeIsRecognizedByReflection()
+        {
+            // Attribute must exist and be applied — foundational contract.
+            var field = typeof(AllowNullTestComp).GetField("optionalClip");
+            Assert.IsNotNull(field, "optionalClip field must exist");
+            var attr = field.GetCustomAttribute<AllowNullAttribute>();
+            Assert.IsNotNull(attr, "[AllowNull] attribute must be present on optionalClip");
+        }
+
+        [Test]
+        public void ValidateReferences_AllowNull_UnmarkedFieldNotAffected()
+        {
+            // requiredClip has no [AllowNull] — walker still visits it normally.
+            var field = typeof(AllowNullTestComp).GetField("requiredClip");
+            Assert.IsNotNull(field);
+            Assert.IsNull(field.GetCustomAttribute<AllowNullAttribute>(),
+                "requiredClip must not have [AllowNull]");
+        }
+
+        [Test]
+        public void ValidateReferences_AllowNull_DoesNotCauseErrorsOrMissing()
+        {
+            // [AllowNull] field with no dangling ref — validate must be clean.
+            _go.AddComponent<AllowNullTestComp>();
+            var path = ComponentSerializer.GetPath(_go);
+            var result = ValidateReferencesHelper.Validate(path, depth: 1, ignoreOptional: false);
+            StringAssert.Contains("0 ERROR", result);
+            StringAssert.DoesNotContain("MISSING", result);
         }
 
         // ── RemapReferences_ChangesTargetPath ────────────────────────────────

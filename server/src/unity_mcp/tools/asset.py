@@ -58,13 +58,14 @@ async def prefab(action: str, path: str | None = None, asset_path: str | None = 
                  recursive: bool = False,
                  mode: str | None = None, scope: str | None = None,
                  format: str | None = None) -> str:
-    """Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit.
+    """Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.
     edit: asset_path + component + prop + value (set property on prefab asset).
     edit: asset_path + add_component or remove_component (manage components).
     save: path (scene) + asset_path [+ mode: new|overwrite (default)].
     revert: scope: object (default)|children.
     get_overrides: format: text (default)|structured.
-    create_variant: base_path + variant_path."""
+    create_variant: base_path + variant_path.
+    instantiate: asset_path (instantiate prefab into active scene)."""
     return await _send("prefab", _args(
         action=action, path=path, asset_path=asset_path,
         base_path=base_path, variant_path=variant_path,

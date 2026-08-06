@@ -88,15 +88,23 @@ namespace UnityMCP.Editor
         // ─── AssertConserved ───
 
         public void StartConserved(string[] queries, float duration, PlaytestConfig config,
-            Func<string, string> readValue = null)
+            Func<string, string> readValue = null, float? expectedSum = null)
         {
-            float initialSum = 0f;
-            if (readValue != null)
+            float initialSum;
+            if (expectedSum.HasValue)
             {
-                foreach (var q in queries)
+                initialSum = expectedSum.Value;
+            }
+            else
+            {
+                initialSum = 0f;
+                if (readValue != null)
                 {
-                    if (float.TryParse(readValue(q), NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
-                        initialSum += v;
+                    foreach (var q in queries)
+                    {
+                        if (float.TryParse(readValue(q), NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
+                            initialSum += v;
+                    }
                 }
             }
             _conserved.Add((queries, initialSum, string.Join("+", queries), duration, EditorApplication.timeSinceStartup));

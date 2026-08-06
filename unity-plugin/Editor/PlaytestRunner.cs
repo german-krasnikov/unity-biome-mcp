@@ -24,6 +24,7 @@ namespace UnityMCP.Editor
             if (_isRunning) { tcs.TrySetResult("ERROR: Playtest already running. Wait for completion."); return; }
             _freshMode = fresh;
             _freshReloadDone = false;
+            _freshLoadInProgress = false;
             _isRunning = true;
 
             var guids = AssetDatabase.FindAssets("t:PlaytestConfig");
@@ -140,8 +141,10 @@ namespace UnityMCP.Editor
                 }
 
                 // fresh mode: reload active scene before first step
-                if (_freshMode && phase == Phase.Ready && stepIdx == 0 && !_freshReloadDone)
+                // G1: _freshLoadInProgress guards against calling LoadScene twice
+                if (_freshMode && phase == Phase.Ready && stepIdx == 0 && !_freshReloadDone && !_freshLoadInProgress)
                 {
+                    _freshLoadInProgress = true;
                     UnityEngine.SceneManagement.SceneManager.LoadScene(
                         UnityEngine.SceneManagement.SceneManager.GetActiveScene().name,
                         UnityEngine.SceneManagement.LoadSceneMode.Single);
@@ -152,9 +155,9 @@ namespace UnityMCP.Editor
                 if (phase == Phase.LoadingFresh)
                 {
                     if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().isLoaded)
-                    { phase = Phase.Ready; _freshReloadDone = true; stepStartUtc = DateTime.Now; }
+                    { _freshLoadInProgress = false; phase = Phase.Ready; _freshReloadDone = true; stepStartUtc = DateTime.Now; }
                     else if (Time.realtimeSinceStartup - phaseStart > 10f)
-                    { phase = Phase.Ready; _freshReloadDone = true; stepStartUtc = DateTime.Now; }  // timeout — continue anyway
+                    { _freshLoadInProgress = false; phase = Phase.Ready; _freshReloadDone = true; stepStartUtc = DateTime.Now; }  // timeout — continue anyway
                     return;
                 }
 
@@ -193,7 +196,8 @@ namespace UnityMCP.Editor
 
                     case Phase.WaitingPoll:
                         float now = Time.realtimeSinceStartup;
-                        var pollStep = currentExpanded ?? step; // use VAR-expanded version
+                        // G7: re-expand VAR runtime aliases each tick so WAIT_UNTIL sees live values.
+                        var pollStep = varRegistry.HasAny ? varRegistry.ExpandStep(step) : (currentExpanded ?? step);
                         var pollLabel = pollStep.Type == StepType.Assert ? "ASSERT" : "WAIT_UNTIL";
                         float effectiveTimeout = pollStep.HasExplicitTimeout ? pollStep.Timeout : defaultTimeout;
                         if (effectiveTimeout <= 0f) effectiveTimeout = 5f; // guard: SET_DEFAULT_TIMEOUT 0
@@ -350,6 +354,19 @@ namespace UnityMCP.Editor
         // fresh mode — reload active scene before first step
         static bool _freshMode;
         static bool _freshReloadDone;
+        static bool _freshLoadInProgress; // G1: guard against calling LoadScene twice
+
+        // ── Test hooks ───────────────────────────────────────────────────────
+        /// <summary>True when fresh mode should trigger a new scene load (all guards clear).</summary>
+        internal static bool ShouldStartFreshLoad => _freshMode && !_freshReloadDone && !_freshLoadInProgress;
+
+        /// <summary>Set fresh-mode state for unit testing without Play Mode.</summary>
+        internal static void SetFreshTestState(bool freshMode, bool reloadDone, bool loadInProgress)
+        {
+            _freshMode = freshMode;
+            _freshReloadDone = reloadDone;
+            _freshLoadInProgress = loadInProgress;
+        }
         // consecutive exceptions during WAIT_UNTIL polling — reset on success or new step
         static int _waitPollErrors;
 

@@ -133,12 +133,23 @@ namespace UnityMCP.Editor
         internal static void WalkObjectRefs(SerializedObject so, Action<SerializedProperty, string> onRef,
             bool skipBuiltins = true)
         {
+            // Traverse all properties depth-first via enterChildren control:
+            //   - Arrays: handle elements explicitly with friendly "name[i]" labels,
+            //             then skip into children so iterator doesn't double-visit them.
+            //   - Generic (non-array struct): enter children to find nested refs (G18 fix).
+            //   - ObjectReference: call onRef, no children to enter.
+            //   - Primitives: skip children.
             var prop = so.GetIterator();
-            if (!prop.NextVisible(true)) return;
-            do {
-                if (skipBuiltins && (prop.name == "m_Script" || prop.name == "m_GameObject")) continue;
+            bool enterChildren = true;
+            while (prop.Next(enterChildren))
+            {
+                enterChildren = false; // default: don't enter unless we decide to below
+                if (skipBuiltins && (prop.name == "m_Script" || prop.name == "m_GameObject"))
+                    continue;
+
                 if (prop.isArray && prop.propertyType == SerializedPropertyType.Generic)
                 {
+                    // Explicit array iteration preserves friendly "fieldName[i]" labels
                     int cap = Math.Min(prop.arraySize, MAX_ARRAY);
                     for (int i = 0; i < cap; i++)
                     {
@@ -146,10 +157,18 @@ namespace UnityMCP.Editor
                         if (elem.propertyType == SerializedPropertyType.ObjectReference)
                             onRef(elem, $"{prop.name}[{i}]");
                     }
+                    // Don't enter: iterator would visit array children as "data[i]" — already handled
                 }
                 else if (prop.propertyType == SerializedPropertyType.ObjectReference)
-                    onRef(prop, prop.name);
-            } while (prop.NextVisible(false));
+                {
+                    onRef(prop, prop.propertyPath);
+                }
+                else if (prop.propertyType == SerializedPropertyType.Generic)
+                {
+                    // Non-array Generic = nested struct — enter to find refs inside (G18 fix)
+                    enterChildren = true;
+                }
+            }
         }
 
         private static void WalkProperties(SerializedObject so, string compType, string goPath, List<RefEntry> refs)

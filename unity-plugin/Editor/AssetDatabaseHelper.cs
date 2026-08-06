@@ -185,7 +185,12 @@ namespace UnityMCP.Editor
             var source = JsonHelper.ExtractString(argsJson, "source");
             var dest   = JsonHelper.ExtractString(argsJson, "dest");
             if (string.IsNullOrEmpty(source)) throw new System.Exception("source is required");
-            if (string.IsNullOrEmpty(dest))   throw new System.Exception("dest is required");
+            if (string.IsNullOrEmpty(dest))
+            {
+                ValidatePath(source);
+                bool exists = AssetDatabase.AssetPathExists(source);
+                return $"dest is absent — source '{source}' {(exists ? "exists" : "not found")}; provide dest to validate the move";
+            }
             ValidatePath(source);
             ValidatePath(dest);
             var error = AssetDatabase.ValidateMoveAsset(source, dest);

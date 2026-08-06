@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using UnityEngine;
 using UnityEditor;
@@ -56,10 +57,33 @@ namespace UnityMCP.Editor
 
                 var so = new SerializedObject(comp);
                 var compType = comp.GetType().Name;
+                // G4: Billboard ParticleSystemRenderer doesn't use a mesh — skip m_Mesh to avoid false MISSING.
+                bool skipMesh = comp is ParticleSystemRenderer psr
+                    && psr.renderMode == ParticleSystemRenderMode.Billboard;
+                // G51: Collect fields marked [AllowNull] — intentionally nullable, skip MISSING detection.
+                var allowNullFields = GetAllowNullFieldNames(comp.GetType());
                 ReferenceHelper.WalkObjectRefs(so, (p, label) =>
-                    CheckRef(p, label, goPath, compType, sb, ref localOk, ref localErrors, ref localMissing, verbose));
+                {
+                    if (skipMesh && label == "m_Mesh") return;
+                    if (allowNullFields.Contains(p.name)) return;
+                    CheckRef(p, label, goPath, compType, sb, ref localOk, ref localErrors, ref localMissing, verbose);
+                });
             }
             ok = localOk; errors = localErrors; missing = localMissing;
+        }
+
+        private static HashSet<string> GetAllowNullFieldNames(Type type)
+        {
+            var result = new HashSet<string>(StringComparer.Ordinal);
+            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
+            {
+                foreach (var field in t.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                {
+                    if (field.GetCustomAttribute<AllowNullAttribute>() != null)
+                        result.Add(field.Name);
+                }
+            }
+            return result;
         }
 
         private static void CheckRef(SerializedProperty prop, string propName, string goPath,

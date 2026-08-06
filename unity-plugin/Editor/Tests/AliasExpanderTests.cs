@@ -242,5 +242,58 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("/Path|Comp", result);
             StringAssert.DoesNotContain("$x", result);
         }
+
+        // ── G8: Nested VAL alias expansion (up to 3 passes) ──────────────────────
+
+        [Test]
+        public void AliasExpander_OneLevelNested_Expands()
+        {
+            var saved = AliasExpander._tableOverride;
+            AliasExpander._tableOverride = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+            {
+                { "outer", "$inner" },
+                { "inner", "final_value" }
+            };
+            try
+            {
+                Assert.AreEqual("final_value", AliasExpander.ExpandText("$outer"));
+            }
+            finally { AliasExpander._tableOverride = saved; }
+        }
+
+        [Test]
+        public void AliasExpander_TwoLevelNested_Expands()
+        {
+            var saved = AliasExpander._tableOverride;
+            AliasExpander._tableOverride = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+            {
+                { "a", "$b" },
+                { "b", "$c" },
+                { "c", "leaf" }
+            };
+            try
+            {
+                Assert.AreEqual("leaf", AliasExpander.ExpandText("$a"));
+            }
+            finally { AliasExpander._tableOverride = saved; }
+        }
+
+        [Test]
+        public void AliasExpander_UnknownSigilInValue_LeftIntact()
+        {
+            // A nested alias pointing to an undefined sigil should not loop.
+            var saved = AliasExpander._tableOverride;
+            AliasExpander._tableOverride = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+            {
+                { "ref", "$unknown" }
+            };
+            try
+            {
+                var result = AliasExpander.ExpandText("$ref");
+                // $unknown stays intact because it has no table entry
+                Assert.AreEqual("$unknown", result);
+            }
+            finally { AliasExpander._tableOverride = saved; }
+        }
     }
 }

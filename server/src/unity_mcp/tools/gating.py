@@ -8,6 +8,8 @@ tool_specs._SPECS at import time (one ToolSpec entry per tool) instead of being
 4 independently hand-typed literals that could silently drift out of sync with
 each other. _CATEGORY_ALIAS (legacy category-name -> themed-group mapping)
 stays hand-typed — it is category-level metadata, not a per-tool attribute.
+
+P-12440 Phase 1 surface: 13 CORE + 20 TIER1-only = 33 always-visible.
 """
 from .tool_specs import _SPECS
 
@@ -116,7 +118,7 @@ def get_catalog() -> dict:
         cat: [t for t in tools if t not in _CORE_TOOLS and t not in _DIRECT_ONLY]
         for cat, tools in _THEMED_CATEGORIES.items()
     }
-    categories["CORE"] = sorted(_CORE_TOOLS)
+    categories["CORE"] = sorted(_CORE_TOOLS - _DIRECT_ONLY)
     return {"categories": categories}
 
 

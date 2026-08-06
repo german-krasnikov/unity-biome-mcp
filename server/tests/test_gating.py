@@ -95,6 +95,18 @@ def test_get_categories():
     assert isinstance(cats["animation"], (set, frozenset))
 
 
+async def test_discover_tools_invalid_category_lists_valid():
+    """G31: invalid category error must list what categories ARE valid."""
+    from unity_mcp.tools.gating import discover_tools, reset
+    import pytest
+    reset()
+    with pytest.raises(ValueError) as exc_info:
+        await discover_tools(category="nonexistent_xyz")
+    msg = str(exc_info.value)
+    assert "Valid" in msg, f"error should list valid categories, got: {msg}"
+    assert "SCENE" in msg or "RUNTIME" in msg, f"expected known categories in: {msg}"
+
+
 async def test_discover_tools_lists_categories():
     from unity_mcp.tools.gating import discover_tools, reset
     reset()
@@ -509,12 +521,13 @@ def test_tier1_residual_names_still_present():
     Phase sprint1-2: execute_code promoted from tier1 → core (#04)."""
     from unity_mcp.tools.gating import TIER1, _CORE_TOOLS
     residual_expected = {
-        "screenshot", "run_tests", "setup_objects", "configure_objects",
-        "compile_preflight", "await_compile", "sync_unity", "run_playtest",
+        "screenshot", "run_tests", "await_compile", "sync_unity", "run_playtest",
         # Phase 1a demotions from CORE → now tier1-only
         "delete_object", "set_parent", "scene", "search_scene",
-        # Phase 1b promotions (execute_code removed: promoted to CORE in sprint1-2 #04)
-        "set_active", "validate_references", "undo_last",
+        # Phase 1b promotions
+        "set_active", "validate_references",
+        # P-12440 Phase 1: demoted from CORE to tier1
+        "apply_scene_change", "scene_change_plan", "verify_after_change",
     }
     missing = residual_expected - TIER1
     assert not missing, f"TIER1-only names dropped by refactor: {sorted(missing)}"
@@ -672,10 +685,9 @@ def test_catalog_has_8_themed_categories():
 
 def test_demoted_tools_are_tier1_not_core():
     """Phase 2: these tools moved from CORE to SYSTEM tier1. doctor/list_connections/get_enabled_tools
-    further demoted to Tier2 in Phase 1b — excluded from this set."""
+    further demoted to Tier2 in Phase 1b. ask/ask_user fully demoted in P-12440 Phase 1."""
     from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
-    demoted = {"ask", "ask_user", "discover_tools", "permission_prompt",
-               "reconnect_unity", "resolve_tool_schema"}
+    demoted = {"discover_tools", "permission_prompt", "reconnect_unity", "resolve_tool_schema"}
     assert not any(t in _CORE_TOOLS for t in demoted)
     assert all(t in TIER1 for t in demoted)
 
@@ -690,25 +702,29 @@ def test_execute_code_in_core():
 
 # --- #15: verify/scene tools promoted to core ---
 
-def test_verify_after_change_in_core():
-    """#15: verify_after_change must be in _CORE_TOOLS."""
-    from unity_mcp.tools.gating import _CORE_TOOLS
-    assert "verify_after_change" in _CORE_TOOLS
+def test_verify_after_change_not_in_core():
+    """P-12440: verify_after_change demoted from CORE to TIER1-only."""
+    from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
+    assert "verify_after_change" not in _CORE_TOOLS
+    assert "verify_after_change" in TIER1
 
 
-def test_apply_scene_change_in_core():
-    """#15: apply_scene_change must be in _CORE_TOOLS."""
-    from unity_mcp.tools.gating import _CORE_TOOLS
-    assert "apply_scene_change" in _CORE_TOOLS
+def test_apply_scene_change_not_in_core():
+    """P-12440: apply_scene_change demoted from CORE to TIER1-only."""
+    from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
+    assert "apply_scene_change" not in _CORE_TOOLS
+    assert "apply_scene_change" in TIER1
 
 
-def test_scene_change_plan_in_core():
-    """#15: scene_change_plan must be in _CORE_TOOLS."""
-    from unity_mcp.tools.gating import _CORE_TOOLS
-    assert "scene_change_plan" in _CORE_TOOLS
+def test_scene_change_plan_not_in_core():
+    """P-12440: scene_change_plan demoted from CORE to TIER1-only."""
+    from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
+    assert "scene_change_plan" not in _CORE_TOOLS
+    assert "scene_change_plan" in TIER1
 
 
-def test_resolve_scene_refs_in_core():
-    """#15: resolve_scene_refs must be in _CORE_TOOLS."""
-    from unity_mcp.tools.gating import _CORE_TOOLS
-    assert "resolve_scene_refs" in _CORE_TOOLS
+def test_resolve_scene_refs_not_in_core_not_in_tier1():
+    """P-12440: resolve_scene_refs fully demoted — not CORE, not TIER1."""
+    from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
+    assert "resolve_scene_refs" not in _CORE_TOOLS
+    assert "resolve_scene_refs" not in TIER1

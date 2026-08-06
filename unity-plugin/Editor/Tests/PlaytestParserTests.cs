@@ -418,5 +418,29 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("my_label", r.Steps[0].Message);
             Assert.AreEqual(3f, r.Steps[0].Timeout);
         }
+
+        // ── G2: INVOKE / INVOKE_REPEAT multi-arg parsing ──────────────────────
+
+        [Test]
+        public void Parse_Invoke_MultipleArgs_AllArgsParsed()
+        {
+            // G2: "INVOKE /Player Health TakeDamage 42 true" — second arg "true" was dropped.
+            var r = PlaytestParser.Parse("INVOKE /Player Health TakeDamage 42 true");
+            var step = r.Steps[0];
+            Assert.AreEqual(StepType.Invoke, step.Type);
+            Assert.AreEqual("42 true", step.Args,
+                "G2: INVOKE must capture all args after method name, space-joined");
+        }
+
+        [Test]
+        public void Parse_InvokeRepeat_MultipleArgs_AllArgsParsed()
+        {
+            // G2: INVOKE_REPEAT expands to N Invoke steps; each must carry all args.
+            var r = PlaytestParser.Parse("INVOKE_REPEAT 2 /Player Health TakeDamage 42 true");
+            var first = r.Steps[0];
+            Assert.AreEqual(StepType.Invoke, first.Type);
+            Assert.AreEqual("42 true", first.Args,
+                "G2: INVOKE_REPEAT must capture all args after method name, space-joined");
+        }
     }
 }

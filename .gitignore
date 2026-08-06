@@ -74,7 +74,6 @@ unity-test-project/Logs/
 unity-test-project/UserSettings/
 unity-test-project/*.csproj
 unity-test-project/*.unityproj
-unity-test-project/*.sln
 unity-test-project/*.suo
 unity-test-project/*.tmp
 unity-test-project/*.user

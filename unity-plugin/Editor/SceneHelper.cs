@@ -154,7 +154,10 @@ namespace UnityMCP.Editor
                 if (string.IsNullOrEmpty(path))
                     throw new System.ArgumentException($"Scene '{identifier}' has no path, cannot discard");
                 EditorSceneManager.CloseScene(target, true);
-                EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+                var reloaded = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+                // G21: verify the scene settled (isLoaded) before reporting success
+                if (!reloaded.isLoaded)
+                    throw new System.InvalidOperationException($"Scene '{path}' failed to load after discard");
                 return "reloaded";
             }
 
@@ -166,7 +169,10 @@ namespace UnityMCP.Editor
 
             if (!string.IsNullOrEmpty(scenePath))
             {
-                EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+                var reloaded = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+                // G21: verify the scene settled before reporting success
+                if (!reloaded.isLoaded)
+                    throw new System.InvalidOperationException($"Scene '{scenePath}' failed to load after discard");
                 return "reloaded";
             }
             return "new scene";

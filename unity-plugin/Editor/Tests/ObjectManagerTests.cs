@@ -358,5 +358,35 @@ namespace UnityMCP.Editor.Tests
                 ObjectManager.ManageComponent("/OM_TestObj", "ZZZNoSuchComponent", "add"));
             StringAssert.DoesNotContain("Did you mean", ex.Message);
         }
+
+        // ── G6: ResolveComponent warns on multiple matches ─────────────────────
+
+        [Test]
+        public void ResolveComponent_MultipleMatchingComponents_LogsWarning()
+        {
+            var go = new GameObject("G6Multi");
+            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(go));
+            go.AddComponent<BoxCollider>();
+            go.AddComponent<BoxCollider>(); // second of same type
+
+            ConsoleCapture.Clear();
+            ObjectManager.ResolveComponent("/G6Multi", "BoxCollider");
+            var logs = ConsoleCapture.GetLogs(10, "warning");
+            StringAssert.Contains("2", logs, "Warning should mention the count (2)");
+            StringAssert.Contains("BoxCollider", logs, "Warning should mention the component type");
+        }
+
+        [Test]
+        public void ResolveComponent_SingleComponent_NoWarning()
+        {
+            var go = new GameObject("G6Single");
+            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(go));
+            go.AddComponent<BoxCollider>(); // only one
+
+            ConsoleCapture.Clear();
+            ObjectManager.ResolveComponent("/G6Single", "BoxCollider");
+            var logs = ConsoleCapture.GetLogs(10, "warning");
+            Assert.IsEmpty(logs, "No warning when only one component of the type exists");
+        }
     }
 }

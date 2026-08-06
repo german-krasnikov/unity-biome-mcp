@@ -469,5 +469,34 @@ namespace UnityMCP.Editor.Tests
             }
             finally { Object.DestroyImmediate(go); }
         }
+
+        // ── G3: Component-typed field gets correct component, not Transform ───
+
+        [Test]
+        public void SetObjectReference_ComponentTypedField_NullFieldType_GetsRigidbodyNotTransform()
+        {
+            // G3: HingeJoint.m_ConnectedBody expects Rigidbody (C++ backed, GetSerializedFieldType returns null).
+            // Assigning a path to a GameObject with Rigidbody must store Rigidbody, not Transform.
+            var go1 = new GameObject("G3_Joint");
+            var go2 = new GameObject("G3_RBTarget");
+            TrackOwnedObject(go1);
+            TrackOwnedObject(go2);
+            go1.AddComponent<Rigidbody>(); // joint needs a rigidbody on same go
+            go1.AddComponent<HingeJoint>();
+            go2.AddComponent<Rigidbody>();
+
+            var joint = go1.GetComponent<HingeJoint>();
+            var so = new SerializedObject(joint);
+            var prop = so.FindProperty("m_ConnectedBody");
+            Assert.IsNotNull(prop, "m_ConnectedBody property must exist on HingeJoint");
+
+            ValueParser.SetPropertyValue(prop, ComponentSerializer.GetPath(go2));
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            // G3 bug: without fix, connectedBody is null (Transform coercion rejected by Rigidbody field)
+            // After fix: correct Rigidbody component is stored
+            Assert.AreEqual(go2.GetComponent<Rigidbody>(), joint.connectedBody,
+                "G3: m_ConnectedBody must store go2's Rigidbody, not null/Transform");
+        }
     }
 }

@@ -278,5 +278,37 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("err1", result);
             StringAssert.DoesNotContain("log1", result);
         }
+
+        // ── G10: Console.Clear wipes problem-buffer ───────────────────────────────
+
+        [Test]
+        public void AfterMcpClear_GetLogsReturnsEmpty()
+        {
+            ConsoleCapture.InjectForTest("old error entry", LogType.Error);
+            ConsoleCapture.Clear();
+            var result = ConsoleCapture.GetLogs(count: -1, level: "error");
+            Assert.IsEmpty(result, "After Clear(), GetLogs should return empty");
+        }
+
+        [Test]
+        public void SimulatedUnityConsoleClear_ClearsInternalBuffer()
+        {
+            // Simulates the user clicking "Clear" in Unity's Console window.
+            ConsoleCapture.InjectForTest("unity-console error", LogType.Error);
+            ConsoleCapture.SimulateUnityConsoleClearForTest();
+            var result = ConsoleCapture.GetLogs(count: -1, level: "error");
+            Assert.IsEmpty(result, "After Unity Console.Clear, internal buffer must be empty");
+        }
+
+        [Test]
+        public void AfterClearAndDomainReload_ProblemBufferEmpty()
+        {
+            // SessionState should be wiped after Clear, so reload sees no stale problems.
+            ConsoleCapture.InjectForTest("persisted error", LogType.Error);
+            ConsoleCapture.Clear();                        // wipes SessionState
+            ConsoleCapture.SimulateDomainReloadForTest();  // wipes in-memory only
+            var result = ConsoleCapture.GetLogs(count: -1, level: "error");
+            Assert.IsEmpty(result, "After Clear + domain reload, problem-buffer must stay empty");
+        }
     }
 }

@@ -10,6 +10,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.20.0] — 2026-08-06 — P-12440 Production Backlog Release
+
+### Phase 1: Tool Surface Reorganization
+- **Tool surface optimization** — Reorganized MCP tool tiers: 47 → 33 always-visible tools (-30% token overhead)
+  - **CORE tools**: 15 → 13 (demoted `do`, promoted `compile_preflight`, `mcp_status`)
+  - **TIER1**: 47 → 33 total (CORE + 20 category-promoted tools)
+- **Demoted to category tools**: `delete_object`, `set_parent`, `scene`, `search_scene` (SCENE), `resolve_scene_refs` (VERIFY)
+- **Demoted from CORE**: `do` → SYSTEM (direct_only=True)
+- **Tool Metadata DRY**: ToolSpec now single source of truth for all tier/category/flag changes (M8 architecture pattern)
+
+### Phase 2–6: Production Bug Fixes & Improvements
+- **5 P1 critical fixes** — PlaytestRunner fresh=true double-reload, INVOKE multi-arg, ValueParser component refs, ValidateReferencesHelper particles, transaction null-safety
+- **12 P2 high-priority fixes** — ObjectManager warnings, WAIT_UNTIL re-expansion, AliasExpander 3-pass, ConsoleCapture dedup, autobatch paths, Circuit Breaker, PlaytestParser edge cases, bridge retry tracking
+- **8 P2 improvements** — ReferenceHelper depth-first traversal, ScreenshotCapture fallback, Play Mode checks, SceneHelper settle verify, layer handling, TELEPORT sync, float precision, discover_tools hints
+- **21 P3 medium fixes** — Category tools, runtime checks, serialization edge cases
+- **5 P4 low improvements** — Test suite params, middleware hooks, export_tools hashing, AllowNull attribute
+
+### Test Coverage
+- **Python unit tests**: 5545 total (server + scripts + install)
+- **C# EditMode tests**: 7268 green (Unity 6000.0.65f1)
+- **Live integration tests**: 277/278 passing
+
 ## [1.19.0] — 2026-08-05
 
 ### Added

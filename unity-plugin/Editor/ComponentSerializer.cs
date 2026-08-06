@@ -77,6 +77,21 @@ namespace UnityMCP.Editor
                 } while (prop.NextVisible(false));
             }
             if (written == 0) sb.AppendLine("(no serialized fields)");
+
+            // RectTransform: also expose friendly names (anchoredPosition, sizeDelta, anchorMin, anchorMax, pivot)
+            if (component is RectTransform rt)
+            {
+                var ap = rt.anchoredPosition;
+                var sd = rt.sizeDelta;
+                var amin = rt.anchorMin;
+                var amax = rt.anchorMax;
+                var piv = rt.pivot;
+                sb.AppendLine($"anchoredPosition: ({ap.x:G},{ap.y:G})");
+                sb.AppendLine($"sizeDelta: ({sd.x:G},{sd.y:G})");
+                sb.AppendLine($"anchorMin: ({amin.x:G},{amin.y:G})");
+                sb.AppendLine($"anchorMax: ({amax.x:G},{amax.y:G})");
+                sb.AppendLine($"pivot: ({piv.x:G},{piv.y:G})");
+            }
         }
 
         public static string ListComponents(string path)

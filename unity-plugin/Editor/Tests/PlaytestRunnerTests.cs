@@ -736,5 +736,34 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(PlaytestParser._DSL_KEYWORDS.Contains("TEARDOWN"),
                 "TEARDOWN must be in _DSL_KEYWORDS");
         }
+
+        // ── G1: fresh=true double-reload guard ────────────────────────────────
+
+        [Test]
+        public void FreshMode_LoadInProgressGuard_BlocksDoubleLoad()
+        {
+            RegisterCleanup(() => PlaytestRunner.SetFreshTestState(false, false, false));
+            PlaytestRunner.SetFreshTestState(freshMode: true, reloadDone: false, loadInProgress: true);
+            Assert.IsFalse(PlaytestRunner.ShouldStartFreshLoad,
+                "Fresh load must not trigger while load is in progress");
+        }
+
+        [Test]
+        public void FreshMode_ReloadDoneGuard_BlocksAfterComplete()
+        {
+            RegisterCleanup(() => PlaytestRunner.SetFreshTestState(false, false, false));
+            PlaytestRunner.SetFreshTestState(freshMode: true, reloadDone: true, loadInProgress: false);
+            Assert.IsFalse(PlaytestRunner.ShouldStartFreshLoad,
+                "Fresh load must not trigger after reload is done");
+        }
+
+        [Test]
+        public void FreshMode_InitialState_AllowsFirstLoad()
+        {
+            RegisterCleanup(() => PlaytestRunner.SetFreshTestState(false, false, false));
+            PlaytestRunner.SetFreshTestState(freshMode: true, reloadDone: false, loadInProgress: false);
+            Assert.IsTrue(PlaytestRunner.ShouldStartFreshLoad,
+                "Fresh load should start when fresh mode is on and no load is in progress");
+        }
     }
 }

@@ -39,14 +39,20 @@ async def scene_change_plan(
     dry_run: bool = True,
 ) -> str:
     """Pre-flight + plan for safe scene edit.
-    1. Check compile clean
-    2. Check console for errors
-    3. Resolve targets via resolve_scene_refs
-    4. Take checkpoint
-    5. Return plan_id + baseline status"""
+    1. Check Play Mode — reject if playing (mutations blocked)
+    2. Check compile clean
+    3. Check console for errors
+    4. Resolve targets via resolve_scene_refs
+    5. Take checkpoint
+    6. Return plan_id + baseline status"""
     _cleanup_expired()
 
-    # 1. Compile check
+    # 1. Play Mode check — scene mutations are blocked during Play Mode
+    editor_state = await _send("editor", {"action": "state"})
+    if "playing" in (editor_state or "").lower():
+        return "FAIL: Play Mode active — exit Play Mode before planning scene changes"
+
+    # 2. Compile check
     compile_data = await _send("get_compile_errors", {})
     if not _compile_clean(compile_data):
         return f"FAIL: compile errors\n{compile_data}"
@@ -105,17 +111,21 @@ async def apply_scene_change(
     # Execute batch
     batch_data = await _send("batch", {"commands": commands})
 
-    # Verify
+    # Verify — G5: wrap in try/except so NullRef from validate_references doesn't surface
     refs_status = console_status = ""
     if verify:
-        refs_data = await _send("validate_references", {})
-        m = re.search(r"(\d+)\s+broken", refs_data)
-        broken = int(m.group(1)) if m else 0
-        refs_status = f"\nrefs={'ok (0 broken)' if broken == 0 else f'BROKEN ({broken} broken)'}"
+        try:
+            refs_data = await _send("validate_references", {})
+            m = re.search(r"(\d+)\s+broken", refs_data or "")
+            broken = int(m.group(1)) if m else 0
+            refs_status = f"\nrefs={'ok (0 broken)' if broken == 0 else f'BROKEN ({broken} broken)'}"
 
-        console_data = await _send("get_console", {"level": "error,exception"})
-        errs = sum(1 for ln in console_data.splitlines() if ln.strip())
-        console_status = f"\nconsole={'clean' if errs == 0 else f'{errs} errors'}"
+            console_data = await _send("get_console", {"level": "error,exception"})
+            errs = sum(1 for ln in console_data.splitlines() if ln.strip())
+            console_status = f"\nconsole={'clean' if errs == 0 else f'{errs} errors'}"
+        except Exception as e:
+            refs_status = f"\nrefs=unchecked ({type(e).__name__})"
+            console_status = ""
 
     # Save
     saved_status = ""
@@ -123,7 +133,7 @@ async def apply_scene_change(
         await _send("scene", {"action": "save"})
         saved_status = "\nsaved=true"
 
-    return f"mutations=ok ({batch_data}){refs_status}{console_status}{saved_status}"
+    return f"mutations=ok ({batch_data or ''}){refs_status}{console_status}{saved_status}"
 
 
 def register(mcp, send, args):

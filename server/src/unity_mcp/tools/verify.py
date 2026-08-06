@@ -149,6 +149,14 @@ def _fail(gate: str, detail: str, skipped: list[str]) -> str:
     return "\n".join(lines)
 
 
+async def _stop_play_mode() -> None:
+    """Stop Play Mode before playtests — best-effort."""
+    try:
+        await _send("editor", _args(action="stop"), timeout=10.0)
+    except Exception:
+        pass
+
+
 async def verify_after_change(
     changed_files: str = "",
     test_filter: str = "",
@@ -156,6 +164,7 @@ async def verify_after_change(
     playtests: str = "",
     mark_id: str = "",
     timeout: float = 300.0,
+    restart_between: bool = False,
 ) -> str:
     """Single verification gate after code/scene changes.
     Gates are additive — only enabled ones run:
@@ -233,6 +242,8 @@ async def verify_after_change(
 
     # Gate 5: run_playtest_suite (optional)
     if playtests:
+        if restart_between:
+            await _stop_play_mode()
         suite_result = await _rt.run_playtest_suite(playtests)
         if _is_suite_pass(suite_result):
             passed.append(f"playtests({_extract_ratio(suite_result)})")

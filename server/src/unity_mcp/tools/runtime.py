@@ -105,7 +105,9 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
                        defs: "str | None" = None,
                        path: "str | None" = None,
                        snapshot_on_failure: bool = False,
-                       fresh: bool = False) -> str:
+                       fresh: bool = False,
+                       before_hook: "str | None" = None,
+                       after_hook: "str | None" = None) -> str:
     """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
     ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args |
@@ -126,6 +128,7 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
             fresh=_fresh,
+            before_hook=before_hook, after_hook=after_hook,
             defs=_normalize_defs(defs), _explicit_path="true"),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
     else:
@@ -137,7 +140,8 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
             script=script, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
-            fresh=_fresh),
+            fresh=_fresh,
+            before_hook=before_hook, after_hook=after_hook),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
     compressed = _compress_report(raw)
     if len(compressed) > 300:

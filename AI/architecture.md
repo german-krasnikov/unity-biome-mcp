@@ -734,11 +734,13 @@ Menu: `MCP/Playtest Composer` (Shift+Alt+P). Rewritten from IMGUI to UI Toolkit 
 
 **v0.83.0**: 18 legacy themed categories → 8 canonical keys. Old names remain as aliases in `_CATEGORY_ALIAS` (full backward compat). CORE shrank 24→15 (9 demoted to SYSTEM tier1). TIER1 = CORE + per-ToolSpec `tier1=True`. SOURCE OF TRUTH: `tool_specs._SPECS[name].category`.
 
-### CORE (15, always visible, full schema)
-apply_scene_change, batch, create_object, editor, execute_code, get_compile_errors, get_component, get_console, get_hierarchy, inspect, manage_component, resolve_scene_refs, scene_change_plan, set_property, verify_after_change
+**P-12440 Phase 1**: CORE reduced 15→13 (4 demoted, 2 promoted); TIER1-only reduced 32→20 (13 tools demoted to themed categories). Total visible tools: 47→33 (CORE + TIER1). Promotes compile_preflight, mcp_status to CORE. Demotes apply_scene_change, scene_change_plan, verify_after_change, resolve_scene_refs from CORE to TIER1, and 13 other tools from TIER1 to themed categories (alias_status, ask, ask_user, configure_objects, console_mark, get_console_since, get_test_results, get_test_run, lint_playtest, release_smoke, resolve_test_request, setup_objects, undo_last).
 
-### Category: SCENE (25)
-apply_scene_change†, autofit_collider, check_colliders, configure_objects†, find_objects, get_components_list, get_object_detail, get_selection, get_spatial_context, navmesh_query, object_diff, ping_object, region_clear, rename_object, scene_change_plan†, scene_diff, scene_environment, set_active, set_material, set_properties, set_property_delta, set_sibling_index, setup_objects†, spatial_query, transfer_object
+### CORE (13, always visible, full schema)
+batch, compile_preflight, create_object, editor, execute_code, get_compile_errors, get_component, get_console, get_hierarchy, inspect, manage_component, mcp_status, set_property
+
+### Category: SCENE (29)
+apply_scene_change†, autofit_collider, check_colliders, configure_objects, delete_object†, find_objects, get_components_list, get_object_detail, get_selection, get_spatial_context, navmesh_query, object_diff, ping_object, region_clear, rename_object, scene†, scene_change_plan†, scene_diff, scene_environment, search_scene†, set_active†, set_material, set_parent†, set_properties, set_property_delta, set_sibling_index, setup_objects, spatial_query, transfer_object
 
 ### Category: COMPONENTS (4)
 auto_wire, references, unwire_event, wire_event
@@ -750,20 +752,20 @@ asset, material, material_audit, prefab, project_settings, scriptable_object, sh
 analyze_lod_culling, animation, animator, create_ui, particle, render_analyze, screenshot†, screenshot_baseline, screenshot_compare, set_rect, timeline, ui_intent, validate_layout, vfx_intent
 
 ### Category: VERIFY (9)
-await_compile†, compile_preflight†, diagnose, lint_scene_refs†, resolve_scene_refs†, scan_scene, scene_health, validate_references, verify_after_change†
+await_compile†, compile_preflight, diagnose, lint_scene_refs†, resolve_scene_refs, scan_scene, scene_health, validate_references†, verify_after_change†
 
 ### Category: RUNTIME (17)
-console_mark†, debug, debug_animator, debug_physics, get_console_since†, get_frame_stats, get_memory, get_metrics, get_watches, invoke_method†, move_to†, profile, query_state†, set_runtime_property†, snapshot, wait_until†, watch
+console_mark, debug, debug_animator, debug_physics, get_console_since, get_frame_stats, get_memory, get_metrics, get_watches, invoke_method, move_to, profile, query_state, set_runtime_property, snapshot, wait_until, watch
 
 *(get_perf removed v0.85.1 — use get_frame_stats)*
 
-### Category: TESTS (13)
-export_playtest_aliases_to_defs†, get_test_count, get_test_progress†, get_test_results†, lint_playtest†, lint_playtest_suite†, run_playtest†, run_playtest_suite†, run_tests†, run_tests_wait†, sync_playtest_aliases_from_defs†, test_step†, validate_playtest_aliases†
+### Category: TESTS (15)
+export_playtest_aliases_to_defs, get_test_count, get_test_progress, get_test_results, get_test_run, lint_playtest, lint_playtest_suite, resolve_test_request, run_playtest†, run_playtest_suite, run_tests†, run_tests_wait†, sync_playtest_aliases_from_defs, test_step, validate_playtest_aliases
 
 *(run_playtest_file removed v0.85.1 — use run_playtest path=)*
 
 ### Category: SYSTEM (34)
-alias_status†, animator_intent, apply_template, ask†, ask_user†, auto_fix, budget_status, checkpoint, discover_tools†, doctor†, execute_code, fingerprint, get_capabilities, get_changes, get_enabled_tools†, get_schema, list_connections†, list_skills, list_templates, load_session, mcp_status†, menu, permission_prompt†, recompile, reconnect_unity†, resolve_tool_schema†, save_session, save_skill, save_template, set_llm_config, smart_build, sync_unity†, undo_last, use_skill
+alias_status, animator_intent, apply_template, ask, ask_user, auto_fix, budget_status, checkpoint, discover_tools†, doctor, execute_code, fingerprint, get_capabilities, get_changes, get_enabled_tools, get_schema, list_connections, list_skills, list_templates, load_session, mcp_status, menu, permission_prompt†, recompile, reconnect_unity†, release_smoke, resolve_tool_schema†, save_session, save_skill, save_template, set_llm_config, smart_build, sync_unity†, undo_last, use_skill
 
 † = tier1=True (always visible)
 
@@ -789,7 +791,7 @@ invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step
 ## Key Systems
 
 ### Capability Gating (Python: `tools/gating.py`, v0.70.0: categories derived from _THEMED_CATEGORIES)
-- **CORE tools** (15, `core=True` in ToolSpec): locked, always visible, full schema. See list above in "### CORE" section. Separate from TIER1 (CORE + `tier1=True` tools) — TIER1 tools are always visible but not locked. Example: `is_core("get_hierarchy")` → True, `is_core("discover_tools")` → False (TIER1/SYSTEM, not CORE)
+- **CORE tools** (13, `core=True` in ToolSpec): locked, always visible, full schema. See list above in "### CORE" section. Separate from TIER1 (CORE + `tier1=True` tools) — TIER1 tools are always visible but not locked. Example: `is_core("get_hierarchy")` → True, `is_core("discover_tools")` → False (TIER1/SYSTEM, not CORE)
   - **T4 (v0.64.0): get_console Filter Params** — `keyword` (substring match across all log lines) + `count_only` (return only count, no text). `count_only` avoids returning the full log payload. Sample use: `get_console(keyword="Error", count_only=true)` → `"3 errors"`. Gating.py updated for tool filtering.
   - **C6 (v0.70.0): Derived Categories** — `_THEMED_CATEGORIES` is now single source of truth. At import time, derived categories list computed (all categories minus internal ones). Eliminates manual enum-sync drift.
 - **Themed catalog** (single source of truth): `get_catalog()` returns dict with 8 categories (v0.83.0: 18 themed → 8: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM — old names kept as aliases; CORE as category, not separate key); public tools only, with extension-registered tools added separately. Format simplified for token economy (CORE → categories["CORE"]).

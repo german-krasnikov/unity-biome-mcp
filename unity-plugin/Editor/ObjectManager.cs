@@ -16,6 +16,12 @@ namespace UnityMCP.Editor
             component = InputNormalizer.NormalizeComponent(component, go);
             var comp = go.GetComponent(component);
             if (comp == null) throw new ArgumentException(ErrorHelper.ComponentNotFound(component, go));
+            // G6: warn when multiple components of same type exist — silent first-pick is surprising.
+            var allSameType = go.GetComponents(comp.GetType());
+            if (allSameType.Length > 1)
+                Debug.LogWarning(
+                    $"[MCP] {allSameType.Length} {comp.GetType().Name} found on '{go.name}'; " +
+                    "using first. Pass a more specific type name to disambiguate.");
             return (go, comp);
         }
 
@@ -52,7 +58,9 @@ namespace UnityMCP.Editor
             {
                 var targetScene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(scene);
                 if (!targetScene.IsValid())
-                    throw new ArgumentException($"Scene not found: {scene}");
+                    targetScene = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(scene);
+                if (!targetScene.IsValid())
+                    throw new ArgumentException($"Scene not found: {scene} (try scene name or path like 'Assets/Scenes/Foo.unity')");
                 UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, targetScene);
                 if (!EditorApplication.isPlaying)
                     EditorSceneManager.MarkSceneDirty(targetScene);

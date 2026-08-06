@@ -237,7 +237,7 @@ namespace UnityMCP.Editor.Tests
                 var result = BatchHelper.Execute(
                     "ping\nset_property path=$hero_path value=1",
                     "continue", validateAliases: true);
-                Assert.AreEqual("ok: all aliases resolved", result);
+                Assert.AreEqual("ok: validation-only — 0 mutations executed; all aliases resolved", result);
             }
             finally
             {
