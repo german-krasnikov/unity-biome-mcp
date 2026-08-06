@@ -32,6 +32,7 @@ BOOL_TRUE_EXCEPTIONS = {
     ("transaction", "scene_change_plan", "dry_run"),          # semantic: True=safe preview by default
     ("transaction", "apply_scene_change", "verify"),          # semantic: True=verify after apply
     ("transaction", "apply_scene_change", "save"),            # semantic: True=save after apply
+    ("scene", "scene", "include_unsaved"),                    # semantic: save_copy always captures dirty state; True=expected default
 }
 
 # bool params with no default — allowed ONLY when the bool IS the payload.

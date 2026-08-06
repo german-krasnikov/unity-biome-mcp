@@ -443,11 +443,8 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "target"),
                 JsonHelper.ExtractString(args, "method"),
                 JsonHelper.ExtractString(args, "arg_type") ?? "void",
-                JsonHelper.ExtractString(args, "arg_value"),
-                JsonHelper.ExtractString(args, "target_component_type"),
-                JsonHelper.ExtractString(args, "parameter_types")), mutating: true,
-                required: "path,component,event,target,method",
-                optional: "arg_type,arg_value,target_component_type,parameter_types");
+                JsonHelper.ExtractString(args, "arg_value")), mutating: true,
+                required: "path,component,event,target,method", optional: "arg_type,arg_value");
             CommandRegistry.Register("unwire_event", args => ObjectManager.UnwireEvent(
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "component"),
@@ -483,7 +480,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "shader")), mutating: true,
                 required: "path", optional: "color,shader");
             CommandRegistry.Register("scene", ExecScene, mutating: true,
-                required: "action", optional: "path,scene");
+                required: "action", optional: "path,scene,include_unsaved");
             CommandRegistry.Register("animation", ExecAnimationConsolidated, mutating: true,
                 required: "action,path", optional: "clip,clip_name,property,keys,time,component_type,binding_path,tangent,function_name,int_param,float_param,string_param");
             CommandRegistry.Register("timeline", ExecTimelineConsolidated, mutating: false,

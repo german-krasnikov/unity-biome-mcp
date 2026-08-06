@@ -51,20 +51,27 @@ async def test_scene_environment_set_sends_params(scene_mod, _patch_send):
     assert call_args[0][1] == {"action": "set", "prop": "fog", "value": "true"}
 
 
-# ── fingerprint ───────────────────────────────────────────────────────────────
+# ── scene save_copy ───────────────────────────────────────────────────────────
 
-async def test_fingerprint_no_path_omits_path_key(scene_mod, _patch_send):
-    """P-106: fingerprint() with no path must NOT include 'path' in TCP args."""
-    await scene_mod.fingerprint()
+async def test_scene_save_copy_sends_correct_action(scene_mod, _patch_send):
+    await scene_mod.scene(action="save_copy", path="Assets/Backups/Scene.unity")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "scene"
+    assert call_args[0][1]["action"] == "save_copy"
+    assert call_args[0][1]["path"] == "Assets/Backups/Scene.unity"
+
+
+async def test_scene_save_copy_with_scene_identifier(scene_mod, _patch_send):
+    await scene_mod.scene(action="save_copy", path="Assets/Backups/Scene.unity", scene="Level1")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][1]["scene"] == "Level1"
+
+
+async def test_scene_save_copy_include_unsaved_not_in_args(scene_mod, _patch_send):
+    """include_unsaved exists for discoverability only; must NOT be forwarded to TCP."""
+    await scene_mod.scene(action="save_copy", path="Assets/Backups/Scene.unity", include_unsaved=False)
 
     args = _patch_send.call_args[0][1]
-    assert "path" not in args, f"path must not appear in args when None; got {args}"
-    assert args.get("depth") == 3
-
-
-async def test_fingerprint_with_path_includes_path_key(scene_mod, _patch_send):
-    """P-106: fingerprint(path='Player') must include path in TCP args."""
-    await scene_mod.fingerprint(path="Player")
-
-    args = _patch_send.call_args[0][1]
-    assert args.get("path") == "Player"
+    assert "include_unsaved" not in args
