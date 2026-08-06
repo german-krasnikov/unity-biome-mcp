@@ -52,6 +52,15 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
+      - name: Install VC++ 2010 runtime (Unity 6 dependency)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: choco install vcredist2010 -y
+
+      - name: Create artifacts directory
+        shell: bash
+        run: mkdir -p artifacts
+
       - name: Set UPM cache path
         id: upm-path
         shell: bash
