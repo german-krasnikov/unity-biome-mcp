@@ -295,6 +295,21 @@ _budget_tracker = None
 _budget_router = None
 
 
+def _stdio_alive() -> bool:
+    """Return False when the stdio transport pipe is broken (server restart needed).
+
+    Non-stdio transports (http, sse) are unaffected — always returns True for them.
+    """
+    import sys
+    if os.environ.get("UNITY_MCP_TRANSPORT", "stdio") != "stdio":
+        return True
+    try:
+        sys.stdout.buffer.flush()
+        return True
+    except (BrokenPipeError, OSError):
+        return False
+
+
 async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     if slot is None:
         raise ToolError("Server not initialized. Restart MCP server (/mcp).")
@@ -304,6 +319,10 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
         raise ToolError(
             f"'{cmd}' is a Python-only control-plane tool and cannot be sent to Unity. "
             "Call it as a typed MCP tool."
+        )
+    if not _stdio_alive():
+        raise ToolError(
+            "[TRANSPORT_DEAD] stdio transport closed — restart the MCP server (/mcp)"
         )
     bridge = slot.bridge
     if bridge is None:

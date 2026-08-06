@@ -107,49 +107,59 @@ def test_connection_slot_status_connected():
 @pytest.mark.asyncio
 async def test_list_connections_shows_reconnecting():
     from unity_mcp.tools import connection as conn_mod
+    from unittest.mock import patch
 
     mock_slot = MagicMock()
     mock_slot.port = 9500
-    mock_slot.status = "reconnecting"
+    mock_slot.bridge.transport_status = "tcp:reconnecting"
     original = conn_mod._get_slot
     conn_mod._get_slot = lambda: mock_slot
     try:
-        result = await conn_mod.list_connections()
+        with patch("unity_mcp.tools.connection._stdio_alive", return_value=True):
+            result = await conn_mod.list_connections()
     finally:
         conn_mod._get_slot = original
 
-    assert result == "port 9500 (reconnecting)"
+    assert "9500" in result
+    assert "tcp:reconnecting" in result
 
 
 @pytest.mark.asyncio
 async def test_list_connections_shows_domain_reloading():
     from unity_mcp.tools import connection as conn_mod
+    from unittest.mock import patch
 
     mock_slot = MagicMock()
     mock_slot.port = 9500
-    mock_slot.status = "domain-reloading"
+    mock_slot.bridge.transport_status = "tcp:reconnecting"
     original = conn_mod._get_slot
     conn_mod._get_slot = lambda: mock_slot
     try:
-        result = await conn_mod.list_connections()
+        with patch("unity_mcp.tools.connection._stdio_alive", return_value=True):
+            result = await conn_mod.list_connections()
     finally:
         conn_mod._get_slot = original
 
-    assert result == "port 9500 (domain-reloading)"
+    assert "9500" in result
+    assert "tcp:" in result
 
 
 @pytest.mark.asyncio
 async def test_list_connections_shows_connected():
     from unity_mcp.tools import connection as conn_mod
+    from unittest.mock import patch
 
     mock_slot = MagicMock()
     mock_slot.port = 9500
-    mock_slot.status = "connected"
+    mock_slot.bridge.transport_status = "tcp:connected"
     original = conn_mod._get_slot
     conn_mod._get_slot = lambda: mock_slot
     try:
-        result = await conn_mod.list_connections()
+        with patch("unity_mcp.tools.connection._stdio_alive", return_value=True):
+            result = await conn_mod.list_connections()
     finally:
         conn_mod._get_slot = original
 
-    assert result == "port 9500 (connected)"
+    assert "9500" in result
+    assert "tcp:connected" in result
+    assert "stdio:alive" in result

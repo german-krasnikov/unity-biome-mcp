@@ -126,6 +126,7 @@ def mock_bridge():
     mock_b = Mock()
     mock_b.send = AsyncMock(return_value={"ok": True, "data": "ok"})
     mock_b.connected = True
+    mock_b.transport_status = "tcp:connected"
 
     mock_slot = Mock()
     mock_slot.bridge = mock_b

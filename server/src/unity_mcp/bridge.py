@@ -588,6 +588,15 @@ class UnityBridge(HeartbeatMixin):
             return "domain-reloading"
         return "reconnecting"
 
+    @property
+    def transport_status(self) -> str:
+        """TCP transport layer status — independent of stdio health."""
+        if self._writer is not None and not self._writer.is_closing():
+            return "tcp:connected"
+        if self._state == BridgeState.FAILED:
+            return "tcp:failed"
+        return "tcp:reconnecting"
+
     async def close(self):
         if asyncio.current_task() is not self._heartbeat_task:
             self.stop_heartbeat()
