@@ -58,12 +58,18 @@ async def find_objects(
 
 
 async def set_property(path: str | None = None, component: str = "", prop: str = "", value=None,
-                       dry_run: bool = False, find_type: str | None = None) -> str:
+                       dry_run: bool = False, find_type: str | None = None,
+                       ref_component_type: str | None = None) -> str:
     """Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).
     find_type: component type — bulk-sets prop on all matching objects without specifying paths.
-    For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying."""
+    For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying.
+    ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'."""
+    if value is not None:
+        value = _normalize_value(value)
+        if ref_component_type and "::" not in str(value):
+            value = f"{value}::{ref_component_type}"
     args = _args(path=path, find_type=find_type, component=component or None,
-                 prop=prop or None, value=_normalize_value(value) if value is not None else None)
+                 prop=prop or None, value=value)
     if dry_run:
         args["dry_run"] = "true"
     return await _send("set_property", args)
