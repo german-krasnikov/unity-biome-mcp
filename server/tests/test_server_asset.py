@@ -125,6 +125,24 @@ async def test_asset_validate_move_error_from_unity(mock_bridge):
         await asset(action="validate_move", source="Assets/A.prefab", dest="Assets/Existing.prefab")
 
 
+async def test_validate_move_path_only_true_sends_path_only(mock_bridge):
+    """path_only=True forwards path_only='true' to bridge (P-199 dry-run mode)."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok: path syntax valid"})
+    await asset(action="validate_move", source="Assets/A.prefab",
+                dest="Assets/NonExistentFolder/A.prefab", path_only=True)
+    args = mock_bridge.send.call_args[0][1]
+    assert args.get("path_only") == "true"
+    assert args["action"] == "validate_move"
+
+
+async def test_validate_move_path_only_false_omits_key(mock_bridge):
+    """path_only=False (default) does not include path_only key in bridge args."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await asset(action="validate_move", source="Assets/A.prefab", dest="Assets/B.prefab")
+    args = mock_bridge.send.call_args[0][1]
+    assert "path_only" not in args
+
+
 async def test_asset_export_package(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Exported to /tmp/rocks.unitypackage"})
     result = await asset(action="export_package", path="Assets/Rocks", output="/tmp/rocks.unitypackage")

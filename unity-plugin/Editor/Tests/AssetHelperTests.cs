@@ -263,6 +263,33 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("edge", result);
         }
 
+        // ── AssetDatabaseHelper.ValidateMove path_only mode (P-199) ─────────────
+
+        static string ExecValidateMove(string argsJson) =>
+            (string)InvokePrivate(typeof(AssetDatabaseHelper), "Execute", "validate_move", argsJson);
+
+        [Test]
+        public void ValidateMove_PathOnly_SucceedsWithNonExistentDest()
+        {
+            // path_only=true must bypass AssetDatabase.ValidateMoveAsset (folder existence check)
+            var result = ExecValidateMove(
+                "{\"source\":\"Assets/SomeSrc.prefab\"," +
+                "\"dest\":\"Assets/NonExistentFolder123456/SomeSrc.prefab\"," +
+                "\"path_only\":\"true\"}");
+            StringAssert.Contains("ok", result);
+        }
+
+        [Test]
+        public void ValidateMove_PathOnly_False_FailsOnNonExistentDest()
+        {
+            // Without path_only, ValidateMoveAsset runs and returns an error for a non-existent folder
+            var ex = Assert.Throws<TargetInvocationException>(() =>
+                ExecValidateMove(
+                    "{\"source\":\"Assets/SomeSrc.prefab\"," +
+                    "\"dest\":\"Assets/NonExistentFolder123456/SomeSrc.prefab\"}"));
+            Assert.IsNotNull(ex.InnerException);
+        }
+
         // ── AssetDatabaseHelper export_package / import_package arg validation ──
 
         static string ExecAssetAction(string action, string argsJson) =>
