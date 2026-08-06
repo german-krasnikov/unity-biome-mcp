@@ -85,9 +85,15 @@ class _UnstructuredMCP(FastMCP):
     def add_tool(self, fn, name=None, title=None, description=None,
                  annotations=None, icons=None, meta=None,
                  structured_output=None) -> None:
-        super().add_tool(fn, name=name, title=title, description=description,
+        tool_name = name or fn.__name__
+        if not title:
+            title = tool_name.replace("_", " ").title()
+        super().add_tool(fn, name=tool_name, title=title, description=description,
                          annotations=annotations, icons=icons, meta=meta,
                          structured_output=False)
+        tool = self._tool_manager._tools.get(tool_name)
+        if tool is not None:
+            postprocess_schema(tool_name, tool.parameters)
 
 
 
@@ -117,6 +123,7 @@ from .server_filtering import (
 )
 from .server_lifespan import build_middleware, init_budget, wire_circuit_breaker
 from .tools import register_all
+from .tools._schema_postprocessor import postprocess_schema
 from .tools.animation import animation, animator, particle, timeline  # noqa: F401
 from .tools.animator_intent_tool import animator_intent  # noqa: F401
 from .tools.asset import asset, get_enabled_tools, material, prefab, project_settings, scriptable_object  # noqa: F401

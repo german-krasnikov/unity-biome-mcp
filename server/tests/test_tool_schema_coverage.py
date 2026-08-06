@@ -189,3 +189,28 @@ def test_fastmcp_get_console_since_schema_has_mark_id():
 def test_fastmcp_scene_schema_has_action():
     assert "action" in _props("scene"), \
         "FastMCP must expose 'action' in scene schema"
+
+
+# ---------------------------------------------------------------------------
+# Schema postprocessor integration guards (MCP-LINT compliance)
+# ---------------------------------------------------------------------------
+
+def test_additional_properties_false_on_all_schemas():
+    """After postprocessor runs, all tools with properties have additionalProperties: false."""
+    from unity_mcp.server import mcp
+    missing = [
+        name for name, tool in mcp._tool_manager._tools.items()
+        if tool.parameters.get("properties")
+        and tool.parameters.get("additionalProperties") is not False
+    ]
+    assert not missing, f"Missing additionalProperties:false: {sorted(missing)}"
+
+
+def test_all_registered_tools_have_title():
+    """After postprocessor hook, every registered tool must have a non-empty title."""
+    from unity_mcp.server import mcp
+    missing = [
+        name for name, tool in mcp._tool_manager._tools.items()
+        if not getattr(tool, "title", None)
+    ]
+    assert not missing, f"Tools missing title: {sorted(missing)}"

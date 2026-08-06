@@ -12,7 +12,7 @@ async def package(
     version: str | None = None,
     query: str | None = None,
 ) -> str:
-    """Package manager. action: list|search|add|remove.
+    """Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove.
     list: all installed packages.
     search: query required.
     add: name required, version optional.

@@ -15,7 +15,7 @@ async def asset(action: str, path: str | None = None, type: str | None = None,
                 output: str | None = None, include_deps: bool = True,
                 content: str | None = None,
                 class_name: str | None = None) -> str:
-    """Asset database. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."""
+    """Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."""
     return await _send("asset", _args(
         action=action, path=path, type=type, name=name, folder=folder,
         source=source, dest=dest, prop=prop, value=value,
@@ -29,7 +29,7 @@ async def asset(action: str, path: str | None = None, type: str | None = None,
 async def project_settings(action: str, target: str, prop: str | None = None,
                            value: str | None = None, index: int | None = None,
                            build_target: str | None = None) -> str:
-    """Project settings. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input.
+    """Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input.
     tags set: prop=remove value=<tag> to remove; else adds.
     quality set prop=currentLevel: calls SetQualityLevel().
     player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP)."""
@@ -58,7 +58,7 @@ async def prefab(action: str, path: str | None = None, asset_path: str | None = 
                  recursive: bool = False,
                  mode: str | None = None, scope: str | None = None,
                  format: str | None = None) -> str:
-    """Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.
+    """Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.
     edit: asset_path + component + prop + value (set property on prefab asset).
     edit: asset_path + add_component or remove_component (manage components).
     save: path (scene) + asset_path [+ mode: new|overwrite (default)].
