@@ -55,7 +55,7 @@ namespace UnityMCP.Editor
                 {
                     foreach (var typeName in filterSet)
                     {
-                        var result = ComponentSerializer.Serialize(path, typeName);
+                        var result = ComponentSerializer.Serialize(go, typeName);
                         if (result != null)
                         {
                             sb.Append("[").Append(typeName).AppendLine("]");
