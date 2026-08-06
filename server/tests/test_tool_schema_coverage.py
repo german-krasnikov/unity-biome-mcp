@@ -128,6 +128,31 @@ def test_fastmcp_run_tests_schema_has_params():
         assert p in props, f"'run_tests' missing param '{p}'"
 
 
+# ---------------------------------------------------------------------------
+# P-106: fingerprint path must be optional
+# ---------------------------------------------------------------------------
+
+def test_fingerprint_path_is_optional():
+    """P-106: fingerprint path must NOT appear in JSON schema required[]."""
+    from unity_mcp.server import mcp
+    t = mcp._tool_manager._tools["fingerprint"]
+    required = t.parameters.get("required", [])
+    assert "path" not in required, (
+        "P-106: 'path' marked required in fingerprint JSON schema — must be optional"
+    )
+
+
+def test_fingerprint_path_is_nullable_in_schema():
+    """P-106: fingerprint path schema must accept null (str | None annotation)."""
+    from unity_mcp.server import mcp
+    t = mcp._tool_manager._tools["fingerprint"]
+    path_schema = t.parameters.get("properties", {}).get("path", {})
+    # FastMCP emits anyOf with null for str | None = None
+    any_of = path_schema.get("anyOf", [])
+    has_null = any(s.get("type") == "null" for s in any_of)
+    assert has_null, f"P-106: fingerprint 'path' does not accept null. Got: {path_schema}"
+
+
 def test_fastmcp_run_tests_wait_schema_has_params():
     props = _props("run_tests_wait")
     for p in ("mode", "filter", "timeout", "poll_interval", "request_id"):

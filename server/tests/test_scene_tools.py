@@ -49,3 +49,22 @@ async def test_scene_environment_set_sends_params(scene_mod, _patch_send):
     call_args = _patch_send.call_args
     assert call_args[0][0] == "scene_environment"
     assert call_args[0][1] == {"action": "set", "prop": "fog", "value": "true"}
+
+
+# ── fingerprint ───────────────────────────────────────────────────────────────
+
+async def test_fingerprint_no_path_omits_path_key(scene_mod, _patch_send):
+    """P-106: fingerprint() with no path must NOT include 'path' in TCP args."""
+    await scene_mod.fingerprint()
+
+    args = _patch_send.call_args[0][1]
+    assert "path" not in args, f"path must not appear in args when None; got {args}"
+    assert args.get("depth") == 3
+
+
+async def test_fingerprint_with_path_includes_path_key(scene_mod, _patch_send):
+    """P-106: fingerprint(path='Player') must include path in TCP args."""
+    await scene_mod.fingerprint(path="Player")
+
+    args = _patch_send.call_args[0][1]
+    assert args.get("path") == "Player"

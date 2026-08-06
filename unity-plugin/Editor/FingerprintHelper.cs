@@ -35,6 +35,31 @@ namespace UnityMCP.Editor
             return h;
         }
 
+        // Volatile Unity bookkeeping properties that must not influence the hash.
+        private static readonly System.Collections.Generic.HashSet<string> _volatileProps =
+            new System.Collections.Generic.HashSet<string>
+            {
+                "m_ObjectHideFlags", "m_CorrespondingSourceObject",
+                "m_PrefabInstance", "m_PrefabAsset"
+            };
+
+        // P-108: stable serialization for ObjectReference — uses GUID instead of volatile instanceID.
+        private static string StablePropertyValueString(SerializedProperty prop)
+        {
+            if (prop.propertyType != SerializedPropertyType.ObjectReference)
+                return ComponentSerializer.GetPropertyValueString(prop);
+
+            var obj = prop.objectReferenceValue;
+            if (obj == null) return "null";
+
+            // Asset objects: use stable GUID
+            if (AssetDatabase.TryGetGUIDAndLocalFileIdentifier(obj, out var guid, out long _))
+                return guid;
+
+            // Scene objects: type + name is stable within a session (no instance ID)
+            return obj.GetType().Name + ":" + obj.name;
+        }
+
         private static void AppendFingerprint(StringBuilder sb, Transform t, int maxDepth, int depth)
         {
             sb.Append(t.gameObject.name).Append(':');
@@ -44,8 +69,11 @@ namespace UnityMCP.Editor
                 var so = new SerializedObject(comp);
                 var prop = so.GetIterator();
                 while (prop.NextVisible(true))
+                {
+                    if (_volatileProps.Contains(prop.name)) continue;
                     sb.Append(prop.name).Append('=')
-                      .Append(ComponentSerializer.GetPropertyValueString(prop)).Append(';');
+                      .Append(StablePropertyValueString(prop)).Append(';');
+                }
             }
             if (depth < maxDepth)
                 for (int i = 0; i < t.childCount; i++)
