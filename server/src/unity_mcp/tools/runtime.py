@@ -6,7 +6,8 @@ from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
-from .editor_state import is_play_mode as _is_play_mode, is_paused as _is_paused
+from .editor_state import is_paused as _is_paused
+from .editor_state import is_play_mode as _is_play_mode
 
 _send = None
 _args = None

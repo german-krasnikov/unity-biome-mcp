@@ -674,7 +674,7 @@ class UnityBridge(HeartbeatMixin):
                     *_, future = self._send_queue.get_nowait()
                     if not future.done():
                         future.set_exception(ConnectionError("Bridge closed"))
-                except asyncio.QueueEmpty:
+                except asyncio.QueueEmpty:  # noqa: PERF203
                     break
         w = self._writer
         self._writer = None

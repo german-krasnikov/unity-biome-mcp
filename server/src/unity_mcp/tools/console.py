@@ -1,4 +1,5 @@
 """Console logs + compilation error reporting (B2: split from scene.py)."""
+import contextlib
 import time as _time
 
 from ._annotations import RO as _RO
@@ -75,10 +76,8 @@ async def get_console_since(mark_id: str, level: str | None = None,
     clean_lines = []
     for line in raw.splitlines():
         if line.startswith("#MCP_INTERNAL overflow:"):
-            try:
+            with contextlib.suppress(IndexError, ValueError):
                 overflow_count = int(line.split(":", 1)[1])
-            except (IndexError, ValueError):
-                pass
         elif not line.startswith("#MCP_INTERNAL "):
             clean_lines.append(line)
     if overflow_count > 0:

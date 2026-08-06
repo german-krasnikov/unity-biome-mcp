@@ -2,9 +2,13 @@
 
 from .middleware_types import is_write
 from .tools.editor_state import (
-    parse_editor_field as _parse_editor_field,
-    is_play_mode as _is_play_mode,
     is_paused as _is_paused,
+)
+from .tools.editor_state import (
+    is_play_mode as _is_play_mode,
+)
+from .tools.editor_state import (
+    parse_editor_field as _parse_editor_field,
 )
 
 
