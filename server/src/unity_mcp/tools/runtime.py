@@ -184,13 +184,14 @@ async def run_playtest_suite(
         import asyncio as _asyncio
         state = await _send("editor", _args(action="state"), timeout=5.0)
         _lower = state.lower()
-        if "state: playing" not in _lower and "state: paused" not in _lower:
+        # EditorStateHelper.GetState() returns "playing:True\n..." (colon format)
+        if "playing:true" not in _lower and "paused:true" not in _lower:
             await _send("editor", _args(action="play"), timeout=5.0)
             for _ in range(15):
                 await _asyncio.sleep(1.0)
                 state = await _send("editor", _args(action="state"), timeout=5.0)
                 _lower = state.lower()
-                if "state: playing" in _lower or "state: paused" in _lower:
+                if "playing:true" in _lower or "paused:true" in _lower:
                     break
 
     if suite_path:
@@ -228,10 +229,15 @@ async def run_playtest_suite(
                 for _ in range(15):
                     await _asyncio.sleep(1.0)
                     s = await _send("editor", _args(action="state"), timeout=5.0)
-                    if "state: playing" in s.lower():
+                    if "playing:true" in s.lower():
                         break
-            except Exception:
-                pass  # best-effort
+            except Exception as _e:
+                # P-325: surface lifecycle errors instead of swallowing them
+                _lifecycle_err = f"LIFECYCLE_ERR restart before {filepath}: {_e}"
+                if stop_on_fail:
+                    results.append((filepath, _lifecycle_err, 0.0, False))
+                    break
+                results.append(("(restart)", _lifecycle_err, 0.0, False))
         t0 = _time.monotonic()
         raw = await _send("run_playtest", _args(
             path=filepath,
