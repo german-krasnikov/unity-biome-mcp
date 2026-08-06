@@ -203,7 +203,10 @@ namespace UnityMCP.Editor
                 Debug.LogWarning($"[Screenshot] Camera '{cameraName}' not found; falling back to Main Camera.");
             }
 
-            if (Camera.main != null) return Camera.main;
+            // P-109: Camera.main can return a destroyed Camera during LoadScene frame boundary.
+            // A destroyed UnityEngine.Object passes != null but has a null gameObject.
+            var mainCam = Camera.main;
+            if (mainCam != null && mainCam.gameObject != null) return mainCam;
 
             var allCameras = Camera.allCameras;
             if (allCameras.Length > 0) return allCameras[0];

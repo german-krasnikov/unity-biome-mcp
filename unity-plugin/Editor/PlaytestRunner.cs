@@ -145,6 +145,7 @@ namespace UnityMCP.Editor
                 if (_freshMode && phase == Phase.Ready && stepIdx == 0 && !_freshReloadDone && !_freshLoadInProgress)
                 {
                     _freshLoadInProgress = true;
+                    PrepareForFreshLoad(); // P-109/P-291: stop monitors before scene objects are destroyed
                     UnityEngine.SceneManagement.SceneManager.LoadScene(
                         UnityEngine.SceneManagement.SceneManager.GetActiveScene().name,
                         UnityEngine.SceneManagement.LoadSceneMode.Single);
@@ -161,9 +162,14 @@ namespace UnityMCP.Editor
                     return;
                 }
 
-                // Check invariants and conserved constraints every tick
-                state.CheckInvariants(config, Time.frameCount, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
-                state.CheckConserved(config, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
+                // Check invariants and conserved constraints every tick.
+                // P-291: skip during LoadingFresh — scene objects are destroyed; any
+                // ReadValue call would throw MissingReferenceException.
+                if (phase != Phase.LoadingFresh)
+                {
+                    state.CheckInvariants(config, Time.frameCount, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
+                    state.CheckConserved(config, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
+                }
 
                 var step = steps[stepIdx];
 
@@ -357,6 +363,18 @@ namespace UnityMCP.Editor
         static bool _freshLoadInProgress; // G1: guard against calling LoadScene twice
 
         // ── Test hooks ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Stop all active monitors before a fresh scene load.
+        /// Called by Tick() immediately before SceneManager.LoadScene to prevent
+        /// MissingReferenceException callbacks after GameObjects are destroyed (P-109/P-291).
+        /// Internal so unit tests can verify it clears the monitor registry.
+        /// </summary>
+        internal static void PrepareForFreshLoad()
+        {
+            PlaytestMonitorRegistry.StopAll();
+        }
+
         /// <summary>True when fresh mode should trigger a new scene load (all guards clear).</summary>
         internal static bool ShouldStartFreshLoad => _freshMode && !_freshReloadDone && !_freshLoadInProgress;
 
