@@ -48,11 +48,10 @@ namespace UnityMCP.Editor
             var go = ComponentSerializer.FindObject(path);
             if (go == null) return ErrorHelper.ObjectNotFound(path);
 
+            Physics.SyncTransforms();
             var pos = go.transform.position;
             var sb = new StringBuilder();
             sb.AppendLine($"Position: ({pos.x.ToString("F1", IC)},{pos.y.ToString("F1", IC)},{pos.z.ToString("F1", IC)})");
-
-            Physics.SyncTransforms();
             foreach (var col in go.GetComponentsInChildren<Collider>())
             {
                 var type = col.isTrigger ? "TRIGGER" : "SOLID";
