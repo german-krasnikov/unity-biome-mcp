@@ -258,4 +258,73 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(result);
         }
     }
+
+    // ── P-263: compound helper TIMEOUT must set HasExplicitTimeout ───────────────
+
+    [TestFixture]
+    public class CompoundHelperExplicitTimeoutTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    {
+        [Test]
+        public void SweepPath_UntilWithTimeout_SetsHasExplicitTimeout()
+        {
+            var script = "SWEEP_PATH /Player DWELL 0.1\n1,0,0 > 2,0,0\nUNTIL /P|H|v == 10 TIMEOUT 2";
+            var steps = PlaytestParser.Parse(script);
+            var waitStep = steps.Find(s => s.Type == StepType.WaitUntil);
+            Assert.IsNotNull(waitStep, "WaitUntil step must be emitted");
+            Assert.AreEqual(2f, waitStep.Timeout, 0.001f);
+            Assert.IsTrue(waitStep.HasExplicitTimeout, "HasExplicitTimeout must be true when TIMEOUT present");
+        }
+
+        [Test]
+        public void SweepPath_UntilWithoutTimeout_HasExplicitTimeoutFalse()
+        {
+            var script = "SWEEP_PATH /Player DWELL 0.1\n1,0,0 > 2,0,0\nUNTIL /P|H|v == 10";
+            var steps = PlaytestParser.Parse(script);
+            var waitStep = steps.Find(s => s.Type == StepType.WaitUntil);
+            Assert.IsNotNull(waitStep, "WaitUntil step must be emitted");
+            Assert.IsFalse(waitStep.HasExplicitTimeout, "HasExplicitTimeout must be false when TIMEOUT absent");
+        }
+
+        [Test]
+        public void InvokeRepeat_ExpectWithTimeout_SetsHasExplicitTimeout()
+        {
+            var script = "INVOKE_REPEAT 2 /Player Shooter Fire\nEXPECT /P|H|v == 1 TIMEOUT 3";
+            var steps = PlaytestParser.Parse(script);
+            var waitStep = steps.Find(s => s.Type == StepType.WaitUntil);
+            Assert.IsNotNull(waitStep, "WaitUntil step must be emitted");
+            Assert.AreEqual(3f, waitStep.Timeout, 0.001f);
+            Assert.IsTrue(waitStep.HasExplicitTimeout, "HasExplicitTimeout must be true when TIMEOUT present");
+        }
+
+        [Test]
+        public void InvokeRepeat_ExpectWithoutTimeout_HasExplicitTimeoutFalse()
+        {
+            var script = "INVOKE_REPEAT 1 /Player Shooter Fire\nEXPECT /P|H|v == 1";
+            var steps = PlaytestParser.Parse(script);
+            var waitStep = steps.Find(s => s.Type == StepType.WaitUntil);
+            Assert.IsNotNull(waitStep, "WaitUntil step must be emitted");
+            Assert.IsFalse(waitStep.HasExplicitTimeout, "HasExplicitTimeout must be false when TIMEOUT absent");
+        }
+
+        [Test]
+        public void CompletePurchase_WithTimeout_SetsHasExplicitTimeout()
+        {
+            var script = "COMPLETE_PURCHASE /Shop\nEXPECT /Item|Status|purchased\nTIMEOUT 7";
+            var steps = PlaytestParser.Parse(script);
+            var waitStep = steps.Find(s => s.Type == StepType.WaitUntil);
+            Assert.IsNotNull(waitStep, "WaitUntil step must be emitted");
+            Assert.AreEqual(7f, waitStep.Timeout, 0.001f);
+            Assert.IsTrue(waitStep.HasExplicitTimeout, "HasExplicitTimeout must be true when TIMEOUT present");
+        }
+
+        [Test]
+        public void CompletePurchase_WithoutTimeout_HasExplicitTimeoutFalse()
+        {
+            var script = "COMPLETE_PURCHASE /Shop\nEXPECT /Item|Status|purchased";
+            var steps = PlaytestParser.Parse(script);
+            var waitStep = steps.Find(s => s.Type == StepType.WaitUntil);
+            Assert.IsNotNull(waitStep, "WaitUntil step must be emitted");
+            Assert.IsFalse(waitStep.HasExplicitTimeout, "HasExplicitTimeout must be false when TIMEOUT absent");
+        }
+    }
 }
