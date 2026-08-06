@@ -728,3 +728,14 @@ def test_resolve_scene_refs_not_in_core_not_in_tier1():
     from unity_mcp.tools.gating import _CORE_TOOLS, TIER1
     assert "resolve_scene_refs" not in _CORE_TOOLS
     assert "resolve_scene_refs" not in TIER1
+
+
+# --- P-319: exact TIER1 count assertion ---
+
+def test_tier1_tool_count():
+    """P-319 regression: TIER1 count must match CHANGELOG documentation (34 tools).
+    If this fails, update CHANGELOG.md and this assertion together."""
+    from unity_mcp.tools.gating import TIER1
+    assert len(TIER1) == 34, (
+        f"TIER1 count changed: {len(TIER1)}. Update CHANGELOG.md and this assertion."
+    )

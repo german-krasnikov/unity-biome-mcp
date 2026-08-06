@@ -36,9 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.20.0] — 2026-08-06 — P-12440 Production Backlog Release
 
 ### Phase 1: Tool Surface Reorganization
-- **Tool surface optimization** — Reorganized MCP tool tiers: 47 → 33 always-visible tools (-30% token overhead)
+- **Tool surface optimization** — Reorganized MCP tool tiers: 47 → 34 always-visible tools (-28% token overhead)
   - **CORE tools**: 15 → 13 (demoted `do`, promoted `compile_preflight`, `mcp_status`)
-  - **TIER1**: 47 → 33 total (CORE + 20 category-promoted tools)
+  - **TIER1**: 47 → 34 total (CORE + 21 category-promoted tools)
 - **Demoted to category tools**: `delete_object`, `set_parent`, `scene`, `search_scene` (SCENE), `resolve_scene_refs` (VERIFY)
 - **Demoted from CORE**: `do` → SYSTEM (direct_only=True)
 - **Tool Metadata DRY**: ToolSpec now single source of truth for all tier/category/flag changes (M8 architecture pattern)
