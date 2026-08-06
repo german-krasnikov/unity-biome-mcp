@@ -416,7 +416,6 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SerializeGO_MatchesSerializePath_ForSameObject()
         {
-            // Both overloads must return identical content — no double-FindObject drift.
             var byPath = ComponentSerializer.Serialize("/OM_TestObj", "Transform");
             var byGo   = ComponentSerializer.Serialize(_go, "Transform");
             Assert.AreEqual(byPath, byGo, "Serialize(go, type) and Serialize(path, type) must return same content");
@@ -425,9 +424,6 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SerializeGO_NestedObject_ReturnsComponent()
         {
-            // P-107 root scenario: get_component on a freshly-created nested object
-            // must not produce a STATE error. Simulate by calling Serialize(go, type)
-            // directly (ExecGetComponent path) without a second FindObject.
             var parent = new GameObject("P107_Parent");
             var child  = new GameObject("P107_Child");
             RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(parent));
@@ -435,6 +431,42 @@ namespace UnityMCP.Editor.Tests
 
             var result = ComponentSerializer.Serialize(child, "Transform");
             Assert.IsNotNull(result, "Nested object: Serialize(go, type) must return data, not STATE error");
+        }
+
+        // ── P-210: RectTransform substitution for UI objects ──────────────────
+
+        [Test]
+        public void FindComponent_UIObject_TransformRequest_ReturnsRectTransform()
+        {
+            var uiGo = new GameObject("P210_UIObj", typeof(RectTransform));
+            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(uiGo));
+
+            var result = ComponentSerializer.FindComponent(uiGo, "Transform");
+
+            Assert.IsNotNull(result, "FindComponent must return RectTransform when Transform requested on UI object");
+            Assert.IsInstanceOf<RectTransform>(result);
+        }
+
+        [Test]
+        public void FindComponent_NormalObject_TransformRequest_ReturnsTransform()
+        {
+            var result = ComponentSerializer.FindComponent(_go, "Transform");
+
+            Assert.IsNotNull(result);
+            Assert.IsTrue(result.GetType() == typeof(Transform),
+                "Normal 3D object must return Transform, not a subtype");
+        }
+
+        [Test]
+        public void Serialize_UIObject_TransformRequest_ReturnsContent()
+        {
+            var uiGo = new GameObject("P210_Serialize", typeof(RectTransform));
+            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(uiGo));
+
+            var result = ComponentSerializer.Serialize("/P210_Serialize", "Transform");
+
+            Assert.IsNotNull(result, "Serialize must return data when Transform requested on UI object");
+            StringAssert.Contains("m_LocalPosition", result);
         }
     }
 }
