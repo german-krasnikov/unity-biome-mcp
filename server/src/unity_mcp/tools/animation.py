@@ -71,7 +71,7 @@ async def animator(action: str, path: str,
                    blending: str | None = None,
                    value: str | None = None,
                    avatar_path: str | None = None) -> str:
-    """Animator Controller — state machine (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param.
+    """Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param.
     params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'.
     conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState).
     blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct.
@@ -86,7 +86,7 @@ async def animator(action: str, path: str,
         action=action, path=path, state=state, states=states, params=params,
         source=source, target=target, conditions=conditions,
         duration=duration, exit_time=exit_time,
-        has_exit_time="true" if has_exit_time else None,
+        has_exit_time=("true" if has_exit_time is True else "false" if has_exit_time is False else None),
         type=type, name=name, blend_type=blend_type, param=param,
         param_y=param_y, children=children, edit_action=edit_action,
         layer=layer, weight=weight, blending=blending,

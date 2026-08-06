@@ -361,7 +361,7 @@ async def run_tests_wait(
     poll_interval: float = 5.0,
     request_id: str | None = None,
 ) -> str:
-    """Dispatch tests and wait for the exact run to become terminal.
+    """Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required.
 
     Transport failures and domain reloads do not erase the last snapshot. A
     caller timeout is observational only: it returns ``TIMEOUT`` with request,

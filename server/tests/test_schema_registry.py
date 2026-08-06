@@ -32,7 +32,8 @@ def test_get_full_unknown_returns_none():
 
 def test_stub_schema_is_minimal():
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
-    assert STUB_SCHEMA == {"type": "object"}
+    # additionalProperties: false set directly — deferred tools get STUB_SCHEMA without postprocessor
+    assert STUB_SCHEMA == {"type": "object", "properties": {}, "additionalProperties": False}
 
 
 def test_format_text_single_tool():

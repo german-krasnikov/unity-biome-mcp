@@ -7,7 +7,7 @@ _args = None
 
 
 async def auto_wire(path: str, dry_run: bool = False) -> str:
-    """Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects.
+    """Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.
     dry_run=true previews without applying. Returns wired/ambiguous/no-match summary."""
     return await _send("auto_wire", _args(path=path, dry_run="true" if dry_run else None))
 

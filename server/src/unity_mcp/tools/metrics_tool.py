@@ -1,13 +1,13 @@
-"""get_metrics MCP tool — read-only telemetry snapshot."""
+"""get_metrics MCP tool — telemetry snapshot (resets counters when reset=True)."""
 import json as _json
 
 from ..metrics import METRICS
-from ._annotations import RO as _RO
+from ._annotations import RW as _RW
 from ._common import bind
 
 
 async def get_metrics(format: str = "text", reset: bool = False) -> str:
-    """Returns telemetry snapshot. format: text|json. reset=true clears counters atomically."""
+    """Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."""
     if reset:
         snap = METRICS.snapshot_and_reset()
         if format == "json":
@@ -32,4 +32,4 @@ def _format_snapshot(snap: dict) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(get_metrics)
+    mcp.tool(annotations=_RW)(get_metrics)

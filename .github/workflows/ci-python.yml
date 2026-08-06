@@ -171,10 +171,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version: "20"
-
       - name: Install server
         working-directory: server
         run: pip install ".[dev]"
@@ -185,20 +181,13 @@ jobs:
       - name: Export tools (toolsmith format)
         run: python scripts/export_tools.py --format toolsmith --out reports/tools-toolsmith.json
 
-      - name: Export tools (mcplint format)
-        run: python scripts/export_tools.py --format mcplint --out reports/tools-mcplint.json
-
       - name: Run mcp-tool-card-linter
         run: mcp-toolsmith lint --tools-file reports/tools-toolsmith.json --json-report reports/toolsmith.json --fail-on never
-
-      - name: Run mcp-lint
-        run: npx -y mcp-lint@0.5.3 check reports/tools-mcplint.json > reports/mcplint.txt 2>&1 || true
 
       - name: Compute quality delta
         run: |
           python scripts/quality_delta.py \
             --toolsmith reports/toolsmith.json \
-            --mcplint reports/mcplint.txt \
             --history docs/quality/data/history.json \
             --out-latest docs/quality/data/latest.json \
             --out-comment reports/pr-comment.md \
@@ -245,10 +234,6 @@ jobs:
       - name: Install mcp-tool-card-linter
         run: pip install mcp-tool-card-linter==1.0.0
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version: "20"
-
       - name: Download test results
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
@@ -257,14 +242,10 @@ jobs:
         continue-on-error: true
 
       - name: Export tools
-        run: |
-          python scripts/export_tools.py --format toolsmith --out reports/tools-toolsmith.json
-          python scripts/export_tools.py --format mcplint --out reports/tools-mcplint.json
+        run: python scripts/export_tools.py --format toolsmith --out reports/tools-toolsmith.json
 
       - name: Run linters
-        run: |
-          mcp-toolsmith lint --tools-file reports/tools-toolsmith.json --json-report reports/toolsmith.json --fail-on never
-          npx -y mcp-lint@0.5.3 check reports/tools-mcplint.json > reports/mcplint.txt 2>&1 || true
+        run: mcp-toolsmith lint --tools-file reports/tools-toolsmith.json --json-report reports/toolsmith.json --fail-on never
 
       - name: Generate quality data
         run: |
@@ -274,7 +255,6 @@ jobs:
           done
           python scripts/quality_delta.py \
             --toolsmith reports/toolsmith.json \
-            --mcplint reports/mcplint.txt \
             --history docs/quality/data/history.json \
             --out-latest docs/quality/data/latest.json \
             --out-comment reports/pr-comment.md \

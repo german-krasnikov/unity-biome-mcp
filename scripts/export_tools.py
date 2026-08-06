@@ -33,11 +33,18 @@ def _load_tools() -> list[dict]:
         if name in internal:
             continue
         tool = tools_map[name]
-        result.append({
+        entry = {
             "name": name,
+            "title": tool.title,
             "description": tool.description,
             "inputSchema": tool.parameters,
-        })
+        }
+        ann = getattr(tool, "annotations", None)
+        if ann is not None:
+            entry["annotations"] = {
+                k: v for k, v in ann.model_dump().items() if v is not None
+            }
+        result.append(entry)
     return result
 
 

@@ -15,9 +15,10 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 # ---------------------------------------------------------------------------
 
 class FakeTool:
-    def __init__(self, desc: str, params: dict):
+    def __init__(self, desc: str, params: dict, title: str = ""):
         self.description = desc
         self.parameters = params
+        self.title = title or desc
 
 
 FAKE_SPECS = {
@@ -131,8 +132,17 @@ def test_each_tool_has_required_fields():
     result = json.loads(mod.export_json(fmt="toolsmith"))
     for tool in result["tools"]:
         assert "name" in tool, f"missing 'name' in {tool}"
+        assert "title" in tool, f"missing 'title' in {tool}"
         assert "description" in tool, f"missing 'description' in {tool}"
         assert "inputSchema" in tool, f"missing 'inputSchema' in {tool}"
+
+
+def test_tool_title_matches_tool_object():
+    """title field must come from tool.title, not be derived inline."""
+    mod = _load_export_tools()
+    result = json.loads(mod.export_json(fmt="toolsmith"))
+    by_name = {t["name"]: t for t in result["tools"]}
+    assert by_name["batch"]["title"] == FAKE_TOOLS["batch"].title
 
 
 def test_missing_tool_manager_raises():

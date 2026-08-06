@@ -168,7 +168,7 @@ async def run_playtest_suite(
     auto_play: bool = False,
     restart_between: bool = False,
 ) -> str:
-    """[Play Mode] Run multiple .playtest files sequentially and return a compact matrix.
+    """[Play Mode] Run multiple .playtest files sequentially and return a compact matrix. Enters Play Mode. No confirmation required.
     pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,
              or newline-separated list of project-relative paths.
     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).
@@ -282,12 +282,10 @@ async def lint_playtest(
     path: "str | None" = None,
     script: "str | None" = None,
 ) -> str:
-    """Read-only preflight check on a .playtest file or inline script.
-    Checks: unresolved $alias, deprecated ALIAS, TRACE_FLOW (unimplemented), CALL unknown macro,
-    mixed AND/OR, no evidence commands, missing ASSERT_CONSOLE_CLEAN at end.
+    """Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list.
+    Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN.
     path: project-relative path to .playtest file.
-    script: inline DSL to lint (mutually exclusive with path).
-    Returns: OK or severity-tagged issues (ERROR/WARN/INFO) with file:line."""
+    script: inline DSL (mutually exclusive with path)."""
     if path and script:
         raise ValueError("path and script are mutually exclusive")
     if not path and not script:
