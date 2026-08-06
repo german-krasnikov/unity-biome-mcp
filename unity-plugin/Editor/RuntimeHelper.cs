@@ -88,6 +88,13 @@ namespace UnityMCP.Editor
                 {
                     method = scored[0];
                 }
+                else if (scored.Count == 0)
+                {
+                    var expected = candidates.Select(m => ParamScore(m).ToString()).Distinct();
+                    throw new ArgumentException(
+                        $"Not enough or too many args for '{methodName}': " +
+                        $"supplied {suppliedParts}, expected one of [{string.Join(", ", expected)}] arg slots.");
+                }
                 else
                 {
                     var sigs = candidates.Select(m =>

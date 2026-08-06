@@ -79,12 +79,14 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void WireEvent_SingleOverloadMethod_ResolvesComponentNotGameObject()
         {
-            // AudioSource.Stop() has one public overload — should resolve AudioSource
+            // AudioSource.Pause() is AudioSource-exclusive (Animator has no Pause method)
+            // and has exactly one overload — ensures component, not GameObject, is resolved.
+            // Note: Stop() is avoided because Unity 6 added Animator.Stop() and AudioSource.Stop(bool).
             _tgtGo.AddComponent<AudioSource>();
 
             var result = ObjectManager.WireEvent(
                 "/EW_Source", "Button", "onClick",
-                "/EW_Target", "Stop", "void", null);
+                "/EW_Target", "Pause", "void", null);
 
             var so = new SerializedObject(_srcGo.GetComponent<UnityEngine.UI.Button>());
             var calls = so.FindProperty("m_OnClick.m_PersistentCalls.m_Calls");
@@ -101,12 +103,13 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void WireEvent_TargetComponentType_NarrowsToSpecifiedComponent()
         {
-            // Target has Animator + AudioSource; request Stop() on AudioSource only
+            // Target has Animator + AudioSource; request Pause() on AudioSource only.
+            // Note: Stop() is avoided because Unity 6 added AudioSource.Stop(bool) overload.
             _tgtGo.AddComponent<AudioSource>();
 
             var result = ObjectManager.WireEvent(
                 "/EW_Source", "Button", "onClick",
-                "/EW_Target", "Stop", "void", null,
+                "/EW_Target", "Pause", "void", null,
                 targetComponentType: "AudioSource");
 
             var so = new SerializedObject(_srcGo.GetComponent<UnityEngine.UI.Button>());
