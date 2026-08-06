@@ -182,17 +182,16 @@ namespace UnityMCP.Editor
                 Prune(t);
             }
 
-            // Evict samples older than 2 seconds beyond what we need (safety margin)
-            public void Prune(float now)
+            public void Prune(float now, float windowDuration = 2f)
             {
-                while (_samples.Count > 0 && now - _samples.Peek().t > 2f)
+                while (_samples.Count > 0 && now - _samples.Peek().t > windowDuration + 0.5f)
                     _samples.Dequeue();
             }
 
             /// <summary>Max-min over the last windowDuration seconds; float.MaxValue if fewer than 2 samples.</summary>
             public float Range(float windowDuration, float now)
             {
-                Prune(now);
+                Prune(now, windowDuration);
                 float min = float.MaxValue, max = float.MinValue;
                 int count = 0;
                 foreach (var s in _samples)

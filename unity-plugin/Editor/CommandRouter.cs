@@ -90,16 +90,15 @@ namespace UnityMCP.Editor
                 var id = JsonHelper.ExtractString(json, "id");
                 var cmd = JsonHelper.ExtractString(json, "cmd");
 
-                // P-322: check retry_op_id first — if Unity already executed this op,
-                // return a dedup sentinel without re-executing (idempotent retry safety).
                 var retryOpId = JsonHelper.ExtractString(json, "retry_op_id");
-                if (retryOpId != null && !_dedupRegistry.TryRegister(retryOpId))
-                    return JsonHelper.FormatResponse(id, true, "DEDUP: already executed", null);
+                if (retryOpId != null)
+                {
+                    var cachedResult = _dedupRegistry.TryGetResult(retryOpId);
+                    if (cachedResult != null)
+                        return JsonHelper.FormatResponse(id, true, cachedResult, null);
+                }
 
-                // Register the primary op_id so future retries can be detected.
                 var opId = JsonHelper.ExtractString(json, "op_id");
-                if (opId != null)
-                    _dedupRegistry.TryRegister(opId);
 
                 var guard = CheckGuards(id, cmd);
                 if (guard != null) return guard;
@@ -162,7 +161,10 @@ namespace UnityMCP.Editor
                 }
                 if (batchHasErrors)
                     return JsonHelper.FormatResponse(id, false, null, data);
-                return BuildResponse(id, data, CommandRegistry.GetMaxResponseChars(cmd));
+                var response = BuildResponse(id, data, CommandRegistry.GetMaxResponseChars(cmd));
+                if (opId != null)
+                    _dedupRegistry.TryRegister(opId, data);
+                return response;
             }
             catch (Exception e)
             {

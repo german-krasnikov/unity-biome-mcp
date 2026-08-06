@@ -17,7 +17,7 @@ namespace UnityMCP.Editor
         internal const double TtlSeconds = 300.0;
         private const int EvictEveryN = 16;
 
-        private readonly Dictionary<string, long> _store = new Dictionary<string, long>(Capacity);
+        private readonly Dictionary<string, (long ts, string result)> _store = new Dictionary<string, (long, string)>(Capacity);
         private readonly Func<long> _clock;
         private int _sinceLastEvict;
 
@@ -28,30 +28,23 @@ namespace UnityMCP.Editor
 
         internal int Count => _store.Count;
 
-        /// <summary>
-        /// Attempts to register op_id as "executed".
-        /// Returns true (first time) or false (duplicate within TTL).
-        /// </summary>
-        internal bool TryRegister(string opId)
+        internal bool TryRegister(string opId, string result = null)
         {
             if (string.IsNullOrEmpty(opId))
                 return true;
 
-            if (_store.TryGetValue(opId, out var ts))
+            if (_store.TryGetValue(opId, out var entry))
             {
-                // Already registered — check if still within TTL.
-                long ageMs = (_clock() - ts) / TimeSpan.TicksPerMillisecond;
+                long ageMs = (_clock() - entry.ts) / TimeSpan.TicksPerMillisecond;
                 if (ageMs < TtlSeconds * 1000)
-                    return false;  // duplicate; suppress re-execution
-                // Expired — remove and re-register below.
+                    return false;
                 _store.Remove(opId);
             }
 
-            // Evict stale entries before adding to stay within capacity.
             if (_store.Count >= Capacity)
                 EvictOldest();
 
-            _store[opId] = _clock();
+            _store[opId] = (_clock(), result);
 
             _sinceLastEvict++;
             if (_sinceLastEvict >= EvictEveryN)
@@ -63,28 +56,34 @@ namespace UnityMCP.Editor
             return true;
         }
 
-        /// <summary>Removes all entries older than TTL.</summary>
+        internal string TryGetResult(string opId)
+        {
+            if (string.IsNullOrEmpty(opId) || !_store.TryGetValue(opId, out var entry))
+                return null;
+            long ageMs = (_clock() - entry.ts) / TimeSpan.TicksPerMillisecond;
+            return ageMs < TtlSeconds * 1000 ? entry.result : null;
+        }
+
         internal void Evict()
         {
             long cutoff = _clock() - (long)(TtlSeconds * TimeSpan.TicksPerSecond);
             var toRemove = new List<string>();
             foreach (var kv in _store)
             {
-                if (kv.Value < cutoff)
+                if (kv.Value.ts < cutoff)
                     toRemove.Add(kv.Key);
             }
             foreach (var key in toRemove)
                 _store.Remove(key);
         }
 
-        /// <summary>Evicts the oldest entry when at capacity.</summary>
         private void EvictOldest()
         {
             string oldest = null;
             long minTs = long.MaxValue;
             foreach (var kv in _store)
             {
-                if (kv.Value < minTs) { minTs = kv.Value; oldest = kv.Key; }
+                if (kv.Value.ts < minTs) { minTs = kv.Value.ts; oldest = kv.Key; }
             }
             if (oldest != null)
                 _store.Remove(oldest);

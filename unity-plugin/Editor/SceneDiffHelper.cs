@@ -10,7 +10,7 @@ namespace UnityMCP.Editor
 
         // P-021: strip volatile #instanceID tokens before line comparison.
         internal static string NormalizeSnapshot(string text)
-            => Regex.Replace(text, @"\s*#\d+", "");
+            => Regex.Replace(text, @"\s+#\d+", "");
 
         public static string Diff()
         {

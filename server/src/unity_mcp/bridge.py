@@ -260,6 +260,10 @@ class UnityBridge(HeartbeatMixin):
                 result = await self._send_with_retry(cmd, payload, msg_id, timeout, deadline, op_id)
                 if not future.done():
                     future.set_result(result)
+            except asyncio.CancelledError:
+                if not future.done():
+                    future.cancel()
+                raise
             except Exception as exc:  # noqa: BLE001
                 if not future.done():
                     future.set_exception(exc)

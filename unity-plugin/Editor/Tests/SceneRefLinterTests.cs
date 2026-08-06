@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void LintScript_CleanScript_ExistingObject_ReturnsEmpty()
         {
-            new GameObject("LintPlayer");
+            TrackOwnedObject(new GameObject("LintPlayer"));
             var issues = SceneRefLinter.LintScript("ASSERT /LintPlayer|Transform|position == 0,0,0");
             Assert.AreEqual(0, issues.Count);
         }
@@ -130,7 +130,7 @@ namespace UnityMCP.Editor.Tests
             // Neither naive split nor SplitTokens change the space-split here;
             // the G14 comma handler must produce "/path" and "0" where "0" fails IsPathToken.
             var script = "INVOKE /LintPlayer FillPrimaryItemByPath /item_path,0";
-            new GameObject("LintPlayer");
+            TrackOwnedObject(new GameObject("LintPlayer"));
             // Only "/item_path" (missing) may be flagged; "0" must never appear as an issue token.
             var issues = SceneRefLinter.LintScript(script);
             foreach (var issue in issues)

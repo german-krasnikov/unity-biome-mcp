@@ -276,6 +276,11 @@ namespace UnityMCP.Editor
                 if (bt > 0 && t.Name.Substring(0, bt).Equals(shortName, System.StringComparison.OrdinalIgnoreCase))
                     return comp;
             }
+            if (shortName == "Transform")
+            {
+                var rt = go.GetComponent<RectTransform>();
+                if (rt != null) return rt;
+            }
             return null;
         }
 
