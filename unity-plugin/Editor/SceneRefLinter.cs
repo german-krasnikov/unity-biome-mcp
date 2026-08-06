@@ -50,8 +50,7 @@ namespace UnityMCP.Editor
                 var trimmed = lines[i].Trim();
                 if (string.IsNullOrEmpty(trimmed) || trimmed[0] == '#') continue;
 
-                var tokens = trimmed.Split(new[] { ' ', '\t' },
-                    System.StringSplitOptions.RemoveEmptyEntries);
+                var tokens = PlaytestParser.SplitTokens(trimmed);
                 if (tokens.Length == 0) continue;
                 if (_skipLineKeys.Contains(tokens[0])) continue;
 
