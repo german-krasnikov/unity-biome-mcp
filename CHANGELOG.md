@@ -10,6 +10,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Tool schema postprocessor pipeline** — Injects parameter descriptions and `additionalProperties: false` on all tool schemas at registration; zero runtime cost
+- **Parameter descriptions in tool schemas** — 197 descriptions centralized in `_param_descriptions.py`, with per-tool overrides and common fallbacks (e.g. `path`, `compress`, `timeout`)
+- **Tool title auto-generation** — All 148 MCP tools now have a canonical title in their schema
+- **Side-effect and confirmation clarity** — Added "Modifies/Deletes/Enters X. No confirmation required." to 16 tools: `animator`, `asset`, `auto_wire`, `get_metrics`, `prefab`, `project_settings`, `wire_event`, `unwire_event`, `delete_object`, `manage_component`, `package`, `run_playtest_suite`, `region_clear`, `navmesh_query`, `run_tests_wait`, `shader`, `watch`
+
+### Fixed
+- **Animator `has_exit_time=False` bug** — Transition exit time now correctly sends "false" instead of None when `has_exit_time=False`
+- **get_metrics annotation** — Changed from RO (read-only) to RW (read-write) because `reset=True` mutates telemetry counters; no confirmation required when resetting
+
+### Changed
+- **Tool annotation semantics** — `get_metrics` is now explicitly mutable (RW) rather than read-only (RO)
+- **CI linting pipeline** — Removed `mcp-lint` NodeJS tool; all schema validation now via `mcp-tool-card-linter` (Python-based, single linter)
+- **Export tools format** — `export_tools.py --format toolsmith` now includes tool titles and annotations in output
+
+### Test Coverage
+- **Python unit tests**: 5561 total (was 5545, +16) — server + scripts + install
+- **C# EditMode tests**: 7268 passing (Unity 6000.0.65f1)
+- **Live integration tests**: 277/278 passing
+
 ## [v1.21.0] — 2026-08-06
 
 ### Fixed
