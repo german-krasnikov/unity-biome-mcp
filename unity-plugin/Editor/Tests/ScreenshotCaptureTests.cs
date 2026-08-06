@@ -129,5 +129,32 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(File.Exists(fullPath), result);
             StringAssert.Contains(fullPath, result);
         }
+
+        // ── P-317: PNG dimension validation ──────────────────────────────────
+
+        [Test]
+        public void ReadPngDimensions_ValidHeader_ReturnsCorrectWidthHeight()
+        {
+            // Minimal 24-byte buffer: PNG signature (8) + IHDR length (4) + "IHDR" (4) + width (4) + height (4)
+            // width=640 (0x00000280), height=480 (0x000001E0)
+            var png = new byte[]
+            {
+                137, 80, 78, 71, 13, 10, 26, 10, // PNG signature
+                0, 0, 0, 13,                      // IHDR chunk length
+                73, 72, 68, 82,                   // "IHDR"
+                0, 0, 2, 128,                     // width = 640
+                0, 0, 1, 224,                     // height = 480
+            };
+            var (w, h) = ScreenshotCapture.ReadPngDimensions(png);
+            Assert.AreEqual(640, w);
+            Assert.AreEqual(480, h);
+        }
+
+        [Test]
+        public void ReadPngDimensions_TruncatedData_ThrowsArgumentException()
+        {
+            var shortPng = new byte[10]; // < 24 bytes required
+            Assert.Throws<ArgumentException>(() => ScreenshotCapture.ReadPngDimensions(shortPng));
+        }
     }
 }
