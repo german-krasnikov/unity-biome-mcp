@@ -154,6 +154,9 @@ class UnityBridge(HeartbeatMixin):
             probe=self._probe, reload=self._reload,
             is_retry_safe=self._is_retry_safe, max_retries=MAX_RETRIES,
         )
+        # P-092: serialize concurrent requests through a single consumer task.
+        self._send_queue: asyncio.Queue = asyncio.Queue()
+        self._queue_consumer_task: asyncio.Task | None = None
 
     @property
     def _startup_grace_expired(self) -> bool:
@@ -220,7 +223,35 @@ class UnityBridge(HeartbeatMixin):
         if len(payload) > 10_000_000:
             raise ConnectionError(f"Outbound payload too large: {len(payload)} bytes (max 10MB)")
         session_deadline = time.monotonic() + SESSION_TIMEOUT
-        return await self._send_with_retry(cmd, payload, msg_id, timeout, session_deadline)
+        future: asyncio.Future = asyncio.get_event_loop().create_future()
+        if self._queue_consumer_task is None or self._queue_consumer_task.done():
+            self._queue_consumer_task = asyncio.ensure_future(self._queue_consumer())
+        await self._send_queue.put((cmd, payload, msg_id, timeout, session_deadline, future))
+        try:
+            return await future
+        except asyncio.CancelledError:
+            await self.close()
+            raise
+
+    async def _queue_consumer(self) -> None:
+        """Serial consumer: processes one send at a time so the circuit breaker
+        and TCP socket always see exactly one in-flight request (P-092)."""
+        while True:
+            try:
+                cmd, payload, msg_id, timeout, deadline, future = (
+                    await self._send_queue.get()
+                )
+            except asyncio.CancelledError:
+                break
+            try:
+                result = await self._send_with_retry(cmd, payload, msg_id, timeout, deadline)
+                if not future.done():
+                    future.set_result(result)
+            except Exception as exc:  # noqa: BLE001
+                if not future.done():
+                    future.set_exception(exc)
+            finally:
+                self._send_queue.task_done()
 
     async def _send_with_retry(self, cmd: str, payload: bytes,
                                msg_id: str, timeout: float, session_deadline: float) -> dict:
@@ -600,6 +631,19 @@ class UnityBridge(HeartbeatMixin):
     async def close(self):
         if asyncio.current_task() is not self._heartbeat_task:
             self.stop_heartbeat()
+        if asyncio.current_task() is not self._queue_consumer_task:
+            task, self._queue_consumer_task = self._queue_consumer_task, None
+            if task is not None and not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+            while not self._send_queue.empty():
+                try:
+                    *_, future = self._send_queue.get_nowait()
+                    if not future.done():
+                        future.set_exception(ConnectionError("Bridge closed"))
+                except asyncio.QueueEmpty:
+                    break
         w = self._writer
         self._writer = None
         self._reader = None
