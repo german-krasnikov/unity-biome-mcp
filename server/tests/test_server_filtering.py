@@ -382,7 +382,7 @@ def test_read_unity_port_pid_alive_candidate_always_included(tmp_path):
 
     with (
         patch("unity_mcp.server_filtering.Path") as mock_path_cls,
-        patch("os.kill"),  # PID alive, no exception
+        patch("unity_mcp.server_filtering._is_pid_alive", return_value=True),  # all platforms
         patch.dict("os.environ", {}, clear=False),
     ):
         mock_home = MagicMock()
@@ -412,7 +412,7 @@ def test_read_unity_port_cyrillic_project_path_parses_correctly(tmp_path):
 
     with (
         patch("unity_mcp.server_filtering._tcp_probe", return_value=True),
-        patch("os.kill"),  # PID alive
+        patch("unity_mcp.server_filtering._is_pid_alive", return_value=True),  # all platforms
         patch.object(Path, "home", return_value=tmp_path),
     ):
         from unity_mcp import server_filtering

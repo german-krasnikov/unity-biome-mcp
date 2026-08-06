@@ -1,23 +1,23 @@
 # Quality Report
 
-> Auto-generated on **2026-08-05** from commit `0c81358` (v1.19.0)
+> Auto-generated on **2026-08-06** from commit `4c0b183` (v1.20.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.19.0 |
-| Commit | `0c81358` |
-| Date | 2026-08-05 |
+| Version | v1.20.0 |
+| Commit | `4c0b183` |
+| Date | 2026-08-06 |
 | MCP Tools | 148 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.12) | 4595 | 0 | 3 | 4598 | ✅ |
+| Python Server (3.12) | 4605 | 0 | 3 | 4608 | ✅ |
 | Python Install | 76 | 0 | 0 | 76 | ✅ |
-| Python Scripts | 344 | 0 | 0 | 344 | ✅ |
+| Python Scripts | 347 | 0 | 0 | 347 | ✅ |
 | C# EditMode (Linux) | 7087 | 0 | 160 | 7247 | ✅ |
 | C# EditMode (Windows) | 6974 | 0 | 273 | 7247 | ✅ |
 | C# EditMode (macOS) | 7087 | 0 | 160 | 7247 | ✅ |
@@ -26,8 +26,8 @@
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 19 | 597 | 72.82/100 |
-| mcp-lint | 695 | 1156 | — |
+| mcp-tool-card-linter | 19 | 597 | 72.8/100 |
+| mcp-lint | 699 | 1162 | — |
 
 ### Per-Tool Scores
 
@@ -57,12 +57,12 @@
 | `?` | 57 | 0 | 0 | — |
 | `?` | 58 | 0 | 0 | — |
 | `?` | 58 | 0 | 0 | — |
-| `?` | 59 | 0 | 0 | — |
+| `?` | 58 | 0 | 0 | — |
+| `?` | 61 | 0 | 0 | — |
 | `?` | 61 | 0 | 0 | — |
 | `?` | 61 | 0 | 0 | — |
 | `?` | 62 | 0 | 0 | — |
 | `?` | 62 | 0 | 0 | — |
-| `?` | 63 | 0 | 0 | — |
 | `?` | 64 | 0 | 0 | — |
 | `?` | 64 | 0 | 0 | — |
 | `?` | 64 | 0 | 0 | — |
@@ -1382,7 +1382,7 @@
 - ✖ Property at "inputSchema.properties.scope" has a `default` value but no `type`. Cursor requires an explicit type when defaults are present.
 - ✖ Property at "inputSchema.properties.format" has a `default` value but no `type`. Cursor requires an explicit type when defaults are present.
 - ⚠ Tool "prefab" is missing a `title`. Cursor can display raw tool names without it.
-- ⚠ Tool "prefab" description is 450 characters. Cline truncates at 200.
+- ⚠ Tool "prefab" description is 530 characters. Cline truncates at 200.
 - ✖ Tool "prefab" is missing `additionalProperties: false` on inputSchema. Required for OpenAI Agents SDK strict mode.
 
 #### `profile`
@@ -1555,9 +1555,13 @@
 - ⚠ Parameter "path" in tool "run_playtest" is missing a description.
 - ⚠ Parameter "snapshot_on_failure" in tool "run_playtest" is missing a description.
 - ⚠ Parameter "fresh" in tool "run_playtest" is missing a description.
+- ⚠ Parameter "before_hook" in tool "run_playtest" is missing a description.
+- ⚠ Parameter "after_hook" in tool "run_playtest" is missing a description.
 - ✖ Keyword "anyOf" at "inputSchema.properties.script" is not in the MCP-supported JSON Schema subset and is not reliably supported across clients.
 - ✖ Keyword "anyOf" at "inputSchema.properties.defs" is not in the MCP-supported JSON Schema subset and is not reliably supported across clients.
 - ✖ Keyword "anyOf" at "inputSchema.properties.path" is not in the MCP-supported JSON Schema subset and is not reliably supported across clients.
+- ✖ Keyword "anyOf" at "inputSchema.properties.before_hook" is not in the MCP-supported JSON Schema subset and is not reliably supported across clients.
+- ✖ Keyword "anyOf" at "inputSchema.properties.after_hook" is not in the MCP-supported JSON Schema subset and is not reliably supported across clients.
 - ⚠ Parameter "script" in tool "run_playtest" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "timeout" in tool "run_playtest" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "abort_on_fail" in tool "run_playtest" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
@@ -1565,9 +1569,13 @@
 - ⚠ Parameter "path" in tool "run_playtest" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "snapshot_on_failure" in tool "run_playtest" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "fresh" in tool "run_playtest" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
+- ⚠ Parameter "before_hook" in tool "run_playtest" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
+- ⚠ Parameter "after_hook" in tool "run_playtest" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ✖ Property at "inputSchema.properties.script" has a `default` value but no `type`. Cursor requires an explicit type when defaults are present.
 - ✖ Property at "inputSchema.properties.defs" has a `default` value but no `type`. Cursor requires an explicit type when defaults are present.
 - ✖ Property at "inputSchema.properties.path" has a `default` value but no `type`. Cursor requires an explicit type when defaults are present.
+- ✖ Property at "inputSchema.properties.before_hook" has a `default` value but no `type`. Cursor requires an explicit type when defaults are present.
+- ✖ Property at "inputSchema.properties.after_hook" has a `default` value but no `type`. Cursor requires an explicit type when defaults are present.
 - ⚠ Tool "run_playtest" is missing a `title`. Cursor can display raw tool names without it.
 - ⚠ Tool "run_playtest" description is 752 characters. Cline truncates at 200.
 - ✖ Tool "run_playtest" is missing `additionalProperties: false` on inputSchema. Required for OpenAI Agents SDK strict mode.
@@ -1695,7 +1703,7 @@
 - ⚠ Parameter "targets" in tool "scene_change_plan" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "dry_run" in tool "scene_change_plan" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Tool "scene_change_plan" is missing a `title`. Cursor can display raw tool names without it.
-- ⚠ Tool "scene_change_plan" description is 206 characters. Cline truncates at 200.
+- ⚠ Tool "scene_change_plan" description is 269 characters. Cline truncates at 200.
 - ✖ Tool "scene_change_plan" is missing `additionalProperties: false` on inputSchema. Required for OpenAI Agents SDK strict mode.
 
 #### `scene_diff`
@@ -2413,12 +2421,14 @@
 - ⚠ Parameter "playtests" in tool "verify_after_change" is missing a description.
 - ⚠ Parameter "mark_id" in tool "verify_after_change" is missing a description.
 - ⚠ Parameter "timeout" in tool "verify_after_change" is missing a description.
+- ⚠ Parameter "restart_between" in tool "verify_after_change" is missing a description.
 - ⚠ Parameter "changed_files" in tool "verify_after_change" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "test_filter" in tool "verify_after_change" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "run_tests_mode" in tool "verify_after_change" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "playtests" in tool "verify_after_change" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "mark_id" in tool "verify_after_change" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Parameter "timeout" in tool "verify_after_change" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
+- ⚠ Parameter "restart_between" in tool "verify_after_change" has a `default` value that Continue.dev will ignore. Document the default in the description instead.
 - ⚠ Tool "verify_after_change" is missing a `title`. Cursor can display raw tool names without it.
 - ⚠ Tool "verify_after_change" description is 457 characters. Cline truncates at 200.
 - ✖ Tool "verify_after_change" is missing `additionalProperties: false` on inputSchema. Required for OpenAI Agents SDK strict mode.

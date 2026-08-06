@@ -336,5 +336,31 @@ namespace UnityMCP.Editor.Tests
             Assert.AreNotEqual(9500, result);
             Assert.IsTrue(PortResolver.IsValidPort(result));
         }
+
+        // ── TrySaveProjectSettings ─────────────────────────────────────────────
+
+        [Test]
+        public void TrySaveProjectSettings_WriterSucceeds_ReturnsTrue()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "mcp_tryproj_" + System.Guid.NewGuid().ToString("N") + ".json");
+            try
+            {
+                var result = PortResolver.TrySaveProjectSettings(path, 9600, 9601, System.IO.File.WriteAllText);
+                Assert.IsTrue(result);
+                var json = System.IO.File.ReadAllText(path);
+                Assert.AreEqual(9600, PortResolver.ParsePortFromJson(json, "port"));
+                Assert.AreEqual(9601, PortResolver.ParsePortFromJson(json, "chatPort"));
+            }
+            finally { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
+        }
+
+        [Test]
+        public void TrySaveProjectSettings_WriterThrows_ReturnsFalse()
+        {
+            System.Action<string, string> throwingWriter = (_, __) => throw new System.IO.IOException("disk full");
+            var result = PortResolver.TrySaveProjectSettings(
+                Path.Combine(Path.GetTempPath(), "irrelevant.json"), 9600, 9601, throwingWriter);
+            Assert.IsFalse(result);
+        }
     }
 }

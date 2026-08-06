@@ -114,13 +114,21 @@ namespace UnityMCP.Editor
 
         // Write user intent to ProjectSettings/MCPSettings.json (survives Library purge).
         internal static void SaveProjectSettings(string filePath, int port, int chatPort)
+            => TrySaveProjectSettings(filePath, port, chatPort, System.IO.File.WriteAllText);
+
+        internal static bool TrySaveProjectSettings(
+            string filePath,
+            int port,
+            int chatPort,
+            System.Action<string, string> writeAllText)
         {
             try
             {
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(filePath));
-                System.IO.File.WriteAllText(filePath, $"{{\"port\":{port},\"chatPort\":{chatPort}}}");
+                writeAllText(filePath, $"{{\"port\":{port},\"chatPort\":{chatPort}}}");
+                return true;
             }
-            catch { }
+            catch { return false; }
         }
 
         // Reads reloadPort from MCP_Port.json. Returns 0 if absent or file missing.

@@ -187,6 +187,10 @@
     margin: 4px 0 2px 0;
 }
 
+.hub-port-restart-btn {
+    margin: 4px 0 2px 0;
+}
+
 .hub-port-label {
     font-size: 10px;
     color: var(--unity-colors-label-text);

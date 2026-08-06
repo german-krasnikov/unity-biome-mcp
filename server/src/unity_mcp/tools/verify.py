@@ -11,6 +11,7 @@ Returns PASS when all enabled gates pass, FAIL at the first gate that fails.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 
@@ -151,10 +152,8 @@ def _fail(gate: str, detail: str, skipped: list[str]) -> str:
 
 async def _stop_play_mode() -> None:
     """Stop Play Mode before playtests — best-effort."""
-    try:
+    with contextlib.suppress(Exception):
         await _send("editor", _args(action="stop"), timeout=10.0)
-    except Exception:
-        pass
 
 
 async def verify_after_change(

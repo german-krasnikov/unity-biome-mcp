@@ -8,7 +8,7 @@ Open **MCP > Settings** to configure the Unity-side server and the in-Unity Chat
 - **Chat Port** is the Unity-side MCP transport reserved for in-Unity Chat. The default is `9501`; the Python relay uses a separate dynamically selected local port.
 - The two ports must differ and must be between `1024` and `65535`.
 
-Changes are saved immediately, but the MCP server must restart before new ports take effect. Open **MCP > Status** and select **Restart**, then reconnect external clients.
+Changes are saved immediately, but the MCP server must restart before new ports take effect. A **Restart Server** button appears in the port settings after you change either port; select it to restart right away. Alternatively, open **MCP > Status** and select **Restart**, then reconnect external clients.
 
 Port discovery normally removes the need to put a fixed port in client configuration. Keep a fixed port only when your environment requires one.
 

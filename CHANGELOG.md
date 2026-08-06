@@ -10,6 +10,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.21.0] — 2026-08-06
+
+### Fixed
+- **Port field shake** — `isDelayed = true` on port IntegerField prevents keystroke-triggered validation and ShakeX animation
+- **Port discovery race** — `discover_port_with_retry()` retries up to 4× when Unity hasn't written `.port` file yet
+- **Windows CWD path mismatch** — `os.path.normpath` + `_is_path_prefix()` fix Unity `/` vs Python `\` path comparison
+- **Kill MCP** — scans all `server-*.lock` files instead of port-specific glob
+- **SaveProjectSettings** — `TrySaveProjectSettings` returns bool + logs warning on failure
+- **Diagnose panel** — skips Python server directory check for uvx/UPM git installs
+- **SetupDiagnosticsTests** — cross-platform venv layout (both `bin/python` and `Scripts/python.exe`)
+
+### Added
+- **Restart MCP button** in port settings UI — appears after port change
+- **3-OS CI matrix** — Python tests on Linux, macOS, Windows; Unity EditMode on all three
+- **pytest-timeout** — 30s global timeout, 120s for realtime test
+- **VC++ 2010 runtime** — `choco install vcredist2010` on Windows CI for Unity 6
+- **Git Bash discovery** — 5-step fallback chain for `_find_bash()` on Windows
+- **Concurrency group dedup** — `github.head_ref || github.ref` prevents duplicate CI runs
+
+### Changed
+- **22 cross-platform test fixes** — `_is_pid_alive` mock, `encoding="utf-8"`, timer precision, bridge shutdown mode
+- **Unity cache disabled on Windows CI** — fresh Hub install ensures VC++ runtimes
+
 ## [v1.20.0] — 2026-08-06 — P-12440 Production Backlog Release
 
 ### Phase 1: Tool Surface Reorganization

@@ -104,6 +104,9 @@ from .server_filtering import (
     install_list_tools_filter,
 )
 from .server_filtering import (
+    discover_port_with_retry as _discover_port_with_retry,
+)
+from .server_filtering import (
     filter_tools as _filter_tools_pure,
 )
 from .server_filtering import (
@@ -346,11 +349,7 @@ async def lifespan(app):
     # Register loop + task so the SIGTERM handler can cancel us and find the lock.
     _sigterm_state["loop"] = asyncio.get_event_loop()
     _sigterm_state["task"] = asyncio.current_task()
-    try:
-        unity_port = _read_unity_port()
-    except (ValueError, OSError):
-        from .constants import DEFAULT_PORT
-        unity_port = DEFAULT_PORT
+    unity_port = await _discover_port_with_retry()
     cleanup_stale_locks(port=unity_port)
     from .lockfile import cleanup_stale_port_files as _cleanup_ports
     _cleanup_ports(tcp_probe=True)

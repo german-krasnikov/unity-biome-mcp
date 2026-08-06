@@ -58,11 +58,11 @@ namespace UnityMCP.Editor
             var section = new VisualElement();
             section.AddToClassList("hub-section");
 
-            var portField = new IntegerField("Port") { value = MCPServer.ServerPort };
+            var portField = new IntegerField("Port") { value = MCPServer.ServerPort, isDelayed = true };
             portField.AddToClassList("hub-port-label");
             section.Add(portField);
 
-            var chatPortField = new IntegerField("Chat Port") { value = MCPServer.ServerChatPort };
+            var chatPortField = new IntegerField("Chat Port") { value = MCPServer.ServerChatPort, isDelayed = true };
             chatPortField.AddToClassList("hub-port-label");
             section.Add(chatPortField);
 
@@ -88,25 +88,30 @@ namespace UnityMCP.Editor
             restartWarning.AddToClassList("hub-port-restart-warning");
             section.Add(restartWarning);
 
+            var restartBtn = new Button(MCPActions.Restart) { text = "Restart Server" };
+            restartBtn.AddToClassList("hub-port-restart-btn");
+            restartBtn.visible = false;
+            section.Add(restartBtn);
+
             portField.RegisterValueChangedCallback(e =>
             {
                 var v = e.newValue;
                 if (v < 1024 || v > 65535)
                 {
                     portField.SetValueWithoutNotify(e.previousValue);
-                    ShowPortStatus(restartWarning, "Port must be between 1024 and 65535.", "error");
+                    ShowPortStatus(restartWarning, restartBtn, "Port must be between 1024 and 65535.", "error");
                     ArcadeAnim.ShakeX(portField);
                     return;
                 }
                 if (v == chatPortField.value)
                 {
                     portField.SetValueWithoutNotify(e.previousValue);
-                    ShowPortStatus(restartWarning, "MCP and Chat ports must be different.", "error");
+                    ShowPortStatus(restartWarning, restartBtn, "MCP and Chat ports must be different.", "error");
                     ArcadeAnim.ShakeX(portField);
                     return;
                 }
                 MCPServer.SavePorts(v, chatPortField.value);
-                ShowPortStatus(restartWarning, "Saved. Restart the MCP server to apply port changes.", "warning");
+                ShowPortStatus(restartWarning, restartBtn, "Saved. Restart the MCP server to apply port changes.", "warning");
             });
 
             chatPortField.RegisterValueChangedCallback(e =>
@@ -115,28 +120,29 @@ namespace UnityMCP.Editor
                 if (v < 1024 || v > 65535)
                 {
                     chatPortField.SetValueWithoutNotify(e.previousValue);
-                    ShowPortStatus(restartWarning, "Chat port must be between 1024 and 65535.", "error");
+                    ShowPortStatus(restartWarning, restartBtn, "Chat port must be between 1024 and 65535.", "error");
                     ArcadeAnim.ShakeX(chatPortField);
                     return;
                 }
                 if (v == portField.value)
                 {
                     chatPortField.SetValueWithoutNotify(e.previousValue);
-                    ShowPortStatus(restartWarning, "MCP and Chat ports must be different.", "error");
+                    ShowPortStatus(restartWarning, restartBtn, "MCP and Chat ports must be different.", "error");
                     ArcadeAnim.ShakeX(chatPortField);
                     return;
                 }
                 MCPServer.SavePorts(portField.value, v);
-                ShowPortStatus(restartWarning, "Saved. Restart the MCP server to apply port changes.", "warning");
+                ShowPortStatus(restartWarning, restartBtn, "Saved. Restart the MCP server to apply port changes.", "warning");
             });
 
             return section;
         }
 
-        private static void ShowPortStatus(Label label, string message, string state)
+        private static void ShowPortStatus(Label label, Button restartBtn, string message, string state)
         {
             label.visible = true;
             BiomeUI.SetStatus(label, message, state);
+            restartBtn.visible = (state == "warning");
         }
 
         // Sync read — no shell spawn: uses cached binary path + EditorPrefs auth key.

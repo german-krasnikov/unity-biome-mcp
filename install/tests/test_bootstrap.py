@@ -1,6 +1,8 @@
 """Tests for bootstrap install scripts (syntax + content validation)."""
 import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -8,6 +10,61 @@ import pytest
 _REPO_ROOT = Path(__file__).parents[2]
 SH = str(_REPO_ROOT / "install" / "bootstrap.sh")
 PS1 = str(_REPO_ROOT / "install" / "bootstrap.ps1")
+
+
+def _find_bash() -> str:
+    """Return path to bash — Git Bash on Windows via fallback chain, plain 'bash' elsewhere."""
+    if sys.platform != "win32":
+        return "bash"
+
+    def _try(p: Path) -> str | None:
+        return str(p) if p.exists() else None
+
+    # 1. GIT_INSTALL_ROOT env (some CI installers set this)
+    root = os.environ.get("GIT_INSTALL_ROOT")
+    if root and (r := _try(Path(root) / "bin" / "bash.exe")):
+        return r
+
+    # 2. Windows Registry — most reliable, written by every Git installer
+    try:
+        import winreg
+        for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+            try:
+                with winreg.OpenKey(hive, r"SOFTWARE\GitForWindows") as key:
+                    install_path, _ = winreg.QueryValueEx(key, "InstallPath")
+                    if r := _try(Path(install_path) / "bin" / "bash.exe"):
+                        return r
+            except OSError:  # noqa: PERF203
+                pass
+    except ImportError:
+        pass
+
+    # 3. Derive from git in PATH
+    git_exe = shutil.which("git")
+    if git_exe:
+        p = Path(git_exe)
+        # bin/git.exe layout
+        if r := _try(p.parent / "bash.exe"):
+            return r
+        # cmd/git.exe → ../bin/bash.exe (GitHub Actions layout)
+        if r := _try(p.parent.parent / "bin" / "bash.exe"):
+            return r
+
+    # 4. Standard install locations
+    for env_var in ("ProgramFiles", "ProgramFiles(x86)"):
+        base = os.environ.get(env_var)
+        if base and (r := _try(Path(base) / "Git" / "bin" / "bash.exe")):
+            return r
+    local = os.environ.get("LOCALAPPDATA")
+    if local and (r := _try(Path(local) / "Programs" / "Git" / "bin" / "bash.exe")):
+        return r
+
+    # 5. shutil.which — skip WSL bash hiding in System32
+    found = shutil.which("bash")
+    if found and "System32" not in found:
+        return found
+
+    pytest.skip("bash not found on this Windows environment")
 
 
 def _read(path):
@@ -18,13 +75,15 @@ def _read(path):
 # --- bootstrap.sh ---
 
 def test_bootstrap_sh_syntax():
+    bash = _find_bash()
     result = subprocess.run(
-        ["bash", "-n", SH],
+        [bash, "-n", SH],
         capture_output=True, text=True, encoding="utf-8"
     )
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="os.access X_OK unreliable on Windows")
 def test_bootstrap_sh_is_executable():
     assert os.access(SH, os.X_OK), f"{SH} must be executable"
 

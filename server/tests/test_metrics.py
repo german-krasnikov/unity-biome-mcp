@@ -155,7 +155,7 @@ async def test_timed_decorator_async():
 
     @timed("async_op")
     async def my_async():
-        await asyncio.sleep(0.01)
+        time.sleep(0.01)
         return "ok"
 
     result = await my_async()

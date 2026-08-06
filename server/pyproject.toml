@@ -1,6 +1,6 @@
 [project]
 name = "unity-biome-mcp"
-version = "1.20.0"
+version = "1.21.0"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]
@@ -31,6 +31,7 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=6.0",
+    "pytest-timeout>=2.3",
 ]
 
 [project.scripts]
@@ -50,6 +51,7 @@ markers = [
     "live_cli: paid external CLI/API call; opt-in with UNITY_MCP_RUN_LIVE_CLI=1",
     "monkey: stress/chaos tests for chat_relay (connection storms, process leaks, protocol torture)",
     "live_chat: requires running Unity + MCPChatWindow; subset of live",
+    "timeout: per-test timeout override (pytest-timeout)",
 ]
 
 [tool.ruff]

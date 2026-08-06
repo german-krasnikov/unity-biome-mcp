@@ -41,12 +41,8 @@ namespace UnityMCP.Editor
                 return;
             }
 
-            var port = MCPServer.ServerPort;
-            // Glob: server-{port}-*.lock (per-PID format, written by Python lockfile.py)
-            var files = new List<string>(Directory.GetFiles(dir, $"server-{port}-*.lock"));
-            // Also check legacy single-file format: server-{port}.lock
-            var legacy = System.IO.Path.Combine(dir, $"server-{port}.lock");
-            if (File.Exists(legacy)) files.Add(legacy);
+            // Glob ALL MCP lock files — port-agnostic kill covers port-mismatch after UI change
+            var files = new List<string>(Directory.GetFiles(dir, "server-*.lock"));
 
             int killed = 0, stale = 0;
             foreach (var f in files)

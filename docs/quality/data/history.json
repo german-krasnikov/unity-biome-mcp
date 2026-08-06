@@ -58,5 +58,15 @@
     "toolsmith_avg_score": 72.82,
     "mcplint_errors": 695,
     "mcplint_warnings": 1156
+  },
+  {
+    "date": "2026-08-06",
+    "version": "1.20.0",
+    "commit": "4c0b183",
+    "toolsmith_errors": 19,
+    "toolsmith_warnings": 597,
+    "toolsmith_avg_score": 72.8,
+    "mcplint_errors": 699,
+    "mcplint_warnings": 1162
   }
 ]

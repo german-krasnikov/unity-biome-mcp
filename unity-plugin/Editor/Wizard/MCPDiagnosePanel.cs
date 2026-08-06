@@ -40,7 +40,8 @@ namespace UnityMCP.Editor
             var pkgPath   = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(MCPDiagnosePanel).Assembly)?.resolvedPath ?? "";
             var serverDir = Path.Combine(pkgPath, "..", "server");
 
-            var (pyOk, pyDetail)      = SetupDiagnostics.CheckPython(serverDir);
+            var (pyOk, pyDetail) = SetupDiagnostics.CheckPythonForSource(
+                InstallSourceDetector.Detect(), serverDir);
             var (srvOk, srvDetail)    = SetupDiagnostics.CheckServer();
             var compileOk             = !CompileErrorCapture.HasErrors();
             var compileDetail         = compileOk ? "no errors" : "compile errors present";

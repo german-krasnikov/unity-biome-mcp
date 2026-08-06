@@ -145,6 +145,19 @@ def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
         return False
 
 
+def _is_path_prefix(cwd: str, prefix: str) -> bool:
+    """Return True if prefix is a parent of (or equal to) cwd.
+
+    Uses normcase + normpath to handle Windows forward/backslash mismatch:
+    Unity port files use '/' (Application.dataPath), os.getcwd() uses '\\'.
+    On POSIX normcase is a no-op.
+    """
+    cwd_n = os.path.normcase(os.path.normpath(cwd))
+    pre_n = os.path.normcase(os.path.normpath(prefix))
+    sep = os.path.normcase(os.sep)
+    return cwd_n == pre_n or cwd_n.startswith(pre_n + sep)
+
+
 def read_unity_port(skip_probe: bool = False) -> int | None:
     """Discover Unity Biome MCP port from discovery files, env var, or default 9500.
 
@@ -187,9 +200,9 @@ def read_unity_port(skip_probe: bool = False) -> int | None:
            or os.environ.get("CLAUDE_PROJECT_DIR")
            or os.getcwd())
     cwd_matches = [
-        (len(pp), mtime, port, proj, pid)
+        (len(os.path.normpath(pp)), mtime, port, proj, pid)
         for mtime, port, proj, pid, pp in candidates
-        if pp and (cwd == pp or cwd.startswith(pp + os.sep))
+        if pp and _is_path_prefix(cwd, pp)
     ]
     if cwd_matches:
         cwd_matches.sort(reverse=True)  # longest path first, then newest mtime
@@ -201,6 +214,40 @@ def read_unity_port(skip_probe: bool = False) -> int | None:
     logging.getLogger("unity_mcp").info(
         "Auto-discovered Unity '%s' on port %d (pid %d)", project, port, pid)
     return port
+
+
+async def discover_port_with_retry(
+    attempts: int = 3,
+    initial_delay: float = 0.5,
+    max_delay: float = 2.0,
+) -> int:
+    """Retry read_unity_port() with backoff until a port file appears.
+
+    Handles the startup race where Unity hasn't written its port file yet.
+    Returns DEFAULT_PORT after all attempts if no file appears.
+
+    Uses read_unity_port(skip_probe=True): returns None when no candidates
+    (reliable "not ready" sentinel), vs DEFAULT_PORT which is ambiguous.
+    If UNITY_MCP_PORT is set, returns immediately without retry.
+    """
+    import asyncio
+
+    if os.environ.get("UNITY_MCP_PORT"):
+        return read_unity_port()  # env var wins; no retry needed
+
+    port = read_unity_port(skip_probe=True)
+    if port is not None:
+        return port  # port file found (even 9500 is a real registration)
+
+    delay = initial_delay
+    for _ in range(attempts - 1):
+        await asyncio.sleep(delay)
+        port = read_unity_port(skip_probe=True)
+        if port is not None:
+            return port
+        delay = min(delay * 2.0, max_delay)
+
+    return DEFAULT_PORT
 
 
 # Fix 4: last live ServerSession seen while handling a ListTools request. Lets

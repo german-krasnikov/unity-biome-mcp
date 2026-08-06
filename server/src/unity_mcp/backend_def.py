@@ -101,6 +101,7 @@ def _which_windows_registry(binary: str) -> str | None:
         d = _expand_win_vars(d.strip())
         if not d:
             continue
+        d = os.path.normpath(d)
         for ext in (".exe", ".cmd"):
             candidate = os.path.join(d, binary + ext)
             if os.path.isfile(candidate):

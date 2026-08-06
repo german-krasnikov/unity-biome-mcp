@@ -864,7 +864,7 @@ async def test_shutdown_kills_session():
 async def test_main_signal_handler_not_implemented_does_not_crash():
     """Windows ProactorEventLoop raises NotImplementedError on add_signal_handler — must not crash."""
     loop = asyncio.get_running_loop()
-    with patch.object(loop, "add_signal_handler", side_effect=NotImplementedError), \
+    with patch.object(loop, "add_signal_handler", side_effect=NotImplementedError, create=True), \
          patch("unity_mcp.chat_relay._find_free_port", return_value=19999), \
          patch("unity_mcp.chat_relay.ChatRelay.serve", new=AsyncMock()):
         await _main()
@@ -873,7 +873,7 @@ async def test_main_signal_handler_not_implemented_does_not_crash():
 async def test_main_registers_sigterm_and_sigint():
     """Normal path: both SIGTERM and SIGINT must be registered on the event loop."""
     loop = asyncio.get_running_loop()
-    with patch.object(loop, "add_signal_handler") as mock_add, \
+    with patch.object(loop, "add_signal_handler", create=True) as mock_add, \
          patch("unity_mcp.chat_relay._find_free_port", return_value=19999), \
          patch("unity_mcp.chat_relay.ChatRelay.serve", new=AsyncMock()):
         await _main()

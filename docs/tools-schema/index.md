@@ -96,7 +96,7 @@ hide:
 | [`particle`](#particle) | 🔴 58/100 | 🟡 medium | Particle System. action: get|create|set|apply|play|stop|pause. module=main|em... |
 | [`permission_prompt`](#permission_prompt) | 🟡 70/100 | 🟢 low | Handle Claude permission prompts via MCP. |
 | [`ping_object`](#ping_object) | 🟢 82/100 | 🟡 medium | Highlight object in Hierarchy and Project, and select it. |
-| [`prefab`](#prefab) | 🔴 46/100 | 🔴 high | Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit. |
+| [`prefab`](#prefab) | 🔴 46/100 | 🔴 high | Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|in... |
 | [`profile`](#profile) | 🟡 62/100 | 🟢 low | Profile CPU/GPU/memory over time. |
 | [`project_settings`](#project_settings) | 🔴 53/100 | 🔴 high | Project settings. action: get|set. target: tags|layers|sorting_layers|quality... |
 | [`query_state`](#query_state) | 🟢 87/100 | 🟡 medium | [Play Mode] Snapshot multiple game values in one call. |
@@ -110,7 +110,7 @@ hide:
 | [`resolve_scene_refs`](#resolve_scene_refs) | 🟢 86/100 | 🟡 medium | Read-only scene reference resolver. |
 | [`resolve_test_request`](#resolve_test_request) | 🟡 78/100 | 🟡 medium | Resolve a possibly lost start ACK without dispatching another test run. |
 | [`resolve_tool_schema`](#resolve_tool_schema) | 🟢 87/100 | 🟢 low | Return full parameter schemas for deferred tools. tools=comma-separated names. |
-| [`run_playtest`](#run_playtest) | 🟡 63/100 | 🔴 high | [Play Mode] Execute a playtest DSL script. Returns structured report (for NUn... |
+| [`run_playtest`](#run_playtest) | 🟡 61/100 | 🔴 high | [Play Mode] Execute a playtest DSL script. Returns structured report (for NUn... |
 | [`run_playtest_suite`](#run_playtest_suite) | 🔴 48/100 | 🔴 high | [Play Mode] Run multiple .playtest files sequentially and return a compact ma... |
 | [`run_tests`](#run_tests) | 🟡 66/100 | 🟡 medium | Dispatch Unity tests and return their durable identity immediately. |
 | [`run_tests_wait`](#run_tests_wait) | 🔴 38/100 | 🔴 high | Dispatch tests and wait for the exact run to become terminal. |
@@ -156,7 +156,7 @@ hide:
 | [`validate_layout`](#validate_layout) | 🟡 67/100 | 🟡 medium | Check trigger overlaps. Warns if triggers closer than min_distance meters. |
 | [`validate_playtest_aliases`](#validate_playtest_aliases) | 🟢 80/100 | 🟡 medium | Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/... |
 | [`validate_references`](#validate_references) | 🟡 74/100 | 🟡 medium | Validate all ObjectReference fields under path recursively. |
-| [`verify_after_change`](#verify_after_change) | 🔴 59/100 | 🔴 high | Single verification gate after code/scene changes. |
+| [`verify_after_change`](#verify_after_change) | 🔴 58/100 | 🔴 high | Single verification gate after code/scene changes. |
 | [`vfx_intent`](#vfx_intent) | 🟡 68/100 | 🟡 medium | Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely. |
 | [`wait_until`](#wait_until) | 🟡 64/100 | 🟡 medium | [Play Mode] Poll field until it matches value (or timeout). |
 | [`watch`](#watch) | 🔴 40/100 | 🔴 high | [Play Mode] Manage watches. action: add|remove|clear|reset. |
@@ -5704,7 +5704,7 @@ Highlight object in Hierarchy and Project, and select it.
 
 🔴 46/100 · Risk: 🔴 high
 
-Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit.     edit: asset_path + component + prop + value (set property on prefab asset).     edit: asset_path + add_component or remove_component (manage components).     save: path (scene) + asset_path [+ mode: new|overwrite (default)].     revert: scope: object (default)|children.     get_overrides: format: text (default)|structured.     create_variant: base_path + variant_path.
+Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.     edit: asset_path + component + prop + value (set property on prefab asset).     edit: asset_path + add_component or remove_component (manage components).     save: path (scene) + asset_path [+ mode: new|overwrite (default)].     revert: scope: object (default)|children.     get_overrides: format: text (default)|structured.     create_variant: base_path + variant_path.     instantiate: asset_path (instantiate prefab into active scene).
 
 **Parameters:**
 
@@ -6753,7 +6753,7 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 ### `run_playtest`
 
-🟡 63/100 · Risk: 🔴 high
+🟡 61/100 · Risk: 🔴 high
 
 [Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |     ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args |     SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |     ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z |     ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value |     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |     CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED.     defs: inline VAL definitions prepended to script.
 
@@ -6762,6 +6762,8 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `abort_on_fail` | boolean |  |  (default: `False`) |
+| `after_hook` | any |  |  |
+| `before_hook` | any |  |  |
 | `defs` | any |  |  |
 | `fresh` | boolean |  |  (default: `False`) |
 | `path` | any |  |  |
@@ -6770,7 +6772,7 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 | `timeout` | number |  |  (default: `120.0`) |
 
 <details>
-<summary>13 quality issues</summary>
+<summary>15 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
@@ -6784,6 +6786,8 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 - **info**: Parameter 'path' has no description.
 - **info**: Parameter 'snapshot_on_failure' has no description.
 - **info**: Parameter 'fresh' has no description.
+- **info**: Parameter 'before_hook' has no description.
+- **info**: Parameter 'after_hook' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -6849,6 +6853,30 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
       "default": false,
       "title": "Fresh",
       "type": "boolean"
+    },
+    "before_hook": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Before Hook"
+    },
+    "after_hook": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "After Hook"
     }
   },
   "title": "run_playtestArguments",
@@ -7436,7 +7464,7 @@ Scene management. action: new|open|save|discard|open_additive|close|set_active|l
 
 🟡 75/100 · Risk: 🟡 medium
 
-Pre-flight + plan for safe scene edit.     1. Check compile clean     2. Check console for errors     3. Resolve targets via resolve_scene_refs     4. Take checkpoint     5. Return plan_id + baseline status
+Pre-flight + plan for safe scene edit.     1. Check Play Mode — reject if playing (mutations blocked)     2. Check compile clean     3. Check console for errors     4. Resolve targets via resolve_scene_refs     5. Take checkpoint     6. Return plan_id + baseline status
 
 **Parameters:**
 
@@ -10756,7 +10784,7 @@ Validate all ObjectReference fields under path recursively.     Returns [ERROR]/
 
 ### `verify_after_change`
 
-🔴 59/100 · Risk: 🔴 high
+🔴 58/100 · Risk: 🔴 high
 
 Single verification gate after code/scene changes.     Gates are additive — only enabled ones run:     1. await_compile (always)     2. get_compile_errors (always)     3. get_console_since mark_id (if mark_id provided)     4. run_tests_wait mode filter (if run_tests_mode provided)     5. run_playtest_suite paths (if playtests provided)     Returns PASS only when ALL enabled gates pass.     Failure includes which gate failed and recommended next command.
 
@@ -10767,12 +10795,13 @@ Single verification gate after code/scene changes.     Gates are additive — on
 | `changed_files` | string |  |  (default: ``) |
 | `mark_id` | string |  |  (default: ``) |
 | `playtests` | string |  |  (default: ``) |
+| `restart_between` | boolean |  |  (default: `False`) |
 | `run_tests_mode` | string |  |  (default: ``) |
 | `test_filter` | string |  |  (default: ``) |
 | `timeout` | number |  |  (default: `300.0`) |
 
 <details>
-<summary>17 quality issues</summary>
+<summary>18 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
@@ -10790,6 +10819,7 @@ Single verification gate after code/scene changes.     Gates are additive — on
 - **info**: Free-form string parameter 'mark_id' has no maxLength.
 - **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
+- **info**: Parameter 'restart_between' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -10829,6 +10859,11 @@ Single verification gate after code/scene changes.     Gates are additive — on
       "default": 300.0,
       "title": "Timeout",
       "type": "number"
+    },
+    "restart_between": {
+      "default": false,
+      "title": "Restart Between",
+      "type": "boolean"
     }
   },
   "title": "verify_after_changeArguments",

@@ -1,4 +1,5 @@
 """TDD: sync_versions.py — updates pyproject.toml, package.json, __version__.py."""
+import os
 import subprocess
 import sys
 import textwrap
@@ -10,9 +11,12 @@ SYNC_SCRIPT = Path(__file__).parents[2] / "scripts" / "sync_versions.py"
 
 
 def run_sync(version: str, root: Path) -> subprocess.CompletedProcess:
+    # PYTHONIOENCODING=utf-8: sync_versions.py prints → (U+2192) which fails
+    # on Windows pipes using the default cp1252 encoding.
     return subprocess.run(
         [sys.executable, str(SYNC_SCRIPT), version, "--root", str(root)],
         capture_output=True, text=True, encoding="utf-8",
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
     )
 
 

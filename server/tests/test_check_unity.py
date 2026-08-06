@@ -58,7 +58,10 @@ def test_is_pid_alive_current_pid():
     assert cu._is_pid_alive(os.getpid()) is True
 
 
-def test_is_pid_alive_dead_pid():
+def test_is_pid_alive_dead_pid(monkeypatch):
+    # os.kill(pid, 0) raises OSError: [WinError 87] on Windows (signal 0 is POSIX-only),
+    # so we mock it to simulate the dead-PID signal consistently on all platforms.
+    monkeypatch.setattr("os.kill", lambda pid, sig: (_ for _ in ()).throw(ProcessLookupError()))
     assert cu._is_pid_alive(99999) is False
 
 
@@ -99,8 +102,12 @@ def test_discover_ports_empty_dir():
 
 # --- tcp_probe ---
 
-def test_tcp_probe_returns_none_on_connection_refused():
-    # port 1 should always refuse
+def test_tcp_probe_returns_none_on_connection_refused(monkeypatch):
+    # Port 1 refuses on Linux/macOS but may timeout on Windows (firewall filtered).
+    # Mock create_connection to raise ConnectionRefusedError consistently on all platforms.
+    import socket
+    monkeypatch.setattr(socket, "create_connection",
+                        lambda *a, **kw: (_ for _ in ()).throw(ConnectionRefusedError()))
     result = cu.tcp_probe(1)
     assert result is None
 

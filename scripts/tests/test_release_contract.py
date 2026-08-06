@@ -3,6 +3,9 @@
 import pathlib
 import re
 import subprocess
+import sys
+
+import pytest
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 RELEASE_HELPER = REPO_ROOT / "scripts" / "release.sh"
@@ -18,6 +21,7 @@ def test_release_helper_is_explicitly_preflight_only() -> None:
     )
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="bash script not executable on Windows")
 def test_legacy_release_invocation_fails_closed() -> None:
     result = subprocess.run(
         [str(RELEASE_HELPER), "1.3.0"],

@@ -55,6 +55,19 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(File.Exists(lockFile), "Stale lockfile should be cleaned up");
         }
 
+        [Test]
+        public void KillAll_LockfileWithDifferentPort_IsStillCleaned()
+        {
+            // Scenario: user changed port in UI; running server wrote lockfile under old port.
+            // KillAll must find the lockfile even when its port != MCPServer.ServerPort.
+            var differentPort = MCPServer.ServerPort + 1;
+            var lockFile = Path.Combine(_scope.Path, $"server-{differentPort}-99999.lock");
+            File.WriteAllText(lockFile, "99999\n");  // dead PID — stale cleanup path
+            MCPActions.KillAll();
+            Assert.IsFalse(File.Exists(lockFile),
+                "Lock file with a different port must still be cleaned when PID is dead");
+        }
+
         // M17: RestartRelay must not thread-hop via Task.Run — SessionState (used deep in
         // RelaySpawner.EnsureRunning) is main-thread-only. Structural guard via source file read
         // (same technique as SyncHelperTests.ImportPackageSources_DoesNotDeleteDigestCache).
