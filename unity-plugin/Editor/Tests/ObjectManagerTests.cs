@@ -388,5 +388,53 @@ namespace UnityMCP.Editor.Tests
             var logs = ConsoleCapture.GetLogs(10, "warning");
             Assert.IsEmpty(logs, "No warning when only one component of the type exists");
         }
+
+        // ── P-107: Serialize(GameObject, string) overload ────────────────────
+
+        [Test]
+        public void SerializeGO_NullGO_ReturnsNull()
+        {
+            var result = ComponentSerializer.Serialize((GameObject)null, "Transform");
+            Assert.IsNull(result);
+        }
+
+        [Test]
+        public void SerializeGO_MissingType_ReturnsNull()
+        {
+            var result = ComponentSerializer.Serialize(_go, "NonExistentTypeXYZ_P107");
+            Assert.IsNull(result);
+        }
+
+        [Test]
+        public void SerializeGO_ExistingType_ReturnsContent()
+        {
+            var result = ComponentSerializer.Serialize(_go, "Transform");
+            Assert.IsNotNull(result, "Serialize(go, type) must return component data");
+            StringAssert.Contains("m_LocalPosition", result);
+        }
+
+        [Test]
+        public void SerializeGO_MatchesSerializePath_ForSameObject()
+        {
+            // Both overloads must return identical content — no double-FindObject drift.
+            var byPath = ComponentSerializer.Serialize("/OM_TestObj", "Transform");
+            var byGo   = ComponentSerializer.Serialize(_go, "Transform");
+            Assert.AreEqual(byPath, byGo, "Serialize(go, type) and Serialize(path, type) must return same content");
+        }
+
+        [Test]
+        public void SerializeGO_NestedObject_ReturnsComponent()
+        {
+            // P-107 root scenario: get_component on a freshly-created nested object
+            // must not produce a STATE error. Simulate by calling Serialize(go, type)
+            // directly (ExecGetComponent path) without a second FindObject.
+            var parent = new GameObject("P107_Parent");
+            var child  = new GameObject("P107_Child");
+            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(parent));
+            child.transform.SetParent(parent.transform);
+
+            var result = ComponentSerializer.Serialize(child, "Transform");
+            Assert.IsNotNull(result, "Nested object: Serialize(go, type) must return data, not STATE error");
+        }
     }
 }

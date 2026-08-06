@@ -110,7 +110,9 @@ namespace UnityMCP.Editor
                 throw new InvalidOperationException(ErrorHelper.ObjectNotFound(path));
             }
 
-            var result = ComponentSerializer.Serialize(path, type);
+            // P-107: pass the already-resolved go to avoid a second FindObject traversal
+            // that can return stale results for freshly-created nested objects.
+            var result = ComponentSerializer.Serialize(go, type);
             if (result == null)
                 throw new InvalidOperationException(ErrorHelper.ComponentNotFound(type, go));
 

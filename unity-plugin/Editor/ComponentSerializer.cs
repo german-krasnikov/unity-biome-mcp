@@ -22,10 +22,15 @@ namespace UnityMCP.Editor
         {
             var go = FindObject(path);
             if (go == null) return null;
+            return Serialize(go, typeName);
+        }
 
+        // P-107: accept already-resolved GO to eliminate the double FindObject call.
+        public static string Serialize(GameObject go, string typeName)
+        {
+            if (go == null) return null;
             var component = FindComponent(go, typeName);
             if (component == null) return null;
-
             var sb = new StringBuilder();
             SerializeComponent(sb, component);
             return sb.ToString().TrimEnd();
