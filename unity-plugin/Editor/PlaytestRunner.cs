@@ -10,7 +10,7 @@ namespace UnityMCP.Editor
     [InitializeOnLoad]
     internal static partial class PlaytestRunner
     {
-        enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, Done }
+        enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, WaitingStable, Done }
 
         static PlaytestRunner()
         {
@@ -171,6 +171,9 @@ namespace UnityMCP.Editor
                     state.CheckConserved(config, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
                 }
 
+                // P-305: poll running min/max trackers every tick (no-op when no trackers active)
+                state.PollExtrema(q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
+
                 var step = steps[stepIdx];
 
                 switch (phase)
@@ -328,6 +331,38 @@ namespace UnityMCP.Editor
                             phase = Phase.Done;
                             AdvanceStep();
                         }
+                        break;
+                    }
+
+                    case Phase.WaitingStable:
+                    {
+                        // P-110: poll the rolling window; succeed when range ≤ DELTA over the full OVER window
+                        float wsNow = Time.realtimeSinceStartup;
+                        float wsDelta = float.TryParse(step.Value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var parsedDelta) ? parsedDelta : 0f;
+                        float wsWindow = step.Delay; // OVER duration
+                        float wsTimeout = step.Timeout > 0 ? step.Timeout : 5f;
+
+                        try
+                        {
+                            bool stable = state.PollStable(wsNow, wsDelta, wsWindow,
+                                q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
+                            if (stable)
+                            {
+                                results.Add($"[{stepIdx + 1}] WAIT_STABLE {step.Query} DELTA {step.Value} OVER {wsWindow} — PASS ({(wsNow - phaseStart).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)");
+                                passed++;
+                                phase = Phase.Done;
+                                AdvanceStep();
+                            }
+                            else if (wsNow - phaseStart > wsTimeout)
+                            {
+                                results.Add($"[{stepIdx + 1}] WAIT_STABLE {step.Query} — TIMEOUT after {wsTimeout}s (value still oscillating)" + FormatProvenance(step));
+                                failed++;
+                                phase = Phase.Done;
+                                AdvanceStep();
+                            }
+                        }
+                        catch { /* keep polling */ }
                         break;
                     }
                 }

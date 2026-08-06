@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using UnityEditor;
 
 namespace UnityMCP.Editor
@@ -9,6 +10,38 @@ namespace UnityMCP.Editor
     {
         // label → (query, raw string value, numeric value)
         readonly Dictionary<string, (string query, string raw, float value)> _captures = new();
+
+        // ─── Extrema Trackers (CAPTURE_MIN / CAPTURE_MAX) ───
+        readonly Dictionary<string, (string query, float min)> _minTrackers = new();
+        readonly Dictionary<string, (string query, float max)> _maxTrackers = new();
+
+        public void StartTrackMin(string name, string query)
+            => _minTrackers[name] = (query, float.MaxValue);
+
+        public void StartTrackMax(string name, string query)
+            => _maxTrackers[name] = (query, float.MinValue);
+
+        /// <summary>Called every tick to update running min/max for all active trackers.</summary>
+        public void PollExtrema(Func<string, string> readFn)
+        {
+            foreach (var key in _minTrackers.Keys.ToList())
+            {
+                var (q, min) = _minTrackers[key];
+                var raw = readFn(q);
+                if (float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v < min)
+                    _minTrackers[key] = (q, v);
+            }
+            foreach (var key in _maxTrackers.Keys.ToList())
+            {
+                var (q, max) = _maxTrackers[key];
+                var raw = readFn(q);
+                if (float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > max)
+                    _maxTrackers[key] = (q, v);
+            }
+        }
+
+        public float GetMin(string name) => _minTrackers[name].min;
+        public float GetMax(string name) => _maxTrackers[name].max;
 
         // ─── FrameSets (CAPTURE_FRAMES) ───
         readonly Dictionary<string, List<string>> _frameSets = new();
@@ -134,6 +167,64 @@ namespace UnityMCP.Editor
                     ConservedViolations.Add($"ASSERT_CONSERVED ERR: {rawLine} — {e.Message}");
                 }
             }
+        }
+
+        // ─── P-110: WAIT_STABLE rolling window ───
+
+        /// <summary>Tracks a rolling window of (time, value) samples for WAIT_STABLE.</summary>
+        internal class RollingWindow
+        {
+            private readonly Queue<(float t, float v)> _samples = new();
+
+            public void Add(float t, float v)
+            {
+                _samples.Enqueue((t, v));
+                Prune(t);
+            }
+
+            // Evict samples older than 2 seconds beyond what we need (safety margin)
+            public void Prune(float now)
+            {
+                while (_samples.Count > 0 && now - _samples.Peek().t > 2f)
+                    _samples.Dequeue();
+            }
+
+            /// <summary>Max-min over the last windowDuration seconds; float.MaxValue if fewer than 2 samples.</summary>
+            public float Range(float windowDuration, float now)
+            {
+                Prune(now);
+                float min = float.MaxValue, max = float.MinValue;
+                int count = 0;
+                foreach (var s in _samples)
+                {
+                    if (now - s.t <= windowDuration)
+                    {
+                        if (s.v < min) min = s.v;
+                        if (s.v > max) max = s.v;
+                        count++;
+                    }
+                }
+                return count < 2 ? float.MaxValue : max - min;
+            }
+        }
+
+        // Stable window for the currently executing WAIT_STABLE step
+        RollingWindow _stableWindow;
+        string _stableWindowQuery;
+
+        public void StartStableWindow(string query)
+        {
+            _stableWindowQuery = query;
+            _stableWindow = new RollingWindow();
+        }
+
+        /// <summary>Samples the field, adds to rolling window, returns true when stable (range ≤ delta over the full window).</summary>
+        public bool PollStable(float now, float delta, float windowDuration, Func<string, string> readFn)
+        {
+            var raw = readFn(_stableWindowQuery);
+            if (float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
+                _stableWindow.Add(now, v);
+            return _stableWindow.Range(windowDuration, now) <= delta;
         }
 
         // ─── Report ───
