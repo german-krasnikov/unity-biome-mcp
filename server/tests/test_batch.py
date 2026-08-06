@@ -174,6 +174,19 @@ async def test_validate_references_ignore_optional_false_omitted(mock_bridge):
     assert "ignore_optional" not in call_args
 
 
+async def test_validate_references_particle_renderer_passthrough(mock_bridge):
+    """P-117: Python layer passes C# result through unchanged.
+    Non-mesh render mode filtering (Stretch3D, HorizontalBillboard, etc.) is
+    done in C# ValidateReferencesHelper. Python does not add or remove filtering."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "0 ERROR, 2 OK"})
+    result = await validate_references(path="/GroundSparks", depth=1)
+    assert result == "0 ERROR, 2 OK"
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[0] == "validate_references"
+    assert call_args[1]["path"] == "/GroundSparks"
+    assert call_args[1]["depth"] == 1
+
+
 async def test_batch_fields_forwarded_to_csharp(mock_bridge, bridge_response):
     """fields= in batch DSL is forwarded as-is to C# (not consumed by Python)."""
     bridge_response(data="[0] ok: m_Mass: 2")

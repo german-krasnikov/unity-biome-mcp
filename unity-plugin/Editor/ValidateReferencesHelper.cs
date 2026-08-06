@@ -57,9 +57,15 @@ namespace UnityMCP.Editor
 
                 var so = new SerializedObject(comp);
                 var compType = comp.GetType().Name;
-                // G4: Billboard ParticleSystemRenderer doesn't use a mesh — skip m_Mesh to avoid false MISSING.
+                // G4/P-117: Only Mesh (4) render mode requires m_Mesh; all others are billboard-style.
+                // Skip m_Mesh for Billboard, Stretch3D, HorizontalBillboard, VerticalBillboard, None
+                // to avoid false MISSING reports on GroundSparks-style particle renderers.
                 bool skipMesh = comp is ParticleSystemRenderer psr
-                    && psr.renderMode == ParticleSystemRenderMode.Billboard;
+                    && psr.renderMode is ParticleSystemRenderMode.Billboard
+                                      or ParticleSystemRenderMode.Stretch3D
+                                      or ParticleSystemRenderMode.HorizontalBillboard
+                                      or ParticleSystemRenderMode.VerticalBillboard
+                                      or ParticleSystemRenderMode.None;
                 // G51: Collect fields marked [AllowNull] — intentionally nullable, skip MISSING detection.
                 var allowNullFields = GetAllowNullFieldNames(comp.GetType());
                 ReferenceHelper.WalkObjectRefs(so, (p, label) =>

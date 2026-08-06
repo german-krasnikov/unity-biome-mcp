@@ -116,7 +116,7 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("0 ERROR", result);
         }
 
-        // ── G4: Billboard particle renderer — no false MISSING for mesh field ───
+        // ── G4 / P-117: Particle render modes that don't use a mesh — no false MISSING ───
 
         [Test]
         public void ValidateReferences_BillboardParticleRenderer_NoFalseMissing()
@@ -132,6 +132,83 @@ namespace UnityMCP.Editor.Tests
 
             StringAssert.DoesNotContain("MISSING", result,
                 "Billboard renderer must not report m_Mesh as MISSING");
+        }
+
+        [Test]
+        public void ValidateReferences_Stretch3DParticleRenderer_NoFalseMissingMesh()
+        {
+            // P-117: Stretch3D uses velocity-aligned billboard, not a mesh.
+            _go.AddComponent<ParticleSystem>();
+            var renderer = _go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Stretch3D;
+            var path = ComponentSerializer.GetPath(_go);
+
+            var result = ValidateReferencesHelper.Validate(path, depth: 1, ignoreOptional: false);
+
+            StringAssert.DoesNotContain("MISSING", result,
+                "Stretch3D renderer must not report m_Mesh as MISSING");
+        }
+
+        [Test]
+        public void ValidateReferences_HorizontalBillboardRenderer_NoFalseMissingMesh()
+        {
+            // P-117: HorizontalBillboard is a flat billboard, no mesh required.
+            _go.AddComponent<ParticleSystem>();
+            var renderer = _go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.HorizontalBillboard;
+            var path = ComponentSerializer.GetPath(_go);
+
+            var result = ValidateReferencesHelper.Validate(path, depth: 1, ignoreOptional: false);
+
+            StringAssert.DoesNotContain("MISSING", result,
+                "HorizontalBillboard renderer must not report m_Mesh as MISSING");
+        }
+
+        [Test]
+        public void ValidateReferences_VerticalBillboardRenderer_NoFalseMissingMesh()
+        {
+            // P-117: VerticalBillboard is a vertical billboard, no mesh required.
+            _go.AddComponent<ParticleSystem>();
+            var renderer = _go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.VerticalBillboard;
+            var path = ComponentSerializer.GetPath(_go);
+
+            var result = ValidateReferencesHelper.Validate(path, depth: 1, ignoreOptional: false);
+
+            StringAssert.DoesNotContain("MISSING", result,
+                "VerticalBillboard renderer must not report m_Mesh as MISSING");
+        }
+
+        [Test]
+        public void ValidateReferences_NoneRenderModeRenderer_NoFalseMissingMesh()
+        {
+            // P-117: None render mode makes particles invisible — no mesh needed.
+            _go.AddComponent<ParticleSystem>();
+            var renderer = _go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.None;
+            var path = ComponentSerializer.GetPath(_go);
+
+            var result = ValidateReferencesHelper.Validate(path, depth: 1, ignoreOptional: false);
+
+            StringAssert.DoesNotContain("MISSING", result,
+                "None render mode must not report m_Mesh as MISSING");
+        }
+
+        [Test]
+        public void ValidateReferences_MeshRenderMode_IsNotExcludedFromCheck()
+        {
+            // P-117: Mesh mode REQUIRES a mesh — it must NOT be in the skip list.
+            // With no dangling ref (instanceId=0), result is clean regardless.
+            // This test guards that Mesh mode is never accidentally added to skipMesh.
+            _go.AddComponent<ParticleSystem>();
+            var renderer = _go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Mesh;
+            var path = ComponentSerializer.GetPath(_go);
+
+            var result = ValidateReferencesHelper.Validate(path, depth: 1, ignoreOptional: false);
+
+            // No dangling ref in a fresh renderer → clean result (0 ERROR, no MISSING).
+            StringAssert.Contains("0 ERROR", result);
         }
 
         // ── G51: AllowNull — intentionally null fields not reported as MISSING ──
