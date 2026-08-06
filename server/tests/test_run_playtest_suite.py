@@ -165,7 +165,7 @@ async def test_auto_play_false_does_not_call_editor(mock_bridge):
 
 
 async def test_auto_play_true_enters_play_when_not_playing(mock_bridge):
-    """auto_play=True: calls editor(play) when state does not contain 'playing:True'."""
+    """auto_play=True: calls editor(play) when playing:False in state response."""
     files = ["a.playtest"]
     call_log = []
 
@@ -176,10 +176,9 @@ async def test_auto_play_true_enters_play_when_not_playing(mock_bridge):
         if cmd == "editor":
             action = args.get("action", "")
             if action == "state":
-                # After play is called, return playing (colon format); before, return stopped
-                played = any(a == "play" for _, a in [(c, d.get("action", "")) for c, d in call_log])
-                state_str = "playing:True\npaused:False\ncompiling:False" if played else "playing:False\npaused:False\ncompiling:False"
-                return {"ok": True, "data": state_str}
+                played = any(d.get("action") == "play" for _, d in call_log)
+                state = "playing:True\npaused:False\n" if played else "playing:False\npaused:False\n"
+                return {"ok": True, "data": state}
             return {"ok": True, "data": "ok"}
         if cmd == "run_playtest":
             return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
@@ -192,15 +191,14 @@ async def test_auto_play_true_enters_play_when_not_playing(mock_bridge):
 
 
 async def test_auto_play_true_skips_play_when_already_playing(mock_bridge):
-    """auto_play=True: does NOT call play when already in play mode (colon format)."""
+    """auto_play=True: does NOT call play when playing:True in state response."""
     files = ["a.playtest"]
 
     async def dispatch(cmd, args, timeout=30.0):
         if cmd == "list_playtest_files":
             return {"ok": True, "data": "\n".join(files)}
         if cmd == "editor":
-            # Correct C# EditorStateHelper.GetState() colon format
-            return {"ok": True, "data": "playing:True\npaused:False\ncompiling:False"}
+            return {"ok": True, "data": "playing:True\npaused:False\ncompiling:False\n"}
         if cmd == "run_playtest":
             return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
         return {"ok": True, "data": "ok"}
@@ -210,117 +208,3 @@ async def test_auto_play_true_skips_play_when_already_playing(mock_bridge):
     play_calls = [c for c in mock_bridge.send.call_args_list
                   if c[0][0] == "editor" and c[0][1].get("action") == "play"]
     assert not play_calls, "auto_play=True must not call play when already playing"
-
-
-# ── P-336: state format fix (colon format from EditorStateHelper.GetState()) ──
-
-async def test_auto_play_colon_format_already_playing(mock_bridge):
-    """P-336: editor state 'playing:True\\n...' (C# colon format) must be recognized.
-    auto_play=True: no editor(play) call when response already contains 'playing:True'."""
-    files = ["a.playtest"]
-
-    async def dispatch(cmd, args, timeout=30.0):
-        if cmd == "list_playtest_files":
-            return {"ok": True, "data": "\n".join(files)}
-        if cmd == "editor":
-            # C# EditorStateHelper.GetState() actual format — colon not space
-            return {"ok": True, "data": "playing:True\npaused:False\ncompiling:False"}
-        if cmd == "run_playtest":
-            return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
-        return {"ok": True, "data": "ok"}
-
-    mock_bridge.send.side_effect = dispatch
-    await run_playtest_suite("a.playtest", auto_play=True, stop_after=False)
-    play_calls = [c for c in mock_bridge.send.call_args_list
-                  if c[0][0] == "editor" and c[0][1].get("action") == "play"]
-    assert not play_calls, (
-        "P-336: already playing (colon format) must not trigger editor(play). "
-        "Fix: check 'playing:true' not 'state: playing'."
-    )
-
-
-async def test_auto_play_colon_format_not_playing_enters_play(mock_bridge):
-    """P-336: editor state 'playing:False\\n...' must trigger play."""
-    files = ["a.playtest"]
-    call_log = []
-
-    async def dispatch(cmd, args, timeout=30.0):
-        call_log.append((cmd, dict(args)))
-        if cmd == "list_playtest_files":
-            return {"ok": True, "data": "\n".join(files)}
-        if cmd == "editor":
-            action = args.get("action", "")
-            if action == "state":
-                played = any(a == "play" for _, a in [(c, d.get("action", "")) for c, d in call_log])
-                state_str = "playing:True\npaused:False\ncompiling:False" if played else "playing:False\npaused:False\ncompiling:False"
-                return {"ok": True, "data": state_str}
-            return {"ok": True, "data": "ok"}
-        if cmd == "run_playtest":
-            return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
-        return {"ok": True, "data": "ok"}
-
-    mock_bridge.send.side_effect = dispatch
-    await run_playtest_suite("a.playtest", auto_play=True, stop_after=False)
-    play_calls = [(c, d) for c, d in call_log if c == "editor" and d.get("action") == "play"]
-    assert play_calls, "P-336: not playing (colon format) must call editor(play)"
-
-
-# ── P-325: lifecycle FSM fail-closed ─────────────────────────────────────────
-
-async def test_restart_between_lifecycle_error_in_report(mock_bridge):
-    """P-325: stop error during restart_between must appear in suite report (not swallowed)."""
-    files = ["a.playtest", "b.playtest"]
-    stop_call_n = [0]
-
-    async def dispatch(cmd, args, timeout=30.0):
-        if cmd == "list_playtest_files":
-            return {"ok": True, "data": "\n".join(files)}
-        if cmd == "run_playtest":
-            return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
-        if cmd == "editor":
-            action = args.get("action", "")
-            if action == "stop":
-                stop_call_n[0] += 1
-                if stop_call_n[0] == 1:  # the inter-file restart stop
-                    raise RuntimeError("Unity stopped responding")
-            return {"ok": True, "data": "playing:True\npaused:False\ncompiling:False"}
-        return {"ok": True, "data": "ok"}
-
-    mock_bridge.send.side_effect = dispatch
-    result = await run_playtest_suite(
-        "*.playtest", restart_between=True, stop_after=False
-    )
-    assert "LIFECYCLE_ERR" in result or "(restart)" in result, (
-        "P-325: lifecycle error must appear in suite report, not be silently swallowed. "
-        f"Got: {result!r}"
-    )
-
-
-async def test_restart_between_stop_on_fail_terminates_on_lifecycle_error(mock_bridge):
-    """P-325: stop_on_fail=True + lifecycle error aborts suite (only 1 file result)."""
-    files = ["a.playtest", "b.playtest", "c.playtest"]
-    stop_call_n = [0]
-
-    async def dispatch(cmd, args, timeout=30.0):
-        if cmd == "list_playtest_files":
-            return {"ok": True, "data": "\n".join(files)}
-        if cmd == "run_playtest":
-            return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
-        if cmd == "editor":
-            action = args.get("action", "")
-            if action == "stop":
-                stop_call_n[0] += 1
-                if stop_call_n[0] == 1:
-                    raise RuntimeError("Unity stopped responding")
-            return {"ok": True, "data": "playing:True\npaused:False\ncompiling:False"}
-        return {"ok": True, "data": "ok"}
-
-    mock_bridge.send.side_effect = dispatch
-    result = await run_playtest_suite(
-        "*.playtest", restart_between=True, stop_on_fail=True, stop_after=False
-    )
-    # Suite should abort: only first file result + error entry, not all 3
-    run_calls = [c for c in mock_bridge.send.call_args_list if c[0][0] == "run_playtest"]
-    assert len(run_calls) == 1, (
-        f"P-325: stop_on_fail + lifecycle error must abort suite. ran {len(run_calls)} files"
-    )

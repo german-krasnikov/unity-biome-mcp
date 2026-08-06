@@ -49,14 +49,14 @@ def test_guard_passes_watch_remove():
 def test_track_editor_state_sets_known():
     mw = _make_mw()
     assert not mw._play_state_known
-    mw.track_editor_state("editor", "state: stopped")
+    mw.track_editor_state("editor", "playing:False\npaused:False\ncompiling:False\n")
     assert mw._play_state_known
     assert not mw.is_playing
 
 
 def test_track_editor_state_sets_playing():
     mw = _make_mw()
-    mw.track_editor_state("editor", "state: playing")
+    mw.track_editor_state("editor", "playing:True\npaused:False\ncompiling:False\n")
     assert mw._play_state_known
     assert mw.is_playing
 

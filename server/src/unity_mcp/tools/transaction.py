@@ -11,6 +11,7 @@ import time as _time
 
 from ._annotations import RW as _RW
 from ._common import bind
+from .editor_state import is_play_mode as _is_play_mode
 
 _send = None
 _args = None
@@ -48,10 +49,8 @@ async def scene_change_plan(
     _cleanup_expired()
 
     # 1. Play Mode check — scene mutations are blocked during Play Mode
-    # EditorStateHelper.GetState() format: "playing:True\npaused:False\n..."
-    # Must check "playing:true" not "playing" — the latter matches "playing:False" too
     editor_state = await _send("editor", {"action": "state"})
-    if "playing:true" in (editor_state or "").lower():
+    if _is_play_mode(editor_state):
         return "FAIL: Play Mode active — exit Play Mode before planning scene changes"
 
     # 2. Compile check
@@ -117,9 +116,7 @@ async def apply_scene_change(
     refs_status = console_status = ""
     if verify:
         try:
-            target_path = _plans[plan_id].get("targets", "")
-            vr_args = {"path": target_path} if target_path else {}
-            refs_data = await _send("validate_references", vr_args)
+            refs_data = await _send("validate_references", {})
             m = re.search(r"(\d+)\s+broken", refs_data or "")
             broken = int(m.group(1)) if m else 0
             refs_status = f"\nrefs={'ok (0 broken)' if broken == 0 else f'BROKEN ({broken} broken)'}"
@@ -137,12 +134,7 @@ async def apply_scene_change(
         await _send("scene", {"action": "save"})
         saved_status = "\nsaved=true"
 
-    receipt_state = "ROLLED_BACK" if "<rollback>" in (batch_data or "") else "APPLIED"
-    return (
-        f"state={receipt_state}\n"
-        f"mutations=ok ({batch_data or ''})"
-        f"{refs_status}{console_status}{saved_status}"
-    )
+    return f"mutations=ok ({batch_data or ''}){refs_status}{console_status}{saved_status}"
 
 
 def register(mcp, send, args):

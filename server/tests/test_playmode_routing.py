@@ -12,22 +12,22 @@ def mw():
 # ─── track_editor_state ───────────────────────────────────────────────────────
 
 def test_track_state_playing_from_editor_response(mw):
-    mw.track_editor_state("editor", "state: playing")
+    mw.track_editor_state("editor", "playing:True\npaused:False\ncompiling:False\n")
     assert mw.is_playing is True
 
 
 def test_track_state_stopped_from_editor_response(mw):
-    mw.track_editor_state("editor", "state: stopped")
+    mw.track_editor_state("editor", "playing:False\npaused:False\ncompiling:False\n")
     assert mw.is_playing is False
 
 
 def test_track_state_ignores_non_editor_cmd(mw):
-    mw.track_editor_state("get_hierarchy", "state: playing")
-    assert mw.is_playing is False  # default
+    mw.track_editor_state("get_hierarchy", "playing:True\npaused:False\n")
+    assert mw.is_playing is False  # non-editor cmd ignored
 
 
 def test_track_state_paused_counts_as_playing(mw):
-    mw.track_editor_state("editor", "state: paused")
+    mw.track_editor_state("editor", "playing:False\npaused:True\ncompiling:False\n")
     assert mw.is_playing is True
 
 
@@ -87,7 +87,7 @@ async def test_wrap_send_reroutes_set_property_during_play():
 
 async def test_wrap_send_tracks_editor_state():
     mw = Middleware()
-    fake_send = AsyncMock(return_value="state: playing\nsome info")
+    fake_send = AsyncMock(return_value="playing:True\npaused:False\ncompiling:False\n")
     wrapped = wrap_send(fake_send, mw)
     await wrapped("editor", {"action": "state"})
     assert mw.is_playing is True

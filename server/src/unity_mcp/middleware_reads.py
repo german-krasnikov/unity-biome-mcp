@@ -1,6 +1,11 @@
 """Read/cache methods for Middleware (mixin)."""
 
 from .middleware_types import is_write
+from .tools.editor_state import (
+    parse_editor_field as _parse_editor_field,
+    is_play_mode as _is_play_mode,
+    is_paused as _is_paused,
+)
 
 
 class MiddlewareReadsMixin:
@@ -109,13 +114,9 @@ class MiddlewareReadsMixin:
             self.schema_cache.invalidate_all()
         if cmd != "editor":
             return
-        lower = result.lower()
-        if "state: playing" in lower or "state: paused" in lower:
+        if _parse_editor_field(result, "playing") is not None:
             self._play_state_known = True
-            self.is_playing = True
-        elif "state: stopped" in lower or "state: edit" in lower:
-            self._play_state_known = True
-            self.is_playing = False
+            self.is_playing = _is_play_mode(result) or _is_paused(result)
 
     def reroute_cmd(self, cmd: str, args: dict) -> tuple[str, dict]:
         """Rewrite set_property↔set_runtime_property based on play mode."""
