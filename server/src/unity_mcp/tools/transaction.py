@@ -48,8 +48,10 @@ async def scene_change_plan(
     _cleanup_expired()
 
     # 1. Play Mode check — scene mutations are blocked during Play Mode
+    # EditorStateHelper.GetState() format: "playing:True\npaused:False\n..."
+    # Must check "playing:true" not "playing" — the latter matches "playing:False" too
     editor_state = await _send("editor", {"action": "state"})
-    if "playing" in (editor_state or "").lower():
+    if "playing:true" in (editor_state or "").lower():
         return "FAIL: Play Mode active — exit Play Mode before planning scene changes"
 
     # 2. Compile check

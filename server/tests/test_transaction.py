@@ -68,11 +68,35 @@ class TestSceneChangePlan:
         assert "compile=clean" in result
 
     async def test_play_mode_rejected(self, monkeypatch):
-        """G20: scene_change_plan must reject when Unity is in Play Mode."""
+        """G20: scene_change_plan must reject when Unity is in Play Mode (EditorStateHelper format)."""
         async def playing_send(cmd, args, **kw):
-            if cmd == "editor": return "state: playing"
+            if cmd == "editor": return "playing:True\npaused:False\ncompiling:False\n"
             return "compile clean"
         monkeypatch.setattr(tr, "_send", playing_send)
+        result = await tr.scene_change_plan("mutate scene")
+        assert "FAIL" in result.upper()
+        assert "play" in result.lower()
+        assert not tr._plans
+
+    async def test_scene_change_plan_edit_mode_proceeds(self, monkeypatch):
+        """P-339: playing:False must NOT block plan creation (was false-positive on substring match)."""
+        async def edit_mode_send(cmd, args, **kw):
+            if cmd == "editor": return "playing:False\npaused:False\ncompiling:False\n"
+            if cmd == "get_compile_errors": return "compile clean"
+            if cmd == "get_console": return ""
+            if cmd == "checkpoint": return "cp_ok"
+            return ""
+        monkeypatch.setattr(tr, "_send", edit_mode_send)
+        result = await tr.scene_change_plan("wire scene")
+        assert "plan_id=" in result, f"Expected plan creation in Edit Mode, got: {result}"
+        assert "FAIL" not in result.upper()
+
+    async def test_scene_change_plan_play_mode_blocked_exact_format(self, monkeypatch):
+        """P-339: playing:True (EditorStateHelper format) must block plan creation."""
+        async def play_mode_send(cmd, args, **kw):
+            if cmd == "editor": return "playing:True\npaused:False\ncompiling:False\n"
+            return "compile clean"
+        monkeypatch.setattr(tr, "_send", play_mode_send)
         result = await tr.scene_change_plan("mutate scene")
         assert "FAIL" in result.upper()
         assert "play" in result.lower()
