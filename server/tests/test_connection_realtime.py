@@ -14,6 +14,8 @@ import socket
 import time
 from unittest.mock import patch
 
+import pytest
+
 from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, BACKOFF_MAX_S, HeartbeatMixin
 from unity_mcp.bridge_reload_state import DomainReloadTracker
 from unity_mcp.bridge import BridgeState
@@ -67,6 +69,7 @@ class _RealTimeBridge(HeartbeatMixin):
 # Scenario 1: Anti-spam — real wall-clock, dead port, ~80s run
 # ---------------------------------------------------------------------------
 
+@pytest.mark.timeout(120)
 async def test_antispam_dead_port_real_wallclock(unused_tcp_port):
     """S1: Backoff dampens connect spam on a dead port over 80s wall-clock.
 
