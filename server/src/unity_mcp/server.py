@@ -324,6 +324,12 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
         raise ToolError(
             "[TRANSPORT_DEAD] stdio transport closed — restart the MCP server (/mcp)"
         )
+    if os.environ.get("UNITY_MCP_READ_ONLY", "0") == "1":
+        from .middleware_types import WRITE_CMDS
+        if cmd in WRITE_CMDS:
+            raise ToolError(
+                f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
+            )
     bridge = slot.bridge
     if bridge is None:
         raise ToolError("No Unity connection configured. Use reconnect_unity(port).")

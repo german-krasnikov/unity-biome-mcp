@@ -88,6 +88,11 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         if pm_block:
             return _early_return(pm_block)
 
+        # P-324: block mutation commands for read-only endpoints (before TCP)
+        ro_block = mw.check_read_only(cmd, args)
+        if ro_block:
+            return _early_return(ro_block)
+
         # Play mode auto-routing — AFTER guards so they see original cmd
         cmd, args = mw.reroute_cmd(cmd, args)
 

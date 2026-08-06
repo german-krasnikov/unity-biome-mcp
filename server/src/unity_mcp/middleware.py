@@ -54,6 +54,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self.path_to_scene: dict = {}
         self._alias_cache: dict = {}  # name → "path|comp|field" — cleared on reset_session; bounded by scene size
         self.is_playing: bool = False
+        self.is_read_only: bool = os.environ.get("UNITY_MCP_READ_ONLY", "0") == "1"
         self._play_state_known: bool = False
         self._last_writes: OrderedDict = OrderedDict()
         self._MAX_WRITES = 128

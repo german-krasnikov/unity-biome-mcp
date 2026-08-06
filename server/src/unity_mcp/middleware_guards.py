@@ -2,7 +2,7 @@
 import json
 import time
 
-from .middleware_types import _RUNTIME_ONLY_CMDS, ACTION_READS, BLAST_RADIUS, READ_CMDS, is_write
+from .middleware_types import _RUNTIME_ONLY_CMDS, ACTION_READS, BLAST_RADIUS, READ_CMDS, WRITE_CMDS, is_write
 from .utils import parse_kv_line
 
 
@@ -128,6 +128,16 @@ class MiddlewareGuardsMixin:
             return None  # playing — all good
         if cmd in _RUNTIME_ONLY_CMDS:
             return f"err: '{cmd}' requires Play Mode. Use editor(action='play') first."
+        return None
+
+    # ── Feature: Read-Only Endpoint Guard (P-324) ────────────────────────────
+
+    def check_read_only(self, cmd: str, args: dict) -> str | None:  # noqa: ARG002
+        """Block mutation commands when the endpoint is in read-only mode."""
+        if not self.is_read_only:
+            return None
+        if cmd in WRITE_CMDS:
+            return f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         return None
 
     # ── Feature N: Starvation Monitor ────────────────────────────────────────
