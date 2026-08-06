@@ -66,6 +66,7 @@ jobs:
 
       - name: Run server unit tests (with coverage)
         if: matrix.python-version == '3.12'
+        timeout-minutes: 10
         working-directory: server
         env:
           PYTHONWARNDEFAULTENCODING: "1"
@@ -73,6 +74,7 @@ jobs:
 
       - name: Run server unit tests
         if: matrix.python-version != '3.12'
+        timeout-minutes: 10
         working-directory: server
         env:
           PYTHONWARNDEFAULTENCODING: "1"

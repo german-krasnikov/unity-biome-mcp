@@ -44,6 +44,7 @@ def _load_tools() -> list[dict]:
 def _spec_version() -> str:
     """8-char sha256 of sorted spec names+categories — detects schema drift."""
     import hashlib  # noqa: PLC0415
+
     from unity_mcp.tools.tool_specs import _SPECS  # noqa: PLC0415
     payload = json.dumps(
         sorted((name, spec.category) for name, spec in _SPECS.items()),
