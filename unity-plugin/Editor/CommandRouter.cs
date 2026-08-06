@@ -94,7 +94,7 @@ namespace UnityMCP.Editor
                 // return a dedup sentinel without re-executing (idempotent retry safety).
                 var retryOpId = JsonHelper.ExtractString(json, "retry_op_id");
                 if (retryOpId != null && !_dedupRegistry.TryRegister(retryOpId))
-                    return JsonHelper.FormatResponse(id, true, "DEDUP: already executed");
+                    return JsonHelper.FormatResponse(id, true, "DEDUP: already executed", null);
 
                 // Register the primary op_id so future retries can be detected.
                 var opId = JsonHelper.ExtractString(json, "op_id");

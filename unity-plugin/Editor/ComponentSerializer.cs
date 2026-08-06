@@ -21,8 +21,12 @@ namespace UnityMCP.Editor
         public static string Serialize(string path, string typeName)
         {
             var go = FindObject(path);
-            if (go == null) return null;
+            return go == null ? null : Serialize(go, typeName);
+        }
 
+        public static string Serialize(GameObject go, string typeName)
+        {
+            if (go == null) return null;
             var component = FindComponent(go, typeName);
             if (component == null) return null;
 
