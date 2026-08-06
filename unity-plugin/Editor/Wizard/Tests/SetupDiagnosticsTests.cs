@@ -72,6 +72,11 @@ namespace UnityMCP.Editor.Tests
                 System.IO.Directory.CreateDirectory(venvBin);
                 System.IO.File.WriteAllText(System.IO.Path.Combine(venvBin, "python"), "#!/bin/sh");
 
+                // Windows: ResolvePythonCmd checks Scripts/python.exe first
+                var venvScripts = System.IO.Path.Combine(tmpDir, ".venv", "Scripts");
+                System.IO.Directory.CreateDirectory(venvScripts);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(venvScripts, "python.exe"), "");
+
                 var (ok, detail) = SetupDiagnostics.CheckPythonForSource(
                     InstallSourceDetector.Source.Local, tmpDir);
                 Assert.IsTrue(ok);

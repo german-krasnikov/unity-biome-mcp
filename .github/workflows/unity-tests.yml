@@ -76,7 +76,7 @@ jobs:
         with:
           unity-version: 6000.0.65f1
           build-targets: ${{ matrix.build-target }}
-          cache-installation: true
+          cache-installation: ${{ runner.os != 'Windows' }}
           hub-version: ${{ matrix.hub-version }}
 
       - uses: buildalon/activate-unity-license@87b3a82bac7ca7609eacdb2bec31c8a8a142ed9a  # v2
