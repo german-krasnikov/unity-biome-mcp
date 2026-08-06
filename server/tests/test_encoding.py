@@ -203,7 +203,7 @@ def test_server_filtering_read_utf8(tmp_path):
     # Patch os.kill so pid=99999 is "alive" (no exception).
     # Patch _tcp_probe so port 19999 appears open.
     with mock.patch("unity_mcp.server_filtering._ports_dir", return_value=ports_dir), \
-         mock.patch("unity_mcp.server_filtering.os.kill"), \
+         mock.patch("unity_mcp.server_filtering._is_pid_alive", return_value=True), \
          mock.patch("unity_mcp.server_filtering._tcp_probe", return_value=True), \
          mock.patch.dict("os.environ", {}, clear=False):
 

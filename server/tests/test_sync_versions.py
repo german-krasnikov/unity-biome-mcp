@@ -1,6 +1,7 @@
 """Tests for scripts/sync_versions.py --check mode (version-skew gate)."""
 import json
 import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -59,10 +60,14 @@ def _write_fixture(root: Path, versions: dict) -> None:
     )
 
 
+_SUBPROCESS_ENV = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+
+
 def _run_check(root: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--check", "--root", str(root)],
         capture_output=True, text=True, encoding="utf-8",
+        env=_SUBPROCESS_ENV,
     )
 
 
@@ -70,6 +75,7 @@ def _run_sync(root: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--sync", "--root", str(root)],
         capture_output=True, text=True, encoding="utf-8",
+        env=_SUBPROCESS_ENV,
     )
 
 

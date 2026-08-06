@@ -83,6 +83,7 @@ def test_live_port_discovery_uses_exact_project_and_rejects_collisions(
 def test_live_bridge_factory_pins_project_and_dynamic_discovery(
     tmp_path, monkeypatch
 ):
+    import os
     worker = _unity_project(tmp_path / "worker")
     monkeypatch.setattr(live_conftest, "LIVE_PROJECT", str(worker))
     monkeypatch.setattr(live_conftest, "current_worker_port", lambda: 54171)
@@ -90,7 +91,8 @@ def test_live_bridge_factory_pins_project_and_dynamic_discovery(
     bridge = live_conftest.make_live_bridge()
 
     assert bridge._port == 54171
-    assert bridge._expected_project_path == str(worker)
+    # normcase for Windows: paths may differ in case (C:\Users vs c:\users)
+    assert os.path.normcase(bridge._expected_project_path) == os.path.normcase(str(worker))
     assert bridge._port_discoverer is live_conftest.current_worker_port
 
 
