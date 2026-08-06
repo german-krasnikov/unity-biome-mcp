@@ -298,6 +298,13 @@ _budget_router = None
 async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     if slot is None:
         raise ToolError("Server not initialized. Restart MCP server (/mcp).")
+    from .tools.tool_specs import _SPECS
+    spec = _SPECS.get(cmd)
+    if spec is not None and spec.direct_only:
+        raise ToolError(
+            f"'{cmd}' is a Python-only control-plane tool and cannot be sent to Unity. "
+            "Call it as a typed MCP tool."
+        )
     bridge = slot.bridge
     if bridge is None:
         raise ToolError("No Unity connection configured. Use reconnect_unity(port).")
