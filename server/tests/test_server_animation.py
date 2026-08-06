@@ -150,15 +150,15 @@ async def test_animator_has_exit_time_true_sends_string(mock_bridge):
     )
 
 
-async def test_animator_has_exit_time_false_omitted(mock_bridge):
-    """has_exit_time=False omits the key (Pattern A: C# default is false)."""
+async def test_animator_has_exit_time_false_sends_false(mock_bridge):
+    """has_exit_time=False sends 'false' to C# (explicit override of default)."""
     from unity_mcp.server import animator
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "transition added"})
     await animator(action="add_transition", path="/Char", source="Idle", target="Walk",
                    has_exit_time=False)
     args = mock_bridge.send.call_args[0][1]
-    assert "has_exit_time" not in args, (
-        f"has_exit_time should be omitted when False, got {args.get('has_exit_time')!r}"
+    assert args.get("has_exit_time") == "false", (
+        f"has_exit_time=False must send 'false' (str), got {args.get('has_exit_time')!r}"
     )
 
 

@@ -87,7 +87,7 @@ async def spatial_query(action: str, path: str | None = None, target: str | None
 
 async def region_clear(vertices: str, dry_run: bool = True,
                        filter: str | None = None, cap: int = 50) -> str:
-    """Delete (or preview) all objects whose XZ pivot is inside the polygon region.
+    """Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.
 
     vertices: CSV polygon 'x1,z1;x2,z2;...' (>=3 pairs).
     dry_run: True = list objects that WOULD be deleted (safe default). False = delete them.
@@ -109,7 +109,7 @@ async def navmesh_query(action: str, center: str | None = None,
                         agentHeight: float | None = None,
                         agentClimb: float | None = None,
                         agentSlope: float | None = None) -> str:
-    """NavMesh queries and management. action: sample|path|raycast|bake|status|clear|get_settings|set_settings.
+    """NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings.
     sample: find nearest walkable point to center.
     path: calculate path from from_pos to to.
     raycast: NavMesh raycast from from_pos toward to.

@@ -31,11 +31,7 @@ def _toolsmith_file() -> pathlib.Path:
     return FIXTURES / "toolsmith_sample.json"
 
 
-def _mcplint_file() -> pathlib.Path:
-    return FIXTURES / "mcplint_sample.txt"
-
-
-def _current(te=5, tw=10, ta=80.5, me=2, mw=1):
+def _current(te=5, tw=10, ta=80.5):
     return {
         "date": "2026-08-05",
         "version": "1.0.0",
@@ -43,8 +39,6 @@ def _current(te=5, tw=10, ta=80.5, me=2, mw=1):
         "toolsmith_errors": te,
         "toolsmith_warnings": tw,
         "toolsmith_avg_score": ta,
-        "mcplint_errors": me,
-        "mcplint_warnings": mw,
     }
 
 
@@ -73,28 +67,6 @@ def test_parse_toolsmith_toplevel_fallback(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# parse_mcplint
-# ---------------------------------------------------------------------------
-
-
-def test_parse_mcplint_counts():
-    r = qd.parse_mcplint(_mcplint_file())
-    assert r == {"errors": 2, "warnings": 1}
-
-
-def test_parse_mcplint_empty_text(tmp_path):
-    f = tmp_path / "lint.txt"
-    f.write_text("", encoding="utf-8")
-    r = qd.parse_mcplint(f)
-    assert r == {"errors": 0, "warnings": 0}
-
-
-def test_parse_mcplint_missing_file(tmp_path):
-    r = qd.parse_mcplint(tmp_path / "nonexistent.txt")
-    assert r == {"errors": 0, "warnings": 0}
-
-
-# ---------------------------------------------------------------------------
 # compute_delta
 # ---------------------------------------------------------------------------
 
@@ -103,7 +75,6 @@ def test_compute_delta_no_baseline():
     d = qd.compute_delta(_current(), None)
     assert d["has_baseline"] is False
     assert d["toolsmith_errors"] == 0
-    assert d["mcplint_errors"] == 0
 
 
 def test_compute_delta_improvement():
@@ -128,10 +99,6 @@ def test_compute_delta_regression():
 
 def test_is_regression_true_toolsmith():
     assert qd.is_regression(_current(te=10), _current(te=5)) is True
-
-
-def test_is_regression_true_mcplint():
-    assert qd.is_regression(_current(me=5), _current(me=2)) is True
 
 
 def test_is_regression_false_no_baseline():
@@ -180,24 +147,24 @@ def test_render_pr_comment_marker():
 
 
 def test_make_badge_green():
-    b = qd.make_badge(_current(te=0, me=0))
+    b = qd.make_badge(_current(te=0))
     assert b["color"] == "green"
 
 
 def test_make_badge_yellow():
-    b = qd.make_badge(_current(te=4, me=1))  # total=5
+    b = qd.make_badge(_current(te=5))
     assert b["color"] == "yellow"
 
 
 def test_make_badge_red():
-    b = qd.make_badge(_current(te=7, me=4))  # total=11
+    b = qd.make_badge(_current(te=11))
     assert b["color"] == "red"
 
 
 def test_make_badge_message_format():
-    cur = _current(te=35, me=20, ta=72.1)
+    cur = _current(te=35, ta=72.1)
     b = qd.make_badge(cur)
-    assert b["message"] == "72.1/100 · 55 errors"
+    assert b["message"] == "72.1/100 · 35 errors"
 
 
 # ---------------------------------------------------------------------------
@@ -245,8 +212,6 @@ def test_main_mode_a_writes_all_files(tmp_path, monkeypatch):
         json.dumps({"summary": {"issues_by_severity": {"error": 5, "warning": 10}, "score": 80.5}}),
         encoding="utf-8",
     )
-    mcplint = tmp_path / "mcplint.txt"
-    mcplint.write_text("✖ err\n⚠ warn\n", encoding="utf-8")
     history = tmp_path / "history.json"
     latest = tmp_path / "latest.json"
     comment = tmp_path / "pr-comment.md"
@@ -264,7 +229,6 @@ def test_main_mode_a_writes_all_files(tmp_path, monkeypatch):
     sys.argv = [
         "quality_delta.py",
         "--toolsmith", str(toolsmith),
-        "--mcplint", str(mcplint),
         "--history", str(history),
         "--out-latest", str(latest),
         "--out-comment", str(comment),
@@ -284,7 +248,7 @@ def test_main_mode_a_writes_all_files(tmp_path, monkeypatch):
 
 
 def test_render_report_basic():
-    out = qd.render_report(_current(), _toolsmith_file(), _mcplint_file())
+    out = qd.render_report(_current(), _toolsmith_file())
     assert "# Quality Report" in out
     assert "## Project Overview" in out
     assert "## Tool Quality" in out
@@ -297,7 +261,7 @@ def test_render_report_with_test_results(tmp_path):
         {"name": "Python Server", "passed": 4886, "failed": 0, "skipped": 3, "total": 4889},
         {"name": "C# EditMode (Linux)", "passed": 3286, "failed": 4, "skipped": 0, "total": 3290},
     ]}), encoding="utf-8")
-    out = qd.render_report(_current(), _toolsmith_file(), _mcplint_file(), test_results_paths=[tr])
+    out = qd.render_report(_current(), _toolsmith_file(), test_results_paths=[tr])
     assert "## Test Results" in out
     assert "Python Server" in out
     assert "4886" in out
@@ -310,13 +274,13 @@ def test_render_report_with_coverage(tmp_path):
         "modules": [{"name": "unity_mcp", "statements": 1000, "covered": 930, "missed": 70, "coverage": 93.0}],
         "total": {"statements": 1000, "covered": 930, "missed": 70, "coverage": 93.0},
     }), encoding="utf-8")
-    out = qd.render_report(_current(), _toolsmith_file(), _mcplint_file(), coverage_path=cov)
+    out = qd.render_report(_current(), _toolsmith_file(), coverage_path=cov)
     assert "## Code Coverage" in out
     assert "93.0%" in out
 
 
 def test_render_report_without_optional_sections():
-    out = qd.render_report(_current(), _toolsmith_file(), _mcplint_file())
+    out = qd.render_report(_current(), _toolsmith_file())
     assert "## Test Results" not in out
     assert "## Code Coverage" not in out
 
@@ -327,8 +291,6 @@ def test_main_mode_a_with_report(tmp_path, monkeypatch):
         json.dumps({"summary": {"issues_by_severity": {"error": 5, "warning": 10}, "score": 80.5}}),
         encoding="utf-8",
     )
-    mcplint = tmp_path / "mcplint.txt"
-    mcplint.write_text("✖ err\n⚠ warn\n", encoding="utf-8")
     history = tmp_path / "history.json"
     latest = tmp_path / "latest.json"
     comment = tmp_path / "pr-comment.md"
@@ -345,7 +307,6 @@ def test_main_mode_a_with_report(tmp_path, monkeypatch):
     sys.argv = [
         "quality_delta.py",
         "--toolsmith", str(toolsmith),
-        "--mcplint", str(mcplint),
         "--history", str(history),
         "--out-latest", str(latest),
         "--out-comment", str(comment),

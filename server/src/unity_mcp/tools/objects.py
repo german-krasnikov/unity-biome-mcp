@@ -111,7 +111,7 @@ async def wire_event(path: str, component: str, event: str, target: str, method:
                      arg_type: str = "void", arg_value: str | None = None,
                      target_component_type: str | None = None,
                      parameter_types: str | None = None) -> str:
-    """Wire UnityEvent persistent listener.
+    """Wire UnityEvent persistent listener. Mutates scene. No confirmation required.
     path: object with the event. component: type owning the event field.
     event: serialized field name (e.g. 'onClick', '_onComplete').
     target: scene path or asset path. Auto-resolves component owning the method.
@@ -127,14 +127,14 @@ async def wire_event(path: str, component: str, event: str, target: str, method:
 
 
 async def unwire_event(path: str, component: str, event: str, index: int | None = None) -> str:
-    """Remove persistent listener(s) from UnityEvent.
+    """Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required.
     index: remove specific entry (0-based). Omit to clear all."""
     return await _send("unwire_event", _args(
         path=path, component=component, event=event, index=index))
 
 
 async def delete_object(id: int | None = None, path: str | None = None, force: bool = False) -> str:
-    """Delete GameObject by instance ID or scene path. Provide one. force=True to delete non-empty containers."""
+    """Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."""
     if id is None and not path:
         raise ValueError("delete_object: id or path required")
     args = {}
@@ -145,7 +145,7 @@ async def delete_object(id: int | None = None, path: str | None = None, force: b
 
 
 async def manage_component(path: str, type: str, action: str) -> str:
-    """Add or remove a component. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."""
+    """Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."""
     return await _send("manage_component", {"path": path, "type": type, "action": action})
 
 

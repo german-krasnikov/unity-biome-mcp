@@ -80,14 +80,22 @@ from contextlib import asynccontextmanager, suppress
 
 from mcp.server.fastmcp import FastMCP
 
+from .tools._schema_postprocessor import postprocess_schema
+
 
 class _UnstructuredMCP(FastMCP):
     def add_tool(self, fn, name=None, title=None, description=None,
                  annotations=None, icons=None, meta=None,
                  structured_output=None) -> None:
-        super().add_tool(fn, name=name, title=title, description=description,
+        tool_name = name or fn.__name__
+        if not title:
+            title = tool_name.replace("_", " ").title()
+        super().add_tool(fn, name=tool_name, title=title, description=description,
                          annotations=annotations, icons=icons, meta=meta,
                          structured_output=False)
+        tool = self._tool_manager._tools.get(tool_name)
+        if tool is not None:
+            postprocess_schema(tool_name, tool.parameters)
 
 
 

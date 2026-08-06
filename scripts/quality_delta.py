@@ -44,22 +44,6 @@ def parse_toolsmith(path: pathlib.Path) -> dict:
     }
 
 
-def parse_mcplint(path: pathlib.Path) -> dict:
-    """Parse mcp-lint text output.
-
-    Count ✖ (U+2716) → errors, ⚠ (U+26A0) → warnings.
-    Returns zeros if file missing/unreadable.
-    """
-    try:
-        text = path.read_text(encoding="utf-8")
-    except Exception:
-        return {"errors": 0, "warnings": 0}
-    return {
-        "errors": len(re.findall("✖", text)),
-        "warnings": len(re.findall("⚠", text)),
-    }
-
-
 # ---------------------------------------------------------------------------
 # Snapshot builder
 # ---------------------------------------------------------------------------
@@ -98,7 +82,7 @@ def _get_commit() -> str:
         return "unknown"
 
 
-def build_snapshot(toolsmith: dict, mcplint: dict, repo_root: pathlib.Path) -> dict:
+def build_snapshot(toolsmith: dict, repo_root: pathlib.Path) -> dict:
     """Assemble latest.json entry."""
     return {
         "date": datetime.date.today().isoformat(),
@@ -107,8 +91,6 @@ def build_snapshot(toolsmith: dict, mcplint: dict, repo_root: pathlib.Path) -> d
         "toolsmith_errors": toolsmith["errors"],
         "toolsmith_warnings": toolsmith["warnings"],
         "toolsmith_avg_score": toolsmith["avg_score"],
-        "mcplint_errors": mcplint["errors"],
-        "mcplint_warnings": mcplint["warnings"],
     }
 
 
@@ -125,22 +107,16 @@ def compute_delta(current: dict, baseline: dict | None) -> dict:
             "toolsmith_errors": 0,
             "toolsmith_warnings": 0,
             "toolsmith_avg_score": 0.0,
-            "mcplint_errors": 0,
-            "mcplint_warnings": 0,
         }
-    keys = ["toolsmith_errors", "toolsmith_warnings", "toolsmith_avg_score",
-            "mcplint_errors", "mcplint_warnings"]
+    keys = ["toolsmith_errors", "toolsmith_warnings", "toolsmith_avg_score"]
     return {"has_baseline": True, **{k: current[k] - baseline[k] for k in keys}}
 
 
 def is_regression(current: dict, baseline: dict | None) -> bool:
-    """True if current errors > baseline errors (either linter)."""
+    """True if current toolsmith errors > baseline errors."""
     if baseline is None:
         return False
-    return (
-        current["toolsmith_errors"] > baseline["toolsmith_errors"]
-        or current["mcplint_errors"] > baseline["mcplint_errors"]
-    )
+    return current["toolsmith_errors"] > baseline["toolsmith_errors"]
 
 
 # ---------------------------------------------------------------------------
@@ -163,8 +139,6 @@ def render_pr_comment(current: dict, baseline: dict | None, delta: dict) -> str:
         ("toolsmith errors", "toolsmith_errors"),
         ("toolsmith warnings", "toolsmith_warnings"),
         ("avg score", "toolsmith_avg_score"),
-        ("mcplint errors", "mcplint_errors"),
-        ("mcplint warnings", "mcplint_warnings"),
     ]
 
     if has_baseline:
@@ -190,7 +164,6 @@ def render_pr_comment(current: dict, baseline: dict | None, delta: dict) -> str:
 def render_report(
     current: dict,
     toolsmith_path: pathlib.Path,
-    mcplint_path: pathlib.Path,
     *,
     test_results_paths: list[pathlib.Path] | None = None,
     coverage_path: pathlib.Path | None = None,
@@ -283,8 +256,6 @@ def render_report(
         "|--------|--------|----------|-------|",
         f"| mcp-tool-card-linter | {current['toolsmith_errors']} "
         f"| {current['toolsmith_warnings']} | {current['toolsmith_avg_score']}/100 |",
-        f"| mcp-lint | {current['mcplint_errors']} "
-        f"| {current['mcplint_warnings']} | — |",
         "",
     ]
 
@@ -314,51 +285,12 @@ def render_report(
     except Exception:
         pass
 
-    # mcplint issues grouped by tool
-    try:
-        text = mcplint_path.read_text(encoding="utf-8")
-        mcplint_lines = text.strip().splitlines()
-        if mcplint_lines:
-            lines += [
-                "### Cross-Client Issues (mcp-lint)",
-                "",
-                "<details>",
-                "<summary>Issues by tool (click to expand)</summary>",
-                "",
-            ]
-            current_tool = None
-            issues: list[str] = []
-            for raw in mcplint_lines:
-                stripped = raw.strip()
-                if not stripped:
-                    continue
-                if not raw.startswith(" ") and not raw.startswith("\t"):
-                    if current_tool and issues:
-                        lines.append(f"#### `{current_tool}`")
-                        lines.append("")
-                        for iss in issues:
-                            lines.append(f"- {iss}")
-                        lines.append("")
-                    current_tool = stripped
-                    issues = []
-                elif "✖" in stripped or "⚠" in stripped:
-                    issues.append(stripped)
-            if current_tool and issues:
-                lines.append(f"#### `{current_tool}`")
-                lines.append("")
-                for iss in issues:
-                    lines.append(f"- {iss}")
-                lines.append("")
-            lines += ["</details>", ""]
-    except Exception:
-        pass
-
     return "\n".join(lines)
 
 
 def make_badge(current: dict) -> dict:
     """shields.io JSON badge."""
-    total_errors = current["toolsmith_errors"] + current["mcplint_errors"]
+    total_errors = current["toolsmith_errors"]
     avg = current["toolsmith_avg_score"]
     if total_errors == 0:
         color = "green"
@@ -415,7 +347,6 @@ def main() -> None:
     parser.add_argument("--append", action="store_true")
     # Mode A
     parser.add_argument("--toolsmith", type=pathlib.Path)
-    parser.add_argument("--mcplint", type=pathlib.Path)
     parser.add_argument("--history", type=pathlib.Path)
     parser.add_argument("--out-latest", type=pathlib.Path)
     parser.add_argument("--out-comment", type=pathlib.Path)
@@ -438,8 +369,7 @@ def main() -> None:
     # Mode A
     repo_root = pathlib.Path(__file__).parent.parent
     ts = parse_toolsmith(args.toolsmith)
-    ml = parse_mcplint(args.mcplint)
-    current = build_snapshot(ts, ml, repo_root)
+    current = build_snapshot(ts, repo_root)
 
     history = load_history(args.history) if args.history else []
     baseline = history[-1] if history else None
@@ -452,7 +382,7 @@ def main() -> None:
 
     if args.out_report:
         report = render_report(
-            current, args.toolsmith, args.mcplint,
+            current, args.toolsmith,
             test_results_paths=args.test_results or [],
             coverage_path=args.coverage,
         )
