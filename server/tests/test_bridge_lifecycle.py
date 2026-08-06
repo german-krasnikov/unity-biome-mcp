@@ -9,9 +9,10 @@ Covers:
 - connected property: True iff writer is not None and not is_closing()
 """
 import asyncio
+import json
+import os
 import socket
 import struct
-import json
 from unittest.mock import AsyncMock, Mock, MagicMock, patch, call
 
 import pytest
@@ -35,7 +36,8 @@ async def test_close_calls_socket_shutdown():
         await bridge.connect()
         await bridge.close()
 
-    mock_sock.shutdown.assert_called_once_with(socket.SHUT_RDWR)
+    expected = socket.SHUT_WR if os.name == "nt" else socket.SHUT_RDWR
+    mock_sock.shutdown.assert_called_once_with(expected)
 
 
 async def test_close_nulls_writer_before_closing():

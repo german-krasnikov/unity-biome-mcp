@@ -104,13 +104,15 @@ from .server_filtering import (
     install_list_tools_filter,
 )
 from .server_filtering import (
+    discover_port_with_retry as _discover_port_with_retry,
+)
+from .server_filtering import (
     filter_tools as _filter_tools_pure,
 )
 from .server_filtering import (
     push_catalog as _push_catalog,
 )
 from .server_filtering import (
-    discover_port_with_retry as _discover_port_with_retry,
     read_unity_port as _read_unity_port,
 )
 from .server_lifespan import build_middleware, init_budget, wire_circuit_breaker

@@ -1,9 +1,9 @@
 {
   "tools": 148,
-  "tests_total": 11699,
-  "tests_python": 4607,
+  "tests_total": 11704,
+  "tests_python": 4620,
   "tests_stress": 511,
-  "tests_unity": 6294,
+  "tests_unity": 6286,
   "tests_unity_source": "static_grep",
   "tests_live": 287,
   "server_version": "1.20.0",
