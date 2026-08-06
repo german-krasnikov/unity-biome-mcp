@@ -27,7 +27,7 @@ async def test_concurrent_sends_are_serialized():
     concurrent_count = 0
     max_concurrent = 0
 
-    async def tracked(cmd, payload, msg_id, timeout, deadline):
+    async def tracked(cmd, payload, msg_id, timeout, deadline, op_id=""):
         nonlocal concurrent_count, max_concurrent
         concurrent_count += 1
         max_concurrent = max(max_concurrent, concurrent_count)
@@ -49,7 +49,7 @@ async def test_queue_preserves_result_per_caller():
     """Each concurrent caller must receive its own response, not a neighbour's."""
     bridge = _make_bridge()
 
-    async def echo(cmd, payload, msg_id, timeout, deadline):
+    async def echo(cmd, payload, msg_id, timeout, deadline, op_id=""):
         await asyncio.sleep(0.01)
         return {"id": msg_id, "ok": True, "data": f"reply:{cmd}"}
 
@@ -79,7 +79,7 @@ async def test_circuit_breaker_sees_serial_probes():
     concurrent = 0
     max_concurrent = 0
 
-    async def probe_tracker(cmd, payload, msg_id, timeout, deadline):
+    async def probe_tracker(cmd, payload, msg_id, timeout, deadline, op_id=""):
         nonlocal concurrent, max_concurrent
         concurrent += 1
         max_concurrent = max(max_concurrent, concurrent)
@@ -100,7 +100,7 @@ async def test_queue_consumer_stops_on_close():
     """After close() the consumer task must be done (not still running)."""
     bridge = _make_bridge()
 
-    async def instant(cmd, payload, msg_id, timeout, deadline):
+    async def instant(cmd, payload, msg_id, timeout, deadline, op_id=""):
         return {"id": msg_id, "ok": True, "data": cmd}
 
     bridge._send_with_retry = instant

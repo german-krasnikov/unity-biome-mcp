@@ -116,7 +116,9 @@ async def apply_scene_change(
     refs_status = console_status = ""
     if verify:
         try:
-            refs_data = await _send("validate_references", {})
+            target_path = _plans[plan_id].get("targets", "")
+            vr_args = {"path": target_path} if target_path else {}
+            refs_data = await _send("validate_references", vr_args)
             m = re.search(r"(\d+)\s+broken", refs_data or "")
             broken = int(m.group(1)) if m else 0
             refs_status = f"\nrefs={'ok (0 broken)' if broken == 0 else f'BROKEN ({broken} broken)'}"
@@ -134,7 +136,8 @@ async def apply_scene_change(
         await _send("scene", {"action": "save"})
         saved_status = "\nsaved=true"
 
-    return f"mutations=ok ({batch_data or ''}){refs_status}{console_status}{saved_status}"
+    state = "ROLLED_BACK" if "<rollback>" in (batch_data or "").lower() else "APPLIED"
+    return f"state={state}\nmutations=ok ({batch_data or ''}){refs_status}{console_status}{saved_status}"
 
 
 def register(mcp, send, args):
