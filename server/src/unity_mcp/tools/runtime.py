@@ -283,6 +283,7 @@ async def lint_playtest(
     script: "str | None" = None,
 ) -> str:
     """Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list.
+    Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN.
     path: project-relative path to .playtest file.
     script: inline DSL (mutually exclusive with path)."""
     if path and script:
