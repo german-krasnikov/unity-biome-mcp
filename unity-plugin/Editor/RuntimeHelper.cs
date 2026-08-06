@@ -83,8 +83,19 @@ namespace UnityMCP.Editor
                 int ParamScore(MethodInfo m) => m.GetParameters().Sum(p =>
                     p.ParameterType == typeof(Vector3) ? 3 :
                     p.ParameterType == typeof(Vector2) ? 2 : 1);
-                method = candidates.FirstOrDefault(m => ParamScore(m) == suppliedParts)
-                      ?? candidates[0];
+                var scored = candidates.Where(m => ParamScore(m) == suppliedParts).ToList();
+                if (scored.Count == 1)
+                {
+                    method = scored[0];
+                }
+                else
+                {
+                    var sigs = candidates.Select(m =>
+                        $"{m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
+                    throw new ArgumentException(
+                        $"Ambiguous method '{methodName}': {string.Join(" | ", sigs)}. " +
+                        "Specify exact arg count or use parameter_types= to disambiguate.");
+                }
             }
 
             var parameters = method.GetParameters();
@@ -479,6 +490,23 @@ namespace UnityMCP.Editor
             }
             if (targetType.IsEnum)
                 return Enum.Parse(targetType, value, ignoreCase: true);
+
+            // Component-reference syntax: @/path|CompType or @/path (uses targetType.Name)
+            if (value.StartsWith("@", StringComparison.Ordinal)
+                && typeof(Component).IsAssignableFrom(targetType))
+            {
+                var refStr = value.Substring(1);
+                var pipeIdx = refStr.IndexOf('|');
+                var objPath = pipeIdx >= 0 ? refStr.Substring(0, pipeIdx) : refStr;
+                var typeName = pipeIdx >= 0 ? refStr.Substring(pipeIdx + 1) : targetType.Name;
+                var refGo = ComponentSerializer.FindObject(objPath);
+                if (refGo == null)
+                    throw new ArgumentException($"Object not found: {objPath}");
+                var comp = ComponentSerializer.FindComponent(refGo, typeName);
+                if (comp == null)
+                    throw new ArgumentException($"Component {typeName} not found on {objPath}");
+                return comp;
+            }
 
             // Registered converters (built-ins: Hash128, LayerMask; project-specific via RegisterConverter)
             foreach (var conv in _converters)
