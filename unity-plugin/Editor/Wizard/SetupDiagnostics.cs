@@ -116,6 +116,20 @@ namespace UnityMCP.Editor.Wizard
                 == UnityEngine.OperatingSystemFamily.Windows ? "python" : "python3";
         }
 
+        /// <summary>
+        /// Variant used by DiagnosePanel: skips the Python binary check for UPM git/registry
+        /// installs where the server/ directory does not exist on disk.
+        /// Local and Unknown sources run the full CheckPython probe.
+        /// </summary>
+        public static (bool ok, string detail) CheckPythonForSource(
+            InstallSourceDetector.Source source, string serverDir)
+        {
+            if (source == InstallSourceDetector.Source.Local ||
+                source == InstallSourceDetector.Source.Unknown)
+                return CheckPython(serverDir);
+            return (true, "uvx install — Python check N/A");
+        }
+
         // ── Server ────────────────────────────────────────────────────────────
 
         /// <summary>Returns running state of the MCP TCP server.</summary>

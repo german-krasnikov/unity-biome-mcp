@@ -39,12 +39,18 @@ jobs:
       - run: ruff check --config server/pyproject.toml server/src/ install/ scripts/ --output-format=github
 
   test:
-    name: Test (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    name: Test (py${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
+        os: [ubuntu-latest, macos-latest, windows-2022]
+        exclude:
+          - os: windows-2022
+            python-version: "3.11"
+          - os: macos-latest
+            python-version: "3.11"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
@@ -58,19 +64,22 @@ jobs:
         working-directory: server
         run: pip install ".[dev]"
 
-      - name: Run server unit tests
+      - name: Run server unit tests (with coverage)
+        if: matrix.python-version == '3.12'
         working-directory: server
         env:
           PYTHONWARNDEFAULTENCODING: "1"
-        run: |
-          if [ "${{ matrix.python-version }}" = "3.12" ]; then
-            python -m pytest tests/ -m "not live and not monkey" -q --tb=short --cov=unity_mcp --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=reports/server-junit.xml
-          else
-            python -m pytest tests/ -m "not live and not monkey" -q --tb=short
-          fi
+        run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short --cov=unity_mcp --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=reports/server-junit.xml
+
+      - name: Run server unit tests
+        if: matrix.python-version != '3.12'
+        working-directory: server
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+        run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45  # v5
         with:
           files: server/coverage.xml
@@ -78,35 +87,39 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Run install tests
+      - name: Run install tests (with junit)
+        if: matrix.python-version == '3.12'
         env:
           PYTHONWARNDEFAULTENCODING: "1"
-        run: |
-          if [ "${{ matrix.python-version }}" = "3.12" ]; then
-            python -m pytest install/tests/ -q --tb=short --junitxml=server/reports/install-junit.xml
-          else
-            python -m pytest install/tests/ -q --tb=short
-          fi
+        run: python -m pytest install/tests/ -q --tb=short --junitxml=server/reports/install-junit.xml
+
+      - name: Run install tests
+        if: matrix.python-version != '3.12'
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+        run: python -m pytest install/tests/ -q --tb=short
+
+      - name: Run scripts tests (with junit)
+        if: matrix.python-version == '3.12'
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+        run: python -m pytest scripts/tests/ -q --tb=short --junitxml=server/reports/scripts-junit.xml
 
       - name: Run scripts tests
+        if: matrix.python-version != '3.12'
         env:
           PYTHONWARNDEFAULTENCODING: "1"
-        run: |
-          if [ "${{ matrix.python-version }}" = "3.12" ]; then
-            python -m pytest scripts/tests/ -q --tb=short --junitxml=server/reports/scripts-junit.xml
-          else
-            python -m pytest scripts/tests/ -q --tb=short
-          fi
+        run: python -m pytest scripts/tests/ -q --tb=short
 
       - name: Collect test results
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         run: |
           python scripts/collect_test_results.py --add-pytest server/reports/server-junit.xml --suite "Python Server (3.12)" --platform linux --out server/reports/tests.json
           python scripts/collect_test_results.py --add-pytest server/reports/install-junit.xml --suite "Python Install" --platform linux --out server/reports/tests.json
           python scripts/collect_test_results.py --add-pytest server/reports/scripts-junit.xml --suite "Python Scripts" --platform linux --out server/reports/tests.json
 
       - name: Upload test analytics to Codecov
-        if: matrix.python-version == '3.12' && !cancelled()
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest' && !cancelled()
         uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45  # v5
         with:
           files: server/reports/server-junit.xml,server/reports/install-junit.xml,server/reports/scripts-junit.xml
@@ -115,7 +128,7 @@ jobs:
           report_type: test_results
 
       - name: Upload test results
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: test-results

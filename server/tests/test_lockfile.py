@@ -1,10 +1,18 @@
 """TDD tests for lockfile.py — per-PID presence files, no SIGTERM."""
-import fcntl
 import os
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+if sys.platform == "win32":
+    pytest.skip(
+        "lockfile tests use fcntl (POSIX-only); Windows lockfile uses msvcrt",
+        allow_module_level=True,
+    )
+
+import fcntl  # noqa: E402 — must be after the win32 guard
 
 from unity_mcp.lockfile import (
     acquire_lock, release_lock, read_pid_from_port_file, is_pid_alive,

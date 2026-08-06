@@ -50,7 +50,8 @@ namespace UnityMCP.Editor
         internal static void SavePorts(int port, int chatPort)
         {
             PortResolver.SavePorts(PortFilePath, port, chatPort);
-            PortResolver.SaveProjectSettings(_projectSettingsPath, port, chatPort);
+            if (!PortResolver.TrySaveProjectSettings(_projectSettingsPath, port, chatPort, File.WriteAllText))
+                Debug.LogWarning("[MCP] Could not save port intent to ProjectSettings — changes may not survive a Library purge.");
             _port = port;
             _chatPort = chatPort;
             _portsResolved = true;
