@@ -1,10 +1,8 @@
 {
   "date": "2026-08-06",
-  "version": "1.21.0",
-  "commit": "6729d27",
-  "toolsmith_errors": 19,
-  "toolsmith_warnings": 597,
-  "toolsmith_avg_score": 72.8,
-  "mcplint_errors": 699,
-  "mcplint_warnings": 1162
+  "version": "1.22.0",
+  "commit": "e0608f1",
+  "toolsmith_errors": 4,
+  "toolsmith_warnings": 376,
+  "toolsmith_avg_score": 83.64
 }

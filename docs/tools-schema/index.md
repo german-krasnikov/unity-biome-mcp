@@ -7,160 +7,160 @@ hide:
 
 > **148 registered tools** — auto-generated from server tool definitions.
 
-> Quality: **72.8/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
+> Quality: **83.6/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
 
 ## Overview
 
 | Tool | Score | Risk | Description |
 |------|-------|------|-------------|
-| [`alias_status`](#alias_status) | 🟢 89/100 | 🟢 low | Check alias table health: loaded/empty/stale, sources, and total alias count. |
-| [`analyze_lod_culling`](#analyze_lod_culling) | 🟢 83/100 | 🟢 low | LOD group coverage + occlusion culling analysis. |
-| [`animation`](#animation) | 🟡 64/100 | 🟡 medium | Animate GameObject properties via AnimationClip. Use when you need to read or... |
-| [`animator`](#animator) | 🔴 18/100 | 🔴 high | Animator Controller — state machine (use `animation` for keyframe clips, `tim... |
-| [`animator_intent`](#animator_intent) | 🟡 75/100 | 🟡 medium | Convert NL intent to Unity Animator Controller setup via DSL. |
-| [`apply_scene_change`](#apply_scene_change) | 🟡 74/100 | 🟡 medium | Execute scene mutations with pre-check, post-verify, and optional save. |
-| [`apply_template`](#apply_template) | 🟢 82/100 | 🟡 medium | Apply a scene template (.cs file from .claude/templates/). |
-| [`ask`](#ask) | 🟢 87/100 | 🟢 low | Answer a read-only question about the Unity scene (AI-routed, not interactive... |
-| [`ask_user`](#ask_user) | 🟢 87/100 | 🟢 low | Show a question card in Unity chat; wait for user answer (interactive UI — us... |
-| [`asset`](#asset) | 🔴 37/100 | 🔴 high | Asset database. action: find|get_info|create|move|validate_move|duplicate|del... |
-| [`auto_fix`](#auto_fix) | 🟢 89/100 | 🟢 low | Auto-detect and fix Unity errors. Uses MCP sampling to ask Claude for fixes. |
-| [`auto_wire`](#auto_wire) | 🟡 72/100 | 🟡 medium | Fill null ObjectReference fields on a GameObject by matching field name or ty... |
-| [`autofit_collider`](#autofit_collider) | 🟡 71/100 | 🟡 medium | Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule. |
-| [`await_compile`](#await_compile) | 🟡 78/100 | 🟢 low | Block until Unity finishes compiling + reloading, then return compile errors. |
-| [`bake`](#bake) | 🟢 86/100 | 🟢 low | Bake operations. |
-| [`batch`](#batch) | 🟡 68/100 | 🟡 medium | Execute multiple commands in one call. Use for 2+ ops — reads AND writes. com... |
-| [`budget_status`](#budget_status) | 🟢 89/100 | 🟢 low | Returns Haiku cost: session/cap/day/skipped features. Text format. |
-| [`build`](#build) | 🟢 83/100 | 🟡 medium | Build player. action: build. |
-| [`cancel_test_run`](#cancel_test_run) | 🟡 78/100 | 🟡 medium | Request cancellation of one exact test run; cancellation is asynchronous. |
-| [`check_colliders`](#check_colliders) | 🟢 83/100 | 🟡 medium | Check collider issues: triggers without Rigidbody, negative scale, micro coll... |
-| [`checkpoint`](#checkpoint) | 🟡 73/100 | 🟡 medium | Create a named Undo checkpoint. Use before major scene changes. Allows rollba... |
-| [`compile_preflight`](#compile_preflight) | 🟢 80/100 | 🟡 medium | Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — ca... |
-| [`configure_objects`](#configure_objects) | 🟢 87/100 | 🟡 medium | Configure multiple objects at once. |
-| [`console_mark`](#console_mark) | 🟡 73/100 | 🟡 medium | Create a console watermark. Returns mark_id encoding current timestamp. |
-| [`create_object`](#create_object) | 🟡 69/100 | 🟡 medium | Create new GameObject. components: comma-separated types to add on creation. ... |
-| [`create_ui`](#create_ui) | 🔴 52/100 | 🟡 medium | Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. ... |
-| [`debug`](#debug) | 🟡 73/100 | 🟡 medium | AI-assisted scene debug: gather diagnostic context based on symptom (not comp... |
-| [`debug_animator`](#debug_animator) | 🟢 82/100 | 🟡 medium | [Play Mode] Read Animator state: layers, transitions, parameters (use `debug`... |
-| [`debug_physics`](#debug_physics) | 🟡 76/100 | 🟡 medium | [Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (us... |
-| [`delete_object`](#delete_object) | 🔴 53/100 | 🔴 high | Delete GameObject by instance ID or scene path. Provide one. force=True to de... |
-| [`diagnose`](#diagnose) | 🟢 81/100 | 🟢 low | Read Unity compile/reload fact-signals atomically; returns typed verdict. For... |
-| [`discover_tools`](#discover_tools) | 🟢 80/100 | 🟢 low | Find and enable tools by category. |
-| [`do`](#do) | 🟡 77/100 | 🟡 medium | Convert natural language intent into Unity scene operations. Use when scene s... |
-| [`doctor`](#doctor) | 🟡 74/100 | 🟡 medium | Run health diagnostics. Use fix=True to auto-repair safe issues. |
-| [`editor`](#editor) | 🟢 80/100 | 🟡 medium | Editor state/control. action: state|play|pause|stop|select|project_path. |
-| [`execute_code`](#execute_code) | 🟡 61/100 | 🟡 medium | Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. |
-| [`export_playtest_aliases_to_defs`](#export_playtest_aliases_to_defs) | 🟢 80/100 | 🟡 medium | Export PlaytestConfig.asset aliases to a readable .defs text file. |
-| [`find_objects`](#find_objects) | 🟡 76/100 | 🟡 medium | Find objects by criteria. Use search_scene for complex queries. Does NOT supp... |
-| [`fingerprint`](#fingerprint) | 🟡 77/100 | 🟡 medium | Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens. |
-| [`get_capabilities`](#get_capabilities) | 🟢 89/100 | 🟢 low | Unity version, platform, render pipeline, scripting backend, and optional pac... |
-| [`get_changes`](#get_changes) | 🟡 74/100 | 🟡 medium | Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo, |
-| [`get_compile_errors`](#get_compile_errors) | 🟢 89/100 | 🟡 medium | Compilation errors with file:line:column. Not lost on Console.Clear(). Struct... |
-| [`get_component`](#get_component) | 🟡 68/100 | 🟡 medium | Component properties as key-value. For MULTIPLE objects, use inspect(paths='a... |
-| [`get_components_list`](#get_components_list) | 🟡 79/100 | 🟢 low | List all components on object by instance ID. |
-| [`get_console`](#get_console) | 🟡 68/100 | 🟢 low | Recent console logs. For C# compile errors use get_compile_errors instead. ke... |
-| [`get_console_since`](#get_console_since) | 🟡 78/100 | 🟢 low | Console entries after the watermark created by console_mark(). |
-| [`get_enabled_tools`](#get_enabled_tools) | 🟢 89/100 | 🟢 low | List enabled tool names, comma-separated. |
-| [`get_frame_stats`](#get_frame_stats) | 🟢 82/100 | 🟢 low | Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No se... |
-| [`get_hierarchy`](#get_hierarchy) | 🟡 61/100 | 🟡 medium | Scene hierarchy as text tree. For finding specific object by name/type use se... |
-| [`get_memory`](#get_memory) | 🟢 82/100 | 🟢 low | Memory snapshot. |
-| [`get_metrics`](#get_metrics) | 🔴 57/100 | 🔴 high | Returns telemetry snapshot. format: text|json. reset=true clears counters ato... |
-| [`get_object_detail`](#get_object_detail) | 🟡 78/100 | 🟢 low | Get ALL components with ALL values. Heavy. Use get_component for single compo... |
-| [`get_schema`](#get_schema) | 🟡 78/100 | 🟢 low | Get all serialized fields of a component type with types. Use before set_prop... |
-| [`get_selection`](#get_selection) | 🟢 89/100 | 🟡 medium | Currently selected GameObject: path and component list. |
-| [`get_spatial_context`](#get_spatial_context) | 🟡 76/100 | 🟡 medium | Collider info + approach vectors + nearby objects within radius. Raycast in P... |
-| [`get_test_count`](#get_test_count) | 🟢 89/100 | 🟢 low | Number of edit-mode and play-mode tests in the project. |
-| [`get_test_progress`](#get_test_progress) | 🟡 74/100 | 🟡 medium | Legacy progress facade. Pass run_id to correlate the response. |
-| [`get_test_results`](#get_test_results) | 🟡 74/100 | 🟡 medium | Legacy result facade. Pass run_id to prevent reading a stale latest run. |
-| [`get_test_run`](#get_test_run) | 🟡 78/100 | 🟡 medium | Return the durable JSON snapshot for one exact test run. |
-| [`get_unity_events`](#get_unity_events) | 🟢 83/100 | 🟡 medium | List all UnityEvent persistent listeners in the active scene. |
-| [`get_watches`](#get_watches) | 🟢 89/100 | 🟢 low | Get all active watches and recent log entries. |
-| [`inspect`](#inspect) | 🟡 78/100 | 🟢 low | Get components for multiple objects at once. paths: comma-separated. componen... |
-| [`invoke_method`](#invoke_method) | 🟡 76/100 | 🟡 medium | [Play Mode] Call public method on a component via reflection. |
-| [`lint_playtest`](#lint_playtest) | 🟡 78/100 | 🔴 high | Read-only preflight check on a .playtest file or inline script. |
-| [`lint_playtest_suite`](#lint_playtest_suite) | 🟢 82/100 | 🟡 medium | Read-only preflight check across multiple .playtest files. |
-| [`lint_scene_refs`](#lint_scene_refs) | 🟢 82/100 | 🔴 high | Read-only linter for scene references in DSL scripts or batch commands. |
-| [`list_connections`](#list_connections) | 🟢 89/100 | 🟢 low | List Unity connection status. |
-| [`list_skills`](#list_skills) | 🟢 89/100 | 🟢 low | List all saved skills with descriptions and usage counts. |
-| [`list_templates`](#list_templates) | 🟢 89/100 | 🟢 low | List available scene templates in .claude/templates/. |
-| [`list_test_runs`](#list_test_runs) | 🟡 78/100 | 🟢 low | List recent durable test runs as JSON, newest first. |
-| [`load_session`](#load_session) | 🟢 89/100 | 🟢 low | Load previous session context beside the current hierarchy. |
-| [`manage_component`](#manage_component) | 🔴 45/100 | 🔴 high | Add or remove a component. action: 'add' or 'remove' ONLY (no 'enable'/'disab... |
-| [`material`](#material) | 🟡 64/100 | 🟡 medium | Material asset management (for quick color change use `set_material`). action... |
-| [`material_audit`](#material_audit) | 🟢 81/100 | 🟢 low | Material/texture scene-wide audit. |
-| [`mcp_status`](#mcp_status) | 🟢 89/100 | 🟢 low | Compact MCP status: scene, dirty, play/compile state, port, alias count. |
-| [`menu`](#menu) | 🟡 77/100 | 🟡 medium | Execute or list Unity Editor menu items. action: execute|list. execute: run m... |
-| [`move_to`](#move_to) | 🟡 74/100 | 🟡 medium | [Play Mode] Move character to position and wait for arrival. |
-| [`navmesh_query`](#navmesh_query) | 🔴 44/100 | 🔴 high | NavMesh queries and management. action: sample|path|raycast|bake|status|clear... |
-| [`object_diff`](#object_diff) | 🟡 75/100 | 🟡 medium | Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA... |
-| [`package`](#package) | 🔴 56/100 | 🔴 high | Package manager. action: list|search|add|remove. |
-| [`particle`](#particle) | 🔴 58/100 | 🟡 medium | Particle System. action: get|create|set|apply|play|stop|pause. module=main|em... |
-| [`permission_prompt`](#permission_prompt) | 🟡 70/100 | 🟢 low | Handle Claude permission prompts via MCP. |
-| [`ping_object`](#ping_object) | 🟢 82/100 | 🟡 medium | Highlight object in Hierarchy and Project, and select it. |
-| [`prefab`](#prefab) | 🔴 46/100 | 🔴 high | Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|in... |
-| [`profile`](#profile) | 🟡 62/100 | 🟢 low | Profile CPU/GPU/memory over time. |
-| [`project_settings`](#project_settings) | 🔴 53/100 | 🔴 high | Project settings. action: get|set. target: tags|layers|sorting_layers|quality... |
-| [`query_state`](#query_state) | 🟢 87/100 | 🟡 medium | [Play Mode] Snapshot multiple game values in one call. |
-| [`recompile`](#recompile) | 🟢 80/100 | 🟡 medium | Trigger Unity to reimport C# scripts. Returns immediately; use await_compile ... |
-| [`reconnect_unity`](#reconnect_unity) | 🟡 78/100 | 🟢 low | Reconnect to Unity. Port 0 or omitted = auto-discover from port files. |
-| [`references`](#references) | 🟡 70/100 | 🟡 medium | References. action: get|find_to|remap. get: outgoing refs. find_to: reverse s... |
-| [`region_clear`](#region_clear) | 🔴 55/100 | 🔴 high | Delete (or preview) all objects whose XZ pivot is inside the polygon region. |
-| [`release_smoke`](#release_smoke) | 🟢 80/100 | 🟡 medium | Run release readiness checks: status, aliases, compile. Returns PASS/FAIL sum... |
-| [`rename_object`](#rename_object) | 🟡 76/100 | 🟡 medium | Rename a GameObject. Returns new scene path after rename. |
-| [`render_analyze`](#render_analyze) | 🟡 73/100 | 🟡 medium | Rendering analysis. |
-| [`resolve_scene_refs`](#resolve_scene_refs) | 🟢 86/100 | 🟡 medium | Read-only scene reference resolver. |
-| [`resolve_test_request`](#resolve_test_request) | 🟡 78/100 | 🟡 medium | Resolve a possibly lost start ACK without dispatching another test run. |
-| [`resolve_tool_schema`](#resolve_tool_schema) | 🟢 87/100 | 🟢 low | Return full parameter schemas for deferred tools. tools=comma-separated names. |
-| [`run_playtest`](#run_playtest) | 🟡 61/100 | 🔴 high | [Play Mode] Execute a playtest DSL script. Returns structured report (for NUn... |
-| [`run_playtest_suite`](#run_playtest_suite) | 🔴 48/100 | 🔴 high | [Play Mode] Run multiple .playtest files sequentially and return a compact ma... |
-| [`run_tests`](#run_tests) | 🟡 66/100 | 🟡 medium | Dispatch Unity tests and return their durable identity immediately. |
-| [`run_tests_wait`](#run_tests_wait) | 🔴 38/100 | 🔴 high | Dispatch tests and wait for the exact run to become terminal. |
-| [`runtime_snapshot`](#runtime_snapshot) | 🟡 71/100 | 🟢 low | Snapshot all runtime objects of a given component type. Returns per-object fi... |
-| [`save_session`](#save_session) | 🟢 89/100 | 🟢 low | Save current scene state to .claude/session-context.json for cold-start recov... |
-| [`save_skill`](#save_skill) | 🟡 64/100 | 🟢 low | Save a learned skill (C# code or batch commands) for reuse across sessions. |
-| [`save_template`](#save_template) | 🟡 66/100 | 🟢 low | Save C# code as a reusable scene template in .claude/templates/. |
-| [`scan_scene`](#scan_scene) | 🟢 89/100 | 🟢 low | Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, can... |
-| [`scene`](#scene) | 🟢 81/100 | 🟡 medium | Scene management. action: new|open|save|discard|open_additive|close|set_activ... |
-| [`scene_change_plan`](#scene_change_plan) | 🟡 75/100 | 🟡 medium | Pre-flight + plan for safe scene edit. |
-| [`scene_diff`](#scene_diff) | 🟢 89/100 | 🟢 low | Compare scene with last snapshot. First call saves snapshot. Returns diff: ad... |
-| [`scene_environment`](#scene_environment) | 🟡 72/100 | 🟡 medium | Read/write scene environment: ambient light, fog, skybox, reflections. |
-| [`scene_health`](#scene_health) | 🟢 82/100 | 🟢 low | Scene hierarchy/health audit. |
-| [`screenshot`](#screenshot) | 🔴 58/100 | 🟡 medium | Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens... |
-| [`screenshot_baseline`](#screenshot_baseline) | 🟡 65/100 | 🟢 low | Save screenshot as baseline for visual regression. name: identifier for this ... |
-| [`screenshot_compare`](#screenshot_compare) | 🔴 57/100 | 🟢 low | Compare current screenshot with saved baseline. |
-| [`scriptable_object`](#scriptable_object) | 🟡 64/100 | 🟡 medium | ScriptableObject. action: create|get|set|list_types|find. create: type+path[+... |
-| [`search_scene`](#search_scene) | 🟡 79/100 | 🟡 medium | Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, activ... |
-| [`serialized_field_rename_audit`](#serialized_field_rename_audit) | 🟡 72/100 | 🟢 low | Audit [SerializeField] rename safety. |
-| [`set_active`](#set_active) | 🟡 72/100 | 🟡 medium | Set GameObject active/inactive. |
-| [`set_llm_config`](#set_llm_config) | 🟢 87/100 | 🟢 low | Override LLM profiles for sampling features. Format: feature:model,turns,time... |
-| [`set_material`](#set_material) | 🟡 70/100 | 🟡 medium | Set scene object material color (for full asset management use `material`). c... |
-| [`set_parent`](#set_parent) | 🟢 80/100 | 🟡 medium | Reparent existing GameObject. parent=null → move to scene root. world_positio... |
-| [`set_properties`](#set_properties) | 🟡 71/100 | 🟡 medium | Set multiple properties on ONE object. For multiple objects, use configure_ob... |
-| [`set_property`](#set_property) | 🟡 62/100 | 🟡 medium | Set component property (Edit Mode, SerializedObject — for Play Mode use `invo... |
-| [`set_property_delta`](#set_property_delta) | 🟡 76/100 | 🟡 medium | Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new. |
-| [`set_rect`](#set_rect) | 🟡 67/100 | 🟡 medium | Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bott... |
-| [`set_sibling_index`](#set_sibling_index) | 🟡 67/100 | 🟡 medium | Set sibling index of a GameObject within its parent. index=0 moves to first c... |
-| [`setup_objects`](#setup_objects) | 🟡 78/100 | 🟡 medium | Create+configure multiple objects in one call. |
-| [`shader`](#shader) | 🔴 20/100 | 🔴 high | Read or write shader assets (.shader / .shadergraph). Use when you need to in... |
-| [`smart_build`](#smart_build) | 🟢 87/100 | 🟢 low | Build scene objects from natural language description using MCP sampling + ex... |
-| [`snapshot`](#snapshot) | 🟡 78/100 | 🟡 medium | Capture or compare object state. |
-| [`spatial_query`](#spatial_query) | 🟡 76/100 | 🟡 medium | Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|ra... |
-| [`sync_playtest_aliases_from_defs`](#sync_playtest_aliases_from_defs) | 🟢 80/100 | 🟡 medium | Overwrite PlaytestConfig.asset aliases from a .defs text file. |
-| [`sync_unity`](#sync_unity) | 🟡 67/100 | 🟡 medium | Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code... |
-| [`test_step`](#test_step) | 🟡 64/100 | 🟡 medium | [Play Mode] Move character, snapshot state before/after, check console. |
-| [`timeline`](#timeline) | 🔴 51/100 | 🟡 medium | Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinema... |
-| [`transfer_object`](#transfer_object) | 🟡 77/100 | 🟡 medium | Move or copy a GameObject to another loaded scene. action: move|copy. |
-| [`ui_intent`](#ui_intent) | 🟡 75/100 | 🟡 medium | Convert NL intent to Unity UI hierarchy. Templates bypass Haiku. |
-| [`undo_last`](#undo_last) | 🟡 78/100 | 🟢 low | Undo the last N AI turns in the Unity Undo stack. Default: 1. |
-| [`unwire_event`](#unwire_event) | 🔴 53/100 | 🔴 high | Remove persistent listener(s) from UnityEvent. |
-| [`use_skill`](#use_skill) | 🟡 73/100 | 🟡 medium | Execute a previously saved skill. params: comma-separated key=value for subst... |
-| [`validate_layout`](#validate_layout) | 🟡 67/100 | 🟡 medium | Check trigger overlaps. Warns if triggers closer than min_distance meters. |
-| [`validate_playtest_aliases`](#validate_playtest_aliases) | 🟢 80/100 | 🟡 medium | Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/... |
-| [`validate_references`](#validate_references) | 🟡 74/100 | 🟡 medium | Validate all ObjectReference fields under path recursively. |
-| [`verify_after_change`](#verify_after_change) | 🔴 58/100 | 🔴 high | Single verification gate after code/scene changes. |
-| [`vfx_intent`](#vfx_intent) | 🟡 68/100 | 🟡 medium | Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely. |
-| [`wait_until`](#wait_until) | 🟡 64/100 | 🟡 medium | [Play Mode] Poll field until it matches value (or timeout). |
-| [`watch`](#watch) | 🔴 40/100 | 🔴 high | [Play Mode] Manage watches. action: add|remove|clear|reset. |
-| [`wire_event`](#wire_event) | 🔴 52/100 | 🔴 high | Wire UnityEvent persistent listener. |
+| [`alias_status`](#alias_status) | 🟢 95/100 | 🟢 low | Check alias table health: loaded/empty/stale, sources, and total alias count. |
+| [`analyze_lod_culling`](#analyze_lod_culling) | 🟢 89/100 | 🟢 low | LOD group coverage + occlusion culling analysis. |
+| [`animation`](#animation) | 🟡 71/100 | 🟡 medium | Animate GameObject properties via AnimationClip. Use when you need to read or... |
+| [`animator`](#animator) | 🟡 60/100 | 🔴 high | Animator Controller — state machine. Modifies animator assets. No confirmatio... |
+| [`animator_intent`](#animator_intent) | 🟢 81/100 | 🟡 medium | Convert NL intent to Unity Animator Controller setup via DSL. |
+| [`apply_scene_change`](#apply_scene_change) | 🟡 79/100 | 🟡 medium | Execute scene mutations with pre-check, post-verify, and optional save. |
+| [`apply_template`](#apply_template) | 🟢 92/100 | 🟡 medium | Apply a scene template (.cs file from .claude/templates/). |
+| [`ask`](#ask) | 🟢 93/100 | 🟢 low | Answer a read-only question about the Unity scene (AI-routed, not interactive... |
+| [`ask_user`](#ask_user) | 🟢 93/100 | 🟢 low | Show a question card in Unity chat; wait for user answer (interactive UI — us... |
+| [`asset`](#asset) | 🟢 80/100 | 🔴 high | Asset database. Creates, moves, or deletes assets. No confirmation required. ... |
+| [`auto_fix`](#auto_fix) | 🟢 95/100 | 🟢 low | Auto-detect and fix Unity errors. Uses MCP sampling to ask Claude for fixes. |
+| [`auto_wire`](#auto_wire) | 🟢 89/100 | 🔴 high | Fill null ObjectReference fields on a GameObject by matching field name or ty... |
+| [`autofit_collider`](#autofit_collider) | 🟢 82/100 | 🟡 medium | Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule. |
+| [`await_compile`](#await_compile) | 🟢 85/100 | 🟢 low | Block until Unity finishes compiling + reloading, then return compile errors. |
+| [`bake`](#bake) | 🟢 92/100 | 🟢 low | Bake operations. |
+| [`batch`](#batch) | 🟡 78/100 | 🔴 high | Execute multiple commands in one call. Use for 2+ ops — reads AND writes. com... |
+| [`budget_status`](#budget_status) | 🟢 95/100 | 🟢 low | Returns Haiku cost: session/cap/day/skipped features. Text format. |
+| [`build`](#build) | 🟢 90/100 | 🟡 medium | Build player. action: build. |
+| [`cancel_test_run`](#cancel_test_run) | 🟢 83/100 | 🟡 medium | Request cancellation of one exact test run; cancellation is asynchronous. |
+| [`check_colliders`](#check_colliders) | 🟢 90/100 | 🟡 medium | Check collider issues: triggers without Rigidbody, negative scale, micro coll... |
+| [`checkpoint`](#checkpoint) | 🟡 78/100 | 🟡 medium | Create a named Undo checkpoint. Use before major scene changes. Allows rollba... |
+| [`compile_preflight`](#compile_preflight) | 🟢 86/100 | 🟡 medium | Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — ca... |
+| [`configure_objects`](#configure_objects) | 🟢 92/100 | 🟡 medium | Configure multiple objects at once. |
+| [`console_mark`](#console_mark) | 🟢 88/100 | 🟢 low | Create a console watermark. Returns mark_id encoding current timestamp. |
+| [`create_object`](#create_object) | 🟢 84/100 | 🟡 medium | Create new GameObject. components: comma-separated types to add on creation. ... |
+| [`create_ui`](#create_ui) | 🟡 68/100 | 🟡 medium | Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. ... |
+| [`debug`](#debug) | 🟢 80/100 | 🟡 medium | AI-assisted scene debug: gather diagnostic context based on symptom (not comp... |
+| [`debug_animator`](#debug_animator) | 🟢 89/100 | 🟡 medium | [Play Mode] Read Animator state: layers, transitions, parameters (use `debug`... |
+| [`debug_physics`](#debug_physics) | 🟢 83/100 | 🟡 medium | [Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (us... |
+| [`delete_object`](#delete_object) | 🟢 90/100 | 🔴 high | Delete GameObject by instance ID or scene path. Deletes scene objects. No con... |
+| [`diagnose`](#diagnose) | 🟢 87/100 | 🟢 low | Read Unity compile/reload fact-signals atomically; returns typed verdict. For... |
+| [`discover_tools`](#discover_tools) | 🟢 85/100 | 🟢 low | Find and enable tools by category. |
+| [`do`](#do) | 🟢 83/100 | 🟡 medium | Convert natural language intent into Unity scene operations. Use when scene s... |
+| [`doctor`](#doctor) | 🟡 79/100 | 🟡 medium | Run health diagnostics. Use fix=True to auto-repair safe issues. |
+| [`editor`](#editor) | 🟢 87/100 | 🟡 medium | Editor state/control. action: state|play|pause|stop|select|project_path. |
+| [`execute_code`](#execute_code) | 🟡 68/100 | 🔴 high | Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. |
+| [`export_playtest_aliases_to_defs`](#export_playtest_aliases_to_defs) | 🟢 85/100 | 🟡 medium | Export PlaytestConfig.asset aliases to a readable .defs text file. |
+| [`find_objects`](#find_objects) | 🟢 88/100 | 🟡 medium | Find objects by criteria. Use search_scene for complex queries. Does NOT supp... |
+| [`fingerprint`](#fingerprint) | 🟢 85/100 | 🟡 medium | Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens. |
+| [`get_capabilities`](#get_capabilities) | 🟢 95/100 | 🟢 low | Unity version, platform, render pipeline, scripting backend, and optional pac... |
+| [`get_changes`](#get_changes) | 🟢 89/100 | 🟢 low | Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo, |
+| [`get_compile_errors`](#get_compile_errors) | 🟢 95/100 | 🟡 medium | Compilation errors with file:line:column. Not lost on Console.Clear(). Struct... |
+| [`get_component`](#get_component) | 🟢 83/100 | 🟡 medium | Component properties as key-value. For MULTIPLE objects, use inspect(paths='a... |
+| [`get_components_list`](#get_components_list) | 🟢 90/100 | 🟢 low | List all components on object by instance ID. |
+| [`get_console`](#get_console) | 🟡 77/100 | 🟢 low | Recent console logs. For C# compile errors use get_compile_errors instead. ke... |
+| [`get_console_since`](#get_console_since) | 🟢 84/100 | 🟢 low | Console entries after the watermark created by console_mark(). |
+| [`get_enabled_tools`](#get_enabled_tools) | 🟢 95/100 | 🟢 low | List enabled tool names, comma-separated. |
+| [`get_frame_stats`](#get_frame_stats) | 🟢 88/100 | 🟢 low | Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No se... |
+| [`get_hierarchy`](#get_hierarchy) | 🟢 85/100 | 🔴 high | Scene hierarchy as text tree. For finding specific object by name/type use se... |
+| [`get_memory`](#get_memory) | 🟢 88/100 | 🟢 low | Memory snapshot. |
+| [`get_metrics`](#get_metrics) | 🟢 82/100 | 🔴 high | Returns telemetry snapshot. Clears counters when reset=True. No confirmation ... |
+| [`get_object_detail`](#get_object_detail) | 🟢 90/100 | 🟢 low | Get ALL components with ALL values. Heavy. Use get_component for single compo... |
+| [`get_schema`](#get_schema) | 🟢 89/100 | 🟢 low | Get all serialized fields of a component type with types. Use before set_prop... |
+| [`get_selection`](#get_selection) | 🟢 95/100 | 🟡 medium | Currently selected GameObject: path and component list. |
+| [`get_spatial_context`](#get_spatial_context) | 🟢 83/100 | 🟡 medium | Collider info + approach vectors + nearby objects within radius. Raycast in P... |
+| [`get_test_count`](#get_test_count) | 🟢 95/100 | 🟢 low | Number of edit-mode and play-mode tests in the project. |
+| [`get_test_progress`](#get_test_progress) | 🟢 89/100 | 🟢 low | Legacy progress facade. Pass run_id to correlate the response. |
+| [`get_test_results`](#get_test_results) | 🟢 89/100 | 🟢 low | Legacy result facade. Pass run_id to prevent reading a stale latest run. |
+| [`get_test_run`](#get_test_run) | 🟢 93/100 | 🟢 low | Return the durable JSON snapshot for one exact test run. |
+| [`get_unity_events`](#get_unity_events) | 🟢 90/100 | 🟡 medium | List all UnityEvent persistent listeners in the active scene. |
+| [`get_watches`](#get_watches) | 🟢 95/100 | 🟢 low | Get all active watches and recent log entries. |
+| [`inspect`](#inspect) | 🟢 90/100 | 🟢 low | Get components for multiple objects at once. paths: comma-separated. componen... |
+| [`invoke_method`](#invoke_method) | 🟢 83/100 | 🟡 medium | [Play Mode] Call public method on a component via reflection. |
+| [`lint_playtest`](#lint_playtest) | 🟡 69/100 | 🔴 high | Static validation for playtest DSL. Read-only — no scene changes. Returns war... |
+| [`lint_playtest_suite`](#lint_playtest_suite) | 🟢 88/100 | 🟡 medium | Read-only preflight check across multiple .playtest files. |
+| [`lint_scene_refs`](#lint_scene_refs) | 🟢 89/100 | 🔴 high | Read-only linter for scene references in DSL scripts or batch commands. |
+| [`list_connections`](#list_connections) | 🟢 95/100 | 🟢 low | List Unity connection status. |
+| [`list_skills`](#list_skills) | 🟢 95/100 | 🟢 low | List all saved skills with descriptions and usage counts. |
+| [`list_templates`](#list_templates) | 🟢 95/100 | 🟢 low | List available scene templates in .claude/templates/. |
+| [`list_test_runs`](#list_test_runs) | 🟢 85/100 | 🟢 low | List recent durable test runs as JSON, newest first. |
+| [`load_session`](#load_session) | 🟢 95/100 | 🟢 low | Load previous session context beside the current hierarchy. |
+| [`manage_component`](#manage_component) | 🟡 77/100 | 🔴 high | Add or remove a component. Mutates scene. No confirmation required. action: '... |
+| [`material`](#material) | 🟡 78/100 | 🟡 medium | Material asset management (for quick color change use `set_material`). action... |
+| [`material_audit`](#material_audit) | 🟢 88/100 | 🟢 low | Material/texture scene-wide audit. |
+| [`mcp_status`](#mcp_status) | 🟢 95/100 | 🟢 low | Compact MCP status: scene, dirty, play/compile state, port, alias count. |
+| [`menu`](#menu) | 🟢 84/100 | 🟡 medium | Execute or list Unity Editor menu items. action: execute|list. execute: run m... |
+| [`move_to`](#move_to) | 🟢 81/100 | 🟡 medium | [Play Mode] Move character to position and wait for arrival. |
+| [`navmesh_query`](#navmesh_query) | 🟡 70/100 | 🔴 high | NavMesh queries and management. Bakes or clears NavMesh data for bake/clear a... |
+| [`object_diff`](#object_diff) | 🟢 81/100 | 🟡 medium | Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA... |
+| [`package`](#package) | 🟢 88/100 | 🔴 high | Package manager. Adds or removes packages. No confirmation required. action: ... |
+| [`particle`](#particle) | 🟡 76/100 | 🟡 medium | Particle System. action: get|create|set|apply|play|stop|pause. module=main|em... |
+| [`permission_prompt`](#permission_prompt) | 🟡 76/100 | 🟢 low | Handle Claude permission prompts via MCP. |
+| [`ping_object`](#ping_object) | 🟢 88/100 | 🟡 medium | Highlight object in Hierarchy and Project, and select it. |
+| [`prefab`](#prefab) | 🟢 81/100 | 🔴 high | Prefab. Creates or modifies prefab assets. No confirmation required. action: ... |
+| [`profile`](#profile) | 🟡 70/100 | 🟢 low | Profile CPU/GPU/memory over time. |
+| [`project_settings`](#project_settings) | 🟢 86/100 | 🔴 high | Project settings. Modifies project settings when action=set. No confirmation ... |
+| [`query_state`](#query_state) | 🟢 93/100 | 🟡 medium | [Play Mode] Snapshot multiple game values in one call. |
+| [`recompile`](#recompile) | 🟢 85/100 | 🟡 medium | Trigger Unity to reimport C# scripts. Returns immediately; use await_compile ... |
+| [`reconnect_unity`](#reconnect_unity) | 🟢 83/100 | 🟢 low | Reconnect to Unity. Port 0 or omitted = auto-discover from port files. |
+| [`references`](#references) | 🟡 78/100 | 🟡 medium | References. action: get|find_to|remap. get: outgoing refs. find_to: reverse s... |
+| [`region_clear`](#region_clear) | 🟢 82/100 | 🔴 high | Delete (or preview) all objects whose XZ pivot is inside the polygon region. ... |
+| [`release_smoke`](#release_smoke) | 🟢 95/100 | 🟢 low | Run release readiness checks: status, aliases, compile. Returns PASS/FAIL sum... |
+| [`rename_object`](#rename_object) | 🟢 87/100 | 🟡 medium | Rename a GameObject. Returns new scene path after rename. |
+| [`render_analyze`](#render_analyze) | 🟢 90/100 | 🟡 medium | Rendering analysis. |
+| [`resolve_scene_refs`](#resolve_scene_refs) | 🟢 93/100 | 🟡 medium | Read-only scene reference resolver. |
+| [`resolve_test_request`](#resolve_test_request) | 🟢 93/100 | 🟢 low | Resolve a possibly lost start ACK without dispatching another test run. |
+| [`resolve_tool_schema`](#resolve_tool_schema) | 🟢 92/100 | 🟢 low | Return full parameter schemas for deferred tools. tools=comma-separated names. |
+| [`run_playtest`](#run_playtest) | 🟡 75/100 | 🔴 high | [Play Mode] Execute a playtest DSL script. Returns structured report (for NUn... |
+| [`run_playtest_suite`](#run_playtest_suite) | 🟡 73/100 | 🔴 high | [Play Mode] Run multiple .playtest files sequentially and return a compact ma... |
+| [`run_tests`](#run_tests) | 🟡 74/100 | 🟡 medium | Dispatch Unity tests and return their durable identity immediately. |
+| [`run_tests_wait`](#run_tests_wait) | 🟡 68/100 | 🔴 high | Dispatch tests and wait for the exact run to become terminal. Dispatches test... |
+| [`runtime_snapshot`](#runtime_snapshot) | 🟢 89/100 | 🟢 low | Snapshot all runtime objects of a given component type. Returns per-object fi... |
+| [`save_session`](#save_session) | 🟢 94/100 | 🟢 low | Save current scene state to .claude/session-context.json for cold-start recov... |
+| [`save_skill`](#save_skill) | 🟡 75/100 | 🟢 low | Save a learned skill (C# code or batch commands) for reuse across sessions. |
+| [`save_template`](#save_template) | 🟡 77/100 | 🟢 low | Save C# code as a reusable scene template in .claude/templates/. |
+| [`scan_scene`](#scan_scene) | 🟢 95/100 | 🟢 low | Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, can... |
+| [`scene`](#scene) | 🟢 89/100 | 🟡 medium | Scene management. action: new|open|save|discard|open_additive|close|set_activ... |
+| [`scene_change_plan`](#scene_change_plan) | 🟢 81/100 | 🟡 medium | Pre-flight + plan for safe scene edit. |
+| [`scene_diff`](#scene_diff) | 🟢 95/100 | 🟢 low | Compare scene with last snapshot. First call saves snapshot. Returns diff: ad... |
+| [`scene_environment`](#scene_environment) | 🟢 84/100 | 🟡 medium | Read/write scene environment: ambient light, fog, skybox, reflections. |
+| [`scene_health`](#scene_health) | 🟢 88/100 | 🟢 low | Scene hierarchy/health audit. |
+| [`screenshot`](#screenshot) | 🟡 75/100 | 🟡 medium | Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens... |
+| [`screenshot_baseline`](#screenshot_baseline) | 🟡 75/100 | 🟢 low | Save screenshot as baseline for visual regression. name: identifier for this ... |
+| [`screenshot_compare`](#screenshot_compare) | 🟡 69/100 | 🟢 low | Compare current screenshot with saved baseline. |
+| [`scriptable_object`](#scriptable_object) | 🟢 84/100 | 🟡 medium | ScriptableObject. action: create|get|set|list_types|find. create: type+path[+... |
+| [`search_scene`](#search_scene) | 🟢 89/100 | 🟡 medium | Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, activ... |
+| [`serialized_field_rename_audit`](#serialized_field_rename_audit) | 🟢 83/100 | 🟢 low | Audit [SerializeField] rename safety. |
+| [`set_active`](#set_active) | 🟡 79/100 | 🟡 medium | Set GameObject active/inactive. |
+| [`set_llm_config`](#set_llm_config) | 🟢 83/100 | 🟡 medium | Override LLM profiles for sampling features. Format: feature:model,turns,time... |
+| [`set_material`](#set_material) | 🟡 76/100 | 🟡 medium | Set scene object material color (for full asset management use `material`). c... |
+| [`set_parent`](#set_parent) | 🟡 79/100 | 🟡 medium | Reparent existing GameObject. parent=null → move to scene root. world_positio... |
+| [`set_properties`](#set_properties) | 🟡 77/100 | 🟡 medium | Set multiple properties on ONE object. For multiple objects, use configure_ob... |
+| [`set_property`](#set_property) | 🟡 77/100 | 🟡 medium | Set component property (Edit Mode, SerializedObject — for Play Mode use `invo... |
+| [`set_property_delta`](#set_property_delta) | 🟡 75/100 | 🟡 medium | Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new. |
+| [`set_rect`](#set_rect) | 🟡 73/100 | 🟡 medium | Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bott... |
+| [`set_sibling_index`](#set_sibling_index) | 🟡 74/100 | 🟡 medium | Set sibling index of a GameObject within its parent. index=0 moves to first c... |
+| [`setup_objects`](#setup_objects) | 🟢 83/100 | 🟡 medium | Create+configure multiple objects in one call. |
+| [`shader`](#shader) | 🔴 58/100 | 🔴 high | Read or write shader assets (.shader / .shadergraph). Creates or modifies sha... |
+| [`smart_build`](#smart_build) | 🟢 92/100 | 🟢 low | Build scene objects from natural language description using MCP sampling + ex... |
+| [`snapshot`](#snapshot) | 🟢 85/100 | 🟡 medium | Capture or compare object state. |
+| [`spatial_query`](#spatial_query) | 🟢 85/100 | 🟡 medium | Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|ra... |
+| [`sync_playtest_aliases_from_defs`](#sync_playtest_aliases_from_defs) | 🟢 85/100 | 🟡 medium | Overwrite PlaytestConfig.asset aliases from a .defs text file. |
+| [`sync_unity`](#sync_unity) | 🟡 73/100 | 🟡 medium | Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code... |
+| [`test_step`](#test_step) | 🟡 71/100 | 🟡 medium | [Play Mode] Move character, snapshot state before/after, check console. |
+| [`timeline`](#timeline) | 🟡 69/100 | 🟡 medium | Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinema... |
+| [`transfer_object`](#transfer_object) | 🟢 85/100 | 🟡 medium | Move or copy a GameObject to another loaded scene. action: move|copy. |
+| [`ui_intent`](#ui_intent) | 🟢 82/100 | 🟡 medium | Convert NL intent to Unity UI hierarchy. Templates bypass Haiku. |
+| [`undo_last`](#undo_last) | 🟢 83/100 | 🟢 low | Undo the last N AI turns in the Unity Undo stack. Default: 1. |
+| [`unwire_event`](#unwire_event) | 🟢 86/100 | 🔴 high | Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation... |
+| [`use_skill`](#use_skill) | 🟢 83/100 | 🟡 medium | Execute a previously saved skill. params: comma-separated key=value for subst... |
+| [`validate_layout`](#validate_layout) | 🟢 83/100 | 🟡 medium | Check trigger overlaps. Warns if triggers closer than min_distance meters. |
+| [`validate_playtest_aliases`](#validate_playtest_aliases) | 🟢 86/100 | 🟡 medium | Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/... |
+| [`validate_references`](#validate_references) | 🟢 82/100 | 🟡 medium | Validate all ObjectReference fields under path recursively. |
+| [`verify_after_change`](#verify_after_change) | 🟡 64/100 | 🔴 high | Single verification gate after code/scene changes. |
+| [`vfx_intent`](#vfx_intent) | 🟡 74/100 | 🟡 medium | Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely. |
+| [`wait_until`](#wait_until) | 🟡 68/100 | 🟡 medium | [Play Mode] Poll field until it matches value (or timeout). |
+| [`watch`](#watch) | 🟡 68/100 | 🔴 high | [Play Mode] Manage watches. Registers or removes watches. No confirmation req... |
+| [`wire_event`](#wire_event) | 🟡 79/100 | 🔴 high | Wire UnityEvent persistent listener. Mutates scene. No confirmation required. |
 
 ---
 
@@ -168,16 +168,14 @@ hide:
 
 ### `alias_status`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Check alias table health: loaded/empty/stale, sources, and total alias count.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -185,7 +183,7 @@ Check alias table health: loaded/empty/stale, sources, and total alias count.
 
 ### `analyze_lod_culling`
 
-🟢 83/100 · Risk: 🟢 low
+🟢 89/100 · Risk: 🟢 low
 
 LOD group coverage + occlusion culling analysis.     focus: lod|culling|occlusion|null=all.
 
@@ -196,13 +194,11 @@ LOD group coverage + occlusion culling analysis.     focus: lod|culling|occlusio
 | `focus` | any |  |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>3 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'focus' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -226,7 +222,8 @@ LOD group coverage + occlusion culling analysis.     focus: lod|culling|occlusio
     }
   },
   "title": "analyze_lod_cullingArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -236,7 +233,7 @@ LOD group coverage + occlusion culling analysis.     focus: lod|culling|occlusio
 
 ### `animation`
 
-🟡 64/100 · Risk: 🟡 medium
+🟡 71/100 · Risk: 🟡 medium
 
 Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this).     action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path).     clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x.     component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody.     binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root.     tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant.     function_name: method name for add_event. int_param/float_param/string_param: event parameters.
 
@@ -244,7 +241,7 @@ Animate GameObject properties via AnimationClip. Use when you need to read or au
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `binding_path` | any |  |  |
 | `clip` | any |  |  |
 | `clip_name` | any |  |  |
@@ -253,20 +250,17 @@ Animate GameObject properties via AnimationClip. Use when you need to read or au
 | `function_name` | any |  |  |
 | `int_param` | any |  |  |
 | `keys` | any |  |  |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `property` | any |  |  |
 | `string_param` | any |  |  |
 | `tangent` | any |  |  |
 | `time` | any |  |  |
 
 <details>
-<summary>20 quality issues</summary>
+<summary>17 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'clip' has no description.
@@ -293,11 +287,13 @@ Animate GameObject properties via AnimationClip. Use when you need to read or au
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "clip": {
       "anyOf": [
@@ -449,7 +445,8 @@ Animate GameObject properties via AnimationClip. Use when you need to read or au
     "path"
   ],
   "title": "animationArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -459,15 +456,15 @@ Animate GameObject properties via AnimationClip. Use when you need to read or au
 
 ### `animator`
 
-🔴 18/100 · Risk: 🔴 high
+🟡 60/100 · Risk: 🔴 high
 
-Animator Controller — state machine (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param.     params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'.     conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState).     blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct.     param/param_y: blend parameters (auto-created as float if missing).     children: '(1D) Idle:0; Walk:0.5; Run:1' or '(2D) Idle:0,0; Walk:0,1'.     edit_action: add_child|remove_child|set_thresholds|set_param|set_type.     layer: layer index (int) for add_state/add_transition/set_default, or name/index string for CRUD ops.     weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0).     blending: Override|Additive for add_layer/set_layer_blending.     value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar.
+Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param.     params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'.     conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState).     blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct.     param/param_y: blend parameters (auto-created as float if missing).     children: '(1D) Idle:0; Walk:0.5; Run:1' or '(2D) Idle:0,0; Walk:0,1'.     edit_action: add_child|remove_child|set_thresholds|set_param|set_type.     layer: layer index (int) for add_state/add_transition/set_default, or name/index string for CRUD ops.     weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0).     blending: Override|Additive for add_layer/set_layer_blending.     value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `avatar_path` | any |  |  |
 | `blend_type` | any |  |  |
 | `blending` | any |  |  |
@@ -478,28 +475,23 @@ Animator Controller — state machine (use `animation` for keyframe clips, `time
 | `exit_time` | any |  |  |
 | `has_exit_time` | any |  |  |
 | `layer` | any |  |  |
-| `name` | any |  |  |
+| `name` | any |  | Name of the GameObject |
 | `param` | any |  |  |
 | `param_y` | any |  |  |
 | `params` | any |  |  |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `source` | any |  |  |
 | `state` | any |  |  |
 | `states` | any |  |  |
 | `target` | any |  |  |
-| `type` | any |  |  |
-| `value` | any |  |  |
+| `type` | any |  | Component type name (e.g. 'Rigidbody', 'BoxCollider') |
+| `value` | any |  | New value to set |
 | `weight` | any |  |  |
 
 <details>
-<summary>32 quality issues</summary>
+<summary>24 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'state' has no description.
@@ -511,8 +503,6 @@ Animator Controller — state machine (use `animation` for keyframe clips, `time
 - **info**: Parameter 'duration' has no description.
 - **info**: Parameter 'exit_time' has no description.
 - **info**: Parameter 'has_exit_time' has no description.
-- **warning**: Parameter 'type' has no description.
-- **warning**: Parameter 'name' has no description.
 - **info**: Parameter 'blend_type' has no description.
 - **info**: Parameter 'param' has no description.
 - **info**: Parameter 'param_y' has no description.
@@ -521,11 +511,10 @@ Animator Controller — state machine (use `animation` for keyframe clips, `time
 - **info**: Parameter 'layer' has no description.
 - **info**: Parameter 'weight' has no description.
 - **info**: Parameter 'blending' has no description.
-- **warning**: Parameter 'value' has no description.
 - **info**: Parameter 'avatar_path' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
-- **warning**: Tool card is about 3257 characters.
+- **warning**: Tool card is about 3683 characters.
 
 </details>
 
@@ -537,11 +526,13 @@ Animator Controller — state machine (use `animation` for keyframe clips, `time
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "state": {
       "anyOf": [
@@ -661,7 +652,8 @@ Animator Controller — state machine (use `animation` for keyframe clips, `time
         }
       ],
       "default": null,
-      "title": "Type"
+      "title": "Type",
+      "description": "Component type name (e.g. 'Rigidbody', 'BoxCollider')"
     },
     "name": {
       "anyOf": [
@@ -673,7 +665,8 @@ Animator Controller — state machine (use `animation` for keyframe clips, `time
         }
       ],
       "default": null,
-      "title": "Name"
+      "title": "Name",
+      "description": "Name of the GameObject"
     },
     "blend_type": {
       "anyOf": [
@@ -784,7 +777,8 @@ Animator Controller — state machine (use `animation` for keyframe clips, `time
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     },
     "avatar_path": {
       "anyOf": [
@@ -804,7 +798,8 @@ Animator Controller — state machine (use `animation` for keyframe clips, `time
     "path"
   ],
   "title": "animatorArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -814,7 +809,7 @@ Animator Controller — state machine (use `animation` for keyframe clips, `time
 
 ### `animator_intent`
 
-🟡 75/100 · Risk: 🟡 medium
+🟢 81/100 · Risk: 🟡 medium
 
 Convert NL intent to Unity Animator Controller setup via DSL.      dry_run=True returns the batch plan without executing it.
 
@@ -822,21 +817,19 @@ Convert NL intent to Unity Animator Controller setup via DSL.      dry_run=True 
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `dry_run` | boolean |  |  (default: `False`) |
+| `dry_run` | boolean |  | Preview changes without applying them (default: `False`) |
 | `intent` | string | ✓ |  |
 | `target` | string | ✓ |  |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'target' has no description.
 - **info**: Free-form string parameter 'target' has no maxLength.
 - **info**: Parameter 'intent' has no description.
 - **info**: Free-form string parameter 'intent' has no maxLength.
-- **info**: Parameter 'dry_run' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -858,7 +851,8 @@ Convert NL intent to Unity Animator Controller setup via DSL.      dry_run=True 
     "dry_run": {
       "default": false,
       "title": "Dry Run",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Preview changes without applying them"
     }
   },
   "required": [
@@ -866,7 +860,8 @@ Convert NL intent to Unity Animator Controller setup via DSL.      dry_run=True 
     "intent"
   ],
   "title": "animator_intentArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -876,7 +871,7 @@ Convert NL intent to Unity Animator Controller setup via DSL.      dry_run=True 
 
 ### `apply_scene_change`
 
-🟡 74/100 · Risk: 🟡 medium
+🟡 79/100 · Risk: 🟡 medium
 
 Execute scene mutations with pre-check, post-verify, and optional save.     1. Validate plan_id exists and not expired (TTL 600s)     2. Execute batch commands     3. If verify: validate_references + console check     4. If save: save scene     5. Return mutation summary
 
@@ -890,11 +885,10 @@ Execute scene mutations with pre-check, post-verify, and optional save.     1. V
 | `verify` | boolean |  |  (default: `True`) |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>9 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'plan_id' has no description.
 - **info**: Free-form string parameter 'plan_id' has no maxLength.
 - **info**: Parameter 'commands' has no description.
@@ -935,7 +929,8 @@ Execute scene mutations with pre-check, post-verify, and optional save.     1. V
     "commands"
   ],
   "title": "apply_scene_changeArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -945,7 +940,7 @@ Execute scene mutations with pre-check, post-verify, and optional save.     1. V
 
 ### `apply_template`
 
-🟢 82/100 · Risk: 🟡 medium
+🟢 92/100 · Risk: 🟡 medium
 
 Apply a scene template (.cs file from .claude/templates/).     params: comma-separated key=value pairs for ${key} replacement.     Example: apply_template('level_setup', 'player_pos=(0,0,0),count=3')
 
@@ -953,14 +948,12 @@ Apply a scene template (.cs file from .claude/templates/).     params: comma-sep
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `name` | string | ✓ |  |
+| `name` | string | ✓ | Name of the GameObject |
 | `params` | any |  |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>4 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'name' has no description.
 - **info**: Free-form string parameter 'name' has no maxLength.
 - **info**: Parameter 'params' has no description.
 - **warning**: outputSchema is missing.
@@ -976,7 +969,8 @@ Apply a scene template (.cs file from .claude/templates/).     params: comma-sep
   "properties": {
     "name": {
       "title": "Name",
-      "type": "string"
+      "type": "string",
+      "description": "Name of the GameObject"
     },
     "params": {
       "anyOf": [
@@ -995,7 +989,8 @@ Apply a scene template (.cs file from .claude/templates/).     params: comma-sep
     "name"
   ],
   "title": "apply_templateArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1005,7 +1000,7 @@ Apply a scene template (.cs file from .claude/templates/).     params: comma-sep
 
 ### `ask`
 
-🟢 87/100 · Risk: 🟢 low
+🟢 93/100 · Risk: 🟢 low
 
 Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).      Routes to deterministic tool plans for common patterns,     uses Haiku summarization for complex multi-tool results.
 
@@ -1016,13 +1011,11 @@ Answer a read-only question about the Unity scene (AI-routed, not interactive �
 | `question` | string | ✓ |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'question' has no description.
 - **info**: Free-form string parameter 'question' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -1041,7 +1034,8 @@ Answer a read-only question about the Unity scene (AI-routed, not interactive �
     "question"
   ],
   "title": "askArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1051,7 +1045,7 @@ Answer a read-only question about the Unity scene (AI-routed, not interactive �
 
 ### `ask_user`
 
-🟢 87/100 · Risk: 🟢 low
+🟢 93/100 · Risk: 🟢 low
 
 Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead).      questions: JSON array matching AskUserQuestion schema:       [{"question":"...","header":"...","options":[{"label":"..."}],"multiSelect":false}]     Returns JSON map of question→answer (or free text if Other field used).     Use this instead of AskUserQuestion for in-Unity interactive prompts.
 
@@ -1062,13 +1056,11 @@ Show a question card in Unity chat; wait for user answer (interactive UI — use
 | `questions` | string | ✓ |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'questions' has no description.
 - **info**: Free-form string parameter 'questions' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -1087,7 +1079,8 @@ Show a question card in Unity chat; wait for user answer (interactive UI — use
     "questions"
   ],
   "title": "ask_userArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1097,46 +1090,37 @@ Show a question card in Unity chat; wait for user answer (interactive UI — use
 
 ### `asset`
 
-🔴 37/100 · Risk: 🔴 high
+🟢 80/100 · Risk: 🔴 high
 
-Asset database. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path.
+Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `class_name` | any |  |  |
 | `content` | any |  |  |
 | `dest` | any |  |  |
 | `folder` | any |  |  |
 | `include_deps` | boolean |  |  (default: `True`) |
 | `labels` | any |  |  |
-| `name` | any |  |  |
+| `name` | any |  | Name of the GameObject |
 | `output` | any |  |  |
-| `path` | any |  |  |
-| `prop` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
+| `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
 | `recursive` | boolean |  |  (default: `False`) |
 | `source` | any |  |  |
-| `type` | any |  |  |
-| `value` | any |  |  |
+| `type` | any |  | Component type name (e.g. 'Rigidbody', 'BoxCollider') |
+| `value` | any |  | New value to set |
 
 <details>
-<summary>21 quality issues</summary>
+<summary>12 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
-- **warning**: Parameter 'type' has no description.
-- **warning**: Parameter 'name' has no description.
 - **info**: Parameter 'folder' has no description.
 - **info**: Parameter 'source' has no description.
 - **info**: Parameter 'dest' has no description.
-- **info**: Parameter 'prop' has no description.
-- **warning**: Parameter 'value' has no description.
 - **info**: Parameter 'recursive' has no description.
 - **info**: Parameter 'labels' has no description.
 - **info**: Parameter 'output' has no description.
@@ -1156,7 +1140,8 @@ Asset database. action: find|get_info|create|move|validate_move|duplicate|delete
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "anyOf": [
@@ -1168,7 +1153,8 @@ Asset database. action: find|get_info|create|move|validate_move|duplicate|delete
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "type": {
       "anyOf": [
@@ -1180,7 +1166,8 @@ Asset database. action: find|get_info|create|move|validate_move|duplicate|delete
         }
       ],
       "default": null,
-      "title": "Type"
+      "title": "Type",
+      "description": "Component type name (e.g. 'Rigidbody', 'BoxCollider')"
     },
     "name": {
       "anyOf": [
@@ -1192,7 +1179,8 @@ Asset database. action: find|get_info|create|move|validate_move|duplicate|delete
         }
       ],
       "default": null,
-      "title": "Name"
+      "title": "Name",
+      "description": "Name of the GameObject"
     },
     "folder": {
       "anyOf": [
@@ -1240,7 +1228,8 @@ Asset database. action: find|get_info|create|move|validate_move|duplicate|delete
         }
       ],
       "default": null,
-      "title": "Prop"
+      "title": "Prop",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "value": {
       "anyOf": [
@@ -1252,7 +1241,8 @@ Asset database. action: find|get_info|create|move|validate_move|duplicate|delete
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     },
     "recursive": {
       "default": false,
@@ -1317,7 +1307,8 @@ Asset database. action: find|get_info|create|move|validate_move|duplicate|delete
     "action"
   ],
   "title": "assetArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1327,16 +1318,14 @@ Asset database. action: find|get_info|create|move|validate_move|duplicate|delete
 
 ### `auto_fix`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Auto-detect and fix Unity errors. Uses MCP sampling to ask Claude for fixes.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -1344,27 +1333,22 @@ Auto-detect and fix Unity errors. Uses MCP sampling to ask Claude for fixes.
 
 ### `auto_wire`
 
-🟡 72/100 · Risk: 🟡 medium
+🟢 89/100 · Risk: 🔴 high
 
-Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects.     dry_run=true previews without applying. Returns wired/ambiguous/no-match summary.
+Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.     dry_run=true previews without applying. Returns wired/ambiguous/no-match summary.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `dry_run` | boolean |  |  (default: `False`) |
-| `path` | string | ✓ |  |
+| `dry_run` | boolean |  | Preview changes without applying them (default: `False`) |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'dry_run' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -1377,19 +1361,22 @@ Fill null ObjectReference fields on a GameObject by matching field name or type 
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "dry_run": {
       "default": false,
       "title": "Dry Run",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Preview changes without applying them"
     }
   },
   "required": [
     "path"
   ],
   "title": "auto_wireArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1399,7 +1386,7 @@ Fill null ObjectReference fields on a GameObject by matching field name or type 
 
 ### `autofit_collider`
 
-🟡 71/100 · Risk: 🟡 medium
+🟢 82/100 · Risk: 🟡 medium
 
 Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule.
 
@@ -1407,17 +1394,14 @@ Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | ✓ |  |
-| `type` | string |  |  (default: `box`) |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
+| `type` | string |  | Component type name (e.g. 'Rigidbody', 'BoxCollider') (default: `box`) |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>6 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **warning**: Parameter 'type' has no description.
 - **warning**: String parameter 'type' appears categorical but has no enum.
 - **info**: Free-form string parameter 'type' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -1433,19 +1417,22 @@ Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule.
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "type": {
       "default": "box",
       "title": "Type",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name (e.g. 'Rigidbody', 'BoxCollider')"
     }
   },
   "required": [
     "path"
   ],
   "title": "autofit_colliderArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1455,7 +1442,7 @@ Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule.
 
 ### `await_compile`
 
-🟡 78/100 · Risk: 🟢 low
+🟢 85/100 · Risk: 🟢 low
 
 Block until Unity finishes compiling + reloading, then return compile errors.     Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'.     Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop.     Epoch-aware via sync_status when available (+10 from MAJOR-1); falls back to compile_status.
 
@@ -1463,17 +1450,14 @@ Block until Unity finishes compiling + reloading, then return compile errors.   
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `timeout` | number |  |  (default: `60.0`) |
+| `timeout` | number |  | Seconds before giving up (default varies per tool) (default: `60.0`) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -1486,11 +1470,13 @@ Block until Unity finishes compiling + reloading, then return compile errors.   
     "timeout": {
       "default": 60.0,
       "title": "Timeout",
-      "type": "number"
+      "type": "number",
+      "description": "Seconds before giving up (default varies per tool)"
     }
   },
   "title": "await_compileArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1500,7 +1486,7 @@ Block until Unity finishes compiling + reloading, then return compile errors.   
 
 ### `bake`
 
-🟢 86/100 · Risk: 🟢 low
+🟢 92/100 · Risk: 🟢 low
 
 Bake operations.     target: lighting|occlusion.     action (lighting): start(default)|status|cancel|clear|settings.     action (occlusion): start(default)|status|clear.     Poll status after start — lighting bake is async.
 
@@ -1508,16 +1494,14 @@ Bake operations.     target: lighting|occlusion.     action (lighting): start(de
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | any |  |  |
+| `action` | any |  | Operation to perform — see tool docstring for allowed values |
 | `target` | string | ✓ |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>4 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'target' has no description.
 - **info**: Free-form string parameter 'target' has no maxLength.
-- **info**: Parameter 'action' has no description.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
@@ -1543,14 +1527,16 @@ Bake operations.     target: lighting|occlusion.     action (lighting): start(de
         }
       ],
       "default": null,
-      "title": "Action"
+      "title": "Action",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     }
   },
   "required": [
     "target"
   ],
   "title": "bakeArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1560,7 +1546,7 @@ Bake operations.     target: lighting|occlusion.     action (lighting): start(de
 
 ### `batch`
 
-🟡 68/100 · Risk: 🟡 medium
+🟡 78/100 · Risk: 🔴 high
 
 Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: True reverts ALL prior ops on first failure (Unity Undo); execute_code fs side-effects NOT reverted. PREFER over individual tool calls.
 
@@ -1568,26 +1554,20 @@ Execute multiple commands in one call. Use for 2+ ops — reads AND writes. comm
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `atomic` | boolean |  |  (default: `False`) |
-| `commands` | string | ✓ |  |
-| `on_error` | string |  |  (default: `continue`) |
-| `timeout` | number |  |  (default: `75.0`) |
-| `validate_aliases` | boolean |  |  (default: `False`) |
+| `atomic` | boolean |  | True = revert ALL prior ops on first failure via Unity Undo (fs side-effects not reverted) (default: `False`) |
+| `commands` | string | ✓ | One command per line (e.g. 'get_component path=/Player type=Transform') |
+| `on_error` | string |  | Error behavior: continue (default) \| stop — stop aborts remaining commands (default: `continue`) |
+| `timeout` | number |  | Total timeout in seconds (default 75) (default: `75.0`) |
+| `validate_aliases` | boolean |  | Dry-run alias validation before executing any mutations (default: `False`) |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'commands' has no description.
 - **info**: Free-form string parameter 'commands' has no maxLength.
-- **info**: Parameter 'on_error' has no description.
 - **info**: Free-form string parameter 'on_error' has no maxLength.
-- **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
-- **info**: Parameter 'atomic' has no description.
-- **info**: Parameter 'validate_aliases' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -1600,34 +1580,40 @@ Execute multiple commands in one call. Use for 2+ ops — reads AND writes. comm
   "properties": {
     "commands": {
       "title": "Commands",
-      "type": "string"
+      "type": "string",
+      "description": "One command per line (e.g. 'get_component path=/Player type=Transform')"
     },
     "on_error": {
       "default": "continue",
       "title": "On Error",
-      "type": "string"
+      "type": "string",
+      "description": "Error behavior: continue (default) | stop \u2014 stop aborts remaining commands"
     },
     "timeout": {
       "default": 75.0,
       "title": "Timeout",
-      "type": "number"
+      "type": "number",
+      "description": "Total timeout in seconds (default 75)"
     },
     "atomic": {
       "default": false,
       "title": "Atomic",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "True = revert ALL prior ops on first failure via Unity Undo (fs side-effects not reverted)"
     },
     "validate_aliases": {
       "default": false,
       "title": "Validate Aliases",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Dry-run alias validation before executing any mutations"
     }
   },
   "required": [
     "commands"
   ],
   "title": "batchArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1637,16 +1623,14 @@ Execute multiple commands in one call. Use for 2+ ops — reads AND writes. comm
 
 ### `budget_status`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Returns Haiku cost: session/cap/day/skipped features. Text format.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -1654,7 +1638,7 @@ Returns Haiku cost: session/cap/day/skipped features. Text format.
 
 ### `build`
 
-🟢 83/100 · Risk: 🟡 medium
+🟢 90/100 · Risk: 🟡 medium
 
 Build player. action: build.     target: StandaloneWindows64|StandaloneOSX|Android|iOS|WebGL (default: active).     scenes: comma-sep asset paths (default: Build Settings list).     path: output path (default: Builds/<target>).     dev: development build flag.
 
@@ -1662,21 +1646,18 @@ Build player. action: build.     target: StandaloneWindows64|StandaloneOSX|Andro
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `dev` | boolean |  |  (default: `False`) |
-| `path` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 | `scenes` | any |  |  |
 | `target` | any |  |  |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>6 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'target' has no description.
 - **info**: Parameter 'scenes' has no description.
-- **info**: Parameter 'path' has no description.
 - **info**: Parameter 'dev' has no description.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
@@ -1691,7 +1672,8 @@ Build player. action: build.     target: StandaloneWindows64|StandaloneOSX|Andro
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "target": {
       "anyOf": [
@@ -1727,7 +1709,8 @@ Build player. action: build.     target: StandaloneWindows64|StandaloneOSX|Andro
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "dev": {
       "default": false,
@@ -1739,7 +1722,8 @@ Build player. action: build.     target: StandaloneWindows64|StandaloneOSX|Andro
     "action"
   ],
   "title": "buildArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1749,7 +1733,7 @@ Build player. action: build.     target: StandaloneWindows64|StandaloneOSX|Andro
 
 ### `cancel_test_run`
 
-🟡 78/100 · Risk: 🟡 medium
+🟢 83/100 · Risk: 🟡 medium
 
 Request cancellation of one exact test run; cancellation is asynchronous.
 
@@ -1760,11 +1744,10 @@ Request cancellation of one exact test run; cancellation is asynchronous.
 | `run_id` | string | ✓ |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'run_id' has no description.
 - **info**: Free-form string parameter 'run_id' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -1786,7 +1769,8 @@ Request cancellation of one exact test run; cancellation is asynchronous.
     "run_id"
   ],
   "title": "cancel_test_runArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1796,7 +1780,7 @@ Request cancellation of one exact test run; cancellation is asynchronous.
 
 ### `check_colliders`
 
-🟢 83/100 · Risk: 🟡 medium
+🟢 90/100 · Risk: 🟡 medium
 
 Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given.
 
@@ -1804,16 +1788,13 @@ Check collider issues: triggers without Rigidbody, negative scale, micro collide
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>2 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -1833,11 +1814,13 @@ Check collider issues: triggers without Rigidbody, negative scale, micro collide
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     }
   },
   "title": "check_collidersArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1847,7 +1830,7 @@ Check collider issues: triggers without Rigidbody, negative scale, micro collide
 
 ### `checkpoint`
 
-🟡 73/100 · Risk: 🟡 medium
+🟡 78/100 · Risk: 🟡 medium
 
 Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity.
 
@@ -1858,12 +1841,11 @@ Create a named Undo checkpoint. Use before major scene changes. Allows rollback 
 | `label` | string |  |  (default: `checkpoint`) |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'label' has no description.
 - **info**: Free-form string parameter 'label' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -1883,7 +1865,8 @@ Create a named Undo checkpoint. Use before major scene changes. Allows rollback 
     }
   },
   "title": "checkpointArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1893,7 +1876,7 @@ Create a named Undo checkpoint. Use before major scene changes. Allows rollback 
 
 ### `compile_preflight`
 
-🟢 80/100 · Risk: 🟡 medium
+🟢 86/100 · Risk: 🟡 medium
 
 Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.     file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE].
 
@@ -1905,16 +1888,14 @@ Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — cat
 | `new_content` | string | ✓ |  |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>6 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'file_path' has no description.
 - **info**: Free-form string parameter 'file_path' has no maxLength.
 - **warning**: Path-like parameter 'file_path' has no structural constraint.
 - **info**: Parameter 'new_content' has no description.
 - **info**: Free-form string parameter 'new_content' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -1938,7 +1919,8 @@ Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — cat
     "new_content"
   ],
   "title": "compile_preflightArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1948,7 +1930,7 @@ Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — cat
 
 ### `configure_objects`
 
-🟢 87/100 · Risk: 🟡 medium
+🟢 92/100 · Risk: 🟡 medium
 
 Configure multiple objects at once.     Format: /Path component.prop=value [...] per line.     Example:     /NPC1 Transform.m_LocalPosition=(1,0,0) Health.maxHp=100     /NPC2 Transform.m_LocalPosition=(3,0,0)
 
@@ -1959,9 +1941,8 @@ Configure multiple objects at once.     Format: /Path component.prop=value [...]
 | `config` | string | ✓ |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>4 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'config' has no description.
 - **info**: Free-form string parameter 'config' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -1984,7 +1965,8 @@ Configure multiple objects at once.     Format: /Path component.prop=value [...]
     "config"
   ],
   "title": "configure_objectsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -1994,7 +1976,7 @@ Configure multiple objects at once.     Format: /Path component.prop=value [...]
 
 ### `console_mark`
 
-🟡 73/100 · Risk: 🟡 medium
+🟢 88/100 · Risk: 🟢 low
 
 Create a console watermark. Returns mark_id encoding current timestamp.     Pass to get_console_since() to retrieve only logs after this point.     Pure Python — no TCP call.
 
@@ -2005,12 +1987,9 @@ Create a console watermark. Returns mark_id encoding current timestamp.     Pass
 | `label` | string |  |  (default: ``) |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>4 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'label' has no description.
 - **info**: Free-form string parameter 'label' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -2030,7 +2009,8 @@ Create a console watermark. Returns mark_id encoding current timestamp.     Pass
     }
   },
   "title": "console_markArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2040,7 +2020,7 @@ Create a console watermark. Returns mark_id encoding current timestamp.     Pass
 
 ### `create_object`
 
-🟡 69/100 · Risk: 🟡 medium
+🟢 84/100 · Risk: 🟡 medium
 
 Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene).
 
@@ -2048,26 +2028,19 @@ Create new GameObject. components: comma-separated types to add on creation. pri
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `components` | any |  |  |
-| `name` | string | ✓ |  |
-| `parent` | any |  |  |
-| `prefab_path` | any |  |  |
-| `primitive` | any |  |  |
-| `scene` | any |  |  |
+| `components` | any |  | Comma-separated component types to add on creation (e.g. 'Rigidbody,BoxCollider') |
+| `name` | string | ✓ | Name for the new GameObject |
+| `parent` | any |  | Scene path of the parent (omit = scene root) |
+| `prefab_path` | any |  | Asset path to instantiate from prefab (e.g. Assets/Prefabs/Enemy.prefab) |
+| `primitive` | any |  | Primitive mesh type: Cube\|Sphere\|Cylinder\|Capsule\|Plane\|Quad |
+| `scene` | any |  | Target scene name when multiple scenes are loaded (omit = active scene) |
 
 <details>
-<summary>11 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'name' has no description.
 - **info**: Free-form string parameter 'name' has no maxLength.
-- **info**: Parameter 'parent' has no description.
-- **info**: Parameter 'components' has no description.
-- **info**: Parameter 'primitive' has no description.
-- **info**: Parameter 'prefab_path' has no description.
-- **info**: Parameter 'scene' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -2080,7 +2053,8 @@ Create new GameObject. components: comma-separated types to add on creation. pri
   "properties": {
     "name": {
       "title": "Name",
-      "type": "string"
+      "type": "string",
+      "description": "Name for the new GameObject"
     },
     "parent": {
       "anyOf": [
@@ -2092,7 +2066,8 @@ Create new GameObject. components: comma-separated types to add on creation. pri
         }
       ],
       "default": null,
-      "title": "Parent"
+      "title": "Parent",
+      "description": "Scene path of the parent (omit = scene root)"
     },
     "components": {
       "anyOf": [
@@ -2104,7 +2079,8 @@ Create new GameObject. components: comma-separated types to add on creation. pri
         }
       ],
       "default": null,
-      "title": "Components"
+      "title": "Components",
+      "description": "Comma-separated component types to add on creation (e.g. 'Rigidbody,BoxCollider')"
     },
     "primitive": {
       "anyOf": [
@@ -2116,7 +2092,8 @@ Create new GameObject. components: comma-separated types to add on creation. pri
         }
       ],
       "default": null,
-      "title": "Primitive"
+      "title": "Primitive",
+      "description": "Primitive mesh type: Cube|Sphere|Cylinder|Capsule|Plane|Quad"
     },
     "prefab_path": {
       "anyOf": [
@@ -2128,7 +2105,8 @@ Create new GameObject. components: comma-separated types to add on creation. pri
         }
       ],
       "default": null,
-      "title": "Prefab Path"
+      "title": "Prefab Path",
+      "description": "Asset path to instantiate from prefab (e.g. Assets/Prefabs/Enemy.prefab)"
     },
     "scene": {
       "anyOf": [
@@ -2140,14 +2118,16 @@ Create new GameObject. components: comma-separated types to add on creation. pri
         }
       ],
       "default": null,
-      "title": "Scene"
+      "title": "Scene",
+      "description": "Target scene name when multiple scenes are loaded (omit = active scene)"
     }
   },
   "required": [
     "name"
   ],
   "title": "create_objectArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2157,7 +2137,7 @@ Create new GameObject. components: comma-separated types to add on creation. pri
 
 ### `create_ui`
 
-🔴 52/100 · Risk: 🟡 medium
+🟡 68/100 · Risk: 🟡 medium
 
 Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Auto-creates Canvas if needed.
 
@@ -2168,25 +2148,21 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Aut
 | `anchor` | any |  |  |
 | `color` | any |  |  |
 | `font_size` | any |  |  |
-| `name` | any |  |  |
-| `parent` | any |  |  |
+| `name` | any |  | Name of the GameObject |
+| `parent` | any |  | Scene path to the parent GameObject |
 | `pivot` | any |  |  |
 | `pos` | any |  |  |
 | `size` | any |  |  |
 | `text` | any |  |  |
-| `type` | string | ✓ |  |
+| `type` | string | ✓ | Component type name (e.g. 'Rigidbody', 'BoxCollider') |
 
 <details>
-<summary>16 quality issues</summary>
+<summary>12 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'type' has no description.
 - **warning**: String parameter 'type' appears categorical but has no enum.
 - **info**: Free-form string parameter 'type' has no maxLength.
-- **warning**: Parameter 'name' has no description.
-- **info**: Parameter 'parent' has no description.
 - **info**: Parameter 'anchor' has no description.
 - **info**: Parameter 'pos' has no description.
 - **info**: Parameter 'size' has no description.
@@ -2206,7 +2182,8 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Aut
   "properties": {
     "type": {
       "title": "Type",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name (e.g. 'Rigidbody', 'BoxCollider')"
     },
     "name": {
       "anyOf": [
@@ -2218,7 +2195,8 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Aut
         }
       ],
       "default": null,
-      "title": "Name"
+      "title": "Name",
+      "description": "Name of the GameObject"
     },
     "parent": {
       "anyOf": [
@@ -2230,7 +2208,8 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Aut
         }
       ],
       "default": null,
-      "title": "Parent"
+      "title": "Parent",
+      "description": "Scene path to the parent GameObject"
     },
     "anchor": {
       "anyOf": [
@@ -2321,7 +2300,8 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Aut
     "type"
   ],
   "title": "create_uiArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2331,7 +2311,7 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Aut
 
 ### `debug`
 
-🟡 73/100 · Risk: 🟡 medium
+🟢 80/100 · Risk: 🟡 medium
 
 AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`).      symptom: Natural language description ("enemy doesn't move", "button not clickable")     path: Optional target object path ("/Enemy_01")     gather: Override comma-separated tool names ("inspect,get_console,screenshot")      Returns structured diagnostic text for LLM analysis.
 
@@ -2340,23 +2320,20 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `gather` | string |  |  (default: ``) |
-| `path` | string |  |  (default: ``) |
+| `path` | string |  | Scene path to target GameObject (e.g. /Parent/Child) (default: ``) |
 | `symptom` | string |  |  (default: ``) |
 
 <details>
-<summary>11 quality issues</summary>
+<summary>8 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'symptom' has no description.
 - **info**: Free-form string parameter 'symptom' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'gather' has no description.
 - **info**: Free-form string parameter 'gather' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -2374,7 +2351,8 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
     "path": {
       "default": "",
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "gather": {
       "default": "",
@@ -2383,7 +2361,8 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
     }
   },
   "title": "debugArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2393,7 +2372,7 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
 
 ### `debug_animator`
 
-🟢 82/100 · Risk: 🟡 medium
+🟢 89/100 · Risk: 🟡 medium
 
 [Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile).     path: scene path to GameObject with Animator component.
 
@@ -2401,17 +2380,14 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -2423,14 +2399,16 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     }
   },
   "required": [
     "path"
   ],
   "title": "debug_animatorArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2440,7 +2418,7 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
 
 ### `debug_physics`
 
-🟡 76/100 · Risk: 🟡 medium
+🟢 83/100 · Risk: 🟡 medium
 
 [Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile).     path: scene path to GameObject.     radius: overlap sphere radius for nearby detection (default 5m).
 
@@ -2448,20 +2426,17 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `radius` | number |  |  (default: `5.0`) |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>5 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'radius' has no description.
 - **warning**: Numeric parameter 'radius' has no bounds.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -2473,7 +2448,8 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "radius": {
       "default": 5.0,
@@ -2485,7 +2461,8 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
     "path"
   ],
   "title": "debug_physicsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2495,30 +2472,23 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
 
 ### `delete_object`
 
-🔴 53/100 · Risk: 🔴 high
+🟢 90/100 · Risk: 🔴 high
 
-Delete GameObject by instance ID or scene path. Provide one. force=True to delete non-empty containers.
+Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `force` | boolean |  |  (default: `False`) |
-| `id` | any |  |  |
-| `path` | any |  |  |
+| `force` | boolean |  | True to delete non-empty container objects without error (default: `False`) |
+| `id` | any |  | Instance ID of the GameObject to delete (from get_hierarchy) |
+| `path` | any |  | Scene path of the GameObject to delete |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>2 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'id' has no description.
-- **info**: Parameter 'path' has no description.
-- **info**: Parameter 'force' has no description.
 - **warning**: outputSchema is missing.
-- **warning**: Tool appears destructive but lacks destructiveHint=true.
 
 </details>
 
@@ -2538,7 +2508,8 @@ Delete GameObject by instance ID or scene path. Provide one. force=True to delet
         }
       ],
       "default": null,
-      "title": "Id"
+      "title": "Id",
+      "description": "Instance ID of the GameObject to delete (from get_hierarchy)"
     },
     "path": {
       "anyOf": [
@@ -2550,16 +2521,19 @@ Delete GameObject by instance ID or scene path. Provide one. force=True to delet
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path of the GameObject to delete"
     },
     "force": {
       "default": false,
       "title": "Force",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "True to delete non-empty container objects without error"
     }
   },
   "title": "delete_objectArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2569,7 +2543,7 @@ Delete GameObject by instance ID or scene path. Provide one. force=True to delet
 
 ### `diagnose`
 
-🟢 81/100 · Risk: 🟢 low
+🟢 87/100 · Risk: 🟢 low
 
 Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`.      prev_mvid: MVID from before a sync operation. When provided, enables STALE-DOMAIN     detection (unchanged MVID after intended recompile). Pass '' for standalone probing.      expected_compile: True when a compile was explicitly triggered (default).     False for Bee cache-hit / will_compile=false / reverted-edit probes — prevents     false STALE-DOMAIN on legitimately-frozen MVID (A5/G27).      Returns: CLEAN-LIVE / FAIL:<CS> / STALE-DOMAIN / WEDGE-ENGINE / WEDGE-STATE /              BUILD-FAILED-WEDGE / STALE-CACHE / TESTS-INVISIBLE / REBUILDING /              NO-OP / UNKNOWN
 
@@ -2581,15 +2555,13 @@ Read Unity compile/reload fact-signals atomically; returns typed verdict. For sc
 | `prev_mvid` | string |  |  (default: ``) |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'prev_mvid' has no description.
 - **info**: Free-form string parameter 'prev_mvid' has no maxLength.
 - **info**: Parameter 'expected_compile' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -2611,7 +2583,8 @@ Read Unity compile/reload fact-signals atomically; returns typed verdict. For sc
     }
   },
   "title": "diagnoseArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2621,7 +2594,7 @@ Read Unity compile/reload fact-signals atomically; returns typed verdict. For sc
 
 ### `discover_tools`
 
-🟢 80/100 · Risk: 🟢 low
+🟢 85/100 · Risk: 🟢 low
 
 Find and enable tools by category.     Canonical 8: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM.     include_legacy=True adds legacy aliases (object, animation, etc.).     structured=True adds surface/mutability info. enable=False to browse only.
 
@@ -2635,10 +2608,9 @@ Find and enable tools by category.     Canonical 8: SCENE, COMPONENTS, ASSETS, M
 | `structured` | boolean |  |  (default: `False`) |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'category' has no description.
 - **info**: Parameter 'enable' has no description.
 - **info**: Parameter 'include_legacy' has no description.
@@ -2683,7 +2655,8 @@ Find and enable tools by category.     Canonical 8: SCENE, COMPONENTS, ASSETS, M
     }
   },
   "title": "discover_toolsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2693,7 +2666,7 @@ Find and enable tools by category.     Canonical 8: SCENE, COMPONENTS, ASSETS, M
 
 ### `do`
 
-🟡 77/100 · Risk: 🟡 medium
+🟢 83/100 · Risk: 🟡 medium
 
 Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly.      Haiku generates a batch DSL plan, which is validated then executed.     dry_run=True returns the plan without executing it.
 
@@ -2701,18 +2674,16 @@ Convert natural language intent into Unity scene operations. Use when scene stru
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `dry_run` | boolean |  |  (default: `False`) |
+| `dry_run` | boolean |  | Preview changes without applying them (default: `False`) |
 | `intent` | string | ✓ |  |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Tool name 'do' is too generic for reliable tool selection.
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'intent' has no description.
 - **info**: Free-form string parameter 'intent' has no maxLength.
-- **info**: Parameter 'dry_run' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -2730,14 +2701,16 @@ Convert natural language intent into Unity scene operations. Use when scene stru
     "dry_run": {
       "default": false,
       "title": "Dry Run",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Preview changes without applying them"
     }
   },
   "required": [
     "intent"
   ],
   "title": "doArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2747,7 +2720,7 @@ Convert natural language intent into Unity scene operations. Use when scene stru
 
 ### `doctor`
 
-🟡 74/100 · Risk: 🟡 medium
+🟡 79/100 · Risk: 🟡 medium
 
 Run health diagnostics. Use fix=True to auto-repair safe issues.
 
@@ -2758,12 +2731,11 @@ Run health diagnostics. Use fix=True to auto-repair safe issues.
 | `fix` | boolean |  |  (default: `False`) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'fix' has no description.
 - **warning**: outputSchema is missing.
 
@@ -2782,7 +2754,8 @@ Run health diagnostics. Use fix=True to auto-repair safe issues.
     }
   },
   "title": "doctorArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2792,7 +2765,7 @@ Run health diagnostics. Use fix=True to auto-repair safe issues.
 
 ### `editor`
 
-🟢 80/100 · Risk: 🟡 medium
+🟢 87/100 · Risk: 🟡 medium
 
 Editor state/control. action: state|play|pause|stop|select|project_path.     select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC").
 
@@ -2800,18 +2773,15 @@ Editor state/control. action: state|play|pause|stop|select|project_path.     sel
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string |  |  (default: `state`) |
-| `path` | any |  |  |
+| `action` | string |  | Operation to perform — see tool docstring for allowed values (default: `state`) |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 | `paths` | any |  |  |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Parameter 'paths' has no description.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
@@ -2827,7 +2797,8 @@ Editor state/control. action: state|play|pause|stop|select|project_path.     sel
     "action": {
       "default": "state",
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "anyOf": [
@@ -2839,7 +2810,8 @@ Editor state/control. action: state|play|pause|stop|select|project_path.     sel
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "paths": {
       "anyOf": [
@@ -2855,7 +2827,8 @@ Editor state/control. action: state|play|pause|stop|select|project_path.     sel
     }
   },
   "title": "editorArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2865,7 +2838,7 @@ Editor state/control. action: state|play|pause|stop|select|project_path.     sel
 
 ### `execute_code`
 
-🟡 61/100 · Risk: 🟡 medium
+🟡 68/100 · Risk: 🔴 high
 
 Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.     Security: no System.IO, System.Net, System.Diagnostics.     Bare statements are auto-wrapped in a static class — no boilerplate needed.     Example: "var go = new GameObject(\"Test\"); return go.name;"
 
@@ -2873,19 +2846,16 @@ Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.     Se
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `code` | string | ✓ |  |
-| `undo_label` | string |  |  (default: `execute_code`) |
+| `code` | string | ✓ | C# code to execute in the Unity Editor context |
+| `undo_label` | string |  | Label for the Undo group entry (default 'execute_code') (default: `execute_code`) |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'code' has no description.
 - **info**: Free-form string parameter 'code' has no maxLength.
 - **error**: Execution-like parameter 'code' accepts unconstrained free-form text.
-- **info**: Parameter 'undo_label' has no description.
 - **info**: Free-form string parameter 'undo_label' has no maxLength.
 - **warning**: outputSchema is missing.
 
@@ -2899,19 +2869,22 @@ Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.     Se
   "properties": {
     "code": {
       "title": "Code",
-      "type": "string"
+      "type": "string",
+      "description": "C# code to execute in the Unity Editor context"
     },
     "undo_label": {
       "default": "execute_code",
       "title": "Undo Label",
-      "type": "string"
+      "type": "string",
+      "description": "Label for the Undo group entry (default 'execute_code')"
     }
   },
   "required": [
     "code"
   ],
   "title": "execute_codeArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2921,7 +2894,7 @@ Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.     Se
 
 ### `export_playtest_aliases_to_defs`
 
-🟢 80/100 · Risk: 🟡 medium
+🟢 85/100 · Risk: 🟡 medium
 
 Export PlaytestConfig.asset aliases to a readable .defs text file.     asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).     defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs).
 
@@ -2933,10 +2906,9 @@ Export PlaytestConfig.asset aliases to a readable .defs text file.     asset: as
 | `defs` | string |  |  (default: `Assets/PlaytestDefs/farm_core.defs`) |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'asset' has no description.
 - **info**: Free-form string parameter 'asset' has no maxLength.
 - **info**: Parameter 'defs' has no description.
@@ -2964,7 +2936,8 @@ Export PlaytestConfig.asset aliases to a readable .defs text file.     asset: as
     }
   },
   "title": "export_playtest_aliases_to_defsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -2974,7 +2947,7 @@ Export PlaytestConfig.asset aliases to a readable .defs text file.     asset: as
 
 ### `find_objects`
 
-🟡 76/100 · Risk: 🟡 medium
+🟢 88/100 · Risk: 🟡 medium
 
 Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace).
 
@@ -2982,22 +2955,18 @@ Find objects by criteria. Use search_scene for complex queries. Does NOT support
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `component` | any |  |  |
+| `component` | any |  | Component type name on the target object |
 | `layer` | any |  |  |
-| `name` | any |  |  |
+| `name` | any |  | Name of the GameObject |
 | `tag` | any |  |  |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'name' has no description.
 - **info**: Parameter 'tag' has no description.
 - **info**: Parameter 'layer' has no description.
-- **info**: Parameter 'component' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3017,7 +2986,8 @@ Find objects by criteria. Use search_scene for complex queries. Does NOT support
         }
       ],
       "default": null,
-      "title": "Name"
+      "title": "Name",
+      "description": "Name of the GameObject"
     },
     "tag": {
       "anyOf": [
@@ -3053,11 +3023,13 @@ Find objects by criteria. Use search_scene for complex queries. Does NOT support
         }
       ],
       "default": null,
-      "title": "Component"
+      "title": "Component",
+      "description": "Component type name on the target object"
     }
   },
   "title": "find_objectsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3067,7 +3039,7 @@ Find objects by criteria. Use search_scene for complex queries. Does NOT support
 
 ### `fingerprint`
 
-🟡 77/100 · Risk: 🟡 medium
+🟢 85/100 · Risk: 🟡 medium
 
 Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens.
 
@@ -3075,19 +3047,15 @@ Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `depth` | integer |  |  (default: `3`) |
-| `path` | any |  |  |
+| `depth` | integer |  | Maximum hierarchy depth to traverse (default: `3`) |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>3 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
-- **info**: Parameter 'depth' has no description.
 - **warning**: Numeric parameter 'depth' has no bounds.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3107,16 +3075,19 @@ Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens.
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "depth": {
       "default": 3,
       "title": "Depth",
-      "type": "integer"
+      "type": "integer",
+      "description": "Maximum hierarchy depth to traverse"
     }
   },
   "title": "fingerprintArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3126,16 +3097,14 @@ Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens.
 
 ### `get_capabilities`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Unity version, platform, render pipeline, scripting backend, and optional packages available.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3143,7 +3112,7 @@ Unity version, platform, render pipeline, scripting backend, and optional packag
 
 ### `get_changes`
 
-🟡 74/100 · Risk: 🟡 medium
+🟢 89/100 · Risk: 🟢 low
 
 Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,     play mode, scene open/save, selection. Returns chronological event list or NO_CHANGES.
 
@@ -3154,12 +3123,9 @@ Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo, 
 | `clear` | boolean |  |  (default: `True`) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'clear' has no description.
 - **warning**: outputSchema is missing.
 
@@ -3178,7 +3144,8 @@ Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo, 
     }
   },
   "title": "get_changesArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3188,16 +3155,14 @@ Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo, 
 
 ### `get_compile_errors`
 
-🟢 89/100 · Risk: 🟡 medium
+🟢 95/100 · Risk: 🟡 medium
 
 Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3205,7 +3170,7 @@ Compilation errors with file:line:column. Not lost on Console.Clear(). Structure
 
 ### `get_component`
 
-🟡 68/100 · Risk: 🟡 medium
+🟢 83/100 · Risk: 🟡 medium
 
 Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.     fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name.     full=True: bypass distillation, return raw response. compress=True: strip default values before transfer.
 
@@ -3213,27 +3178,20 @@ Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `compress` | boolean |  |  (default: `False`) |
-| `fields` | any |  |  |
-| `full` | boolean |  |  (default: `False`) |
-| `path` | string | ✓ |  |
-| `type` | string | ✓ |  |
+| `compress` | boolean |  | Strip fields at their default value before TCP transfer — reduces response size (default: `False`) |
+| `fields` | any |  | Comma-separated fields to return (e.g. 'mass,localPosition') — skips all others, saves tokens |
+| `full` | boolean |  | Return raw uncompressed response (bypass distillation) (default: `False`) |
+| `path` | string | ✓ | Scene path to the GameObject (e.g. /Player or /World/Enemy) |
+| `type` | string | ✓ | Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer') |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>5 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **warning**: Parameter 'type' has no description.
 - **warning**: String parameter 'type' appears categorical but has no enum.
 - **info**: Free-form string parameter 'type' has no maxLength.
-- **info**: Parameter 'fields' has no description.
-- **info**: Parameter 'full' has no description.
-- **info**: Parameter 'compress' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3245,11 +3203,13 @@ Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to the GameObject (e.g. /Player or /World/Enemy)"
     },
     "type": {
       "title": "Type",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer')"
     },
     "fields": {
       "anyOf": [
@@ -3261,17 +3221,20 @@ Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,
         }
       ],
       "default": null,
-      "title": "Fields"
+      "title": "Fields",
+      "description": "Comma-separated fields to return (e.g. 'mass,localPosition') \u2014 skips all others, saves tokens"
     },
     "full": {
       "default": false,
       "title": "Full",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Return raw uncompressed response (bypass distillation)"
     },
     "compress": {
       "default": false,
       "title": "Compress",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Strip fields at their default value before TCP transfer \u2014 reduces response size"
     }
   },
   "required": [
@@ -3279,7 +3242,8 @@ Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,
     "type"
   ],
   "title": "get_componentArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3289,7 +3253,7 @@ Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,
 
 ### `get_components_list`
 
-🟡 79/100 · Risk: 🟢 low
+🟢 90/100 · Risk: 🟢 low
 
 List all components on object by instance ID.
 
@@ -3297,16 +3261,13 @@ List all components on object by instance ID.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `id` | integer | ✓ |  |
+| `id` | integer | ✓ | Instance ID of the GameObject (integer from get_hierarchy) |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>2 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'id' has no description.
 - **warning**: Numeric parameter 'id' has no bounds.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3318,14 +3279,16 @@ List all components on object by instance ID.
   "properties": {
     "id": {
       "title": "Id",
-      "type": "integer"
+      "type": "integer",
+      "description": "Instance ID of the GameObject (integer from get_hierarchy)"
     }
   },
   "required": [
     "id"
   ],
   "title": "get_components_listArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3335,7 +3298,7 @@ List all components on object by instance ID.
 
 ### `get_console`
 
-🟡 68/100 · Risk: 🟢 low
+🟡 77/100 · Risk: 🟢 low
 
 Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds.
 
@@ -3343,28 +3306,23 @@ Recent console logs. For C# compile errors use get_compile_errors instead. keywo
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `count` | integer |  |  (default: `10`) |
+| `count` | integer |  | Max log entries to return (default 10) (default: `10`) |
 | `count_only` | boolean |  |  (default: `False`) |
-| `first` | integer |  |  (default: `0`) |
+| `first` | integer |  | Skip the first N entries (pagination offset) (default: `0`) |
 | `keyword` | any |  |  |
-| `level` | any |  |  |
+| `level` | any |  | Filter by level: log\|warning\|error\|exception (omit = all) |
 | `since` | any |  |  |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'count' has no description.
 - **warning**: Numeric parameter 'count' has no bounds.
-- **info**: Parameter 'level' has no description.
-- **info**: Parameter 'first' has no description.
 - **warning**: Numeric parameter 'first' has no bounds.
 - **info**: Parameter 'keyword' has no description.
 - **info**: Parameter 'count_only' has no description.
 - **info**: Parameter 'since' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3377,7 +3335,8 @@ Recent console logs. For C# compile errors use get_compile_errors instead. keywo
     "count": {
       "default": 10,
       "title": "Count",
-      "type": "integer"
+      "type": "integer",
+      "description": "Max log entries to return (default 10)"
     },
     "level": {
       "anyOf": [
@@ -3389,12 +3348,14 @@ Recent console logs. For C# compile errors use get_compile_errors instead. keywo
         }
       ],
       "default": null,
-      "title": "Level"
+      "title": "Level",
+      "description": "Filter by level: log|warning|error|exception (omit = all)"
     },
     "first": {
       "default": 0,
       "title": "First",
-      "type": "integer"
+      "type": "integer",
+      "description": "Skip the first N entries (pagination offset)"
     },
     "keyword": {
       "anyOf": [
@@ -3427,7 +3388,8 @@ Recent console logs. For C# compile errors use get_compile_errors instead. keywo
     }
   },
   "title": "get_consoleArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3437,7 +3399,7 @@ Recent console logs. For C# compile errors use get_compile_errors instead. keywo
 
 ### `get_console_since`
 
-🟡 78/100 · Risk: 🟢 low
+🟢 84/100 · Risk: 🟢 low
 
 Console entries after the watermark created by console_mark().     mark_id: string from console_mark() or bare float timestamp.     level: optional filter ('error,exception,assert').     keyword: case-insensitive substring filter.     count_only: return match count as string.     count: max entries to return (default 500).
 
@@ -3452,9 +3414,8 @@ Console entries after the watermark created by console_mark().     mark_id: stri
 | `mark_id` | string | ✓ |  |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>8 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'mark_id' has no description.
 - **info**: Free-form string parameter 'mark_id' has no maxLength.
 - **info**: Parameter 'level' has no description.
@@ -3463,7 +3424,6 @@ Console entries after the watermark created by console_mark().     mark_id: stri
 - **info**: Parameter 'keyword' has no description.
 - **info**: Parameter 'count_only' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3516,7 +3476,8 @@ Console entries after the watermark created by console_mark().     mark_id: stri
     "mark_id"
   ],
   "title": "get_console_sinceArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3526,16 +3487,14 @@ Console entries after the watermark created by console_mark().     mark_id: stri
 
 ### `get_enabled_tools`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 List enabled tool names, comma-separated.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3543,7 +3502,7 @@ List enabled tool names, comma-separated.
 
 ### `get_frame_stats`
 
-🟢 82/100 · Risk: 🟢 low
+🟢 88/100 · Risk: 🟢 low
 
 Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed.     include: narrow output — e.g. 'gc' for GC stats only.
 
@@ -3554,14 +3513,12 @@ Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No sessi
 | `include` | string |  |  (default: ``) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'include' has no description.
 - **info**: Free-form string parameter 'include' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3578,7 +3535,8 @@ Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No sessi
     }
   },
   "title": "get_frame_statsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3588,7 +3546,7 @@ Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No sessi
 
 ### `get_hierarchy`
 
-🟡 61/100 · Risk: 🟡 medium
+🟢 85/100 · Risk: 🔴 high
 
 Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only).
 
@@ -3596,33 +3554,21 @@ Scene hierarchy as text tree. For finding specific object by name/type use searc
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `components` | boolean |  |  (default: `False`) |
-| `compress` | boolean |  |  (default: `False`) |
-| `depth` | integer |  |  (default: `2`) |
-| `filter` | any |  |  |
-| `full` | boolean |  |  (default: `False`) |
-| `incremental` | boolean |  |  (default: `False`) |
-| `root` | any |  |  |
-| `scene` | any |  |  |
-| `summary` | boolean |  |  (default: `False`) |
+| `components` | boolean |  | Show component types next to each object (increases token cost) (default: `False`) |
+| `compress` | boolean |  | Group repeated slot/point/mesh siblings to save tokens on dense scenes (default: `False`) |
+| `depth` | integer |  | Traversal depth (default 2; increase for deeper trees) (default: `2`) |
+| `filter` | any |  | Substring filter on GameObject name |
+| `full` | boolean |  | Bypass distillation — return raw response (default: `False`) |
+| `incremental` | boolean |  | Return NO_CHANGE if scene is unchanged since last call (saves tokens) (default: `False`) |
+| `root` | any |  | Scene path to scope the hierarchy (omit = whole scene) |
+| `scene` | any |  | Filter to a single scene by name (multi-scene only) |
+| `summary` | boolean |  | Return compact root-only counts (~60-100 tokens) instead of the full tree (default: `False`) |
 
 <details>
-<summary>15 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'depth' has no description.
 - **warning**: Numeric parameter 'depth' has no bounds.
-- **info**: Parameter 'root' has no description.
-- **info**: Parameter 'filter' has no description.
-- **info**: Parameter 'components' has no description.
-- **info**: Parameter 'compress' has no description.
-- **info**: Parameter 'summary' has no description.
-- **info**: Parameter 'incremental' has no description.
-- **info**: Parameter 'full' has no description.
-- **info**: Parameter 'scene' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -3636,7 +3582,8 @@ Scene hierarchy as text tree. For finding specific object by name/type use searc
     "depth": {
       "default": 2,
       "title": "Depth",
-      "type": "integer"
+      "type": "integer",
+      "description": "Traversal depth (default 2; increase for deeper trees)"
     },
     "root": {
       "anyOf": [
@@ -3648,7 +3595,8 @@ Scene hierarchy as text tree. For finding specific object by name/type use searc
         }
       ],
       "default": null,
-      "title": "Root"
+      "title": "Root",
+      "description": "Scene path to scope the hierarchy (omit = whole scene)"
     },
     "filter": {
       "anyOf": [
@@ -3660,32 +3608,38 @@ Scene hierarchy as text tree. For finding specific object by name/type use searc
         }
       ],
       "default": null,
-      "title": "Filter"
+      "title": "Filter",
+      "description": "Substring filter on GameObject name"
     },
     "components": {
       "default": false,
       "title": "Components",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Show component types next to each object (increases token cost)"
     },
     "compress": {
       "default": false,
       "title": "Compress",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Group repeated slot/point/mesh siblings to save tokens on dense scenes"
     },
     "summary": {
       "default": false,
       "title": "Summary",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Return compact root-only counts (~60-100 tokens) instead of the full tree"
     },
     "incremental": {
       "default": false,
       "title": "Incremental",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Return NO_CHANGE if scene is unchanged since last call (saves tokens)"
     },
     "full": {
       "default": false,
       "title": "Full",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Bypass distillation \u2014 return raw response"
     },
     "scene": {
       "anyOf": [
@@ -3697,11 +3651,13 @@ Scene hierarchy as text tree. For finding specific object by name/type use searc
         }
       ],
       "default": null,
-      "title": "Scene"
+      "title": "Scene",
+      "description": "Filter to a single scene by name (multi-scene only)"
     }
   },
   "title": "get_hierarchyArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3711,7 +3667,7 @@ Scene hierarchy as text tree. For finding specific object by name/type use searc
 
 ### `get_memory`
 
-🟢 82/100 · Risk: 🟢 low
+🟢 88/100 · Risk: 🟢 low
 
 Memory snapshot.     include: all|textures|meshes|audio|gc — narrow the asset-type breakdown.
 
@@ -3722,14 +3678,12 @@ Memory snapshot.     include: all|textures|meshes|audio|gc — narrow the asset-
 | `include` | string |  |  (default: `all`) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'include' has no description.
 - **info**: Free-form string parameter 'include' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3746,7 +3700,8 @@ Memory snapshot.     include: all|textures|meshes|audio|gc — narrow the asset-
     }
   },
   "title": "get_memoryArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3756,9 +3711,9 @@ Memory snapshot.     include: all|textures|meshes|audio|gc — narrow the asset-
 
 ### `get_metrics`
 
-🔴 57/100 · Risk: 🔴 high
+🟢 82/100 · Risk: 🔴 high
 
-Returns telemetry snapshot. format: text|json. reset=true clears counters atomically.
+Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json.
 
 **Parameters:**
 
@@ -3768,12 +3723,9 @@ Returns telemetry snapshot. format: text|json. reset=true clears counters atomic
 | `reset` | boolean |  |  (default: `False`) |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>6 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'format' has no description.
 - **info**: Free-form string parameter 'format' has no maxLength.
 - **info**: Parameter 'reset' has no description.
@@ -3800,7 +3752,8 @@ Returns telemetry snapshot. format: text|json. reset=true clears counters atomic
     }
   },
   "title": "get_metricsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3810,7 +3763,7 @@ Returns telemetry snapshot. format: text|json. reset=true clears counters atomic
 
 ### `get_object_detail`
 
-🟡 78/100 · Risk: 🟢 low
+🟢 90/100 · Risk: 🟢 low
 
 Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation.
 
@@ -3818,18 +3771,14 @@ Get ALL components with ALL values. Heavy. Use get_component for single componen
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `full` | boolean |  |  (default: `False`) |
-| `id` | integer | ✓ |  |
+| `full` | boolean |  | Bypass distillation — return raw uncompressed response (default: `False`) |
+| `id` | integer | ✓ | Instance ID of the GameObject (integer from get_hierarchy) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>2 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'id' has no description.
 - **warning**: Numeric parameter 'id' has no bounds.
-- **info**: Parameter 'full' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3841,19 +3790,22 @@ Get ALL components with ALL values. Heavy. Use get_component for single componen
   "properties": {
     "id": {
       "title": "Id",
-      "type": "integer"
+      "type": "integer",
+      "description": "Instance ID of the GameObject (integer from get_hierarchy)"
     },
     "full": {
       "default": false,
       "title": "Full",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Bypass distillation \u2014 return raw uncompressed response"
     }
   },
   "required": [
     "id"
   ],
   "title": "get_object_detailArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3863,7 +3815,7 @@ Get ALL components with ALL values. Heavy. Use get_component for single componen
 
 ### `get_schema`
 
-🟡 78/100 · Risk: 🟢 low
+🟢 89/100 · Risk: 🟢 low
 
 Get all serialized fields of a component type with types. Use before set_property to know exact field names.
 
@@ -3871,17 +3823,14 @@ Get all serialized fields of a component type with types. Use before set_propert
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `type` | string | ✓ |  |
+| `type` | string | ✓ | Component type name (e.g. 'Rigidbody', 'BoxCollider') |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'type' has no description.
 - **warning**: String parameter 'type' appears categorical but has no enum.
 - **info**: Free-form string parameter 'type' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3893,14 +3842,16 @@ Get all serialized fields of a component type with types. Use before set_propert
   "properties": {
     "type": {
       "title": "Type",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name (e.g. 'Rigidbody', 'BoxCollider')"
     }
   },
   "required": [
     "type"
   ],
   "title": "get_schemaArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3910,16 +3861,14 @@ Get all serialized fields of a component type with types. Use before set_propert
 
 ### `get_selection`
 
-🟢 89/100 · Risk: 🟡 medium
+🟢 95/100 · Risk: 🟡 medium
 
 Currently selected GameObject: path and component list.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3927,7 +3876,7 @@ Currently selected GameObject: path and component list.
 
 ### `get_spatial_context`
 
-🟡 76/100 · Risk: 🟡 medium
+🟢 83/100 · Risk: 🟡 medium
 
 Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only.
 
@@ -3935,20 +3884,17 @@ Collider info + approach vectors + nearby objects within radius. Raycast in Play
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `radius` | number |  |  (default: `5.0`) |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>5 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'radius' has no description.
 - **warning**: Numeric parameter 'radius' has no bounds.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3960,7 +3906,8 @@ Collider info + approach vectors + nearby objects within radius. Raycast in Play
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "radius": {
       "default": 5.0,
@@ -3972,7 +3919,8 @@ Collider info + approach vectors + nearby objects within radius. Raycast in Play
     "path"
   ],
   "title": "get_spatial_contextArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -3982,16 +3930,14 @@ Collider info + approach vectors + nearby objects within radius. Raycast in Play
 
 ### `get_test_count`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Number of edit-mode and play-mode tests in the project.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3999,7 +3945,7 @@ Number of edit-mode and play-mode tests in the project.
 
 ### `get_test_progress`
 
-🟡 74/100 · Risk: 🟡 medium
+🟢 89/100 · Risk: 🟢 low
 
 Legacy progress facade. Pass run_id to correlate the response.
 
@@ -4010,12 +3956,9 @@ Legacy progress facade. Pass run_id to correlate the response.
 | `run_id` | any |  |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'run_id' has no description.
 - **warning**: outputSchema is missing.
 
@@ -4041,7 +3984,8 @@ Legacy progress facade. Pass run_id to correlate the response.
     }
   },
   "title": "get_test_progressArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4051,7 +3995,7 @@ Legacy progress facade. Pass run_id to correlate the response.
 
 ### `get_test_results`
 
-🟡 74/100 · Risk: 🟡 medium
+🟢 89/100 · Risk: 🟢 low
 
 Legacy result facade. Pass run_id to prevent reading a stale latest run.
 
@@ -4062,12 +4006,9 @@ Legacy result facade. Pass run_id to prevent reading a stale latest run.
 | `run_id` | any |  |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'run_id' has no description.
 - **warning**: outputSchema is missing.
 
@@ -4093,7 +4034,8 @@ Legacy result facade. Pass run_id to prevent reading a stale latest run.
     }
   },
   "title": "get_test_resultsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4103,7 +4045,7 @@ Legacy result facade. Pass run_id to prevent reading a stale latest run.
 
 ### `get_test_run`
 
-🟡 78/100 · Risk: 🟡 medium
+🟢 93/100 · Risk: 🟢 low
 
 Return the durable JSON snapshot for one exact test run.
 
@@ -4114,11 +4056,8 @@ Return the durable JSON snapshot for one exact test run.
 | `run_id` | string | ✓ |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'run_id' has no description.
 - **info**: Free-form string parameter 'run_id' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -4140,7 +4079,8 @@ Return the durable JSON snapshot for one exact test run.
     "run_id"
   ],
   "title": "get_test_runArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4150,7 +4090,7 @@ Return the durable JSON snapshot for one exact test run.
 
 ### `get_unity_events`
 
-🟢 83/100 · Risk: 🟡 medium
+🟢 90/100 · Risk: 🟡 medium
 
 List all UnityEvent persistent listeners in the active scene.     path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree).
 
@@ -4158,16 +4098,13 @@ List all UnityEvent persistent listeners in the active scene.     path: optional
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>2 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4187,11 +4124,13 @@ List all UnityEvent persistent listeners in the active scene.     path: optional
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     }
   },
   "title": "get_unity_eventsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4201,16 +4140,14 @@ List all UnityEvent persistent listeners in the active scene.     path: optional
 
 ### `get_watches`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Get all active watches and recent log entries.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4218,7 +4155,7 @@ Get all active watches and recent log entries.
 
 ### `inspect`
 
-🟡 78/100 · Risk: 🟢 low
+🟢 90/100 · Risk: 🟢 low
 
 Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all).     find_type: component type to find — populates paths automatically (replaces explicit paths).     fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer.
 
@@ -4226,26 +4163,18 @@ Get components for multiple objects at once. paths: comma-separated. components:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `components` | any |  |  |
-| `compress` | boolean |  |  (default: `False`) |
-| `fields` | any |  |  |
-| `find_type` | any |  |  |
-| `full` | boolean |  |  (default: `False`) |
-| `paths` | any |  |  |
+| `components` | any |  | Comma-separated component types to read (omit = all) |
+| `compress` | boolean |  | Strip fields at their default value before TCP transfer — reduces response size (default: `False`) |
+| `fields` | any |  | Comma-separated field names to project across all objects — reduces tokens |
+| `find_type` | any |  | Component type — auto-populates paths from all scene objects with this component |
+| `full` | boolean |  | Return raw uncompressed response (bypass distillation) (default: `False`) |
+| `paths` | any |  | Comma-separated scene paths (e.g. '/Player,/Enemy,/Camera') |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>2 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'paths' has no description.
-- **info**: Parameter 'components' has no description.
-- **info**: Parameter 'fields' has no description.
-- **info**: Parameter 'full' has no description.
-- **info**: Parameter 'compress' has no description.
-- **info**: Parameter 'find_type' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4265,7 +4194,8 @@ Get components for multiple objects at once. paths: comma-separated. components:
         }
       ],
       "default": null,
-      "title": "Paths"
+      "title": "Paths",
+      "description": "Comma-separated scene paths (e.g. '/Player,/Enemy,/Camera')"
     },
     "components": {
       "anyOf": [
@@ -4277,7 +4207,8 @@ Get components for multiple objects at once. paths: comma-separated. components:
         }
       ],
       "default": null,
-      "title": "Components"
+      "title": "Components",
+      "description": "Comma-separated component types to read (omit = all)"
     },
     "fields": {
       "anyOf": [
@@ -4289,17 +4220,20 @@ Get components for multiple objects at once. paths: comma-separated. components:
         }
       ],
       "default": null,
-      "title": "Fields"
+      "title": "Fields",
+      "description": "Comma-separated field names to project across all objects \u2014 reduces tokens"
     },
     "full": {
       "default": false,
       "title": "Full",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Return raw uncompressed response (bypass distillation)"
     },
     "compress": {
       "default": false,
       "title": "Compress",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Strip fields at their default value before TCP transfer \u2014 reduces response size"
     },
     "find_type": {
       "anyOf": [
@@ -4311,11 +4245,13 @@ Get components for multiple objects at once. paths: comma-separated. components:
         }
       ],
       "default": null,
-      "title": "Find Type"
+      "title": "Find Type",
+      "description": "Component type \u2014 auto-populates paths from all scene objects with this component"
     }
   },
   "title": "inspectArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4325,7 +4261,7 @@ Get components for multiple objects at once. paths: comma-separated. components:
 
 ### `invoke_method`
 
-🟡 76/100 · Risk: 🟡 medium
+🟢 83/100 · Risk: 🟡 medium
 
 [Play Mode] Call public method on a component via reflection.     args: comma-separated values matching method parameters.     Example: invoke_method('/Player', 'PlayerController', 'MoveTo', '10,0,5')
 
@@ -4334,18 +4270,15 @@ Get components for multiple objects at once. paths: comma-separated. components:
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `args` | string |  |  (default: ``) |
-| `component` | string | ✓ |  |
+| `component` | string | ✓ | Component type name on the target object |
 | `method` | string | ✓ |  |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>9 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'component' has no description.
 - **info**: Free-form string parameter 'component' has no maxLength.
 - **info**: Parameter 'method' has no description.
 - **info**: Free-form string parameter 'method' has no maxLength.
@@ -4364,11 +4297,13 @@ Get components for multiple objects at once. paths: comma-separated. components:
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "component": {
       "title": "Component",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name on the target object"
     },
     "method": {
       "title": "Method",
@@ -4386,7 +4321,8 @@ Get components for multiple objects at once. paths: comma-separated. components:
     "method"
   ],
   "title": "invoke_methodArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4396,26 +4332,25 @@ Get components for multiple objects at once. paths: comma-separated. components:
 
 ### `lint_playtest`
 
-🟡 78/100 · Risk: 🔴 high
+🟡 69/100 · Risk: 🔴 high
 
-Read-only preflight check on a .playtest file or inline script.     Checks: unresolved $alias, deprecated ALIAS, TRACE_FLOW (unimplemented), CALL unknown macro,     mixed AND/OR, no evidence commands, missing ASSERT_CONSOLE_CLEAN at end.     path: project-relative path to .playtest file.     script: inline DSL to lint (mutually exclusive with path).     Returns: OK or severity-tagged issues (ERROR/WARN/INFO) with file:line.
+Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list.     Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN.     path: project-relative path to .playtest file.     script: inline DSL (mutually exclusive with path).
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 | `script` | any |  |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Parameter 'script' has no description.
 - **warning**: outputSchema is missing.
+- **error**: Tool appears to have side effects but is annotated as read-only.
 
 </details>
 
@@ -4435,7 +4370,8 @@ Read-only preflight check on a .playtest file or inline script.     Checks: unre
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "script": {
       "anyOf": [
@@ -4451,7 +4387,8 @@ Read-only preflight check on a .playtest file or inline script.     Checks: unre
     }
   },
   "title": "lint_playtestArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4461,7 +4398,7 @@ Read-only preflight check on a .playtest file or inline script.     Checks: unre
 
 ### `lint_playtest_suite`
 
-🟢 82/100 · Risk: 🟡 medium
+🟢 88/100 · Risk: 🟡 medium
 
 Read-only preflight check across multiple .playtest files.     pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list.     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).     Returns: aggregated lint report, one block per file.
 
@@ -4473,14 +4410,12 @@ Read-only preflight check across multiple .playtest files.     pattern: glob pat
 | `suite_path` | any |  |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'pattern' has no description.
 - **info**: Parameter 'suite_path' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4516,7 +4451,8 @@ Read-only preflight check across multiple .playtest files.     pattern: glob pat
     }
   },
   "title": "lint_playtest_suiteArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4526,7 +4462,7 @@ Read-only preflight check across multiple .playtest files.     pattern: glob pat
 
 ### `lint_scene_refs`
 
-🟢 82/100 · Risk: 🔴 high
+🟢 89/100 · Risk: 🔴 high
 
 Read-only linter for scene references in DSL scripts or batch commands.     path: project-relative path to .playtest file.     snippet: inline DSL or batch commands to lint (mutually exclusive with path).     Checks: unresolved aliases, embedded aliases, missing objects, ambiguous names.     Returns: 'OK: no issues' or severity-tagged issues (ERROR/WARN) with file:line:token.
 
@@ -4534,18 +4470,15 @@ Read-only linter for scene references in DSL scripts or batch commands.     path
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 | `snippet` | any |  |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Parameter 'snippet' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4565,7 +4498,8 @@ Read-only linter for scene references in DSL scripts or batch commands.     path
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "snippet": {
       "anyOf": [
@@ -4581,7 +4515,8 @@ Read-only linter for scene references in DSL scripts or batch commands.     path
     }
   },
   "title": "lint_scene_refsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4591,16 +4526,14 @@ Read-only linter for scene references in DSL scripts or batch commands.     path
 
 ### `list_connections`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 List Unity connection status.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4608,16 +4541,14 @@ List Unity connection status.
 
 ### `list_skills`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 List all saved skills with descriptions and usage counts.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4625,16 +4556,14 @@ List all saved skills with descriptions and usage counts.
 
 ### `list_templates`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 List available scene templates in .claude/templates/.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4642,7 +4571,7 @@ List available scene templates in .claude/templates/.
 
 ### `list_test_runs`
 
-🟡 78/100 · Risk: 🟢 low
+🟢 85/100 · Risk: 🟢 low
 
 List recent durable test runs as JSON, newest first.
 
@@ -4650,17 +4579,14 @@ List recent durable test runs as JSON, newest first.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `limit` | integer |  |  (default: `20`) |
+| `limit` | integer |  | Maximum number of results to return (default: `20`) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'limit' has no description.
 - **warning**: Numeric parameter 'limit' has no bounds.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4673,11 +4599,13 @@ List recent durable test runs as JSON, newest first.
     "limit": {
       "default": 20,
       "title": "Limit",
-      "type": "integer"
+      "type": "integer",
+      "description": "Maximum number of results to return"
     }
   },
   "title": "list_test_runsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4687,16 +4615,14 @@ List recent durable test runs as JSON, newest first.
 
 ### `load_session`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Load previous session context beside the current hierarchy.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4704,31 +4630,25 @@ Load previous session context beside the current hierarchy.
 
 ### `manage_component`
 
-🔴 45/100 · Risk: 🔴 high
+🟡 77/100 · Risk: 🔴 high
 
-Add or remove a component. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button').
+Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button').
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
-| `path` | string | ✓ |  |
-| `type` | string | ✓ |  |
+| `action` | string | ✓ | 'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that) |
+| `path` | string | ✓ | Scene path to the GameObject |
+| `type` | string | ✓ | Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button') |
 
 <details>
-<summary>13 quality issues</summary>
+<summary>7 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **warning**: Parameter 'type' has no description.
 - **warning**: String parameter 'type' appears categorical but has no enum.
 - **info**: Free-form string parameter 'type' has no maxLength.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
@@ -4743,15 +4663,18 @@ Add or remove a component. action: 'add' or 'remove' ONLY (no 'enable'/'disable'
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to the GameObject"
     },
     "type": {
       "title": "Type",
-      "type": "string"
+      "type": "string",
+      "description": "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
     },
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "'add' or 'remove' \u2014 not 'enable'/'disable' (use set_property m_Enabled for that)"
     }
   },
   "required": [
@@ -4760,7 +4683,8 @@ Add or remove a component. action: 'add' or 'remove' ONLY (no 'enable'/'disable'
     "action"
   ],
   "title": "manage_componentArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4770,7 +4694,7 @@ Add or remove a component. action: 'add' or 'remove' ONLY (no 'enable'/'disable'
 
 ### `material`
 
-🟡 64/100 · Risk: 🟡 medium
+🟡 78/100 · Risk: 🟡 medium
 
 Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared).
 
@@ -4778,35 +4702,29 @@ Material asset management (for quick color change use `set_material`). action: c
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
-| `filter` | any |  |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
+| `filter` | any |  | Substring filter to narrow results |
 | `object_path` | any |  |  |
-| `path` | any |  |  |
-| `prop` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
+| `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
 | `shader` | any |  |  |
 | `slot` | any |  |  |
 | `source` | any |  |  |
 | `target` | any |  |  |
 | `targets` | any |  |  |
-| `value` | any |  |  |
+| `value` | any |  | New value to set |
 
 <details>
-<summary>16 quality issues</summary>
+<summary>10 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Parameter 'object_path' has no description.
 - **info**: Parameter 'shader' has no description.
-- **info**: Parameter 'prop' has no description.
-- **warning**: Parameter 'value' has no description.
 - **info**: Parameter 'source' has no description.
 - **info**: Parameter 'targets' has no description.
 - **info**: Parameter 'slot' has no description.
-- **info**: Parameter 'filter' has no description.
 - **info**: Parameter 'target' has no description.
 - **warning**: outputSchema is missing.
 
@@ -4820,7 +4738,8 @@ Material asset management (for quick color change use `set_material`). action: c
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "anyOf": [
@@ -4832,7 +4751,8 @@ Material asset management (for quick color change use `set_material`). action: c
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "object_path": {
       "anyOf": [
@@ -4868,7 +4788,8 @@ Material asset management (for quick color change use `set_material`). action: c
         }
       ],
       "default": null,
-      "title": "Prop"
+      "title": "Prop",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "value": {
       "anyOf": [
@@ -4880,7 +4801,8 @@ Material asset management (for quick color change use `set_material`). action: c
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     },
     "source": {
       "anyOf": [
@@ -4928,7 +4850,8 @@ Material asset management (for quick color change use `set_material`). action: c
         }
       ],
       "default": null,
-      "title": "Filter"
+      "title": "Filter",
+      "description": "Substring filter to narrow results"
     },
     "target": {
       "anyOf": [
@@ -4947,7 +4870,8 @@ Material asset management (for quick color change use `set_material`). action: c
     "action"
   ],
   "title": "materialArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -4957,7 +4881,7 @@ Material asset management (for quick color change use `set_material`). action: c
 
 ### `material_audit`
 
-🟢 81/100 · Risk: 🟢 low
+🟢 88/100 · Risk: 🟢 low
 
 Material/texture scene-wide audit.     action: summary|materials|textures|duplicates|compression|recommendations.     platform: Android|iOS|Standalone|Default (for compression check).
 
@@ -4965,19 +4889,16 @@ Material/texture scene-wide audit.     action: summary|materials|textures|duplic
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string |  |  (default: `summary`) |
+| `action` | string |  | Operation to perform — see tool docstring for allowed values (default: `summary`) |
 | `platform` | any |  |  |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'platform' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -4990,7 +4911,8 @@ Material/texture scene-wide audit.     action: summary|materials|textures|duplic
     "action": {
       "default": "summary",
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "platform": {
       "anyOf": [
@@ -5006,7 +4928,8 @@ Material/texture scene-wide audit.     action: summary|materials|textures|duplic
     }
   },
   "title": "material_auditArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5016,16 +4939,14 @@ Material/texture scene-wide audit.     action: summary|materials|textures|duplic
 
 ### `mcp_status`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Compact MCP status: scene, dirty, play/compile state, port, alias count.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -5033,7 +4954,7 @@ Compact MCP status: scene, dirty, play/compile state, port, alias count.
 
 ### `menu`
 
-🟡 77/100 · Risk: 🟡 medium
+🟢 84/100 · Risk: 🟡 medium
 
 Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API.
 
@@ -5041,18 +4962,15 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
-| `path` | any |  |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -5065,7 +4983,8 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "anyOf": [
@@ -5077,14 +4996,16 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     }
   },
   "required": [
     "action"
   ],
   "title": "menuArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5094,7 +5015,7 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
 
 ### `move_to`
 
-🟡 74/100 · Risk: 🟡 medium
+🟢 81/100 · Risk: 🟡 medium
 
 [Play Mode] Move character to position and wait for arrival.     path: scene path to GO with movement component.     position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'.
 
@@ -5102,20 +5023,17 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `position` | string | ✓ |  |
-| `timeout` | number |  |  (default: `15.0`) |
+| `timeout` | number |  | Seconds before giving up (default varies per tool) (default: `15.0`) |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>7 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'position' has no description.
 - **info**: Free-form string parameter 'position' has no maxLength.
-- **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
@@ -5130,7 +5048,8 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "position": {
       "title": "Position",
@@ -5139,7 +5058,8 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
     "timeout": {
       "default": 15.0,
       "title": "Timeout",
-      "type": "number"
+      "type": "number",
+      "description": "Seconds before giving up (default varies per tool)"
     }
   },
   "required": [
@@ -5147,7 +5067,8 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
     "position"
   ],
   "title": "move_toArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5157,15 +5078,15 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
 
 ### `navmesh_query`
 
-🔴 44/100 · Risk: 🔴 high
+🟡 70/100 · Risk: 🔴 high
 
-NavMesh queries and management. action: sample|path|raycast|bake|status|clear|get_settings|set_settings.     sample: find nearest walkable point to center.     path: calculate path from from_pos to to.     raycast: NavMesh raycast from from_pos toward to.     bake: build NavMesh (NavMeshSurface components or legacy NavMeshBuilder).     status: triangulation stats (triangles, vertices, areas).     clear: remove all baked NavMesh data.     get_settings: list all NavMesh agent type settings.     set_settings: update NavMeshSurface agent params (agentRadius/agentHeight/agentClimb/agentSlope).
+NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings.     sample: find nearest walkable point to center.     path: calculate path from from_pos to to.     raycast: NavMesh raycast from from_pos toward to.     bake: build NavMesh (NavMeshSurface components or legacy NavMeshBuilder).     status: triangulation stats (triangles, vertices, areas).     clear: remove all baked NavMesh data.     get_settings: list all NavMesh agent type settings.     set_settings: update NavMeshSurface agent params (agentRadius/agentHeight/agentClimb/agentSlope).
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `agentClimb` | any |  |  |
 | `agentHeight` | any |  |  |
 | `agentRadius` | any |  |  |
@@ -5177,12 +5098,8 @@ NavMesh queries and management. action: sample|path|raycast|bake|status|clear|ge
 | `to` | any |  |  |
 
 <details>
-<summary>18 quality issues</summary>
+<summary>14 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'center' has no description.
 - **info**: Parameter 'from_pos' has no description.
@@ -5208,7 +5125,8 @@ NavMesh queries and management. action: sample|path|raycast|bake|status|clear|ge
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "center": {
       "anyOf": [
@@ -5309,7 +5227,8 @@ NavMesh queries and management. action: sample|path|raycast|bake|status|clear|ge
     "action"
   ],
   "title": "navmesh_queryArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5319,7 +5238,7 @@ NavMesh queries and management. action: sample|path|raycast|bake|status|clear|ge
 
 ### `object_diff`
 
-🟡 75/100 · Risk: 🟡 medium
+🟢 81/100 · Risk: 🟡 medium
 
 Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'.
 
@@ -5331,9 +5250,8 @@ Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/A
 | `path_b` | string | ✓ |  |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>7 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'path_a' has no description.
 - **info**: Free-form string parameter 'path_a' has no maxLength.
 - **warning**: Path-like parameter 'path_a' has no structural constraint.
@@ -5341,7 +5259,6 @@ Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/A
 - **info**: Free-form string parameter 'path_b' has no maxLength.
 - **warning**: Path-like parameter 'path_b' has no structural constraint.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -5365,7 +5282,8 @@ Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/A
     "path_b"
   ],
   "title": "object_diffArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5375,30 +5293,24 @@ Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/A
 
 ### `package`
 
-🔴 56/100 · Risk: 🔴 high
+🟢 88/100 · Risk: 🔴 high
 
-Package manager. action: list|search|add|remove.     list: all installed packages.     search: query required.     add: name required, version optional.     remove: name required.
+Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove.     list: all installed packages.     search: query required.     add: name required, version optional.     remove: name required.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
-| `name` | any |  |  |
-| `query` | any |  |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
+| `name` | any |  | Name of the GameObject |
+| `query` | any |  | Search query — see tool docstring for syntax |
 | `version` | any |  |  |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>4 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **warning**: Parameter 'name' has no description.
 - **info**: Parameter 'version' has no description.
-- **info**: Parameter 'query' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
 
@@ -5412,7 +5324,8 @@ Package manager. action: list|search|add|remove.     list: all installed package
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "name": {
       "anyOf": [
@@ -5424,7 +5337,8 @@ Package manager. action: list|search|add|remove.     list: all installed package
         }
       ],
       "default": null,
-      "title": "Name"
+      "title": "Name",
+      "description": "Name of the GameObject"
     },
     "version": {
       "anyOf": [
@@ -5448,14 +5362,16 @@ Package manager. action: list|search|add|remove.     list: all installed package
         }
       ],
       "default": null,
-      "title": "Query"
+      "title": "Query",
+      "description": "Search query \u2014 see tool docstring for syntax"
     }
   },
   "required": [
     "action"
   ],
   "title": "packageArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5465,7 +5381,7 @@ Package manager. action: list|search|add|remove.     list: all installed package
 
 ### `particle`
 
-🔴 58/100 · Risk: 🟡 medium
+🟡 76/100 · Risk: 🟡 medium
 
 Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail.
 
@@ -5473,29 +5389,23 @@ Particle System. action: get|create|set|apply|play|stop|pause. module=main|emiss
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `module` | any |  |  |
-| `name` | any |  |  |
-| `path` | string | ✓ |  |
+| `name` | any |  | Name of the GameObject |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `preset` | any |  |  |
-| `prop` | any |  |  |
-| `value` | any |  |  |
+| `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
+| `value` | any |  | New value to set |
 
 <details>
-<summary>14 quality issues</summary>
+<summary>8 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **warning**: Parameter 'name' has no description.
 - **info**: Parameter 'module' has no description.
-- **info**: Parameter 'prop' has no description.
-- **warning**: Parameter 'value' has no description.
 - **info**: Parameter 'preset' has no description.
 - **warning**: outputSchema is missing.
 
@@ -5509,11 +5419,13 @@ Particle System. action: get|create|set|apply|play|stop|pause. module=main|emiss
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "name": {
       "anyOf": [
@@ -5525,7 +5437,8 @@ Particle System. action: get|create|set|apply|play|stop|pause. module=main|emiss
         }
       ],
       "default": null,
-      "title": "Name"
+      "title": "Name",
+      "description": "Name of the GameObject"
     },
     "module": {
       "anyOf": [
@@ -5549,7 +5462,8 @@ Particle System. action: get|create|set|apply|play|stop|pause. module=main|emiss
         }
       ],
       "default": null,
-      "title": "Prop"
+      "title": "Prop",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "value": {
       "anyOf": [
@@ -5561,7 +5475,8 @@ Particle System. action: get|create|set|apply|play|stop|pause. module=main|emiss
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     },
     "preset": {
       "anyOf": [
@@ -5581,7 +5496,8 @@ Particle System. action: get|create|set|apply|play|stop|pause. module=main|emiss
     "path"
   ],
   "title": "particleArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5591,7 +5507,7 @@ Particle System. action: get|create|set|apply|play|stop|pause. module=main|emiss
 
 ### `permission_prompt`
 
-🟡 70/100 · Risk: 🟢 low
+🟡 76/100 · Risk: 🟢 low
 
 Handle Claude permission prompts via MCP.      Registered as --permission-prompt-tool so Claude routes all permission     checks here instead of blocking on stdin.
 
@@ -5604,9 +5520,8 @@ Handle Claude permission prompts via MCP.      Registered as --permission-prompt
 | `tool_use_id` | string | ✓ |  |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>8 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'tool_name' has no description.
 - **info**: Free-form string parameter 'tool_name' has no maxLength.
 - **warning**: Parameter 'input' has no description.
@@ -5615,7 +5530,6 @@ Handle Claude permission prompts via MCP.      Registered as --permission-prompt
 - **info**: Parameter 'tool_use_id' has no description.
 - **info**: Free-form string parameter 'tool_use_id' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -5645,7 +5559,8 @@ Handle Claude permission prompts via MCP.      Registered as --permission-prompt
     "tool_use_id"
   ],
   "title": "permission_promptArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5655,7 +5570,7 @@ Handle Claude permission prompts via MCP.      Registered as --permission-prompt
 
 ### `ping_object`
 
-🟢 82/100 · Risk: 🟡 medium
+🟢 88/100 · Risk: 🟡 medium
 
 Highlight object in Hierarchy and Project, and select it.
 
@@ -5663,13 +5578,11 @@ Highlight object in Hierarchy and Project, and select it.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>4 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **warning**: outputSchema is missing.
@@ -5685,14 +5598,16 @@ Highlight object in Hierarchy and Project, and select it.
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     }
   },
   "required": [
     "path"
   ],
   "title": "ping_objectArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5702,48 +5617,39 @@ Highlight object in Hierarchy and Project, and select it.
 
 ### `prefab`
 
-🔴 46/100 · Risk: 🔴 high
+🟢 81/100 · Risk: 🔴 high
 
-Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.     edit: asset_path + component + prop + value (set property on prefab asset).     edit: asset_path + add_component or remove_component (manage components).     save: path (scene) + asset_path [+ mode: new|overwrite (default)].     revert: scope: object (default)|children.     get_overrides: format: text (default)|structured.     create_variant: base_path + variant_path.     instantiate: asset_path (instantiate prefab into active scene).
+Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.     edit: asset_path + component + prop + value (set property on prefab asset).     edit: asset_path + add_component or remove_component (manage components).     save: path (scene) + asset_path [+ mode: new|overwrite (default)].     revert: scope: object (default)|children.     get_overrides: format: text (default)|structured.     create_variant: base_path + variant_path.     instantiate: asset_path (instantiate prefab into active scene).
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `add_component` | any |  |  |
 | `asset_path` | any |  |  |
 | `base_path` | any |  |  |
-| `component` | any |  |  |
+| `component` | any |  | Component type name on the target object |
 | `format` | any |  |  |
-| `mode` | any |  |  |
-| `path` | any |  |  |
-| `prop` | any |  |  |
+| `mode` | any |  | Execution mode — see tool docstring for allowed values |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
+| `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
 | `recursive` | boolean |  |  (default: `False`) |
 | `remove_component` | any |  |  |
 | `scope` | any |  |  |
-| `value` | any |  |  |
+| `value` | any |  | New value to set |
 | `variant_path` | any |  |  |
 
 <details>
-<summary>20 quality issues</summary>
+<summary>11 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Parameter 'asset_path' has no description.
 - **info**: Parameter 'base_path' has no description.
 - **info**: Parameter 'variant_path' has no description.
-- **info**: Parameter 'component' has no description.
-- **info**: Parameter 'prop' has no description.
-- **warning**: Parameter 'value' has no description.
 - **info**: Parameter 'add_component' has no description.
 - **info**: Parameter 'remove_component' has no description.
 - **info**: Parameter 'recursive' has no description.
-- **info**: Parameter 'mode' has no description.
 - **info**: Parameter 'scope' has no description.
 - **info**: Parameter 'format' has no description.
 - **warning**: outputSchema is missing.
@@ -5759,7 +5665,8 @@ Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|insta
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "anyOf": [
@@ -5771,7 +5678,8 @@ Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|insta
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "asset_path": {
       "anyOf": [
@@ -5819,7 +5727,8 @@ Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|insta
         }
       ],
       "default": null,
-      "title": "Component"
+      "title": "Component",
+      "description": "Component type name on the target object"
     },
     "prop": {
       "anyOf": [
@@ -5831,7 +5740,8 @@ Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|insta
         }
       ],
       "default": null,
-      "title": "Prop"
+      "title": "Prop",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "value": {
       "anyOf": [
@@ -5843,7 +5753,8 @@ Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|insta
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     },
     "add_component": {
       "anyOf": [
@@ -5884,7 +5795,8 @@ Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|insta
         }
       ],
       "default": null,
-      "title": "Mode"
+      "title": "Mode",
+      "description": "Execution mode \u2014 see tool docstring for allowed values"
     },
     "scope": {
       "anyOf": [
@@ -5915,7 +5827,8 @@ Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|insta
     "action"
   ],
   "title": "prefabArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -5925,7 +5838,7 @@ Prefab. action: save|create_variant|apply|revert|get_overrides|unpack|edit|insta
 
 ### `profile`
 
-🟡 62/100 · Risk: 🟢 low
+🟡 70/100 · Risk: 🟢 low
 
 Profile CPU/GPU/memory over time.     action: start|stop|status|analyze|compare|list_sessions     mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)     focus: narrow analyze output to gc|rendering|physics|cpu
 
@@ -5933,19 +5846,17 @@ Profile CPU/GPU/memory over time.     action: start|stop|status|analyze|compare|
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `compare_with` | string |  |  (default: ``) |
 | `duration` | number |  |  (default: `5.0`) |
 | `focus` | string |  |  (default: ``) |
-| `mode` | string |  |  (default: `burst`) |
+| `mode` | string |  | Execution mode — see tool docstring for allowed values (default: `burst`) |
 | `session` | string |  |  (default: ``) |
 | `threshold_ms` | number |  |  (default: `33.3`) |
 
 <details>
-<summary>18 quality issues</summary>
+<summary>14 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'duration' has no description.
 - **warning**: Numeric parameter 'duration' has no bounds.
@@ -5955,13 +5866,11 @@ Profile CPU/GPU/memory over time.     action: start|stop|status|analyze|compare|
 - **info**: Free-form string parameter 'compare_with' has no maxLength.
 - **info**: Parameter 'focus' has no description.
 - **info**: Free-form string parameter 'focus' has no maxLength.
-- **info**: Parameter 'mode' has no description.
 - **warning**: String parameter 'mode' appears categorical but has no enum.
 - **info**: Free-form string parameter 'mode' has no maxLength.
 - **info**: Parameter 'threshold_ms' has no description.
 - **warning**: Numeric parameter 'threshold_ms' has no bounds.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -5973,7 +5882,8 @@ Profile CPU/GPU/memory over time.     action: start|stop|status|analyze|compare|
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "duration": {
       "default": 5.0,
@@ -5998,7 +5908,8 @@ Profile CPU/GPU/memory over time.     action: start|stop|status|analyze|compare|
     "mode": {
       "default": "burst",
       "title": "Mode",
-      "type": "string"
+      "type": "string",
+      "description": "Execution mode \u2014 see tool docstring for allowed values"
     },
     "threshold_ms": {
       "default": 33.3,
@@ -6010,7 +5921,8 @@ Profile CPU/GPU/memory over time.     action: start|stop|status|analyze|compare|
     "action"
   ],
   "title": "profileArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6020,34 +5932,27 @@ Profile CPU/GPU/memory over time.     action: start|stop|status|analyze|compare|
 
 ### `project_settings`
 
-🔴 53/100 · Risk: 🔴 high
+🟢 86/100 · Risk: 🔴 high
 
-Project settings. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input.     tags set: prop=remove value=<tag> to remove; else adds.     quality set prop=currentLevel: calls SetQualityLevel().     player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP).
+Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input.     tags set: prop=remove value=<tag> to remove; else adds.     quality set prop=currentLevel: calls SetQualityLevel().     player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP).
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `build_target` | any |  |  |
-| `index` | any |  |  |
-| `prop` | any |  |  |
+| `index` | any |  | Zero-based index |
+| `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
 | `target` | string | ✓ |  |
-| `value` | any |  |  |
+| `value` | any |  | New value to set |
 
 <details>
-<summary>13 quality issues</summary>
+<summary>6 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'target' has no description.
 - **info**: Free-form string parameter 'target' has no maxLength.
-- **info**: Parameter 'prop' has no description.
-- **warning**: Parameter 'value' has no description.
-- **info**: Parameter 'index' has no description.
 - **info**: Parameter 'build_target' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
@@ -6062,7 +5967,8 @@ Project settings. action: get|set. target: tags|layers|sorting_layers|quality|ph
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "target": {
       "title": "Target",
@@ -6078,7 +5984,8 @@ Project settings. action: get|set. target: tags|layers|sorting_layers|quality|ph
         }
       ],
       "default": null,
-      "title": "Prop"
+      "title": "Prop",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "value": {
       "anyOf": [
@@ -6090,7 +5997,8 @@ Project settings. action: get|set. target: tags|layers|sorting_layers|quality|ph
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     },
     "index": {
       "anyOf": [
@@ -6102,7 +6010,8 @@ Project settings. action: get|set. target: tags|layers|sorting_layers|quality|ph
         }
       ],
       "default": null,
-      "title": "Index"
+      "title": "Index",
+      "description": "Zero-based index"
     },
     "build_target": {
       "anyOf": [
@@ -6122,7 +6031,8 @@ Project settings. action: get|set. target: tags|layers|sorting_layers|quality|ph
     "target"
   ],
   "title": "project_settingsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6132,7 +6042,7 @@ Project settings. action: get|set. target: tags|layers|sorting_layers|quality|ph
 
 ### `query_state`
 
-🟢 87/100 · Risk: 🟡 medium
+🟢 93/100 · Risk: 🟡 medium
 
 [Play Mode] Snapshot multiple game values in one call.     queries: comma-separated 'path|component|field_or_method' triplets.     Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')
 
@@ -6143,13 +6053,11 @@ Project settings. action: get|set. target: tags|layers|sorting_layers|quality|ph
 | `queries` | string | ✓ |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'queries' has no description.
 - **info**: Free-form string parameter 'queries' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -6168,7 +6076,8 @@ Project settings. action: get|set. target: tags|layers|sorting_layers|quality|ph
     "queries"
   ],
   "title": "query_stateArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6178,16 +6087,15 @@ Project settings. action: get|set. target: tags|layers|sorting_layers|quality|ph
 
 ### `recompile`
 
-🟢 80/100 · Risk: 🟡 medium
+🟢 85/100 · Risk: 🟡 medium
 
 Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done.
 
 <details>
-<summary>4 quality issues</summary>
+<summary>3 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -6196,7 +6104,7 @@ Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to 
 
 ### `reconnect_unity`
 
-🟡 78/100 · Risk: 🟢 low
+🟢 83/100 · Risk: 🟢 low
 
 Reconnect to Unity. Port 0 or omitted = auto-discover from port files.
 
@@ -6207,10 +6115,9 @@ Reconnect to Unity. Port 0 or omitted = auto-discover from port files.
 | `port` | integer |  |  (default: `0`) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'port' has no description.
 - **warning**: Numeric parameter 'port' has no bounds.
 - **warning**: outputSchema is missing.
@@ -6231,7 +6138,8 @@ Reconnect to Unity. Port 0 or omitted = auto-discover from port files.
     }
   },
   "title": "reconnect_unityArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6241,7 +6149,7 @@ Reconnect to Unity. Port 0 or omitted = auto-discover from port files.
 
 ### `references`
 
-🟡 70/100 · Risk: 🟡 medium
+🟡 78/100 · Risk: 🟡 medium
 
 References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs.
 
@@ -6249,25 +6157,21 @@ References. action: get|find_to|remap. get: outgoing refs. find_to: reverse sear
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `children` | boolean |  |  (default: `False`) |
-| `depth` | integer |  |  (default: `1`) |
+| `depth` | integer |  | Maximum hierarchy depth to traverse (default: `1`) |
 | `mappings` | any |  |  |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `source` | any |  |  |
 | `target` | any |  |  |
 
 <details>
-<summary>14 quality issues</summary>
+<summary>10 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'children' has no description.
-- **info**: Parameter 'depth' has no description.
 - **warning**: Numeric parameter 'depth' has no bounds.
 - **info**: Parameter 'source' has no description.
 - **info**: Parameter 'target' has no description.
@@ -6285,11 +6189,13 @@ References. action: get|find_to|remap. get: outgoing refs. find_to: reverse sear
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "children": {
       "default": false,
@@ -6299,7 +6205,8 @@ References. action: get|find_to|remap. get: outgoing refs. find_to: reverse sear
     "depth": {
       "default": 1,
       "title": "Depth",
-      "type": "integer"
+      "type": "integer",
+      "description": "Maximum hierarchy depth to traverse"
     },
     "source": {
       "anyOf": [
@@ -6343,7 +6250,8 @@ References. action: get|find_to|remap. get: outgoing refs. find_to: reverse sear
     "path"
   ],
   "title": "referencesArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6353,29 +6261,24 @@ References. action: get|find_to|remap. get: outgoing refs. find_to: reverse sear
 
 ### `region_clear`
 
-🔴 55/100 · Risk: 🔴 high
+🟢 82/100 · Risk: 🔴 high
 
-Delete (or preview) all objects whose XZ pivot is inside the polygon region.      vertices: CSV polygon 'x1,z1;x2,z2;...' (>=3 pairs).     dry_run: True = list objects that WOULD be deleted (safe default). False = delete them.     filter: optional name-pattern substring; only matching objects are affected.     cap: max objects processed (default 50, hard max 200).
+Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.      vertices: CSV polygon 'x1,z1;x2,z2;...' (>=3 pairs).     dry_run: True = list objects that WOULD be deleted (safe default). False = delete them.     filter: optional name-pattern substring; only matching objects are affected.     cap: max objects processed (default 50, hard max 200).
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `cap` | integer |  |  (default: `50`) |
-| `dry_run` | boolean |  |  (default: `True`) |
-| `filter` | any |  |  |
+| `dry_run` | boolean |  | Preview changes without applying them (default: `True`) |
+| `filter` | any |  | Substring filter to narrow results |
 | `vertices` | string | ✓ |  |
 
 <details>
-<summary>11 quality issues</summary>
+<summary>6 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'vertices' has no description.
 - **info**: Free-form string parameter 'vertices' has no maxLength.
-- **info**: Parameter 'dry_run' has no description.
-- **info**: Parameter 'filter' has no description.
 - **info**: Parameter 'cap' has no description.
 - **warning**: Numeric parameter 'cap' has no bounds.
 - **warning**: outputSchema is missing.
@@ -6396,7 +6299,8 @@ Delete (or preview) all objects whose XZ pivot is inside the polygon region.    
     "dry_run": {
       "default": true,
       "title": "Dry Run",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Preview changes without applying them"
     },
     "filter": {
       "anyOf": [
@@ -6408,7 +6312,8 @@ Delete (or preview) all objects whose XZ pivot is inside the polygon region.    
         }
       ],
       "default": null,
-      "title": "Filter"
+      "title": "Filter",
+      "description": "Substring filter to narrow results"
     },
     "cap": {
       "default": 50,
@@ -6420,7 +6325,8 @@ Delete (or preview) all objects whose XZ pivot is inside the polygon region.    
     "vertices"
   ],
   "title": "region_clearArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6430,16 +6336,13 @@ Delete (or preview) all objects whose XZ pivot is inside the polygon region.    
 
 ### `release_smoke`
 
-🟢 80/100 · Risk: 🟡 medium
+🟢 95/100 · Risk: 🟢 low
 
 Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary.
 
 <details>
-<summary>4 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -6448,7 +6351,7 @@ Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summar
 
 ### `rename_object`
 
-🟡 76/100 · Risk: 🟡 medium
+🟢 87/100 · Risk: 🟡 medium
 
 Rename a GameObject. Returns new scene path after rename.     path: current scene path or #instanceID. name: new name (non-empty).     Note: all subsequent MCP calls must use the new path.
 
@@ -6456,17 +6359,14 @@ Rename a GameObject. Returns new scene path after rename.     path: current scen
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `name` | string | ✓ |  |
-| `path` | string | ✓ |  |
+| `name` | string | ✓ | Name of the GameObject |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>5 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **warning**: Parameter 'name' has no description.
 - **info**: Free-form string parameter 'name' has no maxLength.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
@@ -6481,11 +6381,13 @@ Rename a GameObject. Returns new scene path after rename.     path: current scen
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "name": {
       "title": "Name",
-      "type": "string"
+      "type": "string",
+      "description": "Name of the GameObject"
     }
   },
   "required": [
@@ -6493,7 +6395,8 @@ Rename a GameObject. Returns new scene path after rename.     path: current scen
     "name"
   ],
   "title": "rename_objectArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6503,7 +6406,7 @@ Rename a GameObject. Returns new scene path after rename.     path: current scen
 
 ### `render_analyze`
 
-🟡 73/100 · Risk: 🟡 medium
+🟢 90/100 · Risk: 🟡 medium
 
 Rendering analysis.     action: stats|materials|shaders|lights|batching|overdraw|audit|compare             |frame_debug|shadow_audit|probe_audit|light_optimize     stats: draw calls, batches, tris, verts, set-pass from UnityStats.     batching: SRP Batcher / static / dynamic / GPU instancing analysis.     audit: full rendering health check (all sections, brief).     compare: diff against last baseline snapshot.     frame_debug: per-draw-call data via FrameDebugger reflection (pauses rendering briefly).     detail: brief (default) | full.  path: optional subtree root.
 
@@ -6511,21 +6414,16 @@ Rendering analysis.     action: stats|materials|shaders|lights|batching|overdraw
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `baseline_id` | any |  |  |
 | `detail` | string |  |  (default: `brief`) |
 | `max_events` | any |  |  |
-| `path` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>11 quality issues</summary>
+<summary>6 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Parameter 'detail' has no description.
 - **info**: Free-form string parameter 'detail' has no maxLength.
 - **info**: Parameter 'baseline_id' has no description.
@@ -6542,7 +6440,8 @@ Rendering analysis.     action: stats|materials|shaders|lights|batching|overdraw
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "anyOf": [
@@ -6554,7 +6453,8 @@ Rendering analysis.     action: stats|materials|shaders|lights|batching|overdraw
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "detail": {
       "default": "brief",
@@ -6590,7 +6490,8 @@ Rendering analysis.     action: stats|materials|shaders|lights|batching|overdraw
     "action"
   ],
   "title": "render_analyzeArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6600,7 +6501,7 @@ Rendering analysis.     action: stats|materials|shaders|lights|batching|overdraw
 
 ### `resolve_scene_refs`
 
-🟢 86/100 · Risk: 🟡 medium
+🟢 93/100 · Risk: 🟡 medium
 
 Read-only scene reference resolver.     refs: comma-separated list of $alias, /path, or t:Type tokens.     fields: optional comma-separated field names to check existence on matched component.     Returns one tab-aligned line per ref: OK|MISS|AMB + path + details.
 
@@ -6608,18 +6509,15 @@ Read-only scene reference resolver.     refs: comma-separated list of $alias, /p
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `fields` | any |  |  |
+| `fields` | any |  | Comma-separated field names to project (reduces tokens) |
 | `refs` | string | ✓ |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'refs' has no description.
 - **info**: Free-form string parameter 'refs' has no maxLength.
-- **info**: Parameter 'fields' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -6643,14 +6541,16 @@ Read-only scene reference resolver.     refs: comma-separated list of $alias, /p
         }
       ],
       "default": null,
-      "title": "Fields"
+      "title": "Fields",
+      "description": "Comma-separated field names to project (reduces tokens)"
     }
   },
   "required": [
     "refs"
   ],
   "title": "resolve_scene_refsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6660,7 +6560,7 @@ Read-only scene reference resolver.     refs: comma-separated list of $alias, /p
 
 ### `resolve_test_request`
 
-🟡 78/100 · Risk: 🟡 medium
+🟢 93/100 · Risk: 🟢 low
 
 Resolve a possibly lost start ACK without dispatching another test run.
 
@@ -6671,11 +6571,8 @@ Resolve a possibly lost start ACK without dispatching another test run.
 | `request_id` | string | ✓ |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'request_id' has no description.
 - **info**: Free-form string parameter 'request_id' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -6697,7 +6594,8 @@ Resolve a possibly lost start ACK without dispatching another test run.
     "request_id"
   ],
   "title": "resolve_test_requestArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6707,7 +6605,7 @@ Resolve a possibly lost start ACK without dispatching another test run.
 
 ### `resolve_tool_schema`
 
-🟢 87/100 · Risk: 🟢 low
+🟢 92/100 · Risk: 🟢 low
 
 Return full parameter schemas for deferred tools. tools=comma-separated names.
 
@@ -6718,9 +6616,8 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 | `tools` | string | ✓ |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>4 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'tools' has no description.
 - **info**: Free-form string parameter 'tools' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -6743,7 +6640,8 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
     "tools"
   ],
   "title": "resolve_tool_schemaArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6753,7 +6651,7 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 ### `run_playtest`
 
-🟡 61/100 · Risk: 🔴 high
+🟡 75/100 · Risk: 🔴 high
 
 [Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |     ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args |     SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |     ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z |     ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value |     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |     CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED.     defs: inline VAL definitions prepended to script.
 
@@ -6761,33 +6659,23 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `abort_on_fail` | boolean |  |  (default: `False`) |
-| `after_hook` | any |  |  |
-| `before_hook` | any |  |  |
-| `defs` | any |  |  |
-| `fresh` | boolean |  |  (default: `False`) |
-| `path` | any |  |  |
-| `script` | any |  |  |
-| `snapshot_on_failure` | boolean |  |  (default: `False`) |
-| `timeout` | number |  |  (default: `120.0`) |
+| `abort_on_fail` | boolean |  | Stop script execution on first ASSERT failure (default: `False`) |
+| `after_hook` | any |  | DSL commands to run after Play Mode exits |
+| `before_hook` | any |  | DSL commands to run before entering Play Mode |
+| `defs` | any |  | Inline VAL definitions prepended to script (alias block) |
+| `fresh` | boolean |  | Stop and restart Play Mode before running the script (default: `False`) |
+| `path` | any |  | Path to .playtest DSL file on disk (mutually exclusive with script) |
+| `script` | any |  | Inline DSL script (mutually exclusive with path) |
+| `snapshot_on_failure` | boolean |  | Auto-capture screenshot on first ASSERT failure (default: `False`) |
+| `timeout` | number |  | Max seconds to wait for the playtest to finish (default 120) (default: `120.0`) |
 
 <details>
-<summary>15 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'script' has no description.
-- **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
-- **info**: Parameter 'abort_on_fail' has no description.
-- **info**: Parameter 'defs' has no description.
-- **info**: Parameter 'path' has no description.
-- **info**: Parameter 'snapshot_on_failure' has no description.
-- **info**: Parameter 'fresh' has no description.
-- **info**: Parameter 'before_hook' has no description.
-- **info**: Parameter 'after_hook' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -6808,17 +6696,20 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
         }
       ],
       "default": null,
-      "title": "Script"
+      "title": "Script",
+      "description": "Inline DSL script (mutually exclusive with path)"
     },
     "timeout": {
       "default": 120.0,
       "title": "Timeout",
-      "type": "number"
+      "type": "number",
+      "description": "Max seconds to wait for the playtest to finish (default 120)"
     },
     "abort_on_fail": {
       "default": false,
       "title": "Abort On Fail",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Stop script execution on first ASSERT failure"
     },
     "defs": {
       "anyOf": [
@@ -6830,7 +6721,8 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
         }
       ],
       "default": null,
-      "title": "Defs"
+      "title": "Defs",
+      "description": "Inline VAL definitions prepended to script (alias block)"
     },
     "path": {
       "anyOf": [
@@ -6842,17 +6734,20 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Path to .playtest DSL file on disk (mutually exclusive with script)"
     },
     "snapshot_on_failure": {
       "default": false,
       "title": "Snapshot On Failure",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Auto-capture screenshot on first ASSERT failure"
     },
     "fresh": {
       "default": false,
       "title": "Fresh",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Stop and restart Play Mode before running the script"
     },
     "before_hook": {
       "anyOf": [
@@ -6864,7 +6759,8 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
         }
       ],
       "default": null,
-      "title": "Before Hook"
+      "title": "Before Hook",
+      "description": "DSL commands to run before entering Play Mode"
     },
     "after_hook": {
       "anyOf": [
@@ -6876,11 +6772,13 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
         }
       ],
       "default": null,
-      "title": "After Hook"
+      "title": "After Hook",
+      "description": "DSL commands to run after Play Mode exits"
     }
   },
   "title": "run_playtestArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6890,9 +6788,9 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 ### `run_playtest_suite`
 
-🔴 48/100 · Risk: 🔴 high
+🟡 73/100 · Risk: 🔴 high
 
-[Play Mode] Run multiple .playtest files sequentially and return a compact matrix.     pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,              or newline-separated list of project-relative paths.     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).     Exactly one of pattern or suite_path must be provided.     stop_on_fail=True: abort suite after first failure.     stop_after=True: exit Play Mode when suite completes.     auto_play=True: enter Play Mode automatically if not already playing.     restart_between=True: stop+play between each file to reset runtime state.     Output: SUITE: X/Y passed (Zs) + per-file line + full failure details.
+[Play Mode] Run multiple .playtest files sequentially and return a compact matrix. Enters Play Mode. No confirmation required.     pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,              or newline-separated list of project-relative paths.     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).     Exactly one of pattern or suite_path must be provided.     stop_on_fail=True: abort suite after first failure.     stop_after=True: exit Play Mode when suite completes.     auto_play=True: enter Play Mode automatically if not already playing.     restart_between=True: stop+play between each file to reset runtime state.     Output: SUITE: X/Y passed (Zs) + per-file line + full failure details.
 
 **Parameters:**
 
@@ -6907,12 +6805,9 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 | `timeout_per_test` | number |  |  (default: `120.0`) |
 
 <details>
-<summary>14 quality issues</summary>
+<summary>11 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'pattern' has no description.
 - **info**: Parameter 'suite_path' has no description.
 - **info**: Parameter 'timeout_per_test' has no description.
@@ -6983,7 +6878,8 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
     }
   },
   "title": "run_playtest_suiteArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -6993,7 +6889,7 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 ### `run_tests`
 
-🟡 66/100 · Risk: 🟡 medium
+🟡 74/100 · Risk: 🟡 medium
 
 Dispatch Unity tests and return their durable identity immediately.      A successful response is     ``tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched``.     If transport fails after dispatch may have happened, the result is     ``START-UNKNOWN`` with the same request_id; resolve it instead of retrying     with a new identity.
 
@@ -7001,22 +6897,18 @@ Dispatch Unity tests and return their durable identity immediately.      A succe
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `filter` | any |  |  |
-| `mode` | string |  |  (default: `EditMode`) |
-| `request_id` | any |  |  |
+| `filter` | any |  | NUnit filter expression (e.g. 'MyNamespace.MyTest') |
+| `mode` | string |  | Test runner mode: EditMode or PlayMode (default: `EditMode`) |
+| `request_id` | any |  | Caller-supplied idempotency ID — reuse to retry a failed dispatch without double-running |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'mode' has no description.
 - **warning**: String parameter 'mode' appears categorical but has no enum.
 - **info**: Free-form string parameter 'mode' has no maxLength.
-- **info**: Parameter 'filter' has no description.
-- **info**: Parameter 'request_id' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -7030,7 +6922,8 @@ Dispatch Unity tests and return their durable identity immediately.      A succe
     "mode": {
       "default": "EditMode",
       "title": "Mode",
-      "type": "string"
+      "type": "string",
+      "description": "Test runner mode: EditMode or PlayMode"
     },
     "filter": {
       "anyOf": [
@@ -7042,7 +6935,8 @@ Dispatch Unity tests and return their durable identity immediately.      A succe
         }
       ],
       "default": null,
-      "title": "Filter"
+      "title": "Filter",
+      "description": "NUnit filter expression (e.g. 'MyNamespace.MyTest')"
     },
     "request_id": {
       "anyOf": [
@@ -7054,11 +6948,13 @@ Dispatch Unity tests and return their durable identity immediately.      A succe
         }
       ],
       "default": null,
-      "title": "Request Id"
+      "title": "Request Id",
+      "description": "Caller-supplied idempotency ID \u2014 reuse to retry a failed dispatch without double-running"
     }
   },
   "title": "run_testsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7068,37 +6964,29 @@ Dispatch Unity tests and return their durable identity immediately.      A succe
 
 ### `run_tests_wait`
 
-🔴 38/100 · Risk: 🔴 high
+🟡 68/100 · Risk: 🔴 high
 
-Dispatch tests and wait for the exact run to become terminal.      Transport failures and domain reloads do not erase the last snapshot. A     caller timeout is observational only: it returns ``TIMEOUT`` with request,     run and snapshot data and never marks the Unity run complete.
+Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required.      Transport failures and domain reloads do not erase the last snapshot. A     caller timeout is observational only: it returns ``TIMEOUT`` with request,     run and snapshot data and never marks the Unity run complete.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `filter` | string |  |  (default: ``) |
-| `mode` | string |  |  (default: `EditMode`) |
-| `poll_interval` | number |  |  (default: `5.0`) |
-| `request_id` | any |  |  |
-| `timeout` | number |  |  (default: `900.0`) |
+| `filter` | string |  | NUnit filter expression (e.g. 'MyNamespace.MyTest') (default: ``) |
+| `mode` | string |  | Test runner mode: EditMode or PlayMode (default: `EditMode`) |
+| `poll_interval` | number |  | Seconds between status polls (default 5) (default: `5.0`) |
+| `request_id` | any |  | Caller-supplied idempotency ID |
+| `timeout` | number |  | Max seconds to wait for completion (default 120) (default: `900.0`) |
 
 <details>
-<summary>16 quality issues</summary>
+<summary>8 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'mode' has no description.
 - **warning**: String parameter 'mode' appears categorical but has no enum.
 - **info**: Free-form string parameter 'mode' has no maxLength.
-- **info**: Parameter 'filter' has no description.
 - **info**: Free-form string parameter 'filter' has no maxLength.
-- **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
-- **info**: Parameter 'poll_interval' has no description.
 - **warning**: Numeric parameter 'poll_interval' has no bounds.
-- **info**: Parameter 'request_id' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
 
@@ -7113,22 +7001,26 @@ Dispatch tests and wait for the exact run to become terminal.      Transport fai
     "mode": {
       "default": "EditMode",
       "title": "Mode",
-      "type": "string"
+      "type": "string",
+      "description": "Test runner mode: EditMode or PlayMode"
     },
     "filter": {
       "default": "",
       "title": "Filter",
-      "type": "string"
+      "type": "string",
+      "description": "NUnit filter expression (e.g. 'MyNamespace.MyTest')"
     },
     "timeout": {
       "default": 900.0,
       "title": "Timeout",
-      "type": "number"
+      "type": "number",
+      "description": "Max seconds to wait for completion (default 120)"
     },
     "poll_interval": {
       "default": 5.0,
       "title": "Poll Interval",
-      "type": "number"
+      "type": "number",
+      "description": "Seconds between status polls (default 5)"
     },
     "request_id": {
       "anyOf": [
@@ -7140,11 +7032,13 @@ Dispatch tests and wait for the exact run to become terminal.      Transport fai
         }
       ],
       "default": null,
-      "title": "Request Id"
+      "title": "Request Id",
+      "description": "Caller-supplied idempotency ID"
     }
   },
   "title": "run_tests_waitArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7154,7 +7048,7 @@ Dispatch tests and wait for the exact run to become terminal.      Transport fai
 
 ### `runtime_snapshot`
 
-🟡 71/100 · Risk: 🟢 low
+🟢 89/100 · Risk: 🟢 low
 
 Snapshot all runtime objects of a given component type. Returns per-object field dump.     type: component type name (e.g. 'Rigidbody', 'EnemyController').     name: optional name substring filter.     component: component type to serialize (defaults to type).     compress: strip default-value fields to reduce response size.
 
@@ -7162,23 +7056,17 @@ Snapshot all runtime objects of a given component type. Returns per-object field
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `component` | any |  |  |
-| `compress` | boolean |  |  (default: `False`) |
-| `name` | any |  |  |
-| `type` | string | ✓ |  |
+| `component` | any |  | Component type name on the target object |
+| `compress` | boolean |  | Strip default values before TCP transfer to reduce response size (default: `False`) |
+| `name` | any |  | Name of the GameObject |
+| `type` | string | ✓ | Component type name (e.g. 'Rigidbody', 'BoxCollider') |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'type' has no description.
 - **warning**: String parameter 'type' appears categorical but has no enum.
 - **info**: Free-form string parameter 'type' has no maxLength.
-- **warning**: Parameter 'name' has no description.
-- **info**: Parameter 'component' has no description.
-- **info**: Parameter 'compress' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -7190,7 +7078,8 @@ Snapshot all runtime objects of a given component type. Returns per-object field
   "properties": {
     "type": {
       "title": "Type",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name (e.g. 'Rigidbody', 'BoxCollider')"
     },
     "name": {
       "anyOf": [
@@ -7202,7 +7091,8 @@ Snapshot all runtime objects of a given component type. Returns per-object field
         }
       ],
       "default": null,
-      "title": "Name"
+      "title": "Name",
+      "description": "Name of the GameObject"
     },
     "component": {
       "anyOf": [
@@ -7214,19 +7104,22 @@ Snapshot all runtime objects of a given component type. Returns per-object field
         }
       ],
       "default": null,
-      "title": "Component"
+      "title": "Component",
+      "description": "Component type name on the target object"
     },
     "compress": {
       "default": false,
       "title": "Compress",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Strip default values before TCP transfer to reduce response size"
     }
   },
   "required": [
     "type"
   ],
   "title": "runtime_snapshotArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7236,14 +7129,13 @@ Snapshot all runtime objects of a given component type. Returns per-object field
 
 ### `save_session`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 94/100 · Risk: 🟢 low
 
 Save current scene state to .claude/session-context.json for cold-start recovery.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>2 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
@@ -7253,7 +7145,7 @@ Save current scene state to .claude/session-context.json for cold-start recovery
 
 ### `save_skill`
 
-🟡 64/100 · Risk: 🟢 low
+🟡 75/100 · Risk: 🟢 low
 
 Save a learned skill (C# code or batch commands) for reuse across sessions.     name: skill identifier. description: what it does. code: C# or batch commands.
 
@@ -7261,19 +7153,16 @@ Save a learned skill (C# code or batch commands) for reuse across sessions.     
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `code` | string | ✓ |  |
+| `code` | string | ✓ | C# code or batch commands to save as a reusable skill |
 | `description` | string | ✓ |  |
-| `name` | string | ✓ |  |
+| `name` | string | ✓ | Name of the GameObject |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>7 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'name' has no description.
 - **info**: Free-form string parameter 'name' has no maxLength.
 - **info**: Parameter 'description' has no description.
 - **info**: Free-form string parameter 'description' has no maxLength.
-- **info**: Parameter 'code' has no description.
 - **info**: Free-form string parameter 'code' has no maxLength.
 - **error**: Execution-like parameter 'code' accepts unconstrained free-form text.
 - **warning**: outputSchema is missing.
@@ -7289,7 +7178,8 @@ Save a learned skill (C# code or batch commands) for reuse across sessions.     
   "properties": {
     "name": {
       "title": "Name",
-      "type": "string"
+      "type": "string",
+      "description": "Name of the GameObject"
     },
     "description": {
       "title": "Description",
@@ -7297,7 +7187,8 @@ Save a learned skill (C# code or batch commands) for reuse across sessions.     
     },
     "code": {
       "title": "Code",
-      "type": "string"
+      "type": "string",
+      "description": "C# code or batch commands to save as a reusable skill"
     }
   },
   "required": [
@@ -7306,7 +7197,8 @@ Save a learned skill (C# code or batch commands) for reuse across sessions.     
     "code"
   ],
   "title": "save_skillArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7316,7 +7208,7 @@ Save a learned skill (C# code or batch commands) for reuse across sessions.     
 
 ### `save_template`
 
-🟡 66/100 · Risk: 🟢 low
+🟡 77/100 · Risk: 🟢 low
 
 Save C# code as a reusable scene template in .claude/templates/.
 
@@ -7324,16 +7216,13 @@ Save C# code as a reusable scene template in .claude/templates/.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `code` | string | ✓ |  |
-| `name` | string | ✓ |  |
+| `code` | string | ✓ | C# code or batch commands to save as a scene template |
+| `name` | string | ✓ | Name of the GameObject |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>5 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'name' has no description.
 - **info**: Free-form string parameter 'name' has no maxLength.
-- **info**: Parameter 'code' has no description.
 - **info**: Free-form string parameter 'code' has no maxLength.
 - **error**: Execution-like parameter 'code' accepts unconstrained free-form text.
 - **warning**: outputSchema is missing.
@@ -7349,11 +7238,13 @@ Save C# code as a reusable scene template in .claude/templates/.
   "properties": {
     "name": {
       "title": "Name",
-      "type": "string"
+      "type": "string",
+      "description": "Name of the GameObject"
     },
     "code": {
       "title": "Code",
-      "type": "string"
+      "type": "string",
+      "description": "C# code or batch commands to save as a scene template"
     }
   },
   "required": [
@@ -7361,7 +7252,8 @@ Save C# code as a reusable scene template in .claude/templates/.
     "code"
   ],
   "title": "save_templateArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7371,16 +7263,14 @@ Save C# code as a reusable scene template in .claude/templates/.
 
 ### `scan_scene`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -7388,7 +7278,7 @@ Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas
 
 ### `scene`
 
-🟢 81/100 · Risk: 🟡 medium
+🟢 89/100 · Risk: 🟡 medium
 
 Scene management. action: new|open|save|discard|open_additive|close|set_active|list.     path: required for open/save/open_additive/close/set_active. list requires no path.     scene: save/discard target when multiple scenes loaded (identifies by name).
 
@@ -7396,19 +7286,15 @@ Scene management. action: new|open|save|discard|open_additive|close|set_active|l
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
-| `path` | any |  |  |
-| `scene` | any |  |  |
+| `action` | string | ✓ | Operation: new\|open\|save\|discard\|open_additive\|close\|set_active\|list |
+| `path` | any |  | Asset path — required for open/save/open_additive/close/set_active |
+| `scene` | any |  | Scene name for save/discard when multiple scenes are loaded |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>3 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
-- **info**: Parameter 'scene' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -7421,7 +7307,8 @@ Scene management. action: new|open|save|discard|open_additive|close|set_active|l
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation: new|open|save|discard|open_additive|close|set_active|list"
     },
     "path": {
       "anyOf": [
@@ -7433,7 +7320,8 @@ Scene management. action: new|open|save|discard|open_additive|close|set_active|l
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Asset path \u2014 required for open/save/open_additive/close/set_active"
     },
     "scene": {
       "anyOf": [
@@ -7445,14 +7333,16 @@ Scene management. action: new|open|save|discard|open_additive|close|set_active|l
         }
       ],
       "default": null,
-      "title": "Scene"
+      "title": "Scene",
+      "description": "Scene name for save/discard when multiple scenes are loaded"
     }
   },
   "required": [
     "action"
   ],
   "title": "sceneArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7462,7 +7352,7 @@ Scene management. action: new|open|save|discard|open_additive|close|set_active|l
 
 ### `scene_change_plan`
 
-🟡 75/100 · Risk: 🟡 medium
+🟢 81/100 · Risk: 🟡 medium
 
 Pre-flight + plan for safe scene edit.     1. Check Play Mode — reject if playing (mutations blocked)     2. Check compile clean     3. Check console for errors     4. Resolve targets via resolve_scene_refs     5. Take checkpoint     6. Return plan_id + baseline status
 
@@ -7470,21 +7360,19 @@ Pre-flight + plan for safe scene edit.     1. Check Play Mode — reject if play
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `dry_run` | boolean |  |  (default: `True`) |
+| `dry_run` | boolean |  | Preview changes without applying them (default: `True`) |
 | `goal` | string | ✓ |  |
 | `targets` | string |  |  (default: ``) |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'goal' has no description.
 - **info**: Free-form string parameter 'goal' has no maxLength.
 - **info**: Parameter 'targets' has no description.
 - **info**: Free-form string parameter 'targets' has no maxLength.
-- **info**: Parameter 'dry_run' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -7507,14 +7395,16 @@ Pre-flight + plan for safe scene edit.     1. Check Play Mode — reject if play
     "dry_run": {
       "default": true,
       "title": "Dry Run",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Preview changes without applying them"
     }
   },
   "required": [
     "goal"
   ],
   "title": "scene_change_planArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7524,16 +7414,14 @@ Pre-flight + plan for safe scene edit.     1. Check Play Mode — reject if play
 
 ### `scene_diff`
 
-🟢 89/100 · Risk: 🟢 low
+🟢 95/100 · Risk: 🟢 low
 
 Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines.
 
 <details>
-<summary>3 quality issues</summary>
+<summary>1 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -7541,7 +7429,7 @@ Compare scene with last snapshot. First call saves snapshot. Returns diff: added
 
 ### `scene_environment`
 
-🟡 72/100 · Risk: 🟡 medium
+🟢 84/100 · Risk: 🟡 medium
 
 Read/write scene environment: ambient light, fog, skybox, reflections.     action: get|set. set requires prop and value.     Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,     ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,     reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution.
 
@@ -7549,20 +7437,16 @@ Read/write scene environment: ambient light, fog, skybox, reflections.     actio
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string |  |  (default: `get`) |
-| `prop` | any |  |  |
-| `value` | any |  |  |
+| `action` | string |  | Operation to perform — see tool docstring for allowed values (default: `get`) |
+| `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
+| `value` | any |  | New value to set |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'prop' has no description.
-- **warning**: Parameter 'value' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -7576,7 +7460,8 @@ Read/write scene environment: ambient light, fog, skybox, reflections.     actio
     "action": {
       "default": "get",
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "prop": {
       "anyOf": [
@@ -7588,7 +7473,8 @@ Read/write scene environment: ambient light, fog, skybox, reflections.     actio
         }
       ],
       "default": null,
-      "title": "Prop"
+      "title": "Prop",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "value": {
       "anyOf": [
@@ -7600,11 +7486,13 @@ Read/write scene environment: ambient light, fog, skybox, reflections.     actio
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     }
   },
   "title": "scene_environmentArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7614,7 +7502,7 @@ Read/write scene environment: ambient light, fog, skybox, reflections.     actio
 
 ### `scene_health`
 
-🟢 82/100 · Risk: 🟢 low
+🟢 88/100 · Risk: 🟢 low
 
 Scene hierarchy/health audit.     focus: all | hierarchy | naming | duplicates | origins | missing | empty | disabled     Returns severity-tagged findings: CRITICAL/WARNING/INFO/OK per check.
 
@@ -7625,14 +7513,12 @@ Scene hierarchy/health audit.     focus: all | hierarchy | naming | duplicates |
 | `focus` | string |  |  (default: `all`) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'focus' has no description.
 - **info**: Free-form string parameter 'focus' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -7649,7 +7535,8 @@ Scene hierarchy/health audit.     focus: all | hierarchy | naming | duplicates |
     }
   },
   "title": "scene_healthArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7659,7 +7546,7 @@ Scene hierarchy/health audit.     focus: all | hierarchy | naming | duplicates |
 
 ### `screenshot`
 
-🔴 58/100 · Risk: 🟡 medium
+🟡 75/100 · Risk: 🟡 medium
 
 Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path.     camera: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game. angle (single_view): front|left|top|iso|ex,ey,ez.     zoom: higher=closer. angles: per-view Euler "ex,ey,ez|..." (_=skip). supersample 1-4. offset/fixed_size: framing.     highlight: paths[:#RRGGBB] for bbox. show_colliders: wireframes.     annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame).
 
@@ -7667,48 +7554,31 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `angle` | any |  |  |
-| `angles` | any |  |  |
-| `annotation_id` | any |  |  |
-| `camera` | any |  |  |
-| `describe` | any |  |  |
-| `fixed_size` | any |  |  |
-| `height` | integer |  |  (default: `480`) |
-| `highlight` | any |  |  |
-| `offset` | any |  |  |
-| `output_path` | any |  |  |
-| `path` | any |  |  |
-| `raw` | boolean |  |  (default: `False`) |
-| `show_colliders` | any |  |  |
-| `supersample` | any |  |  |
-| `width` | integer |  |  (default: `640`) |
-| `zoom` | any |  |  |
+| `angle` | any |  | Euler angle for single_view: front\|left\|top\|iso\|ex,ey,ez |
+| `angles` | any |  | Per-view Euler angles: 'ex,ey,ez\|...' (underscore = skip this view) |
+| `annotation_id` | any |  | Frame + highlight annotation by ID (auto-sets camera=annotation_frame) |
+| `camera` | any |  | View type: scene_view\|scene_view_frame\|multi_view\|single_view\|overview\|overview_game |
+| `describe` | any |  | Haiku prompt for AI text description instead of returning file path (15-100x fewer tokens) |
+| `fixed_size` | any |  | Fixed framing size override |
+| `height` | integer |  | Image height in pixels (default 480) (default: `480`) |
+| `highlight` | any |  | Comma-separated paths to highlight with bounding box (e.g. /Player:#FF0000) |
+| `offset` | any |  | Framing offset vector |
+| `output_path` | any |  | Alias for path — save to this file path |
+| `path` | any |  | Save to this file path (omit = auto-generate in ScreenShots/) |
+| `raw` | boolean |  | Force returning file path even when describe= is set (default: `False`) |
+| `show_colliders` | any |  | Overlay collider wireframes on the screenshot |
+| `supersample` | any |  | Anti-alias quality 1-4 (higher = sharper, slower) |
+| `width` | integer |  | Image width in pixels (default 640) (default: `640`) |
+| `zoom` | any |  | Zoom factor — higher = closer |
 
 <details>
-<summary>22 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'width' has no description.
 - **warning**: Numeric parameter 'width' has no bounds.
-- **info**: Parameter 'height' has no description.
 - **warning**: Numeric parameter 'height' has no bounds.
-- **info**: Parameter 'camera' has no description.
-- **info**: Parameter 'path' has no description.
-- **info**: Parameter 'output_path' has no description.
-- **info**: Parameter 'describe' has no description.
-- **info**: Parameter 'raw' has no description.
-- **info**: Parameter 'zoom' has no description.
-- **info**: Parameter 'angles' has no description.
-- **info**: Parameter 'supersample' has no description.
-- **info**: Parameter 'offset' has no description.
-- **info**: Parameter 'fixed_size' has no description.
-- **info**: Parameter 'highlight' has no description.
-- **info**: Parameter 'show_colliders' has no description.
-- **info**: Parameter 'angle' has no description.
-- **info**: Parameter 'annotation_id' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
+- **warning**: Tool card is about 3193 characters.
 
 </details>
 
@@ -7721,12 +7591,14 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
     "width": {
       "default": 640,
       "title": "Width",
-      "type": "integer"
+      "type": "integer",
+      "description": "Image width in pixels (default 640)"
     },
     "height": {
       "default": 480,
       "title": "Height",
-      "type": "integer"
+      "type": "integer",
+      "description": "Image height in pixels (default 480)"
     },
     "camera": {
       "anyOf": [
@@ -7738,7 +7610,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Camera"
+      "title": "Camera",
+      "description": "View type: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game"
     },
     "path": {
       "anyOf": [
@@ -7750,7 +7623,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Save to this file path (omit = auto-generate in ScreenShots/)"
     },
     "output_path": {
       "anyOf": [
@@ -7762,7 +7636,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Output Path"
+      "title": "Output Path",
+      "description": "Alias for path \u2014 save to this file path"
     },
     "describe": {
       "anyOf": [
@@ -7774,12 +7649,14 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Describe"
+      "title": "Describe",
+      "description": "Haiku prompt for AI text description instead of returning file path (15-100x fewer tokens)"
     },
     "raw": {
       "default": false,
       "title": "Raw",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Force returning file path even when describe= is set"
     },
     "zoom": {
       "anyOf": [
@@ -7791,7 +7668,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Zoom"
+      "title": "Zoom",
+      "description": "Zoom factor \u2014 higher = closer"
     },
     "angles": {
       "anyOf": [
@@ -7803,7 +7681,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Angles"
+      "title": "Angles",
+      "description": "Per-view Euler angles: 'ex,ey,ez|...' (underscore = skip this view)"
     },
     "supersample": {
       "anyOf": [
@@ -7815,7 +7694,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Supersample"
+      "title": "Supersample",
+      "description": "Anti-alias quality 1-4 (higher = sharper, slower)"
     },
     "offset": {
       "anyOf": [
@@ -7827,7 +7707,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Offset"
+      "title": "Offset",
+      "description": "Framing offset vector"
     },
     "fixed_size": {
       "anyOf": [
@@ -7839,7 +7720,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Fixed Size"
+      "title": "Fixed Size",
+      "description": "Fixed framing size override"
     },
     "highlight": {
       "anyOf": [
@@ -7851,7 +7733,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Highlight"
+      "title": "Highlight",
+      "description": "Comma-separated paths to highlight with bounding box (e.g. /Player:#FF0000)"
     },
     "show_colliders": {
       "anyOf": [
@@ -7863,7 +7746,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Show Colliders"
+      "title": "Show Colliders",
+      "description": "Overlay collider wireframes on the screenshot"
     },
     "angle": {
       "anyOf": [
@@ -7875,7 +7759,8 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Angle"
+      "title": "Angle",
+      "description": "Euler angle for single_view: front|left|top|iso|ex,ey,ez"
     },
     "annotation_id": {
       "anyOf": [
@@ -7887,11 +7772,13 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
         }
       ],
       "default": null,
-      "title": "Annotation Id"
+      "title": "Annotation Id",
+      "description": "Frame + highlight annotation by ID (auto-sets camera=annotation_frame)"
     }
   },
   "title": "screenshotArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7901,7 +7788,7 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
 
 ### `screenshot_baseline`
 
-🟡 65/100 · Risk: 🟢 low
+🟡 75/100 · Risk: 🟢 low
 
 Save screenshot as baseline for visual regression. name: identifier for this baseline.
 
@@ -7911,15 +7798,13 @@ Save screenshot as baseline for visual regression. name: identifier for this bas
 |-----------|------|----------|-------------|
 | `camera` | any |  |  |
 | `height` | integer |  |  (default: `480`) |
-| `name` | string |  |  (default: `default`) |
+| `name` | string |  | Name of the GameObject (default: `default`) |
 | `width` | integer |  |  (default: `640`) |
 
 <details>
-<summary>11 quality issues</summary>
+<summary>9 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'name' has no description.
 - **info**: Free-form string parameter 'name' has no maxLength.
 - **info**: Parameter 'width' has no description.
 - **warning**: Numeric parameter 'width' has no bounds.
@@ -7940,7 +7825,8 @@ Save screenshot as baseline for visual regression. name: identifier for this bas
     "name": {
       "default": "default",
       "title": "Name",
-      "type": "string"
+      "type": "string",
+      "description": "Name of the GameObject"
     },
     "width": {
       "default": 640,
@@ -7966,7 +7852,8 @@ Save screenshot as baseline for visual regression. name: identifier for this bas
     }
   },
   "title": "screenshot_baselineArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -7976,7 +7863,7 @@ Save screenshot as baseline for visual regression. name: identifier for this bas
 
 ### `screenshot_compare`
 
-🔴 57/100 · Risk: 🟢 low
+🟡 69/100 · Risk: 🟢 low
 
 Compare current screenshot with saved baseline.     mode: auto (pixel->escalate), pixel (free), structural (Haiku general),           targeted (needs question=), ui_layout|animation|color|position (specialized).     Cached by image hashes. Cost: structural ~$0.005.
 
@@ -7986,29 +7873,25 @@ Compare current screenshot with saved baseline.     mode: auto (pixel->escalate)
 |-----------|------|----------|-------------|
 | `camera` | any |  |  |
 | `height` | integer |  |  (default: `480`) |
-| `mode` | string |  |  (default: `auto`) |
-| `name` | string |  |  (default: `default`) |
+| `mode` | string |  | Execution mode — see tool docstring for allowed values (default: `auto`) |
+| `name` | string |  | Name of the GameObject (default: `default`) |
 | `question` | any |  |  |
 | `width` | integer |  |  (default: `640`) |
 
 <details>
-<summary>15 quality issues</summary>
+<summary>11 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'name' has no description.
 - **info**: Free-form string parameter 'name' has no maxLength.
 - **info**: Parameter 'width' has no description.
 - **warning**: Numeric parameter 'width' has no bounds.
 - **info**: Parameter 'height' has no description.
 - **warning**: Numeric parameter 'height' has no bounds.
 - **info**: Parameter 'camera' has no description.
-- **info**: Parameter 'mode' has no description.
 - **warning**: String parameter 'mode' appears categorical but has no enum.
 - **info**: Free-form string parameter 'mode' has no maxLength.
 - **info**: Parameter 'question' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -8021,7 +7904,8 @@ Compare current screenshot with saved baseline.     mode: auto (pixel->escalate)
     "name": {
       "default": "default",
       "title": "Name",
-      "type": "string"
+      "type": "string",
+      "description": "Name of the GameObject"
     },
     "width": {
       "default": 640,
@@ -8048,7 +7932,8 @@ Compare current screenshot with saved baseline.     mode: auto (pixel->escalate)
     "mode": {
       "default": "auto",
       "title": "Mode",
-      "type": "string"
+      "type": "string",
+      "description": "Execution mode \u2014 see tool docstring for allowed values"
     },
     "question": {
       "anyOf": [
@@ -8064,7 +7949,8 @@ Compare current screenshot with saved baseline.     mode: auto (pixel->escalate)
     }
   },
   "title": "screenshot_compareArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8074,7 +7960,7 @@ Compare current screenshot with saved baseline.     mode: auto (pixel->escalate)
 
 ### `scriptable_object`
 
-🟡 64/100 · Risk: 🟡 medium
+🟢 84/100 · Risk: 🟡 medium
 
 ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter.
 
@@ -8082,28 +7968,20 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
-| `fields` | any |  |  |
-| `filter` | any |  |  |
-| `path` | any |  |  |
-| `prop` | any |  |  |
-| `type` | any |  |  |
-| `value` | any |  |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
+| `fields` | any |  | Comma-separated field names to project (reduces tokens) |
+| `filter` | any |  | Substring filter to narrow results |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
+| `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
+| `type` | any |  | Component type name (e.g. 'Rigidbody', 'BoxCollider') |
+| `value` | any |  | New value to set |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
-- **warning**: Parameter 'type' has no description.
-- **info**: Parameter 'prop' has no description.
-- **warning**: Parameter 'value' has no description.
-- **info**: Parameter 'fields' has no description.
-- **info**: Parameter 'filter' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -8116,7 +7994,8 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "anyOf": [
@@ -8128,7 +8007,8 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "type": {
       "anyOf": [
@@ -8140,7 +8020,8 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
         }
       ],
       "default": null,
-      "title": "Type"
+      "title": "Type",
+      "description": "Component type name (e.g. 'Rigidbody', 'BoxCollider')"
     },
     "prop": {
       "anyOf": [
@@ -8152,7 +8033,8 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
         }
       ],
       "default": null,
-      "title": "Prop"
+      "title": "Prop",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "value": {
       "anyOf": [
@@ -8164,7 +8046,8 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     },
     "fields": {
       "anyOf": [
@@ -8176,7 +8059,8 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
         }
       ],
       "default": null,
-      "title": "Fields"
+      "title": "Fields",
+      "description": "Comma-separated field names to project (reduces tokens)"
     },
     "filter": {
       "anyOf": [
@@ -8188,14 +8072,16 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
         }
       ],
       "default": null,
-      "title": "Filter"
+      "title": "Filter",
+      "description": "Substring filter to narrow results"
     }
   },
   "required": [
     "action"
   ],
   "title": "scriptable_objectArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8205,7 +8091,7 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
 
 ### `search_scene`
 
-🟡 79/100 · Risk: 🟡 medium
+🟢 89/100 · Risk: 🟡 medium
 
 Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces.     root: scope search to subtree (path or None for whole scene).     limit: max results (default 50; 0=unlimited).     scene: filter to a single scene by name (multi-scene only).
 
@@ -8213,23 +8099,17 @@ Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=b
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `limit` | integer |  |  (default: `50`) |
-| `query` | string | ✓ |  |
-| `root` | any |  |  |
-| `scene` | any |  |  |
+| `limit` | integer |  | Max results (default 50; 0 = unlimited) (default: `50`) |
+| `query` | string | ✓ | Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' — combine with spaces |
+| `root` | any |  | Scene path to scope the search (omit = whole scene) |
+| `scene` | any |  | Filter to a single scene by name (multi-scene only) |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>3 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'query' has no description.
 - **info**: Free-form string parameter 'query' has no maxLength.
-- **info**: Parameter 'root' has no description.
-- **info**: Parameter 'limit' has no description.
 - **warning**: Numeric parameter 'limit' has no bounds.
-- **info**: Parameter 'scene' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -8241,7 +8121,8 @@ Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=b
   "properties": {
     "query": {
       "title": "Query",
-      "type": "string"
+      "type": "string",
+      "description": "Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' \u2014 combine with spaces"
     },
     "root": {
       "anyOf": [
@@ -8253,12 +8134,14 @@ Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=b
         }
       ],
       "default": null,
-      "title": "Root"
+      "title": "Root",
+      "description": "Scene path to scope the search (omit = whole scene)"
     },
     "limit": {
       "default": 50,
       "title": "Limit",
-      "type": "integer"
+      "type": "integer",
+      "description": "Max results (default 50; 0 = unlimited)"
     },
     "scene": {
       "anyOf": [
@@ -8270,14 +8153,16 @@ Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=b
         }
       ],
       "default": null,
-      "title": "Scene"
+      "title": "Scene",
+      "description": "Filter to a single scene by name (multi-scene only)"
     }
   },
   "required": [
     "query"
   ],
   "title": "search_sceneArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8287,7 +8172,7 @@ Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=b
 
 ### `serialized_field_rename_audit`
 
-🟡 72/100 · Risk: 🟢 low
+🟢 83/100 · Risk: 🟢 low
 
 Audit [SerializeField] rename safety.     type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats').     old_field: field name as it exists in serialized assets.     new_field: renamed field name in current C# source.     include: comma-separated scan targets (prefabs,scenes,scriptable_objects).     Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions.
 
@@ -8298,13 +8183,11 @@ Audit [SerializeField] rename safety.     type: fully-qualified or simple compon
 | `include` | string |  |  (default: `prefabs,scenes,scriptable_objects`) |
 | `new_field` | string | ✓ |  |
 | `old_field` | string | ✓ |  |
-| `type` | string | ✓ |  |
+| `type` | string | ✓ | Component type name (e.g. 'Rigidbody', 'BoxCollider') |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>9 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'type' has no description.
 - **warning**: String parameter 'type' appears categorical but has no enum.
 - **info**: Free-form string parameter 'type' has no maxLength.
 - **info**: Parameter 'old_field' has no description.
@@ -8314,7 +8197,6 @@ Audit [SerializeField] rename safety.     type: fully-qualified or simple compon
 - **info**: Parameter 'include' has no description.
 - **info**: Free-form string parameter 'include' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -8326,7 +8208,8 @@ Audit [SerializeField] rename safety.     type: fully-qualified or simple compon
   "properties": {
     "type": {
       "title": "Type",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name (e.g. 'Rigidbody', 'BoxCollider')"
     },
     "old_field": {
       "title": "Old Field",
@@ -8348,7 +8231,8 @@ Audit [SerializeField] rename safety.     type: fully-qualified or simple compon
     "new_field"
   ],
   "title": "serialized_field_rename_auditArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8358,7 +8242,7 @@ Audit [SerializeField] rename safety.     type: fully-qualified or simple compon
 
 ### `set_active`
 
-🟡 72/100 · Risk: 🟡 medium
+🟡 79/100 · Risk: 🟡 medium
 
 Set GameObject active/inactive.
 
@@ -8366,19 +8250,16 @@ Set GameObject active/inactive.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `active` | boolean | ✓ |  |
-| `path` | string | ✓ |  |
+| `active` | boolean | ✓ | True to activate, False to deactivate |
+| `path` | string | ✓ | Scene path to the GameObject |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'active' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -8391,11 +8272,13 @@ Set GameObject active/inactive.
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to the GameObject"
     },
     "active": {
       "title": "Active",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "True to activate, False to deactivate"
     }
   },
   "required": [
@@ -8403,7 +8286,8 @@ Set GameObject active/inactive.
     "active"
   ],
   "title": "set_activeArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8413,7 +8297,7 @@ Set GameObject active/inactive.
 
 ### `set_llm_config`
 
-🟢 87/100 · Risk: 🟢 low
+🟢 83/100 · Risk: 🟡 medium
 
 Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line).     Features: visual_verify, screenshot_describe, visual_diff, do_intent, ui_intent, vfx_intent, animator_intent, summarize, distiller.
 
@@ -8426,11 +8310,11 @@ Override LLM profiles for sampling features. Format: feature:model,turns,timeout
 <details>
 <summary>5 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
 - **info**: Parameter 'config' has no description.
 - **info**: Free-form string parameter 'config' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -8449,7 +8333,8 @@ Override LLM profiles for sampling features. Format: feature:model,turns,timeout
     "config"
   ],
   "title": "set_llm_configArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8459,7 +8344,7 @@ Override LLM profiles for sampling features. Format: feature:model,turns,timeout
 
 ### `set_material`
 
-🟡 70/100 · Risk: 🟡 medium
+🟡 76/100 · Risk: 🟡 medium
 
 Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto.
 
@@ -8468,16 +8353,14 @@ Set scene object material color (for full asset management use `material`). colo
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `color` | string | ✓ |  |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `shader` | any |  |  |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>8 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'color' has no description.
@@ -8495,7 +8378,8 @@ Set scene object material color (for full asset management use `material`). colo
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "color": {
       "title": "Color",
@@ -8519,7 +8403,8 @@ Set scene object material color (for full asset management use `material`). colo
     "color"
   ],
   "title": "set_materialArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8529,7 +8414,7 @@ Set scene object material color (for full asset management use `material`). colo
 
 ### `set_parent`
 
-🟢 80/100 · Risk: 🟡 medium
+🟡 79/100 · Risk: 🟡 medium
 
 Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent.
 
@@ -8537,21 +8422,18 @@ Reparent existing GameObject. parent=null → move to scene root. world_position
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `parent` | any |  |  |
-| `path` | string | ✓ |  |
-| `world_position_stays` | boolean |  |  (default: `True`) |
+| `parent` | any |  | New parent scene path (omit or null = move to scene root) |
+| `path` | string | ✓ | Scene path of the GameObject to reparent |
+| `world_position_stays` | boolean |  | True (default) = preserve world transform; False = keep local transform relative to new parent (default: `True`) |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>5 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'parent' has no description.
-- **info**: Parameter 'world_position_stays' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -8563,7 +8445,8 @@ Reparent existing GameObject. parent=null → move to scene root. world_position
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path of the GameObject to reparent"
     },
     "parent": {
       "anyOf": [
@@ -8575,19 +8458,22 @@ Reparent existing GameObject. parent=null → move to scene root. world_position
         }
       ],
       "default": null,
-      "title": "Parent"
+      "title": "Parent",
+      "description": "New parent scene path (omit or null = move to scene root)"
     },
     "world_position_stays": {
       "default": true,
       "title": "World Position Stays",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "True (default) = preserve world transform; False = keep local transform relative to new parent"
     }
   },
   "required": [
     "path"
   ],
   "title": "set_parentArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8597,7 +8483,7 @@ Reparent existing GameObject. parent=null → move to scene root. world_position
 
 ### `set_properties`
 
-🟡 71/100 · Risk: 🟡 medium
+🟡 77/100 · Risk: 🟡 medium
 
 Set multiple properties on ONE object. For multiple objects, use configure_objects instead.     Format: component.prop=value per line or semicolon-separated.     Example: Transform.m_LocalPosition=(1,0,0);Rigidbody.mass=5
 
@@ -8605,16 +8491,14 @@ Set multiple properties on ONE object. For multiple objects, use configure_objec
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `props` | string | ✓ |  |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'props' has no description.
@@ -8631,7 +8515,8 @@ Set multiple properties on ONE object. For multiple objects, use configure_objec
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "props": {
       "title": "Props",
@@ -8643,7 +8528,8 @@ Set multiple properties on ONE object. For multiple objects, use configure_objec
     "props"
   ],
   "title": "set_propertiesArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8653,7 +8539,7 @@ Set multiple properties on ONE object. For multiple objects, use configure_objec
 
 ### `set_property`
 
-🟡 62/100 · Risk: 🟡 medium
+🟡 77/100 · Risk: 🟡 medium
 
 Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).     find_type: component type — bulk-sets prop on all matching objects without specifying paths.     For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying.
 
@@ -8661,29 +8547,22 @@ Set component property (Edit Mode, SerializedObject — for Play Mode use `invok
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `component` | string |  |  (default: ``) |
-| `dry_run` | boolean |  |  (default: `False`) |
-| `find_type` | any |  |  |
-| `path` | any |  |  |
-| `prop` | string |  |  (default: ``) |
-| `value` | string |  |  |
+| `component` | string |  | Component type (empty string = Transform) (default: ``) |
+| `dry_run` | boolean |  | Show what would change without applying (safe preview) (default: `False`) |
+| `find_type` | any |  | Component type — bulk-sets prop on ALL scene objects with this component (no path needed) |
+| `path` | any |  | Scene path to the GameObject (e.g. /Player/Body) |
+| `prop` | string |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') (default: ``) |
+| `value` | string |  | New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #ins... |
 
 <details>
-<summary>14 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
-- **info**: Parameter 'component' has no description.
 - **info**: Free-form string parameter 'component' has no maxLength.
-- **info**: Parameter 'prop' has no description.
 - **info**: Free-form string parameter 'prop' has no maxLength.
-- **warning**: Parameter 'value' has no description.
 - **info**: Free-form string parameter 'value' has no maxLength.
-- **info**: Parameter 'dry_run' has no description.
-- **info**: Parameter 'find_type' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -8704,27 +8583,32 @@ Set component property (Edit Mode, SerializedObject — for Play Mode use `invok
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to the GameObject (e.g. /Player/Body)"
     },
     "component": {
       "default": "",
       "title": "Component",
-      "type": "string"
+      "type": "string",
+      "description": "Component type (empty string = Transform)"
     },
     "prop": {
       "default": "",
       "title": "Prop",
-      "type": "string"
+      "type": "string",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "value": {
       "default": null,
       "title": "value",
-      "type": "string"
+      "type": "string",
+      "description": "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'"
     },
     "dry_run": {
       "default": false,
       "title": "Dry Run",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Show what would change without applying (safe preview)"
     },
     "find_type": {
       "anyOf": [
@@ -8736,11 +8620,13 @@ Set component property (Edit Mode, SerializedObject — for Play Mode use `invok
         }
       ],
       "default": null,
-      "title": "Find Type"
+      "title": "Find Type",
+      "description": "Component type \u2014 bulk-sets prop on ALL scene objects with this component (no path needed)"
     }
   },
   "title": "set_propertyArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8750,7 +8636,7 @@ Set component property (Edit Mode, SerializedObject — for Play Mode use `invok
 
 ### `set_property_delta`
 
-🟡 76/100 · Risk: 🟡 medium
+🟡 75/100 · Risk: 🟡 medium
 
 Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new.
 
@@ -8758,26 +8644,23 @@ Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `component` | string | ✓ |  |
+| `component` | string | ✓ | Component type name on the target object |
 | `delta` | string | ✓ |  |
-| `path` | string | ✓ |  |
-| `prop` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
+| `prop` | string | ✓ | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>9 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'component' has no description.
 - **info**: Free-form string parameter 'component' has no maxLength.
-- **info**: Parameter 'prop' has no description.
 - **info**: Free-form string parameter 'prop' has no maxLength.
 - **info**: Parameter 'delta' has no description.
 - **info**: Free-form string parameter 'delta' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -8789,15 +8672,18 @@ Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "component": {
       "title": "Component",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name on the target object"
     },
     "prop": {
       "title": "Prop",
-      "type": "string"
+      "type": "string",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "delta": {
       "title": "Delta",
@@ -8811,7 +8697,8 @@ Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new
     "delta"
   ],
   "title": "set_property_deltaArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8821,7 +8708,7 @@ Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new
 
 ### `set_rect`
 
-🟡 67/100 · Risk: 🟡 medium
+🟡 73/100 · Risk: 🟡 medium
 
 Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y).
 
@@ -8832,18 +8719,16 @@ Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-
 | `anchor` | any |  |  |
 | `offset_max` | any |  |  |
 | `offset_min` | any |  |  |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `pivot` | any |  |  |
 | `pos` | any |  |  |
 | `size` | any |  |  |
 
 <details>
-<summary>13 quality issues</summary>
+<summary>11 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'anchor' has no description.
@@ -8864,7 +8749,8 @@ Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "anchor": {
       "anyOf": [
@@ -8943,7 +8829,8 @@ Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-
     "path"
   ],
   "title": "set_rectArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -8953,7 +8840,7 @@ Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-
 
 ### `set_sibling_index`
 
-🟡 67/100 · Risk: 🟡 medium
+🟡 74/100 · Risk: 🟡 medium
 
 Set sibling index of a GameObject within its parent. index=0 moves to first child.
 
@@ -8961,19 +8848,16 @@ Set sibling index of a GameObject within its parent. index=0 moves to first chil
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `index` | integer | ✓ |  |
-| `path` | string | ✓ |  |
+| `index` | integer | ✓ | Zero-based index |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'index' has no description.
 - **warning**: Numeric parameter 'index' has no bounds.
 - **warning**: outputSchema is missing.
 
@@ -8987,11 +8871,13 @@ Set sibling index of a GameObject within its parent. index=0 moves to first chil
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "index": {
       "title": "Index",
-      "type": "integer"
+      "type": "integer",
+      "description": "Zero-based index"
     }
   },
   "required": [
@@ -8999,7 +8885,8 @@ Set sibling index of a GameObject within its parent. index=0 moves to first chil
     "index"
   ],
   "title": "set_sibling_indexArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -9009,7 +8896,7 @@ Set sibling index of a GameObject within its parent. index=0 moves to first chil
 
 ### `setup_objects`
 
-🟡 78/100 · Risk: 🟡 medium
+🟢 83/100 · Risk: 🟡 medium
 
 Create+configure multiple objects in one call.     One per line: name [primitive=X] [parent=Y] [pos=(x,y,z)] [components=A,B]     Example: NPC1 primitive=Capsule pos=(1,0,0) components=Health
 
@@ -9020,11 +8907,10 @@ Create+configure multiple objects in one call.     One per line: name [primitive
 | `specs` | string | ✓ |  |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'specs' has no description.
 - **info**: Free-form string parameter 'specs' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -9046,7 +8932,8 @@ Create+configure multiple objects in one call.     One per line: name [primitive
     "specs"
   ],
   "title": "setup_objectsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -9056,15 +8943,15 @@ Create+configure multiple objects in one call.     One per line: name [primitive
 
 ### `shader`
 
-🔴 20/100 · Risk: 🔴 high
+🔴 58/100 · Risk: 🔴 high
 
-Read or write shader assets (.shader / .shadergraph). Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network.     action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional).     For material shader assignment use `material` tool instead.
+Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network.     action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional).     For material shader assignment use `material` tool instead.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `code` | any |  |  |
 | `default_value` | any |  |  |
 | `edge_action` | any |  |  |
@@ -9074,39 +8961,33 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
 | `input_slot` | any |  |  |
 | `keyword` | any |  |  |
 | `layout` | any |  |  |
-| `name` | any |  |  |
+| `name` | any |  | Name of the GameObject |
 | `new_name` | any |  |  |
 | `node_action` | any |  |  |
 | `node_id` | any |  |  |
 | `node_type` | any |  |  |
 | `output_node` | any |  |  |
 | `output_slot` | any |  |  |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `preset` | any |  |  |
-| `prop` | any |  |  |
+| `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
 | `reference_name` | any |  |  |
 | `shader_name` | any |  |  |
 | `target` | any |  |  |
-| `type` | any |  |  |
+| `type` | any |  | Component type name (e.g. 'Rigidbody', 'BoxCollider') |
 | `v_gap` | any |  |  |
-| `value` | any |  |  |
+| `value` | any |  | New value to set |
 
 <details>
-<summary>34 quality issues</summary>
+<summary>26 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'target' has no description.
 - **info**: Parameter 'preset' has no description.
 - **info**: Parameter 'code' has no description.
 - **info**: Parameter 'shader_name' has no description.
-- **info**: Parameter 'prop' has no description.
-- **warning**: Parameter 'value' has no description.
 - **info**: Parameter 'keyword' has no description.
 - **info**: Parameter 'enabled' has no description.
 - **info**: Parameter 'node_type' has no description.
@@ -9117,8 +8998,6 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
 - **info**: Parameter 'input_node' has no description.
 - **info**: Parameter 'input_slot' has no description.
 - **info**: Parameter 'edge_action' has no description.
-- **warning**: Parameter 'name' has no description.
-- **warning**: Parameter 'type' has no description.
 - **info**: Parameter 'default_value' has no description.
 - **info**: Parameter 'reference_name' has no description.
 - **info**: Parameter 'new_name' has no description.
@@ -9127,7 +9006,7 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
 - **info**: Parameter 'v_gap' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
-- **warning**: Tool card is about 3365 characters.
+- **warning**: Tool card is about 3882 characters.
 
 </details>
 
@@ -9139,11 +9018,13 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "target": {
       "anyOf": [
@@ -9203,7 +9084,8 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
         }
       ],
       "default": null,
-      "title": "Prop"
+      "title": "Prop",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
     },
     "value": {
       "anyOf": [
@@ -9215,7 +9097,8 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     },
     "keyword": {
       "anyOf": [
@@ -9347,7 +9230,8 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
         }
       ],
       "default": null,
-      "title": "Name"
+      "title": "Name",
+      "description": "Name of the GameObject"
     },
     "type": {
       "anyOf": [
@@ -9359,7 +9243,8 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
         }
       ],
       "default": null,
-      "title": "Type"
+      "title": "Type",
+      "description": "Component type name (e.g. 'Rigidbody', 'BoxCollider')"
     },
     "default_value": {
       "anyOf": [
@@ -9439,7 +9324,8 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
     "path"
   ],
   "title": "shaderArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -9449,7 +9335,7 @@ Read or write shader assets (.shader / .shadergraph). Use when you need to inspe
 
 ### `smart_build`
 
-🟢 87/100 · Risk: 🟢 low
+🟢 92/100 · Risk: 🟢 low
 
 Build scene objects from natural language description using MCP sampling + execute_code.
 
@@ -9460,9 +9346,8 @@ Build scene objects from natural language description using MCP sampling + execu
 | `description` | string | ✓ |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>4 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'description' has no description.
 - **info**: Free-form string parameter 'description' has no maxLength.
 - **warning**: outputSchema is missing.
@@ -9485,7 +9370,8 @@ Build scene objects from natural language description using MCP sampling + execu
     "description"
   ],
   "title": "smart_buildArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -9495,7 +9381,7 @@ Build scene objects from natural language description using MCP sampling + execu
 
 ### `snapshot`
 
-🟡 78/100 · Risk: 🟡 medium
+🟢 85/100 · Risk: 🟡 medium
 
 Capture or compare object state.      path: Object path ("/Enemy_01")     label: Snapshot label ("before", "after")     compare: Label to diff against (empty = capture only)      Returns:         Capture: "snapshot 'label' saved (N fields)"         Compare: structured diff or error if compare label missing
 
@@ -9505,13 +9391,11 @@ Capture or compare object state.      path: Object path ("/Enemy_01")     label:
 |-----------|------|----------|-------------|
 | `compare` | string |  |  (default: ``) |
 | `label` | string |  |  (default: `default`) |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>7 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'label' has no description.
@@ -9519,7 +9403,6 @@ Capture or compare object state.      path: Object path ("/Enemy_01")     label:
 - **info**: Parameter 'compare' has no description.
 - **info**: Free-form string parameter 'compare' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -9531,7 +9414,8 @@ Capture or compare object state.      path: Object path ("/Enemy_01")     label:
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "label": {
       "default": "default",
@@ -9548,7 +9432,8 @@ Capture or compare object state.      path: Object path ("/Enemy_01")     label:
     "path"
   ],
   "title": "snapshotArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -9558,7 +9443,7 @@ Capture or compare object state.      path: Object path ("/Enemy_01")     label:
 
 ### `spatial_query`
 
-🟡 76/100 · Risk: 🟡 medium
+🟢 85/100 · Risk: 🟡 medium
 
 Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon.     nearest: find closest object (optionally filtered by component name).     in_front_of: position in front of object at distance.     objects_in_radius: list all objects within radius. path is optional when center='x,y,z' is given.     bounds_info: detailed bounds/dimensions of object.     raycast: cast ray from path/pos to target, returns hits sorted by distance.     spatial_map: ASCII grid map of objects in XZ plane. cell_size in meters.     objects_in_polygon: objects whose XZ pivot is inside polygon. vertices='x1,z1;x2,z2;...' (>=3 pairs). cap=max results (default 50). region_id=optional tag forwarded to Unity (e.g. for named zones).
 
@@ -9566,30 +9451,26 @@ Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|rayca
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `cap` | any |  |  |
 | `cell_size` | any |  |  |
 | `center` | any |  |  |
-| `component` | any |  |  |
+| `component` | any |  | Component type name on the target object |
 | `distance` | any |  |  |
 | `layer_mask` | any |  |  |
-| `path` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 | `radius` | any |  |  |
 | `region_id` | any |  |  |
 | `target` | any |  |  |
 | `vertices` | any |  |  |
 
 <details>
-<summary>16 quality issues</summary>
+<summary>11 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Parameter 'target' has no description.
 - **info**: Parameter 'distance' has no description.
 - **info**: Parameter 'radius' has no description.
-- **info**: Parameter 'component' has no description.
 - **info**: Parameter 'cell_size' has no description.
 - **info**: Parameter 'layer_mask' has no description.
 - **info**: Parameter 'center' has no description.
@@ -9597,7 +9478,6 @@ Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|rayca
 - **info**: Parameter 'region_id' has no description.
 - **info**: Parameter 'cap' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -9609,7 +9489,8 @@ Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|rayca
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "path": {
       "anyOf": [
@@ -9621,7 +9502,8 @@ Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|rayca
         }
       ],
       "default": null,
-      "title": "Path"
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "target": {
       "anyOf": [
@@ -9669,7 +9551,8 @@ Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|rayca
         }
       ],
       "default": null,
-      "title": "Component"
+      "title": "Component",
+      "description": "Component type name on the target object"
     },
     "cell_size": {
       "anyOf": [
@@ -9748,7 +9631,8 @@ Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|rayca
     "action"
   ],
   "title": "spatial_queryArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -9758,7 +9642,7 @@ Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|rayca
 
 ### `sync_playtest_aliases_from_defs`
 
-🟢 80/100 · Risk: 🟡 medium
+🟢 85/100 · Risk: 🟡 medium
 
 Overwrite PlaytestConfig.asset aliases from a .defs text file.     defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).     asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).     Invalidates AliasExpander cache after sync. Not allowed in Play Mode.
 
@@ -9770,10 +9654,9 @@ Overwrite PlaytestConfig.asset aliases from a .defs text file.     defs: project
 | `defs` | string |  |  (default: `Assets/PlaytestDefs/farm_core.defs`) |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'defs' has no description.
 - **info**: Free-form string parameter 'defs' has no maxLength.
 - **info**: Parameter 'asset' has no description.
@@ -9801,7 +9684,8 @@ Overwrite PlaytestConfig.asset aliases from a .defs text file.     defs: project
     }
   },
   "title": "sync_playtest_aliases_from_defsArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -9811,7 +9695,7 @@ Overwrite PlaytestConfig.asset aliases from a .defs text file.     defs: project
 
 ### `sync_unity`
 
-🟡 67/100 · Risk: 🟡 medium
+🟡 73/100 · Risk: 🟡 medium
 
 Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to live.      resolve=True: call Client.Resolve() first (use after package.json change).     bump=True: atomically increment plugin patch version BEFORE sync, implies resolve=True.     Returns: 'sync clean' / compile errors / timeout message.
 
@@ -9821,18 +9705,16 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
 |-----------|------|----------|-------------|
 | `bump` | boolean |  |  (default: `False`) |
 | `resolve` | boolean |  |  (default: `False`) |
-| `timeout` | number |  |  (default: `120.0`) |
+| `timeout` | number |  | Seconds before giving up (default varies per tool) (default: `120.0`) |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'resolve' has no description.
 - **info**: Parameter 'bump' has no description.
-- **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
 - **warning**: outputSchema is missing.
 
@@ -9857,11 +9739,13 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
     "timeout": {
       "default": 120.0,
       "title": "Timeout",
-      "type": "number"
+      "type": "number",
+      "description": "Seconds before giving up (default varies per tool)"
     }
   },
   "title": "sync_unityArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -9871,7 +9755,7 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
 
 ### `test_step`
 
-🟡 64/100 · Risk: 🟡 medium
+🟡 71/100 · Risk: 🟡 medium
 
 [Play Mode] Move character, snapshot state before/after, check console.     checks_before/after: comma-separated 'path|component|field' triplets.     Returns structured BEFORE/MOVE/AFTER/CONSOLE report.
 
@@ -9881,16 +9765,14 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
 |-----------|------|----------|-------------|
 | `checks_after` | string |  |  (default: ``) |
 | `checks_before` | string |  |  (default: ``) |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `position` | string | ✓ |  |
-| `timeout` | number |  |  (default: `15.0`) |
+| `timeout` | number |  | Seconds before giving up (default varies per tool) (default: `15.0`) |
 | `wait_after` | number |  |  (default: `0.5`) |
 
 <details>
-<summary>16 quality issues</summary>
+<summary>13 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
 - **info**: Parameter 'position' has no description.
@@ -9901,7 +9783,6 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
 - **info**: Free-form string parameter 'checks_after' has no maxLength.
 - **info**: Parameter 'wait_after' has no description.
 - **warning**: Numeric parameter 'wait_after' has no bounds.
-- **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
@@ -9916,7 +9797,8 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "position": {
       "title": "Position",
@@ -9940,7 +9822,8 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
     "timeout": {
       "default": 15.0,
       "title": "Timeout",
-      "type": "number"
+      "type": "number",
+      "description": "Seconds before giving up (default varies per tool)"
     }
   },
   "required": [
@@ -9948,7 +9831,8 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
     "position"
   ],
   "title": "test_stepArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -9958,7 +9842,7 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
 
 ### `timeline`
 
-🔴 51/100 · Risk: 🟡 medium
+🟡 69/100 · Risk: 🟡 medium
 
 Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that).     action: get | create | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview.     track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset.
 
@@ -9966,7 +9850,7 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
 | `asset_path` | any |  |  |
 | `binding` | any |  |  |
 | `blend_in` | any |  |  |
@@ -9975,26 +9859,23 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
 | `clip_in` | any |  |  |
 | `director_path` | any |  |  |
 | `duration` | any |  |  |
-| `index` | any |  |  |
-| `name` | any |  |  |
+| `index` | any |  | Zero-based index |
+| `name` | any |  | Name of the GameObject |
 | `offset` | any |  |  |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `start` | any |  |  |
 | `time` | any |  |  |
 | `track` | any |  |  |
 | `track_type` | any |  |  |
 | `tracks` | any |  |  |
-| `value` | any |  |  |
+| `value` | any |  | New value to set |
 
 <details>
-<summary>25 quality issues</summary>
+<summary>19 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'track' has no description.
 - **info**: Parameter 'track_type' has no description.
@@ -10008,11 +9889,8 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
 - **info**: Parameter 'director_path' has no description.
 - **info**: Parameter 'tracks' has no description.
 - **info**: Parameter 'time' has no description.
-- **warning**: Parameter 'name' has no description.
 - **info**: Parameter 'clip_in' has no description.
-- **info**: Parameter 'index' has no description.
 - **info**: Parameter 'offset' has no description.
-- **warning**: Parameter 'value' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -10025,11 +9903,13 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "track": {
       "anyOf": [
@@ -10185,7 +10065,8 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
         }
       ],
       "default": null,
-      "title": "Name"
+      "title": "Name",
+      "description": "Name of the GameObject"
     },
     "clip_in": {
       "anyOf": [
@@ -10209,7 +10090,8 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
         }
       ],
       "default": null,
-      "title": "Index"
+      "title": "Index",
+      "description": "Zero-based index"
     },
     "offset": {
       "anyOf": [
@@ -10233,7 +10115,8 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Value",
+      "description": "New value to set"
     }
   },
   "required": [
@@ -10241,7 +10124,8 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
     "action"
   ],
   "title": "timelineArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10251,7 +10135,7 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
 
 ### `transfer_object`
 
-🟡 77/100 · Risk: 🟡 medium
+🟢 85/100 · Risk: 🟡 medium
 
 Move or copy a GameObject to another loaded scene. action: move|copy.     target_scene: destination scene name. Omit = same scene (copy = duplicate).     parent: target parent path in destination scene.     world_position_stays: preserve world transform (default True).
 
@@ -10259,23 +10143,19 @@ Move or copy a GameObject to another loaded scene. action: move|copy.     target
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
-| `parent` | any |  |  |
-| `path` | string | ✓ |  |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
+| `parent` | any |  | Scene path to the parent GameObject |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `target_scene` | any |  |  |
 | `world_position_stays` | boolean |  |  (default: `True`) |
 
 <details>
-<summary>11 quality issues</summary>
+<summary>7 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'target_scene' has no description.
-- **info**: Parameter 'parent' has no description.
 - **info**: Parameter 'world_position_stays' has no description.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
@@ -10290,11 +10170,13 @@ Move or copy a GameObject to another loaded scene. action: move|copy.     target
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "target_scene": {
       "anyOf": [
@@ -10318,7 +10200,8 @@ Move or copy a GameObject to another loaded scene. action: move|copy.     target
         }
       ],
       "default": null,
-      "title": "Parent"
+      "title": "Parent",
+      "description": "Scene path to the parent GameObject"
     },
     "world_position_stays": {
       "default": true,
@@ -10331,7 +10214,8 @@ Move or copy a GameObject to another loaded scene. action: move|copy.     target
     "action"
   ],
   "title": "transfer_objectArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10341,7 +10225,7 @@ Move or copy a GameObject to another loaded scene. action: move|copy.     target
 
 ### `ui_intent`
 
-🟡 75/100 · Risk: 🟡 medium
+🟢 82/100 · Risk: 🟡 medium
 
 Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.      template: hud|menu|dialog|grid. dry_run=True skips execution.
 
@@ -10349,22 +10233,19 @@ Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.      template: 
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `dry_run` | boolean |  |  (default: `False`) |
+| `dry_run` | boolean |  | Preview changes without applying them (default: `False`) |
 | `intent` | string | ✓ |  |
-| `parent` | any |  |  |
+| `parent` | any |  | Scene path to the parent GameObject |
 | `template` | any |  |  |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'intent' has no description.
 - **info**: Free-form string parameter 'intent' has no maxLength.
-- **info**: Parameter 'parent' has no description.
 - **info**: Parameter 'template' has no description.
-- **info**: Parameter 'dry_run' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -10389,7 +10270,8 @@ Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.      template: 
         }
       ],
       "default": null,
-      "title": "Parent"
+      "title": "Parent",
+      "description": "Scene path to the parent GameObject"
     },
     "template": {
       "anyOf": [
@@ -10406,14 +10288,16 @@ Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.      template: 
     "dry_run": {
       "default": false,
       "title": "Dry Run",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Preview changes without applying them"
     }
   },
   "required": [
     "intent"
   ],
   "title": "ui_intentArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10423,7 +10307,7 @@ Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.      template: 
 
 ### `undo_last`
 
-🟡 78/100 · Risk: 🟢 low
+🟢 83/100 · Risk: 🟢 low
 
 Undo the last N AI turns in the Unity Undo stack. Default: 1.
 
@@ -10434,10 +10318,9 @@ Undo the last N AI turns in the Unity Undo stack. Default: 1.
 | `turns` | integer |  |  (default: `1`) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'turns' has no description.
 - **warning**: Numeric parameter 'turns' has no bounds.
 - **warning**: outputSchema is missing.
@@ -10458,7 +10341,8 @@ Undo the last N AI turns in the Unity Undo stack. Default: 1.
     }
   },
   "title": "undo_lastArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10468,35 +10352,28 @@ Undo the last N AI turns in the Unity Undo stack. Default: 1.
 
 ### `unwire_event`
 
-🔴 53/100 · Risk: 🔴 high
+🟢 86/100 · Risk: 🔴 high
 
-Remove persistent listener(s) from UnityEvent.     index: remove specific entry (0-based). Omit to clear all.
+Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required.     index: remove specific entry (0-based). Omit to clear all.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `component` | string | ✓ |  |
+| `component` | string | ✓ | Component type name on the target object |
 | `event` | string | ✓ |  |
-| `index` | any |  |  |
-| `path` | string | ✓ |  |
+| `index` | any |  | Zero-based index |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 
 <details>
-<summary>13 quality issues</summary>
+<summary>6 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'component' has no description.
 - **info**: Free-form string parameter 'component' has no maxLength.
 - **info**: Parameter 'event' has no description.
 - **info**: Free-form string parameter 'event' has no maxLength.
-- **info**: Parameter 'index' has no description.
 - **warning**: outputSchema is missing.
-- **warning**: Tool appears destructive but lacks destructiveHint=true.
 
 </details>
 
@@ -10508,11 +10385,13 @@ Remove persistent listener(s) from UnityEvent.     index: remove specific entry 
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "component": {
       "title": "Component",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name on the target object"
     },
     "event": {
       "title": "Event",
@@ -10528,7 +10407,8 @@ Remove persistent listener(s) from UnityEvent.     index: remove specific entry 
         }
       ],
       "default": null,
-      "title": "Index"
+      "title": "Index",
+      "description": "Zero-based index"
     }
   },
   "required": [
@@ -10537,7 +10417,8 @@ Remove persistent listener(s) from UnityEvent.     index: remove specific entry 
     "event"
   ],
   "title": "unwire_eventArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10547,7 +10428,7 @@ Remove persistent listener(s) from UnityEvent.     index: remove specific entry 
 
 ### `use_skill`
 
-🟡 73/100 · Risk: 🟡 medium
+🟢 83/100 · Risk: 🟡 medium
 
 Execute a previously saved skill. params: comma-separated key=value for substitution.
 
@@ -10555,16 +10436,14 @@ Execute a previously saved skill. params: comma-separated key=value for substitu
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `name` | string | ✓ |  |
+| `name` | string | ✓ | Name of the GameObject |
 | `params` | any |  |  |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **warning**: Parameter 'name' has no description.
 - **info**: Free-form string parameter 'name' has no maxLength.
 - **info**: Parameter 'params' has no description.
 - **warning**: outputSchema is missing.
@@ -10579,7 +10458,8 @@ Execute a previously saved skill. params: comma-separated key=value for substitu
   "properties": {
     "name": {
       "title": "Name",
-      "type": "string"
+      "type": "string",
+      "description": "Name of the GameObject"
     },
     "params": {
       "anyOf": [
@@ -10598,7 +10478,8 @@ Execute a previously saved skill. params: comma-separated key=value for substitu
     "name"
   ],
   "title": "use_skillArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10608,7 +10489,7 @@ Execute a previously saved skill. params: comma-separated key=value for substitu
 
 ### `validate_layout`
 
-🟡 67/100 · Risk: 🟡 medium
+🟢 83/100 · Risk: 🟡 medium
 
 Check trigger overlaps. Warns if triggers closer than min_distance meters.
 
@@ -10617,16 +10498,12 @@ Check trigger overlaps. Warns if triggers closer than min_distance meters.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `min_distance` | number |  |  (default: `3.0`) |
-| `root` | string |  |  (default: `/`) |
+| `root` | string |  | Scene path to scope the tree (omit = whole scene) (default: `/`) |
 
 <details>
-<summary>9 quality issues</summary>
+<summary>5 quality issues</summary>
 
-- **warning**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'root' has no description.
 - **info**: Free-form string parameter 'root' has no maxLength.
 - **info**: Parameter 'min_distance' has no description.
 - **warning**: Numeric parameter 'min_distance' has no bounds.
@@ -10643,7 +10520,8 @@ Check trigger overlaps. Warns if triggers closer than min_distance meters.
     "root": {
       "default": "/",
       "title": "Root",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to scope the tree (omit = whole scene)"
     },
     "min_distance": {
       "default": 3.0,
@@ -10652,7 +10530,8 @@ Check trigger overlaps. Warns if triggers closer than min_distance meters.
     }
   },
   "title": "validate_layoutArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10662,7 +10541,7 @@ Check trigger overlaps. Warns if triggers closer than min_distance meters.
 
 ### `validate_playtest_aliases`
 
-🟢 80/100 · Risk: 🟡 medium
+🟢 86/100 · Risk: 🟡 medium
 
 Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed.     defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).     asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).     Returns 'ok: N aliases in sync' when identical, or a diff report.
 
@@ -10674,16 +10553,14 @@ Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/cha
 | `defs` | string |  |  (default: `Assets/PlaytestDefs/farm_core.defs`) |
 
 <details>
-<summary>8 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'defs' has no description.
 - **info**: Free-form string parameter 'defs' has no maxLength.
 - **info**: Parameter 'asset' has no description.
 - **info**: Free-form string parameter 'asset' has no maxLength.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -10705,7 +10582,8 @@ Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/cha
     }
   },
   "title": "validate_playtest_aliasesArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10715,7 +10593,7 @@ Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/cha
 
 ### `validate_references`
 
-🟡 74/100 · Risk: 🟡 medium
+🟢 82/100 · Risk: 🟡 medium
 
 Validate all ObjectReference fields under path recursively.     Returns [ERROR]/[MISSING] for broken refs. Summary: "N ERROR, M OK".     Use depth=1 for quick top-level scan, depth=3-5 for full subtree.     verbose=True also shows [OK] lines (off by default to save tokens).     ignore_optional=True skips fields marked [Optional] (reduces noise).
 
@@ -10723,24 +10601,20 @@ Validate all ObjectReference fields under path recursively.     Returns [ERROR]/
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `depth` | integer |  |  (default: `3`) |
+| `depth` | integer |  | Maximum hierarchy depth to traverse (default: `3`) |
 | `ignore_optional` | boolean |  |  (default: `False`) |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `verbose` | boolean |  |  (default: `False`) |
 
 <details>
-<summary>10 quality issues</summary>
+<summary>6 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'depth' has no description.
 - **warning**: Numeric parameter 'depth' has no bounds.
 - **info**: Parameter 'verbose' has no description.
 - **info**: Parameter 'ignore_optional' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -10752,12 +10626,14 @@ Validate all ObjectReference fields under path recursively.     Returns [ERROR]/
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "depth": {
       "default": 3,
       "title": "Depth",
-      "type": "integer"
+      "type": "integer",
+      "description": "Maximum hierarchy depth to traverse"
     },
     "verbose": {
       "default": false,
@@ -10774,7 +10650,8 @@ Validate all ObjectReference fields under path recursively.     Returns [ERROR]/
     "path"
   ],
   "title": "validate_referencesArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10784,7 +10661,7 @@ Validate all ObjectReference fields under path recursively.     Returns [ERROR]/
 
 ### `verify_after_change`
 
-🔴 58/100 · Risk: 🔴 high
+🟡 64/100 · Risk: 🔴 high
 
 Single verification gate after code/scene changes.     Gates are additive — only enabled ones run:     1. await_compile (always)     2. get_compile_errors (always)     3. get_console_since mark_id (if mark_id provided)     4. run_tests_wait mode filter (if run_tests_mode provided)     5. run_playtest_suite paths (if playtests provided)     Returns PASS only when ALL enabled gates pass.     Failure includes which gate failed and recommended next command.
 
@@ -10798,15 +10675,14 @@ Single verification gate after code/scene changes.     Gates are additive — on
 | `restart_between` | boolean |  |  (default: `False`) |
 | `run_tests_mode` | string |  |  (default: ``) |
 | `test_filter` | string |  |  (default: ``) |
-| `timeout` | number |  |  (default: `300.0`) |
+| `timeout` | number |  | Seconds before giving up (default varies per tool) (default: `300.0`) |
 
 <details>
-<summary>18 quality issues</summary>
+<summary>16 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'changed_files' has no description.
 - **info**: Free-form string parameter 'changed_files' has no maxLength.
 - **info**: Parameter 'test_filter' has no description.
@@ -10817,7 +10693,6 @@ Single verification gate after code/scene changes.     Gates are additive — on
 - **info**: Free-form string parameter 'playtests' has no maxLength.
 - **info**: Parameter 'mark_id' has no description.
 - **info**: Free-form string parameter 'mark_id' has no maxLength.
-- **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
 - **info**: Parameter 'restart_between' has no description.
 - **warning**: outputSchema is missing.
@@ -10858,7 +10733,8 @@ Single verification gate after code/scene changes.     Gates are additive — on
     "timeout": {
       "default": 300.0,
       "title": "Timeout",
-      "type": "number"
+      "type": "number",
+      "description": "Seconds before giving up (default varies per tool)"
     },
     "restart_between": {
       "default": false,
@@ -10867,7 +10743,8 @@ Single verification gate after code/scene changes.     Gates are additive — on
     }
   },
   "title": "verify_after_changeArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10877,7 +10754,7 @@ Single verification gate after code/scene changes.     Gates are additive — on
 
 ### `vfx_intent`
 
-🟡 68/100 · Risk: 🟡 medium
+🟡 74/100 · Risk: 🟡 medium
 
 Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: particle|auto (shader/material not yet implemented). dry_run=True skips execution.
 
@@ -10885,17 +10762,16 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `dry_run` | boolean |  |  (default: `False`) |
+| `dry_run` | boolean |  | Preview changes without applying them (default: `False`) |
 | `intent` | string | ✓ |  |
 | `kind` | string |  |  (default: `auto`) |
 | `target` | string | ✓ |  |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>10 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
 - **info**: Parameter 'target' has no description.
 - **info**: Free-form string parameter 'target' has no maxLength.
 - **info**: Parameter 'intent' has no description.
@@ -10903,7 +10779,6 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 - **info**: Parameter 'kind' has no description.
 - **warning**: String parameter 'kind' appears categorical but has no enum.
 - **info**: Free-form string parameter 'kind' has no maxLength.
-- **info**: Parameter 'dry_run' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -10930,7 +10805,8 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
     "dry_run": {
       "default": false,
       "title": "Dry Run",
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Preview changes without applying them"
     }
   },
   "required": [
@@ -10938,7 +10814,8 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
     "intent"
   ],
   "title": "vfx_intentArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -10948,7 +10825,7 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 
 ### `wait_until`
 
-🟡 64/100 · Risk: 🟡 medium
+🟡 68/100 · Risk: 🟡 medium
 
 [Play Mode] Poll field until it matches value (or timeout).     Python timeout = Unity timeout + 5s buffer.     abort_on_fail=True: stops Play Mode on timeout.
 
@@ -10957,32 +10834,28 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `abort_on_fail` | boolean |  |  (default: `False`) |
-| `component` | string | ✓ |  |
+| `component` | string | ✓ | Component type name on the target object |
 | `field` | string | ✓ |  |
 | `negate` | boolean |  |  (default: `False`) |
-| `path` | string | ✓ |  |
-| `timeout` | number |  |  (default: `5.0`) |
-| `value` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
+| `timeout` | number |  | Seconds before giving up (default varies per tool) (default: `5.0`) |
+| `value` | string | ✓ | New value to set |
 
 <details>
-<summary>16 quality issues</summary>
+<summary>12 quality issues</summary>
 
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'component' has no description.
 - **info**: Free-form string parameter 'component' has no maxLength.
 - **info**: Parameter 'field' has no description.
 - **info**: Free-form string parameter 'field' has no maxLength.
-- **warning**: Parameter 'value' has no description.
 - **info**: Free-form string parameter 'value' has no maxLength.
-- **info**: Parameter 'timeout' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
 - **info**: Parameter 'negate' has no description.
 - **info**: Parameter 'abort_on_fail' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -10994,11 +10867,13 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "component": {
       "title": "Component",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name on the target object"
     },
     "field": {
       "title": "Field",
@@ -11006,12 +10881,14 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
     },
     "value": {
       "title": "Value",
-      "type": "string"
+      "type": "string",
+      "description": "New value to set"
     },
     "timeout": {
       "default": 5.0,
       "title": "Timeout",
-      "type": "number"
+      "type": "number",
+      "description": "Seconds before giving up (default varies per tool)"
     },
     "negate": {
       "default": false,
@@ -11031,7 +10908,8 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
     "value"
   ],
   "title": "wait_untilArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -11041,37 +10919,31 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 
 ### `watch`
 
-🔴 40/100 · Risk: 🔴 high
+🟡 68/100 · Risk: 🔴 high
 
-[Play Mode] Manage watches. action: add|remove|clear|reset.     add: needs path/component/field. condition: '< 10','> 0','== null'.     trigger_action: 'log' or 'pause'. remove/reset: needs watch_id.
+[Play Mode] Manage watches. Registers or removes watches. No confirmation required. action: add|remove|clear|reset.     add: needs path/component/field. condition: '< 10','> 0','== null'.     trigger_action: 'log' or 'pause'. remove/reset: needs watch_id.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ |  |
-| `component` | string |  |  (default: ``) |
+| `action` | string | ✓ | Operation to perform — see tool docstring for allowed values |
+| `component` | string |  | Component type name on the target object (default: ``) |
 | `condition` | string |  |  (default: ``) |
 | `field` | string |  |  (default: ``) |
 | `interval_ms` | integer |  |  (default: `500`) |
-| `path` | string |  |  (default: ``) |
+| `path` | string |  | Scene path to target GameObject (e.g. /Parent/Child) (default: ``) |
 | `trigger_action` | string |  |  (default: `log`) |
 | `watch_id` | string |  |  (default: ``) |
 
 <details>
-<summary>22 quality issues</summary>
+<summary>16 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'action' has no description.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'watch_id' has no description.
 - **info**: Free-form string parameter 'watch_id' has no maxLength.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'component' has no description.
 - **info**: Free-form string parameter 'component' has no maxLength.
 - **info**: Parameter 'field' has no description.
 - **info**: Free-form string parameter 'field' has no maxLength.
@@ -11094,7 +10966,8 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
   "properties": {
     "action": {
       "title": "Action",
-      "type": "string"
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
     },
     "watch_id": {
       "default": "",
@@ -11104,12 +10977,14 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
     "path": {
       "default": "",
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "component": {
       "default": "",
       "title": "Component",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name on the target object"
     },
     "field": {
       "default": "",
@@ -11136,7 +11011,8 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
     "action"
   ],
   "title": "watchArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
@@ -11146,9 +11022,9 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 
 ### `wire_event`
 
-🔴 52/100 · Risk: 🔴 high
+🟡 79/100 · Risk: 🔴 high
 
-Wire UnityEvent persistent listener.     path: object with the event. component: type owning the event field.     event: serialized field name (e.g. 'onClick', '_onComplete').     target: scene path or asset path. Auto-resolves component owning the method.     method: method name (e.g. 'SetActive', 'Play').     arg_type: void|bool|int|float|string|object.     arg_value: required when arg_type != void. For object: scene path or asset path.
+Wire UnityEvent persistent listener. Mutates scene. No confirmation required.     path: object with the event. component: type owning the event field.     event: serialized field name (e.g. 'onClick', '_onComplete').     target: scene path or asset path. Auto-resolves component owning the method.     method: method name (e.g. 'SetActive', 'Play').     arg_type: void|bool|int|float|string|object.     arg_value: required when arg_type != void. For object: scene path or asset path.
 
 **Parameters:**
 
@@ -11156,22 +11032,17 @@ Wire UnityEvent persistent listener.     path: object with the event. component:
 |-----------|------|----------|-------------|
 | `arg_type` | string |  |  (default: `void`) |
 | `arg_value` | any |  |  |
-| `component` | string | ✓ |  |
+| `component` | string | ✓ | Component type name on the target object |
 | `event` | string | ✓ |  |
 | `method` | string | ✓ |  |
-| `path` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `target` | string | ✓ |  |
 
 <details>
-<summary>18 quality issues</summary>
+<summary>13 quality issues</summary>
 
-- **error**: Tool appears to have side effects but the description does not state them clearly.
-- **warning**: Risky tool lacks a clear usage boundary.
-- **warning**: Object schema does not state whether extra parameters are allowed.
-- **info**: Parameter 'path' has no description.
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
-- **info**: Parameter 'component' has no description.
 - **info**: Free-form string parameter 'component' has no maxLength.
 - **info**: Parameter 'event' has no description.
 - **info**: Free-form string parameter 'event' has no maxLength.
@@ -11194,11 +11065,13 @@ Wire UnityEvent persistent listener.     path: object with the event. component:
   "properties": {
     "path": {
       "title": "Path",
-      "type": "string"
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
     },
     "component": {
       "title": "Component",
-      "type": "string"
+      "type": "string",
+      "description": "Component type name on the target object"
     },
     "event": {
       "title": "Event",
@@ -11238,7 +11111,8 @@ Wire UnityEvent persistent listener.     path: object with the event. component:
     "method"
   ],
   "title": "wire_eventArguments",
-  "type": "object"
+  "type": "object",
+  "additionalProperties": false
 }
 ```
 
