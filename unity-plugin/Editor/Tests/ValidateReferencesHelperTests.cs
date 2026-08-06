@@ -135,18 +135,18 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ValidateReferences_Stretch3DParticleRenderer_NoFalseMissingMesh()
+        public void ValidateReferences_StretchParticleRenderer_NoFalseMissingMesh()
         {
-            // P-117: Stretch3D uses velocity-aligned billboard, not a mesh.
+            // P-117: Stretch uses velocity-aligned billboard, not a mesh.
             _go.AddComponent<ParticleSystem>();
             var renderer = _go.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Stretch3D;
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
             var path = ComponentSerializer.GetPath(_go);
 
             var result = ValidateReferencesHelper.Validate(path, depth: 1, ignoreOptional: false);
 
             StringAssert.DoesNotContain("MISSING", result,
-                "Stretch3D renderer must not report m_Mesh as MISSING");
+                "Stretch renderer must not report m_Mesh as MISSING");
         }
 
         [Test]
