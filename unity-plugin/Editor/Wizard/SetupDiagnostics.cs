@@ -121,7 +121,7 @@ namespace UnityMCP.Editor.Wizard
         /// installs where the server/ directory does not exist on disk.
         /// Local and Unknown sources run the full CheckPython probe.
         /// </summary>
-        public static (bool ok, string detail) CheckPythonForSource(
+        internal static (bool ok, string detail) CheckPythonForSource(
             InstallSourceDetector.Source source, string serverDir)
         {
             if (source == InstallSourceDetector.Source.Local ||
