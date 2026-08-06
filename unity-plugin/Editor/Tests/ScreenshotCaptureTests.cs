@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using System.IO;
+using ArgumentException = System.ArgumentException;
 using UnityEditor;
 using UnityEngine;
 
