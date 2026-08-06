@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: csharp-inspect-${{ github.ref }}
+  group: csharp-inspect-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:

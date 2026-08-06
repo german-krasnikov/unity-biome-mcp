@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-python-${{ github.ref }}
+  group: ci-python-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
