@@ -10,6 +10,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.22.1] — 2026-08-07
+
+### Fixed
+
+**Transport / Protocol**
+- **Concurrent TCP serialization** — asyncio.Queue serializes overlapping MCP requests; eliminates interleaved frame corruption under parallel tool calls (P-092)
+- **Transport status accuracy** — dead stdio pipe and offline TCP socket now distinguished in `mcp_status` response (P-320)
+- **Mutation retry idempotency** — `operation_id` deduplication via `DedupRegistry` prevents re-applying the same mutation on network retry (P-322)
+- **Read-only endpoint enforcement** — write commands blocked if active connection profile is read-only (P-324)
+- **direct_only tools TCP guard** — tools flagged `direct_only` rejected at TCP dispatch layer (P-011)
+
+**Playtest DSL**
+- **VAR alias path preservation** — `VAR $alias` expansion in `WAIT_UNTIL` preserves full `/path|Comp|field` ref (P-262)
+- **Suite lifecycle FSM** — `run_playtest_suite` state machine fail-closed; transition receipts prevent ghost suites (P-325, P-336)
+- **Compound timeout assignment** — `HasExplicitTimeout` flag set correctly on compound helper steps (P-263)
+- **Parser tokenizer sharing** — `PlaytestParser` tokenizer reused in `SceneRefLinter` (P-287)
+- **run_playtest_suite schema keep** — added to full-schema keep list; was pruned during tool filtering (P-321)
+- **INVOKE @scene syntax** — `@scene` prefix routes to correct scene context with structured diagnostics (P-304)
+
+**Scene / Camera**
+- **UI Transform substitution** — `get_component`/`inspect` return `RectTransform` when `Transform` requested on UI object (P-210)
+- **Physics sync before spatial read** — `Physics.SyncTransforms()` called before bounds query (P-160)
+- **Camera ref null-out on fresh reload** — Camera references cleared before `run_playtest(fresh=true)` domain reload (P-109, P-291)
+- **scene_change_plan lifecycle source** — `EditorApplication.isPlaying` read directly instead of cached state (P-339)
+- **apply_scene_change reference threading** — target paths passed through to `validate_references` (P-098)
+
+**Component / Serialization**
+- **get_component/inspect path resolver unification** — both tools call same `ComponentSerializer.Serialize` resolver (P-107)
+- **set_property typed component selector** — object reference properties specify component type explicitly (P-258)
+- **wire_event overload resolution** — correct listener overload when `typed_component` and `param_types` provided (P-335)
+- **RuntimeHelper argument converter registry** — `IArgumentConverter` registry with `Parse` fallback (P-073)
+- **ParticleSystem renderMode enum** — corrected `RenderMode.Stretch3D` to `Stretch` (P-117)
+
+**Console / Verification**
+- **get_console_since MCP-synthetic filter** — internal heartbeat entries excluded from results (P-051)
+- **Console watermark epoch ordering** — monotonic epoch counter prevents mark ID wrap (P-NEW-3)
+- **Screenshot dimension validation** — validates PNG width/height before returning (P-317)
+
+**Fingerprint / Alias**
+- **Stable fingerprint mode** — deterministic output regardless of scene load order (P-021, P-108, P-106)
+
+**Tool Metadata**
+- **15 Python-only tools marked direct_only** — prevents them from appearing as TCP commands (P-NEW-1)
+- **Visible tool count corrected** — matches actual filtered surface after reclassification (P-319)
+
+### Added
+- **scene `save_copy` action** — saves current scene to specified path without changing active scene (P-NEW-2)
+- **WAIT_STABLE DSL step** — waits until numeric field stops changing within threshold (P-110, P-305)
+- **CAPTURE_MIN/MAX, ASSERT_MIN/MAX DSL steps** — capture min/max over window, assert bounds (P-110, P-305)
+
+### Changed
+- **editor_state.py parser extracted** — EditorApplication state parsing moved to dedicated module
+
+### Test Coverage
+- **Python unit tests**: 4752 total (was 4636, +116) — server + scripts + install
+- **C# EditMode tests**: 6361 passing (Unity 6000.0.65f1, was 6286, +75)
+- **Live integration tests**: 287 passing
+- **Test inventory**: 11911 entries (was 11720, +191)
+
 ## [v1.22.0] — 2026-08-06
 
 ### Added
