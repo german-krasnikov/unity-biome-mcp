@@ -233,6 +233,18 @@ def test_non_keep_full_tool_schema_is_stripped():
     assert result[0].inputSchema == STUB_SCHEMA
 
 
+# P-321: run_playtest_suite schema must not be stubbed in ListTools
+def test_run_playtest_suite_schema_not_stubbed():
+    """P-321: run_playtest_suite must be in _SCHEMA_KEEP_FULL so ListTools exposes its params."""
+    from unity_mcp.server import _strip_deferred_schemas
+    from unity_mcp.server_filtering import _SCHEMA_KEEP_FULL
+    full = _full_schema()
+    tool = _tool("run_playtest_suite", "Run playtest suite", full)
+    assert "run_playtest_suite" in _SCHEMA_KEEP_FULL
+    result = _strip_deferred_schemas([tool])
+    assert result[0].inputSchema == full
+
+
 # --- stripping is applied in the handler ---
 
 async def test_filter_tools_applies_strip():

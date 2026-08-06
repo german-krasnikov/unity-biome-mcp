@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 # Core tools keep full schemas; all others get stub schema on ListTools.
 _SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
-    "run_playtest", "run_tests", "run_tests_wait",
+    "run_playtest", "run_playtest_suite", "run_tests", "run_tests_wait",
     "resolve_tool_schema", "discover_tools",
     # MCP091-004 / MCP091-012: required-param TIER1 direct_only tools
     "get_console_since", "scene", "await_compile", "console_mark", "screenshot",
