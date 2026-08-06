@@ -36,6 +36,9 @@ namespace UnityMCP.Editor
         internal static Func<bool> IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
         internal static Func<string, bool> IsToolEnabledFn = MCPSettings.IsToolEnabled;
 
+        // P-322: dedup registry — prevents re-executing retried mutations after lost ACK.
+        internal static DedupRegistry _dedupRegistry = new DedupRegistry();
+
         // Feature 3: recent command history for smart checkpoint naming
         internal static readonly Queue<string> _recentCmds = new Queue<string>();
 
@@ -86,6 +89,17 @@ namespace UnityMCP.Editor
             {
                 var id = JsonHelper.ExtractString(json, "id");
                 var cmd = JsonHelper.ExtractString(json, "cmd");
+
+                // P-322: check retry_op_id first — if Unity already executed this op,
+                // return a dedup sentinel without re-executing (idempotent retry safety).
+                var retryOpId = JsonHelper.ExtractString(json, "retry_op_id");
+                if (retryOpId != null && !_dedupRegistry.TryRegister(retryOpId))
+                    return JsonHelper.FormatResponse(id, true, "DEDUP: already executed");
+
+                // Register the primary op_id so future retries can be detected.
+                var opId = JsonHelper.ExtractString(json, "op_id");
+                if (opId != null)
+                    _dedupRegistry.TryRegister(opId);
 
                 var guard = CheckGuards(id, cmd);
                 if (guard != null) return guard;
