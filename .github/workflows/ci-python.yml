@@ -75,15 +75,11 @@ jobs:
       - name: Run server unit tests
         if: "!(matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest')"
         timeout-minutes: 10
+        shell: bash
         working-directory: server
         env:
           PYTHONWARNDEFAULTENCODING: "1"
-        run: |
-          if [ "${{ matrix.os }}" = "windows-2022" ]; then
-            python -m pytest tests/ -m "not live and not monkey" --tb=short --timeout=30 -v --timeout-method=thread 2>&1 | tail -100
-          else
-            python -m pytest tests/ -m "not live and not monkey" -q --tb=short --timeout=30
-          fi
+        run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short --timeout=30 -v
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
