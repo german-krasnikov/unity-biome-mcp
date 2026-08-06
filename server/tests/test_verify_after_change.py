@@ -343,3 +343,34 @@ async def test_verify_restart_between_false_no_stop():
         result = await _v.verify_after_change(playtests="t.playtest", restart_between=False)
     assert "PASS" in result
     stop_mock.assert_not_called()
+
+
+# ── P-NEW-3: Overflow gate ────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_verify_fails_on_overflow():
+    """get_console_since returning 'err: overflow:5 …' → FAIL: console_overflow."""
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (2s)")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_GET_CONSOLE_SINCE, AsyncMock(return_value="err: overflow:5 buffer wrapped, 5 problem entries may be lost")),
+        patch(_RUN_TESTS_WAIT, AsyncMock()) as mock_tests,
+    ):
+        result = await _v.verify_after_change(mark_id=MARK, run_tests_mode="EditMode")
+    assert result.startswith("FAIL:"), f"Expected FAIL, got: {result!r}"
+    assert "console_overflow" in result
+    mock_tests.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_verify_overflow_skips_remaining_gates():
+    """Overflow failure reports subsequent gates as skipped."""
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (2s)")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_GET_CONSOLE_SINCE, AsyncMock(return_value="err: overflow:3 buffer wrapped, 3 problem entries may be lost")),
+        patch(_RUN_TESTS_WAIT, AsyncMock()) as mock_tests,
+    ):
+        result = await _v.verify_after_change(mark_id=MARK, run_tests_mode="EditMode")
+    assert "tests" in result  # reported as skipped gate
+    mock_tests.assert_not_called()

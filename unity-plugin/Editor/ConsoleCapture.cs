@@ -158,10 +158,14 @@ namespace UnityMCP.Editor
                         sb.AppendFormat("[{0}] {1:HH:mm:ss.fff} {2}{3}\n", e.Type, e.Timestamp, e.Message, suffix);
                     di += run;
                 }
-                // P-051: suppress suffix in watermark mode — dropped entries predate the mark
-                return sinceSeconds > 0
-                    ? sb.ToString().TrimEnd('\n')
-                    : AppendDroppedSuffix(sb.ToString().TrimEnd('\n'));
+                if (sinceSeconds > 0)
+                {
+                    var text = sb.ToString().TrimEnd('\n');
+                    return _droppedProblemCount > 0
+                        ? text + $"\n#MCP_INTERNAL overflow:{_droppedProblemCount}"
+                        : text;
+                }
+                return AppendDroppedSuffix(sb.ToString().TrimEnd('\n'));
             }
         }
 
@@ -207,9 +211,8 @@ namespace UnityMCP.Editor
         // --- helpers ---
 
         // Issue 27 (Step 4): explicit marker instead of silently dropping evicted problem entries.
-        // P-051: #MCP_INTERNAL prefix lets Python filter this out before severity classification.
         private static string AppendDroppedSuffix(string text) =>
-            _droppedProblemCount > 0 ? text + $"\n#MCP_INTERNAL [+{_droppedProblemCount} older problem entries dropped]" : text;
+            _droppedProblemCount > 0 ? text + $"\n[+{_droppedProblemCount} older problem entries dropped]" : text;
 
         // Issue 27 (C1/C2 fix): when a domain reload wiped the in-memory ring buffer, reconstruct
         // entries from ConsoleProblemPersistence instead of returning raw unfiltered text —
