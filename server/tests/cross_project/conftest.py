@@ -11,15 +11,14 @@ HOST = os.environ.get("UNITY_MCP_HOST", "127.0.0.1")
 PORT_A = int(os.environ.get("UNITY_MCP_PORT", "9500"))
 PORT_B = int(os.environ.get("UNITY_MCP_SECOND_PORT", "0"))
 PROJECT = os.environ.get("UNITY_MCP_PROJECT_PATH", "")
+PROJECT_B = os.environ.get("UNITY_MCP_SECOND_PROJECT_PATH", "")
+
+# Applied to all tests in this directory — forces session loop so session-scoped
+# bridge fixtures (whose asyncio.Queue is bound to the session loop) don't hang.
+pytestmark = [pytest.mark.asyncio(loop_scope="session")]
 
 
-def pytest_collection_modifyitems(items):
-    for item in items:
-        if "cross_project" in str(item.fspath):
-            item.add_marker(pytest.mark.cross_project)
-
-
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def dual_worker_session():
     """Two independent Unity workers for cross-project isolation tests.
 
@@ -32,18 +31,20 @@ async def dual_worker_session():
         pytest.skip("UNITY_MCP_SECOND_PORT not set — cross_project live tests skipped")
     if not PROJECT:
         pytest.skip("UNITY_MCP_PROJECT_PATH not set — cross_project live tests skipped")
+    if not PROJECT_B:
+        pytest.skip("UNITY_MCP_SECOND_PROJECT_PATH not set — cross_project live tests skipped")
 
     bridge_a = await connect_bridge(HOST, PORT_A, PROJECT)
     if bridge_a is None:
         pytest.skip(f"Worker A unreachable at {HOST}:{PORT_A}")
 
-    bridge_b = await connect_bridge(HOST, PORT_B, "")
+    bridge_b = await connect_bridge(HOST, PORT_B, PROJECT_B)
     if bridge_b is None:
         await bridge_a.close()
         pytest.skip(f"Worker B unreachable at {HOST}:{PORT_B}")
 
     worker_a = ConformanceWorker(port=PORT_A, project_path=PROJECT)
-    worker_b = ConformanceWorker(port=PORT_B, project_path="")
+    worker_b = ConformanceWorker(port=PORT_B, project_path=PROJECT_B)
 
     try:
         await worker_a.gate(bridge_a)
@@ -75,3 +76,30 @@ async def dual_worker_session():
 
     if errors:
         pytest.fail("Cross-project teardown failed:\n" + "\n".join(errors))
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def conformance_worker():
+    """Single Worker A fixture for fault_injection tests."""
+    if not PROJECT:
+        pytest.skip("UNITY_MCP_PROJECT_PATH not set")
+
+    bridge = await connect_bridge(HOST, PORT_A, PROJECT)
+    if bridge is None:
+        pytest.skip(f"Worker A unreachable at {HOST}:{PORT_A}")
+
+    worker = ConformanceWorker(port=PORT_A, project_path=PROJECT)
+    try:
+        await worker.gate(bridge)
+    except AssertionError as e:
+        await bridge.close()
+        pytest.fail(f"Worker A gate failed: {e}")
+
+    yield worker, bridge
+
+    try:
+        await worker.prove_absent(bridge)
+    except AssertionError as e:
+        pytest.fail(f"Teardown: {e}")
+    finally:
+        await bridge.close()

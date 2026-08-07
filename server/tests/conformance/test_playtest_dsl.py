@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.live
+pytestmark = [pytest.mark.live, pytest.mark.asyncio(loop_scope="session")]
 
 
 async def test_lint_playtest_valid_script(conformance_worker):

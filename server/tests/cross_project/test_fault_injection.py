@@ -19,7 +19,7 @@ from unity_mcp.bridge import UnityBridge
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 from fault_proxy import FaultProxy  # noqa: E402
 
-pytestmark = [pytest.mark.live, pytest.mark.cross_project]
+pytestmark = [pytest.mark.live, pytest.mark.cross_project, pytest.mark.asyncio(loop_scope="session")]
 
 
 def _free_port() -> int:

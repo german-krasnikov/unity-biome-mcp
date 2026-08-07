@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = [pytest.mark.live, pytest.mark.cross_project]
+pytestmark = [pytest.mark.live, pytest.mark.cross_project, pytest.mark.asyncio(loop_scope="session")]
 
 
 async def test_read_only_blocks_create_object(dual_worker_session):

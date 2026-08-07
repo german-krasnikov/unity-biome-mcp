@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.live
+pytestmark = [pytest.mark.live, pytest.mark.asyncio(loop_scope="session")]
 
 
 async def test_get_hierarchy_returns_nodes(conformance_worker):

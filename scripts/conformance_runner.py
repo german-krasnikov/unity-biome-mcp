@@ -22,6 +22,8 @@ def build_env(args) -> dict[str, str]:
     env["UNITY_MCP_PROJECT_PATH"] = str(Path(args.project).resolve())
     if getattr(args, "second_port", 0):
         env["UNITY_MCP_SECOND_PORT"] = str(args.second_port)
+    if getattr(args, "second_project", ""):
+        env["UNITY_MCP_SECOND_PROJECT_PATH"] = str(Path(args.second_project).resolve())
     if getattr(args, "record", None):
         env["UNITY_MCP_TRACE_FILE"] = args.record
     return env
@@ -32,6 +34,7 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=9500, help="Unity MCP port (default: 9500)")
     parser.add_argument("--project", required=True, help="Unity project path")
     parser.add_argument("--second-port", type=int, default=0, help="Second Unity port for cross-project tests")
+    parser.add_argument("--second-project", default="", help="Second Unity project path (Worker B)")
     parser.add_argument("--timeout", type=int, default=300, help="Pytest timeout in seconds (default: 300)")
     parser.add_argument("--markers", default="conformance and live", help="Pytest marker expression")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")

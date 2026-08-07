@@ -10,13 +10,21 @@ async def connect_bridge(host: str, port: int, project: str = ""):
     from unity_mcp.bridge import UnityBridge
 
     bridge = UnityBridge(host, port=port, expected_project_path=project)
+    last_err = None
     for attempt in range(10):
         try:
             await bridge.connect()
             return bridge
-        except (ConnectionRefusedError, OSError, asyncio.TimeoutError):
+        except (ConnectionRefusedError, OSError, asyncio.TimeoutError) as e:
+            last_err = e
             if attempt < 9:
                 await asyncio.sleep(1.0)
+        except Exception as e:
+            last_err = e
+            if attempt < 9:
+                await asyncio.sleep(1.0)
+    import logging
+    logging.getLogger(__name__).warning("connect_bridge failed after 10 attempts: %s: %s", type(last_err).__name__, last_err)
     return None
 
 

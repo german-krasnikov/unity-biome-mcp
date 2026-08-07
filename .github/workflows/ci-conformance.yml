@@ -16,6 +16,10 @@ on:
         description: 'Second Unity port for cross-project tests (0 = skip)'
         required: false
         default: '0'
+      second_project_path:
+        description: 'Second Unity project path (Worker B, required if second_port > 0)'
+        required: false
+        default: ''
 
 concurrency:
   group: ci-conformance
@@ -42,6 +46,6 @@ jobs:
         run: |
           ARGS="--port ${{ inputs.unity_port }} --project ${{ inputs.project_path }} --timeout 300 --verbose"
           if [ "${{ inputs.second_port }}" != "0" ]; then
-            ARGS="$ARGS --second-port ${{ inputs.second_port }} --markers 'conformance and live or cross_project and live'"
+            ARGS="$ARGS --second-port ${{ inputs.second_port }} --second-project ${{ inputs.second_project_path }} --markers 'conformance and live or cross_project and live'"
           fi
           python scripts/conformance_runner.py $ARGS

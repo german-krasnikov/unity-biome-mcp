@@ -4,7 +4,7 @@ import pytest
 
 from conformance.workers import _parse_status
 
-pytestmark = [pytest.mark.live, pytest.mark.cross_project]
+pytestmark = [pytest.mark.live, pytest.mark.cross_project, pytest.mark.asyncio(loop_scope="session")]
 
 
 async def test_workers_have_different_ports(dual_worker_session):
