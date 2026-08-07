@@ -73,23 +73,25 @@ def _read_file_backed_text(
     file_value: object,
     *,
     command: str,
-    response_file_root: Path | None,
+    response_file_roots: list[Path] | None,
 ) -> str:
     if not isinstance(file_value, str) or not file_value:
         raise RunnerError(f"{command} returned an invalid response file path")
-    if response_file_root is None:
+    if not response_file_roots:
         raise RunnerError(
             f"{command} returned file-backed data without an allowed response root"
         )
 
-    allowed_root = response_file_root.resolve()
     try:
         response_path = Path(file_value).resolve(strict=True)
-        response_path.relative_to(allowed_root)
-    except (OSError, ValueError) as error:
+    except OSError as error:
         raise RunnerError(
-            f"{command} returned a response file outside {allowed_root}"
+            f"{command} returned a response file outside any allowed root"
         ) from error
+    if not any(response_path.is_relative_to(r.resolve()) for r in response_file_roots):
+        raise RunnerError(
+            f"{command} returned a response file outside any allowed root"
+        )
     if not response_path.is_file():
         raise RunnerError(f"{command} response path is not a regular file")
 
@@ -117,7 +119,7 @@ def _call_sync(
     command: str,
     args: dict[str, object],
     timeout: float,
-    response_file_root: Path | None = None,
+    response_file_roots: list[Path] | None = None,
 ) -> str:
     message_id = "standalone-tests-" + uuid.uuid4().hex
     payload = json.dumps(
@@ -160,7 +162,7 @@ def _call_sync(
         return _read_file_backed_text(
             response["file"],
             command=command,
-            response_file_root=response_file_root,
+            response_file_roots=response_file_roots,
         )
     data = response.get("data", "")
     if not isinstance(data, str):
@@ -173,7 +175,7 @@ async def call(
     command: str,
     args: dict[str, object],
     timeout: float = 15.0,
-    response_file_root: Path | None = None,
+    response_file_roots: list[Path] | None = None,
 ) -> str:
     return await asyncio.wait_for(
         asyncio.to_thread(
@@ -182,7 +184,7 @@ async def call(
             command,
             args,
             timeout,
-            response_file_root,
+            response_file_roots,
         ),
         timeout=timeout + 1.0,
     )
@@ -356,7 +358,7 @@ async def read_with_rediscovery(
                 port,
                 command,
                 args,
-                response_file_root=project / "Temp" / "MCP",
+                response_file_roots=[project / "Temp" / "MCP", project / "ScreenShots"],
             )
         except (OSError, ConnectionError, asyncio.TimeoutError, TransportUncertain) as error:
             errors.append(f"{port}: {type(error).__name__}")
