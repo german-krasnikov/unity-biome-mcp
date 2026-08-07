@@ -13,10 +13,6 @@ PORT_B = int(os.environ.get("UNITY_MCP_SECOND_PORT", "0"))
 PROJECT = os.environ.get("UNITY_MCP_PROJECT_PATH", "")
 PROJECT_B = os.environ.get("UNITY_MCP_SECOND_PROJECT_PATH", "")
 
-# Applied to all tests in this directory — forces session loop so session-scoped
-# bridge fixtures (whose asyncio.Queue is bound to the session loop) don't hang.
-pytestmark = [pytest.mark.asyncio(loop_scope="session")]
-
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def dual_worker_session():

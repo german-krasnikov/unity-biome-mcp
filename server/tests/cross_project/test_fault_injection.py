@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 
 from unity_mcp.bridge import UnityBridge
 
@@ -30,7 +31,7 @@ def _free_port() -> int:
     return port
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def proxy_bridge(conformance_worker):
     """Provide a factory that starts a FaultProxy and returns a connected bridge.
 

@@ -9,10 +9,6 @@ CONF_HOST = os.environ.get("UNITY_MCP_HOST", "127.0.0.1")
 CONF_PORT = int(os.environ.get("UNITY_MCP_PORT", "9500"))
 CONF_PROJECT = os.environ.get("UNITY_MCP_PROJECT_PATH", "")
 
-# Applied to all tests in this directory — forces session loop so the session-scoped
-# bridge fixture (whose asyncio.Queue is bound to the session loop) doesn't hang.
-pytestmark = [pytest.mark.asyncio(loop_scope="session")]
-
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def conformance_worker():
