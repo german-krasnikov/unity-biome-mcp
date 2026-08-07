@@ -62,7 +62,7 @@ _SPECS: dict[str, ToolSpec] = {
     # timeout=15.0 (fast-fail by design).
     'compile_preflight': ToolSpec(category='VERIFY', core=True, timeout_s=60.0, mutability='read'),
     'configure_objects': ToolSpec(category='SCENE', direct_only=True),
-    'console_mark': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),
+    'console_mark': ToolSpec(category='RUNTIME', tier1=True, mutability='read', direct_only=True),
     'create_object': ToolSpec(category='CORE', core=True),
     'create_ui': ToolSpec(category='MEDIA'),
     'debug': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),
@@ -86,7 +86,7 @@ _SPECS: dict[str, ToolSpec] = {
     'get_component': ToolSpec(category='CORE', core=True, mutability='read'),
     'get_components_list': ToolSpec(category='SCENE', mutability='read'),
     'get_console': ToolSpec(category='CORE', core=True, timeout_s=10.0, mutability='read'),
-    'get_console_since': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),
+    'get_console_since': ToolSpec(category='RUNTIME', tier1=True, mutability='read', direct_only=True),
     'get_enabled_tools': ToolSpec(category='SYSTEM', mutability='read'),
     'get_frame_stats': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
     'get_hierarchy': ToolSpec(category='CORE', core=True, timeout_s=15.0, mutability='read'),

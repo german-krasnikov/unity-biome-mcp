@@ -102,3 +102,9 @@ def test_newly_marked_tools_in_direct_only_set():
         assert name in _DIRECT_ONLY, \
             f"'{name}' not in _DIRECT_ONLY frozenset — tool_specs.py not updated"
 
+
+def test_console_epoch_tools_are_tier1():
+    """console_mark and get_console_since must be always-visible (self-healing)."""
+    assert _SPECS["console_mark"].tier1
+    assert _SPECS["get_console_since"].tier1
+
