@@ -82,6 +82,7 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"compiling={UnityEditor.EditorApplication.isCompiling}");
                 sb.AppendLine($"port={MCPServer.ServerPort}");
                 sb.AppendLine($"aliases={AliasExpander.CountConfigAliases()}");
+                sb.AppendLine($"readOnly={IsReadOnly()}");
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }

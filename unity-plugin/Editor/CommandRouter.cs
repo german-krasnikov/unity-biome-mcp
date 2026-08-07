@@ -34,6 +34,7 @@ namespace UnityMCP.Editor
 
         internal static Func<bool> IsCompiling = DefaultIsCompiling;
         internal static Func<bool> IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+        internal static Func<bool> IsReadOnly = () => PortFileManager.ReadOnly;
         internal static Func<string, bool> IsToolEnabledFn = MCPSettings.IsToolEnabled;
 
         // P-322: dedup registry — prevents re-executing retried mutations after lost ACK.
@@ -96,6 +97,9 @@ namespace UnityMCP.Editor
                     "Play mode active — changes will be lost. Stop play mode first.");
             if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))
                 return JsonHelper.FormatResponse(id, false, null, "Not in Play Mode. Use editor(action='play') first.");
+            if (IsReadOnly() && IsMutatingCommand(cmd))
+                return JsonHelper.FormatResponse(id, false, null,
+                    $"READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only");
             if (!IsAlwaysAllowed(cmd) && !IsToolEnabledFn(cmd))
                 return JsonHelper.FormatResponse(id, false, null, $"Tool '{cmd}' is disabled in settings");
             return null;

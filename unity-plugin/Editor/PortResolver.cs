@@ -48,6 +48,14 @@ namespace UnityMCP.Editor
             return null;
         }
 
+        internal static bool? ParseBoolFromJson(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json)) return null;
+            var m = Regex.Match(json, "\"" + key + "\"\\s*:\\s*(true|false)");
+            if (m.Success) return m.Groups[1].Value == "true";
+            return null;
+        }
+
         internal static bool IsValidPort(int port) => port >= 1024 && port <= 65535;
 
         internal static int FindFreePort(int startFrom, int skipPort = -1)
@@ -125,7 +133,15 @@ namespace UnityMCP.Editor
             try
             {
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(filePath));
-                writeAllText(filePath, $"{{\"port\":{port},\"chatPort\":{chatPort}}}");
+                // Merge-write: preserve readOnly flag when ports are reassigned via wizard.
+                string existing = null;
+                try { if (System.IO.File.Exists(filePath)) existing = System.IO.File.ReadAllText(filePath); }
+                catch { }
+                var readOnly = ParseBoolFromJson(existing, "readOnly");
+                var json = readOnly.HasValue
+                    ? $"{{\"port\":{port},\"chatPort\":{chatPort},\"readOnly\":{(readOnly.Value ? "true" : "false")}}}"
+                    : $"{{\"port\":{port},\"chatPort\":{chatPort}}}";
+                writeAllText(filePath, json);
                 return true;
             }
             catch { return false; }

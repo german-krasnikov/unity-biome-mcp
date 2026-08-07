@@ -15,6 +15,7 @@ namespace UnityMCP.Editor
             Path.GetFullPath(Path.Combine(Application.dataPath, "..", "ProjectSettings", "MCPSettings.json"));
         private static int _port;
         private static int _chatPort;
+        private static bool _readOnly;
         private static bool _portsResolved;
 
         private static string ReadPortFileOrNull()
@@ -38,11 +39,13 @@ namespace UnityMCP.Editor
             _port = PortResolver.ResolvePort(env, projectJson, cacheJson, 9500);
             var chatEnv = Environment.GetEnvironmentVariable("UNITY_MCP_CHAT_PORT");
             _chatPort = PortResolver.ResolveChatPort(chatEnv, projectJson, cacheJson, _port, _port + 1);
+            _readOnly = PortResolver.ParseBoolFromJson(projectJson, "readOnly") ?? false;
             _portsResolved = true;
         }
 
         internal static int Port { get { EnsurePorts(); return _port; } }
         internal static int ChatPort { get { EnsurePorts(); return _chatPort; } }
+        internal static bool ReadOnly { get { EnsurePorts(); return _readOnly; } }
 
         // Reads reloadPort from MCP_Port.json. Returns 0 if reload-package is not installed.
         internal static int ServerReloadPort => PortResolver.ReadReloadPort(PortFilePath);
