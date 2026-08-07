@@ -323,9 +323,7 @@ def _stdio_alive() -> bool:
         _stdio_last_confirmed = time.monotonic()
         return True
     except (BrokenPipeError, OSError):
-        if time.monotonic() - _stdio_last_confirmed < _STDIO_GRACE_S:
-            return True
-        return False
+        return time.monotonic() - _stdio_last_confirmed < _STDIO_GRACE_S
 
 
 async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
