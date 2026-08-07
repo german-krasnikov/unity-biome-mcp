@@ -59,3 +59,5 @@ async def conformance_worker():
         pytest.fail(f"Conformance teardown: {e}")
     finally:
         await bridge.close()
+
+
