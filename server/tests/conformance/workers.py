@@ -4,6 +4,10 @@ import uuid
 from dataclasses import dataclass, field
 
 
+def _parse_status(text: str) -> dict[str, str]:
+    return dict(line.split("=", 1) for line in text.splitlines() if "=" in line)
+
+
 @dataclass
 class ConformanceWorker:
     port: int
@@ -21,29 +25,26 @@ class ConformanceWorker:
         return f"__MCP_CONF_{self.run_id}"
 
     async def gate(self, bridge) -> None:
-        """Verify port, project, dirty=False, playing=False, compiling=False.
+        """Verify port, dirty=False, playing=False, compiling=False.
 
+        project_path is validated by bridge.connect() via expected_project_path.
         Raises AssertionError on any mismatch.
         """
-        resp = await bridge.send("mcp_status", {})
-        data = resp.get("data", {})
+        resp = await bridge.send("get_status", {})
+        info = _parse_status(resp.get("data", ""))
 
-        actual_port = data.get("port")
-        if actual_port != self.port:
+        actual_port = info.get("port", "")
+        if str(self.port) != actual_port:
             raise AssertionError(f"port mismatch: expected {self.port}, got {actual_port}")
 
-        actual_path = data.get("project_path")
-        if actual_path != self.project_path:
-            raise AssertionError(f"project_path mismatch: expected {self.project_path!r}, got {actual_path!r}")
+        if info.get("dirty", "false") == "true":
+            raise AssertionError(f"scene is dirty (expected clean): {info}")
 
-        if data.get("dirty"):
-            raise AssertionError(f"scene is dirty (expected clean): {data}")
+        if info.get("playing", "false") == "true":
+            raise AssertionError(f"editor is in Play Mode (expected EditMode): {info}")
 
-        if data.get("playing"):
-            raise AssertionError(f"editor is in Play Mode (expected EditMode): {data}")
-
-        if data.get("compiling"):
-            raise AssertionError(f"editor is compiling (expected idle): {data}")
+        if info.get("compiling", "false") == "true":
+            raise AssertionError(f"editor is compiling (expected idle): {info}")
 
     async def prove_absent(self, bridge) -> None:
         """Confirm scene_ns does NOT appear in get_hierarchy response.

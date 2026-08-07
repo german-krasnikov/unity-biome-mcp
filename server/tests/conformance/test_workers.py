@@ -5,8 +5,9 @@ from unittest.mock import AsyncMock
 import pytest
 from conformance.workers import ConformanceWorker
 
-def _clean_status(port: int = 9500, project_path: str = "/proj") -> dict:
-    return {"data": {"port": port, "project_path": project_path, "dirty": False, "playing": False, "compiling": False}}
+
+def _clean_status(port: int = 9500) -> dict:
+    return {"data": f"scene=SampleScene\ndirty=false\nplaying=false\ncompiling=false\nport={port}\naliases=0"}
 
 
 def _hierarchy(content: str = "") -> dict:
@@ -32,7 +33,7 @@ def test_scene_ns_format():
 async def test_gate_passes_clean_state():
     w = ConformanceWorker(port=9500, project_path="/proj", run_id="x")
     bridge = AsyncMock()
-    bridge.send.return_value = _clean_status(9500, "/proj")
+    bridge.send.return_value = _clean_status(9500)
     await w.gate(bridge)  # must not raise
 
 
@@ -42,9 +43,7 @@ async def test_gate_passes_clean_state():
 async def test_gate_raises_on_dirty():
     w = ConformanceWorker(port=9500, project_path="/proj", run_id="x")
     bridge = AsyncMock()
-    status = _clean_status()
-    status["data"]["dirty"] = True
-    bridge.send.return_value = status
+    bridge.send.return_value = {"data": "scene=SampleScene\ndirty=true\nplaying=false\ncompiling=false\nport=9500\naliases=0"}
     with pytest.raises(AssertionError, match="dirty"):
         await w.gate(bridge)
 
@@ -52,9 +51,7 @@ async def test_gate_raises_on_dirty():
 async def test_gate_raises_on_playing():
     w = ConformanceWorker(port=9500, project_path="/proj", run_id="x")
     bridge = AsyncMock()
-    status = _clean_status()
-    status["data"]["playing"] = True
-    bridge.send.return_value = status
+    bridge.send.return_value = {"data": "scene=SampleScene\ndirty=false\nplaying=true\ncompiling=false\nport=9500\naliases=0"}
     with pytest.raises(AssertionError, match="Play Mode"):
         await w.gate(bridge)
 
@@ -62,9 +59,7 @@ async def test_gate_raises_on_playing():
 async def test_gate_raises_on_compiling():
     w = ConformanceWorker(port=9500, project_path="/proj", run_id="x")
     bridge = AsyncMock()
-    status = _clean_status()
-    status["data"]["compiling"] = True
-    bridge.send.return_value = status
+    bridge.send.return_value = {"data": "scene=SampleScene\ndirty=false\nplaying=false\ncompiling=true\nport=9500\naliases=0"}
     with pytest.raises(AssertionError, match="compiling"):
         await w.gate(bridge)
 
@@ -72,16 +67,8 @@ async def test_gate_raises_on_compiling():
 async def test_gate_raises_on_port_mismatch():
     w = ConformanceWorker(port=9500, project_path="/proj", run_id="x")
     bridge = AsyncMock()
-    bridge.send.return_value = _clean_status(port=9999, project_path="/proj")
+    bridge.send.return_value = _clean_status(port=9999)
     with pytest.raises(AssertionError, match="port mismatch"):
-        await w.gate(bridge)
-
-
-async def test_gate_raises_on_project_path_mismatch():
-    w = ConformanceWorker(port=9500, project_path="/proj", run_id="x")
-    bridge = AsyncMock()
-    bridge.send.return_value = _clean_status(port=9500, project_path="/other")
-    with pytest.raises(AssertionError, match="project_path mismatch"):
         await w.gate(bridge)
 
 
