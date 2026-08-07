@@ -207,6 +207,12 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
             if mw._negative_path_cache:
                 mw._negative_path_cache.clear()
 
+        # P-416: after successful manage_component, clear stale component cache
+        if cmd == "manage_component" and not result.startswith("err"):
+            _mc_path = args.get("path", "")
+            if _mc_path:
+                mw.invalidate_component_cache(_mc_path)
+
         # Post-call updates
         mw.log_mutation(cmd, args, result)
         mw.cache_components(cmd, args, result)  # P1: populate component cache

@@ -107,6 +107,16 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
             self.schema_cache = SchemaCache()
             self.schema_guard = SchemaGuard(self, self.schema_cache)
 
+    def invalidate_component_cache(self, path: str) -> None:
+        """Drop cached component data for path (call after manage_component).
+
+        Clears both _component_cache and PrefetchCache entries that reference
+        this path under any arg key (handles get_components_list using 'id').
+        """
+        self._component_cache.pop(path, None)
+        if self._prefetch_cache is not None:
+            self._prefetch_cache.invalidate_by_path(path)
+
     def get_components_for_path(self, path: str):
         return self._component_cache.get(path)
 

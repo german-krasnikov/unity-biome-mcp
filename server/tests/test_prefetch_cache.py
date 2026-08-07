@@ -142,3 +142,26 @@ def test_prefetch_cache_evicts_oldest_not_newest():
     assert c.get("cmd", {"k": "b"}) == "r_b"
     assert c.get("cmd", {"k": "c"}) == "r_c"
     assert c.get("cmd", {"k": "d"}) == "r_d"  # newest kept
+
+
+# ─── P-416: invalidate_by_path ────────────────────────────────────────────────
+
+def test_invalidate_by_path_matches_id_arg():
+    """P-416: invalidate_by_path drops entries where ANY arg value == path (incl. id key)."""
+    c = PrefetchCache()
+    c.put("get_components_list", {"id": "/Player"}, "Transform\nRigidbody")
+    c.put("get_component", {"path": "/Player", "type": "Health"}, "hp=100")
+    c.put("get_component", {"path": "/Enemy", "type": "Health"}, "hp=50")
+    dropped = c.invalidate_by_path("/Player")
+    assert dropped == 2
+    assert c.get("get_components_list", {"id": "/Player"}) is None
+    assert c.get("get_component", {"path": "/Player", "type": "Health"}) is None
+    assert c.get("get_component", {"path": "/Enemy", "type": "Health"}) == "hp=50"
+
+
+def test_invalidate_by_path_empty_path_is_noop():
+    """invalidate_by_path with empty path leaves cache untouched."""
+    c = PrefetchCache()
+    c.put("get_component", {"path": "/A"}, "r")
+    assert c.invalidate_by_path("") == 0
+    assert c.get("get_component", {"path": "/A"}) == "r"

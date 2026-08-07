@@ -1059,3 +1059,38 @@ async def test_reset_session_cancels_bg_tasks():
     await _asyncio.sleep(0)
 
     assert task.cancelled(), "reset_session must cancel bg tasks, not just drop references"
+
+
+# ── P-416: invalidate_component_cache ────────────────────────────────────────
+
+def test_invalidate_component_cache_removes_path(mw):
+    """P-416: invalidate_component_cache removes path from _component_cache."""
+    mw._component_cache["/Player"] = {"Transform", "BoxCollider"}
+    mw.invalidate_component_cache("/Player")
+    assert "/Player" not in mw._component_cache
+
+
+def test_invalidate_component_cache_leaves_other_paths(mw):
+    """P-416: invalidation is path-scoped, not global."""
+    mw._component_cache["/Enemy"] = {"Transform"}
+    mw._component_cache["/Player"] = {"Transform", "Rigidbody"}
+    mw.invalidate_component_cache("/Player")
+    assert "/Enemy" in mw._component_cache
+    assert "/Player" not in mw._component_cache
+
+
+def test_invalidate_component_cache_clears_prefetch_by_id(mw):
+    """P-416: drops get_components_list(id=path) from PrefetchCache via invalidate_by_path."""
+    from unity_mcp.prefetch_cache import PrefetchCache
+    mw._prefetch_cache = PrefetchCache()
+    mw._prefetch_cache.put("get_components_list", {"id": "/Player"}, "Transform\nRigidbody")
+    mw.invalidate_component_cache("/Player")
+    assert mw._prefetch_cache.get("get_components_list", {"id": "/Player"}) is None
+
+
+def test_invalidate_component_cache_none_prefetch_safe(mw):
+    """P-416: invalidate_component_cache with _prefetch_cache=None must not raise."""
+    mw._prefetch_cache = None
+    mw._component_cache["/Player"] = {"Transform"}
+    mw.invalidate_component_cache("/Player")
+    assert "/Player" not in mw._component_cache
