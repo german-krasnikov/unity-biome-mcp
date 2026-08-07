@@ -10,6 +10,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.24.0] — 2026-08-07
+
+### Changed
+- **UPM package description** — expanded with bullet-pointed feature list (150+ tools, 10+ clients, 8800+ tests); plain-text with `▪` bullets for UPM Details panel
+- **UPM keywords** — expanded from 5 to 17 for discoverability (added AI client names, feature terms, taxonomy)
+- **documentationUrl** — switched from GitHub README anchor to GitHub Pages site
+- **Package type** — added `"type": "tool"` for UPM editor-tool categorization
+
+### Added
+- **8 package manifest validation tests** — bullet structure, keyword quality (no duplicates, lowercase, no spaces), documentation URL, Unicode round-trip, type field
+- **OpenUPM registration** — package listed on openupm.com as `com.unity-biome-mcp.editor`
+
+### Test Coverage
+- **Python unit tests**: 4776 total (was 4768, +8) — 8 new package.json validation tests
+- **Test inventory**: 11941 entries (was 11933, +8)
+
 ## [v1.23.0] — 2026-08-07
 
 ### Fixed
