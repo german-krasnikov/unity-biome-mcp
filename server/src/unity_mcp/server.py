@@ -302,19 +302,29 @@ _wrapped_send = None
 _budget_tracker = None
 _budget_router = None
 
+_STDIO_GRACE_S: float = 30.0
+_stdio_last_confirmed: float = 0.0
+
 
 def _stdio_alive() -> bool:
     """Return False when the stdio transport pipe is broken (server restart needed).
 
     Non-stdio transports (http, sse) are unaffected — always returns True for them.
+    A single transient BrokenPipeError within _STDIO_GRACE_S of the last
+    successful flush is treated as transient — returns True to avoid killing
+    all subsequent tool calls prematurely.
     """
+    global _stdio_last_confirmed
     import sys
     if os.environ.get("UNITY_MCP_TRANSPORT", "stdio") != "stdio":
         return True
     try:
         sys.stdout.buffer.flush()
+        _stdio_last_confirmed = time.monotonic()
         return True
     except (BrokenPipeError, OSError):
+        if time.monotonic() - _stdio_last_confirmed < _STDIO_GRACE_S:
+            return True
         return False
 
 
