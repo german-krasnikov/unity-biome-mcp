@@ -361,7 +361,10 @@ Execute scene mutations with pre-check, post-verify, and save. **Must use with `
 - `verify` (bool, default=true) — Check references and console after mutations
 - `save` (bool, default=true) — Save scene after mutations
 
-**Returns:** Mutation summary: `mutations=ok\nrefs=ok (0 broken)\nconsole=clean\nsaved=true`
+**Returns:** Mutation summary with state. Success examples:
+- `mutations=ok\nrefs=ok (0 broken)\nconsole=clean\nsaved=true` (with save enabled)
+- `mutations=ok\nrefs=ok (0 broken)\nconsole=clean\nunsaved=true` (with save disabled)
+- `mutations=ok\nrefs=ok (0 broken)\nconsole=clean\nsaved=FAILED(TimeoutError)` (save failed)
 
 **Example:**
 
