@@ -64,8 +64,8 @@ _PYTHON_ONLY = {
     "animator_intent", "vfx_intent", "ui_intent",
     # Code helpers (delegate to execute_code / get_console C# internally)
     "smart_build", "auto_fix",
-    # Watch (C# commands live in WatchCommandHandler.cs, not Registration.cs)
-    "watch", "get_watches",
+    # Watch: Python orchestrator dispatches to watch_add/watch_remove/etc. sub-commands
+    "watch",
     # Name mismatch: C# uses "navmesh", spec uses "navmesh_query"
     "navmesh_query",
     # Name mismatch: C# uses "get_status", Python MCP tool is "mcp_status"
@@ -139,6 +139,20 @@ def test_tier1_tools_are_accounted_for():
     assert not missing, (
         f"tier1 tools with no C# command and not Python-only: {sorted(missing)}\n"
         "→ Register in C#, or add to _PYTHON_ONLY in this test."
+    )
+
+
+def test_python_only_entries_have_no_csharp_command():
+    """Nothing in _PYTHON_ONLY should actually have a C# command registration.
+
+    A phantom entry in _PYTHON_ONLY incorrectly documents a tool as Python-side
+    when C# already handles it, hiding schema drift.
+    """
+    cs = _extract_cs_commands()
+    phantoms = _PYTHON_ONLY & cs
+    assert not phantoms, (
+        f"_PYTHON_ONLY entries that ARE registered in C#: {sorted(phantoms)}\n"
+        "→ Remove from _PYTHON_ONLY — they have real C# handlers."
     )
 
 
