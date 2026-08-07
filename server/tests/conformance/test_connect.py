@@ -13,7 +13,7 @@ async def test_tcp_roundtrip(conformance_worker):
     worker, bridge = conformance_worker
     resp = await bridge.send("get_status", {})
     assert "data" in resp
-    assert resp.get("ok", True)
+    assert resp["ok"]
 
 
 async def test_identity_gate_port_matches(conformance_worker):
@@ -38,5 +38,5 @@ async def test_connection_still_alive(conformance_worker):
     """Bridge is still responsive after Gate 1 tests ran."""
     worker, bridge = conformance_worker
     resp = await bridge.send("get_status", {})
-    assert resp.get("ok", True), f"bridge unresponsive: {resp}"
+    assert resp["ok"], f"bridge unresponsive: {resp}"
     assert "data" in resp

@@ -43,14 +43,14 @@ async def test_get_console_basic(conformance_worker):
     """get_console returns without error."""
     worker, bridge = conformance_worker
     resp = await bridge.send("get_console", {})
-    assert resp.get("ok", True), f"get_console failed: {resp}"
+    assert resp["ok"], f"get_console failed: {resp}"
 
 
 async def test_get_console_returns_data(conformance_worker):
     """get_console returns structured console output."""
     worker, bridge = conformance_worker
     resp = await bridge.send("get_console", {})
-    assert resp.get("ok", True), f"get_console failed: {resp}"
+    assert resp["ok"], f"get_console failed: {resp}"
     # data is always present (may be empty if no log entries)
     assert "data" in resp
 
@@ -59,7 +59,7 @@ async def test_screenshot_succeeds(conformance_worker):
     """screenshot returns a non-empty response."""
     worker, bridge = conformance_worker
     resp = await bridge.send("screenshot", {})
-    assert resp.get("ok", True), f"screenshot failed: {resp}"
+    assert resp["ok"], f"screenshot failed: {resp}"
     data = resp.get("data", {})
     assert data, "screenshot returned empty data"
 
@@ -68,6 +68,6 @@ async def test_search_scene_basic(conformance_worker):
     """search_scene finds Main Camera (present in every Unity scene)."""
     worker, bridge = conformance_worker
     resp = await bridge.send("search_scene", {"query": "Main Camera"})
-    assert resp.get("ok", True), f"search_scene failed: {resp}"
+    assert resp["ok"], f"search_scene failed: {resp}"
     data = resp.get("data", "")
     assert data, "search_scene returned empty for 'Main Camera'"
