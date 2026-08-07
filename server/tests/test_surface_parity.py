@@ -108,3 +108,11 @@ def test_console_epoch_tools_are_tier1():
     assert _SPECS["console_mark"].tier1
     assert _SPECS["get_console_since"].tier1
 
+
+def test_media_required_param_tools_have_full_schema():
+    """timeline/animation/animator must not get stub schema after MEDIA discovery."""
+    from unity_mcp.server_filtering import _SCHEMA_KEEP_FULL
+    assert "timeline" in _SCHEMA_KEEP_FULL
+    assert "animation" in _SCHEMA_KEEP_FULL
+    assert "animator" in _SCHEMA_KEEP_FULL
+
