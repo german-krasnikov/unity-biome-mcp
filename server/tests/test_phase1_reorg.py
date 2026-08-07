@@ -9,16 +9,16 @@ _EXPECTED_CORE = frozenset({
 })
 
 _EXPECTED_TIER1_NONCORE = frozenset({
-    "apply_scene_change", "await_compile", "delete_object", "discover_tools",
-    "lint_scene_refs", "permission_prompt", "reconnect_unity", "resolve_tool_schema",
+    "apply_scene_change", "await_compile", "console_mark", "delete_object", "discover_tools",
+    "get_console_since", "lint_scene_refs", "permission_prompt", "reconnect_unity", "resolve_tool_schema",
     "run_playtest", "run_playtest_suite", "run_tests", "run_tests_wait", "scene", "scene_change_plan",
     "screenshot", "search_scene", "set_active", "set_parent", "sync_unity",
     "validate_references", "verify_after_change",
 })
 
 _DEMOTED_TOOLS = frozenset({
-    "alias_status", "ask", "ask_user", "configure_objects", "console_mark",
-    "get_console_since", "get_test_results", "get_test_run", "lint_playtest",
+    "alias_status", "ask", "ask_user", "configure_objects",
+    "get_test_results", "get_test_run", "lint_playtest",
     "release_smoke", "resolve_test_request", "setup_objects", "undo_last",
 })
 
@@ -27,12 +27,12 @@ def test_core_exact_13():
     assert _CORE_TOOLS == _EXPECTED_CORE
 
 
-def test_tier1_noncore_exact_21():
+def test_tier1_noncore_exact_23():
     assert TIER1 - _CORE_TOOLS == _EXPECTED_TIER1_NONCORE
 
 
-def test_visible_surface_34():
-    assert len(TIER1) == 34
+def test_visible_surface_36():
+    assert len(TIER1) == 36
 
 
 def test_promoted_compile_preflight_is_core():

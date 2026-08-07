@@ -474,7 +474,7 @@ def test_strip_uses_canonical_stub():
     from unity_mcp.server_filtering import _strip_deferred_schemas
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
 
-    tool = SimpleNamespace(name="animation", description="Animate things.", inputSchema={"type": "object", "properties": {}})
+    tool = SimpleNamespace(name="lighting", description="Control scene lighting.", inputSchema={"type": "object", "properties": {}})
     result = _strip_deferred_schemas([tool])
     assert result[0].inputSchema is STUB_SCHEMA
 
@@ -681,7 +681,7 @@ def test_strip_deferred_details_shortens_description_for_non_core_tool():
         "Supports ASSERT, ASSERT_CONSOLE_CLEAN, WAIT and other directives for verifying "
         "animation behavior end to end without manual clicking."
     )
-    tool = SimpleNamespace(name="animation", description=long_desc,
+    tool = SimpleNamespace(name="lighting", description=long_desc,
                            inputSchema={"type": "object", "properties": {"clip": {"type": "string"}}})
     result = _strip_deferred_schemas([tool])
     assert result[0].description == _short_description(long_desc)
@@ -714,7 +714,7 @@ async def test_schema_registry_capture_stores_full_description_before_truncation
         "Supports ASSERT, ASSERT_CONSOLE_CLEAN, WAIT and other directives for verifying "
         "animation behavior end to end without manual clicking."
     )
-    tool = SimpleNamespace(name="animation", description=long_desc,
+    tool = SimpleNamespace(name="lighting", description=long_desc,
                            inputSchema={"type": "object", "properties": {"clip": {"type": "string"}}})
 
     registry = SchemaRegistry()
@@ -726,7 +726,7 @@ async def test_schema_registry_capture_stores_full_description_before_truncation
     assert tool.description == _short_description(long_desc)
     assert tool.description != long_desc
     # ...but the registry still holds the ORIGINAL full text.
-    assert registry.get_full("animation")["description"] == long_desc
+    assert registry.get_full("lighting")["description"] == long_desc
 
 
 # ---------------------------------------------------------------------------
