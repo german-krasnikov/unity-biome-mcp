@@ -156,6 +156,23 @@ def test_python_only_entries_have_no_csharp_command():
     )
 
 
+def test_direct_only_tools_covered_by_csharp_guard():
+    """Every direct_only tool must be in CommandRouter._PythonOnlyTools (C#).
+
+    The C# HashSet acts as a guard — direct TCP callers get an actionable
+    error instead of InvalidOperationException. If a new tool gets
+    direct_only=True in Python, it must be added to the C# guard too.
+    """
+    direct_only = {name for name, spec in _specs().items() if spec.direct_only}
+    guard_path = _EDITOR / "CommandRouter.cs"
+    text = guard_path.read_text(encoding="utf-8")
+    for tool in sorted(direct_only):
+        assert f'"{tool}"' in text, (
+            f"direct_only tool '{tool}' missing from CommandRouter._PythonOnlyTools — "
+            "add it so direct TCP callers get a clear error."
+        )
+
+
 def test_discover_tools_categories_match_specs():
     """Every static (non-plugin) tool in CATEGORIES has a ToolSpec."""
     from unity_mcp.tools.gating import _THEMED_CATEGORIES

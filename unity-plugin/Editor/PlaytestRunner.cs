@@ -486,7 +486,7 @@ namespace UnityMCP.Editor
             catch { return RuntimeHelper.InvokeMethod(path, comp, field, ""); }
         }
 
-static void SetTimeScale(float scale)
+        static void SetTimeScale(float scale)
         {
             var cfg = _cachedConfig; // use config cached at Run() start — no AssetDatabase lookup
             if (cfg != null && !string.IsNullOrEmpty(cfg.timeScaleClass) && !string.IsNullOrEmpty(cfg.timeScaleProperty))
