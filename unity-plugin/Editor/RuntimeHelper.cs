@@ -368,6 +368,23 @@ namespace UnityMCP.Editor
         internal static Component FindComponentInternal(GameObject go, string typeName) => FindComponent(go, typeName);
         internal static string ReadFieldInternal(Component comp, string fieldName) => ReadField(comp, fieldName);
 
+        internal static string TryResolveVirtualField(Component comp, string field)
+        {
+            if (comp is UnityEngine.Animator anim)
+            {
+                if (field == "currentState" || field == "stateName")
+                {
+                    var clips = anim.GetCurrentAnimatorClipInfo(0);
+                    return clips.Length > 0 ? clips[0].clip.name : "none";
+                }
+            }
+            if (comp is UnityEngine.Rigidbody rb && field == "speed")
+                return rb.linearVelocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
+            if (comp is UnityEngine.Rigidbody2D rb2d && field == "speed")
+                return rb2d.linearVelocity.magnitude.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
+            return null;
+        }
+
         private static Component FindMoveComponent(GameObject go, PlaytestConfig config)
         {
             if (config != null && !string.IsNullOrEmpty(config.moveComponent))
