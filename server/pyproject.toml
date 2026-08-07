@@ -52,6 +52,8 @@ markers = [
     "monkey: stress/chaos tests for chat_relay (connection storms, process leaks, protocol torture)",
     "live_chat: requires running Unity + MCPChatWindow; subset of live",
     "timeout: per-test timeout override (pytest-timeout)",
+    "conformance: MCP conformance gate tests — portable across any Unity+MCP endpoint",
+    "cross_project: requires two running Unity editors on different ports",
 ]
 
 [tool.ruff]
