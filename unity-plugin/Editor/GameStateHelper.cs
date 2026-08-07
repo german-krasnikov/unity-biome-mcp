@@ -63,13 +63,14 @@ namespace UnityMCP.Editor
                     var comp = RuntimeHelper.FindComponentInternal(go, compName);
                     if (comp == null) { sb.AppendLine($"{compName}.{fieldName}=ERR:component not found"); continue; }
 
-                    string result;
-                    try { result = RuntimeHelper.ReadFieldInternal(comp, fieldName); }
-                    catch
-                    {
-                        // Fall back to method invoke (no args)
-                        result = RuntimeHelper.InvokeMethod(path, compName, fieldName, "");
-                    }
+                    string result = RuntimeHelper.TryResolveVirtualField(comp, fieldName);
+                    if (result == null)
+                        try { result = RuntimeHelper.ReadFieldInternal(comp, fieldName); }
+                        catch
+                        {
+                            // Fall back to method invoke (no args)
+                            result = RuntimeHelper.InvokeMethod(path, compName, fieldName, "");
+                        }
                     sb.AppendLine($"{compName}.{fieldName}={result}");
                 }
                 catch (System.Exception e)

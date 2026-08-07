@@ -165,7 +165,7 @@ def test_call_sync_reads_file_backed_text_response(
         "get_test_run",
         {"run_id": "run-1"},
         1.0,
-        output_root,
+        [output_root],
     ) == '{"state":"terminal"}'
 
 
@@ -234,7 +234,37 @@ def test_file_backed_response_cannot_escape_project_temp(tmp_path: Path) -> None
         runner._read_file_backed_text(
             str(outside),
             command="get_test_run",
-            response_file_root=output_root,
+            response_file_roots=[output_root],
+        )
+
+
+def test_read_file_backed_allows_screenshots_dir(tmp_path: Path) -> None:
+    screenshots = tmp_path / "ScreenShots"
+    screenshots.mkdir()
+    txt = screenshots / "frame.txt"
+    txt.write_text("screenshot data", encoding="utf-8")
+
+    result = runner._read_file_backed_text(
+        str(txt),
+        command="screenshot",
+        response_file_roots=[screenshots],
+    )
+    assert result == "screenshot data"
+
+
+def test_read_file_backed_rejects_outside_all_roots(tmp_path: Path) -> None:
+    root1 = tmp_path / "Temp" / "MCP"
+    root1.mkdir(parents=True)
+    root2 = tmp_path / "ScreenShots"
+    root2.mkdir()
+    outside = tmp_path / "secret.txt"
+    outside.write_text("secret", encoding="utf-8")
+
+    with pytest.raises(runner.RunnerError, match="outside"):
+        runner._read_file_backed_text(
+            str(outside),
+            command="screenshot",
+            response_file_roots=[root1, root2],
         )
 
 
@@ -249,14 +279,14 @@ def test_rediscovered_text_call_allows_only_project_temp(
         command: str,
         _args: dict[str, object],
         timeout: float = 15.0,
-        response_file_root: Path | None = None,
+        response_file_roots: list[Path] | None = None,
     ) -> str:
         if command == "editor":
             assert timeout == 10.0
-            assert response_file_root is None
+            assert response_file_roots is None
             return str(project)
         assert command == "get_test_run"
-        assert response_file_root == expected_root
+        assert response_file_roots == [expected_root, project / "ScreenShots"]
         return '{"state":"terminal"}'
 
     monkeypatch.setattr(runner, "advertised_ports", lambda *_args: [10600])
@@ -286,12 +316,12 @@ def test_rediscovery_prefers_new_advertised_port_over_explicit_old_port(
         command: str,
         _args: dict[str, object],
         timeout: float = 15.0,
-        response_file_root: Path | None = None,
+        response_file_roots: list[Path] | None = None,
     ) -> str:
         calls.append((port, command))
         if command == "editor":
             return str(project)
-        assert response_file_root == project / "Temp" / "MCP"
+        assert response_file_roots == [project / "Temp" / "MCP", project / "ScreenShots"]
         return "terminal"
 
     monkeypatch.setattr(runner, "call", fake_call)

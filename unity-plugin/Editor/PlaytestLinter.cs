@@ -91,6 +91,9 @@ namespace UnityMCP.Editor
                 }
             }
 
+            // Pass 1b: TIMESCALE risk — raw scan so # @timescale-ok comments are visible
+            CheckTimescaleRisk(rawLines, issues, fileLabel);
+
             // Pass 2: try parse (catches unknown macros, wrong arg counts)
             ParseResult parsed = null;
             try
@@ -124,6 +127,58 @@ namespace UnityMCP.Editor
             }
 
             return FormatReport(fileLabel, issues);
+        }
+
+        static void CheckTimescaleRisk(string[] rawLines, List<LintIssue> issues, string fileLabel)
+        {
+            float timescale = 1f;
+            bool inComment = false;
+            bool nextSuppressed = false;
+
+            for (int i = 0; i < rawLines.Length; i++)
+            {
+                var trimmed = rawLines[i].Trim();
+                if (string.IsNullOrEmpty(trimmed)) { nextSuppressed = false; continue; }
+
+                if (trimmed.Equals("COMMENT", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("COMMENT ", StringComparison.OrdinalIgnoreCase))
+                { inComment = true; continue; }
+                if (trimmed.Equals("END_COMMENT", StringComparison.OrdinalIgnoreCase))
+                { inComment = false; continue; }
+                if (inComment) continue;
+
+                if (trimmed.StartsWith("#"))
+                {
+                    if (trimmed.Contains("@timescale-ok")) nextSuppressed = true;
+                    continue;
+                }
+
+                var lineNo = i + 1;
+
+                if (trimmed.StartsWith("TIMESCALE ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var valStr = trimmed.Substring("TIMESCALE ".Length).Trim();
+                    if (float.TryParse(valStr, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out float ts))
+                        timescale = ts;
+                    nextSuppressed = false;
+                    continue;
+                }
+
+                if (timescale > 1f && !nextSuppressed &&
+                    (trimmed.StartsWith("WAIT_UNTIL ", StringComparison.OrdinalIgnoreCase)
+                     || trimmed.StartsWith("CAPTURE_MIN ", StringComparison.OrdinalIgnoreCase)
+                     || trimmed.StartsWith("CAPTURE_MAX ", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var cmd = trimmed.Split(' ')[0].ToUpperInvariant();
+                    issues.Add(Issue("WARN", fileLabel, lineNo,
+                        $"TIMESCALE_WARN: '{cmd}' at line {lineNo} runs at TIMESCALE {timescale}x" +
+                        " — poll-based runner may miss sub-tick conditions." +
+                        " Add '# @timescale-ok' to suppress."));
+                }
+
+                nextSuppressed = false;
+            }
         }
 
         static bool HasCleanup(ParseResult parsed)

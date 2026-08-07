@@ -235,7 +235,29 @@ namespace UnityMCP.Editor
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
 
             bool recurse = recursive == "true" || recursive == "True" || recursive == "1";
-            var deps = AssetDatabase.GetDependencies(path, recurse);
+
+            System.Collections.Generic.IEnumerable<string> deps;
+            if (!recurse)
+            {
+                deps = AssetDatabase.GetDependencies(path, false);
+            }
+            else
+            {
+                // Manual BFS: Unity's builtin recursive mode prunes fixed-point (self-referential/cyclic) nodes
+                var visited = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal) { path };
+                var queue = new System.Collections.Generic.Queue<string>();
+                foreach (var d in AssetDatabase.GetDependencies(path, false))
+                    if (visited.Add(d)) queue.Enqueue(d);
+
+                while (queue.Count > 0)
+                {
+                    var cur = queue.Dequeue();
+                    foreach (var d in AssetDatabase.GetDependencies(cur, false))
+                        if (visited.Add(d)) queue.Enqueue(d);
+                }
+
+                deps = visited;
+            }
 
             var sb = new StringBuilder();
             foreach (var d in deps) { if (sb.Length > 0) sb.Append('\n'); sb.Append(d); }

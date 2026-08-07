@@ -102,3 +102,23 @@ def test_newly_marked_tools_in_direct_only_set():
         assert name in _DIRECT_ONLY, \
             f"'{name}' not in _DIRECT_ONLY frozenset — tool_specs.py not updated"
 
+
+def test_console_epoch_tools_are_tier1():
+    """console_mark and get_console_since must be always-visible (self-healing)."""
+    assert _SPECS["console_mark"].tier1
+    assert _SPECS["get_console_since"].tier1
+
+
+def test_media_required_param_tools_have_full_schema():
+    """timeline/animation/animator must not get stub schema after MEDIA discovery."""
+    from unity_mcp.server_filtering import _SCHEMA_KEEP_FULL
+    assert "timeline" in _SCHEMA_KEEP_FULL
+    assert "animation" in _SCHEMA_KEEP_FULL
+    assert "animator" in _SCHEMA_KEEP_FULL
+
+
+def test_checkpoint_in_schema_keep_full():
+    """checkpoint must serve full schema when SYSTEM is enabled."""
+    from unity_mcp.server_filtering import _SCHEMA_KEEP_FULL
+    assert "checkpoint" in _SCHEMA_KEEP_FULL
+

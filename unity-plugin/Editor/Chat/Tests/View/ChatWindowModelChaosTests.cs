@@ -30,6 +30,9 @@ namespace UnityMCP.Editor.Chat.Tests
             public void DrainEvents(List<ChatEvent> o, List<ToolCallRecord> t = null) { }
         }
 
+        [SetUp]
+        public void ClearBackendPref() => DeleteEditorPrefString("MCPChat.SelectedBackend");
+
         // ── ModelPresetsPerKind ───────────────────────────────────────────────
 
         [Test] public void Presets_Claude_NotEmpty()

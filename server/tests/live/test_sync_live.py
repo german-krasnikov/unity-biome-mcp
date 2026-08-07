@@ -3,13 +3,38 @@
 import asyncio
 import json
 import os
-from pathlib import Path
 import time
+from pathlib import Path
 
 import pytest
+import pytest_asyncio
 
+from tests.live.conftest import _connect_with_retry, make_live_bridge
 
 pytestmark = pytest.mark.live
+
+
+async def _wait_compile_idle(bridge) -> None:
+    """Poll compile_status until Unity finishes compiling (up to 60 s)."""
+    for _ in range(60):
+        try:
+            status = _data(await bridge.send("compile_status", {}))
+            if "compiling" not in status.lower():
+                return
+        except (ConnectionError, TimeoutError):
+            pass
+        await asyncio.sleep(1.0)
+
+
+@pytest_asyncio.fixture(scope="module", autouse=True)
+async def _ensure_compile_idle():
+    """Wait for Unity to finish any pending compilation before sync tests."""
+    bridge = make_live_bridge()
+    try:
+        await _connect_with_retry(bridge)
+        await _wait_compile_idle(bridge)
+    finally:
+        await bridge.close()
 
 _EDITOR_PACKAGE_ID = "com.unity-biome-mcp.editor"
 
@@ -58,6 +83,9 @@ async def test_live_sync_full_cycle(bridge):
     acknowledgement = _data(response)
     assert "sync_ack" in acknowledgement, f"Expected sync_ack: {response}"
 
+    if "will_compile=true" in acknowledgement:
+        await _wait_compile_idle(bridge)
+
     parts = {
         part.split("=", 1)[0]: part.split("=", 1)[1]
         for part in acknowledgement.split("|")
@@ -88,8 +116,9 @@ async def test_live_sync_full_cycle(bridge):
 
 async def test_live_dll_freshness(bridge):
     """After sync, compile diagnostics remain readable."""
-    await bridge.send("sync", {"resolve": "false"})
-    await asyncio.sleep(1.0)
+    response = await bridge.send("sync", {"resolve": "false"})
+    if "will_compile=true" in _data(response):
+        await _wait_compile_idle(bridge)
     errors = _data(await bridge.send("get_compile_errors", {}))
     assert isinstance(errors, str)
 
@@ -103,8 +132,9 @@ async def test_live_reconnect_transparent(bridge):
 
 async def test_live_sync_compile_status_after_noop(bridge):
     """compile_status and sync_status remain coherent after a no-op sync."""
-    await bridge.send("sync", {"resolve": "false"})
-    await asyncio.sleep(1.0)
+    response = await bridge.send("sync", {"resolve": "false"})
+    if "will_compile=true" in _data(response):
+        await _wait_compile_idle(bridge)
     compile_status = _data(await bridge.send("compile_status", {}))
     sync_status = _data(await bridge.send("sync_status", {}))
 

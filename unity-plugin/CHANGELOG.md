@@ -10,6 +10,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.23.0] — 2026-08-07
+
+### Fixed
+
+**Protocol / Schema**
+- **apply_scene_change transaction boundary** — unsaved changes detected before scene mutation; prevents silent data loss (P-033)
+- **get_watches phantom removal** — removed stale `get_watches` entry from `_PYTHON_ONLY` set (P-342)
+- **console_mark/get_console_since tier promotion** — promoted to tier1; was inaccessible via default tool filter (P-350)
+- **Full schema keep for timeline/animation/animator** — tools retain full schema instead of being pruned (P-091)
+- **Full schema keep for checkpoint** — checkpoint tool schema preserved through filtering (P-363)
+- **_stdio_alive grace window** — 30s grace period after last confirmed write prevents false broken-pipe on slow clients (P-348)
+- **Screenshot paths outside Temp/MCP** — accept screenshot output paths in any writable directory (P-383)
+- **Wave 3 C# fixes** — serialization, DSL, transport, and verification corrections (P-390, P-343, P-384, P-305)
+
+**Test Infrastructure**
+- **106 C# EditMode test failures** — `CloseLeakedEditorWindows` ordering, try-catch + `DestroyImmediate`, `MainThreadDispatcher.Clear()` isolation, `EditorPrefs` isolation in chaos tests
+- **EditorWindow zombie cleanup** — `CreateOwnedEditorWindow` and `MCPChatWindow.TestIsolation` hardened with try-catch + unconditional `DestroyImmediate`
+- **Python live test_chat_ui_monkey** — orphan MCPChatWindow cleanup instead of `pytest.fail()`
+- **Python live test_sync_live** — `_wait_compile_idle()` for domain reload recovery after sync
+
+### Added
+- **Dual-project port isolation tests** — verify port file management across concurrent Unity projects (P-323)
+
+### Test Coverage
+- **Python unit tests**: 4768 total (was 4752, +16) — server + scripts + install
+- **C# EditMode tests**: 6367 passing (was 6361, +6)
+- **Live integration tests**: 287 passing
+- **Test inventory**: 11933 entries (was 11911, +22)
+
 ## [v1.22.1] — 2026-08-07
 
 ### Fixed

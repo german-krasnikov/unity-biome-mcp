@@ -48,6 +48,7 @@ namespace UnityMCP.Editor.Testing
         private IDisposable _relayIsolation;
         private IDisposable _relaySpawnIsolation;
         private int _previewSceneCountBaseline;
+        private HashSet<int> _editorWindowBaseline;
         private bool _isolationActive;
         private bool _cleanupStarted;
 
@@ -85,6 +86,7 @@ namespace UnityMCP.Editor.Testing
             _logAssertIgnoreBaseline = LogAssert.ignoreFailingMessages;
             _cleanupStarted = false;
             _isolationActive = true;
+            MainThreadDispatcher.Clear();
             try
             {
                 _syncIsolation = SyncHelper.BeginTestIsolation();
@@ -111,6 +113,9 @@ namespace UnityMCP.Editor.Testing
                 _reloadGuardIsolation = ReloadGuard.BeginTestIsolation(
                     new IsolatedReloadGuardOps(), isolationOwnerId);
                 _chatWindowIsolation = MCPChatWindow.BeginTestIsolation(isolationOwnerId);
+                _editorWindowBaseline = new HashSet<int>(
+                    Resources.FindObjectsOfTypeAll<EditorWindow>()
+                             .Select(w => w.GetInstanceID()));
             }
             catch (Exception setupError)
             {
@@ -180,6 +185,8 @@ namespace UnityMCP.Editor.Testing
                 () => _chatWindowIsolation?.Dispose(),
                 "chat window runtime restoration",
                 errors);
+            RunCleanup(CloseLeakedEditorWindows, "editor window leak sweep", errors);
+            RunCleanup(() => MainThreadDispatcher.Clear(), "main-thread dispatcher cleanup", errors);
             RunCleanup(
                 () => _reloadGuardIsolation?.Dispose(),
                 "reload guard test-isolation restoration",
@@ -279,6 +286,7 @@ namespace UnityMCP.Editor.Testing
             _relayIsolation = null;
             _relaySpawnIsolation = null;
             _previewSceneCountBaseline = 0;
+            _editorWindowBaseline = null;
             _isolationActive = false;
 
             if (errors.Count > 0)
@@ -518,7 +526,28 @@ namespace UnityMCP.Editor.Testing
         /// </summary>
         protected T CreateOwnedEditorWindow<T>() where T : EditorWindow
         {
-            return TrackOwnedObject(ScriptableObject.CreateInstance<T>());
+            var window = ScriptableObject.CreateInstance<T>();
+            RegisterCleanup(() =>
+            {
+                if (window == null) return;
+                try { window.Close(); }
+                catch (Exception) { /* m_Parent null — window was never shown */ }
+                if (window != null) UnityEngine.Object.DestroyImmediate(window);
+            });
+            return window;
+        }
+
+        private void CloseLeakedEditorWindows()
+        {
+            if (_editorWindowBaseline == null) return;
+            foreach (var w in Resources.FindObjectsOfTypeAll<EditorWindow>())
+            {
+                if (w == null || _editorWindowBaseline.Contains(w.GetInstanceID())) continue;
+                try { w.Close(); }
+                catch (Exception) { /* m_Parent null — window was never shown */ }
+                if (w != null) UnityEngine.Object.DestroyImmediate(w);
+            }
+            _editorWindowBaseline = null;
         }
 
         /// <summary>

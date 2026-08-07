@@ -160,7 +160,49 @@ class TestApplySceneChange:
 
         result = await tr.apply_scene_change(plan_id, "[]", save=False)
         assert "scene" not in calls
-        assert "saved" not in result
+        assert "unsaved=true" in result
+
+    async def test_save_failure_reported_in_response(self, monkeypatch):
+        plan_id = self._insert_plan()
+
+        async def failing_send(cmd, args, **kw):
+            if cmd == "batch": return "2/2 ok"
+            if cmd == "validate_references": return "0 broken"
+            if cmd == "get_console": return ""
+            if cmd == "scene": raise TimeoutError("TCP timeout")
+            return ""
+        monkeypatch.setattr(tr, "_send", failing_send)
+
+        result = await tr.apply_scene_change(plan_id, "[]")
+        assert "saved=FAILED (TimeoutError)" in result
+        assert "state=APPLIED" in result
+
+    async def test_no_save_flag_reports_unsaved(self, monkeypatch):
+        plan_id = self._insert_plan()
+
+        async def tracking_send(cmd, args, **kw):
+            if cmd == "batch": return "1/1 ok"
+            if cmd == "validate_references": return "0 broken"
+            if cmd == "get_console": return ""
+            return ""
+        monkeypatch.setattr(tr, "_send", tracking_send)
+
+        result = await tr.apply_scene_change(plan_id, "[]", save=False)
+        assert "unsaved=true" in result
+
+    async def test_save_success_confirmed_by_response(self, monkeypatch):
+        plan_id = self._insert_plan()
+
+        async def ok_send(cmd, args, **kw):
+            if cmd == "batch": return "1/1 ok"
+            if cmd == "validate_references": return "0 broken"
+            if cmd == "get_console": return ""
+            if cmd == "scene": return "ok saved"
+            return ""
+        monkeypatch.setattr(tr, "_send", ok_send)
+
+        result = await tr.apply_scene_change(plan_id, "[]")
+        assert "saved=true" in result
 
     async def test_verify_clean_refs(self, monkeypatch):
         plan_id = self._insert_plan()

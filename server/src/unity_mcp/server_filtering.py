@@ -31,6 +31,10 @@ _SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
     "compile_preflight", "search_scene", "set_active", "set_parent", "validate_references",
     # MCP091: sync_unity missing — must expose schema so resolve/bump params are visible
     "sync_unity",
+    # B3: MEDIA tools with required params (path, action) must not receive stub schema
+    "timeline", "animation", "animator",
+    # B4: SYSTEM tool with label param; sub-agents need full schema to construct calls
+    "checkpoint",
 })
 _SCHEMA_KEEP_FULL: frozenset[str] = _CORE_TOOLS | _SCHEMA_KEEP_FULL_EXTRA
 

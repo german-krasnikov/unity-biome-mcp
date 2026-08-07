@@ -133,8 +133,13 @@ async def apply_scene_change(
     # Save
     saved_status = ""
     if save:
-        await _send("scene", {"action": "save"})
-        saved_status = "\nsaved=true"
+        try:
+            await _send("scene", {"action": "save"})
+            saved_status = "\nsaved=true"
+        except Exception as e:
+            saved_status = f"\nsaved=FAILED ({type(e).__name__})"
+    else:
+        saved_status = "\nunsaved=true"
 
     state = "ROLLED_BACK" if "<rollback>" in (batch_data or "").lower() else "APPLIED"
     return f"state={state}\nmutations=ok ({batch_data or ''}){refs_status}{console_status}{saved_status}"

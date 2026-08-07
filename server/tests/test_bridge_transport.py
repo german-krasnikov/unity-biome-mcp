@@ -143,6 +143,8 @@ def test_stdio_alive_returns_true_for_http_transport(monkeypatch):
 def test_stdio_alive_returns_false_on_broken_pipe(monkeypatch):
     """_stdio_alive must catch BrokenPipeError and return False."""
     monkeypatch.setenv("UNITY_MCP_TRANSPORT", "stdio")
+    import unity_mcp.server as srv
+    monkeypatch.setattr(srv, "_stdio_last_confirmed", 0.0)
     buf = Mock()
     buf.flush.side_effect = BrokenPipeError
     with patch.object(sys, "stdout", SimpleNamespace(buffer=buf)):
@@ -158,3 +160,30 @@ def test_stdio_alive_returns_true_when_flush_succeeds(monkeypatch):
     with patch.object(sys, "stdout", SimpleNamespace(buffer=buf)):
         from unity_mcp.server import _stdio_alive
         assert _stdio_alive() is True
+
+
+# ---------------------------------------------------------------------------
+# Test 5 — grace window for transient BrokenPipeError
+# ---------------------------------------------------------------------------
+
+def test_stdio_grace_window_returns_true_on_transient_failure(monkeypatch):
+    """A BrokenPipeError within the grace window must return True (transient)."""
+    import time
+    import unity_mcp.server as srv
+    monkeypatch.setenv("UNITY_MCP_TRANSPORT", "stdio")
+    monkeypatch.setattr(srv, "_stdio_last_confirmed", time.monotonic())
+    buf = Mock()
+    buf.flush.side_effect = BrokenPipeError
+    with patch.object(sys, "stdout", SimpleNamespace(buffer=buf)):
+        assert srv._stdio_alive() is True
+
+
+def test_stdio_grace_expired_returns_false(monkeypatch):
+    """A BrokenPipeError after grace window expires must return False."""
+    import unity_mcp.server as srv
+    monkeypatch.setenv("UNITY_MCP_TRANSPORT", "stdio")
+    monkeypatch.setattr(srv, "_stdio_last_confirmed", 0.0)
+    buf = Mock()
+    buf.flush.side_effect = BrokenPipeError
+    with patch.object(sys, "stdout", SimpleNamespace(buffer=buf)):
+        assert srv._stdio_alive() is False

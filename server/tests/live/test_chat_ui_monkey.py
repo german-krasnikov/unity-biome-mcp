@@ -11,46 +11,43 @@ import asyncio
 import pytest
 import pytest_asyncio
 
-from tests.live.conftest import _connect_with_retry, make_live_bridge
 from tests.live.chat_ui_helpers import (
+    ASK_BTN_STATE,
+    CLEAR_INPUT,
+    CLOSE_AND_REOPEN,
     CLOSE_WINDOW,
     FIND_WINDOW,
+    GET_ACTIVITY_PHASE,
+    GET_AGENT_MODE,
+    GET_BACKEND,
+    GET_BACKEND_RUNNING,
+    GET_INPUT,
+    GET_TRANSCRIPT,
     OPEN_WINDOW,
     ROOT_CLASSES,
     ROOT_NOT_NULL,
-    WINDOW_TITLE,
-    GET_INPUT,
-    CLEAR_INPUT,
-    GET_AGENT_MODE,
-    GET_BACKEND_RUNNING,
-    GET_ACTIVITY_PHASE,
     STOP_BACKEND_IF_PRESENT,
-    CLOSE_AND_REOPEN,
-    GET_BACKEND,
-    GET_TRANSCRIPT,
-    ASK_BTN_STATE,
-    IS_IMAGE_EXT_NULL,
-    IS_IMAGE_EXT_EMPTY,
-    exec_ok,
+    WINDOW_TITLE,
     ensure_window,
-    get_field,
+    erase_session,
+    exec_ok,
     get_dropdown,
     get_dropdown_count,
+    get_pref,
+    get_pref_bool,
+    get_session,
+    is_image_ext,
+    set_and_get_session,
     set_input,
     set_input_and_read,
     set_mode,
     set_mode_n,
-    toggle_mode_n,
-    get_session,
-    set_session,
-    erase_session,
-    set_and_get_session,
-    get_pref,
     set_pref,
     set_pref_bool,
-    get_pref_bool,
-    is_image_ext,
+    set_session,
+    toggle_mode_n,
 )
+from tests.live.conftest import _connect_with_retry, make_live_bridge
 
 pytestmark = [pytest.mark.live, pytest.mark.live_chat]
 
@@ -66,10 +63,19 @@ async def _chat_window_owner():
         await _connect_with_retry(bridge)
         baseline = await exec_ok(bridge, FIND_WINDOW)
         if baseline != "none":
-            pytest.fail(
-                "chat UI live tests require no pre-existing MCPChatWindow; "
-                "refusing to close an unowned window"
+            import warnings
+            warnings.warn(
+                "Found orphan MCPChatWindow from a prior run — closing it",
+                stacklevel=1,
             )
+            await exec_ok(bridge, CLOSE_WINDOW)
+            for _ in range(20):
+                remaining = await exec_ok(bridge, FIND_WINDOW)
+                if remaining == "none":
+                    break
+                await asyncio.sleep(0.1)
+            else:
+                pytest.fail(f"Could not close orphan MCPChatWindow: {remaining}")
     except BaseException:
         await bridge.close()
         raise

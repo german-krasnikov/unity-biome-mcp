@@ -39,6 +39,25 @@ namespace UnityMCP.Editor
         // P-322: dedup registry — prevents re-executing retried mutations after lost ACK.
         internal static DedupRegistry _dedupRegistry = new DedupRegistry();
 
+        // Tools handled entirely by the Python MCP server — no C# handler exists.
+        // Direct TCP callers that send these commands get an actionable error instead of
+        // an opaque InvalidOperationException("Command not registered").
+        internal static readonly HashSet<string> _PythonOnlyTools = new HashSet<string>
+        {
+            "animator_intent", "apply_scene_change", "apply_template", "ask",
+            "auto_fix", "await_compile", "budget_status", "configure_objects",
+            "console_mark", "debug", "discover_tools", "do", "doctor",
+            "get_console_since", "get_metrics", "lint_playtest_suite",
+            "list_connections", "list_skills", "list_templates", "load_session",
+            "mcp_status", "navmesh_query", "permission_prompt", "reconnect_unity",
+            "release_smoke", "resolve_tool_schema", "run_playtest_suite",
+            "run_tests_wait", "save_session", "save_skill", "save_template",
+            "scene_change_plan", "screenshot_baseline", "screenshot_compare",
+            "set_llm_config", "set_properties", "setup_objects", "smart_build",
+            "snapshot", "sync_unity", "ui_intent", "use_skill", "verify_after_change",
+            "vfx_intent", "watch",
+        };
+
         // Feature 3: recent command history for smart checkpoint naming
         internal static readonly Queue<string> _recentCmds = new Queue<string>();
 
@@ -67,6 +86,9 @@ namespace UnityMCP.Editor
         {
             if (!CommandRegistry.Ready)
                 return JsonHelper.FormatBusyResponse(id, "Server initializing. Retry in 2s.", 2000);
+            if (_PythonOnlyTools.Contains(cmd))
+                return JsonHelper.FormatResponse(id, false, null,
+                    $"'{cmd}' is a Python-only tool — use the MCP server (not direct TCP) to call it");
             if (IsCompiling() && !IsAllowedDuringCompile(cmd))
                 return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
             if (IsPlayMode() && IsMutatingCommand(cmd) && cmd != "set_parent")

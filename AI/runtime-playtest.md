@@ -501,7 +501,7 @@ Pass the returned `mark_id` to `get_console_since()` to retrieve only logs produ
 
 **save:** If True, saves the scene after mutations.
 
-**Returns:** `"mutations=ok (...)\nrefs=ok (0 broken)\nconsole=clean\nsaved=true"` or error detail.
+**Returns:** `"mutations=ok (...)\nrefs=ok (0 broken)\nconsole=clean\nsaved=true"` (on success with save), `unsaved=true` (when save=False), `saved=FAILED(<ExcType>)` (when save fails), or error detail.
 
 **RW Annotation:** Mutating.
 
