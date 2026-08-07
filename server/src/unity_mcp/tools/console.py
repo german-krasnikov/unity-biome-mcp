@@ -80,9 +80,11 @@ async def get_console_since(mark_id: str, level: str | None = None,
                 overflow_count = int(line.split(":", 1)[1])
         elif not line.startswith("#MCP_INTERNAL "):
             clean_lines.append(line)
+    result = "\n".join(clean_lines)
     if overflow_count > 0:
-        return f"err: overflow:{overflow_count} buffer wrapped, {overflow_count} problem entries may be lost"
-    return "\n".join(clean_lines)
+        warning = f"[WARN: ring overflow={overflow_count} — some error entries before this window may be lost]"
+        return f"{result}\n{warning}" if result else warning
+    return result
 
 
 def register(mcp, send, args):

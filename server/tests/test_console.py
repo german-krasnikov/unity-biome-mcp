@@ -168,19 +168,22 @@ def _setup_console_send(monkeypatch, raw_response: str):
 
 
 async def test_overflow_signal_detected(monkeypatch):
-    """C# sends '#MCP_INTERNAL overflow:5' → returns 'err: overflow:5 …'."""
+    """P-413: C# overflow is a warning appended to entries, not a hard error."""
     _setup_console_send(monkeypatch, "#MCP_INTERNAL overflow:5\n[Error] foo")
     from unity_mcp.tools import console
     result = await console.get_console_since("mark:9000.0")
-    assert result.startswith("err: overflow:5"), f"Got: {result!r}"
+    assert not result.startswith("err:"), f"Got: {result!r}"
+    assert "[Error] foo" in result, f"Entry missing: {result!r}"
+    assert "overflow=5" in result, f"Warning missing: {result!r}"
 
 
-async def test_overflow_no_error_lines_still_fails(monkeypatch):
-    """Overflow tag alone (no real errors) still returns overflow error."""
+async def test_overflow_no_error_lines_still_warns(monkeypatch):
+    """P-413: overflow tag alone returns warning (not error), entries may be empty."""
     _setup_console_send(monkeypatch, "#MCP_INTERNAL overflow:1")
     from unity_mcp.tools import console
     result = await console.get_console_since("mark:9000.0")
-    assert result.startswith("err: overflow:1"), f"Got: {result!r}"
+    assert not result.startswith("err:"), f"Got: {result!r}"
+    assert "overflow" in result, f"Warning missing: {result!r}"
 
 
 async def test_overflow_zero_count_treated_as_clean(monkeypatch):
