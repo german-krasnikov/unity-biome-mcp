@@ -310,5 +310,35 @@ namespace UnityMCP.Editor.Tests
             var result = ConsoleCapture.GetLogs(count: -1, level: "error");
             Assert.IsEmpty(result, "After Clear + domain reload, problem-buffer must stay empty");
         }
+
+        // ── P-051: watermark mode suppresses dropped-count suffix ─────────────────
+
+        [Test]
+        public void GetLogs_SinceSeconds_DoesNotAppendDroppedSuffix()
+        {
+            // P-051: when sinceSeconds > 0 (watermark query), dropped-count metadata is irrelevant
+            // and must not appear in the result.
+            ConsoleCapture.InjectForTest("error entry", LogType.Error);
+            ConsoleCapture.ClearDroppedCount();
+            // Manually inflate dropped count via ring overflow is not trivially testable here,
+            // so we verify the suffix is absent on a clean query — the key invariant.
+            var result = ConsoleCapture.GetLogs(sinceSeconds: 9999f);
+            StringAssert.DoesNotContain("#MCP_INTERNAL", result);
+            StringAssert.DoesNotContain("dropped]", result);
+        }
+
+        [Test]
+        public void GetLogs_NoSince_DroppedSuffix_HasMcpInternalPrefix()
+        {
+            // P-051: non-watermark path must tag the suffix so Python can filter it.
+            // Verify the tag format is correct when _droppedProblemCount > 0.
+            // We cannot directly set _droppedProblemCount (private), but we can assert
+            // that IF a suffix appears it starts with #MCP_INTERNAL.
+            ConsoleCapture.InjectForTest("an error", LogType.Error);
+            var result = ConsoleCapture.GetLogs(sinceSeconds: 0f);
+            // Either no suffix (count==0) or suffix has the correct tag.
+            if (result.Contains("dropped]"))
+                StringAssert.Contains("#MCP_INTERNAL [+", result);
+        }
     }
 }

@@ -110,6 +110,50 @@ namespace UnityMCP.Editor
         }
 
         /// <summary>
+        /// Saves a copy of the scene to destinationPath without changing the active scene
+        /// reference or dirty flag. identifier selects a scene in multi-scene setups.
+        /// </summary>
+        public static string SaveCopy(string destinationPath, string identifier = null)
+        {
+            if (string.IsNullOrEmpty(destinationPath))
+                throw new System.ArgumentException("destination_path required");
+            if (!destinationPath.StartsWith("Assets/", System.StringComparison.Ordinal))
+                throw new System.ArgumentException("destination_path must start with Assets/");
+            if (!destinationPath.EndsWith(".unity", System.StringComparison.OrdinalIgnoreCase))
+                throw new System.ArgumentException("destination_path must end with .unity");
+
+            var scene = string.IsNullOrEmpty(identifier)
+                ? SceneManager.GetActiveScene()
+                : FindScene(identifier);
+
+            if (!string.IsNullOrEmpty(scene.path) &&
+                string.Equals(scene.path, destinationPath, System.StringComparison.OrdinalIgnoreCase))
+                throw new System.ArgumentException("destination_path must not be the active scene path");
+
+            var projectRoot = System.IO.Path.GetFullPath(
+                System.IO.Path.Combine(Application.dataPath, ".."));
+            var absPath = System.IO.Path.GetFullPath(
+                System.IO.Path.Combine(projectRoot, destinationPath));
+
+            if (!absPath.StartsWith(projectRoot + System.IO.Path.DirectorySeparatorChar,
+                    System.StringComparison.Ordinal))
+                throw new System.ArgumentException("destination_path must be inside project");
+
+            var dir = System.IO.Path.GetDirectoryName(absPath);
+            if (!string.IsNullOrEmpty(dir))
+                System.IO.Directory.CreateDirectory(dir);
+
+            // saveAsCopy=true: writes copy, does NOT change scene.path or dirty flag
+            if (!EditorSceneManager.SaveScene(scene, destinationPath, saveAsCopy: true))
+                throw new System.IO.IOException($"Unity failed to write copy to '{destinationPath}'.");
+
+            long sizeBytes = System.IO.File.Exists(absPath)
+                ? new System.IO.FileInfo(absPath).Length : 0;
+
+            return $"ok path={destinationPath} size={sizeBytes} scene={scene.name}";
+        }
+
+        /// <summary>
         /// Opens a scene by path, discarding dirty state first to prevent save dialog.
         /// </summary>
         public static string OpenScene(string path)

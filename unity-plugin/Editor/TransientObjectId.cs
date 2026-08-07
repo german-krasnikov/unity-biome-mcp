@@ -31,6 +31,9 @@ namespace UnityMCP.Editor
 
         internal static string GetWireValue(Object value) => FromObject(value).WireValue;
 
+        // CONVENTION (DRY Group A): component references use the component's own instanceID.
+        internal static string GetComponentWireValue(Component comp) => FromObject(comp).WireValue;
+
         internal static bool TryParse(string value, out TransientObjectId objectId)
         {
             objectId = None;

@@ -1,4 +1,5 @@
 """Console logs + compilation error reporting (B2: split from scene.py)."""
+import contextlib
 import time as _time
 
 from ._annotations import RO as _RO
@@ -7,6 +8,7 @@ from ._common import bind
 
 _send = None
 _args = None
+_mark_epoch: int = 0
 
 
 async def get_console(count: int = 10, level: str | None = None, first: int = 0,
@@ -43,7 +45,9 @@ async def console_mark(label: str = "") -> str:
     """Create a console watermark. Returns mark_id encoding current timestamp.
     Pass to get_console_since() to retrieve only logs after this point.
     Pure Python — no TCP call."""
-    ts = f"mark:{_time.time()}"
+    global _mark_epoch
+    _mark_epoch += 1
+    ts = f"mark:{_time.time()}:e{_mark_epoch}"
     return f"{ts}:{label}" if label else ts
 
 
@@ -66,8 +70,19 @@ async def get_console_since(mark_id: str, level: str | None = None,
     since_s = _time.time() - ts
     if since_s < 0:
         return "err: mark_id timestamp in future"
-    return await get_console(count=count, level=level, since=since_s,
-                             keyword=keyword, count_only=count_only)
+    raw = await get_console(count=count, level=level, since=since_s,
+                            keyword=keyword, count_only=count_only)
+    overflow_count = 0
+    clean_lines = []
+    for line in raw.splitlines():
+        if line.startswith("#MCP_INTERNAL overflow:"):
+            with contextlib.suppress(IndexError, ValueError):
+                overflow_count = int(line.split(":", 1)[1])
+        elif not line.startswith("#MCP_INTERNAL "):
+            clean_lines.append(line)
+    if overflow_count > 0:
+        return f"err: overflow:{overflow_count} buffer wrapped, {overflow_count} problem entries may be lost"
+    return "\n".join(clean_lines)
 
 
 def register(mcp, send, args):

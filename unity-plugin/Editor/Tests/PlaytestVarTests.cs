@@ -165,12 +165,13 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void VarRegistry_ExpandStep_ClonesAndExpandsAllFields()
         {
+            // Path and Query use ExpandVarRef (path ref), not the live scalar
             var registry = new PlaytestVarRegistry((p, c, f) => "MyPath");
             registry.Register("obj", "@/MyPath|Transform|x");
             var step = new PlaytestStep { Path = "$obj", Query = "$obj|Comp|f" };
             var expanded = registry.ExpandStep(step);
-            Assert.AreEqual("MyPath", expanded.Path);
-            Assert.AreEqual("MyPath|Comp|f", expanded.Query);
+            Assert.AreEqual("/MyPath|Transform|x", expanded.Path);
+            Assert.AreEqual("/MyPath|Transform|x|Comp|f", expanded.Query);
             // Original not mutated
             Assert.AreEqual("$obj", step.Path);
         }
@@ -215,11 +216,12 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void VarRegistry_ExpandStep_ExpandsQueriesArray_WithVarSigil()
         {
+            // Queries elements are path refs — use ExpandVarRef, not live scalar
             var registry = new PlaytestVarRegistry((p, c, f) => "resolvedQ");
             registry.Register("q", "@/Obj|Comp|field");
             var step = new PlaytestStep { Queries = new[] { "$q", "plain" } };
             var expanded = registry.ExpandStep(step);
-            Assert.AreEqual("resolvedQ", expanded.Queries[0]);
+            Assert.AreEqual("/Obj|Comp|field", expanded.Queries[0]);
             Assert.AreEqual("plain", expanded.Queries[1]);
             // original untouched
             Assert.AreEqual("$q", step.Queries[0]);
@@ -407,6 +409,59 @@ namespace UnityMCP.Editor.Tests
 
             Assert.AreEqual("1", exp1.Value, "First expansion should read value 1");
             Assert.AreEqual("2", exp2.Value, "Second expansion must not be cached — live read each time");
+        }
+
+        // ── P-262: ExpandVarRef preserves path ref, not live scalar ────────────
+
+        [Test]
+        public void ExpandVarRef_ReturnsPathRef_NotValue()
+        {
+            // $hp bound to /Player|Health|hp; live value is "42"
+            // ExpandVarRef must return the path string, not the live scalar
+            var registry = new PlaytestVarRegistry((p, c, f) => "42");
+            registry.Register("hp", "@/Player|Health|hp");
+            Assert.AreEqual("/Player|Health|hp", registry.ExpandVarRef("$hp"));
+        }
+
+        [Test]
+        public void ExpandStep_WaitUntil_QueryPreservesPathRef()
+        {
+            // Bug: Query="$hp" was expanded to live value "42" — runner then tried to
+            // look up "42" as a path and failed on every tick, freezing WAIT_UNTIL.
+            var registry = new PlaytestVarRegistry((p, c, f) => "42");
+            registry.Register("hp", "@/Player|Health|hp");
+            var step = new PlaytestStep { Type = StepType.WaitUntil, Query = "$hp", Op = "==", Value = "100" };
+            var expanded = registry.ExpandStep(step);
+            Assert.AreEqual("/Player|Health|hp", expanded.Query);
+        }
+
+        [Test]
+        public void ExpandStep_WaitUntil_ValueGetsLiveValue()
+        {
+            // Value field must receive the live runtime value, not the path ref
+            var registry = new PlaytestVarRegistry((p, c, f) => "42");
+            registry.Register("maxHp", "@/Player|Health|maxHp");
+            var step = new PlaytestStep { Query = "/Player|Health|hp", Op = "==", Value = "$maxHp" };
+            var expanded = registry.ExpandStep(step);
+            Assert.AreEqual("42", expanded.Value);
+        }
+
+        [Test]
+        public void ExpandStep_CalledTwice_QueryStable_ValueRefreshed()
+        {
+            // Query must stay a stable path across ticks; Value must re-read live each tick
+            int callCount = 0;
+            var registry = new PlaytestVarRegistry((p, c, f) => (++callCount).ToString());
+            registry.Register("hp", "@/Player|Health|hp");
+            var step = new PlaytestStep { Query = "$hp", Value = "$hp" };
+
+            var exp1 = registry.ExpandStep(step);
+            var exp2 = registry.ExpandStep(step);
+
+            Assert.AreEqual("/Player|Health|hp", exp1.Query, "Query must be path ref on tick 1");
+            Assert.AreEqual("/Player|Health|hp", exp2.Query, "Query must be path ref on tick 2");
+            Assert.AreEqual("1", exp1.Value, "Value reads live on tick 1");
+            Assert.AreEqual("2", exp2.Value, "Value reads live on tick 2");
         }
 
     }

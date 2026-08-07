@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace UnityMCP.Editor
 {
@@ -7,9 +8,13 @@ namespace UnityMCP.Editor
     {
         private static string _lastSnapshot;
 
+        // P-021: strip volatile #instanceID tokens before line comparison.
+        internal static string NormalizeSnapshot(string text)
+            => Regex.Replace(text, @"\s+#\d+", "");
+
         public static string Diff()
         {
-            var current = HierarchySerializer.Serialize(depth: 99);
+            var current = NormalizeSnapshot(HierarchySerializer.Serialize(depth: 99));
 
             if (_lastSnapshot == null)
             {
@@ -17,7 +22,7 @@ namespace UnityMCP.Editor
                 return "SNAPSHOT SAVED (first call — no diff yet)";
             }
 
-            var prev = _lastSnapshot;
+            var prev = NormalizeSnapshot(_lastSnapshot);
             _lastSnapshot = current;
 
             var prevLines = new HashSet<string>(prev.Split('\n'));

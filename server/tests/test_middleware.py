@@ -328,8 +328,7 @@ def test_circuit_breaker_blocks_when_open():
 def test_circuit_breaker_half_open_after_cooldown():
     cb = CircuitBreaker(threshold=1, cooldown=0.0)
     cb.record_failure()
-    # cooldown=0 means already expired
-    import time; time.sleep(0.01)
+    cb.opened_at -= 1.0
     assert cb.allow_request() is True
     assert cb.get_status() == "HALF_OPEN"
 
@@ -337,7 +336,7 @@ def test_circuit_breaker_half_open_after_cooldown():
 def test_circuit_breaker_closes_on_success():
     cb = CircuitBreaker(threshold=1, cooldown=0.0)
     cb.record_failure()
-    import time; time.sleep(0.01)
+    cb.opened_at -= 1.0
     cb.allow_request()  # transitions to HALF_OPEN
     cb.record_success()
     assert cb.get_status() == "CLOSED"

@@ -192,6 +192,42 @@ namespace UnityMCP.Editor
             // Defensive: strip one surrounding quote pair if present
             if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"')
                 value = value.Substring(1, value.Length - 2);
+            // P-258: component wire format "path::TypeName #componentId" — resolve typed component directly.
+            // The "::" suffix signals this is a component ref; the "#id" encodes the component instanceID.
+            if (value.Contains("::") && value.Contains("#"))
+            {
+                var comp = ComponentSerializer.FindComponentByRef(value);
+                if (comp != null) { property.objectReferenceValue = comp; return; }
+                // Fall through to path-based lookup if resolution fails (graceful degradation).
+            }
+            // P-258b: "path::TypeName" (no #id) — LLM-friendly bare type resolution.
+            // e.g. "/Root/Player::AudioSource" → first AudioSource on the Player GO.
+            // Sub-asset paths ("Assets/Foo.anim::Clip") fall through when FindObject returns null.
+            if (value.Contains("::") && !value.Contains("#"))
+            {
+                var colonIdx = value.IndexOf("::");
+                var goPath   = value.Substring(0, colonIdx).Trim();
+                var typeName = value.Substring(colonIdx + 2).Trim();
+                if (!string.IsNullOrEmpty(goPath) && !string.IsNullOrEmpty(typeName))
+                {
+                    var go = ComponentSerializer.FindObject(goPath);
+                    if (go != null)
+                    {
+                        var comp = ComponentSerializer.FindComponent(go, typeName);
+                        if (comp == null)
+                        {
+                            var available = string.Join(", ",
+                                System.Array.ConvertAll(go.GetComponents<Component>(), c => c.GetType().Name));
+                            throw new ArgumentException(
+                                $"No '{typeName}' component on '{goPath}'. Available: {available}. " +
+                                "For multiple components of the same type, use 'path::TypeName #componentId'.");
+                        }
+                        property.objectReferenceValue = comp;
+                        return;
+                    }
+                    // go == null: fall through to sub-asset check below.
+                }
+            }
             if (value.StartsWith("#"))
             {
                 if (!TransientObjectId.TryParse(value, out var objectId))

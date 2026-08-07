@@ -9,13 +9,21 @@ _refresh_tools_cache = None
 _push_catalog = None
 
 
+def _stdio_alive() -> bool:
+    """Delegate to server._stdio_alive (lazy import avoids circular dep)."""
+    from unity_mcp.server import _stdio_alive as _probe
+    return _probe()
+
+
 async def list_connections() -> str:
     """List Unity connection status."""
     s = _get_slot() if _get_slot else None
     if s is None:
         return "No slot initialized"
-    status = s.status
-    return f"port {s.port} ({status})"
+    bridge = s.bridge
+    tcp = bridge.transport_status if bridge is not None else "tcp:none"
+    stdio = "stdio:alive" if _stdio_alive() else "stdio:dead"
+    return f"port {s.port} | {tcp} | {stdio}"
 
 
 async def reconnect_unity(port: int = 0, ctx: Context = None) -> str:

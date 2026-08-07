@@ -78,3 +78,27 @@ def test_setup_objects_not_in_tcp_catalog():
         assert "setup_objects" not in tools, \
             f"setup_objects (direct_only) leaked into TCP catalog['{cat}']"
 
+
+# --- P-NEW-1: 15 Python-only tools missing direct_only=True (Arch-Batch-Surface-Metadata) ---
+
+_NEW_DIRECT_ONLY = {
+    "apply_scene_change", "apply_template", "auto_fix", "load_session",
+    "permission_prompt", "reconnect_unity", "save_session", "save_skill",
+    "save_template", "scene_change_plan", "set_llm_config", "smart_build",
+    "sync_unity", "use_skill", "verify_after_change",
+}
+
+
+def test_batch_surface_metadata_coverage():
+    """All 15 Python-only tools from Arch-Batch-Surface-Metadata are direct_only."""
+    for name in _NEW_DIRECT_ONLY:
+        assert _SPECS[name].direct_only, \
+            f"'{name}' is Python-only but missing direct_only=True in tool_specs.py"
+
+
+def test_newly_marked_tools_in_direct_only_set():
+    """_DIRECT_ONLY (derived frozenset) includes all 15 newly-marked tools."""
+    for name in _NEW_DIRECT_ONLY:
+        assert name in _DIRECT_ONLY, \
+            f"'{name}' not in _DIRECT_ONLY frozenset — tool_specs.py not updated"
+

@@ -68,9 +68,9 @@ class TestSceneChangePlan:
         assert "compile=clean" in result
 
     async def test_play_mode_rejected(self, monkeypatch):
-        """G20: scene_change_plan must reject when Unity is in Play Mode."""
+        """G20: scene_change_plan must reject when Unity is in Play Mode (C# EditorStateHelper format)."""
         async def playing_send(cmd, args, **kw):
-            if cmd == "editor": return "state: playing"
+            if cmd == "editor": return "playing:True\npaused:False\ncompiling:False\n"
             return "compile clean"
         monkeypatch.setattr(tr, "_send", playing_send)
         result = await tr.scene_change_plan("mutate scene")

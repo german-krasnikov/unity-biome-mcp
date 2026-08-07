@@ -58,12 +58,18 @@ async def find_objects(
 
 
 async def set_property(path: str | None = None, component: str = "", prop: str = "", value=None,
-                       dry_run: bool = False, find_type: str | None = None) -> str:
+                       dry_run: bool = False, find_type: str | None = None,
+                       ref_component_type: str | None = None) -> str:
     """Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).
     find_type: component type — bulk-sets prop on all matching objects without specifying paths.
-    For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying."""
+    For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying.
+    ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'."""
+    if value is not None:
+        value = _normalize_value(value)
+        if ref_component_type and "::" not in str(value):
+            value = f"{value}::{ref_component_type}"
     args = _args(path=path, find_type=find_type, component=component or None,
-                 prop=prop or None, value=_normalize_value(value) if value is not None else None)
+                 prop=prop or None, value=value)
     if dry_run:
         args["dry_run"] = "true"
     return await _send("set_property", args)
@@ -102,17 +108,22 @@ async def set_active(path: str, active: bool) -> str:
 
 
 async def wire_event(path: str, component: str, event: str, target: str, method: str,
-                     arg_type: str = "void", arg_value: str | None = None) -> str:
+                     arg_type: str = "void", arg_value: str | None = None,
+                     target_component_type: str | None = None,
+                     parameter_types: str | None = None) -> str:
     """Wire UnityEvent persistent listener. Mutates scene. No confirmation required.
     path: object with the event. component: type owning the event field.
     event: serialized field name (e.g. 'onClick', '_onComplete').
     target: scene path or asset path. Auto-resolves component owning the method.
     method: method name (e.g. 'SetActive', 'Play').
     arg_type: void|bool|int|float|string|object.
-    arg_value: required when arg_type != void. For object: scene path or asset path."""
+    arg_value: required when arg_type != void. For object: scene path or asset path.
+    target_component_type: narrow component search to this type (e.g. 'Animator').
+    parameter_types: comma-separated param types to resolve overloads (e.g. 'string')."""
     return await _send("wire_event", _args(
         path=path, component=component, event=event,
-        target=target, method=method, arg_type=arg_type, arg_value=arg_value))
+        target=target, method=method, arg_type=arg_type, arg_value=arg_value,
+        target_component_type=target_component_type, parameter_types=parameter_types))
 
 
 async def unwire_event(path: str, component: str, event: str, index: int | None = None) -> str:

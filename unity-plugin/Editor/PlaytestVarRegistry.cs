@@ -55,13 +55,29 @@ namespace UnityMCP.Editor
             });
         }
 
+        /// <summary>
+        /// Expand $name sigils in a reference field (path/query) with the stored path string,
+        /// NOT the live runtime value. Keeps WAIT_UNTIL query stable across polling ticks.
+        /// </summary>
+        public string ExpandVarRef(string text)
+        {
+            if (string.IsNullOrEmpty(text) || !HasAny) return text;
+            return PlaytestParser.SigilRegex.Replace(text, m => {
+                var name = m.Groups[1].Value;
+                if (!_bindings.TryGetValue(name, out var b)) return m.Value;
+                return b.path + "|" + b.comp + "|" + b.field;
+            });
+        }
+
         /// <summary>Return a ShallowClone of step with all string fields VAR-expanded.</summary>
         public PlaytestStep ExpandStep(PlaytestStep step)
         {
             if (!HasAny) return step;
             var s = step.ShallowClone();
-            s.Path        = ExpandVars(s.Path);
-            s.Query       = ExpandVars(s.Query);
+            // Reference fields: expand to path string (stable across ticks)
+            s.Path        = ExpandVarRef(s.Path);
+            s.Query       = ExpandVarRef(s.Query);
+            // Value fields: expand to live runtime value (re-evaluated each tick)
             s.Value       = ExpandVars(s.Value);
             s.Component   = ExpandVars(s.Component);
             s.Method      = ExpandVars(s.Method);
@@ -69,7 +85,7 @@ namespace UnityMCP.Editor
             s.Message     = ExpandVars(s.Message);
             s.RawPosition = ExpandVars(s.RawPosition);
             if (s.Queries != null)
-                s.Queries = Array.ConvertAll(s.Queries, ExpandVars);
+                s.Queries = Array.ConvertAll(s.Queries, ExpandVarRef);
             if (s.BatchValues != null)
                 s.BatchValues = Array.ConvertAll(s.BatchValues, ExpandVars);
             return s;

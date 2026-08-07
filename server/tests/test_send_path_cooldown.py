@@ -70,6 +70,9 @@ class _StubBridge(UnityBridge):
             probe=self._probe, reload=self._reload,
             is_retry_safe=self._is_retry_safe, max_retries=MAX_RETRIES,
         )
+        # P-092: queue fields (see maintenance note above)
+        self._send_queue: asyncio.Queue = asyncio.Queue()
+        self._queue_consumer_task = None
 
     @property
     def connected(self) -> bool:

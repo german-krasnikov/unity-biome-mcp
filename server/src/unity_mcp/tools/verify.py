@@ -214,6 +214,8 @@ async def verify_after_change(
             console_result = await _con.get_console_since(
                 mark_id, level="error,exception,assert"
             )
+            if console_result.startswith("err: overflow:"):
+                return _fail("console_overflow", console_result, remaining_optional)
             filtered = _DROPPED_RE.sub("", console_result).strip()
             if filtered and filtered != "no logs":
                 return _fail("console_since", console_result, remaining_optional)

@@ -49,3 +49,29 @@ async def test_scene_environment_set_sends_params(scene_mod, _patch_send):
     call_args = _patch_send.call_args
     assert call_args[0][0] == "scene_environment"
     assert call_args[0][1] == {"action": "set", "prop": "fog", "value": "true"}
+
+
+# ── scene save_copy ───────────────────────────────────────────────────────────
+
+async def test_scene_save_copy_sends_correct_action(scene_mod, _patch_send):
+    await scene_mod.scene(action="save_copy", path="Assets/Backups/Scene.unity")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "scene"
+    assert call_args[0][1]["action"] == "save_copy"
+    assert call_args[0][1]["path"] == "Assets/Backups/Scene.unity"
+
+
+async def test_scene_save_copy_with_scene_identifier(scene_mod, _patch_send):
+    await scene_mod.scene(action="save_copy", path="Assets/Backups/Scene.unity", scene="Level1")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][1]["scene"] == "Level1"
+
+
+async def test_scene_save_copy_include_unsaved_not_in_args(scene_mod, _patch_send):
+    """include_unsaved exists for discoverability only; must NOT be forwarded to TCP."""
+    await scene_mod.scene(action="save_copy", path="Assets/Backups/Scene.unity", include_unsaved=False)
+
+    args = _patch_send.call_args[0][1]
+    assert "include_unsaved" not in args

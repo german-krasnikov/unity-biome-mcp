@@ -54,6 +54,14 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd();
         }
 
+        // ── Test seams ────────────────────────────────────────────────────────
+
+        /// <summary>Number of currently active monitors. For unit tests only.</summary>
+        internal static int ActiveCount => _active.Count;
+
+        /// <summary>Directly add a monitor without registry lookup. For unit tests only.</summary>
+        internal static void InjectForTest(IPlaytestMonitor m) => _active.Add(m);
+
         // For testing: reset cache
         internal static void Reset() { _types = null; _active.Clear(); }
     }

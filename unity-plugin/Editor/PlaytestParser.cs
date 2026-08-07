@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic, SetActive, Setup, Teardown }
+    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic, SetActive, Setup, Teardown, WaitStable, CaptureMin, CaptureMax, AssertMin, AssertMax }
 
     /// <summary>A script line with origin metadata (file, line number, macro call chain).</summary>
     internal struct SourcedLine
@@ -130,7 +130,8 @@ namespace UnityMCP.Editor
             "CAPTURE_FRAMES", "ASSERT_FRAMES_DIFFER", "ASSERT_FRAMES_STATIC",
             "COMMENT", "END_COMMENT",
             "SET_ACTIVE",
-            "SETUP", "SETUP_END", "TEARDOWN", "TEARDOWN_END"
+            "SETUP", "SETUP_END", "TEARDOWN", "TEARDOWN_END",
+            "WAIT_STABLE", "CAPTURE_MIN", "CAPTURE_MAX", "ASSERT_MIN", "ASSERT_MAX"
         };
 
         public static ParseResult Parse(string script, IncludeResolver resolver = null)
@@ -745,7 +746,7 @@ namespace UnityMCP.Editor
                             var untilStep = new PlaytestStep { Type = StepType.WaitUntil, RawLine = untilLine };
                             untilStep.Query = ut[1]; untilStep.Op = ut[2]; untilStep.Value = ut[3];
                             var utTiIdx = Array.FindIndex(ut, t => t.ToUpperInvariant() == "TIMEOUT");
-                            if (utTiIdx >= 0) untilStep.Timeout = float.Parse(ut[utTiIdx + 1], CultureInfo.InvariantCulture);
+                            if (utTiIdx >= 0) { untilStep.Timeout = float.Parse(ut[utTiIdx + 1], CultureInfo.InvariantCulture); untilStep.HasExplicitTimeout = true; }
                             steps.Add(untilStep);
                         }
 
@@ -771,6 +772,7 @@ namespace UnityMCP.Editor
 
                         var expectQueries = new List<string>();
                         float cpTimeout = 5f;
+                        bool cpTimeoutExplicit = false;
                         while (i + 1 < lines.Length)
                         {
                             var nextT = lines[i + 1].Trim();
@@ -778,6 +780,7 @@ namespace UnityMCP.Editor
                             if (nextT.StartsWith("TIMEOUT ", StringComparison.OrdinalIgnoreCase))
                             {
                                 cpTimeout = float.Parse(nextT.Split(new[] { ' ' }, 2)[1].Trim(), CultureInfo.InvariantCulture);
+                                cpTimeoutExplicit = true;
                                 i++;
                                 break;
                             }
@@ -795,7 +798,7 @@ namespace UnityMCP.Editor
 
                         if (expectQueries.Count > 0)
                         {
-                            var wu = new PlaytestStep { Type = StepType.WaitUntil, Timeout = cpTimeout, RawLine = line };
+                            var wu = new PlaytestStep { Type = StepType.WaitUntil, Timeout = cpTimeout, HasExplicitTimeout = cpTimeoutExplicit, RawLine = line };
                             wu.Query = expectQueries[0]; wu.Op = "=="; wu.Value = "True";
                             if (expectQueries.Count > 1)
                             {
@@ -848,7 +851,7 @@ namespace UnityMCP.Editor
                                     Type = StepType.WaitUntil, Query = et[1], Op = et[2], Value = et[3], RawLine = nextT
                                 };
                                 var etTiIdx = Array.FindIndex(et, t => t.ToUpperInvariant() == "TIMEOUT");
-                                if (etTiIdx >= 0) wu.Timeout = float.Parse(et[etTiIdx + 1], CultureInfo.InvariantCulture);
+                                if (etTiIdx >= 0) { wu.Timeout = float.Parse(et[etTiIdx + 1], CultureInfo.InvariantCulture); wu.HasExplicitTimeout = true; }
                                 steps.Add(wu);
                                 i++;
                             }
@@ -920,6 +923,74 @@ namespace UnityMCP.Editor
                     case "TEARDOWN_END":
                         parsingSection = 0; // G16: return to main section
                         continue;
+
+                    case "WAIT_STABLE":
+                    {
+                        // WAIT_STABLE /path|Comp|field DELTA d OVER t [TIMEOUT n]
+                        // step.Query = field path, step.Value = DELTA, step.Delay = OVER window, step.Timeout = max wait
+                        if (tokens.Length < 6) throw new ArgumentException("WAIT_STABLE syntax: WAIT_STABLE /path|Comp|field DELTA d OVER t [TIMEOUT n]");
+                        step.Type = StepType.WaitStable;
+                        step.Query = tokens[1];
+                        var wsDelIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "DELTA");
+                        if (wsDelIdx >= 0 && wsDelIdx + 1 < tokens.Length)
+                            step.Value = tokens[wsDelIdx + 1];
+                        var wsOvIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "OVER");
+                        if (wsOvIdx >= 0 && wsOvIdx + 1 < tokens.Length)
+                            step.Delay = float.Parse(tokens[wsOvIdx + 1], CultureInfo.InvariantCulture);
+                        var wsTiIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "TIMEOUT");
+                        if (wsTiIdx >= 0 && wsTiIdx + 1 < tokens.Length)
+                            step.Timeout = float.Parse(tokens[wsTiIdx + 1], CultureInfo.InvariantCulture);
+                        break;
+                    }
+
+                    case "CAPTURE_MIN":
+                    {
+                        // CAPTURE_MIN $name /path|Comp|field OVER t
+                        // step.Message = tracker name, step.Query = field path, step.Delay = OVER window
+                        if (tokens.Length < 3) throw new ArgumentException("CAPTURE_MIN syntax: CAPTURE_MIN $name /path|Comp|field [OVER t]");
+                        step.Type = StepType.CaptureMin;
+                        step.Message = tokens[1].TrimStart('$');
+                        step.Query = tokens[2];
+                        var cmOvIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "OVER");
+                        if (cmOvIdx >= 0 && cmOvIdx + 1 < tokens.Length)
+                            step.Delay = float.Parse(tokens[cmOvIdx + 1], CultureInfo.InvariantCulture);
+                        break;
+                    }
+
+                    case "CAPTURE_MAX":
+                    {
+                        // CAPTURE_MAX $name /path|Comp|field OVER t
+                        if (tokens.Length < 3) throw new ArgumentException("CAPTURE_MAX syntax: CAPTURE_MAX $name /path|Comp|field [OVER t]");
+                        step.Type = StepType.CaptureMax;
+                        step.Message = tokens[1].TrimStart('$');
+                        step.Query = tokens[2];
+                        var cxOvIdx = Array.FindIndex(tokens, t => t.ToUpperInvariant() == "OVER");
+                        if (cxOvIdx >= 0 && cxOvIdx + 1 < tokens.Length)
+                            step.Delay = float.Parse(tokens[cxOvIdx + 1], CultureInfo.InvariantCulture);
+                        break;
+                    }
+
+                    case "ASSERT_MIN":
+                    {
+                        // ASSERT_MIN $name op value
+                        if (tokens.Length < 4) throw new ArgumentException("ASSERT_MIN syntax: ASSERT_MIN $name op value");
+                        step.Type = StepType.AssertMin;
+                        step.Message = tokens[1].TrimStart('$');
+                        step.Op = tokens[2];
+                        step.Value = tokens[3];
+                        break;
+                    }
+
+                    case "ASSERT_MAX":
+                    {
+                        // ASSERT_MAX $name op value
+                        if (tokens.Length < 4) throw new ArgumentException("ASSERT_MAX syntax: ASSERT_MAX $name op value");
+                        step.Type = StepType.AssertMax;
+                        step.Message = tokens[1].TrimStart('$');
+                        step.Op = tokens[2];
+                        step.Value = tokens[3];
+                        break;
+                    }
 
                     default:
                         throw new ArgumentException($"Unknown command: {cmd}");
@@ -1243,7 +1314,7 @@ namespace UnityMCP.Editor
 
         // ── Tokenizer: bracket/quote-aware split ───────────────────────────────
 
-        private static string[] SplitTokens(string line)
+        internal static string[] SplitTokens(string line)
         {
             var tokens = new List<string>();
             var sb = new StringBuilder();

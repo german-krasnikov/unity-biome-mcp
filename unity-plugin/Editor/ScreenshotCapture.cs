@@ -24,7 +24,7 @@ namespace UnityMCP.Editor
             // Play Mode: capture composited Game View (includes all URP effects)
             bool isGameCamera = string.IsNullOrEmpty(cameraName) || cameraName == "game";
             if (EditorApplication.isPlaying && isGameCamera)
-                return CaptureGameViewPng();
+                return CaptureGameViewPng(width, height);
 
             // Scene View: read already-URP-rendered buffer from scene camera
             if (cameraName != null && cameraName.StartsWith("scene_view"))
@@ -41,12 +41,36 @@ namespace UnityMCP.Editor
             if (gameView != null) gameView.Focus();
         }
 
-        private static byte[] CaptureGameViewPng()
+        private static byte[] CaptureGameViewPng(int requestedWidth, int requestedHeight)
         {
             FocusGameView();
             var tex = ScreenCapture.CaptureScreenshotAsTexture();
-            try { return tex.EncodeToPNG(); }
+            byte[] pngData;
+            try { pngData = tex.EncodeToPNG(); }
             finally { UnityEngine.Object.DestroyImmediate(tex); }
+
+            // P-317: validate dimensions; fall back to camera render when strip-shaped
+            try
+            {
+                var (actualW, actualH) = ReadPngDimensions(pngData);
+                bool suspect = (actualH < 50 && requestedHeight >= 200)
+                            || (actualW < 50 && requestedWidth >= 200);
+                if (suspect)
+                    return RenderCameraPng(FindCamera(null), requestedWidth, requestedHeight);
+            }
+            catch { /* IHDR unreadable — return as-is */ }
+
+            return pngData;
+        }
+
+        /// <summary>Read width and height from PNG IHDR. Bytes 16-23 (after 8-byte sig + 8-byte chunk header).</summary>
+        internal static (int w, int h) ReadPngDimensions(byte[] png)
+        {
+            if (png == null || png.Length < 24)
+                throw new ArgumentException("PNG data too short to contain IHDR dimensions");
+            int w = (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19];
+            int h = (png[20] << 24) | (png[21] << 16) | (png[22] << 8) | png[23];
+            return (w, h);
         }
 
         private static byte[] CaptureSceneViewPng(string cameraName, int width, int height)
@@ -179,7 +203,10 @@ namespace UnityMCP.Editor
                 Debug.LogWarning($"[Screenshot] Camera '{cameraName}' not found; falling back to Main Camera.");
             }
 
-            if (Camera.main != null) return Camera.main;
+            // P-109: Camera.main can return a destroyed Camera during LoadScene frame boundary.
+            // A destroyed UnityEngine.Object passes != null but has a null gameObject.
+            var mainCam = Camera.main;
+            if (mainCam != null && mainCam.gameObject != null) return mainCam;
 
             var allCameras = Camera.allCameras;
             if (allCameras.Length > 0) return allCameras[0];

@@ -547,6 +547,69 @@ namespace UnityMCP.Editor
                     phase = Phase.Done;
                     break;
                 }
+
+                case StepType.WaitStable:
+                    // P-110: register the rolling window in state, then wait via WaitingStable phase
+                    state.StartStableWindow(step.Query);
+                    phase = Phase.WaitingStable;
+                    phaseStart = Time.realtimeSinceStartup;
+                    break;
+
+                case StepType.CaptureMin:
+                    // P-305: register a running minimum tracker; polling happens in PollExtrema each tick
+                    state.StartTrackMin(step.Message, step.Query);
+                    results.Add($"{label} CAPTURE_MIN {step.Message} started (query={step.Query})");
+                    passed++;
+                    phase = Phase.Done;
+                    break;
+
+                case StepType.CaptureMax:
+                    // P-305: register a running maximum tracker
+                    state.StartTrackMax(step.Message, step.Query);
+                    results.Add($"{label} CAPTURE_MAX {step.Message} started (query={step.Query})");
+                    passed++;
+                    phase = Phase.Done;
+                    break;
+
+                case StepType.AssertMin:
+                    try
+                    {
+                        var minVal = state.GetMin(step.Message);
+                        var minOk = PlaytestParser.Compare(
+                            minVal.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            step.Op, step.Value);
+                        var minLine = $"{label} ASSERT_MIN {step.Message} {step.Op} {step.Value} — {(minOk ? "PASS" : "FAIL")} (min={minVal})";
+                        if (!minOk)
+                        {
+                            minLine += FormatProvenance(step);
+                            if (snapshotOnFailure) minLine += "\n" + BuildFailureSnapshot(step, config);
+                        }
+                        results.Add(minLine);
+                        if (minOk) passed++; else failed++;
+                    }
+                    catch (Exception e) { results.Add($"{label} ASSERT_MIN {step.Message} — ERR: {e.Message}"); failed++; }
+                    phase = Phase.Done;
+                    break;
+
+                case StepType.AssertMax:
+                    try
+                    {
+                        var maxVal = state.GetMax(step.Message);
+                        var maxOk = PlaytestParser.Compare(
+                            maxVal.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            step.Op, step.Value);
+                        var maxLine = $"{label} ASSERT_MAX {step.Message} {step.Op} {step.Value} — {(maxOk ? "PASS" : "FAIL")} (max={maxVal})";
+                        if (!maxOk)
+                        {
+                            maxLine += FormatProvenance(step);
+                            if (snapshotOnFailure) maxLine += "\n" + BuildFailureSnapshot(step, config);
+                        }
+                        results.Add(maxLine);
+                        if (maxOk) passed++; else failed++;
+                    }
+                    catch (Exception e) { results.Add($"{label} ASSERT_MAX {step.Message} — ERR: {e.Message}"); failed++; }
+                    phase = Phase.Done;
+                    break;
             }
         }
     }

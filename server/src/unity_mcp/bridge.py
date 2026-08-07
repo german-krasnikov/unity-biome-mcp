@@ -8,6 +8,7 @@ import re
 import socket
 import struct
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,7 +37,7 @@ from unity_mcp.metrics import METRICS
 
 # Re-export so existing `from .bridge import DomainReloadError` keeps working
 __all__ = [
-    "UnityBridge", "DomainReloadError", "BridgeState",
+    "UnityBridge", "DomainReloadError", "BridgeState", "DeliveryState",
     "MIN_RECONNECT_INTERVAL", "DOMAIN_RELOAD_EXPIRY_S",
     "_apply_socket_options",
     "_TCP_KEEPALIVE_DARWIN", "_TCP_KEEPINTVL_DARWIN",
@@ -97,6 +98,14 @@ class BridgeState(enum.Enum):
     FAILED = "failed"  # startup grace expired
 
 
+class DeliveryState(enum.Enum):
+    """Tracks per-attempt write/read lifecycle for idempotent retry (P-322)."""
+    UNSENT = "unsent"       # not yet written to socket
+    SENT = "sent"           # written + drained; response not yet received
+    DELIVERED = "delivered" # response received
+    FAILED = "failed"       # error before or after write
+
+
 class _CandidateIdentityError(ConnectionError):
     """A TCP endpoint answered, but could not prove it is the intended Editor."""
 
@@ -154,6 +163,9 @@ class UnityBridge(HeartbeatMixin):
             probe=self._probe, reload=self._reload,
             is_retry_safe=self._is_retry_safe, max_retries=MAX_RETRIES,
         )
+        # P-092: serialize concurrent requests through a single consumer task.
+        self._send_queue: asyncio.Queue = asyncio.Queue()
+        self._queue_consumer_task: asyncio.Task | None = None
 
     @property
     def _startup_grace_expired(self) -> bool:
@@ -216,16 +228,60 @@ class UnityBridge(HeartbeatMixin):
                 raise ConnectionError(self._describe_failure(cmd, ConnectionRefusedError())) from None
         self._counter += 1
         msg_id = f"{self._counter:04x}"
-        payload = json.dumps({"id": msg_id, "cmd": cmd, "args": args}, ensure_ascii=False).encode("utf-8")
+        operation_id = str(uuid.uuid4())  # P-322: idempotency key for dedup
+        payload = json.dumps(
+            {"id": msg_id, "cmd": cmd, "args": args, "op_id": operation_id},
+            ensure_ascii=False,
+        ).encode("utf-8")
         if len(payload) > 10_000_000:
             raise ConnectionError(f"Outbound payload too large: {len(payload)} bytes (max 10MB)")
         session_deadline = time.monotonic() + SESSION_TIMEOUT
-        return await self._send_with_retry(cmd, payload, msg_id, timeout, session_deadline)
+        future: asyncio.Future = asyncio.get_event_loop().create_future()
+        if self._queue_consumer_task is None or self._queue_consumer_task.done():
+            self._queue_consumer_task = asyncio.ensure_future(self._queue_consumer())
+        await self._send_queue.put((cmd, payload, msg_id, timeout, session_deadline, operation_id, future))
+        try:
+            return await future
+        except asyncio.CancelledError:
+            await self.close()
+            raise
+
+    async def _queue_consumer(self) -> None:
+        """Serial consumer: processes one send at a time so the circuit breaker
+        and TCP socket always see exactly one in-flight request (P-092)."""
+        while True:
+            try:
+                cmd, payload, msg_id, timeout, deadline, op_id, future = (
+                    await self._send_queue.get()
+                )
+            except asyncio.CancelledError:
+                break
+            try:
+                result = await self._send_with_retry(cmd, payload, msg_id, timeout, deadline, op_id)
+                if not future.done():
+                    future.set_result(result)
+            except asyncio.CancelledError:
+                if not future.done():
+                    future.cancel()
+                raise
+            except Exception as exc:  # noqa: BLE001
+                if not future.done():
+                    future.set_exception(exc)
+            finally:
+                self._send_queue.task_done()
 
     async def _send_with_retry(self, cmd: str, payload: bytes,
-                               msg_id: str, timeout: float, session_deadline: float) -> dict:
+                               msg_id: str, timeout: float, session_deadline: float,
+                               operation_id: str = "") -> dict:
+        """Send cmd with retry loop.
+
+        operation_id (P-322): UUID included in payload as op_id so C# can dedup
+        retries. On retry after a SENT state (write OK, read failed) the payload
+        is rebuilt with 'retry_op_id' so Unity knows to check its dedup registry.
+        """
         attempt = 0
         result = None
+        delivery = DeliveryState.UNSENT  # P-322: delivery FSM
         # Join the connection lock before applying the first-attempt cooldown.
         # A concurrent sender may be performing the one shared reconnect; after
         # it completes, this sender can reuse the live socket without starting
@@ -240,7 +296,7 @@ class UnityBridge(HeartbeatMixin):
             if time.monotonic() > session_deadline:
                 raise TimeoutError(f"Session deadline ({SESSION_TIMEOUT}s) exceeded")
 
-            _payload_sent = False
+            delivery = DeliveryState.UNSENT  # reset per attempt
             try:
                 async with self._lock:
                     if not self.connected:
@@ -249,7 +305,7 @@ class UnityBridge(HeartbeatMixin):
                         METRICS.inc("reconnect.send_path")
                     frame_write(self._writer, payload)
                     await self._writer.drain()
-                    _payload_sent = True
+                    delivery = DeliveryState.SENT  # P-322: write committed
                     try:
                         result = await asyncio.wait_for(
                             self._read_response(), timeout=timeout)
@@ -261,7 +317,7 @@ class UnityBridge(HeartbeatMixin):
                     RuntimeError) as e:
                 if isinstance(e, DomainReloadError):
                     self._reload.mark()
-                elif isinstance(e, asyncio.TimeoutError) and _payload_sent and self._reload.is_active():
+                elif isinstance(e, asyncio.TimeoutError) and delivery == DeliveryState.SENT and self._reload.is_active():
                     # P-183: read timeout after payload delivered → Unity was processing
                     # the command (not reloading). Clear stale reload flag so next
                     # send() isn't immediately blocked by DomainReloadError.
@@ -281,6 +337,12 @@ class UnityBridge(HeartbeatMixin):
                                                path="send")
                 if do_retry:
                     attempt += 1
+                    # P-322: if payload was already written (SENT), the retry must carry
+                    # retry_op_id so C# DedupRegistry can detect and suppress re-execution.
+                    if delivery == DeliveryState.SENT and operation_id:
+                        raw = json.loads(payload.decode("utf-8"))
+                        raw["retry_op_id"] = operation_id
+                        payload = json.dumps(raw, ensure_ascii=False).encode("utf-8")
                     jitter = random.uniform(0, delay * 0.1)
                     if reason == "domain_reload":
                         self._reload_gate.clear()
@@ -325,6 +387,7 @@ class UnityBridge(HeartbeatMixin):
                     continue
                 return result
 
+            delivery = DeliveryState.DELIVERED  # P-322: response received
             self._reload.clear()
             self._state = BridgeState.CONNECTED
             if self._first_failure_ts is not None:
@@ -588,9 +651,31 @@ class UnityBridge(HeartbeatMixin):
             return "domain-reloading"
         return "reconnecting"
 
+    @property
+    def transport_status(self) -> str:
+        """TCP transport layer status — independent of stdio health."""
+        if self._writer is not None and not self._writer.is_closing():
+            return "tcp:connected"
+        if self._state == BridgeState.FAILED:
+            return "tcp:failed"
+        return "tcp:reconnecting"
+
     async def close(self):
         if asyncio.current_task() is not self._heartbeat_task:
             self.stop_heartbeat()
+        if asyncio.current_task() is not self._queue_consumer_task:
+            task, self._queue_consumer_task = self._queue_consumer_task, None
+            if task is not None and not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+            while not self._send_queue.empty():
+                try:
+                    *_, future = self._send_queue.get_nowait()
+                    if not future.done():
+                        future.set_exception(ConnectionError("Bridge closed"))
+                except asyncio.QueueEmpty:  # noqa: PERF203
+                    break
         w = self._writer
         self._writer = None
         self._reader = None

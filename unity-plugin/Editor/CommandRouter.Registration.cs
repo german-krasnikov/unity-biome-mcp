@@ -480,7 +480,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "shader")), mutating: true,
                 required: "path", optional: "color,shader");
             CommandRegistry.Register("scene", ExecScene, mutating: true,
-                required: "action", optional: "path,scene");
+                required: "action", optional: "path,scene,include_unsaved");
             CommandRegistry.Register("animation", ExecAnimationConsolidated, mutating: true,
                 required: "action,path", optional: "clip,clip_name,property,keys,time,component_type,binding_path,tangent,function_name,int_param,float_param,string_param");
             CommandRegistry.Register("timeline", ExecTimelineConsolidated, mutating: false,

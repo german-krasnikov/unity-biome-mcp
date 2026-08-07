@@ -36,6 +36,9 @@ namespace UnityMCP.Editor
         internal static Func<bool> IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
         internal static Func<string, bool> IsToolEnabledFn = MCPSettings.IsToolEnabled;
 
+        // P-322: dedup registry — prevents re-executing retried mutations after lost ACK.
+        internal static DedupRegistry _dedupRegistry = new DedupRegistry();
+
         // Feature 3: recent command history for smart checkpoint naming
         internal static readonly Queue<string> _recentCmds = new Queue<string>();
 
@@ -86,6 +89,16 @@ namespace UnityMCP.Editor
             {
                 var id = JsonHelper.ExtractString(json, "id");
                 var cmd = JsonHelper.ExtractString(json, "cmd");
+
+                var retryOpId = JsonHelper.ExtractString(json, "retry_op_id");
+                if (retryOpId != null)
+                {
+                    var cachedResult = _dedupRegistry.TryGetResult(retryOpId);
+                    if (cachedResult != null)
+                        return JsonHelper.FormatResponse(id, true, cachedResult, null);
+                }
+
+                var opId = JsonHelper.ExtractString(json, "op_id");
 
                 var guard = CheckGuards(id, cmd);
                 if (guard != null) return guard;
@@ -148,7 +161,10 @@ namespace UnityMCP.Editor
                 }
                 if (batchHasErrors)
                     return JsonHelper.FormatResponse(id, false, null, data);
-                return BuildResponse(id, data, CommandRegistry.GetMaxResponseChars(cmd));
+                var response = BuildResponse(id, data, CommandRegistry.GetMaxResponseChars(cmd));
+                if (opId != null)
+                    _dedupRegistry.TryRegister(opId, data);
+                return response;
             }
             catch (Exception e)
             {

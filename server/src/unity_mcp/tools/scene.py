@@ -73,10 +73,13 @@ async def get_hierarchy(depth: int = 2, root: str | None = None, filter: str | N
     return result
 
 
-async def scene(action: str, path: str | None = None, scene: str | None = None) -> str:
-    """Scene management. action: new|open|save|discard|open_additive|close|set_active|list.
-    path: required for open/save/open_additive/close/set_active. list requires no path.
-    scene: save/discard target when multiple scenes loaded (identifies by name)."""
+async def scene(action: str, path: str | None = None, scene: str | None = None,
+                include_unsaved: bool = True) -> str:
+    """Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.
+    path: required for open/save/open_additive/close/set_active/save_copy. list requires no path.
+    scene: save/discard/save_copy target when multiple scenes loaded (identifies by name).
+    save_copy: writes current dirty state to path as backup; active scene reference unchanged.
+    include_unsaved: always True — save_copy always captures current in-memory state."""
     return await _send("scene", _args(action=action, path=path, scene=scene))
 
 

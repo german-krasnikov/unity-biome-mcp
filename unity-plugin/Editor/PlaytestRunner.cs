@@ -10,7 +10,7 @@ namespace UnityMCP.Editor
     [InitializeOnLoad]
     internal static partial class PlaytestRunner
     {
-        enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, Done }
+        enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, WaitingStable, Done }
 
         static PlaytestRunner()
         {
@@ -145,6 +145,7 @@ namespace UnityMCP.Editor
                 if (_freshMode && phase == Phase.Ready && stepIdx == 0 && !_freshReloadDone && !_freshLoadInProgress)
                 {
                     _freshLoadInProgress = true;
+                    PrepareForFreshLoad(); // P-109/P-291: stop monitors before scene objects are destroyed
                     UnityEngine.SceneManagement.SceneManager.LoadScene(
                         UnityEngine.SceneManagement.SceneManager.GetActiveScene().name,
                         UnityEngine.SceneManagement.LoadSceneMode.Single);
@@ -161,9 +162,17 @@ namespace UnityMCP.Editor
                     return;
                 }
 
-                // Check invariants and conserved constraints every tick
-                state.CheckInvariants(config, Time.frameCount, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
-                state.CheckConserved(config, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
+                // Check invariants and conserved constraints every tick.
+                // P-291: skip during LoadingFresh — scene objects are destroyed; any
+                // ReadValue call would throw MissingReferenceException.
+                if (phase != Phase.LoadingFresh)
+                {
+                    state.CheckInvariants(config, Time.frameCount, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
+                    state.CheckConserved(config, q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
+                }
+
+                // P-305: poll running min/max trackers every tick (no-op when no trackers active)
+                state.PollExtrema(q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
 
                 var step = steps[stepIdx];
 
@@ -324,6 +333,38 @@ namespace UnityMCP.Editor
                         }
                         break;
                     }
+
+                    case Phase.WaitingStable:
+                    {
+                        // P-110: poll the rolling window; succeed when range ≤ DELTA over the full OVER window
+                        float wsNow = Time.realtimeSinceStartup;
+                        float wsDelta = float.TryParse(step.Value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var parsedDelta) ? parsedDelta : 0f;
+                        float wsWindow = step.Delay; // OVER duration
+                        float wsTimeout = step.Timeout > 0 ? step.Timeout : 5f;
+
+                        try
+                        {
+                            bool stable = state.PollStable(wsNow, wsDelta, wsWindow,
+                                q => { var (p,c,f) = PlaytestParser.ResolveQuery(q, config); return ReadValue(p,c,f); });
+                            if (stable)
+                            {
+                                results.Add($"[{stepIdx + 1}] WAIT_STABLE {step.Query} DELTA {step.Value} OVER {wsWindow} — PASS ({(wsNow - phaseStart).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)");
+                                passed++;
+                                phase = Phase.Done;
+                                AdvanceStep();
+                            }
+                            else if (wsNow - phaseStart > wsTimeout)
+                            {
+                                results.Add($"[{stepIdx + 1}] WAIT_STABLE {step.Query} — TIMEOUT after {wsTimeout}s (value still oscillating)" + FormatProvenance(step));
+                                failed++;
+                                phase = Phase.Done;
+                                AdvanceStep();
+                            }
+                        }
+                        catch { /* keep polling */ }
+                        break;
+                    }
                 }
                 }
                 catch (Exception e)
@@ -357,6 +398,18 @@ namespace UnityMCP.Editor
         static bool _freshLoadInProgress; // G1: guard against calling LoadScene twice
 
         // ── Test hooks ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Stop all active monitors before a fresh scene load.
+        /// Called by Tick() immediately before SceneManager.LoadScene to prevent
+        /// MissingReferenceException callbacks after GameObjects are destroyed (P-109/P-291).
+        /// Internal so unit tests can verify it clears the monitor registry.
+        /// </summary>
+        internal static void PrepareForFreshLoad()
+        {
+            PlaytestMonitorRegistry.StopAll();
+        }
+
         /// <summary>True when fresh mode should trigger a new scene load (all guards clear).</summary>
         internal static bool ShouldStartFreshLoad => _freshMode && !_freshReloadDone && !_freshLoadInProgress;
 

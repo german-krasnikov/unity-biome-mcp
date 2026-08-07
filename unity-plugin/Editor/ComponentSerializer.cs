@@ -21,8 +21,12 @@ namespace UnityMCP.Editor
         public static string Serialize(string path, string typeName)
         {
             var go = FindObject(path);
-            if (go == null) return null;
+            return go == null ? null : Serialize(go, typeName);
+        }
 
+        public static string Serialize(GameObject go, string typeName)
+        {
+            if (go == null) return null;
             var component = FindComponent(go, typeName);
             if (component == null) return null;
 
@@ -166,7 +170,7 @@ namespace UnityMCP.Editor
                     if (prop.objectReferenceValue is GameObject refGo)
                         return $"{GetPath(refGo)} #{TransientObjectId.GetWireValue(refGo)}";
                     if (prop.objectReferenceValue is Component refComp)
-                        return $"{GetPath(refComp.gameObject)} #{TransientObjectId.GetWireValue(refComp.gameObject)} ({refComp.GetType().Name})";
+                        return $"{GetPath(refComp.gameObject)}::{refComp.GetType().Name} #{TransientObjectId.GetComponentWireValue(refComp)}";
                     return $"{prop.objectReferenceValue.name} #{TransientObjectId.GetWireValue(prop.objectReferenceValue)}";
                 case SerializedPropertyType.LayerMask:
                     var lsb = new StringBuilder();

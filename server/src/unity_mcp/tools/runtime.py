@@ -6,6 +6,8 @@ from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
+from .editor_state import is_paused as _is_paused
+from .editor_state import is_play_mode as _is_play_mode
 
 _send = None
 _args = None
@@ -183,14 +185,12 @@ async def run_playtest_suite(
     if auto_play:
         import asyncio as _asyncio
         state = await _send("editor", _args(action="state"), timeout=5.0)
-        _lower = state.lower()
-        if "state: playing" not in _lower and "state: paused" not in _lower:
+        if not _is_play_mode(state) and not _is_paused(state):
             await _send("editor", _args(action="play"), timeout=5.0)
             for _ in range(15):
                 await _asyncio.sleep(1.0)
                 state = await _send("editor", _args(action="state"), timeout=5.0)
-                _lower = state.lower()
-                if "state: playing" in _lower or "state: paused" in _lower:
+                if _is_play_mode(state) or _is_paused(state):
                     break
 
     if suite_path:
@@ -228,7 +228,7 @@ async def run_playtest_suite(
                 for _ in range(15):
                     await _asyncio.sleep(1.0)
                     s = await _send("editor", _args(action="state"), timeout=5.0)
-                    if "state: playing" in s.lower():
+                    if _is_play_mode(s):
                         break
             except Exception:
                 pass  # best-effort

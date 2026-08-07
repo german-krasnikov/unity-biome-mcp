@@ -165,7 +165,7 @@ async def test_auto_play_false_does_not_call_editor(mock_bridge):
 
 
 async def test_auto_play_true_enters_play_when_not_playing(mock_bridge):
-    """auto_play=True: calls editor(play) when state does not contain 'state: playing'."""
+    """auto_play=True: calls editor(play) when playing:False in state response."""
     files = ["a.playtest"]
     call_log = []
 
@@ -176,9 +176,9 @@ async def test_auto_play_true_enters_play_when_not_playing(mock_bridge):
         if cmd == "editor":
             action = args.get("action", "")
             if action == "state":
-                # After play is called, return playing; before, return edit
-                played = any(a == "play" for _, a in [(c, d.get("action", "")) for c, d in call_log])
-                return {"ok": True, "data": "state: playing" if played else "state: edit"}
+                played = any(d.get("action") == "play" for _, d in call_log)
+                state = "playing:True\npaused:False\n" if played else "playing:False\npaused:False\n"
+                return {"ok": True, "data": state}
             return {"ok": True, "data": "ok"}
         if cmd == "run_playtest":
             return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
@@ -191,14 +191,14 @@ async def test_auto_play_true_enters_play_when_not_playing(mock_bridge):
 
 
 async def test_auto_play_true_skips_play_when_already_playing(mock_bridge):
-    """auto_play=True: does NOT call play when already in play mode."""
+    """auto_play=True: does NOT call play when playing:True in state response."""
     files = ["a.playtest"]
 
     async def dispatch(cmd, args, timeout=30.0):
         if cmd == "list_playtest_files":
             return {"ok": True, "data": "\n".join(files)}
         if cmd == "editor":
-            return {"ok": True, "data": "state: playing"}
+            return {"ok": True, "data": "playing:True\npaused:False\ncompiling:False\n"}
         if cmd == "run_playtest":
             return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
         return {"ok": True, "data": "ok"}

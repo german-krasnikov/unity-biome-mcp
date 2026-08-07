@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void LintScript_CleanScript_ExistingObject_ReturnsEmpty()
         {
-            new GameObject("LintPlayer");
+            TrackOwnedObject(new GameObject("LintPlayer"));
             var issues = SceneRefLinter.LintScript("ASSERT /LintPlayer|Transform|position == 0,0,0");
             Assert.AreEqual(0, issues.Count);
         }
@@ -106,6 +106,36 @@ namespace UnityMCP.Editor.Tests
             foreach (var issue in issues)
                 Assert.IsFalse(issue.Token.Contains(','),
                     $"Linter must split comma-separated tokens; found unsplit: '{issue.Token}'");
+        }
+
+        // ── P-287: bracket-aware tokenizer ────────────────────────────────────────
+
+        [Test]
+        public void Linter_BracketProtectedPath_NotSplitOnSpace()
+        {
+            // Naive Split(' ','\t') breaks "[Zone A/Zone B]|Health" into
+            // tokens "[Zone", "A/Zone", "B]|Health" — false MISS on "B]|Health".
+            // After fix (SplitTokens): bracket content is one token.
+            var script = "ASSERT [Zone A/Zone B]|Health == 100";
+            var issues = SceneRefLinter.LintScript(script);
+            foreach (var issue in issues)
+                Assert.AreNotEqual("B]|Health", issue.Token,
+                    "Bracket-protected path must not be split on spaces; found false token 'B]|Health'");
+        }
+
+        [Test]
+        public void Linter_CommaArgAfterPath_ZeroNotTreatedAsPath()
+        {
+            // FillPrimaryItemByPath /path,0 — "0" after comma must not be linted as path.
+            // Neither naive split nor SplitTokens change the space-split here;
+            // the G14 comma handler must produce "/path" and "0" where "0" fails IsPathToken.
+            var script = "INVOKE /LintPlayer FillPrimaryItemByPath /item_path,0";
+            TrackOwnedObject(new GameObject("LintPlayer"));
+            // Only "/item_path" (missing) may be flagged; "0" must never appear as an issue token.
+            var issues = SceneRefLinter.LintScript(script);
+            foreach (var issue in issues)
+                Assert.AreNotEqual("0", issue.Token,
+                    "Numeric comma-arg '0' must not be linted as a path token");
         }
     }
 }

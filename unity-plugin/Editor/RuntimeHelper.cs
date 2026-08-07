@@ -16,6 +16,26 @@ namespace UnityMCP.Editor
         // key: (declaring Type, stripped method name); cleared on domain reload
         private static readonly Dictionary<(Type, string), MethodInfo> _methodCache = new();
 
+        // Built-in converters registered at domain load; read-only after that
+        private static readonly IArgumentConverter[] _builtInConverters =
+        {
+            new Hash128Converter(),
+            new LayerMaskConverter()
+        };
+
+        private static readonly List<IArgumentConverter> _converters =
+            new List<IArgumentConverter>(_builtInConverters);
+
+        /// <summary>Register a custom argument converter for project-specific types.</summary>
+        internal static void RegisterConverter(IArgumentConverter c) => _converters.Add(c);
+
+        /// <summary>Reset to built-in converters only — for test isolation.</summary>
+        internal static void ResetConvertersForTesting()
+        {
+            _converters.Clear();
+            _converters.AddRange(_builtInConverters);
+        }
+
         [InitializeOnLoadMethod]
         static void HookReload()
         {
@@ -28,6 +48,9 @@ namespace UnityMCP.Editor
                     _activeTcs.Clear();
                 }
                 _methodCache.Clear();
+                // Reset to built-ins; project converters re-register via [InitializeOnLoadMethod]
+                _converters.Clear();
+                _converters.AddRange(_builtInConverters);
             };
         }
 
@@ -60,8 +83,26 @@ namespace UnityMCP.Editor
                 int ParamScore(MethodInfo m) => m.GetParameters().Sum(p =>
                     p.ParameterType == typeof(Vector3) ? 3 :
                     p.ParameterType == typeof(Vector2) ? 2 : 1);
-                method = candidates.FirstOrDefault(m => ParamScore(m) == suppliedParts)
-                      ?? candidates[0];
+                var scored = candidates.Where(m => ParamScore(m) == suppliedParts).ToList();
+                if (scored.Count == 1)
+                {
+                    method = scored[0];
+                }
+                else if (scored.Count == 0)
+                {
+                    var expected = candidates.Select(m => ParamScore(m).ToString()).Distinct();
+                    throw new ArgumentException(
+                        $"Not enough or too many args for '{methodName}': " +
+                        $"supplied {suppliedParts}, expected one of [{string.Join(", ", expected)}] arg slots.");
+                }
+                else
+                {
+                    var sigs = candidates.Select(m =>
+                        $"{m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
+                    throw new ArgumentException(
+                        $"Ambiguous method '{methodName}': {string.Join(" | ", sigs)}. " +
+                        "Specify exact arg count or use parameter_types= to disambiguate.");
+                }
             }
 
             var parameters = method.GetParameters();
@@ -440,7 +481,7 @@ namespace UnityMCP.Editor
             return result;
         }
 
-        private static object ConvertValue(string value, Type targetType)
+        internal static object ConvertValue(string value, Type targetType)
         {
             if (targetType == typeof(bool))
                 return ValueParser.ParseBool(value);
@@ -456,7 +497,48 @@ namespace UnityMCP.Editor
             }
             if (targetType.IsEnum)
                 return Enum.Parse(targetType, value, ignoreCase: true);
-            return Convert.ChangeType(value, targetType, System.Globalization.CultureInfo.InvariantCulture);
+
+            // Component-reference syntax: @/path|CompType or @/path (uses targetType.Name)
+            if (value.StartsWith("@", StringComparison.Ordinal)
+                && typeof(Component).IsAssignableFrom(targetType))
+            {
+                var refStr = value.Substring(1);
+                var pipeIdx = refStr.IndexOf('|');
+                var objPath = pipeIdx >= 0 ? refStr.Substring(0, pipeIdx) : refStr;
+                var typeName = pipeIdx >= 0 ? refStr.Substring(pipeIdx + 1) : targetType.Name;
+                var refGo = ComponentSerializer.FindObject(objPath);
+                if (refGo == null)
+                    throw new ArgumentException($"Object not found: {objPath}");
+                var comp = ComponentSerializer.FindComponent(refGo, typeName);
+                if (comp == null)
+                    throw new ArgumentException($"Component {typeName} not found on {objPath}");
+                return comp;
+            }
+
+            // Registered converters (built-ins: Hash128, LayerMask; project-specific via RegisterConverter)
+            foreach (var conv in _converters)
+                if (conv.CanConvert(targetType, value)) return conv.Convert(value, targetType);
+
+            // IConvertible fallback, then reflection Parse(string), then fail-closed
+            try
+            {
+                return Convert.ChangeType(value, targetType, System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch (Exception)
+            {
+                var parseMethod = targetType.GetMethod("Parse", new[] { typeof(string) });
+                if (parseMethod != null)
+                {
+                    try { return parseMethod.Invoke(null, new object[] { value }); }
+                    catch (TargetInvocationException e)
+                    {
+                        throw new ArgumentException(
+                            $"Cannot convert '{value}' to {targetType.Name}: {e.InnerException?.Message ?? e.Message}");
+                    }
+                }
+                throw new ArgumentException(
+                    $"Cannot convert '{value}' to {targetType.Name}: no registered converter, IConvertible, or Parse(string) method found");
+            }
         }
     }
 }

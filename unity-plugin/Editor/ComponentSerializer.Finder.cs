@@ -252,6 +252,17 @@ namespace UnityMCP.Editor
             return dot >= 0 ? typeName.Substring(dot + 1) : typeName;
         }
 
+        /// <summary>Resolves "path::TypeName #componentId" wire ref to the exact Component.</summary>
+        internal static Component FindComponentByRef(string wireRef)
+        {
+            if (string.IsNullOrEmpty(wireRef)) return null;
+            var hashIdx = wireRef.LastIndexOf('#');
+            if (hashIdx < 0) return null;
+            var idStr = wireRef.Substring(hashIdx + 1).Trim();
+            if (!TransientObjectId.TryParse(idStr, out var objectId)) return null;
+            return objectId.Resolve() as Component;
+        }
+
         internal static Component FindComponent(GameObject go, string typeName)
         {
             var shortName = InputNormalizer.NormalizeComponent(StripNamespace(typeName), go);
@@ -264,6 +275,11 @@ namespace UnityMCP.Editor
                 var bt = t.Name.IndexOf('`');
                 if (bt > 0 && t.Name.Substring(0, bt).Equals(shortName, System.StringComparison.OrdinalIgnoreCase))
                     return comp;
+            }
+            if (shortName == "Transform")
+            {
+                var rt = go.GetComponent<RectTransform>();
+                if (rt != null) return rt;
             }
             return null;
         }

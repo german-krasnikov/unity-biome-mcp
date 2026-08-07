@@ -182,8 +182,9 @@ namespace UnityMCP.Editor
 
         static string ValidateMove(string argsJson)
         {
-            var source = JsonHelper.ExtractString(argsJson, "source");
-            var dest   = JsonHelper.ExtractString(argsJson, "dest");
+            var source   = JsonHelper.ExtractString(argsJson, "source");
+            var dest     = JsonHelper.ExtractString(argsJson, "dest");
+            var pathOnly = JsonHelper.ExtractString(argsJson, "path_only") == "true";
             if (string.IsNullOrEmpty(source)) throw new System.Exception("source is required");
             if (string.IsNullOrEmpty(dest))
             {
@@ -193,6 +194,9 @@ namespace UnityMCP.Editor
             }
             ValidatePath(source);
             ValidatePath(dest);
+            // path_only=true: syntax check only — does not require AssetDatabase folder to exist.
+            // Use for preflight checks before folder creation.
+            if (pathOnly) return "ok: path syntax valid";
             var error = AssetDatabase.ValidateMoveAsset(source, dest);
             if (!string.IsNullOrEmpty(error))
                 throw new System.Exception(error);

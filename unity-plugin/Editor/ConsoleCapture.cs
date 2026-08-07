@@ -158,6 +158,13 @@ namespace UnityMCP.Editor
                         sb.AppendFormat("[{0}] {1:HH:mm:ss.fff} {2}{3}\n", e.Type, e.Timestamp, e.Message, suffix);
                     di += run;
                 }
+                if (sinceSeconds > 0)
+                {
+                    var text = sb.ToString().TrimEnd('\n');
+                    return _droppedProblemCount > 0
+                        ? text + $"\n#MCP_INTERNAL overflow:{_droppedProblemCount}"
+                        : text;
+                }
                 return AppendDroppedSuffix(sb.ToString().TrimEnd('\n'));
             }
         }

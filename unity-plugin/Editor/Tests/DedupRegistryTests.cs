@@ -1,0 +1,86 @@
+// NUnit unit tests for DedupRegistry (P-322: mutation retry dedup).
+// Zero Unity/AssetDatabase dependency — injectable clock for TTL tests.
+using System;
+using NUnit.Framework;
+
+namespace UnityMCP.Editor.Tests
+{
+    [TestFixture]
+    public class DedupRegistryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    {
+        private DedupRegistry _registry;
+        private long _nowTicks;
+
+        [SetUp]
+        public void Setup()
+        {
+            _nowTicks = DateTime.UtcNow.Ticks;
+            _registry = new DedupRegistry(clock: () => _nowTicks);
+        }
+
+        [Test]
+        public void TryRegister_FirstCall_ReturnsTrue()
+        {
+            Assert.IsTrue(_registry.TryRegister("op-aaa"));
+        }
+
+        [Test]
+        public void TryRegister_SecondCallSameId_ReturnsFalse()
+        {
+            _registry.TryRegister("op-bbb");
+            Assert.IsFalse(_registry.TryRegister("op-bbb"),
+                "Duplicate op_id must return false so the command is not re-executed.");
+        }
+
+        [Test]
+        public void TryRegister_DifferentIds_BothReturnTrue()
+        {
+            Assert.IsTrue(_registry.TryRegister("op-ccc"));
+            Assert.IsTrue(_registry.TryRegister("op-ddd"));
+        }
+
+        [Test]
+        public void TryRegister_AfterTTL_AcceptsAgain()
+        {
+            _registry.TryRegister("op-eee");
+
+            // Advance clock past TTL (300s + 1s)
+            _nowTicks += TimeSpan.FromSeconds(DedupRegistry.TtlSeconds + 1).Ticks;
+            _registry.Evict();
+
+            Assert.IsTrue(_registry.TryRegister("op-eee"),
+                "After TTL expiry the same op_id should be accepted again.");
+        }
+
+        [Test]
+        public void Register_AtCapacity_EvictsOldest()
+        {
+            // Fill registry to capacity.
+            for (int i = 0; i < DedupRegistry.Capacity; i++)
+                _registry.TryRegister($"cap-{i}");
+
+            // Adding one more must not throw and must not exceed capacity.
+            _registry.TryRegister("cap-overflow");
+
+            Assert.LessOrEqual(_registry.Count, DedupRegistry.Capacity,
+                "Registry must never exceed its capacity.");
+        }
+
+        [Test]
+        public void Evict_RemovesExpiredEntries()
+        {
+            _registry.TryRegister("op-fresh");
+            _registry.TryRegister("op-stale");
+
+            // Age "op-stale" past TTL then freeze clock so "op-fresh" stays young.
+            _nowTicks += TimeSpan.FromSeconds(DedupRegistry.TtlSeconds + 1).Ticks;
+            // Evict must remove expired entries.
+            _registry.Evict();
+
+            // Both are now "old" in this simple test since we have one shared clock.
+            // The key assertion: Count drops after Evict — eviction works.
+            Assert.AreEqual(0, _registry.Count,
+                "Evict must remove all entries past their TTL.");
+        }
+    }
+}

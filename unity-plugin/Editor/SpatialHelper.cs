@@ -238,6 +238,7 @@ namespace UnityMCP.Editor
         {
             var go = ComponentSerializer.FindObject(path);
             if (go == null) throw new System.ArgumentException(ErrorHelper.ObjectNotFound(path));
+            Physics.SyncTransforms();
             var b = MultiViewCapture.ComputeBounds(go);
             return $"center=({F(b.center.x,"F2")},{F(b.center.y,"F2")},{F(b.center.z,"F2")}) " +
                    $"size=({F(b.size.x,"F2")},{F(b.size.y,"F2")},{F(b.size.z,"F2")}) " +
