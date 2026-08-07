@@ -20,9 +20,12 @@ from helpers import make_writer
 # ---------------------------------------------------------------------------
 
 def test_is_startup_in_progress_no_state_file_pid_alive():
+    mock_sock = MagicMock()
+    mock_sock.connect.side_effect = OSError("Connection refused")
     with patch("unity_mcp.compile_state.read_state_for_port", return_value=None), \
          patch("unity_mcp.compile_state.read_pid_from_port_file", return_value=12345), \
-         patch("unity_mcp.compile_state.is_pid_alive", return_value=True):
+         patch("unity_mcp.compile_state.is_pid_alive", return_value=True), \
+         patch("socket.socket", return_value=mock_sock):
         probe = CompileStateProbe(port=9500)
         assert probe.is_startup_in_progress() is True
 
@@ -49,9 +52,12 @@ def test_is_startup_in_progress_state_file_present():
 def test_heartbeat_startup_grace_pid_alive_busy():
     """state=None (no state-file) + PID alive → is_startup_in_progress=True
     → has_strong_busy_signal=True → grace does NOT expire (busy signal holds)."""
+    mock_sock = MagicMock()
+    mock_sock.connect.side_effect = OSError("Connection refused")
     with patch("unity_mcp.compile_state.read_state_for_port", return_value=None), \
          patch("unity_mcp.compile_state.read_pid_from_port_file", return_value=12345), \
-         patch("unity_mcp.compile_state.is_pid_alive", return_value=True):
+         patch("unity_mcp.compile_state.is_pid_alive", return_value=True), \
+         patch("socket.socket", return_value=mock_sock):
         probe = CompileStateProbe(port=9500)
         assert probe.has_strong_busy_signal() is True
 
@@ -69,9 +75,12 @@ def test_is_startup_in_progress_uses_xplat_pid_check():
         calls.append(pid)
         return True
 
+    mock_sock = MagicMock()
+    mock_sock.connect.side_effect = OSError("Connection refused")
     with patch("unity_mcp.compile_state.read_state_for_port", return_value=None), \
          patch("unity_mcp.compile_state.read_pid_from_port_file", return_value=42), \
-         patch.object(cs_mod, "is_pid_alive", side_effect=fake_is_pid_alive):
+         patch.object(cs_mod, "is_pid_alive", side_effect=fake_is_pid_alive), \
+         patch("socket.socket", return_value=mock_sock):
         probe = CompileStateProbe(port=9500)
         result = probe.is_startup_in_progress()
 

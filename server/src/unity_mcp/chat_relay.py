@@ -9,6 +9,7 @@ import json
 import os
 import signal
 import struct
+import sys
 import tempfile
 
 from .backend_def import (
@@ -375,6 +376,11 @@ async def _main() -> None:
 
 def main() -> None:
     """Sync entrypoint for the `unity-biome-mcp-relay` console script."""
+    if "--version" in sys.argv[1:]:
+        from . import __version__
+
+        print(f"unity-biome-mcp-relay {__version__}")
+        return
     asyncio.run(_main())
 
 

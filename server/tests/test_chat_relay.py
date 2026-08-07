@@ -4,6 +4,8 @@ import gc
 import inspect
 import json
 import os
+import subprocess
+from pathlib import Path
 import struct
 import sys
 import pytest
@@ -25,6 +27,36 @@ from unity_mcp.backend_def import (
     OUTPUT_FORMAT_STREAM_JSON, OUTPUT_FORMAT_PLAIN_TEXT,
     OUTPUT_FORMAT_CODEX_JSON, OUTPUT_FORMAT_OPENCODE_JSON, OUTPUT_FORMAT_KIMI_JSON,
 )
+
+
+# ─── Entrypoint contract ───────────────────────────────────────────────────
+
+def test_main_version_exits_without_starting_relay(capsys):
+    """The Unity warm-up probe must be finite and must not bind a relay port."""
+    with patch.object(sys, "argv", ["unity-biome-mcp-relay", "--version"]), \
+         patch("unity_mcp.chat_relay.asyncio.run") as run:
+        main()
+
+    run.assert_not_called()
+    assert capsys.readouterr().out.startswith("unity-biome-mcp-relay ")
+
+
+def test_module_version_process_exits_without_advertising_port():
+    """Process-level guard for the exact probe used by RelayWarmup.cs."""
+    src_dir = str(Path(__file__).resolve().parents[1] / "src")
+    env = {**os.environ, "PYTHONPATH": src_dir}
+    result = subprocess.run(
+        [sys.executable, "-m", "unity_mcp.chat_relay", "--version"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=3,
+        check=True,
+        env=env,
+    )
+
+    assert result.stdout.startswith("unity-biome-mcp-relay ")
+    assert "relay_port:" not in result.stdout
 
 
 # ─── Helpers ────────────────────────────────────────────────────────────────

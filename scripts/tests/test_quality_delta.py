@@ -255,6 +255,32 @@ def test_render_report_basic():
     assert "mcp-tool-card-linter" in out
 
 
+def test_render_report_uses_current_tool_card_linter_field_names(tmp_path):
+    """Per-tool rows must preserve names, issues, and risk from report schema v1."""
+    report = tmp_path / "toolsmith.json"
+    report.write_text(json.dumps({
+        "summary": {
+            "issues_by_severity": {"error": 1, "warning": 1},
+            "score": 75,
+            "tools_scanned": 1,
+        },
+        "tools": [{
+            "tool_name": "example_tool",
+            "score": 75,
+            "risk_level": "high",
+            "issues": [
+                {"severity": "error", "code": "E1"},
+                {"severity": "warning", "code": "W1"},
+            ],
+        }],
+    }), encoding="utf-8")
+
+    out = qd.render_report(_current(), report)
+
+    assert "| `example_tool` | 75 | 1 | 1 | high |" in out
+    assert "| `?` |" not in out
+
+
 def test_render_report_with_test_results(tmp_path):
     tr = tmp_path / "tests.json"
     tr.write_text(json.dumps({"suites": [
