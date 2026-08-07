@@ -223,7 +223,7 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
             result = mw._maybe_diff_hierarchy(result)
         # Seed preimage cache from reflect snapshots (after diff)
         mw._seed_preimage(cmd, args, result)
-        mw.track_editor_state(cmd, result)
+        mw.track_editor_state(cmd, result, args=args)
         if cmd == "set_property" and args.get("prop") and args.get("value") \
                 and os.environ.get("UNITY_MCP_REFLECT", "1") == "0":
             result = mw.verify_snapshot(result, prop=args["prop"], value=args["value"])
