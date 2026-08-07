@@ -110,7 +110,7 @@ namespace UnityMCP.Editor.Chat
                     TryRestore(() =>
                     {
                         if (window != null)
-                            UnityEngine.Object.DestroyImmediate(window);
+                            window.Close();
                     }, errors);
                 }
 

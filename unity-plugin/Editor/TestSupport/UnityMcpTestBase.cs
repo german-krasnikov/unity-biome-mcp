@@ -48,6 +48,7 @@ namespace UnityMCP.Editor.Testing
         private IDisposable _relayIsolation;
         private IDisposable _relaySpawnIsolation;
         private int _previewSceneCountBaseline;
+        private HashSet<int> _editorWindowBaseline;
         private bool _isolationActive;
         private bool _cleanupStarted;
 
@@ -82,6 +83,9 @@ namespace UnityMCP.Editor.Testing
             _assetCleanupActions.Clear();
             _ownedEditorPrefs.Clear();
             _previewSceneCountBaseline = PreviewSceneCountEvidence.Capture();
+            _editorWindowBaseline = new HashSet<int>(
+                Resources.FindObjectsOfTypeAll<EditorWindow>()
+                         .Select(w => w.GetInstanceID()));
             _logAssertIgnoreBaseline = LogAssert.ignoreFailingMessages;
             _cleanupStarted = false;
             _isolationActive = true;
@@ -146,6 +150,7 @@ namespace UnityMCP.Editor.Testing
             RunCleanup(PrepareForOwnershipCleanup, "ownership cleanup preparation", errors);
             for (var i = _cleanupActions.Count - 1; i >= 0; i--)
                 RunCleanup(_cleanupActions[i], $"registered cleanup #{i + 1}", errors);
+            RunCleanup(CloseLeakedEditorWindows, "editor window leak sweep", errors);
             RunCleanup(PerformFinalIsolationCleanup, "final isolation cleanup", errors);
             RunCleanup(
                 () => PreviewSceneCountEvidence.RequireBaseline(
@@ -279,6 +284,7 @@ namespace UnityMCP.Editor.Testing
             _relayIsolation = null;
             _relaySpawnIsolation = null;
             _previewSceneCountBaseline = 0;
+            _editorWindowBaseline = null;
             _isolationActive = false;
 
             if (errors.Count > 0)
@@ -518,7 +524,18 @@ namespace UnityMCP.Editor.Testing
         /// </summary>
         protected T CreateOwnedEditorWindow<T>() where T : EditorWindow
         {
-            return TrackOwnedObject(ScriptableObject.CreateInstance<T>());
+            var window = ScriptableObject.CreateInstance<T>();
+            RegisterCleanup(() => { if (window != null) window.Close(); });
+            return window;
+        }
+
+        private void CloseLeakedEditorWindows()
+        {
+            if (_editorWindowBaseline == null) return;
+            foreach (var w in Resources.FindObjectsOfTypeAll<EditorWindow>())
+                if (w != null && !_editorWindowBaseline.Contains(w.GetInstanceID()))
+                    w.Close();
+            _editorWindowBaseline = null;
         }
 
         /// <summary>
