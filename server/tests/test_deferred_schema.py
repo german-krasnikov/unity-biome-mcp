@@ -36,7 +36,7 @@ def test_core_tool_keeps_full_schema_after_strip():
 def test_non_core_tool_gets_stub_after_strip():
     from unity_mcp.server import _strip_deferred_schemas
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
-    tool = _tool("animation", "Animation tool", _full_schema())
+    tool = _tool("asset", "Asset tool", _full_schema())
     result = _strip_deferred_schemas([tool])
     assert result[0].inputSchema == STUB_SCHEMA
 
@@ -91,7 +91,7 @@ def test_unity_mcp_full_schemas_zero_still_strips(monkeypatch):
     monkeypatch.setenv("UNITY_MCP_FULL_SCHEMAS", "0")
     from unity_mcp.server import _strip_deferred_schemas
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
-    tool = _tool("animation", "Anim", _full_schema())
+    tool = _tool("asset", "Asset", _full_schema())
     result = _strip_deferred_schemas([tool])
     assert result[0].inputSchema == STUB_SCHEMA
 
@@ -228,7 +228,7 @@ def test_non_keep_full_tool_schema_is_stripped():
     from unity_mcp.server import _strip_deferred_schemas
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
     full = _full_schema()
-    tool = _tool("animation", "Animation tool", full)
+    tool = _tool("asset", "Asset tool", full)
     result = _strip_deferred_schemas([tool])
     assert result[0].inputSchema == STUB_SCHEMA
 
