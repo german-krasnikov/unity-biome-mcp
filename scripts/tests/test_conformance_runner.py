@@ -1,11 +1,16 @@
 """Tests for conformance_runner CLI."""
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import conformance_runner  # noqa: E402
 
 RUNNER = Path(__file__).resolve().parent.parent / "conformance_runner.py"
 
@@ -37,3 +42,18 @@ def test_runner_help():
     )
     assert result.returncode == 0
     assert "conformance" in result.stdout.lower()
+
+
+def test_record_flag_passes_env_var(tmp_path):
+    """--record sets UNITY_MCP_TRACE_FILE in the subprocess environment."""
+    project = tmp_path / "UnityProject"
+    (project / "Assets").mkdir(parents=True)
+    args = argparse.Namespace(
+        port=9500,
+        project=str(project),
+        second_port=0,
+        record="trace.jsonl",
+    )
+    env = conformance_runner.build_env(args)
+    assert env["UNITY_MCP_TRACE_FILE"] == "trace.jsonl"
+    assert env["UNITY_MCP_PORT"] == "9500"

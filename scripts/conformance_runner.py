@@ -15,6 +15,18 @@ import sys
 from pathlib import Path
 
 
+def build_env(args) -> dict[str, str]:
+    """Build the subprocess environment dict from parsed args."""
+    env = os.environ.copy()
+    env["UNITY_MCP_PORT"] = str(args.port)
+    env["UNITY_MCP_PROJECT_PATH"] = str(Path(args.project).resolve())
+    if getattr(args, "second_port", 0):
+        env["UNITY_MCP_SECOND_PORT"] = str(args.second_port)
+    if getattr(args, "record", None):
+        env["UNITY_MCP_TRACE_FILE"] = args.record
+    return env
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="MCP conformance test runner")
     parser.add_argument("--port", type=int, default=9500, help="Unity MCP port (default: 9500)")
@@ -23,6 +35,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=300, help="Pytest timeout in seconds (default: 300)")
     parser.add_argument("--markers", default="conformance and live", help="Pytest marker expression")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    parser.add_argument("--record", metavar="FILE", help="Record trace to JSONL file (sets UNITY_MCP_TRACE_FILE)")
     args = parser.parse_args()
 
     if not 1 <= args.port <= 65535:
@@ -34,22 +47,22 @@ def main() -> int:
         print(f"ERROR: {args.project} does not look like a Unity project (no Assets/ dir)", file=sys.stderr)
         return 1
 
-    # Set env vars for the conformance fixtures
-    env = os.environ.copy()
-    env["UNITY_MCP_PORT"] = str(args.port)
-    env["UNITY_MCP_PROJECT_PATH"] = str(project.resolve())
-    if args.second_port:
-        env["UNITY_MCP_SECOND_PORT"] = str(args.second_port)
+    env = build_env(args)
 
     # Build pytest command
-    server_tests = Path(__file__).resolve().parent.parent / "server" / "tests" / "conformance"
-    if not server_tests.is_dir():
-        print(f"ERROR: conformance test directory not found at {server_tests}", file=sys.stderr)
-        return 1
+    tests_root = Path(__file__).resolve().parent.parent / "server" / "tests"
+    test_dirs = [tests_root / "conformance"]
+    if args.second_port:
+        test_dirs.append(tests_root / "cross_project")
+
+    for d in test_dirs:
+        if not d.is_dir():
+            print(f"ERROR: test directory not found at {d}", file=sys.stderr)
+            return 1
 
     cmd = [
         sys.executable, "-m", "pytest",
-        str(server_tests),
+        *[str(d) for d in test_dirs],
         "-m", args.markers,
         f"--timeout={args.timeout}",
     ]

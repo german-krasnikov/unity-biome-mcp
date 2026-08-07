@@ -1,7 +1,23 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from dataclasses import dataclass, field
+
+
+async def connect_bridge(host: str, port: int, project: str = ""):
+    """Connect a UnityBridge with retry. Returns None if unreachable."""
+    from unity_mcp.bridge import UnityBridge
+
+    bridge = UnityBridge(host, port=port, expected_project_path=project)
+    for attempt in range(10):
+        try:
+            await bridge.connect()
+            return bridge
+        except (ConnectionRefusedError, OSError, asyncio.TimeoutError):
+            if attempt < 9:
+                await asyncio.sleep(1.0)
+    return None
 
 
 def _parse_status(text: str) -> dict[str, str]:

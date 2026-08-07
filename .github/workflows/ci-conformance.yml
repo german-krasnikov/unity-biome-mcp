@@ -1,0 +1,47 @@
+name: CI Conformance
+
+# Requires a self-hosted runner with Unity Editor running.
+# Cannot run on GitHub-hosted runners (no Unity license/install).
+on:
+  workflow_dispatch:
+    inputs:
+      unity_port:
+        description: 'Unity MCP port'
+        required: false
+        default: '9500'
+      project_path:
+        description: 'Unity project path'
+        required: true
+      second_port:
+        description: 'Second Unity port for cross-project tests (0 = skip)'
+        required: false
+        default: '0'
+
+concurrency:
+  group: ci-conformance
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: Conformance Gate
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install server with dev deps
+        run: pip install -e "server[dev]"
+
+      - name: Run conformance
+        run: |
+          ARGS="--port ${{ inputs.unity_port }} --project ${{ inputs.project_path }} --timeout 300 --verbose"
+          if [ "${{ inputs.second_port }}" != "0" ]; then
+            ARGS="$ARGS --second-port ${{ inputs.second_port }} --markers 'conformance and live or cross_project and live'"
+          fi
+          python scripts/conformance_runner.py $ARGS
