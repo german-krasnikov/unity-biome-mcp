@@ -426,3 +426,70 @@ async def test_run_playtest_hooks_default_omitted(mock_bridge):
     sent = mock_bridge.send.call_args[0][1]
     assert "before_hook" not in sent
     assert "after_hook" not in sent
+
+
+# ── P-336: stop_after must run even when run_playtest raises ──────────────────
+
+@pytest.mark.asyncio
+async def test_run_playtest_suite_stops_play_mode_on_exception(monkeypatch):
+    """P-336: stop_after=True must stop Play Mode even when run_playtest raises."""
+    import asyncio
+    from unity_mcp.tools import runtime
+
+    stop_called = []
+
+    async def fake_send(cmd, args, **kw):
+        if cmd == "list_playtest_files":
+            return "Playtests/A.playtest\nPlaytests/B.playtest"
+        if cmd == "editor":
+            if args.get("action") == "stop":
+                stop_called.append(True)
+                return "ok"
+            return "playing:false\ndirty:False"
+        if cmd == "run_playtest":
+            raise asyncio.TimeoutError("network timeout")
+        return "ok"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    result = await runtime.run_playtest_suite(
+        pattern="Playtests/*.playtest",
+        stop_after=True,
+        auto_play=False,
+    )
+
+    assert stop_called, "P-336: stop must be called even after exception"
+    assert "SUITE" in result or "ERROR" in result
+
+
+@pytest.mark.asyncio
+async def test_run_playtest_suite_stops_play_mode_on_failure(monkeypatch):
+    """P-336: stop_after=True stops Play Mode when test fails (stop_on_fail=True)."""
+    from unity_mcp.tools import runtime
+
+    stop_called = []
+
+    async def fake_send(cmd, args, **kw):
+        if cmd == "list_playtest_files":
+            return "Playtests/A.playtest"
+        if cmd == "editor":
+            if args.get("action") == "stop":
+                stop_called.append(True)
+                return "ok"
+            return "playing:True\ndirty:False"
+        if cmd == "run_playtest":
+            return "PLAYTEST: 0/1 (1.0s)\n[1] ASSERT /Player|Health == 100 — FAIL"
+        return "ok"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    await runtime.run_playtest_suite(
+        pattern="Playtests/*.playtest",
+        stop_on_fail=True,
+        stop_after=True,
+        auto_play=False,
+    )
+
+    assert stop_called, "P-336: stop must be called after suite failure"
