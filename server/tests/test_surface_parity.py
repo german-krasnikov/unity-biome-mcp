@@ -116,3 +116,9 @@ def test_media_required_param_tools_have_full_schema():
     assert "animation" in _SCHEMA_KEEP_FULL
     assert "animator" in _SCHEMA_KEEP_FULL
 
+
+def test_checkpoint_in_schema_keep_full():
+    """checkpoint must serve full schema when SYSTEM is enabled."""
+    from unity_mcp.server_filtering import _SCHEMA_KEEP_FULL
+    assert "checkpoint" in _SCHEMA_KEEP_FULL
+

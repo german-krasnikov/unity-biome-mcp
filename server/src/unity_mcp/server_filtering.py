@@ -33,6 +33,8 @@ _SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
     "sync_unity",
     # B3: MEDIA tools with required params (path, action) must not receive stub schema
     "timeline", "animation", "animator",
+    # B4: SYSTEM tool with label param; sub-agents need full schema to construct calls
+    "checkpoint",
 })
 _SCHEMA_KEEP_FULL: frozenset[str] = _CORE_TOOLS | _SCHEMA_KEEP_FULL_EXTRA
 
