@@ -83,12 +83,10 @@ namespace UnityMCP.Editor.Testing
             _assetCleanupActions.Clear();
             _ownedEditorPrefs.Clear();
             _previewSceneCountBaseline = PreviewSceneCountEvidence.Capture();
-            _editorWindowBaseline = new HashSet<int>(
-                Resources.FindObjectsOfTypeAll<EditorWindow>()
-                         .Select(w => w.GetInstanceID()));
             _logAssertIgnoreBaseline = LogAssert.ignoreFailingMessages;
             _cleanupStarted = false;
             _isolationActive = true;
+            MainThreadDispatcher.Clear();
             try
             {
                 _syncIsolation = SyncHelper.BeginTestIsolation();
@@ -115,6 +113,9 @@ namespace UnityMCP.Editor.Testing
                 _reloadGuardIsolation = ReloadGuard.BeginTestIsolation(
                     new IsolatedReloadGuardOps(), isolationOwnerId);
                 _chatWindowIsolation = MCPChatWindow.BeginTestIsolation(isolationOwnerId);
+                _editorWindowBaseline = new HashSet<int>(
+                    Resources.FindObjectsOfTypeAll<EditorWindow>()
+                             .Select(w => w.GetInstanceID()));
             }
             catch (Exception setupError)
             {
@@ -150,7 +151,6 @@ namespace UnityMCP.Editor.Testing
             RunCleanup(PrepareForOwnershipCleanup, "ownership cleanup preparation", errors);
             for (var i = _cleanupActions.Count - 1; i >= 0; i--)
                 RunCleanup(_cleanupActions[i], $"registered cleanup #{i + 1}", errors);
-            RunCleanup(CloseLeakedEditorWindows, "editor window leak sweep", errors);
             RunCleanup(PerformFinalIsolationCleanup, "final isolation cleanup", errors);
             RunCleanup(
                 () => PreviewSceneCountEvidence.RequireBaseline(
@@ -185,6 +185,8 @@ namespace UnityMCP.Editor.Testing
                 () => _chatWindowIsolation?.Dispose(),
                 "chat window runtime restoration",
                 errors);
+            RunCleanup(CloseLeakedEditorWindows, "editor window leak sweep", errors);
+            RunCleanup(() => MainThreadDispatcher.Clear(), "main-thread dispatcher cleanup", errors);
             RunCleanup(
                 () => _reloadGuardIsolation?.Dispose(),
                 "reload guard test-isolation restoration",
@@ -525,7 +527,13 @@ namespace UnityMCP.Editor.Testing
         protected T CreateOwnedEditorWindow<T>() where T : EditorWindow
         {
             var window = ScriptableObject.CreateInstance<T>();
-            RegisterCleanup(() => { if (window != null) window.Close(); });
+            RegisterCleanup(() =>
+            {
+                if (window == null) return;
+                try { window.Close(); }
+                catch (Exception) { /* m_Parent null — window was never shown */ }
+                if (window != null) UnityEngine.Object.DestroyImmediate(window);
+            });
             return window;
         }
 
@@ -533,8 +541,12 @@ namespace UnityMCP.Editor.Testing
         {
             if (_editorWindowBaseline == null) return;
             foreach (var w in Resources.FindObjectsOfTypeAll<EditorWindow>())
-                if (w != null && !_editorWindowBaseline.Contains(w.GetInstanceID()))
-                    w.Close();
+            {
+                if (w == null || _editorWindowBaseline.Contains(w.GetInstanceID())) continue;
+                try { w.Close(); }
+                catch (Exception) { /* m_Parent null — window was never shown */ }
+                if (w != null) UnityEngine.Object.DestroyImmediate(w);
+            }
             _editorWindowBaseline = null;
         }
 

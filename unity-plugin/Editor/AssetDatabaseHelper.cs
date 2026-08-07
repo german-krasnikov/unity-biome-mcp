@@ -256,7 +256,6 @@ namespace UnityMCP.Editor
                         if (visited.Add(d)) queue.Enqueue(d);
                 }
 
-                visited.Remove(path);
                 deps = visited;
             }
 

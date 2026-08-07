@@ -109,8 +109,11 @@ namespace UnityMCP.Editor.Chat
                 {
                     TryRestore(() =>
                     {
+                        if (window == null) return;
+                        try { window.Close(); }
+                        catch (Exception) { /* m_Parent null — window was never shown */ }
                         if (window != null)
-                            window.Close();
+                            UnityEngine.Object.DestroyImmediate(window);
                     }, errors);
                 }
 
