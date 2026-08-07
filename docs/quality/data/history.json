@@ -86,5 +86,13 @@
     "toolsmith_errors": 4,
     "toolsmith_warnings": 376,
     "toolsmith_avg_score": 83.64
+  },
+  {
+    "date": "2026-08-07",
+    "version": "1.22.1",
+    "commit": "ea2a75f",
+    "toolsmith_errors": 4,
+    "toolsmith_warnings": 376,
+    "toolsmith_avg_score": 83.61
   }
 ]

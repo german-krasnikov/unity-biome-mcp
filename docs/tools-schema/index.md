@@ -22,7 +22,7 @@ hide:
 | [`apply_template`](#apply_template) | 🟢 92/100 | 🟡 medium | Apply a scene template (.cs file from .claude/templates/). |
 | [`ask`](#ask) | 🟢 93/100 | 🟢 low | Answer a read-only question about the Unity scene (AI-routed, not interactive... |
 | [`ask_user`](#ask_user) | 🟢 93/100 | 🟢 low | Show a question card in Unity chat; wait for user answer (interactive UI — us... |
-| [`asset`](#asset) | 🟢 80/100 | 🔴 high | Asset database. Creates, moves, or deletes assets. No confirmation required. ... |
+| [`asset`](#asset) | 🟡 79/100 | 🔴 high | Asset database. Creates, moves, or deletes assets. No confirmation required. ... |
 | [`auto_fix`](#auto_fix) | 🟢 95/100 | 🟢 low | Auto-detect and fix Unity errors. Uses MCP sampling to ask Claude for fixes. |
 | [`auto_wire`](#auto_wire) | 🟢 89/100 | 🔴 high | Fill null ObjectReference fields on a GameObject by matching field name or ty... |
 | [`autofit_collider`](#autofit_collider) | 🟢 82/100 | 🟡 medium | Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule. |
@@ -119,7 +119,7 @@ hide:
 | [`save_skill`](#save_skill) | 🟡 75/100 | 🟢 low | Save a learned skill (C# code or batch commands) for reuse across sessions. |
 | [`save_template`](#save_template) | 🟡 77/100 | 🟢 low | Save C# code as a reusable scene template in .claude/templates/. |
 | [`scan_scene`](#scan_scene) | 🟢 95/100 | 🟢 low | Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, can... |
-| [`scene`](#scene) | 🟢 89/100 | 🟡 medium | Scene management. action: new|open|save|discard|open_additive|close|set_activ... |
+| [`scene`](#scene) | 🟢 88/100 | 🟡 medium | Scene management. action: new|open|save|discard|open_additive|close|set_activ... |
 | [`scene_change_plan`](#scene_change_plan) | 🟢 81/100 | 🟡 medium | Pre-flight + plan for safe scene edit. |
 | [`scene_diff`](#scene_diff) | 🟢 95/100 | 🟢 low | Compare scene with last snapshot. First call saves snapshot. Returns diff: ad... |
 | [`scene_environment`](#scene_environment) | 🟢 84/100 | 🟡 medium | Read/write scene environment: ambient light, fog, skybox, reflections. |
@@ -135,7 +135,7 @@ hide:
 | [`set_material`](#set_material) | 🟡 76/100 | 🟡 medium | Set scene object material color (for full asset management use `material`). c... |
 | [`set_parent`](#set_parent) | 🟡 79/100 | 🟡 medium | Reparent existing GameObject. parent=null → move to scene root. world_positio... |
 | [`set_properties`](#set_properties) | 🟡 77/100 | 🟡 medium | Set multiple properties on ONE object. For multiple objects, use configure_ob... |
-| [`set_property`](#set_property) | 🟡 77/100 | 🟡 medium | Set component property (Edit Mode, SerializedObject — for Play Mode use `invo... |
+| [`set_property`](#set_property) | 🟡 76/100 | 🟡 medium | Set component property (Edit Mode, SerializedObject — for Play Mode use `invo... |
 | [`set_property_delta`](#set_property_delta) | 🟡 75/100 | 🟡 medium | Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new. |
 | [`set_rect`](#set_rect) | 🟡 73/100 | 🟡 medium | Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bott... |
 | [`set_sibling_index`](#set_sibling_index) | 🟡 74/100 | 🟡 medium | Set sibling index of a GameObject within its parent. index=0 moves to first c... |
@@ -160,7 +160,7 @@ hide:
 | [`vfx_intent`](#vfx_intent) | 🟡 74/100 | 🟡 medium | Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely. |
 | [`wait_until`](#wait_until) | 🟡 68/100 | 🟡 medium | [Play Mode] Poll field until it matches value (or timeout). |
 | [`watch`](#watch) | 🟡 68/100 | 🔴 high | [Play Mode] Manage watches. Registers or removes watches. No confirmation req... |
-| [`wire_event`](#wire_event) | 🟡 79/100 | 🔴 high | Wire UnityEvent persistent listener. Mutates scene. No confirmation required. |
+| [`wire_event`](#wire_event) | 🟡 77/100 | 🔴 high | Wire UnityEvent persistent listener. Mutates scene. No confirmation required. |
 
 ---
 
@@ -1090,9 +1090,9 @@ Show a question card in Unity chat; wait for user answer (interactive UI — use
 
 ### `asset`
 
-🟢 80/100 · Risk: 🔴 high
+🟡 79/100 · Risk: 🔴 high
 
-Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path.
+Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path.
 
 **Parameters:**
 
@@ -1108,6 +1108,7 @@ Asset database. Creates, moves, or deletes assets. No confirmation required. act
 | `name` | any |  | Name of the GameObject |
 | `output` | any |  |  |
 | `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
+| `path_only` | boolean |  |  (default: `False`) |
 | `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
 | `recursive` | boolean |  |  (default: `False`) |
 | `source` | any |  |  |
@@ -1115,7 +1116,7 @@ Asset database. Creates, moves, or deletes assets. No confirmation required. act
 | `value` | any |  | New value to set |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>13 quality issues</summary>
 
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'folder' has no description.
@@ -1127,6 +1128,7 @@ Asset database. Creates, moves, or deletes assets. No confirmation required. act
 - **info**: Parameter 'include_deps' has no description.
 - **info**: Parameter 'content' has no description.
 - **info**: Parameter 'class_name' has no description.
+- **info**: Parameter 'path_only' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
 
@@ -1301,6 +1303,11 @@ Asset database. Creates, moves, or deletes assets. No confirmation required. act
       ],
       "default": null,
       "title": "Class Name"
+    },
+    "path_only": {
+      "default": false,
+      "title": "Path Only",
+      "type": "boolean"
     }
   },
   "required": [
@@ -7278,23 +7285,25 @@ Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas
 
 ### `scene`
 
-🟢 89/100 · Risk: 🟡 medium
+🟢 88/100 · Risk: 🟡 medium
 
-Scene management. action: new|open|save|discard|open_additive|close|set_active|list.     path: required for open/save/open_additive/close/set_active. list requires no path.     scene: save/discard target when multiple scenes loaded (identifies by name).
+Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.     path: required for open/save/open_additive/close/set_active/save_copy. list requires no path.     scene: save/discard/save_copy target when multiple scenes loaded (identifies by name).     save_copy: writes current dirty state to path as backup; active scene reference unchanged.     include_unsaved: always True — save_copy always captures current in-memory state.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `action` | string | ✓ | Operation: new\|open\|save\|discard\|open_additive\|close\|set_active\|list |
+| `include_unsaved` | boolean |  |  (default: `True`) |
 | `path` | any |  | Asset path — required for open/save/open_additive/close/set_active |
 | `scene` | any |  | Scene name for save/discard when multiple scenes are loaded |
 
 <details>
-<summary>3 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **info**: Free-form string parameter 'action' has no maxLength.
+- **info**: Parameter 'include_unsaved' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -7335,6 +7344,11 @@ Scene management. action: new|open|save|discard|open_additive|close|set_active|l
       "default": null,
       "title": "Scene",
       "description": "Scene name for save/discard when multiple scenes are loaded"
+    },
+    "include_unsaved": {
+      "default": true,
+      "title": "Include Unsaved",
+      "type": "boolean"
     }
   },
   "required": [
@@ -8539,9 +8553,9 @@ Set multiple properties on ONE object. For multiple objects, use configure_objec
 
 ### `set_property`
 
-🟡 77/100 · Risk: 🟡 medium
+🟡 76/100 · Risk: 🟡 medium
 
-Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).     find_type: component type — bulk-sets prop on all matching objects without specifying paths.     For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying.
+Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).     find_type: component type — bulk-sets prop on all matching objects without specifying paths.     For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #instanceID, or 'null'. dry_run=True shows what would change without applying.     ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'.
 
 **Parameters:**
 
@@ -8552,10 +8566,11 @@ Set component property (Edit Mode, SerializedObject — for Play Mode use `invok
 | `find_type` | any |  | Component type — bulk-sets prop on ALL scene objects with this component (no path needed) |
 | `path` | any |  | Scene path to the GameObject (e.g. /Player/Body) |
 | `prop` | string |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') (default: ``) |
+| `ref_component_type` | any |  |  |
 | `value` | string |  | New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), #ins... |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>8 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
@@ -8563,6 +8578,7 @@ Set component property (Edit Mode, SerializedObject — for Play Mode use `invok
 - **info**: Free-form string parameter 'component' has no maxLength.
 - **info**: Free-form string parameter 'prop' has no maxLength.
 - **info**: Free-form string parameter 'value' has no maxLength.
+- **info**: Parameter 'ref_component_type' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -8622,6 +8638,18 @@ Set component property (Edit Mode, SerializedObject — for Play Mode use `invok
       "default": null,
       "title": "Find Type",
       "description": "Component type \u2014 bulk-sets prop on ALL scene objects with this component (no path needed)"
+    },
+    "ref_component_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ref Component Type"
     }
   },
   "title": "set_propertyArguments",
@@ -11022,9 +11050,9 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 
 ### `wire_event`
 
-🟡 79/100 · Risk: 🔴 high
+🟡 77/100 · Risk: 🔴 high
 
-Wire UnityEvent persistent listener. Mutates scene. No confirmation required.     path: object with the event. component: type owning the event field.     event: serialized field name (e.g. 'onClick', '_onComplete').     target: scene path or asset path. Auto-resolves component owning the method.     method: method name (e.g. 'SetActive', 'Play').     arg_type: void|bool|int|float|string|object.     arg_value: required when arg_type != void. For object: scene path or asset path.
+Wire UnityEvent persistent listener. Mutates scene. No confirmation required.     path: object with the event. component: type owning the event field.     event: serialized field name (e.g. 'onClick', '_onComplete').     target: scene path or asset path. Auto-resolves component owning the method.     method: method name (e.g. 'SetActive', 'Play').     arg_type: void|bool|int|float|string|object.     arg_value: required when arg_type != void. For object: scene path or asset path.     target_component_type: narrow component search to this type (e.g. 'Animator').     parameter_types: comma-separated param types to resolve overloads (e.g. 'string').
 
 **Parameters:**
 
@@ -11035,11 +11063,13 @@ Wire UnityEvent persistent listener. Mutates scene. No confirmation required.   
 | `component` | string | ✓ | Component type name on the target object |
 | `event` | string | ✓ |  |
 | `method` | string | ✓ |  |
+| `parameter_types` | any |  |  |
 | `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `target` | string | ✓ |  |
+| `target_component_type` | any |  |  |
 
 <details>
-<summary>13 quality issues</summary>
+<summary>15 quality issues</summary>
 
 - **info**: Free-form string parameter 'path' has no maxLength.
 - **warning**: Path-like parameter 'path' has no structural constraint.
@@ -11053,6 +11083,8 @@ Wire UnityEvent persistent listener. Mutates scene. No confirmation required.   
 - **info**: Parameter 'arg_type' has no description.
 - **info**: Free-form string parameter 'arg_type' has no maxLength.
 - **info**: Parameter 'arg_value' has no description.
+- **info**: Parameter 'target_component_type' has no description.
+- **info**: Parameter 'parameter_types' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -11101,6 +11133,30 @@ Wire UnityEvent persistent listener. Mutates scene. No confirmation required.   
       ],
       "default": null,
       "title": "Arg Value"
+    },
+    "target_component_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Component Type"
+    },
+    "parameter_types": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parameter Types"
     }
   },
   "required": [
