@@ -1,7 +1,61 @@
+import asyncio
+import os
+
 import pytest
+import pytest_asyncio
+
+from conformance.workers import ConformanceWorker
+
+CONF_HOST = os.environ.get("UNITY_MCP_HOST", "127.0.0.1")
+CONF_PORT = int(os.environ.get("UNITY_MCP_PORT", "9500"))
+CONF_PROJECT = os.environ.get("UNITY_MCP_PROJECT_PATH", "")
 
 
 def pytest_collection_modifyitems(items):
     for item in items:
         if "conformance" in str(item.fspath):
             item.add_marker(pytest.mark.conformance)
+
+
+@pytest_asyncio.fixture(scope="session")
+async def conformance_worker():
+    """Session-scoped conformance worker with identity gate.
+
+    Skips all conformance+live tests if Unity is unreachable or env vars not set.
+    """
+    if not CONF_PROJECT:
+        pytest.skip("UNITY_MCP_PROJECT_PATH not set — conformance live tests skipped")
+
+    from unity_mcp.bridge import UnityBridge
+
+    bridge = UnityBridge(CONF_HOST, port=CONF_PORT, expected_project_path=CONF_PROJECT)
+
+    connected = False
+    for attempt in range(10):
+        try:
+            await bridge.connect()
+            connected = True
+            break
+        except (ConnectionRefusedError, OSError, asyncio.TimeoutError):
+            if attempt < 9:
+                await asyncio.sleep(1.0)
+
+    if not connected:
+        pytest.skip(f"Unity unreachable at {CONF_HOST}:{CONF_PORT} — conformance live tests skipped")
+
+    worker = ConformanceWorker(port=CONF_PORT, project_path=CONF_PROJECT)
+
+    try:
+        await worker.gate(bridge)
+    except AssertionError as e:
+        await bridge.close()
+        pytest.fail(f"Conformance identity gate failed: {e}")
+
+    yield worker, bridge
+
+    try:
+        await worker.prove_absent(bridge)
+    except AssertionError as e:
+        pytest.fail(f"Conformance teardown: {e}")
+    finally:
+        await bridge.close()
