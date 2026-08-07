@@ -143,6 +143,8 @@ def test_stdio_alive_returns_true_for_http_transport(monkeypatch):
 def test_stdio_alive_returns_false_on_broken_pipe(monkeypatch):
     """_stdio_alive must catch BrokenPipeError and return False."""
     monkeypatch.setenv("UNITY_MCP_TRANSPORT", "stdio")
+    import unity_mcp.server as srv
+    monkeypatch.setattr(srv, "_stdio_last_confirmed", 0.0)
     buf = Mock()
     buf.flush.side_effect = BrokenPipeError
     with patch.object(sys, "stdout", SimpleNamespace(buffer=buf)):
