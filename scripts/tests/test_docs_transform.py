@@ -4,8 +4,6 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "docs" / "hooks"))
 from transform import on_page_markdown, _fix_image_paths, _fix_html_img_paths, _add_markdown_attr
 
