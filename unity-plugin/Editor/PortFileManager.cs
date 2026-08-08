@@ -15,6 +15,7 @@ namespace UnityMCP.Editor
             Path.GetFullPath(Path.Combine(Application.dataPath, "..", "ProjectSettings", "MCPSettings.json"));
         private static int _port;
         private static int _chatPort;
+        private static int _reloadPort;
         private static bool _readOnly;
         private static bool _portsResolved;
 
@@ -39,12 +40,15 @@ namespace UnityMCP.Editor
             _port = PortResolver.ResolvePort(env, projectJson, cacheJson, 9500);
             var chatEnv = Environment.GetEnvironmentVariable("UNITY_MCP_CHAT_PORT");
             _chatPort = PortResolver.ResolveChatPort(chatEnv, projectJson, cacheJson, _port, _port + 1);
+            var reloadEnv = Environment.GetEnvironmentVariable("UNITY_MCP_RELOAD_PORT");
+            _reloadPort = PortResolver.ResolveReloadPort(reloadEnv, cacheJson, _port, _chatPort, _port + 2);
             _readOnly = PortResolver.ParseBoolFromJson(projectJson, "readOnly") ?? false;
             _portsResolved = true;
         }
 
         internal static int Port { get { EnsurePorts(); return _port; } }
         internal static int ChatPort { get { EnsurePorts(); return _chatPort; } }
+        internal static int ReloadPort { get { EnsurePorts(); return _reloadPort; } }
         internal static bool ReadOnly { get { EnsurePorts(); return _readOnly; } }
 
         // Reads reloadPort from MCP_Port.json. Returns 0 if reload-package is not installed.
@@ -52,7 +56,8 @@ namespace UnityMCP.Editor
 
         internal static void SavePorts(int port, int chatPort)
         {
-            PortResolver.SavePorts(PortFilePath, port, chatPort);
+            EnsurePorts(); // ensure _reloadPort is resolved before writing all three
+            PortResolver.TrySaveAllPorts(PortFilePath, port, chatPort, _reloadPort, File.WriteAllText);
             if (!PortResolver.TrySaveProjectSettings(_projectSettingsPath, port, chatPort, File.WriteAllText))
                 Debug.LogWarning("[MCP] Could not save port intent to ProjectSettings — changes may not survive a Library purge.");
             _port = port;

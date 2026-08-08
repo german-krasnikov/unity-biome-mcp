@@ -40,7 +40,7 @@ namespace UnityMCP.Reload
             return assigned;
         }
 
-        // env UNITY_MCP_RELOAD_PORT → Library/MCP_Port.json["reloadPort"] → FindFreePort(mainPort+1) → FindFreePort(9600)
+        // env UNITY_MCP_RELOAD_PORT → Library/MCP_Port.json["reloadPort"] → FindFreePort(mainPort+2) → FindFreePort(9600)
         public static int GetReloadPort()
         {
             var env = Environment.GetEnvironmentVariable("UNITY_MCP_RELOAD_PORT");
@@ -59,25 +59,37 @@ namespace UnityMCP.Reload
                     var m = Regex.Match(json, "\"reloadPort\"\\s*:\\s*(\\d+)");
                     if (m.Success && int.TryParse(m.Groups[1].Value, out var sp) && sp >= 1024 && sp <= 65535)
                     {
-                        // Reject stale/conflicting reloadPort (must be > mainPort AND != chatPort)
+                        // Reject stale/conflicting/occupied reloadPort (must be > mainPort AND != chatPort AND bindable)
                         var aboveMain = !mainPort.HasValue || sp > mainPort.Value;
                         var notChat = !chatPort.HasValue || sp != chatPort.Value;
-                        if (aboveMain && notChat)
+                        if (aboveMain && notChat && IsFreePort(sp))
                             return sp;
                     }
                 }
             }
             catch { }
 
-            // Derive reload port: skip mainPort and chatPort (typically mainPort+1)
+            // Start from mainPort+2 (+1 is reserved for chatPort by convention)
             if (mainPort.HasValue)
             {
-                var start = mainPort.Value + 1;
+                var start = mainPort.Value + 2;
                 if (chatPort.HasValue && start == chatPort.Value) start++;
                 return FindFreePort(start);
             }
 
             return FindFreePort(9600);
+        }
+
+        // Try to bind the loopback port; release immediately and return true if bindable.
+        private static bool IsFreePort(int port)
+        {
+            try
+            {
+                var l = new TcpListener(IPAddress.Loopback, port);
+                l.Start(); l.Stop();
+                return true;
+            }
+            catch (SocketException) { return false; }
         }
 
         // Read MCP_Port.json, add/update "reloadPort", write back preserving other fields.

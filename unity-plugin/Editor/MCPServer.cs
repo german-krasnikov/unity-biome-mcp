@@ -225,20 +225,29 @@ namespace UnityMCP.Editor
                 // falling back to a new port avoids the full TIME_WAIT window.
                 for (int attempt = 0; attempt < 4; attempt++)
                 {
-                    var bindPort = (attempt < 3) ? PortFileManager.Port : PortResolver.FindFreePort(PortFileManager.Port + 1, skipPort: PortFileManager.ChatPort);
+                    int bindPort = PortFileManager.Port;
                     try
                     {
-                        _listener = new TcpListener(IPAddress.Loopback, bindPort);
+                        if (attempt == 3)
+                        {
+                            // BindFreePort: atomic scan+bind, eliminates TOCTOU. Handles socket opts internally.
+                            _listener = PortResolver.BindFreePort(PortFileManager.Port + 1, skipPort: PortFileManager.ChatPort);
+                            bindPort = ((IPEndPoint)_listener.LocalEndpoint).Port;
+                        }
+                        else
+                        {
+                            _listener = new TcpListener(IPAddress.Loopback, bindPort);
 #if UNITY_EDITOR_WIN
-                        // Windows: SO_REUSEADDR = port-hijack; use ExclusiveAddressUse instead (CoplayDev #1173)
-                        _listener.Server.ExclusiveAddressUse = true;
+                            // Windows: SO_REUSEADDR = port-hijack; use ExclusiveAddressUse instead (CoplayDev #1173)
+                            _listener.Server.ExclusiveAddressUse = true;
 #else
-                        _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                            _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 #if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
-                        try { _listener.Server.SetSocketOption(SocketOptionLevel.Socket, (SocketOptionName)0x0200, true); } catch { }
+                            try { _listener.Server.SetSocketOption(SocketOptionLevel.Socket, (SocketOptionName)0x0200, true); } catch { }
 #endif
 #endif
-                        _listener.Start();
+                            _listener.Start();
+                        }
                         if (bindPort != PortFileManager.Port)
                         {
                             var bp = bindPort; var origPort = PortFileManager.Port; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Port {origPort} unavailable (address in use), switched to {bp}"));
@@ -263,25 +272,35 @@ namespace UnityMCP.Editor
                 }
 
                 // Chat listener — best-effort (non-fatal if chat port is unavailable)
+                var chatMainPort = PortFileManager.Port; // capture main port before chat loop
                 for (int attempt = 0; attempt < 3; attempt++)
                 {
-                    var bindPort = (attempt < 2) ? PortFileManager.ChatPort : PortResolver.FindFreePort(PortFileManager.ChatPort + 1, skipPort: PortFileManager.Port);
+                    int bindPort = PortFileManager.ChatPort;
                     try
                     {
-                        _chatListener = new TcpListener(IPAddress.Loopback, bindPort);
+                        if (attempt == 2)
+                        {
+                            // BindFreePort: atomic scan+bind, eliminates TOCTOU. Handles socket opts internally.
+                            _chatListener = PortResolver.BindFreePort(PortFileManager.ChatPort + 1, skipPort: chatMainPort);
+                            bindPort = ((IPEndPoint)_chatListener.LocalEndpoint).Port;
+                        }
+                        else
+                        {
+                            _chatListener = new TcpListener(IPAddress.Loopback, bindPort);
 #if UNITY_EDITOR_WIN
-                        _chatListener.Server.ExclusiveAddressUse = true;
+                            _chatListener.Server.ExclusiveAddressUse = true;
 #else
-                        _chatListener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                            _chatListener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 #if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
-                        try { _chatListener.Server.SetSocketOption(SocketOptionLevel.Socket, (SocketOptionName)0x0200, true); } catch { }
+                            try { _chatListener.Server.SetSocketOption(SocketOptionLevel.Socket, (SocketOptionName)0x0200, true); } catch { }
 #endif
 #endif
-                        _chatListener.Start();
+                            _chatListener.Start();
+                        }
                         if (bindPort != PortFileManager.ChatPort)
                         {
                             var bp = bindPort; var origChatPort = PortFileManager.ChatPort; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Chat port {origChatPort} unavailable (address in use), switched to {bp}"));
-                            PortFileManager.SaveRuntimePorts(PortFileManager.Port, bindPort);
+                            PortFileManager.SaveRuntimePorts(chatMainPort, bindPort);
                         }
                         break;
                     }
