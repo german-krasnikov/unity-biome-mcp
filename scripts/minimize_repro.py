@@ -16,7 +16,10 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def load_steps(path: str) -> list[dict]:

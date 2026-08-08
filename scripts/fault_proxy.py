@@ -10,9 +10,9 @@ Protocol: 4-byte big-endian length prefix + JSON payload.
 
 import argparse
 import asyncio
+import contextlib
 import signal
 import struct
-import sys
 
 MODES = ("passthrough", "drop_ack", "disconnect_mid_frame", "delay_beyond_timeout", "duplicate_frame")
 
@@ -174,10 +174,8 @@ def main() -> None:
         fault_count=args.fault_count,
         delay=args.delay,
     )
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(proxy.run())
-    except KeyboardInterrupt:
-        pass
 
 
 if __name__ == "__main__":
