@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   preflight:
@@ -52,7 +53,34 @@ jobs:
             bash scripts/release.sh --preflight
           fi
 
-      - name: Conformance gate reminder
+      - name: Conformance gate
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "::notice::Conformance gate (ci-conformance.yml) must pass before release."
-          echo "Run: python scripts/conformance_runner.py --port <port> --project <path>"
+          RESULT=$(gh run list \
+            --workflow ci-conformance.yml \
+            --branch master \
+            --status completed \
+            --limit 1 \
+            --json conclusion,headSha,createdAt \
+            --jq '.[0] | "\(.conclusion)|\(.headSha)|\(.createdAt)"' 2>/dev/null || echo "")
+
+          if [ -z "$RESULT" ]; then
+            echo "::error::No completed conformance run found on master."
+            exit 1
+          fi
+
+          CONCLUSION="${RESULT%%|*}"
+          REST="${RESULT#*|}"
+          RUN_SHA="${REST%%|*}"
+          CREATED="${REST#*|}"
+
+          echo "Last conformance run: conclusion=$CONCLUSION sha=$RUN_SHA created=$CREATED"
+
+          if [ "$CONCLUSION" = "success" ]; then
+            echo "Conformance gate passed."
+            exit 0
+          else
+            echo "::error::Last conformance run on master was '$CONCLUSION' — release blocked."
+            exit 1
+          fi
