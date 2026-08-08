@@ -286,7 +286,7 @@ unity-biome-mcp/
 │   │   └── scripts/            # claude_to_codex.py — ownership-checked Claude-to-Codex sync
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
-│       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
+│       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort); **WI-7**: NEW atomic `BindFreePort(startFrom, skipPort, skipPort2)` for TOCTOU-safe port binding; `FindFreePortExcluding(skip1, skip2)` skips multiple ports; `ResolveReloadPort()` discovers reload port; `TrySaveAllPorts()` writes all 3 ports (main/chat/reload) atomically
 │       ├── CommandRouter.cs                # RegisterAll(), guards, core dispatch (partial class)
 │       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class, 274L after v0.80.0 SRP split); get_aliases command + BuildAliasSection/GetAliasesText; ApplyFieldsCompress(args, result) shared by inspect + get_component (v0.78.x)
 │       ├── CommandRouter.AliasHandlers.cs  # Alias-only commands: get_aliases, alias_status, BuildAliasSection (partial class, NEW v0.80.0, 68L)
@@ -379,7 +379,7 @@ unity-biome-mcp/
 │       ├── MainThreadDispatcher.cs          # Main-thread work queue for TCP callbacks (v0.69.0)
 │       ├── EnvironmentHelper.cs             # Unity environment detection + version checks (v0.69.0)
 │       ├── ErrorClassifier.cs               # Categorizes command failures for recovery (v0.69.0)
-│       ├── PortFileManager.cs               # Port file lifecycle + atomic writes (v0.69.0; v1.0.1: +SaveRuntimePorts (no MCPSettings.json touch) + CleanStalePeerPortFiles (dead-PID cleanup at startup))
+│       ├── PortFileManager.cs               # Port file lifecycle + atomic writes (v0.69.0; v1.0.1: +SaveRuntimePorts (no MCPSettings.json touch) + CleanStalePeerPortFiles (dead-PID cleanup at startup); **WI-7**: NEW ReloadPort property + EnsureAllPorts() orchestrates 3-port resolution (main/chat/reload); EnsurePorts() caches all three; ReadOnly boolean flag (reads from MCPSettings.json); SavePorts() calls TrySaveAllPorts atomically)
 │       ├── ResponseGovernance.cs            # Response size limiting + overflow handling (v0.69.0)
 │       ├── ConsoleStackParser.cs            # Console exception stack parsing (v0.69.0)
 │       ├── ColliderFitHelper.cs             # Collider bounds fitting helpers (v0.69.0)
@@ -421,10 +421,12 @@ unity-biome-mcp/
 │       ├── MCPActions.cs                  # Shared actions (Restart, Kill, Reimport)
 │       ├── MCPStatusModel.cs              # Pure state logic (no deps) — maps connection state → display
 │       ├── MCPStatusBarWidget.cs          # Injects MCP pill into AppStatusBar via reflection
-│       ├── TestSupport/                   # Test infrastructure attributes (v1.12.0, separate asmdef)
+│       ├── TestSupport/                   # Test infrastructure base class + attributes (v1.12.0, separate asmdef)
 │       │   ├── UnityMCP.Editor.TestSupport.asmdef
+│       │   ├── UnityMcpTestBase.cs        # Base test fixture (lifecycle ownership: scene/object/asset cleanup, domain reload state, worker identity). **WI-8**: NEW RequireReadWriteBoundary() in BeginUnityMcpIsolation (after _isolationActive=true); calls EnforceReadWriteRequirement(type, methodName, isReadOnly), returns reason string or null; skips test via Assert.Ignore when attribute present and IsReadOnly=true
 │       │   ├── BiomeWorkerOnlyAttribute.cs # [BiomeWorkerOnly("reason")] — NUnit-style reason-required marker for per-test disposable-worker-only execution (no one-time setup/teardown — guard runs pre-fixture in UnityMcpTestBase.SetUp)
 │       │   ├── RequiresGraphicsDeviceAttribute.cs # [RequiresGraphicsDevice] — NUnit IApplyToTest skips test if GraphicsDeviceType == Null (headless CI); sets RunState.Ignored with skip reason
+│       │   ├── RequiresReadWriteAttribute.cs # **WI-8**: [RequiresReadWrite("reason")] — Marks tests requiring a read-write worker. UnityMcpTestBase.EnforceReadWriteRequirement() checks at SetUp time; returns reason string or null. Tests in read-only workers are skipped via Assert.Ignore when [RequiresReadWrite] present and IsReadOnly=true. Static method enables unit testing of attribute application logic.
 │       │   └── SkipOnWindowsAttribute.cs # [SkipOnWindows("reason")] — NUnit IApplyToTest skips test on Windows (RuntimePlatform.WindowsEditor), reason customizable; default is "Known Windows platform incompatibility — fix tracked separately"
 │       ├── Tests/                         # Editor tests asmdef (references core, v0.26.0: +[TestFixture] to 6 classes, v0.42.0: Wizard tests moved to separate asmdef, v0.62.0: +helper tests)
 │       │   ├── UnityMCP.Editor.Tests.asmdef
@@ -443,6 +445,10 @@ unity-biome-mcp/
 │       │   ├── MultiSceneTestBase.cs      # Multi-scene specialization; exact additive scenes are registered with the common ownership transaction
 │       │   ├── MultiSceneFinderTests.cs   # Object finding across scenes + reference scanning (v0.24.3)
 │       │   ├── PortResolverTests.cs       # 25+4 NUnit tests (port validation, fallback, dual-port edge cases, v0.52.6: chat collision guard)
+│       │   ├── PortResolverReadOnlyTests.cs # **WI-8**: ReadOnly mode PortResolver tests — BindFreePort atomic binding, ResolveReloadPort discovery (WI-7)
+│       │   ├── BatchHelperReadOnlyTests.cs # **WI-8**: Batch DSL read-only mode — verify mutations blocked, reads allowed, verification gates skipped
+│       │   ├── CommandRouterReadOnlyTests.cs # **WI-8**: CommandRouter.IsReadOnly property + CheckGuards write-blocking + get_enabled_tools cache behavior in read-only
+│       │   ├── RequiresReadWriteAttributeTests.cs # **WI-8**: [RequiresReadWrite] attribute + EnforceReadWriteRequirement() unit tests — reason extraction, type/method reflection, skip predicate
 │       │   ├── MCPServerStartGuardTests.cs # 3 NUnit tests (ShouldStartServer batch mode guard, v0.52.6)
 │       │   ├── MCPStatusModelTests.cs     # 14 NUnit tests (state transitions, labels, pills) [+TestFixture v0.26.0]
 │       │   ├── CatalogParserTests.cs      # [+TestFixture v0.26.0]
