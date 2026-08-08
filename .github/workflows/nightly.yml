@@ -13,6 +13,7 @@ jobs:
   python-full:
     name: Python Full (incl. monkey + slow)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
@@ -43,6 +44,7 @@ jobs:
   csharp-full:
     name: C# Full (all categories)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
