@@ -134,3 +134,37 @@ Plans/UnityCLI/
 
 # MkDocs
 site/
+
+# Read-only worker B for cross-project conformance tests
+unity-test-project-ro/Library/
+unity-test-project-ro/Temp/
+unity-test-project-ro/Obj/
+unity-test-project-ro/Build/
+unity-test-project-ro/Builds/
+unity-test-project-ro/Logs/
+unity-test-project-ro/UserSettings/
+unity-test-project-ro/*.csproj
+unity-test-project-ro/*.unityproj
+unity-test-project-ro/*.suo
+unity-test-project-ro/*.tmp
+unity-test-project-ro/*.user
+unity-test-project-ro/*.userprefs
+unity-test-project-ro/*.pidb
+unity-test-project-ro/*.booproj
+unity-test-project-ro/*.svd
+unity-test-project-ro/*.pdb
+unity-test-project-ro/*.mdb
+unity-test-project-ro/*.opendb
+unity-test-project-ro/*.VC.db
+unity-test-project-ro/*.sln
+unity-test-project-ro/*.sln.DotSettings.user
+unity-test-project-ro/.utmp/
+unity-test-project-ro/Recordings/
+unity-test-project-ro/inf/
+unity-test-project-ro/ScreenShots/
+unity-test-project-ro/MemoryCaptures/
+unity-test-project-ro/mono_crash.*
+unity-test-project-ro/sysinfo.txt
+unity-test-project-ro/Packages/packages-lock.json
+unity-test-project-ro/InitTestScene*.unity*
+unity-test-project-ro/Assets/InitTestScene*.unity*

@@ -1,0 +1,59 @@
+# Unity generated
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/[Bb]uild/
+/[Bb]uilds/
+.utmp/
+ScreenShots/
+
+# IDE auto-generated
+*.csproj
+*.unityproj
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+*.tmp
+*.sln.DotSettings.user
+.vs/
+.gradle/
+ExportedObj/
+.consulo/
+
+# System
+mono_crash.*
+sysinfo.txt
+.DS_Store
+
+# Test Runner generated scenes
+InitTestScene*.unity
+InitTestScene*.unity.meta
+
+# Package lock (auto-regenerated)
+Packages/packages-lock.json
+
+# Unity Biome MCP auto-generated configs
+.mcp.json
+.cursor/mcp.json
+.vscode/mcp.json
+.windsurf/mcp.json
+.codex/config.toml
+.junie/mcp/mcp.json
+
+# Local
+inf/

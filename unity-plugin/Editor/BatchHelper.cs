@@ -108,6 +108,13 @@ namespace UnityMCP.Editor
                     if (AtomicFail(i)) break; else continue;
                 }
 
+                // ReadOnly guard
+                if (CommandRouter.IsReadOnly() && CommandRegistry.IsMutating(cmd))
+                {
+                    sb.AppendLine($"[{i}] err: READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only");
+                    if (AtomicFail(i)) break; else continue;
+                }
+
                 // Tool enabled check
                 if (!CommandRouter.IsAlwaysAllowed(cmd) && !MCPSettings.IsToolEnabled(cmd))
                 {

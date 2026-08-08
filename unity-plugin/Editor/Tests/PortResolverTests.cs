@@ -362,5 +362,159 @@ namespace UnityMCP.Editor.Tests
                 Path.Combine(Path.GetTempPath(), "irrelevant.json"), 9600, 9601, throwingWriter);
             Assert.IsFalse(result);
         }
+
+        // ── ResolveReloadPort ──────────────────────────────────────────────────
+
+        [Test]
+        public void ResolveReloadPort_EnvTakesPrecedence()
+        {
+            var result = PortResolver.ResolveReloadPort("19999", "{\"reloadPort\":9602}", 9500, 9501, 9502);
+            Assert.AreEqual(19999, result);
+        }
+
+        [Test]
+        public void ResolveReloadPort_ReadsCacheJson()
+        {
+            var result = PortResolver.ResolveReloadPort(null, "{\"reloadPort\":9602}", 9500, 9501, 9502);
+            Assert.AreEqual(9602, result);
+        }
+
+        [Test]
+        public void ResolveReloadPort_SkipsMainPort()
+        {
+            // No cache → fallback → result must not equal mainPort
+            var result = PortResolver.ResolveReloadPort(null, null, 9500, 9501, 9500);
+            Assert.AreNotEqual(9500, result);
+            Assert.IsTrue(PortResolver.IsValidPort(result));
+        }
+
+        [Test]
+        public void ResolveReloadPort_SkipsChatPort()
+        {
+            // No cache → fallback → result must not equal chatPort
+            var result = PortResolver.ResolveReloadPort(null, null, 9500, 9501, 9500);
+            Assert.AreNotEqual(9501, result);
+            Assert.IsTrue(PortResolver.IsValidPort(result));
+        }
+
+        [Test]
+        public void ResolveReloadPort_FallsBackToFindFreePort_WhenCacheMissing()
+        {
+            var result = PortResolver.ResolveReloadPort(null, null, 9500, 9501, 9600);
+            Assert.IsTrue(PortResolver.IsValidPort(result));
+        }
+
+        [Test]
+        public void ResolveReloadPort_CacheEqualsMainPort_FallsBack()
+        {
+            // Cache has reloadPort == mainPort → must reject and find a different port
+            var result = PortResolver.ResolveReloadPort(null, "{\"reloadPort\":9500}", 9500, 9501, 9502);
+            Assert.AreNotEqual(9500, result);
+            Assert.IsTrue(PortResolver.IsValidPort(result));
+        }
+
+        [Test]
+        public void ResolveReloadPort_CacheEqualsChatPort_FallsBack()
+        {
+            // Cache has reloadPort == chatPort → must reject and find a different port
+            var result = PortResolver.ResolveReloadPort(null, "{\"reloadPort\":9501}", 9500, 9501, 9502);
+            Assert.AreNotEqual(9501, result);
+            Assert.IsTrue(PortResolver.IsValidPort(result));
+        }
+
+        // ── FindFreePortExcluding (tested through ResolveReloadPort) ──────────
+
+        [Test]
+        public void FindFreePortExcluding_SkipsBothPorts()
+        {
+            // ResolveReloadPort with no cache triggers FindFreePortExcluding(defaultStart, mainPort, chatPort)
+            var result = PortResolver.ResolveReloadPort(null, null, 9500, 9501, 9500);
+            Assert.AreNotEqual(9500, result);
+            Assert.AreNotEqual(9501, result);
+            Assert.IsTrue(PortResolver.IsValidPort(result));
+        }
+
+        // ── TrySaveAllPorts ───────────────────────────────────────────────────
+
+        [Test]
+        public void TrySaveAllPorts_WritesAllThreeFields()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "mcp_all_ports_" + System.Guid.NewGuid().ToString("N") + ".json");
+            try
+            {
+                var ok = PortResolver.TrySaveAllPorts(path, 9500, 9501, 9502, System.IO.File.WriteAllText);
+                Assert.IsTrue(ok);
+                var json = System.IO.File.ReadAllText(path);
+                Assert.AreEqual(9500, PortResolver.ParsePortFromJson(json, "port"));
+                Assert.AreEqual(9501, PortResolver.ParsePortFromJson(json, "chatPort"));
+                Assert.AreEqual(9502, PortResolver.ParsePortFromJson(json, "reloadPort"));
+            }
+            finally { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
+        }
+
+        [Test]
+        public void TrySaveAllPorts_WriterThrows_ReturnsFalse()
+        {
+            System.Action<string, string> boom = (_, __) => throw new System.IO.IOException("disk full");
+            var ok = PortResolver.TrySaveAllPorts(
+                Path.Combine(Path.GetTempPath(), "irrelevant2.json"), 9500, 9501, 9502, boom);
+            Assert.IsFalse(ok);
+        }
+
+        // ── BindFreePort ──────────────────────────────────────────────────────
+
+        [Test]
+        public void BindFreePort_ReturnsStartedListener()
+        {
+            var listener = PortResolver.BindFreePort(9200);
+            try
+            {
+                Assert.IsNotNull(listener);
+                Assert.IsNotNull(listener.LocalEndpoint);
+                var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+                Assert.IsTrue(PortResolver.IsValidPort(port));
+            }
+            finally { listener?.Stop(); }
+        }
+
+        [Test]
+        public void BindFreePort_SkipsPort()
+        {
+            var listener = PortResolver.BindFreePort(9200, skipPort: 9200);
+            try
+            {
+                var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+                Assert.AreNotEqual(9200, port);
+            }
+            finally { listener?.Stop(); }
+        }
+
+        [Test]
+        public void BindFreePort_SkipsSecondPort()
+        {
+            var listener = PortResolver.BindFreePort(9200, skipPort: -1, skipPort2: 9200);
+            try
+            {
+                var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+                Assert.AreNotEqual(9200, port);
+            }
+            finally { listener?.Stop(); }
+        }
+
+        [Test]
+        public void BindFreePort_HandledConflict_ReturnsDifferentPort()
+        {
+            var blocker = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 9250);
+            blocker.Start();
+            System.Net.Sockets.TcpListener result = null;
+            try
+            {
+                result = PortResolver.BindFreePort(9250);
+                var resultPort = ((System.Net.IPEndPoint)result.LocalEndpoint).Port;
+                Assert.AreNotEqual(9250, resultPort);
+                Assert.IsTrue(PortResolver.IsValidPort(resultPort));
+            }
+            finally { blocker.Stop(); result?.Stop(); }
+        }
     }
 }

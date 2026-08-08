@@ -6,11 +6,13 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class BlendTreeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    [RequiresReadWrite("creates AnimatorController assets on disk")]
+    public class BlendTreeTests : UnityMcpTestBase
     {
         private AnimatorController _ctrl;
         private static readonly string CtrlFolder = TestPaths.ForFixture("BlendTreeTests");

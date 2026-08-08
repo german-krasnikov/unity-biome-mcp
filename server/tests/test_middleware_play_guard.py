@@ -61,6 +61,38 @@ def test_track_editor_state_sets_playing():
     assert mw.is_playing
 
 
+# ── P-415: action result fast-path ───────────────────────────────────────────
+
+def test_track_editor_state_entered_sets_playing():
+    """P-415: editor(action='play') returning 'entered' must set is_playing=True."""
+    mw = _make_mw(play_state_known=True, is_playing=False)
+    mw.track_editor_state("editor", "entered", args={"action": "play"})
+    assert mw._play_state_known is True
+    assert mw.is_playing is True
+
+
+def test_track_editor_state_already_playing_sets_playing():
+    """P-415: 'already_playing' must also set is_playing=True."""
+    mw = _make_mw(play_state_known=False)
+    mw.track_editor_state("editor", "already_playing", args={"action": "play"})
+    assert mw._play_state_known is True
+    assert mw.is_playing is True
+
+
+def test_play_guard_does_not_block_after_editor_play_entered():
+    """P-415: runtime cmd allowed after editor(play) returns 'entered'."""
+    mw = _make_mw(play_state_known=True, is_playing=False)
+    mw.track_editor_state("editor", "entered", args={"action": "play"})
+    assert mw.check_play_mode_required("run_playtest") is None
+
+
+def test_stop_action_ok_clears_playing():
+    """P-415: editor(action='stop') returning 'ok' must set is_playing=False."""
+    mw = _make_mw(play_state_known=True, is_playing=True)
+    mw.track_editor_state("editor", "ok", args={"action": "stop"})
+    assert mw.is_playing is False
+
+
 # ── pipeline integration test ─────────────────────────────────────────────────
 
 @pytest.mark.asyncio

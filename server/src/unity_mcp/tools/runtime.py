@@ -218,35 +218,40 @@ async def run_playtest_suite(
     results = []
     suite_start = _time.monotonic()
 
-    for filepath in file_list:
-        if restart_between and results:  # not before first file
-            import asyncio as _asyncio
-            try:
-                await _send("editor", _args(action="stop"), timeout=10.0)
-                await _asyncio.sleep(1.0)
-                await _send("editor", _args(action="play"), timeout=5.0)
-                for _ in range(15):
+    try:
+        for filepath in file_list:
+            if restart_between and results:  # not before first file
+                import asyncio as _asyncio
+                try:
+                    await _send("editor", _args(action="stop"), timeout=10.0)
                     await _asyncio.sleep(1.0)
-                    s = await _send("editor", _args(action="state"), timeout=5.0)
-                    if _is_play_mode(s):
-                        break
-            except Exception:
-                pass  # best-effort
-        t0 = _time.monotonic()
-        raw = await _send("run_playtest", _args(
-            path=filepath,
-            timeout=str(timeout_per_test),
-            abort_on_fail=None),
-            timeout=timeout_per_test + _TCP_PLAYTEST_BUFFER)
-        elapsed = _time.monotonic() - t0
-        passed = raw.startswith("PLAYTEST:") and "FAIL" not in raw and "CONSOLE_ERR" not in raw
-        results.append((filepath, raw, elapsed, passed))
-        if stop_on_fail and not passed:
-            break
-
-    if stop_after:
-        with contextlib.suppress(Exception):  # best-effort
-            await _send("editor", _args(action="stop"), timeout=10.0)
+                    await _send("editor", _args(action="play"), timeout=5.0)
+                    for _ in range(15):
+                        await _asyncio.sleep(1.0)
+                        s = await _send("editor", _args(action="state"), timeout=5.0)
+                        if _is_play_mode(s):
+                            break
+                except Exception:
+                    pass  # best-effort
+            t0 = _time.monotonic()
+            try:
+                raw = await _send("run_playtest", _args(
+                    path=filepath,
+                    timeout=str(timeout_per_test),
+                    abort_on_fail=None),
+                    timeout=timeout_per_test + _TCP_PLAYTEST_BUFFER)
+            except Exception as exc:
+                # P-336: capture network/timeout exceptions as failed results
+                raw = f"PLAYTEST: 0/0 ERROR: {type(exc).__name__}: {exc}"
+            elapsed = _time.monotonic() - t0
+            passed = raw.startswith("PLAYTEST:") and "FAIL" not in raw and "CONSOLE_ERR" not in raw and "ERROR" not in raw
+            results.append((filepath, raw, elapsed, passed))
+            if stop_on_fail and not passed:
+                break
+    finally:
+        if stop_after:
+            with contextlib.suppress(Exception):  # best-effort
+                await _send("editor", _args(action="stop"), timeout=10.0)
 
     return _format_suite_report(results, _time.monotonic() - suite_start)
 

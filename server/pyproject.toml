@@ -1,6 +1,6 @@
 [project]
 name = "unity-biome-mcp"
-version = "1.24.0"
+version = "1.25.0"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]
@@ -52,6 +52,8 @@ markers = [
     "monkey: stress/chaos tests for chat_relay (connection storms, process leaks, protocol torture)",
     "live_chat: requires running Unity + MCPChatWindow; subset of live",
     "timeout: per-test timeout override (pytest-timeout)",
+    "conformance: MCP conformance gate tests — portable across any Unity+MCP endpoint",
+    "cross_project: requires two running Unity editors on different ports",
 ]
 
 [tool.ruff]

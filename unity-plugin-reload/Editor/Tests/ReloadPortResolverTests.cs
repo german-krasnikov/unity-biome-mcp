@@ -166,5 +166,98 @@ namespace UnityMCP.Reload.Tests
             Assert.IsTrue(result.TrimStart().StartsWith("{"), "must be JSON object");
             Assert.IsTrue(result.TrimEnd().EndsWith("}"), "must be JSON object");
         }
+
+        // ── Bug fix: stale reloadPort from a different worker ──
+
+        [Test]
+        public void GetReloadPort_StaleReloadPort_ReturnsPortAboveMainPort()
+        {
+            // reloadPort=9601 is stale (≤ mainPort=9699): must be rejected
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, "{\"port\":9699,\"reloadPort\":9601}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.Greater(port, 9699,
+                "Stale reloadPort (9601 ≤ mainPort 9699) must be discarded; result must be > mainPort");
+        }
+
+        [Test]
+        public void GetReloadPort_NoReloadPortInJson_MainPortPresent_ReturnsAtLeastMainPortPlusOne()
+        {
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, "{\"port\":9699}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.GreaterOrEqual(port, 9700,
+                "Fallback without cached reloadPort must start from mainPort+1");
+        }
+
+        [Test]
+        public void GetReloadPort_ValidReloadPort_GreaterThanMainPort_ReturnsCachedPort()
+        {
+            // Dynamically find a free port so the test is stable regardless of environment
+            var freePort = ReloadPortResolver.FindFreePort(28700);
+            Assume.That(freePort > 9699, "Need a free port above mainPort for this test");
+
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, $"{{\"port\":9699,\"reloadPort\":{freePort}}}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.AreEqual(freePort, port, "Valid cached reloadPort must be returned unchanged");
+        }
+
+        [Test]
+        public void GetReloadPort_ReloadPortEqualsChatPort_Rejected()
+        {
+            // reloadPort=9700 == chatPort=9700 → conflict, must pick another
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, "{\"port\":9699,\"chatPort\":9700,\"reloadPort\":9700}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.AreNotEqual(9700, port, "reloadPort must not equal chatPort");
+            Assert.Greater(port, 9700, "must skip both mainPort and chatPort");
+        }
+
+        [Test]
+        public void GetReloadPort_NoCachedReload_SkipsChatPort()
+        {
+            // No reloadPort, mainPort+1 == chatPort → must skip to mainPort+2
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, "{\"port\":9699,\"chatPort\":9700}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.AreNotEqual(9700, port, "must not use chatPort");
+            Assert.GreaterOrEqual(port, 9701, "must start from mainPort+2 when chatPort occupies +1");
+        }
+
+        [Test]
+        public void GetReloadPort_RejectsPort_WhenNotBindable()
+        {
+            // Bind a port, cache it as reloadPort → GetReloadPort must skip the occupied port
+            var blocker = new TcpListener(IPAddress.Loopback, 0);
+            blocker.Start();
+            var blockedPort = ((IPEndPoint)blocker.LocalEndpoint).Port;
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            // mainPort far away so "above main" check passes; chatPort differs too
+            File.WriteAllText(tempPath, $"{{\"port\":9500,\"chatPort\":9501,\"reloadPort\":{blockedPort}}}");
+            ReloadPortResolver.PortFilePath = tempPath;
+            try
+            {
+                var port = ReloadPortResolver.GetReloadPort();
+                Assert.AreNotEqual(blockedPort, port, "occupied reloadPort must be rejected");
+                Assert.IsTrue(port >= 1024 && port <= 65535, "returned port must be valid");
+            }
+            finally { blocker.Stop(); }
+        }
     }
 }

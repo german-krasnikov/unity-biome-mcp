@@ -189,6 +189,28 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(File.Exists(discoveryPath));
         }
 
+        // ── ReloadPort resolution ─────────────────────────────────────────────
+
+        [Test]
+        public void EnsurePorts_ResolvesAllThreePorts_Distinct()
+        {
+            var port = PortFileManager.Port;
+            var chatPort = PortFileManager.ChatPort;
+            var reloadPort = PortFileManager.ReloadPort;
+
+            Assert.IsTrue(PortResolver.IsValidPort(reloadPort), $"ReloadPort {reloadPort} must be a valid port");
+            Assert.AreNotEqual(port, reloadPort, "ReloadPort must differ from Port");
+            Assert.AreNotEqual(chatPort, reloadPort, "ReloadPort must differ from ChatPort");
+        }
+
+        [Test]
+        public void ReloadPort_ReturnedFromEnsurePorts_IsNotMainOrChat()
+        {
+            var reloadPort = PortFileManager.ReloadPort;
+            Assert.AreNotEqual(PortFileManager.Port, reloadPort, "ReloadPort must not equal Port");
+            Assert.AreNotEqual(PortFileManager.ChatPort, reloadPort, "ReloadPort must not equal ChatPort");
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static bool IsProcessAlive(int pid)

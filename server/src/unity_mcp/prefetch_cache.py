@@ -111,6 +111,26 @@ class PrefetchCache:
         self._stats["invals"] += len(to_drop)
         return len(to_drop)
 
+    def invalidate_by_path(self, path: str) -> int:
+        """Drop ALL entries where any arg value matches path. Broader than invalidate_path.
+
+        Use when the target path may appear under different arg keys (e.g. 'id' for
+        get_components_list vs 'path' for get_component). Returns count dropped.
+        """
+        if not path:
+            return 0
+        to_drop = []
+        for key in self._store:
+            _cmd, frozen = key
+            for _k, v in frozen:
+                if v == path:
+                    to_drop.append(key)
+                    break
+        for key in to_drop:
+            del self._store[key]
+        self._stats["invals"] += len(to_drop)
+        return len(to_drop)
+
     def clear(self) -> None:
         self._store.clear()
 

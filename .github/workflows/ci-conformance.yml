@@ -1,0 +1,155 @@
+name: CI Conformance
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'server/**'
+      - 'scripts/**'
+      - '.github/workflows/ci-conformance.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'server/**'
+  workflow_dispatch:
+    inputs:
+      unity_port:
+        description: 'Unity MCP port'
+        required: false
+        default: '9500'
+      project_path:
+        description: 'Unity project path'
+        required: true
+      second_port:
+        description: 'Second Unity port for cross-project tests (0 = skip)'
+        required: false
+        default: '0'
+      second_project_path:
+        description: 'Second Unity project path (Worker B, required if second_port > 0)'
+        required: false
+        default: ''
+
+concurrency:
+  group: ci-conformance-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-gate:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install server with dev deps
+        run: pip install -e "server[dev]"
+
+      - name: Run unit tests
+        working-directory: server
+        env:
+          PYTHONWARNDEFAULTENCODING: '1'
+        run: python -m pytest tests/ -m "not live and not monkey" -q --timeout=30
+
+  conformance-single:
+    name: Conformance (single worker)
+    runs-on: self-hosted
+    needs: unit-gate
+    if: vars.CONFORMANCE_PROJECT_PATH != ''
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install server with dev deps
+        run: pip install -e "server[dev]"
+
+      - name: Discover Unity port
+        id: port
+        env:
+          INPUT_PORT: ${{ inputs.unity_port }}
+        run: |
+          PORT="$INPUT_PORT"
+          if [ -z "$PORT" ]; then
+            DISCOVERED=$(python3 -c "import pathlib; p=list(pathlib.Path.home().glob('.unity-biome-mcp/ports/*.port')); print(open(p[0]).read().split()[0] if p else '')" 2>/dev/null || echo "")
+            [ -n "$DISCOVERED" ] && PORT="$DISCOVERED" || PORT="9500"
+          fi
+          echo "port=$PORT" >> "$GITHUB_OUTPUT"
+
+      - name: Check Unity reachability
+        id: reachable
+        env:
+          UNITY_PORT: ${{ steps.port.outputs.port }}
+        run: |
+          if python3 -c "import socket; s=socket.create_connection(('127.0.0.1', int('$UNITY_PORT')), timeout=5); s.close()"; then
+            echo "reachable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "reachable=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Unity not reachable at port $UNITY_PORT — skipping conformance"
+          fi
+
+      - name: Run conformance
+        if: steps.reachable.outputs.reachable == 'true'
+        env:
+          UNITY_PORT: ${{ steps.port.outputs.port }}
+          PROJECT_PATH: ${{ vars.CONFORMANCE_PROJECT_PATH }}
+        run: |
+          python scripts/conformance_runner.py \
+            --port "$UNITY_PORT" \
+            --project "$PROJECT_PATH" \
+            --timeout 300 \
+            --verbose
+
+  conformance-dual:
+    name: Conformance (dual worker)
+    runs-on: self-hosted
+    needs: unit-gate
+    if: vars.CONFORMANCE_SECOND_PROJECT_PATH != ''
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install server with dev deps
+        run: pip install -e "server[dev]"
+
+      - name: Check Unity reachability (both workers)
+        id: reachable
+        env:
+          PORT_A: ${{ vars.CONFORMANCE_PORT }}
+          PORT_B: ${{ vars.CONFORMANCE_SECOND_PORT }}
+        run: |
+          OK=true
+          for PORT in "$PORT_A" "$PORT_B"; do
+            if ! python3 -c "import socket; s=socket.create_connection(('127.0.0.1', int('$PORT')), timeout=5); s.close()" 2>/dev/null; then
+              echo "::warning::Unity not reachable at port $PORT — skipping dual conformance"
+              OK=false
+            fi
+          done
+          echo "reachable=$OK" >> "$GITHUB_OUTPUT"
+
+      - name: Run dual conformance
+        if: steps.reachable.outputs.reachable == 'true'
+        env:
+          PORT_A: ${{ vars.CONFORMANCE_PORT }}
+          PROJECT_A: ${{ vars.CONFORMANCE_PROJECT_PATH }}
+          PORT_B: ${{ vars.CONFORMANCE_SECOND_PORT }}
+          PROJECT_B: ${{ vars.CONFORMANCE_SECOND_PROJECT_PATH }}
+        run: |
+          python scripts/conformance_runner.py \
+            --port "$PORT_A" \
+            --project "$PROJECT_A" \
+            --second-port "$PORT_B" \
+            --second-project "$PROJECT_B" \
+            --markers '(conformance and live) or (cross_project and live)' \
+            --timeout 300 \
+            --verbose

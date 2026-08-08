@@ -274,12 +274,14 @@ def render_report(
                 "|------|-------|--------|----------|------|",
             ]
             for t in sorted(tools, key=lambda x: x.get("score", 0)):
-                name = t.get("name", "?")
+                # mcp-tool-card-linter report schema v1 uses tool_name/issues/
+                # risk_level. Keep the legacy fallbacks for older reports.
+                name = t.get("tool_name") or t.get("name", "?")
                 score = t.get("score", 0)
-                findings = t.get("findings", [])
+                findings = t.get("issues") or t.get("findings", [])
                 errs = sum(1 for f in findings if f.get("severity") in ("error", "critical"))
                 warns = sum(1 for f in findings if f.get("severity") == "warning")
-                risk = t.get("risk", "—")
+                risk = t.get("risk_level") or t.get("risk", "—")
                 lines.append(f"| `{name}` | {score} | {errs} | {warns} | {risk} |")
             lines += ["", "</details>", ""]
     except Exception:

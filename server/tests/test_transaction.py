@@ -230,3 +230,35 @@ class TestApplySceneChange:
         result = await tr.apply_scene_change(plan_id, "[]")
         assert "mutations=ok" in result
         assert "refs=unchecked" in result
+
+    async def test_dirty_flag_verified_partial_after_save(self, monkeypatch):
+        """P-414: saved=PARTIAL dirty=true when scene stays dirty post-save."""
+        plan_id = self._insert_plan()
+
+        async def fake_send(cmd, args, **kw):
+            if cmd == "batch": return "1/1 ok"
+            if cmd == "validate_references": return "0 broken"
+            if cmd == "get_console": return ""
+            if cmd == "scene": return "Assets/Scenes/Test.unity"  # save "succeeds"
+            if cmd == "get_status": return "scene=Test\ndirty=True\nplaying=False"
+            return ""
+        monkeypatch.setattr(tr, "_send", fake_send)
+
+        result = await tr.apply_scene_change(plan_id, "[]", save=True)
+        assert "saved=PARTIAL dirty=true" in result, f"Expected PARTIAL but got: {result}"
+
+    async def test_dirty_flag_verified_clean_after_save(self, monkeypatch):
+        """P-414: saved=true dirty=false when scene is clean after save."""
+        plan_id = self._insert_plan()
+
+        async def fake_send(cmd, args, **kw):
+            if cmd == "batch": return "1/1 ok"
+            if cmd == "validate_references": return "0 broken"
+            if cmd == "get_console": return ""
+            if cmd == "scene": return "Assets/Scenes/Test.unity"
+            if cmd == "get_status": return "scene=Test\ndirty=False\nplaying=False"
+            return ""
+        monkeypatch.setattr(tr, "_send", fake_send)
+
+        result = await tr.apply_scene_change(plan_id, "[]", save=True)
+        assert "saved=true dirty=false" in result, f"Expected clean but got: {result}"

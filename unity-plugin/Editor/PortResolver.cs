@@ -48,6 +48,14 @@ namespace UnityMCP.Editor
             return null;
         }
 
+        internal static bool? ParseBoolFromJson(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json)) return null;
+            var m = Regex.Match(json, "\"" + key + "\"\\s*:\\s*(true|false)");
+            if (m.Success) return m.Groups[1].Value == "true";
+            return null;
+        }
+
         internal static bool IsValidPort(int port) => port >= 1024 && port <= 65535;
 
         internal static int FindFreePort(int startFrom, int skipPort = -1)
@@ -76,6 +84,115 @@ namespace UnityMCP.Editor
                 fb.Stop();
             }
             return assigned;
+        }
+
+        // Scan startFrom..startFrom+199, skip TWO ports, OS-assigned fallback.
+        // Best-effort probe: TOCTOU window remains (port released before caller binds).
+        private static int FindFreePortExcluding(int startFrom, int skip1, int skip2)
+        {
+            for (var port = startFrom; port <= startFrom + 199; port++)
+            {
+                if (port == skip1 || port == skip2) continue;
+                try
+                {
+                    var l = new TcpListener(IPAddress.Loopback, port);
+                    l.Start(); l.Stop();
+                    return port;
+                }
+                catch (SocketException) { }
+            }
+            // OS-assigned fallback — one retry if OS gives us a skip port
+            var fb = new TcpListener(IPAddress.Loopback, 0);
+            fb.Start(); var p = ((IPEndPoint)fb.LocalEndpoint).Port; fb.Stop();
+            if (p != skip1 && p != skip2) return p;
+            fb = new TcpListener(IPAddress.Loopback, 0);
+            fb.Start(); p = ((IPEndPoint)fb.LocalEndpoint).Port; fb.Stop();
+            return p;
+        }
+
+        // Return an already-started TcpListener on a free port. Caller owns Stop().
+        // Applies platform socket options (mirrors MCPServer.StartAsync bind logic).
+        internal static TcpListener BindFreePort(int startFrom, int skipPort = -1, int skipPort2 = -1)
+        {
+            for (var port = startFrom; port <= 9699; port++)
+            {
+                if (port == skipPort || port == skipPort2) continue;
+                var l = TryBindWithOptions(port);
+                if (l != null) return l;
+            }
+            // OS-assigned fallback
+            var fb = TryBindWithOptions(0);
+            if (fb != null)
+            {
+                var assigned = ((IPEndPoint)fb.LocalEndpoint).Port;
+                if (assigned != skipPort && assigned != skipPort2) return fb;
+                fb.Stop();
+            }
+            var fb2 = TryBindWithOptions(0);
+            if (fb2 != null) return fb2;
+            // Should never reach here; last-resort plain bind
+            var last = new TcpListener(IPAddress.Loopback, 0);
+            last.Start();
+            return last;
+        }
+
+        private static TcpListener TryBindWithOptions(int port)
+        {
+            try
+            {
+                var l = new TcpListener(IPAddress.Loopback, port);
+                ApplySocketOptions(l);
+                l.Start();
+                return l;
+            }
+            catch (SocketException) { return null; }
+        }
+
+        private static void ApplySocketOptions(TcpListener l)
+        {
+#if UNITY_EDITOR_WIN
+            l.Server.ExclusiveAddressUse = true;
+#else
+            l.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
+            try { l.Server.SetSocketOption(SocketOptionLevel.Socket, (SocketOptionName)0x0200, true); } catch { }
+#endif
+#endif
+        }
+
+        // env → cache (validate != mainPort AND != chatPort) → FindFreePortExcluding
+        internal static int ResolveReloadPort(
+            string envValue, string cacheJson, int mainPort, int chatPort, int defaultStart)
+        {
+            if (envValue != null && int.TryParse(envValue, out var ep) && IsValidPort(ep))
+                return ep;
+            var fromCache = ParsePortFromJson(cacheJson, "reloadPort");
+            if (fromCache.HasValue && IsValidPort(fromCache.Value)
+                && fromCache.Value != mainPort && fromCache.Value != chatPort)
+                return fromCache.Value;
+            return FindFreePortExcluding(defaultStart, mainPort, chatPort);
+        }
+
+        // Atomic tmp+move write of all three port fields. No merge-read.
+        internal static bool TrySaveAllPorts(
+            string filePath, int port, int chatPort, int reloadPort,
+            System.Action<string, string> writeAllText)
+        {
+            var tmp = filePath + ".tmp";
+            try
+            {
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(filePath));
+                var json = $"{{\"port\":{port},\"chatPort\":{chatPort},\"reloadPort\":{reloadPort}}}";
+                writeAllText(tmp, json);
+                if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
+                System.IO.File.Move(tmp, filePath);
+                return true;
+            }
+            catch
+            {
+                try { if (System.IO.File.Exists(tmp)) System.IO.File.Delete(tmp); } catch { }
+                return false;
+            }
         }
 
         internal static void SavePorts(string filePath, int port, int chatPort)
@@ -125,7 +242,15 @@ namespace UnityMCP.Editor
             try
             {
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(filePath));
-                writeAllText(filePath, $"{{\"port\":{port},\"chatPort\":{chatPort}}}");
+                // Merge-write: preserve readOnly flag when ports are reassigned via wizard.
+                string existing = null;
+                try { if (System.IO.File.Exists(filePath)) existing = System.IO.File.ReadAllText(filePath); }
+                catch { }
+                var readOnly = ParseBoolFromJson(existing, "readOnly");
+                var json = readOnly.HasValue
+                    ? $"{{\"port\":{port},\"chatPort\":{chatPort},\"readOnly\":{(readOnly.Value ? "true" : "false")}}}"
+                    : $"{{\"port\":{port},\"chatPort\":{chatPort}}}";
+                writeAllText(filePath, json);
                 return true;
             }
             catch { return false; }

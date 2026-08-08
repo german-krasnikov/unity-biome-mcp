@@ -101,8 +101,10 @@ namespace UnityMCP.TestProject.Command
         {
             CommandRegistry.InitDefaults();
             // batch is no longer mutating (Phase 31b: per-command guards)
+            // scene is no longer mutating (P-414: undo group around save clears isDirty in Unity 6;
+            //   mutating actions — new/open/discard/close — record mutation explicitly inside ExecScene)
             foreach (var cmd in new[] { "create_object", "delete_object", "set_property", "set_active",
-                "wire_event", "manage_component", "set_material", "scene",
+                "wire_event", "manage_component", "set_material",
                 "create_ui", "set_rect", "animator", "particle", "shader", "menu",
                 "animation", "references" })
             {
@@ -117,7 +119,8 @@ namespace UnityMCP.TestProject.Command
             foreach (var cmd in new[] { "ping", "get_version", "get_hierarchy", "get_component",
                 "get_components_list", "get_object_detail", "find_objects", "get_console",
                 "recompile", "search_scene", "get_enabled_tools", "editor", "inspect",
-                "validate_references", "checkpoint", "timeline" })
+                "validate_references", "checkpoint", "timeline",
+                "scene" /* P-414: per-action mutation; registry flag is false */ })
             {
                 Assert.IsFalse(CommandRegistry.IsMutating(cmd), $"{cmd} should NOT be mutating");
             }

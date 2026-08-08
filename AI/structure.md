@@ -239,6 +239,24 @@ unity-biome-mcp/
 │       ├── live/test_chat_ui_monkey.py   # Chat UI monkey tests with live relay (v0.66.0+)
 │       ├── live/chat_ui_helpers.py       # Chat UI test helpers (v0.66.0+)
 │       ├── test_editor_ui_styles.py      # Editor UI style validation: USS class coverage, theme parity, Biome component styles (docs-critical-review)
+│       ├── conformance/                    # Conformance suite (live TCP tests, marked @pytest.mark.conformance; verifies tool behavior parity across conditions)
+│       │   ├── conftest.py                 # Shared conformance fixtures: single-worker setup (UNITY_MCP_PORT)
+│       │   ├── workers.py                  # ConformanceWorker class: gate(bridge), prove_absent(bridge) lifecycle management
+│       │   ├── test_read_ops.py            # Read-only command verification (get_hierarchy, get_component, etc.)
+│       │   ├── test_write_ops.py           # Mutation command verification (create_object, set_property, delete_object)
+│       │   ├── test_batch.py               # Batch DSL parsing + multi-command execution
+│       │   ├── test_connect.py             # TCP connection establishment + identity
+│       │   ├── test_alias_system.py        # VAL/VAR alias expansion + PlaytestConfig injection
+│       │   ├── test_playtest_dsl.py        # Playtest runner DSL commands (MOVE, ASSERT, WAIT_UNTIL, CAPTURE_FRAMES)
+│       │   └── test_error_recovery.py      # Error handling + partial batch rollback
+│       ├── cross_project/                  # Dual-worker isolation tests (marked @pytest.mark.cross_project; requires SECOND_PORT + SECOND_PROJECT_PATH)
+│       │   ├── conftest.py                 # Dual-worker fixture: dual_worker_session, conformance_worker; gating on env vars
+│       │   ├── workers.py                  # ConformanceWorker reused from conformance/
+│       │   ├── test_read_only.py           # ReadOnly MCP mode verification: Worker B blocks mutating commands, allows reads (P-NEW)
+│       │   ├── test_isolation.py           # Port + scene namespace isolation between concurrent workers
+│       │   ├── test_identity.py            # Worker identification + project path isolation
+│       │   ├── test_fault_injection.py     # Chaos testing: network delays, timeout recovery, partial failures
+│       │   └── test_workers.py             # Dual-worker coordination + teardown
 │       └── ... + domain tests (190+ files total, 1018 @pytest.mark.asyncio removed v0.26.0)
 ├── unity-plugin-reload/        # Reload Recovery Package (independent compile-unit, v0.27.4)
 │   ├── Editor/
@@ -268,7 +286,7 @@ unity-biome-mcp/
 │   │   └── scripts/            # claude_to_codex.py — ownership-checked Claude-to-Codex sync
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
-│       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort)
+│       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort); **WI-7**: NEW atomic `BindFreePort(startFrom, skipPort, skipPort2)` for TOCTOU-safe port binding; `FindFreePortExcluding(skip1, skip2)` skips multiple ports; `ResolveReloadPort()` discovers reload port; `TrySaveAllPorts()` writes all 3 ports (main/chat/reload) atomically
 │       ├── CommandRouter.cs                # RegisterAll(), guards, core dispatch (partial class)
 │       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class, 274L after v0.80.0 SRP split); get_aliases command + BuildAliasSection/GetAliasesText; ApplyFieldsCompress(args, result) shared by inspect + get_component (v0.78.x)
 │       ├── CommandRouter.AliasHandlers.cs  # Alias-only commands: get_aliases, alias_status, BuildAliasSection (partial class, NEW v0.80.0, 68L)
@@ -361,7 +379,7 @@ unity-biome-mcp/
 │       ├── MainThreadDispatcher.cs          # Main-thread work queue for TCP callbacks (v0.69.0)
 │       ├── EnvironmentHelper.cs             # Unity environment detection + version checks (v0.69.0)
 │       ├── ErrorClassifier.cs               # Categorizes command failures for recovery (v0.69.0)
-│       ├── PortFileManager.cs               # Port file lifecycle + atomic writes (v0.69.0; v1.0.1: +SaveRuntimePorts (no MCPSettings.json touch) + CleanStalePeerPortFiles (dead-PID cleanup at startup))
+│       ├── PortFileManager.cs               # Port file lifecycle + atomic writes (v0.69.0; v1.0.1: +SaveRuntimePorts (no MCPSettings.json touch) + CleanStalePeerPortFiles (dead-PID cleanup at startup); **WI-7**: NEW ReloadPort property + EnsureAllPorts() orchestrates 3-port resolution (main/chat/reload); EnsurePorts() caches all three; ReadOnly boolean flag (reads from MCPSettings.json); SavePorts() calls TrySaveAllPorts atomically)
 │       ├── ResponseGovernance.cs            # Response size limiting + overflow handling (v0.69.0)
 │       ├── ConsoleStackParser.cs            # Console exception stack parsing (v0.69.0)
 │       ├── ColliderFitHelper.cs             # Collider bounds fitting helpers (v0.69.0)
@@ -403,10 +421,12 @@ unity-biome-mcp/
 │       ├── MCPActions.cs                  # Shared actions (Restart, Kill, Reimport)
 │       ├── MCPStatusModel.cs              # Pure state logic (no deps) — maps connection state → display
 │       ├── MCPStatusBarWidget.cs          # Injects MCP pill into AppStatusBar via reflection
-│       ├── TestSupport/                   # Test infrastructure attributes (v1.12.0, separate asmdef)
+│       ├── TestSupport/                   # Test infrastructure base class + attributes (v1.12.0, separate asmdef)
 │       │   ├── UnityMCP.Editor.TestSupport.asmdef
+│       │   ├── UnityMcpTestBase.cs        # Base test fixture (lifecycle ownership: scene/object/asset cleanup, domain reload state, worker identity). **WI-8**: NEW RequireReadWriteBoundary() in BeginUnityMcpIsolation (after _isolationActive=true); calls EnforceReadWriteRequirement(type, methodName, isReadOnly), returns reason string or null; skips test via Assert.Ignore when attribute present and IsReadOnly=true
 │       │   ├── BiomeWorkerOnlyAttribute.cs # [BiomeWorkerOnly("reason")] — NUnit-style reason-required marker for per-test disposable-worker-only execution (no one-time setup/teardown — guard runs pre-fixture in UnityMcpTestBase.SetUp)
 │       │   ├── RequiresGraphicsDeviceAttribute.cs # [RequiresGraphicsDevice] — NUnit IApplyToTest skips test if GraphicsDeviceType == Null (headless CI); sets RunState.Ignored with skip reason
+│       │   ├── RequiresReadWriteAttribute.cs # **WI-8**: [RequiresReadWrite("reason")] — Marks tests requiring a read-write worker. UnityMcpTestBase.EnforceReadWriteRequirement() checks at SetUp time; returns reason string or null. Tests in read-only workers are skipped via Assert.Ignore when [RequiresReadWrite] present and IsReadOnly=true. Static method enables unit testing of attribute application logic.
 │       │   └── SkipOnWindowsAttribute.cs # [SkipOnWindows("reason")] — NUnit IApplyToTest skips test on Windows (RuntimePlatform.WindowsEditor), reason customizable; default is "Known Windows platform incompatibility — fix tracked separately"
 │       ├── Tests/                         # Editor tests asmdef (references core, v0.26.0: +[TestFixture] to 6 classes, v0.42.0: Wizard tests moved to separate asmdef, v0.62.0: +helper tests)
 │       │   ├── UnityMCP.Editor.Tests.asmdef
@@ -425,6 +445,10 @@ unity-biome-mcp/
 │       │   ├── MultiSceneTestBase.cs      # Multi-scene specialization; exact additive scenes are registered with the common ownership transaction
 │       │   ├── MultiSceneFinderTests.cs   # Object finding across scenes + reference scanning (v0.24.3)
 │       │   ├── PortResolverTests.cs       # 25+4 NUnit tests (port validation, fallback, dual-port edge cases, v0.52.6: chat collision guard)
+│       │   ├── PortResolverReadOnlyTests.cs # **WI-8**: ReadOnly mode PortResolver tests — BindFreePort atomic binding, ResolveReloadPort discovery (WI-7)
+│       │   ├── BatchHelperReadOnlyTests.cs # **WI-8**: Batch DSL read-only mode — verify mutations blocked, reads allowed, verification gates skipped
+│       │   ├── CommandRouterReadOnlyTests.cs # **WI-8**: CommandRouter.IsReadOnly property + CheckGuards write-blocking + get_enabled_tools cache behavior in read-only
+│       │   ├── RequiresReadWriteAttributeTests.cs # **WI-8**: [RequiresReadWrite] attribute + EnforceReadWriteRequirement() unit tests — reason extraction, type/method reflection, skip predicate
 │       │   ├── MCPServerStartGuardTests.cs # 3 NUnit tests (ShouldStartServer batch mode guard, v0.52.6)
 │       │   ├── MCPStatusModelTests.cs     # 14 NUnit tests (state transitions, labels, pills) [+TestFixture v0.26.0]
 │       │   ├── CatalogParserTests.cs      # [+TestFixture v0.26.0]
@@ -959,7 +983,7 @@ unity-biome-mcp/
 │   └── README.md               # Root documentation mirror
 ├── install.py                  # Setup/update/doctor/configure CLI
 ├── .mcp.json                   # MCP config pointing at local venv (v0.23.0: template; v0.96.1: auto-generated by `install.py setup` and `install.py update` via _write_mcp_json())
-├── scripts/                    # Tooling: README stats, changelog SVG, release utilities
+├── scripts/                    # Tooling: README stats, changelog SVG, release utilities, conformance runners
 │   ├── readme_facts.py         # Source-backed inventory facts (tool count, test counts) — SSOT for README numbers
 │   ├── readme_render.py        # Render README metadata, SVG statistics, and Shields endpoints
 │   ├── update_readme.py        # CLI entry: collect + render README facts
@@ -967,7 +991,13 @@ unity-biome-mcp/
 │   ├── changelog_svg_templates.py # SVG templates for changelog badge
 │   ├── sync_versions.py        # Sync generated version copies from canonical pyproject.toml
 │   ├── release.sh              # Non-publishing release preflight
-│   └── tests/                  # pytest suite for scripts/ (test_facts.py, test_render.py, test_update_readme.py, test_gen_changelog_svg.py)
+│   ├── conformance_runner.py   # Conformance test harness: launch Workers A+B, run suite, report pass/fail matrix (WI-4)
+│   ├── fault_proxy.py          # Fault injection proxy: intercepts TCP to inject delays/disconnects for chaos testing (WI-4)
+│   ├── minimize_repro.py       # Minimize reproducers: binary-search failing test range (WI-4)
+│   ├── export_tools.py         # Export MCP tool definitions to JSON for linting (v1.17.0+)
+│   ├── quality_delta.py        # Parse linter reports, compute metrics delta, write quality data (v1.17.0+)
+│   ├── check_skills_freshness.py # Static validation: skills refs, agent versions, tool parity (v1.17.0+)
+│   └── tests/                  # pytest suite for scripts/ (test_facts.py, test_render.py, test_update_readme.py, test_gen_changelog_svg.py, test_conformance_runner.py, test_fault_proxy.py, test_minimize_repro.py, test_quality_delta.py)
 ├── AI/                         # Feature knowledge docs + changelog
 ├── .claude/
 │   ├── skills/                 # Technical references

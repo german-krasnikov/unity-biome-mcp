@@ -132,6 +132,7 @@ namespace UnityMCP.Editor.Testing
                 }
                 throw;
             }
+            RequireReadWriteBoundary();
         }
 
         [TearDown]
@@ -723,6 +724,48 @@ namespace UnityMCP.Editor.Testing
             if (!string.IsNullOrEmpty(test.FullName)) return test.FullName;
             throw new InvalidOperationException(
                 "NUnit did not provide an identity for the current test isolation scope.");
+        }
+
+        private void RequireReadWriteBoundary()
+        {
+            var reason = EnforceReadWriteRequirement(
+                GetType(),
+                TestContext.CurrentContext.Test.MethodName,
+                CommandRouter.IsReadOnly);
+            if (reason != null)
+                Assert.Ignore(reason);
+        }
+
+        /// <summary>
+        /// Returns the ignore-reason string when the fixture or method requires a
+        /// read-write worker and <paramref name="isReadOnly"/> returns true.
+        /// Returns null when the test should proceed. Throws nothing — the caller
+        /// decides whether to call Assert.Ignore (runtime) or assert on the result (unit test).
+        /// </summary>
+        public static string EnforceReadWriteRequirement(
+            Type fixtureType,
+            string methodName,
+            Func<bool> isReadOnly)
+        {
+            var attr = fixtureType
+                .GetCustomAttributes(typeof(RequiresReadWriteAttribute), true)
+                .OfType<RequiresReadWriteAttribute>()
+                .FirstOrDefault();
+            if (attr == null && !string.IsNullOrEmpty(methodName))
+            {
+                attr = fixtureType
+                    .GetMethods(BindingFlags.Instance | BindingFlags.Static |
+                                BindingFlags.Public | BindingFlags.NonPublic)
+                    .Where(m => string.Equals(m.Name, methodName, StringComparison.Ordinal))
+                    .SelectMany(m => m
+                        .GetCustomAttributes(typeof(RequiresReadWriteAttribute), true)
+                        .OfType<RequiresReadWriteAttribute>())
+                    .FirstOrDefault();
+            }
+
+            if (attr != null && isReadOnly())
+                return $"ReadOnly worker — requires mutations: {attr.Reason}";
+            return null;
         }
 
         private void RequireDisposableWorkerBoundary()

@@ -112,12 +112,23 @@ class MiddlewareReadsMixin:
 
     # ── Feature: Play Mode Auto-Routing ──────────────────────────────────────
 
-    def track_editor_state(self, cmd: str, result: str) -> None:
-        """Update is_playing from editor(action=state) response."""
+    def track_editor_state(self, cmd: str, result: str, args: dict | None = None) -> None:
+        """Update is_playing from editor responses (state AND action results)."""
         if cmd in ("recompile", "scene") and self.schema_cache is not None:
             self.schema_cache.invalidate_all()
         if cmd != "editor":
             return
+        # Fast-path: action results that unambiguously indicate play state
+        if result in ("entered", "already_playing"):
+            self._play_state_known = True
+            self.is_playing = True
+            return
+        action = (args or {}).get("action", "")
+        if action == "stop" and result == "ok":
+            self._play_state_known = True
+            self.is_playing = False
+            return
+        # Full-state response from editor(action="state")
         if _parse_editor_field(result, "playing") is not None:
             self._play_state_known = True
             self.is_playing = _is_play_mode(result) or _is_paused(result)

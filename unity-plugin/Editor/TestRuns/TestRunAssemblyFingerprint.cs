@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using UnityEditor.Compilation;
 using UnityEditor.PackageManager;
+using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.TestRuns
 {
@@ -36,6 +37,10 @@ namespace UnityMCP.Editor.TestRuns
             "UnityEngine.TestRunner",
             "Unity.PerformanceTesting"
         };
+
+        // Injectable seam: unit tests override this to control the compile-status response.
+        // Production always delegates to CompileNotifier.GetStatus().
+        internal static Func<string> CompileStatusGetter = () => CompileNotifier.GetStatus();
 
         internal static TestRunAssemblyFingerprintResult Capture(string projectRoot)
         {
@@ -143,10 +148,8 @@ namespace UnityMCP.Editor.TestRuns
                         sourceDescriptors.Append(NormalizePath(source)).Append('=')
                             .Append(HashFile(source)).Append('\n');
                     }
-                    if (assemblyWrite < latestSourceWrite)
-                        throw new InvalidDataException(
-                            $"compiled assembly '{assembly.name}' is older than source " +
-                            latestSource);
+                    ValidateMtimeCoherence(
+                        assembly.name, assemblyWrite, latestSourceWrite, latestSource);
 
                     var sourceHash = HashText(sourceDescriptors.ToString());
                     descriptors.Add(
@@ -178,6 +181,22 @@ namespace UnityMCP.Editor.TestRuns
                 result.Error = "assembly fingerprint failed: " + error.Message;
             }
             return result;
+        }
+
+        // Throws when assemblyWrite < latestSourceWrite AND the compile status is not
+        // "idle|..." (Bee cache-hit). A Bee cache-hit means the DLL is current despite
+        // an mtime discrepancy from git operations — mirrors DiagnoseCommand.GetDllFreshnessToken.
+        internal static void ValidateMtimeCoherence(
+            string assemblyName,
+            DateTime assemblyWrite,
+            DateTime latestSourceWrite,
+            string latestSource)
+        {
+            if (assemblyWrite >= latestSourceWrite) return;
+            var status = CompileStatusGetter();
+            if (!status.StartsWith("idle|", StringComparison.Ordinal))
+                throw new InvalidDataException(
+                    $"compiled assembly '{assemblyName}' is older than source " + latestSource);
         }
 
         internal static Guid ReadModuleVersionId(string assemblyPath)
