@@ -30,6 +30,8 @@ from unity_mcp.chat_relay import (
 )
 from .relay_helpers import make_proc, mock_sess, fresh_relay, tcp_cmd, relay_server  # noqa: F401
 
+pytestmark = pytest.mark.monkey
+
 # ─── Constants ─────────────────────────────────────────────────────────────────
 
 ALL_6      = ["claude", "codex", "kimi", "agy", "antigravity", "opencode"]
@@ -56,7 +58,6 @@ def mock_backend(name: str = "mock", has_resume: bool = True,
 # A. Session Lifecycle — 6 backends × 6 scenarios = 36
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("backend,scenario", [
     (b, s) for b in ALL_6 for s in range(6)
 ])
@@ -162,7 +163,6 @@ async def test_session_lifecycle_6backends(backend: str, scenario: int) -> None:
 # B. Rapid CLI Switching — 6 patterns × 5 seeds = 30
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("pattern,seed", [
     (p, s) for p in range(6) for s in range(5)
 ])
@@ -281,7 +281,6 @@ async def test_rapid_cli_switching(pattern: int, seed: int) -> None:
 # C. Mode × Model Matrix — 6 backends × 6 scenarios = 36
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("backend,scenario", [
     (b, s) for b in ALL_6 for s in range(6)
 ])
@@ -384,7 +383,6 @@ _CONTENTS = [
 ]
 
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("backend,content_idx", [
     (b, c) for b in BASE_5 for c in range(8)
 ])
@@ -412,7 +410,6 @@ async def test_line_content_torture(backend: str, content_idx: int) -> None:
 # E. Concurrent Chat Operations — 6 patterns × 5 backends = 30
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("pattern,backend", [
     (p, b) for p in range(6) for b in BASE_5
 ])
@@ -520,7 +517,6 @@ async def test_concurrent_chat_ops(pattern: int, backend: str) -> None:
 # F. Domain Reload Simulation — 6 scenarios × 3 backends = 18
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("scenario,backend", [
     (s, b) for s in range(6) for b in RELOAD_3
 ])
@@ -619,7 +615,6 @@ async def test_domain_reload_simulation(scenario: int, backend: str,
 # G. Edge Cases — 10 standalone monkey tests
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 async def test_edge_send_missing_line_key() -> None:
     """Missing 'line' in send args → ok=False via dispatch exception handler."""
     relay = fresh_relay()
@@ -628,7 +623,6 @@ async def test_edge_send_missing_line_key() -> None:
     assert r["ok"] is False  # _dispatch catches Exception and returns err dict
 
 
-@pytest.mark.monkey
 async def test_edge_events_after_seq_max_int() -> None:
     """after_seq=2**62 returns empty data, no crash."""
     relay = fresh_relay()
@@ -638,7 +632,6 @@ async def test_edge_events_after_seq_max_int() -> None:
     assert r["data"] == ""
 
 
-@pytest.mark.monkey
 async def test_edge_backend_key_case_sensitivity() -> None:
     """'Claude' (capital C) is NOT in BACKENDS → unknown backend error."""
     relay = fresh_relay()
@@ -647,7 +640,6 @@ async def test_edge_backend_key_case_sensitivity() -> None:
     assert "unknown backend" in r["err"]
 
 
-@pytest.mark.monkey
 def test_edge_antigravity_maps_to_agy() -> None:
     """antigravity registry entry uses the same binary as agy, has_resume=False."""
     ag  = BACKENDS.get("antigravity")
@@ -657,7 +649,6 @@ def test_edge_antigravity_maps_to_agy() -> None:
     assert ag.binary == agy.binary
 
 
-@pytest.mark.monkey
 async def test_edge_antigravity_set_mode_fails() -> None:
     """antigravity session cannot switch mode (no resume support)."""
     relay = fresh_relay()
@@ -670,7 +661,6 @@ async def test_edge_antigravity_set_mode_fails() -> None:
     assert "does not support resume" in r["err"]
 
 
-@pytest.mark.monkey
 async def test_edge_model_injection_stored_as_is() -> None:
     """Model with spaces + flags is stored verbatim; relay never shell-splits it."""
     relay = fresh_relay()
@@ -690,7 +680,6 @@ async def test_edge_model_injection_stored_as_is() -> None:
         assert b.build_args.call_args.kwargs.get("model") == injection
 
 
-@pytest.mark.monkey
 async def test_edge_mcp_port_zero() -> None:
     """mcp_port=0 is passed to build_args; relay doesn't reject it."""
     relay = fresh_relay()
@@ -707,7 +696,6 @@ async def test_edge_mcp_port_zero() -> None:
     assert stat["ok"] is True
 
 
-@pytest.mark.monkey
 async def test_edge_session_id_special_chars() -> None:
     """session_id with special chars is forwarded to build_args unchanged."""
     relay = fresh_relay()
@@ -725,7 +713,6 @@ async def test_edge_session_id_special_chars() -> None:
         assert b.build_args.call_args.kwargs.get("session_id") == sid
 
 
-@pytest.mark.monkey
 async def test_edge_empty_model_string() -> None:
     """model='' (empty string) is passed to build_args; relay doesn't crash."""
     relay = fresh_relay()
@@ -742,7 +729,6 @@ async def test_edge_empty_model_string() -> None:
     assert stat["ok"] is True
 
 
-@pytest.mark.monkey
 async def test_edge_unknown_cmd_returns_err() -> None:
     """Dispatch with unknown cmd returns ok=False, relay continues serving."""
     relay = fresh_relay()

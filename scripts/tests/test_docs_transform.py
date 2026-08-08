@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "docs" / "hooks"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "docs" / "hooks"))
 from transform import on_page_markdown, _fix_image_paths, _fix_html_img_paths, _add_markdown_attr
 
 
@@ -24,8 +24,8 @@ def _page(src_path, dest_path=None):
     return SimpleNamespace(file=SimpleNamespace(src_path=src_path, dest_path=dest_path))
 
 
-DIR_URLS_ON = {"use_directory_urls": True}
-DIR_URLS_OFF = {"use_directory_urls": False}
+DIR_URLS_ON = {"use_directory_urls": True, "docs_dir": "/tmp"}
+DIR_URLS_OFF = {"use_directory_urls": False, "docs_dir": "/tmp"}
 
 
 # ── image path tests (markdown syntax) ──

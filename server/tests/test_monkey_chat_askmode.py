@@ -31,6 +31,8 @@ from unity_mcp.backend_def import BACKENDS, ClaudeDef, CodexDef, KimiDef, AgyDef
 from unity_mcp.chat_relay import ChatRelay, CliSession, SessionMeta, MAX_BUF, _find_free_port
 from .relay_helpers import make_proc, mock_sess, fresh_relay  # noqa: F401
 
+pytestmark = pytest.mark.monkey
+
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 ALL_6       = ["claude", "codex", "kimi", "agy", "antigravity", "opencode"]
@@ -82,7 +84,6 @@ def real_argv(backend_name: str, mode: str, model: str | None = None,
 # Scenario 4: set_mode changes mode in meta (resume backends) / fails (no-resume)
 # Scenario 5: mode flag position correct (model doesn't corrupt mode flag)
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("backend,scenario", [
     (b, s) for b in ALL_6 for s in range(6)
 ])
@@ -254,7 +255,6 @@ TOOL_LINES = [
 ]
 
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("tool_idx,scenario", [
     (t, s) for t in range(len(TOOL_LINES)) for s in range(3)
 ])
@@ -294,7 +294,6 @@ async def test_chat_tool_relay(tool_idx: int, scenario: int) -> None:
 #
 # Models tested: "sonnet", "haiku", "opus", backend-native model
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("backend,model_idx", [
     (b, m) for b in ALL_6 for m in range(4)
 ])
@@ -323,7 +322,6 @@ def test_model_switch_per_backend(backend: str, model_idx: int) -> None:
 # D. Multi-Turn Conversation Simulation — 10 standalone scenarios
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 async def test_multiturn_5turn_conversation() -> None:
     """5-turn conversation: each turn is a send + events poll."""
     relay = fresh_relay()
@@ -341,7 +339,6 @@ async def test_multiturn_5turn_conversation() -> None:
         assert f'"turn":{turn}' in ev["data"]
 
 
-@pytest.mark.monkey
 async def test_multiturn_10turn_with_3_tool_calls() -> None:
     """10-turn conversation with 3 tool-call events interspersed."""
     relay = fresh_relay()
@@ -361,7 +358,6 @@ async def test_multiturn_10turn_with_3_tool_calls() -> None:
     assert relay._session.write_line.call_count == 10
 
 
-@pytest.mark.monkey
 async def test_multiturn_mode_switch_at_turn3() -> None:
     """ask→agent mode switch mid-conversation (claude/resume backend)."""
     relay = fresh_relay()
@@ -395,7 +391,6 @@ async def test_multiturn_mode_switch_at_turn3() -> None:
     assert relay._session_meta.mode == "agent"
 
 
-@pytest.mark.monkey
 async def test_multiturn_model_switch_mid_conversation() -> None:
     """Model switch mid-conversation restarts session with new model in meta."""
     relay = fresh_relay()
@@ -427,7 +422,6 @@ async def test_multiturn_model_switch_mid_conversation() -> None:
     assert relay._session_meta.model == "opus"
 
 
-@pytest.mark.monkey
 async def test_multiturn_long_50turns_no_overflow() -> None:
     """50-turn conversation stays within MAX_BUF ring buffer without crash."""
     relay = fresh_relay()
@@ -446,7 +440,6 @@ async def test_multiturn_long_50turns_no_overflow() -> None:
     assert "dropped=" in stat["data"]
 
 
-@pytest.mark.monkey
 async def test_multiturn_error_recovery_restart_at_turn3() -> None:
     """Session dies at turn 3, relay restarts cleanly for next turns."""
     relay = fresh_relay()
@@ -490,7 +483,6 @@ async def test_multiturn_error_recovery_restart_at_turn3() -> None:
         assert rs["ok"] is True
 
 
-@pytest.mark.monkey
 async def test_multiturn_domain_reload_disconnect_reconnect() -> None:
     """Buffer survives disconnect; reconnecting client sees buffered events."""
     port  = _find_free_port()
@@ -540,7 +532,6 @@ async def test_multiturn_domain_reload_disconnect_reconnect() -> None:
         await relay._kill_current()
 
 
-@pytest.mark.monkey
 async def test_multiturn_empty_turns() -> None:
     """Empty string turns don't crash relay."""
     relay = fresh_relay()
@@ -551,7 +542,6 @@ async def test_multiturn_empty_turns() -> None:
         assert rs["ok"] is True
 
 
-@pytest.mark.monkey
 async def test_multiturn_very_long_turn_10kb() -> None:
     """10KB user message is forwarded without truncation."""
     relay = fresh_relay()
@@ -564,7 +554,6 @@ async def test_multiturn_very_long_turn_10kb() -> None:
     relay._session.write_line.assert_called_once_with(line)
 
 
-@pytest.mark.monkey
 async def test_multiturn_whitespace_only_turns() -> None:
     """Whitespace-only turns forwarded as-is."""
     relay = fresh_relay()

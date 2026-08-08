@@ -5,7 +5,7 @@ import pytest
 
 from conformance.workers import _parse_status
 
-pytestmark = [pytest.mark.live, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [pytest.mark.live, pytest.mark.conformance, pytest.mark.asyncio(loop_scope="session")]
 
 
 async def test_tcp_roundtrip(conformance_worker):
