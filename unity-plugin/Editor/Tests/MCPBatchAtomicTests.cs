@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
@@ -5,17 +6,21 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class MCPBatchAtomicTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    public class MCPBatchAtomicTests : UnityMcpTestBase
     {
         private List<GameObject> _toDestroy = new List<GameObject>();
+        private Func<bool> _origIsReadOnly;
 
         [SetUp]
         public void SetUp()
         {
+            _origIsReadOnly = CommandRouter.IsReadOnly;
+            CommandRouter.IsReadOnly = () => false;
             CommandRouter.IsCompiling = () => false;
             BatchHelper.IsCompiling = () => false;
         }
@@ -23,6 +28,7 @@ namespace UnityMCP.Editor.Tests
         [TearDown]
         public void TearDown()
         {
+            CommandRouter.IsReadOnly = _origIsReadOnly;
             CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
             BatchHelper.IsCompiling = () => CommandRouter.IsCompiling();
             foreach (var go in _toDestroy)
@@ -123,6 +129,25 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(result.Contains("ATOMIC_ROLLBACK"), "Rollback message expected even for op 0 failure");
             Assert.IsFalse(result.Contains("0..-1"), "Must not emit misleading '0..-1' range");
             Assert.IsTrue(result.Contains("nothing to revert"), "Must clarify nothing was applied");
+        }
+
+        // ── Strategy C: ReadOnly verification ────────────────────────────────
+
+        [Test]
+        public void Atomic_CreateObject_WhenReadOnly_IsBlocked()
+        {
+            // Temporarily override seam to simulate RO worker
+            CommandRouter.IsReadOnly = () => true;
+            try
+            {
+                var result = BatchHelper.Execute(
+                    "create_object name=ROVerifyObj", "stop", 5000, atomic: true);
+                StringAssert.Contains("READ_ONLY_BLOCKED", result);
+            }
+            finally
+            {
+                CommandRouter.IsReadOnly = () => false;
+            }
         }
 
         // ── 7. atomic=true overrides on_error=continue (still stops+reverts) ──

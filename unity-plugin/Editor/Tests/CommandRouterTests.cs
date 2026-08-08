@@ -251,7 +251,9 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Batch_InPlayMode_SetParent_NotBlockedByPlayModeGuard()
         {
+            var origRO = CommandRouter.IsReadOnly;
             CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsReadOnly = () => false;   // isolate from RO worker
             BatchHelper.IsPlayMode = () => true;
             try
             {
@@ -263,6 +265,30 @@ namespace UnityMCP.Editor.Tests
             finally
             {
                 CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsReadOnly = origRO;
+                BatchHelper.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+            }
+        }
+
+        // ── Strategy C: ReadOnly verification ────────────────────────────────
+
+        [Test]
+        public void Batch_SetParent_WithReadOnly_IsBlockedByReadOnlyGuard()
+        {
+            var origRO = CommandRouter.IsReadOnly;
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsReadOnly = () => true;
+            BatchHelper.IsPlayMode = () => true;
+            try
+            {
+                var result = BatchHelper.Execute(
+                    "set_parent /NonExistent_XYZ /X", "continue", 25000);
+                StringAssert.Contains("READ_ONLY_BLOCKED", result);
+            }
+            finally
+            {
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsReadOnly = origRO;
                 BatchHelper.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
             }
         }
