@@ -13,16 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.25.0] — 2026-08-08
 
 ### Added
-- **ReadOnly MCP mode** — `IsReadOnly` blocks mutating commands on read-only workers
-- **`[RequiresReadWrite]` attribute** — test classification for RW-only tests with `Assert.Ignore` on RO workers
-- **Centralized 3-port allocation** — `BindFreePort(startFrom, skipPort, skipPort2)` eliminates TOCTOU race
-- **`PortFileManager.EnsurePorts()`** — resolves main+chat+reload ports atomically
+- **Cross-project conformance suite** — 8 conformance gates (connect, read, write, batch, playtest, alias, error recovery) with ConformanceWorker session fixture
+- **Dual-worker cross-project tests** — isolation, identity, fault injection (TCP proxy + JSONL trace minimizer) across Worker A (RW) and Worker B (RO)
+- **ReadOnly MCP mode** — `IsReadOnly` property blocks mutating commands on read-only workers; `CheckGuards()` returns `READ_ONLY_BLOCKED`
+- **`[RequiresReadWrite]` test attribute** — marks test classes/methods that need a RW worker; `EnforceReadWriteRequirement()` returns skip reason for `Assert.Ignore` on RO workers
+- **Centralized 3-port allocation** — `PortResolver.BindFreePort(startFrom, skipPort, skipPort2)` atomic scan+bind eliminates TOCTOU race; `PortFileManager.EnsurePorts()` resolves main+chat+reload atomically
+- **CI conformance pipeline** — 3-job design with release hard gate and SHA mismatch warning
+- **Conformance runner CLI** — `conformance_runner` for consumer project validation
 
 ### Fixed
-- Reload port collision with chatPort/main port
-- `RequireReadWriteBoundary` fires after isolation active (NUnit soft-skip fix)
-- `scene` correctly classified as non-mutating (P-414)
-- `console_mark` overflow, play guard refresh, component cache invalidation
+- Reload port no longer collides with chatPort or main port (WI-6/6b)
+- `scene` command correctly classified as non-mutating (P-414: per-action mutation tracking)
+- `RequireReadWriteBoundary` fires after isolation active — NUnit soft-skip no longer cascades to derived SetUp
+- `console_mark` overflow returns warning, not error (P-413)
+- `editor(play)` refreshes Python play guard (P-415)
+- Failed playtest suite now stops Play Mode via try/finally (P-336)
+- Component cache invalidated after `manage_component` (P-416)
+- Scene dirty flag verified after save in `apply_scene_change` (P-414)
+
+### Test Coverage
+- **Python unit tests**: 4807 total (was 4776, +31)
+- **Python live tests**: 332 (was 287, +45) — conformance gates, cross-project isolation, fault injection
+- **C# test attributes**: 6415 (was 6367, +48) — port resolver, ReadOnly guards, batch atomic, command registry
+- **Test inventory**: 12065 entries (was 11941, +124)
 
 ## [v1.24.0] — 2026-08-07
 
