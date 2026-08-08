@@ -1098,11 +1098,6 @@ dev = [
     { name = "pytest-timeout" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "pytest-timeout" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "mcp", specifier = ">=1.28.0,<2" },
@@ -1111,12 +1106,9 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0" },
-    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.3" },
+    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.4.0" },
 ]
 provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest-timeout", specifier = ">=2.4.0" }]
 
 [[package]]
 name = "uvicorn"

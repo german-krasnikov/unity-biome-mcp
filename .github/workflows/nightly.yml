@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: server
-        run: pip install -e ".[dev]" pytest-timeout
+        run: pip install -e ".[dev]"
 
       - name: Run full Python suite (unit + monkey + slow)
         working-directory: server
