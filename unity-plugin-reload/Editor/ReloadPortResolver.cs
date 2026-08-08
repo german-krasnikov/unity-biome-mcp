@@ -48,26 +48,34 @@ namespace UnityMCP.Reload
                 return ep;
 
             int? mainPort = null;
+            int? chatPort = null;
             try
             {
                 if (File.Exists(PortFilePath))
                 {
                     var json = File.ReadAllText(PortFilePath);
                     mainPort = ParseInt(json, "port");
+                    chatPort = ParseInt(json, "chatPort");
                     var m = Regex.Match(json, "\"reloadPort\"\\s*:\\s*(\\d+)");
                     if (m.Success && int.TryParse(m.Groups[1].Value, out var sp) && sp >= 1024 && sp <= 65535)
                     {
-                        // Reject stale reloadPort from a different worker (must be > mainPort)
-                        if (!mainPort.HasValue || sp > mainPort.Value)
+                        // Reject stale/conflicting reloadPort (must be > mainPort AND != chatPort)
+                        var aboveMain = !mainPort.HasValue || sp > mainPort.Value;
+                        var notChat = !chatPort.HasValue || sp != chatPort.Value;
+                        if (aboveMain && notChat)
                             return sp;
                     }
                 }
             }
             catch { }
 
-            // Derive reload port from mainPort to avoid cross-worker conflict
+            // Derive reload port: skip mainPort and chatPort (typically mainPort+1)
             if (mainPort.HasValue)
-                return FindFreePort(mainPort.Value + 1);
+            {
+                var start = mainPort.Value + 1;
+                if (chatPort.HasValue && start == chatPort.Value) start++;
+                return FindFreePort(start);
+            }
 
             return FindFreePort(9600);
         }

@@ -208,5 +208,33 @@ namespace UnityMCP.Reload.Tests
 
             Assert.AreEqual(9701, port, "Valid cached reloadPort must be returned unchanged");
         }
+
+        [Test]
+        public void GetReloadPort_ReloadPortEqualsChatPort_Rejected()
+        {
+            // reloadPort=9700 == chatPort=9700 → conflict, must pick another
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, "{\"port\":9699,\"chatPort\":9700,\"reloadPort\":9700}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.AreNotEqual(9700, port, "reloadPort must not equal chatPort");
+            Assert.Greater(port, 9700, "must skip both mainPort and chatPort");
+        }
+
+        [Test]
+        public void GetReloadPort_NoCachedReload_SkipsChatPort()
+        {
+            // No reloadPort, mainPort+1 == chatPort → must skip to mainPort+2
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, "{\"port\":9699,\"chatPort\":9700}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.AreNotEqual(9700, port, "must not use chatPort");
+            Assert.GreaterOrEqual(port, 9701, "must start from mainPort+2 when chatPort occupies +1");
+        }
     }
 }
