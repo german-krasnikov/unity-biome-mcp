@@ -1,13 +1,13 @@
 # Quality Report
 
-> Auto-generated on **2026-08-08** from commit `d9a6e37` (v1.25.0)
+> Auto-generated on **2026-08-08** from commit `695bfbb` (v1.26.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.25.0 |
-| Commit | `d9a6e37` |
+| Version | v1.26.0 |
+| Commit | `695bfbb` |
 | Date | 2026-08-08 |
 | MCP Tools | 148 |
 
@@ -17,10 +17,10 @@
 |-------|--------|--------|---------|-------|--------|
 | Python Server (3.12) | 4805 | 0 | 3 | 4808 | ✅ |
 | Python Install | 76 | 0 | 0 | 76 | ✅ |
-| Python Scripts | 362 | 0 | 0 | 362 | ✅ |
-| C# EditMode (Linux) | 7194 | 0 | 166 | 7360 | ✅ |
-| C# EditMode (Windows) | 7081 | 0 | 279 | 7360 | ✅ |
-| C# EditMode (macOS) | 7194 | 0 | 166 | 7360 | ✅ |
+| Python Scripts | 407 | 0 | 0 | 407 | ✅ |
+| C# EditMode (Linux) | 7248 | 0 | 166 | 7414 | ✅ |
+| C# EditMode (Windows) | 7135 | 0 | 279 | 7414 | ✅ |
+| C# EditMode (macOS) | 7248 | 0 | 166 | 7414 | ✅ |
 
 ## Tool Quality
 
