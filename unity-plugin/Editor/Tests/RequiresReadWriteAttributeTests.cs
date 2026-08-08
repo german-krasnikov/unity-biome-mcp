@@ -1,5 +1,6 @@
 // TDD — RequiresReadWriteAttribute classification and enforcement logic.
-// Tests call EnforceReadWriteRequirement directly to avoid IgnoreException propagation.
+// EnforceReadWriteRequirement returns a reason string (non-null = skip) instead
+// of throwing, so tests can assert on the result without IgnoreException issues.
 using System;
 using NUnit.Framework;
 using UnityMCP.Editor.Testing;
@@ -50,62 +51,55 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void RequiresReadWrite_ClassLevel_SkipsOnReadOnly()
         {
-            // Decorated class + IsReadOnly=true → throws (ignore exception)
-            var ex = Assert.Throws<Exception>(
-                () => UnityMcpTestBase.EnforceReadWriteRequirement(
-                    typeof(DecoratedClass), null, () => true));
-            Assert.IsNotNull(ex);
+            var reason = UnityMcpTestBase.EnforceReadWriteRequirement(
+                typeof(DecoratedClass), null, () => true);
+            Assert.IsNotNull(reason);
         }
 
         [Test]
         public void RequiresReadWrite_MethodLevel_SkipsOnReadOnly()
         {
-            var ex = Assert.Throws<Exception>(
-                () => UnityMcpTestBase.EnforceReadWriteRequirement(
-                    typeof(UndecoratedClass),
-                    nameof(UndecoratedClass.AnnotatedMethod),
-                    () => true));
-            Assert.IsNotNull(ex);
+            var reason = UnityMcpTestBase.EnforceReadWriteRequirement(
+                typeof(UndecoratedClass),
+                nameof(UndecoratedClass.AnnotatedMethod),
+                () => true);
+            Assert.IsNotNull(reason);
         }
 
         [Test]
         public void RequiresReadWrite_ReadWriteWorker_Proceeds()
         {
-            // Decorated class but IsReadOnly=false → no exception
-            Assert.DoesNotThrow(
-                () => UnityMcpTestBase.EnforceReadWriteRequirement(
-                    typeof(DecoratedClass), null, () => false));
+            var reason = UnityMcpTestBase.EnforceReadWriteRequirement(
+                typeof(DecoratedClass), null, () => false);
+            Assert.IsNull(reason);
         }
 
         [Test]
         public void RequiresReadWrite_NoAttribute_Proceeds()
         {
-            // No attribute + IsReadOnly=true → no exception
-            Assert.DoesNotThrow(
-                () => UnityMcpTestBase.EnforceReadWriteRequirement(
-                    typeof(UndecoratedClass),
-                    nameof(UndecoratedClass.PlainMethod),
-                    () => true));
+            var reason = UnityMcpTestBase.EnforceReadWriteRequirement(
+                typeof(UndecoratedClass),
+                nameof(UndecoratedClass.PlainMethod),
+                () => true);
+            Assert.IsNull(reason);
         }
 
         [Test]
         public void RequiresReadWrite_ReasonPropagated()
         {
-            var ex = Assert.Throws<Exception>(
-                () => UnityMcpTestBase.EnforceReadWriteRequirement(
-                    typeof(DecoratedClass), null, () => true));
-            StringAssert.Contains("class level reason", ex.Message);
+            var reason = UnityMcpTestBase.EnforceReadWriteRequirement(
+                typeof(DecoratedClass), null, () => true);
+            StringAssert.Contains("class level reason", reason);
         }
 
         [Test]
         public void RequiresReadWrite_MethodLevelReason_Propagated()
         {
-            var ex = Assert.Throws<Exception>(
-                () => UnityMcpTestBase.EnforceReadWriteRequirement(
-                    typeof(UndecoratedClass),
-                    nameof(UndecoratedClass.AnnotatedMethod),
-                    () => true));
-            StringAssert.Contains("method level reason", ex.Message);
+            var reason = UnityMcpTestBase.EnforceReadWriteRequirement(
+                typeof(UndecoratedClass),
+                nameof(UndecoratedClass.AnnotatedMethod),
+                () => true);
+            StringAssert.Contains("method level reason", reason);
         }
     }
 }

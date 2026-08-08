@@ -728,18 +728,21 @@ namespace UnityMCP.Editor.Testing
 
         private void RequireReadWriteBoundary()
         {
-            EnforceReadWriteRequirement(
+            var reason = EnforceReadWriteRequirement(
                 GetType(),
                 TestContext.CurrentContext.Test.MethodName,
                 CommandRouter.IsReadOnly);
+            if (reason != null)
+                Assert.Ignore(reason);
         }
 
         /// <summary>
-        /// Calls Assert.Ignore when the fixture or method requires a read-write worker
-        /// and <paramref name="isReadOnly"/> returns true. Extracted as a public static
-        /// to allow direct testing without IgnoreException propagation concerns.
+        /// Returns the ignore-reason string when the fixture or method requires a
+        /// read-write worker and <paramref name="isReadOnly"/> returns true.
+        /// Returns null when the test should proceed. Throws nothing — the caller
+        /// decides whether to call Assert.Ignore (runtime) or assert on the result (unit test).
         /// </summary>
-        public static void EnforceReadWriteRequirement(
+        public static string EnforceReadWriteRequirement(
             Type fixtureType,
             string methodName,
             Func<bool> isReadOnly)
@@ -761,7 +764,8 @@ namespace UnityMCP.Editor.Testing
             }
 
             if (attr != null && isReadOnly())
-                Assert.Ignore($"ReadOnly worker — requires mutations: {attr.Reason}");
+                return $"ReadOnly worker — requires mutations: {attr.Reason}";
+            return null;
         }
 
         private void RequireDisposableWorkerBoundary()
