@@ -77,10 +77,12 @@ jobs:
 
           echo "Last conformance run: conclusion=$CONCLUSION sha=$RUN_SHA created=$CREATED"
 
-          if [ "$CONCLUSION" = "success" ]; then
-            echo "Conformance gate passed."
-            exit 0
-          else
+          if [ "$CONCLUSION" != "success" ]; then
             echo "::error::Last conformance run on master was '$CONCLUSION' — release blocked."
             exit 1
           fi
+
+          if [ "$RUN_SHA" != "$GITHUB_SHA" ]; then
+            echo "::warning::Conformance passed on $RUN_SHA, not on release SHA $GITHUB_SHA (non-server changes since last run)."
+          fi
+          echo "Conformance gate passed."
