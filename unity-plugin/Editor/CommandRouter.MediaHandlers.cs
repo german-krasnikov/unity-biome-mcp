@@ -127,7 +127,7 @@ namespace UnityMCP.Editor
         private static string ExecScene(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
-            return action switch
+            var result = action switch
             {
                 "new" => SceneHelper.NewScene(),
                 "open" => SceneHelper.OpenScene(JsonHelper.ExtractString(args, "path")),
@@ -143,6 +143,11 @@ namespace UnityMCP.Editor
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
                     new[] { "new", "open", "save", "discard", "open_additive", "close", "set_active", "list", "save_copy" }))
             };
+            // P-414: scene is mutating:false so undo group is never opened around saves.
+            // Topology-changing sub-actions still need a mutation record for get_changes.
+            if (action != "list" && action != "save" && action != "save_copy")
+                ChangeWatcher.RecordMutation($"MCP_SCENE_{action.ToUpper()}");
+            return result;
         }
 
         private static string ExecAnimationConsolidated(string args)

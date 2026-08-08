@@ -135,7 +135,10 @@ async def apply_scene_change(
     if save:
         try:
             await _send("scene", {"action": "save"})
-            saved_status = "\nsaved=true"
+            # Verify dirty=false — Unity may not clear synchronously if Undo group is open (P-414)
+            status = await _send("get_status", {})
+            dirty_after = any(ln.strip() == "dirty=True" for ln in status.splitlines())
+            saved_status = "\nsaved=PARTIAL dirty=true" if dirty_after else "\nsaved=true dirty=false"
         except Exception as e:
             saved_status = f"\nsaved=FAILED ({type(e).__name__})"
     else:

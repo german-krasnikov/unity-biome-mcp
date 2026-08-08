@@ -480,7 +480,9 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "color"),
                 JsonHelper.ExtractString(args, "shader")), mutating: true,
                 required: "path", optional: "color,shader");
-            CommandRegistry.Register("scene", ExecScene, mutating: true,
+            // P-414: scene save must NOT create an undo group (prevents isDirty clearing in Unity 6)
+            // mutating actions (new/open/discard/close) record mutation explicitly inside ExecScene
+            CommandRegistry.Register("scene", ExecScene, mutating: false,
                 required: "action", optional: "path,scene,include_unsaved");
             CommandRegistry.Register("animation", ExecAnimationConsolidated, mutating: true,
                 required: "action,path", optional: "clip,clip_name,property,keys,time,component_type,binding_path,tangent,function_name,int_param,float_param,string_param");
