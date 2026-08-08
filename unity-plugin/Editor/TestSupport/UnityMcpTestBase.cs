@@ -59,7 +59,6 @@ namespace UnityMCP.Editor.Testing
                 throw new InvalidOperationException("The test isolation scope is already active.");
 
             RequireDisposableWorkerBoundary();
-            RequireReadWriteBoundary();
             UnityMcpManagedSceneSafety.RequirePreparedEnvironment();
             PreviewSceneCountEvidence.RequireActiveRunBaseline();
             var priorViolation = UnityMcpManagedSceneSafety.RepairAndDescribeViolation();
@@ -133,6 +132,7 @@ namespace UnityMCP.Editor.Testing
                 }
                 throw;
             }
+            RequireReadWriteBoundary();
         }
 
         [TearDown]
