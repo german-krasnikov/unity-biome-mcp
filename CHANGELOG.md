@@ -10,6 +10,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.26.0] — 2026-08-08
+
+### Added
+- **Unified test taxonomy** — 12-tier categorization system (T0–Tg) across Python markers and C# NUnit categories
+- **`TestCategories.cs`** — 7 compile-safe category constants (`Stress`, `RequiresGraphics`, `FaultInjection`, `LiveCLI`, `InteractiveVisual`, `Perf`, `WorkerOnly`)
+- **Nightly full regression workflow** (`nightly.yml`) — runs all tests (including monkey, slow, GPU-dependent) at 02:00 UTC + manual dispatch
+- **`slow` and `perf` pytest markers** — registered in pyproject.toml for test tier classification
+
+### Changed
+- **`--strict-markers`** enforced in pytest — typos in marker names now fail immediately
+- **`--timeout=30`** default per-test timeout via pytest-timeout
+- **Monkey tests** standardized to module-level `pytestmark` (was per-function decorators)
+- **`unity-tests.yml`** — added `-testFilter` to exclude FaultInjection, LiveCLI, RequiresGraphics, InteractiveVisual, WorkerOnly categories from standard CI
+
+### Fixed
+- **Conformance marker bug** — 7 conformance test files now include `pytest.mark.conformance` (was silently skipped by CI dual-worker job)
+- **`RequiresGraphicsDeviceAttribute`** gains `[Category("RequiresGraphics")]` (DRY: applied on attribute, inherited by all 7 fixtures)
+- **`BiomeWorkerOnlyAttribute`** gains `[Category("WorkerOnly")]` (DRY: same pattern)
+- **Orphaned `test_docs_transform.py`** moved from `tests/` to `scripts/tests/` (now runs in CI)
+- **Duplicate `[dependency-groups]`** removed from pyproject.toml
+
+### Docs
+- **test-authoring.md** — comprehensive categorization guide with DO/DON'T examples and 8-step test selection decision tree
+
 ## [v1.25.0] — 2026-08-08
 
 ### Added
