@@ -87,6 +87,7 @@ namespace UnityMCP.Editor
         }
 
         // Scan startFrom..startFrom+199, skip TWO ports, OS-assigned fallback.
+        // Best-effort probe: TOCTOU window remains (port released before caller binds).
         private static int FindFreePortExcluding(int startFrom, int skip1, int skip2)
         {
             for (var port = startFrom; port <= startFrom + 199; port++)
@@ -111,11 +112,11 @@ namespace UnityMCP.Editor
 
         // Return an already-started TcpListener on a free port. Caller owns Stop().
         // Applies platform socket options (mirrors MCPServer.StartAsync bind logic).
-        internal static TcpListener BindFreePort(int startFrom, int skipPort = -1)
+        internal static TcpListener BindFreePort(int startFrom, int skipPort = -1, int skipPort2 = -1)
         {
             for (var port = startFrom; port <= 9699; port++)
             {
-                if (port == skipPort) continue;
+                if (port == skipPort || port == skipPort2) continue;
                 var l = TryBindWithOptions(port);
                 if (l != null) return l;
             }
@@ -124,7 +125,7 @@ namespace UnityMCP.Editor
             if (fb != null)
             {
                 var assigned = ((IPEndPoint)fb.LocalEndpoint).Port;
-                if (assigned != skipPort) return fb;
+                if (assigned != skipPort && assigned != skipPort2) return fb;
                 fb.Stop();
             }
             var fb2 = TryBindWithOptions(0);

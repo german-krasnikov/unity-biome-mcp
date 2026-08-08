@@ -231,7 +231,7 @@ namespace UnityMCP.Editor
                         if (attempt == 3)
                         {
                             // BindFreePort: atomic scan+bind, eliminates TOCTOU. Handles socket opts internally.
-                            _listener = PortResolver.BindFreePort(PortFileManager.Port + 1, skipPort: PortFileManager.ChatPort);
+                            _listener = PortResolver.BindFreePort(PortFileManager.Port + 1, skipPort: PortFileManager.ChatPort, skipPort2: PortFileManager.ReloadPort);
                             bindPort = ((IPEndPoint)_listener.LocalEndpoint).Port;
                         }
                         else
@@ -281,7 +281,7 @@ namespace UnityMCP.Editor
                         if (attempt == 2)
                         {
                             // BindFreePort: atomic scan+bind, eliminates TOCTOU. Handles socket opts internally.
-                            _chatListener = PortResolver.BindFreePort(PortFileManager.ChatPort + 1, skipPort: chatMainPort);
+                            _chatListener = PortResolver.BindFreePort(PortFileManager.ChatPort + 1, skipPort: chatMainPort, skipPort2: PortFileManager.ReloadPort);
                             bindPort = ((IPEndPoint)_chatListener.LocalEndpoint).Port;
                         }
                         else

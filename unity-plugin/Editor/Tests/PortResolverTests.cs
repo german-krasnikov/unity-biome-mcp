@@ -466,7 +466,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BindFreePort_ReturnsStartedListener()
         {
-            var listener = PortResolver.BindFreePort(19800);
+            var listener = PortResolver.BindFreePort(9200);
             try
             {
                 Assert.IsNotNull(listener);
@@ -480,11 +480,23 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BindFreePort_SkipsPort()
         {
-            var listener = PortResolver.BindFreePort(19810, skipPort: 19810);
+            var listener = PortResolver.BindFreePort(9200, skipPort: 9200);
             try
             {
                 var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
-                Assert.AreNotEqual(19810, port);
+                Assert.AreNotEqual(9200, port);
+            }
+            finally { listener?.Stop(); }
+        }
+
+        [Test]
+        public void BindFreePort_SkipsSecondPort()
+        {
+            var listener = PortResolver.BindFreePort(9200, skipPort: -1, skipPort2: 9200);
+            try
+            {
+                var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+                Assert.AreNotEqual(9200, port);
             }
             finally { listener?.Stop(); }
         }
@@ -492,16 +504,14 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BindFreePort_HandledConflict_ReturnsDifferentPort()
         {
-            // Pre-bind port X, then call BindFreePort(X) — must return a different started listener
-            var blocker = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+            var blocker = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 9250);
             blocker.Start();
-            var blockedPort = ((System.Net.IPEndPoint)blocker.LocalEndpoint).Port;
             System.Net.Sockets.TcpListener result = null;
             try
             {
-                result = PortResolver.BindFreePort(blockedPort);
+                result = PortResolver.BindFreePort(9250);
                 var resultPort = ((System.Net.IPEndPoint)result.LocalEndpoint).Port;
-                Assert.AreNotEqual(blockedPort, resultPort);
+                Assert.AreNotEqual(9250, resultPort);
                 Assert.IsTrue(PortResolver.IsValidPort(resultPort));
             }
             finally { blocker.Stop(); result?.Stop(); }
