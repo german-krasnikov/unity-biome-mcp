@@ -107,6 +107,7 @@ jobs:
             -testPlatform EditMode
             -testResults ${{ github.workspace }}/artifacts/editmode-results.xml
             -logFile ${{ github.workspace }}/artifacts/unity.log
+            -testFilter "cat!=FaultInjection&&cat!=LiveCLI&&cat!=RequiresGraphics&&cat!=InteractiveVisual&&cat!=WorkerOnly"
             ${{ matrix.coverage-args }}
 
       - name: Check test results exist

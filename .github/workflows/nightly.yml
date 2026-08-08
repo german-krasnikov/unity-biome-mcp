@@ -1,0 +1,109 @@
+name: Nightly Full Regression
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 02:00 UTC daily
+  workflow_dispatch:       # manual trigger
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-full:
+    name: Python Full (incl. monkey + slow)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: server
+        run: pip install -e ".[dev]" pytest-timeout
+
+      - name: Run full Python suite (unit + monkey + slow)
+        working-directory: server
+        env:
+          PYTHONWARNDEFAULTENCODING: '1'
+        run: python -m pytest tests/ -m "not live" -q --tb=short --timeout=120
+
+      - name: Run install tests
+        env:
+          PYTHONWARNDEFAULTENCODING: '1'
+        run: python -m pytest install/tests/ -q --tb=short
+
+      - name: Run scripts tests
+        env:
+          PYTHONWARNDEFAULTENCODING: '1'
+        run: python -m pytest scripts/tests/ -q --tb=short
+
+  csharp-full:
+    name: C# Full (all categories)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Create artifacts directory
+        shell: bash
+        run: mkdir -p artifacts
+
+      - name: Set UPM cache path
+        id: upm-path
+        shell: bash
+        run: echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
+
+      - name: Cache UPM packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: ${{ steps.upm-path.outputs.path }}
+          key: upm-Linux-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
+          restore-keys: |
+            upm-Linux-
+
+      - uses: buildalon/unity-setup@1a2acb0efbce77c0f90b79ced6a9c6a37ae534c2  # v2
+        id: unity-setup
+        with:
+          unity-version: 6000.0.65f1
+          build-targets: StandaloneLinux64
+
+      - uses: buildalon/activate-unity-license@87b3a82bac7ca7609eacdb2bec31c8a8a142ed9a  # v2
+        with:
+          license: 'Personal'
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - uses: buildalon/unity-action@4de595732434e4da7726086a95a75eda832bd03d  # v3
+        name: Run ALL EditMode Tests (no filter)
+        with:
+          build-target: StandaloneLinux64
+          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
+          project-path: unity-test-project
+          args: >
+            -batchmode
+            -nographics
+            -runTests
+            -testPlatform EditMode
+            -testResults ${{ github.workspace }}/artifacts/editmode-results.xml
+            -logFile ${{ github.workspace }}/artifacts/unity.log
+
+      - name: Check test results exist
+        id: check-results
+        if: always()
+        shell: bash
+        run: test -f artifacts/editmode-results.xml && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
+
+      - uses: dorny/test-reporter@3eeb9fc888e82e8be2fb356bbeec2750231672bc  # v1
+        if: always() && steps.check-results.outputs.exists == 'true'
+        with:
+          name: 'Nightly C# EditMode'
+          path: artifacts/*.xml
+          reporter: dotnet-nunit
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        if: always()
+        with:
+          name: nightly-unity-results
+          path: artifacts/
