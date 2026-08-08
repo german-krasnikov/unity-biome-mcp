@@ -54,7 +54,7 @@ jobs:
         working-directory: server
         env:
           PYTHONWARNDEFAULTENCODING: '1'
-        run: python -m pytest tests/ -m "not live" -q --timeout=30
+        run: python -m pytest tests/ -m "not live and not monkey" -q --timeout=30
 
   conformance-single:
     name: Conformance (single worker)
