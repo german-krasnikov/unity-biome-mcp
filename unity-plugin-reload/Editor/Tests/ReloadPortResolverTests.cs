@@ -166,5 +166,47 @@ namespace UnityMCP.Reload.Tests
             Assert.IsTrue(result.TrimStart().StartsWith("{"), "must be JSON object");
             Assert.IsTrue(result.TrimEnd().EndsWith("}"), "must be JSON object");
         }
+
+        // ── Bug fix: stale reloadPort from a different worker ──
+
+        [Test]
+        public void GetReloadPort_StaleReloadPort_ReturnsPortAboveMainPort()
+        {
+            // reloadPort=9601 is stale (≤ mainPort=9699): must be rejected
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, "{\"port\":9699,\"reloadPort\":9601}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.Greater(port, 9699,
+                "Stale reloadPort (9601 ≤ mainPort 9699) must be discarded; result must be > mainPort");
+        }
+
+        [Test]
+        public void GetReloadPort_NoReloadPortInJson_MainPortPresent_ReturnsAtLeastMainPortPlusOne()
+        {
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, "{\"port\":9699}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.GreaterOrEqual(port, 9700,
+                "Fallback without cached reloadPort must start from mainPort+1");
+        }
+
+        [Test]
+        public void GetReloadPort_ValidReloadPort_GreaterThanMainPort_ReturnsCachedPort()
+        {
+            // reloadPort=9701 > mainPort=9699 → valid, return directly
+            var tempPath = Path.Combine(_tempDir, "MCP_Port.json");
+            File.WriteAllText(tempPath, "{\"port\":9699,\"reloadPort\":9701}");
+            ReloadPortResolver.PortFilePath = tempPath;
+
+            var port = ReloadPortResolver.GetReloadPort();
+
+            Assert.AreEqual(9701, port, "Valid cached reloadPort must be returned unchanged");
+        }
     }
 }

@@ -40,24 +40,34 @@ namespace UnityMCP.Reload
             return assigned;
         }
 
-        // env UNITY_MCP_RELOAD_PORT → Library/MCP_Port.json["reloadPort"] → FindFreePort(9600)
+        // env UNITY_MCP_RELOAD_PORT → Library/MCP_Port.json["reloadPort"] → FindFreePort(mainPort+1) → FindFreePort(9600)
         public static int GetReloadPort()
         {
             var env = Environment.GetEnvironmentVariable("UNITY_MCP_RELOAD_PORT");
             if (env != null && int.TryParse(env, out var ep) && ep >= 1024 && ep <= 65535)
                 return ep;
 
+            int? mainPort = null;
             try
             {
                 if (File.Exists(PortFilePath))
                 {
                     var json = File.ReadAllText(PortFilePath);
+                    mainPort = ParseInt(json, "port");
                     var m = Regex.Match(json, "\"reloadPort\"\\s*:\\s*(\\d+)");
                     if (m.Success && int.TryParse(m.Groups[1].Value, out var sp) && sp >= 1024 && sp <= 65535)
-                        return sp;
+                    {
+                        // Reject stale reloadPort from a different worker (must be > mainPort)
+                        if (!mainPort.HasValue || sp > mainPort.Value)
+                            return sp;
+                    }
                 }
             }
             catch { }
+
+            // Derive reload port from mainPort to avoid cross-worker conflict
+            if (mainPort.HasValue)
+                return FindFreePort(mainPort.Value + 1);
 
             return FindFreePort(9600);
         }

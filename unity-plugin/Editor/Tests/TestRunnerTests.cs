@@ -860,6 +860,59 @@ namespace UnityMCP.Editor.Tests
             StringAssert.StartsWith("tests-started|", started.text);
         }
 
+        // ── Bug fix: false positive fingerprint when Bee cache-hit causes mtime discrepancy ──
+
+        [Test]
+        public void MtimeCoherence_IdleStatusAfterCacheHit_DoesNotThrow()
+        {
+            var original = TestRunAssemblyFingerprint.CompileStatusGetter;
+            try
+            {
+                TestRunAssemblyFingerprint.CompileStatusGetter = () => "idle|3.2";
+                var older = DateTime.UtcNow.AddSeconds(-10);
+                var newer = DateTime.UtcNow;
+                Assert.DoesNotThrow(() =>
+                    TestRunAssemblyFingerprint.ValidateMtimeCoherence(
+                        "TestAsm", older, newer, "Source.cs"),
+                    "idle|... means Bee cache-hit: mtime discrepancy is expected, must not throw");
+            }
+            finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
+        }
+
+        [Test]
+        public void MtimeCoherence_IdleNeverStatus_Throws()
+        {
+            var original = TestRunAssemblyFingerprint.CompileStatusGetter;
+            try
+            {
+                TestRunAssemblyFingerprint.CompileStatusGetter = () => "idle-never|0";
+                var older = DateTime.UtcNow.AddSeconds(-10);
+                var newer = DateTime.UtcNow;
+                Assert.Throws<InvalidDataException>(() =>
+                    TestRunAssemblyFingerprint.ValidateMtimeCoherence(
+                        "TestAsm", older, newer, "Source.cs"),
+                    "idle-never means no compile ran: stale DLL must throw");
+            }
+            finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
+        }
+
+        [Test]
+        public void MtimeCoherence_CompilingStatus_Throws()
+        {
+            var original = TestRunAssemblyFingerprint.CompileStatusGetter;
+            try
+            {
+                TestRunAssemblyFingerprint.CompileStatusGetter = () => "compiling|1.5";
+                var older = DateTime.UtcNow.AddSeconds(-10);
+                var newer = DateTime.UtcNow;
+                Assert.Throws<InvalidDataException>(() =>
+                    TestRunAssemblyFingerprint.ValidateMtimeCoherence(
+                        "TestAsm", older, newer, "Source.cs"),
+                    "compiling status means DLL is not yet fresh: must throw");
+            }
+            finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
+        }
+
         private TestRunService CreateService(
             TestRunBuildFingerprint build = null,
             Action<string> afterDurableBoundary = null) =>
