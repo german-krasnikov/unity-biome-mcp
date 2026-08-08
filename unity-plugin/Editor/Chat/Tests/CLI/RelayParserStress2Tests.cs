@@ -4,10 +4,12 @@
 using System;
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class RelayParserStress2Tests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // Payload size extremes

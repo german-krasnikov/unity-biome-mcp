@@ -6,11 +6,13 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Testing;
 using Object = UnityEngine.Object;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class ChatWindowSessionMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly FieldInfo s_inp   = typeof(MCPChatWindow).GetField("_inputTokens",    BindingFlags.NonPublic | BindingFlags.Instance);

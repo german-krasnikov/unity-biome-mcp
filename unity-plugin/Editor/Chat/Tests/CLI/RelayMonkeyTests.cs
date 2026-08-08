@@ -7,10 +7,12 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class RelayMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private Func<RelayChatProcess> _origProcFactory;

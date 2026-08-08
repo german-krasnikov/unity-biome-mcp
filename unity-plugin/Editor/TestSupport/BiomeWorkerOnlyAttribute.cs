@@ -11,6 +11,7 @@ namespace UnityMCP.Editor.Testing
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method,
         AllowMultiple = false, Inherited = true)]
+    [Category(TestCategories.WorkerOnly)]
     public sealed class BiomeWorkerOnlyAttribute : ExplicitAttribute
     {
         public BiomeWorkerOnlyAttribute(string reason)

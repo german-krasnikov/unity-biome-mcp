@@ -4,12 +4,13 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
     [Explicit("Interactive screenshot tests run only in the dedicated GUI lane.")]
-    [Category("UnityMCP.InteractiveVisual")]
+    [Category(TestCategories.InteractiveVisual)]
     public class ChatWindowScreenshotTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private MCPChatWindow _window;

@@ -99,6 +99,7 @@ namespace UnityMCP.Editor.Tests.FaultInjection
 
     [TestFixture]
     [Category(CleanupOrderingSentinel.Category)]
+    [Category(TestCategories.FaultInjection)]
     internal sealed class SyncTearDownFailureProbe : CleanupOrderingFaultFixtureBase
     {
         internal const string FailureMarker =
@@ -122,6 +123,7 @@ namespace UnityMCP.Editor.Tests.FaultInjection
 
     [TestFixture]
     [Category(CleanupOrderingSentinel.Category)]
+    [Category(TestCategories.FaultInjection)]
     internal sealed class SyncTearDownCleanupCanary : SceneTestBase
     {
         [Test]
@@ -150,6 +152,7 @@ namespace UnityMCP.Editor.Tests.FaultInjection
 
     [TestFixture]
     [Category(CleanupOrderingSentinel.Category)]
+    [Category(TestCategories.FaultInjection)]
     internal sealed class AsyncTearDownFailureProbe : CleanupOrderingFaultFixtureBase
     {
         internal const string FailureMarker =
@@ -174,6 +177,7 @@ namespace UnityMCP.Editor.Tests.FaultInjection
 
     [TestFixture]
     [Category(CleanupOrderingSentinel.Category)]
+    [Category(TestCategories.FaultInjection)]
     internal sealed class AsyncTearDownCleanupCanary : SceneTestBase
     {
         [Test]
@@ -197,6 +201,7 @@ namespace UnityMCP.Editor.Tests.FaultInjection
 
     [TestFixture]
     [Category(CleanupOrderingSentinel.Category)]
+    [Category(TestCategories.FaultInjection)]
     internal sealed class SetUpFailureProbe : CleanupOrderingFaultFixtureBase
     {
         internal const string FailureMarker =
@@ -220,6 +225,7 @@ namespace UnityMCP.Editor.Tests.FaultInjection
 
     [TestFixture]
     [Category(CleanupOrderingSentinel.Category)]
+    [Category(TestCategories.FaultInjection)]
     internal sealed class SetUpFailureCleanupCanary : SceneTestBase
     {
         [Test]

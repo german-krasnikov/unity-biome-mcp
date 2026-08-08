@@ -9,6 +9,7 @@ namespace UnityMCP.Editor.Testing
 {
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method,
         AllowMultiple = false, Inherited = true)]
+    [Category(TestCategories.RequiresGraphics)]
     public sealed class RequiresGraphicsDeviceAttribute : NUnitAttribute, IApplyToTest
     {
         public void ApplyToTest(Test test)

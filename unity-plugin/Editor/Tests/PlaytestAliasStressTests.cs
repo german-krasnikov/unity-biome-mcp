@@ -3,10 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using NUnit.Framework;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class PlaytestAliasStressTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // D1 — 100 VAL aliases: parse completes under 200ms

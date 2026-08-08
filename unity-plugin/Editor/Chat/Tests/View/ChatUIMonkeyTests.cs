@@ -7,6 +7,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Testing;
 using UnityEditor;
 using Object = UnityEngine.Object;
 
@@ -15,6 +16,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 1. ChatActivityState exhaustive (16) ─────────────────────────────────
 
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class ActivityStateMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
@@ -176,6 +178,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 2. SessionAllowlist exhaustive (12) ──────────────────────────────────
 
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class SessionAllowlistMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string TestTool   = "MCPMonkeyTest_Tool_A";
@@ -307,6 +310,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 3. IsCodeEditingTool (10) ─────────────────────────────────────────────
 
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class IsCodeEditingToolMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static bool Invoke(ToolCallRecord rec) =>
@@ -360,6 +364,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 4. ApplySelectedModel (15) ───────────────────────────────────────────
 
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class BackendModelMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── WithModel(BackendKind.Claude) — replaces CloneWithModel (6) ──────
@@ -498,6 +503,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 5. Window state stress — SetMode + flags (18) ────────────────────────
 
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class WindowStateMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly FieldInfo s_agentMode = typeof(MCPChatWindow)
@@ -726,6 +732,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 6. HandleEvent safe paths via reflection (15) ────────────────────────
 
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class HandleEventMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly MethodInfo s_handleEvent = typeof(MCPChatWindow)
@@ -901,6 +908,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 7. TokenFormat edge cases (10) ────────────────────────────────────────
 
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class TokenFormatMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test] public void Abbr_Zero_Returns0()
@@ -951,6 +959,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 8. ContextProgressBar edge cases (10) ─────────────────────────────────
 
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class ContextProgressBarMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
@@ -1050,6 +1059,7 @@ namespace UnityMCP.Editor.Chat.Tests
     // ── 9. ApproveButtonFactory/Helper monkey (10) ───────────────────────────
 
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class ApproveMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]

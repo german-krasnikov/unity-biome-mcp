@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class ChatWindowSendMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private InlineChipField _chipField;
