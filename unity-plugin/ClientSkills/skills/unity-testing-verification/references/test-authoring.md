@@ -519,7 +519,7 @@ pytestmark = pytest.mark.monkey
 
 # DON'T: Per-function decorator on every test (verbose and maintainability risk)
 @pytest.mark.monkey  # WRONG: use module-level pytestmark instead
-def test_something():
+def TestSomething():
     pass
 ```
 
