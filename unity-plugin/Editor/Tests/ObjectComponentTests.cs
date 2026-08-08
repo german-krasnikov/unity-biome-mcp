@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.Tests
             StringAssert.DoesNotContain("Ambiguous", response);
             StringAssert.DoesNotContain("\"ok\":false", response);
 
-            Object.DestroyImmediate(first);
+            UnityEngine.Object.DestroyImmediate(first);
         }
 
         // ── Strategy C: ReadOnly verification ────────────────────────────────

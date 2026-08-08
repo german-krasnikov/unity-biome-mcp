@@ -32,7 +32,7 @@ namespace UnityMCP.Editor.Tests
             CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
             BatchHelper.IsCompiling = () => CommandRouter.IsCompiling();
             foreach (var go in _toDestroy)
-                if (go != null) Object.DestroyImmediate(go);
+                if (go != null) UnityEngine.Object.DestroyImmediate(go);
             _toDestroy.Clear();
         }
 
