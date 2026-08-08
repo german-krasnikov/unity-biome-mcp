@@ -7,11 +7,13 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Testing;
 using Object = UnityEngine.Object;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class ChatWindowModeMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private static readonly FieldInfo  s_agent = typeof(MCPChatWindow).GetField("_agentMode",  BindingFlags.NonPublic | BindingFlags.Instance);

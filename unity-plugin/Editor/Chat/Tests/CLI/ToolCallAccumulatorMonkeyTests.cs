@@ -3,10 +3,12 @@
 // New coverage: non-tool event kinds, unicode, large args, reset invariants.
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class ToolCallAccumulatorMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private ToolCallAccumulator _acc;

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = [pytest.mark.live, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [pytest.mark.live, pytest.mark.conformance, pytest.mark.asyncio(loop_scope="session")]
 
 
 async def test_invalid_command_returns_error(conformance_worker):

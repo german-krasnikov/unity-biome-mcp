@@ -15,7 +15,7 @@ def test_server_filtering_importable_in_isolation():
     env = {**os.environ, "PYTHONPATH": src}
     result = subprocess.run(
         [venv_python, "-c", "import unity_mcp.server_filtering"],
-        capture_output=True, text=True, encoding="utf-8", env=env,
+        capture_output=True, text=True, encoding="utf-8", env=env, timeout=60,
     )
     assert result.returncode == 0, f"Circular import: {result.stderr}"
 

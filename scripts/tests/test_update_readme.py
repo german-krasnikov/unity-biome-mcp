@@ -86,6 +86,7 @@ class TestCommand:
             capture_output=True,
             text=True,
             check=False,
+            timeout=60,
         )
         assert result.returncode == 0
         for mode in ("--collect", "--render", "--all", "--check", "--check-facts"):
@@ -100,6 +101,7 @@ class TestCommand:
             text=True,
             encoding="utf-8",
             check=False,
+            timeout=60,
         )
         assert result.returncode == 0, result.stdout + result.stderr
         assert "up to date" in result.stdout

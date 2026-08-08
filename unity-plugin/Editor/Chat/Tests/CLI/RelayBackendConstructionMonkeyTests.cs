@@ -5,10 +5,12 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Stress)]
     public class RelayBackendConstructionMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [TearDown]

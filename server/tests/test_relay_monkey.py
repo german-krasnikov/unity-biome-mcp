@@ -14,6 +14,8 @@ import pytest
 
 from unity_mcp.chat_relay import ChatRelay, _find_free_port, MAX_FRAME
 
+pytestmark = pytest.mark.monkey
+
 _SERVER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SRC_DIR = os.path.join(_SERVER_DIR, "src")
 
@@ -77,7 +79,6 @@ async def relay_server():
 
 # ─── M1: Connection Storm ─────────────────────────────────────────────────────
 
-@pytest.mark.monkey
 async def test_connection_storm(relay_server):
     """50 rapid connect/disconnect cycles. Relay must stay alive throughout."""
     relay, port = relay_server
@@ -91,7 +92,6 @@ async def test_connection_storm(relay_server):
 
 # ─── M2: Process Lifecycle Stress ─────────────────────────────────────────────
 
-@pytest.mark.monkey
 async def test_process_lifecycle_stress(relay_server):
     """20 spawn/kill cycles. No zombie processes after each kill."""
     relay, port = relay_server
@@ -120,7 +120,6 @@ async def test_process_lifecycle_stress(relay_server):
 
 # ─── M3: Reconnect Survival ───────────────────────────────────────────────────
 
-@pytest.mark.monkey
 async def test_reconnect_survival(relay_server):
     """Spawn streaming process; reconnect 10x; events always readable."""
     relay, port = relay_server
@@ -144,7 +143,6 @@ async def test_reconnect_survival(relay_server):
 
 # ─── M4: Large Payload / Oversized Frame ──────────────────────────────────────
 
-@pytest.mark.monkey
 async def test_large_payload(relay_server):
     """1 MB line sent to a stdin-draining subprocess — must succeed or reject cleanly.
     Uses python -c 'sys.stdin.read()' not cat: cat deadlocks because echoing 1MB
@@ -159,7 +157,6 @@ async def test_large_payload(relay_server):
     assert resp["ok"]
 
 
-@pytest.mark.monkey
 async def test_oversized_frame_rejected(relay_server):
     """Frame > MAX_FRAME closes connection; relay keeps serving."""
     relay, port = relay_server
@@ -174,7 +171,6 @@ async def test_oversized_frame_rejected(relay_server):
 
 # ─── M5: Concurrent Clients ───────────────────────────────────────────────────
 
-@pytest.mark.monkey
 async def test_concurrent_clients(relay_server):
     """B4 FIX: relay is single-client — simultaneous connects displace each other.
     At least 1 must succeed; relay must stay alive after the connection storm."""
@@ -191,7 +187,6 @@ async def test_concurrent_clients(relay_server):
 
 # ─── M6: Graceful Shutdown (SIGTERM) ─────────────────────────────────────────
 
-@pytest.mark.monkey
 async def test_sigterm_kills_children():
     """SIGTERM relay → relay exits cleanly (signal handler fires)."""
     env = {**os.environ, "PYTHONPATH": _SRC_DIR}
@@ -214,7 +209,6 @@ async def test_sigterm_kills_children():
 
 # ─── M2: SIGINT kills children ───────────────────────────────────────────────
 
-@pytest.mark.monkey
 async def test_sigint_kills_children():
     """SIGINT relay → relay exits cleanly (signal handler fires)."""
     env = {**os.environ, "PYTHONPATH": _SRC_DIR}
@@ -237,7 +231,6 @@ async def test_sigint_kills_children():
 
 # ─── M8: Protocol Torture ─────────────────────────────────────────────────────
 
-@pytest.mark.monkey
 async def test_partial_header_closes_connection(relay_server):
     """2-byte partial header then close. Relay keeps serving."""
     relay, port = relay_server
@@ -248,7 +241,6 @@ async def test_partial_header_closes_connection(relay_server):
     assert (await tcp_send(port, "status", {}))["ok"]
 
 
-@pytest.mark.monkey
 async def test_rapid_fire_commands(relay_server):
     """500 status commands pipelined on one connection — all respond correctly."""
     relay, port = relay_server
@@ -266,7 +258,6 @@ async def test_rapid_fire_commands(relay_server):
     await w.wait_closed()
 
 
-@pytest.mark.monkey
 async def test_invalid_json_closes_cleanly(relay_server):
     """Valid frame length with invalid JSON body — connection closes; relay survives."""
     relay, port = relay_server

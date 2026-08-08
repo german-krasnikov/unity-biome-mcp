@@ -469,6 +469,198 @@ with `UNITY_MCP_RUN_LIVE_CLI=1`, valid credentials, and an explicit cost/network
 expectation. Never use an external quota or billing failure to judge the core
 runner or state-owner stability.
 
+## Test Categorization (Markers & Categories)
+
+Use Python markers and C# categories to declare test requirements, cost, safety,
+and inclusion in each CI lane. Each test belongs to exactly one tier.
+
+### Python Markers
+
+Register new markers in `server/pyproject.toml` under `[tool.pytest.ini_options]
+markers`. Apply via module-level `pytestmark` (preferred) or per-function
+`@pytest.mark.name` (only when fixtures need different markers).
+
+**Key markers:**
+
+- `live` — requires running Unity Editor with MCP plugin on TCP. Skip by default
+  in `pytest -m "not live"`. CI: self-hosted conformance lane only.
+- `live_cli` — paid external CLI/API call (e.g., Claude, Cursor). Skip by
+  default; opt-in with `UNITY_MCP_RUN_LIVE_CLI=1`. CI: never.
+- `monkey` — stress/chaos tests: connection storms, protocol torture, process
+  leaks. CI: Python gate runs `pytest -m "not monkey"`, so Python monkey tests
+  are skipped in standard CI. C# stress tests run in standard CI (see
+  `[Category(TestCategories.Stress)]` below).
+- `conformance` — MCP conformance gate tests portable across any Unity+MCP
+  endpoint. Always combined with `live`: `pytest.mark.live,
+  pytest.mark.conformance`. CI: self-hosted.
+- `cross_project` — requires two running Unity editors on different ports.
+  Always combined with `live`. CI: self-hosted dual-worker lane.
+- `slow` — tests taking >5s. Exempt from the `--timeout=30` default via
+  `pytest-timeout`. Example: reload stability, property-based.
+- `perf` — performance benchmarks. Not run in standard CI. CI: nightly.
+- `asyncio` — auto-registered by `pytest-asyncio`; explicit here for
+  `--strict-markers` compliance.
+
+**Module-level pytestmark (preferred):**
+
+```python
+# Apply the same marker to all tests in the file
+pytestmark = pytest.mark.monkey
+
+# Combine markers when a test spans multiple tiers
+pytestmark = [pytest.mark.live, pytest.mark.conformance, pytest.mark.asyncio(loop_scope="session")]
+```
+
+**DO/DON'T:**
+
+```python
+# DO: Module-level pytestmark
+pytestmark = pytest.mark.monkey
+
+# DON'T: Per-function decorator on every test (verbose and maintainability risk)
+@pytest.mark.monkey  # WRONG: use module-level pytestmark instead
+def TestSomething():
+    pass
+```
+
+```python
+# DO: Conformance tests with all required markers
+pytestmark = [pytest.mark.live, pytest.mark.conformance, pytest.mark.asyncio(loop_scope="session")]
+
+# DON'T: Missing conformance marker
+pytestmark = [pytest.mark.live, pytest.mark.asyncio(loop_scope="session")]  # WRONG: missing conformance
+```
+
+```python
+# DO: Slow tests marked explicitly
+pytestmark = pytest.mark.slow  # tests that take >5s
+
+# DON'T: Unlabeled slow tests (breaks --timeout=30 default)
+# No marker → 30s timeout kills the test
+```
+
+### C# Categories
+
+Declare test categorization via NUnit `[Category(TestCategories.Constant)]`.
+Constants are defined in `UnityMCP.Editor.Testing.TestCategories` static class:
+
+```csharp
+public static class TestCategories
+{
+    public const string Stress = "Stress";
+    public const string RequiresGraphics = "RequiresGraphics";
+    public const string FaultInjection = "FaultInjection";
+    public const string LiveCLI = "LiveCLI";
+    public const string InteractiveVisual = "InteractiveVisual";
+    public const string Perf = "Perf";
+    public const string WorkerOnly = "WorkerOnly";
+}
+```
+
+**Key categories:**
+
+- `Stress` — chaos/monkey tests (connection storms, fault tolerance). Run in
+  standard C# CI; Python equivalent is excluded.
+- `RequiresGraphics` — tests requiring a GPU/display device. Applied via
+  `[RequiresGraphicsDevice]` attribute; inheriting fixtures auto-get the
+  category. Skipped in headless CI lanes.
+- `FaultInjection` — intentional faults: crashes, hangs, domain-reload
+  scenarios. Disposable-worker only.
+- `LiveCLI` — external paid API calls. Not run in standard CI.
+- `InteractiveVisual` — interactive screenshot tests. Require display; nightly
+  only.
+- `Perf` — performance benchmarks. Nightly only.
+- `WorkerOnly` — destructive tests allowed only in a disposable worker. Applied
+  via `[BiomeWorkerOnly("reason")]` attribute; inheriting fixtures auto-get the
+  category.
+
+**Apply at class level (preferred) for all tests in the fixture:**
+
+```csharp
+[TestFixture]
+[Category(TestCategories.Stress)]
+public class RelayMonkeyTests : UnityMcpTestBase
+{
+    [Test]
+    public void Test_Something() { ... }
+}
+```
+
+**DRY pattern — apply to custom attributes, not individual fixtures:**
+
+Many categories are inherently attached to a custom attribute: if you use
+`[RequiresGraphicsDevice]` or `[BiomeWorkerOnly(...)]`, the category is
+automatically applied through the attribute definition. Do not duplicate the
+`[Category(...)]` on the fixture itself.
+
+```csharp
+// DO: Category on the attribute (DRY — all users inherit)
+[Category(TestCategories.RequiresGraphics)]
+public sealed class RequiresGraphicsDeviceAttribute : NUnitAttribute, IApplyToTest { ... }
+
+// THEN: Use the attribute without repeating the category
+[TestFixture, RequiresGraphicsDevice]
+public class ScreenshotTests : UnityMcpTestBase { ... }  // Gets RequiresGraphics category automatically
+```
+
+```csharp
+// DON'T: Category on both attribute AND fixture (duplication)
+[Category(TestCategories.RequiresGraphics)]
+public sealed class RequiresGraphicsDeviceAttribute : NUnitAttribute, IApplyToTest { ... }
+
+[TestFixture, RequiresGraphicsDevice]
+[Category(TestCategories.RequiresGraphics)]  // WRONG: already on the attribute
+public class ScreenshotTests : UnityMcpTestBase { ... }
+```
+
+**Use constants, not string literals:**
+
+```csharp
+// DO
+[Category(TestCategories.Stress)]
+
+// DON'T: String literals (typos not caught at compile time)
+[Category("Stress")]  // WRONG
+```
+
+### Test Selection Guide
+
+When adding a new test, ask yourself in order:
+
+1. **Does it need Unity running?** → `pytest.mark.live` (Python) or leave
+   uncategorized (C#)
+2. **Does it mutate source, reload the domain, or intentionally crash?** →
+   `[BiomeWorkerOnly("reason")]` (C#) — automatically gets `WorkerOnly` category
+3. **Is it a stress/chaos test?** → `pytest.mark.monkey` (Python) or
+   `[Category(TestCategories.Stress)]` (C#)
+4. **Does it need a GPU or interactive display?** → `[RequiresGraphicsDevice]`
+   (C#) — automatically gets `RequiresGraphics` category
+5. **Does it call a paid external API?** → `pytest.mark.live_cli` (Python) or
+   `[Category(TestCategories.LiveCLI)]` (C#)
+6. **Is it a perf benchmark?** → `pytest.mark.perf` (Python) or
+   `[Category(TestCategories.Perf)]` (C#)
+7. **Does it take >5 seconds?** → `pytest.mark.slow` (Python); ensure cleanup is
+   efficient and doesn't pile up wall-clock delays
+8. **None of the above?** → No marker needed (default = unit test, runs
+   everywhere, no cost)
+
+### CI Lane Inclusion
+
+| Tier | Python | C# | Standard CI | Nightly |
+|------|--------|----|----|---------|
+| Unit (no marker) | ✓ | ✓ | Yes | Yes |
+| Slow (`slow`) | ✓ | — | Yes | Yes |
+| Live (`live`) | ✓ | — | Self-hosted | Yes |
+| Conformance (`live` + `conformance`) | ✓ | — | Self-hosted | Yes |
+| Cross-project (`live` + `cross_project`) | ✓ | — | Self-hosted dual | Yes |
+| Stress (`monkey` / `Stress`) | ✗ Py | ✓ C# | Yes (C# only) | Yes |
+| Live-CLI (`live_cli` / `LiveCLI`) | ✓ | ✓ | No | No |
+| Interactive (`InteractiveVisual`) | — | ✓ | No | Yes |
+| Worker-only (`WorkerOnly`) | — | ✓ | No | Yes |
+| Fault injection (`FaultInjection`) | — | ✓ | No | Yes |
+| Perf (`perf` / `Perf`) | ✓ | ✓ | No | Yes |
+| GPU-dependent (`RequiresGraphics`) | — | ✓ | No | Yes |
+
 ## Sequential Acceptance Lanes
 
 Ordinary repository acceptance uses the already-open canonical

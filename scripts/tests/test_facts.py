@@ -11,10 +11,14 @@ import readme_facts as rf
 REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 _META = REPO_ROOT / "docs" / "assets" / "_meta.json"
 
+# Cache so the 5 TestCollectFacts tests share a single 3-subprocess call
+# instead of spawning 15 pytest --collect-only processes in CI.
+_FACTS = rf.collect_facts(REPO_ROOT)
+
 
 class TestCollectFacts:
     def test_returns_all_keys(self) -> None:
-        f = rf.collect_facts(REPO_ROOT)
+        f = _FACTS
         for k in (
             "tools",
             "tests_total",
@@ -29,16 +33,16 @@ class TestCollectFacts:
             assert k in f, f"missing key: {k}"
 
     def test_tools_is_int_and_plausible(self) -> None:
-        f = rf.collect_facts(REPO_ROOT)
+        f = _FACTS
         assert isinstance(f["tools"], int) and f["tools"] >= 90
 
     def test_versions_are_strings(self) -> None:
-        f = rf.collect_facts(REPO_ROOT)
+        f = _FACTS
         assert isinstance(f["server_version"], str) and "." in f["server_version"]
         assert isinstance(f["plugin_version"], str) and "." in f["plugin_version"]
 
     def test_test_counts_are_ints(self) -> None:
-        f = rf.collect_facts(REPO_ROOT)
+        f = _FACTS
         for k in (
             "tests_total",
             "tests_python",
@@ -49,7 +53,7 @@ class TestCollectFacts:
             assert isinstance(f[k], int) and f[k] >= 0
 
     def test_totals_add_up(self) -> None:
-        f = rf.collect_facts(REPO_ROOT)
+        f = _FACTS
         assert f["tests_total"] == (
             f["tests_python"]
             + f["tests_stress"]
@@ -141,7 +145,7 @@ class TestUnityTestProvenance:
         assert isinstance(result.count, int) and result.count >= 0
 
     def test_collect_facts_includes_tests_unity_source(self) -> None:
-        f = rf.collect_facts(REPO_ROOT)
+        f = _FACTS
         assert "tests_unity_source" in f
         assert f["tests_unity_source"] == "static_grep"
 

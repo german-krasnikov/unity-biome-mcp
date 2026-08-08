@@ -29,6 +29,7 @@ def test_legacy_release_invocation_fails_closed() -> None:
         capture_output=True,
         text=True,
         encoding="utf-8",
+        timeout=60,
     )
     assert result.returncode != 0
     assert "--preflight" in result.stderr

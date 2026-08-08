@@ -30,6 +30,8 @@ from unity_mcp.chat_relay import (
 from unity_mcp import mcp_config_writer
 from .relay_helpers import make_proc, mock_sess, fresh_relay, tcp_cmd, relay_server  # noqa: F401
 
+pytestmark = pytest.mark.monkey
+
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 ALL_BACKENDS = ["claude", "codex", "kimi", "agy", "opencode"]
@@ -57,7 +59,6 @@ def mock_backend(resolve: str | None = "/bin/cli", has_resume: bool = True,
 # A. Backend Switching Chaos — 5 × 2 × 4 = 40 tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("backend,mode,op_idx", [
     (b, m, op)
     for b in ALL_BACKENDS
@@ -131,7 +132,6 @@ async def test_backend_switch_chaos(backend: str, mode: str, op_idx: int) -> Non
 # B. Mode Switch Stress — 5 × 2 × 3 = 30 tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("backend,initial_mode,scenario", [
     (b, m, s)
     for b in ALL_BACKENDS
@@ -208,7 +208,6 @@ def _call_writer(writer_key: str, config_dir: str, mcp_port: int) -> str | None:
         return mcp_config_writer.write_opencode_config(config_dir, mcp_port)
 
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("writer_key,scenario", [
     (w, s) for w in _WRITER_KEYS for s in range(6)
 ])
@@ -278,7 +277,6 @@ def test_config_writer_chaos(writer_key: str, scenario: int,
 # D. Binary Resolution Stress — 5 × 4 = 20 tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("backend_name,edge", [
     (b, e) for b in ALL_BACKENDS for e in range(4)
 ])
@@ -324,7 +322,6 @@ async def test_binary_resolution_edge(backend_name: str, edge: int,
 # E. Protocol Field Torture — 6 × 5 = 30 tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("scenario,backend_name", [
     (s, b) for s in range(6) for b in ALL_BACKENDS
 ])
@@ -412,7 +409,6 @@ async def test_protocol_field_torture(scenario: int, backend_name: str) -> None:
 # F. Session Lifecycle Chaos — 5 × 5 = 25 tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("backend_name,scenario", [
     (b, s) for b in ALL_BACKENDS for s in range(5)
 ])
@@ -497,7 +493,6 @@ async def test_session_lifecycle_chaos(backend_name: str, scenario: int) -> None
 # G. Concurrent Operations Chaos — 5 × 5 = 25 tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.monkey
 @pytest.mark.parametrize("pattern,backend_name", [
     (p, b) for p in range(5) for b in ALL_BACKENDS
 ])

@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityMCP.Editor;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -269,7 +270,7 @@ namespace UnityMCP.Editor.Tests
     }
 
     [TestFixture]
-    [Category("LiveCLI")]
+    [Category(TestCategories.LiveCLI)]
     [UnityMCP.Editor.Testing.BiomeWorkerOnly(
         "Invokes an external LLM CLI and is intentionally nondeterministic.")]
     internal class NlComposerBridgeLiveTests : UnityMCP.Editor.Testing.UnityMcpTestBase

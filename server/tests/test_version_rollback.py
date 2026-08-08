@@ -246,7 +246,7 @@ def run_sync(version: str, root: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(SYNC_SCRIPT), version, "--root", str(root)],
         capture_output=True, text=True, encoding="utf-8",
-        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"}, timeout=60,
     )
 
 

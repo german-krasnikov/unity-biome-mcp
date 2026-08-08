@@ -67,7 +67,7 @@ def _run_check(root: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--check", "--root", str(root)],
         capture_output=True, text=True, encoding="utf-8",
-        env=_SUBPROCESS_ENV,
+        env=_SUBPROCESS_ENV, timeout=60,
     )
 
 
@@ -75,7 +75,7 @@ def _run_sync(root: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--sync", "--root", str(root)],
         capture_output=True, text=True, encoding="utf-8",
-        env=_SUBPROCESS_ENV,
+        env=_SUBPROCESS_ENV, timeout=60,
     )
 
 

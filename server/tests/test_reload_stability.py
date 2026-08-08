@@ -16,6 +16,8 @@ from unity_mcp.lockfile import (
 from unity_mcp.compile_state import CompileStateProbe, _DISCONNECT_WINDOW_S
 from unity_mcp.bridge_reload_state import DomainReloadTracker, DOMAIN_RELOAD_EXPIRY_S
 
+pytestmark = pytest.mark.slow
+
 # ---------------------------------------------------------------------------
 # Paths to C# source files (Group C)
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 [project]
 name = "unity-biome-mcp"
-version = "1.25.0"
+version = "1.26.0"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]
@@ -31,7 +31,7 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=6.0",
-    "pytest-timeout>=2.3",
+    "pytest-timeout>=2.4.0",
 ]
 
 [project.scripts]
@@ -43,6 +43,7 @@ testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 asyncio_mode = "auto"
 python_files = "test_*.py"
+addopts = ["--strict-markers", "--timeout=30"]
 filterwarnings = [
     "error::EncodingWarning",
 ]
@@ -54,6 +55,9 @@ markers = [
     "timeout: per-test timeout override (pytest-timeout)",
     "conformance: MCP conformance gate tests — portable across any Unity+MCP endpoint",
     "cross_project: requires two running Unity editors on different ports",
+    "slow: tests that take >5s (reload stability, property-based)",
+    "perf: performance benchmarks and profiling tests",
+    "asyncio: mark test as asyncio (auto-registered by pytest-asyncio; explicit here for --strict-markers)",
 ]
 
 [tool.ruff]
