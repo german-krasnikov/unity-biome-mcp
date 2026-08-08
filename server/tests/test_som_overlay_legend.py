@@ -37,9 +37,9 @@ def test_assign_indices_stable_across_processes():
     env2 = {**os.environ, "PYTHONHASHSEED": "999"}
 
     r1 = subprocess.run([sys.executable, "-c", script, src_dir],
-                        capture_output=True, text=True, encoding="utf-8", env=env1)
+                        capture_output=True, text=True, encoding="utf-8", env=env1, timeout=60)
     r2 = subprocess.run([sys.executable, "-c", script, src_dir],
-                        capture_output=True, text=True, encoding="utf-8", env=env2)
+                        capture_output=True, text=True, encoding="utf-8", env=env2, timeout=60)
 
     assert r1.returncode == 0, r1.stderr
     assert r2.returncode == 0, r2.stderr

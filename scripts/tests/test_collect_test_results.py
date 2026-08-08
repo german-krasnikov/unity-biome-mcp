@@ -38,7 +38,7 @@ def test_parse_pytest_junit(junit_xml, tmp_path):
     r = subprocess.run(
         [sys.executable, SCRIPT, "--add-pytest", str(junit_xml),
          "--suite", "Server", "--platform", "linux", "--out", str(out)],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     assert r.returncode == 0
     data = json.loads(out.read_text(encoding="utf-8"))
@@ -55,7 +55,7 @@ def test_parse_nunit(nunit_xml, tmp_path):
     r = subprocess.run(
         [sys.executable, SCRIPT, "--add-nunit", str(nunit_xml),
          "--suite", "C# EditMode", "--platform", "linux", "--out", str(out)],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     assert r.returncode == 0
     data = json.loads(out.read_text(encoding="utf-8"))
@@ -70,7 +70,7 @@ def test_add_manual(tmp_path):
         [sys.executable, SCRIPT, "--add-manual",
          "--suite", "Live", "--passed", "284", "--failed", "0", "--skipped", "0",
          "--platform", "macos", "--out", str(out)],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     assert r.returncode == 0
     data = json.loads(out.read_text(encoding="utf-8"))
@@ -82,12 +82,12 @@ def test_multiple_suites_accumulate(junit_xml, nunit_xml, tmp_path):
     subprocess.run(
         [sys.executable, SCRIPT, "--add-pytest", str(junit_xml),
          "--suite", "Python", "--out", str(out)],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     subprocess.run(
         [sys.executable, SCRIPT, "--add-nunit", str(nunit_xml),
          "--suite", "C#", "--out", str(out)],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     data = json.loads(out.read_text(encoding="utf-8"))
     assert len(data["suites"]) == 2
@@ -101,12 +101,12 @@ def test_duplicate_suite_replaces(junit_xml, tmp_path):
         [sys.executable, SCRIPT, "--add-manual",
          "--suite", "Python", "--passed", "100", "--failed", "5",
          "--skipped", "0", "--out", str(out)],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     subprocess.run(
         [sys.executable, SCRIPT, "--add-pytest", str(junit_xml),
          "--suite", "Python", "--out", str(out)],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     data = json.loads(out.read_text(encoding="utf-8"))
     assert len(data["suites"]) == 1

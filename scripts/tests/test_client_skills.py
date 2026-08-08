@@ -450,6 +450,7 @@ def test_installer_accepts_all_supported_release_skill_hashes(repo_root: pathlib
             check=True,
             capture_output=True,
             text=True,
+            timeout=60,
         )
         for line in result.stdout.splitlines():
             metadata, path = line.split("\t", 1)
