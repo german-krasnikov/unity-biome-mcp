@@ -384,7 +384,8 @@ async def test_multiturn_mode_switch_at_turn3() -> None:
 
     # switch to agent at turn 3
     mock_b.build_args.return_value = (["-p", "--permission-mode", "acceptEdits"], {}, [])
-    with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
+    with patch.dict(BACKENDS, {"claude": mock_b}, clear=False), \
+         patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
                AsyncMock(return_value=make_proc(pid=11))):
         rs = await relay._cmd_set_mode({"mode": "agent", "session_id": "s-abc"})
     assert rs["ok"] is True
@@ -412,7 +413,8 @@ async def test_multiturn_model_switch_mid_conversation() -> None:
     assert relay._session_meta.model == "sonnet"
 
     # restart with opus
-    with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
+    with patch.dict(BACKENDS, {"claude": mock_b}, clear=False), \
+         patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
                AsyncMock(return_value=make_proc(pid=21))):
         r2 = await relay._cmd_start({
             "backend": "claude", "mode": "ask", "mcp_port": 9500,
