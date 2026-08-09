@@ -66,9 +66,19 @@ def test_unity_tests_workflow_keeps_editmode_lane_fast() -> None:
     assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" not in text
 
 
+def test_unity_tests_workflow_can_optionally_call_player_playtest_lane() -> None:
+    text = _workflow("unity-tests.yml")
+
+    assert "run_player_playtest:" in text
+    assert "default: \"false\"" in text
+    assert "inputs.run_player_playtest == 'true'" in text
+    assert "uses: ./.github/workflows/unity-player-playtest.yml" in text
+
+
 def test_player_playtest_workflow_has_player_ci_timeout_budget() -> None:
     text = _workflow("unity-player-playtest.yml")
 
+    assert "workflow_call:" in text
     assert "timeout-minutes: 120" in text
 
 
