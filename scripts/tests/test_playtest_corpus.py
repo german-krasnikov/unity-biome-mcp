@@ -16,6 +16,10 @@ PLAYER_PLAYTEST = (
     / "player_ci_smoke.playtest"
 )
 PLAYER_RUNNER_ROOT = REPO_ROOT / "unity-plugin" / "Runtime" / "Playtest"
+URP_ASSET = REPO_ROOT / "unity-test-project" / "Assets" / "Settings" / "UniversalRP.asset"
+URP_GLOBAL_SETTINGS = (
+    REPO_ROOT / "unity-test-project" / "Assets" / "UniversalRenderPipelineGlobalSettings.asset"
+)
 
 
 def test_unity_test_project_has_checked_in_playtest_corpus() -> None:
@@ -93,3 +97,14 @@ def test_player_playtest_receipt_shape_accepts_ci_smoke_output() -> None:
     root = ET.fromstring(xml)
     assert root.attrib["name"] == "UnityMCP.PlayerPlaytest"
     assert root.attrib["failures"] == "0"
+
+
+def test_unity_test_project_urp_assets_match_ci_unity_version() -> None:
+    urp = URP_ASSET.read_text(encoding="utf-8")
+    global_settings = URP_GLOBAL_SETTINGS.read_text(encoding="utf-8")
+
+    assert "k_AssetVersion: 12" in urp
+    assert "k_AssetPreviousVersion: 12" in urp
+    assert "m_AssetVersion: 8" in global_settings
+    assert "m_ReflectionProbeAtlas:" not in urp
+    assert "m_PrefilterScreenSpaceIrradiance:" not in urp
