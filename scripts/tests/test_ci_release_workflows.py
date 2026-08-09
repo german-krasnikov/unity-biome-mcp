@@ -80,6 +80,8 @@ def test_unity_tests_workflow_keeps_editmode_lane_fast() -> None:
 
     assert "Run EditMode Tests" in text
     assert "timeout-minutes: 60" in text
+    assert "-testFilter" not in text
+    assert "Unity EditMode test run executed zero tests" in text
     assert "Build Standalone Player Smoke" not in text
     assert "Run Player PlayTest Smoke" not in text
     assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" not in text

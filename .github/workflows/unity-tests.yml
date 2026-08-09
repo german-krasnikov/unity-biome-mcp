@@ -123,7 +123,6 @@ jobs:
             -testPlatform EditMode
             -testResults ${{ github.workspace }}/artifacts/editmode-results.xml
             -logFile ${{ github.workspace }}/artifacts/unity.log
-            -testFilter "cat!=FaultInjection&&cat!=LiveCLI&&cat!=RequiresGraphics&&cat!=InteractiveVisual&&cat!=WorkerOnly"
             ${{ matrix.coverage-args }}
 
       - name: Check test results exist
@@ -151,6 +150,8 @@ jobs:
           failed  = r.get('failed',  '?')
           skipped = r.get('skipped', '?')
           total   = r.get('total',   '?')
+          if int(total) == 0:
+              raise SystemExit('Unity EditMode test run executed zero tests')
           icon    = '✅' if int(r.get('failed', '1')) == 0 else '❌'
           name    = os.environ['MATRIX_NAME']
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
