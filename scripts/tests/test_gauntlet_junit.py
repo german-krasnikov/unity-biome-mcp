@@ -9,7 +9,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from gauntlet.junit import JUnitError, parse_pytest_junit  # noqa: E402
+from gauntlet.junit import (  # noqa: E402
+    JUnitError,
+    parse_attested_pytest_junit,
+    parse_pytest_junit,
+)
 
 
 def _write(tmp_path: Path, body: str) -> Path:
@@ -68,6 +72,61 @@ def test_parser_accepts_single_testsuite_root(tmp_path: Path) -> None:
     assert result.total == 1
     assert result.passed == 1
     assert result.scenario_ids == ("tests.test_one::test_ok",)
+
+
+def test_attested_parser_uses_reserved_scenario_and_pytest_node_properties(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        """<testsuite name="pytest" tests="1" failures="0" errors="0" skipped="0">
+  <testcase classname="tests.test_one" name="test_display_name">
+    <properties>
+      <property name="gauntlet_scenario_id" value="identity-handshake" />
+      <property name="gauntlet_pytest_node_id" value="server/tests/test_one.py::test_actual" />
+    </properties>
+  </testcase>
+</testsuite>""",
+    )
+
+    result = parse_attested_pytest_junit(path)
+
+    assert result.scenario_ids == ("identity-handshake",)
+    assert result.scenario_nodes == (
+        ("identity-handshake", "server/tests/test_one.py::test_actual"),
+    )
+
+
+@pytest.mark.parametrize(
+    ("properties", "message"),
+    [
+        ("", "reserved"),
+        (
+            '<property name="gauntlet_scenario_id" value="identity" />',
+            "pytest node",
+        ),
+        (
+            """<property name="gauntlet_scenario_id" value="identity" />
+      <property name="gauntlet_scenario_id" value="replacement" />
+      <property name="gauntlet_pytest_node_id" value="server/tests/test_one.py::test_ok" />""",
+            "duplicate",
+        ),
+    ],
+)
+def test_attested_parser_rejects_missing_or_duplicate_reserved_properties(
+    tmp_path: Path,
+    properties: str,
+    message: str,
+) -> None:
+    path = _write(
+        tmp_path,
+        f"""<testsuite tests="1" failures="0" errors="0" skipped="0">
+  <testcase classname="tests.test_one" name="test_ok">
+    <properties>{properties}</properties>
+  </testcase>
+</testsuite>""",
+    )
+
+    with pytest.raises(JUnitError, match=message):
+        parse_attested_pytest_junit(path)
 
 
 @pytest.mark.parametrize(

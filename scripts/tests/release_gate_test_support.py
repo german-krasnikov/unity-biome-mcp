@@ -12,7 +12,13 @@ from gauntlet.attestations import build_file_reference, build_receipt
 from gauntlet.evidence_schema import evidence_hash, run_manifest_hash
 from gauntlet.release_evidence import build_conformance_evidence, write_conformance_evidence
 from gauntlet.release_gate import validate_release_gate
-from gauntlet_test_fixtures import write_complete_journal, write_json, write_junit, write_upm, write_wheel
+from gauntlet_test_fixtures import (
+    write_attested_junit,
+    write_complete_journal,
+    write_json,
+    write_upm,
+    write_wheel,
+)
 from release_source_test_support import HARNESS_LOCK_RELATIVE, prepare_source
 
 if TYPE_CHECKING:
@@ -94,7 +100,10 @@ def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
     }
     paths["head"].write_text(head_sha, encoding="ascii")
     finished_at = datetime.now(timezone.utc).isoformat()
-    write_junit(paths["junit"], SCENARIOS)
+    write_attested_junit(
+        paths["junit"],
+        zip(profile.scenario_ids, profile.pytest_node_ids, strict=True),
+    )
     write_complete_journal(
         paths["journal"],
         SCENARIOS,

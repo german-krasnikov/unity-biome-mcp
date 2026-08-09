@@ -113,6 +113,7 @@ def test_policy_loads_active_requirements_and_deterministic_digests(tmp_path: Pa
         "server/tests/contracts/test_public_stdio.py::test_schema_parity[stdio]",
         "server/tests/contracts/test_public_stdio.py::test_version_handshake",
     )
+    assert requirement.pytest_node_ids == first.active_profiles[0].pytest_node_ids
     assert requirement.cleanup_obligations == ("stdio-process", "tcp-peer")
     assert len(requirement.profile_manifest_sha) == 64
 

@@ -7,6 +7,8 @@ are evidence errors rather than empty success results.
 
 from __future__ import annotations
 
+import os
+import stat
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -18,6 +20,8 @@ _OUTCOME_TAGS = frozenset({"failure", "error", "skipped"})
 _SUITE_METADATA_TAGS = frozenset({"properties", "system-out", "system-err"})
 _COUNT_KEYS = ("tests", "failures", "errors", "skipped")
 _MAX_JUNIT_BYTES = 16 * 1024 * 1024
+_SCENARIO_PROPERTY = "gauntlet_scenario_id"
+_PYTEST_NODE_PROPERTY = "gauntlet_pytest_node_id"
 
 
 class JUnitError(ValueError):
@@ -31,28 +35,48 @@ class JUnitResult:
     skipped: int
     total: int
     scenario_ids: tuple[str, ...]
+    scenario_nodes: tuple[tuple[str, str], ...] = ()
 
 
 def parse_pytest_junit(path: Path) -> JUnitResult:
     """Parse all pytest JUnit leaves and validate every declared suite count."""
+    return parse_pytest_junit_bytes(_read_junit(path))
+
+
+def parse_attested_pytest_junit(path: Path) -> JUnitResult:
+    """Parse JUnit whose leaves carry harness-owned policy identities."""
+    return parse_attested_pytest_junit_bytes(_read_junit(path))
+
+
+def _read_junit(path: Path) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
-        size = path.stat().st_size
+        descriptor = os.open(path, flags)
+        with os.fdopen(descriptor, "rb") as stream:
+            metadata = os.fstat(stream.fileno())
+            if not stat.S_ISREG(metadata.st_mode):
+                raise JUnitError("JUnit path is not a regular file")
+            payload = stream.read(_MAX_JUNIT_BYTES + 1)
     except FileNotFoundError as exc:
         raise JUnitError("JUnit file does not exist") from exc
     except OSError as exc:
-        raise JUnitError("JUnit file metadata cannot be read") from exc
-    if size > _MAX_JUNIT_BYTES:
-        raise JUnitError("JUnit file exceeds the release evidence size limit")
-
-    try:
-        payload = path.read_bytes()
-    except OSError as exc:
         raise JUnitError("JUnit file cannot be read") from exc
-    return parse_pytest_junit_bytes(payload)
+    if len(payload) > _MAX_JUNIT_BYTES:
+        raise JUnitError("JUnit file exceeds the release evidence size limit")
+    return payload
 
 
 def parse_pytest_junit_bytes(payload: bytes) -> JUnitResult:
     """Parse a single already-verified JUnit byte payload."""
+    return _parse_junit_bytes(payload, require_attestation=False)
+
+
+def parse_attested_pytest_junit_bytes(payload: bytes) -> JUnitResult:
+    """Parse immutable JUnit and require reserved policy identity properties."""
+    return _parse_junit_bytes(payload, require_attestation=True)
+
+
+def _parse_junit_bytes(payload: bytes, *, require_attestation: bool) -> JUnitResult:
     if len(payload) > _MAX_JUNIT_BYTES:
         raise JUnitError("JUnit file exceeds the release evidence size limit")
     try:
@@ -82,10 +106,11 @@ def parse_pytest_junit_bytes(payload: bytes) -> JUnitResult:
             raise JUnitError("JUnit testsuites root contains an unsupported child")
         _validate_testsuites_counts(root, cases)
 
-    scenario_ids: list[str] = []
+    scenario_nodes: list[tuple[str, str]] = []
     passed = failed = skipped = 0
     for case in cases:
-        scenario_ids.append(_scenario_id(case))
+        identity = _attested_identity(case) if require_attestation else (_scenario_id(case), "")
+        scenario_nodes.append(identity)
         outcome = _case_outcome(case)
         if outcome == "passed":
             passed += 1
@@ -94,9 +119,13 @@ def parse_pytest_junit_bytes(payload: bytes) -> JUnitResult:
         else:
             failed += 1
 
+    scenario_ids = [scenario_id for scenario_id, _ in scenario_nodes]
     if len(set(scenario_ids)) != len(scenario_ids):
         raise JUnitError("JUnit contains a duplicate scenario ID")
-    scenario_ids.sort()
+    pytest_nodes = [node_id for _, node_id in scenario_nodes if node_id]
+    if len(set(pytest_nodes)) != len(pytest_nodes):
+        raise JUnitError("JUnit contains a duplicate pytest node ID")
+    scenario_nodes.sort()
     total = len(cases)
     if passed + failed + skipped != total:
         raise JUnitError("JUnit leaf outcomes do not match the total")
@@ -105,7 +134,8 @@ def parse_pytest_junit_bytes(payload: bytes) -> JUnitResult:
         failed=failed,
         skipped=skipped,
         total=total,
-        scenario_ids=tuple(scenario_ids),
+        scenario_ids=tuple(scenario_id for scenario_id, _ in scenario_nodes),
+        scenario_nodes=tuple(scenario_nodes) if require_attestation else (),
     )
 
 
@@ -149,6 +179,34 @@ def _scenario_id(case: ET.Element) -> str:
     if not name:
         raise JUnitError("JUnit testcase name must be non-empty")
     return f"{classname}::{name}"
+
+
+def _attested_identity(case: ET.Element) -> tuple[str, str]:
+    containers = [child for child in case if _local_name(child.tag) == "properties"]
+    if len(containers) != 1:
+        raise JUnitError("JUnit testcase must contain one reserved property container")
+    properties = list(containers[0])
+    if any(_local_name(item.tag) != "property" for item in properties):
+        raise JUnitError("JUnit testcase property container contains an unsupported child")
+    values: dict[str, list[str]] = {
+        _SCENARIO_PROPERTY: [],
+        _PYTEST_NODE_PROPERTY: [],
+    }
+    for item in properties:
+        name = item.get("name")
+        if name not in values:
+            continue
+        value = item.get("value")
+        if not value:
+            raise JUnitError(f"JUnit reserved {name} value must be non-empty")
+        values[name].append(value)
+    if len(values[_SCENARIO_PROPERTY]) != 1:
+        qualifier = "duplicate" if values[_SCENARIO_PROPERTY] else "missing"
+        raise JUnitError(f"JUnit contains a {qualifier} reserved scenario property")
+    if len(values[_PYTEST_NODE_PROPERTY]) != 1:
+        qualifier = "duplicate" if values[_PYTEST_NODE_PROPERTY] else "missing"
+        raise JUnitError(f"JUnit contains a {qualifier} reserved pytest node property")
+    return values[_SCENARIO_PROPERTY][0], values[_PYTEST_NODE_PROPERTY][0]
 
 
 def _case_outcome(case: ET.Element) -> str:

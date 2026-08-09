@@ -51,6 +51,19 @@ def prepare_source(
         encoding="utf-8",
     )
     harness_lock_path.write_text("locked-dependencies", encoding="utf-8")
+    package_init = root / "server/src/unity_mcp/__init__.py"
+    package_init.parent.mkdir(parents=True, exist_ok=True)
+    package_init.write_text("\"\"\"Synthetic package fixture.\"\"\"\n", encoding="utf-8")
+    test_path = root / "server/tests/contracts/test_release.py"
+    test_path.parent.mkdir(parents=True, exist_ok=True)
+    test_path.write_text(
+        "\n\n".join(
+            f"def test_contract_{index}():\n    raise AssertionError('fixture leaf was not replaced')"
+            for index, _ in enumerate(scenarios)
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     head_sha = _commit_source(root)
     policy = load_release_policy(policy_path)
     observation = observe_source_checkout(

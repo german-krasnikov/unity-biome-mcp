@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import stat
 import subprocess
 from dataclasses import dataclass
@@ -11,6 +10,7 @@ from pathlib import Path, PurePosixPath
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
+from gauntlet.git_process import git_command, git_environment
 from gauntlet.receipts import content_hash
 
 if TYPE_CHECKING:
@@ -152,16 +152,14 @@ def _read_blob_at_head(root: Path, head_sha: str, relative: str) -> bytes:
 
 
 def _git(root: Path, *arguments: str) -> str:
-    environment = os.environ.copy()
-    environment.update({"LC_ALL": "C", "GIT_OPTIONAL_LOCKS": "0"})
     try:
         result = subprocess.run(
-            ["git", "-C", str(root), *arguments],
+            git_command(root, *arguments),
             check=True,
             capture_output=True,
             text=True,
             timeout=30,
-            env=environment,
+            env=git_environment(),
         )
     except (OSError, subprocess.SubprocessError) as exc:
         raise SourceProvenanceError("required Git source observation failed") from exc
@@ -169,15 +167,13 @@ def _git(root: Path, *arguments: str) -> str:
 
 
 def _git_bytes(root: Path, *arguments: str) -> bytes:
-    environment = os.environ.copy()
-    environment.update({"LC_ALL": "C", "GIT_OPTIONAL_LOCKS": "0"})
     try:
         result = subprocess.run(
-            ["git", "-C", str(root), *arguments],
+            git_command(root, *arguments),
             check=True,
             capture_output=True,
             timeout=30,
-            env=environment,
+            env=git_environment(),
         )
     except (OSError, subprocess.SubprocessError) as exc:
         raise SourceProvenanceError("required Git blob observation failed") from exc
@@ -195,21 +191,17 @@ def _reject_unsafe_index_flags(root: Path) -> None:
 
 
 def _tracked_tree_is_clean(root: Path, head_sha: str) -> bool:
-    environment = os.environ.copy()
-    environment.update({"LC_ALL": "C", "GIT_OPTIONAL_LOCKS": "0"})
     commands = (
-        ["git", "-C", str(root), "diff", "--quiet", "--no-ext-diff", head_sha, "--"],
-        [
-            "git",
-            "-C",
-            str(root),
+        git_command(root, "diff", "--quiet", "--no-ext-diff", head_sha, "--"),
+        git_command(
+            root,
             "diff",
             "--cached",
             "--quiet",
             "--no-ext-diff",
             head_sha,
             "--",
-        ],
+        ),
     )
     for command in commands:
         try:
@@ -217,7 +209,7 @@ def _tracked_tree_is_clean(root: Path, head_sha: str) -> bool:
                 command,
                 capture_output=True,
                 timeout=30,
-                env=environment,
+                env=git_environment(),
             )
         except (OSError, subprocess.SubprocessError) as exc:
             raise SourceProvenanceError("required Git cleanliness observation failed") from exc

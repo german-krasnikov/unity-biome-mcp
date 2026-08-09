@@ -50,6 +50,7 @@ class EvidenceError(ValueError):
 class ProfileRequirement:
     profile_manifest_sha: str
     scenario_ids: tuple[str, ...]
+    pytest_node_ids: tuple[str, ...]
     driver: str
     operating_system: str
     python_version: str
@@ -63,6 +64,12 @@ class ProfileRequirement:
 
     def __post_init__(self) -> None:
         canonical_scenario_ids(self.scenario_ids, "profile scenario manifest")
+        if len(self.pytest_node_ids) != len(self.scenario_ids):
+            raise EvidenceError("profile pytest nodes do not match scenario manifest")
+        if any(not isinstance(node_id, str) or not node_id for node_id in self.pytest_node_ids):
+            raise EvidenceError("profile pytest node manifest contains an invalid ID")
+        if len(set(self.pytest_node_ids)) != len(self.pytest_node_ids):
+            raise EvidenceError("profile pytest node manifest contains duplicate IDs")
         if self.driver not in {"public_stdio", "unity_editor"}:
             raise EvidenceError("profile driver is invalid")
         if (

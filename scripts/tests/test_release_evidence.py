@@ -42,6 +42,10 @@ def _requirement(
     return ProfileRequirement(
         profile_manifest_sha=manifest_sha,
         scenario_ids=scenarios,
+        pytest_node_ids=tuple(
+            f"server/tests/contracts/test_release.py::test_contract_{index}"
+            for index, _ in enumerate(scenarios)
+        ),
         driver="unity_editor" if workers else "public_stdio",
         operating_system="linux",
         python_version="3.10",

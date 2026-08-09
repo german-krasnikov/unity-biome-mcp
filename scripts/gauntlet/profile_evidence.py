@@ -12,7 +12,7 @@ from gauntlet.attestations import (
     read_verified_file,
 )
 from gauntlet.journal_validation import validate_terminal_journal
-from gauntlet.junit import JUnitError, JUnitResult, parse_pytest_junit_bytes
+from gauntlet.junit import JUnitError, JUnitResult, parse_attested_pytest_junit_bytes
 from gauntlet.receipts import JournalError, verify_journal_bytes
 
 if TYPE_CHECKING:
@@ -58,7 +58,7 @@ def verify_profile_artifacts(
         runtime = _read_receipt(value["runtime"], bundle_root, "runtime")
         workers = _read_receipts(value["workers"], bundle_root, "worker_identity")
         cleanup = _read_receipts(value["cleanup"], bundle_root, "cleanup")
-        junit = parse_pytest_junit_bytes(junit_bytes)
+        junit = parse_attested_pytest_junit_bytes(junit_bytes)
         events = verify_journal_bytes(journal_bytes)
         journal = validate_terminal_journal(
             events,
@@ -100,6 +100,9 @@ def verify_profile_artifacts(
     )
     if tuple(junit.scenario_ids) != tuple(requirement.scenario_ids):
         raise ProfileEvidenceError("JUnit scenario set does not exactly match policy")
+    expected_nodes = tuple(sorted(zip(requirement.scenario_ids, requirement.pytest_node_ids, strict=True)))
+    if junit.scenario_nodes != expected_nodes:
+        raise ProfileEvidenceError("JUnit pytest node mapping does not exactly match policy")
     return DerivedProfileEvidence(
         junit=junit,
         run_id=journal.run_id,

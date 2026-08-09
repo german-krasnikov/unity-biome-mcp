@@ -93,6 +93,7 @@ class ProfilePolicy:
         return ProfileRequirement(
             profile_manifest_sha=self.manifest_sha,
             scenario_ids=self.scenario_ids,
+            pytest_node_ids=self.pytest_node_ids,
             driver=self.driver,
             operating_system=self.operating_system,
             python_version=self.python_version,

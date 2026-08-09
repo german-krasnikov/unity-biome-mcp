@@ -124,6 +124,33 @@ def test_source_observation_rejects_assume_unchanged_tracked_input(tmp_path: Pat
         )
 
 
+def test_source_observation_does_not_follow_git_replace_refs(tmp_path: Path) -> None:
+    root, head = _repository(tmp_path)
+    (root / "config/policy.json").write_text('{"policy":"substituted"}\n', encoding="utf-8")
+    _git(root, "add", "config/policy.json")
+    replacement_tree = _git(root, "write-tree")
+    replacement = _git(
+        root,
+        "commit-tree",
+        replacement_tree,
+        "-p",
+        head,
+        "-m",
+        "unreferenced replacement",
+    )
+    _git(root, "reset", "--hard", "-q", head)
+    _git(root, "replace", head, replacement)
+    _git(root, "reset", "--hard", "-q", head)
+    assert _git(root, "rev-parse", "HEAD") == head
+
+    with pytest.raises(SourceProvenanceError, match="tracked worktree"):
+        observe_source_checkout(
+            root,
+            expected_head_sha=head,
+            required_paths=("config/policy.json",),
+        )
+
+
 def test_source_observation_uses_git_blob_bytes_in_clean_autocrlf_checkout(tmp_path: Path) -> None:
     root, head = _repository(tmp_path)
     _git(root, "config", "core.autocrlf", "true")

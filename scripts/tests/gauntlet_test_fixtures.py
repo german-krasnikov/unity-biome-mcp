@@ -62,6 +62,35 @@ def write_junit(path: Path, scenario_ids: Iterable[str]) -> None:
     )
 
 
+def write_attested_junit(
+    path: Path,
+    scenario_nodes: Iterable[tuple[str, str]],
+) -> None:
+    cases: list[str] = []
+    for scenario_id, pytest_node_id in scenario_nodes:
+        if "::" in scenario_id:
+            classname, name = scenario_id.split("::", maxsplit=1)
+        else:
+            classname, name = "gauntlet", scenario_id
+        cases.append(
+            "\n".join(
+                (
+                    f"  <testcase classname={quoteattr(classname)} name={quoteattr(name)}>",
+                    "    <properties>",
+                    f"      <property name=\"gauntlet_scenario_id\" value={quoteattr(scenario_id)} />",
+                    f"      <property name=\"gauntlet_pytest_node_id\" value={quoteattr(pytest_node_id)} />",
+                    "    </properties>",
+                    "  </testcase>",
+                )
+            )
+        )
+    body = "\n".join(cases)
+    path.write_text(
+        f'<testsuite tests="{len(cases)}" failures="0" errors="0" skipped="0">\n{body}\n</testsuite>\n',
+        encoding="utf-8",
+    )
+
+
 def write_complete_journal(
     path: Path,
     scenario_ids: Iterable[str],
