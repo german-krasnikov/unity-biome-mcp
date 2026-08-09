@@ -1,0 +1,112 @@
+"""Primitive and cross-field validators for release policy JSON."""
+
+from __future__ import annotations
+
+import re
+from pathlib import PurePosixPath
+
+_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+
+
+class PolicyError(ValueError):
+    """Raised when a release policy is ambiguous or incomplete."""
+
+
+def require_exact_keys(value: dict[str, object], expected: set[str], label: str) -> None:
+    if set(value) != expected:
+        missing = sorted(expected - set(value))
+        extra = sorted(set(value) - expected)
+        raise PolicyError(f"{label} mismatch: missing={missing}, extra={extra}")
+
+
+def require_text(value: object, label: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise PolicyError(f"{label} must be a non-empty string")
+    return value
+
+
+def require_source_sha(value: object) -> str:
+    text = require_text(value, "source SHA")
+    if len(text) not in {40, 64} or any(character not in "0123456789abcdef" for character in text.lower()):
+        raise PolicyError("source SHA must contain 40 or 64 hexadecimal characters")
+    return text
+
+
+def require_repo_path(value: object, label: str) -> str:
+    text = require_text(value, label)
+    path = PurePosixPath(text)
+    if (
+        path.is_absolute()
+        or path.as_posix() != text
+        or "\\" in text
+        or any(part in {"", ".", ".."} for part in path.parts)
+    ):
+        raise PolicyError(f"{label} must be a normalized repository-relative path")
+    return path.as_posix()
+
+
+def require_id(value: object, label: str) -> str:
+    text = require_text(value, label)
+    if not _ID_PATTERN.fullmatch(text):
+        raise PolicyError(f"{label} contains unsupported characters")
+    return text
+
+
+def require_unique_ids(
+    value: object,
+    label: str,
+    *,
+    allow_empty: bool = False,
+) -> tuple[str, ...]:
+    if not isinstance(value, list) or (not value and not allow_empty):
+        raise PolicyError(f"{label} must be a non-empty list")
+    identifiers = tuple(sorted(require_id(item, label) for item in value))
+    if len(set(identifiers)) != len(identifiers):
+        raise PolicyError(f"{label} contains a duplicate")
+    return identifiers
+
+
+def require_scenario_ids(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list) or not value:
+        raise PolicyError("scenario ids must be a non-empty list")
+    scenarios: list[str] = []
+    for item in value:
+        text = require_text(item, "scenario id")
+        if len(text) > 512 or text != text.strip() or not text.isprintable():
+            raise PolicyError("scenario id contains unsupported characters")
+        scenarios.append(text)
+    if len(set(scenarios)) != len(scenarios):
+        raise PolicyError("scenario ids contain a duplicate")
+    return tuple(sorted(scenarios))
+
+
+def require_non_negative_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise PolicyError(f"{label} must be a non-negative integer")
+    return value
+
+
+def require_positive_int(value: object, label: str) -> int:
+    integer = require_non_negative_int(value, label)
+    if integer == 0:
+        raise PolicyError(f"{label} must be greater than zero")
+    return integer
+
+
+def validate_driver_contract(
+    driver: str,
+    unity_version: str | None,
+    plugin_scope: str,
+    workers: int,
+    consumed_artifacts: tuple[str, ...],
+) -> None:
+    if driver == "public_stdio":
+        if unity_version is not None or plugin_scope != "none" or workers != 0:
+            raise PolicyError("public stdio profile cannot declare Unity workers or plugins")
+        if consumed_artifacts != ("python_wheel",):
+            raise PolicyError("public stdio profile must consume only the Python wheel")
+        return
+    if unity_version is None or plugin_scope != "exact" or workers < 1:
+        raise PolicyError("Unity Editor profile requires exact plugin and at least one worker")
+    if consumed_artifacts != ("python_wheel", "unity_upm"):
+        raise PolicyError("Unity Editor profile must consume wheel and UPM artifacts")
