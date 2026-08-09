@@ -493,3 +493,79 @@ async def test_run_playtest_suite_stops_play_mode_on_failure(monkeypatch):
     )
 
     assert stop_called, "P-336: stop must be called after suite failure"
+
+
+# ── DEF-1: auto_play must not leak Play Mode on pre-loop errors ─────────────
+
+@pytest.mark.asyncio
+async def test_run_playtest_suite_auto_play_cleanup_on_file_error(tmp_path, monkeypatch):
+    """DEF-1: auto_play=True + broken suite_path => finally still stops Play Mode."""
+    from unity_mcp.tools import runtime
+    calls = []
+
+    async def fake_send(cmd, args, **kw):
+        calls.append((cmd, args))
+        if cmd == "editor":
+            action = args.get("action")
+            if action == "state":
+                return "playing:True\npaused:False\ncompiling:False"
+            if action in ("play", "stop"):
+                return "ok"
+        return "ok"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    # suite_path that doesn't exist => raises in file resolution
+    with pytest.raises((FileNotFoundError, OSError)):
+        await runtime.run_playtest_suite(
+            suite_path="/nonexistent/path.suite",
+            auto_play=True,
+            stop_after=True,
+        )
+
+    # Assert: "editor stop" was called despite the error
+    stop_calls = [(c, a) for c, a in calls if c == "editor" and a.get("action") == "stop"]
+    assert len(stop_calls) >= 1, "DEF-1: Play Mode not stopped after auto_play + file error"
+
+
+@pytest.mark.asyncio
+async def test_run_playtest_suite_auto_play_cleanup_on_send_error(monkeypatch):
+    """DEF-1: auto_play enters Play Mode, then state poll raises => finally stops."""
+    from unity_mcp.tools import runtime
+    import asyncio as _asyncio
+
+    poll_count = 0
+    stop_called = []
+
+    async def fake_send(cmd, args, **kw):
+        nonlocal poll_count
+        if cmd == "editor":
+            action = args.get("action")
+            if action == "play":
+                return "ok"
+            if action == "state":
+                poll_count += 1
+                if poll_count >= 2:
+                    raise ConnectionError("UNITY_UNAVAILABLE")
+                return "ok:EditMode"  # not yet playing
+            if action == "stop":
+                stop_called.append(True)
+                return "ok"
+        return "ok"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    monkeypatch.setattr(_asyncio, "sleep", AsyncMock(return_value=None))
+
+    # Should propagate ConnectionError, but finally must still run
+    try:
+        await runtime.run_playtest_suite(
+            pattern="*.playtest",
+            auto_play=True,
+            stop_after=True,
+        )
+    except ConnectionError:
+        pass
+
+    assert stop_called, "DEF-1: Play Mode not stopped after auto_play + send error"

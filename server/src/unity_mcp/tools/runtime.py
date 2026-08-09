@@ -182,43 +182,43 @@ async def run_playtest_suite(
     Output: SUITE: X/Y passed (Zs) + per-file line + full failure details."""
     if pattern and suite_path:
         raise ValueError("pattern and suite_path are mutually exclusive")
-    if auto_play:
-        import asyncio as _asyncio
-        state = await _send("editor", _args(action="state"), timeout=5.0)
-        if not _is_play_mode(state) and not _is_paused(state):
-            await _send("editor", _args(action="play"), timeout=5.0)
-            for _ in range(15):
-                await _asyncio.sleep(1.0)
-                state = await _send("editor", _args(action="state"), timeout=5.0)
-                if _is_play_mode(state) or _is_paused(state):
-                    break
-
-    if suite_path:
-        import pathlib as _pathlib
-        file_list = [l.strip() for l in
-                     _pathlib.Path(suite_path).read_text(encoding="utf-8").splitlines()
-                     if l.strip() and not l.strip().startswith("#")]
-        if not file_list:
-            return "SUITE: no files in suite"
-    elif not pattern:
+    if not pattern and not suite_path:
         raise ValueError("pattern or suite_path required")
-    elif "*" in pattern or "?" in pattern:
-        file_list_raw = await _send("list_playtest_files", _args(pattern=pattern), timeout=10.0)
-        if file_list_raw.startswith("err:") or file_list_raw == "no files":
-            return file_list_raw
-        file_list = [f.strip() for f in file_list_raw.strip().split("\n") if f.strip()]
-    else:
-        sep = "," if "," in pattern else "\n"
-        file_list = [f.strip() for f in pattern.split(sep) if f.strip()]
-
-    if not file_list:
-        return "SUITE: no files matched"
 
     import time as _time
     results = []
     suite_start = _time.monotonic()
 
     try:
+        if auto_play:
+            import asyncio as _asyncio
+            state = await _send("editor", _args(action="state"), timeout=5.0)
+            if not _is_play_mode(state) and not _is_paused(state):
+                await _send("editor", _args(action="play"), timeout=5.0)
+                for _ in range(15):
+                    await _asyncio.sleep(1.0)
+                    state = await _send("editor", _args(action="state"), timeout=5.0)
+                    if _is_play_mode(state) or _is_paused(state):
+                        break
+
+        if suite_path:
+            import pathlib as _pathlib
+            file_list = [l.strip() for l in
+                         _pathlib.Path(suite_path).read_text(encoding="utf-8").splitlines()
+                         if l.strip() and not l.strip().startswith("#")]
+            if not file_list:
+                return "SUITE: no files in suite"
+        elif "*" in pattern or "?" in pattern:
+            file_list_raw = await _send("list_playtest_files", _args(pattern=pattern), timeout=10.0)
+            if file_list_raw.startswith("err:") or file_list_raw == "no files":
+                return file_list_raw
+            file_list = [f.strip() for f in file_list_raw.strip().split("\n") if f.strip()]
+        else:
+            sep = "," if "," in pattern else "\n"
+            file_list = [f.strip() for f in pattern.split(sep) if f.strip()]
+
+        if not file_list:
+            return "SUITE: no files matched"
         for filepath in file_list:
             if restart_between and results:  # not before first file
                 import asyncio as _asyncio
