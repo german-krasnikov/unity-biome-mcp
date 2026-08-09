@@ -6,11 +6,19 @@ on:
     paths:
       - 'server/**'
       - 'scripts/**'
+      - 'unity-plugin/**'
+      - 'unity-plugin-reload/**'
+      - 'unity-test-project/**'
       - '.github/workflows/ci-conformance.yml'
   push:
     branches: [master]
     paths:
       - 'server/**'
+      - 'scripts/**'
+      - 'unity-plugin/**'
+      - 'unity-plugin-reload/**'
+      - 'unity-test-project/**'
+      - '.github/workflows/ci-conformance.yml'
   workflow_dispatch:
     inputs:
       unity_port:
