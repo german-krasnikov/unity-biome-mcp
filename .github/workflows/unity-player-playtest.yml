@@ -103,6 +103,15 @@ jobs:
           username: ${{ secrets.UNITY_EMAIL }}
           password: ${{ secrets.UNITY_PASSWORD }}
 
+      - name: Install Linux virtual display
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          command -v xvfb-run >/dev/null || {
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          }
+
       - uses: buildalon/unity-action@4de595732434e4da7726086a95a75eda832bd03d  # v3
         name: Build Standalone Player Smoke
         timeout-minutes: 35
@@ -128,13 +137,18 @@ jobs:
           fi
           test -n "$PLAYER"
           chmod +x "$PLAYER" 2>/dev/null || true
-          "$PLAYER" \
-            -batchmode \
-            -nographics \
-            -unityMcpPlaytest "${{ github.workspace }}/unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest" \
-            -unityMcpPlaytestJson "${{ github.workspace }}/artifacts/player-playtest.json" \
-            -unityMcpPlaytestJunit "${{ github.workspace }}/artifacts/player-playtest.xml" \
+          PLAYTEST_ARGS=(
+            -batchmode
+            -unityMcpPlaytest "${{ github.workspace }}/unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest"
+            -unityMcpPlaytestJson "${{ github.workspace }}/artifacts/player-playtest.json"
+            -unityMcpPlaytestJunit "${{ github.workspace }}/artifacts/player-playtest.xml"
             -unityMcpPlaytestExit
+          )
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" "$PLAYER" -force-glcore "${PLAYTEST_ARGS[@]}"
+          else
+            "$PLAYER" -nographics "${PLAYTEST_ARGS[@]}"
+          fi
 
       - name: Validate Player PlayTest Receipts
         shell: python

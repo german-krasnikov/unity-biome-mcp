@@ -108,6 +108,10 @@ def test_player_playtest_workflow_runs_player_playtest_smoke() -> None:
     assert "-unityMcpPlaytestJson" in text
     assert "-unityMcpPlaytestJunit" in text
     assert "-unityMcpPlaytestExit" in text
+    assert "Install Linux virtual display" in text
+    assert "xvfb-run --auto-servernum" in text
+    assert '"$PLAYER" -force-glcore "${PLAYTEST_ARGS[@]}"' in text
+    assert '"$PLAYER" -nographics "${PLAYTEST_ARGS[@]}"' in text
     assert 'find "$PLAYER/Contents/MacOS"' in text
     assert "artifacts/player-playtest.json" in text
     assert "artifacts/player-playtest.xml" in text
