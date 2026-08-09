@@ -20,6 +20,7 @@ URP_ASSET = REPO_ROOT / "unity-test-project" / "Assets" / "Settings" / "Universa
 URP_GLOBAL_SETTINGS = (
     REPO_ROOT / "unity-test-project" / "Assets" / "UniversalRenderPipelineGlobalSettings.asset"
 )
+GRAPHICS_SETTINGS = REPO_ROOT / "unity-test-project" / "ProjectSettings" / "GraphicsSettings.asset"
 
 
 def test_unity_test_project_has_checked_in_playtest_corpus() -> None:
@@ -108,3 +109,9 @@ def test_unity_test_project_urp_assets_match_ci_unity_version() -> None:
     assert "m_AssetVersion: 8" in global_settings
     assert "m_ReflectionProbeAtlas:" not in urp
     assert "m_PrefilterScreenSpaceIrradiance:" not in urp
+
+
+def test_unity_test_project_player_smoke_uses_builtin_pipeline() -> None:
+    graphics = GRAPHICS_SETTINGS.read_text(encoding="utf-8")
+
+    assert "m_CustomRenderPipeline: {fileID: 0}" in graphics
