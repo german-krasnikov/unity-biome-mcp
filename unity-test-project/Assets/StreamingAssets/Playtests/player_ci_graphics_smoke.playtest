@@ -1,0 +1,5 @@
+# Optional built-player graphics/UI smoke. Not part of core text-mode CI.
+LOG Player PlayTest optional graphics smoke started
+WAIT_UNTIL /Main Camera|activeInHierarchy == True TIMEOUT 5
+ASSERT /Main Camera|Camera|enabled == True
+ASSERT_CONSOLE_CLEAN

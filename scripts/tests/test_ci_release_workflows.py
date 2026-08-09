@@ -70,17 +70,21 @@ def test_unity_tests_workflow_can_optionally_call_player_playtest_lane() -> None
     text = _workflow("unity-tests.yml")
 
     assert "run_player_playtest:" in text
+    assert "run_player_graphics_smoke:" in text
     assert "default: \"false\"" in text
     assert "inputs.run_player_playtest == 'true' && github.run_id || 'default'" in text
     assert "inputs.run_player_playtest != 'true'" in text
     assert "inputs.run_player_playtest == 'true'" in text
     assert "uses: ./.github/workflows/unity-player-playtest.yml" in text
+    assert "run_graphics_smoke: ${{ inputs.run_player_graphics_smoke == 'true' }}" in text
 
 
 def test_player_playtest_workflow_has_player_ci_timeout_budget() -> None:
     text = _workflow("unity-player-playtest.yml")
 
     assert "workflow_call:" in text
+    assert "run_graphics_smoke:" in text
+    assert "description: \"Run optional graphics/UI player smoke. Off by default; core CI stays text-mode.\"" in text
     assert "github.event_name == 'workflow_call' && github.run_id || 'default'" in text
     assert "timeout-minutes: 120" in text
 
@@ -130,6 +134,21 @@ def test_player_playtest_workflow_runs_expected_failure_smoke() -> None:
     assert "EXPECTED_FAILURE_RC" in text
     assert 'if [[ "$EXPECTED_FAILURE_RC" -eq 0 ]]' in text
     assert "expected-failure PlayTest unexpectedly passed" in text
+
+
+def test_player_playtest_workflow_keeps_graphics_smoke_manual_opt_in() -> None:
+    text = _workflow("unity-player-playtest.yml")
+    core_block = text[text.index("Run Player PlayTest Smoke") : text.index("Validate Player PlayTest Receipts")]
+    graphics_block = text[text.index("Run Player Graphics Smoke") :]
+
+    assert "player_ci_graphics_smoke.playtest" not in core_block
+    assert "Run Player Graphics Smoke" in text
+    assert "if: ${{ inputs.run_graphics_smoke == true || inputs.run_graphics_smoke == 'true' }}" in graphics_block[:250]
+    assert "player_ci_graphics_smoke.playtest" in graphics_block
+    assert "player-playtest-graphics.json" in graphics_block
+    assert "player-playtest-graphics.xml" in graphics_block
+    assert '"$PLAYER" "${GRAPHICS_ARGS[@]}"' in graphics_block
+    assert '"$PLAYER" -nographics "${GRAPHICS_ARGS[@]}"' not in graphics_block
 
 
 def test_player_playtest_workflow_triggers_on_text_mode_fixture_changes() -> None:

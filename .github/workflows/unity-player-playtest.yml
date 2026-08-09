@@ -2,7 +2,19 @@ name: Unity Player PlayTest
 
 on:
   workflow_call:
+    inputs:
+      run_graphics_smoke:
+        description: "Run optional graphics/UI player smoke. Off by default; core CI stays text-mode."
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      run_graphics_smoke:
+        description: "Run optional graphics/UI player smoke. Off by default; core CI stays text-mode."
+        required: false
+        type: boolean
+        default: false
   schedule:
     - cron: "17 3 * * *"
   push:
@@ -237,6 +249,49 @@ jobs:
           if suite.get("failures") == "0":
               raise SystemExit(ET.tostring(suite, encoding="unicode"))
 
+      - name: Run Player Graphics Smoke
+        if: ${{ inputs.run_graphics_smoke == true || inputs.run_graphics_smoke == 'true' }}
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          PLAYER="${{ matrix.build-output }}"
+          if [[ "$PLAYER" == *.app ]]; then
+            PLAYER=$(find "$PLAYER/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
+          fi
+          test -n "$PLAYER"
+          chmod +x "$PLAYER" 2>/dev/null || true
+          GRAPHICS_ARGS=(
+            -batchmode
+            -unityMcpPlaytest "${{ github.workspace }}/unity-test-project/Assets/StreamingAssets/Playtests/player_ci_graphics_smoke.playtest"
+            -unityMcpPlaytestJson "${{ github.workspace }}/artifacts/player-playtest-graphics.json"
+            -unityMcpPlaytestJunit "${{ github.workspace }}/artifacts/player-playtest-graphics.xml"
+            -unityMcpPlaytestExit
+          )
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" "$PLAYER" -force-glcore "${GRAPHICS_ARGS[@]}"
+          else
+            "$PLAYER" "${GRAPHICS_ARGS[@]}"
+          fi
+
+      - name: Validate Player Graphics Receipts
+        if: ${{ inputs.run_graphics_smoke == true || inputs.run_graphics_smoke == 'true' }}
+        shell: python
+        run: |
+          import json
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          payload = json.loads(Path("artifacts/player-playtest-graphics.json").read_text(encoding="utf-8"))
+          if payload.get("failed") != 0:
+              raise SystemExit(f"graphics PlayTest failed: {payload!r}")
+          if len(payload.get("steps", [])) != 4:
+              raise SystemExit(f"graphics PlayTest executed unexpected step count: {payload!r}")
+          suite = ET.parse("artifacts/player-playtest-graphics.xml").getroot()
+          if suite.get("name") != "UnityMCP.PlayerPlaytest":
+              raise SystemExit(f"unexpected graphics JUnit suite: {suite.get('name')!r}")
+          if suite.get("failures") != "0":
+              raise SystemExit(ET.tostring(suite, encoding="unicode"))
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: always()
         with:
@@ -248,6 +303,8 @@ jobs:
             artifacts/player-playtest.xml
             artifacts/player-playtest-failure.json
             artifacts/player-playtest-failure.xml
+            artifacts/player-playtest-graphics.json
+            artifacts/player-playtest-graphics.xml
           if-no-files-found: warn
 
       - name: Check player JUnit exists

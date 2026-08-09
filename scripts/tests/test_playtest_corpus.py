@@ -25,6 +25,14 @@ PLAYER_FAILURE_PLAYTEST = (
     / "Playtests"
     / "player_ci_expected_failure.playtest"
 )
+PLAYER_GRAPHICS_PLAYTEST = (
+    REPO_ROOT
+    / "unity-test-project"
+    / "Assets"
+    / "StreamingAssets"
+    / "Playtests"
+    / "player_ci_graphics_smoke.playtest"
+)
 PLAYER_RUNNER_ROOT = REPO_ROOT / "unity-plugin" / "Runtime" / "Playtest"
 URP_ASSET = REPO_ROOT / "unity-test-project" / "Assets" / "Settings" / "UniversalRP.asset"
 URP_GLOBAL_SETTINGS = (
@@ -77,6 +85,15 @@ def test_unity_test_project_has_player_expected_failure_corpus() -> None:
     assert "LOG Player PlayTest CI expected failure started" in text
     assert "ASSERT /GridPlayer|GridPlayer|PosZ == 999" in text
     assert "WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == True TIMEOUT 0.1" in text
+    assert "ASSERT_CONSOLE_CLEAN" in text
+
+
+def test_unity_test_project_has_optional_player_graphics_corpus() -> None:
+    text = PLAYER_GRAPHICS_PLAYTEST.read_text(encoding="utf-8")
+
+    assert "LOG Player PlayTest optional graphics smoke started" in text
+    assert "WAIT_UNTIL /Main Camera|activeInHierarchy == True TIMEOUT 5" in text
+    assert "ASSERT /Main Camera|Camera|enabled == True" in text
     assert "ASSERT_CONSOLE_CLEAN" in text
 
 
