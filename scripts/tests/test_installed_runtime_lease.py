@@ -41,11 +41,12 @@ PRODUCT_VERSION = "1.26.0"
 @pytest.fixture
 def built_wheel(tmp_path: Path) -> Path:
     output = tmp_path / "dist"
+    server_path = str(REPO / "server")
     uv = shutil.which("uv")
     if uv:
-        command = (uv, "build", "--wheel", "--out-dir", str(output), "server")
+        command = (uv, "build", "--wheel", "--out-dir", str(output), server_path)
     else:
-        command = (sys.executable, "-m", "pip", "wheel", "--no-deps", "--wheel-dir", str(output), "server")
+        command = (sys.executable, "-m", "pip", "wheel", "--no-deps", "--wheel-dir", str(output), server_path)
     subprocess.run(command, cwd=REPO, check=True, text=True, encoding="utf-8", capture_output=True, timeout=60)
     return next(output.glob("unity_biome_mcp-*.whl"))
 
