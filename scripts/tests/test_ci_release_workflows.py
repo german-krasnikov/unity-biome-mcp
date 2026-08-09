@@ -56,23 +56,33 @@ def test_unity_tests_workflow_triggers_on_playtest_corpus() -> None:
     assert '"unity-test-project/Playtests/**"' in text
 
 
-def test_unity_tests_workflow_runs_standalone_build_smoke() -> None:
+def test_unity_tests_workflow_keeps_editmode_lane_fast() -> None:
     text = _workflow("unity-tests.yml")
 
-    assert "Build Standalone Player Smoke" in text
-    assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" in text
-    assert "-ciBuildOutput" in text
-    assert "player-build-${{ matrix.name }}" in text
+    assert "Run EditMode Tests" in text
+    assert "timeout-minutes: 60" in text
+    assert "Build Standalone Player Smoke" not in text
+    assert "Run Player PlayTest Smoke" not in text
+    assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" not in text
 
 
-def test_unity_tests_workflow_has_player_ci_timeout_budget() -> None:
-    text = _workflow("unity-tests.yml")
+def test_player_playtest_workflow_has_player_ci_timeout_budget() -> None:
+    text = _workflow("unity-player-playtest.yml")
 
     assert "timeout-minutes: 120" in text
 
 
-def test_unity_tests_workflow_runs_player_playtest_smoke() -> None:
-    text = _workflow("unity-tests.yml")
+def test_player_playtest_workflow_runs_standalone_build_smoke() -> None:
+    text = _workflow("unity-player-playtest.yml")
+
+    assert "Build Standalone Player Smoke" in text
+    assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" in text
+    assert "-ciBuildOutput" in text
+    assert "player-playtest-${{ matrix.name }}" in text
+
+
+def test_player_playtest_workflow_runs_player_playtest_smoke() -> None:
+    text = _workflow("unity-player-playtest.yml")
 
     assert "Run Player PlayTest Smoke" in text
     assert "-unityMcpPlaytest " in text
@@ -85,8 +95,8 @@ def test_unity_tests_workflow_runs_player_playtest_smoke() -> None:
     assert "artifacts/player-playtest.xml" in text
 
 
-def test_unity_tests_workflow_validates_player_playtest_receipts() -> None:
-    text = _workflow("unity-tests.yml")
+def test_player_playtest_workflow_validates_player_playtest_receipts() -> None:
+    text = _workflow("unity-player-playtest.yml")
 
     assert "Validate Player PlayTest Receipts" in text
     assert "player JSON receipt must be UTF-8 without BOM" in text

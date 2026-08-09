@@ -29,7 +29,7 @@ jobs:
   test:
     name: EditMode Tests (${{ matrix.name }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -114,70 +114,6 @@ jobs:
             -logFile ${{ github.workspace }}/artifacts/unity.log
             -testFilter "cat!=FaultInjection&&cat!=LiveCLI&&cat!=RequiresGraphics&&cat!=InteractiveVisual&&cat!=WorkerOnly"
             ${{ matrix.coverage-args }}
-
-      - uses: buildalon/unity-action@4de595732434e4da7726086a95a75eda832bd03d  # v3
-        name: Build Standalone Player Smoke
-        with:
-          build-target: ${{ matrix.build-target }}
-          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
-          project-path: unity-test-project
-          args: >
-            -batchmode
-            -nographics
-            -executeMethod UnityMCP.CI.CiBuildSmoke.Build
-            -ciBuildOutput ${{ github.workspace }}/${{ matrix.build-output }}
-            -logFile ${{ github.workspace }}/artifacts/player-build.log
-
-      - name: Run Player PlayTest Smoke
-        shell: bash
-        run: |
-          PLAYER="${{ matrix.build-output }}"
-          if [[ "$PLAYER" == *.app ]]; then
-            PLAYER=$(find "$PLAYER/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
-          fi
-          test -n "$PLAYER"
-          chmod +x "$PLAYER" 2>/dev/null || true
-          "$PLAYER" \
-            -batchmode \
-            -nographics \
-            -unityMcpPlaytest "${{ github.workspace }}/unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest" \
-            -unityMcpPlaytestJson "${{ github.workspace }}/artifacts/player-playtest.json" \
-            -unityMcpPlaytestJunit "${{ github.workspace }}/artifacts/player-playtest.xml" \
-            -unityMcpPlaytestExit
-
-      - name: Validate Player PlayTest Receipts
-        shell: python
-        run: |
-          import json
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
-
-          json_path = Path("artifacts/player-playtest.json")
-          junit_path = Path("artifacts/player-playtest.xml")
-          raw_json = json_path.read_bytes()
-          if raw_json.startswith(b"\xef\xbb\xbf"):
-              raise SystemExit("player JSON receipt must be UTF-8 without BOM")
-          payload = json.loads(raw_json.decode("utf-8"))
-          if payload.get("failed") != 0:
-              raise SystemExit(f"player PlayTest failed: {payload!r}")
-          if not payload.get("steps"):
-              raise SystemExit("player PlayTest emitted no step receipts")
-          suite = ET.parse(junit_path).getroot()
-          if suite.get("name") != "UnityMCP.PlayerPlaytest":
-              raise SystemExit(f"unexpected JUnit suite: {suite.get('name')!r}")
-          if suite.get("failures") != "0":
-              raise SystemExit(ET.tostring(suite, encoding="unicode"))
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
-        if: always()
-        with:
-          name: player-build-${{ matrix.name }}
-          path: |
-            ${{ matrix.build-output }}
-            artifacts/player-build.log
-            artifacts/player-playtest.json
-            artifacts/player-playtest.xml
-          if-no-files-found: warn
 
       - name: Check test results exist
         id: check-results
