@@ -58,6 +58,9 @@ ACTION_READS: dict[str, frozenset[str]] = {
     "project_settings":  frozenset({"get"}),
     "menu":              frozenset({"list"}),
     "editor":            _EDITOR_READ_ACTIONS,  # same object — no duplication
+    "bake":              frozenset({"status", "settings"}),
+    "package":           frozenset({"list", "search"}),
+    "scene_environment": frozenset({"get"}),
 }
 
 

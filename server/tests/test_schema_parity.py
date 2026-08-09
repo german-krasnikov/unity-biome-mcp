@@ -185,3 +185,19 @@ def test_discover_tools_categories_match_specs():
         f"Tools in _THEMED_CATEGORIES but missing from _SPECS: {sorted(ghost)}\n"
         "→ Add to _SPECS in tool_specs.py, or remove from category."
     )
+
+
+# ── P-419: _tool_surface_line must include mutability ────────────────────────
+
+def test_tool_surface_line_includes_mutability_read():
+    """P-419: _tool_surface_line must include mutability=read for read tools."""
+    from unity_mcp.tools.gating import _tool_surface_line
+    line = _tool_surface_line("get_hierarchy")
+    assert "mutability=read" in line
+
+
+def test_tool_surface_line_includes_mutability_write():
+    """P-419: _tool_surface_line must include mutability=write for write tools."""
+    from unity_mcp.tools.gating import _tool_surface_line
+    line = _tool_surface_line("set_property")
+    assert "mutability=write" in line

@@ -4,6 +4,8 @@ import os
 import time
 from typing import TYPE_CHECKING, Optional
 
+from mcp.server.fastmcp.exceptions import ToolError
+
 from . import middleware_alias as _alias_hooks  # noqa: F401 — trigger hook registration
 from .bridge_result import unwrap_bridge_result
 from .compressor import strip_defaults
@@ -91,7 +93,7 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         # P-324: block mutation commands for read-only endpoints (before TCP)
         ro_block = mw.check_read_only(cmd, args)
         if ro_block:
-            return _early_return(ro_block)
+            raise ToolError(ro_block)
 
         # Play mode auto-routing — AFTER guards so they see original cmd
         cmd, args = mw.reroute_cmd(cmd, args)

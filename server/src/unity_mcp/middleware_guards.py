@@ -135,11 +135,11 @@ class MiddlewareGuardsMixin:
 
     # ── Feature: Read-Only Endpoint Guard (P-324) ────────────────────────────
 
-    def check_read_only(self, cmd: str, args: dict) -> str | None:  # noqa: ARG002
+    def check_read_only(self, cmd: str, args: dict) -> str | None:
         """Block mutation commands when the endpoint is in read-only mode."""
         if not self.is_read_only:
             return None
-        if cmd in WRITE_CMDS:
+        if is_write(cmd, args):
             return f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         return None
 

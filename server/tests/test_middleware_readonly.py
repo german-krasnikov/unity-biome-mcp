@@ -93,7 +93,7 @@ def test_middleware_default_is_read_write():
 # ── Pipeline integration: wrap_send blocks writes in read-only mode ──────────
 
 async def test_pipeline_blocks_write_in_readonly_mode():
-    """wrap_send must short-circuit write commands when is_read_only=True."""
+    """wrap_send must raise ToolError for write commands when is_read_only=True."""
     send_called = []
 
     async def mock_send(cmd, args, timeout=0):
@@ -104,9 +104,8 @@ async def test_pipeline_blocks_write_in_readonly_mode():
     mw.is_read_only = True
     wrapped = wrap_send(mock_send, mw)
 
-    result = await wrapped("set_property", {"path": "/A", "component": "C", "prop": "x", "value": "1"})
-
-    assert "READ_ONLY_BLOCKED" in result
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await wrapped("set_property", {"path": "/A", "component": "C", "prop": "x", "value": "1"})
     assert send_called == [], "send_fn must not be called when read-only guard fires"
 
 
@@ -188,6 +187,51 @@ async def test_send_raw_allows_write_without_env():
     with patch("unity_mcp.server.slot", slot):
         with patch.dict(os.environ, env_without, clear=True):
             await _send_raw("set_property", {})
+    bridge.send.assert_called_once()
+
+
+# ── P-420: Action-level read-only classification ─────────────────────────────
+
+def test_check_read_only_allows_read_action_of_write_cmd():
+    """P-420: scene_environment(action=get) must not be blocked in read-only mode."""
+    mw = Middleware()
+    mw.is_read_only = True
+    assert mw.check_read_only("scene_environment", {"action": "get"}) is None
+    assert mw.check_read_only("bake", {"action": "status"}) is None
+    assert mw.check_read_only("bake", {"action": "settings"}) is None
+    assert mw.check_read_only("package", {"action": "list"}) is None
+    assert mw.check_read_only("package", {"action": "search"}) is None
+
+
+def test_check_read_only_blocks_write_action_of_mixed_cmd():
+    """P-420: scene_environment(action=set) must still be blocked."""
+    mw = Middleware()
+    mw.is_read_only = True
+    result = mw.check_read_only("scene_environment", {"action": "set"})
+    assert result is not None
+    assert "READ_ONLY_BLOCKED" in result
+
+
+async def test_pipeline_raises_tool_error_on_readonly_write():
+    """P-420: wrap_send must raise ToolError (not return string) for RO writes."""
+    async def mock_send(cmd, args, timeout=0):
+        return "ok"
+
+    mw = Middleware()
+    mw.is_read_only = True
+    wrapped = wrap_send(mock_send, mw)
+
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await wrapped("set_property", {"path": "/A", "component": "C", "prop": "x", "value": "1"})
+
+
+async def test_send_raw_allows_read_action_in_readonly_env():
+    """P-420: _send_raw must allow scene_environment(action=get) in RO mode."""
+    bridge = _make_bridge()
+    slot = _make_slot(bridge)
+    with patch("unity_mcp.server.slot", slot):
+        with patch.dict(os.environ, {"UNITY_MCP_READ_ONLY": "1"}):
+            await _send_raw("scene_environment", {"action": "get"})
     bridge.send.assert_called_once()
 
 
