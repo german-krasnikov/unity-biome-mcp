@@ -172,10 +172,69 @@ jobs:
               raise SystemExit(f"player PlayTest failed: {payload!r}")
           if not payload.get("steps"):
               raise SystemExit("player PlayTest emitted no step receipts")
+          if len(payload.get("steps", [])) != 14:
+              raise SystemExit(f"player success PlayTest executed unexpected step count: {payload!r}")
           suite = ET.parse(junit_path).getroot()
           if suite.get("name") != "UnityMCP.PlayerPlaytest":
               raise SystemExit(f"unexpected JUnit suite: {suite.get('name')!r}")
           if suite.get("failures") != "0":
+              raise SystemExit(ET.tostring(suite, encoding="unicode"))
+
+      - name: Run Player PlayTest Expected Failure Smoke
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          PLAYER="${{ matrix.build-output }}"
+          if [[ "$PLAYER" == *.app ]]; then
+            PLAYER=$(find "$PLAYER/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
+          fi
+          test -n "$PLAYER"
+          chmod +x "$PLAYER" 2>/dev/null || true
+          EXPECTED_FAILURE_ARGS=(
+            -batchmode
+            -unityMcpPlaytest "${{ github.workspace }}/unity-test-project/Assets/StreamingAssets/Playtests/player_ci_expected_failure.playtest"
+            -unityMcpPlaytestJson "${{ github.workspace }}/artifacts/player-playtest-failure.json"
+            -unityMcpPlaytestJunit "${{ github.workspace }}/artifacts/player-playtest-failure.xml"
+            -unityMcpPlaytestExit
+          )
+          set +e
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" "$PLAYER" -force-glcore "${EXPECTED_FAILURE_ARGS[@]}"
+          else
+            "$PLAYER" -nographics "${EXPECTED_FAILURE_ARGS[@]}"
+          fi
+          EXPECTED_FAILURE_RC=$?
+          set -e
+          if [[ "$EXPECTED_FAILURE_RC" -eq 0 ]]; then
+            echo "expected-failure PlayTest unexpectedly passed"
+            exit 1
+          fi
+          if [[ "$EXPECTED_FAILURE_RC" -ne 1 ]]; then
+            echo "expected-failure PlayTest returned unexpected exit code: $EXPECTED_FAILURE_RC"
+            exit "$EXPECTED_FAILURE_RC"
+          fi
+
+      - name: Validate Player PlayTest Expected Failure Receipts
+        shell: python
+        run: |
+          import json
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          json_path = Path("artifacts/player-playtest-failure.json")
+          junit_path = Path("artifacts/player-playtest-failure.xml")
+          payload = json.loads(json_path.read_text(encoding="utf-8"))
+          if payload.get("failed", 0) < 2:
+              raise SystemExit(f"expected-failure PlayTest did not fail twice: {payload!r}")
+          steps = payload.get("steps", [])
+          if not any(step.get("raw") == "ASSERT /GridPlayer|GridPlayer|PosZ == 999" and not step.get("passed") for step in steps):
+              raise SystemExit(f"expected-failure PlayTest assertion step was not recorded: {payload!r}")
+          if not any(str(step.get("raw", "")).startswith("WAIT_UNTIL ") and not step.get("passed") for step in steps):
+              raise SystemExit(f"expected-failure PlayTest timeout step was not recorded: {payload!r}")
+          suite = ET.parse(junit_path).getroot()
+          if suite.get("name") != "UnityMCP.PlayerPlaytest":
+              raise SystemExit(f"unexpected expected-failure JUnit suite: {suite.get('name')!r}")
+          if suite.get("failures") == "0":
               raise SystemExit(ET.tostring(suite, encoding="unicode"))
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
@@ -187,6 +246,8 @@ jobs:
             artifacts/player-build.log
             artifacts/player-playtest.json
             artifacts/player-playtest.xml
+            artifacts/player-playtest-failure.json
+            artifacts/player-playtest-failure.xml
           if-no-files-found: warn
 
       - name: Check player JUnit exists

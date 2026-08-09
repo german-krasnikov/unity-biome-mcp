@@ -118,6 +118,20 @@ def test_player_playtest_workflow_runs_player_playtest_smoke() -> None:
     assert "artifacts/player-playtest.xml" in text
 
 
+def test_player_playtest_workflow_runs_expected_failure_smoke() -> None:
+    text = _workflow("unity-player-playtest.yml")
+    run_block = text[text.index("Run Player PlayTest Expected Failure Smoke") :]
+
+    assert "Run Player PlayTest Expected Failure Smoke" in text
+    assert "timeout-minutes: 5" in run_block[:200]
+    assert "player_ci_expected_failure.playtest" in text
+    assert "player-playtest-failure.json" in text
+    assert "player-playtest-failure.xml" in text
+    assert "EXPECTED_FAILURE_RC" in text
+    assert 'if [[ "$EXPECTED_FAILURE_RC" -eq 0 ]]' in text
+    assert "expected-failure PlayTest unexpectedly passed" in text
+
+
 def test_player_playtest_workflow_triggers_on_text_mode_fixture_changes() -> None:
     text = _workflow("unity-player-playtest.yml")
 
@@ -130,10 +144,15 @@ def test_player_playtest_workflow_validates_player_playtest_receipts() -> None:
     text = _workflow("unity-player-playtest.yml")
 
     assert "Validate Player PlayTest Receipts" in text
+    assert "Validate Player PlayTest Expected Failure Receipts" in text
     assert "player JSON receipt must be UTF-8 without BOM" in text
+    assert "player success PlayTest executed unexpected step count" in text
+    assert "expected-failure PlayTest did not fail" in text
+    assert "expected-failure PlayTest timeout step was not recorded" in text
     assert "player PlayTest emitted no step receipts" in text
     assert "UnityMCP.PlayerPlaytest" in text
     assert 'suite.get("failures") != "0"' in text
+    assert 'suite.get("failures") == "0"' in text
 
 
 def test_conformance_workflow_captures_mcp_monitor_reports() -> None:

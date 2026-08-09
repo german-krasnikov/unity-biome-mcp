@@ -17,6 +17,14 @@ PLAYER_PLAYTEST = (
     / "Playtests"
     / "player_ci_smoke.playtest"
 )
+PLAYER_FAILURE_PLAYTEST = (
+    REPO_ROOT
+    / "unity-test-project"
+    / "Assets"
+    / "StreamingAssets"
+    / "Playtests"
+    / "player_ci_expected_failure.playtest"
+)
 PLAYER_RUNNER_ROOT = REPO_ROOT / "unity-plugin" / "Runtime" / "Playtest"
 URP_ASSET = REPO_ROOT / "unity-test-project" / "Assets" / "Settings" / "UniversalRP.asset"
 URP_GLOBAL_SETTINGS = (
@@ -60,6 +68,15 @@ def test_unity_test_project_has_player_playtest_corpus() -> None:
     assert "INVOKE /GridPlayer GridPlayer Move north" in text
     assert "ASSERT /GridPlayer|GridPlayer|StateText contains pos=0,1" in text
     assert "SNAPSHOT /GridPlayer|GridPlayer|StateText,/GridPlayer|GridPlayer|BoardText" in text
+    assert "ASSERT_CONSOLE_CLEAN" in text
+
+
+def test_unity_test_project_has_player_expected_failure_corpus() -> None:
+    text = PLAYER_FAILURE_PLAYTEST.read_text(encoding="utf-8")
+
+    assert "LOG Player PlayTest CI expected failure started" in text
+    assert "ASSERT /GridPlayer|GridPlayer|PosZ == 999" in text
+    assert "WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == True TIMEOUT 0.1" in text
     assert "ASSERT_CONSOLE_CLEAN" in text
 
 
