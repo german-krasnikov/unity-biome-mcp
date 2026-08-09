@@ -13,6 +13,7 @@ from gauntlet.attestations import (
 )
 from gauntlet.journal_validation import validate_terminal_journal
 from gauntlet.junit import JUnitError, JUnitResult, parse_attested_pytest_junit_bytes
+from gauntlet.package_contracts import UNITY_UPM_ARTIFACT_TYPES
 from gauntlet.receipts import JournalError, verify_journal_bytes
 
 if TYPE_CHECKING:
@@ -181,7 +182,9 @@ def _validate_workers(
     if roles != tuple(requirement.worker_roles):
         raise ProfileEvidenceError("worker roles do not exactly match policy")
     loaded_expected = {
-        artifact: expected_artifacts[artifact] for artifact in requirement.consumed_artifacts if artifact == "unity_upm"
+        artifact: expected_artifacts[artifact]
+        for artifact in requirement.consumed_artifacts
+        if artifact in UNITY_UPM_ARTIFACT_TYPES
     }
     identities: set[str] = set()
     projects: set[str] = set()

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import builtins
-import io
 import json
 import sys
 from pathlib import Path
@@ -22,41 +20,25 @@ from gauntlet.artifacts import (  # noqa: E402
     verify_artifact_files,
     write_artifact_manifest,
 )
-from gauntlet_test_fixtures import write_upm as _write_upm  # noqa: E402
-from gauntlet_test_fixtures import write_wheel as _write_wheel  # noqa: E402
+from gauntlet_test_fixtures import write_release_artifacts  # noqa: E402
 
 
 def _artifacts(tmp_path: Path) -> dict[str, Path]:
-    wheel = tmp_path / "unity_biome_mcp-1.27.0-py3-none-any.whl"
-    upm = tmp_path / "unity-biome-mcp-1.27.0.tgz"
-    _write_wheel(wheel)
-    _write_upm(upm)
-    return {"python_wheel": wheel, "unity_upm": upm}
+    return write_release_artifacts(tmp_path)
 
 
 def _reject_reopen(monkeypatch: pytest.MonkeyPatch, target: Path) -> list[int]:
     open_count = [0]
+    delegate = Path.open
 
-    def guard(delegate: object) -> object:
-        assert callable(delegate)
+    def guarded(file: Path, *args: object, **kwargs: object) -> object:
+        if file == target:
+            open_count[0] += 1
+            if open_count[0] > 1:
+                raise AssertionError("artifact was reopened after its first snapshot")
+        return delegate(file, *args, **kwargs)
 
-        def guarded(file: object, *args: object, **kwargs: object) -> object:
-            try:
-                is_target = Path(file) == target
-            except TypeError:
-                is_target = False
-            if is_target:
-                open_count[0] += 1
-                if open_count[0] > 1:
-                    raise AssertionError("artifact was reopened after its first snapshot")
-            return delegate(file, *args, **kwargs)
-
-        return guarded
-
-    accessor_type = type(target._accessor)  # noqa: SLF001 - observe the real filesystem boundary
-    monkeypatch.setattr(accessor_type, "open", staticmethod(guard(accessor_type.open)))
-    monkeypatch.setattr(io, "open", guard(io.open))
-    monkeypatch.setattr(builtins, "open", guard(builtins.open))
+    monkeypatch.setattr(Path, "open", guarded)
     return open_count
 
 
@@ -69,27 +51,38 @@ def test_manifest_round_trip_proves_exact_artifact_bytes(tmp_path: Path) -> None
     verify_artifact_files(loaded, tmp_path)
 
     assert loaded == manifest
-    assert loaded.package_version == "1.27.0"
-    assert set(loaded.artifact_digests) == {"python_wheel", "unity_upm"}
+    assert loaded.product_version == "1.27.0"
+    assert set(loaded.artifact_digests) == {
+        "python_wheel",
+        "unity_editor_upm",
+        "unity_reload_upm",
+    }
     assert len(loaded.manifest_sha) == 64
     assert not list(tmp_path.glob(".artifact-manifest.json.*.tmp"))
 
 
-@pytest.mark.parametrize("artifact_type", ["python_wheel", "unity_upm"])
+@pytest.mark.parametrize(
+    "artifact_type",
+    ["python_wheel", "unity_editor_upm", "unity_reload_upm"],
+)
 def test_manifest_builder_reads_each_artifact_once(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     artifact_type: str,
 ) -> None:
-    artifact = _artifacts(tmp_path)[artifact_type]
+    artifacts = _artifacts(tmp_path)
+    artifact = artifacts[artifact_type]
     open_count = _reject_reopen(monkeypatch, artifact)
 
-    build_artifact_manifest("a" * 40, "1.27.0", {artifact_type: artifact})
+    build_artifact_manifest("a" * 40, "1.27.0", artifacts)
 
     assert open_count == [1]
 
 
-@pytest.mark.parametrize("artifact_type", ["python_wheel", "unity_upm"])
+@pytest.mark.parametrize(
+    "artifact_type",
+    ["python_wheel", "unity_editor_upm", "unity_reload_upm"],
+)
 def test_manifest_verification_reads_each_artifact_once(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -108,20 +101,24 @@ def test_manifest_builder_bounds_artifact_snapshot(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    artifact = tmp_path / "unity_biome_mcp-1.27.0-py3-none-any.whl"
+    artifacts = _artifacts(tmp_path)
+    artifact = artifacts["python_wheel"]
     artifact.write_bytes(b"12345")
     monkeypatch.setattr(artifact_module, "_MAX_ARTIFACT_BYTES", 4)
 
     with pytest.raises(ArtifactError, match="safety limit"):
-        build_artifact_manifest("a" * 40, "1.27.0", {"python_wheel": artifact})
+        build_artifact_manifest("a" * 40, "1.27.0", artifacts)
 
 
 def test_manifest_builder_rejects_unknown_artifact_type(tmp_path: Path) -> None:
+    artifacts = _artifacts(tmp_path)
     artifact = tmp_path / "generic.bin"
     artifact.write_bytes(b"arbitrary")
+    artifacts.pop("unity_reload_upm")
+    artifacts["generic"] = artifact
 
-    with pytest.raises(ArtifactError, match="unsupported release artifact type"):
-        build_artifact_manifest("a" * 40, "1.27.0", {"generic": artifact})
+    with pytest.raises(ArtifactError, match="artifact set"):
+        build_artifact_manifest("a" * 40, "1.27.0", artifacts)
 
 
 @pytest.mark.parametrize(
@@ -129,8 +126,9 @@ def test_manifest_builder_rejects_unknown_artifact_type(tmp_path: Path) -> None:
     [
         ("python_wheel", "totally_other-9.9.9-py3-none-any.whl"),
         ("python_wheel", "unity_biome_mcp-1.27.0.bin"),
-        ("unity_upm", "totally-other-1.27.0.tgz"),
-        ("unity_upm", "unity-biome-mcp-1.27.0.bin"),
+        ("unity_editor_upm", "totally-other-1.27.0.tgz"),
+        ("unity_editor_upm", "unity-biome-mcp-editor-1.27.0.bin"),
+        ("unity_reload_upm", "totally-other-0.1.4.tgz"),
     ],
 )
 def test_manifest_builder_rejects_artifact_type_filename_mismatch(
@@ -138,19 +136,21 @@ def test_manifest_builder_rejects_artifact_type_filename_mismatch(
     artifact_type: str,
     filename: str,
 ) -> None:
+    artifacts = _artifacts(tmp_path)
+    original = artifacts[artifact_type]
     artifact = tmp_path / filename
-    if artifact_type == "python_wheel":
-        _write_wheel(artifact)
-    else:
-        _write_upm(artifact)
+    original.rename(artifact)
+    artifacts[artifact_type] = artifact
 
-    with pytest.raises(ArtifactError, match="artifact filename"):
-        build_artifact_manifest("a" * 40, "1.27.0", {artifact_type: artifact})
+    with pytest.raises(ArtifactError, match="filename"):
+        build_artifact_manifest("a" * 40, "1.27.0", artifacts)
 
 
 def test_manifest_builder_rejects_symlinked_artifact(tmp_path: Path) -> None:
+    artifacts = _artifacts(tmp_path)
+    original = artifacts["python_wheel"]
     outside = tmp_path / "outside.whl"
-    _write_wheel(outside)
+    original.rename(outside)
     artifact = tmp_path / "unity_biome_mcp-1.27.0-py3-none-any.whl"
     try:
         artifact.symlink_to(outside)
@@ -158,7 +158,8 @@ def test_manifest_builder_rejects_symlinked_artifact(tmp_path: Path) -> None:
         pytest.skip(f"symlinks are unavailable on this platform: {exc}")
 
     with pytest.raises(ArtifactError, match="stable regular file"):
-        build_artifact_manifest("a" * 40, "1.27.0", {"python_wheel": artifact})
+        artifacts["python_wheel"] = artifact
+        build_artifact_manifest("a" * 40, "1.27.0", artifacts)
 
 
 def test_manifest_verification_detects_substitution(tmp_path: Path) -> None:
@@ -174,6 +175,7 @@ def test_manifest_verification_detects_substitution(tmp_path: Path) -> None:
     ("mutate", "message"),
     [
         (lambda data: data.update({"unknown": True}), "schema"),
+        (lambda data: data.update({"schema_version": 1}), "schema|unsupported"),
         (lambda data: data.update({"head_sha": "not-a-sha"}), "head"),
         (lambda data: data.update({"manifest_sha": "0" * 64}), "digest"),
         (lambda data: data["artifacts"][0].update({"filename": "../escape.whl"}), "filename"),
@@ -199,6 +201,24 @@ def test_manifest_loader_rejects_ambiguous_or_tampered_data(
 
 
 def test_manifest_builder_rejects_missing_artifact_file(tmp_path: Path) -> None:
+    artifacts = _artifacts(tmp_path)
+    artifacts["python_wheel"].unlink()
     missing = tmp_path / "missing.whl"
+    artifacts["python_wheel"] = missing
     with pytest.raises(ArtifactError, match="regular file"):
-        build_artifact_manifest("a" * 40, "1.27.0", {"python_wheel": missing})
+        build_artifact_manifest("a" * 40, "1.27.0", artifacts)
+
+
+def test_manifest_loader_rejects_duplicate_type_with_distinct_filename(tmp_path: Path) -> None:
+    manifest = build_artifact_manifest("a" * 40, "1.27.0", _artifacts(tmp_path))
+    path = tmp_path / "artifact-manifest.json"
+    write_artifact_manifest(path, manifest)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    wheel = next(record for record in data["artifacts"] if record["type"] == "python_wheel")
+    duplicate = dict(wheel)
+    duplicate["filename"] = "unity_biome_mcp-1.27.0-1-py3-none-any.whl"
+    data["artifacts"].append(duplicate)
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ArtifactError, match="duplicate or incomplete"):
+        load_artifact_manifest(path)

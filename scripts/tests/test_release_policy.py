@@ -15,13 +15,13 @@ from gauntlet.release_policy import PolicyError, load_release_policy  # noqa: E4
 
 def _policy_data() -> dict[str, object]:
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "policy_version": "1.0.0",
-        "activation_package_version": "1.27.0",
+        "activation_product_version": "1.27.0",
         "harness_lock_path": "server/uv.lock",
         "contract_catalog_path": "scripts/gauntlet/contracts.json",
         "contract_catalog_sha": "c" * 64,
-        "artifact_types": ["python_wheel", "unity_upm"],
+        "artifact_types": ["python_wheel", "unity_editor_upm", "unity_reload_upm"],
         "profiles": [
             {
                 "id": "public-stdio-linux-py310",
@@ -63,7 +63,11 @@ def _policy_data() -> dict[str, object]:
                 "plugin_scope": "exact",
                 "required_workers": 2,
                 "worker_roles": ["worker-a", "worker-b"],
-                "consumed_artifacts": ["python_wheel", "unity_upm"],
+                "consumed_artifacts": [
+                    "python_wheel",
+                    "unity_editor_upm",
+                    "unity_reload_upm",
+                ],
                 "cleanup_obligations": ["process-tree", "worker-a", "worker-b"],
                 "scenarios": [
                     {
@@ -98,7 +102,11 @@ def test_policy_loads_active_requirements_and_deterministic_digests(tmp_path: Pa
     second = load_release_policy(second_path)
 
     assert first.policy_sha == second.policy_sha
-    assert first.artifact_types == ("python_wheel", "unity_upm")
+    assert first.artifact_types == (
+        "python_wheel",
+        "unity_editor_upm",
+        "unity_reload_upm",
+    )
     assert [profile.profile_id for profile in first.active_profiles] == [
         "public-stdio-linux-py310",
         "unity-dual-macos",
@@ -143,8 +151,12 @@ def test_profile_digest_changes_with_contract(tmp_path: Path) -> None:
     ("mutate", "message"),
     [
         (lambda data: data.update({"unknown": True}), "schema"),
+        (
+            lambda data: data.update({"activation_product_version": "latest"}),
+            "semantic version",
+        ),
         (lambda data: data.update({"artifact_types": ["python_wheel", "python_wheel"]}), "artifact"),
-        (lambda data: data.update({"artifact_types": ["python_wheel"]}), "wheel and UPM"),
+        (lambda data: data.update({"artifact_types": ["python_wheel"]}), "supported"),
         (lambda data: data.update({"profiles": []}), "active profile"),
         (lambda data: data["profiles"].append(dict(data["profiles"][0])), "duplicate profile"),
         (lambda data: data["profiles"][0].update({"required_workers": 1}), "worker role"),
@@ -195,6 +207,12 @@ def test_profile_digest_changes_with_contract(tmp_path: Path) -> None:
         (
             lambda data: data["profiles"][1].update({"required_workers": 0, "worker_roles": []}),
             "Unity Editor",
+        ),
+        (
+            lambda data: data["profiles"][1].update(
+                {"consumed_artifacts": ["python_wheel", "unity_editor_upm"]}
+            ),
+            "both UPM",
         ),
     ],
 )

@@ -14,6 +14,11 @@ from gauntlet.artifacts import (
 )
 from gauntlet.contract_catalog import CatalogError, parse_contract_catalog
 from gauntlet.evidence_schema import run_manifest_hash
+from gauntlet.package_contracts import (
+    PACKAGE_CONTENT_ROOTS,
+    PACKAGE_SOURCE_PATHS,
+    PackageIdentity,
+)
 from gauntlet.profile_evidence import ProfileEvidenceError, verify_profile_artifacts
 from gauntlet.release_evidence import (
     EvidenceError,
@@ -22,6 +27,11 @@ from gauntlet.release_evidence import (
     validate_release_evidence_bundle,
 )
 from gauntlet.release_policy import PolicyError, load_release_policy, parse_release_policy
+from gauntlet.source_packages import (
+    SourcePackageError,
+    SourcePackageIdentity,
+    parse_source_package_identities,
+)
 from gauntlet.source_provenance import SourceProvenanceError, observe_source_checkout
 
 if TYPE_CHECKING:
@@ -39,7 +49,7 @@ class GateError(ValueError):
 @dataclass(frozen=True, slots=True)
 class GateSummary:
     head_sha: str
-    package_version: str
+    product_version: str
     policy_version: str
     profiles: tuple[str, ...]
     artifact_manifest_sha: str
@@ -67,7 +77,9 @@ def validate_release_gate(
                 policy_relative,
                 candidate_policy.contract_catalog_path,
                 candidate_policy.harness_lock_path,
+                *PACKAGE_SOURCE_PATHS.values(),
             ),
+            package_content_roots=PACKAGE_CONTENT_ROOTS,
         )
         policy = parse_release_policy(
             source_observation.file_payloads[policy_relative],
@@ -85,8 +97,16 @@ def validate_release_gate(
         if catalog.catalog_sha != policy.contract_catalog_sha:
             raise GateError("contract catalog digest does not match release policy")
         manifest = load_artifact_manifest(artifact_manifest_path)
-        _validate_manifest_policy(policy, manifest, source_observation.head_sha)
-        verify_artifact_files(manifest, artifact_root)
+        source_packages = parse_source_package_identities(source_observation.file_payloads)
+        verified_packages = verify_artifact_files(manifest, artifact_root)
+        _validate_manifest_policy(
+            policy,
+            manifest,
+            source_observation.head_sha,
+            source_packages,
+            dict(source_observation.package_content_digests),
+            verified_packages,
+        )
         harness_lock_sha = source_observation.file_digests[policy.harness_lock_path]
         evidence_records = _load_evidences(evidence_paths)
         evidences = [evidence for evidence, _ in evidence_records]
@@ -103,7 +123,7 @@ def validate_release_gate(
                 profile_manifest_sha=requirement.profile_manifest_sha,
                 harness_lock_sha=harness_lock_sha,
                 artifact_manifest_sha=manifest.manifest_sha,
-                artifacts=manifest.artifact_digests,
+                artifacts=manifest.archive_digests,
             )
             derived = verify_profile_artifacts(
                 evidence.get("evidence_artifacts"),
@@ -111,7 +131,7 @@ def validate_release_gate(
                 profile_id=profile_id,
                 requirement=requirement,
                 expected_head_sha=source_observation.head_sha,
-                expected_artifacts=manifest.artifact_digests,
+                expected_artifacts=manifest.archive_digests,
                 expected_run_manifest_sha=expected_run_manifest_sha,
             )
             validate_evidence_matches_artifacts(evidence, derived)
@@ -124,7 +144,7 @@ def validate_release_gate(
             expected_contract_catalog_sha=catalog.catalog_sha,
             expected_harness_lock_sha=harness_lock_sha,
             expected_artifact_manifest_sha=manifest.manifest_sha,
-            expected_artifacts=manifest.artifact_digests,
+            expected_artifacts=manifest.archive_digests,
             required_profiles=policy.active_requirements,
         )
     except (
@@ -134,13 +154,14 @@ def validate_release_gate(
         PolicyError,
         ProfileEvidenceError,
         SourceProvenanceError,
+        SourcePackageError,
         OSError,
     ) as exc:
         raise GateError(str(exc)) from exc
 
     return GateSummary(
         head_sha=source_observation.head_sha,
-        package_version=manifest.package_version,
+        product_version=manifest.product_version,
         policy_version=policy.policy_version,
         profiles=tuple(sorted(policy.active_requirements)),
         artifact_manifest_sha=manifest.manifest_sha,
@@ -153,13 +174,32 @@ def _validate_manifest_policy(
     policy: ReleasePolicy,
     manifest: ArtifactManifest,
     head_sha: str,
+    source_packages: dict[str, SourcePackageIdentity],
+    source_content_digests: dict[str, str],
+    verified_packages: dict[str, PackageIdentity],
 ) -> None:
     if manifest.head_sha != head_sha:
         raise GateError("artifact manifest head SHA does not match the release commit")
-    if manifest.package_version != policy.activation_package_version:
-        raise GateError("artifact package version does not match policy activation")
-    if set(manifest.artifact_digests) != set(policy.artifact_types):
+    if manifest.product_version != policy.activation_product_version:
+        raise GateError("artifact product version does not match policy activation")
+    if set(manifest.archive_digests) != set(policy.artifact_types):
         raise GateError("artifact types do not exactly match release policy")
+    records = {record.artifact_type: record for record in manifest.artifacts}
+    for artifact_type, source_identity in source_packages.items():
+        record = records[artifact_type]
+        if (
+            record.package_name != source_identity.package_name
+            or record.package_version != source_identity.package_version
+        ):
+            raise GateError(f"{artifact_type} archive identity does not match observed source")
+        if record.content_sha256 != source_content_digests.get(artifact_type):
+            raise GateError(f"{artifact_type} archive content does not match observed source")
+        verified = verified_packages.get(artifact_type)
+        if (
+            verified is None
+            or verified.runtime_contract_sha256 != source_identity.runtime_contract_sha256
+        ):
+            raise GateError(f"{artifact_type} runtime contract does not match observed source")
 
 
 def _load_evidences(

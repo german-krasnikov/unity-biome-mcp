@@ -5,6 +5,11 @@ from __future__ import annotations
 import re
 from pathlib import PurePosixPath
 
+from gauntlet.package_contracts import (
+    PUBLIC_STDIO_ARTIFACT_TYPES,
+    UNITY_EDITOR_ARTIFACT_TYPES,
+)
+
 _ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
 
@@ -119,10 +124,10 @@ def validate_driver_contract(
     if driver == "public_stdio":
         if unity_version is not None or plugin_scope != "none" or workers != 0:
             raise PolicyError("public stdio profile cannot declare Unity workers or plugins")
-        if consumed_artifacts != ("python_wheel",):
+        if consumed_artifacts != PUBLIC_STDIO_ARTIFACT_TYPES:
             raise PolicyError("public stdio profile must consume only the Python wheel")
         return
     if unity_version is None or plugin_scope != "exact" or workers < 1:
         raise PolicyError("Unity Editor profile requires exact plugin and at least one worker")
-    if consumed_artifacts != ("python_wheel", "unity_upm"):
-        raise PolicyError("Unity Editor profile must consume wheel and UPM artifacts")
+    if consumed_artifacts != UNITY_EDITOR_ARTIFACT_TYPES:
+        raise PolicyError("Unity Editor profile must consume wheel and both UPM artifacts")

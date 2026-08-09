@@ -16,26 +16,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gauntlet.receipts import ReceiptJournal  # noqa: E402
 from gauntlet.release_gate import GateError, validate_release_gate  # noqa: E402
 from gauntlet_test_fixtures import rewrite_journal_events, write_complete_journal  # noqa: E402
+from release_gate_mutation_support import (  # noqa: E402
+    mutate_evidence,
+    refresh_journal_and_runtime,
+    refresh_junit_and_runtime,
+    rewrite_receipt,
+)
 from release_gate_test_support import (  # noqa: E402
     PROFILE_ID,
     RUN_ID,
     SCENARIOS,
     VERSION,
-    mutate_evidence,
     prepare_bundle,
     read_head,
-    refresh_journal_and_runtime,
-    refresh_junit_and_runtime,
-    rewrite_receipt,
     validate_bundle,
 )
 
 CLI = SCRIPTS / "validate_release_evidence.py"
 
-
 def test_release_gate_accepts_exact_artifact_backed_bundle(tmp_path: Path) -> None:
     paths = prepare_bundle(tmp_path)
-
     summary = validate_release_gate(
         policy_path=paths["policy"],
         source_root=paths["source_root"],
@@ -45,7 +45,7 @@ def test_release_gate_accepts_exact_artifact_backed_bundle(tmp_path: Path) -> No
         expected_head_sha=read_head(paths),
     )
 
-    assert summary.package_version == VERSION
+    assert summary.product_version == VERSION
     assert summary.profiles == (PROFILE_ID,)
 
 
@@ -68,7 +68,7 @@ def test_release_gate_rejects_manifest_with_wrong_type_specific_filename(tmp_pat
     wheel["filename"] = "totally_other-9.9.9-py3-none-any.whl"
     paths["manifest"].write_text(json.dumps(manifest), encoding="utf-8")
 
-    with pytest.raises(GateError, match="artifact filename"):
+    with pytest.raises(GateError, match="filename"):
         validate_bundle(paths)
 
 
@@ -83,6 +83,36 @@ def test_release_gate_rejects_artifact_symlink_escaping_staging_root(tmp_path: P
         pytest.skip(f"symlinks are unavailable on this platform: {exc}")
 
     with pytest.raises(GateError, match="staging root|regular file"):
+        validate_bundle(paths)
+
+
+def test_release_gate_rejects_worker_missing_reload_package(tmp_path: Path) -> None:
+    paths = prepare_bundle(tmp_path)
+    evidence = json.loads(paths["evidence"].read_text(encoding="utf-8"))
+    artifacts = evidence["artifacts"]
+    assert isinstance(artifacts, dict)
+    rewrite_receipt(
+        paths,
+        "worker",
+        "worker_identity",
+        {"loaded_artifacts": {"unity_editor_upm": artifacts["unity_editor_upm"]}},
+    )
+
+    with pytest.raises(GateError, match="worker runtime identity"):
+        validate_bundle(paths)
+
+
+def test_release_gate_rejects_reload_archive_not_matching_observed_source(tmp_path: Path) -> None:
+    paths = prepare_bundle(tmp_path, source_reload_version="0.1.5")
+
+    with pytest.raises(GateError, match="reload.*observed source"):
+        validate_bundle(paths)
+
+
+def test_release_gate_rejects_invalid_observed_reload_package_name(tmp_path: Path) -> None:
+    paths = prepare_bundle(tmp_path, source_reload_name="com.example.other")
+
+    with pytest.raises(GateError, match="reload.*source package name"):
         validate_bundle(paths)
 
 
@@ -236,7 +266,6 @@ def test_release_gate_rejects_rehashed_unsupported_journal_envelope(tmp_path: Pa
     with pytest.raises(GateError, match="fields|schema"):
         validate_bundle(paths)
 
-
 def test_release_gate_cli_is_nonzero_for_missing_evidence(tmp_path: Path) -> None:
     paths = prepare_bundle(tmp_path)
     command = [
@@ -254,11 +283,12 @@ def test_release_gate_cli_is_nonzero_for_missing_evidence(tmp_path: Path) -> Non
         read_head(paths),
     ]
 
-    failed = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    failed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=30)
     passed = subprocess.run(
         [*command, "--evidence", str(paths["evidence"])],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=30,
     )
 
@@ -266,3 +296,4 @@ def test_release_gate_cli_is_nonzero_for_missing_evidence(tmp_path: Path) -> Non
     assert "FAIL" in failed.stderr
     assert passed.returncode == 0
     assert "PASS" in passed.stdout
+    assert f"product={VERSION}" in passed.stdout

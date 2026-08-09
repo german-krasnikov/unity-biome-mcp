@@ -27,7 +27,11 @@ POLICY_SHA = "b" * 64
 CONTRACT_CATALOG_SHA = "8" * 64
 HARNESS_LOCK_SHA = "c" * 64
 ARTIFACT_MANIFEST_SHA = "d" * 64
-ARTIFACTS = {"python_wheel": "e" * 64, "unity_upm": "f" * 64}
+ARTIFACTS = {
+    "python_wheel": "e" * 64,
+    "unity_editor_upm": "f" * 64,
+    "unity_reload_upm": "a" * 64,
+}
 PROFILE_MANIFEST_SHA = "1" * 64
 SCENARIOS = ("identity-handshake", "read-envelope")
 RUN_ID = "run-evidence-test"
@@ -53,7 +57,13 @@ def _requirement(
         plugin_scope="exact" if workers else "none",
         required_workers=workers,
         worker_roles=tuple(f"worker-{index}" for index in range(workers)),
-        consumed_artifacts=("python_wheel", "unity_upm") if workers else ("python_wheel",),
+        consumed_artifacts=(
+            "python_wheel",
+            "unity_editor_upm",
+            "unity_reload_upm",
+        )
+        if workers
+        else ("python_wheel",),
         cleanup_obligations=("process-tree",),
         max_age_seconds=86400,
     )

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import csv
+import gzip
 import hashlib
 import io
 import json
@@ -24,17 +27,31 @@ def write_wheel(
     name: str = "unity-biome-mcp",
 ) -> None:
     dist_info = f"{name.replace('-', '_')}-{version}.dist-info"
+    members = {
+        f"{dist_info}/METADATA": (
+            f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n\n"
+        ).encode(),
+        f"{dist_info}/WHEEL": (
+            b"Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n"
+        ),
+        "unity_mcp/__init__.py": b"__version__ = 'test'\n",
+    }
+    record = io.StringIO(newline="")
+    writer = csv.writer(record, lineterminator="\n")
+    for member_name, payload in sorted(members.items()):
+        encoded = base64.urlsafe_b64encode(hashlib.sha256(payload).digest()).rstrip(b"=")
+        writer.writerow((member_name, f"sha256={encoded.decode('ascii')}", len(payload)))
+    record_name = f"{dist_info}/RECORD"
+    writer.writerow((record_name, "", ""))
+    members[record_name] = record.getvalue().encode()
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr(
-            f"{dist_info}/METADATA",
-            f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n\n",
-        )
-        archive.writestr(
-            f"{dist_info}/WHEEL",
-            "Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
-        )
-        archive.writestr("unity_mcp/__init__.py", "__version__ = 'test'\n")
-        archive.writestr(f"{dist_info}/RECORD", "unity_mcp/__init__.py,,\n")
+        for member_name, payload in members.items():
+            info = zipfile.ZipInfo(member_name)
+            info.date_time = (2020, 2, 2, 0, 0, 0)
+            mode = 0o100644 if member_name.startswith("unity_mcp/") else 0o644
+            info.external_attr = mode << 16
+            info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(info, payload)
 
 
 def write_upm(
@@ -46,8 +63,33 @@ def write_upm(
     payload = json.dumps({"name": name, "version": version}).encode()
     info = tarfile.TarInfo("package/package.json")
     info.size = len(payload)
-    with tarfile.open(path, "w:gz") as archive:
+    info.mtime = 499_162_500
+    output = io.BytesIO()
+    with tarfile.open(fileobj=output, mode="w", format=tarfile.USTAR_FORMAT) as archive:
         archive.addfile(info, io.BytesIO(payload))
+    compressed = io.BytesIO()
+    with gzip.GzipFile(filename="", mode="wb", fileobj=compressed, mtime=0) as stream:
+        stream.write(output.getvalue())
+    path.write_bytes(compressed.getvalue())
+
+
+def write_release_artifacts(
+    root: Path,
+    product_version: str = "1.27.0",
+    reload_version: str = "0.1.4",
+) -> dict[str, Path]:
+    root.mkdir(parents=True, exist_ok=True)
+    wheel = root / f"unity_biome_mcp-{product_version}-py3-none-any.whl"
+    editor = root / f"com.unity-biome-mcp.editor-{product_version}.tgz"
+    reload = root / f"com.unity-biome-mcp.reload-{reload_version}.tgz"
+    write_wheel(wheel, product_version)
+    write_upm(editor, product_version, name="com.unity-biome-mcp.editor")
+    write_upm(reload, reload_version, name="com.unity-biome-mcp.reload")
+    return {
+        "python_wheel": wheel,
+        "unity_editor_upm": editor,
+        "unity_reload_upm": reload,
+    }
 
 
 def write_junit(path: Path, scenario_ids: Iterable[str]) -> None:

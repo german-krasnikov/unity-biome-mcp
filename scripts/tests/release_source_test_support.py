@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from gauntlet.contract_catalog import ContractCatalog, load_contract_catalog
+from gauntlet.package_contracts import PACKAGE_CONTENT_ROOTS, PACKAGE_SOURCE_PATHS
 from gauntlet.release_policy import ReleasePolicy, load_release_policy
 from gauntlet.source_provenance import SourceObservation, observe_source_checkout
 
@@ -38,6 +39,9 @@ def prepare_source(
     version: str,
     profile_id: str,
     scenarios: tuple[str, ...],
+    reload_version: str = "0.1.4",
+    reload_name: str = "com.unity-biome-mcp.reload",
+    python_package_payload: str = "__version__ = 'test'\n",
 ) -> SourceFixture:
     policy_path = root / POLICY_RELATIVE
     catalog_path = root / CATALOG_RELATIVE
@@ -51,9 +55,25 @@ def prepare_source(
         encoding="utf-8",
     )
     harness_lock_path.write_text("locked-dependencies", encoding="utf-8")
+    (root / PACKAGE_SOURCE_PATHS["python_wheel"]).write_text(
+        f'[project]\nname = "unity-biome-mcp"\nversion = "{version}"\n',
+        encoding="utf-8",
+    )
+    editor_package = root / PACKAGE_SOURCE_PATHS["unity_editor_upm"]
+    reload_package = root / PACKAGE_SOURCE_PATHS["unity_reload_upm"]
+    editor_package.parent.mkdir(parents=True, exist_ok=True)
+    reload_package.parent.mkdir(parents=True, exist_ok=True)
+    editor_package.write_text(
+        json.dumps({"name": "com.unity-biome-mcp.editor", "version": version}),
+        encoding="utf-8",
+    )
+    reload_package.write_text(
+        json.dumps({"name": reload_name, "version": reload_version}),
+        encoding="utf-8",
+    )
     package_init = root / "server/src/unity_mcp/__init__.py"
     package_init.parent.mkdir(parents=True, exist_ok=True)
-    package_init.write_text("\"\"\"Synthetic package fixture.\"\"\"\n", encoding="utf-8")
+    package_init.write_text(python_package_payload, encoding="utf-8")
     test_path = root / "server/tests/contracts/test_release.py"
     test_path.parent.mkdir(parents=True, exist_ok=True)
     test_path.write_text(
@@ -69,7 +89,13 @@ def prepare_source(
     observation = observe_source_checkout(
         root,
         expected_head_sha=head_sha,
-        required_paths=(POLICY_RELATIVE, CATALOG_RELATIVE, HARNESS_LOCK_RELATIVE),
+        required_paths=(
+            POLICY_RELATIVE,
+            CATALOG_RELATIVE,
+            HARNESS_LOCK_RELATIVE,
+            *PACKAGE_SOURCE_PATHS.values(),
+        ),
+        package_content_roots=PACKAGE_CONTENT_ROOTS,
     )
     return SourceFixture(
         root,
@@ -90,13 +116,13 @@ def _policy_data(
     catalog_sha: str,
 ) -> dict[str, object]:
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "policy_version": "1.0.0",
-        "activation_package_version": version,
+        "activation_product_version": version,
         "harness_lock_path": HARNESS_LOCK_RELATIVE,
         "contract_catalog_path": CATALOG_RELATIVE,
         "contract_catalog_sha": catalog_sha,
-        "artifact_types": ["python_wheel", "unity_upm"],
+        "artifact_types": ["python_wheel", "unity_editor_upm", "unity_reload_upm"],
         "profiles": [
             {
                 "id": profile_id,
@@ -108,7 +134,11 @@ def _policy_data(
                 "plugin_scope": "exact",
                 "required_workers": 1,
                 "worker_roles": ["worker-a"],
-                "consumed_artifacts": ["python_wheel", "unity_upm"],
+                "consumed_artifacts": [
+                    "python_wheel",
+                    "unity_editor_upm",
+                    "unity_reload_upm",
+                ],
                 "cleanup_obligations": ["process-tree", "worker-a"],
                 "scenarios": [
                     {
@@ -173,5 +203,6 @@ def _commit_source(root: Path) -> str:
         check=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
     return result.stdout.strip()

@@ -46,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         "RELEASE EVIDENCE PASS: "
-        f"package={summary.package_version} "
+        f"product={summary.product_version} "
         f"profiles={len(summary.profiles)} "
         f"manifest={summary.artifact_manifest_sha}"
     )

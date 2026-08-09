@@ -3,86 +3,85 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import stat
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from gauntlet.artifact_contracts import (
+    ArtifactError,
+    ArtifactManifest,
+    ArtifactRecord,
+    read_stable_artifact,
+)
 from gauntlet.json_io import JsonFileError, atomic_write_json, load_json_object
-from gauntlet.package_archives import PackageArchiveError, validate_package_archive
+from gauntlet.package_archives import (
+    inspect_package_archive,
+    validate_artifact_filename,
+)
+from gauntlet.package_contracts import (
+    PACKAGE_NAMES,
+    SUPPORTED_ARTIFACT_TYPES,
+    PackageArchiveError,
+    PackageIdentity,
+)
+from gauntlet.package_versions import is_strict_semver
 from gauntlet.receipts import content_hash
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-_ROOT_KEYS = {"schema_version", "head_sha", "package_version", "artifacts", "manifest_sha"}
-_ARTIFACT_KEYS = {"type", "filename", "sha256", "size_bytes"}
-_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+_ROOT_KEYS = {"schema_version", "head_sha", "product_version", "artifacts", "manifest_sha"}
+_ARTIFACT_KEYS = {
+    "type",
+    "filename",
+    "package_name",
+    "package_version",
+    "archive_sha256",
+    "content_sha256",
+    "size_bytes",
+}
+_PRODUCT_VERSION_TYPES = frozenset({"python_wheel", "unity_editor_upm"})
 _SHA_PATTERN = re.compile(r"^[0-9a-f]+$")
-_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 _MAX_ARTIFACT_BYTES = 256 * 1024 * 1024
-
-
-class ArtifactError(ValueError):
-    """Raised when staged release artifact identity is not provable."""
-
-
-@dataclass(frozen=True, slots=True)
-class ArtifactRecord:
-    artifact_type: str
-    filename: str
-    sha256: str
-    size_bytes: int
-
-
-@dataclass(frozen=True, slots=True)
-class ArtifactManifest:
-    head_sha: str
-    package_version: str
-    artifacts: tuple[ArtifactRecord, ...]
-    manifest_sha: str
-
-    @property
-    def artifact_digests(self) -> dict[str, str]:
-        return {record.artifact_type: record.sha256 for record in self.artifacts}
 
 
 def build_artifact_manifest(
     head_sha: str,
-    package_version: str,
+    product_version: str,
     artifacts: Mapping[str, Path],
 ) -> ArtifactManifest:
     _validate_head_sha(head_sha)
-    _validate_package_version(package_version)
-    if not artifacts:
-        raise ArtifactError("artifact mapping must not be empty")
-
-    records: list[ArtifactRecord] = []
+    _validate_version(product_version, "product version")
+    _validate_exact_artifact_set(artifacts)
+    records = []
     filenames: set[str] = set()
     for artifact_type, path in artifacts.items():
-        _validate_id(artifact_type, "artifact type")
         if not path.is_file():
             raise ArtifactError(f"artifact is not a regular file: {path.name}")
         filename = path.name
         _validate_filename(filename)
-        _validate_artifact_filename(artifact_type, filename, package_version)
         if filename in filenames:
             raise ArtifactError(f"duplicate filename: {filename}")
         snapshot = _read_artifact_snapshot(path)
-        _validate_package_archive(artifact_type, snapshot, filename, package_version)
+        identity = _inspect(artifact_type, snapshot, filename)
+        _validate_product_version(artifact_type, identity.package_version, product_version)
         filenames.add(filename)
-        records.append(ArtifactRecord(artifact_type, filename, hashlib.sha256(snapshot).hexdigest(), len(snapshot)))
-
+        records.append(
+            ArtifactRecord(
+                artifact_type,
+                filename,
+                identity.package_name,
+                identity.package_version,
+                hashlib.sha256(snapshot).hexdigest(),
+                identity.content_sha256,
+                len(snapshot),
+            )
+        )
     records.sort(key=lambda record: record.artifact_type)
-    payload = _manifest_payload(head_sha, package_version, tuple(records))
-    return ArtifactManifest(
-        head_sha=head_sha,
-        package_version=package_version,
-        artifacts=tuple(records),
-        manifest_sha=content_hash(payload),
-    )
+    canonical = tuple(records)
+    payload = _manifest_payload(head_sha, product_version, canonical)
+    return ArtifactManifest(head_sha, product_version, canonical, content_hash(payload))
 
 
 def write_artifact_manifest(path: Path, manifest: ArtifactManifest) -> None:
@@ -94,86 +93,120 @@ def load_artifact_manifest(path: Path) -> ArtifactManifest:
         data = load_json_object(path)
     except JsonFileError as exc:
         raise ArtifactError(str(exc)) from exc
-    if set(data) != _ROOT_KEYS:
-        raise ArtifactError("artifact manifest schema mismatch")
-    if data["schema_version"] != 1:
-        raise ArtifactError("unsupported artifact manifest schema")
-    head_sha = data["head_sha"]
-    if not isinstance(head_sha, str):
-        raise ArtifactError("head SHA must be a string")
+    if set(data) != _ROOT_KEYS or data.get("schema_version") != 2:
+        raise ArtifactError("artifact manifest schema mismatch or unsupported version")
+    head_sha = _require_text(data["head_sha"], "head SHA")
     _validate_head_sha(head_sha)
-    package_version = data["package_version"]
-    if not isinstance(package_version, str):
-        raise ArtifactError("package version must be a string")
-    _validate_package_version(package_version)
-    records = _parse_records(data["artifacts"], package_version)
-    payload = _manifest_payload(head_sha, package_version, records)
+    product_version = _require_text(data["product_version"], "product version")
+    _validate_version(product_version, "product version")
+    records = _parse_records(data["artifacts"], product_version)
     supplied_sha = data["manifest_sha"]
-    if supplied_sha != content_hash(payload):
+    _validate_digest(supplied_sha, "manifest")
+    if supplied_sha != content_hash(_manifest_payload(head_sha, product_version, records)):
         raise ArtifactError("artifact manifest digest mismatch")
-    return ArtifactManifest(head_sha, package_version, records, supplied_sha)
+    return ArtifactManifest(head_sha, product_version, records, supplied_sha)
 
 
-def verify_artifact_files(manifest: ArtifactManifest, directory: Path) -> None:
+def verify_artifact_files(manifest: ArtifactManifest, directory: Path) -> dict[str, PackageIdentity]:
+    _validate_manifest_envelope(manifest)
     root = _verified_artifact_root(directory)
+    identities = {}
     for record in manifest.artifacts:
-        _validate_artifact_filename(record.artifact_type, record.filename, manifest.package_version)
+        _validate_record_identity(record, manifest.product_version)
         path = directory / record.filename
         _verify_artifact_path(path, root)
         snapshot = _read_artifact_snapshot(path)
         if len(snapshot) != record.size_bytes:
             raise ArtifactError(f"artifact size mismatch: {record.filename}")
-        if hashlib.sha256(snapshot).hexdigest() != record.sha256:
+        if hashlib.sha256(snapshot).hexdigest() != record.archive_sha256:
             raise ArtifactError(f"artifact digest mismatch: {record.filename}")
-        _validate_package_archive(record.artifact_type, snapshot, record.filename, manifest.package_version)
+        identity = _inspect(record.artifact_type, snapshot, record.filename)
+        if (
+            identity.package_name != record.package_name
+            or identity.package_version != record.package_version
+            or identity.content_sha256 != record.content_sha256
+        ):
+            raise ArtifactError(f"artifact package or content identity mismatch: {record.filename}")
+        identities[record.artifact_type] = identity
+    return identities
 
 
-def _parse_records(value: object, package_version: str) -> tuple[ArtifactRecord, ...]:
-    if not isinstance(value, list) or not value:
-        raise ArtifactError("artifacts must be a non-empty list")
-    records: list[ArtifactRecord] = []
-    types: set[str] = set()
-    filenames: set[str] = set()
+def _validate_manifest_envelope(manifest: ArtifactManifest) -> None:
+    _validate_head_sha(manifest.head_sha)
+    _validate_version(manifest.product_version, "product version")
+    records = manifest.artifacts
+    if len(records) != len(SUPPORTED_ARTIFACT_TYPES):
+        raise ArtifactError("artifact manifest must contain exactly three records")
+    if {record.artifact_type for record in records} != set(SUPPORTED_ARTIFACT_TYPES):
+        raise ArtifactError("artifact manifest contains a duplicate or incomplete type set")
+    if len({record.filename for record in records}) != len(records):
+        raise ArtifactError("artifact manifest contains a duplicate filename")
+    for record in records:
+        _validate_record_identity(record, manifest.product_version)
+    expected = content_hash(_manifest_payload(manifest.head_sha, manifest.product_version, records))
+    if manifest.manifest_sha != expected:
+        raise ArtifactError("artifact manifest digest does not match its in-memory envelope")
+
+
+def _parse_records(value: object, product_version: str) -> tuple[ArtifactRecord, ...]:
+    if not isinstance(value, list):
+        raise ArtifactError("artifacts must be a list")
+    records = []
     for raw in value:
         if not isinstance(raw, dict) or set(raw) != _ARTIFACT_KEYS:
             raise ArtifactError("artifact record schema mismatch")
-        artifact_type = raw["type"]
-        filename = raw["filename"]
-        digest = raw["sha256"]
-        size = raw["size_bytes"]
-        if not isinstance(artifact_type, str):
-            raise ArtifactError("artifact type must be a string")
-        if not isinstance(filename, str):
-            raise ArtifactError("artifact filename must be a string")
-        _validate_id(artifact_type, "artifact type")
-        _validate_filename(filename)
-        _validate_artifact_filename(artifact_type, filename, package_version)
-        _validate_digest(digest)
-        if isinstance(size, bool) or not isinstance(size, int) or size < 0:
-            raise ArtifactError("artifact size must be a non-negative integer")
-        if artifact_type in types or filename in filenames:
-            raise ArtifactError("duplicate artifact type or filename")
-        types.add(artifact_type)
-        filenames.add(filename)
-        records.append(ArtifactRecord(artifact_type, filename, digest, size))
-    records.sort(key=lambda record: record.artifact_type)
-    return tuple(records)
+        record = ArtifactRecord(
+            _require_text(raw["type"], "artifact type"),
+            _require_text(raw["filename"], "artifact filename"),
+            _require_text(raw["package_name"], "artifact package name"),
+            _require_text(raw["package_version"], "artifact package version"),
+            _require_text(raw["archive_sha256"], "artifact archive digest"),
+            _require_text(raw["content_sha256"], "artifact content digest"),
+            _require_size(raw["size_bytes"]),
+        )
+        _validate_record_identity(record, product_version)
+        records.append(record)
+    if len(records) != len(SUPPORTED_ARTIFACT_TYPES):
+        raise ArtifactError("artifact records contain a duplicate or incomplete type set")
+    _validate_exact_artifact_set({record.artifact_type: Path(record.filename) for record in records})
+    if len({record.filename for record in records}) != len(records):
+        raise ArtifactError("duplicate artifact filename")
+    return tuple(sorted(records, key=lambda record: record.artifact_type))
+
+
+def _validate_record_identity(record: ArtifactRecord, product_version: str) -> None:
+    if record.artifact_type not in SUPPORTED_ARTIFACT_TYPES:
+        raise ArtifactError(f"unsupported release artifact type: {record.artifact_type}")
+    _validate_filename(record.filename)
+    _validate_version(record.package_version, "artifact package version")
+    _validate_digest(record.archive_sha256, "artifact archive")
+    _validate_digest(record.content_sha256, "artifact content")
+    if record.package_name != PACKAGE_NAMES[record.artifact_type]:
+        raise ArtifactError("artifact package name does not match its semantic type")
+    _validate_product_version(record.artifact_type, record.package_version, product_version)
+    try:
+        validate_artifact_filename(record.artifact_type, record.filename, record.package_version)
+    except PackageArchiveError as exc:
+        raise ArtifactError(str(exc)) from exc
 
 
 def _manifest_payload(
     head_sha: str,
-    package_version: str,
+    product_version: str,
     records: tuple[ArtifactRecord, ...],
 ) -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "head_sha": head_sha,
-        "package_version": package_version,
+        "product_version": product_version,
         "artifacts": [
             {
                 "type": record.artifact_type,
                 "filename": record.filename,
-                "sha256": record.sha256,
+                "package_name": record.package_name,
+                "package_version": record.package_version,
+                "archive_sha256": record.archive_sha256,
+                "content_sha256": record.content_sha256,
                 "size_bytes": record.size_bytes,
             }
             for record in records
@@ -182,9 +215,24 @@ def _manifest_payload(
 
 
 def _manifest_data(manifest: ArtifactManifest) -> dict[str, object]:
-    data = _manifest_payload(manifest.head_sha, manifest.package_version, manifest.artifacts)
-    data["manifest_sha"] = manifest.manifest_sha
-    return data
+    return {**_manifest_payload(manifest.head_sha, manifest.product_version, manifest.artifacts), "manifest_sha": manifest.manifest_sha}
+
+
+def _inspect(artifact_type: str, snapshot: bytes, filename: str):
+    try:
+        return inspect_package_archive(artifact_type, snapshot, filename)
+    except PackageArchiveError as exc:
+        raise ArtifactError(str(exc)) from exc
+
+
+def _validate_exact_artifact_set(artifacts: Mapping[str, object]) -> None:
+    if set(artifacts) != set(SUPPORTED_ARTIFACT_TYPES) or len(artifacts) != 3:
+        raise ArtifactError("artifact set must contain exactly the three supported package types")
+
+
+def _validate_product_version(artifact_type: str, version: str, product_version: str) -> None:
+    if artifact_type in _PRODUCT_VERSION_TYPES and version != product_version:
+        raise ArtifactError(f"{artifact_type} embedded package version must be {product_version}")
 
 
 def _validate_head_sha(value: str) -> None:
@@ -192,19 +240,14 @@ def _validate_head_sha(value: str) -> None:
         raise ArtifactError("head SHA must contain 40 or 64 hexadecimal characters")
 
 
-def _validate_package_version(value: str) -> None:
-    if not _VERSION_PATTERN.fullmatch(value):
-        raise ArtifactError("package version must use semantic version form")
+def _validate_version(value: str, label: str) -> None:
+    if not is_strict_semver(value):
+        raise ArtifactError(f"{label} must use semantic version form")
 
 
-def _validate_digest(value: object) -> None:
+def _validate_digest(value: object, label: str) -> None:
     if not isinstance(value, str) or len(value) != 64 or not _SHA_PATTERN.fullmatch(value.lower()):
-        raise ArtifactError("artifact digest must contain 64 hexadecimal characters")
-
-
-def _validate_id(value: str, label: str) -> None:
-    if not _ID_PATTERN.fullmatch(value):
-        raise ArtifactError(f"{label} contains unsupported characters")
+        raise ArtifactError(f"{label} digest must contain 64 hexadecimal characters")
 
 
 def _validate_filename(value: str) -> None:
@@ -212,52 +255,20 @@ def _validate_filename(value: str) -> None:
         raise ArtifactError("artifact filename must be a plain basename")
 
 
-def _validate_artifact_filename(
-    artifact_type: str,
-    filename: str,
-    package_version: str,
-) -> None:
-    if artifact_type == "python_wheel":
-        component = r"[0-9A-Za-z_.]+"
-        build = r"(?:-[0-9][0-9A-Za-z_]*)?"
-        pattern = rf"unity_biome_mcp-{re.escape(package_version)}{build}-{component}-{component}-{component}\.whl"
-        if re.fullmatch(pattern, filename) is None:
-            raise ArtifactError("python_wheel artifact filename does not match package identity")
-        return
-    if artifact_type == "unity_upm":
-        if filename != f"unity-biome-mcp-{package_version}.tgz":
-            raise ArtifactError("unity_upm artifact filename does not match package identity")
-        return
-    raise ArtifactError(f"unsupported release artifact type: {artifact_type}")
+def _require_text(value: object, label: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ArtifactError(f"{label} must be a non-empty string")
+    return value
 
 
-def _validate_package_archive(artifact_type: str, snapshot: bytes, filename: str, package_version: str) -> None:
-    try:
-        validate_package_archive(artifact_type, snapshot, filename, package_version)
-    except PackageArchiveError as exc:
-        raise ArtifactError(str(exc)) from exc
+def _require_size(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ArtifactError("artifact size must be a non-negative integer")
+    return value
 
 
 def _read_artifact_snapshot(path: Path) -> bytes:
-    try:
-        with path.open("rb") as stream:
-            opened = path.lstat()
-            try:
-                descriptor = os.fstat(stream.fileno())
-            except OSError as exc:
-                raise ArtifactError(f"artifact descriptor cannot be inspected: {path.name}") from exc
-            if (
-                not stat.S_ISREG(opened.st_mode)
-                or not stat.S_ISREG(descriptor.st_mode)
-                or (opened.st_dev, opened.st_ino) != (descriptor.st_dev, descriptor.st_ino)
-            ):
-                raise ArtifactError(f"artifact is not a stable regular file: {path.name}")
-            snapshot = stream.read(_MAX_ARTIFACT_BYTES + 1)
-    except OSError as exc:
-        raise ArtifactError(f"artifact is not readable: {path.name}") from exc
-    if len(snapshot) > _MAX_ARTIFACT_BYTES:
-        raise ArtifactError(f"artifact exceeds {_MAX_ARTIFACT_BYTES} byte safety limit: {path.name}")
-    return snapshot
+    return read_stable_artifact(path, _MAX_ARTIFACT_BYTES)
 
 
 def _verified_artifact_root(directory: Path) -> Path:
@@ -269,7 +280,6 @@ def _verified_artifact_root(directory: Path) -> Path:
     if not stat.S_ISDIR(metadata.st_mode):
         raise ArtifactError("artifact root must be a real directory")
     return resolved
-
 
 def _verify_artifact_path(path: Path, root: Path) -> None:
     try:

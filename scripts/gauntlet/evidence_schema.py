@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from gauntlet.package_contracts import (
+    PUBLIC_STDIO_ARTIFACT_TYPES,
+    UNITY_EDITOR_ARTIFACT_TYPES,
+)
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -84,14 +89,14 @@ class ProfileRequirement:
             self.unity_version is not None
             or self.plugin_scope != "none"
             or self.required_workers != 0
-            or self.consumed_artifacts != ("python_wheel",)
+            or self.consumed_artifacts != PUBLIC_STDIO_ARTIFACT_TYPES
         ):
             raise EvidenceError("public stdio profile requirement is inconsistent")
         if self.driver == "unity_editor" and (
             self.unity_version is None
             or self.plugin_scope != "exact"
             or self.required_workers < 1
-            or self.consumed_artifacts != ("python_wheel", "unity_upm")
+            or self.consumed_artifacts != UNITY_EDITOR_ARTIFACT_TYPES
         ):
             raise EvidenceError("Unity Editor profile requirement is inconsistent")
         if not self.consumed_artifacts:

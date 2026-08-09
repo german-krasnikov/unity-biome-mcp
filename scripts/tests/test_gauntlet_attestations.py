@@ -114,7 +114,10 @@ def test_worker_and_cleanup_receipts_require_authoritative_clean_state() -> None
             "os": "macos",
             "unity": "6000.0.65f1",
             "plugin_scope": "exact",
-            "loaded_artifacts": {"unity_upm": "d" * 64},
+            "loaded_artifacts": {
+                "unity_editor_upm": "d" * 64,
+                "unity_reload_upm": "e" * 64,
+            },
             "clean_before": True,
         },
     )

@@ -12,6 +12,10 @@ from typing import TYPE_CHECKING
 
 from gauntlet.git_process import git_command, git_environment
 from gauntlet.receipts import content_hash
+from gauntlet.source_package_contents import (
+    SourcePackageContentError,
+    observe_package_content_digests,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -29,6 +33,7 @@ class SourceObservation:
     tree_sha: str
     file_digests: Mapping[str, str]
     file_payloads: Mapping[str, bytes]
+    package_content_digests: Mapping[str, str]
     observation_sha: str
 
 
@@ -37,6 +42,7 @@ def observe_source_checkout(
     *,
     expected_head_sha: str,
     required_paths: Sequence[str],
+    package_content_roots: Mapping[str, tuple[str, str]] | None = None,
 ) -> SourceObservation:
     """Observe HEAD and required tracked bytes without trusting caller claims."""
     resolved_root = _validate_root(root)
@@ -63,6 +69,14 @@ def observe_source_checkout(
         payload = _read_blob_at_head(resolved_root, head_sha, relative)
         file_digests[relative] = hashlib.sha256(payload).hexdigest()
         file_payloads[relative] = payload
+    try:
+        package_content_digests = observe_package_content_digests(
+            resolved_root,
+            head_sha,
+            package_content_roots or {},
+        )
+    except SourcePackageContentError as exc:
+        raise SourceProvenanceError(str(exc)) from exc
 
     if _git(resolved_root, "rev-parse", "HEAD") != head_sha:
         raise SourceProvenanceError("Git HEAD changed during source observation")
@@ -75,6 +89,7 @@ def observe_source_checkout(
             "head_sha": head_sha,
             "tree_sha": tree_sha,
             "file_digests": file_digests,
+            "package_content_digests": package_content_digests,
         }
     )
     return SourceObservation(
@@ -82,6 +97,7 @@ def observe_source_checkout(
         tree_sha,
         MappingProxyType(file_digests),
         MappingProxyType(file_payloads),
+        MappingProxyType(package_content_digests),
         observation_sha,
     )
 
@@ -158,6 +174,7 @@ def _git(root: Path, *arguments: str) -> str:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=30,
             env=git_environment(),
         )

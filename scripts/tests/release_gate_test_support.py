@@ -3,21 +3,19 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from gauntlet.artifacts import build_artifact_manifest, write_artifact_manifest
 from gauntlet.attestations import build_file_reference, build_receipt
-from gauntlet.evidence_schema import evidence_hash, run_manifest_hash
+from gauntlet.evidence_schema import run_manifest_hash
 from gauntlet.release_evidence import build_conformance_evidence, write_conformance_evidence
 from gauntlet.release_gate import validate_release_gate
 from gauntlet_test_fixtures import (
     write_attested_junit,
     write_complete_journal,
     write_json,
-    write_upm,
-    write_wheel,
+    write_release_artifacts,
 )
 from release_source_test_support import HARNESS_LOCK_RELATIVE, prepare_source
 
@@ -39,13 +37,23 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
+def prepare_bundle(
+    tmp_path: Path,
+    *,
+    source_reload_version: str = "0.1.4",
+    source_reload_name: str = "com.unity-biome-mcp.reload",
+    source_python_payload: str = "__version__ = 'test'\n",
+    artifact_mutator: Callable[[dict[str, Path]], None] | None = None,
+) -> dict[str, Path]:
     tmp_path.mkdir(parents=True, exist_ok=True)
     source = prepare_source(
         tmp_path / "source",
         version=VERSION,
         profile_id=PROFILE_ID,
         scenarios=SCENARIOS,
+        reload_version=source_reload_version,
+        reload_name=source_reload_name,
+        python_package_payload=source_python_payload,
     )
     policy = source.policy
     catalog = source.catalog
@@ -53,15 +61,13 @@ def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
     head_sha = source.head_sha
 
     artifact_root = tmp_path / "artifacts"
-    artifact_root.mkdir()
-    wheel = artifact_root / "unity_biome_mcp-1.27.0-py3-none-any.whl"
-    upm = artifact_root / "unity-biome-mcp-1.27.0.tgz"
-    write_wheel(wheel, VERSION)
-    write_upm(upm, VERSION)
+    artifact_paths = write_release_artifacts(artifact_root, VERSION)
+    if artifact_mutator is not None:
+        artifact_mutator(artifact_paths)
     manifest = build_artifact_manifest(
         head_sha,
         VERSION,
-        {"python_wheel": wheel, "unity_upm": upm},
+        artifact_paths,
     )
     manifest_path = artifact_root / "artifact-manifest.json"
     write_artifact_manifest(manifest_path, manifest)
@@ -88,7 +94,9 @@ def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
         "manifest": manifest_path,
         "artifact_root": artifact_root,
         "harness_lock": source.harness_lock_path,
-        "wheel": wheel,
+        "wheel": artifact_paths["python_wheel"],
+        "editor_upm": artifact_paths["unity_editor_upm"],
+        "reload_upm": artifact_paths["unity_reload_upm"],
         "bundle": bundle,
         "junit": bundle / "junit.xml",
         "journal": bundle / "journal.jsonl",
@@ -169,65 +177,6 @@ def read_head(paths: dict[str, Path]) -> str:
     return paths["head"].read_text(encoding="ascii")
 
 
-def mutate_evidence(path: Path, mutate: Callable[[dict[str, object]], None]) -> None:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    mutate(data)
-    data.pop("evidence_hash")
-    data["evidence_hash"] = evidence_hash(data)
-    path.write_text(json.dumps(data), encoding="utf-8")
-
-
-def rewrite_receipt(
-    paths: dict[str, Path],
-    path_key: str,
-    kind: str,
-    updates: dict[str, object],
-) -> None:
-    path = paths[path_key]
-    raw = json.loads(path.read_text(encoding="utf-8"))
-    fields = {key: value for key, value in raw.items() if key not in {"schema_version", "kind", "receipt_hash"}}
-    fields.update(updates)
-    write_json(path, build_receipt(kind, fields))
-    reference = build_file_reference(path, paths["bundle"]).as_dict()
-
-    def update(data: dict[str, object]) -> None:
-        artifacts = data["evidence_artifacts"]
-        assert isinstance(artifacts, dict)
-        if path_key == "runtime":
-            artifacts["runtime"] = reference
-        elif path_key == "worker":
-            artifacts["workers"] = [reference]
-        else:
-            cleanup = artifacts["cleanup"]
-            assert isinstance(cleanup, list)
-            index = 0 if path_key == "cleanup_process" else 1
-            cleanup[index] = reference
-
-    mutate_evidence(paths["evidence"], update)
-
-
-def refresh_junit_and_runtime(paths: dict[str, Path]) -> None:
-    rewrite_receipt(paths, "runtime", "runtime", {"junit_sha": sha256(paths["junit"])})
-
-    def update(data: dict[str, object]) -> None:
-        artifacts = data["evidence_artifacts"]
-        assert isinstance(artifacts, dict)
-        artifacts["junit"] = build_file_reference(paths["junit"], paths["bundle"]).as_dict()
-
-    mutate_evidence(paths["evidence"], update)
-
-
-def refresh_journal_and_runtime(paths: dict[str, Path]) -> None:
-    rewrite_receipt(paths, "runtime", "runtime", {"journal_sha": sha256(paths["journal"])})
-
-    def update(data: dict[str, object]) -> None:
-        artifacts = data["evidence_artifacts"]
-        assert isinstance(artifacts, dict)
-        artifacts["journal"] = build_file_reference(paths["journal"], paths["bundle"]).as_dict()
-
-    mutate_evidence(paths["evidence"], update)
-
-
 def _write_run_receipts(
     paths: dict[str, Path],
     artifact_digests: dict[str, str],
@@ -268,7 +217,10 @@ def _write_run_receipts(
                 "os": "linux",
                 "unity": "6000.0.65f1",
                 "plugin_scope": "exact",
-                "loaded_artifacts": {"unity_upm": artifact_digests["unity_upm"]},
+                "loaded_artifacts": {
+                    "unity_editor_upm": artifact_digests["unity_editor_upm"],
+                    "unity_reload_upm": artifact_digests["unity_reload_upm"],
+                },
                 "clean_before": True,
             },
         ),

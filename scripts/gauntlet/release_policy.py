@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 
 from gauntlet.evidence_schema import ProfileRequirement
 from gauntlet.json_io import JsonFileError, load_json_object, parse_json_object
-from gauntlet.package_archives import SUPPORTED_ARTIFACT_TYPES
+from gauntlet.package_contracts import SUPPORTED_ARTIFACT_TYPES
+from gauntlet.package_versions import is_strict_semver
 from gauntlet.policy_fields import (
     PolicyError,
     require_digest,
@@ -25,11 +26,10 @@ from gauntlet.receipts import content_hash
 
 if TYPE_CHECKING:
     from pathlib import Path
-
 _ROOT_KEYS = {
     "schema_version",
     "policy_version",
-    "activation_package_version",
+    "activation_product_version",
     "harness_lock_path",
     "contract_catalog_path",
     "contract_catalog_sha",
@@ -110,7 +110,7 @@ class ProfilePolicy:
 @dataclass(frozen=True, slots=True)
 class ReleasePolicy:
     policy_version: str
-    activation_package_version: str
+    activation_product_version: str
     harness_lock_path: str
     contract_catalog_path: str
     contract_catalog_sha: str
@@ -145,14 +145,15 @@ def parse_release_policy(data: bytes, *, source: str) -> ReleasePolicy:
 
 def _parse_release_policy(data: dict[str, object]) -> ReleasePolicy:
     require_exact_keys(data, _ROOT_KEYS, "release policy schema")
-    if data["schema_version"] != 2:
+    if data["schema_version"] != 3:
         raise PolicyError("unsupported release policy schema version")
-
     policy_version = require_text(data["policy_version"], "policy version")
     activation_version = require_text(
-        data["activation_package_version"],
-        "activation package version",
+        data["activation_product_version"],
+        "activation product version",
     )
+    if not is_strict_semver(activation_version):
+        raise PolicyError("activation product version must use semantic version form")
     harness_lock_path = require_repo_path(data["harness_lock_path"], "harness lock path")
     contract_catalog_path = require_repo_path(
         data["contract_catalog_path"],
@@ -161,7 +162,7 @@ def _parse_release_policy(data: dict[str, object]) -> ReleasePolicy:
     contract_catalog_sha = require_digest(data["contract_catalog_sha"], "contract catalog digest")
     artifact_types = require_unique_ids(data["artifact_types"], "artifact types")
     if set(artifact_types) != set(SUPPORTED_ARTIFACT_TYPES):
-        raise PolicyError("release policy requires exactly the supported wheel and UPM artifacts")
+        raise PolicyError("release policy requires exactly the wheel and both supported UPM artifacts")
     profiles = _parse_profiles(data["profiles"])
     if not any(profile.active for profile in profiles):
         raise PolicyError("release policy must contain at least one active profile")
@@ -176,7 +177,7 @@ def _parse_release_policy(data: dict[str, object]) -> ReleasePolicy:
 
     return ReleasePolicy(
         policy_version=policy_version,
-        activation_package_version=activation_version,
+        activation_product_version=activation_version,
         harness_lock_path=harness_lock_path,
         contract_catalog_path=contract_catalog_path,
         contract_catalog_sha=contract_catalog_sha,

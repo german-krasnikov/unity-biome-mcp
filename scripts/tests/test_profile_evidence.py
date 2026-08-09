@@ -30,7 +30,11 @@ RUN_ID = "run-public-stdio"
 RUN_MANIFEST_SHA = "a" * 64
 SCENARIOS = ("tests.contracts::test_stdio",)
 PYTEST_NODES = ("server/tests/contracts/test_stdio.py::test_stdio",)
-ARTIFACTS = {"python_wheel": "b" * 64, "unity_upm": "c" * 64}
+ARTIFACTS = {
+    "python_wheel": "b" * 64,
+    "unity_editor_upm": "c" * 64,
+    "unity_reload_upm": "d" * 64,
+}
 
 
 def _sha(path: Path) -> str:
