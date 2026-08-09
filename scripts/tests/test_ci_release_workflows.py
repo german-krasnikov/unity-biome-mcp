@@ -48,3 +48,9 @@ def test_conformance_workflow_runs_tracked_attested_public_profile() -> None:
     assert "scripts/attested_conformance_runner.py" in text
     assert "--policy scripts/gauntlet/release-policy.json" in text
     assert "--profile public-stdio-linux-py312" in text
+
+
+def test_unity_tests_workflow_triggers_on_playtest_corpus() -> None:
+    text = _workflow("unity-tests.yml")
+
+    assert '"unity-test-project/Playtests/**"' in text

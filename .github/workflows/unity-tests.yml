@@ -6,12 +6,14 @@ on:
     paths:
       - "unity-plugin/**"
       - "unity-test-project/**"
+      - "unity-test-project/Playtests/**"
       - ".github/workflows/unity-tests.yml"
   pull_request:
     branches: [master]
     paths:
       - "unity-plugin/**"
       - "unity-test-project/**"
+      - "unity-test-project/Playtests/**"
       - ".github/workflows/unity-tests.yml"
   workflow_dispatch:
 
@@ -224,4 +226,3 @@ jobs:
           git commit -m "chore: update C# test results [skip ci]"
           git pull --rebase -X theirs origin master
           git push
-
