@@ -55,3 +55,8 @@ def test_record_flag_passes_env_var(tmp_path):
     env = conformance_runner.build_env(args)
     assert env["UNITY_MCP_TRACE_FILE"] == "trace.jsonl"
     assert env["UNITY_MCP_PORT"] == "9500"
+
+
+def test_default_conformance_marker_excludes_graphics_lane():
+    assert "requires_graphics" in conformance_runner.DEFAULT_MARKERS
+    assert "not requires_graphics" in conformance_runner.DEFAULT_MARKERS

@@ -56,6 +56,7 @@ markers = [
     "live_chat: requires running Unity + MCPChatWindow; subset of live",
     "timeout: per-test timeout override (pytest-timeout)",
     "conformance: MCP conformance gate tests — portable across any Unity+MCP endpoint",
+    "requires_graphics: requires a Unity worker with graphics/screenshot support",
     "cross_project: requires two running Unity editors on different ports",
     "slow: tests that take >5s (reload stability, property-based)",
     "perf: performance benchmarks and profiling tests",

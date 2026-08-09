@@ -14,6 +14,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+DEFAULT_MARKERS = "conformance and live and not requires_graphics"
+
 
 def build_env(args) -> dict[str, str]:
     """Build the subprocess environment dict from parsed args."""
@@ -36,7 +38,7 @@ def main() -> int:
     parser.add_argument("--second-port", type=int, default=0, help="Second Unity port for cross-project tests")
     parser.add_argument("--second-project", default="", help="Second Unity project path (Worker B)")
     parser.add_argument("--timeout", type=int, default=300, help="Pytest timeout in seconds (default: 300)")
-    parser.add_argument("--markers", default="conformance and live", help="Pytest marker expression")
+    parser.add_argument("--markers", default=DEFAULT_MARKERS, help="Pytest marker expression")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--record", metavar="FILE", help="Record trace to JSONL file (sets UNITY_MCP_TRACE_FILE)")
     args = parser.parse_args()

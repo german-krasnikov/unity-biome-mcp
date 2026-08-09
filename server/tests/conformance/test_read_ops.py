@@ -55,6 +55,7 @@ async def test_get_console_returns_data(conformance_worker):
     assert "data" in resp
 
 
+@pytest.mark.requires_graphics
 async def test_screenshot_succeeds(conformance_worker):
     """screenshot returns a non-empty response."""
     worker, bridge = conformance_worker
