@@ -39,3 +39,12 @@ def test_conformance_workflow_triggers_on_all_runtime_surfaces() -> None:
         "'.github/workflows/ci-conformance.yml'",
     ):
         assert path in text
+
+
+def test_conformance_workflow_runs_tracked_attested_public_profile() -> None:
+    text = _workflow("ci-conformance.yml")
+
+    assert "attested-public-stdio:" in text
+    assert "scripts/attested_conformance_runner.py" in text
+    assert "--policy scripts/gauntlet/release-policy.json" in text
+    assert "--profile public-stdio-linux-py312" in text

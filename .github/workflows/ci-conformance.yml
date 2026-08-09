@@ -64,10 +64,46 @@ jobs:
           PYTHONWARNDEFAULTENCODING: '1'
         run: python -m pytest tests/ -m "not live and not monkey" -q --timeout=30
 
+  attested-public-stdio:
+    name: Attested public stdio profile
+    runs-on: ubuntu-latest
+    needs: unit-gate
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install server with dev deps
+        run: pip install -e "server[dev]"
+
+      - name: Run attested public stdio profile
+        run: |
+          mkdir -p reports
+          HEAD_SHA=$(git rev-parse HEAD)
+          python scripts/attested_conformance_runner.py \
+            --source-root . \
+            --policy scripts/gauntlet/release-policy.json \
+            --expected-head "$HEAD_SHA" \
+            --profile public-stdio-linux-py312 \
+            --junit reports/attested-public-stdio.xml \
+            --timeout 120
+
+      - name: Upload attested profile evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: attested-public-stdio
+          path: reports/attested-public-stdio.xml
+          retention-days: 30
+
   conformance-single:
     name: Conformance (single worker)
     runs-on: self-hosted
-    needs: unit-gate
+    needs: [unit-gate, attested-public-stdio]
     if: vars.CONFORMANCE_PROJECT_PATH != ''
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
@@ -118,7 +154,7 @@ jobs:
   conformance-dual:
     name: Conformance (dual worker)
     runs-on: self-hosted
-    needs: unit-gate
+    needs: [unit-gate, attested-public-stdio]
     if: vars.CONFORMANCE_SECOND_PROJECT_PATH != ''
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
