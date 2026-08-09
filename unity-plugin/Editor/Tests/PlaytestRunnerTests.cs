@@ -788,7 +788,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Run_ParseError_CleansTransientPlaytestState()
+        public async Task Run_ParseError_CleansTransientPlaytestState()
         {
             RegisterCleanup(() =>
             {
@@ -804,14 +804,14 @@ namespace UnityMCP.Editor.Tests
             PlaytestRunner.Run("INCLUDE missing.defs\nASSERT /X|C|f == 1", 1f, tcs, fresh: true);
 
             Assert.IsTrue(tcs.Task.IsCompleted);
-            StringAssert.StartsWith("PARSE ERROR:", tcs.Task.Result);
+            StringAssert.StartsWith("PARSE ERROR:", await tcs.Task);
             Assert.AreEqual(1f, Time.timeScale);
             Assert.AreEqual(0, PlaytestMonitorRegistry.ActiveCount);
             Assert.IsFalse(PlaytestRunner.ShouldStartFreshLoad);
         }
 
         [Test]
-        public void Run_ZeroSteps_CleansTransientPlaytestState()
+        public async Task Run_ZeroSteps_CleansTransientPlaytestState()
         {
             RegisterCleanup(() =>
             {
@@ -827,7 +827,7 @@ namespace UnityMCP.Editor.Tests
             PlaytestRunner.Run("# empty playtest", 1f, tcs, fresh: true);
 
             Assert.IsTrue(tcs.Task.IsCompleted);
-            Assert.AreEqual("PLAYTEST: 0 steps (0s)", tcs.Task.Result);
+            Assert.AreEqual("PLAYTEST: 0 steps (0s)", await tcs.Task);
             Assert.AreEqual(1f, Time.timeScale);
             Assert.AreEqual(0, PlaytestMonitorRegistry.ActiveCount);
             Assert.IsFalse(PlaytestRunner.ShouldStartFreshLoad);
