@@ -765,5 +765,33 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(PlaytestRunner.ShouldStartFreshLoad,
                 "Fresh load should start when fresh mode is on and no load is in progress");
         }
+
+        [Test]
+        public void CompleteRunCleanup_ResetsTransientPlaytestState()
+        {
+            RegisterCleanup(() =>
+            {
+                Time.timeScale = 1f;
+                PlaytestMonitorRegistry.Reset();
+                PlaytestRunner.SetFreshTestState(false, false, false);
+            });
+            Time.timeScale = 3f;
+            PlaytestMonitorRegistry.InjectForTest(new StubMonitor());
+            PlaytestRunner.SetFreshTestState(freshMode: true, reloadDone: false, loadInProgress: false);
+
+            PlaytestRunner.CompleteRunCleanupForTests();
+
+            Assert.AreEqual(1f, Time.timeScale);
+            Assert.AreEqual(0, PlaytestMonitorRegistry.ActiveCount);
+            Assert.IsFalse(PlaytestRunner.ShouldStartFreshLoad);
+        }
+
+        private sealed class StubMonitor : IPlaytestMonitor
+        {
+            public string Name => "StubMonitorForTest";
+            public void Start() { }
+            public void Stop() { }
+            public string Report() => "stub";
+        }
     }
 }
