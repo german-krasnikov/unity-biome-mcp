@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "catalog_version": "1.0.0",
+  "scope": "builtin",
+  "owner": null,
+  "contracts": [
+    {
+      "id": "mcp-status-read",
+      "action": "mcp_status",
+      "effects": ["pure_read"],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": ["^error:"]
+    }
+  ]
+}
