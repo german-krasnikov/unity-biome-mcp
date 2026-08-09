@@ -92,6 +92,7 @@ def test_player_playtest_workflow_runs_standalone_build_smoke() -> None:
     assert "Build Standalone Player Smoke" in text
     assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" in text
     assert "-ciBuildOutput" in text
+    assert "-ciBuildScene Assets/Scenes/GridTest.unity" in text
     assert "timeout-minutes: 35" in build_block[:300]
     assert "-quit" in build_block[:500]
     assert "player-playtest-${{ matrix.name }}" in text
@@ -115,6 +116,14 @@ def test_player_playtest_workflow_runs_player_playtest_smoke() -> None:
     assert 'find "$PLAYER/Contents/MacOS"' in text
     assert "artifacts/player-playtest.json" in text
     assert "artifacts/player-playtest.xml" in text
+
+
+def test_player_playtest_workflow_triggers_on_text_mode_fixture_changes() -> None:
+    text = _workflow("unity-player-playtest.yml")
+
+    assert '"unity-test-project/Assets/Scenes/**"' in text
+    assert '"unity-test-project/Assets/Scripts/**"' in text
+    assert '"unity-test-project/Assets/StreamingAssets/**"' in text
 
 
 def test_player_playtest_workflow_validates_player_playtest_receipts() -> None:

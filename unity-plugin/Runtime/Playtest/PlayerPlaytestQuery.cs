@@ -17,12 +17,77 @@ namespace UnityMCP.Playtest
                     continue;
                 var query = expression.Substring(0, index).Trim();
                 var expected = expression.Substring(index + op.Length).Trim();
-                var actual = ReadQuery(query);
-                return Compare(actual, op.Trim(), expected)
-                    ? StepResult.Pass(step, $"{actual} {op.Trim()} {expected}")
-                    : StepResult.Fail(step, $"actual={actual}, expected {op.Trim()} {expected}");
+                try
+                {
+                    var actual = ReadQuery(query);
+                    return Compare(actual, op.Trim(), expected)
+                        ? StepResult.Pass(step, $"{actual} {op.Trim()} {expected}")
+                        : StepResult.Fail(step, $"actual={actual}, expected {op.Trim()} {expected}");
+                }
+                catch (Exception e)
+                {
+                    return StepResult.Fail(step, e.Message);
+                }
             }
             return StepResult.Fail(step, "missing comparison operator");
+        }
+
+        private static StepResult ExecuteSnapshot(string step)
+        {
+            var queries = step.Substring("SNAPSHOT ".Length).Split(',');
+            var parts = new string[queries.Length];
+            for (var i = 0; i < queries.Length; i++)
+            {
+                var query = queries[i].Trim();
+                try
+                {
+                    parts[i] = query + "=" + ReadQuery(query);
+                }
+                catch (Exception e)
+                {
+                    return StepResult.Fail(step, e.Message);
+                }
+            }
+            return StepResult.Pass(step, string.Join(";", parts));
+        }
+
+        private static StepResult ExecuteInvoke(string step)
+        {
+            var tokens = SplitWords(step);
+            if (tokens.Length < 4)
+                return StepResult.Fail(step, "INVOKE syntax: INVOKE /path Component Method [args]");
+
+            try
+            {
+                var component = FindComponent(FindObject(tokens[1]), tokens[2]);
+                var result = InvokeBestMatch(component, tokens[3], tokens, 4);
+                if (result is string message && message.StartsWith("error:", StringComparison.OrdinalIgnoreCase))
+                    return StepResult.Fail(step, message);
+                return StepResult.Pass(step, FormatValue(result));
+            }
+            catch (Exception e)
+            {
+                return StepResult.Fail(step, e.Message);
+            }
+        }
+
+        private static StepResult ExecuteSet(string step)
+        {
+            var tokens = SplitWords(step);
+            if (tokens.Length < 5)
+                return StepResult.Fail(step, "SET syntax: SET /path Component field value");
+
+            try
+            {
+                var component = FindComponent(FindObject(tokens[1]), tokens[2]);
+                var value = string.Join(" ", tokens, 4, tokens.Length - 4);
+                SetMember(component, tokens[3], value);
+                return StepResult.Pass(step, $"{tokens[3]}={value}");
+            }
+            catch (Exception e)
+            {
+                return StepResult.Fail(step, e.Message);
+            }
         }
 
         private static string ReadQuery(string query)
@@ -94,6 +159,74 @@ namespace UnityMCP.Playtest
                     return component;
             }
             throw new InvalidOperationException("component not found: " + componentName);
+        }
+
+        private static object InvokeBestMatch(Component component, string methodName, string[] tokens, int firstArg)
+        {
+            var type = component.GetType();
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            foreach (var method in type.GetMethods(flags))
+            {
+                var parameters = method.GetParameters();
+                if (!string.Equals(method.Name, methodName, StringComparison.Ordinal) ||
+                    parameters.Length != tokens.Length - firstArg)
+                {
+                    continue;
+                }
+
+                var args = ConvertArguments(tokens, firstArg, parameters);
+                return method.Invoke(component, args);
+            }
+            throw new InvalidOperationException($"method not found: {type.Name}.{methodName}");
+        }
+
+        private static object[] ConvertArguments(string[] tokens, int firstArg, ParameterInfo[] parameters)
+        {
+            var args = new object[parameters.Length];
+            for (var i = 0; i < parameters.Length; i++)
+                args[i] = ConvertValue(tokens[firstArg + i], parameters[i].ParameterType);
+            return args;
+        }
+
+        private static void SetMember(Component component, string memberName, string rawValue)
+        {
+            var type = component.GetType();
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var property = type.GetProperty(memberName, flags);
+            if (property != null && property.CanWrite && property.GetIndexParameters().Length == 0)
+            {
+                property.SetValue(component, ConvertValue(rawValue, property.PropertyType));
+                return;
+            }
+            var field = type.GetField(memberName, flags);
+            if (field != null)
+            {
+                field.SetValue(component, ConvertValue(rawValue, field.FieldType));
+                return;
+            }
+            throw new InvalidOperationException($"member not settable: {type.Name}.{memberName}");
+        }
+
+        private static object ConvertValue(string raw, Type targetType)
+        {
+            if (targetType == typeof(string))
+                return raw;
+            if (targetType == typeof(bool))
+                return bool.Parse(raw);
+            if (targetType == typeof(int))
+                return int.Parse(raw, CultureInfo.InvariantCulture);
+            if (targetType == typeof(float))
+                return float.Parse(raw, CultureInfo.InvariantCulture);
+            if (targetType == typeof(double))
+                return double.Parse(raw, CultureInfo.InvariantCulture);
+            if (targetType.IsEnum)
+                return Enum.Parse(targetType, raw, true);
+            return Convert.ChangeType(raw, targetType, CultureInfo.InvariantCulture);
+        }
+
+        private static string[] SplitWords(string step)
+        {
+            return step.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         }
 
         private static bool Compare(string actual, string op, string expected)

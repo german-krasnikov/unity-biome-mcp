@@ -7,6 +7,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLAYTEST_ROOT = REPO_ROOT / "unity-test-project" / "Playtests"
 CI_BUILD_SMOKE = REPO_ROOT / "unity-test-project" / "Assets" / "Editor" / "CiBuildSmoke.cs"
+GRID_PLAYER = REPO_ROOT / "unity-test-project" / "Assets" / "Scripts" / "GridPlayer.cs"
+GRID_TEST_SCENE = REPO_ROOT / "unity-test-project" / "Assets" / "Scenes" / "GridTest.unity"
 PLAYER_PLAYTEST = (
     REPO_ROOT
     / "unity-test-project"
@@ -44,14 +46,28 @@ def test_unity_test_project_has_standalone_build_smoke_method() -> None:
     assert "public static void Build()" in text
     assert "BuildPipeline.BuildPlayer" in text
     assert "ciBuildOutput" in text
+    assert "ciBuildScene" in text
+    assert GRID_TEST_SCENE.exists()
 
 
 def test_unity_test_project_has_player_playtest_corpus() -> None:
     text = PLAYER_PLAYTEST.read_text(encoding="utf-8")
 
-    assert "WAIT_UNTIL /Main Camera|activeInHierarchy == True" in text
-    assert "ASSERT /Main Camera|Camera|enabled == True" in text
+    assert "Main Camera" not in text
+    assert "GridPlayer" in text
+    assert "INVOKE /GridPlayer GridPlayer ResetState" in text
+    assert "SET /GridPlayer GridPlayer MoveSpeed 50" in text
+    assert "INVOKE /GridPlayer GridPlayer Move north" in text
+    assert "ASSERT /GridPlayer|GridPlayer|StateText contains pos=0,1" in text
+    assert "SNAPSHOT /GridPlayer|GridPlayer|StateText,/GridPlayer|GridPlayer|BoardText" in text
     assert "ASSERT_CONSOLE_CLEAN" in text
+
+
+def test_grid_player_exposes_text_mode_state_for_ci_playtest() -> None:
+    text = GRID_PLAYER.read_text(encoding="utf-8")
+
+    assert "public string StateText" in text
+    assert "public string BoardText" in text
 
 
 def test_unity_plugin_has_runtime_player_playtest_runner() -> None:
@@ -68,7 +84,13 @@ def test_unity_plugin_has_runtime_player_playtest_runner() -> None:
     assert "<testsuite name=\\\"UnityMCP.PlayerPlaytest\\\" tests=\\\"" in receipts
     assert "WAIT_UNTIL " in runner
     assert "ASSERT " in runner
+    assert "TIMESCALE " in runner
+    assert "INVOKE " in runner
+    assert "SET " in runner
+    assert "SNAPSHOT " in runner
     assert "ReadComponentValue" in query
+    assert "ExecuteInvoke" in query
+    assert "ExecuteSet" in query
     assert '"autoReferenced": true' in asmdef
 
 

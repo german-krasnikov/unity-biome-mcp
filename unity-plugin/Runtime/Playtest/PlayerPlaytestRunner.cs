@@ -69,6 +69,7 @@ namespace UnityMCP.Playtest
                 }
             }
 
+            Time.timeScale = 1f;
             Application.logMessageReceived -= OnLog;
             var duration = (DateTime.UtcNow - started).TotalSeconds;
             WriteReceipts(failed, duration);
@@ -87,6 +88,26 @@ namespace UnityMCP.Playtest
             if (step.StartsWith("WAIT ", StringComparison.OrdinalIgnoreCase))
             {
                 yield return Wait(step);
+                yield break;
+            }
+            if (step.StartsWith("TIMESCALE ", StringComparison.OrdinalIgnoreCase))
+            {
+                _results.Add(ExecuteTimescale(step));
+                yield break;
+            }
+            if (step.StartsWith("INVOKE ", StringComparison.OrdinalIgnoreCase))
+            {
+                _results.Add(ExecuteInvoke(step));
+                yield break;
+            }
+            if (step.StartsWith("SET ", StringComparison.OrdinalIgnoreCase))
+            {
+                _results.Add(ExecuteSet(step));
+                yield break;
+            }
+            if (step.StartsWith("SNAPSHOT ", StringComparison.OrdinalIgnoreCase))
+            {
+                _results.Add(ExecuteSnapshot(step));
                 yield break;
             }
             if (step.Equals("ASSERT_CONSOLE_CLEAN", StringComparison.OrdinalIgnoreCase))
@@ -120,6 +141,21 @@ namespace UnityMCP.Playtest
             while (Time.realtimeSinceStartup < end)
                 yield return null;
             _results.Add(StepResult.Pass(step, "waited"));
+        }
+
+        private static StepResult ExecuteTimescale(string step)
+        {
+            if (!float.TryParse(
+                    step.Substring("TIMESCALE ".Length).Trim(),
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var scale))
+            {
+                return StepResult.Fail(step, "invalid TIMESCALE value");
+            }
+
+            Time.timeScale = scale;
+            return StepResult.Pass(step, $"timeScale={scale.ToString(CultureInfo.InvariantCulture)}");
         }
 
         private IEnumerator WaitUntil(string step)

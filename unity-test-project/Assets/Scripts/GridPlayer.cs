@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Text;
 using UnityEngine;
 
 public class GridPlayer : MonoBehaviour
@@ -91,6 +92,37 @@ public class GridPlayer : MonoBehaviour
                 c.gameObject.SetActive(false);
             }
         }
+    }
+
+    public string StateText =>
+        $"pos={PosX},{PosZ};score={Score};moves={MoveCount};moving={IsMoving};grid={GridSize}";
+
+    public string BoardText()
+    {
+        var builder = new StringBuilder(GridSize * (GridSize + 1));
+        for (var z = GridSize - 1; z >= 0; z--)
+        {
+            if (z < GridSize - 1)
+                builder.Append('/');
+            for (var x = 0; x < GridSize; x++)
+                builder.Append(CellAt(x, z));
+        }
+        return builder.ToString();
+    }
+
+    char CellAt(int x, int z)
+    {
+        if (x == PosX && z == PosZ)
+            return 'P';
+        foreach (var collectible in FindObjectsOfType<Collectible>(true))
+        {
+            if (!collectible.gameObject.activeInHierarchy)
+                continue;
+            var position = collectible.transform.position;
+            if (Mathf.RoundToInt(position.x) == x && Mathf.RoundToInt(position.z) == z)
+                return 'C';
+        }
+        return '.';
     }
 
     void SyncPosition() => transform.position = new Vector3(PosX, transform.position.y, PosZ);

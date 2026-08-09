@@ -12,7 +12,7 @@ namespace UnityMCP.CI
         {
             var target = EditorUserBuildSettings.activeBuildTarget;
             var output = GetArgument("-ciBuildOutput") ?? DefaultOutput(target);
-            var scenes = EnabledScenes();
+            var scenes = SelectedScenes(GetArgument("-ciBuildScene"));
 
             Directory.CreateDirectory(Path.GetDirectoryName(output) ?? ".");
 
@@ -35,6 +35,18 @@ namespace UnityMCP.CI
             {
                 throw new FileNotFoundException($"Build output missing: {summary.outputPath}");
             }
+        }
+
+        private static string[] SelectedScenes(string explicitScene)
+        {
+            if (!string.IsNullOrWhiteSpace(explicitScene))
+            {
+                if (!File.Exists(explicitScene))
+                    throw new FileNotFoundException($"Build scene missing: {explicitScene}");
+                return new[] { explicitScene };
+            }
+
+            return EnabledScenes();
         }
 
         private static string[] EnabledScenes()

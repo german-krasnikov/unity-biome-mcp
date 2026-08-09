@@ -1,6 +1,15 @@
-# Minimal built-player PlayTest smoke.
-LOG Player PlayTest CI smoke started
-WAIT_UNTIL /Main Camera|activeInHierarchy == True TIMEOUT 5
-ASSERT /Main Camera|Camera|enabled == True
-WAIT 0.1
+# Minimal built-player text-mode gameplay smoke.
+LOG Player PlayTest CI GridDemo smoke started
+TIMESCALE 10
+INVOKE /GridPlayer GridPlayer ResetState
+SET /GridPlayer GridPlayer MoveSpeed 50
+ASSERT /GridPlayer|GridPlayer|StateText contains pos=0,0
+INVOKE /GridPlayer GridPlayer Move north
+WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+ASSERT /GridPlayer|GridPlayer|PosZ == 1
+ASSERT /GridPlayer|GridPlayer|MoveCount >= 1
+ASSERT /GridPlayer|GridPlayer|StateText contains pos=0,1
+ASSERT /GridPlayer|GridPlayer|BoardText contains P
+SNAPSHOT /GridPlayer|GridPlayer|StateText,/GridPlayer|GridPlayer|BoardText
+TIMESCALE 1
 ASSERT_CONSOLE_CLEAN

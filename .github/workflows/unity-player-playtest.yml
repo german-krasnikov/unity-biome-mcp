@@ -10,6 +10,8 @@ on:
     paths:
       - "unity-plugin/**"
       - "unity-plugin-reload/**"
+      - "unity-test-project/Assets/Scenes/**"
+      - "unity-test-project/Assets/Scripts/**"
       - "unity-test-project/Assets/StreamingAssets/**"
       - "unity-test-project/Assets/Editor/CiBuildSmoke.cs"
       - "unity-test-project/ProjectSettings/**"
@@ -19,6 +21,8 @@ on:
     paths:
       - "unity-plugin/**"
       - "unity-plugin-reload/**"
+      - "unity-test-project/Assets/Scenes/**"
+      - "unity-test-project/Assets/Scripts/**"
       - "unity-test-project/Assets/StreamingAssets/**"
       - "unity-test-project/Assets/Editor/CiBuildSmoke.cs"
       - "unity-test-project/ProjectSettings/**"
@@ -125,6 +129,7 @@ jobs:
             -quit
             -executeMethod UnityMCP.CI.CiBuildSmoke.Build
             -ciBuildOutput ${{ github.workspace }}/${{ matrix.build-output }}
+            -ciBuildScene Assets/Scenes/GridTest.unity
             -logFile ${{ github.workspace }}/artifacts/player-build.log
 
       - name: Run Player PlayTest Smoke
