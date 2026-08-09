@@ -19,7 +19,6 @@ namespace UnityMCP.Editor
 
         private readonly ClientEntry[] _entries;
         private readonly object _lock = new object();
-        private int _nextReplacementIndex;
 
         // Mutable label — updated by set_client_label command after identification.
         internal volatile string Label;
@@ -31,6 +30,14 @@ namespace UnityMCP.Editor
                 _entries[i] = new ClientEntry();
         }
 
+        private static void CloseClient(TcpClient client)
+        {
+            try { client.Client?.SetSocketOption(
+                    SocketOptionLevel.Socket, SocketOptionName.Linger,
+                    new LingerOption(true, 0)); } catch { }
+            try { client.Close(); } catch { }
+        }
+
         private static bool IsEntryActive(ClientEntry entry)
         {
             var cts = entry.Cts;
@@ -40,6 +47,14 @@ namespace UnityMCP.Editor
         // Returns (index, generation, clientCts) for the new entry
         internal (int index, long generation, CancellationTokenSource clientCts) Add(
             TcpClient client, CancellationToken parentToken)
+        {
+            if (TryAdd(client, parentToken, out var index, out var generation, out var clientCts))
+                return (index, generation, clientCts);
+            throw new InvalidOperationException("Client slot capacity exceeded");
+        }
+
+        internal bool TryAdd(TcpClient client, CancellationToken parentToken,
+            out int index, out long generation, out CancellationTokenSource clientCts)
         {
             lock (_lock)
             {
@@ -54,26 +69,16 @@ namespace UnityMCP.Editor
                         var gen = Interlocked.Increment(ref _entries[i].Generation);
                         _entries[i].Client = client;
                         _entries[i].Cts = cts;
-                        return (i, gen, cts);
+                        index = i;
+                        generation = gen;
+                        clientCts = cts;
+                        return true;
                     }
                 }
-                // Capacity is the only eager-eviction boundary. Replace one entry in
-                // place: handlers retain (index, generation), so shifting entries would
-                // let an older handler's finally block clear a different live client.
-                var replacementIndex = _nextReplacementIndex;
-                _nextReplacementIndex = (_nextReplacementIndex + 1) % MaxClients;
-                var replacement = _entries[replacementIndex];
-                var replacedCts = replacement.Cts;
-                try { replacedCts?.Cancel(); } catch { }
-                try { replacement.Client?.Client?.SetSocketOption(
-                        SocketOptionLevel.Socket, SocketOptionName.Linger,
-                        new LingerOption(true, 0)); } catch { }
-                try { replacement.Client?.Close(); } catch { }
-                var newCts = CancellationTokenSource.CreateLinkedTokenSource(parentToken);
-                var newGen = Interlocked.Increment(ref replacement.Generation);
-                replacement.Client = client;
-                replacement.Cts = newCts;
-                return (replacementIndex, newGen, newCts);
+                index = -1;
+                generation = 0;
+                clientCts = null;
+                return false;
             }
         }
 
@@ -116,10 +121,7 @@ namespace UnityMCP.Editor
                     // Force RST instead of FIN — eliminates TIME_WAIT on Windows.
                     // ExclusiveAddressUse blocks port reuse during TIME_WAIT, causing port drift on reload.
                     // SendGoingAwaySync() is called BEFORE DisconnectAll() so Python gets the frame first.
-                    try { _entries[i].Client?.Client?.SetSocketOption(
-                            SocketOptionLevel.Socket, SocketOptionName.Linger,
-                            new LingerOption(true, 0)); } catch { }
-                    try { _entries[i].Client?.Close(); } catch { }
+                    if (_entries[i].Client != null) CloseClient(_entries[i].Client);
                     _entries[i].Client = null;
                     _entries[i].Cts = null;
                 }
@@ -164,10 +166,7 @@ namespace UnityMCP.Editor
                     if (c != null && !IsEntryActive(entry))
                     {
                         try { _entries[i].Cts?.Cancel(); } catch { }
-                        try { c.Client?.SetSocketOption(
-                                SocketOptionLevel.Socket, SocketOptionName.Linger,
-                                new LingerOption(true, 0)); } catch { }
-                        try { c.Close(); } catch { }
+                        CloseClient(c);
                         _entries[i].Client = null;
                         _entries[i].Cts = null;
                         killed++;
