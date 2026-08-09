@@ -74,6 +74,10 @@ def test_worker_snapshot_pins_tools_and_named_bootstrap(
     ).read_text(encoding="utf-8")
     assert marker["disposable"] is True
     assert marker["utf_version"] == "1.6.0"
+    assert "source_project" not in marker
+    assert "source_repository" not in marker
+    assert len(marker["source_project_sha256"]) == 64
+    assert len(marker["source_repository_sha256"]) == 64
 
 
 def test_worker_snapshot_can_consume_exact_upm_artifacts(

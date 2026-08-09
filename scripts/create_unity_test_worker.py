@@ -197,8 +197,13 @@ def create_worker(
             "schema_version": 1,
             "disposable": True,
             "created_utc": datetime.now(timezone.utc).isoformat(),
-            "source_project": str(source),
-            "source_repository": str(REPO_ROOT),
+            "source_project_sha256": _hash_tree(source),
+            "source_repository_sha256": hashlib.sha256(
+                (
+                    _hash_tree(REPO_ROOT / "unity-plugin")
+                    + _hash_tree(REPO_ROOT / "unity-plugin-reload")
+                ).encode("ascii")
+            ).hexdigest(),
             "unity_version": UNITY_VERSION,
             "unity_revision": UNITY_REVISION,
             "utf_version": UTF_VERSION,
