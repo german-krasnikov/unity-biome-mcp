@@ -54,3 +54,17 @@ def test_unity_tests_workflow_triggers_on_playtest_corpus() -> None:
     text = _workflow("unity-tests.yml")
 
     assert '"unity-test-project/Playtests/**"' in text
+
+
+def test_conformance_workflow_captures_mcp_monitor_reports() -> None:
+    text = _workflow("ci-conformance.yml")
+
+    assert "scripts/monitor_mcp_processes.py --max-version-seconds 60" in text
+    assert "Capture MCP monitor before conformance" in text
+    assert "Capture MCP monitor after conformance" in text
+    assert "Upload MCP monitor reports" in text
+    assert "mcp-monitor-single" in text
+    assert "mcp-monitor-dual" in text
+
+    after_monitor = text[text.index("Capture MCP monitor after conformance") :]
+    assert "if: always()" in after_monitor[:200]

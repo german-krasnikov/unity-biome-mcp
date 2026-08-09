@@ -115,6 +115,12 @@ jobs:
       - name: Install server with dev deps
         run: pip install -e "server[dev]"
 
+      - name: Capture MCP monitor before conformance
+        if: always()
+        run: |
+          mkdir -p reports
+          python scripts/monitor_mcp_processes.py --max-version-seconds 60 > reports/mcp-monitor-before.json || true
+
       - name: Discover Unity port
         id: port
         env:
@@ -151,6 +157,20 @@ jobs:
             --timeout 300 \
             --verbose
 
+      - name: Capture MCP monitor after conformance
+        if: always()
+        run: |
+          mkdir -p reports
+          python scripts/monitor_mcp_processes.py --max-version-seconds 60 > reports/mcp-monitor-after.json || true
+
+      - name: Upload MCP monitor reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: mcp-monitor-single
+          path: reports/mcp-monitor-*.json
+          retention-days: 30
+
   conformance-dual:
     name: Conformance (dual worker)
     runs-on: self-hosted
@@ -165,6 +185,12 @@ jobs:
 
       - name: Install server with dev deps
         run: pip install -e "server[dev]"
+
+      - name: Capture MCP monitor before conformance
+        if: always()
+        run: |
+          mkdir -p reports
+          python scripts/monitor_mcp_processes.py --max-version-seconds 60 > reports/mcp-monitor-before.json || true
 
       - name: Check Unity reachability (both workers)
         id: reachable
@@ -197,3 +223,17 @@ jobs:
             --markers '(conformance and live) or (cross_project and live)' \
             --timeout 300 \
             --verbose
+
+      - name: Capture MCP monitor after conformance
+        if: always()
+        run: |
+          mkdir -p reports
+          python scripts/monitor_mcp_processes.py --max-version-seconds 60 > reports/mcp-monitor-after.json || true
+
+      - name: Upload MCP monitor reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: mcp-monitor-dual
+          path: reports/mcp-monitor-*.json
+          retention-days: 30
