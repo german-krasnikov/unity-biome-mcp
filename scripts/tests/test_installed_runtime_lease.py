@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -36,7 +37,21 @@ from gauntlet.installed_runtime import (  # noqa: E402
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-PRODUCT_VERSION = "1.26.0"
+PYPROJECT = REPO / "server" / "pyproject.toml"
+
+
+def _product_version() -> str:
+    match = re.search(
+        r'^version = "([^"]+)"$',
+        PYPROJECT.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    if match is None:
+        raise AssertionError("server/pyproject.toml does not define a package version")
+    return match.group(1)
+
+
+PRODUCT_VERSION = _product_version()
 REQUIRES_POSIX_SUPERVISOR = pytest.mark.skipif(
     os.name != "posix",
     reason="installed runtime lease currently requires POSIX process-group supervision",
@@ -73,7 +88,7 @@ def test_runtime_install_uses_pip_fallback_when_uv_is_unavailable(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    wheel = tmp_path / "unity_biome_mcp-1.26.0-py3-none-any.whl"
+    wheel = tmp_path / f"unity_biome_mcp-{PRODUCT_VERSION}-py3-none-any.whl"
     wheel.write_bytes(b"wheel")
     expected = hashlib.sha256(wheel.read_bytes()).hexdigest()
     commands: list[tuple[str, ...]] = []

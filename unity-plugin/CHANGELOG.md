@@ -10,6 +10,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.26.1] — 2026-08-09
+
+### Added
+- **Hosted disposable Unity conformance** — the conformance workflow now provisions its own Linux, macOS, and Windows Unity fixture projects on GitHub-hosted runners instead of depending on pre-opened editors.
+- **Batchmode MCP bootstrap guard** — the Unity editor plugin can start in batchmode only when explicitly enabled for CI, with an optional bootstrap scene for deterministic hosted conformance.
+- **Standalone Player PlayTest CI slice** — optional player build/playtest workflow validates the checked-in text-mode GridTest PlayTest corpus and expected-failure receipts.
+
+### Fixed
+- **Unity EditMode CI false-green** — removed the invalid category expression passed through `-testFilter` and made the workflow fail closed when Unity reports zero executed tests.
+- **PlayTest path fixture isolation** — temporary path tests no longer delete the checked-in `Playtests/` corpus during full EditMode runs.
+- **Cross-platform CI process handling** — hosted conformance cleanup and MCP monitor paths now work consistently across macOS, Linux, and Windows.
+
+### Test Coverage
+- **Python CI gate:** Linux/macOS/Windows matrix green on the release feature branch.
+- **Unity EditMode CI gate:** Linux/macOS/Windows matrix green with non-empty test execution.
+- **Hosted conformance gate:** disposable Unity workers green on Linux, macOS, and Windows.
+
 ## [v1.26.0] — 2026-08-08
 
 ### Added

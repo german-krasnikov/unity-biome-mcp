@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -12,6 +13,18 @@ from gauntlet.release_policy import load_release_policy  # noqa: E402
 
 POLICY = SCRIPTS / "gauntlet" / "release-policy.json"
 CATALOG = SCRIPTS / "gauntlet" / "contracts.json"
+PYPROJECT = REPO_ROOT / "server" / "pyproject.toml"
+
+
+def _product_version() -> str:
+    match = re.search(
+        r'^version = "([^"]+)"$',
+        PYPROJECT.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    if match is None:
+        raise AssertionError("server/pyproject.toml does not define a package version")
+    return match.group(1)
 
 
 def test_tracked_release_policy_binds_tracked_contract_catalog() -> None:
@@ -20,7 +33,7 @@ def test_tracked_release_policy_binds_tracked_contract_catalog() -> None:
 
     assert policy.contract_catalog_path == "scripts/gauntlet/contracts.json"
     assert policy.contract_catalog_sha == catalog.catalog_sha
-    assert policy.activation_product_version == "1.26.0"
+    assert policy.activation_product_version == _product_version()
 
 
 def test_tracked_release_policy_defines_public_and_unity_profiles() -> None:
