@@ -104,7 +104,7 @@ jobs:
     name: Conformance (single worker)
     runs-on: self-hosted
     needs: [unit-gate, attested-public-stdio]
-    if: vars.CONFORMANCE_PROJECT_PATH != ''
+    if: vars.CONFORMANCE_PROJECT_PATH != '' || inputs.project_path != ''
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
@@ -118,8 +118,9 @@ jobs:
       - name: Capture MCP monitor before conformance
         if: always()
         run: |
+          set -o pipefail
           mkdir -p reports
-          python scripts/monitor_mcp_processes.py --max-version-seconds 60 > reports/mcp-monitor-before.json || true
+          python scripts/monitor_mcp_processes.py --max-version-seconds 60 | tee reports/mcp-monitor-before.json
 
       - name: Discover Unity port
         id: port
@@ -133,49 +134,39 @@ jobs:
           fi
           echo "port=$PORT" >> "$GITHUB_OUTPUT"
 
-      - name: Check Unity reachability
-        id: reachable
-        env:
-          UNITY_PORT: ${{ steps.port.outputs.port }}
-        run: |
-          if python3 -c "import socket; s=socket.create_connection(('127.0.0.1', int('$UNITY_PORT')), timeout=5); s.close()"; then
-            echo "reachable=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "reachable=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Unity not reachable at port $UNITY_PORT — skipping conformance"
-          fi
-
       - name: Run conformance
-        if: steps.reachable.outputs.reachable == 'true'
         env:
           UNITY_PORT: ${{ steps.port.outputs.port }}
-          PROJECT_PATH: ${{ vars.CONFORMANCE_PROJECT_PATH }}
+          PROJECT_PATH: ${{ inputs.project_path || vars.CONFORMANCE_PROJECT_PATH }}
         run: |
           python scripts/conformance_runner.py \
             --port "$UNITY_PORT" \
             --project "$PROJECT_PATH" \
+            --junit reports/conformance-single.xml \
+            --record reports/conformance-single-trace.jsonl \
             --timeout 300 \
             --verbose
 
       - name: Capture MCP monitor after conformance
         if: always()
         run: |
+          set -o pipefail
           mkdir -p reports
-          python scripts/monitor_mcp_processes.py --max-version-seconds 60 > reports/mcp-monitor-after.json || true
+          python scripts/monitor_mcp_processes.py --max-version-seconds 60 | tee reports/mcp-monitor-after.json
 
       - name: Upload MCP monitor reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: mcp-monitor-single
-          path: reports/mcp-monitor-*.json
+          path: reports/
           retention-days: 30
 
   conformance-dual:
     name: Conformance (dual worker)
     runs-on: self-hosted
     needs: [unit-gate, attested-public-stdio]
-    if: vars.CONFORMANCE_SECOND_PROJECT_PATH != ''
+    if: vars.CONFORMANCE_SECOND_PROJECT_PATH != '' || inputs.second_project_path != ''
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
@@ -189,51 +180,39 @@ jobs:
       - name: Capture MCP monitor before conformance
         if: always()
         run: |
+          set -o pipefail
           mkdir -p reports
-          python scripts/monitor_mcp_processes.py --max-version-seconds 60 > reports/mcp-monitor-before.json || true
-
-      - name: Check Unity reachability (both workers)
-        id: reachable
-        env:
-          PORT_A: ${{ vars.CONFORMANCE_PORT }}
-          PORT_B: ${{ vars.CONFORMANCE_SECOND_PORT }}
-        run: |
-          OK=true
-          for PORT in "$PORT_A" "$PORT_B"; do
-            if ! python3 -c "import socket; s=socket.create_connection(('127.0.0.1', int('$PORT')), timeout=5); s.close()" 2>/dev/null; then
-              echo "::warning::Unity not reachable at port $PORT — skipping dual conformance"
-              OK=false
-            fi
-          done
-          echo "reachable=$OK" >> "$GITHUB_OUTPUT"
+          python scripts/monitor_mcp_processes.py --max-version-seconds 60 | tee reports/mcp-monitor-before.json
 
       - name: Run dual conformance
-        if: steps.reachable.outputs.reachable == 'true'
         env:
-          PORT_A: ${{ vars.CONFORMANCE_PORT }}
-          PROJECT_A: ${{ vars.CONFORMANCE_PROJECT_PATH }}
-          PORT_B: ${{ vars.CONFORMANCE_SECOND_PORT }}
-          PROJECT_B: ${{ vars.CONFORMANCE_SECOND_PROJECT_PATH }}
+          PORT_A: ${{ inputs.unity_port || vars.CONFORMANCE_PORT }}
+          PROJECT_A: ${{ inputs.project_path || vars.CONFORMANCE_PROJECT_PATH }}
+          PORT_B: ${{ inputs.second_port || vars.CONFORMANCE_SECOND_PORT }}
+          PROJECT_B: ${{ inputs.second_project_path || vars.CONFORMANCE_SECOND_PROJECT_PATH }}
         run: |
           python scripts/conformance_runner.py \
             --port "$PORT_A" \
             --project "$PROJECT_A" \
             --second-port "$PORT_B" \
             --second-project "$PROJECT_B" \
-            --markers '(conformance and live) or (cross_project and live)' \
+            --markers 'cross_project and live' \
+            --junit reports/conformance-dual.xml \
+            --record reports/conformance-dual-trace.jsonl \
             --timeout 300 \
             --verbose
 
       - name: Capture MCP monitor after conformance
         if: always()
         run: |
+          set -o pipefail
           mkdir -p reports
-          python scripts/monitor_mcp_processes.py --max-version-seconds 60 > reports/mcp-monitor-after.json || true
+          python scripts/monitor_mcp_processes.py --max-version-seconds 60 | tee reports/mcp-monitor-after.json
 
       - name: Upload MCP monitor reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: mcp-monitor-dual
-          path: reports/mcp-monitor-*.json
+          path: reports/
           retention-days: 30

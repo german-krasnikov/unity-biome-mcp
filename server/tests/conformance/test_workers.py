@@ -96,3 +96,27 @@ async def test_prove_absent_raises_when_scene_ns_present():
     bridge.send.return_value = _hierarchy("SomeObject\n__MCP_CONF_abc123\nOther")
     with pytest.raises(AssertionError, match="cleanup failed"):
         await w.prove_absent(bridge)
+
+
+async def test_discard_if_dirty_is_noop_for_clean_scene():
+    w = ConformanceWorker(port=9500, project_path="/proj", run_id="abc123")
+    bridge = AsyncMock()
+    bridge.send.return_value = _clean_status()
+
+    await w.discard_if_dirty(bridge)
+
+    bridge.send.assert_awaited_once_with("get_status", {})
+
+
+async def test_discard_if_dirty_reloads_dirty_scene():
+    w = ConformanceWorker(port=9500, project_path="/proj", run_id="abc123")
+    bridge = AsyncMock()
+    bridge.send.side_effect = [
+        {"data": "scene=SampleScene\ndirty=true\nplaying=false\ncompiling=false\nport=9500\naliases=0"},
+        {"ok": True, "data": "reloaded"},
+        _clean_status(),
+    ]
+
+    await w.discard_if_dirty(bridge)
+
+    assert bridge.send.await_args_list[1].args == ("scene", {"action": "discard"})

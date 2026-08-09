@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import os
 
 import pytest
 import pytest_asyncio
-
 from conformance.workers import ConformanceWorker, connect_bridge
 
 HOST = os.environ.get("UNITY_MCP_HOST", "127.0.0.1")
@@ -63,12 +63,8 @@ async def dual_worker_session():
         (worker_a, bridge_a, "A"),
         (worker_b, bridge_b, "B"),
     ]:
-        try:
-            await worker.prove_absent(bridge)
-        except AssertionError as e:
-            errors.append(f"Worker {label}: {e}")
-        finally:
-            await bridge.close()
+        if error := await _prove_absent_and_close(worker, bridge, label):
+            errors.append(error)
 
     if errors:
         pytest.fail("Cross-project teardown failed:\n" + "\n".join(errors))
@@ -99,3 +95,38 @@ async def conformance_worker():
         pytest.fail(f"Teardown: {e}")
     finally:
         await bridge.close()
+
+
+def pytest_runtest_teardown(item, nextitem):  # noqa: ARG001
+    if "live" not in item.keywords or "cross_project" not in item.keywords:
+        return
+    asyncio.run(_cleanup_dual_workers())
+
+
+async def _cleanup_dual_workers():
+    pairs = (
+        (PORT_A, PROJECT),
+        (PORT_B, PROJECT_B),
+    )
+    for port, project in pairs:
+        if not port or not project:
+            continue
+        bridge = await connect_bridge(HOST, port, project)
+        if bridge is None:
+            continue
+        worker = ConformanceWorker(port=port, project_path=project)
+        try:
+            await worker.prove_absent(bridge)
+            await worker.discard_if_dirty(bridge)
+        finally:
+            await bridge.close()
+
+
+async def _prove_absent_and_close(worker, bridge, label: str) -> str:
+    try:
+        await worker.prove_absent(bridge)
+    except AssertionError as exc:
+        return f"Worker {label}: {exc}"
+    finally:
+        await bridge.close()
+    return ""

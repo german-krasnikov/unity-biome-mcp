@@ -1,8 +1,8 @@
+import asyncio
 import os
 
 import pytest
 import pytest_asyncio
-
 from conformance.workers import ConformanceWorker, connect_bridge
 
 CONF_HOST = os.environ.get("UNITY_MCP_HOST", "127.0.0.1")
@@ -37,5 +37,25 @@ async def conformance_worker():
         await worker.prove_absent(bridge)
     except AssertionError as e:
         pytest.fail(f"Conformance teardown: {e}")
+    finally:
+        await bridge.close()
+
+
+def pytest_runtest_teardown(item, nextitem):  # noqa: ARG001
+    if "live" not in item.keywords or "conformance" not in item.keywords:
+        return
+    if not CONF_PROJECT:
+        return
+    asyncio.run(_cleanup_live_worker())
+
+
+async def _cleanup_live_worker():
+    bridge = await connect_bridge(CONF_HOST, CONF_PORT, CONF_PROJECT)
+    if bridge is None:
+        return
+    worker = ConformanceWorker(port=CONF_PORT, project_path=CONF_PROJECT)
+    try:
+        await worker.prove_absent(bridge)
+        await worker.discard_if_dirty(bridge)
     finally:
         await bridge.close()

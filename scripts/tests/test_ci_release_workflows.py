@@ -199,6 +199,23 @@ def test_conformance_workflow_captures_mcp_monitor_reports() -> None:
     assert "Upload MCP monitor reports" in text
     assert "mcp-monitor-single" in text
     assert "mcp-monitor-dual" in text
+    assert "tee reports/mcp-monitor-before.json" in text
+    assert "tee reports/mcp-monitor-after.json" in text
 
     after_monitor = text[text.index("Capture MCP monitor after conformance") :]
     assert "if: always()" in after_monitor[:200]
+
+
+def test_conformance_workflow_fails_closed_instead_of_skip_green() -> None:
+    text = _workflow("ci-conformance.yml")
+
+    assert "Unity not reachable" not in text
+    assert "steps.reachable.outputs.reachable" not in text
+    assert "reachable=false" not in text
+    assert "--junit reports/conformance-single.xml" in text
+    assert "--record reports/conformance-single-trace.jsonl" in text
+    assert "--junit reports/conformance-dual.xml" in text
+    assert "--record reports/conformance-dual-trace.jsonl" in text
+    assert "--markers 'cross_project and live'" in text
+    assert "inputs.project_path || vars.CONFORMANCE_PROJECT_PATH" in text
+    assert "inputs.second_project_path || vars.CONFORMANCE_SECOND_PROJECT_PATH" in text

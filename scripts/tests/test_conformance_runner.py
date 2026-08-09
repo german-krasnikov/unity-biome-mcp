@@ -5,6 +5,7 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -60,3 +61,90 @@ def test_record_flag_passes_env_var(tmp_path):
 def test_default_conformance_marker_excludes_graphics_lane():
     assert "requires_graphics" in conformance_runner.DEFAULT_MARKERS
     assert "not requires_graphics" in conformance_runner.DEFAULT_MARKERS
+
+
+def test_runner_fails_closed_when_live_pytest_only_skips(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    project = tmp_path / "UnityProject"
+    (project / "Assets").mkdir(parents=True)
+
+    def fake_run(cmd, **_kwargs):
+        junit_arg = next(item for item in cmd if item.startswith("--junitxml="))
+        Path(junit_arg.split("=", 1)[1]).write_text(
+            """<testsuite name="pytest" tests="1" failures="0" errors="0" skipped="1">
+  <testcase classname="conformance.test_connect" name="test_unreachable">
+    <skipped message="Unity unreachable" />
+  </testcase>
+</testsuite>""",
+            encoding="utf-8",
+        )
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    rc = conformance_runner.main(["--project", str(project), "--port", "9500"])
+
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "skipped" in captured.err.lower()
+
+
+def test_runner_writes_and_assesses_junit_before_success(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    project = tmp_path / "UnityProject"
+    (project / "Assets").mkdir(parents=True)
+
+    def fake_run(cmd, **_kwargs):
+        assert any(item.startswith("--junitxml=") for item in cmd)
+        junit_arg = next(item for item in cmd if item.startswith("--junitxml="))
+        Path(junit_arg.split("=", 1)[1]).write_text(
+            """<testsuite name="pytest" tests="1" failures="0" errors="0" skipped="0">
+  <testcase classname="conformance.test_connect" name="test_tcp_roundtrip" />
+</testsuite>""",
+            encoding="utf-8",
+        )
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    rc = conformance_runner.main(["--project", str(project), "--port", "9500"])
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert "CONFORMANCE PASS: 1/1" in captured.out
+
+
+def test_runner_does_not_print_pass_when_junit_has_failures(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    project = tmp_path / "UnityProject"
+    (project / "Assets").mkdir(parents=True)
+
+    def fake_run(cmd, **_kwargs):
+        junit_arg = next(item for item in cmd if item.startswith("--junitxml="))
+        Path(junit_arg.split("=", 1)[1]).write_text(
+            """<testsuite name="pytest" tests="1" failures="1" errors="0" skipped="0">
+  <testcase classname="conformance.test_connect" name="test_dirty">
+    <failure message="scene dirty" />
+  </testcase>
+</testsuite>""",
+            encoding="utf-8",
+        )
+        return SimpleNamespace(returncode=1)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    rc = conformance_runner.main(["--project", str(project), "--port", "9500"])
+
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "failed" in captured.err.lower()
+    assert "CONFORMANCE PASS" not in captured.out

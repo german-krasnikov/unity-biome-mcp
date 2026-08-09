@@ -88,3 +88,17 @@ class ConformanceWorker:
         hierarchy_text = resp.get("data", "")
         if self.scene_ns in hierarchy_text:
             raise AssertionError(f"scene_ns {self.scene_ns!r} still present in hierarchy — cleanup failed")
+
+    async def discard_if_dirty(self, bridge) -> None:
+        """Discard unsaved conformance mutations so the next test starts clean."""
+        status = await bridge.send("get_status", {})
+        info = _parse_status(status.get("data", ""))
+        if info.get("dirty", "false") != "true":
+            return
+        resp = await bridge.send("scene", {"action": "discard"})
+        if not resp.get("ok"):
+            raise AssertionError(f"scene discard failed: {resp}")
+        after = await bridge.send("get_status", {})
+        after_info = _parse_status(after.get("data", ""))
+        if after_info.get("dirty", "false") == "true":
+            raise AssertionError(f"scene is still dirty after discard: {after_info}")
