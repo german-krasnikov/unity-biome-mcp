@@ -87,17 +87,22 @@ def test_player_playtest_workflow_has_player_ci_timeout_budget() -> None:
 
 def test_player_playtest_workflow_runs_standalone_build_smoke() -> None:
     text = _workflow("unity-player-playtest.yml")
+    build_block = text[text.index("Build Standalone Player Smoke") :]
 
     assert "Build Standalone Player Smoke" in text
     assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" in text
     assert "-ciBuildOutput" in text
+    assert "timeout-minutes: 35" in build_block[:300]
+    assert "-quit" in build_block[:500]
     assert "player-playtest-${{ matrix.name }}" in text
 
 
 def test_player_playtest_workflow_runs_player_playtest_smoke() -> None:
     text = _workflow("unity-player-playtest.yml")
+    run_block = text[text.index("Run Player PlayTest Smoke") :]
 
     assert "Run Player PlayTest Smoke" in text
+    assert "timeout-minutes: 5" in run_block[:200]
     assert "-unityMcpPlaytest " in text
     assert "player_ci_smoke.playtest" in text
     assert "-unityMcpPlaytestJson" in text
