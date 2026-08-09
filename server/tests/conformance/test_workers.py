@@ -3,7 +3,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
-from conformance.workers import ConformanceWorker
+from conformance.workers import ConformanceWorker, _parse_status
 
 
 def _clean_status(port: int = 9500) -> dict:
@@ -28,6 +28,14 @@ def test_scene_ns_format():
 
 
 # --- gate() happy path ---
+
+
+def test_parse_status_normalizes_boolean_values():
+    info = _parse_status("dirty=False\nplaying=True\ncompiling=false\nport=9500")
+
+    assert info["dirty"] == "false"
+    assert info["playing"] == "true"
+    assert info["compiling"] == "false"
 
 
 async def test_gate_passes_clean_state():
