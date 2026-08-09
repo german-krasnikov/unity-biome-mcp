@@ -20,22 +20,7 @@ on:
       - 'unity-test-project/**'
       - '.github/workflows/ci-conformance.yml'
   workflow_dispatch:
-    inputs:
-      unity_port:
-        description: 'Unity MCP port'
-        required: false
-        default: '9500'
-      project_path:
-        description: 'Unity project path'
-        required: true
-      second_port:
-        description: 'Second Unity port for cross-project tests (0 = skip)'
-        required: false
-        default: '0'
-      second_project_path:
-        description: 'Second Unity project path (Worker B, required if second_port > 0)'
-        required: false
-        default: ''
+    inputs: {}
 
 concurrency:
   group: ci-conformance-${{ github.head_ref || github.ref }}
@@ -100,13 +85,34 @@ jobs:
           path: reports/attested-public-stdio.xml
           retention-days: 30
 
-  conformance-single:
-    name: Conformance (single worker)
-    runs-on: self-hosted
+  hosted-disposable-unity:
+    name: Hosted disposable Unity conformance (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
     needs: [unit-gate, attested-public-stdio]
-    if: vars.CONFORMANCE_PROJECT_PATH != '' || inputs.project_path != ''
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: ubuntu-latest
+            build-target: StandaloneLinux64
+            hub-version: '3.19.5'
+          - name: macOS
+            runner: macos-latest
+            build-target: StandaloneOSX
+            hub-version: ''
+          - name: Windows
+            runner: windows-2022
+            build-target: StandaloneWindows64
+            hub-version: ''
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Install VC++ 2010 runtime (Unity 6 dependency)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: choco install vcredist2010 -y
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
@@ -115,95 +121,66 @@ jobs:
       - name: Install server with dev deps
         run: pip install -e "server[dev]"
 
-      - name: Capture MCP monitor before conformance
-        if: always()
+      - name: Set UPM cache path
+        id: upm-path
+        shell: bash
         run: |
-          set -o pipefail
-          mkdir -p reports
-          python scripts/monitor_mcp_processes.py --max-version-seconds 60 | tee reports/mcp-monitor-before.json
-
-      - name: Discover Unity port
-        id: port
-        env:
-          INPUT_PORT: ${{ inputs.unity_port }}
-        run: |
-          PORT="$INPUT_PORT"
-          if [ -z "$PORT" ]; then
-            DISCOVERED=$(python3 -c "import pathlib; p=list(pathlib.Path.home().glob('.unity-biome-mcp/ports/*.port')); print(open(p[0]).read().split()[0] if p else '')" 2>/dev/null || echo "")
-            [ -n "$DISCOVERED" ] && PORT="$DISCOVERED" || PORT="9500"
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "path=$HOME/Library/Caches/Unity/upm" >> "$GITHUB_OUTPUT"
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
+            echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=$LOCALAPPDATA/Unity/cache/upm" >> "$GITHUB_OUTPUT"
           fi
-          echo "port=$PORT" >> "$GITHUB_OUTPUT"
 
-      - name: Run conformance
-        env:
-          UNITY_PORT: ${{ steps.port.outputs.port }}
-          PROJECT_PATH: ${{ inputs.project_path || vars.CONFORMANCE_PROJECT_PATH }}
-        run: |
-          python scripts/conformance_runner.py \
-            --port "$UNITY_PORT" \
-            --project "$PROJECT_PATH" \
-            --junit reports/conformance-single.xml \
-            --record reports/conformance-single-trace.jsonl \
-            --timeout 300 \
-            --verbose
-
-      - name: Capture MCP monitor after conformance
-        if: always()
-        run: |
-          set -o pipefail
-          mkdir -p reports
-          python scripts/monitor_mcp_processes.py --max-version-seconds 60 | tee reports/mcp-monitor-after.json
-
-      - name: Upload MCP monitor reports
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+      - name: Cache UPM packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
         with:
-          name: mcp-monitor-single
-          path: reports/
-          retention-days: 30
+          path: ${{ steps.upm-path.outputs.path }}
+          key: conformance-upm-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
+          restore-keys: |
+            conformance-upm-${{ runner.os }}-
 
-  conformance-dual:
-    name: Conformance (dual worker)
-    runs-on: self-hosted
-    needs: [unit-gate, attested-public-stdio]
-    if: vars.CONFORMANCE_SECOND_PROJECT_PATH != '' || inputs.second_project_path != ''
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
-
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+      - uses: buildalon/unity-setup@1a2acb0efbce77c0f90b79ced6a9c6a37ae534c2  # v2
+        id: unity-setup
+        timeout-minutes: 15
         with:
-          python-version: '3.12'
+          unity-version: 6000.0.65f1
+          build-targets: ${{ matrix.build-target }}
+          cache-installation: ${{ runner.os != 'Windows' }}
+          hub-version: ${{ matrix.hub-version }}
 
-      - name: Install server with dev deps
-        run: pip install -e "server[dev]"
+      - uses: buildalon/activate-unity-license@87b3a82bac7ca7609eacdb2bec31c8a8a142ed9a  # v2
+        with:
+          license: 'Personal'
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
 
       - name: Capture MCP monitor before conformance
         if: always()
+        shell: bash
         run: |
           set -o pipefail
           mkdir -p reports
           python scripts/monitor_mcp_processes.py --max-version-seconds 60 | tee reports/mcp-monitor-before.json
 
-      - name: Run dual conformance
-        env:
-          PORT_A: ${{ inputs.unity_port || vars.CONFORMANCE_PORT }}
-          PROJECT_A: ${{ inputs.project_path || vars.CONFORMANCE_PROJECT_PATH }}
-          PORT_B: ${{ inputs.second_port || vars.CONFORMANCE_SECOND_PORT }}
-          PROJECT_B: ${{ inputs.second_project_path || vars.CONFORMANCE_SECOND_PROJECT_PATH }}
+      - name: Run hosted disposable Unity conformance
+        shell: bash
         run: |
-          python scripts/conformance_runner.py \
-            --port "$PORT_A" \
-            --project "$PROJECT_A" \
-            --second-port "$PORT_B" \
-            --second-project "$PROJECT_B" \
-            --markers 'cross_project and live' \
-            --junit reports/conformance-dual.xml \
-            --record reports/conformance-dual-trace.jsonl \
+          python scripts/run_hosted_conformance.py \
+            --unity "${{ steps.unity-setup.outputs.unity-editor-path }}" \
+            --source-project unity-test-project \
+            --work-root "$RUNNER_TEMP/unity-mcp-conformance-${{ matrix.name }}-${{ github.run_id }}-${{ github.run_attempt }}" \
+            --reports reports \
+            --port-a 9600 \
+            --port-b 9699 \
+            --startup-timeout 420 \
             --timeout 300 \
             --verbose
 
       - name: Capture MCP monitor after conformance
         if: always()
+        shell: bash
         run: |
           set -o pipefail
           mkdir -p reports
@@ -213,6 +190,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
-          name: mcp-monitor-dual
+          name: hosted-conformance-${{ matrix.name }}
           path: reports/
           retention-days: 30

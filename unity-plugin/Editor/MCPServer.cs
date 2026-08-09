@@ -153,7 +153,16 @@ namespace UnityMCP.Editor
 
         // Pure helper — no Unity API calls, fully unit-testable.
         // Mirrors ReloadPlugin.ShouldStartReloadServer pattern.
-        internal static bool ShouldStartServer(bool isBatchMode) => !isBatchMode;
+        internal static bool ShouldStartServer(bool isBatchMode)
+            => !isBatchMode || Environment.GetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE") == "1";
+
+        internal static string ResolveBootstrapScenePath(string projectRoot, string scenePath)
+        {
+            if (string.IsNullOrWhiteSpace(scenePath)) return null;
+            return Path.GetFullPath(Path.IsPathRooted(scenePath)
+                ? scenePath
+                : Path.Combine(projectRoot, scenePath));
+        }
 
         static MCPServer()
         {
@@ -227,6 +236,7 @@ namespace UnityMCP.Editor
             _starting = true;
             _shuttingDown = false;
             _domainStamp = SyncHelper.CurrentDomainStamp;  // cache on main thread — safe here, ThreadPool reads below
+            OpenBootstrapSceneFromEnvironment();
             // Ensure commands are registered BEFORE TCP bind.
             // InitDefaults() → RegisterAll() → populates _enabledToolsCache atomically.
             // Safe: runs on main thread after all [InitializeOnLoad] hooks (both delayCall
@@ -384,6 +394,19 @@ namespace UnityMCP.Editor
                 }
             }
             finally { _starting = false; }
+        }
+
+        private static void OpenBootstrapSceneFromEnvironment()
+        {
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var scenePath = ResolveBootstrapScenePath(
+                projectRoot,
+                Environment.GetEnvironmentVariable("UNITY_MCP_BOOTSTRAP_SCENE"));
+            if (scenePath == null || !File.Exists(scenePath)) return;
+            var active = ResolveBootstrapScenePath(projectRoot, EditorSceneManager.GetActiveScene().path);
+            if (string.Equals(active, scenePath, StringComparison.OrdinalIgnoreCase)) return;
+            EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+            Debug.Log($"[MCP] Opened bootstrap scene: {scenePath}");
         }
 
         private static void TeardownCore()

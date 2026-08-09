@@ -38,14 +38,17 @@ def redact_command(command: str) -> str:
 
 
 def _run(args: tuple[str, ...]) -> str:
-    return subprocess.run(
-        args,
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True,
-        encoding="utf-8",
-    ).stdout
+    try:
+        return subprocess.run(
+            args,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+        ).stdout
+    except FileNotFoundError:
+        return ""
 
 
 def parse_age_seconds(value: str) -> int:
@@ -172,7 +175,10 @@ def collect_state(max_version_seconds: int) -> dict[str, object]:
     home = Path(os.environ.get("HOME", "~")).expanduser()
     state_root = home / ".unity-biome-mcp"
     ps_output = _run(("ps", "-axo", "pid,ppid,stat,etime,pcpu,pmem,command"))
-    lsof_output = _run(("lsof", "-nP", "-iTCP:9500-9699", "-sTCP:LISTEN"))
+    try:
+        lsof_output = _run(("lsof", "-nP", "-iTCP:9500-9699", "-sTCP:LISTEN"))
+    except FileNotFoundError:
+        lsof_output = ""
     processes = parse_ps(ps_output)
     live_pids = {row.pid for row in processes}
     return classify_state(

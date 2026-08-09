@@ -6,9 +6,11 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 
+import monitor_mcp_processes  # noqa: E402
 from monitor_mcp_processes import (  # noqa: E402
     ProcessRow,
     classify_state,
+    collect_state,
     parse_age_seconds,
     parse_ps,
     redact_command,
@@ -146,4 +148,33 @@ def test_parse_ps_reads_macos_etime_and_redacts_tokens() -> None:
             pmem=0.2,
             command="Unity -accessToken <redacted> -projectPath /tmp/project",
         )
+    ]
+
+
+def test_collect_state_tolerates_missing_lsof(monkeypatch, tmp_path: Path) -> None:
+    def fake_run(args: tuple[str, ...]) -> str:
+        if args[0] == "ps":
+            return (
+                "  PID  PPID STAT     ELAPSED  %CPU %MEM COMMAND\n"
+                "  123     1 S              7   0.1  0.2 "
+                "python unity-biome-mcp\n"
+            )
+        if args[0] == "lsof":
+            raise FileNotFoundError("lsof")
+        raise AssertionError(args)
+
+    monkeypatch.setattr(monitor_mcp_processes, "_run", fake_run)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    state = collect_state(max_version_seconds=60)
+
+    assert state["listener_pids"] == []
+    assert state["active_servers"] == [
+        {
+            "pid": 123,
+            "age_seconds": 7,
+            "has_lock": False,
+            "has_listener": False,
+            "command": "python unity-biome-mcp",
+        }
     ]

@@ -50,6 +50,25 @@ def test_conformance_workflow_runs_tracked_attested_public_profile() -> None:
     assert "--profile public-stdio-linux-py312" in text
 
 
+def test_conformance_workflow_runs_hosted_disposable_unity_workers() -> None:
+    text = _workflow("ci-conformance.yml")
+
+    assert "hosted-disposable-unity:" in text
+    hosted_block = text[text.index("hosted-disposable-unity:") :]
+    assert "runs-on: ${{ matrix.runner }}" in hosted_block[:500]
+    assert "runner: ubuntu-latest" in hosted_block
+    assert "runner: macos-latest" in hosted_block
+    assert "runner: windows-2022" in hosted_block
+    assert "buildalon/unity-setup" in hosted_block
+    assert "buildalon/activate-unity-license" in hosted_block
+    assert "scripts/run_hosted_conformance.py" in hosted_block
+    assert "--unity \"${{ steps.unity-setup.outputs.unity-editor-path }}\"" in hosted_block
+    assert "--source-project unity-test-project" in hosted_block
+    assert "--port-a 9600" in hosted_block
+    assert "--port-b 9699" in hosted_block
+    assert "UNITY_MCP_ENABLE_BATCHMODE" not in text
+
+
 def test_unity_tests_workflow_triggers_on_playtest_corpus() -> None:
     text = _workflow("unity-tests.yml")
 
@@ -197,8 +216,7 @@ def test_conformance_workflow_captures_mcp_monitor_reports() -> None:
     assert "Capture MCP monitor before conformance" in text
     assert "Capture MCP monitor after conformance" in text
     assert "Upload MCP monitor reports" in text
-    assert "mcp-monitor-single" in text
-    assert "mcp-monitor-dual" in text
+    assert "hosted-conformance-${{ matrix.name }}" in text
     assert "tee reports/mcp-monitor-before.json" in text
     assert "tee reports/mcp-monitor-after.json" in text
 
@@ -212,10 +230,9 @@ def test_conformance_workflow_fails_closed_instead_of_skip_green() -> None:
     assert "Unity not reachable" not in text
     assert "steps.reachable.outputs.reachable" not in text
     assert "reachable=false" not in text
-    assert "--junit reports/conformance-single.xml" in text
-    assert "--record reports/conformance-single-trace.jsonl" in text
-    assert "--junit reports/conformance-dual.xml" in text
-    assert "--record reports/conformance-dual-trace.jsonl" in text
-    assert "--markers 'cross_project and live'" in text
-    assert "inputs.project_path || vars.CONFORMANCE_PROJECT_PATH" in text
-    assert "inputs.second_project_path || vars.CONFORMANCE_SECOND_PROJECT_PATH" in text
+    assert "scripts/run_hosted_conformance.py" in text
+    assert "--startup-timeout 420" in text
+    assert "--timeout 300" in text
+    assert "runs-on: self-hosted" not in text
+    assert "inputs.project_path" not in text
+    assert "CONFORMANCE_PROJECT_PATH" not in text
