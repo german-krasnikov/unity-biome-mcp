@@ -65,6 +65,36 @@ def test_unity_tests_workflow_runs_standalone_build_smoke() -> None:
     assert "player-build-${{ matrix.name }}" in text
 
 
+def test_unity_tests_workflow_has_player_ci_timeout_budget() -> None:
+    text = _workflow("unity-tests.yml")
+
+    assert "timeout-minutes: 120" in text
+
+
+def test_unity_tests_workflow_runs_player_playtest_smoke() -> None:
+    text = _workflow("unity-tests.yml")
+
+    assert "Run Player PlayTest Smoke" in text
+    assert "-unityMcpPlaytest " in text
+    assert "player_ci_smoke.playtest" in text
+    assert "-unityMcpPlaytestJson" in text
+    assert "-unityMcpPlaytestJunit" in text
+    assert "-unityMcpPlaytestExit" in text
+    assert 'find "$PLAYER/Contents/MacOS"' in text
+    assert "artifacts/player-playtest.json" in text
+    assert "artifacts/player-playtest.xml" in text
+
+
+def test_unity_tests_workflow_validates_player_playtest_receipts() -> None:
+    text = _workflow("unity-tests.yml")
+
+    assert "Validate Player PlayTest Receipts" in text
+    assert "player JSON receipt must be UTF-8 without BOM" in text
+    assert "player PlayTest emitted no step receipts" in text
+    assert "UnityMCP.PlayerPlaytest" in text
+    assert 'suite.get("failures") != "0"' in text
+
+
 def test_conformance_workflow_captures_mcp_monitor_reports() -> None:
     text = _workflow("ci-conformance.yml")
 
