@@ -2,6 +2,7 @@
 
 import html
 import json
+import os
 import pathlib
 import re
 import xml.etree.ElementTree as ET
@@ -384,6 +385,8 @@ def _apply_or_check(changes: list[tuple[pathlib.Path, str]], check: bool) -> Non
 
 def _sync_repo_description(meta: dict) -> None:
     """Update GitHub repo description with current tool count."""
+    if os.environ.get("UNITY_MCP_SYNC_REPO_DESCRIPTION") != "1":
+        return
     import shutil
     import subprocess
 
@@ -393,7 +396,7 @@ def _sync_repo_description(meta: dict) -> None:
     desc = f"MCP server for Unity Editor — {tools} tools for scene, assets, animation, VFX, playtest & more"
     subprocess.run(
         ["gh", "repo", "edit", "--description", desc],
-        check=False, capture_output=True,
+        check=False, capture_output=True, timeout=10,
     )
 
 

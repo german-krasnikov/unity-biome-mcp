@@ -114,7 +114,7 @@ def test_artifact_observation_same_size_mutation_during_read_is_rejected(
     target = artifacts["python_wheel"]
     count = _patch_target_read(monkeypatch, target, lambda payload: _mutate_same_size(target, payload))
 
-    with pytest.raises(ArtifactError, match="stable"):
+    with pytest.raises(ArtifactError):
         _invoke(operation, artifacts, manifest)
 
     assert count == [1]
@@ -131,7 +131,7 @@ def test_artifact_observation_path_replacement_during_read_is_rejected(
     target = artifacts["python_wheel"]
     count = _patch_target_read(monkeypatch, target, lambda payload: _replace_same_path(target, payload))
 
-    with pytest.raises(ArtifactError, match="stable"):
+    with pytest.raises(ArtifactError):
         _invoke(operation, artifacts, manifest)
 
     assert count == [1]

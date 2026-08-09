@@ -115,10 +115,16 @@ def release_lock(fd: int) -> None:
     with contextlib.suppress(OSError):
         _unlock(fd)
     path = _lock_paths.pop(fd, None)
+    close_error: OSError | None = None
+    try:
+        os.close(fd)
+    except OSError as exc:
+        close_error = exc
     if path:
         with contextlib.suppress(OSError):
             os.unlink(path)
-    os.close(fd)
+    if close_error is not None:
+        raise close_error
 
 
 def cleanup_stale_locks(port: int, lock_dir: Path = None) -> int:

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import stat
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
+from gauntlet.artifact_contracts import ArtifactError, read_stable_artifact
 from gauntlet.json_io import JsonFileError, parse_json_object
 from gauntlet.receipts import content_hash
 
@@ -238,37 +238,9 @@ def _hash_stable_file(path: Path, *, max_bytes: int) -> tuple[int, str]:
 
 def _read_stable_bytes(path: Path, *, max_bytes: int) -> bytes:
     try:
-        with path.open("rb") as stream:
-            before_path = path.lstat()
-            before_fd = os.fstat(stream.fileno())
-            _require_stable_regular(path, before_path, before_fd)
-            payload = stream.read(max_bytes + 1)
-            after_fd = os.fstat(stream.fileno())
-            after_path = path.lstat()
-            _require_stable_regular(path, before_path, before_fd, after_fd, after_path)
-    except PlayerPlaytestEvidenceError:
-        raise
-    except OSError as exc:
-        raise PlayerPlaytestEvidenceError(f"receipt file is not readable: {path.name}") from exc
-    if len(payload) > max_bytes:
-        raise PlayerPlaytestEvidenceError(f"receipt file exceeds size limit: {path.name}")
-    return payload
-
-
-def _require_stable_regular(path: Path, *observations: os.stat_result) -> None:
-    identities = {_identity(item) for item in observations}
-    if any(not stat.S_ISREG(item.st_mode) for item in observations) or len(identities) != 1:
-        raise PlayerPlaytestEvidenceError(f"receipt file is not stable regular file: {path.name}")
-
-
-def _identity(metadata: os.stat_result) -> tuple[int, int, int, int, int]:
-    return (
-        metadata.st_dev,
-        metadata.st_ino,
-        metadata.st_size,
-        metadata.st_mtime_ns,
-        metadata.st_ctime_ns,
-    )
+        return read_stable_artifact(path, max_bytes)
+    except ArtifactError as exc:
+        raise PlayerPlaytestEvidenceError(str(exc).replace("artifact", "receipt file", 1)) from exc
 
 
 def _validate_head_sha(value: str) -> None:

@@ -345,6 +345,17 @@ class TestApplyOrCheck:
 
 
 class TestRenderOwnership:
+    def test_repo_description_sync_is_opt_in(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import subprocess
+
+        calls = []
+        monkeypatch.delenv("UNITY_MCP_SYNC_REPO_DESCRIPTION", raising=False)
+        monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs)))
+
+        rr._sync_repo_description(SAMPLE_META)
+
+        assert calls == []
+
     def test_render_preserves_curated_svgs_and_stats_line_endings(
         self,
         tmp_path: pathlib.Path,
