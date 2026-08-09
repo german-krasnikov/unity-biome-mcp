@@ -33,6 +33,7 @@ permissions:
 jobs:
   test:
     name: EditMode Tests (${{ matrix.name }})
+    if: github.event_name != 'workflow_dispatch' || inputs.run_player_playtest != 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     strategy:

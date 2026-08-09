@@ -72,6 +72,7 @@ def test_unity_tests_workflow_can_optionally_call_player_playtest_lane() -> None
     assert "run_player_playtest:" in text
     assert "default: \"false\"" in text
     assert "inputs.run_player_playtest == 'true' && 'player' || 'default'" in text
+    assert "inputs.run_player_playtest != 'true'" in text
     assert "inputs.run_player_playtest == 'true'" in text
     assert "uses: ./.github/workflows/unity-player-playtest.yml" in text
 
