@@ -26,6 +26,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Profile evidence file; repeat once per active profile",
     )
+    parser.add_argument(
+        "--player-playtest-evidence",
+        type=Path,
+        action="append",
+        default=[],
+        help="Player PlayTest evidence file; repeat once per required OS matrix",
+    )
     return parser
 
 
@@ -39,6 +46,7 @@ def main(argv: list[str] | None = None) -> int:
             artifact_root=args.artifact_root,
             evidence_paths=tuple(args.evidence),
             expected_head_sha=args.head_sha,
+            player_playtest_evidence_paths=tuple(args.player_playtest_evidence),
         )
     except GateError as exc:
         print(f"RELEASE EVIDENCE FAIL: {exc}", file=sys.stderr)
@@ -48,6 +56,7 @@ def main(argv: list[str] | None = None) -> int:
         "RELEASE EVIDENCE PASS: "
         f"product={summary.product_version} "
         f"profiles={len(summary.profiles)} "
+        f"player_playtest={len(summary.player_playtest_matrices)} "
         f"manifest={summary.artifact_manifest_sha}"
     )
     return 0

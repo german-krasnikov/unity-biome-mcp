@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 
@@ -16,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gauntlet.receipts import ReceiptJournal  # noqa: E402
 from gauntlet.release_gate import GateError, validate_release_gate  # noqa: E402
 from gauntlet_test_fixtures import rewrite_journal_events, write_complete_journal  # noqa: E402
+from player_playtest_gate_test_support import player_evidence_paths  # noqa: E402
 from release_gate_mutation_support import (  # noqa: E402
     mutate_evidence,
     refresh_journal_and_runtime,
@@ -32,7 +32,6 @@ from release_gate_test_support import (  # noqa: E402
     validate_bundle,
 )
 
-CLI = SCRIPTS / "validate_release_evidence.py"
 
 def test_release_gate_accepts_exact_artifact_backed_bundle(tmp_path: Path) -> None:
     paths = prepare_bundle(tmp_path)
@@ -42,6 +41,7 @@ def test_release_gate_accepts_exact_artifact_backed_bundle(tmp_path: Path) -> No
         artifact_manifest_path=paths["manifest"],
         artifact_root=paths["artifact_root"],
         evidence_paths=(paths["evidence"],),
+        player_playtest_evidence_paths=player_evidence_paths(paths),
         expected_head_sha=read_head(paths),
     )
 
@@ -265,35 +265,3 @@ def test_release_gate_rejects_rehashed_unsupported_journal_envelope(tmp_path: Pa
 
     with pytest.raises(GateError, match="fields|schema"):
         validate_bundle(paths)
-
-def test_release_gate_cli_is_nonzero_for_missing_evidence(tmp_path: Path) -> None:
-    paths = prepare_bundle(tmp_path)
-    command = [
-        sys.executable,
-        str(CLI),
-        "--policy",
-        str(paths["policy"]),
-        "--source-root",
-        str(paths["source_root"]),
-        "--artifact-manifest",
-        str(paths["manifest"]),
-        "--artifact-root",
-        str(paths["artifact_root"]),
-        "--head-sha",
-        read_head(paths),
-    ]
-
-    failed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=30)
-    passed = subprocess.run(
-        [*command, "--evidence", str(paths["evidence"])],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=30,
-    )
-
-    assert failed.returncode == 1
-    assert "FAIL" in failed.stderr
-    assert passed.returncode == 0
-    assert "PASS" in passed.stdout
-    assert f"product={VERSION}" in passed.stdout

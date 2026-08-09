@@ -19,6 +19,10 @@ from gauntlet.package_contracts import (
     PACKAGE_SOURCE_PATHS,
     PackageIdentity,
 )
+from gauntlet.player_playtest_gate import (
+    PlayerPlaytestGateError,
+    validate_player_playtest_evidence_set,
+)
 from gauntlet.profile_evidence import ProfileEvidenceError, verify_profile_artifacts
 from gauntlet.release_evidence import (
     EvidenceError,
@@ -55,6 +59,7 @@ class GateSummary:
     artifact_manifest_sha: str
     source_observation_sha: str
     contract_catalog_sha: str
+    player_playtest_matrices: tuple[str, ...]
 
 
 def validate_release_gate(
@@ -65,6 +70,7 @@ def validate_release_gate(
     artifact_root: Path,
     evidence_paths: Sequence[Path],
     expected_head_sha: str,
+    player_playtest_evidence_paths: Sequence[Path] = (),
 ) -> GateSummary:
     """Validate the exact release inputs; never infer missing attestations."""
     try:
@@ -147,10 +153,15 @@ def validate_release_gate(
             expected_artifacts=manifest.archive_digests,
             required_profiles=policy.active_requirements,
         )
+        player_playtest_matrices = validate_player_playtest_evidence_set(
+            player_playtest_evidence_paths,
+            expected_head_sha=source_observation.head_sha,
+        )
     except (
         ArtifactError,
         CatalogError,
         EvidenceError,
+        PlayerPlaytestGateError,
         PolicyError,
         ProfileEvidenceError,
         SourceProvenanceError,
@@ -167,6 +178,7 @@ def validate_release_gate(
         artifact_manifest_sha=manifest.manifest_sha,
         source_observation_sha=source_observation.observation_sha,
         contract_catalog_sha=catalog.catalog_sha,
+        player_playtest_matrices=player_playtest_matrices,
     )
 
 

@@ -17,6 +17,10 @@ from gauntlet_test_fixtures import (
     write_json,
     write_release_artifacts,
 )
+from player_playtest_gate_test_support import (
+    player_evidence_paths,
+    write_player_playtest_evidence_set,
+)
 from release_source_test_support import HARNESS_LOCK_RELATIVE, prepare_source
 
 if TYPE_CHECKING:
@@ -106,6 +110,7 @@ def prepare_bundle(
         "cleanup_worker": bundle / "cleanup-worker.json",
         "evidence": bundle / "evidence.json",
     }
+    paths.update(write_player_playtest_evidence_set(bundle, head_sha))
     paths["head"].write_text(head_sha, encoding="ascii")
     finished_at = datetime.now(timezone.utc).isoformat()
     write_attested_junit(
@@ -169,6 +174,7 @@ def validate_bundle(
         artifact_manifest_path=paths["manifest"],
         artifact_root=paths["artifact_root"],
         evidence_paths=(paths["evidence"],),
+        player_playtest_evidence_paths=player_evidence_paths(paths),
         expected_head_sha=expected_head_sha or read_head(paths),
     )
 
