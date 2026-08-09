@@ -39,6 +39,7 @@ URP_GLOBAL_SETTINGS = (
     REPO_ROOT / "unity-test-project" / "Assets" / "UniversalRenderPipelineGlobalSettings.asset"
 )
 GRAPHICS_SETTINGS = REPO_ROOT / "unity-test-project" / "ProjectSettings" / "GraphicsSettings.asset"
+PLAYTEST_PATH_TESTS = REPO_ROOT / "unity-plugin" / "Editor" / "Tests" / "PlaytestPathTests.cs"
 
 
 def test_unity_test_project_has_checked_in_playtest_corpus() -> None:
@@ -53,6 +54,13 @@ def test_ci_smoke_playtest_has_console_clean_acceptance() -> None:
     assert "ASSERT_CONSOLE_CLEAN" in text
     assert "WAIT " in text
     assert "ALIAS " not in text
+
+
+def test_path_tests_do_not_delete_checked_in_playtest_corpus() -> None:
+    text = PLAYTEST_PATH_TESTS.read_text(encoding="utf-8")
+
+    assert 'Path.Combine(projectRoot, "Playtests")' not in text
+    assert "Playtests_Temp_" in text
 
 
 def test_unity_test_project_has_standalone_build_smoke_method() -> None:

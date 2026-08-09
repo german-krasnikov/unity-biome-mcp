@@ -109,11 +109,12 @@ namespace UnityMCP.Editor.Tests
         public async Task Path_OutsideAssets_InsideProjectRoot_NoError()
         {
             var projectRoot = Path.GetDirectoryName(Application.dataPath);
-            _externalDir = Path.Combine(projectRoot, "Playtests");
+            var externalName = "Playtests_Temp_" + _subDir;
+            _externalDir = Path.Combine(projectRoot, externalName);
             Directory.CreateDirectory(_externalDir);
             File.WriteAllText(Path.Combine(_externalDir, "test_temp.playtest"), "# temp");
 
-            var result = await GetResultAsync("\"path\":\"Playtests/test_temp.playtest\"");
+            var result = await GetResultAsync($"\"path\":\"{externalName}/test_temp.playtest\"");
             StringAssert.DoesNotContain("file not found", result);
             StringAssert.DoesNotContain("path must be inside project", result);
         }
