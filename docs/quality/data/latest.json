@@ -1,7 +1,7 @@
 {
-  "date": "2026-08-08",
-  "version": "1.26.0",
-  "commit": "695bfbb",
+  "date": "2026-08-09",
+  "version": "1.26.1",
+  "commit": "a3500db",
   "toolsmith_errors": 4,
   "toolsmith_warnings": 376,
   "toolsmith_avg_score": 83.61
