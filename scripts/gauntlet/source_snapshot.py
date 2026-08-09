@@ -55,7 +55,7 @@ def _source_root(path: Path) -> Path:
         raise SourceSnapshotError("source repository is not accessible") from exc
     if not stat.S_ISDIR(metadata.st_mode):
         raise SourceSnapshotError("source repository must be a real directory")
-    if _git(resolved, "rev-parse", "--show-toplevel") != str(resolved):
+    if Path(_git(resolved, "rev-parse", "--show-toplevel")).resolve() != resolved:
         raise SourceSnapshotError("source repository must be the Git worktree root")
     return resolved
 

@@ -209,7 +209,7 @@ def _reject_unsafe_index_flags(root: Path) -> None:
 
 def _tracked_tree_is_clean(root: Path, head_sha: str) -> bool:
     commands = (
-        git_command(root, "diff", "--quiet", "--no-ext-diff", head_sha, "--"),
+        git_command(root, "diff", "--quiet", "--no-ext-diff", "--ignore-cr-at-eol", head_sha, "--"),
         git_command(
             root,
             "diff",

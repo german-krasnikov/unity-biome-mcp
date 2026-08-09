@@ -45,6 +45,8 @@ async def _public_session(
     )
     stderr_path = tmp_path / "server.stderr"
     entrypoint = Path(sys.executable).with_name("unity-biome-mcp")
+    if os.name == "nt":
+        entrypoint = Path(sys.executable).with_name("Scripts") / "unity-biome-mcp.exe"
     assert entrypoint.is_file(), "test must run from the installed server environment"
 
     environment = {

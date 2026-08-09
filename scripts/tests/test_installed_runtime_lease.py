@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -36,6 +37,10 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 PRODUCT_VERSION = "1.26.0"
+REQUIRES_POSIX_SUPERVISOR = pytest.mark.skipif(
+    os.name != "posix",
+    reason="installed runtime lease currently requires POSIX process-group supervision",
+)
 
 
 @pytest.fixture
@@ -115,6 +120,7 @@ def test_runtime_install_uses_pip_fallback_when_uv_is_unavailable(
     assert "--force-reinstall" in commands[1]
 
 
+@REQUIRES_POSIX_SUPERVISOR
 def test_runtime_install_receipt_proves_installed_origin(
     tmp_path: Path,
     built_wheel: Path,
@@ -205,6 +211,7 @@ async def _installed_session(
 
 @pytest.mark.asyncio
 @pytest.mark.timeout(90)
+@REQUIRES_POSIX_SUPERVISOR
 async def test_installed_entrypoint_serves_public_stdio(
     tmp_path: Path,
     built_wheel: Path,
