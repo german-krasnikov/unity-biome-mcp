@@ -207,6 +207,46 @@ namespace UnityMCP.Editor.Tests
             finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
         }
 
+        [Test]
+        public void Process_RetryOpIdForFailedNonAtomicBatch_DoesNotReplayCommittedChildren()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            var previousDedup = CommandRouter._dedupRegistry;
+            var calls = 0;
+            CommandRegistry.Register("test_dedup_mutation", _ =>
+            {
+                calls++;
+                return "ok";
+            }, mutating: true, required: "", optional: "");
+            CommandRouter._dedupRegistry = new DedupRegistry();
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode = () => false;
+            try
+            {
+                var first = CommandRouter.Process(
+                    "{\"id\":\"dedup-1\",\"cmd\":\"batch\",\"op_id\":\"op-partial\","
+                    + "\"args\":{\"commands\":\"test_dedup_mutation\\ntotally_unknown_dedup_command\","
+                    + "\"on_error\":\"continue\"}}");
+                Assert.IsTrue(first.Contains("\"ok\":false"), first);
+                Assert.AreEqual(1, calls);
+
+                var retry = CommandRouter.Process(
+                    "{\"id\":\"dedup-2\",\"cmd\":\"batch\",\"retry_op_id\":\"op-partial\","
+                    + "\"args\":{\"commands\":\"test_dedup_mutation\\ntotally_unknown_dedup_command\","
+                    + "\"on_error\":\"continue\"}}");
+                Assert.IsTrue(retry.Contains("\"ok\":false"), retry);
+                Assert.AreEqual(1, calls,
+                    "Retrying a lost ACK for a failed non-atomic batch must replay the cached response, not re-run committed children.");
+            }
+            finally
+            {
+                CommandRouter._dedupRegistry = previousDedup;
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+                CommandRegistry.RestoreForTest(snapshot);
+            }
+        }
+
         // ── Process: play-mode guard blocks mutating commands ─────────────────
 
         [Test]

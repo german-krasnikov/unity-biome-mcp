@@ -121,7 +121,11 @@ namespace UnityMCP.Editor
                 {
                     var cachedResult = _dedupRegistry.TryGetResult(retryOpId);
                     if (cachedResult != null)
+                    {
+                        if (cachedResult.StartsWith("{"))
+                            return cachedResult;
                         return JsonHelper.FormatResponse(id, true, cachedResult, null);
+                    }
                 }
 
                 var opId = JsonHelper.ExtractString(json, "op_id");
@@ -186,10 +190,15 @@ namespace UnityMCP.Editor
                     UndoGroupHelper.EndGroup();
                 }
                 if (batchHasErrors)
-                    return JsonHelper.FormatResponse(id, false, null, data);
+                {
+                    var errorResponse = JsonHelper.FormatResponse(id, false, null, data);
+                    if (opId != null)
+                        _dedupRegistry.TryRegister(opId, errorResponse);
+                    return errorResponse;
+                }
                 var response = BuildResponse(id, data, CommandRegistry.GetMaxResponseChars(cmd));
                 if (opId != null)
-                    _dedupRegistry.TryRegister(opId, data);
+                    _dedupRegistry.TryRegister(opId, response);
                 return response;
             }
             catch (Exception e)
@@ -200,7 +209,11 @@ namespace UnityMCP.Editor
                 else
                     Debug.LogError($"[MCP] Command failed: {ErrorClassifier.FormatError(e)}");
                 var id = JsonHelper.ExtractString(json, "id") ?? "unknown";
-                return JsonHelper.FormatResponse(id, false, null, ErrorClassifier.FormatError(e));
+                var response = JsonHelper.FormatResponse(id, false, null, ErrorClassifier.FormatError(e));
+                var opId = JsonHelper.ExtractString(json, "op_id");
+                if (opId != null)
+                    _dedupRegistry.TryRegister(opId, response);
+                return response;
             }
         }
 

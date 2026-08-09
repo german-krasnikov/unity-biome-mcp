@@ -7,6 +7,7 @@ Proxy sits between the test bridge and Unity:
 """
 
 import asyncio
+import contextlib
 import socket
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ import pytest
 import pytest_asyncio
 
 from unity_mcp.bridge import UnityBridge
+from unity_mcp.compile_state import CompileStateProbe
 
 # FaultProxy lives in scripts/, not on the installed package path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
@@ -57,9 +59,15 @@ async def proxy_bridge(conformance_worker):
         server = await asyncio.start_server(proxy.handle_client, "127.0.0.1", proxy_port)
         servers.append(server)
 
-        # expected_project_path=None skips handshake verification so the
-        # proxy's fault_count isn't consumed by the connect() identity probe.
-        bridge = UnityBridge("127.0.0.1", port=proxy_port, expected_project_path=None)
+        # Use an explicit empty probe so UNITY_MCP_PROJECT_PATH does not
+        # autodetect a project for the proxy port. The fault must hit the
+        # command under test, not connect() identity probing.
+        bridge = UnityBridge(
+            "127.0.0.1",
+            port=proxy_port,
+            probe=CompileStateProbe(None, port=proxy_port),
+            expected_project_path=None,
+        )
         await bridge.connect()
         bridges.append(bridge)
         return proxy, bridge, proxy_port
@@ -67,10 +75,8 @@ async def proxy_bridge(conformance_worker):
     yield make
 
     for bridge in bridges:
-        try:
+        with contextlib.suppress(Exception):
             await bridge.close()
-        except Exception:  # noqa: BLE001
-            pass
     for server in servers:
         server.close()
         await server.wait_closed()
@@ -84,14 +90,10 @@ async def test_passthrough_roundtrip(proxy_bridge):
 
 
 async def test_drop_ack_causes_timeout(proxy_bridge):
-    """drop_ack silently discards the response and closes the connection.
-
-    Bridge MIN_RECONNECT_INTERVAL=5s > our 3s wait_for, so the send()
-    reliably times out before any retry can succeed.
-    """
+    """drop_ack on a read should be recovered by the bridge retry path."""
     _, bridge, _ = await proxy_bridge("drop_ack", fault_count=1)
-    with pytest.raises((asyncio.TimeoutError, ConnectionError, OSError)):
-        await asyncio.wait_for(bridge.send("get_status", {}), timeout=3.0)
+    resp = await asyncio.wait_for(bridge.send("get_status", {}), timeout=10.0)
+    assert resp["ok"], f"Expected read retry to recover after dropped ack: {resp}"
 
 
 async def test_duplicate_frame_handled(proxy_bridge):
@@ -111,13 +113,18 @@ async def test_recovery_after_fault(proxy_bridge):
     """
     proxy, first_bridge, proxy_port = await proxy_bridge("drop_ack", fault_count=1)
 
-    # First request triggers the fault (response dropped, connection closed)
-    with pytest.raises((asyncio.TimeoutError, ConnectionError, OSError)):
-        await asyncio.wait_for(first_bridge.send("get_status", {}), timeout=3.0)
+    # First request triggers the fault and should recover through the bridge.
+    first_resp = await asyncio.wait_for(first_bridge.send("get_status", {}), timeout=10.0)
+    assert first_resp["ok"], f"Expected first read to recover after dropped ack: {first_resp}"
 
     # Proxy fault_count exhausted (_faulted=1 >= fault_count=1) — next
     # connection goes straight through.
-    second_bridge = UnityBridge("127.0.0.1", port=proxy_port, expected_project_path=None)
+    second_bridge = UnityBridge(
+        "127.0.0.1",
+        port=proxy_port,
+        probe=CompileStateProbe(None, port=proxy_port),
+        expected_project_path=None,
+    )
     try:
         await second_bridge.connect()
         resp = await asyncio.wait_for(second_bridge.send("get_status", {}), timeout=10.0)

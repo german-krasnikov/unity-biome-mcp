@@ -18,7 +18,7 @@ async def test_get_hierarchy_returns_nodes(conformance_worker):
 async def test_inspect_main_camera(conformance_worker):
     """inspect returns component info for a known object."""
     worker, bridge = conformance_worker
-    resp = await bridge.send("inspect", {"path": "/Main Camera"})
+    resp = await bridge.send("inspect", {"paths": "/Main Camera"})
     data = resp.get("data", "")
     assert isinstance(data, str)
     assert len(data) > 0, "inspect returned empty"
@@ -55,6 +55,7 @@ async def test_get_console_returns_data(conformance_worker):
     assert "data" in resp
 
 
+@pytest.mark.requires_graphics
 async def test_screenshot_succeeds(conformance_worker):
     """screenshot returns a non-empty response."""
     worker, bridge = conformance_worker

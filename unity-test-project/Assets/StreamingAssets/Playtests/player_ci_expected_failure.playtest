@@ -1,0 +1,6 @@
+# Built-player PlayTest expected-failure receipt smoke.
+LOG Player PlayTest CI expected failure started
+INVOKE /GridPlayer GridPlayer ResetState
+ASSERT /GridPlayer|GridPlayer|PosZ == 999
+WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == True TIMEOUT 0.1
+ASSERT_CONSOLE_CLEAN

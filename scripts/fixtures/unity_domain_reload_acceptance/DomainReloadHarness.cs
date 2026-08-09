@@ -19,14 +19,8 @@ namespace UnityMCP.Worker.DomainReloadAcceptance
         {
             if (!Application.isBatchMode) return;
             ConfigureReloadPort();
-            AssemblyReloadEvents.beforeAssemblyReload += Stop;
-            EditorApplication.quitting += Stop;
+            MCPServer.RegisterLifecycleCallbacks();
             EditorApplication.delayCall += MCPServer.StartAsync;
-        }
-
-        private static void Stop()
-        {
-            MCPServer.Stop();
         }
 
         private static void ConfigureReloadPort()

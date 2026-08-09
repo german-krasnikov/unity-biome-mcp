@@ -12,7 +12,12 @@ import argparse
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
+
+from gauntlet.junit import JUnitError, parse_pytest_junit
+
+DEFAULT_MARKERS = "conformance and live and not requires_graphics"
 
 
 def build_env(args) -> dict[str, str]:
@@ -29,17 +34,18 @@ def build_env(args) -> dict[str, str]:
     return env
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="MCP conformance test runner")
     parser.add_argument("--port", type=int, default=9500, help="Unity MCP port (default: 9500)")
     parser.add_argument("--project", required=True, help="Unity project path")
     parser.add_argument("--second-port", type=int, default=0, help="Second Unity port for cross-project tests")
     parser.add_argument("--second-project", default="", help="Second Unity project path (Worker B)")
     parser.add_argument("--timeout", type=int, default=300, help="Pytest timeout in seconds (default: 300)")
-    parser.add_argument("--markers", default="conformance and live", help="Pytest marker expression")
+    parser.add_argument("--markers", default=DEFAULT_MARKERS, help="Pytest marker expression")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--record", metavar="FILE", help="Record trace to JSONL file (sets UNITY_MCP_TRACE_FILE)")
-    args = parser.parse_args()
+    parser.add_argument("--junit", type=Path, help="Write and assess pytest JUnit evidence")
+    args = parser.parse_args(argv)
 
     if not 1 <= args.port <= 65535:
         print(f"ERROR: invalid port {args.port}", file=sys.stderr)
@@ -63,26 +69,59 @@ def main() -> int:
             print(f"ERROR: test directory not found at {d}", file=sys.stderr)
             return 1
 
-    cmd = [
-        sys.executable, "-m", "pytest",
-        *[str(d) for d in test_dirs],
-        "-m", args.markers,
-        f"--timeout={args.timeout}",
-    ]
-    if args.verbose:
-        cmd.append("-v")
-    else:
-        cmd.append("-q")
+    with tempfile.TemporaryDirectory(prefix="unity-mcp-conformance-") as directory:
+        junit = args.junit or Path(directory) / "conformance.xml"
+        cmd = [
+            sys.executable,
+            "-m",
+            "pytest",
+            *[str(d) for d in test_dirs],
+            "-m",
+            args.markers,
+            f"--timeout={args.timeout}",
+            f"--junitxml={junit}",
+        ]
+        cmd.append("-v" if args.verbose else "-q")
 
-    print(f"Running conformance tests against :{args.port} ({args.project})")
-    print(f"Command: {' '.join(cmd)}")
+        print(f"Running conformance tests against :{args.port} ({args.project})")
+        print(f"Command: {' '.join(cmd)}")
 
+        try:
+            result = subprocess.run(cmd, env=env, timeout=args.timeout + 60)
+        except subprocess.TimeoutExpired:
+            print("ERROR: conformance runner timed out", file=sys.stderr)
+            return 1
+        assessed = _assess_junit(junit)
+        if assessed != 0:
+            return assessed
+        if result.returncode != 0:
+            return result.returncode
+    return 0
+
+
+def _assess_junit(path: Path) -> int:
     try:
-        result = subprocess.run(cmd, env=env, timeout=args.timeout + 60)
-    except subprocess.TimeoutExpired:
-        print("ERROR: conformance runner timed out", file=sys.stderr)
+        result = parse_pytest_junit(path)
+    except JUnitError as exc:
+        print(f"ERROR: conformance JUnit evidence invalid: {exc}", file=sys.stderr)
         return 1
-    return result.returncode
+    if result.total == 0:
+        print("ERROR: conformance executed zero scenarios", file=sys.stderr)
+        return 1
+    if result.failed:
+        print(
+            f"ERROR: conformance failed {result.failed}/{result.total} scenarios",
+            file=sys.stderr,
+        )
+        return 1
+    if result.skipped:
+        print(
+            f"ERROR: conformance skipped {result.skipped}/{result.total} scenarios",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"CONFORMANCE PASS: {result.passed}/{result.total}")
+    return 0
 
 
 if __name__ == "__main__":

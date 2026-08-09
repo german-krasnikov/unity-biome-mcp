@@ -111,6 +111,25 @@ def test_unity_tests_create_preview_scenes_only_through_owned_factory() -> None:
     assert offenders == []
 
 
+def test_domain_reload_harness_uses_production_lifecycle_callbacks() -> None:
+    server = _code(REPO_ROOT / "unity-plugin" / "Editor" / "MCPServer.cs")
+    harness = _code(
+        REPO_ROOT
+        / "scripts"
+        / "fixtures"
+        / "unity_domain_reload_acceptance"
+        / "DomainReloadHarness.cs"
+    )
+    assert "RegisterLifecycleCallbacks" in server
+    assert "RegisterLifecycleCallbacks" in harness
+    assembly_info = (
+        REPO_ROOT / "unity-plugin" / "Editor" / "AssemblyInfo.cs"
+    ).read_text(encoding="utf-8")
+    assert 'InternalsVisibleTo("UnityMCP.Worker.DomainReloadHarness")' in assembly_info
+    assert not re.search(r"AssemblyReloadEvents\s*\.\s*beforeAssemblyReload\s*\+=\s*Stop", harness)
+    assert not re.search(r"EditorApplication\s*\.\s*quitting\s*\+=\s*Stop", harness)
+
+
 def test_unity_tests_do_not_mutate_live_editor_transport_state() -> None:
     code_patterns = {
         "production relay stop": re.compile(r"\bRelaySpawner\s*\.\s*Stop\s*\("),

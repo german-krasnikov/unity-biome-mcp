@@ -23,7 +23,13 @@ async def test_create_in_b_not_visible_in_a(dual_worker_session):
     worker_a, bridge_a, worker_b, bridge_b = dual_worker_session
     status_b = await bridge_b.send("get_status", {})
     if "readOnly=True" in status_b.get("data", ""):
-        pytest.skip("Worker B is read-only — B→A contamination impossible by design")
+        name = f"{worker_b.scene_ns}_iso_b_readonly"
+        resp = await bridge_b.send("create_object", {"name": name})
+        assert not resp["ok"], f"read-only Worker B unexpectedly allowed create_object: {resp}"
+        hier_a = await bridge_a.send("get_hierarchy", {"depth": 1})
+        assert name not in hier_a.get("data", ""), \
+            f"blocked B object appeared in A: {hier_a['data']}"
+        return
     name = f"{worker_b.scene_ns}_iso_b"
     try:
         resp = await bridge_b.send("create_object", {"name": name})

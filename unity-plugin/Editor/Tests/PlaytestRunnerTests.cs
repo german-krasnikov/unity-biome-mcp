@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -764,6 +765,80 @@ namespace UnityMCP.Editor.Tests
             PlaytestRunner.SetFreshTestState(freshMode: true, reloadDone: false, loadInProgress: false);
             Assert.IsTrue(PlaytestRunner.ShouldStartFreshLoad,
                 "Fresh load should start when fresh mode is on and no load is in progress");
+        }
+
+        [Test]
+        public void CompleteRunCleanup_ResetsTransientPlaytestState()
+        {
+            RegisterCleanup(() =>
+            {
+                Time.timeScale = 1f;
+                PlaytestMonitorRegistry.Reset();
+                PlaytestRunner.SetFreshTestState(false, false, false);
+            });
+            Time.timeScale = 3f;
+            PlaytestMonitorRegistry.InjectForTest(new StubMonitor());
+            PlaytestRunner.SetFreshTestState(freshMode: true, reloadDone: false, loadInProgress: false);
+
+            PlaytestRunner.CompleteRunCleanupForTests();
+
+            Assert.AreEqual(1f, Time.timeScale);
+            Assert.AreEqual(0, PlaytestMonitorRegistry.ActiveCount);
+            Assert.IsFalse(PlaytestRunner.ShouldStartFreshLoad);
+        }
+
+        [Test]
+        public async Task Run_ParseError_CleansTransientPlaytestState()
+        {
+            RegisterCleanup(() =>
+            {
+                Time.timeScale = 1f;
+                PlaytestMonitorRegistry.Reset();
+                PlaytestRunner.SetFreshTestState(false, false, false);
+            });
+            Time.timeScale = 3f;
+            PlaytestMonitorRegistry.InjectForTest(new StubMonitor());
+            PlaytestRunner.SetFreshTestState(freshMode: true, reloadDone: false, loadInProgress: false);
+            var tcs = new TaskCompletionSource<string>();
+
+            PlaytestRunner.Run("INCLUDE missing.defs\nASSERT /X|C|f == 1", 1f, tcs, fresh: true);
+
+            Assert.IsTrue(tcs.Task.IsCompleted);
+            StringAssert.StartsWith("PARSE ERROR:", await tcs.Task);
+            Assert.AreEqual(1f, Time.timeScale);
+            Assert.AreEqual(0, PlaytestMonitorRegistry.ActiveCount);
+            Assert.IsFalse(PlaytestRunner.ShouldStartFreshLoad);
+        }
+
+        [Test]
+        public async Task Run_ZeroSteps_CleansTransientPlaytestState()
+        {
+            RegisterCleanup(() =>
+            {
+                Time.timeScale = 1f;
+                PlaytestMonitorRegistry.Reset();
+                PlaytestRunner.SetFreshTestState(false, false, false);
+            });
+            Time.timeScale = 2f;
+            PlaytestMonitorRegistry.InjectForTest(new StubMonitor());
+            PlaytestRunner.SetFreshTestState(freshMode: true, reloadDone: false, loadInProgress: false);
+            var tcs = new TaskCompletionSource<string>();
+
+            PlaytestRunner.Run("# empty playtest", 1f, tcs, fresh: true);
+
+            Assert.IsTrue(tcs.Task.IsCompleted);
+            Assert.AreEqual("PLAYTEST: 0 steps (0s)", await tcs.Task);
+            Assert.AreEqual(1f, Time.timeScale);
+            Assert.AreEqual(0, PlaytestMonitorRegistry.ActiveCount);
+            Assert.IsFalse(PlaytestRunner.ShouldStartFreshLoad);
+        }
+
+        private sealed class StubMonitor : IPlaytestMonitor
+        {
+            public string Name => "StubMonitorForTest";
+            public void Start() { }
+            public void Stop() { }
+            public string Report() => "stub";
         }
     }
 }

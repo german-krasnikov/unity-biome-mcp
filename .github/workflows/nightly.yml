@@ -67,6 +67,7 @@ jobs:
 
       - uses: buildalon/unity-setup@1a2acb0efbce77c0f90b79ced6a9c6a37ae534c2  # v2
         id: unity-setup
+        timeout-minutes: 15
         with:
           unity-version: 6000.0.65f1
           build-targets: StandaloneLinux64

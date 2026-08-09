@@ -1,0 +1,336 @@
+name: Unity Player PlayTest
+
+on:
+  workflow_call:
+    inputs:
+      run_graphics_smoke:
+        description: "Run optional graphics/UI player smoke. Off by default; core CI stays text-mode."
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      run_graphics_smoke:
+        description: "Run optional graphics/UI player smoke. Off by default; core CI stays text-mode."
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 3 * * *"
+  push:
+    branches: [master, "feat/**", "feature/**", "fix/**"]
+    paths:
+      - "unity-plugin/**"
+      - "unity-plugin-reload/**"
+      - "unity-test-project/Assets/Scenes/**"
+      - "unity-test-project/Assets/Scripts/**"
+      - "unity-test-project/Assets/StreamingAssets/**"
+      - "unity-test-project/Assets/Editor/CiBuildSmoke.cs"
+      - "unity-test-project/ProjectSettings/**"
+      - ".github/workflows/unity-player-playtest.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "unity-plugin/**"
+      - "unity-plugin-reload/**"
+      - "unity-test-project/Assets/Scenes/**"
+      - "unity-test-project/Assets/Scripts/**"
+      - "unity-test-project/Assets/StreamingAssets/**"
+      - "unity-test-project/Assets/Editor/CiBuildSmoke.cs"
+      - "unity-test-project/ProjectSettings/**"
+      - ".github/workflows/unity-player-playtest.yml"
+
+concurrency:
+  group: unity-player-playtest-${{ github.head_ref || github.ref }}-${{ github.event_name == 'workflow_call' && github.run_id || 'default' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  player-playtest:
+    name: Player PlayTest (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: ubuntu-latest
+            build-target: StandaloneLinux64
+            build-output: artifacts/player-smoke/UnityMCP
+            hub-version: "3.19.5"
+          - name: macOS
+            runner: macos-latest
+            build-target: StandaloneOSX
+            build-output: artifacts/player-smoke/UnityMCP.app
+            hub-version: ""
+          - name: Windows
+            runner: windows-2022
+            build-target: StandaloneWindows64
+            build-output: artifacts/player-smoke/UnityMCP.exe
+            hub-version: ""
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Install VC++ 2010 runtime (Unity 6 dependency)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: choco install vcredist2010 -y
+
+      - name: Create artifacts directory
+        shell: bash
+        run: mkdir -p artifacts
+
+      - name: Set UPM cache path
+        id: upm-path
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "path=$HOME/Library/Caches/Unity/upm" >> "$GITHUB_OUTPUT"
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
+            echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=$LOCALAPPDATA/Unity/cache/upm" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache UPM packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: ${{ steps.upm-path.outputs.path }}
+          key: upm-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
+          restore-keys: |
+            upm-${{ runner.os }}-
+
+      - uses: buildalon/unity-setup@1a2acb0efbce77c0f90b79ced6a9c6a37ae534c2  # v2
+        id: unity-setup
+        timeout-minutes: 15
+        with:
+          unity-version: 6000.0.65f1
+          build-targets: ${{ matrix.build-target }}
+          cache-installation: ${{ runner.os != 'Windows' }}
+          hub-version: ${{ matrix.hub-version }}
+
+      - uses: buildalon/activate-unity-license@87b3a82bac7ca7609eacdb2bec31c8a8a142ed9a  # v2
+        with:
+          license: "Personal"
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Install Linux virtual display
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          command -v xvfb-run >/dev/null || {
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          }
+
+      - uses: buildalon/unity-action@4de595732434e4da7726086a95a75eda832bd03d  # v3
+        name: Build Standalone Player Smoke
+        timeout-minutes: 35
+        with:
+          build-target: ${{ matrix.build-target }}
+          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
+          project-path: unity-test-project
+          args: >
+            -batchmode
+            -nographics
+            -quit
+            -executeMethod UnityMCP.CI.CiBuildSmoke.Build
+            -ciBuildOutput ${{ github.workspace }}/${{ matrix.build-output }}
+            -ciBuildScene Assets/Scenes/GridTest.unity
+            -logFile ${{ github.workspace }}/artifacts/player-build.log
+
+      - name: Run Player PlayTest Smoke
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          PLAYER="${{ matrix.build-output }}"
+          if [[ "$PLAYER" == *.app ]]; then
+            PLAYER=$(find "$PLAYER/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
+          fi
+          test -n "$PLAYER"
+          chmod +x "$PLAYER" 2>/dev/null || true
+          PLAYTEST_ARGS=(
+            -batchmode
+            -unityMcpPlaytest "${{ github.workspace }}/unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest"
+            -unityMcpPlaytestJson "${{ github.workspace }}/artifacts/player-playtest.json"
+            -unityMcpPlaytestJunit "${{ github.workspace }}/artifacts/player-playtest.xml"
+            -unityMcpPlaytestExit
+          )
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" "$PLAYER" -force-glcore "${PLAYTEST_ARGS[@]}"
+          else
+            "$PLAYER" -nographics "${PLAYTEST_ARGS[@]}"
+          fi
+
+      - name: Validate Player PlayTest Receipts
+        shell: python
+        run: |
+          import json
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          json_path = Path("artifacts/player-playtest.json")
+          junit_path = Path("artifacts/player-playtest.xml")
+          raw_json = json_path.read_bytes()
+          if raw_json.startswith(b"\xef\xbb\xbf"):
+              raise SystemExit("player JSON receipt must be UTF-8 without BOM")
+          payload = json.loads(raw_json.decode("utf-8"))
+          if payload.get("failed") != 0:
+              raise SystemExit(f"player PlayTest failed: {payload!r}")
+          if not payload.get("steps"):
+              raise SystemExit("player PlayTest emitted no step receipts")
+          if len(payload.get("steps", [])) != 14:
+              raise SystemExit(f"player success PlayTest executed unexpected step count: {payload!r}")
+          suite = ET.parse(junit_path).getroot()
+          if suite.get("name") != "UnityMCP.PlayerPlaytest":
+              raise SystemExit(f"unexpected JUnit suite: {suite.get('name')!r}")
+          if suite.get("failures") != "0":
+              raise SystemExit(ET.tostring(suite, encoding="unicode"))
+
+      - name: Run Player PlayTest Expected Failure Smoke
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          PLAYER="${{ matrix.build-output }}"
+          if [[ "$PLAYER" == *.app ]]; then
+            PLAYER=$(find "$PLAYER/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
+          fi
+          test -n "$PLAYER"
+          chmod +x "$PLAYER" 2>/dev/null || true
+          EXPECTED_FAILURE_ARGS=(
+            -batchmode
+            -unityMcpPlaytest "${{ github.workspace }}/unity-test-project/Assets/StreamingAssets/Playtests/player_ci_expected_failure.playtest"
+            -unityMcpPlaytestJson "${{ github.workspace }}/artifacts/player-playtest-failure.json"
+            -unityMcpPlaytestJunit "${{ github.workspace }}/artifacts/player-playtest-failure.xml"
+            -unityMcpPlaytestExit
+          )
+          set +e
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" "$PLAYER" -force-glcore "${EXPECTED_FAILURE_ARGS[@]}"
+          else
+            "$PLAYER" -nographics "${EXPECTED_FAILURE_ARGS[@]}"
+          fi
+          EXPECTED_FAILURE_RC=$?
+          set -e
+          if [[ "$EXPECTED_FAILURE_RC" -eq 0 ]]; then
+            echo "expected-failure PlayTest unexpectedly passed"
+            exit 1
+          fi
+          if [[ "$EXPECTED_FAILURE_RC" -ne 1 ]]; then
+            echo "expected-failure PlayTest returned unexpected exit code: $EXPECTED_FAILURE_RC"
+            exit "$EXPECTED_FAILURE_RC"
+          fi
+
+      - name: Validate Player PlayTest Expected Failure Receipts
+        shell: python
+        run: |
+          import json
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          json_path = Path("artifacts/player-playtest-failure.json")
+          junit_path = Path("artifacts/player-playtest-failure.xml")
+          payload = json.loads(json_path.read_text(encoding="utf-8"))
+          if payload.get("failed", 0) < 2:
+              raise SystemExit(f"expected-failure PlayTest did not fail twice: {payload!r}")
+          steps = payload.get("steps", [])
+          if not any(step.get("raw") == "ASSERT /GridPlayer|GridPlayer|PosZ == 999" and not step.get("passed") for step in steps):
+              raise SystemExit(f"expected-failure PlayTest assertion step was not recorded: {payload!r}")
+          if not any(str(step.get("raw", "")).startswith("WAIT_UNTIL ") and not step.get("passed") for step in steps):
+              raise SystemExit(f"expected-failure PlayTest timeout step was not recorded: {payload!r}")
+          suite = ET.parse(junit_path).getroot()
+          if suite.get("name") != "UnityMCP.PlayerPlaytest":
+              raise SystemExit(f"unexpected expected-failure JUnit suite: {suite.get('name')!r}")
+          if suite.get("failures") == "0":
+              raise SystemExit(ET.tostring(suite, encoding="unicode"))
+
+      - name: Run Player Graphics Smoke
+        if: ${{ inputs.run_graphics_smoke == true || inputs.run_graphics_smoke == 'true' }}
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          PLAYER="${{ matrix.build-output }}"
+          if [[ "$PLAYER" == *.app ]]; then
+            PLAYER=$(find "$PLAYER/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
+          fi
+          test -n "$PLAYER"
+          chmod +x "$PLAYER" 2>/dev/null || true
+          GRAPHICS_ARGS=(
+            -batchmode
+            -unityMcpPlaytest "${{ github.workspace }}/unity-test-project/Assets/StreamingAssets/Playtests/player_ci_graphics_smoke.playtest"
+            -unityMcpPlaytestJson "${{ github.workspace }}/artifacts/player-playtest-graphics.json"
+            -unityMcpPlaytestJunit "${{ github.workspace }}/artifacts/player-playtest-graphics.xml"
+            -unityMcpPlaytestExit
+          )
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" "$PLAYER" -force-glcore "${GRAPHICS_ARGS[@]}"
+          else
+            "$PLAYER" "${GRAPHICS_ARGS[@]}"
+          fi
+
+      - name: Validate Player Graphics Receipts
+        if: ${{ inputs.run_graphics_smoke == true || inputs.run_graphics_smoke == 'true' }}
+        shell: python
+        run: |
+          import json
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          payload = json.loads(Path("artifacts/player-playtest-graphics.json").read_text(encoding="utf-8"))
+          if payload.get("failed") != 0:
+              raise SystemExit(f"graphics PlayTest failed: {payload!r}")
+          if len(payload.get("steps", [])) != 4:
+              raise SystemExit(f"graphics PlayTest executed unexpected step count: {payload!r}")
+          suite = ET.parse("artifacts/player-playtest-graphics.xml").getroot()
+          if suite.get("name") != "UnityMCP.PlayerPlaytest":
+              raise SystemExit(f"unexpected graphics JUnit suite: {suite.get('name')!r}")
+          if suite.get("failures") != "0":
+              raise SystemExit(ET.tostring(suite, encoding="unicode"))
+
+      - name: Write Player PlayTest Evidence
+        shell: bash
+        run: |
+          python scripts/write_player_playtest_evidence.py \
+            --head-sha "${{ github.sha }}" \
+            --run-id "${{ github.run_id }}" \
+            --run-attempt "${{ github.run_attempt }}" \
+            --runner-os "${{ runner.os }}" \
+            --matrix-name "${{ matrix.name }}" \
+            --player-path "${{ matrix.build-output }}" \
+            --artifacts-dir artifacts \
+            --out artifacts/player-playtest-evidence.json
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        if: always()
+        with:
+          name: player-playtest-${{ matrix.name }}
+          path: |
+            ${{ matrix.build-output }}
+            artifacts/player-build.log
+            artifacts/player-playtest.json
+            artifacts/player-playtest.xml
+            artifacts/player-playtest-failure.json
+            artifacts/player-playtest-failure.xml
+            artifacts/player-playtest-graphics.json
+            artifacts/player-playtest-graphics.xml
+            artifacts/player-playtest-evidence.json
+          if-no-files-found: warn
+
+      - name: Check player JUnit exists
+        id: check-player-results
+        if: always()
+        shell: bash
+        run: test -f artifacts/player-playtest.xml && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
+
+      - uses: dorny/test-reporter@3eeb9fc888e82e8be2fb356bbeec2750231672bc  # v1
+        if: always() && steps.check-player-results.outputs.exists == 'true'
+        with:
+          name: Player PlayTest (${{ matrix.name }})
+          path: artifacts/player-playtest.xml
+          reporter: java-junit

@@ -24,6 +24,7 @@ namespace UnityMCP.Editor
         // internal — read by ClientConnectionHandler (fast-path handlers run off-main-thread).
         internal static volatile bool _shuttingDown;
         private static volatile bool _starting;
+        private static bool _lifecycleCallbacksRegistered;
         internal static volatile bool _isCompiling;
         // Cached domain stamp — read from main thread in StartAsync, used in get_version fast-path
         // (which runs on ThreadPool after ConfigureAwait(false); SessionState not thread-safe).
@@ -152,37 +153,69 @@ namespace UnityMCP.Editor
 
         // Pure helper — no Unity API calls, fully unit-testable.
         // Mirrors ReloadPlugin.ShouldStartReloadServer pattern.
-        internal static bool ShouldStartServer(bool isBatchMode) => !isBatchMode;
+        internal static bool ShouldStartServer(bool isBatchMode)
+            => !isBatchMode || Environment.GetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE") == "1";
+
+        internal static string ResolveBootstrapScenePath(string projectRoot, string scenePath)
+        {
+            if (string.IsNullOrWhiteSpace(scenePath)) return null;
+            return Path.GetFullPath(Path.IsPathRooted(scenePath)
+                ? scenePath
+                : Path.Combine(projectRoot, scenePath));
+        }
 
         static MCPServer()
         {
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
-            // Register WatchdogTick FIRST — so it survives even if PortFileManager throws below.
-            EditorApplication.update += WatchdogTick;
+            RegisterLifecycleCallbacks();
             // Remove port files from dead PIDs before writing our own — prevents stale entries.
             PortFileManager.CleanStalePeerPortFiles();
             // Persist auto-assigned ports so they survive domain reload
             PortFileManager.SavePorts(PortFileManager.Port, PortFileManager.ChatPort);
+            // Delay async start until first update — SynchronizationContext dead in static ctor
+            EditorApplication.delayCall += () => StartAsync();
+        }
+
+        internal static void RegisterLifecycleCallbacks()
+        {
+            if (_lifecycleCallbacksRegistered) return;
+            _lifecycleCallbacksRegistered = true;
+            // Register WatchdogTick FIRST — so it survives even if PortFileManager throws below.
+            EditorApplication.update += WatchdogTick;
             EditorApplication.update += MainThreadDispatcher.Drain;
             EditorApplication.quitting += OnQuit;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
-            CompilationPipeline.compilationStarted += _ => { _isCompiling = true; _compileStartedThisDomain = true; _compileStartTime = DateTime.UtcNow; WriteStateFile("compiling"); };
-            CompilationPipeline.compilationFinished += _ =>
-            {
-                // R-4 fix: never write "ready" from compilationFinished.
-                // If compile failed → no reload will happen, write compile_failed.
-                // If compile succeeded → reload is coming; "ready" written after reload in StartAsync.
-                _isCompiling = false;
-                if (EditorUtility.scriptCompilationFailed)
-                    WriteStateFile("compile_failed");
-                // else: state stays "compiling" until reload completes (StartAsync writes "ready")
-            };
-            EditorSceneManager.sceneOpened += (_, _) => { RefManager.Invalidate(); HierarchySerializer.ResetIncrementalCache(); };
-            EditorSceneManager.newSceneCreated += (_, _, _) => { RefManager.Invalidate(); HierarchySerializer.ResetIncrementalCache(); };
-            EditorSceneManager.sceneClosed += _ => { RefManager.Invalidate(); HierarchySerializer.ResetIncrementalCache(); };
-            // Delay async start until first update — SynchronizationContext dead in static ctor
-            EditorApplication.delayCall += () => StartAsync();
+            CompilationPipeline.compilationStarted += _ => OnCompilationStarted();
+            CompilationPipeline.compilationFinished += _ => OnCompilationFinished();
+            EditorSceneManager.sceneOpened += (_, _) => InvalidateSceneCaches();
+            EditorSceneManager.newSceneCreated += (_, _, _) => InvalidateSceneCaches();
+            EditorSceneManager.sceneClosed += _ => InvalidateSceneCaches();
+        }
+
+        private static void OnCompilationStarted()
+        {
+            _isCompiling = true;
+            _compileStartedThisDomain = true;
+            _compileStartTime = DateTime.UtcNow;
+            WriteStateFile("compiling");
+        }
+
+        private static void OnCompilationFinished()
+        {
+            // R-4 fix: never write "ready" from compilationFinished.
+            // If compile failed → no reload will happen, write compile_failed.
+            // If compile succeeded → reload is coming; "ready" written after reload in StartAsync.
+            _isCompiling = false;
+            if (EditorUtility.scriptCompilationFailed)
+                WriteStateFile("compile_failed");
+            // else: state stays "compiling" until reload completes (StartAsync writes "ready")
+        }
+
+        private static void InvalidateSceneCaches()
+        {
+            RefManager.Invalidate();
+            HierarchySerializer.ResetIncrementalCache();
         }
 
         private static void WatchdogTick()
@@ -203,6 +236,7 @@ namespace UnityMCP.Editor
             _starting = true;
             _shuttingDown = false;
             _domainStamp = SyncHelper.CurrentDomainStamp;  // cache on main thread — safe here, ThreadPool reads below
+            OpenBootstrapSceneFromEnvironment();
             // Ensure commands are registered BEFORE TCP bind.
             // InitDefaults() → RegisterAll() → populates _enabledToolsCache atomically.
             // Safe: runs on main thread after all [InitializeOnLoad] hooks (both delayCall
@@ -362,6 +396,19 @@ namespace UnityMCP.Editor
             finally { _starting = false; }
         }
 
+        private static void OpenBootstrapSceneFromEnvironment()
+        {
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var scenePath = ResolveBootstrapScenePath(
+                projectRoot,
+                Environment.GetEnvironmentVariable("UNITY_MCP_BOOTSTRAP_SCENE"));
+            if (scenePath == null || !File.Exists(scenePath)) return;
+            var active = ResolveBootstrapScenePath(projectRoot, EditorSceneManager.GetActiveScene().path);
+            if (string.Equals(active, scenePath, StringComparison.OrdinalIgnoreCase)) return;
+            EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+            Debug.Log($"[MCP] Opened bootstrap scene: {scenePath}");
+        }
+
         private static void TeardownCore()
         {
             try { _cts?.Cancel(); } catch { }      // fires linked tokens safely FIRST
@@ -428,7 +475,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "1.26.0";
+        internal static string PluginVersion => "1.26.1";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {

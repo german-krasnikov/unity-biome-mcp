@@ -7,6 +7,7 @@ import contextlib
 import logging
 import os
 import socket
+import weakref
 from pathlib import Path  # noqa: F401  # re-exported; tests mock unity_mcp.server_filtering.Path
 from typing import TYPE_CHECKING
 
@@ -258,6 +259,7 @@ async def discover_port_with_retry(
 # reconnect_unity()/_refresh_tools_cache() push a tool_list_changed notification
 # to the client outside of a request context (e.g. from a manual reconnect).
 _active_session = None
+_labeled_sessions: weakref.WeakSet = weakref.WeakSet()
 
 
 def get_active_session():
@@ -265,7 +267,7 @@ def get_active_session():
     return _active_session
 
 
-def install_list_tools_filter(mcp_server, get_disabled_cache_fn):
+def install_list_tools_filter(mcp_server, get_disabled_cache_fn, get_slot=None):
     """Patch mcp._mcp_server.request_handlers to inject filtering + schema capture."""
     import mcp.types as mcp_types
 
@@ -273,8 +275,12 @@ def install_list_tools_filter(mcp_server, get_disabled_cache_fn):
 
     async def _filtered_tools_handler(req):
         global _active_session
+        session = None
         with contextlib.suppress(LookupError):
-            _active_session = mcp_server._mcp_server.request_context.session
+            session = mcp_server._mcp_server.request_context.session
+            _active_session = session
+        if session is not None:
+            _schedule_client_label(session, get_slot)
         result = await original_handler(req)
         # Capture full schemas into registry BEFORE stripping
         for t in result.root.tools:
@@ -291,35 +297,28 @@ def install_list_tools_filter(mcp_server, get_disabled_cache_fn):
 _DEFAULT_CLIENT_LABEL = "Claude Code"
 
 
-def install_initialized_hook(mcp_server, get_slot):
-    """Register InitializedNotification handler to log MCP client name in Unity.
+def _schedule_client_label(session, get_slot) -> None:
+    """Send the client label once from a request carrying valid session context."""
+    if get_slot is None or session in _labeled_sessions:
+        return
+    client_params = session.client_params
+    name = client_params.clientInfo.name if client_params else None
+    if not name or name == _DEFAULT_CLIENT_LABEL:
+        return
+    bridge = get_slot()
+    if bridge is None:
+        return
 
-    Skips "Claude Code" (already the default label on the C# side).
-    Logs at DEBUG on send failure instead of silently dropping the error.
-    """
     import asyncio
 
-    import mcp.types as mcp_types
     logger = logging.getLogger("unity_mcp")
+    _labeled_sessions.add(session)
 
-    async def _on_initialized(notification) -> None:
+    async def _send() -> None:
         try:
-            session = mcp_server._mcp_server.request_context.session
-            name = session.client_params.clientInfo.name if session.client_params else None
-            if not name or name == _DEFAULT_CLIENT_LABEL:
-                return
-            bridge_ = get_slot()
-            if bridge_ is None:
-                return
-
-            async def _send():
-                try:
-                    await bridge_.send("set_client_label", {"label": name}, timeout=3.0)
-                except Exception as e:
-                    logger.debug("set_client_label failed for %r: %s", name, e)
-
-            asyncio.ensure_future(_send())
+            await bridge.send("set_client_label", {"label": name}, timeout=3.0)
         except Exception as e:
-            logger.debug("install_initialized_hook error: %s", e)
+            _labeled_sessions.discard(session)
+            logger.debug("set_client_label failed for %r: %s", name, e)
 
-    mcp_server._mcp_server.notification_handlers[mcp_types.InitializedNotification] = _on_initialized
+    asyncio.create_task(_send())

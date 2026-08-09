@@ -83,6 +83,7 @@ jobs:
           fi
 
           if [ "$RUN_SHA" != "$GITHUB_SHA" ]; then
-            echo "::warning::Conformance passed on $RUN_SHA, not on release SHA $GITHUB_SHA (non-server changes since last run)."
+            echo "::error::Conformance passed on $RUN_SHA, not on release SHA $GITHUB_SHA."
+            exit 1
           fi
           echo "Conformance gate passed."

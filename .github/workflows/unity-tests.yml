@@ -6,17 +6,28 @@ on:
     paths:
       - "unity-plugin/**"
       - "unity-test-project/**"
+      - "unity-test-project/Playtests/**"
       - ".github/workflows/unity-tests.yml"
   pull_request:
     branches: [master]
     paths:
       - "unity-plugin/**"
       - "unity-test-project/**"
+      - "unity-test-project/Playtests/**"
       - ".github/workflows/unity-tests.yml"
   workflow_dispatch:
+    inputs:
+      run_player_playtest:
+        description: "Also run the standalone Player PlayTest workflow."
+        required: false
+        default: "false"
+      run_player_graphics_smoke:
+        description: "Also run the optional graphics/UI player smoke inside the player workflow."
+        required: false
+        default: "false"
 
 concurrency:
-  group: unity-tests-${{ github.head_ref || github.ref }}
+  group: unity-tests-${{ github.head_ref || github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.run_player_playtest == 'true' && github.run_id || 'default' }}
   cancel-in-progress: true
 
 permissions:
@@ -26,6 +37,7 @@ permissions:
 jobs:
   test:
     name: EditMode Tests (${{ matrix.name }})
+    if: github.event_name != 'workflow_dispatch' || inputs.run_player_playtest != 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     strategy:
@@ -35,6 +47,7 @@ jobs:
           - name: Linux
             runner: ubuntu-latest
             build-target: StandaloneLinux64
+            build-output: artifacts/player-smoke/UnityMCP
             hub-version: '3.19.5'
             coverage-args: >-
               -enableCodeCoverage
@@ -42,11 +55,13 @@ jobs:
           - name: macOS
             runner: macos-latest
             build-target: StandaloneOSX
+            build-output: artifacts/player-smoke/UnityMCP.app
             hub-version: ''
             coverage-args: ''
           - name: Windows
             runner: windows-2022
             build-target: StandaloneWindows64
+            build-output: artifacts/player-smoke/UnityMCP.exe
             hub-version: ''
             coverage-args: ''
     steps:
@@ -82,6 +97,7 @@ jobs:
             upm-${{ runner.os }}-
       - uses: buildalon/unity-setup@1a2acb0efbce77c0f90b79ced6a9c6a37ae534c2  # v2
         id: unity-setup
+        timeout-minutes: 15
         with:
           unity-version: 6000.0.65f1
           build-targets: ${{ matrix.build-target }}
@@ -107,7 +123,6 @@ jobs:
             -testPlatform EditMode
             -testResults ${{ github.workspace }}/artifacts/editmode-results.xml
             -logFile ${{ github.workspace }}/artifacts/unity.log
-            -testFilter "cat!=FaultInjection&&cat!=LiveCLI&&cat!=RequiresGraphics&&cat!=InteractiveVisual&&cat!=WorkerOnly"
             ${{ matrix.coverage-args }}
 
       - name: Check test results exist
@@ -135,6 +150,8 @@ jobs:
           failed  = r.get('failed',  '?')
           skipped = r.get('skipped', '?')
           total   = r.get('total',   '?')
+          if int(total) == 0:
+              raise SystemExit('Unity EditMode test run executed zero tests')
           icon    = '✅' if int(r.get('failed', '1')) == 0 else '❌'
           name    = os.environ['MATRIX_NAME']
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
@@ -178,6 +195,14 @@ jobs:
         with:
           name: unity-log-${{ matrix.name }}
           path: artifacts/unity.log
+
+  player-playtest:
+    name: Optional standalone Player PlayTest
+    if: github.event_name == 'workflow_dispatch' && inputs.run_player_playtest == 'true'
+    uses: ./.github/workflows/unity-player-playtest.yml
+    with:
+      run_graphics_smoke: ${{ inputs.run_player_graphics_smoke == 'true' }}
+    secrets: inherit
 
   aggregate:
     name: Aggregate C# test results
@@ -224,4 +249,3 @@ jobs:
           git commit -m "chore: update C# test results [skip ci]"
           git pull --rebase -X theirs origin master
           git push
-

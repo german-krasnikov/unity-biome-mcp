@@ -321,44 +321,41 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ClientSlot_CapacityReplacementPreservesHandlerIdentity()
+        public void ClientSlot_WhenFullRejectsNewClientAndPreservesExistingClients()
         {
             var slot = new ClientSlot();
             using var lifetime = new CancellationTokenSource();
-            var clients = Enumerable.Range(0, ClientSlot.MaxClients + 2)
+            var clients = Enumerable.Range(0, ClientSlot.MaxClients + 1)
                 .Select(_ => new TcpClient())
                 .ToArray();
             var handles = new (int index, long generation, CancellationTokenSource clientCts)[clients.Length];
             try
             {
-                for (var i = 0; i < clients.Length; i++)
+                for (var i = 0; i < ClientSlot.MaxClients; i++)
                     handles[i] = slot.Add(clients[i], lifetime.Token);
+
+                Assert.IsFalse(slot.TryAdd(clients[ClientSlot.MaxClients], lifetime.Token,
+                    out var rejectedIndex, out var rejectedGeneration, out var rejectedCts),
+                    "A full slot must reject admission instead of evicting an established client.");
+                Assert.AreEqual(-1, rejectedIndex);
+                Assert.AreEqual(0, rejectedGeneration);
+                Assert.IsNull(rejectedCts);
 
                 var occupied = new List<TcpClient>();
                 slot.ForEach(occupied.Add);
                 Assert.AreEqual(ClientSlot.MaxClients, occupied.Count);
-                CollectionAssert.DoesNotContain(occupied, clients[0]);
-                CollectionAssert.DoesNotContain(occupied, clients[1]);
-                CollectionAssert.Contains(occupied, clients[ClientSlot.MaxClients]);
-                CollectionAssert.Contains(occupied, clients[ClientSlot.MaxClients + 1]);
+                CollectionAssert.DoesNotContain(occupied, clients[ClientSlot.MaxClients]);
+                for (var i = 0; i < ClientSlot.MaxClients; i++)
+                    CollectionAssert.Contains(occupied, clients[i]);
 
                 slot.Clear(handles[0].index, handles[0].generation);
-                slot.Clear(handles[1].index, handles[1].generation);
                 occupied.Clear();
                 slot.ForEach(occupied.Add);
-                Assert.AreEqual(ClientSlot.MaxClients, occupied.Count,
-                    "The evicted handler's stale generation must not clear its replacement.");
+                Assert.AreEqual(ClientSlot.MaxClients - 1, occupied.Count);
+                CollectionAssert.DoesNotContain(occupied, clients[0]);
+                CollectionAssert.DoesNotContain(occupied, clients[ClientSlot.MaxClients]);
 
-                for (var i = 2; i < ClientSlot.MaxClients; i++)
-                    slot.Clear(handles[i].index, handles[i].generation);
-                occupied.Clear();
-                slot.ForEach(occupied.Add);
-                CollectionAssert.AreEqual(
-                    new[] { clients[ClientSlot.MaxClients], clients[ClientSlot.MaxClients + 1] },
-                    occupied,
-                    "Unrelated handlers must retain their original slot identity across replacement.");
-
-                for (var i = ClientSlot.MaxClients; i < handles.Length; i++)
+                for (var i = 1; i < ClientSlot.MaxClients; i++)
                     slot.Clear(handles[i].index, handles[i].generation);
                 Assert.IsFalse(slot.AnyConnected);
             }

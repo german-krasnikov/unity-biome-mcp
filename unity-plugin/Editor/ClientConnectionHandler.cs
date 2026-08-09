@@ -44,7 +44,13 @@ namespace UnityMCP.Editor
                 try { client.Client.SetSocketOption(SocketOptionLevel.Socket,
                     SocketOptionName.Linger, new LingerOption(true, 0)); } catch (SocketException) { }
 #endif
-                var (idx, gen, clientCts) = slot.Add(client, token);
+                if (!slot.TryAdd(client, token, out var idx, out var gen, out var clientCts))
+                {
+                    try { client.Close(); } catch { }
+                    MainThreadDispatcher.Enqueue(() =>
+                        Debug.LogWarning($"[MCP] {label} rejected connection: client capacity exceeded"));
+                    continue;
+                }
                 _ = HandleClientAsync(client, slot, idx, gen, label, clientCts.Token);
             }
         }

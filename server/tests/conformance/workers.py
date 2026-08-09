@@ -15,11 +15,11 @@ async def connect_bridge(host: str, port: int, project: str = ""):
         try:
             await bridge.connect()
             return bridge
-        except (ConnectionRefusedError, OSError, asyncio.TimeoutError) as e:
+        except (ConnectionRefusedError, OSError, asyncio.TimeoutError) as e:  # noqa: PERF203
             last_err = e
             if attempt < 9:
                 await asyncio.sleep(1.0)
-        except Exception as e:
+        except Exception as e:  # noqa: PERF203
             last_err = e
             if attempt < 9:
                 await asyncio.sleep(1.0)
@@ -29,7 +29,16 @@ async def connect_bridge(host: str, port: int, project: str = ""):
 
 
 def _parse_status(text: str) -> dict[str, str]:
-    return dict(line.split("=", 1) for line in text.splitlines() if "=" in line)
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        normalized = value.strip()
+        if normalized.lower() in {"true", "false"}:
+            normalized = normalized.lower()
+        values[key.strip()] = normalized
+    return values
 
 
 @dataclass
@@ -79,3 +88,17 @@ class ConformanceWorker:
         hierarchy_text = resp.get("data", "")
         if self.scene_ns in hierarchy_text:
             raise AssertionError(f"scene_ns {self.scene_ns!r} still present in hierarchy — cleanup failed")
+
+    async def discard_if_dirty(self, bridge) -> None:
+        """Discard unsaved conformance mutations so the next test starts clean."""
+        status = await bridge.send("get_status", {})
+        info = _parse_status(status.get("data", ""))
+        if info.get("dirty", "false") != "true":
+            return
+        resp = await bridge.send("scene", {"action": "discard"})
+        if not resp.get("ok"):
+            raise AssertionError(f"scene discard failed: {resp}")
+        after = await bridge.send("get_status", {})
+        after_info = _parse_status(after.get("data", ""))
+        if after_info.get("dirty", "false") == "true":
+            raise AssertionError(f"scene is still dirty after discard: {after_info}")

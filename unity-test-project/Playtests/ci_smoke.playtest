@@ -1,0 +1,4 @@
+SECTION "ci smoke"
+LOG PlayTest CI smoke started
+WAIT 0.1
+ASSERT_CONSOLE_CLEAN

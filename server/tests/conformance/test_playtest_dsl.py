@@ -31,6 +31,6 @@ async def test_list_playtest_files(conformance_worker):
 async def test_lint_playtest_assert_syntax(conformance_worker):
     """lint_playtest accepts ASSERT with path syntax."""
     worker, bridge = conformance_worker
-    script = "ASSERT /Main Camera|Camera|m_Enabled == True"
+    script = "ASSERT /Main Camera|Camera|m_Enabled == True\nASSERT_CONSOLE_CLEAN"
     resp = await bridge.send("lint_playtest", {"script": script})
     assert resp["ok"], f"lint rejected valid ASSERT: {resp}"

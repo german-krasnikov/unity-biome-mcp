@@ -67,13 +67,23 @@ namespace UnityMCP.Editor
                     foreach (var kv in parseResult.VarDefs)
                         varRegistry.Register(kv.Key, kv.Value);
             }
-            catch (Exception e) { _isRunning = false; tcs.TrySetResult($"PARSE ERROR: {e.Message}"); return; }
+            catch (Exception e)
+            {
+                CompleteRunCleanup();
+                tcs.TrySetResult($"PARSE ERROR: {e.Message}");
+                return;
+            }
 
             if (parseResult.Warnings != null)
                 foreach (var w in parseResult.Warnings)
                     Debug.LogWarning($"[Playtest] {w}");
 
-            if (steps.Count == 0) { _isRunning = false; tcs.TrySetResult("PLAYTEST: 0 steps (0s)"); return; }
+            if (steps.Count == 0)
+            {
+                CompleteRunCleanup();
+                tcs.TrySetResult("PLAYTEST: 0 steps (0s)");
+                return;
+            }
 
             bool globalAbort = abortOnFail || parseResult.HasGlobalAbort;
             bool snapOnFail = snapshotOnFailure;
@@ -371,6 +381,7 @@ namespace UnityMCP.Editor
                 {
                     EditorApplication.update -= Tick;
                     _isRunning = false;
+                    CompleteRunCleanup();
                     tcs.TrySetResult("ERROR: " + e.Message);
                 }
             }
@@ -420,6 +431,8 @@ namespace UnityMCP.Editor
             _freshReloadDone = reloadDone;
             _freshLoadInProgress = loadInProgress;
         }
+
+        internal static void CompleteRunCleanupForTests() => CompleteRunCleanup();
         // consecutive exceptions during WAIT_UNTIL polling — reset on success or new step
         static int _waitPollErrors;
 
@@ -563,7 +576,7 @@ namespace UnityMCP.Editor
         {
             SetTimeScale(1f);
             var monitorReport = PlaytestMonitorRegistry.BuildReport();
-            PlaytestMonitorRegistry.StopAll();
+            CompleteRunCleanup();
             var elapsed = Time.realtimeSinceStartup - startTime;
             var header = $"PLAYTEST: {passed}/{passed + failed} ({elapsed.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)";
 
@@ -580,6 +593,27 @@ namespace UnityMCP.Editor
                     sb.AppendLine(r);
             if (hasMonitor) sb.AppendLine(monitorReport);
             return sb.ToString().TrimEnd();
+        }
+
+        static void CompleteRunCleanup()
+        {
+            _isRunning = false;
+            SetTimeScale(1f);
+            PlaytestMonitorRegistry.StopAll();
+            _activeSimulator = null;
+            _moveTcs = null;
+            _cachedConfig = null;
+            _freshMode = false;
+            _freshReloadDone = false;
+            _freshLoadInProgress = false;
+            _waitPollErrors = 0;
+            _captureLabel = null;
+            _captureCamera = null;
+            _captureMode = null;
+            _captureInterval = 0f;
+            _captureTarget = 0;
+            _captureLastTime = 0f;
+            _unchangedSince = -1f;
         }
 
         internal const int StepConsoleErrorMax = 3;

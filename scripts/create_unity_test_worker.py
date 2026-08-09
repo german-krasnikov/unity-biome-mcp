@@ -10,6 +10,12 @@ import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+from gauntlet.worker_artifacts import WorkerArtifactError, install_worker_artifacts
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE_PROJECT = REPO_ROOT / "unity-test-project"
@@ -90,17 +96,14 @@ def _prepare_destination(destination: Path) -> None:
     destination.mkdir(parents=True)
 
 
-def _rewrite_manifest(destination: Path) -> None:
+def _rewrite_manifest(destination: Path, package_dependencies: Mapping[str, str]) -> None:
     manifest_path = destination / "Packages" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     dependencies = manifest.get("dependencies")
     if not isinstance(dependencies, dict):
         raise WorkerCreationError("Packages/manifest.json has no dependencies object")
     dependencies["com.unity.test-framework"] = UTF_VERSION
-    dependencies["com.unity-biome-mcp.editor"] = "file:../LocalPackages/unity-plugin"
-    dependencies["com.unity-biome-mcp.reload"] = (
-        "file:../LocalPackages/unity-plugin-reload"
-    )
+    dependencies.update(package_dependencies)
     manifest["testables"] = [
         "com.unity-biome-mcp.editor",
         "com.unity-biome-mcp.reload",
@@ -113,7 +116,51 @@ def _rewrite_manifest(destination: Path) -> None:
         lock_path.unlink()
 
 
-def create_worker(source: Path, destination: Path) -> dict[str, object]:
+def _install_repo_packages(local_packages: Path) -> tuple[dict[str, str], dict[str, object]]:
+    shutil.copytree(
+        REPO_ROOT / "unity-plugin",
+        local_packages / "unity-plugin",
+        ignore=_ignore_package,
+    )
+    shutil.copytree(
+        REPO_ROOT / "unity-plugin-reload",
+        local_packages / "unity-plugin-reload",
+        ignore=_ignore_package,
+    )
+    return (
+        {
+            "com.unity-biome-mcp.editor": "file:../LocalPackages/unity-plugin",
+            "com.unity-biome-mcp.reload": "file:../LocalPackages/unity-plugin-reload",
+        },
+        {
+            "editor_package_sha256": _hash_tree(local_packages / "unity-plugin"),
+            "reload_package_sha256": _hash_tree(local_packages / "unity-plugin-reload"),
+        },
+    )
+
+
+def _install_worker_packages(
+    local_packages: Path,
+    artifact_manifest: Path | None,
+    artifact_root: Path | None,
+) -> tuple[dict[str, str], dict[str, object]]:
+    if artifact_manifest is None:
+        return _install_repo_packages(local_packages)
+    root = artifact_root or artifact_manifest.parent
+    try:
+        install = install_worker_artifacts(artifact_manifest, root, local_packages)
+    except WorkerArtifactError as exc:
+        raise WorkerCreationError(str(exc)) from exc
+    return install.dependencies, install.marker_fields
+
+
+def create_worker(
+    source: Path,
+    destination: Path,
+    *,
+    artifact_manifest: Path | None = None,
+    artifact_root: Path | None = None,
+) -> dict[str, object]:
     source = source.resolve()
     destination = destination.resolve()
     _validate_source(source)
@@ -128,17 +175,12 @@ def create_worker(source: Path, destination: Path) -> dict[str, object]:
         shutil.copytree(source / "Packages", destination / "Packages")
         shutil.copytree(source / "ProjectSettings", destination / "ProjectSettings")
         local_packages = destination / "LocalPackages"
-        shutil.copytree(
-            REPO_ROOT / "unity-plugin",
-            local_packages / "unity-plugin",
-            ignore=_ignore_package,
+        package_dependencies, package_marker = _install_worker_packages(
+            local_packages,
+            artifact_manifest,
+            artifact_root,
         )
-        shutil.copytree(
-            REPO_ROOT / "unity-plugin-reload",
-            local_packages / "unity-plugin-reload",
-            ignore=_ignore_package,
-        )
-        _rewrite_manifest(destination)
+        _rewrite_manifest(destination, package_dependencies)
 
         library = destination / "Library"
         evidence = library / "UnityMCP"
@@ -155,16 +197,18 @@ def create_worker(source: Path, destination: Path) -> dict[str, object]:
             "schema_version": 1,
             "disposable": True,
             "created_utc": datetime.now(timezone.utc).isoformat(),
-            "source_project": str(source),
-            "source_repository": str(REPO_ROOT),
+            "source_project_sha256": _hash_tree(source),
+            "source_repository_sha256": hashlib.sha256(
+                (
+                    _hash_tree(REPO_ROOT / "unity-plugin")
+                    + _hash_tree(REPO_ROOT / "unity-plugin-reload")
+                ).encode("ascii")
+            ).hexdigest(),
             "unity_version": UNITY_VERSION,
             "unity_revision": UNITY_REVISION,
             "utf_version": UTF_VERSION,
             "bootstrap_scene": BOOTSTRAP_SCENE,
-            "editor_package_sha256": _hash_tree(local_packages / "unity-plugin"),
-            "reload_package_sha256": _hash_tree(
-                local_packages / "unity-plugin-reload"
-            ),
+            **package_marker,
         }
         (evidence / "disposable-worker.json").write_text(
             json.dumps(marker, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -181,6 +225,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--destination", type=Path, required=True)
     parser.add_argument("--source-project", type=Path, default=DEFAULT_SOURCE_PROJECT)
+    parser.add_argument("--artifact-manifest", type=Path)
+    parser.add_argument("--artifact-root", type=Path)
     parser.add_argument("--unity", type=Path, default=DEFAULT_UNITY)
     parser.add_argument("--launch", action="store_true")
     return parser.parse_args()
@@ -189,7 +235,12 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
-        marker = create_worker(args.source_project, args.destination)
+        marker = create_worker(
+            args.source_project,
+            args.destination,
+            artifact_manifest=args.artifact_manifest,
+            artifact_root=args.artifact_root,
+        )
         print(json.dumps(marker, indent=2, sort_keys=True))
         print(f"worker={args.destination.resolve()}")
         if args.launch:

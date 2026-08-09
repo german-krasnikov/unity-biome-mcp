@@ -1,6 +1,7 @@
 // TDD: MCPServer.ShouldStartServer — AssetImportWorker / batch mode guard.
 // EditMode, no TCP required.
 using System.IO;
+using System;
 using NUnit.Framework;
 using UnityMCP.Editor;
 
@@ -12,13 +13,54 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ShouldStartServer_BatchMode_ReturnsFalse()
         {
-            Assert.IsFalse(MCPServer.ShouldStartServer(isBatchMode: true));
+            var previous = Environment.GetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE");
+            try
+            {
+                Environment.SetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE", null);
+                Assert.IsFalse(MCPServer.ShouldStartServer(isBatchMode: true));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE", previous);
+            }
         }
 
         [Test]
         public void ShouldStartServer_NormalEditor_ReturnsTrue()
         {
             Assert.IsTrue(MCPServer.ShouldStartServer(isBatchMode: false));
+        }
+
+        [Test]
+        public void ShouldStartServer_BatchModeWithCiOptIn_ReturnsTrue()
+        {
+            var previous = Environment.GetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE");
+            try
+            {
+                Environment.SetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE", "1");
+                Assert.IsTrue(MCPServer.ShouldStartServer(isBatchMode: true));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE", previous);
+            }
+        }
+
+        [Test]
+        public void ResolveBootstrapScenePath_ProjectRelativePath_ReturnsAbsolutePath()
+        {
+            var root = Path.GetFullPath(Path.Combine("Temp", "McpBootstrapRoot"));
+            var resolved = MCPServer.ResolveBootstrapScenePath(root, "Assets/Scenes/GridTest.unity");
+
+            Assert.AreEqual(
+                Path.GetFullPath(Path.Combine(root, "Assets", "Scenes", "GridTest.unity")),
+                resolved);
+        }
+
+        [Test]
+        public void ResolveBootstrapScenePath_EmptyPath_ReturnsNull()
+        {
+            Assert.IsNull(MCPServer.ResolveBootstrapScenePath("Temp", ""));
         }
 
         // Source-text assertion: verifies the static ctor actually calls ShouldStartServer.

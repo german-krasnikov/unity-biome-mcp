@@ -1,20 +1,20 @@
 """Stress tests — reload stability. Covers 13 fixes (CP-1 through SD-4, SH-8).
 All tests run without Unity (marker: not live).
 """
+import importlib.util
 import json
-import socket as _socket
+import struct
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
+from unity_mcp.compile_state import _DISCONNECT_WINDOW_S, CompileStateProbe
 from unity_mcp.lockfile import (
     cleanup_stale_port_files,
     read_pid_from_port_file,
-    is_pid_alive,
 )
-from unity_mcp.compile_state import CompileStateProbe, _DISCONNECT_WINDOW_S
-from unity_mcp.bridge_reload_state import DomainReloadTracker, DOMAIN_RELOAD_EXPIRY_S
 
 pytestmark = pytest.mark.slow
 
@@ -334,10 +334,6 @@ def test_t1_max_polls_none():
 # Group F: Guard Probe (_probe_guard_locked)
 # ===========================================================================
 
-import sys
-import importlib.util
-
-
 def _load_check_unity():
     """Load check_unity.py as module (it lives in scripts/, not in package)."""
     spec = importlib.util.spec_from_file_location(
@@ -353,26 +349,33 @@ def test_guard_probe_true():
     """_probe_guard_locked returns True when execute_code returns 'True'."""
     mod = _load_check_unity()
     response_body = json.dumps({"data": "True"}).encode()
-    import struct
 
     def fake_create_connection(addr, timeout):
         class FakeSock:
-            def sendall(self, data): pass
+            def sendall(self, data):  # noqa: ARG002
+                pass
+
             def recv(self, n):
                 # Return 4-byte length then body
                 combined = struct.pack(">I", len(response_body)) + response_body
                 return combined[:n]
-            def __enter__(self): return self
-            def __exit__(self, *a): pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
         return FakeSock()
 
-    with patch("socket.create_connection", side_effect=fake_create_connection):
-        with patch.object(mod, "_recvexactly") as mock_recv:
-            mock_recv.side_effect = [
-                struct.pack(">I", len(response_body)),
-                response_body,
-            ]
-            result = mod._probe_guard_locked(9500)
+    with patch("socket.create_connection", side_effect=fake_create_connection), patch.object(
+        mod, "_recvexactly"
+    ) as mock_recv:
+        mock_recv.side_effect = [
+            struct.pack(">I", len(response_body)),
+            response_body,
+        ]
+        result = mod._probe_guard_locked(9500)
     assert result is True
 
 
@@ -380,15 +383,13 @@ def test_guard_probe_false():
     """_probe_guard_locked returns False when execute_code returns 'False'."""
     mod = _load_check_unity()
     response_body = json.dumps({"data": "False"}).encode()
-    import struct
 
-    with patch("socket.create_connection"):
-        with patch.object(mod, "_recvexactly") as mock_recv:
-            mock_recv.side_effect = [
-                struct.pack(">I", len(response_body)),
-                response_body,
-            ]
-            result = mod._probe_guard_locked(9500)
+    with patch("socket.create_connection"), patch.object(mod, "_recvexactly") as mock_recv:
+        mock_recv.side_effect = [
+            struct.pack(">I", len(response_body)),
+            response_body,
+        ]
+        result = mod._probe_guard_locked(9500)
     assert result is False
 
 
@@ -432,12 +433,20 @@ def test_watchdog_registered_before_port_file_manager():
     If PortFileManager throws, WatchdogTick must still be wired up to restart the server.
     """
     src = (_PLUGIN / "Editor/MCPServer.cs").read_text(encoding="utf-8")
-    # Scope search to static constructor body only (avoid the public SavePorts wrapper above it)
+    # The static constructor delegates callback wiring to RegisterLifecycleCallbacks().
+    # Assert the delegated lifecycle hook is reached before any PortFileManager call.
     ctor_start = src.find("static MCPServer()")
     ctor_end = src.find("\n        public static async void StartAsync()", ctor_start)
     ctor = src[ctor_start:ctor_end]
-    idx_watchdog = ctor.find("EditorApplication.update += WatchdogTick")
+    idx_register = ctor.find("RegisterLifecycleCallbacks()")
     idx_clean = ctor.find("PortFileManager.CleanStalePeerPortFiles()")
     idx_save = ctor.find("PortFileManager.SavePorts(")
-    assert idx_watchdog < idx_clean, "WatchdogTick must be registered before CleanStalePeerPortFiles()"
-    assert idx_watchdog < idx_save, "WatchdogTick must be registered before SavePorts()"
+    assert idx_register < idx_clean, "Lifecycle callbacks must be registered before CleanStalePeerPortFiles()"
+    assert idx_register < idx_save, "Lifecycle callbacks must be registered before SavePorts()"
+
+    callbacks_start = src.find("internal static void RegisterLifecycleCallbacks()")
+    callbacks_end = src.find("\n        private static void OnCompilationStarted()", callbacks_start)
+    callbacks = src[callbacks_start:callbacks_end]
+    idx_watchdog = callbacks.find("EditorApplication.update += WatchdogTick")
+    idx_drain = callbacks.find("EditorApplication.update += MainThreadDispatcher.Drain")
+    assert 0 <= idx_watchdog < idx_drain, "WatchdogTick must be the first update callback"
