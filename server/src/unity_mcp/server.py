@@ -79,7 +79,9 @@ def _start_idle_watchdog() -> threading.Thread | None:
 from contextlib import asynccontextmanager, suppress
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 
+from . import __version__
 from .tools._schema_postprocessor import postprocess_schema
 
 
@@ -97,9 +99,16 @@ class _UnstructuredMCP(FastMCP):
         if tool is not None:
             postprocess_schema(tool_name, tool.parameters)
 
-
-
-from mcp.server.fastmcp.exceptions import ToolError
+    async def call_tool(self, name: str, arguments: dict):
+        """Reject arguments that the published tool schema forbids."""
+        tool = self._tool_manager.get_tool(name)
+        if tool is not None and tool.parameters.get("additionalProperties") is False:
+            properties = tool.parameters.get("properties", {})
+            unknown = sorted(set(arguments) - set(properties))
+            if unknown:
+                joined = ", ".join(unknown)
+                raise ToolError(f"unknown argument(s) for tool {name}: {joined}")
+        return await super().call_tool(name, arguments)
 
 from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
@@ -108,7 +117,6 @@ from .middleware import Middleware, wrap_send
 from .plugins import load_plugins
 from .server_filtering import (
     _strip_deferred_schemas,  # noqa: F401  # re-exported; tests import from unity_mcp.server
-    install_initialized_hook,
     install_list_tools_filter,
 )
 from .server_filtering import (
@@ -503,6 +511,9 @@ async def lifespan(app):
 
 
 mcp = _UnstructuredMCP("UnityMCP", lifespan=lifespan)
+# FastMCP otherwise defaults initialize.serverInfo.version to the MCP SDK
+# version. Product identity must describe the launched package bytes instead.
+mcp._mcp_server.version = __version__
 
 register_all(mcp, _send, _args, get_slot=lambda: slot,
              get_middleware=lambda: _middleware,
@@ -517,9 +528,11 @@ register_resources(mcp, _send, _args)
 
 
 # Install filtering handler — captures schemas + applies gating + disabled-set.
-install_list_tools_filter(mcp, lambda: _disabled_tools_cache)
-# Install initialized hook — sends client name to Unity on MCP handshake.
-install_initialized_hook(mcp, lambda: slot.bridge if slot else None)
+install_list_tools_filter(
+    mcp,
+    lambda: _disabled_tools_cache,
+    lambda: slot.bridge if slot else None,
+)
 
 
 def main():
