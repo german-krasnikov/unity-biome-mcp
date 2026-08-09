@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import io
-import json
 import stat
 import tarfile
 import zipfile
 from email.parser import BytesParser
 from pathlib import PurePosixPath
+
+from gauntlet.json_io import JsonFileError, parse_json_object
 
 SUPPORTED_ARTIFACT_TYPES = frozenset({"python_wheel", "unity_upm"})
 _PACKAGE_NAMES = {
@@ -86,11 +87,14 @@ def _validate_upm(snapshot: bytes, filename: str, package_version: str) -> None:
             stream = archive.extractfile(package_members[0])
             if stream is None:
                 raise PackageArchiveError("unity UPM package/package.json is not readable")
-            package_data = json.loads(stream.read())
-    except (OSError, EOFError, tarfile.TarError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            package_data = parse_json_object(
+                stream.read(),
+                source="unity UPM package/package.json",
+            )
+    except JsonFileError as exc:
+        raise PackageArchiveError(str(exc)) from exc
+    except (OSError, EOFError, tarfile.TarError) as exc:
         raise PackageArchiveError(f"artifact is not a valid unity UPM archive: {filename}") from exc
-    if not isinstance(package_data, dict):
-        raise PackageArchiveError("unity UPM package.json must be an object")
     _validate_embedded(
         "unity_upm",
         [package_data.get("name")],

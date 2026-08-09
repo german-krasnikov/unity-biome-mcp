@@ -25,10 +25,10 @@ def require_text(value: object, label: str) -> str:
     return value
 
 
-def require_source_sha(value: object) -> str:
-    text = require_text(value, "source SHA")
-    if len(text) not in {40, 64} or any(character not in "0123456789abcdef" for character in text.lower()):
-        raise PolicyError("source SHA must contain 40 or 64 hexadecimal characters")
+def require_digest(value: object, label: str) -> str:
+    text = require_text(value, label).lower()
+    if len(text) != 64 or any(character not in "0123456789abcdef" for character in text):
+        raise PolicyError(f"{label} must contain 64 hexadecimal characters")
     return text
 
 
@@ -78,6 +78,22 @@ def require_scenario_ids(value: object) -> tuple[str, ...]:
     if len(set(scenarios)) != len(scenarios):
         raise PolicyError("scenario ids contain a duplicate")
     return tuple(sorted(scenarios))
+
+
+def require_pytest_node_id(value: object) -> str:
+    text = require_text(value, "pytest node id")
+    if len(text) > 1024 or text != text.strip() or not text.isprintable():
+        raise PolicyError("pytest node id contains unsupported characters")
+    try:
+        file_part, selector = text.split("::", 1)
+    except ValueError as exc:
+        raise PolicyError("pytest node id must contain a test selector") from exc
+    normalized_file = require_repo_path(file_part, "pytest node path")
+    if not normalized_file.startswith("server/tests/") or not normalized_file.endswith(".py"):
+        raise PolicyError("pytest node path must select a file below server/tests")
+    if not selector or selector.startswith("-") or any(character.isspace() for character in selector):
+        raise PolicyError("pytest node selector contains unsupported characters")
+    return f"{normalized_file}::{selector}"
 
 
 def require_non_negative_int(value: object, label: str) -> int:

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
+import stat
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from gauntlet.artifacts import (
@@ -11,6 +12,7 @@ from gauntlet.artifacts import (
     load_artifact_manifest,
     verify_artifact_files,
 )
+from gauntlet.contract_catalog import CatalogError, parse_contract_catalog
 from gauntlet.evidence_schema import run_manifest_hash
 from gauntlet.profile_evidence import ProfileEvidenceError, verify_profile_artifacts
 from gauntlet.release_evidence import (
@@ -19,7 +21,8 @@ from gauntlet.release_evidence import (
     validate_evidence_matches_artifacts,
     validate_release_evidence_bundle,
 )
-from gauntlet.release_policy import PolicyError, load_release_policy
+from gauntlet.release_policy import PolicyError, load_release_policy, parse_release_policy
+from gauntlet.source_provenance import SourceProvenanceError, observe_source_checkout
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -40,24 +43,51 @@ class GateSummary:
     policy_version: str
     profiles: tuple[str, ...]
     artifact_manifest_sha: str
+    source_observation_sha: str
+    contract_catalog_sha: str
 
 
 def validate_release_gate(
     *,
     policy_path: Path,
+    source_root: Path,
     artifact_manifest_path: Path,
     artifact_root: Path,
     evidence_paths: Sequence[Path],
-    harness_lock_path: Path,
     expected_head_sha: str,
 ) -> GateSummary:
     """Validate the exact release inputs; never infer missing attestations."""
     try:
-        policy = load_release_policy(policy_path)
+        policy_relative = _source_relative_path(source_root, policy_path, "release policy")
+        candidate_policy = load_release_policy(policy_path)
+        source_observation = observe_source_checkout(
+            source_root,
+            expected_head_sha=expected_head_sha,
+            required_paths=(
+                policy_relative,
+                candidate_policy.contract_catalog_path,
+                candidate_policy.harness_lock_path,
+            ),
+        )
+        policy = parse_release_policy(
+            source_observation.file_payloads[policy_relative],
+            source=policy_relative,
+        )
+        if (
+            policy.contract_catalog_path != candidate_policy.contract_catalog_path
+            or policy.harness_lock_path != candidate_policy.harness_lock_path
+        ):
+            raise GateError("release policy routing changed during source observation")
+        catalog = parse_contract_catalog(
+            source_observation.file_payloads[policy.contract_catalog_path],
+            source=policy.contract_catalog_path,
+        )
+        if catalog.catalog_sha != policy.contract_catalog_sha:
+            raise GateError("contract catalog digest does not match release policy")
         manifest = load_artifact_manifest(artifact_manifest_path)
-        _validate_manifest_policy(policy, manifest, expected_head_sha)
+        _validate_manifest_policy(policy, manifest, source_observation.head_sha)
         verify_artifact_files(manifest, artifact_root)
-        harness_lock_sha = _file_sha256(harness_lock_path, "harness lock")
+        harness_lock_sha = source_observation.file_digests[policy.harness_lock_path]
         evidence_records = _load_evidences(evidence_paths)
         evidences = [evidence for evidence, _ in evidence_records]
         for evidence, bundle_root in evidence_records:
@@ -66,8 +96,10 @@ def validate_release_gate(
                 raise GateError("evidence profile is not active in release policy")
             requirement = policy.active_requirements[profile_id]
             expected_run_manifest_sha = run_manifest_hash(
-                head_sha=expected_head_sha,
+                head_sha=source_observation.head_sha,
+                source_observation_sha=source_observation.observation_sha,
                 policy_sha=policy.policy_sha,
+                contract_catalog_sha=catalog.catalog_sha,
                 profile_manifest_sha=requirement.profile_manifest_sha,
                 harness_lock_sha=harness_lock_sha,
                 artifact_manifest_sha=manifest.manifest_sha,
@@ -78,16 +110,18 @@ def validate_release_gate(
                 bundle_root=bundle_root,
                 profile_id=profile_id,
                 requirement=requirement,
-                expected_head_sha=expected_head_sha,
+                expected_head_sha=source_observation.head_sha,
                 expected_artifacts=manifest.artifact_digests,
                 expected_run_manifest_sha=expected_run_manifest_sha,
             )
             validate_evidence_matches_artifacts(evidence, derived)
         validate_release_evidence_bundle(
             evidences,
-            expected_head_sha=expected_head_sha,
+            expected_head_sha=source_observation.head_sha,
+            expected_source_observation_sha=source_observation.observation_sha,
             expected_policy_version=policy.policy_version,
             expected_policy_sha=policy.policy_sha,
+            expected_contract_catalog_sha=catalog.catalog_sha,
             expected_harness_lock_sha=harness_lock_sha,
             expected_artifact_manifest_sha=manifest.manifest_sha,
             expected_artifacts=manifest.artifact_digests,
@@ -95,19 +129,23 @@ def validate_release_gate(
         )
     except (
         ArtifactError,
+        CatalogError,
         EvidenceError,
         PolicyError,
         ProfileEvidenceError,
+        SourceProvenanceError,
         OSError,
     ) as exc:
         raise GateError(str(exc)) from exc
 
     return GateSummary(
-        head_sha=expected_head_sha,
+        head_sha=source_observation.head_sha,
         package_version=manifest.package_version,
         policy_version=policy.policy_version,
         profiles=tuple(sorted(policy.active_requirements)),
         artifact_manifest_sha=manifest.manifest_sha,
+        source_observation_sha=source_observation.observation_sha,
+        contract_catalog_sha=catalog.catalog_sha,
     )
 
 
@@ -116,8 +154,6 @@ def _validate_manifest_policy(
     manifest: ArtifactManifest,
     head_sha: str,
 ) -> None:
-    if policy.source_sha != head_sha:
-        raise GateError("release policy source SHA does not match the release commit")
     if manifest.head_sha != head_sha:
         raise GateError("artifact manifest head SHA does not match the release commit")
     if manifest.package_version != policy.activation_package_version:
@@ -134,11 +170,15 @@ def _load_evidences(
     return [(load_conformance_evidence(path), path.parent) for path in paths]
 
 
-def _file_sha256(path: Path, label: str) -> str:
-    if not path.is_file():
-        raise GateError(f"{label} is not a regular file")
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _source_relative_path(root: Path, path: Path, label: str) -> str:
+    try:
+        metadata = path.lstat()
+        relative = path.resolve(strict=True).relative_to(root.resolve(strict=True))
+    except (OSError, ValueError) as exc:
+        raise GateError(f"{label} must be inside the source root") from exc
+    if not stat.S_ISREG(metadata.st_mode):
+        raise GateError(f"{label} must be a regular file, not a link")
+    value = PurePosixPath(relative.as_posix()).as_posix()
+    if not value or value == ".":
+        raise GateError(f"{label} must be a tracked source file")
+    return value

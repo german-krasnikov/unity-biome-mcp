@@ -32,8 +32,10 @@ def build_conformance_evidence(
     run_id: str,
     run_manifest_sha: str,
     head_sha: str,
+    source_observation_sha: str,
     policy_version: str,
     policy_sha: str,
+    contract_catalog_sha: str,
     harness_lock_sha: str,
     artifact_manifest_sha: str,
     artifacts: Mapping[str, str],
@@ -58,8 +60,10 @@ def build_conformance_evidence(
         "run_manifest_sha": run_manifest_sha,
         "created_at": created_at or _utc_now(),
         "head_sha": head_sha,
+        "source_observation_sha": source_observation_sha,
         "policy_version": policy_version,
         "policy_sha": policy_sha,
+        "contract_catalog_sha": contract_catalog_sha,
         "harness_lock_sha": harness_lock_sha,
         "artifact_manifest_sha": artifact_manifest_sha,
         "artifacts": dict(artifacts),
@@ -102,8 +106,10 @@ def validate_release_evidence(
     evidence: dict[str, object],
     *,
     expected_head_sha: str,
+    expected_source_observation_sha: str,
     expected_policy_version: str,
     expected_policy_sha: str,
+    expected_contract_catalog_sha: str,
     expected_harness_lock_sha: str,
     expected_artifact_manifest_sha: str,
     expected_artifacts: Mapping[str, str],
@@ -113,10 +119,14 @@ def validate_release_evidence(
 
     if evidence.get("head_sha") != expected_head_sha:
         raise EvidenceError("head sha does not match the release commit")
+    if evidence.get("source_observation_sha") != expected_source_observation_sha:
+        raise EvidenceError("source observation digest does not match")
     if evidence.get("policy_version") != expected_policy_version:
         raise EvidenceError("policy version does not match the release policy")
     if evidence.get("policy_sha") != expected_policy_sha:
         raise EvidenceError("policy digest does not match the release policy")
+    if evidence.get("contract_catalog_sha") != expected_contract_catalog_sha:
+        raise EvidenceError("contract catalog digest does not match release policy")
     if evidence.get("harness_lock_sha") != expected_harness_lock_sha:
         raise EvidenceError("harness lock digest does not match")
     if evidence.get("artifact_manifest_sha") != expected_artifact_manifest_sha:
@@ -127,7 +137,9 @@ def validate_release_evidence(
         raise EvidenceError("profile manifest digest does not match")
     expected_run_manifest_sha = run_manifest_hash(
         head_sha=expected_head_sha,
+        source_observation_sha=expected_source_observation_sha,
         policy_sha=expected_policy_sha,
+        contract_catalog_sha=expected_contract_catalog_sha,
         profile_manifest_sha=profile_requirement.profile_manifest_sha,
         harness_lock_sha=expected_harness_lock_sha,
         artifact_manifest_sha=expected_artifact_manifest_sha,
@@ -215,8 +227,10 @@ def validate_release_evidence_bundle(
     evidences: Sequence[dict[str, object]],
     *,
     expected_head_sha: str,
+    expected_source_observation_sha: str,
     expected_policy_version: str,
     expected_policy_sha: str,
+    expected_contract_catalog_sha: str,
     expected_harness_lock_sha: str,
     expected_artifact_manifest_sha: str,
     expected_artifacts: Mapping[str, str],
@@ -255,8 +269,10 @@ def validate_release_evidence_bundle(
         validate_release_evidence(
             evidence,
             expected_head_sha=expected_head_sha,
+            expected_source_observation_sha=expected_source_observation_sha,
             expected_policy_version=expected_policy_version,
             expected_policy_sha=expected_policy_sha,
+            expected_contract_catalog_sha=expected_contract_catalog_sha,
             expected_harness_lock_sha=expected_harness_lock_sha,
             expected_artifact_manifest_sha=expected_artifact_manifest_sha,
             expected_artifacts=expected_artifacts,

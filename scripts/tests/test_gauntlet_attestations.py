@@ -171,3 +171,11 @@ def test_receipt_rejects_tamper_wrong_kind_and_unknown_fields() -> None:
             _receipt_bytes({**receipt, "unexpected": True}),
             "cleanup",
         )
+
+
+def test_receipt_rejects_duplicate_json_keys_before_semantic_validation() -> None:
+    with pytest.raises(AttestationError, match="duplicate key"):
+        parse_receipt_bytes(
+            b'{"kind":"cleanup","kind":"runtime"}',
+            "cleanup",
+        )

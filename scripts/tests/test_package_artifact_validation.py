@@ -109,6 +109,25 @@ def test_manifest_builder_rejects_wrong_embedded_package_name(
         build_artifact_manifest("a" * 40, "1.27.0", {artifact_type: artifact})
 
 
+def test_manifest_builder_rejects_duplicate_upm_package_json_keys(tmp_path: Path) -> None:
+    artifact = tmp_path / "unity-biome-mcp-1.27.0.tgz"
+    package_data = (
+        b'{"name":"com.unity-biome-mcp.editor",'
+        b'"name":"com.example.other","version":"1.27.0"}'
+    )
+    with tarfile.open(artifact, "w:gz") as archive:
+        package_info = tarfile.TarInfo("package/package.json")
+        package_info.size = len(package_data)
+        archive.addfile(package_info, io.BytesIO(package_data))
+
+    with pytest.raises(ArtifactError, match="duplicate key"):
+        build_artifact_manifest(
+            "a" * 40,
+            "1.27.0",
+            {"unity_upm": artifact},
+        )
+
+
 @pytest.mark.parametrize("artifact_type", ["python_wheel", "unity_upm"])
 def test_manifest_verification_revalidates_package_archive(
     tmp_path: Path,

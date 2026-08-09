@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from gauntlet.evidence_schema import ProfileRequirement
+from gauntlet.json_io import JsonFileError, load_json_object, parse_json_object
 from gauntlet.package_archives import SUPPORTED_ARTIFACT_TYPES
 from gauntlet.policy_fields import (
     PolicyError,
+    require_digest,
     require_exact_keys,
     require_id,
     require_non_negative_int,
     require_positive_int,
+    require_pytest_node_id,
     require_repo_path,
     require_scenario_ids,
-    require_source_sha,
     require_text,
     require_unique_ids,
     validate_driver_contract,
@@ -28,10 +29,10 @@ if TYPE_CHECKING:
 _ROOT_KEYS = {
     "schema_version",
     "policy_version",
-    "source_sha",
     "activation_package_version",
     "harness_lock_path",
     "contract_catalog_path",
+    "contract_catalog_sha",
     "artifact_types",
     "profiles",
 }
@@ -47,12 +48,19 @@ _PROFILE_KEYS = {
     "worker_roles",
     "consumed_artifacts",
     "cleanup_obligations",
-    "scenario_ids",
+    "scenarios",
     "max_age_seconds",
 }
+_SCENARIO_KEYS = {"id", "pytest_node_id"}
 _OPERATING_SYSTEMS = {"linux", "macos", "windows"}
 _PLUGIN_SCOPES = {"none", "exact"}
 _DRIVERS = {"public_stdio", "unity_editor"}
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioPolicy:
+    scenario_id: str
+    pytest_node_id: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,9 +76,17 @@ class ProfilePolicy:
     worker_roles: tuple[str, ...]
     consumed_artifacts: tuple[str, ...]
     cleanup_obligations: tuple[str, ...]
-    scenario_ids: tuple[str, ...]
+    scenarios: tuple[ScenarioPolicy, ...]
     max_age_seconds: int
     manifest_sha: str
+
+    @property
+    def scenario_ids(self) -> tuple[str, ...]:
+        return tuple(scenario.scenario_id for scenario in self.scenarios)
+
+    @property
+    def pytest_node_ids(self) -> tuple[str, ...]:
+        return tuple(scenario.pytest_node_id for scenario in self.scenarios)
 
     @property
     def requirement(self) -> ProfileRequirement:
@@ -93,10 +109,10 @@ class ProfilePolicy:
 @dataclass(frozen=True, slots=True)
 class ReleasePolicy:
     policy_version: str
-    source_sha: str
     activation_package_version: str
     harness_lock_path: str
     contract_catalog_path: str
+    contract_catalog_sha: str
     artifact_types: tuple[str, ...]
     profiles: tuple[ProfilePolicy, ...]
     policy_sha: str
@@ -112,21 +128,26 @@ class ReleasePolicy:
 
 def load_release_policy(path: Path) -> ReleasePolicy:
     try:
-        raw = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise PolicyError("unable to read release policy") from exc
+        data = load_json_object(path)
+    except JsonFileError as exc:
+        raise PolicyError(str(exc)) from exc
+    return _parse_release_policy(data)
+
+
+def parse_release_policy(data: bytes, *, source: str) -> ReleasePolicy:
     try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise PolicyError(f"release policy is not valid JSON at line {exc.lineno}, column {exc.colno}") from exc
-    if not isinstance(data, dict):
-        raise PolicyError("release policy root must be an object")
+        value = parse_json_object(data, source=source)
+    except JsonFileError as exc:
+        raise PolicyError(str(exc)) from exc
+    return _parse_release_policy(value)
+
+
+def _parse_release_policy(data: dict[str, object]) -> ReleasePolicy:
     require_exact_keys(data, _ROOT_KEYS, "release policy schema")
-    if data["schema_version"] != 1:
+    if data["schema_version"] != 2:
         raise PolicyError("unsupported release policy schema version")
 
     policy_version = require_text(data["policy_version"], "policy version")
-    source_sha = require_source_sha(data["source_sha"])
     activation_version = require_text(
         data["activation_package_version"],
         "activation package version",
@@ -136,6 +157,7 @@ def load_release_policy(path: Path) -> ReleasePolicy:
         data["contract_catalog_path"],
         "contract catalog path",
     )
+    contract_catalog_sha = require_digest(data["contract_catalog_sha"], "contract catalog digest")
     artifact_types = require_unique_ids(data["artifact_types"], "artifact types")
     if set(artifact_types) != set(SUPPORTED_ARTIFACT_TYPES):
         raise PolicyError("release policy requires exactly the supported wheel and UPM artifacts")
@@ -153,10 +175,10 @@ def load_release_policy(path: Path) -> ReleasePolicy:
 
     return ReleasePolicy(
         policy_version=policy_version,
-        source_sha=source_sha,
         activation_package_version=activation_version,
         harness_lock_path=harness_lock_path,
         contract_catalog_path=contract_catalog_path,
+        contract_catalog_sha=contract_catalog_sha,
         artifact_types=artifact_types,
         profiles=profiles,
         policy_sha=content_hash(data),
@@ -215,7 +237,7 @@ def _parse_profile(data: dict[str, object]) -> ProfilePolicy:
         data["cleanup_obligations"],
         "cleanup obligations",
     )
-    scenario_ids = require_scenario_ids(data["scenario_ids"])
+    scenarios = _parse_scenarios(data["scenarios"])
     max_age = require_positive_int(data["max_age_seconds"], "maximum evidence age")
     validate_driver_contract(
         driver,
@@ -229,7 +251,10 @@ def _parse_profile(data: dict[str, object]) -> ProfilePolicy:
     canonical_profile["worker_roles"] = list(worker_roles)
     canonical_profile["consumed_artifacts"] = list(consumed_artifacts)
     canonical_profile["cleanup_obligations"] = list(cleanup_obligations)
-    canonical_profile["scenario_ids"] = list(scenario_ids)
+    canonical_profile["scenarios"] = [
+        {"id": scenario.scenario_id, "pytest_node_id": scenario.pytest_node_id}
+        for scenario in scenarios
+    ]
     return ProfilePolicy(
         profile_id=profile_id,
         active=active,
@@ -242,7 +267,31 @@ def _parse_profile(data: dict[str, object]) -> ProfilePolicy:
         worker_roles=worker_roles,
         consumed_artifacts=consumed_artifacts,
         cleanup_obligations=cleanup_obligations,
-        scenario_ids=scenario_ids,
+        scenarios=scenarios,
         max_age_seconds=max_age,
         manifest_sha=content_hash(canonical_profile),
     )
+
+
+def _parse_scenarios(value: object) -> tuple[ScenarioPolicy, ...]:
+    if not isinstance(value, list) or not value:
+        raise PolicyError("scenarios must be a non-empty list")
+    scenarios: list[ScenarioPolicy] = []
+    for raw in value:
+        if not isinstance(raw, dict):
+            raise PolicyError("scenario schema requires an object")
+        require_exact_keys(raw, _SCENARIO_KEYS, "scenario schema")
+        scenario_id = require_scenario_ids([raw["id"]])[0]
+        scenarios.append(
+            ScenarioPolicy(
+                scenario_id=scenario_id,
+                pytest_node_id=require_pytest_node_id(raw["pytest_node_id"]),
+            )
+        )
+    scenario_ids = [scenario.scenario_id for scenario in scenarios]
+    node_ids = [scenario.pytest_node_id for scenario in scenarios]
+    if len(set(scenario_ids)) != len(scenario_ids):
+        raise PolicyError("scenario ids contain a duplicate")
+    if len(set(node_ids)) != len(node_ids):
+        raise PolicyError("pytest node ids contain a duplicate")
+    return tuple(sorted(scenarios, key=lambda scenario: scenario.scenario_id))

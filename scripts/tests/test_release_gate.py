@@ -17,13 +17,13 @@ from gauntlet.receipts import ReceiptJournal  # noqa: E402
 from gauntlet.release_gate import GateError, validate_release_gate  # noqa: E402
 from gauntlet_test_fixtures import rewrite_journal_events, write_complete_journal  # noqa: E402
 from release_gate_test_support import (  # noqa: E402
-    HEAD_SHA,
     PROFILE_ID,
     RUN_ID,
     SCENARIOS,
     VERSION,
     mutate_evidence,
     prepare_bundle,
+    read_head,
     refresh_journal_and_runtime,
     refresh_junit_and_runtime,
     rewrite_receipt,
@@ -38,11 +38,11 @@ def test_release_gate_accepts_exact_artifact_backed_bundle(tmp_path: Path) -> No
 
     summary = validate_release_gate(
         policy_path=paths["policy"],
+        source_root=paths["source_root"],
         artifact_manifest_path=paths["manifest"],
         artifact_root=paths["artifact_root"],
         evidence_paths=(paths["evidence"],),
-        harness_lock_path=paths["harness_lock"],
-        expected_head_sha=HEAD_SHA,
+        expected_head_sha=read_head(paths),
     )
 
     assert summary.package_version == VERSION
@@ -91,16 +91,6 @@ def test_release_gate_derives_counts_instead_of_trusting_summary(tmp_path: Path)
     mutate_evidence(paths["evidence"], lambda data: data.update({"passed": 1}))
 
     with pytest.raises(GateError, match="passed"):
-        validate_bundle(paths)
-
-
-def test_release_gate_rejects_policy_from_another_source_commit(tmp_path: Path) -> None:
-    paths = prepare_bundle(tmp_path)
-    policy = json.loads(paths["policy"].read_text(encoding="utf-8"))
-    policy["source_sha"] = "0" * 40
-    paths["policy"].write_text(json.dumps(policy), encoding="utf-8")
-
-    with pytest.raises(GateError, match="policy source SHA"):
         validate_bundle(paths)
 
 
@@ -254,14 +244,14 @@ def test_release_gate_cli_is_nonzero_for_missing_evidence(tmp_path: Path) -> Non
         str(CLI),
         "--policy",
         str(paths["policy"]),
+        "--source-root",
+        str(paths["source_root"]),
         "--artifact-manifest",
         str(paths["manifest"]),
         "--artifact-root",
         str(paths["artifact_root"]),
-        "--harness-lock",
-        str(paths["harness_lock"]),
         "--head-sha",
-        HEAD_SHA,
+        read_head(paths),
     ]
 
     failed = subprocess.run(command, capture_output=True, text=True, timeout=30)

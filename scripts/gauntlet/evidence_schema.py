@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 EVIDENCE_KEYS = frozenset(
     {
         "schema_version",
@@ -17,8 +17,10 @@ EVIDENCE_KEYS = frozenset(
         "run_manifest_sha",
         "created_at",
         "head_sha",
+        "source_observation_sha",
         "policy_version",
         "policy_sha",
+        "contract_catalog_sha",
         "harness_lock_sha",
         "artifact_manifest_sha",
         "artifacts",
@@ -103,6 +105,7 @@ def evidence_hash(evidence: Mapping[str, object]) -> str:
             evidence,
             ensure_ascii=False,
             separators=(",", ":"),
+            allow_nan=False,
             sort_keys=True,
         ).encode("utf-8")
     except (TypeError, ValueError) as exc:
@@ -113,7 +116,9 @@ def evidence_hash(evidence: Mapping[str, object]) -> str:
 def run_manifest_hash(
     *,
     head_sha: str,
+    source_observation_sha: str,
     policy_sha: str,
+    contract_catalog_sha: str,
     profile_manifest_sha: str,
     harness_lock_sha: str,
     artifact_manifest_sha: str,
@@ -123,7 +128,9 @@ def run_manifest_hash(
     return evidence_hash(
         {
             "head_sha": head_sha,
+            "source_observation_sha": source_observation_sha,
             "policy_sha": policy_sha,
+            "contract_catalog_sha": contract_catalog_sha,
             "profile_manifest_sha": profile_manifest_sha,
             "harness_lock_sha": harness_lock_sha,
             "artifact_manifest_sha": artifact_manifest_sha,
@@ -142,6 +149,15 @@ def validate_shape_and_hash(evidence: dict[str, object]) -> None:
     if not isinstance(evidence.get("run_id"), str) or not evidence["run_id"]:
         raise EvidenceError("run_id must be a non-empty string")
     require_digest(evidence.get("run_manifest_sha"), "run manifest")
+    for key, label in (
+        ("source_observation_sha", "source observation"),
+        ("policy_sha", "policy"),
+        ("contract_catalog_sha", "contract catalog"),
+        ("harness_lock_sha", "harness lock"),
+        ("artifact_manifest_sha", "artifact manifest"),
+        ("profile_manifest_sha", "profile manifest"),
+    ):
+        require_digest(evidence.get(key), label)
     if not isinstance(evidence.get("policy_version"), str) or not evidence["policy_version"]:
         raise EvidenceError("policy version must be a non-empty string")
 

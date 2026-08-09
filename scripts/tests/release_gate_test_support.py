@@ -12,14 +12,13 @@ from gauntlet.attestations import build_file_reference, build_receipt
 from gauntlet.evidence_schema import evidence_hash, run_manifest_hash
 from gauntlet.release_evidence import build_conformance_evidence, write_conformance_evidence
 from gauntlet.release_gate import validate_release_gate
-from gauntlet.release_policy import load_release_policy
 from gauntlet_test_fixtures import write_complete_journal, write_json, write_junit, write_upm, write_wheel
+from release_source_test_support import HARNESS_LOCK_RELATIVE, prepare_source
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-HEAD_SHA = "a" * 40
 VERSION = "1.27.0"
 RUN_ID = "run-release-gate"
 WORKER_ID = "worker-a-epoch-1"
@@ -36,9 +35,16 @@ def sha256(path: Path) -> str:
 
 def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
     tmp_path.mkdir(parents=True, exist_ok=True)
-    policy_path = tmp_path / "release-policy.json"
-    policy_path.write_text(json.dumps(_policy_data()), encoding="utf-8")
-    policy = load_release_policy(policy_path)
+    source = prepare_source(
+        tmp_path / "source",
+        version=VERSION,
+        profile_id=PROFILE_ID,
+        scenarios=SCENARIOS,
+    )
+    policy = source.policy
+    catalog = source.catalog
+    source_observation = source.observation
+    head_sha = source.head_sha
 
     artifact_root = tmp_path / "artifacts"
     artifact_root.mkdir()
@@ -47,21 +53,21 @@ def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
     write_wheel(wheel, VERSION)
     write_upm(upm, VERSION)
     manifest = build_artifact_manifest(
-        HEAD_SHA,
+        head_sha,
         VERSION,
         {"python_wheel": wheel, "unity_upm": upm},
     )
     manifest_path = artifact_root / "artifact-manifest.json"
     write_artifact_manifest(manifest_path, manifest)
 
-    harness_lock = tmp_path / "harness.lock"
-    harness_lock.write_text("locked-dependencies", encoding="utf-8")
     profile = policy.active_profiles[0]
     run_manifest_sha = run_manifest_hash(
-        head_sha=HEAD_SHA,
+        head_sha=head_sha,
+        source_observation_sha=source_observation.observation_sha,
         policy_sha=policy.policy_sha,
+        contract_catalog_sha=catalog.catalog_sha,
         profile_manifest_sha=profile.manifest_sha,
-        harness_lock_sha=sha256(harness_lock),
+        harness_lock_sha=source_observation.file_digests[HARNESS_LOCK_RELATIVE],
         artifact_manifest_sha=manifest.manifest_sha,
         artifacts=manifest.artifact_digests,
     )
@@ -69,10 +75,13 @@ def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
     bundle = tmp_path / "evidence"
     bundle.mkdir()
     paths = {
-        "policy": policy_path,
+        "source_root": source.root,
+        "policy": source.policy_path,
+        "catalog": source.catalog_path,
+        "head": tmp_path / "head.txt",
         "manifest": manifest_path,
         "artifact_root": artifact_root,
-        "harness_lock": harness_lock,
+        "harness_lock": source.harness_lock_path,
         "wheel": wheel,
         "bundle": bundle,
         "junit": bundle / "junit.xml",
@@ -83,6 +92,7 @@ def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
         "cleanup_worker": bundle / "cleanup-worker.json",
         "evidence": bundle / "evidence.json",
     }
+    paths["head"].write_text(head_sha, encoding="ascii")
     finished_at = datetime.now(timezone.utc).isoformat()
     write_junit(paths["junit"], SCENARIOS)
     write_complete_journal(
@@ -94,15 +104,22 @@ def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
         timestamp=finished_at,
         workers={"worker-a": WORKER_ID},
     )
-    _write_run_receipts(paths, manifest.artifact_digests, run_manifest_sha)
+    _write_run_receipts(
+        paths,
+        manifest.artifact_digests,
+        run_manifest_sha,
+        head_sha=head_sha,
+    )
     artifacts = _evidence_artifacts(paths)
     evidence = build_conformance_evidence(
         run_id=RUN_ID,
         run_manifest_sha=run_manifest_sha,
-        head_sha=HEAD_SHA,
+        head_sha=head_sha,
+        source_observation_sha=source_observation.observation_sha,
         policy_version=policy.policy_version,
         policy_sha=policy.policy_sha,
-        harness_lock_sha=sha256(harness_lock),
+        contract_catalog_sha=catalog.catalog_sha,
+        harness_lock_sha=source_observation.file_digests[HARNESS_LOCK_RELATIVE],
         artifact_manifest_sha=manifest.manifest_sha,
         artifacts=manifest.artifact_digests,
         profile=profile.profile_id,
@@ -124,15 +141,23 @@ def prepare_bundle(tmp_path: Path) -> dict[str, Path]:
     return paths
 
 
-def validate_bundle(paths: dict[str, Path]) -> None:
+def validate_bundle(
+    paths: dict[str, Path],
+    *,
+    expected_head_sha: str | None = None,
+) -> None:
     validate_release_gate(
         policy_path=paths["policy"],
+        source_root=paths["source_root"],
         artifact_manifest_path=paths["manifest"],
         artifact_root=paths["artifact_root"],
         evidence_paths=(paths["evidence"],),
-        harness_lock_path=paths["harness_lock"],
-        expected_head_sha=HEAD_SHA,
+        expected_head_sha=expected_head_sha or read_head(paths),
     )
+
+
+def read_head(paths: dict[str, Path]) -> str:
+    return paths["head"].read_text(encoding="ascii")
 
 
 def mutate_evidence(path: Path, mutate: Callable[[dict[str, object]], None]) -> None:
@@ -194,39 +219,12 @@ def refresh_journal_and_runtime(paths: dict[str, Path]) -> None:
     mutate_evidence(paths["evidence"], update)
 
 
-def _policy_data() -> dict[str, object]:
-    return {
-        "schema_version": 1,
-        "policy_version": "1.0.0",
-        "source_sha": HEAD_SHA,
-        "activation_package_version": VERSION,
-        "harness_lock_path": "server/uv.lock",
-        "contract_catalog_path": "scripts/gauntlet/contracts.json",
-        "artifact_types": ["python_wheel", "unity_upm"],
-        "profiles": [
-            {
-                "id": PROFILE_ID,
-                "active": True,
-                "driver": "unity_editor",
-                "os": "linux",
-                "python": "3.10",
-                "unity": "6000.0.65f1",
-                "plugin_scope": "exact",
-                "required_workers": 1,
-                "worker_roles": ["worker-a"],
-                "consumed_artifacts": ["python_wheel", "unity_upm"],
-                "cleanup_obligations": ["process-tree", "worker-a"],
-                "scenario_ids": list(SCENARIOS),
-                "max_age_seconds": 86400,
-            }
-        ],
-    }
-
-
 def _write_run_receipts(
     paths: dict[str, Path],
     artifact_digests: dict[str, str],
     run_manifest_sha: str,
+    *,
+    head_sha: str,
 ) -> None:
     common = {"profile": PROFILE_ID, "run_id": RUN_ID, "run_manifest_sha": run_manifest_sha}
     write_json(
@@ -236,7 +234,7 @@ def _write_run_receipts(
             {
                 **common,
                 "driver": "unity_editor",
-                "head_sha": HEAD_SHA,
+                "head_sha": head_sha,
                 "os": "linux",
                 "python": "3.10",
                 "unity": "6000.0.65f1",

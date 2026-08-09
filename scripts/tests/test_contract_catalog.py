@@ -21,11 +21,10 @@ from gauntlet.model import EffectDomain  # noqa: E402
 
 def _data() -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "catalog_version": "1.0.0",
         "scope": "builtin",
         "owner": None,
-        "source_sha": "a" * 40,
         "contracts": [
             {
                 "id": "status-clean-read",
@@ -87,6 +86,36 @@ def test_catalog_coverage_requires_exact_public_action_set(tmp_path: Path) -> No
         )
     with pytest.raises(CatalogError, match="extra"):
         validate_action_coverage(catalog, {"mcp_status"})
+
+
+def test_catalog_contract_data_is_deeply_immutable_and_thawed_per_execution(tmp_path: Path) -> None:
+    data = _data()
+    data["contracts"][1]["arguments"] = {
+        "nested": {"safe": True},
+        "sequence": [{"value": 1}],
+    }
+    catalog = load_contract_catalog(_write(tmp_path / "catalog.json", data))
+    catalog_contract = next(
+        contract for contract in catalog.contracts if contract.contract_id == "create-object-once"
+    )
+
+    with pytest.raises(TypeError):
+        catalog_contract.arguments["added"] = True  # type: ignore[index]
+    with pytest.raises(TypeError):
+        catalog_contract.arguments["nested"]["safe"] = False  # type: ignore[index]
+
+    first_execution = catalog_contract.as_contract()
+    first_execution.arguments["nested"]["safe"] = False  # type: ignore[index]
+    first_execution.arguments["sequence"].append({"value": 2})  # type: ignore[union-attr]
+    second_execution = catalog_contract.as_contract()
+
+    assert second_execution.arguments == {
+        "nested": {"safe": True},
+        "sequence": [{"value": 1}],
+    }
+    assert catalog.catalog_sha == load_contract_catalog(
+        _write(tmp_path / "catalog-copy.json", data)
+    ).catalog_sha
 
 
 @pytest.mark.parametrize(

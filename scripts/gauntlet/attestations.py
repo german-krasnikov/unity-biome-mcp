@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import stat
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
+from gauntlet.json_io import JsonFileError, parse_json_object
 from gauntlet.receipts import content_hash
 
 if TYPE_CHECKING:
@@ -166,11 +166,9 @@ def build_receipt(kind: str, fields: Mapping[str, object]) -> dict[str, object]:
 
 def parse_receipt_bytes(payload: bytes, expected_kind: str) -> dict[str, object]:
     try:
-        value = json.loads(payload.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise AttestationError("receipt is not valid UTF-8 JSON") from exc
-    if not isinstance(value, dict):
-        raise AttestationError("receipt root must be an object")
+        value = parse_json_object(payload, source="receipt")
+    except JsonFileError as exc:
+        raise AttestationError(str(exc)) from exc
     _validate_receipt_shape(value, include_hash=True)
     if value["kind"] != expected_kind:
         raise AttestationError(f"expected {expected_kind} receipt")

@@ -116,6 +116,16 @@ def test_receipt_verifier_rejects_sequence_gaps(tmp_path: Path) -> None:
         verify_journal(path)
 
 
+def test_receipt_verifier_rejects_duplicate_json_keys() -> None:
+    with pytest.raises(JournalError, match="duplicate key"):
+        verify_journal_bytes(b'{"schema_version":1,"schema_version":1}\n')
+
+
+def test_receipt_hashing_rejects_non_finite_numbers() -> None:
+    with pytest.raises(JournalError, match="serializable"):
+        content_hash({"value": float("inf")})
+
+
 @pytest.mark.parametrize(
     "mutate",
     [

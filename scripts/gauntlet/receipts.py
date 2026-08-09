@@ -6,6 +6,8 @@ import os
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from gauntlet.json_io import JsonFileError, parse_json_object
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
     from pathlib import Path
@@ -39,6 +41,7 @@ def _canonical_bytes(value: object) -> bytes:
             value,
             ensure_ascii=False,
             separators=(",", ":"),
+            allow_nan=False,
             sort_keys=True,
         )
     except (TypeError, ValueError) as exc:
@@ -84,11 +87,12 @@ def verify_journal_bytes(payload: bytes) -> list[dict[str, Any]]:
         if not raw_line.strip():
             raise JournalError(f"blank journal line at {line_number}")
         try:
-            event = json.loads(raw_line)
-        except json.JSONDecodeError as exc:
-            raise JournalError(f"invalid JSON at line {line_number}: {exc}") from exc
-        if not isinstance(event, dict):
-            raise JournalError(f"event at line {line_number} is not an object")
+            event = parse_json_object(
+                raw_line.encode("utf-8"),
+                source=f"journal line {line_number}",
+            )
+        except JsonFileError as exc:
+            raise JournalError(str(exc)) from exc
         if set(event) != _EVENT_FIELDS:
             raise JournalError(f"unsupported event fields at line {line_number}")
         if type(event.get("schema_version")) is not int or event["schema_version"] != 1:

@@ -15,12 +15,12 @@ from gauntlet.release_policy import PolicyError, load_release_policy  # noqa: E4
 
 def _policy_data() -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "policy_version": "1.0.0",
-        "source_sha": "a" * 40,
         "activation_package_version": "1.27.0",
         "harness_lock_path": "server/uv.lock",
         "contract_catalog_path": "scripts/gauntlet/contracts.json",
+        "contract_catalog_sha": "c" * 64,
         "artifact_types": ["python_wheel", "unity_upm"],
         "profiles": [
             {
@@ -35,9 +35,21 @@ def _policy_data() -> dict[str, object]:
                 "worker_roles": [],
                 "consumed_artifacts": ["python_wheel"],
                 "cleanup_obligations": ["stdio-process", "tcp-peer"],
-                "scenario_ids": [
-                    "tests.contracts::test_schema_parity[stdio]",
-                    "tests.contracts::test_version_handshake",
+                "scenarios": [
+                    {
+                        "id": "tests.contracts::test_schema_parity[stdio]",
+                        "pytest_node_id": (
+                            "server/tests/contracts/test_public_stdio.py::"
+                            "test_schema_parity[stdio]"
+                        ),
+                    },
+                    {
+                        "id": "tests.contracts::test_version_handshake",
+                        "pytest_node_id": (
+                            "server/tests/contracts/test_public_stdio.py::"
+                            "test_version_handshake"
+                        ),
+                    },
                 ],
                 "max_age_seconds": 86400,
             },
@@ -53,9 +65,19 @@ def _policy_data() -> dict[str, object]:
                 "worker_roles": ["worker-a", "worker-b"],
                 "consumed_artifacts": ["python_wheel", "unity_upm"],
                 "cleanup_obligations": ["process-tree", "worker-a", "worker-b"],
-                "scenario_ids": [
-                    "tests.cross_project.test_identity::test_route_a_b_a",
-                    "tests.cross_project.test_isolation::test_state_isolation",
+                "scenarios": [
+                    {
+                        "id": "tests.cross_project.test_identity::test_route_a_b_a",
+                        "pytest_node_id": (
+                            "server/tests/cross_project/test_identity.py::test_route_a_b_a"
+                        ),
+                    },
+                    {
+                        "id": "tests.cross_project.test_isolation::test_state_isolation",
+                        "pytest_node_id": (
+                            "server/tests/cross_project/test_isolation.py::test_state_isolation"
+                        ),
+                    },
                 ],
                 "max_age_seconds": 21600,
             },
@@ -87,6 +109,10 @@ def test_policy_loads_active_requirements_and_deterministic_digests(tmp_path: Pa
         "tests.contracts::test_schema_parity[stdio]",
         "tests.contracts::test_version_handshake",
     )
+    assert first.active_profiles[0].pytest_node_ids == (
+        "server/tests/contracts/test_public_stdio.py::test_schema_parity[stdio]",
+        "server/tests/contracts/test_public_stdio.py::test_version_handshake",
+    )
     assert requirement.cleanup_obligations == ("stdio-process", "tcp-peer")
     assert len(requirement.profile_manifest_sha) == 64
 
@@ -96,10 +122,14 @@ def test_profile_digest_changes_with_contract(tmp_path: Path) -> None:
     changed = _policy_data()
     changed_profile = changed["profiles"][0]
     assert isinstance(changed_profile, dict)
-    changed_profile["scenario_ids"] = [
-        "tests.contracts::test_schema_parity[stdio]",
-        "tests.contracts::test_extra_contract",
-    ]
+    scenarios = changed_profile["scenarios"]
+    assert isinstance(scenarios, list)
+    changed_scenario = scenarios[1]
+    assert isinstance(changed_scenario, dict)
+    changed_scenario["id"] = "tests.contracts::test_extra_contract"
+    changed_scenario["pytest_node_id"] = (
+        "server/tests/contracts/test_public_stdio.py::test_extra_contract"
+    )
 
     first = load_release_policy(_write_policy(tmp_path / "first.json", baseline))
     second = load_release_policy(_write_policy(tmp_path / "second.json", changed))
@@ -117,10 +147,35 @@ def test_profile_digest_changes_with_contract(tmp_path: Path) -> None:
         (lambda data: data.update({"profiles": []}), "active profile"),
         (lambda data: data["profiles"].append(dict(data["profiles"][0])), "duplicate profile"),
         (lambda data: data["profiles"][0].update({"required_workers": 1}), "worker role"),
-        (lambda data: data["profiles"][0].update({"scenario_ids": []}), "scenario"),
+        (lambda data: data["profiles"][0].update({"scenarios": []}), "scenario"),
         (
-            lambda data: data["profiles"][0].update({"scenario_ids": ["bad\nscenario"]}),
+            lambda data: data["profiles"][0].update(
+                {
+                    "scenarios": [
+                        {
+                            "id": "bad\nscenario",
+                            "pytest_node_id": "server/tests/test_bad.py::test_bad",
+                        }
+                    ]
+                }
+            ),
             "scenario",
+        ),
+        (
+            lambda data: data["profiles"][0]["scenarios"][0].update(
+                {"pytest_node_id": "../outside.py::test_bad"}
+            ),
+            "pytest node",
+        ),
+        (
+            lambda data: data["profiles"][0]["scenarios"][1].update(
+                {
+                    "pytest_node_id": data["profiles"][0]["scenarios"][0][
+                        "pytest_node_id"
+                    ]
+                }
+            ),
+            "pytest node",
         ),
         (
             lambda data: data["profiles"][0].update({"consumed_artifacts": ["unknown"]}),

@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from gauntlet.json_io import JsonFileError, load_json_object
+from gauntlet.json_io import JsonFileError, load_json_object, parse_json_object
 from gauntlet.model import Contract, EffectDomain
 from gauntlet.receipts import content_hash
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Set
+    from collections.abc import Set
     from pathlib import Path
 
 _ROOT_KEYS = {
@@ -20,7 +22,6 @@ _ROOT_KEYS = {
     "catalog_version",
     "scope",
     "owner",
-    "source_sha",
     "contracts",
 }
 _CONTRACT_KEYS = {
@@ -34,7 +35,6 @@ _CONTRACT_KEYS = {
     "forbidden_success_patterns",
 }
 _ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
-_SHA_PATTERN = re.compile(r"^[0-9a-f]+$")
 
 
 class CatalogError(ValueError):
@@ -68,7 +68,7 @@ class CatalogContract:
             contract_id=self.contract_id,
             action=self.action,
             effects=self.effects,
-            arguments=dict(self.arguments),
+            arguments=_thaw_json_object(self.arguments),
             expect_error=self.expect_error,
             forbidden_success_patterns=self.forbidden_success_patterns,
         )
@@ -79,7 +79,6 @@ class ContractCatalog:
     catalog_version: str
     scope: CatalogScope
     owner: str | None
-    source_sha: str
     contracts: tuple[CatalogContract, ...]
     catalog_sha: str
 
@@ -89,27 +88,34 @@ def load_contract_catalog(path: Path) -> ContractCatalog:
         data = load_json_object(path)
     except JsonFileError as exc:
         raise CatalogError(str(exc)) from exc
+    return _parse_contract_catalog(data)
+
+
+def parse_contract_catalog(data: bytes, *, source: str) -> ContractCatalog:
+    """Parse catalog bytes captured by the trusted source observer."""
+    try:
+        value = parse_json_object(data, source=source)
+    except JsonFileError as exc:
+        raise CatalogError(str(exc)) from exc
+    return _parse_contract_catalog(value)
+
+
+def _parse_contract_catalog(data: dict[str, object]) -> ContractCatalog:
     if set(data) != _ROOT_KEYS:
         raise CatalogError("contract catalog schema mismatch")
-    if data["schema_version"] != 1:
+    if data["schema_version"] != 2:
         raise CatalogError("unsupported contract catalog schema")
 
     version = _require_text(data["catalog_version"], "catalog version")
     scope = _parse_scope(data["scope"])
     owner = _parse_owner(scope, data["owner"])
-    source_sha = _require_text(data["source_sha"], "source SHA")
-    if len(source_sha) not in {40, 64} or not _SHA_PATTERN.fullmatch(source_sha.lower()):
-        raise CatalogError("source SHA must contain 40 or 64 hexadecimal characters")
     contracts = _parse_contracts(data["contracts"])
     return ContractCatalog(
         catalog_version=version,
         scope=scope,
         owner=owner,
-        source_sha=source_sha,
         contracts=contracts,
-        catalog_sha=content_hash(
-            _catalog_payload(version, scope, owner, source_sha, contracts)
-        ),
+        catalog_sha=content_hash(_catalog_payload(version, scope, owner, contracts)),
     )
 
 
@@ -222,10 +228,30 @@ def _parse_retry(value: object) -> RetryPolicy:
         raise CatalogError("contract retry policy is invalid") from exc
 
 
-def _require_object(value: object, label: str) -> dict[str, object]:
+def _require_object(value: object, label: str) -> Mapping[str, object]:
     if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
         raise CatalogError(f"{label} must be a JSON object")
-    return dict(value)
+    return MappingProxyType({key: _freeze_json(item) for key, item in value.items()})
+
+
+def _freeze_json(value: object) -> object:
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze_json(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze_json(item) for item in value)
+    return value
+
+
+def _thaw_json(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {key: _thaw_json(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw_json(item) for item in value]
+    return value
+
+
+def _thaw_json_object(value: Mapping[str, object]) -> dict[str, object]:
+    return {key: _thaw_json(item) for key, item in value.items()}
 
 
 def _require_text(value: object, label: str) -> str:
@@ -245,27 +271,23 @@ def _catalog_payload(
     version: str,
     scope: CatalogScope,
     owner: str | None,
-    source_sha: str,
     contracts: tuple[CatalogContract, ...],
 ) -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "catalog_version": version,
         "scope": scope.value,
         "owner": owner,
-        "source_sha": source_sha,
         "contracts": [
             {
                 "id": contract.contract_id,
                 "action": contract.action,
                 "effects": sorted(effect.value for effect in contract.effects),
                 "retry": contract.retry.value,
-                "arguments": dict(contract.arguments),
-                "preconditions": dict(contract.preconditions),
+                "arguments": _thaw_json_object(contract.arguments),
+                "preconditions": _thaw_json_object(contract.preconditions),
                 "expect_error": contract.expect_error,
-                "forbidden_success_patterns": sorted(
-                    contract.forbidden_success_patterns
-                ),
+                "forbidden_success_patterns": sorted(contract.forbidden_success_patterns),
             }
             for contract in contracts
         ],
