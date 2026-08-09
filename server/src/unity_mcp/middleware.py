@@ -35,7 +35,8 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
     """Anti-hallucination + speed + logging features."""
 
     def __init__(self):
-        self._retry_cache: OrderedDict = OrderedDict()  # h -> (timestamp, None)
+        self._retry_cache: OrderedDict = OrderedDict()  # h -> (timestamp, retry_gen)
+        self._retry_generation: int = 0
         self._RETRY_TTL = float(os.environ.get("UNITY_MCP_RETRY_TTL", "5.0"))
         self._RETRY_MAX = 32
         self.confidence: float = 1.0

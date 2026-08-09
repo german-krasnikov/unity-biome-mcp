@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from unity_mcp.bridge import UnityBridge
+from unity_mcp.bridge import UnityBridge, _CandidateIdentityError
 from helpers import make_writer, make_idle_probe, ping_response, reconnect_preamble
 
 
@@ -1199,3 +1199,24 @@ async def test_send_with_retry_exhausted_raises():
                                 "ping", payload, "0001", 5.0,
                                 asyncio.get_event_loop().time() + 30.0
                             )
+
+
+# ── P-432: EOFError (IncompleteReadError) in _verify_candidate_project ───────
+
+
+async def test_verify_candidate_eof_raises_identity_error():
+    """P-432: IncompleteReadError during project identity check
+    must raise _CandidateIdentityError, not propagate as unhandled EOFError."""
+    bridge = UnityBridge.__new__(UnityBridge)
+    bridge._expected_project_path = "/some/project"
+    bridge._counter = 0
+
+    reader = AsyncMock()
+    writer = Mock()
+    writer.drain = AsyncMock()
+
+    with patch("unity_mcp.bridge.frame_read_with_timeout",
+               side_effect=asyncio.IncompleteReadError(b"", 4)):
+        with patch("unity_mcp.bridge.frame_write"):
+            with pytest.raises(_CandidateIdentityError):
+                await bridge._verify_candidate_project(reader, writer, 9500)

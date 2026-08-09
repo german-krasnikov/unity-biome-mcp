@@ -165,3 +165,38 @@ def test_track_editor_state_no_invalidation_for_get_component(mw_validated):
     mw_validated.schema_cache.put("Camera", frozenset(["fov"]))
     mw_validated.track_editor_state("get_component", "result")
     assert mw_validated.schema_cache.get("Camera") is not None
+
+
+# ── P-433: mutation-aware retry watchdog ─────────────────────────────────────
+
+
+def test_retry_allows_after_intermediate_mutation(mw):
+    """P-433: save -> mutate -> save must NOT be blocked if another write intervened."""
+    mw._RETRY_TTL = 999.0  # long TTL, no expiry
+    args = {"action": "save"}
+    # First save — allowed
+    assert mw.check_retry("scene", args) is None
+    # Intermediate different write advances retry_generation
+    assert mw.check_retry("set_property", {"path": "/X", "prop": "v", "value": "1"}) is None
+    # Second save with same hash — must be allowed (intervening write happened)
+    assert mw.check_retry("scene", args) is None
+
+
+def test_retry_blocks_true_duplicate_without_mutation(mw):
+    """P-433: save -> save (no mutation) must still be blocked."""
+    mw._RETRY_TTL = 999.0
+    args = {"action": "save"}
+    assert mw.check_retry("scene", args) is None
+    result = mw.check_retry("scene", args)
+    assert result is not None and "RETRY" in result
+
+
+def test_retry_blocks_after_intermediate_read(mw):
+    """save -> get_component(read) -> save must still be blocked."""
+    mw._RETRY_TTL = 999.0
+    save_args = {"action": "save"}
+    assert mw.check_retry("scene", save_args) is None
+    # read must NOT advance the mutation budget
+    assert mw.check_retry("get_component", {"path": "/X"}) is None
+    result = mw.check_retry("scene", save_args)
+    assert result is not None and "RETRY" in result

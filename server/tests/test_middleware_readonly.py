@@ -189,3 +189,33 @@ async def test_send_raw_allows_write_without_env():
         with patch.dict(os.environ, env_without, clear=True):
             await _send_raw("set_property", {})
     bridge.send.assert_called_once()
+
+
+# ── P-422: Python-local file writes must respect read-only ───────────────────
+
+
+async def test_save_skill_blocked_in_readonly(tmp_path, monkeypatch):
+    """P-422: save_skill must raise ToolError when UNITY_MCP_READ_ONLY=1."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    from unity_mcp.tools.skills import save_skill
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await save_skill("test", "desc", "code")
+
+
+async def test_save_template_blocked_in_readonly(tmp_path, monkeypatch):
+    """P-422: save_template must raise ToolError when UNITY_MCP_READ_ONLY=1."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    from unity_mcp.tools.skills import save_template
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await save_template("test", "var x = 1;")
+
+
+async def test_save_session_blocked_in_readonly(tmp_path, monkeypatch):
+    """P-422: save_session must raise ToolError when UNITY_MCP_READ_ONLY=1."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    from unity_mcp.tools.scene import save_session
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await save_session()

@@ -37,10 +37,13 @@ class MiddlewareGuardsMixin:
         h = hash((cmd, json.dumps(args, sort_keys=True)))
         now = time.monotonic()
         entry = self._retry_cache.get(h)
-        if entry is not None and now - entry[0] < self._RETRY_TTL:
-            return (f"⚠ RETRY (within {self._RETRY_TTL:.1f}s): identical {cmd}. "
-                    "Re-read state before retrying.")
-        self._retry_cache[h] = (now, None)
+        if entry is not None:
+            ts, gen = entry
+            if now - ts < self._RETRY_TTL and gen == self._retry_generation:
+                return (f"⚠ RETRY (within {self._RETRY_TTL:.1f}s): identical {cmd}. "
+                        "Re-read state before retrying.")
+        self._retry_generation += 1
+        self._retry_cache[h] = (now, self._retry_generation)
         self._retry_cache.move_to_end(h)
         while len(self._retry_cache) > self._RETRY_MAX:
             self._retry_cache.popitem(last=False)
