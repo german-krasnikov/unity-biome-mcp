@@ -56,6 +56,15 @@ def test_unity_tests_workflow_triggers_on_playtest_corpus() -> None:
     assert '"unity-test-project/Playtests/**"' in text
 
 
+def test_unity_tests_workflow_runs_standalone_build_smoke() -> None:
+    text = _workflow("unity-tests.yml")
+
+    assert "Build Standalone Player Smoke" in text
+    assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" in text
+    assert "-ciBuildOutput" in text
+    assert "player-build-${{ matrix.name }}" in text
+
+
 def test_conformance_workflow_captures_mcp_monitor_reports() -> None:
     text = _workflow("ci-conformance.yml")
 
