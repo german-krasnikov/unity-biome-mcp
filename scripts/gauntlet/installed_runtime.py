@@ -53,12 +53,13 @@ def install_python_wheel_runtime(
     if digest != expected_sha256:
         raise RuntimeInstallError("wheel digest does not match expected artifact")
     venv = runtime_root / "venv"
-    uv = uv_executable or shutil.which("uv")
-    if not uv:
-        raise RuntimeInstallError("uv executable is required to install the wheel")
     _run((python_executable, "-m", "venv", "--system-site-packages", str(venv)), runtime_root)
     venv_python = _venv_python(venv)
-    _run((uv, "pip", "install", "--python", str(venv_python), "--no-deps", str(wheel_path)), runtime_root)
+    uv = uv_executable or shutil.which("uv")
+    if uv:
+        _run((uv, "pip", "install", "--python", str(venv_python), "--no-deps", str(wheel_path)), runtime_root)
+    else:
+        _run((str(venv_python), "-m", "pip", "install", "--no-deps", str(wheel_path)), runtime_root)
     return _probe_runtime(
         venv_python,
         runtime_root,

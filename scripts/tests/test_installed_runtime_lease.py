@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -22,8 +23,10 @@ TESTS = Path(__file__).resolve().parent
 REPO = TESTS.parent.parent
 sys.path.insert(0, str(TESTS.parent))
 
+from gauntlet import installed_runtime  # noqa: E402
 from gauntlet.fake_unity_peer import ScriptedUnityPeer  # noqa: E402
 from gauntlet.installed_runtime import (  # noqa: E402
+    InstalledRuntimeReceipt,
     RuntimeInstallError,
     install_python_wheel_runtime,
     public_stdio_environment,
@@ -38,15 +41,12 @@ PRODUCT_VERSION = "1.26.0"
 @pytest.fixture
 def built_wheel(tmp_path: Path) -> Path:
     output = tmp_path / "dist"
-    subprocess.run(
-        ("uv", "build", "--wheel", "--out-dir", str(output), "server"),
-        cwd=REPO,
-        check=True,
-        text=True,
-        encoding="utf-8",
-        capture_output=True,
-        timeout=60,
-    )
+    uv = shutil.which("uv")
+    if uv:
+        command = (uv, "build", "--wheel", "--out-dir", str(output), "server")
+    else:
+        command = (sys.executable, "-m", "pip", "wheel", "--no-deps", "--wheel-dir", str(output), "server")
+    subprocess.run(command, cwd=REPO, check=True, text=True, encoding="utf-8", capture_output=True, timeout=60)
     return next(output.glob("unity_biome_mcp-*.whl"))
 
 
@@ -61,6 +61,56 @@ def test_runtime_install_rejects_wrong_wheel_digest(
             expected_sha256="0" * 64,
             product_version=PRODUCT_VERSION,
         )
+
+
+def test_runtime_install_uses_pip_fallback_when_uv_is_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wheel = tmp_path / "unity_biome_mcp-1.26.0-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    expected = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    commands: list[tuple[str, ...]] = []
+
+    def fake_run(command: tuple[str, ...], cwd: Path) -> None:
+        commands.append(command)
+        if command[1:3] == ("-m", "venv"):
+            executable = Path(command[-1]) / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+            executable.parent.mkdir(parents=True)
+            executable.write_text("", encoding="utf-8")
+
+    def fake_probe(
+        python: Path,
+        runtime_root: Path,
+        *,
+        expected_sha256: str,
+        artifact_size: int,
+        product_version: str,
+    ) -> InstalledRuntimeReceipt:
+        return InstalledRuntimeReceipt(
+            artifact_sha256=expected_sha256,
+            artifact_size_bytes=artifact_size,
+            distribution_version=product_version,
+            distribution_path=str(runtime_root / "venv"),
+            module_path=str(runtime_root / "venv" / "unity_mcp" / "__init__.py"),
+            entrypoint_path=str(runtime_root / "venv" / "bin" / "unity-biome-mcp"),
+            python_executable=str(python),
+            runtime_root=str(runtime_root),
+        )
+
+    monkeypatch.setattr(installed_runtime.shutil, "which", lambda name: None)
+    monkeypatch.setattr(installed_runtime, "_run", fake_run)
+    monkeypatch.setattr(installed_runtime, "_probe_runtime", fake_probe)
+
+    install_python_wheel_runtime(
+        wheel,
+        tmp_path / "runtime",
+        expected_sha256=expected,
+        product_version=PRODUCT_VERSION,
+        python_executable=sys.executable,
+    )
+
+    assert commands[1][1:4] == ("-m", "pip", "install")
 
 
 def test_runtime_install_receipt_proves_installed_origin(
