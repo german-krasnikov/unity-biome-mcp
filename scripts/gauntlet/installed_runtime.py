@@ -57,9 +57,24 @@ def install_python_wheel_runtime(
     venv_python = _venv_python(venv)
     uv = uv_executable or shutil.which("uv")
     if uv:
-        _run((uv, "pip", "install", "--python", str(venv_python), "--no-deps", str(wheel_path)), runtime_root)
+        _run(
+            (
+                uv,
+                "pip",
+                "install",
+                "--python",
+                str(venv_python),
+                "--force-reinstall",
+                "--no-deps",
+                str(wheel_path),
+            ),
+            runtime_root,
+        )
     else:
-        _run((str(venv_python), "-m", "pip", "install", "--no-deps", str(wheel_path)), runtime_root)
+        _run(
+            (str(venv_python), "-m", "pip", "install", "--force-reinstall", "--no-deps", str(wheel_path)),
+            runtime_root,
+        )
     return _probe_runtime(
         venv_python,
         runtime_root,

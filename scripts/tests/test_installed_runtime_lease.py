@@ -112,6 +112,7 @@ def test_runtime_install_uses_pip_fallback_when_uv_is_unavailable(
     )
 
     assert commands[1][1:4] == ("-m", "pip", "install")
+    assert "--force-reinstall" in commands[1]
 
 
 def test_runtime_install_receipt_proves_installed_origin(
