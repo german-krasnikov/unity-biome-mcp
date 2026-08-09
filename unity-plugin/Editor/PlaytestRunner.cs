@@ -67,13 +67,23 @@ namespace UnityMCP.Editor
                     foreach (var kv in parseResult.VarDefs)
                         varRegistry.Register(kv.Key, kv.Value);
             }
-            catch (Exception e) { _isRunning = false; tcs.TrySetResult($"PARSE ERROR: {e.Message}"); return; }
+            catch (Exception e)
+            {
+                CompleteRunCleanup();
+                tcs.TrySetResult($"PARSE ERROR: {e.Message}");
+                return;
+            }
 
             if (parseResult.Warnings != null)
                 foreach (var w in parseResult.Warnings)
                     Debug.LogWarning($"[Playtest] {w}");
 
-            if (steps.Count == 0) { _isRunning = false; tcs.TrySetResult("PLAYTEST: 0 steps (0s)"); return; }
+            if (steps.Count == 0)
+            {
+                CompleteRunCleanup();
+                tcs.TrySetResult("PLAYTEST: 0 steps (0s)");
+                return;
+            }
 
             bool globalAbort = abortOnFail || parseResult.HasGlobalAbort;
             bool snapOnFail = snapshotOnFailure;
