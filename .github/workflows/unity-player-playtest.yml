@@ -292,6 +292,19 @@ jobs:
           if suite.get("failures") != "0":
               raise SystemExit(ET.tostring(suite, encoding="unicode"))
 
+      - name: Write Player PlayTest Evidence
+        shell: bash
+        run: |
+          python scripts/write_player_playtest_evidence.py \
+            --head-sha "${{ github.sha }}" \
+            --run-id "${{ github.run_id }}" \
+            --run-attempt "${{ github.run_attempt }}" \
+            --runner-os "${{ runner.os }}" \
+            --matrix-name "${{ matrix.name }}" \
+            --player-path "${{ matrix.build-output }}" \
+            --artifacts-dir artifacts \
+            --out artifacts/player-playtest-evidence.json
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: always()
         with:
@@ -305,6 +318,7 @@ jobs:
             artifacts/player-playtest-failure.xml
             artifacts/player-playtest-graphics.json
             artifacts/player-playtest-graphics.xml
+            artifacts/player-playtest-evidence.json
           if-no-files-found: warn
 
       - name: Check player JUnit exists

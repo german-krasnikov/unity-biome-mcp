@@ -174,6 +174,22 @@ def test_player_playtest_workflow_validates_player_playtest_receipts() -> None:
     assert 'suite.get("failures") == "0"' in text
 
 
+def test_player_playtest_workflow_writes_evidence_receipt() -> None:
+    text = _workflow("unity-player-playtest.yml")
+    evidence_block = text[text.index("Write Player PlayTest Evidence") :]
+
+    assert "scripts/write_player_playtest_evidence.py" in evidence_block[:700]
+    assert '--head-sha "${{ github.sha }}"' in evidence_block[:700]
+    assert '--run-id "${{ github.run_id }}"' in evidence_block[:700]
+    assert '--run-attempt "${{ github.run_attempt }}"' in evidence_block[:700]
+    assert '--runner-os "${{ runner.os }}"' in evidence_block[:700]
+    assert '--matrix-name "${{ matrix.name }}"' in evidence_block[:700]
+    assert '--player-path "${{ matrix.build-output }}"' in evidence_block[:700]
+    assert "--artifacts-dir artifacts" in evidence_block[:700]
+    assert "--out artifacts/player-playtest-evidence.json" in evidence_block[:700]
+    assert "artifacts/player-playtest-evidence.json" in text
+
+
 def test_conformance_workflow_captures_mcp_monitor_reports() -> None:
     text = _workflow("ci-conformance.yml")
 
