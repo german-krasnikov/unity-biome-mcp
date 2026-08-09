@@ -23,7 +23,7 @@ on:
         default: "false"
 
 concurrency:
-  group: unity-tests-${{ github.head_ref || github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.run_player_playtest == 'true' && 'player' || 'default' }}
+  group: unity-tests-${{ github.head_ref || github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.run_player_playtest == 'true' && github.run_id || 'default' }}
   cancel-in-progress: true
 
 permissions:
