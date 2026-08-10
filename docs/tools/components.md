@@ -14,6 +14,8 @@ Connect a button, trigger, or other event to a method.
 - `method` (string) — Method name (e.g., "SetActive", "Play", "TakeDamage")
 - `arg_type` (string, default="void") — "void" | "bool" | "int" | "float" | "string" | "object"
 - `arg_value` (string, optional) — Required when arg_type != void
+- `target_component_type` (string, optional) — Disambiguate when target has multiple components with the same method name
+- `parameter_types` (string, optional) — Specify parameter types when method is overloaded (e.g., "string" or "int,float")
 
 **Example:**
 
@@ -29,6 +31,19 @@ await wire_event(path="Spike", component="Collider", event="onTriggerEnter",
 # Connect UI event with string argument
 await wire_event(path="UI/QuitButton", component="Button", event="onClick",
                 target="GameManager", method="QuitGame")
+
+# Disambiguate when target has multiple components with same method
+# (e.g., both Animator and NavMeshAgent have SetDestination)
+await wire_event(path="Button", component="Button", event="onClick",
+                target="Character", method="SetDestination",
+                arg_type="object", target_component_type="NavMeshAgent")
+
+# Disambiguate overloaded method by parameter type
+# (e.g., Animator.SetTrigger has multiple overloads)
+await wire_event(path="Button", component="Button", event="onClick",
+                target="Character", method="SetTrigger",
+                arg_type="string", arg_value="Attack",
+                target_component_type="Animator", parameter_types="string")
 ```
 
 **Common Patterns:**
