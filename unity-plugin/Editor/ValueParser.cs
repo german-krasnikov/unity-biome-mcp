@@ -285,11 +285,16 @@ namespace UnityMCP.Editor
                 var subName = value.Substring(sepIdx + 2);
                 var allAssets = AssetDatabase.LoadAllAssetsAtPath(assetPath);
                 foreach (var a in allAssets)
+                {
+                    if (a == null) continue; // P-403b: LoadAllAssetsAtPath can return nulls
                     if (a.name == subName && (fieldType == null || fieldType.IsInstanceOfType(a)))
                     {
                         property.objectReferenceValue = a;
-                        return;
+                        if (property.objectReferenceValue != null)
+                            return;
+                        // Type rejected by serialized field — try next candidate
                     }
+                }
                 throw new ArgumentException($"Sub-asset '{subName}' not found in: {assetPath}");
             }
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(value);

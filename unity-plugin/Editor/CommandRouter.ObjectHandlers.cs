@@ -160,6 +160,7 @@ namespace UnityMCP.Editor
 
         private static string ExecSetProperty(string args)
         {
+            var dryRun = JsonHelper.ExtractString(args, "dry_run") == "true";
             var findType = JsonHelper.ExtractString(args, "find_type");
             if (!string.IsNullOrEmpty(findType))
             {
@@ -173,16 +174,16 @@ namespace UnityMCP.Editor
                 int ok = 0; int fail = 0;
                 foreach (var p in paths)
                 {
-                    try { ObjectManager.SetProperty(p.Trim(), component, prop, value, false); ok++; }
+                    try { ObjectManager.SetProperty(p.Trim(), component, prop, value, dryRun); ok++; }
                     catch { fail++; }
                 }
-                return $"bulk set {prop}={value}: {ok} ok, {fail} failed / {paths.Length} {findType}";
+                var prefix = dryRun ? "DRY-RUN bulk" : "bulk set";
+                return $"{prefix} {prop}={value}: {ok} ok, {fail} failed / {paths.Length} {findType}";
             }
             var path = JsonHelper.ExtractString(args, "path");
             var comp = JsonHelper.ExtractString(args, "component");
             var prp = JsonHelper.ExtractString(args, "prop");
             var val = JsonHelper.ExtractString(args, "value");
-            var dryRun = JsonHelper.ExtractString(args, "dry_run") == "true";
             var actual = ObjectManager.SetProperty(path, comp, prp, val, dryRun);
             if (dryRun) return actual;
             // F11: skip snapshot serialization inside batch (deferred Physics.Sync handles it)

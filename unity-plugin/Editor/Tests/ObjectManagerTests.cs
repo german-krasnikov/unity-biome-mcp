@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor;
@@ -467,6 +468,84 @@ namespace UnityMCP.Editor.Tests
 
             Assert.IsNotNull(result, "Serialize must return data when Transform requested on UI object");
             StringAssert.Contains("m_LocalPosition", result);
+        }
+
+        // ── P-429: bulk find_type dry_run must NOT mutate ────────────────────
+
+        [Test]
+        public void SetProperty_BulkFindType_DryRun_DoesNotMutate()
+        {
+            CommandRouter.RegisterAll();
+            var go1 = new GameObject("P429_A");
+            var go2 = new GameObject("P429_B");
+            RegisterCleanup(() => Object.DestroyImmediate(go1));
+            RegisterCleanup(() => Object.DestroyImmediate(go2));
+            go1.AddComponent<BoxCollider>();
+            go2.AddComponent<BoxCollider>();
+
+            // Both triggers start false
+            Assert.IsFalse(go1.GetComponent<BoxCollider>().isTrigger, "precondition");
+            Assert.IsFalse(go2.GetComponent<BoxCollider>().isTrigger, "precondition");
+
+            var result = CommandRouter.ExecuteCommand("set_property",
+                "{\"find_type\":\"BoxCollider\",\"component\":\"BoxCollider\"," +
+                "\"prop\":\"m_IsTrigger\",\"value\":\"true\",\"dry_run\":\"true\"}");
+
+            Assert.IsFalse(go1.GetComponent<BoxCollider>().isTrigger,
+                "dry_run must not mutate go1");
+            Assert.IsFalse(go2.GetComponent<BoxCollider>().isTrigger,
+                "dry_run must not mutate go2");
+            StringAssert.Contains("DRY-RUN", result,
+                "bulk dry_run response must contain DRY-RUN marker");
+        }
+
+        // ── P-416: ResolveComponent after Undo.AddComponent ──────────────────
+
+        [Test]
+        public void ResolveComponent_AfterUndoAddComponent_FindsComponent()
+        {
+            var go = new GameObject("P416_Obj");
+            RegisterCleanup(() => Object.DestroyImmediate(go));
+            Undo.AddComponent<Rigidbody>(go);
+
+            var (resolvedGo, comp) = ObjectManager.ResolveComponent("/P416_Obj", "Rigidbody");
+
+            Assert.IsNotNull(comp, "ResolveComponent must find Rigidbody immediately after Undo.AddComponent");
+            Assert.AreEqual(go, resolvedGo);
+        }
+
+        // ── P-404: SetParent on non-root prefab child must throw ─────────────
+
+        [Test]
+        public void SetParent_PrefabNonRootChild_EditMode_ThrowsInvalidOperation()
+        {
+            // Create a temporary prefab with Root/Child hierarchy
+            var tempRoot = new GameObject("P404_PrefabRoot");
+            var tempChild = new GameObject("P404_Child");
+            tempChild.transform.SetParent(tempRoot.transform);
+
+            var prefabPath = "Assets/TestsTemp/P404_TestPrefab.prefab";
+            TestPaths.EnsureFolder("Assets/TestsTemp");
+            TrackOwnedAsset(prefabPath);
+            PrefabUtility.SaveAsPrefabAsset(tempRoot, prefabPath);
+            Object.DestroyImmediate(tempRoot);
+
+            // Instantiate the prefab
+            var prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            var instance = PrefabUtility.InstantiatePrefab(prefabAsset) as GameObject;
+            RegisterCleanup(() => Object.DestroyImmediate(instance));
+
+            // The child inside the prefab instance
+            var childTransform = instance.transform.GetChild(0);
+            var childPath = ComponentSerializer.GetPath(childTransform.gameObject);
+
+            // A new parent target
+            var newParent = new GameObject("P404_NewParent");
+            RegisterCleanup(() => Object.DestroyImmediate(newParent));
+
+            Assert.Throws<System.InvalidOperationException>(() =>
+                ObjectManager.SetParent(childPath, "/P404_NewParent"),
+                "SetParent on non-root prefab child must throw InvalidOperationException");
         }
     }
 }

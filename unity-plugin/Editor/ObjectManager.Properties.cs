@@ -54,6 +54,20 @@ namespace UnityMCP.Editor
 
             if (dryRun)
             {
+                // Validate ObjectReference paths before reporting success
+                if (property.propertyType == SerializedPropertyType.ObjectReference
+                    && !string.IsNullOrEmpty(value) && value != "null" && value != "None")
+                {
+                    // Check scene object first
+                    var sceneObj = ComponentSerializer.FindObject(value);
+                    if (sceneObj == null)
+                    {
+                        // Check asset path
+                        var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(value);
+                        if (asset == null)
+                            return $"DRY-RUN RESOLVE ERROR: {prop} target not found: {value}";
+                    }
+                }
                 var current = ComponentSerializer.GetPropertyValueString(property);
                 return $"DRY-RUN: {prop} would change {current} → {value}";
             }

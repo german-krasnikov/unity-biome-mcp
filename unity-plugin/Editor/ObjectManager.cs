@@ -13,8 +13,7 @@ namespace UnityMCP.Editor
         {
             component = ComponentSerializer.StripNamespace(component);
             var go = ComponentSerializer.FindObjectOrThrow(path);
-            component = InputNormalizer.NormalizeComponent(component, go);
-            var comp = go.GetComponent(component);
+            var comp = ComponentSerializer.FindComponent(go, component);
             if (comp == null) throw new ArgumentException(ErrorHelper.ComponentNotFound(component, go));
             // G6: warn when multiple components of same type exist — silent first-pick is surprising.
             var allSameType = go.GetComponents(comp.GetType());
@@ -146,6 +145,13 @@ namespace UnityMCP.Editor
             }
             else
             {
+                if (PrefabUtility.IsPartOfPrefabInstance(go)
+                    && PrefabUtility.GetNearestPrefabInstanceRoot(go) != go)
+                {
+                    throw new InvalidOperationException(
+                        $"{path} is a non-root child of a prefab instance. " +
+                        "Use prefab action=edit or unpack first.");
+                }
                 Undo.SetTransformParent(go.transform, parentTransform, worldPositionStays, $"Set parent {path}");
                 EditorUtility.SetDirty(go);
                 EditorSceneManager.MarkSceneDirty(go.scene);
