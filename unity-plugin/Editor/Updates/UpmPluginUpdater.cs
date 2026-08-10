@@ -18,7 +18,7 @@ namespace UnityMCP.Editor
         {
             if (string.IsNullOrEmpty(version))
             {
-                Debug.LogError("[MCP Update] No version specified.");
+                Debug.LogError($"{BiomeLabel.Tag} No version specified.");
                 onComplete?.Invoke(false);
                 return;
             }
@@ -34,7 +34,7 @@ namespace UnityMCP.Editor
 
                 if (req.Status == StatusCode.Failure)
                 {
-                    Debug.LogError($"[MCP Update] UPM add failed: {req.Error?.message}");
+                    Debug.LogError($"{BiomeLabel.Tag} UPM add failed: {req.Error?.message}");
                     onComplete?.Invoke(false);
                     return;
                 }
@@ -50,7 +50,7 @@ namespace UnityMCP.Editor
                     EditorApplication.update -= PollReload;
                     if (reloadReq.Status == StatusCode.Failure)
                     {
-                        Debug.LogError($"[MCP Update] Reload package failed: {reloadReq.Error?.message}");
+                        Debug.LogError($"{BiomeLabel.Tag} Reload package failed: {reloadReq.Error?.message}");
                         onComplete?.Invoke(false);
                     }
                     else

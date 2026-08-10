@@ -52,25 +52,25 @@ namespace UnityMCP.Editor.Wizard
 
                 // ── Group B: In-Unity Chat Backends ───────────────────────────
                 new BackendCard("Gemini",
-                    $"MCP auto-configured at chat start. Port: {port}",
+                    $"{BiomeLabel.DisplayName} auto-configured at chat start. Port: {port}",
                     "Copy Port",
                     CardAction.CopyPort,
                     port.ToString()),
 
                 new BackendCard("Kimi K2",
-                    $"MCP auto-configured at chat start. Port: {port}",
+                    $"{BiomeLabel.DisplayName} auto-configured at chat start. Port: {port}",
                     "Copy Port",
                     CardAction.CopyPort,
                     port.ToString()),
 
                 new BackendCard("Codex",
-                    $"MCP wired via CLI flags at spawn. Port: {port}",
+                    $"{BiomeLabel.DisplayName} wired via CLI flags at spawn. Port: {port}",
                     "Copy Port",
                     CardAction.CopyPort,
                     port.ToString()),
 
                 new BackendCard("OpenCode",
-                    $"MCP config injected via env var. Port: {port}",
+                    $"{BiomeLabel.DisplayName} config injected via env var. Port: {port}",
                     "Copy Port",
                     CardAction.CopyPort,
                     port.ToString()),

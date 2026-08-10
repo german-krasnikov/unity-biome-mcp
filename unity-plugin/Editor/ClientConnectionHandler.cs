@@ -29,7 +29,7 @@ namespace UnityMCP.Editor
                 catch (Exception e)
                 {
                     if (token.IsCancellationRequested) break;
-                    var msg = e.Message; MainThreadDispatcher.Enqueue(() => Debug.LogError($"[MCP] {label} accept error: {msg}"));
+                    var msg = e.Message; MainThreadDispatcher.Enqueue(() => Debug.LogError($"{BiomeLabel.Tag} {label} accept error: {msg}"));
                     if (MCPServer._cts != masterCts || !MCPServer.IsRunning) break;
                     await Task.Delay(100, token).ConfigureAwait(false);
                     continue;
@@ -48,7 +48,7 @@ namespace UnityMCP.Editor
                 {
                     try { client.Close(); } catch { }
                     MainThreadDispatcher.Enqueue(() =>
-                        Debug.LogWarning($"[MCP] {label} rejected connection: client capacity exceeded"));
+                        Debug.LogWarning($"{BiomeLabel.Tag} {label} rejected connection: client capacity exceeded"));
                     continue;
                 }
                 _ = HandleClientAsync(client, slot, idx, gen, label, clientCts.Token);
@@ -120,7 +120,7 @@ namespace UnityMCP.Editor
                         var length = BinaryPrimitives.ReadUInt32BigEndian(header);
                         if (length > MaxMessageSize)
                         {
-                            var len = length; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Protocol desync: length prefix {len} bytes (0x{len:X8}) exceeds {MaxMessageSize} — reconnecting"));
+                            var len = length; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Protocol desync: length prefix {len} bytes (0x{len:X8}) exceeds {MaxMessageSize} — reconnecting"));
                             break;
                         }
 
@@ -137,7 +137,7 @@ namespace UnityMCP.Editor
                             var role = JsonHelper.ExtractString(json, "role");
                             if (!string.IsNullOrEmpty(role)) label = RoleToLabel(role);
                             var ep0 = endPoint; var lbl0 = label;
-                            MainThreadDispatcher.Enqueue(() => Debug.Log($"[MCP] {lbl0} connected from {ep0}"));
+                            MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} {lbl0} connected from {ep0}"));
                             receivedFirstMessage = true;
                         }
 
@@ -223,7 +223,7 @@ namespace UnityMCP.Editor
             {
                 if (!MCPServer._shuttingDown && !clientToken.IsCancellationRequested)
                 {
-                    var msg = e.Message; MainThreadDispatcher.Enqueue(() => Debug.LogError($"[MCP] Client error: {msg}"));
+                    var msg = e.Message; MainThreadDispatcher.Enqueue(() => Debug.LogError($"{BiomeLabel.Tag} Client error: {msg}"));
                 }
             }
             finally
@@ -232,7 +232,7 @@ namespace UnityMCP.Editor
                 if (receivedFirstMessage)
                 {
                     var lbl = slot.Label ?? label; var gen = generation;
-                    MainThreadDispatcher.Enqueue(() => Debug.Log($"[MCP] {lbl} disconnected (gen={gen})"));
+                    MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} {lbl} disconnected (gen={gen})"));
                 }
             }
         }

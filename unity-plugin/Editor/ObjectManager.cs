@@ -19,7 +19,7 @@ namespace UnityMCP.Editor
             var allSameType = go.GetComponents(comp.GetType());
             if (allSameType.Length > 1)
                 Debug.LogWarning(
-                    $"[MCP] {allSameType.Length} {comp.GetType().Name} found on '{go.name}'; " +
+                    $"{BiomeLabel.Tag} {allSameType.Length} {comp.GetType().Name} found on '{go.name}'; " +
                     "using first. Pass a more specific type name to disambiguate.");
             return (go, comp);
         }

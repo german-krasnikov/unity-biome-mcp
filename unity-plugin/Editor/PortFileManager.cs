@@ -59,7 +59,7 @@ namespace UnityMCP.Editor
             EnsurePorts(); // ensure _reloadPort is resolved before writing all three
             PortResolver.TrySaveAllPorts(PortFilePath, port, chatPort, _reloadPort, File.WriteAllText);
             if (!PortResolver.TrySaveProjectSettings(_projectSettingsPath, port, chatPort, File.WriteAllText))
-                Debug.LogWarning("[MCP] Could not save port intent to ProjectSettings — changes may not survive a Library purge.");
+                Debug.LogWarning($"{BiomeLabel.Tag} Could not save port intent to ProjectSettings — changes may not survive a Library purge.");
             _port = port;
             _chatPort = chatPort;
             _portsResolved = true;
@@ -82,7 +82,7 @@ namespace UnityMCP.Editor
                 File.WriteAllText,
                 CommitResolvedPorts);
             if (!persisted)
-                Debug.LogWarning("[MCP] Runtime port persistence failed; keeping the previous resolved ports.");
+                Debug.LogWarning($"{BiomeLabel.Tag} Runtime port persistence failed; keeping the previous resolved ports.");
         }
 
         // Path-injected persistence core. Tests exercise runtime persistence through this
@@ -228,7 +228,7 @@ namespace UnityMCP.Editor
             catch (Exception e)
             {
                 succeeded = false;
-                Debug.LogWarning($"[MCP] Could not write runtime port cache: {e.Message}");
+                Debug.LogWarning($"{BiomeLabel.Tag} Could not write runtime port cache: {e.Message}");
             }
             try
             {
@@ -246,7 +246,7 @@ namespace UnityMCP.Editor
             catch (Exception e)
             {
                 succeeded = false;
-                Debug.LogWarning($"[MCP] Could not write discovery file: {e.Message}");
+                Debug.LogWarning($"{BiomeLabel.Tag} Could not write discovery file: {e.Message}");
             }
             return succeeded;
         }

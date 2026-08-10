@@ -9,10 +9,10 @@ namespace UnityMCP.Editor.Chat
     /// </summary>
     internal static class FieldContextMenu
     {
-        [MenuItem("CONTEXT/Component/Add Field to Chat", true)]
+        [MenuItem("CONTEXT/Component/🧬MCP/Add Field to Chat", true)]
         private static bool Validate(MenuCommand cmd) => cmd.context is Component;
 
-        [MenuItem("CONTEXT/Component/Add Field to Chat")]
+        [MenuItem("CONTEXT/Component/🧬MCP/Add Field to Chat")]
         private static void Execute(MenuCommand cmd)
         {
             var comp = cmd.context as Component;

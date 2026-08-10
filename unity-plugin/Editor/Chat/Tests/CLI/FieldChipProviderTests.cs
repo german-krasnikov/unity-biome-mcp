@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using UnityEngine;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
@@ -23,6 +24,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void TearDown()
         {
             FieldChipProvider.FindObjectOverride = null;
+            FieldChipProvider.FindSOOverride = null;
             ChipKindRegistry.ResetToBuiltIns();
         }
 
@@ -109,5 +111,47 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void Navigate_NullReference_NoThrow()
             => Assert.DoesNotThrow(() => _provider.Navigate(null));
+
+        // ── Bug 4 fix: asset-path chip resolution ────────────────────────────
+
+        [Test]
+        public void FormatPayload_AssetPath_SONotFound_ReturnsAssetNotFound()
+        {
+            FieldChipProvider.FindSOOverride = _ => null;
+            var chip = new ChipData(ChipKindKeys.Field, "Assets/Config.asset|MySO|speed", "MySO.speed", 0);
+            var result = _provider.FormatPayload(chip, new ChipPayloadContext("summary", ""));
+            StringAssert.Contains("(asset not found)", result);
+        }
+
+        [Test]
+        public void FormatPayload_AssetPath_FieldNotFound_ReturnsNotFound()
+        {
+            var so = ScriptableObject.CreateInstance<TestSOWithInt>();
+            FieldChipProvider.FindSOOverride = _ => so;
+            var chip = new ChipData(ChipKindKeys.Field, "Assets/Config.asset|TestSOWithInt|nonexistent", "TestSOWithInt.nonexistent", 0);
+            try
+            {
+                var result = _provider.FormatPayload(chip, new ChipPayloadContext("summary", ""));
+                StringAssert.Contains("(not found)", result);
+            }
+            finally { Object.DestroyImmediate(so); }
+        }
+
+        [Test]
+        public void FormatPayload_AssetPath_IntField_ReturnsFormattedValue()
+        {
+            var so = ScriptableObject.CreateInstance<TestSOWithInt>();
+            so.value = 42;
+            FieldChipProvider.FindSOOverride = _ => so;
+            var chip = new ChipData(ChipKindKeys.Field, "Assets/Config.asset|TestSOWithInt|value", "TestSOWithInt.value", 0);
+            try
+            {
+                var result = _provider.FormatPayload(chip, new ChipPayloadContext("summary", ""));
+                StringAssert.Contains("42", result);
+            }
+            finally { Object.DestroyImmediate(so); }
+        }
+
+        private sealed class TestSOWithInt : UnityEngine.ScriptableObject { public int value; }
     }
 }

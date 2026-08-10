@@ -12,7 +12,7 @@ namespace UnityMCP.Editor.Chat
         /// <summary>Unique lowercase key. Must match ^[a-z0-9_]+$.</summary>
         string Key { get; }
 
-        /// <summary>e.g. "MCP/My Panel"</summary>
+        /// <summary>e.g. "🧬MCP/My Panel"</summary>
         string MenuPath { get; }
 
         int MenuPriority { get; }

@@ -31,7 +31,7 @@ namespace UnityMCP.Editor.Wizard.Screens
             _logo.AddToClassList("wiz-title");
             var logo = _logo;
 
-            _subtitle = new Label("MCP server for Unity Editor — 2 minutes to configure");
+            _subtitle = new Label($"{BiomeLabel.DisplayName} server for Unity Editor — 2 minutes to configure");
             _subtitle.AddToClassList("wiz-subtitle");
             var subtitle = _subtitle;
 

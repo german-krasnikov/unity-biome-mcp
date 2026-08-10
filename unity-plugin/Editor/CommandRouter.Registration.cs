@@ -68,7 +68,7 @@ namespace UnityMCP.Editor
                 if (!string.IsNullOrEmpty(label))
                 {
                     MCPServer._mainSlot.Label = label;
-                    MainThreadDispatcher.Enqueue(() => Debug.Log($"[MCP] Client identified as: {label}"));
+                    MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Client identified as: {label}"));
                 }
                 return "ok";
             }, required: "label", optional: "", alwaysAllowed: true, allowedDuringCompile: true);

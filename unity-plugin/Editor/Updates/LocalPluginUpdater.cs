@@ -40,7 +40,7 @@ namespace UnityMCP.Editor
 
             if (string.IsNullOrEmpty(repoRoot))
             {
-                Debug.LogWarning("[MCP Update] No repo root found — update manually.");
+                Debug.LogWarning($"{BiomeLabel.Tag} No repo root found — update manually.");
                 onComplete?.Invoke(false);
                 return;
             }
@@ -66,7 +66,7 @@ namespace UnityMCP.Editor
                         }
                         else
                         {
-                            Debug.LogError($"[MCP Update] git pull failed (exit {code}).\nRun manually:\n  cd \"{repoRoot}\"\n  git stash && git pull --tags && git stash pop");
+                            Debug.LogError($"{BiomeLabel.Tag} git pull failed (exit {code}).\nRun manually:\n  cd \"{repoRoot}\"\n  git stash && git pull --tags && git stash pop");
                             onComplete?.Invoke(false);
                         }
                     };
@@ -84,7 +84,7 @@ namespace UnityMCP.Editor
             }
             else
             {
-                Debug.LogError($"[MCP Update] git pull failed (exit {exitCode}).\nRun manually:\n  cd \"{repoRoot}\"\n  git stash && git pull --tags && git stash pop");
+                Debug.LogError($"{BiomeLabel.Tag} git pull failed (exit {exitCode}).\nRun manually:\n  cd \"{repoRoot}\"\n  git stash && git pull --tags && git stash pop");
                 onComplete?.Invoke(false);
             }
         }

@@ -110,7 +110,7 @@ namespace UnityMCP.Editor.Chat
             {
                 var goForId = FindGo(chipPath);
                 if (goForId != null && goForId)
-                    return chipPath + "#" + TransientObjectId.GetWireValue(goForId);
+                    return chipPath + TransientObjectId.GetHexRef(goForId);
                 return chipPath;
             }
 

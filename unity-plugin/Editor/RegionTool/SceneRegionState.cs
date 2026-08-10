@@ -75,7 +75,7 @@ namespace UnityMCP.Editor.RegionTool
         internal static void FrameRegion(string id)
         {
             var snap = GetById(id);
-            if (snap == null) { Debug.LogWarning("[MCP] Region not found: " + id); return; }
+            if (snap == null) { Debug.LogWarning($"{BiomeLabel.Tag} Region not found: " + id); return; }
             var sv = SceneView.lastActiveSceneView;
             if (sv == null) return;
             var center = new Vector3(snap.CenterX, 0f, snap.CenterZ);
@@ -97,7 +97,7 @@ namespace UnityMCP.Editor.RegionTool
             }
             catch (Exception e)
             {
-                Debug.LogWarning("[MCP] RegionStore save failed: " + e.Message);
+                Debug.LogWarning($"{BiomeLabel.Tag} RegionStore save failed: " + e.Message);
             }
         }
 
@@ -117,7 +117,7 @@ namespace UnityMCP.Editor.RegionTool
                 }
                 catch (Exception e)
                 {
-                    Debug.LogWarning("[MCP] RegionStore load failed: " + e.Message);
+                    Debug.LogWarning($"{BiomeLabel.Tag} RegionStore load failed: " + e.Message);
                 }
             }
             SessionStateHelper.RecoverInto(_cache, cutoff);

@@ -277,7 +277,7 @@ namespace UnityMCP.Editor.Chat
                     : SystemInfo.operatingSystemFamily == OperatingSystemFamily.Windows
                         ? "uv not found. Install: winget install astral-sh.uv, then restart Unity."
                         : "uv not found. Install: brew install uv, then restart Unity.";
-                throw new InvalidOperationException($"[MCP Relay] {hint}");
+                throw new InvalidOperationException($"{BiomeLabel.Tag} {hint}");
             }
 
             return new SpawnPlan(cmd, argv, isLocal, TimeoutFor(isLocal));
@@ -293,7 +293,7 @@ namespace UnityMCP.Editor.Chat
             {
                 if (attempt > 0)
                 {
-                    var msg = $"[MCP Relay] Retry {attempt}/2 after: {last?.Message}";
+                    var msg = $"{BiomeLabel.Tag} Retry {attempt}/2 after: {last?.Message}";
                     MainThreadDispatcher.Enqueue(() => UnityEngine.Debug.Log(msg));
                     System.Threading.Thread.Sleep(RetryDelay);
                 }
@@ -326,7 +326,7 @@ namespace UnityMCP.Editor.Chat
             var process = ProcessFactory(psi);
             CurrentProcess = process;
             if (process == null)
-                throw new InvalidOperationException("[MCP Relay] Process.Start returned null");
+                throw new InvalidOperationException($"{BiomeLabel.Tag} Process.Start returned null");
 
             // Always drain stderr: captures Python import errors for local installs,
             // uvx download progress for non-local. Buffer shared with catch block below.
@@ -345,7 +345,7 @@ namespace UnityMCP.Editor.Chat
                 stderrTask.Wait(500);
                 var stderr = stderrSb.ToString().Trim();
                 throw new InvalidOperationException(
-                    "[MCP Relay] Process exited without reporting port." +
+                    $"{BiomeLabel.Tag} Process exited without reporting port." +
                     (string.IsNullOrEmpty(stderr) ? "" : $"\nstderr: {stderr}"));
             }
         }
@@ -368,7 +368,7 @@ namespace UnityMCP.Editor.Chat
                     var line = p.StandardError.ReadLine();
                     if (line == null) continue;
                     capture.AppendLine(line);
-                    var msg = $"[MCP Relay] {line}";
+                    var msg = $"{BiomeLabel.Tag} {line}";
                     // Marshal onto the main thread — Debug.Log is not thread-safe in Unity 6
                     // (touches scene-repaint state internally) and this runs on the ThreadPool.
                     MainThreadDispatcher.Enqueue(() => UnityEngine.Debug.Log(msg));
@@ -382,9 +382,9 @@ namespace UnityMCP.Editor.Chat
             const string prefix = "relay_port:";
             if (line == null || !line.StartsWith(prefix, StringComparison.Ordinal))
                 throw new FormatException(
-                    $"[MCP Relay] Expected 'relay_port:PORT', got: {line ?? "null"}");
+                    $"{BiomeLabel.Tag} Expected 'relay_port:PORT', got: {line ?? "null"}");
             if (!int.TryParse(line.Substring(prefix.Length).Trim(), out var port))
-                throw new FormatException($"[MCP Relay] Non-integer port in: {line}");
+                throw new FormatException($"{BiomeLabel.Tag} Non-integer port in: {line}");
             return port;
         }
 
@@ -409,12 +409,12 @@ namespace UnityMCP.Editor.Chat
                 var task = Task.Run(() => reader.ReadLine());
                 if (!task.Wait(remaining)) break;
                 var line = task.Result;
-                if (line == null) throw new InvalidOperationException("[MCP Relay] Process exited without reporting port");
+                if (line == null) throw new InvalidOperationException($"{BiomeLabel.Tag} Process exited without reporting port");
                 if (line.StartsWith(prefix, StringComparison.Ordinal))
                     return ParseRelayPort(line);
                 // else: noise line — continue waiting
             }
-            throw new TimeoutException("[MCP Relay] Timed out waiting for relay to report port");
+            throw new TimeoutException($"{BiomeLabel.Tag} Timed out waiting for relay to report port");
         }
 
         internal static bool IsTcpAlive(int port)

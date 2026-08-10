@@ -5,7 +5,7 @@ namespace UnityMCP.Editor.Chat
 {
     public static class HierarchyContextMenu
     {
-        [MenuItem("GameObject/Add to Chat Context", false, 49)]
+        [MenuItem("GameObject/🧬MCP/Add to Chat", false, 10)]
         private static void Execute()
         {
             var go = Selection.activeGameObject;
@@ -13,13 +13,13 @@ namespace UnityMCP.Editor.Chat
             var window = FindChatWindow();
             if (window == null)
             {
-                Debug.LogWarning("[MCP Chat] Open the Chat window first.");
+                Debug.LogWarning($"{BiomeLabel.Tag} Open the Chat window first.");
                 return;
             }
             window.InsertInlineChip(go);
         }
 
-        [MenuItem("GameObject/Add to Chat Context", true)]
+        [MenuItem("GameObject/🧬MCP/Add to Chat", true)]
         private static bool Validate()
             => Selection.activeGameObject != null && FindChatWindow() != null;
 

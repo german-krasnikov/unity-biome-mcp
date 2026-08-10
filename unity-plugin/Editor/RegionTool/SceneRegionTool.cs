@@ -13,7 +13,7 @@ namespace UnityMCP.Editor.RegionTool
     /// Shift+R to activate. Q/W/E/R to switch modes. G=grid snap.
     /// Enter to commit. Escape to cancel.
     /// </summary>
-    [EditorTool("MCP Region Select")]
+    [EditorTool("🧬MCP Region Select")]
     internal sealed class SceneRegionTool : EditorTool
     {
         // Local to this file — EditorPrefs keys for the tool's own mode/snap state.
@@ -297,7 +297,7 @@ namespace UnityMCP.Editor.RegionTool
 
     internal static class SceneRegionShortcut
     {
-        [Shortcut("MCP/Region Select", typeof(SceneView), KeyCode.R, ShortcutModifiers.Shift)]
+        [Shortcut("🧬MCP/Region Select", typeof(SceneView), KeyCode.R, ShortcutModifiers.Shift)]
         static void Activate() => ToolManager.SetActiveTool<SceneRegionTool>();
     }
 }

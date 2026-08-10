@@ -22,11 +22,11 @@ namespace UnityMCP.Editor
                 var root = InstallSourceDetector.LocalRepoRoot();
                 if (root == null)
                 {
-                    Debug.LogWarning("[MCP Update] Local install but repo root not found. Pull manually.");
+                    Debug.LogWarning($"{BiomeLabel.Tag} Local install but repo root not found. Pull manually.");
                     OnDone(false);
                     return;
                 }
-                LocalPluginUpdater.UpdateAsync(root, onProgress: m => Debug.Log("[MCP Update] " + m), onComplete: OnDone);
+                LocalPluginUpdater.UpdateAsync(root, onProgress: m => Debug.Log($"{BiomeLabel.Tag} " + m), onComplete: OnDone);
             }
             else
             {

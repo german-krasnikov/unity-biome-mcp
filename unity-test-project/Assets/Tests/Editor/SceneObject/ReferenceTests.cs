@@ -279,8 +279,8 @@ namespace UnityMCP.TestProject.SceneObject
             {
                 var result = ComponentSerializer.Serialize("/SerRefObj", "TestRefScript");
                 Assert.IsNotNull(result);
-                StringAssert.Contains("#", result);
-                StringAssert.Contains(TransientObjectId.GetWireValue(target), result);
+                StringAssert.Contains("$", result);
+                StringAssert.Contains(TransientObjectId.GetHexRef(target), result);
             }
             finally
             {
@@ -553,8 +553,8 @@ namespace UnityMCP.TestProject.SceneObject
             {
                 var output = HierarchySerializer.Serialize();
                 Assert.That(output, Does.Contain("$"));
-                // The specific object should have a ref
-                Assert.That(output, Does.Match(@"\$[a-z]{1,2}"));
+                // The specific object should have a ref in $HEX format
+                Assert.That(output, Does.Match(@"\$[0-9A-F]+"));
             }
             finally { Object.DestroyImmediate(go); }
         }

@@ -168,10 +168,10 @@ namespace UnityMCP.Editor
                 case SerializedPropertyType.ObjectReference:
                     if (prop.objectReferenceValue == null) return "null";
                     if (prop.objectReferenceValue is GameObject refGo)
-                        return $"{GetPath(refGo)} #{TransientObjectId.GetWireValue(refGo)}";
+                        return $"{GetPath(refGo)} {TransientObjectId.GetHexRef(refGo)}";
                     if (prop.objectReferenceValue is Component refComp)
-                        return $"{GetPath(refComp.gameObject)}::{refComp.GetType().Name} #{TransientObjectId.GetComponentWireValue(refComp)}";
-                    return $"{prop.objectReferenceValue.name} #{TransientObjectId.GetWireValue(prop.objectReferenceValue)}";
+                        return $"{GetPath(refComp.gameObject)}::{refComp.GetType().Name} {TransientObjectId.GetHexRef(refComp)}";
+                    return $"{prop.objectReferenceValue.name} {TransientObjectId.GetHexRef(prop.objectReferenceValue)}";
                 case SerializedPropertyType.LayerMask:
                     var lsb = new StringBuilder();
                     AppendLayerMask(lsb, prop.intValue);

@@ -116,7 +116,7 @@ namespace UnityMCP.Editor.Chat
 
             // Issue 28: previously a silent no-op fallback to whatever _selectedKind already was
             // (BackendKind.Claude by default) — now explicit, so a rename/removal is diagnosable.
-            Debug.LogWarning($"[MCP Chat] Saved backend '{saved}' not found — falling back to {_selectedKind}.");
+            Debug.LogWarning($"{BiomeLabel.Tag} Saved backend '{saved}' not found — falling back to {_selectedKind}.");
         }
 
         private BackendSpec? FindBackendByStableId(string saved)

@@ -105,7 +105,7 @@ namespace UnityMCP.Editor.Chat
                 }
             }
             else if (!(obj is GameObject))
-                Debug.LogWarning($"[MCP Chat] {obj.GetType().Name} not supported as a context chip");
+                Debug.LogWarning($"{BiomeLabel.Tag} {obj.GetType().Name} not supported as a context chip");
         }
 
         // F29: external path handler (Finder drag) — internal static for testability.

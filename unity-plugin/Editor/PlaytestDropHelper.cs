@@ -176,13 +176,13 @@ namespace UnityMCP.Editor
                 step.component = compName;
                 step.method    = member.EndsWith("()") ? member.Substring(0, member.Length - 2) : member;
                 try { step.args = RuntimeHelper.ReadFieldInternal(comp, member); }
-                catch (Exception e) { Debug.LogWarning($"[MCP] Pre-fill failed for {member}: {e.Message}"); }
+                catch (Exception e) { Debug.LogWarning($"{BiomeLabel.Tag} Pre-fill failed for {member}: {e.Message}"); }
             }
             else
             {
                 step.query = BuildQuery(path, compName, member);
                 try { step.value = RuntimeHelper.ReadFieldInternal(comp, member); }
-                catch (Exception e) { Debug.LogWarning($"[MCP] Pre-fill failed for {member}: {e.Message}"); }
+                catch (Exception e) { Debug.LogWarning($"{BiomeLabel.Tag} Pre-fill failed for {member}: {e.Message}"); }
             }
         }
     }

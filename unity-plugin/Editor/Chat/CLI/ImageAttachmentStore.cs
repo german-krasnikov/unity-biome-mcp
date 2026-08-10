@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.Chat
                 // C1: size guard
                 if (bytes.Length > MaxBytes)
                 {
-                    Debug.LogWarning($"[MCP Chat] Image too large (>{MaxBytes / 1_048_576}MB): {Path.GetFileName(srcAbsPath)}");
+                    Debug.LogWarning($"{BiomeLabel.Tag} Image too large (>{MaxBytes / 1_048_576}MB): {Path.GetFileName(srcAbsPath)}");
                     return null;
                 }
                 var name  = Path.GetFileName(srcAbsPath);
@@ -84,7 +84,7 @@ namespace UnityMCP.Editor.Chat
             // C2: reject non-image bytes (e.g. disguised executables)
             if (!HasImageMagicBytes(bytes))
             {
-                Debug.LogWarning($"[MCP Chat] Unsupported image format: {originalName}");
+                Debug.LogWarning($"{BiomeLabel.Tag} Unsupported image format: {originalName}");
                 return null;
             }
             Directory.CreateDirectory(dir);

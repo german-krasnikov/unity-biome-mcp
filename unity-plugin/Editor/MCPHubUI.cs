@@ -22,7 +22,7 @@ namespace UnityMCP.Editor
             content.Add(HubHeaderAnim.Build(home));
             content.Add(BuildGeneralSection());
             content.Add(MCPHubDivider.Build(home));
-            content.Add(HubCardButton.Build("⚙",  "Tools",        "Enable / disable MCP tools",
+            content.Add(HubCardButton.Build("⚙",  "Tools",        $"Enable / disable {BiomeLabel.DisplayName} tools",
                 () => nav.Push(SettingsPageFactory.BuildToolsPage(() => nav.Pop()))));
             if (PluginRegistry.All.Any(p => p.HasSettingsUI))
                 content.Add(HubCardButton.Build("🧩", "Plugins", "Installed plugin settings",
@@ -106,12 +106,12 @@ namespace UnityMCP.Editor
                 if (v == chatPortField.value)
                 {
                     portField.SetValueWithoutNotify(e.previousValue);
-                    ShowPortStatus(restartWarning, restartBtn, "MCP and Chat ports must be different.", "error");
+                    ShowPortStatus(restartWarning, restartBtn, $"{BiomeLabel.DisplayName} and Chat ports must be different.", "error");
                     ArcadeAnim.ShakeX(portField);
                     return;
                 }
                 MCPServer.SavePorts(v, chatPortField.value);
-                ShowPortStatus(restartWarning, restartBtn, "Saved. Restart the MCP server to apply port changes.", "warning");
+                ShowPortStatus(restartWarning, restartBtn, $"Saved. Restart the {BiomeLabel.DisplayName} server to apply port changes.", "warning");
             });
 
             chatPortField.RegisterValueChangedCallback(e =>
@@ -127,12 +127,12 @@ namespace UnityMCP.Editor
                 if (v == portField.value)
                 {
                     chatPortField.SetValueWithoutNotify(e.previousValue);
-                    ShowPortStatus(restartWarning, restartBtn, "MCP and Chat ports must be different.", "error");
+                    ShowPortStatus(restartWarning, restartBtn, $"{BiomeLabel.DisplayName} and Chat ports must be different.", "error");
                     ArcadeAnim.ShakeX(chatPortField);
                     return;
                 }
                 MCPServer.SavePorts(portField.value, v);
-                ShowPortStatus(restartWarning, restartBtn, "Saved. Restart the MCP server to apply port changes.", "warning");
+                ShowPortStatus(restartWarning, restartBtn, $"Saved. Restart the {BiomeLabel.DisplayName} server to apply port changes.", "warning");
             });
 
             return section;

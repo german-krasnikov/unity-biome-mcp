@@ -83,5 +83,70 @@ namespace UnityMCP.Editor.Tests
 
             StringAssert.Contains("\"ObjectIds\":[\"9007199254740993\"]", json);
         }
+
+        // ── HexRef format (Task 4: unified $HEX ID) ──────────────────────────
+
+        [Test]
+        public void TryParse_DollarHex_ReturnsCorrectRawValue()
+        {
+            // 0x3E8 = 1000 — new canonical $HEX input format
+            Assert.IsTrue(TransientObjectId.TryParse("$3E8", out var id));
+            Assert.AreEqual(1000UL, id.RawValue);
+        }
+
+        [Test]
+        public void TryParse_HashDecimal_StillWorks()
+        {
+            // Backward compat: #decimal must still parse
+            Assert.IsTrue(TransientObjectId.TryParse("#1000", out var id));
+            Assert.AreEqual(1000UL, id.RawValue);
+        }
+
+        [Test]
+        public void TryParse_LegacyRef_FallsThrough()
+        {
+            // $g is a RefManager slot ref, NOT valid hex — must return false
+            Assert.IsFalse(TransientObjectId.TryParse("$g", out _));
+        }
+
+        [Test]
+        public void HexRef_PositiveId_UppercaseNoLeadingZeros()
+        {
+            // Build via decimal parse (no Unity object needed)
+            Assert.IsTrue(TransientObjectId.TryParse("#1000", out var id));
+            Assert.AreEqual("$3E8", id.HexRef);
+        }
+
+        [Test]
+        public void HexRef_NegativeId_MasksTo32Bit()
+        {
+            // -12345 as unsigned 64-bit, lower 32 bits = 0xFFFFCFC7
+            var wire = unchecked((ulong)(long)(-12345)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            Assert.IsTrue(TransientObjectId.TryParse(wire, out var id));
+            Assert.AreEqual("$FFFFCFC7", id.HexRef);
+        }
+
+        [Test]
+        public void HexRef_FromGameObject_StartsWithDollarUppercaseHex()
+        {
+            var go = TrackOwnedObject(new GameObject("HexRefFormat"));
+            var id = TransientObjectId.FromObject(go);
+            StringAssert.StartsWith("$", id.HexRef);
+            // All chars after $ must be uppercase hex digits
+            var hexPart = id.HexRef.Substring(1);
+            Assert.IsTrue(hexPart.Length > 0 && hexPart.Length <= 8,
+                $"HexRef '{id.HexRef}' must be 1-8 hex chars after $");
+            foreach (var c in hexPart)
+                Assert.IsTrue((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'),
+                    $"Non-hex char '{c}' in '{id.HexRef}'");
+        }
+
+        [Test]
+        public void HexRef_StaticOverload_MatchesInstanceProperty()
+        {
+            var go = TrackOwnedObject(new GameObject("HexRefStatic"));
+            var id = TransientObjectId.FromObject(go);
+            Assert.AreEqual(id.HexRef, TransientObjectId.GetHexRef(go));
+        }
     }
 }

@@ -14,10 +14,10 @@ namespace UnityMCP.Editor.Wizard
         private Label            _stepLabel;
         private WizardJourneyAnim _journeyAnim;
 
-        [MenuItem("MCP/Setup Wizard", priority = 2)]
+        [MenuItem("🧬MCP/Setup Wizard", priority = 2)]
         public static void ShowWindow()
         {
-            var w = GetWindow<SetupWizard>("MCP Setup");
+            var w = GetWindow<SetupWizard>($"{BiomeLabel.DisplayName} Setup");
             w.minSize = new Vector2(360, 440);
         }
 

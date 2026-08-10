@@ -33,7 +33,12 @@ namespace UnityMCP.Editor
             return go;
         }
 
-        public static bool IsRef(string s) => s != null && s.StartsWith("$") && s.Length >= 2 && s.Length <= 3;
+        // Only matches lowercase $a-$z and $aa-$zz — rejects $HEX (uppercase/digits) so
+        // $3E8, $AA etc. fall through to TransientObjectId hex parse in callers.
+        public static bool IsRef(string s)
+            => s != null && s.Length >= 2 && s.Length <= 3 && s[0] == '$'
+               && s[1] >= 'a' && s[1] <= 'z'
+               && (s.Length == 2 || (s[2] >= 'a' && s[2] <= 'z'));
 
         public static void Invalidate()
         {

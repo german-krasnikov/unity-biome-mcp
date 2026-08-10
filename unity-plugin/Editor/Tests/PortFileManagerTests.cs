@@ -13,6 +13,7 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            SetEditorPrefBool("MCPPlugin_UseEmojiLabel", false);
             _tempDir = Path.Combine(Path.GetTempPath(), "PortFileManagerTests_" + System.Guid.NewGuid().ToString("N"));
             RegisterCleanup(() =>
             {
@@ -164,7 +165,7 @@ namespace UnityMCP.Editor.Tests
             var committed = false;
             UnityEngine.TestTools.LogAssert.Expect(
                 UnityEngine.LogType.Warning,
-                "[MCP] Could not write discovery file: deterministic discovery failure");
+                "Biome Could not write discovery file: deterministic discovery failure");
 
             var persisted = PortFileManager.SaveRuntimePortsCore(
                 9999,

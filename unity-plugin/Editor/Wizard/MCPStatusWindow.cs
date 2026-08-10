@@ -18,10 +18,10 @@ namespace UnityMCP.Editor
         private IVisualElementScheduledItem _refreshJob;
         private BiomeAmbientParticles _statusParticles;
 
-        [MenuItem("MCP/Status", priority = 1)]
+        [MenuItem("🧬MCP/Status", priority = 1)]
         public static void ShowWindow()
         {
-            var window = GetWindow<MCPStatusWindow>("MCP Status");
+            var window = GetWindow<MCPStatusWindow>($"{BiomeLabel.DisplayName} Status");
             window.minSize = new Vector2(240, 320);
         }
 
@@ -63,7 +63,7 @@ namespace UnityMCP.Editor
             row.Add(MakeBtn(
                 "Restart",
                 MCPActions.Restart,
-                "Restart the MCP server",
+                "Restart the Biome server",
                 "mcp-btn--primary"));
             row.Add(MakeBtn(
                 "Diagnose",
@@ -74,7 +74,7 @@ namespace UnityMCP.Editor
             row2.Add(MakeBtn(
                 "Setup Wizard",
                 SetupWizard.ShowWindow,
-                "Review MCP setup"));
+                "Review Biome setup"));
             row2.Add(MakeBtn(
                 "Check for Updates",
                 OnCheckUpdates,
@@ -87,11 +87,11 @@ namespace UnityMCP.Editor
             maintenanceRow.Add(MakeBtn(
                 "Reimport",
                 MCPActions.Reimport,
-                "Reimport the MCP editor package"));
+                "Reimport the Biome editor package"));
             maintenanceRow.Add(MakeBtn(
-                "Kill MCP",
+                "Kill Biome",
                 MCPActions.Kill,
-                "Force-stop the MCP server",
+                "Force-stop the Biome server",
                 "mcp-btn--danger"));
             maintenance.Add(maintenanceRow);
 
@@ -199,7 +199,7 @@ namespace UnityMCP.Editor
 
         private static void OpenDiagnosePanel()
         {
-            var win = GetWindow<MCPDiagnoseWindow>("MCP Diagnose");
+            var win = GetWindow<MCPDiagnoseWindow>($"{BiomeLabel.DisplayName} Diagnose");
             win.minSize = new Vector2(300, 200);
             win.Show();
         }

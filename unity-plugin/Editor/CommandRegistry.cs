@@ -59,7 +59,7 @@ namespace UnityMCP.Editor
         {
             if (!CallerIsPlugin || (!options.AlwaysAllowed && !options.AllowedDuringCompile)) return;
             UnityEngine.Debug.LogWarning(
-                $"[MCP] Plugin command '{cmd}' requested alwaysAllowed/allowedDuringCompile — denied (core-only flags).");
+                $"{BiomeLabel.Tag} Plugin command '{cmd}' requested alwaysAllowed/allowedDuringCompile — denied (core-only flags).");
             options.AlwaysAllowed = false;
             options.AllowedDuringCompile = false;
         }
@@ -72,7 +72,7 @@ namespace UnityMCP.Editor
         private static bool AlreadyRegistered(string cmd)
         {
             if (!_commands.ContainsKey(cmd)) return false;
-            UnityEngine.Debug.LogWarning($"[MCP] Command '{cmd}' already registered, skipping duplicate");
+            UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} Command '{cmd}' already registered, skipping duplicate");
             return true;
         }
 

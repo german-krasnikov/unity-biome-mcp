@@ -11,6 +11,7 @@ namespace UnityMCP.Editor.Chat
     {
         private MentionPopup   _mentionPopup;
         private MentionCoordinator _mentionCoordinator;
+        private MentionHistory     _mentionHistory;
         private AssetMentionIndex  _assetMentionIndex;
         private int            _mentionAtIndex;
         private int            _mentionQueryLen;
@@ -22,8 +23,15 @@ namespace UnityMCP.Editor.Chat
             _assetMentionIndex = new AssetMentionIndex();
             var recentSrc   = new RecentMentionSource();
             _mentionCoordinator = new MentionCoordinator(recentSrc, sceneIndex, _assetMentionIndex);
+
+            _mentionHistory = new MentionHistory();
+            _mentionCoordinator.History = _mentionHistory;
+
             _mentionPopup = new MentionPopup(_inputArea, candidate =>
-                _chipField.ReplaceMentionRangeWithChip(_mentionAtIndex, _mentionQueryLen, candidate.Chip));
+            {
+                _mentionHistory.RecordCommit(candidate.Chip.Path);
+                _chipField.ReplaceMentionRangeWithChip(_mentionAtIndex, _mentionQueryLen, candidate.Chip);
+            });
 
             // Text change: same event as SlashPopup but for '@' tokens.
             // cursorIndex is stale (returns 0) during ChangeEvent in UIToolkit;
@@ -108,10 +116,11 @@ namespace UnityMCP.Editor.Chat
             _mentionDebounce?.Pause();
             _mentionDebounce = _inputArea.schedule.Execute(() =>
             {
+                var cfg = BackendConfigStore.Load().Mention;
                 var results = new List<MentionCandidate>();
-                _mentionCoordinator.Search(query, 8, results);
+                _mentionCoordinator.Search(query, cfg.MaxPopupRows, results, cfg.SortOrder);
                 if (results.Count > 0)
-                    _mentionPopup.Show(results);
+                    _mentionPopup.Show(results, cfg.MaxPopupRows);
                 else
                     _mentionPopup.Dismiss();
             }).StartingIn(100);

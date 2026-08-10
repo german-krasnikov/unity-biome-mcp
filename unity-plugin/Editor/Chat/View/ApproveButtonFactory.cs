@@ -19,7 +19,7 @@ namespace UnityMCP.Editor.Chat
             {
                 btn?.RemoveFromHierarchy();
                 try { onApprove?.Invoke(); }
-                catch (Exception e) { UnityEngine.Debug.LogError("[MCP Chat] Approve error: " + e.Message); }
+                catch (Exception e) { UnityEngine.Debug.LogError($"{BiomeLabel.Tag} Approve error: " + e.Message); }
             };
             btn = new Button(clickAction) { text = "Approve & Execute" };
             btn.AddToClassList("approve-btn");

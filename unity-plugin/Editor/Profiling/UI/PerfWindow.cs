@@ -6,8 +6,8 @@ namespace UnityMCP.Editor
     // Entry point for the Performance EditorWindow. Partial — each tab lives in its own file.
     internal sealed partial class PerfWindow : EditorWindow
     {
-        [MenuItem("MCP/Performance", priority = 4)]
-        static void ShowWindow() => GetWindow<PerfWindow>("MCP Profiler");
+        [MenuItem("🧬MCP/Performance", priority = 4)]
+        static void ShowWindow() => GetWindow<PerfWindow>($"{BiomeLabel.DisplayName} Profiler");
 
         private int _activeTab;
         private VisualElement[] _tabContents;

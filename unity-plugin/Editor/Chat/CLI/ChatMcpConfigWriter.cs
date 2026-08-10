@@ -146,7 +146,7 @@ namespace UnityMCP.Editor.Chat
             var serverDir   = ResolveServerDir(packageRoot);
             if (serverDir == null)
             {
-                Debug.LogError($"[MCP Chat] Server not found at expected path (package={packageRoot}). " +
+                Debug.LogError($"{BiomeLabel.Tag} Server not found at expected path (package={packageRoot}). " +
                                "Check the UPM package is installed correctly.");
                 return null;
             }
@@ -154,7 +154,7 @@ namespace UnityMCP.Editor.Chat
             const string LastServerDirPref = "UnityMCP_LastServerDir";
             var lastDir = EditorPrefs.GetString(LastServerDirPref, "");
             if (!string.IsNullOrEmpty(lastDir) && lastDir != serverDir)
-                Debug.LogWarning($"[MCP] Server directory changed ({lastDir} → {serverDir}). Run: python install.py update");
+                Debug.LogWarning($"{BiomeLabel.Tag} Server directory changed ({lastDir} → {serverDir}). Run: python install.py update");
             EditorPrefs.SetString(LastServerDirPref, serverDir);
 
             var uvPath      = ResolveUvPath();

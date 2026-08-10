@@ -60,10 +60,10 @@ namespace UnityMCP.Editor
         /// <summary>Short pill text for status bar widget.</summary>
         public static string GetPill(State state, int port) => state switch
         {
-            State.Up         => $"MCP :{port}",
-            State.Listen     => "MCP ...",
-            State.ChatActive => "MCP Chat",
-            _                => "MCP off",
+            State.Up         => $"{BiomeLabel.DisplayName} :{port}",
+            State.Listen     => $"{BiomeLabel.DisplayName} ...",
+            State.ChatActive => $"{BiomeLabel.DisplayName} Chat",
+            _                => $"{BiomeLabel.DisplayName} off",
         };
     }
 }

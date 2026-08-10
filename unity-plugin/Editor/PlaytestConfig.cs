@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    [CreateAssetMenu(menuName = "MCP/Playtest Config")]
+    [CreateAssetMenu(menuName = "🧬MCP/Playtest Config")]
     public class PlaytestConfig : ScriptableObject
     {
         [Header("Character Movement")]

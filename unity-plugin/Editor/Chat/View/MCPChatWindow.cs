@@ -44,10 +44,10 @@ namespace UnityMCP.Editor.Chat
         private ScrollView         _scroll;
         private InputHeightCalc    _heightCalc = new InputHeightCalc();
 
-        [MenuItem("MCP/Chat", priority = 0)]
+        [MenuItem("🧬MCP/Chat", priority = 0)]
         public static void ShowWindow()
         {
-            var w = GetWindow<MCPChatWindow>("MCP Chat");
+            var w = GetWindow<MCPChatWindow>($"{BiomeLabel.DisplayName} Chat");
             w.minSize = new Vector2(320, 400);
         }
 

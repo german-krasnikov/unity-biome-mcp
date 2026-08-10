@@ -6,7 +6,7 @@ using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.Profiling
 {
-    [Overlay(typeof(SceneView), id: "MCP Profiler", displayName: "MCP Profiler", defaultDisplay: false)]
+    [Overlay(typeof(SceneView), id: "🧬MCP Profiler", displayName: "🧬MCP Profiler", defaultDisplay: false)]
     internal sealed class PerfOverlay : Overlay
     {
         PerfGraphElement _sparkline;

@@ -9,7 +9,7 @@ namespace UnityMCP.Editor.Chat
         public string Key         => "playtest_composer";
         public int    Order       => 20;
         public string ButtonLabel => "Composer";
-        public string Tooltip     => "Open Playtest Composer (MCP/Playtest Composer or Shift+Alt+P)";
+        public string Tooltip     => "Open Playtest Composer (🧬MCP/Playtest Composer or Shift+Alt+P)";
         public bool   MenuOnly    => true;
 
         static PlaytestComposerButton()

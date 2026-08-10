@@ -60,8 +60,9 @@ def _values_close(expected: str, actual: str) -> bool:
     bool_map = {"true": True, "false": False}
     if expected.lower() in bool_map and actual.lower() in bool_map:
         return bool_map[expected.lower()] == bool_map[actual.lower()]
-    # ObjectReference: C# appends " #instanceId" — prefix match
-    if actual.startswith(expected + " #") or actual.startswith(expected + "#"):
+    # ObjectReference: C# appends " $HEX" (new) or " #instanceId" (legacy) — prefix match
+    if (actual.startswith(expected + " #") or actual.startswith(expected + "#")
+            or actual.startswith(expected + " $")):
         return True
     # Vector form (x,y,z) — also handles RGB vs RGBA (prefix match on components)
     e = expected.strip("() ")

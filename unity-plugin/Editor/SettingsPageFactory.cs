@@ -27,7 +27,7 @@ namespace UnityMCP.Editor
             page.AddToClassList("biome-page");
             page.Add(BackHeader("Permissions", onBack));
             page.Add(PermissionsHeaderAnim.Build(page));
-            var info = new Label("Controls which MCP tools the in-Unity Chat agent may call. " +
+            var info = new Label($"Controls which {BiomeLabel.DisplayName} tools the in-Unity Chat agent may call. " +
                                  "Tool toggles are in the Settings hub.");
             info.AddToClassList("info-label");
             page.Add(info);
@@ -119,7 +119,7 @@ namespace UnityMCP.Editor
             try { ui = plugin.BuildSettingsUI(); }
             catch (Exception e)
             {
-                UnityEngine.Debug.LogError($"[MCP] Plugin '{plugin.Name}' BuildSettingsUI failed: {e.Message}");
+                UnityEngine.Debug.LogError($"{BiomeLabel.Tag} Plugin '{plugin.Name}' BuildSettingsUI failed: {e.Message}");
                 var status = BiomeUI.StatusLabel();
                 BiomeUI.SetStatus(status, $"Could not load {plugin.Name} settings.", "error");
                 detail.Add(status);

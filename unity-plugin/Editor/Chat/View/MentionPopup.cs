@@ -8,8 +8,6 @@ namespace UnityMCP.Editor.Chat
 {
     internal sealed class MentionPopup
     {
-        private const int MaxRows = 8;
-
         private readonly VisualElement             _anchor;
         private readonly System.Action<MentionCandidate> _onCommit;
         private VisualElement          _root;
@@ -26,13 +24,13 @@ namespace UnityMCP.Editor.Chat
             _onCommit = onCommit;
         }
 
-        internal void Show(List<MentionCandidate> candidates)
+        internal void Show(List<MentionCandidate> candidates, int maxRows = 8)
         {
             Dismiss();
             if (candidates == null || candidates.Count == 0) return;
 
             _candidates.Clear();
-            int cap = System.Math.Min(candidates.Count, MaxRows);
+            int cap = System.Math.Min(candidates.Count, maxRows);
             for (int i = 0; i < cap; i++)
                 _candidates.Add(candidates[i]);
 
@@ -68,6 +66,30 @@ namespace UnityMCP.Editor.Chat
 
                 row.RegisterCallback<MouseEnterEvent>(_ => { _selectedIndex = idx; Highlight(); });
                 row.RegisterCallback<ClickEvent>(_ => Commit(idx));
+
+                // Right-click context menu — ClickEvent fires on button==0 only; no conflict.
+                var capturedIdx = idx;
+                var capturedC   = c;
+                row.AddManipulator(new ContextualMenuManipulator(evt =>
+                {
+                    evt.menu.AppendAction("Add to Context",
+                        _ => Commit(capturedIdx));
+
+                    evt.menu.AppendAction("Copy Reference",
+                        _ => MentionRowActions.CopyRef(capturedC));
+
+                    evt.menu.AppendAction("Ping in Hierarchy",
+                        _ => MentionRowActions.PingInHierarchy(capturedC),
+                        _ => MentionRowActions.IsHierarchyChip(capturedC)
+                            ? DropdownMenuAction.Status.Normal
+                            : DropdownMenuAction.Status.Disabled);
+
+                    evt.menu.AppendAction("Ping in Project",
+                        _ => MentionRowActions.PingInProject(capturedC),
+                        _ => !MentionRowActions.IsHierarchyChip(capturedC)
+                            ? DropdownMenuAction.Status.Normal
+                            : DropdownMenuAction.Status.Disabled);
+                }));
 
                 _scroll.Add(row);
             }

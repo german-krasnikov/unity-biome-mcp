@@ -136,7 +136,7 @@ namespace UnityMCP.Editor.Wizard
         public static (bool ok, string detail) CheckServer()
         {
             if (!MCPServer.IsRunning)
-                return (false, "MCP server not running");
+                return (false, $"{BiomeLabel.DisplayName} server not running");
 
             return (true, $"Server on :{MCPServer.ServerPort}");
         }

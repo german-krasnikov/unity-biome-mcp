@@ -20,9 +20,9 @@ namespace UnityMCP.Editor
                 BindingFlags.Static | BindingFlags.NonPublic);
 
             if (ExtractSubmenusMethod == null)
-                Debug.LogWarning("[MCP] Menu.ExtractSubmenus not found — menu list unavailable");
+                Debug.LogWarning($"{BiomeLabel.Tag} Menu.ExtractSubmenus not found — menu list unavailable");
             if (MenuItemExistsMethod == null)
-                Debug.LogWarning("[MCP] Menu.MenuItemExists not found — using fallback validation");
+                Debug.LogWarning($"{BiomeLabel.Tag} Menu.MenuItemExists not found — using fallback validation");
         }
 
         public static string Execute(string path)
