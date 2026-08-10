@@ -10,6 +10,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.27.0] — 2026-08-10
+
+### Fixed
+- **Startup probe crash at capacity** — `EOFError` (from `asyncio.IncompleteReadError`) is now caught in `bridge._verify_candidate_project`, preventing server crash when Unity rejects a 9th connection
+- **Retry watchdog data loss** — the deduplication guard now tracks per-write generation so legitimate repeated saves after intervening mutations are no longer suppressed
+- **Python-local writes bypass read-only** — `save_skill`, `save_template`, `save_session` now check `UNITY_MCP_READ_ONLY` before writing files
+- **Read-only guard blocks valid reads** — replaced command-level classification with action-aware `is_write(cmd, args)` so read actions of mixed commands (`bake/status`, `package/list`, `scene_environment/get`) work in read-only mode; RO denial now raises `ToolError` (`isError=true`)
+- **Distiller hints unsupported `full=true`** — hint now says `full=true` only for tools that support it; others say `"distilled for brevity"`
+- **Reconnect port identity split** — port/host assignment moved inside try block so failed reconnect preserves the original working port
+- **Doctor false unhealthy** — diagnose timeout increased from 3s to 10s with injectable `_diagnose_timeout` parameter
+- **PlayTest suite auto_play leaks Play Mode** — moved auto_play block inside try/finally so `editor(stop)` always executes on error
+- **`await_compile` false clean** — added settle window (default 4s, `UNITY_MCP_COMPILE_SETTLE_SECS`) before returning on idle to handle Unity file-monitor latency
+- **Bulk `set_property` dry_run always mutates** — `dry_run` flag now forwarded in the `find_type` bulk path instead of hardcoded `false`
+- **Component lookup fails after AddComponent** — `ResolveComponent` now uses `ComponentSerializer.FindComponent` instead of unreliable string-based `GetComponent`
+- **`set_parent` on prefab child silent no-op** — now throws `InvalidOperationException` for non-root prefab instance children in Edit Mode
+- **FBX subasset dry_run skips validation** — `ObjectReference` paths validated in dry_run; null guard added in subasset assignment loop
+- **`wire_event` ignores disambiguation params** — `target_component_type` and `parameter_types` now forwarded from JSON args through the registration lambda
+- **Nested Animator state lookup fails** — `FindStateAcrossLayers` now uses recursive search through sub-state-machines with cycle guard
+- **`lint_scene_refs` false-positive on INCLUDE aliases** — linter now reads `ValDefs` from parse result and skips known aliases
+- **INVOKE fails with custom implicit types** — `ConvertValue` now probes `op_Implicit`/`op_Explicit` operators with reflection cache cleared on domain reload
+- **Nightly CI broken** — two monkey tests fixed (missing `patch.dict(BACKENDS)`); install/scripts steps now use `if: always()`
+- **`FindObjectsOfType` deprecation** — migrated 4 call sites to `FindObjectsByType` (Unity 6 CS0618)
+
+### Added
+- **`discover_tools` mutability field** — tool surface line now includes `mutability=read|write`
+- **Python 3.10 CI matrix** — ubuntu-latest job added for the advertised `>=3.10` requirement
+- **3 new PlayTest corpus files** — `player_ci_bounds`, `player_ci_multi_move`, `player_ci_reset` expanding Grid game coverage to 47 steps
+
+### Removed
+- Dead `perf` pytest marker (0 tests used it)
+
+### Test Coverage
+- **Python unit tests**: 5346 (was 4815, +531 from v1.26.0 pipeline)
+- **C# EditMode**: 7413 passed, 0 failed, 19 skipped
+- **Live integration**: 313 passed (headless, 1 requires_graphics skipped)
+- **30+ new tests** covering all 22 defects
+
 ## [v1.26.1] — 2026-08-09
 
 ### Added
