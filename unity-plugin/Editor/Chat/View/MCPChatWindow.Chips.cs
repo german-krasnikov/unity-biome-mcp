@@ -100,7 +100,12 @@ namespace UnityMCP.Editor.Chat
                 var assetPath = AssetDatabase.GetAssetPath(obj);
                 if (!string.IsNullOrEmpty(assetPath))
                 {
-                    insert(obj, assetPath, obj.name);
+                    var prov = ChipKindRegistry.Resolve(obj, assetPath);
+                    if (prov != null)
+                    {
+                        var chip = prov.Create(obj, assetPath);
+                        insert(obj, chip.Path, chip.DisplayName);
+                    }
                     handledPaths?.Add(assetPath);
                 }
             }

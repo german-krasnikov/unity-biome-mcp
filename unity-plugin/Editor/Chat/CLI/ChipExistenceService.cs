@@ -165,6 +165,10 @@ namespace UnityMCP.Editor.Chat
                     return SceneObjectFinder.FindGameObject(path) != null;
                 if (kindKey == ChipKindKeys.Image)
                     return ResolveImageExists(path);
+                // Name-only scene ref (e.g. "MyScene" with no '/' and no ".unity")
+                if (kindKey == ChipKindKeys.Scene
+                    && !path.Contains("/") && !path.EndsWith(".unity"))
+                    return SceneChipProvider.FindScenePathByExactName(path) != null;
                 return AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path) != null;
             }
             catch

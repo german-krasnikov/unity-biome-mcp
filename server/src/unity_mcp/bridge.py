@@ -541,6 +541,9 @@ class UnityBridge(HeartbeatMixin):
                 if version_response.get("ok") and version_response.get("data"):
                     info = parse_version_string(version_response["data"])
                     check_protocol_version(PROTOCOL_VERSION, info.proto)
+                    if info.plugin:
+                        from .server_updater import _updater
+                        asyncio.create_task(_updater.maybe_update(info.plugin))
             except ConnectionError:
                 raise
             except Exception as exc:

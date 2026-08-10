@@ -30,6 +30,7 @@ namespace UnityMCP.Editor.Chat
             if (t == typeof(Mesh))                             return IsTypeEnabled("Mesh");
             if (t == typeof(AudioClip))                        return IsTypeEnabled("AudioClip");
             if (typeof(ScriptableObject).IsAssignableFrom(t)) return IsTypeEnabled("ScriptableObject");
+            if (t == typeof(SceneAsset)) return IsTypeEnabled("SceneAsset");
             return false;
         }
     }

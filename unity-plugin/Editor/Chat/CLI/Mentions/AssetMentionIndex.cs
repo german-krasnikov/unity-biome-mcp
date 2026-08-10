@@ -82,9 +82,12 @@ namespace UnityMCP.Editor.Chat
                 var lower = fn.ToLowerInvariant();
                 var mask  = MentionFuzzyScorer.BuildCharMask(lower);
                 var ext   = System.IO.Path.GetExtension(assetPath).ToLowerInvariant();
-                var kind  = KindKeyForExtension(ext);
-                var icon  = IconForKindKey(kind);
-                _entries.Add(new Entry(fn, lower, mask, assetPath, kind, icon));
+                var kind      = KindKeyForExtension(ext);
+                var icon      = IconForKindKey(kind);
+                // Scene chips use name-only path ("MyScene") to match SceneChipProvider.Create output.
+                // Other assets keep the full asset path.
+                var entryPath = kind == ChipKindKeys.Scene ? fn : assetPath;
+                _entries.Add(new Entry(fn, lower, mask, entryPath, kind, icon));
             }
         }
 
