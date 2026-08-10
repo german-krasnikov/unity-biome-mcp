@@ -17,6 +17,7 @@ VERSION_ARTIFACTS = (
     "__version__.py",
     "_meta.json",
     "MCPServer.cs",
+    "release-policy.json",
 )
 
 SPEC = importlib.util.spec_from_file_location("sync_versions_under_test", SCRIPT)
@@ -56,6 +57,11 @@ def _write_fixture(root: Path, versions: dict) -> None:
         "internal static class MCPServer {\n"
         f'    internal static string PluginVersion => "{versions["MCPServer.cs"]}";\n'
         "}\n",
+        encoding="utf-8",
+    )
+    (root / "scripts" / "gauntlet").mkdir(parents=True, exist_ok=True)
+    (root / "scripts" / "gauntlet" / "release-policy.json").write_text(
+        json.dumps({"profiles": [], "activation_product_version": versions["release-policy.json"]}),
         encoding="utf-8",
     )
 
@@ -127,6 +133,10 @@ def test_check_rejects_missing_version_patterns(tmp_path):
         '{"server_version": "?", "plugin_version": "?"}',
         encoding="utf-8",
     )
+    (tmp_path / "scripts" / "gauntlet" / "release-policy.json").write_text(
+        '{"profiles": [], "activation_product_version": "?"}',
+        encoding="utf-8",
+    )
 
     result = _run_check(tmp_path)
 
@@ -149,7 +159,7 @@ def test_sync_uses_pyproject_as_canonical_source(tmp_path):
     assert "versions in sync: 1.2.3" in check.stdout
 
 
-@pytest.mark.parametrize("failure_index", range(1, 7))
+@pytest.mark.parametrize("failure_index", range(1, 8))
 def test_sync_rolls_back_every_artifact_on_replace_failure(
     tmp_path, monkeypatch, failure_index
 ):
@@ -161,6 +171,7 @@ def test_sync_rolls_back_every_artifact_on_replace_failure(
         tmp_path / "server" / "src" / "unity_mcp" / "__version__.py",
         tmp_path / "docs" / "assets" / "_meta.json",
         tmp_path / "unity-plugin" / "Editor" / "MCPServer.cs",
+        tmp_path / "scripts" / "gauntlet" / "release-policy.json",
     ]
     originals = {path: path.read_bytes() for path in paths}
     real_replace = SYNC_MODULE.os.replace

@@ -62,6 +62,12 @@ def _update_meta_json(path: Path, version: str) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
+def _update_release_policy(path: Path, version: str) -> str:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["activation_product_version"] = version
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
 def _update_plugin_version_cs(path: Path, version: str) -> str:
     text = path.read_text(encoding="utf-8")
     new_text, count = re.subn(
@@ -96,6 +102,7 @@ def _artifact_paths(root: Path) -> dict:
         "__version__.py": root / "server" / "src" / "unity_mcp" / "__version__.py",
         "_meta.json": root / "docs" / "assets" / "_meta.json",
         "MCPServer.cs": root / "unity-plugin" / "Editor" / "MCPServer.cs",
+        "release-policy.json": root / "scripts" / "gauntlet" / "release-policy.json",
     }
 
 
@@ -109,6 +116,7 @@ def _read_version(name: str, path: Path) -> str:
         "package.json": r'"version":\s*"([^"]*)"',
         "__version__.py": r'__version__ = "([^"]*)"',
         "MCPServer.cs": r'internal static string PluginVersion => "([^"]*)"',
+        "release-policy.json": r'"activation_product_version":\s*"([^"]*)"',
     }
     m = re.search(patterns[name], text, re.MULTILINE)
     return m.group(1) if m else "?"
@@ -156,6 +164,7 @@ def _sync(root: Path, version: str, *, update_canonical: bool) -> None:
         "__version__.py": (root / "server" / "src" / "unity_mcp" / "__version__.py", _update_version_py),
         "_meta.json": (root / "docs" / "assets" / "_meta.json", _update_meta_json),
         "MCPServer.cs": (root / "unity-plugin" / "Editor" / "MCPServer.cs", _update_plugin_version_cs),
+        "release-policy.json": (root / "scripts" / "gauntlet" / "release-policy.json", _update_release_policy),
         # Canonical source is replaced last so a failed bump never advertises a
         # version whose generated copies were not written.
         "pyproject.toml": (root / "server" / "pyproject.toml", _update_pyproject),
