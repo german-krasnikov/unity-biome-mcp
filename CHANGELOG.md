@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.28.0] — 2026-08-10
 
 ### Added
 - **Editor UI rebrand** — all user-facing editor strings now use 🧬MCP menu label with emoji toggle. `BiomeLabel.cs` centralizes display name and log tag, settable via EditorPrefs. Affects Setup Wizard, Hub, Settings, Chat windows, and all logged output.
