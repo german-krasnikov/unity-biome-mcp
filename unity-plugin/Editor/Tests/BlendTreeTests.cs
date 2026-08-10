@@ -196,6 +196,34 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(childCountBefore, bt.children.Length);
         }
 
+        // ── DEF-4: FindStateAcrossLayers must recurse into sub-state-machines ──
+
+        [Test]
+        public void FindStateAcrossLayers_StateInSubStateMachine_IsFound()
+        {
+            // Create a sub-state-machine and add a BlendTree state inside it.
+            // Before fix: FindStateAcrossLayers only checks top-level sm.states (flat).
+            var sm = AnimatorControllerHelper.GetStateMachine(_ctrl);
+            var subSm = sm.AddStateMachine("SubSM");
+            var nestedState = subSm.AddState("NestedBTState");
+            nestedState.motion = new BlendTree { blendType = BlendTreeType.Simple1D };
+
+            // GetBlendTreeDetail calls FindStateAcrossLayers internally.
+            // Before fix: throws "state 'NestedBTState' not found"
+            // After fix: finds the state in the sub-state-machine.
+            var detail = AnimatorControllerSerializer.SerializeBlendTree(
+                (BlendTree)nestedState.motion);
+            Assert.That(detail, Does.Contain("type:Simple1D"));
+
+            // The real proof: FindStateAcrossLayers finds it
+            var found = typeof(AnimatorControllerHelper)
+                .GetMethod("FindStateAcrossLayers",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                ?.Invoke(null, new object[] { _ctrl, "NestedBTState" }) as AnimatorState;
+            Assert.IsNotNull(found, "FindStateAcrossLayers must find state in sub-state-machine");
+            Assert.AreEqual("NestedBTState", found.name);
+        }
+
         // 9. add_blend_tree is a valid action in ExecAnimatorConsolidated
         [Test]
         public void AddBlendTree_IsRegisteredAction()

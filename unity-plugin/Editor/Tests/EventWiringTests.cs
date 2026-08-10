@@ -98,7 +98,37 @@ namespace UnityMCP.Editor.Tests
                 $"Target should be AudioSource, was: {typeName}");
         }
 
-        // ── 4. target_component_type narrows which component is searched ──────
+        // ── 4. DEF-3: Registration lambda must forward target_component_type/parameter_types ──
+
+        [Test]
+        public void WireEvent_ViaRegistry_ForwardsTargetComponentTypeAndParameterTypes()
+        {
+            // DEF-3: CommandRouter.Registration lambda was missing these 2 args.
+            // Going through CommandRegistry.Execute proves the registration lambda extracts them.
+            CommandRegistry.InitDefaults();
+
+            var json = "{\"path\":\"/EW_Source\",\"component\":\"Button\",\"event\":\"onClick\","
+                     + "\"target\":\"/EW_Target\",\"method\":\"SetTrigger\","
+                     + "\"arg_type\":\"void\",\"arg_value\":null,"
+                     + "\"target_component_type\":\"Animator\","
+                     + "\"parameter_types\":\"string\"}";
+
+            var result = CommandRegistry.Execute("wire_event", json);
+
+            // If target_component_type/parameter_types were NOT forwarded,
+            // this would throw "Ambiguous" (SetTrigger has string+int overloads).
+            // Success means the args flowed through the registration lambda.
+            var so = new SerializedObject(_srcGo.GetComponent<UnityEngine.UI.Button>());
+            var calls = so.FindProperty("m_OnClick.m_PersistentCalls.m_Calls");
+            Assert.Greater(calls.arraySize, 0, "Listener was not added");
+            var call = calls.GetArrayElementAtIndex(calls.arraySize - 1);
+            var typeName = call.FindPropertyRelative("m_TargetAssemblyTypeName").stringValue;
+
+            Assert.That(typeName, Does.Contain("Animator"),
+                "Registration must forward target_component_type to resolve Animator");
+        }
+
+        // ── 5. target_component_type narrows which component is searched ──────
 
         [Test]
         public void WireEvent_TargetComponentType_NarrowsToSpecifiedComponent()

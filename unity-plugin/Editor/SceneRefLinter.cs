@@ -41,6 +41,16 @@ namespace UnityMCP.Editor
             var issues = new List<LintIssue>();
             if (string.IsNullOrEmpty(script)) return issues;
 
+            // Parse to collect VAL definitions (including from INCLUDEs) so
+            // $alias tokens that are defined don't produce false-positive MISS.
+            Dictionary<string, string> valDefs = null;
+            try
+            {
+                var parsed = PlaytestParser.Parse(script);
+                valDefs = parsed.ValDefs;
+            }
+            catch { /* parse failure = lint without alias knowledge */ }
+
             // INCLUDE lines (and other meta keywords) are in _skipLineKeys and are skipped entirely,
             // so filenames are never linted as scene paths.
             // G14: comma-separated path tokens (e.g. "/A|T,/B|T") are split before path checking below.
@@ -77,6 +87,11 @@ namespace UnityMCP.Editor
                             });
                             continue;
                         }
+
+                        // Skip $alias tokens that are defined via VAL (no false-positive MISS)
+                        if (t[0] == '$' && valDefs != null
+                            && valDefs.ContainsKey(t.TrimStart('$').Split('|')[0]))
+                            continue;
 
                         var r = SceneRefResolver.ResolveOne(t, System.Array.Empty<string>());
                         if (r.Status == "MISS")

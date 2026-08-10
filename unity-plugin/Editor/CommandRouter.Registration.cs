@@ -444,8 +444,11 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "target"),
                 JsonHelper.ExtractString(args, "method"),
                 JsonHelper.ExtractString(args, "arg_type") ?? "void",
-                JsonHelper.ExtractString(args, "arg_value")), mutating: true,
-                required: "path,component,event,target,method", optional: "arg_type,arg_value");
+                JsonHelper.ExtractString(args, "arg_value"),
+                JsonHelper.ExtractString(args, "target_component_type"),
+                JsonHelper.ExtractString(args, "parameter_types")), mutating: true,
+                required: "path,component,event,target,method",
+                optional: "arg_type,arg_value,target_component_type,parameter_types");
             CommandRegistry.Register("unwire_event", args => ObjectManager.UnwireEvent(
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "component"),

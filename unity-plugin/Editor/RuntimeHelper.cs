@@ -16,6 +16,9 @@ namespace UnityMCP.Editor
         // key: (declaring Type, stripped method name); cleared on domain reload
         private static readonly Dictionary<(Type, string), MethodInfo> _methodCache = new();
 
+        // key: (sourceType, targetType) → op_Implicit/op_Explicit MethodInfo; cleared on domain reload
+        private static readonly Dictionary<(Type, Type), MethodInfo> _implicitCache = new();
+
         // Built-in converters registered at domain load; read-only after that
         private static readonly IArgumentConverter[] _builtInConverters =
         {
@@ -48,6 +51,7 @@ namespace UnityMCP.Editor
                     _activeTcs.Clear();
                 }
                 _methodCache.Clear();
+                _implicitCache.Clear();
                 // Reset to built-ins; project converters re-register via [InitializeOnLoadMethod]
                 _converters.Clear();
                 _converters.AddRange(_builtInConverters);
@@ -553,6 +557,22 @@ namespace UnityMCP.Editor
                             $"Cannot convert '{value}' to {targetType.Name}: {e.InnerException?.Message ?? e.Message}");
                     }
                 }
+                // op_Implicit / op_Explicit probe (DEF-6: supports HashId-like structs)
+                var sourceType = typeof(string);
+                var cacheKey = (sourceType, targetType);
+                if (!_implicitCache.TryGetValue(cacheKey, out var implicitOp))
+                {
+                    implicitOp = targetType.GetMethod("op_Implicit",
+                            BindingFlags.Static | BindingFlags.Public,
+                            null, new[] { sourceType }, null)
+                        ?? targetType.GetMethod("op_Explicit",
+                            BindingFlags.Static | BindingFlags.Public,
+                            null, new[] { sourceType }, null);
+                    _implicitCache[cacheKey] = implicitOp;
+                }
+                if (implicitOp != null)
+                    return implicitOp.Invoke(null, new object[] { value });
+
                 throw new ArgumentException(
                     $"Cannot convert '{value}' to {targetType.Name}: no registered converter, IConvertible, or Parse(string) method found");
             }
