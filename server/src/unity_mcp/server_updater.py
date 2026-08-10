@@ -20,14 +20,14 @@ class _UpdateResult:
 
 
 def _default_is_uvx_install() -> bool:
-    """True when running as a uvx-managed tool (not a local venv)."""
+    """True only when running as a uvx-managed tool (positive identification)."""
     if os.environ.get("UV_TOOL_DIR"):
         return True
     argv0 = sys.argv[0] if sys.argv else ""
     if "uvx" in argv0:
         return True
     exe = sys.executable or ""
-    return ".venv" not in exe and "venv" not in exe
+    return "uv/tools/" in exe or ".local/share/uv/tools" in exe
 
 
 class ServerUpdater:
@@ -75,23 +75,23 @@ class ServerUpdater:
             return _UpdateResult(triggered=False, reason="not_needed")
 
         self._updating = True
-        current = self._version_fn()
-        logger.info(
-            "Server update: %s → %s, running uvx --reinstall...", current, plugin_version
-        )
-
-        success = await self._run_uvx_reinstall()
-        if success:
-            await self._exit_for_restart()
-            return _UpdateResult(triggered=True, reason="started")
-
-        self._updating = False
-        logger.error(
-            "Server update failed. Run manually: "
-            "uvx --reinstall --from %s unity-biome-mcp",
-            self._install_url,
-        )
-        return _UpdateResult(triggered=False, reason="reinstall_failed")
+        try:
+            current = self._version_fn()
+            logger.info(
+                "Server update: %s → %s, running uvx --reinstall...", current, plugin_version
+            )
+            success = await self._run_uvx_reinstall()
+            if success:
+                await self._exit_for_restart()
+                return _UpdateResult(triggered=True, reason="started")
+            logger.error(
+                "Server update failed. Run manually: "
+                "uvx --reinstall --from %s unity-biome-mcp",
+                self._install_url,
+            )
+            return _UpdateResult(triggered=False, reason="reinstall_failed")
+        finally:
+            self._updating = False
 
     def _is_update_needed(self, plugin_version: str) -> bool:
         """True if plugin_version > __version__ (semver)."""
@@ -105,8 +105,12 @@ class ServerUpdater:
             proc = await self._subprocess_fn(
                 "uvx", "--reinstall", "--from", self._install_url, "unity-biome-mcp"
             )
-            code = await proc.wait()
+            code = await asyncio.wait_for(proc.wait(), timeout=300)
             return code == 0
+        except asyncio.TimeoutError:
+            proc.kill()
+            logger.error("uvx reinstall timed out after 300s")
+            return False
         except Exception as exc:
             logger.error("uvx reinstall error: %s", exc)
             return False

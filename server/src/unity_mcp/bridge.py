@@ -48,6 +48,7 @@ PROTOCOL_VERSION = 3
 
 _NEW_FMT = re.compile(r"proto:(\d+)(?:\|plugin:([^|]*))?(?:\|stamp:(.*))?")
 _OLD_FMT = re.compile(r"[\d.]+(?:\|stamp:(.*))?")
+_background_tasks: set = set()
 
 
 @dataclass
@@ -543,7 +544,9 @@ class UnityBridge(HeartbeatMixin):
                     check_protocol_version(PROTOCOL_VERSION, info.proto)
                     if info.plugin:
                         from .server_updater import _updater
-                        asyncio.create_task(_updater.maybe_update(info.plugin))
+                        task = asyncio.create_task(_updater.maybe_update(info.plugin))
+                        _background_tasks.add(task)
+                        task.add_done_callback(_background_tasks.discard)
             except ConnectionError:
                 raise
             except Exception as exc:

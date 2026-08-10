@@ -16,13 +16,11 @@ namespace UnityMCP.Editor.Tests
             PluginUpdateMonitor._versionOverride = null;
             DeleteEditorPrefString(LastVersionKey);
             SessionState.EraseBool(UpdatedFlagKey);
-        }
-
-        [TearDown]
-        public void TearDownMonitorTest()
-        {
-            PluginUpdateMonitor._versionOverride = null;
-            SessionState.EraseBool(UpdatedFlagKey);
+            RegisterCleanup(() =>
+            {
+                PluginUpdateMonitor._versionOverride = null;
+                SessionState.EraseBool(UpdatedFlagKey);
+            });
         }
 
         [Test]

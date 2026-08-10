@@ -6,7 +6,7 @@ import sys
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from unity_mcp.server_updater import ServerUpdater, _updater as module_updater
+from unity_mcp.server_updater import ServerUpdater, _default_is_uvx_install, _updater as module_updater
 
 
 def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=None):
@@ -69,6 +69,7 @@ async def test_no_exit_when_reinstall_fails():
     u = make_updater(current="1.5.0", subprocess_exit=1, exit_calls=calls)
     r = await u.maybe_update("1.6.0")
     assert calls == []
+    assert r.reason == "reinstall_failed"
 
 
 @pytest.mark.asyncio
@@ -219,3 +220,44 @@ async def test_bridge_schedules_update_task_when_plugin_newer():
     await asyncio.sleep(0)
 
     assert "99.0.0" in scheduled
+
+
+# M4: Tests for _default_is_uvx_install — positive identification only
+
+def test_is_uvx_install_true_via_env(monkeypatch):
+    monkeypatch.setenv("UV_TOOL_DIR", "/home/user/.local/share/uv/tools")
+    monkeypatch.setattr(sys, "argv", ["/usr/bin/python3"])
+    monkeypatch.setattr(sys, "executable", "/usr/bin/python3")
+    assert _default_is_uvx_install() is True
+
+
+def test_is_uvx_install_true_via_argv(monkeypatch):
+    monkeypatch.delenv("UV_TOOL_DIR", raising=False)
+    monkeypatch.setattr(sys, "argv", ["/home/user/.local/bin/uvx"])
+    monkeypatch.setattr(sys, "executable", "/usr/bin/python3")
+    assert _default_is_uvx_install() is True
+
+
+def test_is_uvx_install_true_via_executable_uv_tools(monkeypatch):
+    monkeypatch.delenv("UV_TOOL_DIR", raising=False)
+    monkeypatch.setattr(sys, "argv", ["/some/script.py"])
+    monkeypatch.setattr(
+        sys, "executable",
+        "/home/user/.local/share/uv/tools/unity-biome-mcp/bin/python3",
+    )
+    assert _default_is_uvx_install() is True
+
+
+def test_is_uvx_install_false_for_venv(monkeypatch):
+    monkeypatch.delenv("UV_TOOL_DIR", raising=False)
+    monkeypatch.setattr(sys, "argv", ["/project/.venv/bin/python3"])
+    monkeypatch.setattr(sys, "executable", "/project/.venv/bin/python3.12")
+    assert _default_is_uvx_install() is False
+
+
+def test_is_uvx_install_false_for_homebrew(monkeypatch):
+    """Homebrew/system Python must not be mistaken for a uvx install."""
+    monkeypatch.delenv("UV_TOOL_DIR", raising=False)
+    monkeypatch.setattr(sys, "argv", ["/opt/homebrew/bin/python3.12"])
+    monkeypatch.setattr(sys, "executable", "/opt/homebrew/bin/python3.12")
+    assert _default_is_uvx_install() is False
