@@ -15,7 +15,7 @@ namespace UnityMCP.Editor
         Label _tokenLabel;
         Label _previewLabel;
 
-        [MenuItem("MCP/Alias Manager #&a")]
+        [MenuItem("🧬MCP/Alias Manager #&a")]
         internal static void Open()
         {
             var win = GetWindow<PlaytestAliasWindow>("Alias Manager");

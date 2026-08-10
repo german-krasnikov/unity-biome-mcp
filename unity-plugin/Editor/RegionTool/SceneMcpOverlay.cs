@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.RegionTool
 {
-    [Overlay(typeof(SceneView), id: "MCP", displayName: "MCP", defaultDisplay: false)]
+    [Overlay(typeof(SceneView), id: "🧬MCP", displayName: "🧬MCP", defaultDisplay: false)]
     internal sealed partial class SceneMcpOverlay : Overlay
     {
         Label  _statsLabel;
@@ -23,7 +23,7 @@ namespace UnityMCP.Editor.RegionTool
             root.style.paddingLeft = root.style.paddingRight  = 6;
             root.style.paddingTop  = root.style.paddingBottom = 4;
 
-            root.Add(new Label("MCP") { style = { unityFontStyleAndWeight = FontStyle.Bold } });
+            root.Add(new Label("🧬MCP") { style = { unityFontStyleAndWeight = FontStyle.Bold } });
             root.Add(BuildRegionModeRow());
             root.Add(BuildAnnotationTypeRow());
             root.Add(BuildDetailRow());

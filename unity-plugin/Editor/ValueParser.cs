@@ -192,18 +192,19 @@ namespace UnityMCP.Editor
             // Defensive: strip one surrounding quote pair if present
             if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"')
                 value = value.Substring(1, value.Length - 2);
-            // P-258: component wire format "path::TypeName #componentId" — resolve typed component directly.
-            // The "::" suffix signals this is a component ref; the "#id" encodes the component instanceID.
-            if (value.Contains("::") && value.Contains("#"))
+            // P-258: component wire format "path::TypeName #id" or "path::TypeName $HEX"
+            // The "::" suffix signals this is a component ref; the id encodes the component instanceID.
+            bool hasComponentId = value.Contains("::") && (value.Contains(" #") || value.Contains(" $"));
+            if (hasComponentId)
             {
                 var comp = ComponentSerializer.FindComponentByRef(value);
                 if (comp != null) { property.objectReferenceValue = comp; return; }
                 // Fall through to path-based lookup if resolution fails (graceful degradation).
             }
-            // P-258b: "path::TypeName" (no #id) — LLM-friendly bare type resolution.
+            // P-258b: "path::TypeName" (no id) — LLM-friendly bare type resolution.
             // e.g. "/Root/Player::AudioSource" → first AudioSource on the Player GO.
             // Sub-asset paths ("Assets/Foo.anim::Clip") fall through when FindObject returns null.
-            if (value.Contains("::") && !value.Contains("#"))
+            if (value.Contains("::") && !hasComponentId)
             {
                 var colonIdx = value.IndexOf("::");
                 var goPath   = value.Substring(0, colonIdx).Trim();
@@ -220,7 +221,7 @@ namespace UnityMCP.Editor
                                 System.Array.ConvertAll(go.GetComponents<Component>(), c => c.GetType().Name));
                             throw new ArgumentException(
                                 $"No '{typeName}' component on '{goPath}'. Available: {available}. " +
-                                "For multiple components of the same type, use 'path::TypeName #componentId'.");
+                                "For multiple components of the same type, use 'path::TypeName $hexId' or 'path::TypeName #id' (legacy).");
                         }
                         property.objectReferenceValue = comp;
                         return;
@@ -228,6 +229,18 @@ namespace UnityMCP.Editor
                     // go == null: fall through to sub-asset check below.
                 }
             }
+            // New: $HEX format (e.g. $3E8) — must check before path-based lookup
+            if (value.StartsWith("$") && !RefManager.IsRef(value))
+            {
+                if (!TransientObjectId.TryParse(value, out var hexId))
+                    throw new ArgumentException($"Invalid entity ID: {value}");
+                var hexResolved = hexId.Resolve();
+                if (hexResolved == null)
+                    throw new ArgumentException($"No object found for entity ID: {value}");
+                property.objectReferenceValue = hexResolved;
+                return;
+            }
+            // Legacy: #decimal format (backward compat)
             if (value.StartsWith("#"))
             {
                 if (!TransientObjectId.TryParse(value, out var objectId))
@@ -240,7 +253,7 @@ namespace UnityMCP.Editor
             }
             var fieldType = GetSerializedFieldType(property);
             if (fieldType == null)
-                Debug.LogWarning($"[MCP] Cannot resolve C# type for '{property.propertyPath}'. " +
+                Debug.LogWarning($"{BiomeLabel.Tag} Cannot resolve C# type for '{property.propertyPath}'. " +
                     "ObjectReference assignment may fail if field expects a specific Component.");
             var refGo = ComponentSerializer.FindObject(value);
             if (refGo != null)
@@ -384,7 +397,7 @@ namespace UnityMCP.Editor
                 if (resultType.IsGenericType) return resultType.GetGenericArguments()[0];
                 return resultType;
             }
-            catch (Exception e) { Debug.LogWarning($"[MCP] GetSerializedFieldType: {e.Message}"); }
+            catch (Exception e) { Debug.LogWarning($"{BiomeLabel.Tag} GetSerializedFieldType: {e.Message}"); }
             return null;
         }
     }

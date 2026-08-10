@@ -205,9 +205,9 @@ namespace UnityMCP.Editor
             {
                 var cls = ErrorClassifier.Classify(e);
                 if (cls == "VALIDATION")
-                    Debug.LogWarning($"[MCP] {ErrorClassifier.FormatError(e)}");
+                    Debug.LogWarning($"{BiomeLabel.Tag} {ErrorClassifier.FormatError(e)}");
                 else
-                    Debug.LogError($"[MCP] Command failed: {ErrorClassifier.FormatError(e)}");
+                    Debug.LogError($"{BiomeLabel.Tag} Command failed: {ErrorClassifier.FormatError(e)}");
                 var id = JsonHelper.ExtractString(json, "id") ?? "unknown";
                 var response = JsonHelper.FormatResponse(id, false, null, ErrorClassifier.FormatError(e));
                 var opId = JsonHelper.ExtractString(json, "op_id");
@@ -242,9 +242,9 @@ namespace UnityMCP.Editor
             {
                 var cls = ErrorClassifier.Classify(e);
                 if (cls == "VALIDATION")
-                    Debug.LogWarning($"[MCP] {ErrorClassifier.FormatError(e)}");
+                    Debug.LogWarning($"{BiomeLabel.Tag} {ErrorClassifier.FormatError(e)}");
                 else
-                    Debug.LogError($"[MCP] Command failed: {ErrorClassifier.FormatError(e)}");
+                    Debug.LogError($"{BiomeLabel.Tag} Command failed: {ErrorClassifier.FormatError(e)}");
                 var id = JsonHelper.ExtractString(json, "id") ?? "unknown";
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, ErrorClassifier.FormatError(e)));
             }
@@ -444,7 +444,7 @@ namespace UnityMCP.Editor
         {
             var questionsJson = JsonHelper.ExtractString(argsJson, "questions") ?? "[]";
             if (OnAskUser == null)
-                Debug.LogWarning("[MCP] ask_user: no listener — is chat window open?");
+                Debug.LogWarning($"{BiomeLabel.Tag} ask_user: no listener — is chat window open?");
             // PendingAskRegistry.Ask never returns "Error:"/"err:" strings (cancelled → {"cancelled":true}),
             // but the predicate is safe and consistent with test_step/move_to.
             CompleteFromInner(id, PendingAskRegistry.Ask(questionsJson, OnAskUser), tcs, "ask_user",

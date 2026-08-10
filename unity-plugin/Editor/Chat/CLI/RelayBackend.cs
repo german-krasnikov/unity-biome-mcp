@@ -91,7 +91,7 @@ namespace UnityMCP.Editor.Chat
         }
 
         private void OnRelayError(string message) =>
-            UnityEngine.Debug.LogError($"[MCP Relay] {message}");
+            UnityEngine.Debug.LogError($"{BiomeLabel.Tag} {message}");
 #endif
 
         public void SendTurn(string turnJson)
@@ -115,7 +115,7 @@ namespace UnityMCP.Editor.Chat
         {
             _mode = mode;
             if (_proc != null && !_proc.SendSetMode(mode, SessionId))
-                UnityEngine.Debug.LogWarning("[MCP Relay] SendSetMode failed — mode may be desynced");
+                UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} SendSetMode failed — mode may be desynced");
         }
 
         public void DrainEvents(List<ChatEvent> output, List<ToolCallRecord> toolOutput = null)

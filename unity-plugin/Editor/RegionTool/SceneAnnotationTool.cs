@@ -10,7 +10,7 @@ namespace UnityMCP.Editor.RegionTool
     /// Scene View tool for placing Point, Polyline, and Measurement annotations.
     /// Shift+A to activate. 1/2/3 to switch type. Enter=Commit, Esc=Cancel, Backspace=Undo vertex.
     /// </summary>
-    [EditorTool("MCP Annotation")]
+    [EditorTool("🧬MCP Annotation")]
     internal sealed class SceneAnnotationTool : EditorTool
     {
         enum State { Idle, Drawing }

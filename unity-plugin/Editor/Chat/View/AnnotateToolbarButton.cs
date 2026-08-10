@@ -21,7 +21,7 @@ namespace UnityMCP.Editor.Chat
             var path = ScreenshotService.Capture();
             if (string.IsNullOrEmpty(path))
             {
-                Debug.LogWarning("[MCP Chat] Screenshot capture failed for annotation");
+                Debug.LogWarning($"{BiomeLabel.Tag} Screenshot capture failed for annotation");
                 return;
             }
             AnnotationEditorWindow.Open(path);

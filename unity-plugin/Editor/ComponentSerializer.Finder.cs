@@ -25,6 +25,18 @@ namespace UnityMCP.Editor
                 throw new StaleCacheException($"Stale ref: {path}. Call get_hierarchy to refresh.");
             }
 
+            // New: $HEX format (e.g. $3E8) — tightened IsRef already rejects these
+            if (path.StartsWith("$"))
+            {
+                if (TransientObjectId.TryParse(path, out var hexId))
+                {
+                    var byHexId = FindObjectById(hexId.WireValue);
+                    if (byHexId != null) return byHexId;
+                }
+                throw new System.ArgumentException($"Entity ID {path} not found");
+            }
+
+            // Legacy: #decimal format (backward compat)
             if (path.StartsWith("#") && TransientObjectId.TryParse(path, out var objectId))
             {
                 var byId = FindObjectById(objectId.WireValue);
@@ -167,10 +179,10 @@ namespace UnityMCP.Editor
                         {
                             if (ambiguous.Count == 0)
                             {
-                                ambiguous.Add($"{foundScene}:/{name} (#{TransientObjectId.GetWireValue(found)})");
+                                ambiguous.Add($"{foundScene}:/{name} ({TransientObjectId.GetHexRef(found)})");
                                 ambiguousScenes.Add(foundScene);
                             }
-                            ambiguous.Add($"{scene.name}:/{name} (#{TransientObjectId.GetWireValue(root)})");
+                            ambiguous.Add($"{scene.name}:/{name} ({TransientObjectId.GetHexRef(root)})");
                             ambiguousScenes.Add(scene.name);
                         }
                     }
@@ -252,13 +264,16 @@ namespace UnityMCP.Editor
             return dot >= 0 ? typeName.Substring(dot + 1) : typeName;
         }
 
-        /// <summary>Resolves "path::TypeName #componentId" wire ref to the exact Component.</summary>
+        /// <summary>Resolves "path::TypeName #id" (legacy) or "path::TypeName $HEX" (new) wire ref to Component.</summary>
         internal static Component FindComponentByRef(string wireRef)
         {
             if (string.IsNullOrEmpty(wireRef)) return null;
+            // Find last # or $ separator — both formats supported for backward compat
             var hashIdx = wireRef.LastIndexOf('#');
-            if (hashIdx < 0) return null;
-            var idStr = wireRef.Substring(hashIdx + 1).Trim();
+            var dollarIdx = wireRef.LastIndexOf('$');
+            var sepIdx = System.Math.Max(hashIdx, dollarIdx);
+            if (sepIdx < 0) return null;
+            var idStr = wireRef.Substring(sepIdx).Trim(); // includes # or $ prefix
             if (!TransientObjectId.TryParse(idStr, out var objectId)) return null;
             return objectId.Resolve() as Component;
         }

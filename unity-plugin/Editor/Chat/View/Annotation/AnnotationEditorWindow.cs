@@ -22,7 +22,7 @@ namespace UnityMCP.Editor.Chat.Annotation
         {
             if (string.IsNullOrEmpty(screenshotPath) || !File.Exists(screenshotPath))
             {
-                Debug.LogWarning("[MCP Chat] Annotation: screenshot file not found");
+                Debug.LogWarning($"{BiomeLabel.Tag} Annotation: screenshot file not found");
                 return;
             }
             var w = GetWindow<AnnotationEditorWindow>("Annotate Screenshot");
@@ -88,7 +88,7 @@ namespace UnityMCP.Editor.Chat.Annotation
             var composited = AnnotationCompositor.Composite(_originalPng, _history.Active);
             if (composited == null)
             {
-                Debug.LogWarning("[MCP Chat] Annotation composite failed");
+                Debug.LogWarning($"{BiomeLabel.Tag} Annotation composite failed");
                 return;
             }
 

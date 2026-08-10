@@ -37,7 +37,7 @@ namespace UnityMCP.Editor
                 ".unity-biome-mcp");
             if (!Directory.Exists(dir))
             {
-                UnityEngine.Debug.LogWarning("[MCP] Kill: no ~/.unity-biome-mcp dir");
+                UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} Kill: no ~/.unity-biome-mcp dir");
                 return;
             }
 
@@ -58,11 +58,11 @@ namespace UnityMCP.Editor
                 catch (System.InvalidOperationException) { TryDelete(f); stale++; }  // exited between lookup & kill
                 catch (System.Exception ex)
                 {
-                    UnityEngine.Debug.LogWarning($"[MCP] Kill PID {pid}: {ex.Message}");
+                    UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} Kill PID {pid}: {ex.Message}");
                 }
             }
             InvokeRelay("Stop");
-            UnityEngine.Debug.Log($"[MCP] Kill All: {killed} killed, {stale} stale cleaned");
+            UnityEngine.Debug.Log($"{BiomeLabel.Tag} Kill All: {killed} killed, {stale} stale cleaned");
         }
 
         // Reflection bridge: Chat.CLI assembly depends on Editor, so we can't depend back.
@@ -85,12 +85,12 @@ namespace UnityMCP.Editor
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[0]);
                 AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-                UnityEngine.Debug.Log("[MCP] Plugin reimported — recompiling...");
+                UnityEngine.Debug.Log($"{BiomeLabel.Tag} Plugin reimported — recompiling...");
             }
             else
             {
                 AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
-                UnityEngine.Debug.Log("[MCP] AssetDatabase.Refresh forced");
+                UnityEngine.Debug.Log($"{BiomeLabel.Tag} AssetDatabase.Refresh forced");
             }
         }
     }

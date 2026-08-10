@@ -79,7 +79,7 @@ namespace UnityMCP.Editor.Profiling
                 FinalizeSession(); // FinalizeSession calls ProfilerBridge.Shutdown()
             else
                 ProfilerBridge.Shutdown(); // Dispose recorder even if not recording
-            Debug.LogWarning("[MCP] Profile sessions cleared (domain reload)");
+            Debug.LogWarning($"{BiomeLabel.Tag} Profile sessions cleared (domain reload)");
         }
 
         private static string Start(string args)

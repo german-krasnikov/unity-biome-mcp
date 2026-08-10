@@ -23,12 +23,17 @@ namespace UnityMCP.Editor
                 int enabled = MCPSettings.GetToolNames().Count(MCPSettings.IsToolEnabled);
                 BiomeUI.SetStatus(
                     summary,
-                    $"{enabled} of {total} tools enabled. Changes apply on next MCP reconnect.",
+                    $"{enabled} of {total} tools enabled. Changes apply on next {BiomeLabel.DisplayName} reconnect.",
                     "neutral");
             }
 
             root.Add(BuildPresets(RefreshVisibleState));
             root.Add(summary);
+
+            var emojiToggle = new Toggle("Use emoji label") { value = BiomeLabel.UseEmoji };
+            emojiToggle.tooltip = "Toggle between emoji and text in log tags and UI labels. Window titles refresh on reopen.";
+            emojiToggle.RegisterValueChangedCallback(evt => BiomeLabel.UseEmoji = evt.newValue);
+            root.Add(emojiToggle);
 
             var searchField = new TextField();
             searchField.value = "";

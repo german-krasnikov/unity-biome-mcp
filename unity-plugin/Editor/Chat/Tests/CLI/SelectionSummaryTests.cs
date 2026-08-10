@@ -133,15 +133,18 @@ namespace UnityMCP.Editor.Chat.Tests
             StringAssert.StartsWith("[Selection:", result);
         }
 
-        // ── F4: transient EntityId in summary ────────────────────────────────
+        // ── F4: transient EntityId in summary ($HEX format) ─────────────────
 
         [Test]
-        public void SelectionSummary_Summarize_IncludesInstanceID()
+        public void SelectionSummary_Summarize_IncludesHexRef()
         {
             _go = new GameObject("IdObj");
-            var id     = TransientObjectId.GetWireValue(_go);
+            var hexRef = TransientObjectId.GetHexRef(_go);
             var result = SelectionSummary.Summarize(_go);
-            StringAssert.Contains($"#{id}", result);
+            StringAssert.Contains(hexRef, result);
+            // Must use $HEX format, not legacy #decimal
+            Assert.IsFalse(result.Contains($"#{TransientObjectId.GetWireValue(_go)}"),
+                "Summary must not use legacy #decimal format");
         }
     }
 }

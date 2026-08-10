@@ -10,7 +10,7 @@ namespace UnityMCP.Editor.Chat
         public string Key         => "playtest_alias";
         public int    Order       => 21;
         public string ButtonLabel => "Aliases";
-        public string Tooltip     => "Open Alias Manager (MCP/Alias Manager or Shift+Alt+A)";
+        public string Tooltip     => "Open Alias Manager (🧬MCP/Alias Manager or Shift+Alt+A)";
         public bool   MenuOnly    => true;
 
         static PlaytestAliasButton()

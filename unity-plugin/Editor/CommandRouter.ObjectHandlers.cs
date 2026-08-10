@@ -105,7 +105,8 @@ namespace UnityMCP.Editor
             {
                 // Ref and transient-ID paths throw inside FindObject when stale.
                 // Defensive check: if somehow a ref-like path slips through null, surface as STALE_CACHE.
-                if (path.StartsWith("#") || RefManager.IsRef(path))
+                // Note: RefManager.IsRef(path) is covered by path.StartsWith("$") — IsRef requires '$' prefix.
+                if (path.StartsWith("#") || path.StartsWith("$"))
                     throw new StaleCacheException($"Stale cache: {path}. Call get_hierarchy to refresh.");
                 throw new InvalidOperationException(ErrorHelper.ObjectNotFound(path));
             }
@@ -143,7 +144,7 @@ namespace UnityMCP.Editor
         {
             var id = JsonHelper.ExtractString(args, "id");
             if (string.IsNullOrEmpty(id))
-                throw new ArgumentException("id is required (instanceID as '#123' or scene path like '/Parent/Object')");
+                throw new ArgumentException("id is required ('$3E8' hex or '#123' legacy decimal, or scene path like '/Parent/Object')");
             var result = ComponentSerializer.SerializeAll(id);
             if (result == null) throw new InvalidOperationException($"Object not found: #{id}");
             return result;

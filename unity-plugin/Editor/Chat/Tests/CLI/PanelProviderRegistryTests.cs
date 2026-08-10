@@ -19,7 +19,7 @@ namespace UnityMCP.Editor.Chat.Tests
 
         public FakePanelProvider(string key, int priority = 100, bool throws = false)
         {
-            Key = key; MenuPath = $"MCP/{key}"; MenuPriority = priority;
+            Key = key; MenuPath = $"🧬MCP/{key}"; MenuPriority = priority;
             WindowTitle = key; _throws = throws;
         }
 

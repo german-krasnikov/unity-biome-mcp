@@ -110,6 +110,11 @@ namespace UnityMCP.Editor.Chat
             });
             parent.Add(chipFoldout);
 
+            var mentionFoldout = new Foldout { text = "@ Mention", value = false };
+            mentionFoldout.AddToClassList("chat-settings-foldout");
+            BuildMentionForm(mentionFoldout, store.Mention, () => store.Save());
+            parent.Add(mentionFoldout);
+
             // Plugin settings — each provider gets its own foldout, collapsed by default.
             foreach (var p in SettingsProviderRegistry.All)
             {
@@ -119,6 +124,31 @@ namespace UnityMCP.Editor.Chat
                 catch (System.Exception e) { Debug.LogException(e); continue; }
                 parent.Add(foldout);
             }
+        }
+
+        private static void BuildMentionForm(VisualElement parent, MentionConfig cfg, System.Action onSave)
+        {
+            var rowsField = new IntegerField("Max Results") { value = cfg.MaxPopupRows };
+            rowsField.AddToClassList("chat-form-field");
+            rowsField.tooltip = "Number of items shown in the @ dropdown (3–20)";
+            rowsField.RegisterValueChangedCallback(e =>
+            {
+                cfg.MaxPopupRows = Mathf.Clamp(e.newValue, 3, 20);
+                rowsField.SetValueWithoutNotify(cfg.MaxPopupRows);
+                onSave();
+            });
+            parent.Add(rowsField);
+
+            var sortNames = new System.Collections.Generic.List<string>
+                { "By Relevance", "By Name", "By Type", "By Recency" };
+            var sortField = new DropdownField("Sort Order", sortNames, (int)cfg.SortOrder);
+            sortField.AddToClassList("chat-form-field");
+            sortField.RegisterValueChangedCallback(e =>
+            {
+                cfg.SortOrder = (MentionSortOrder)sortField.index;
+                onSave();
+            });
+            parent.Add(sortField);
         }
 
         private static void ProbeAuthAsync(Label label)

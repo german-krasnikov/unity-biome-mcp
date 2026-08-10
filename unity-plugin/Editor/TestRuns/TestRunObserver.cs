@@ -763,7 +763,7 @@ namespace UnityMCP.Editor.TestRuns
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError("[MCP] Could not recover active test run " +
+                    Debug.LogError($"{BiomeLabel.Tag} Could not recover active test run " +
                         activeRun.run_id + ": " + e.Message);
                 }
                 return;
@@ -788,7 +788,7 @@ namespace UnityMCP.Editor.TestRuns
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError("[MCP] Could not recover test environment for " +
+                    Debug.LogError($"{BiomeLabel.Tag} Could not recover test environment for " +
                         runId + ": " + e.Message);
                 }
             }

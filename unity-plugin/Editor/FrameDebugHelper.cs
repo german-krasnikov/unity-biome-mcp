@@ -151,7 +151,7 @@ namespace UnityMCP.Editor
                 if (!wasEnabled)
                 {
                     try { _setEnabled?.Invoke(null, new object[] { false, 0 }); }
-                    catch (Exception ex) { Debug.LogWarning($"[MCP] FrameDebugHelper: failed to disable: {ex.Message}"); }
+                    catch (Exception ex) { Debug.LogWarning($"{BiomeLabel.Tag} FrameDebugHelper: failed to disable: {ex.Message}"); }
                 }
             }
         }

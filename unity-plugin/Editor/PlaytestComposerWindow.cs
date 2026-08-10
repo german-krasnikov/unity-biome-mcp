@@ -9,7 +9,7 @@ namespace UnityMCP.Editor
 {
     internal class PlaytestComposerWindow : EditorWindow
     {
-        [MenuItem("MCP/Playtest Composer #&p")]
+        [MenuItem("🧬MCP/Playtest Composer #&p")]
         internal static void Open() => GetWindow<PlaytestComposerWindow>("Playtest Composer");
 
         [SerializeField] List<VisualStep> _steps = new();

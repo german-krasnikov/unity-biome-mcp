@@ -84,7 +84,7 @@ namespace UnityMCP.Editor
         public static int KillPhantoms()
         {
             var killed = _mainSlot.KillPhantoms() + _chatSlot.KillPhantoms();
-            if (killed > 0) UnityEngine.Debug.Log($"[MCP] Killed {killed} phantom connection(s)");
+            if (killed > 0) UnityEngine.Debug.Log($"{BiomeLabel.Tag} Killed {killed} phantom connection(s)");
             return killed;
         }
         public static int ServerPort
@@ -284,7 +284,7 @@ namespace UnityMCP.Editor
                         }
                         if (bindPort != PortFileManager.Port)
                         {
-                            var bp = bindPort; var origPort = PortFileManager.Port; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Port {origPort} unavailable (address in use), switched to {bp}"));
+                            var bp = bindPort; var origPort = PortFileManager.Port; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {origPort} unavailable (address in use), switched to {bp}"));
                             // SaveRuntimePorts: updates MCP_Port.json + {pid}.port but NOT MCPSettings.json.
                             // Preserves user intent so next reload retries the configured port, no cascade drift.
                             PortFileManager.SaveRuntimePorts(bindPort, PortFileManager.ChatPort);
@@ -300,7 +300,7 @@ namespace UnityMCP.Editor
                         try { _listener?.Stop(); } catch { }
                         _listener = null;
                         if (attempt == 3) throw;
-                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Port {bp2} busy, retry {at + 1}/3..."));
+                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {bp2} busy, retry {at + 1}/3..."));
                         await Task.Delay(400 * (attempt + 1), token).ConfigureAwait(false);
                     }
                 }
@@ -333,7 +333,7 @@ namespace UnityMCP.Editor
                         }
                         if (bindPort != PortFileManager.ChatPort)
                         {
-                            var bp = bindPort; var origChatPort = PortFileManager.ChatPort; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Chat port {origChatPort} unavailable (address in use), switched to {bp}"));
+                            var bp = bindPort; var origChatPort = PortFileManager.ChatPort; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {origChatPort} unavailable (address in use), switched to {bp}"));
                             PortFileManager.SaveRuntimePorts(chatMainPort, bindPort);
                         }
                         break;
@@ -344,21 +344,21 @@ namespace UnityMCP.Editor
                         _chatListener = null;
                         if (attempt == 2)
                         {
-                            var msg = se.Message; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Chat port {PortFileManager.ChatPort} unavailable after fallback: {msg}"));
+                            var msg = se.Message; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {PortFileManager.ChatPort} unavailable after fallback: {msg}"));
                             break;
                         }
-                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Chat port {bp2} busy, retry {at + 1}/2..."));
+                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {bp2} busy, retry {at + 1}/2..."));
                         await Task.Delay(300 * (attempt + 1), token).ConfigureAwait(false);
                     }
                     catch (SocketException se)
                     {
-                        var msg = se.Message; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"[MCP] Chat port {PortFileManager.ChatPort} unavailable: {msg}"));
+                        var msg = se.Message; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {PortFileManager.ChatPort} unavailable: {msg}"));
                         _chatListener = null;
                         break;
                     }
                 }
 
-                MainThreadDispatcher.Enqueue(() => Debug.Log($"[MCP] Server started on port {PortFileManager.Port} (chat: {PortFileManager.ChatPort})"));
+                MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Server started on port {PortFileManager.Port} (chat: {PortFileManager.ChatPort})"));
                 // Marshal onto main thread — a bind-retry above may have hopped this
                 // continuation onto ThreadPool via ConfigureAwait(false), and both
                 // WritePortFile/WriteStateFile touch Unity main-thread-only APIs
@@ -381,7 +381,7 @@ namespace UnityMCP.Editor
                 // Suppress OperationCanceledException on clean shutdown — CTS cancellation is expected
                 if (!(e is OperationCanceledException && _shuttingDown))
                 {
-                    var msg = e.Message; MainThreadDispatcher.Enqueue(() => Debug.LogError($"[MCP] Server error: {msg}"));
+                    var msg = e.Message; MainThreadDispatcher.Enqueue(() => Debug.LogError($"{BiomeLabel.Tag} Server error: {msg}"));
                 }
                 // Clean up on bind failure — prevent CTS/listener leak
                 if (!IsRunning)
@@ -406,7 +406,7 @@ namespace UnityMCP.Editor
             var active = ResolveBootstrapScenePath(projectRoot, EditorSceneManager.GetActiveScene().path);
             if (string.Equals(active, scenePath, StringComparison.OrdinalIgnoreCase)) return;
             EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
-            Debug.Log($"[MCP] Opened bootstrap scene: {scenePath}");
+            Debug.Log($"{BiomeLabel.Tag} Opened bootstrap scene: {scenePath}");
         }
 
         private static void TeardownCore()
@@ -429,7 +429,7 @@ namespace UnityMCP.Editor
 
         public static void Stop()
         {
-            Debug.Log("[MCP] Server stopping");
+            Debug.Log($"{BiomeLabel.Tag} Server stopping");
             _shuttingDown = true;
             TeardownCore();  // already drains queue
             PortFileManager.DeletePortFile();
@@ -475,7 +475,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "1.27.0";
+        internal static string PluginVersion => "1.28.0";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {

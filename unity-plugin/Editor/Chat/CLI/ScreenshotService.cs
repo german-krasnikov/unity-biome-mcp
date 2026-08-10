@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.Chat
 
                 if (pngBytes == null || pngBytes.Length == 0)
                 {
-                    Debug.LogWarning("[MCP Chat] Screenshot capture returned empty data");
+                    Debug.LogWarning($"{BiomeLabel.Tag} Screenshot capture returned empty data");
                     return null;
                 }
 
@@ -40,7 +40,7 @@ namespace UnityMCP.Editor.Chat
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[MCP Chat] Screenshot failed: {e.Message}");
+                Debug.LogWarning($"{BiomeLabel.Tag} Screenshot failed: {e.Message}");
                 return null;
             }
         }

@@ -27,7 +27,7 @@ Track and remap ObjectReferences within scenes. Provides outgoing reference anal
 - Array elements capped at 100 per field (safety limit)
 - Asset references (no mapping match) kept unchanged, marked "keep"
 - Missing target in remap → output status "MISSING"
-- ObjectReference serialized as "#id (TypeName)" in get_component output
+- ObjectReference serialized as "$hexId (TypeName)" (e.g. "$3E8 (Transform)") in get_component output; accepts #decimal format for backward compatibility in inputs
 
 **Edge cases:**
 - Null references → shown as "fieldName: null" (no RefEntry generated)
@@ -41,7 +41,7 @@ Track and remap ObjectReferences within scenes. Provides outgoing reference anal
 - `validate_references(path, depth, verbose, ignore_optional)` — deep ObjectReference integrity check
   - `verbose=true` includes [OK] lines (off by default to save tokens)
   - `ignore_optional=true` skips [Optional]-marked fields (reduces noise)
-  - **RefManager internals:** $a–$zz token ring (702 slots) for reference caching
+  - **RefManager internals (v1.28.0: $HEX format):** Outputs object IDs as `$HEX` (e.g. `$3E8`). Accepts `$HEX` and `#decimal` formats in inputs for backward compatibility.
 
 **API (Python tools / C# commands):**
 ```
@@ -58,7 +58,7 @@ remap_references(source, target, mappings=null)
   → returns refMap with status per remapped reference
 
 set_property enhancement:
-  → now accepts ObjectReference: null, #id, or /path
+  → now accepts ObjectReference: null, $hexId (e.g. $3E8), #id (legacy), or /path
 ```
 
 ## Code Locations

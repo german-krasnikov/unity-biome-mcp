@@ -10,6 +10,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.28.0] — 2026-08-10
+
+### Added
+- **Editor UI rebrand** — all user-facing editor strings now use 🧬MCP menu label with emoji toggle. `BiomeLabel.cs` centralizes display name and log tag, settable via EditorPrefs. Affects Setup Wizard, Hub, Settings, Chat windows, and all logged output.
+- **@-mention extensions** — `MentionConfig` (serialized in backend config) controls popup max rows (3–20, default 8) and sort order (Relevance, Name, Type, Recency). `MentionHistory` persists path→timestamp for recency sorting. Right-click popup on mention rows adds 4 actions: Add to Context, Copy Reference, Ping in Hierarchy, Ping in Project.
+- **MentionHistory recency tracker** — stores per-path last-commit timestamps (max 100 entries) in Library/MCP_MentionHistory.json. Enables ByRecency sort order in @-mention popup.
+
+### Changed
+- **Property context menu unified** — all property context menu items consolidated under single submenu with raised priority. Expanded PropertyContextMenuBridge to support ScriptableObject targets (not just scene GameObjects). Added "Copy Ref" action to chip context menus.
+- **FieldChipProvider asset paths** — now resolves asset-path chips in addition to scene paths, enabling copy-as-reference for material, texture, and scriptable-object fields.
+- **Unified object ID format** — RefManager outputs `$HEX` format (e.g. `$3E8`) instead of mixed `$a`–`$zz` and `#decimal` formats. Input parsing accepts both formats for backward compatibility. Tightened `IsRef` check to lowercase-only hex strings.
+- **Object reference docstrings** — updated `set_property`, `rename_object`, and `get_component` docstrings to document `$hexId` format (e.g. `$3E8`) and note `#instanceID` as legacy.
+- **Python reflect module** — updated reflect rules to handle both `$HEX` and `#decimal` object ID formats for verification after mutations.
+
+### Test Coverage
+- **C# EditMode**: 7481 passed, 0 failed
+- **Python unit tests**: 6248 passed
+- **Python live integration**: 313 passed
+
 ## [v1.27.0] — 2026-08-10
 
 ### Fixed

@@ -7,6 +7,9 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class MCPStatusModelTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        [SetUp]
+        public void PinTextMode() => SetEditorPrefBool("MCPPlugin_UseEmojiLabel", false);
+
         // ── GetState ────────────────────────────────────────────────────────
         [Test] public void GetState_NotRunning_ReturnsDown()
             => Assert.AreEqual(State.Down, GetState(false, false));
@@ -54,14 +57,14 @@ namespace UnityMCP.Editor.Tests
             => Assert.AreEqual("client connected", GetSub(true, true));
 
         // ── GetPill ─────────────────────────────────────────────────────────
-        [Test] public void GetPill_Down_ReturnsMcpOff()
-            => Assert.AreEqual("MCP off", GetPill(State.Down, 9500));
+        [Test] public void GetPill_Down_ReturnsBiomeOff()
+            => Assert.AreEqual("Biome off", GetPill(State.Down, 9500));
 
-        [Test] public void GetPill_Listen_ReturnsMcpDots()
-            => Assert.AreEqual("MCP ...", GetPill(State.Listen, 9500));
+        [Test] public void GetPill_Listen_ReturnsBiomeDots()
+            => Assert.AreEqual("Biome ...", GetPill(State.Listen, 9500));
 
-        [Test] public void GetPill_Up_ReturnsMcpWithPort()
-            => Assert.AreEqual("MCP :9500", GetPill(State.Up, 9500));
+        [Test] public void GetPill_Up_ReturnsBiomeWithPort()
+            => Assert.AreEqual("Biome :9500", GetPill(State.Up, 9500));
 
         // ── F7: ChatActive state ─────────────────────────────────────────────
 
@@ -82,8 +85,8 @@ namespace UnityMCP.Editor.Tests
             => Assert.AreEqual("CHAT MODE", MCPStatusModel.GetLabel(State.ChatActive, 9500));
 
         [Test]
-        public void GetPill_ChatActive_ReturnsMcpChat()
-            => Assert.AreEqual("MCP Chat", GetPill(State.ChatActive, 9500));
+        public void GetPill_ChatActive_ReturnsBiomeChat()
+            => Assert.AreEqual("Biome Chat", GetPill(State.ChatActive, 9500));
 
         [Test]
         public void GetCssKey_ChatActive_ReturnsChat()

@@ -29,7 +29,12 @@ namespace UnityMCP.Editor
             return new TransientObjectId(unchecked((ulong)(long)value.GetInstanceID()));
         }
 
+        // New: AI-facing $HEX ref — uppercase hex of lower 32 bits, no leading zeros.
+        // Disjoint from RefManager $a-$zz (lowercase) and #RRGGBBAA color syntax.
+        internal string HexRef => "$" + ((uint)RawValue).ToString("X", CultureInfo.InvariantCulture);
+
         internal static string GetWireValue(Object value) => FromObject(value).WireValue;
+        internal static string GetHexRef(Object value) => FromObject(value).HexRef;
 
         // CONVENTION (DRY Group A): component references use the component's own instanceID.
         internal static string GetComponentWireValue(Component comp) => FromObject(comp).WireValue;
@@ -40,6 +45,19 @@ namespace UnityMCP.Editor
             if (string.IsNullOrWhiteSpace(value)) return false;
 
             var token = value.Trim();
+
+            // New: $HEX format — strip $ and parse as hex (uppercase digits 0-9A-F)
+            if (token[0] == '$')
+            {
+                var hex = token.Substring(1);
+                if (ulong.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hexRaw))
+                {
+                    objectId = new TransientObjectId(hexRaw);
+                    return true;
+                }
+                return false; // $ prefix but not valid hex (e.g. $g = RefManager slot)
+            }
+
             if (token[0] == '#') token = token.Substring(1);
 
             if (ulong.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out var raw))

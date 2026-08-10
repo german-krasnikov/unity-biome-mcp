@@ -24,6 +24,8 @@ namespace UnityMCP.Editor.Chat.Tests
             ChipKindRegistry.ResetToBuiltIns();
             ChipPillFactory.AddToContextAction = null;
             ChipPillFactory.PendingChips.Clear();
+            PropertyContextMenuBridge.GetAssetPathOverride = null;
+            PropertyContextMenuBridge.OnItemAdded_TestSeam = null;
         }
 
         // F16a: the window-selection policy returns null for an empty snapshot.
@@ -180,5 +182,150 @@ namespace UnityMCP.Editor.Chat.Tests
             }
             finally { Object.DestroyImmediate(go); }
         }
+
+        // Bug 1 fix: ScriptableObject target produces a field chip with asset-path prefix
+        [Test]
+        public void BuildChipForProperty_ScriptableObject_ReturnsFieldChip()
+        {
+            PropertyContextMenuBridge.GetAssetPathOverride = _ => "Assets/Tests/Dummy.asset";
+            var so = ScriptableObject.CreateInstance<MinimalSO>();
+            var seObj = new SerializedObject(so);
+            var prop = seObj.FindProperty("speed");
+            try
+            {
+                var chip = PropertyContextMenuBridge.BuildChipForProperty(prop);
+                Assert.IsTrue(chip.HasValue, "SO target must produce a chip");
+                Assert.AreEqual(ChipKindKeys.Field, chip.Value.KindKey);
+                StringAssert.StartsWith("Assets/", chip.Value.Path);
+            }
+            finally
+            {
+                PropertyContextMenuBridge.GetAssetPathOverride = null;
+                Object.DestroyImmediate(so);
+            }
+        }
+
+        // Bug 1 fix: SO with no asset path (unsaved in-memory) returns null
+        [Test]
+        public void BuildChipForProperty_ScriptableObject_NoAssetPath_ReturnsNull()
+        {
+            PropertyContextMenuBridge.GetAssetPathOverride = _ => "";
+            var so = ScriptableObject.CreateInstance<MinimalSO>();
+            var seObj = new SerializedObject(so);
+            var prop = seObj.FindProperty("speed");
+            try
+            {
+                var chip = PropertyContextMenuBridge.BuildChipForProperty(prop);
+                Assert.IsFalse(chip.HasValue, "Unsaved SO must return null");
+            }
+            finally
+            {
+                PropertyContextMenuBridge.GetAssetPathOverride = null;
+                Object.DestroyImmediate(so);
+            }
+        }
+
+        // Bug 1 fix: non-Component non-SO target (Mesh) returns null
+        [Test]
+        public void BuildChipForProperty_MaterialIsNotSupported_ReturnsNull()
+        {
+            var mesh = new Mesh();
+            var seObj = new SerializedObject(mesh);
+            var prop = seObj.GetIterator();
+            prop.Next(true);
+            try
+            {
+                var chip = PropertyContextMenuBridge.BuildChipForProperty(prop);
+                Assert.IsFalse(chip.HasValue, "Mesh (non-Component non-SO) must return null");
+            }
+            finally { Object.DestroyImmediate(mesh); }
+        }
+
+        // Bug 2 fix: OnPropertyContextMenu adds exactly 2 items for a Component target
+        [Test]
+        public void OnPropertyContextMenu_ComponentTarget_AddsTwoMenuItems()
+        {
+            int count = 0;
+            PropertyContextMenuBridge.OnItemAdded_TestSeam = () => count++;
+            var go = new GameObject("MenuCountTestObj");
+            go.AddComponent<BoxCollider>();
+            var seObj = new SerializedObject(go.GetComponent<BoxCollider>());
+            var prop = seObj.FindProperty("m_Size");
+            try
+            {
+                PropertyContextMenuBridge.OnPropertyContextMenu(new GenericMenu(), prop);
+                Assert.AreEqual(2, count, "Must add exactly 2 menu items");
+            }
+            finally
+            {
+                PropertyContextMenuBridge.OnItemAdded_TestSeam = null;
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        // B1-3: nested struct property path preserved end-to-end
+        [Test]
+        public void BuildChipForProperty_NestedPropertyPath_PreservesFullPath()
+        {
+            PropertyContextMenuBridge.GetAssetPathOverride = _ => "Assets/Tests/Dummy.asset";
+            var so = TrackOwnedObject(ScriptableObject.CreateInstance<SOWithNested>());
+            var seObj = new SerializedObject(so);
+            var prop = seObj.FindProperty("stats.health");
+            Assert.IsNotNull(prop, "Unity must serialize nested struct field 'stats.health'");
+
+            var chip = PropertyContextMenuBridge.BuildChipForProperty(prop);
+            Assert.IsTrue(chip.HasValue, "Chip must be built for nested SO property");
+            StringAssert.EndsWith("stats.health", chip.Value.Path);
+        }
+
+        // B2-2: CopyRefToClipboard wires clipboard correctly via OnPropertyContextMenu
+        [Test]
+        public void CopyMcpRef_ComponentField_SetsClipboard()
+        {
+            var go = TrackOwnedObject(new GameObject("CopyRefTestObj"));
+            go.AddComponent<BoxCollider>();
+            var seObj = new SerializedObject(go.GetComponent<BoxCollider>());
+            var prop = seObj.FindProperty("m_Size");
+
+            var chip = PropertyContextMenuBridge.BuildChipForProperty(prop);
+            Assert.IsTrue(chip.HasValue, "Chip must be built for BoxCollider m_Size");
+
+            var priorClipboard = EditorGUIUtility.systemCopyBuffer;
+            RegisterCleanup(() => EditorGUIUtility.systemCopyBuffer = priorClipboard);
+            EditorGUIUtility.systemCopyBuffer = "";
+
+            var menu = new GenericMenu();
+            PropertyContextMenuBridge.OnPropertyContextMenu(menu, prop);
+
+            // GenericMenu.m_MenuItems is internal; MenuItem type is internal too.
+            // Access both via reflection to invoke the "Copy MCP Ref" callback.
+            var itemsField = typeof(GenericMenu).GetField("m_MenuItems",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(itemsField, "GenericMenu.m_MenuItems field not found");
+            var items = itemsField.GetValue(menu) as System.Collections.IList;
+            Assert.IsNotNull(items, "m_MenuItems must be a non-null list");
+
+            GenericMenu.MenuFunction copyFunc = null;
+            foreach (var item in items)
+            {
+                var t = item.GetType();
+                var content = t.GetField("content", System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.Public)?.GetValue(item) as GUIContent;
+                if (content?.text != "Copy MCP Ref") continue;
+                copyFunc = t.GetField("func", System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.Public)?.GetValue(item) as GenericMenu.MenuFunction;
+                break;
+            }
+
+            Assert.IsNotNull(copyFunc, "Copy MCP Ref item must have a non-null callback");
+            copyFunc();
+
+            Assert.AreEqual(chip.Value.Path, EditorGUIUtility.systemCopyBuffer);
+        }
+
+        private sealed class MinimalSO : ScriptableObject { public int speed; }
+
+        [System.Serializable] private struct NestedStats { public int health; }
+        private sealed class SOWithNested : ScriptableObject { public NestedStats stats; }
     }
 }

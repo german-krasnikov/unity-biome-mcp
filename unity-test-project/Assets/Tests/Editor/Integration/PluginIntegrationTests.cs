@@ -217,13 +217,21 @@ namespace UnityMCP.TestProject.Integration
             StringAssert.Contains("reloaded", result);
         }
 
+        [SetUp]
+        public void SetUp()
+        {
+            var savedEmoji = BiomeLabel.UseEmoji;
+            RegisterCleanup(() => BiomeLabel.UseEmoji = savedEmoji);
+            BiomeLabel.UseEmoji = false;
+        }
+
         [Test]
         public void OpenScene_MissingPath_ReturnsError()
         {
             // ROI reliability sprint: string errors became exceptions, and CommandRouter now
             // logs via ErrorClassifier.FormatError, which prefixes the category (ArgumentException
             // → "VALIDATION:") ahead of the original message.
-            LogAssert.Expect(LogType.Warning, "[MCP] VALIDATION: path required");
+            LogAssert.Expect(LogType.Warning, "Biome VALIDATION: path required");
             var json = "{\"id\":\"s3\",\"cmd\":\"scene\",\"args\":{\"action\":\"open\"}}";
             var result = CommandRouter.Process(json);
             StringAssert.Contains("\"ok\":false", result);

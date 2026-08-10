@@ -442,13 +442,13 @@ namespace UnityMCP.Editor.Tests
             _toDestroy.Add(b);
 
             var ex = Assert.Throws<System.ArgumentException>(() => ComponentSerializer.FindObject("DupTest"));
-            // Message must say "matches" and contain "#" for transient EntityIds.
+            // Message must say "matches" and contain $HEX entity IDs for disambiguation.
             StringAssert.Contains("matches", ex.Message);
-            StringAssert.Contains("#", ex.Message);
-            // Two different IDs must appear — hints are unique
-            Assert.AreNotEqual(TransientObjectId.GetWireValue(a), TransientObjectId.GetWireValue(b));
-            StringAssert.Contains(TransientObjectId.GetWireValue(a), ex.Message);
-            StringAssert.Contains(TransientObjectId.GetWireValue(b), ex.Message);
+            StringAssert.Contains("$", ex.Message);
+            // Two different $HEX IDs must appear — hints are unique
+            Assert.AreNotEqual(TransientObjectId.GetHexRef(a), TransientObjectId.GetHexRef(b));
+            StringAssert.Contains(TransientObjectId.GetHexRef(a), ex.Message);
+            StringAssert.Contains(TransientObjectId.GetHexRef(b), ex.Message);
         }
 
         // ── G9: Serialize succeeds for just-created objects without cache refresh ──

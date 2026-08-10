@@ -411,7 +411,7 @@ namespace UnityMCP.Editor.Wizard.Screens
             return $"{skills} skills · {agents} agents · {scripts} scripts";
         }
 
-        [MenuItem("MCP/Install AI Skills", priority = 3)]
+        [MenuItem("🧬MCP/Install AI Skills", priority = 3)]
         private static void OpenStandalone()
         {
             var window = EditorWindow.GetWindow<StandaloneWindow>("Install AI Skills");

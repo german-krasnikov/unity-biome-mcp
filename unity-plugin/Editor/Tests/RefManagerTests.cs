@@ -153,6 +153,29 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(RefManager.IsRef(null));
         }
 
+        [Test]
+        public void IsRef_UppercaseLetter_ReturnsFalse()
+        {
+            // $A looks like a 1-char ref but uppercase — must not match RefManager slots
+            Assert.IsFalse(RefManager.IsRef("$A"));
+            Assert.IsFalse(RefManager.IsRef("$AB"));
+        }
+
+        [Test]
+        public void IsRef_Digits_ReturnsFalse()
+        {
+            // Digits are not valid RefManager slot chars
+            Assert.IsFalse(RefManager.IsRef("$3"));
+            Assert.IsFalse(RefManager.IsRef("$12"));
+        }
+
+        [Test]
+        public void IsRef_UppercaseHex_ReturnsFalse()
+        {
+            // $3E8 is a $HEX object ID, not a RefManager slot
+            Assert.IsFalse(RefManager.IsRef("$3E8"));
+        }
+
         // ── Wrap-around regression (CS2.arch.1) ───────────────────────────────
 
         /// <summary>

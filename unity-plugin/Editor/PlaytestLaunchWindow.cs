@@ -11,7 +11,7 @@ namespace UnityMCP.Editor
 {
     internal class PlaytestLaunchWindow : EditorWindow
     {
-        [MenuItem("MCP/Playtest Launcher")]
+        [MenuItem("🧬MCP/Playtest Launcher")]
         internal static void Open() => GetWindow<PlaytestLaunchWindow>("Playtest Launcher");
 
         string[] _files = Array.Empty<string>();

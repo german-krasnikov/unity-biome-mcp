@@ -87,7 +87,7 @@ namespace UnityMCP.Editor.Chat
             {
                 var path = linkId.Substring(4);
                 var go   = SceneObjectFinder.FindGameObject(path);
-                if (go == null) { Debug.LogWarning("[MCP Chat] Reference stale: " + path); return; }
+                if (go == null) { Debug.LogWarning($"{BiomeLabel.Tag} Reference stale: " + path); return; }
                 EditorGUIUtility.PingObject(go);
                 Selection.activeObject = go;
             }
@@ -95,7 +95,7 @@ namespace UnityMCP.Editor.Chat
             {
                 var assetPath = linkId.Substring(7);
                 var ms        = AssetDatabase.LoadAssetAtPath<MonoScript>(assetPath);
-                if (ms == null) { Debug.LogWarning("[MCP Chat] Script not found: " + assetPath); return; }
+                if (ms == null) { Debug.LogWarning($"{BiomeLabel.Tag} Script not found: " + assetPath); return; }
                 AssetDatabase.OpenAsset(ms);
             }
             else if (linkId.StartsWith("asset:"))
@@ -107,7 +107,7 @@ namespace UnityMCP.Editor.Chat
         private static void DefaultNavigate(string assetPath)
         {
             var obj = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
-            if (obj == null) { Debug.LogWarning("[MCP Chat] Asset not found: " + assetPath); return; }
+            if (obj == null) { Debug.LogWarning($"{BiomeLabel.Tag} Asset not found: " + assetPath); return; }
             EditorGUIUtility.PingObject(obj);
             Selection.activeObject = obj;
         }

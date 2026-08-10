@@ -8,9 +8,12 @@ namespace UnityMCP.Editor
     {
         private static string _lastSnapshot;
 
-        // P-021: strip volatile #instanceID tokens before line comparison.
+        // P-021: strip volatile ID tokens before line comparison.
+        // Two disjoint patterns to avoid stripping #RRGGBBAA color syntax:
+        //   \s+\$[0-9A-F]+ — new $HEX format (uppercase only, $ never appears in colors)
+        //   \s+#\d+        — legacy #decimal format (digits only, skips #FF0000FF etc.)
         internal static string NormalizeSnapshot(string text)
-            => Regex.Replace(text, @"\s+#\d+", "");
+            => Regex.Replace(text, @"\s+\$[0-9A-F]+|\s+#\d+", "");
 
         public static string Diff()
         {

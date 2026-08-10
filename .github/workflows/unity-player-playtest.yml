@@ -74,7 +74,7 @@ jobs:
             hub-version: ""
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Install VC++ 2010 runtime (Unity 6 dependency)
         if: runner.os == 'Windows'
@@ -98,14 +98,14 @@ jobs:
           fi
 
       - name: Cache UPM packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ${{ steps.upm-path.outputs.path }}
           key: upm-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
           restore-keys: |
             upm-${{ runner.os }}-
 
-      - uses: buildalon/unity-setup@1a2acb0efbce77c0f90b79ced6a9c6a37ae534c2  # v2
+      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
         timeout-minutes: 15
         with:
@@ -114,7 +114,7 @@ jobs:
           cache-installation: ${{ runner.os != 'Windows' }}
           hub-version: ${{ matrix.hub-version }}
 
-      - uses: buildalon/activate-unity-license@87b3a82bac7ca7609eacdb2bec31c8a8a142ed9a  # v2
+      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
         with:
           license: "Personal"
           username: ${{ secrets.UNITY_EMAIL }}
@@ -129,7 +129,7 @@ jobs:
             sudo apt-get install -y xvfb
           }
 
-      - uses: buildalon/unity-action@4de595732434e4da7726086a95a75eda832bd03d  # v3
+      - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         name: Build Standalone Player Smoke
         timeout-minutes: 35
         with:
@@ -306,7 +306,7 @@ jobs:
             --artifacts-dir artifacts \
             --out artifacts/player-playtest-evidence.json
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         if: always()
         with:
           name: player-playtest-${{ matrix.name }}
@@ -328,7 +328,7 @@ jobs:
         shell: bash
         run: test -f artifacts/player-playtest.xml && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
 
-      - uses: dorny/test-reporter@3eeb9fc888e82e8be2fb356bbeec2750231672bc  # v1
+      - uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2  # v3.0.0
         if: always() && steps.check-player-results.outputs.exists == 'true'
         with:
           name: Player PlayTest (${{ matrix.name }})

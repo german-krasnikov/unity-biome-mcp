@@ -25,7 +25,7 @@ namespace UnityMCP.Editor.Chat
             var path = ScreenshotService.Capture();
             if (string.IsNullOrEmpty(path))
             {
-                Debug.LogWarning("[MCP Chat] Screenshot capture failed");
+                Debug.LogWarning($"{BiomeLabel.Tag} Screenshot capture failed");
                 return;
             }
             OnScreenshotCaptured?.Invoke(path);

@@ -29,6 +29,7 @@ namespace UnityMCP.Editor
 
         private static void Cleanup()
         {
+            BiomeLabel.Changed -= OnLabelChanged;
             AssemblyReloadEvents.beforeAssemblyReload -= Cleanup;
             EditorApplication.update -= SelfHeal;
             try { _pulseItem?.Pause(); } catch { }
@@ -36,6 +37,14 @@ namespace UnityMCP.Editor
             _pill = null; _pillContainer = null; _halo = null; _dot = null;
             _pulseItem = null; _injected = false; _lastHealCheck = 0;
             _lastTickState = (MCPStatusModel.State)(-1);
+        }
+
+        private static void OnLabelChanged()
+        {
+            if (_pill == null) return;
+            var state = MCPStatusModel.GetState(MCPServer.IsRunning, MCPServer.IsClientConnected,
+                ChatBackendProbe.IsChatBackendRunning());
+            _pill.text = MCPStatusModel.GetPill(state, MCPServer.ServerPort);
         }
 
         private static void SelfHeal()
@@ -63,7 +72,7 @@ namespace UnityMCP.Editor
                 PulseTick();
                 _pulseItem = _pillContainer.schedule.Execute(PulseTick).Every(900);
             }
-            catch (Exception e) { Debug.LogWarning($"[MCP] StatusBar injection failed: {e.Message}"); }
+            catch (Exception e) { Debug.LogWarning($"{BiomeLabel.Tag} StatusBar injection failed: {e.Message}"); }
         }
 
         private static void PulseTick()
@@ -143,7 +152,9 @@ namespace UnityMCP.Editor
             _dot.style.transitionDuration = new List<TimeValue> { new(0.45f, TimeUnit.Second) };
             _dot.style.transitionTimingFunction = new List<EasingFunction> { new(EasingMode.EaseInOut) };
             beacon.Add(_halo); beacon.Add(_dot);
-            _pill = new Label("MCP") { name = "mcp-label" };
+            _pill = new Label(BiomeLabel.DisplayName) { name = "mcp-label" };
+            BiomeLabel.Changed -= OnLabelChanged;
+            BiomeLabel.Changed += OnLabelChanged;
             _pill.style.fontSize = 10; _pill.style.unityFontStyleAndWeight = FontStyle.Bold;
             _pill.style.unityTextAlign = TextAnchor.MiddleLeft; _pill.style.marginTop = -1;
             _pill.style.backgroundColor = Color.clear; _pill.style.opacity = 1f;
@@ -178,7 +189,7 @@ namespace UnityMCP.Editor
             else
                 m.AddDisabledItem(new GUIContent("Kill Phantoms"));
             m.AddSeparator("");
-            m.AddItem(new GUIContent("Open Status"), false, () => EditorApplication.ExecuteMenuItem("MCP/Status"));
+            m.AddItem(new GUIContent("Open Status"), false, () => EditorApplication.ExecuteMenuItem("🧬MCP/Status"));
             m.DropDown(_pillContainer.worldBound);
         }
 

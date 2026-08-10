@@ -16,6 +16,9 @@ namespace UnityMCP.TestProject.Runtime
             var savedLevel = MCPSettings.GetSecurityLevel();
             RegisterCleanup(() => MCPSettings.SetSecurityLevel(savedLevel));
             MCPSettings.SetSecurityLevel(SecurityLevel.Standard);
+            var savedEmoji = BiomeLabel.UseEmoji;
+            RegisterCleanup(() => BiomeLabel.UseEmoji = savedEmoji);
+            BiomeLabel.UseEmoji = false;
         }
 
         // ---------- Security Scan ----------
@@ -117,7 +120,7 @@ namespace UnityMCP.TestProject.Runtime
                 return;
             }
 
-            LogAssert.Expect(LogType.Error, new Regex(@"\[MCP\] execute_code compile error:"));
+            LogAssert.Expect(LogType.Error, new Regex(@"Biome execute_code compile error:"));
             Exception ex = null;
             try
             {
@@ -187,7 +190,7 @@ namespace UnityMCP.TestProject.Runtime
                 return;
             }
 
-            LogAssert.Expect(LogType.Error, new Regex(@"\[MCP\] execute_code compile error:"));
+            LogAssert.Expect(LogType.Error, new Regex(@"Biome execute_code compile error:"));
             Exception ex = null;
             try
             {

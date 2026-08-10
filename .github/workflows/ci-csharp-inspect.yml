@@ -32,20 +32,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Set UPM cache path
         id: upm-path
         run: echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
 
       - name: Cache UPM packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ${{ steps.upm-path.outputs.path }}
           key: upm-Linux-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
           restore-keys: upm-Linux-
 
-      - uses: buildalon/unity-setup@1a2acb0efbce77c0f90b79ced6a9c6a37ae534c2  # v2
+      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
         timeout-minutes: 15
         with:
@@ -54,14 +54,14 @@ jobs:
           cache-installation: true
           hub-version: '3.19.5'
 
-      - uses: buildalon/activate-unity-license@87b3a82bac7ca7609eacdb2bec31c8a8a142ed9a  # v2
+      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
           password: ${{ secrets.UNITY_PASSWORD }}
 
       - name: Generate .sln and .csproj
-        uses: buildalon/unity-action@4de595732434e4da7726086a95a75eda832bd03d  # v3
+        uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         with:
           build-target: StandaloneLinux64
           editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
@@ -81,7 +81,7 @@ jobs:
         id: sln
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9  # v4
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
         with:
           dotnet-version: '8.0.x'
 
@@ -145,7 +145,7 @@ jobs:
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: inspectcode-report
           path: |

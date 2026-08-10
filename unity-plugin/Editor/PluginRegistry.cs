@@ -20,7 +20,7 @@ namespace UnityMCP.Editor
         {
             if (_plugins.Any(p => p.Name == plugin.Name)) return;
             _plugins.Add(plugin);
-            UnityEngine.Debug.Log($"[MCP] Plugin registered: {plugin.Name}");
+            UnityEngine.Debug.Log($"{BiomeLabel.Tag} Plugin registered: {plugin.Name}");
         }
 
         public static void RegisterAllPlugins()
@@ -33,7 +33,7 @@ namespace UnityMCP.Editor
                 catch (System.Exception e)
                 {
                     _failedPlugins.Add((plugin.Name, e.Message));
-                    UnityEngine.Debug.LogError($"[MCP] Plugin '{plugin.Name}' RegisterCommands failed: {e.Message}");
+                    UnityEngine.Debug.LogError($"{BiomeLabel.Tag} Plugin '{plugin.Name}' RegisterCommands failed: {e.Message}");
                 }
                 finally { CommandRegistry.CallerIsPlugin = false; }
             }
@@ -47,7 +47,7 @@ namespace UnityMCP.Editor
             foreach (var plugin in _plugins)
             {
                 try { plugin.OnDomainReload(); }
-                catch (System.Exception e) { UnityEngine.Debug.LogError($"[MCP] Plugin '{plugin.Name}' OnDomainReload failed: {e.Message}"); }
+                catch (System.Exception e) { UnityEngine.Debug.LogError($"{BiomeLabel.Tag} Plugin '{plugin.Name}' OnDomainReload failed: {e.Message}"); }
             }
         }
 

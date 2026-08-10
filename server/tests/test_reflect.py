@@ -405,3 +405,19 @@ async def test_set_property_delta_empty_response():
     # No arrow, no error — unexpected format, stay silent
     result = await reflect("set_property_delta", {"prop": "health", "value": "5"}, "ok no snapshot", _dummy_send)
     assert result is None
+
+
+# ── 28. ObjectReference $HEX format (Task 4) ────────────────────────────────
+
+async def test_dollar_hex_in_object_ref_value_accepted():
+    """C# now outputs '/Enemy/Head $3E8' — reflect must treat as match for '/Enemy/Head'."""
+    resp = "target = /Enemy/Head $3E8\n---\n  target: /Enemy/Head $3E8"
+    result = await reflect("set_property", {"prop": "target", "value": "/Enemy/Head"}, resp, _dummy_send)
+    assert result is None
+
+
+async def test_dollar_hex_without_path_mismatch():
+    """Wrong path with $HEX must still fire a mismatch."""
+    resp = "target = /Enemy/Body $3E8\n---\n  target: /Enemy/Body $3E8"
+    result = await reflect("set_property", {"prop": "target", "value": "/Enemy/Head"}, resp, _dummy_send)
+    assert isinstance(result, Mismatch)

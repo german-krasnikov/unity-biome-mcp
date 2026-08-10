@@ -6,19 +6,19 @@ namespace UnityMCP.Editor.Chat
 {
     internal static class CopyAsMcpRef
     {
-        [MenuItem("GameObject/Copy as MCP Ref", false, 49)]
+        [MenuItem("GameObject/🧬MCP/Copy Ref", false, 10)]
         private static void ExecuteHierarchy()
             => CopySelection(Selection.gameObjects);
 
-        [MenuItem("GameObject/Copy as MCP Ref", true)]
+        [MenuItem("GameObject/🧬MCP/Copy Ref", true)]
         private static bool ValidateHierarchy()
             => Selection.gameObjects.Length > 0;
 
-        [MenuItem("Assets/Copy as MCP Ref")]
+        [MenuItem("Assets/🧬MCP/Copy Ref")]
         private static void ExecuteAssets()
             => CopySelection(Selection.objects);
 
-        [MenuItem("Assets/Copy as MCP Ref", true)]
+        [MenuItem("Assets/🧬MCP/Copy Ref", true)]
         private static bool ValidateAssets()
         {
             foreach (var obj in Selection.objects)
@@ -26,14 +26,14 @@ namespace UnityMCP.Editor.Chat
             return Selection.objects.Length > 0;
         }
 
-        [MenuItem("CONTEXT/Component/Copy as MCP Ref")]
+        [MenuItem("CONTEXT/Component/🧬MCP/Copy Ref")]
         private static void ExecuteComponent(MenuCommand cmd)
         {
             if (cmd.context != null)
                 CopySelection(new Object[] { cmd.context });
         }
 
-        [MenuItem("CONTEXT/Component/Copy as MCP Ref", true)]
+        [MenuItem("CONTEXT/Component/🧬MCP/Copy Ref", true)]
         private static bool ValidateComponent(MenuCommand cmd)
             => cmd.context as Component != null;
 
@@ -62,7 +62,7 @@ namespace UnityMCP.Editor.Chat
             if (sv != null)
                 sv.ShowNotification(new GUIContent($"Copied {lines.Count} ref(s)"), 1.5f);
             else if (!Application.isBatchMode)
-                Debug.Log($"[MCP] Copied {lines.Count} ref(s): {string.Join(", ", lines)}");
+                Debug.Log($"{BiomeLabel.Tag} Copied {lines.Count} ref(s): {string.Join(", ", lines)}");
         }
     }
 }

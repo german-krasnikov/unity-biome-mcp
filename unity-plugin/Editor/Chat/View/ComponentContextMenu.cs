@@ -5,11 +5,11 @@ namespace UnityMCP.Editor.Chat
 {
     internal static class ComponentContextMenu
     {
-        [MenuItem("CONTEXT/Component/Add to Chat Context", true)]
+        [MenuItem("CONTEXT/Component/🧬MCP/Add to Chat", true)]
         private static bool Validate(MenuCommand cmd)
             => (cmd.context as Component) != null && FindChatWindow() != null;
 
-        [MenuItem("CONTEXT/Component/Add to Chat Context")]
+        [MenuItem("CONTEXT/Component/🧬MCP/Add to Chat")]
         private static void Execute(MenuCommand cmd)
         {
             var component = cmd.context as Component;
@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Chat
             var window = FindChatWindow();
             if (window == null)
             {
-                Debug.LogWarning("[MCP Chat] Open the Chat window first.");
+                Debug.LogWarning($"{BiomeLabel.Tag} Open the Chat window first.");
                 return;
             }
             window.InsertInlineChip(component.gameObject);

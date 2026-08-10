@@ -16,6 +16,7 @@ namespace UnityMCP.Editor.Chat
         public OpenCodeBackendConfig  OpenCode     = new OpenCodeBackendConfig();
         public ChipConfig             Chips        = new ChipConfig();
         public ModelPresetsConfig     ModelPresets = new ModelPresetsConfig();
+        public MentionConfig          Mention      = new MentionConfig();
         public int                    InactivityTimeoutSec = 180;
 
         private static string DefaultPath =>
@@ -37,6 +38,7 @@ namespace UnityMCP.Editor.Chat
                 store.OpenCode      = store.OpenCode      ?? new OpenCodeBackendConfig();
                 store.Chips         = store.Chips         ?? new ChipConfig();
                 store.ModelPresets  = store.ModelPresets  ?? new ModelPresetsConfig();
+                store.Mention       = store.Mention       ?? new MentionConfig();
                 MigrateKimiModel(store);
                 return store;
             }
@@ -81,7 +83,7 @@ namespace UnityMCP.Editor.Chat
         {
             if (string.IsNullOrEmpty(model) || model == "__custom__") return this;
             BackendConfigStore Clone(ClaudeBackendConfig c, CodexBackendConfig co, AntigravityBackendConfig a, KimiBackendConfig k, OpenCodeBackendConfig oc)
-                => new BackendConfigStore { Claude = c, Codex = co, Antigravity = a, Kimi = k, OpenCode = oc, Chips = Chips, ModelPresets = ModelPresets, InactivityTimeoutSec = InactivityTimeoutSec };
+                => new BackendConfigStore { Claude = c, Codex = co, Antigravity = a, Kimi = k, OpenCode = oc, Chips = Chips, ModelPresets = ModelPresets, InactivityTimeoutSec = InactivityTimeoutSec, Mention = Mention };
             switch (kind)
             {
                 case BackendKind.Claude:      { var c = Claude.WithModel(model);      return ReferenceEquals(c, Claude)      ? this : Clone(c, Codex, Antigravity, Kimi, OpenCode); }

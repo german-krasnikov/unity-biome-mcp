@@ -168,10 +168,13 @@ namespace UnityMCP.Editor.Chat.Tests
             var go = MakeGo("SceneObj");
             ChipContextResolver.FindObjectOverride = _ => go;
             var result = ChipContextResolver.ResolveOne("/SceneObj", ChipDepth.PathOnly);
-            StringAssert.Contains("/SceneObj#", result);
-            var parts = result.Split('#');
+            // New format: $HEX immediately after path, no space (e.g. /SceneObj$3E8)
+            StringAssert.Contains("/SceneObj$", result);
+            var parts = result.Split('$');
             Assert.AreEqual(2, parts.Length);
-            Assert.IsTrue(ulong.TryParse(parts[1], out _));
+            Assert.IsTrue(ulong.TryParse(parts[1],
+                System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out _));
         }
 
         [Test]
@@ -188,7 +191,8 @@ namespace UnityMCP.Editor.Chat.Tests
             var go = MakeGo("SummaryObj");
             ChipContextResolver.FindObjectOverride = _ => go;
             var result = ChipContextResolver.ResolveOne("/SummaryObj", ChipDepth.Summary);
-            StringAssert.Contains($"#{TransientObjectId.GetWireValue(go)}", result);
+            // New format: $HEX via SelectionSummary
+            StringAssert.Contains(TransientObjectId.GetHexRef(go), result);
         }
 
         [Test]
@@ -198,8 +202,9 @@ namespace UnityMCP.Editor.Chat.Tests
             var go2 = MakeGo("Multi2");
             ChipContextResolver.FindObjectOverride = p => p.Contains("Multi1") ? go1 : go2;
             var result = ChipContextResolver.ResolveAll(new List<string> { "/Multi1", "/Multi2" });
-            StringAssert.Contains($"#{TransientObjectId.GetWireValue(go1)}", result);
-            StringAssert.Contains($"#{TransientObjectId.GetWireValue(go2)}", result);
+            // New format: $HEX via SelectionSummary
+            StringAssert.Contains(TransientObjectId.GetHexRef(go1), result);
+            StringAssert.Contains(TransientObjectId.GetHexRef(go2), result);
         }
 
         // ── FormatChipRef — string kindKey (H6) ─────────────────────────────

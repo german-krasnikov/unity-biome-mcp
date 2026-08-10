@@ -43,7 +43,7 @@ namespace UnityMCP.Editor.Chat
             if (obj == null)
             {
                 if (!handled)
-                    Debug.LogWarning("[MCP Chat] Asset not found: " + reference);
+                    Debug.LogWarning($"{BiomeLabel.Tag} Asset not found: " + reference);
                 return;
             }
             EditorGUIUtility.PingObject(obj);
@@ -108,7 +108,7 @@ namespace UnityMCP.Editor.Chat
         public void Navigate(string reference)
         {
             var go = Resolve(reference);
-            if (go == null) { Debug.LogWarning("[MCP Chat] Reference stale: " + reference); return; }
+            if (go == null) { Debug.LogWarning($"{BiomeLabel.Tag} Reference stale: " + reference); return; }
             EditorGUIUtility.PingObject(go);
             Selection.activeObject = go;
         }
@@ -163,7 +163,7 @@ namespace UnityMCP.Editor.Chat
         public override void Navigate(string reference)
         {
             var ms = AssetDatabase.LoadAssetAtPath<MonoScript>(reference);
-            if (ms == null) { Debug.LogWarning("[MCP Chat] Script not found: " + reference); return; }
+            if (ms == null) { Debug.LogWarning($"{BiomeLabel.Tag} Script not found: " + reference); return; }
             AssetDatabase.OpenAsset(ms);
         }
 

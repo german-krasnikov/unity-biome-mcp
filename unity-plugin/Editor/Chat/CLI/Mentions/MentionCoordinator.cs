@@ -12,16 +12,21 @@ namespace UnityMCP.Editor.Chat
         private readonly Dictionary<string, MentionCandidate> _dedupMap = new Dictionary<string, MentionCandidate>();
         private int _requestId;
 
+        /// <summary>Optional: inject for ByRecency sort. Null = fallback to ByRelevance.</summary>
+        internal MentionHistory History { get; set; }
+
         internal MentionCoordinator(params IMentionSource[] sources)
         {
             _sources = new List<IMentionSource>(sources);
         }
 
         /// <summary>
-        /// Search all sources, merge + dedup by path (higher score wins), sort desc, cap at maxResults.
+        /// Search all sources, merge + dedup by path (higher score wins), sort, cap at maxResults.
         /// Returns request ID for staleness check via IsCurrent().
+        /// Default sortOrder = ByRelevance (backward-compatible).
         /// </summary>
-        internal int Search(string query, int maxResults, List<MentionCandidate> results)
+        internal int Search(string query, int maxResults, List<MentionCandidate> results,
+            MentionSortOrder sortOrder = MentionSortOrder.ByRelevance)
         {
             int id = ++_requestId;
 
@@ -45,12 +50,12 @@ namespace UnityMCP.Editor.Chat
                     _dedupMap[path] = candidate;
             }
 
-            // Collect, sort desc, cap
+            // Collect, sort, cap
             _temp.Clear();
             foreach (var kv in _dedupMap.Values)
                 _temp.Add(kv);
 
-            _temp.Sort((a, b) => b.Score.CompareTo(a.Score));
+            ApplySort(_temp, sortOrder);
 
             int count = System.Math.Min(_temp.Count, maxResults);
             for (int i = 0; i < count; i++)
@@ -61,5 +66,42 @@ namespace UnityMCP.Editor.Chat
 
         /// <summary>True if the given request ID is still the latest (no newer search started).</summary>
         internal bool IsCurrent(int requestId) => requestId == _requestId;
+
+        // ── private ──────────────────────────────────────────────────────────
+
+        private void ApplySort(List<MentionCandidate> list, MentionSortOrder order)
+        {
+            switch (order)
+            {
+                case MentionSortOrder.ByName:
+                    list.Sort((a, b) => string.Compare(
+                        a.Chip.DisplayName, b.Chip.DisplayName,
+                        System.StringComparison.OrdinalIgnoreCase));
+                    break;
+
+                case MentionSortOrder.ByType:
+                    list.Sort((a, b) =>
+                    {
+                        int kind = string.Compare(
+                            a.Chip.KindKey, b.Chip.KindKey,
+                            System.StringComparison.Ordinal);
+                        return kind != 0 ? kind : string.Compare(
+                            a.Chip.DisplayName, b.Chip.DisplayName,
+                            System.StringComparison.OrdinalIgnoreCase);
+                    });
+                    break;
+
+                case MentionSortOrder.ByRecency:
+                    if (History == null) goto default;
+                    list.Sort((a, b) =>
+                        History.GetTimestamp(b.Chip.Path)
+                               .CompareTo(History.GetTimestamp(a.Chip.Path)));
+                    break;
+
+                default: // ByRelevance
+                    list.Sort((a, b) => b.Score.CompareTo(a.Score));
+                    break;
+            }
+        }
     }
 }
