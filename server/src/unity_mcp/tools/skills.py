@@ -7,7 +7,7 @@ import time
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
-from ._common import bind, _guard_read_only
+from ._common import _guard_read_only, bind
 
 _send = None
 _args = None

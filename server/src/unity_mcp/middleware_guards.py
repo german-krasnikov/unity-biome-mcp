@@ -2,7 +2,7 @@
 import json
 import time
 
-from .middleware_types import _RUNTIME_ONLY_CMDS, ACTION_READS, BLAST_RADIUS, READ_CMDS, WRITE_CMDS, is_write
+from .middleware_types import _RUNTIME_ONLY_CMDS, ACTION_READS, BLAST_RADIUS, READ_CMDS, is_write
 from .utils import parse_kv_line
 
 
