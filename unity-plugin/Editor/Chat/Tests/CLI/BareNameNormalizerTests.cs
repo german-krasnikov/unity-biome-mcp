@@ -29,7 +29,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = BareNameNormalizer.Normalize("fix Player health", chips);
-            StringAssert.Contains("[hierarchy:/Player#1]", result);
+            StringAssert.Contains("[hierarchy:/Player$1]", result);
         }
 
         // 3. BareNameTwice_BothReplaced
@@ -38,7 +38,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = BareNameNormalizer.Normalize("Player hit Player", chips);
-            int count = CountOccurrences(result, "[hierarchy:/Player#1]");
+            int count = CountOccurrences(result, "[hierarchy:/Player$1]");
             Assert.AreEqual(2, count, $"Expected 2 replacements, got: {result}");
         }
 
@@ -47,11 +47,11 @@ namespace UnityMCP.Editor.Chat.Tests
         public void ExistingBracketTag_NotDoubled()
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
-            var input  = "[hierarchy:/Player#1] is ready";
+            var input  = "[hierarchy:/Player$1] is ready";
             var result = BareNameNormalizer.Normalize(input, chips);
             // Should not produce [[hierarchy:...]] or double-tag
             Assert.IsFalse(result.Contains("[["), $"Should not double-tag: {result}");
-            Assert.AreEqual(1, CountOccurrences(result, "[hierarchy:/Player#1]"),
+            Assert.AreEqual(1, CountOccurrences(result, "[hierarchy:/Player$1]"),
                 $"Bracket tag should appear exactly once: {result}");
         }
 
@@ -62,7 +62,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = BareNameNormalizer.Normalize("use `Player` component", chips);
             StringAssert.Contains("`Player`", result);
-            StringAssert.DoesNotContain("[hierarchy:/Player#1]", result);
+            StringAssert.DoesNotContain("[hierarchy:/Player$1]", result);
         }
 
         // 6. CaseInsensitive_Matched
@@ -71,7 +71,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = BareNameNormalizer.Normalize("fix player now", chips);
-            StringAssert.Contains("[hierarchy:/Player#1]", result);
+            StringAssert.Contains("[hierarchy:/Player$1]", result);
         }
 
         // 7. WordBoundary_Respected
@@ -80,7 +80,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = BareNameNormalizer.Normalize("PlayerController is broken", chips);
-            StringAssert.DoesNotContain("[hierarchy:/Player#1]", result);
+            StringAssert.DoesNotContain("[hierarchy:/Player$1]", result);
             StringAssert.Contains("PlayerController", result);
         }
 
@@ -94,8 +94,8 @@ namespace UnityMCP.Editor.Chat.Tests
                 H("/Main Camera", "Main Camera", 2),
             };
             var result = BareNameNormalizer.Normalize("use Main Camera now", chips);
-            StringAssert.Contains("[hierarchy:/Main Camera#2]", result);
-            StringAssert.DoesNotContain("[hierarchy:/Main#1]", result);
+            StringAssert.Contains("[hierarchy:/Main Camera$2]", result);
+            StringAssert.DoesNotContain("[hierarchy:/Main$1]", result);
         }
 
         // 9. SingleChar_Skipped
@@ -131,7 +131,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = BareNameNormalizer.Normalize("Player near [hierarchy:/Enemy#2]", chips);
-            StringAssert.Contains("[hierarchy:/Player#1]", result);
+            StringAssert.Contains("[hierarchy:/Player$1]", result);
             StringAssert.Contains("[hierarchy:/Enemy#2]", result);
         }
 
@@ -141,7 +141,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = BareNameNormalizer.Normalize("Player is cool", chips);
-            StringAssert.Contains("[hierarchy:/Player#1]", result);
+            StringAssert.Contains("[hierarchy:/Player$1]", result);
         }
 
         // 14. NameAtEndOfText
@@ -150,7 +150,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = BareNameNormalizer.Normalize("fix Player", chips);
-            StringAssert.Contains("[hierarchy:/Player#1]", result);
+            StringAssert.Contains("[hierarchy:/Player$1]", result);
         }
 
         // 15. NameWithUnderscore_WordBoundary
@@ -180,7 +180,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var text = "fix Player here:\n```\nPlayer.Move();\n```";
             var result = BareNameNormalizer.Normalize(text, chips);
-            StringAssert.Contains("[hierarchy:/Player#1]", result); // outside block
+            StringAssert.Contains("[hierarchy:/Player$1]", result); // outside block
             StringAssert.Contains("Player.Move()", result);          // inside block preserved
         }
 
@@ -195,7 +195,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var chips = new List<ChipData> { H("/Go", "Go", 1) };
             // "Go" is 2 chars — BareNameNormalizer accepts it (length > 1)
             var result = BareNameNormalizer.Normalize("fix Go now", chips);
-            StringAssert.Contains("[hierarchy:/Go#1]", result);
+            StringAssert.Contains("[hierarchy:/Go$1]", result);
         }
 
         // 19. GenericName_Accepted (unlike SceneNameLinker SkipList for "Canvas" etc.)
@@ -205,7 +205,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var chips = new List<ChipData> { H("/Canvas", "Canvas", 1) };
             // "Canvas" is in SceneNameLinker.SkipList but BareNameNormalizer has no skip list
             var result = BareNameNormalizer.Normalize("fix Canvas here", chips);
-            StringAssert.Contains("[hierarchy:/Canvas#1]", result);
+            StringAssert.Contains("[hierarchy:/Canvas$1]", result);
         }
 
         // 20. AllLowerName_Accepted (unlike SceneNameLinker requiring digit/underscore/consecUpper)
@@ -215,7 +215,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var chips = new List<ChipData> { H("/player", "player", 1) };
             // "player" (all lower, no special chars) passes BareNameNormalizer length>1 guard
             var result = BareNameNormalizer.Normalize("fix player now", chips);
-            StringAssert.Contains("[hierarchy:/player#1]", result);
+            StringAssert.Contains("[hierarchy:/player$1]", result);
         }
 
     }

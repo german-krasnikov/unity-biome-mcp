@@ -70,7 +70,7 @@ namespace UnityMCP.Editor.Chat.Tests
             _chipField.Text = "check";
             _chipField.AddChip(HierarchyChip("/Player", "Player", 42));
             var (tj, _) = SimulateSend();
-            StringAssert.Contains("[hierarchy:/Player#42]", tj);
+            StringAssert.Contains("[hierarchy:/Player$2A]", tj);
         }
 
         [Test]

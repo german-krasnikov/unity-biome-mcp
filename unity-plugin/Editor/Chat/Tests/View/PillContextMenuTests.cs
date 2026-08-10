@@ -55,7 +55,7 @@ namespace UnityMCP.Editor.Chat.Tests
 
             Assert.AreEqual("/Enemy",              received.Path);
             Assert.AreEqual("Enemy",               received.DisplayName);
-            Assert.AreEqual("42",                  received.ObjectId);
+            Assert.AreEqual("$2A",                 received.ObjectId);   // 42 → $2A
             Assert.AreEqual(ChipKindKeys.Hierarchy, received.KindKey);
         }
 
@@ -63,11 +63,12 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void ResponsePill_ChipDataFromRefParser_CorrectPath()
         {
-            // RefParser.Parse must produce correct path for a hierarchy ref
-            var chip = RefParser.Parse(ChipKindKeys.Hierarchy, "/Root/Player #99");
+            // RefParser.Parse must produce correct path for a hierarchy ref ($HEX format)
+            // 99 decimal = 0x63 hex
+            var chip = RefParser.Parse(ChipKindKeys.Hierarchy, "/Root/Player$63");
             Assert.AreEqual("/Root/Player",        chip.Path);
             Assert.AreEqual("Player",              chip.DisplayName);
-            Assert.AreEqual("99",                  chip.ObjectId);
+            Assert.AreEqual("$63",                 chip.ObjectId);
             Assert.AreEqual(ChipKindKeys.Hierarchy, chip.KindKey);
         }
 

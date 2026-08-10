@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = AtMentionNormalizer.Normalize("check @Player health", chips);
-            StringAssert.Contains("[hierarchy:/Player#1]", result);
+            StringAssert.Contains("[hierarchy:/Player$1]", result);
             StringAssert.DoesNotContain("@Player", result);
         }
 
@@ -50,7 +50,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var input  = "see @Player and [hierarchy:/Enemy#2]";
             var result = AtMentionNormalizer.Normalize(input, chips);
-            StringAssert.Contains("[hierarchy:/Player#1]", result);
+            StringAssert.Contains("[hierarchy:/Player$1]", result);
             StringAssert.Contains("[hierarchy:/Enemy#2]",  result);
         }
 
@@ -61,7 +61,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = AtMentionNormalizer.Normalize("@Player and @Player again", chips);
             Assert.AreEqual(0, CountOccurrences(result, "@Player"));
-            Assert.AreEqual(2, CountOccurrences(result, "[hierarchy:/Player#1]"));
+            Assert.AreEqual(2, CountOccurrences(result, "[hierarchy:/Player$1]"));
         }
 
         // C6: @mention with multi-word name → matched correctly
@@ -70,7 +70,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Main Camera", "Main Camera", -123) };
             var result = AtMentionNormalizer.Normalize("check @Main Camera view", chips);
-            StringAssert.Contains("[hierarchy:/Main Camera#-123]", result);
+            StringAssert.Contains("[hierarchy:/Main Camera$FFFFFF85]", result);
         }
 
         // C7: case-insensitive match
@@ -79,7 +79,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/Player", "Player", 1) };
             var result = AtMentionNormalizer.Normalize("fix @player now", chips);
-            StringAssert.Contains("[hierarchy:/Player#1]", result);
+            StringAssert.Contains("[hierarchy:/Player$1]", result);
         }
 
         // C8: null sentChips → returns text unchanged
@@ -114,7 +114,7 @@ namespace UnityMCP.Editor.Chat.Tests
             // If we have "Main Camera" chip, "@Main Camera" should match, "@Main" should not
             var chips = new List<ChipData> { H("/Main Camera", "Main Camera", -1) };
             var result = AtMentionNormalizer.Normalize("see @Main Camera ok", chips);
-            StringAssert.Contains("[hierarchy:/Main Camera#-1]", result);
+            StringAssert.Contains("[hierarchy:/Main Camera$FFFFFFFF]", result);
         }
 
         // C_Disambig: both "Main" and "Main Camera" present — longest-first prevents "@Main Camera" matching "Main"
@@ -127,8 +127,8 @@ namespace UnityMCP.Editor.Chat.Tests
                 H("/Main Camera", "Main Camera", 2)
             };
             var r = AtMentionNormalizer.Normalize("see @Main Camera and @Main here", chips);
-            StringAssert.Contains("[hierarchy:/Main Camera#2]", r);
-            StringAssert.Contains("[hierarchy:/Main#1]", r);
+            StringAssert.Contains("[hierarchy:/Main Camera$2]", r);
+            StringAssert.Contains("[hierarchy:/Main$1]", r);
             StringAssert.DoesNotContain("@Main", r);
         }
 
@@ -140,7 +140,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/GridPlayer", "GridPlayer", 5) };
             var result = AtMentionNormalizer.Normalize("Check @/GridPlayer now", chips);
-            StringAssert.Contains("[hierarchy:/GridPlayer#5]", result);
+            StringAssert.Contains("[hierarchy:/GridPlayer$5]", result);
             StringAssert.DoesNotContain("@/GridPlayer", result);
         }
 
@@ -153,7 +153,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 H("/UI Canvas/Main Camera", "Main Camera", 7),
             };
             var result = AtMentionNormalizer.Normalize("see @/UI Canvas/Main Camera ok", chips);
-            StringAssert.Contains("[hierarchy:/UI Canvas/Main Camera#7]", result);
+            StringAssert.Contains("[hierarchy:/UI Canvas/Main Camera$7]", result);
             StringAssert.DoesNotContain("@/UI Canvas/Main Camera", result);
         }
 
@@ -163,7 +163,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var chips = new List<ChipData> { H("/GridPlayer", "GridPlayer", 5) };
             var result = AtMentionNormalizer.Normalize("fix @GridPlayer health", chips);
-            StringAssert.Contains("[hierarchy:/GridPlayer#5]", result);
+            StringAssert.Contains("[hierarchy:/GridPlayer$5]", result);
             StringAssert.DoesNotContain("@GridPlayer", result);
         }
 
@@ -188,7 +188,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 "check @/GridPlayer and also @GridPlayer again", chips);
             Assert.AreEqual(0, CountOccurrences(result, "@/GridPlayer"));
             Assert.AreEqual(0, CountOccurrences(result, "@GridPlayer"));
-            Assert.AreEqual(2, CountOccurrences(result, "[hierarchy:/GridPlayer#5]"));
+            Assert.AreEqual(2, CountOccurrences(result, "[hierarchy:/GridPlayer$5]"));
         }
 
     }

@@ -43,7 +43,7 @@ namespace UnityMCP.Editor.Chat.Tests
             _chipField.AddChip(new ChipData(ChipKindKeys.Asset, "Assets/Tex.png", "Tex", 0));
             Type("check");
             var (tj, _) = SimulateSend();
-            StringAssert.Contains("[hierarchy:/Player#1]", tj);
+            StringAssert.Contains("[hierarchy:/Player$1]", tj);
             StringAssert.Contains("[script:Assets/Foo.cs]", tj);
             StringAssert.Contains("[asset:Assets/Tex.png]", tj);
         }

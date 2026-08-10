@@ -67,13 +67,13 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(go, Selection.activeGameObject);
         }
 
-        // B4 — path with instance-id suffix (/Name#id) → GO resolved and selected
+        // B4 — path with $HEX suffix (/Name$XXXX) → GO resolved and selected
         [Test]
         public void Navigate_ByInstanceId_SetsActiveGameObject()
         {
             var go = Make("IdTarget");
-            var id = TransientObjectId.GetWireValue(go);
-            _provider.Navigate($"/IdTarget#{id}");
+            var id = TransientObjectId.GetHexRef(go);  // "$XXXX"
+            _provider.Navigate($"/IdTarget{id}");       // "/IdTarget$XXXX"
             Assert.AreEqual(go, Selection.activeGameObject);
         }
 
@@ -100,13 +100,37 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(0, handled.Count, "scene GOs must not populate handledPaths");
         }
 
-        // B7 - Create() stores the object's EntityId raw value as a string.
+        // B7 - Create() stores the object's EntityId as $HEX ref.
         [Test]
         public void HierarchyChipProvider_Create_SetsInstanceId()
         {
             var go   = Make("IdChip");
             var chip = _provider.Create(go, "");
-            Assert.AreEqual(TransientObjectId.GetWireValue(go), chip.ObjectId);
+            Assert.AreEqual(TransientObjectId.GetHexRef(go), chip.ObjectId);
+        }
+
+        // B8 — full round-trip: Create → FormatPayload → HierarchyReference.Parse → Resolve → same GO
+        [Test]
+        public void HierarchyChipProvider_RoundTrip_FormatThenParseThenResolve()
+        {
+            var go   = Make("RoundTripTarget");
+            var chip = _provider.Create(go, "");
+
+            // ObjectId must be $HEX after Phase 2
+            StringAssert.StartsWith("$", chip.ObjectId);
+
+            // FormatPayload → e.g. "[hierarchy:/RoundTripTarget$XXXX]" (or with @GOID suffix)
+            var fullRef = _provider.FormatPayload(chip, new ChipPayloadContext("path", ""));
+            Assert.IsNotEmpty(fullRef);
+            Assert.IsTrue(fullRef.StartsWith("[hierarchy:"));
+
+            // Strip outer brackets and "hierarchy:" prefix → raw ref for HierarchyReference.Parse
+            var inner  = fullRef.Substring(1, fullRef.Length - 2);          // "hierarchy:/RoundTripTarget$XXXX..."
+            var rawRef = inner.Substring("hierarchy:".Length);               // "/RoundTripTarget$XXXX..."
+
+            var href     = HierarchyReference.Parse(rawRef);
+            var resolved = new HierarchyResolver().Resolve(href);
+            Assert.AreEqual(go, resolved, "Round-trip must resolve back to the original GameObject");
         }
     }
 }

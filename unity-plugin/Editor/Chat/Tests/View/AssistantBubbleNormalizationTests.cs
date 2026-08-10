@@ -44,7 +44,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var bubble = _container.Q(className: "msg-bubble--assistant");
             Assert.IsNotNull(bubble);
             var userData = bubble.userData as string ?? "";
-            StringAssert.Contains("[hierarchy:/Player#1]", userData);
+            StringAssert.Contains("[hierarchy:/Player$1]", userData);
             StringAssert.DoesNotContain("@Player", userData);
         }
 
@@ -62,7 +62,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var bubble = _container.Q(className: "msg-bubble--assistant");
             Assert.IsNotNull(bubble);
             var userData = bubble.userData as string ?? "";
-            StringAssert.Contains("[hierarchy:/Enemy#7]", userData);
+            StringAssert.Contains("[hierarchy:/Enemy$7]", userData);
         }
     }
 }

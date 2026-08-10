@@ -212,8 +212,16 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void FormatChipRef_Hierarchy_BracketFormatWithInstanceID()
         {
-            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/World/Player", "12345");
-            Assert.AreEqual("[hierarchy:/World/Player#12345]", result);
+            // objectId already in $HEX format — direct concatenation
+            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/World/Player", "$3039");
+            Assert.AreEqual("[hierarchy:/World/Player$3039]", result);
+        }
+
+        [Test]
+        public void FormatChipRef_Hierarchy_AlreadyHexRef_PassThrough()
+        {
+            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/World/Player", "$3039");
+            Assert.AreEqual("[hierarchy:/World/Player$3039]", result);
         }
 
         [Test]
@@ -270,16 +278,16 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void EmitTyped_DepthPath_Hierarchy_IncludesInstanceID()
         {
-            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", "123", "path", (p, d) => "RESOLVED");
-            Assert.AreEqual("[hierarchy:/Player#123]", result);
+            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", "$7B", "path", (p, d) => "RESOLVED");
+            Assert.AreEqual("[hierarchy:/Player$7B]", result);
         }
 
         [Test]
         public void EmitTyped_DepthSummary_StartsWithBracketThenResolved()
         {
-            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", "123", "summary",
+            var result = ChipContextResolver.EmitTyped(ChipKindKeys.Hierarchy, "/Player", "$7B", "summary",
                 (p, d) => "summary-text");
-            StringAssert.StartsWith("[hierarchy:/Player#123]", result);
+            StringAssert.StartsWith("[hierarchy:/Player$7B]", result);
             StringAssert.Contains("summary-text", result);
         }
 

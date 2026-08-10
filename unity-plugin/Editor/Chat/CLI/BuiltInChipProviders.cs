@@ -83,7 +83,7 @@ namespace UnityMCP.Editor.Chat
             var path = ComponentSerializer.GetPath(go);
             var goid = GlobalObjectId.GetGlobalObjectIdSlow(go);
             return new ChipData(Key, path, FormatHierarchyDisplay(path, go.name),
-                TransientObjectId.GetWireValue(go), goid);
+                TransientObjectId.GetHexRef(go), goid);
         }
 
         internal static string FormatHierarchyDisplay(string path, string leafName)
@@ -94,9 +94,7 @@ namespace UnityMCP.Editor.Chat
 
         public string FormatPayload(ChipData chip, ChipPayloadContext ctx)
         {
-            var bracket = !string.IsNullOrEmpty(chip.ObjectId) && chip.ObjectId != "0"
-                ? $"[{Key}:{chip.Path}#{chip.ObjectId}]"
-                : $"[{Key}:{chip.Path}]";
+            var bracket = ChipContextResolver.FormatChipRef(Key, chip.Path, chip.ObjectId);
             if (chip.GlobalObjectId.targetObjectId != 0)
                 bracket = bracket.Insert(bracket.Length - 1, $"@{chip.GlobalObjectId}");
             return ctx.Depth == "none" ? "" :

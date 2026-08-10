@@ -89,13 +89,13 @@ namespace UnityMCP.Editor.Chat.Tests
             // First pass: normalize with sent chip (has real instanceID 42)
             var sentChips  = new List<ChipData> { new ChipData(ChipKindKeys.Hierarchy, "/Grid", "Grid", 42) };
             var afterSent  = BareNameNormalizer.Normalize("fix Grid now", sentChips);
-            StringAssert.Contains("[hierarchy:/Grid#42]", afterSent);
+            StringAssert.Contains("[hierarchy:/Grid$2A]", afterSent);
 
             // Second pass: scene object normalization — already tagged, so not re-processed
             var sceneChips = new List<ChipData> { SceneChip("Grid", "/Grid") };
             var afterScene = BareNameNormalizer.Normalize(afterSent, sceneChips);
-            // The [hierarchy:/Grid#42] is in a protected range → id preserved
-            StringAssert.Contains("[hierarchy:/Grid#42]", afterScene);
+            // The [hierarchy:/Grid$2A] is in a protected range → id preserved
+            StringAssert.Contains("[hierarchy:/Grid$2A]", afterScene);
             StringAssert.DoesNotContain("[hierarchy:/Grid]", afterScene);
         }
 

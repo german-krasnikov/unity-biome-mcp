@@ -25,12 +25,13 @@ namespace UnityMCP.Editor.Chat
 
         /// <summary>
         /// Serialize a chip ref to the AI-facing bracket format using the string kindKey.
-        /// Hierarchy objects include a transient EntityId: [hierarchy:/Player#12345].
+        /// Hierarchy objects include a transient EntityId: [hierarchy:/Player$3039].
+        /// objectId must already be in $HEX format (e.g. "$3039") or empty.
         /// </summary>
         internal static string FormatChipRef(string kindKey, string path, string objectId)
         {
             if (kindKey == ChipKindKeys.Hierarchy && !string.IsNullOrEmpty(objectId) && objectId != "0")
-                return $"[{kindKey}:{path}#{objectId}]";
+                return $"[{kindKey}:{path}{objectId}]";
             return $"[{kindKey}:{path}]";
         }
 

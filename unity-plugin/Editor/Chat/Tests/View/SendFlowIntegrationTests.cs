@@ -73,8 +73,8 @@ namespace UnityMCP.Editor.Chat.Tests
             _chipField.Text = "fix this";
             _chipField.AddChip(HierarchyChip("/Player", "Player", 42));
             var (turnJson, _) = SimulateSend();
-            // hierarchy chip with id=42 → [hierarchy:/Player#42]
-            StringAssert.Contains("[hierarchy:/Player#42]", turnJson);
+            // hierarchy chip with id=42 → [hierarchy:/Player$2A]
+            StringAssert.Contains("[hierarchy:/Player$2A]", turnJson);
         }
 
         [Test]
@@ -106,8 +106,8 @@ namespace UnityMCP.Editor.Chat.Tests
             _chipField.AddChip(HierarchyChip("/Enemy",   "Enemy",   2));
             _chipField.AddChip(ScriptChip("Assets/Health.cs", "Health"));
             var (turnJson, _) = SimulateSend();
-            StringAssert.Contains("[hierarchy:/Player#1]",     turnJson);
-            StringAssert.Contains("[hierarchy:/Enemy#2]",      turnJson);
+            StringAssert.Contains("[hierarchy:/Player$1]",     turnJson);
+            StringAssert.Contains("[hierarchy:/Enemy$2]",      turnJson);
             StringAssert.Contains("[script:Assets/Health.cs]",  turnJson);
         }
 

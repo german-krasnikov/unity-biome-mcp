@@ -40,9 +40,10 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void CopyRef_Hierarchy_SetsClipboardWithObjectId()
         {
-            var candidate = MakeHierarchyCandidate("/Player", "42");
+            // objectId already in $HEX format — FormatChipRef appends directly
+            var candidate = MakeHierarchyCandidate("/Player", "$2A");
             MentionRowActions.CopyRef(candidate);
-            Assert.AreEqual("[hierarchy:/Player#42]", EditorGUIUtility.systemCopyBuffer);
+            Assert.AreEqual("[hierarchy:/Player$2A]", EditorGUIUtility.systemCopyBuffer);
         }
 
         [Test]
