@@ -1,0 +1,12 @@
+LOG Player PlayTest CI bounds
+TIMESCALE 10
+INVOKE /GridPlayer GridPlayer ResetState
+SET /GridPlayer GridPlayer MoveSpeed 50
+INVOKE /GridPlayer GridPlayer MoveTo 0 9
+WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+ASSERT /GridPlayer|GridPlayer|PosZ == 9
+INVOKE /GridPlayer GridPlayer Move north
+WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+ASSERT /GridPlayer|GridPlayer|PosZ == 9
+TIMESCALE 1
+ASSERT_CONSOLE_CLEAN

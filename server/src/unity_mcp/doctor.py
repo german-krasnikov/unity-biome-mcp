@@ -158,7 +158,10 @@ async def check_tcp_connection(port: int = 0) -> CheckResult:
         )
 
 
-async def check_unity_state(port: int = 0) -> CheckResult:
+_DIAGNOSE_TIMEOUT_S = 10.0
+
+
+async def check_unity_state(port: int = 0, *, _diagnose_timeout: float = _DIAGNOSE_TIMEOUT_S) -> CheckResult:
     """Send 'diagnose' via TCP and parse response."""
     port = _resolve_port(port)
     try:
@@ -166,7 +169,7 @@ async def check_unity_state(port: int = 0) -> CheckResult:
             msg = json.dumps({"cmd": "diagnose", "args": {}}).encode()
             frame_write(writer, msg)
             await writer.drain()
-            data = await frame_read_with_timeout(reader, 3.0)
+            data = await frame_read_with_timeout(reader, _diagnose_timeout)
             resp = json.loads(data)
     except Exception as e:
         return CheckResult("unity_state", False, f"Diagnose failed: {e}")

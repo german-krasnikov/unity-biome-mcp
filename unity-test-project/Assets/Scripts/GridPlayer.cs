@@ -55,7 +55,7 @@ public class GridPlayer : MonoBehaviour
         PosX = 0; PosZ = 0; Score = 0; MoveCount = 0; IsMoving = false;
         MoveSpeed = 5f;
         SyncPosition();
-        foreach (var c in FindObjectsOfType<Collectible>(true))
+        foreach (var c in FindObjectsByType<Collectible>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             c.gameObject.SetActive(true);
     }
 
@@ -114,7 +114,7 @@ public class GridPlayer : MonoBehaviour
     {
         if (x == PosX && z == PosZ)
             return 'P';
-        foreach (var collectible in FindObjectsOfType<Collectible>(true))
+        foreach (var collectible in FindObjectsByType<Collectible>(FindObjectsInactive.Include, FindObjectsSortMode.None))
         {
             if (!collectible.gameObject.activeInHierarchy)
                 continue;

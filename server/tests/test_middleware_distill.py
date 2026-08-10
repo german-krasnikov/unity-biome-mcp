@@ -117,12 +117,48 @@ def test_seed_preimage_no_snapshot_skips():
 # ── D4: full= parameter + distill footer update ───────────────────────────────
 
 def test_distill_footer_message_template():
-    """Footer strings in middleware_async.py must reference 'full=true' not '_no_distill=true'."""
+    """Footer strings in middleware_async.py must reference 'full=true' and 'distilled for brevity'."""
     import inspect
     import unity_mcp.middleware_async as ma
     src = inspect.getsource(ma)
     assert "_no_distill=true" not in src, "Footer must use 'full=true' hint, not '_no_distill=true'"
-    assert "full=true" in src, "Footer must say 're-call with full=true'"
+    assert "full=true" in src, "Footer must say 're-call with full=true' for supported cmds"
+    assert "distilled for brevity" in src, "Footer must say 'distilled for brevity' for unsupported cmds"
+
+
+# ── P-426: distill hint conditional by command ───────────────────────────────
+
+async def test_distill_hint_full_for_supported_cmd(monkeypatch):
+    """P-426: get_hierarchy supports full=true, hint must say so."""
+    monkeypatch.setenv("UNITY_MCP_DISTILL", "1")
+    mw = Middleware()
+    mw._recent_focus.append("/Player")
+    text = "Scene Total: 50\n/Player\n" + "/Other{}\n".format(0) * 200
+    result = await mw._maybe_distill("get_hierarchy", {}, text)
+    assert "DISTILLED" in result
+    assert "full=true" in result
+
+
+async def test_distill_hint_generic_for_unsupported_cmd(monkeypatch):
+    """P-426: get_console does NOT support full=true, hint must NOT say full=true."""
+    monkeypatch.setenv("UNITY_MCP_DISTILL", "1")
+    mw = Middleware()
+    mw._recent_focus.append("/Player")
+    # Force a large text that triggers heuristic distillation
+    text = "LOG: entry\n" * 500
+    result = await mw._maybe_distill("get_console", {}, text)
+    assert "DISTILLED" in result, "heuristic must distill 500-line console output"
+    assert "full=true" not in result
+    assert "distilled for brevity" in result
+
+
+def test_distill_footer_message_template_conditional():
+    """P-426: source must contain both 'full=true' and 'distilled for brevity'."""
+    import inspect
+    import unity_mcp.middleware_async as ma
+    src = inspect.getsource(ma)
+    assert "full=true" in src
+    assert "distilled for brevity" in src
 
 
 def test_seed_preimage_no_path_skips():

@@ -7,7 +7,7 @@ import time
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
-from ._common import bind
+from ._common import _guard_read_only, bind
 
 _send = None
 _args = None
@@ -30,6 +30,7 @@ def _detect_kind(code: str) -> str:
 async def save_skill(name: str, description: str, code: str) -> str:
     """Save a learned skill (C# code or batch commands) for reuse across sessions.
     name: skill identifier. description: what it does. code: C# or batch commands."""
+    _guard_read_only("save_skill")
     name = _safe_name(name)
     os.makedirs(_skills_dir(), exist_ok=True)
     skill = {"name": name, "description": description, "code": code,
@@ -104,6 +105,7 @@ async def apply_template(name: str, params: str | None = None) -> str:
 
 async def save_template(name: str, code: str) -> str:
     """Save C# code as a reusable scene template in .claude/templates/."""
+    _guard_read_only("save_template")
     name = _safe_name(name)
     template_dir = os.path.join(os.getcwd(), ".claude", "templates")
     os.makedirs(template_dir, exist_ok=True)

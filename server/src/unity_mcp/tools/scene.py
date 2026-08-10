@@ -5,7 +5,7 @@ import time
 from ._annotations import DEL as _DEL
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
-from ._common import bind
+from ._common import _guard_read_only, bind
 
 _RE_SLOT = re.compile(r'slot_\d+\s+\[\]\s+#')
 _RE_POINT = re.compile(r'point_\d+\s+\[\]\s+#')
@@ -121,6 +121,7 @@ def _extract_saved_path(result: str) -> str:
 
 async def save_session() -> str:
     """Save current scene state to .claude/session-context.json for cold-start recovery."""
+    _guard_read_only("save_session")
     hierarchy = await _send("get_hierarchy", {"summary": "true"})
     path = os.path.join(os.getcwd(), ".claude", "session-context.json")
     try:

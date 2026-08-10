@@ -45,8 +45,6 @@ class ConnectionSlot:
             await self._bridge.close()
         self._bridge = UnityBridge(host, port, port_discoverer=self._port_discoverer,
                                     is_retry_safe=self._is_retry_safe)
-        self._port = port
-        self._host = host
         for cb in self._reconnect_callbacks:
             self._bridge.add_reconnect_callback(cb)
 
@@ -61,6 +59,8 @@ class ConnectionSlot:
 
         try:
             await self._bridge.connect()
+            self._port = port
+            self._host = host
             self._bridge.start_heartbeat()
             return f"Connected to Unity on port {port}"
         except (OSError, asyncio.TimeoutError):

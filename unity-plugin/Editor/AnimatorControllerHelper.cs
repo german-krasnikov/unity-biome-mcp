@@ -205,8 +205,24 @@ namespace UnityMCP.Editor
         {
             foreach (var layer in ctrl.layers)
             {
-                var s = FindState(layer.stateMachine, name);
+                var s = FindStateRecursive(layer.stateMachine, name);
                 if (s != null) return s;
+            }
+            return null;
+        }
+
+        private static AnimatorState FindStateRecursive(
+            AnimatorStateMachine sm, string name,
+            HashSet<AnimatorStateMachine> visited = null)
+        {
+            visited ??= new HashSet<AnimatorStateMachine>();
+            if (!visited.Add(sm)) return null;
+            foreach (var cs in sm.states)
+                if (cs.state.name == name) return cs.state;
+            foreach (var child in sm.stateMachines)
+            {
+                var r = FindStateRecursive(child.stateMachine, name, visited);
+                if (r != null) return r;
             }
             return null;
         }

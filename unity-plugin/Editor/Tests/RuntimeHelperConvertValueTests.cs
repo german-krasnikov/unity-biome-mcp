@@ -15,6 +15,22 @@ namespace UnityMCP.Editor.Tests
         // No Parse(string) method, not IConvertible → fail-closed scenario
         private struct NoParseType { }
 
+        // DEF-6: test type with implicit operator from string
+        private struct ImplicitFromString
+        {
+            public string Inner;
+            public static implicit operator ImplicitFromString(string s)
+                => new ImplicitFromString { Inner = s };
+        }
+
+        // DEF-6: test type with explicit operator from string
+        private struct ExplicitFromString
+        {
+            public string Inner;
+            public static explicit operator ExplicitFromString(string s)
+                => new ExplicitFromString { Inner = s };
+        }
+
         // Custom value object for RegisterConverter test
         private struct CustomValueType { public int Value; }
 
@@ -95,6 +111,26 @@ namespace UnityMCP.Editor.Tests
             var result = RuntimeHelper.ConvertValue("00:01:00", typeof(TimeSpan));
             Assert.That(result, Is.InstanceOf<TimeSpan>());
             Assert.That(((TimeSpan)result).TotalSeconds, Is.EqualTo(60.0).Within(0.001));
+        }
+
+        // ── DEF-6: op_Implicit / op_Explicit probe ──────────────────────────
+
+        [Test]
+        public void ConvertValue_TypeWithImplicitOperator_Converts()
+        {
+            // Before fix: throws ArgumentException ("no registered converter...").
+            // After fix: probes op_Implicit and converts successfully.
+            var result = RuntimeHelper.ConvertValue("hello", typeof(ImplicitFromString));
+            Assert.That(result, Is.InstanceOf<ImplicitFromString>());
+            Assert.That(((ImplicitFromString)result).Inner, Is.EqualTo("hello"));
+        }
+
+        [Test]
+        public void ConvertValue_TypeWithExplicitOperator_Converts()
+        {
+            var result = RuntimeHelper.ConvertValue("world", typeof(ExplicitFromString));
+            Assert.That(result, Is.InstanceOf<ExplicitFromString>());
+            Assert.That(((ExplicitFromString)result).Inner, Is.EqualTo("world"));
         }
     }
 }

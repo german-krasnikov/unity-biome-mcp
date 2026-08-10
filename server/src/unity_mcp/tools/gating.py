@@ -203,6 +203,8 @@ def _tool_surface_line(name: str) -> str:
     parts = [f"  {name}"]
     if tags: parts.append(" ".join(tags))
     parts.append(f"surfaces={surfaces}")
+    if spec.mutability:
+        parts.append(f"mutability={spec.mutability}")
     return "  ".join(parts)
 
 

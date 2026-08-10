@@ -2,7 +2,7 @@
 import json
 import time
 
-from .middleware_types import _RUNTIME_ONLY_CMDS, ACTION_READS, BLAST_RADIUS, READ_CMDS, WRITE_CMDS, is_write
+from .middleware_types import _RUNTIME_ONLY_CMDS, ACTION_READS, BLAST_RADIUS, READ_CMDS, is_write
 from .utils import parse_kv_line
 
 
@@ -37,10 +37,13 @@ class MiddlewareGuardsMixin:
         h = hash((cmd, json.dumps(args, sort_keys=True)))
         now = time.monotonic()
         entry = self._retry_cache.get(h)
-        if entry is not None and now - entry[0] < self._RETRY_TTL:
-            return (f"⚠ RETRY (within {self._RETRY_TTL:.1f}s): identical {cmd}. "
-                    "Re-read state before retrying.")
-        self._retry_cache[h] = (now, None)
+        if entry is not None:
+            ts, gen = entry
+            if now - ts < self._RETRY_TTL and gen == self._retry_generation:
+                return (f"⚠ RETRY (within {self._RETRY_TTL:.1f}s): identical {cmd}. "
+                        "Re-read state before retrying.")
+        self._retry_generation += 1
+        self._retry_cache[h] = (now, self._retry_generation)
         self._retry_cache.move_to_end(h)
         while len(self._retry_cache) > self._RETRY_MAX:
             self._retry_cache.popitem(last=False)
@@ -132,11 +135,11 @@ class MiddlewareGuardsMixin:
 
     # ── Feature: Read-Only Endpoint Guard (P-324) ────────────────────────────
 
-    def check_read_only(self, cmd: str, args: dict) -> str | None:  # noqa: ARG002
+    def check_read_only(self, cmd: str, args: dict) -> str | None:
         """Block mutation commands when the endpoint is in read-only mode."""
         if not self.is_read_only:
             return None
-        if cmd in WRITE_CMDS:
+        if is_write(cmd, args):
             return f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         return None
 

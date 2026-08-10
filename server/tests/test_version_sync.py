@@ -59,6 +59,11 @@ def project_root(tmp_path: Path) -> Path:
         encoding="utf-8"
     )
 
+    (tmp_path / "scripts" / "gauntlet").mkdir(parents=True)
+    (tmp_path / "scripts" / "gauntlet" / "release-policy.json").write_text(
+        '{\n  "activation_product_version": "0.8.2"\n}\n', encoding="utf-8"
+    )
+
     return tmp_path
 
 

@@ -91,6 +91,8 @@ namespace UnityMCP.Editor
         public Dictionary<string, string> VarDefs;
         /// <summary>Non-fatal parse warnings (e.g. unresolved $sigil typos). Null if none.</summary>
         public List<string> Warnings;
+        /// <summary>VAL definitions keyed by name (without $). Null if none declared.</summary>
+        public Dictionary<string, string> ValDefs;
         public bool HasGlobalAbort { get; set; }
         /// <summary>SET_DEFAULT_TIMEOUT value in seconds. 0 = not set (runner uses 5f fallback).</summary>
         public float DefaultTimeout { get; set; }
@@ -1036,6 +1038,7 @@ namespace UnityMCP.Editor
                 SetupSteps = setupSteps,
                 TeardownSteps = teardownSteps,
                 VarDefs = varDefs.Count > 0 ? varDefs : null,
+                ValDefs = vals.Count > 0 ? vals : null,
                 Warnings = warnings,
                 HasGlobalAbort = hasGlobalAbort,
                 DefaultTimeout = defaultTimeout

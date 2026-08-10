@@ -1,0 +1,15 @@
+LOG Player PlayTest CI multi-move sequence
+TIMESCALE 10
+INVOKE /GridPlayer GridPlayer ResetState
+SET /GridPlayer GridPlayer MoveSpeed 50
+INVOKE /GridPlayer GridPlayer Move east
+WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+INVOKE /GridPlayer GridPlayer Move east
+WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+INVOKE /GridPlayer GridPlayer Move north
+WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+ASSERT /GridPlayer|GridPlayer|PosX == 2
+ASSERT /GridPlayer|GridPlayer|PosZ == 1
+ASSERT /GridPlayer|GridPlayer|MoveCount == 3
+TIMESCALE 1
+ASSERT_CONSOLE_CLEAN

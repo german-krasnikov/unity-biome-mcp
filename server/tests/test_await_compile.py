@@ -13,12 +13,19 @@ from unity_mcp.bridge import DomainReloadError
 
 def _make_send(status_seq, errors_response=""):
     """Route compile_status / get_compile_errors; errors_response may be an Exception.
-    sync_status raises ConnectionError (simulate not-available) to trigger compile_status fallback."""
+    sync_status raises ConnectionError (simulate not-available) to trigger compile_status fallback.
+    DEF-2: repeats last status when iterator exhausted (settle re-poll)."""
     status_iter = iter(status_seq)
+    last = [status_seq[-1]] if status_seq else ["idle|0.0"]
 
     async def _send(cmd, args=None, **kwargs):
         if cmd == "compile_status":
-            return next(status_iter)
+            try:
+                val = next(status_iter)
+            except StopIteration:
+                return last[0]
+            last[0] = val
+            return val
         if cmd == "get_compile_errors":
             if isinstance(errors_response, Exception):
                 raise errors_response
@@ -79,7 +86,7 @@ async def test_domain_reload_disconnect_waits_and_retries():
     _ci._send = _send
     result = await _ci.await_compile(timeout=60.0)
     assert result == "compile clean (4.0s)"
-    assert call_count == 2
+    assert call_count >= 2  # DEF-2: settle re-poll adds +1
 
 
 async def test_domain_reload_error_waits_and_retries():
@@ -129,7 +136,7 @@ async def test_multiple_disconnects_within_timeout():
     _ci._send = _send
     result = await _ci.await_compile(timeout=60.0)
     assert result == "compile clean (2.0s)"
-    assert call_count == 3
+    assert call_count >= 3  # DEF-2: settle re-poll adds +1
 
 
 async def test_timeout_zero_idle_returns_errors():
@@ -505,3 +512,63 @@ async def test_await_compile_epoch_connection_error_mid_poll():
     result = await _ci.await_compile(timeout=60.0)
     assert "compile clean" in result
     assert call_count[0] >= 3
+
+
+# ---------------------------------------------------------------------------
+# DEF-2: await_compile settle window — idle race after .cs write
+# ---------------------------------------------------------------------------
+
+async def test_await_compile_settle_repolls_on_idle():
+    """DEF-2: await_compile re-polls after settle window instead of returning immediately on idle.
+
+    Scenario: first poll returns idle (Unity file monitor hasn't noticed new .cs yet),
+    after settle it returns compiling, then idle again => must wait for the real compile.
+    """
+    import os
+    poll_count = 0
+
+    async def _send(cmd, args=None, **kwargs):
+        nonlocal poll_count
+        if cmd == "compile_status":
+            poll_count += 1
+            if poll_count == 1:
+                return "idle|0.0"       # first: looks idle (file monitor latent)
+            if poll_count == 2:
+                return "compiling|0.0"  # settle re-poll: actually compiling now
+            return "idle|1.5"           # done
+        if cmd == "get_compile_errors":
+            return ""
+        if cmd == "sync_status":
+            raise ConnectionError("not available")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    with patch.dict(os.environ, {"UNITY_MCP_COMPILE_SETTLE_SECS": "0"}):
+        result = await _ci.await_compile(timeout=30.0)
+
+    # Must have polled more than once — settle re-poll detected compiling
+    assert poll_count >= 3, (
+        f"DEF-2: expected >= 3 compile_status polls (idle -> settle -> compiling -> idle), "
+        f"got {poll_count} — returned prematurely on first idle"
+    )
+    assert "compile clean" in result
+
+
+async def test_await_compile_settle_returns_clean_if_still_idle():
+    """DEF-2: If idle persists after settle, return clean (no false positive)."""
+    import os
+
+    async def _send(cmd, args=None, **kwargs):
+        if cmd in ("compile_status", "sync_status"):
+            if cmd == "sync_status":
+                raise ConnectionError("not available")
+            return "idle|2.0"
+        if cmd == "get_compile_errors":
+            return ""
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    with patch.dict(os.environ, {"UNITY_MCP_COMPILE_SETTLE_SECS": "0"}):
+        result = await _ci.await_compile(timeout=30.0)
+
+    assert "compile clean" in result

@@ -186,3 +186,57 @@ async def test_doctor_autofix_stale_port(tmp_path):
     assert not port_file.exists()
     # Stale cleaned but no live Unity → still not ok
     assert port_check.ok is False
+
+
+# ── P-417: diagnose timeout parameter ────────────────────────────────────────
+
+async def test_check_unity_state_custom_timeout():
+    """P-417: _diagnose_timeout parameter controls frame_read timeout."""
+    from contextlib import asynccontextmanager
+    from unittest.mock import MagicMock
+    read_timeout_used = None
+
+    async def fake_frame_read(reader, timeout):
+        nonlocal read_timeout_used
+        read_timeout_used = timeout
+        raise asyncio.TimeoutError("simulated slow response")
+
+    @asynccontextmanager
+    async def fake_connect(port, timeout=3.0):
+        mock_reader = MagicMock()
+        mock_writer = MagicMock()
+        mock_writer.drain = AsyncMock()
+        yield mock_reader, mock_writer
+
+    with patch("unity_mcp.doctor.frame_read_with_timeout", side_effect=fake_frame_read), \
+         patch("unity_mcp.doctor._tcp_connect", side_effect=fake_connect), \
+         patch("unity_mcp.doctor.frame_write"):
+        result = await check_unity_state(port=9999, _diagnose_timeout=15.0)
+
+    assert read_timeout_used == 15.0
+    assert not result.ok
+
+
+async def test_check_unity_state_default_timeout_is_10():
+    """P-417: default _diagnose_timeout must be 10.0 (was 3.0)."""
+    from contextlib import asynccontextmanager
+    from unittest.mock import MagicMock
+    read_timeout_used = None
+
+    async def fake_frame_read(reader, timeout):
+        nonlocal read_timeout_used
+        read_timeout_used = timeout
+        raise asyncio.TimeoutError("simulated")
+
+    @asynccontextmanager
+    async def fake_connect(port, timeout=3.0):
+        mock_writer = MagicMock()
+        mock_writer.drain = AsyncMock()
+        yield MagicMock(), mock_writer
+
+    with patch("unity_mcp.doctor.frame_read_with_timeout", side_effect=fake_frame_read), \
+         patch("unity_mcp.doctor._tcp_connect", side_effect=fake_connect), \
+         patch("unity_mcp.doctor.frame_write"):
+        result = await check_unity_state(port=9999)
+
+    assert read_timeout_used == 10.0

@@ -9,6 +9,7 @@ shipped for them, so every call raised ToolError("Command not registered: ...").
 Dead wrappers are pure token waste; re-add them if/when a real C# handler ships.
 """
 import asyncio
+import os
 import time
 from typing import Any
 
@@ -159,8 +160,18 @@ async def await_compile(timeout: float = 60.0) -> str:
             return errors if errors else "compile clean (never ran this session — idle-never)"
 
         if state == "idle":
+            # DEF-2: Unity file monitor has 3-10s latency after .cs write.
+            # Re-poll after settle window to avoid false "clean" before compile starts.
+            settle = int(os.environ.get("UNITY_MCP_COMPILE_SETTLE_SECS", "4"))
+            if settle > 0:
+                await asyncio.sleep(settle)
+            status2 = await _send("compile_status", {})
+            state2, duration2 = _parse_status(status2)
+            if state2 in _STILL_BUSY_STATES:
+                await asyncio.sleep(1)
+                continue  # fall through to main watch loop
             errors = await _get_errors(compile_status="idle")
-            return errors if errors else f"compile clean ({duration}s)"
+            return errors if errors else f"compile clean ({duration2}s)"
 
         # still compiling — poll
         await asyncio.sleep(1)

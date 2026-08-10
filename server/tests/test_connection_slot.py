@@ -207,3 +207,25 @@ async def test_add_reconnect_callback_wires_to_existing_bridge():
     assert b.add_reconnect_callback.call_count == call_count_before + 1, \
         "add_reconnect_callback must wire cb to current bridge immediately"
     b.add_reconnect_callback.assert_called_with(cb)
+
+
+# ── P-427: Failed connect must not update slot.port ──────────────────────────
+
+async def test_connect_failure_preserves_old_port():
+    """P-427: failed connect must not update slot.port to the failed port."""
+    from unity_mcp.connection_slot import ConnectionSlot
+
+    b_ok = make_mock_bridge()
+    b_fail = make_mock_bridge()
+    b_fail.connect = AsyncMock(side_effect=OSError("refused"))
+    bridges = iter([b_ok, b_fail])
+
+    with patch("unity_mcp.connection_slot.UnityBridge", side_effect=lambda h, p, **_: next(bridges)):
+        s = ConnectionSlot()
+        await s.connect(9500)
+        assert s.port == 9500
+        # Try connecting to 9600 — fails
+        result = await s.connect(9600)
+
+    assert s.port == 9500, "slot.port must preserve old value on failed connect"
+    assert "not yet available" in result

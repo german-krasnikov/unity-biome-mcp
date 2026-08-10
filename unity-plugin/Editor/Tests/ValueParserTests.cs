@@ -498,5 +498,25 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(go2.GetComponent<Rigidbody>(), joint.connectedBody,
                 "G3: m_ConnectedBody must store go2's Rigidbody, not null/Transform");
         }
+
+        // ── P-403a: DryRun ObjectReference with invalid path must report error ──
+
+        [Test]
+        public void SetProperty_DryRun_ObjectReference_InvalidPath_ReportsError()
+        {
+            var go = new GameObject("P403_DryRun");
+            RegisterCleanup(() => Object.DestroyImmediate(go));
+            var joint = go.AddComponent<HingeJoint>();
+
+            // m_ConnectedBody is an ObjectReference field
+            var result = ObjectManager.SetProperty(
+                "/P403_DryRun", "HingeJoint", "m_ConnectedBody",
+                "Assets/NonExistent/FakeAsset.prefab", dryRun: true);
+
+            // Before fix: returns "DRY-RUN: m_ConnectedBody would change ... → ..."
+            // After fix: returns error about invalid reference
+            Assert.That(result, Does.Not.Contain("would change").IgnoreCase,
+                "DRY-RUN must validate ObjectReference paths, not blindly report success");
+        }
     }
 }

@@ -52,7 +52,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void LintScript_ValidPipePath_ExistingObject_NoIssues()
         {
-            new GameObject("LintCube");
+            TrackOwnedObject(new GameObject("LintCube"));
             var issues = SceneRefLinter.LintScript("SET /LintCube|Transform|position 1,0,0");
             Assert.AreEqual(0, issues.Count);
         }
@@ -106,6 +106,35 @@ namespace UnityMCP.Editor.Tests
             foreach (var issue in issues)
                 Assert.IsFalse(issue.Token.Contains(','),
                     $"Linter must split comma-separated tokens; found unsplit: '{issue.Token}'");
+        }
+
+        // ── DEF-5: VAL-defined alias should not produce false-positive ────────────
+
+        [Test]
+        public void LintScript_ValDefinedAlias_NoFalsePositive()
+        {
+            // A script with inline VAL $player /SomeObj should not report
+            // $player as "unresolved alias" even if /SomeObj doesn't exist in scene.
+            // The linter should recognize $player is defined and skip it.
+            var script = "VAL $player /SomeObj\nASSERT $player|Transform|position == 0,0,0";
+            var issues = SceneRefLinter.LintScript(script);
+
+            // $player must NOT be flagged as unresolved alias
+            foreach (var issue in issues)
+                Assert.AreNotEqual("$player", issue.Token,
+                    "VAL-defined alias $player must not be reported as unresolved");
+        }
+
+        [Test]
+        public void LintScript_UndefinedAlias_StillReportsError()
+        {
+            // Ensure the fix doesn't suppress ALL alias errors — only defined ones.
+            var script = "VAL $player /SomeObj\nASSERT $unknownThing|Transform|position == 0";
+            var issues = SceneRefLinter.LintScript(script);
+            bool foundUnknown = false;
+            foreach (var issue in issues)
+                if (issue.Token.StartsWith("$unknownThing")) foundUnknown = true;
+            Assert.IsTrue(foundUnknown, "Undefined alias $unknownThing must still be reported");
         }
 
         // ── P-287: bracket-aware tokenizer ────────────────────────────────────────

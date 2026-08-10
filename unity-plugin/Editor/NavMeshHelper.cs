@@ -30,7 +30,7 @@ namespace UnityMCP.Editor
         private static string Bake()
         {
 #if UNITYMCP_HAS_AI_NAVIGATION
-            var surfaces = Object.FindObjectsOfType<Unity.AI.Navigation.NavMeshSurface>();
+            var surfaces = Object.FindObjectsByType<Unity.AI.Navigation.NavMeshSurface>(FindObjectsSortMode.None);
             if (surfaces.Length > 0)
             {
                 foreach (var s in surfaces) s.BuildNavMesh();
@@ -76,7 +76,7 @@ namespace UnityMCP.Editor
         private static string SetSettings(string args)
         {
 #if UNITYMCP_HAS_AI_NAVIGATION
-            var surfaces = Object.FindObjectsOfType<Unity.AI.Navigation.NavMeshSurface>();
+            var surfaces = Object.FindObjectsByType<Unity.AI.Navigation.NavMeshSurface>(FindObjectsSortMode.None);
             if (surfaces.Length > 0)
             {
                 float agentRadius = JsonHelper.ExtractFloat(args, "agentRadius");

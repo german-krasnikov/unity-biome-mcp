@@ -306,6 +306,11 @@ def full_project_root(tmp_path: Path) -> Path:
         MCP_SERVER_CS_STUB, encoding="utf-8"
     )
 
+    (tmp_path / "scripts" / "gauntlet").mkdir(parents=True)
+    (tmp_path / "scripts" / "gauntlet" / "release-policy.json").write_text(
+        '{\n  "activation_product_version": "0.50.0"\n}\n', encoding="utf-8"
+    )
+
     return tmp_path
 
 
@@ -325,6 +330,10 @@ def test_plugin_version_cs_pattern_not_found(tmp_path):
     (tmp_path / "docs" / "assets" / "_meta.json").write_text('{"server_version":"0.1.0","plugin_version":"0.1.0"}', encoding="utf-8")
     # MCPServer.cs WITHOUT the PluginVersion pattern
     (tmp_path / "unity-plugin" / "Editor" / "MCPServer.cs").write_text("// no version here\n", encoding="utf-8")
+    (tmp_path / "scripts" / "gauntlet").mkdir(parents=True)
+    (tmp_path / "scripts" / "gauntlet" / "release-policy.json").write_text(
+        '{"activation_product_version":"0.1.0"}', encoding="utf-8"
+    )
 
     result = run_sync("0.2.0", tmp_path)
     assert result.returncode != 0

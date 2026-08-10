@@ -4,6 +4,10 @@ import json
 import os
 from collections.abc import Awaitable, Callable
 
+_FULL_SUPPORTED: frozenset[str] = frozenset({
+    "get_hierarchy", "get_component", "inspect", "get_object_detail",
+})
+
 
 class MiddlewareAsyncMixin:
     """Async background ops: prefetch, distill, state injection. Attrs in Middleware.__init__."""
@@ -91,7 +95,8 @@ class MiddlewareAsyncMixin:
         cached = self._distill_cache.get(cache_key)
         if cached is not None:
             self._distill_cache.move_to_end(cache_key)
-            return f"{cached}\n[DISTILLED haiku-cached; full: re-call with full=true]"
+            _hint = "full: re-call with full=true" if cmd in _FULL_SUPPORTED else "distilled for brevity"
+            return f"{cached}\n[DISTILLED haiku-cached; {_hint}]"
 
         res = self._distiller.distill_heuristic(cmd, result, focus)
 
@@ -111,10 +116,10 @@ class MiddlewareAsyncMixin:
 
         if res.method in ("skip", "passthrough"):
             return result
+        _hint = "full: re-call with full=true" if cmd in _FULL_SUPPORTED else "distilled for brevity"
         return (
             f"{res.text}\n"
-            f"[DISTILLED {res.method} {res.original_size}→{res.distilled_size} chars; "
-            f"full: re-call with full=true]"
+            f"[DISTILLED {res.method} {res.original_size}→{res.distilled_size} chars; {_hint}]"
         )
 
     async def _haiku_to_cache(self, cmd: str, text: str, focus: tuple, cache_key: tuple) -> None:
