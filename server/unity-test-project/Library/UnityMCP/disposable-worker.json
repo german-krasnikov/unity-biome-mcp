@@ -1,0 +1,8 @@
+{
+    "schema_version": 1,
+    "disposable": true,
+    "unity_version": "6000.0.65f1",
+    "unity_revision": "a18e2220bd50",
+    "utf_version": "1.6.0",
+    "bootstrap_scene": "Assets/Scenes/SampleScene.unity"
+}
