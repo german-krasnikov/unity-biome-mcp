@@ -3,6 +3,11 @@ name: release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v1.29.0)'
+        required: true
 
 permissions:
   contents: write
