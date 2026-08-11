@@ -645,3 +645,42 @@ def test_kimi_unknown_role():
 def test_kimi_meta_unknown_type():
     line = '{"role":"meta","type":"other_event"}'
     assert _transform_kimi_line(line, _ToolCallAcc()) == []
+
+
+# ── barrier tests (Phase 0.4) ─────────────────────────────────────────────────
+
+def test_unknown_content_block_type_ignored():
+    """BARRIER: unknown content_block type → empty list, no exception.
+    Locks current behavior before thinking support lands."""
+    acc = _ToolCallAcc()
+    result = _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_start",'
+        '"content_block":{"type":"unknown_future_type"}}}',
+        acc
+    )
+    assert result == [], f"Unknown block type must produce [], got: {result}"
+
+
+def test_tool_call_produces_tc_pipe_prefix():
+    """BARRIER: completed tool call emits 'tc|...' prefixed line.
+    Locks tc| format before any new event types change the pipeline."""
+    acc = _ToolCallAcc()
+    # start
+    _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_start",'
+        '"index":0,"content_block":{"type":"tool_use","id":"t1","name":"Bash"}}}',
+        acc
+    )
+    # args delta
+    _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_delta",'
+        '"index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"cmd\\":\\"ls\\"}"}}}',
+        acc
+    )
+    # stop
+    result = _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_stop","index":0}}',
+        acc
+    )
+    assert any(line.startswith("tc|") for line in result), \
+        f"tool_call stop must emit tc| line, got: {result}"
