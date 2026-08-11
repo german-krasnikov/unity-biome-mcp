@@ -33,9 +33,11 @@ namespace UnityMCP.Editor.Chat
                 { P + "run_tests",            "Running tests" },
                 { P + "scene",                "Managing scene" },
                 // Built-in Claude Code tools (no MCP prefix; Agent confirmed from session transcripts)
-                { "Agent",      "Agent" },
-                { "Task",       "Agent" },      // insurance: older SDK may emit Task
-                { "TodoWrite",  "Updated tasks" },
+                { "Agent",       "Agent" },
+                { "Task",        "Agent" },         // insurance: older SDK may emit Task
+                { "TodoWrite",   "Updated tasks" },  // kept in case it appears in other SDK builds
+                { "TaskCreate",  "Creating task" },  // confirmed: Claude Code task panel (192 sessions)
+                { "TaskUpdate",  "Updating task" },  // confirmed: status ∈ in_progress|completed
                 { "Edit",       "Editing file" },
                 { "Write",      "Writing file" },
                 { "MultiEdit",  "Editing files" },

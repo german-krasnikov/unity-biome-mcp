@@ -163,6 +163,7 @@ namespace UnityMCP.Editor.Chat
             var ss = AssetDatabase.LoadAssetAtPath<StyleSheet>(
                 $"Packages/com.unity-biome-mcp.editor/Editor/Chat/View/{name}");
             if (ss != null) root.styleSheets.Add(ss);
+            else Debug.LogWarning($"[Biome Chat] StyleSheet not found: {name}");
         }
 
         private void CreateGUI()

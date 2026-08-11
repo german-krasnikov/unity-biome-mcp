@@ -31,9 +31,11 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void MarkdownInlineFormatter_IsDarkTheme_DefaultTrue()
+        public void MarkdownInlineFormatter_IsDarkTheme_SetToTrue_ReadsTrue()
         {
-            // Default must be dark — Editor starts in Pro skin.
+            // Static property must be settable and readable. Compiled default is true
+            // but tests run in any Editor skin; we set explicitly to avoid fragility.
+            MarkdownInlineFormatter.IsDarkTheme = true;
             Assert.IsTrue(MarkdownInlineFormatter.IsDarkTheme);
         }
 

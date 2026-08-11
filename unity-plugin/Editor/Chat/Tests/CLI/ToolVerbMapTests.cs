@@ -58,9 +58,9 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void Humanize_BuiltInClaude_ReturnsHumanLabel()
         {
-            // Agent tool name confirmed from session transcripts (Task absent in practice)
+            // Agent confirmed as primary name (192 sessions); Task=0 but kept as insurance
             Assert.AreEqual("Agent",            ToolVerbMap.Humanize("Agent"));
-            Assert.AreEqual("Agent",            ToolVerbMap.Humanize("Task"));    // insurance for older SDK
+            Assert.AreEqual("Agent",            ToolVerbMap.Humanize("Task"));
             Assert.AreEqual("Updated tasks",    ToolVerbMap.Humanize("TodoWrite"));
             Assert.AreEqual("Editing file",     ToolVerbMap.Humanize("Edit"));
             Assert.AreEqual("Writing file",     ToolVerbMap.Humanize("Write"));
@@ -72,6 +72,14 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("Searching",        ToolVerbMap.Humanize("Grep"));
             Assert.AreEqual("Fetching",         ToolVerbMap.Humanize("WebFetch"));
             Assert.AreEqual("Searching web",    ToolVerbMap.Humanize("WebSearch"));
+        }
+
+        [Test]
+        public void Humanize_TaskManagement_ReturnsHumanLabel()
+        {
+            // TaskCreate/TaskUpdate confirmed in Claude Code task panel (sessions data)
+            Assert.AreEqual("Creating task",    ToolVerbMap.Humanize("TaskCreate"));
+            Assert.AreEqual("Updating task",    ToolVerbMap.Humanize("TaskUpdate"));
         }
     }
 }
