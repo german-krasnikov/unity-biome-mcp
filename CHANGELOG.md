@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - MutationDiffCard — scene mutations (set_property, set_active, create_object, etc.) with before/after values and object navigation
   - TaskChecklistCard — accumulated task list (TaskCreate, TaskUpdate) with per-task status display (open/in-progress/completed)
   - AgentCard — subagent invocation; displays subagent type and task description from call args, plus result summary (~200 char) if result received
-- **Model thinking blocks** — display extended thinking / reasoning as a collapsible section with elapsed-time counter; enabled by default, ephemeral (not persisted in transcript after reload)
+- **Model thinking blocks** — display extended thinking / reasoning as a collapsible section; enabled by default, ephemeral (not persisted in transcript after reload)
 - **Agent @-mentions** — users now delegate work to subagents by typing `@` in chat input; `AgentMentionSource` discovers agents from `{projectRoot}/.claude/agents/*.md` and `{homeDir}/.claude/agents/*.md` with ancestor-directory walk; agents render as chips and trigger the Agent tool when invoked
 - **AgentMissDetector** — warns via chip if a message contained `[agent:name]` mention but the model never invoked the Agent tool
 - **Tool result passthrough** — Claude tool results now reach Chat; `stream_transform` emits `tr|` pipe-protocol events (truncated to 200 characters). Results surface as a short summary inside AgentCard; other cards use them to enrich already-rendered content
@@ -28,19 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Clickable markdown links** — inline `[text](url)` now renders as clickable links (via `<link="url:...">` tag system); right-click context menu with "Navigate" and "Add to context" options
 - **Table column alignment** — markdown table cells respect alignment hints (`:---`, `:---:`, `---:`)
 - **Semantic color tokens** — `Chat.Tokens.uss` defines semantic palette with light-theme support
-- Scene Drag & Drop into chat — `.unity` files from Project window create scene chips
-- Hierarchy header right-click `🧬MCP/Copy Ref` for scenes (SceneHeaderContextMenu)
-- `MentionRowActions.PingInProject` for scene chips
-- `ServerUpdater` — auto-reinstall Python server when plugin version is newer (UPM update)
-- `PluginUpdateMonitor` — C# version change detection on domain reload
 
 ### Changed
 - **`set_property` returns previous value** — response format now `"{prop} = {actual} (was {old})"` when prior value is available; gracefully falls back to `"{prop} = {actual}"` if the read fails; backward compatible (consumers reading the prefix are unaffected)
 - **Agents removed from backend dropdown** — agent selection moved from persistent footer dropdown to per-message @-mention system for cleaner UX
-- Chip refs unified to `$HEX` format — `[hierarchy:/Player$3E8]` replaces `[hierarchy:/Player#1000]`
-- Scene chips use name-only path — `[scene:MyScene]` instead of `[scene:Assets/Scenes/MyScene.unity]`
-- `FindAssets` exact-match for scene name resolution (no substring false positives)
-- `AssetMentionIndex` delegates to `SceneChipProvider.Create` for consistent scene bracket format
 
 ### Fixed
 - **Markdown links now clickable** — links from chat output were rendered as dead text; click handlers now installed on `<link>` tags via ChatRefAction
@@ -48,6 +39,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Click handlers on markup links** — links embedded in message output via the link tag system now route clicks to navigation handlers
 - **Space before chip eaten by bold** — whitespace before a chip was consumed during bold-text normalization; StripOrphanBold guard now applied after chip detection
 - **Image cache bounded to 50 entries** — `ImageBlockRenderer` texture cache now evicts oldest entries (FIFO) when reaching capacity; prevents VRAM leaks from accumulated screenshots
+
+## [v1.29.0] — 2026-08-11
+
+### Added
+- Scene Drag & Drop into chat — `.unity` files from Project window create scene chips
+- Hierarchy header right-click `🧬MCP/Copy Ref` for scenes (SceneHeaderContextMenu)
+- `MentionRowActions.PingInProject` for scene chips
+- `ServerUpdater` — auto-reinstall Python server when plugin version is newer (UPM update)
+- `PluginUpdateMonitor` — C# version change detection on domain reload
+
+### Changed
+- Chip refs unified to `$HEX` format — `[hierarchy:/Player$3E8]` replaces `[hierarchy:/Player#1000]`
+- Scene chips use name-only path — `[scene:MyScene]` instead of `[scene:Assets/Scenes/MyScene.unity]`
+- `FindAssets` exact-match for scene name resolution (no substring false positives)
+- `AssetMentionIndex` delegates to `SceneChipProvider.Create` for consistent scene bracket format
+
+### Fixed
 - `_default_is_uvx_install()` false-positive for Homebrew/system Python
 - `proc.wait()` timeout guard in `ServerUpdater` — prevents stuck `_updating` flag
 - `asyncio.create_task` lifecycle in bridge — stored reference prevents GC
