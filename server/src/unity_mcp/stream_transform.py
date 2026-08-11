@@ -130,7 +130,9 @@ def _handle_stream_event(obj: dict, acc: _ToolCallAcc) -> list[str]:
             rid    = acc.result_id
             ok_str = "true" if acc.result_ok else "false"
             text   = "".join(acc.result_parts)[:_MAX_TOOL_RESULT_LEN] if acc.result_parts else ""
-            acc.result_id = ""; acc.result_parts = []; acc.muted = False
+            acc.result_id = ""
+            acc.result_parts = []
+            acc.muted = False
             return [f"tr|{rid}|{ok_str}|{text}"] if (rid and (text or ok_str == "false")) else []
         if acc.thinking_active:
             text = "".join(acc.thinking_parts)
