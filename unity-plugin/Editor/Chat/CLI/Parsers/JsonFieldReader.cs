@@ -10,6 +10,7 @@ namespace UnityMCP.Editor.Chat.Parsers
         // Returns the decoded string value for "key": "...", or null if absent/not a string.
         internal static string ReadString(string json, string key)
         {
+            if (json == null) return null;
             var needle = "\"" + key + "\":";
             int idx = json.IndexOf(needle, System.StringComparison.Ordinal);
             if (idx < 0) return null;
@@ -31,6 +32,16 @@ namespace UnityMCP.Editor.Chat.Parsers
                         case 'n':  sb.Append('\n'); break;
                         case 'r':  sb.Append('\r'); break;
                         case 't':  sb.Append('\t'); break;
+                        case 'u':
+                            if (idx + 4 <= json.Length &&
+                                int.TryParse(json.Substring(idx, 4),
+                                    System.Globalization.NumberStyles.HexNumber,
+                                    null, out int code))
+                            {
+                                sb.Append((char)code);
+                                idx += 4;
+                            }
+                            break;
                         default:   sb.Append(esc);  break;
                     }
                 }
