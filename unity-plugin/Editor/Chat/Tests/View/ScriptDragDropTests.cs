@@ -12,10 +12,10 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class ScriptDragDropTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
         [TearDown] public void TearDown()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         private List<(Object obj, string path, string name)> _chips;

@@ -14,14 +14,14 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.AddToContextAction = null;
         }
 
         [TearDown]
         public void TearDown()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.AddToContextAction = null;
             ChipPillFactory.PendingChips.Clear();
             PropertyContextMenuBridge.GetAssetPathOverride = null;

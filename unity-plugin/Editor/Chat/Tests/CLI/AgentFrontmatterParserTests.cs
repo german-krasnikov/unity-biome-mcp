@@ -46,5 +46,25 @@ namespace UnityMCP.Editor.Chat.Tests
         public void ParseName_SingleQuotedName_ReturnsUnquoted() =>
             Assert.AreEqual("code-reviewer",
                 AgentFrontmatterParser.ParseName("---\nname: 'code-reviewer'\n---", "somefile"));
+
+        [Test]
+        public void ParseDescription_WithFrontmatter() =>
+            Assert.AreEqual("Fixes bugs",
+                AgentFrontmatterParser.ParseDescription("---\ndescription: Fixes bugs\n---", ""));
+
+        [Test]
+        public void ParseDescription_NoKey_ReturnsFallback() =>
+            Assert.AreEqual("",
+                AgentFrontmatterParser.ParseDescription("---\nname: foo\n---", ""));
+
+        [Test]
+        public void ParseModel_WithFrontmatter() =>
+            Assert.AreEqual("claude-sonnet-4-5",
+                AgentFrontmatterParser.ParseModel("---\nmodel: claude-sonnet-4-5\n---", ""));
+
+        [Test]
+        public void ParseModel_NoKey_ReturnsFallback() =>
+            Assert.AreEqual("",
+                AgentFrontmatterParser.ParseModel("---\nname: foo\n---", ""));
     }
 }

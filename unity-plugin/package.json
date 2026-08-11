@@ -1,6 +1,6 @@
 {
   "name": "com.unity-biome-mcp.editor",
-  "version": "1.29.0",
+  "version": "1.30.0",
   "displayName": "Unity Biome MCP",
   "description": "Control Unity Editor from any AI assistant via MCP. Works with Claude, Codex, Cursor, Windsurf, VS Code, Rider, and more.\n▪ 150+ tools: scene editing, components, assets, playtests, screenshots, batch workflows\n▪ PlayTest DSL — write gameplay assertions in plain text\n▪ Execute C# at runtime, Visual Diff, In-Unity Chat\n▪ Setup Wizard: one-click install for 10+ AI clients\n▪ 8800+ tests, CI on macOS/Windows/Linux",
   "unity": "6000.0",

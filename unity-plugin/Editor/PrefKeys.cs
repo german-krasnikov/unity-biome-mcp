@@ -29,5 +29,6 @@ namespace UnityMCP.Editor
         // Chat settings — EditorPrefs (shared: ChatSettingsSection writes, MCPChatWindow.Drain.cs reads)
         public const string ChatAutoScroll          = "MCPChat.AutoScroll";
         public const string DisableSceneNameNorm    = "MCPChat.DisableSceneNameNorm";
+        public const string ShowThinkingBlocks      = "MCPChat.ShowThinkingBlocks";
     }
 }

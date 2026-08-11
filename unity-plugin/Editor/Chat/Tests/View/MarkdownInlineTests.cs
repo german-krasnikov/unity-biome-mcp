@@ -65,12 +65,12 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void Link_RendersColoredText()
+        public void Link_RendersAsClickable()
         {
             var result = MarkdownInline.ToRichText("[click](http://example.com)");
-            Assert.IsTrue(result.Contains("click"), $"Got: {result}");
-            Assert.IsTrue(result.Contains("http://example.com"), $"URL missing: {result}");
-            Assert.IsTrue(result.Contains("<color="), $"URL not colored: {result}");
+            Assert.IsTrue(result.Contains("<link="), $"Expected <link= tag. Got: {result}");
+            Assert.IsTrue(result.Contains("click"), $"Link text missing. Got: {result}");
+            Assert.IsTrue(result.Contains("http://example.com"), $"URL missing. Got: {result}");
         }
 
         [Test]
@@ -119,11 +119,27 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             // Locks restored step-2b: [kind:ref] in non-paragraph contexts (headings, blockquotes,
             // table cells) must produce a <link= rich-text anchor, NOT literal bracket text.
-            UnityMCP.Editor.Chat.ChipKindRegistry.ResetToBuiltIns();
+            UnityMCP.Editor.Chat.ChipKindRegistry.ResetForTests();
             var result = MarkdownInline.ToRichText("[hierarchy:/X#1]");
             StringAssert.Contains("<link=", result, $"Expected <link= tag. Got: {result}");
             StringAssert.DoesNotContain("[hierarchy:/X#1]", result,
                 $"Literal tag must not survive: {result}");
+        }
+
+        // C1 (Regression matrix): bold span followed by non-bold suffix.
+        // The _bold regex must match even when the closing ** is NOT at end-of-string.
+        // Separates responsibility: if this passes but B1 (Render) fails, the bug is in
+        // StripOrphanBold. If this fails, the bug is in the bold regex itself.
+        [Test]
+        public void C1_ToRichText_BoldWithNonBoldSuffix_AppliesBold()
+        {
+            var result = MarkdownInline.ToRichText("**text** — ");
+            StringAssert.Contains("<b>text</b>", result,
+                $"Bold regex must match mid-string closing **: '{result}'");
+            StringAssert.Contains(" — ", result,
+                $"Trailing suffix must be preserved: '{result}'");
+            StringAssert.DoesNotContain("**", result,
+                $"No bare ** should remain: '{result}'");
         }
     }
 }

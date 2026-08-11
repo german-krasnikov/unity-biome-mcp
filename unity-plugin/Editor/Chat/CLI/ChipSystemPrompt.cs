@@ -3,7 +3,7 @@ namespace UnityMCP.Editor.Chat
 {
     internal static class ChipSystemPrompt
     {
-        // ~55 tokens. Cached by Anthropic API after first turn.
+        // ~70 tokens. Cached by Anthropic API after first turn.
         internal const string Schema =
             "Unity Editor context chips attached by user:\n" +
             "[hierarchy:/Path] = scene object\n" +
@@ -12,7 +12,9 @@ namespace UnityMCP.Editor.Chat
             "  area/center/bounds/objects = polygon selection\n" +
             "  pos = point marker\n" +
             "  type=polyline = path/waypoints\n" +
-            "  dist = ruler measurement";
+            "  dist = ruler measurement\n" +
+            "[agent:name] = delegate task to named subagent (invoke Agent tool, subagent_type=name)\n" +
+            "In responses: write scene objects, assets, and scripts as bare name or [kind:path] — not [name](link).";
 
         /// <summary>Returns schema string for the given backend, or null if not applicable.</summary>
         internal static string ForBackend(BackendKind kind)

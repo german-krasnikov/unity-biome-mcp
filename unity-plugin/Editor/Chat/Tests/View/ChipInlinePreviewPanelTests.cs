@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             InlinePreviewBuilder.TextureLoader = _ => Texture2D.whiteTexture;
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             AssetViewerFactory.ReRegisterBuiltIns();
         }
 

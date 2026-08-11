@@ -140,6 +140,11 @@ namespace UnityMCP.Editor.Chat
 
     internal sealed class SceneChipProvider : AssetChipProviderBase
     {
+#if UNITY_INCLUDE_TESTS
+        /// <summary>Test seam: override to suppress or fake the Open Scene? dialog.</summary>
+        internal static System.Func<string, bool> DisplayDialogOverride;
+#endif
+
         public override string Key      => ChipKindKeys.Scene;
         public override int    Priority => 200;
         public override string IconName => "d_SceneAsset Icon";
@@ -158,14 +163,47 @@ namespace UnityMCP.Editor.Chat
 
         public override void Navigate(string reference)
         {
+            if (UnityEngine.Application.isPlaying)
+            {
+                Debug.LogWarning($"{BiomeLabel.Tag} Cannot open scene in Play Mode: {reference}");
+                return;
+            }
             var obj = LoadScene(reference);
             if (obj == null)
             {
                 Debug.LogWarning($"{BiomeLabel.Tag} Scene not found: {reference}");
                 return;
             }
+            // Ping first so user can see it in the Project window.
             EditorGUIUtility.PingObject(obj);
             Selection.activeObject = obj;
+
+            // Offer to open the scene if it is not currently loaded.
+            var scenePath = AssetDatabase.GetAssetPath(obj);
+            var isLoaded  = false;
+            for (int i = 0; i < UnityEditor.SceneManagement.EditorSceneManager.sceneCount; i++)
+            {
+                var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneAt(i);
+                if (s.isLoaded && string.Equals(s.path, scenePath,
+                        System.StringComparison.Ordinal))
+                { isLoaded = true; break; }
+            }
+            if (!isLoaded && !string.IsNullOrEmpty(scenePath))
+            {
+                bool open;
+#if UNITY_INCLUDE_TESTS
+                // Suppress the modal dialog in tests unless the test explicitly sets the override.
+                open = DisplayDialogOverride != null && DisplayDialogOverride(reference);
+#else
+                open = EditorUtility.DisplayDialog("Open Scene?", $"Load '{reference}' in the Editor?", "Open", "Cancel");
+#endif
+                if (open)
+                {
+                    UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
+                        scenePath,
+                        UnityEditor.SceneManagement.OpenSceneMode.Additive);
+                }
+            }
         }
 
         public override void Ping(string reference)

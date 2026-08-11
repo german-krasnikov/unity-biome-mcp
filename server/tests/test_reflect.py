@@ -286,7 +286,7 @@ async def test_delete_object_with_path_arg():
 
 async def test_set_property_no_snapshot_silent():
     # C# returns "health = 100" when FindObject fails (no --- block) — should be None not Mismatch
-    result = await reflect("set_property", {"prop": "health", "value": "100"}, "health = 100", _dummy_send)
+    result = await reflect("set_property", {"prop": "health", "value": "100"}, "health = 100 (was 50)", _dummy_send)
     assert result is None
 
 
@@ -295,7 +295,7 @@ async def test_set_property_no_snapshot_silent():
 async def test_object_reference_format():
     # C# serializes as "/Enemy/Head #12345"
     # User passed value="/Enemy/Head"
-    resp = "target = /Enemy/Head #12345\n---\n  target: /Enemy/Head #12345"
+    resp = "target = /Enemy/Head #12345 (was None)\n---\n  target: /Enemy/Head #12345"
     result = await reflect("set_property", {"prop": "target", "value": "/Enemy/Head"}, resp, _dummy_send)
     assert result is None
 
@@ -304,7 +304,7 @@ async def test_object_reference_format():
 
 async def test_color_rgb_vs_rgba():
     # User passed (1,0,0), Unity returns (1.00, 0.00, 0.00, 1.00)
-    resp = "color = (1.00, 0.00, 0.00, 1.00)\n---\n  color: (1.00, 0.00, 0.00, 1.00)"
+    resp = "color = (1.00, 0.00, 0.00, 1.00) (was (0, 0, 0, 1))\n---\n  color: (1.00, 0.00, 0.00, 1.00)"
     result = await reflect("set_property", {"prop": "color", "value": "(1,0,0)"}, resp, _dummy_send)
     assert result is None
 
@@ -335,7 +335,7 @@ async def test_verify_snapshot_disabled_when_reflect_on(monkeypatch):
     # verify_snapshot fires on set_property only when snapshot has [Component] line
     # Return a response that would trigger verify_snapshot but should be suppressed
     async def fake_send(cmd, args, timeout=30.0):
-        return "prop = 100\n[Transform]\nprop: 999"
+        return "prop = 100 (was 0)\n[Transform]\nprop: 999"
 
     wrapped = wrap_send(fake_send)
     result = await wrapped("set_property", {"prop": "prop", "value": "100"})
@@ -350,7 +350,7 @@ async def test_mismatch_msg_with_bracket(monkeypatch):
 
     async def fake_send(cmd, args, timeout=30.0):
         # Return snapshot that will cause mismatch with ] in msg
-        return "health = 99\n---\n  health: 99"
+        return "health = 99 (was 100)\n---\n  health: 99"
 
     wrapped = wrap_send(fake_send)
     result = await wrapped("set_property", {"prop": "health", "value": "100"})

@@ -185,10 +185,13 @@ namespace UnityMCP.Editor
             var comp = JsonHelper.ExtractString(args, "component");
             var prp = JsonHelper.ExtractString(args, "prop");
             var val = JsonHelper.ExtractString(args, "value");
+            string oldStr = null;
+            if (!dryRun)
+                try { oldStr = ObjectManager.ReadPropertyValue(path, comp, prp); } catch (ArgumentException) { }
             var actual = ObjectManager.SetProperty(path, comp, prp, val, dryRun);
             if (dryRun) return actual;
             // F11: skip snapshot serialization inside batch (deferred Physics.Sync handles it)
-            if (BatchHelper.InBatch) return $"{prp} = {actual}";
+            if (BatchHelper.InBatch) return FormatPropResult(prp, actual, oldStr);
             var go = ComponentSerializer.FindObject(path);
             if (go != null)
             {
@@ -196,9 +199,9 @@ namespace UnityMCP.Editor
                     ComponentSerializer.StripNamespace(comp), go);
                 var snapshot = ComponentSerializer.Serialize(path, normComp);
                 if (snapshot != null)
-                    return $"{prp} = {actual}\n---\n{snapshot}";
+                    return $"{FormatPropResult(prp, actual, oldStr)}\n---\n{snapshot}";
             }
-            return $"{prp} = {actual}";
+            return FormatPropResult(prp, actual, oldStr);
         }
 
         private static string ExecTransferObject(string args)
@@ -380,5 +383,8 @@ namespace UnityMCP.Editor
             sb.Append("total: ").Append(count);
             return ApplyFieldsCompress(args, sb.ToString().TrimEnd());
         }
+
+        private static string FormatPropResult(string prop, string actual, string old)
+            => old != null ? $"{prop} = {actual} (was {old})" : $"{prop} = {actual}";
     }
 }

@@ -2,6 +2,7 @@
 // Mirrors SlashPopup pattern: same keyboard intercept (_inputArea TrickleDown),
 // same blur-dismiss pattern (150ms delay), text-change detection via ChangeEvent.
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -22,7 +23,10 @@ namespace UnityMCP.Editor.Chat
             var sceneIndex  = new SceneMentionIndex();
             _assetMentionIndex = new AssetMentionIndex();
             var recentSrc   = new RecentMentionSource();
-            _mentionCoordinator = new MentionCoordinator(recentSrc, sceneIndex, _assetMentionIndex);
+            var projectRoot = Path.GetDirectoryName(Application.dataPath);
+            var home        = System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile);
+            var agentSrc    = new AgentMentionSource(projectRoot, home);
+            _mentionCoordinator = new MentionCoordinator(recentSrc, sceneIndex, _assetMentionIndex, agentSrc);
 
             _mentionHistory = new MentionHistory();
             _mentionCoordinator.History = _mentionHistory;

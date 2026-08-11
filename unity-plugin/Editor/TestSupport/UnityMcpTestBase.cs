@@ -41,6 +41,7 @@ namespace UnityMCP.Editor.Testing
         private IDisposable _pluginRegistryIsolation;
         private IDisposable _assetViewerFactoryIsolation;
         private IDisposable _previewBuilderRegistryIsolation;
+        private IDisposable _toolCardRendererIsolation;
         private IDisposable _inlinePreviewBuilderIsolation;
         private IDisposable _mixedParagraphRendererIsolation;
         private IDisposable _chatSettingsHookIsolation;
@@ -102,6 +103,7 @@ namespace UnityMCP.Editor.Testing
                 _assetViewerFactoryIsolation = AssetViewerFactory.PreserveStateForTests();
                 _previewBuilderRegistryIsolation =
                     PreviewBuilderRegistry.PreserveStateForTests();
+                _toolCardRendererIsolation = ToolCardRendererRegistry.PreserveStateForTests();
                 _inlinePreviewBuilderIsolation = InlinePreviewBuilder.PreserveStateForTests();
                 _mixedParagraphRendererIsolation =
                     MixedParagraphRenderer.PreserveStateForTests();
@@ -217,6 +219,10 @@ namespace UnityMCP.Editor.Testing
                 "inline preview loader restoration",
                 errors);
             RunCleanup(
+                () => _toolCardRendererIsolation?.Dispose(),
+                "tool card renderer registry restoration",
+                errors);
+            RunCleanup(
                 () => _previewBuilderRegistryIsolation?.Dispose(),
                 "preview builder registry restoration",
                 errors);
@@ -280,6 +286,7 @@ namespace UnityMCP.Editor.Testing
             _pluginRegistryIsolation = null;
             _assetViewerFactoryIsolation = null;
             _previewBuilderRegistryIsolation = null;
+            _toolCardRendererIsolation = null;
             _inlinePreviewBuilderIsolation = null;
             _mixedParagraphRendererIsolation = null;
             _chatSettingsHookIsolation = null;

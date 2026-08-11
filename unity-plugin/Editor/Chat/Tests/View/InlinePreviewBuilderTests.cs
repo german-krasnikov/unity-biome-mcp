@@ -22,7 +22,7 @@ namespace UnityMCP.Editor.Chat.Tests
             InlinePreviewBuilder.TextureLoader = _ => Texture2D.whiteTexture;
             InlinePreviewBuilder.AssetPreviewLoader = _ => Texture2D.whiteTexture;
             InlinePreviewBuilder.AudioClipLoader = null;
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             AssetViewerFactory.ReRegisterBuiltIns();
         }
 

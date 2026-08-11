@@ -10,8 +10,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class NormalizationPipelineTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         // ── Test 1 (GREEN after deletion) ────────────────────────────────────
         // SceneNameLinker is gone: ToRichText must not emit underline-link format.

@@ -39,5 +39,29 @@ namespace UnityMCP.Editor.Tests
             ObjectManager.SetProperty("/SPI_TestObj", "EnumTestComponent", "toolType", "Hammer");
             Assert.AreEqual(ToolType.Hammer, _go.GetComponent<EnumTestComponent>()._toolType);
         }
+
+        // ExecSetProperty via CommandRouter returns "was" clause after T-3
+        [Test]
+        public void ExecSetProperty_ResultContainsWasClause()
+        {
+            CommandRouter.RegisterAll();
+            ObjectManager.SetProperty("/SPI_TestObj", "EnumTestComponent", "_toolType", "Hammer");
+            var result = CommandRouter.ExecuteCommand("set_property",
+                "{\"path\":\"/SPI_TestObj\",\"component\":\"EnumTestComponent\",\"prop\":\"_toolType\",\"value\":\"Wrench\"}");
+            StringAssert.Contains("was", result);
+            StringAssert.Contains("Hammer", result);
+            StringAssert.Contains("Wrench", result);
+        }
+
+        [Test]
+        public void ExecSetProperty_FormatIsEqualWithWas()
+        {
+            CommandRouter.RegisterAll();
+            ObjectManager.SetProperty("/SPI_TestObj", "EnumTestComponent", "_toolType", "Hammer");
+            var result = CommandRouter.ExecuteCommand("set_property",
+                "{\"path\":\"/SPI_TestObj\",\"component\":\"EnumTestComponent\",\"prop\":\"_toolType\",\"value\":\"Wrench\"}");
+            var firstLine = result.Split('\n')[0];
+            StringAssert.StartsWith("_toolType = Wrench (was", firstLine);
+        }
     }
 }

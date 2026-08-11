@@ -61,12 +61,19 @@ namespace UnityMCP.Editor.Chat
         // M1: name of the last tool call in the current turn (for timeout hint).
         internal string _lastToolName;
 
+        // T-6.3: agent name from [agent:name] chip in the sent payload; cleared at turn end.
+        internal string _pendingAgentName;
+
+        // T-6.3: set when Agent or Task tool fires in the current turn (delegation occurred).
+        internal bool _turnHadDelegation;
+
         // P0-2: DRY helper — reset all per-turn flags (3 sites in Drain + CancelTurn + NewSession).
         private void ResetTurnFlags()
         {
-            _turnEditedCode = _turnHasToolCalls = _needsRefresh = false;
+            _turnEditedCode = _turnHasToolCalls = _needsRefresh = _turnHadDelegation = false;
             _lastEventTime  = 0;
             _lastToolName   = null;
+            _pendingAgentName = null;
         }
 
         internal void ResetTokenCounters()
@@ -158,14 +165,22 @@ namespace UnityMCP.Editor.Chat
             _resolver?.Refresh();
         }
 
+        static void TryAddStyleSheet(VisualElement root, string name)
+        {
+            var ss = AssetDatabase.LoadAssetAtPath<StyleSheet>(
+                $"Packages/com.unity-biome-mcp.editor/Editor/Chat/View/{name}");
+            if (ss != null) root.styleSheets.Add(ss);
+            else Debug.LogWarning($"[Biome Chat] StyleSheet not found: {name}");
+        }
+
         private void CreateGUI()
         {
             var root = rootVisualElement;
-            var ss = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Packages/com.unity-biome-mcp.editor/Editor/Chat/View/MCPChatWindow.uss");
-            if (ss != null) root.styleSheets.Add(ss);
+            TryAddStyleSheet(root, "Chat.Tokens.uss");  // semantic --chat-* vars loaded first
+            TryAddStyleSheet(root, "MCPChatWindow.uss"); // existing layout styles
             root.AddToClassList("chat-root");
             if (!EditorGUIUtility.isProSkin) root.AddToClassList("chat-root--light");
+            MarkdownInlineFormatter.IsDarkTheme = EditorGUIUtility.isProSkin;
             _scroll = new ScrollView(ScrollViewMode.Vertical);
             _scroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             _scroll.AddToClassList("chat-scroll");

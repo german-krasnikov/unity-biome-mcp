@@ -77,7 +77,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void FolderChipProvider_NullObj_ReturnsFalse()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             var provider = new FolderChipProvider();
             Assert.IsFalse(provider.CanHandle(null, "Assets/SomeFolder"));
         }

@@ -1,0 +1,44 @@
+/* Chat.Tokens.uss — semantic palette. New card types use only var(--chat-*).
+   Unity USS does NOT support rgba(var(--token), alpha) — each alpha variant
+   requires its own token. See ARCH-chat-FINAL.md Known Mines. */
+
+.chat-root {
+    /* SUCCESS */
+    --chat-success:          #4CAF50;
+    --chat-success-tint:     rgba(76, 175, 80, 0.08);
+    --chat-success-tint-dim: rgba(76, 175, 80, 0.06);
+    --chat-success-border:   rgba(76, 175, 80, 0.20);
+
+    /* ERROR */
+    --chat-error-tint:       rgba(244, 67, 54, 0.08);
+    --chat-error-tint-dim:   rgba(244, 67, 54, 0.06);
+    --chat-error-border:     rgba(244, 67, 54, 0.20);
+
+    /* REF / MODIFICATION */
+    --chat-ref-tint:         rgba(66, 133, 244, 0.10);
+    --chat-ref-border:       rgba(66, 133, 244, 0.25);
+
+    /* WARN */
+    --chat-warn:             #e6a23c;
+    --chat-warn-tint:        rgba(230, 162, 60, 0.15);
+    --chat-warn-border:      rgba(230, 162, 60, 0.55);
+}
+
+/* Light overrides — only tokens that differ from dark defaults */
+.chat-root.chat-root--light {
+    --chat-success:          #2E7D32;
+    --chat-success-tint:     rgba(46, 125, 50, 0.08);
+    --chat-success-tint-dim: rgba(46, 125, 50, 0.06);
+    --chat-success-border:   rgba(46, 125, 50, 0.20);
+
+    --chat-error-tint:       rgba(211, 47, 47, 0.08);
+    --chat-error-tint-dim:   rgba(211, 47, 47, 0.06);
+    --chat-error-border:     rgba(211, 47, 47, 0.20);
+
+    --chat-ref-tint:         rgba(25, 118, 210, 0.10);
+    --chat-ref-border:       rgba(25, 118, 210, 0.25);
+
+    --chat-warn:             #b7791f;
+    --chat-warn-tint:        rgba(183, 121, 31, 0.15);
+    --chat-warn-border:      rgba(183, 121, 31, 0.55);
+}

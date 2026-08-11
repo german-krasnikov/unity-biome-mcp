@@ -54,5 +54,32 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("Reading scene",
                 ToolVerbMap.Humanize(PermissionConfig.MCP_TOOL_PREFIX + "get_hierarchy"));
         }
+
+        [Test]
+        public void Humanize_BuiltInClaude_ReturnsHumanLabel()
+        {
+            // Agent confirmed as primary name (192 sessions); Task=0 but kept as insurance
+            Assert.AreEqual("Agent",            ToolVerbMap.Humanize("Agent"));
+            Assert.AreEqual("Agent",            ToolVerbMap.Humanize("Task"));
+            Assert.AreEqual("Updated tasks",    ToolVerbMap.Humanize("TodoWrite"));
+            Assert.AreEqual("Editing file",     ToolVerbMap.Humanize("Edit"));
+            Assert.AreEqual("Writing file",     ToolVerbMap.Humanize("Write"));
+            Assert.AreEqual("Editing files",    ToolVerbMap.Humanize("MultiEdit"));
+            Assert.AreEqual("Running command",  ToolVerbMap.Humanize("Bash"));
+            Assert.AreEqual("Reading file",     ToolVerbMap.Humanize("Read"));
+            Assert.AreEqual("Listing files",    ToolVerbMap.Humanize("LS"));
+            Assert.AreEqual("Searching files",  ToolVerbMap.Humanize("Glob"));
+            Assert.AreEqual("Searching",        ToolVerbMap.Humanize("Grep"));
+            Assert.AreEqual("Fetching",         ToolVerbMap.Humanize("WebFetch"));
+            Assert.AreEqual("Searching web",    ToolVerbMap.Humanize("WebSearch"));
+        }
+
+        [Test]
+        public void Humanize_TaskManagement_ReturnsHumanLabel()
+        {
+            // TaskCreate/TaskUpdate confirmed in Claude Code task panel (sessions data)
+            Assert.AreEqual("Creating task",    ToolVerbMap.Humanize("TaskCreate"));
+            Assert.AreEqual("Updating task",    ToolVerbMap.Humanize("TaskUpdate"));
+        }
     }
 }

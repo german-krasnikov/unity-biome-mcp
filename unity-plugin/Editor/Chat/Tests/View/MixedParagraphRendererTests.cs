@@ -18,7 +18,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             LogAssert.ignoreFailingMessages = false;
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
             InlinePreviewBuilder.TextureLoader = _ => Texture2D.whiteTexture;
             AssetViewerFactory.ReRegisterBuiltIns();
@@ -132,6 +132,103 @@ namespace UnityMCP.Editor.Chat.Tests
             // Single click now calls navigate — preview panel stays hidden.
             Assert.IsFalse(panel.style.display == DisplayStyle.Flex,
                 "single click must NOT toggle preview panel (navigate instead)");
+        }
+
+        // ── T-7c-B item 6: StripOrphanBold guard ─────────────────────────────
+
+        [Test]
+        public void StripOrphanBold_NoBold_PreservesLeadingSpace()
+        {
+            // Text with intentional leading/trailing spaces (between chips) must not be trimmed
+            // when there are no orphan bold markers.
+            const string input = " text between chips ";
+            Assert.AreEqual(input, MixedParagraphRenderer.StripOrphanBold(input));
+        }
+
+        // M2 regression: TrimEnd().Length counts leading whitespace; must use Trim().Length.
+        // "  **" (2 spaces + orphan bold marker) has no content — must return "".
+        // With old guard (TrimEnd().Length=4>=4 → endsDouble=true AND startsDouble=true)
+        // neither stripping branch fires → returns "**" (visible asterisks). Bug.
+        [Test]
+        public void StripOrphanBold_LeadingWhitespacePlusMarkers_ReturnsEmpty()
+        {
+            Assert.AreEqual("", MixedParagraphRenderer.StripOrphanBold("  **"));
+        }
+
+        // M3 edge cases ─────────────────────────────────────────────────────────
+
+        [Test]
+        public void StripOrphanBold_CompletePair_ReturnsUnchanged()
+        {
+            // Both ends have "**" AND content: neither branch fires, text preserved.
+            Assert.AreEqual("**text**", MixedParagraphRenderer.StripOrphanBold("**text**"));
+        }
+
+        [Test]
+        public void StripOrphanBold_EmptyString_ReturnsEmpty()
+        {
+            Assert.AreEqual("", MixedParagraphRenderer.StripOrphanBold(""));
+        }
+
+        [Test]
+        public void StripOrphanBold_WhitespaceOnly_ReturnsUnchanged()
+        {
+            // No bold markers → early return, whitespace preserved as-is.
+            Assert.AreEqual("   ", MixedParagraphRenderer.StripOrphanBold("   "));
+        }
+
+        // ── Regression matrix A1-A4: balanced bold detection fix ──────────────
+
+        // A1 (DEFECT 1 root cause — must be RED before fix)
+        // "**Деревья** — " has a COMPLETE bold span followed by plain text.
+        // The leading ** is NOT an orphan — stripping it leaves "Деревья** — " (visible asterisks).
+        [Test]
+        public void StripOrphanBold_CyrillicBoldWithSuffix_PreservesAll()
+        {
+            Assert.AreEqual("**Деревья** — ", MixedParagraphRenderer.StripOrphanBold("**Деревья** — "));
+        }
+
+        // A2 — same class, ASCII (regression guard: fix must be general, not cyrillic-only)
+        [Test]
+        public void StripOrphanBold_AsciiBoldWithSuffix_PreservesAll()
+        {
+            Assert.AreEqual("**bold** (suffix)", MixedParagraphRenderer.StripOrphanBold("**bold** (suffix)"));
+        }
+
+        // A3 — genuine orphan opener: must still be stripped (regression guard after A1 fix)
+        [Test]
+        public void StripOrphanBold_OrphanOpener_StripsLeading()
+        {
+            Assert.AreEqual("unclosed text", MixedParagraphRenderer.StripOrphanBold("**unclosed text"));
+        }
+
+        // A4 — trailing orphan: must still be stripped (regression guard after A1 fix)
+        [Test]
+        public void StripOrphanBold_TrailingOrphan_StripsTrailing()
+        {
+            Assert.AreEqual("text content", MixedParagraphRenderer.StripOrphanBold("text content **"));
+        }
+
+        // ── V3 structural: margin must live on wrapper, not pill ──────────────
+
+        [Test]
+        public void Render_PillWrapper_HasMarginRight_NotPill()
+        {
+            ChipKindRegistry.ResetForTests();
+            var ve = MixedParagraphRenderer.Render("[hierarchy:/Tree0]");
+            var wrapper = ve.Q(className: "chip-pill-wrapper");
+            var pill    = wrapper?.Q(className: "inline-chip-pill");
+            Assert.IsNotNull(wrapper, "wrapper must exist");
+            Assert.IsNotNull(pill,    "pill must exist inside wrapper");
+            // IStyle.marginRight is StyleLength in Unity 6; .value is Length; .value.value is float.
+            // Outer margin must be on wrapper so the column container doesn't swallow it.
+            float wrapperMargin = wrapper.style.marginRight.value.value;
+            Assert.AreEqual(2f, wrapperMargin, 0.001f,
+                "spacing must be 2f on the wrapper, not inside the column");
+            // Pill inside the column should NOT carry its own right margin.
+            float pillMargin = pill.style.marginRight.value.value;
+            Assert.AreNotEqual(2f, pillMargin,
+                "pill must not carry redundant marginRight inside column wrapper");
         }
 
         // ── helpers ───────────────────────────────────────────────────────────

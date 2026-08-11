@@ -60,6 +60,7 @@ namespace UnityMCP.Editor.Chat
         private void DispatchTurn(string turnJson, UserMessage displayMsg,
             string llmPayload, string screenshotPath = null)
         {
+            _pendingAgentName = AgentMissDetector.ExtractAgentName(llmPayload);
             ReloadGuard.OnTurnStarted();
             var displayText = ChipTextInterleaver.ToDisplayText(displayMsg);
             _undoTracker.OnTurnStart(displayText.Length > 40

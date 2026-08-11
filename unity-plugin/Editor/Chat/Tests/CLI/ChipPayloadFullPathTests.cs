@@ -10,8 +10,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class ChipPayloadFullPathTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         // ── helpers ─────────────────────────────────────────────────────────
 

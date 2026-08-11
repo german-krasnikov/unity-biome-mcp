@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             _created = new System.Collections.Generic.List<GameObject>();
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             // Reset clipboard to a known state
             EditorGUIUtility.systemCopyBuffer = "";
         }
@@ -27,7 +27,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             foreach (var go in _created)
                 if (go != null) Object.DestroyImmediate(go);
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         private GameObject MakeGo(string name)

@@ -1,4 +1,5 @@
 // TDD — F19: Tool detail labels preserve full text (no C#-side truncation).
+// Phase 1.1b: ChatTranscript dispatch integration tests.
 using NUnit.Framework;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
@@ -10,6 +11,22 @@ namespace UnityMCP.Editor.Chat.Tests
     {
         private static VisualElement MakeChip() =>
             new VisualElement { name = "tool-chip" };
+
+        private class FakeToolCardRenderer : IToolCardRenderer
+        {
+            public int OnStartCount;
+            public int OnUpdateCount;
+            public ToolCallRecord LastRec;
+            public void OnStart(VisualElement chip, ToolCallRecord rec) { OnStartCount++; LastRec = rec; }
+            public void OnUpdate(VisualElement chip, ToolCallRecord rec) { OnUpdateCount++; LastRec = rec; }
+        }
+
+        private ChatTranscript MakeTranscript()
+        {
+            var container = new VisualElement();
+            var reg = ChatBlockRendererFactory.CreateDefault(null, null);
+            return new ChatTranscript(container, reg);
+        }
 
         [Test]
         public void AttachOrUpdate_ArgsLabel_FullTextPreserved()
@@ -83,6 +100,44 @@ namespace UnityMCP.Editor.Chat.Tests
             var resultLabels = chip.Query<Label>(className: "tool-detail-result").ToList();
             Assert.AreEqual(1, resultLabels.Count, "must not duplicate result label on third call");
             Assert.AreEqual("updated result", resultLabels[0].text);
+        }
+
+        // ── Phase 1.1b: ChatTranscript dispatch integration ──────────────────
+
+        [Test]
+        public void AppendToolChip_RendererRegistered_OnStartCalled()
+        {
+            var fake = new FakeToolCardRenderer();
+            ToolCardRendererRegistry.Register("TestTool", fake);
+            RegisterCleanup(() => ToolCardRendererRegistry.Unregister("TestTool"));
+
+            var t = MakeTranscript();
+            t.AppendToolChip("TestTool", ok: true, toolId: "tid1");
+            Assert.AreEqual(1, fake.OnStartCount, "OnStart must be called on AppendToolChip");
+        }
+
+        [Test]
+        public void UpdateToolDetail_RendererRegistered_OnUpdateCalled_DefaultSkipped()
+        {
+            var fake = new FakeToolCardRenderer();
+            ToolCardRendererRegistry.Register("TestTool2", fake);
+            RegisterCleanup(() => ToolCardRendererRegistry.Unregister("TestTool2"));
+
+            var t = MakeTranscript();
+            t.AppendToolChip("TestTool2", ok: true, toolId: "tid2");
+            var rec = new ToolCallRecord("TestTool2", "tid2", "{\"cmd\":\"ls\"}");
+            t.UpdateToolDetail("tid2", rec);
+            Assert.AreEqual(1, fake.OnUpdateCount, "OnUpdate must be called for registered tool");
+        }
+
+        [Test]
+        public void UpdateToolDetail_NoRenderer_ToolDetailBuilderCalled()
+        {
+            // No renderer registered for "UnknownTool" — ToolDetailBuilder is the fallback
+            var t = MakeTranscript();
+            t.AppendToolChip("UnknownTool", ok: true, toolId: "tid3");
+            var rec = new ToolCallRecord("UnknownTool", "tid3", "{\"x\":1}");
+            Assert.DoesNotThrow(() => t.UpdateToolDetail("tid3", rec));
         }
     }
 }

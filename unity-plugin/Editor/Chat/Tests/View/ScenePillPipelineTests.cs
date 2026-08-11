@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
             // Ensure kill-switch is off — EditorPrefs persists across sessions.
             DeleteEditorPrefBool(PrefKeys.DisableSceneNameNorm);
@@ -29,7 +29,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [TearDown]
         public void TearDown()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
             ChipPillFactory.AddToContextAction = null;
         }

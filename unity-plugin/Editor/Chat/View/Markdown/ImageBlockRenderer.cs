@@ -1,5 +1,8 @@
 // Renders an Image block: loads PNG/JPG from disk into a Texture2D with proper lifecycle.
+// T-7c-A Item 2: static _cache avoids re-loading the same file on every re-render.
+// Cache is cleared by ClearCache() (TearDown) or domain reload.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -9,6 +12,21 @@ namespace UnityMCP.Editor.Chat
 {
     public sealed class ImageBlockRenderer : IChatBlockRenderer
     {
+        // Bounded FIFO cache: at most MaxCacheSize textures in memory at once.
+        // Cache owns every Texture2D it holds; eviction and ClearCache() destroy them.
+        // 50 screenshots ≈ 100 MB VRAM — a reasonable editorial limit.
+        private const int MaxCacheSize = 50;
+        private static readonly Dictionary<string, Texture2D> _cache = new Dictionary<string, Texture2D>();
+        private static readonly Queue<string> _keyOrder = new Queue<string>();
+
+        internal static void ClearCache()
+        {
+            foreach (var tex in _cache.Values)
+                if (tex != null) UnityEngine.Object.DestroyImmediate(tex);
+            _cache.Clear();
+            _keyOrder.Clear();
+        }
+
         private const float MaxWidth = 360f;
 
         public bool CanRender(in MdBlock block) => block.Kind == MdBlockKind.Image;
@@ -34,9 +52,29 @@ namespace UnityMCP.Editor.Chat
 
         private static VisualElement BuildImageElement(string path, string alt)
         {
-            var bytes = File.ReadAllBytes(path);
-            var tex   = new Texture2D(2, 2);
-            tex.LoadImage(bytes);
+            // Cache by path; re-load if Unity destroyed the cached texture (domain reload, etc.)
+            if (!_cache.TryGetValue(path, out var tex) || tex == null)
+            {
+                var isNew = !_cache.ContainsKey(path);
+                var bytes = File.ReadAllBytes(path);
+                tex = new Texture2D(2, 2);
+                tex.LoadImage(bytes);
+                if (isNew)
+                {
+                    // Evict oldest entry when at capacity.
+                    while (_cache.Count >= MaxCacheSize && _keyOrder.Count > 0)
+                    {
+                        var oldest = _keyOrder.Dequeue();
+                        if (_cache.TryGetValue(oldest, out var old))
+                        {
+                            _cache.Remove(oldest);
+                            if (old != null) UnityEngine.Object.DestroyImmediate(old);
+                        }
+                    }
+                    _keyOrder.Enqueue(path);
+                }
+                _cache[path] = tex;
+            }
 
             float w = Mathf.Min(MaxWidth, tex.width);
             float h = tex.width > 0 ? w * tex.height / tex.width : w;
@@ -46,10 +84,14 @@ namespace UnityMCP.Editor.Chat
             img.style.width  = w;
             img.style.height = h;
 
-            // MANDATORY: destroy texture when the element leaves the panel.
+            // Cache owns texture lifetime. Only destroy if evicted from cache
+            // (e.g. ClearCache() called). While path is in cache, skip DestroyImmediate
+            // so re-renders reuse the same Texture2D instance instead of reloading.
+            // Domain reload: static initializer re-runs → empty cache → re-load on demand.
             img.RegisterCallback<DetachFromPanelEvent>(_ =>
             {
-                if (tex != null) UnityEngine.Object.DestroyImmediate(tex);
+                if (!_cache.ContainsKey(path) && tex != null)
+                    UnityEngine.Object.DestroyImmediate(tex);
             });
 
             img.RegisterCallback<ClickEvent>(_ => ImageViewerWindow.Show(path));

@@ -327,6 +327,7 @@
     border-radius: 8px;
     border-bottom-left-radius: 2px;
     max-width: 85%;
+    -unity-text-generator: Standard;
 }
 
 .md-para {
@@ -363,12 +364,17 @@
     color: var(--unity-colors-default-text);
     white-space: pre-wrap;
     font-size: 11px;
+    -unity-text-generator: Standard;
+    -unity-font-definition: resource('Fonts/RobotoMono/RobotoMono-Regular'); /* fallback to system mono if not bundled */
 }
 
+.md-code-copy { font-size: 10px; align-self: flex-end; padding: 1px 4px; margin: 1px; }
+
 .md-quote {
-    border-left-width: 3px;
-    border-left-color: var(--unity-colors-highlight-background);
+    border-left-width: 4px;
+    border-left-color: rgba(128, 128, 128, 0.4);
     padding-left: 8px;
+    margin-left: 4px;
     color: var(--unity-colors-label-text);
     -unity-font-style: italic;
     margin-bottom: 4px;
@@ -407,8 +413,14 @@
 /* ── Lists ── */
 .md-list { flex-direction: column; margin-bottom: 4px; }
 .md-list-row { flex-direction: row; }
-.md-list-marker { min-width: 18px; color: var(--unity-colors-link-text); }
+/* min-width: 28px covers two-digit ordered markers ("10.", "11.", …); 18px clips them. */
+.md-list-marker { min-width: 28px; color: var(--unity-colors-link-text); }
 .md-list-content { flex: 1; color: var(--unity-colors-default-text); white-space: normal; }
+
+/* ── Chip pill wrapper (response path) ── */
+/* Layout placeholder — layout is set inline by MixedParagraphRenderer.BuildPill. */
+/* USS rule exists so stylesheet audits can find the class; inline marginRight overrides here. */
+.chip-pill-wrapper { }
 
 /* ── Mermaid ── */
 .mermaid {
@@ -915,3 +927,29 @@
     -unity-text-overflow-position: end;
     white-space: nowrap;
 }
+
+/* ── T-4.1: CodeEditDiffRenderer ── */
+.code-diff-block { max-height: 300px; overflow-y: scroll; border-radius: 3px; padding: 4px;
+                   font-size: 11px; -unity-font-definition: resource('Fonts/RobotoMono/RobotoMono-Regular'); }
+.diff-header     { font-size: 11px; -unity-font-style: italic; margin-bottom: 2px; cursor: link; }
+.diff-add        { color: var(--chat-success); }
+.diff-remove     { color: var(--unity-colors-error-text); }
+.diff-context    { color: var(--unity-colors-label-text-secondary); }
+
+/* ── T-4.2: MutationDiffCard ── */
+.mutation-entry  { flex-direction: row; align-items: center; padding: 1px 0; font-size: 11px; cursor: link; }
+.mutation-prefix { width: 14px; flex-shrink: 0; color: var(--unity-colors-label-text-secondary); }
+.mutation-main   { flex-shrink: 1; white-space: nowrap; overflow: hidden; -unity-text-overflow-position: end; }
+.mutation-was    { color: var(--unity-colors-label-text-secondary); font-size: 10px; margin-left: 2px; }
+
+/* ── T-4.3a: TaskChecklistCard ── */
+.task-card     { border-radius: 4px; padding: 4px 8px; margin: 2px 0;
+                 border-width: 1px; border-color: rgba(255, 193, 7, 0.18); }
+.task-row      { flex-direction: row; align-items: center; padding: 2px 0; }
+.task-status   { font-size: 11px; width: 16px; flex-shrink: 0; }
+.task-text     { font-size: 11px; white-space: normal; }
+.task-text--completed { color: var(--unity-colors-label-text-secondary); }
+
+/* ── T-5.2: ThinkingBlock ── */
+.thinking-block { opacity: 0.55; margin-bottom: 4px; }
+.thinking-block > .unity-foldout__toggle > .unity-label { font-size: 11px; -unity-font-style: italic; }

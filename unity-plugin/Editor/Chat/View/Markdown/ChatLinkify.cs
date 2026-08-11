@@ -14,11 +14,23 @@ namespace UnityMCP.Editor.Chat
             RegexOptions.Compiled);
 
         // Matches <color=CODECOLOR>CONTENT</color> — non-greedy, handles nested tags.
-        // Pattern is built from MarkdownInline.CodeColor (single source) so a colour change
-        // there can't silently break linkification.
-        private static readonly Regex _span = new Regex(
-            @"<color=" + Regex.Escape(MarkdownInline.CodeColor) + @">(.*?)</color>",
-            RegexOptions.Compiled | RegexOptions.Singleline);
+        // Rebuilt lazily whenever MarkdownInline.CodeColor changes (e.g. dark→light theme).
+        // static readonly would compile once and then silently stop matching after a theme switch.
+        private static Regex _span;
+        private static string _spanColor;
+
+        private static Regex GetSpanRegex()
+        {
+            var current = MarkdownInline.CodeColor;
+            if (_span == null || current != _spanColor)
+            {
+                _spanColor = current;
+                _span = new Regex(
+                    @"<color=" + Regex.Escape(current) + @">(.*?)</color>",
+                    RegexOptions.Compiled | RegexOptions.Singleline);
+            }
+            return _span;
+        }
 
         // Detects if a code span is already inside a <link ...> </link> pair.
         // We look for <link= that is NOT closed before our match position.
@@ -37,7 +49,7 @@ namespace UnityMCP.Editor.Chat
             if (richText == null) return null;
             if (richText == "") return "";
 
-            return _span.Replace(richText, m =>
+            return GetSpanRegex().Replace(richText, m =>
             {
                 // Skip spans already inside a <link> tag by counting opens/closes before this match.
                 var before     = richText.Substring(0, m.Index);

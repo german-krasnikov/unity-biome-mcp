@@ -34,6 +34,9 @@ namespace UnityMCP.Editor.Chat
         /// Text holds the raw JSON-RPC 2.0 response string.
         /// </summary>
         AutoReply,
+        /// <summary>Extended thinking block from the model. Text holds the full reasoning text.
+        /// Ephemeral — displayed as a collapsed Foldout, not saved to reload state.</summary>
+        Thinking,
     }
 
     /// <summary>Immutable event emitted by RelayEventParser.</summary>
@@ -125,5 +128,8 @@ namespace UnityMCP.Editor.Chat
         /// </summary>
         public static ChatEvent AutoReply(string json) =>
             new ChatEvent(ChatEventKind.AutoReply, text: json);
+
+        public static ChatEvent Thinking(string text) =>
+            new ChatEvent(ChatEventKind.Thinking, text: text);
     }
 }

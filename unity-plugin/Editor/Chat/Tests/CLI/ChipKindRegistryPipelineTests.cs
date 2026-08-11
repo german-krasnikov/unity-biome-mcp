@@ -15,7 +15,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             RegisterCleanup(ChipKindRegistry.PreserveStateForTests().Dispose);
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         // (c) Full pipeline: ResolveAllTyped → FormatPayload emits [custom_widget:...]
@@ -155,7 +155,7 @@ namespace UnityMCP.Editor.Chat.Tests
 
             using (ChipKindRegistry.PreserveStateForTests())
             {
-                ChipKindRegistry.ResetToBuiltIns();
+                ChipKindRegistry.ResetForTests();
                 Assert.IsNull(ChipKindRegistry.ForKey(provider.Key));
             }
 

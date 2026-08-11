@@ -258,5 +258,43 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             Assert.IsNull(ChatLinkify.ApplyPlainPaths(null, ResolveAsset));
         }
+
+        // ── Theme-change regression (Red test for the regex staleness defect) ──
+        // Before fix: _span is static readonly — compiled once with the dark-theme color
+        // (#9aa5ce). After switching to light theme (#3b5a8a), Apply no longer matches
+        // code spans so linkification silently stops working.
+        // After fix: GetSpanRegex() rebuilds when MarkdownInline.CodeColor changes.
+
+        [Test]
+        public void Apply_AfterThemeSwitchToLight_CodeSpanStillLinked()
+        {
+            bool wasD = MarkdownInlineFormatter.IsDarkTheme;
+            try
+            {
+                MarkdownInlineFormatter.IsDarkTheme = false;
+                var lightColor = MarkdownInline.CodeColor; // "#3b5a8a"
+                var input  = $"<color={lightColor}>Script.cs</color>";
+                var result = ChatLinkify.Apply(input, null, ResolveScript, null);
+                Assert.IsTrue(result.Contains("<link="), $"Link not found after theme switch. Got: {result}");
+            }
+            finally { MarkdownInlineFormatter.IsDarkTheme = wasD; }
+        }
+
+        [Test]
+        public void Apply_AfterThemeSwitchBackToDark_CodeSpanStillLinked()
+        {
+            bool wasD = MarkdownInlineFormatter.IsDarkTheme;
+            try
+            {
+                // Switch to light first to prime any lazy-init, then back to dark
+                MarkdownInlineFormatter.IsDarkTheme = false;
+                MarkdownInlineFormatter.IsDarkTheme = true;
+                var darkColor = MarkdownInline.CodeColor; // "#9aa5ce"
+                var input  = $"<color={darkColor}>Script.cs</color>";
+                var result = ChatLinkify.Apply(input, null, ResolveScript, null);
+                Assert.IsTrue(result.Contains("<link="), $"Link not found after back-to-dark switch. Got: {result}");
+            }
+            finally { MarkdownInlineFormatter.IsDarkTheme = wasD; }
+        }
     }
 }

@@ -91,6 +91,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityMCP.Editor.Wizard", "U
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unity.Settings.Editor", "Unity.Settings.Editor.csproj", "{e1375af2-4b1b-6798-1778-d630944aa62f}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityMCP.Editor.Chat.Parsers", "UnityMCP.Editor.Chat.Parsers.csproj", "{748623a6-b398-6150-6d89-5667e228abb4}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unity.Multiplayer.Center.Common", "Unity.Multiplayer.Center.Common.csproj", "{999107e3-b4e0-e69f-3443-3e1b937c8924}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityMCP.Editor.TestSupport", "UnityMCP.Editor.TestSupport.csproj", "{30222263-fe86-7d09-931f-6f6b8350d734}"
@@ -318,6 +320,8 @@ Global
 		{fd022804-90cd-3410-73cc-6cfd65f3dc8f}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{e1375af2-4b1b-6798-1778-d630944aa62f}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{e1375af2-4b1b-6798-1778-d630944aa62f}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{748623a6-b398-6150-6d89-5667e228abb4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{748623a6-b398-6150-6d89-5667e228abb4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{999107e3-b4e0-e69f-3443-3e1b937c8924}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{999107e3-b4e0-e69f-3443-3e1b937c8924}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{30222263-fe86-7d09-931f-6f6b8350d734}.Debug|Any CPU.ActiveCfg = Debug|Any CPU

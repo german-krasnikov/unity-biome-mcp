@@ -10,8 +10,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class TranscriptReloadEdgeCaseTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() { ChipKindRegistry.ResetForTests(); ChipPillFactory.ColorResolver = null; }
 
         private ChatTranscript Make(out VisualElement c)
         {

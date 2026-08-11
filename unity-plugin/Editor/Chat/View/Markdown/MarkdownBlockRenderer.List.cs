@@ -17,6 +17,8 @@ namespace UnityMCP.Editor.Chat
             for (int i = 0; i < b.Lines.Count; i++)
             {
                 var row = new VisualElement(); row.AddToClassList("md-list-row");
+                int depth = (b.Depths != null && i < b.Depths.Count) ? b.Depths[i] : 0;
+                row.style.paddingLeft = 12 + depth * 20; // 12=top-level, +20 per depth level
 
                 var marker = new Label(ordered ? $"{start + i}." : "•");
                 marker.AddToClassList("md-list-marker");

@@ -12,8 +12,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class ChipTextInterleaverBuildFromRawTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         private static PositionedChip PC(ChipData chip, int offset)
             => new PositionedChip(chip, offset);

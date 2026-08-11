@@ -259,13 +259,13 @@ public void Navigate(string reference)
 
 ## Testing
 
-Use `ChipKindRegistry.ResetToBuiltIns()` in `[SetUp]` to clear registered plugins between test cases:
+Use `ChipKindRegistry.ResetForTests()` in `[SetUp]` to clear registered plugins between test cases:
 
 ```csharp
 [Test]
 public void CustomProvider_CanHandle_CustomAsset()
 {
-    ChipKindRegistry.ResetToBuiltIns();
+    ChipKindRegistry.ResetForTests();
     var provider = new CustomAssetChipProvider();
     ChipKindRegistry.Register(provider);
 

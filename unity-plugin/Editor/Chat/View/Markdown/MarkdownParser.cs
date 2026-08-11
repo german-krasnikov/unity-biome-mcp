@@ -86,8 +86,11 @@ namespace UnityMCP.Editor.Chat
             return count >= 3;
         }
 
-        internal static bool IsBullet(string line) =>
-            line.StartsWith("- ") || line.StartsWith("* ") || line.StartsWith("+ ");
+        internal static bool IsBullet(string line)
+        {
+            var t = line.TrimStart();
+            return t.StartsWith("- ") || t.StartsWith("* ") || t.StartsWith("+ ");
+        }
 
         internal static bool IsSeparator(string line)
         {

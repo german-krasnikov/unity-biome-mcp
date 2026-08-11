@@ -645,3 +645,234 @@ def test_kimi_unknown_role():
 def test_kimi_meta_unknown_type():
     line = '{"role":"meta","type":"other_event"}'
     assert _transform_kimi_line(line, _ToolCallAcc()) == []
+
+
+# ── barrier tests (Phase 0.4) ─────────────────────────────────────────────────
+
+def test_unknown_content_block_type_ignored():
+    """BARRIER: unknown content_block type → empty list, no exception.
+    Locks current behavior before thinking support lands."""
+    acc = _ToolCallAcc()
+    result = _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_start",'
+        '"content_block":{"type":"unknown_future_type"}}}',
+        acc
+    )
+    assert result == [], f"Unknown block type must produce [], got: {result}"
+
+
+def test_tool_call_produces_tc_pipe_prefix():
+    """BARRIER: completed tool call emits 'tc|...' prefixed line.
+    Locks tc| format before any new event types change the pipeline."""
+    acc = _ToolCallAcc()
+    # start
+    _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_start",'
+        '"index":0,"content_block":{"type":"tool_use","id":"t1","name":"Bash"}}}',
+        acc
+    )
+    # args delta
+    _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_delta",'
+        '"index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"cmd\\":\\"ls\\"}"}}}',
+        acc
+    )
+    # stop
+    result = _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_stop","index":0}}',
+        acc
+    )
+    assert any(line.startswith("tc|") for line in result), \
+        f"tool_call stop must emit tc| line, got: {result}"
+
+
+# ── tool_result → tr| (T-2.9) ────────────────────────────────────────────────
+
+def _tr_start(tool_use_id: str = "tr_123", is_error: bool = False) -> str:
+    return json.dumps({"type": "stream_event", "event": {
+        "type": "content_block_start",
+        "content_block": {"type": "tool_result", "tool_use_id": tool_use_id, "is_error": is_error},
+    }})
+
+
+def _tr_delta(text: str) -> str:
+    return json.dumps({"type": "stream_event", "event": {
+        "type": "content_block_delta",
+        "delta": {"type": "text_delta", "text": text},
+    }})
+
+
+_TR_STOP = '{"type":"stream_event","event":{"type":"content_block_stop"}}'
+
+
+def test_tool_result_emits_tr_on_stop():
+    acc = _ToolCallAcc()
+    _transform_line(_tr_start("tr_123", is_error=False), acc)
+    _transform_line(_tr_delta("OK result"), acc)
+    r = _transform_line(_TR_STOP, acc)
+    assert r == ["tr|tr_123|true|OK result"]
+
+
+def test_tool_result_error_flag_false():
+    acc = _ToolCallAcc()
+    _transform_line(_tr_start("tr_456", is_error=True), acc)
+    _transform_line(_tr_delta("error msg"), acc)
+    r = _transform_line(_TR_STOP, acc)
+    assert r == ["tr|tr_456|false|error msg"]
+
+
+def test_tool_result_text_truncated_at_200():
+    acc = _ToolCallAcc()
+    _transform_line(_tr_start(), acc)
+    _transform_line(_tr_delta("X" * 300), acc)
+    r = _transform_line(_TR_STOP, acc)
+    assert len(r) == 1
+    assert len(r[0].split("|", 3)[3]) == 200
+
+
+def test_tool_result_delta_not_emitted_directly():
+    acc = _ToolCallAcc()
+    _transform_line(_tr_start(), acc)
+    r = _transform_line(_tr_delta("secret"), acc)
+    assert r == []
+
+
+def test_tool_result_no_id_no_tr():
+    line = json.dumps({"type": "stream_event", "event": {
+        "type": "content_block_start",
+        "content_block": {"type": "tool_result"},  # no tool_use_id
+    }})
+    acc = _ToolCallAcc()
+    _transform_line(line, acc)
+    _transform_line(_tr_delta("some text"), acc)
+    r = _transform_line(_TR_STOP, acc)
+    assert r == []
+
+
+def test_tool_result_empty_content_no_tr():
+    acc = _ToolCallAcc()
+    _transform_line(_tr_start(), acc)
+    r = _transform_line(_TR_STOP, acc)  # no delta
+    assert r == []
+
+
+def test_tool_result_multiple_deltas_concatenated():
+    acc = _ToolCallAcc()
+    _transform_line(_tr_start("tr_123"), acc)
+    _transform_line(_tr_delta("hello "), acc)
+    _transform_line(_tr_delta("world"), acc)
+    r = _transform_line(_TR_STOP, acc)
+    assert r == ["tr|tr_123|true|hello world"]
+
+
+def test_text_emits_normally_after_tool_result():
+    acc = _ToolCallAcc()
+    _transform_line(_tr_start(), acc)
+    _transform_line(_TR_STOP, acc)  # close tool_result
+    r = _transform_line(_tr_delta("after"), acc)
+    assert r == ["t|after"]
+
+
+# ── thinking blocks → th| (T-5.1) ────────────────────────────────────────────
+
+_START_THINKING = (
+    '{"type":"stream_event","event":{"type":"content_block_start",'
+    '"content_block":{"type":"thinking","thinking":""}}}'
+)
+
+
+def _delta_thinking(text: str) -> str:
+    return (
+        f'{{"type":"stream_event","event":{{"type":"content_block_delta",'
+        f'"delta":{{"type":"thinking_delta","thinking":"{text}"}}}}}}'
+    )
+
+
+def test_thinking_single_delta_emits_th_on_stop():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("Let me think..."), acc)
+    out = _transform_line(_TR_STOP, acc)
+    assert out == ["th|Let me think..."]
+
+
+def test_thinking_multiple_deltas_concatenated():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("Hello "), acc)
+    _transform_line(_delta_thinking("World"), acc)
+    out = _transform_line(_TR_STOP, acc)
+    assert out == ["th|Hello World"]
+
+
+def test_thinking_empty_text_not_emitted():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    out = _transform_line(_TR_STOP, acc)
+    assert out == []
+
+
+def test_thinking_delta_without_start_ignored():
+    acc = _ToolCallAcc()
+    out = _transform_line(_delta_thinking("something"), acc)
+    assert out == []
+
+
+def test_thinking_followed_by_text_works():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("reasoning"), acc)
+    _transform_line(_TR_STOP, acc)
+    r = _transform_line(_tr_delta("Hello"), acc)
+    assert r == ["t|Hello"]
+
+
+def test_thinking_acc_reset_after_stop():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_TR_STOP, acc)
+    assert acc.thinking_active is False
+    assert acc.thinking_parts == []
+
+
+def test_tool_call_after_thinking_unaffected():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("some reasoning"), acc)
+    _transform_line(_TR_STOP, acc)
+    _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_start",'
+        '"content_block":{"type":"tool_use","name":"Bash","id":"t1"}}}',
+        acc,
+    )
+    assert acc.active is True
+    assert acc.name == "Bash"
+
+
+def test_thinking_second_block_isolated():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("First"), acc)
+    _transform_line(_TR_STOP, acc)
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("Second"), acc)
+    out = _transform_line(_TR_STOP, acc)
+    assert out == ["th|Second"]
+
+
+# ── B5 — error with empty body must not be swallowed ─────────────────────────
+
+def test_tool_error_empty_body_emits_event():
+    """B5: tool_result is_error=True with no text deltas must still emit tr event."""
+    acc = _ToolCallAcc()
+    _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_start",'
+        '"content_block":{"type":"tool_result","tool_use_id":"tu-err","is_error":true}}}',
+        acc,
+    )
+    # No content_block_delta — empty body (tool crashed without diagnostic text)
+    result = _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_stop"}}',
+        acc,
+    )
+    assert result == ["tr|tu-err|false|"]

@@ -7,8 +7,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class InlineChipFieldSpaceGuardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         private static ChipData Player()
             => new ChipData(ChipKindKeys.Hierarchy, "/Player", "Player", 1);

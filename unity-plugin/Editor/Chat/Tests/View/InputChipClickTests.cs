@@ -12,8 +12,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class InputChipClickTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
-        [TearDown] public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
+        [SetUp]    public void SetUp()    { ChipKindRegistry.ResetForTests(); ChipPillFactory.ColorResolver = null; }
+        [TearDown] public void TearDown() { ChipKindRegistry.ResetForTests(); ChipPillFactory.ColorResolver = null; }
 
         // T1: single left-click on input chip calls provider.Navigate
         [Test]

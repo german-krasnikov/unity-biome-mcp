@@ -18,7 +18,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 $"unity-mcp-region-provider-{Guid.NewGuid():N}.json");
             RegisterCleanup(SceneRegionState.IsolateForTests(_tmpFile, 20).Dispose);
             RegisterCleanup(ChipKindRegistry.PreserveStateForTests().Dispose);
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             // RegionChipProvider self-registers via [InitializeOnLoad] on domain load.
             // ResetToBuiltIns() clears it, so manually re-register for test isolation.
             ChipKindRegistry.Register(new RegionChipProvider());
