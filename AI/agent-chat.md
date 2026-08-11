@@ -218,15 +218,76 @@ Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI + r
 
 **Result:** Eliminates 1–3 `get_component` round-trips agents used to make on first turn with chipped objects. 12 NUnit EditMode tests green.
 
-### Humanized Tool Card Rendering
+### Tool Card Rendering System
 
-Stream-json output from `claude -p` emits raw JSON tool cards. Chat parses and humanizes them to plain English:
+Stream-json output from backend CLIs emits raw JSON tool calls. Chat parses and renders them as specialized **tool cards** via the pluggable `IToolCardRenderer` registry:
 
-**Raw:** `{"type":"tool_use","id":"t1","name":"set_property","input":{"path":"/Enemies/Boss","component":"Health","property":"value","value":"100"}}`
+**Architecture:**
+- `ToolCardRendererRegistry` — provider pattern for tool-specific renderers
+- `IToolCardRenderer` interface — `OnStart()`, `OnUpdate()`, and render lifecycle hooks
+- `ChatTranscript` — dispatch tool calls to registry, render via the matched renderer
 
-**Rendered:** `🔧 Editing /Enemies/Boss (Health.value = 100)`
+**Built-in Card Renderers:**
 
-Mapping in `ToolVerbMap.cs` (tool name → human action).
+1. **CodeEditDiffRenderer** (Edit / Write / MultiEdit)
+   - Inline diff per changed file (Myers algorithm with intra-line highlights)
+   - Shows added/removed/modified code with unified diff coloring
+   - Click to navigate to file or view full diff
+
+2. **MutationDiffCard** (scene mutations: set_property, set_active, create_object, delete_object, manage_component, wire_event, etc.)
+   - Object path → click to ping in Hierarchy
+   - Before/after value (e.g., `health = 50 (was 100)`)
+   - Summaries operations across multiple objects
+
+3. **TaskChecklistCard** (TaskCreate / TaskUpdate)
+   - Accumulated task list with checkbox per task
+   - Task ID, subject, description, status (open/closed)
+   - Click to mark complete or reopen
+
+4. **AgentCard** (Agent tool delegation)
+   - Subagent name, type, and task description
+   - Shows whether invocation succeeded or failed
+   - Nested tool results from the delegated work
+
+**Fallback Rendering:**
+Simple tool calls without a registered renderer display as humanized text via `ToolVerbMap.cs` (e.g., `🔧 Editing /Enemies/Boss (Health.value = 100)`).
+
+**Extension:**
+Plugins register custom renderers via `ToolCardRendererRegistry.Register()` to handle domain-specific tools.
+
+### Model Thinking Blocks (v1.29.0)
+
+When backends emit thinking blocks (e.g., Claude with `extended_thinking`), Chat captures and displays them as collapsed blocks with a live thinking timer:
+
+**Python Side (stream_transform.py):**
+- Detects `content_block_type=thinking` events
+- Emits `th|<text>` pipe-protocol messages
+- Accumulates thinking text until block completes
+
+**C# Side (ChatTranscript / RelayEventParser):**
+- Parses `th|` events → creates `ThinkingBlock` with accumulated text
+- Renders as collapsible section: `▶ Thinking (elapsed: 2s)`
+- Default state: collapsed (user can expand to read)
+- Timer updates per frame while turn is active
+
+**Feature:** Keeps chat concise by default while preserving reasoning visibility for debugging or inspection. Independent of tool invocation — thinking blocks are rendered separately from tool cards and the final response.
+
+### Tool Result Passthrough (v1.29.0)
+
+Backends that return tool results (Claude via stdin streaming) now propagate them through Chat instead of losing them in the relay:
+
+**Python Side (stream_transform.py):**
+- Detects `content_block_type=tool_result` events
+- Stores result ID, success/error flag, and text
+- Emits `tr|<tool_use_id>|<ok>|<text>` pipe-protocol messages upon block completion
+
+**C# Side (ChatTranscript):**
+- Parses `tr|` events → creates `ToolResultBlock`
+- Renders as a labeled section under the corresponding tool call card
+- Shows result text (truncated to ~500 chars to avoid spam)
+- Color-coded: green for success, red for error
+
+**Availability:** Only Claude currently emits tool results. OpenCode format is unknown; Codex, Kimi, and Antigravity do not expose result events. Tool cards remain fully functional without results as they already show mutation summaries.
 
 ### Per-Backend Model Selector (v0.30.5)
 
@@ -255,6 +316,27 @@ Mapping in `ToolVerbMap.cs` (tool name → human action).
 - Chip text: stable hierarchy path (e.g., `/Player/Sword`)
 - Chip click: `PingObject(path)` + `SelectObject(path)` (Unity editor highlights the object)
 - On scene change, chips invalidated (path refs are scene-relative)
+
+### Agent Mentions via @-Mentions (v1.29.0)
+
+Users now delegate work to subagents by mentioning them in the chat input, instead of selecting from a footer dropdown:
+
+**Architecture:**
+- `AgentMentionSource` — scans `{projectRoot}/.claude/agents/*.md` and `{homeDir}/.claude/agents/*.md`
+- `AgentChipProvider` — renders agent mentions as chip kind in chat input
+- `AgentMissDetector` — warns if a mention was typed but the Agent tool was never invoked
+- System prompt injects instruction: `[agent:name]` syntax invokes the `Agent` tool with `subagent_type=name`
+
+**User Experience:**
+1. Type `@` in the chat input → mention popup shows available agents (name, type, description from `.md` header)
+2. Select an agent → inserts `[agent:agent-name]` as a chip in the message
+3. Message is sent with the mention
+4. Backend model reads the mention in the system prompt and decides whether to invoke `Agent` tool
+5. If mention was typed but Agent tool never called → warning chip shows "Agent @name was mentioned but not delegated"
+
+**Mention Sorting:** `MentionConfig` in `BackendConfigStore` controls sort order (Relevance, Name, Type, Recency) and popup size (3–20 rows, default 8).
+
+**Why Removed from Footer:** Agents are now treated as context (like object references) rather than a backend selection. Cleaner UI; agents can be mixed in the same request without switching a dropdown.
 
 ### Auto-Include Selection Context (F4, plugin 0.7.0)
 

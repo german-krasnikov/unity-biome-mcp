@@ -82,7 +82,7 @@ Active-only activity animation bar. Driven by `ArcadeAnim.ControlledSmoothLoop`.
 - Aura: offset scale/opacity pulse (180° out of phase with fill)
 - Particles: gaussian wake brightening around fill lead position; per-particle drift (sin/cos)
 
-**Footer bar:** `BuildFooterBar` and `MakeModeBtn` live in this partial (moved from MCPChatWindow.cs to keep partials under 200 lines). Footer contains: agent selector, model selector, Ask/Agent mode segment, plugin buttons, session menu, token readout, relay status label, context progress bar, Send/Stop buttons.
+**Footer bar:** `BuildFooterBar` and `MakeModeBtn` live in this partial (moved from MCPChatWindow.cs to keep partials under 200 lines). Footer contains: model selector, Ask/Agent mode segment, plugin buttons, session menu, token readout, relay status label, context progress bar, Send/Stop buttons. (Agent selection is now done via `@mention` syntax in the input, not a footer dropdown.)
 
 ## ChatTranscript
 

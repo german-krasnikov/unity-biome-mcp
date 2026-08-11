@@ -23,8 +23,13 @@ The first relay start can take longer while `uvx` prepares the Python package. T
    and report any compile errors.
    ```
 
+   To delegate work to a subagent, mention it by name: type `@` and select from
+   the available subagents (loaded from `.claude/agents/` files), or type the name
+   directly as `[agent:name]`.
+
 5. Select **Send** or press Enter. Use Alt+Enter to insert a newline.
-6. Review tool chips and the final response.
+6. Review tool cards showing code changes, mutations, tasks, or agent delegation;
+   the final response appears below the cards.
 
 Changing the backend or model stops the current process, prepares the new
 selection, and resets the token counters. The next **Send** starts it.
@@ -75,19 +80,20 @@ If recovery does not complete:
 3. Use **MCP > Status > Diagnose** if the server is not healthy.
 4. Resend the request, or start a **New Session** if the saved backend session is no longer valid.
 
-## Add Visual Context
+## Add Visual Context and Mention Agents
 
 Add focused context before sending:
 
-- Type `@` to find scene objects and project assets.
+- Type `@` to find scene objects, project assets, or subagents. Mentioning an
+  agent tells the current model to delegate work to that subagent.
 - Drag a Hierarchy object, Project asset, or supported external file into Chat.
 - Paste an image, use **Attach Image**, or capture a Unity view from the toolbar.
 - Select a scene region or annotate a screenshot; both become context chips.
 - Type `/` to use the built-in `/fix-compile`, `/add-component`, `/playtest`,
   `/inspect`, and `/screenshot` prompt templates.
 
-Context chips are sent with the next turn. Remove a chip when it is not relevant
-to keep the request focused.
+Context chips and agent mentions are sent with the next turn. Remove them when
+they are not relevant to keep the request focused.
 
 See [Screenshot Annotation](annotation.md) for the annotation workflow.
 

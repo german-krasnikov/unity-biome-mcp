@@ -26,11 +26,13 @@ These CLIs receive the prompt as a command argument instead of reading turns fro
 
 Switching the backend or model stops the current backend. Stopping a turn also kills its process; Chat creates a fresh backend for the next send.
 
-## Ask, Agent, and Approvals
+## Ask and Agent Modes (and Subagent Delegation)
 
 **Ask** is the default Chat mode. When a backend emits a permission request, Chat shows **Allow**, **Deny**, **Session**, and **Always** choices. **Agent** automatically approves permission requests emitted by the backend.
 
 Mode behavior remains backend-specific. Some CLIs use their own non-interactive or permission-bypass flags and do not emit the same prompts as Claude. Ask and Agent are not a replacement for server-side tool visibility or code-execution security; see [Settings](../settings.md).
+
+To delegate work to a subagent, mention it in the request using `@agent-name` syntax. The subagent name is resolved from `.claude/agents/*.md` files in your project and home directory. The model will invoke the Agent tool with the subagent's type and task description.
 
 ## Sessions
 
