@@ -771,3 +771,90 @@ def test_text_emits_normally_after_tool_result():
     _transform_line(_TR_STOP, acc)  # close tool_result
     r = _transform_line(_tr_delta("after"), acc)
     assert r == ["t|after"]
+
+
+# ── thinking blocks → th| (T-5.1) ────────────────────────────────────────────
+
+_START_THINKING = (
+    '{"type":"stream_event","event":{"type":"content_block_start",'
+    '"content_block":{"type":"thinking","thinking":""}}}'
+)
+
+
+def _delta_thinking(text: str) -> str:
+    return (
+        f'{{"type":"stream_event","event":{{"type":"content_block_delta",'
+        f'"delta":{{"type":"thinking_delta","thinking":"{text}"}}}}}}'
+    )
+
+
+def test_thinking_single_delta_emits_th_on_stop():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("Let me think..."), acc)
+    out = _transform_line(_TR_STOP, acc)
+    assert out == ["th|Let me think..."]
+
+
+def test_thinking_multiple_deltas_concatenated():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("Hello "), acc)
+    _transform_line(_delta_thinking("World"), acc)
+    out = _transform_line(_TR_STOP, acc)
+    assert out == ["th|Hello World"]
+
+
+def test_thinking_empty_text_not_emitted():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    out = _transform_line(_TR_STOP, acc)
+    assert out == []
+
+
+def test_thinking_delta_without_start_ignored():
+    acc = _ToolCallAcc()
+    out = _transform_line(_delta_thinking("something"), acc)
+    assert out == []
+
+
+def test_thinking_followed_by_text_works():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("reasoning"), acc)
+    _transform_line(_TR_STOP, acc)
+    r = _transform_line(_tr_delta("Hello"), acc)
+    assert r == ["t|Hello"]
+
+
+def test_thinking_acc_reset_after_stop():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_TR_STOP, acc)
+    assert acc.thinking_active is False
+    assert acc.thinking_parts == []
+
+
+def test_tool_call_after_thinking_unaffected():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("some reasoning"), acc)
+    _transform_line(_TR_STOP, acc)
+    _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_start",'
+        '"content_block":{"type":"tool_use","name":"Bash","id":"t1"}}}',
+        acc,
+    )
+    assert acc.active is True
+    assert acc.name == "Bash"
+
+
+def test_thinking_second_block_isolated():
+    acc = _ToolCallAcc()
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("First"), acc)
+    _transform_line(_TR_STOP, acc)
+    _transform_line(_START_THINKING, acc)
+    _transform_line(_delta_thinking("Second"), acc)
+    out = _transform_line(_TR_STOP, acc)
+    assert out == ["th|Second"]

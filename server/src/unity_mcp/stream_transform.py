@@ -19,6 +19,8 @@ class _ToolCallAcc:
     result_id:    str       = ""
     result_ok:    bool      = True
     result_parts: list[str] = field(default_factory=list)
+    thinking_active: bool      = False
+    thinking_parts:  list[str] = field(default_factory=list)
 
     def reset(self) -> None:
         self.active = self.muted = False
@@ -93,6 +95,9 @@ def _handle_stream_event(obj: dict, acc: _ToolCallAcc) -> list[str]:
             acc.result_id    = blk.get("tool_use_id", "")
             acc.result_ok    = not blk.get("is_error", False)
             acc.result_parts = []
+        elif bt == "thinking":
+            acc.thinking_active = True
+            acc.thinking_parts  = []
         else:
             acc.muted = False
         return []
@@ -100,6 +105,10 @@ def _handle_stream_event(obj: dict, acc: _ToolCallAcc) -> list[str]:
     if et == "content_block_delta":
         d  = ev.get("delta") or {}
         dt = d.get("type", "")
+        if dt == "thinking_delta":
+            if acc.thinking_active:
+                acc.thinking_parts.append(d.get("thinking", ""))
+            return []
         if dt == "text_delta":
             if acc.active or acc.muted:
                 if acc.muted and acc.result_id:
@@ -121,6 +130,11 @@ def _handle_stream_event(obj: dict, acc: _ToolCallAcc) -> list[str]:
             text   = "".join(acc.result_parts)[:_MAX_TOOL_RESULT_LEN] if acc.result_parts else ""
             acc.result_id = ""; acc.result_parts = []; acc.muted = False
             return [f"tr|{rid}|{ok_str}|{text}"] if (rid and text) else []
+        if acc.thinking_active:
+            text = "".join(acc.thinking_parts)
+            acc.thinking_active = False
+            acc.thinking_parts  = []
+            return [f"th|{text}"] if text else []
         return []
 
     return []  # message_start/delta/stop and future events
