@@ -2,7 +2,6 @@
 // Pure C# — no UnityEngine deps (noEngineReferences: true).
 // Strategy A: ^Task #(\d+) created successfully: on resultText.
 // Strategy B: ^Task (\d+): on subject — primary when relay mutes tool_result.
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace UnityMCP.Editor.Chat.Parsers
@@ -85,37 +84,7 @@ namespace UnityMCP.Editor.Chat.Parsers
             }
         }
 
-        // Reads a JSON string field by key. Handles basic escapes; returns null if absent or not a string.
-        private static string ReadString(string json, string key)
-        {
-            var needle = "\"" + key + "\":";
-            int i = json.IndexOf(needle, System.StringComparison.Ordinal);
-            if (i < 0) return null;
-            i += needle.Length;
-            while (i < json.Length && json[i] == ' ') i++;
-            if (i >= json.Length || json[i] != '"') return null;
-            i++;
-            var sb = new StringBuilder();
-            while (i < json.Length)
-            {
-                char c = json[i++];
-                if (c == '\\' && i < json.Length)
-                {
-                    char e = json[i++];
-                    switch (e)
-                    {
-                        case '"':  sb.Append('"');  break;
-                        case '\\': sb.Append('\\'); break;
-                        case 'n':  sb.Append('\n'); break;
-                        case 'r':  sb.Append('\r'); break;
-                        case 't':  sb.Append('\t'); break;
-                        default:   sb.Append(e);    break;
-                    }
-                }
-                else if (c == '"') break;
-                else sb.Append(c);
-            }
-            return sb.ToString();
-        }
+        private static string ReadString(string json, string key) =>
+            JsonFieldReader.ReadString(json, key);
     }
 }

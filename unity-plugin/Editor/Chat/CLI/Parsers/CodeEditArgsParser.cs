@@ -3,7 +3,6 @@
 // old_string, new_string, content, edits[].
 // Pure C# — no UnityEngine deps.
 using System.Collections.Generic;
-using System.Text;
 
 namespace UnityMCP.Editor.Chat.Parsers
 {
@@ -72,42 +71,9 @@ namespace UnityMCP.Editor.Chat.Parsers
             }
         }
 
-        // ── Hand-rolled string field reader ──────────────────────────────────
-        // Scans for "key": "value" and returns the decoded string value or null.
-
-        internal static string ReadStringField(string json, string key)
-        {
-            var needle = "\"" + key + "\":";
-            int idx = json.IndexOf(needle, System.StringComparison.Ordinal);
-            if (idx < 0) return null;
-            idx += needle.Length;
-            // Skip whitespace
-            while (idx < json.Length && json[idx] == ' ') idx++;
-            if (idx >= json.Length || json[idx] != '"')
-                return null; // null literal, number, or array
-            idx++; // skip opening quote
-            var sb = new StringBuilder();
-            while (idx < json.Length)
-            {
-                char c = json[idx++];
-                if (c == '\\' && idx < json.Length)
-                {
-                    char esc = json[idx++];
-                    switch (esc)
-                    {
-                        case '"':  sb.Append('"');  break;
-                        case '\\': sb.Append('\\'); break;
-                        case 'n':  sb.Append('\n'); break;
-                        case 'r':  sb.Append('\r'); break;
-                        case 't':  sb.Append('\t'); break;
-                        default:   sb.Append(esc);  break;
-                    }
-                }
-                else if (c == '"') break;
-                else sb.Append(c);
-            }
-            return sb.ToString();
-        }
+        // Delegates to shared JsonFieldReader; kept internal for any external callers in tests.
+        internal static string ReadStringField(string json, string key) =>
+            JsonFieldReader.ReadString(json, key);
 
         // Extracts [{old_string, new_string}, ...] from "edits":[...].
         private static CodeEditEdit[] ReadEditsArray(string json)
