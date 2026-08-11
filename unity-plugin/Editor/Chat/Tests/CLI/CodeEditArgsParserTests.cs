@@ -68,6 +68,21 @@ namespace UnityMCP.Editor.Chat.Tests.CLI
             Assert.AreEqual("void F(){}", r.Edits[0].OldString);
         }
 
+        // === Multi-edit: values containing unmatched closing bracket ===
+
+        [Test]
+        public void ParseMultiEdit_OldStringContainsUnmatchedClosingBracket_Correct()
+        {
+            // B9: outer array scan previously counted raw ']' inside string values,
+            // causing premature termination when old_string had a bare ']'.
+            var json = "{\"file_path\":\"/A.cs\"," +
+                       "\"edits\":[{\"old_string\":\"a]b\",\"new_string\":\"x\"}]}";
+            var r = CodeEditArgsParser.Parse(json);
+            Assert.IsNotNull(r.Edits, "edits must not be null");
+            Assert.AreEqual(1, r.Edits.Length, "must parse 1 edit");
+            Assert.AreEqual("a]b", r.Edits[0].OldString, "old_string must survive unmatched ']'");
+        }
+
         // === Error cases ===
 
         [Test]

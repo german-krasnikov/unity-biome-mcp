@@ -83,12 +83,17 @@ namespace UnityMCP.Editor.Chat.Parsers
             if (start < 0) return null;
             start += needle.Length - 1; // position of '['
 
-            // Extract the balanced array text
+            // Extract balanced array text — string-aware so brackets inside
+            // string values (e.g. "arr[0]", "a]b") don't confuse the scan.
             int depth = 0, end = start;
+            bool arrInStr = false;
             while (end < json.Length)
             {
-                if (json[end] == '[') depth++;
-                else if (json[end] == ']') { depth--; if (depth == 0) break; }
+                char c = json[end];
+                if (arrInStr) { if (c == '\\') end++; else if (c == '"') arrInStr = false; }
+                else if (c == '"') arrInStr = true;
+                else if (c == '[') depth++;
+                else if (c == ']') { depth--; if (depth == 0) break; }
                 end++;
             }
             string arrayText = json.Substring(start, end - start + 1);
