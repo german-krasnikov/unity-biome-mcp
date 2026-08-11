@@ -934,3 +934,11 @@
 .mutation-prefix { width: 14px; flex-shrink: 0; color: var(--unity-colors-label-text-secondary); }
 .mutation-main   { flex-shrink: 1; white-space: nowrap; overflow: hidden; -unity-text-overflow-position: end; }
 .mutation-was    { color: var(--unity-colors-label-text-secondary); font-size: 10px; margin-left: 2px; }
+
+/* ── T-4.3a: TaskChecklistCard ── */
+.task-card     { border-radius: 4px; padding: 4px 8px; margin: 2px 0;
+                 border-width: 1px; border-color: rgba(255, 193, 7, 0.18); }
+.task-row      { flex-direction: row; align-items: center; padding: 2px 0; }
+.task-status   { font-size: 11px; width: 16px; flex-shrink: 0; }
+.task-text     { font-size: 11px; white-space: normal; }
+.task-text--completed { color: var(--unity-colors-label-text-secondary); }
