@@ -186,7 +186,8 @@ namespace UnityMCP.Editor
             var prp = JsonHelper.ExtractString(args, "prop");
             var val = JsonHelper.ExtractString(args, "value");
             string oldStr = null;
-            try { oldStr = ObjectManager.ReadPropertyValue(path, comp, prp); } catch { }
+            if (!dryRun)
+                try { oldStr = ObjectManager.ReadPropertyValue(path, comp, prp); } catch (ArgumentException) { }
             var actual = ObjectManager.SetProperty(path, comp, prp, val, dryRun);
             if (dryRun) return actual;
             // F11: skip snapshot serialization inside batch (deferred Physics.Sync handles it)

@@ -39,5 +39,13 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNotNull(result);
             StringAssert.Contains("2", result);
         }
+
+        [Test]
+        public void ReadPropertyValue_NonExistentPath_ReturnsNull()
+        {
+            // FindObjectOrThrow fires a different code path than missing prop — must return null, not throw.
+            var result = ObjectManager.ReadPropertyValue("/NonExistentObject_RPV_xyz", "BoxCollider", "m_Size");
+            Assert.IsNull(result);
+        }
     }
 }
