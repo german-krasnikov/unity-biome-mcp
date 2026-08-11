@@ -4,6 +4,7 @@
 using NUnit.Framework;
 using System.IO;
 using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
 
@@ -161,6 +162,55 @@ namespace UnityMCP.Editor.Chat.Tests
             var result   = renderer.Render(in block);
             Assert.IsNotNull(result);
         }
+
+        // ── Texture cache — DetachFromPanel does not destroy cached texture (M1) ──
+
+        [Test]
+        public void Render_DetachFromPanel_PreservesCachedTexture()
+        {
+            // Bug: DetachFromPanelEvent calls DestroyImmediate unconditionally.
+            // After detach, cache entry is stale-null → next render reloads from disk.
+            // Fix: skip DestroyImmediate when path is still in cache.
+            var tmp = Path.GetTempFileName() + ".png";
+            var setup = new Texture2D(1, 1);
+            setup.SetPixel(0, 0, Color.red);
+            setup.Apply();
+            File.WriteAllBytes(tmp, setup.EncodeToPNG());
+            Object.DestroyImmediate(setup);
+
+            try
+            {
+                var renderer = new ImageBlockRenderer();
+                var block = MdBlock.Image(tmp, "m1-test");
+
+                var c1 = renderer.Render(in block);
+                var tex1 = (Texture2D)c1.Q<Image>().image;
+
+                // Attach to a live panel so DetachFromPanelEvent fires on Remove.
+                // ShowUtility may log GUI errors in batch mode; suppress them.
+                LogAssert.ignoreFailingMessages = true;
+                var window = CreateOwnedEditorWindow<ImageDetachTestWindow>();
+                window.ShowUtility();
+                LogAssert.ignoreFailingMessages = false;
+                window.rootVisualElement.Add(c1);
+                window.rootVisualElement.Remove(c1);
+
+                // Re-render same path — with bug, cache entry is null → new texture loaded.
+                // With fix, cache entry is alive → same texture returned.
+                var c2 = renderer.Render(in block);
+                var tex2 = (Texture2D)c2.Q<Image>().image;
+
+                Assert.IsTrue(ReferenceEquals(tex1, tex2),
+                    "Cached texture must not be destroyed on DetachFromPanel when still in cache");
+            }
+            finally
+            {
+                if (File.Exists(tmp)) File.Delete(tmp);
+                ImageBlockRenderer.ClearCache();
+            }
+        }
+
+        class ImageDetachTestWindow : UnityEditor.EditorWindow { }
 
         // ── Texture cache (T-7c-A Item 2) ────────────────────────────────────
 

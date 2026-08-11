@@ -106,7 +106,7 @@ namespace UnityMCP.Editor.Chat
         internal static string StripOrphanBold(string text)
         {
             bool startsDouble = text.TrimStart().StartsWith("**");
-            bool endsDouble   = text.TrimEnd().EndsWith("**") && text.TrimEnd().Length >= 4;
+            bool endsDouble   = text.TrimEnd().EndsWith("**") && text.Trim().Length >= 4;
             // Guard: no orphan bold markers — preserve whitespace (e.g. spaces between chips).
             if (!startsDouble && !endsDouble) return text;
             var t = text.Trim();

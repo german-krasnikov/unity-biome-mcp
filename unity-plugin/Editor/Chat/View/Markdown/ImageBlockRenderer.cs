@@ -59,10 +59,14 @@ namespace UnityMCP.Editor.Chat
             img.style.width  = w;
             img.style.height = h;
 
-            // MANDATORY: destroy texture when the element leaves the panel.
+            // Cache owns texture lifetime. Only destroy if evicted from cache
+            // (e.g. ClearCache() called). While path is in cache, skip DestroyImmediate
+            // so re-renders reuse the same Texture2D instance instead of reloading.
+            // Domain reload: static initializer re-runs → empty cache → re-load on demand.
             img.RegisterCallback<DetachFromPanelEvent>(_ =>
             {
-                if (tex != null) UnityEngine.Object.DestroyImmediate(tex);
+                if (!_cache.ContainsKey(path) && tex != null)
+                    UnityEngine.Object.DestroyImmediate(tex);
             });
 
             img.RegisterCallback<ClickEvent>(_ => ImageViewerWindow.Show(path));

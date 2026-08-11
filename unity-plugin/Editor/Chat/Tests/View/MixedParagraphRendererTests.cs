@@ -145,6 +145,38 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(input, MixedParagraphRenderer.StripOrphanBold(input));
         }
 
+        // M2 regression: TrimEnd().Length counts leading whitespace; must use Trim().Length.
+        // "  **" (2 spaces + orphan bold marker) has no content — must return "".
+        // With old guard (TrimEnd().Length=4>=4 → endsDouble=true AND startsDouble=true)
+        // neither stripping branch fires → returns "**" (visible asterisks). Bug.
+        [Test]
+        public void StripOrphanBold_LeadingWhitespacePlusMarkers_ReturnsEmpty()
+        {
+            Assert.AreEqual("", MixedParagraphRenderer.StripOrphanBold("  **"));
+        }
+
+        // M3 edge cases ─────────────────────────────────────────────────────────
+
+        [Test]
+        public void StripOrphanBold_CompletePair_ReturnsUnchanged()
+        {
+            // Both ends have "**" AND content: neither branch fires, text preserved.
+            Assert.AreEqual("**text**", MixedParagraphRenderer.StripOrphanBold("**text**"));
+        }
+
+        [Test]
+        public void StripOrphanBold_EmptyString_ReturnsEmpty()
+        {
+            Assert.AreEqual("", MixedParagraphRenderer.StripOrphanBold(""));
+        }
+
+        [Test]
+        public void StripOrphanBold_WhitespaceOnly_ReturnsUnchanged()
+        {
+            // No bold markers → early return, whitespace preserved as-is.
+            Assert.AreEqual("   ", MixedParagraphRenderer.StripOrphanBold("   "));
+        }
+
         // ── helpers ───────────────────────────────────────────────────────────
 
         [Test]

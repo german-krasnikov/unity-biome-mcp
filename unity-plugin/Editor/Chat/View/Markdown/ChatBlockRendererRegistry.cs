@@ -66,8 +66,10 @@ namespace UnityMCP.Editor.Chat
                 if (linkified != lbl.text || alreadyLinked)
                 {
                     if (linkified != lbl.text) { lbl.text = linkified; lbl.MarkDirtyText(); }
-                    // Disable selection on linkified labels to avoid ATG/isSelectable conflict.
-                    // Plain labels (no links inserted) keep isSelectable=true for Cmd+C.
+                    // Unity bug UUM-142829: <link> tags conflict with isSelectable in ATG.
+                    // After T-7a any paragraph containing a markdown [text](url) link loses
+                    // text selection — not just rare Assets/… or *.cs refs as before T-7a.
+                    // Revisit and remove when Unity patches ATG/isSelectable interaction.
                     lbl.selection.isSelectable = false;
                     var add = _addToContext;
                     // Arm handlers only after first layout+ATG generation pass.
