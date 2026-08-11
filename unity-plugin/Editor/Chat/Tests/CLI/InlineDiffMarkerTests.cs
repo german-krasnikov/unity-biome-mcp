@@ -107,9 +107,111 @@ namespace UnityMCP.Editor.Chat.Tests.CLI
             var finalized   = InlineDiffMarker.FinalizeMarkers(highlighted);
 
             StringAssert.Contains("<u>", finalized,
-                "Markers must survive color-tag wrap and produce <u> tags");
+                "Open marker must survive color-tag wrap and produce <u>");
+            StringAssert.Contains("</u>", finalized,
+                "Close marker must survive color-tag wrap and produce </u>");
             Assert.IsFalse(finalized.Contains(Open.ToString()),
                 "No raw Open markers must remain after FinalizeMarkers");
+            Assert.IsFalse(finalized.Contains(Close.ToString()),
+                "No raw Close markers must remain after FinalizeMarkers");
+        }
+
+        // === Strengthened FinalizeMarkers coverage ===
+
+        [Test]
+        public void FinalizeMarkers_ExactOutput_BothMarkersReplaced()
+        {
+            // Exact match — proves BOTH \x01→<u> and \x02→</u> in one assertion.
+            var input  = "prefix" + Open + "changed" + Close + "suffix";
+            var result = InlineDiffMarker.FinalizeMarkers(input);
+            Assert.AreEqual("prefix<u>changed</u>suffix", result);
+        }
+
+        [Test]
+        public void FinalizeMarkers_MarkerInsideColorTag_Survives()
+        {
+            // Open marker lands INSIDE a <color> span; Close is after the closing tag.
+            // This is what happens when the SyntaxHighlighter tokenises "prefix\x01middle"
+            // as one chunk and wraps it — the marker survives inside the tag.
+            var input  = "<color=#9aa5ce>prefix" + Open + "middle</color>" + Close + "suffix";
+            var result = InlineDiffMarker.FinalizeMarkers(input);
+            Assert.AreEqual("<color=#9aa5ce>prefix<u>middle</color></u>suffix", result);
+        }
+
+        [Test]
+        public void FinalizeMarkers_MarkerAtTagBoundary_BeforeOpenTag()
+        {
+            // Open marker immediately before an opening color tag.
+            // Verifies boundary position does not confuse replacement.
+            var input  = Open + "<color=#9aa5ce>abc</color>" + Close;
+            var result = InlineDiffMarker.FinalizeMarkers(input);
+            Assert.AreEqual("<u><color=#9aa5ce>abc</color></u>", result);
+        }
+
+        [Test]
+        public void FinalizeMarkers_TwoChangedRegions_BothUnderlined()
+        {
+            // Two separate Open/Close pairs in one line (future multi-region support).
+            // FinalizeMarkers must replace ALL occurrences of each marker.
+            var input  = "a" + Open + "b" + Close + "c" + Open + "d" + Close + "e";
+            var result = InlineDiffMarker.FinalizeMarkers(input);
+            Assert.AreEqual("a<u>b</u>c<u>d</u>e", result);
+        }
+
+        [Test]
+        public void FinalizeMarkers_NoColorTags_ExactOutput()
+        {
+            // No syntax highlighting at all — plain text with markers.
+            // Regression: must not require color tags to function.
+            var input  = "prefix" + Open + "changed" + Close + "suffix";
+            var result = InlineDiffMarker.FinalizeMarkers(input);
+            Assert.AreEqual("prefix<u>changed</u>suffix", result);
+        }
+
+        [Test]
+        public void FinalizeMarkers_MarkupCharsInContent_PassThrough()
+        {
+            // Angle brackets and quotes inside the changed region must not be
+            // mangled — they must appear verbatim inside the <u> tag.
+            const string content = "if (x > 0) { \"hello\" }";
+            var input  = Open + content + Close;
+            var result = InlineDiffMarker.FinalizeMarkers(input);
+            Assert.AreEqual("<u>" + content + "</u>", result);
+        }
+
+        [Test]
+        public void FinalizeMarkers_EmptyChangedRegion_ProducesEmptyUnderline()
+        {
+            // Adjacent markers (no content between them) → <u></u>.
+            // Occurs when FindChangeBounds returns prefix+suffix == line length.
+            var input  = "prefix" + Open + Close + "suffix";
+            var result = InlineDiffMarker.FinalizeMarkers(input);
+            Assert.AreEqual("prefix<u></u>suffix", result);
+        }
+
+        [Test]
+        public void FullPipeline_MarkerSurvivesTokenizedHighlight()
+        {
+            // Full pipeline: InsertMarkers → per-token color wrapping → FinalizeMarkers.
+            // Verifies that markers inserted before highlighting survive token-level
+            // <color> tags applied by the SyntaxHighlighter.
+            //
+            // "GetWireValue(go);" → "GetHexRef(go);" — prefix "Get", suffix "(go);"
+            var (p, s) = InlineDiffMarker.FindChangeBounds("GetWireValue(go);", "GetHexRef(go);");
+            var marked = InlineDiffMarker.InsertMarkers("GetHexRef(go);", p, s);
+            // marked = "Get" + Open + "HexRef" + Close + "(go);"
+
+            // Simulate: SyntaxHighlighter matches "Get\x01HexRef" as one identifier
+            // token and wraps it — Open marker ends up INSIDE the color tag.
+            var tokenBody  = "Get" + Open + "HexRef";
+            var highlighted = "<color=#9aa5ce>" + tokenBody + "</color>" + Close + "(go);";
+
+            var finalized = InlineDiffMarker.FinalizeMarkers(highlighted);
+
+            Assert.AreEqual("<color=#9aa5ce>Get<u>HexRef</color></u>(go);", finalized,
+                "Marker inside color tag must survive and produce underline");
+            Assert.IsFalse(finalized.Contains(Open.ToString()),  "No raw Open markers");
+            Assert.IsFalse(finalized.Contains(Close.ToString()), "No raw Close markers");
         }
     }
 }
