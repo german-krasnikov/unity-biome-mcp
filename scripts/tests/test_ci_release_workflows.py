@@ -20,11 +20,10 @@ def test_release_publish_job_depends_on_same_workflow_preflight() -> None:
 
 def test_release_preflight_blocks_conformance_sha_mismatch() -> None:
     text = _workflow("release-preflight.yml")
-    mismatch_block = text[text.index('if [ "$RUN_SHA" != "$GITHUB_SHA" ]') :]
 
-    assert "::error::Conformance passed on" in mismatch_block
-    assert "exit 1" in mismatch_block
-    assert "::warning::Conformance passed on" not in mismatch_block
+    assert "merge-base --is-ancestor" in text
+    assert "::error::No successful conformance run is an ancestor" in text
+    assert "exit 1" in text
 
 
 def test_conformance_workflow_triggers_on_all_runtime_surfaces() -> None:
