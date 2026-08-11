@@ -50,9 +50,23 @@ namespace UnityMCP.Editor.Chat
 
         private static int ParseBullets(string[] lines, int i, List<MdBlock> result)
         {
-            var items = new List<string>();
-            while (i < lines.Length && IsBullet(lines[i])) { items.Add(lines[i].Substring(2)); i++; }
-            result.Add(MdBlock.Bullets(items));
+            var items  = new List<string>();
+            var depths = new List<int>();
+            while (i < lines.Length && IsBullet(lines[i]))
+            {
+                var raw = lines[i];
+                int indent = 0;
+                foreach (var ch in raw)
+                {
+                    if (ch == ' ') indent++;
+                    else if (ch == '\t') indent += 2; // tab = one indent level (2 spaces)
+                    else break;
+                }
+                items.Add(raw.TrimStart().Substring(2));
+                depths.Add(indent / 2);
+                i++;
+            }
+            result.Add(MdBlock.Bullets(items, depths));
             return i;
         }
 

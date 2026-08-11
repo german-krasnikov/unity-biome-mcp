@@ -162,5 +162,61 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(MdBlockKind.Paragraph, result[1].Kind);
             Assert.AreEqual(MdBlockKind.BulletList, result[2].Kind);
         }
+
+        // ── T-7b: nested bullet lists ─────────────────────────────────────────
+
+        [Test]
+        public void IsBullet_IndentedLine_ReturnsTrue()
+        {
+            Assert.IsTrue(MarkdownParser.IsBullet("  - Sub"));
+        }
+
+        [Test]
+        public void ParseBullets_IndentedItem_PreservesDepth()
+        {
+            var result = MarkdownParser.Parse("- Top\n  - Sub");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(MdBlockKind.BulletList, result[0].Kind);
+            Assert.AreEqual(2, result[0].Lines.Count);
+            Assert.AreEqual("Top", result[0].Lines[0]);
+            Assert.AreEqual("Sub", result[0].Lines[1]);
+            Assert.IsNotNull(result[0].Depths);
+            Assert.AreEqual(0, result[0].Depths[0]);
+            Assert.AreEqual(1, result[0].Depths[1]);
+        }
+
+        [Test]
+        public void ParseBullets_DeeplyNested()
+        {
+            var result = MarkdownParser.Parse("- A\n  - B\n    - C");
+            Assert.AreEqual(1, result.Count);
+            var b = result[0];
+            Assert.AreEqual(3, b.Depths.Count);
+            Assert.AreEqual(0, b.Depths[0]);
+            Assert.AreEqual(1, b.Depths[1]);
+            Assert.AreEqual(2, b.Depths[2]);
+        }
+
+        [Test]
+        public void ParseBullets_TabIndent_CountsAsDepth()
+        {
+            // tab ('\t') should be treated as one indent level (depth=1)
+            var result = MarkdownParser.Parse("- Top\n\t- Sub");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(1, result[0].Depths[1]);
+        }
+
+        [Test]
+        public void ParseBullets_FlatList_DepthsAllZero()
+        {
+            var result = MarkdownParser.Parse("- alpha\n- beta\n- gamma");
+            Assert.AreEqual(1, result.Count);
+            var b = result[0];
+            Assert.IsNotNull(b.Depths);
+            Assert.AreEqual(3, b.Depths.Count);
+            Assert.AreEqual(0, b.Depths[0]);
+            Assert.AreEqual(0, b.Depths[1]);
+            Assert.AreEqual(0, b.Depths[2]);
+        }
     }
 }
