@@ -144,7 +144,10 @@ namespace UnityMCP.Editor.Chat
         internal void AppendToolChip(string toolName, bool ok, string toolId = null)
         {
             FreezeAssistantBubble();
-            _grouper.Add(BuildChip(toolName, ok, toolId), isError: !ok);
+            var chip = BuildChip(toolName, ok, toolId);
+            ToolCardRendererRegistry.Resolve(toolName)
+                ?.OnStart(chip, new ToolCallRecord(toolName, toolId, null));
+            _grouper.Add(chip, isError: !ok);
             if (!_restoring)
             {
                 _entries.Add(new TranscriptEntry {
@@ -166,7 +169,9 @@ namespace UnityMCP.Editor.Chat
             chip.userData = rec;
             if (!chip.ClassListContains(CopyAttachedClass))
             { CopyableText.Attach(chip); chip.AddToClassList(CopyAttachedClass); }
-            ToolDetailBuilder.AttachOrUpdate(chip, rec);
+            var renderer = ToolCardRendererRegistry.Resolve(rec.Name);
+            if (renderer != null) renderer.OnUpdate(chip, rec);
+            else ToolDetailBuilder.AttachOrUpdate(chip, rec);
         }
 
         private void FreezeAssistantBubble()
