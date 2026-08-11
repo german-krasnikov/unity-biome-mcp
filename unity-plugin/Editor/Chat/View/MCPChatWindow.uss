@@ -413,8 +413,14 @@
 /* ── Lists ── */
 .md-list { flex-direction: column; margin-bottom: 4px; }
 .md-list-row { flex-direction: row; }
-.md-list-marker { min-width: 18px; color: var(--unity-colors-link-text); }
+/* min-width: 28px covers two-digit ordered markers ("10.", "11.", …); 18px clips them. */
+.md-list-marker { min-width: 28px; color: var(--unity-colors-link-text); }
 .md-list-content { flex: 1; color: var(--unity-colors-default-text); white-space: normal; }
+
+/* ── Chip pill wrapper (response path) ── */
+/* Layout placeholder — layout is set inline by MixedParagraphRenderer.BuildPill. */
+/* USS rule exists so stylesheet audits can find the class; inline marginRight overrides here. */
+.chip-pill-wrapper { }
 
 /* ── Mermaid ── */
 .mermaid {

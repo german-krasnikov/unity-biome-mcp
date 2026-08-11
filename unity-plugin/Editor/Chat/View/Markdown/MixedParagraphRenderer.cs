@@ -71,7 +71,13 @@ namespace UnityMCP.Editor.Chat
                         }
                         var stripped = StripOrphanBold(lines[i]);
                         if (!string.IsNullOrEmpty(stripped))
-                            container.Add(ChatLabel.Selectable(MarkdownInline.ToRichText(stripped), richText: true));
+                        {
+                            // min-width: 0 allows flex-shrink to reduce the label below its
+                            // natural single-line width so long text wraps inside the bubble.
+                            var lbl = ChatLabel.Selectable(MarkdownInline.ToRichText(stripped), richText: true);
+                            lbl.style.minWidth = 0;
+                            container.Add(lbl);
+                        }
                     }
                 }
                 else
@@ -110,9 +116,20 @@ namespace UnityMCP.Editor.Chat
             // Guard: no orphan bold markers — preserve whitespace (e.g. spaces between chips).
             if (!startsDouble && !endsDouble) return text;
             var t = text.Trim();
-            if (startsDouble && !endsDouble) t = t.Substring(2).TrimStart();
-            if (endsDouble   && !startsDouble) t = t.Substring(0, t.Length - 2).TrimEnd();
-            return t;
+            if (startsDouble && !endsDouble)
+            {
+                // Only strip if the leading ** has NO matching close inside the fragment.
+                // "**Деревья** — " has a close ** inside → NOT an orphan, return unchanged.
+                var after = t.Length > 2 ? t.Substring(2) : "";
+                if (!after.Contains("**")) return after.TrimStart();
+            }
+            if (endsDouble && !startsDouble)
+            {
+                // Only strip if the trailing ** has NO matching open inside the fragment.
+                var before = t.Length > 2 ? t.Substring(0, t.Length - 2) : "";
+                if (!before.Contains("**")) return before.TrimEnd();
+            }
+            return text; // complete pair inside fragment — pass through unchanged
         }
 
         private static VisualElement BuildPill(string kindKey, string rawRef, IPreviewContext context)
@@ -148,10 +165,15 @@ namespace UnityMCP.Editor.Chat
                 onPreview: () => previewPanel.Toggle(),
                 onNavigate: navigateAction);
 
-            // Wrap pill + panel in a column container so panel sits below pill
+            // Wrap pill + panel in a column container so panel sits below pill.
+            // marginRight on wrapper (not pill) so the outer flex-row sees the spacing.
+            // Pill's own marginRight (set by ChipPillFactory.Build for input-field use) is
+            // irrelevant inside a column container — reset it here to avoid double-margin.
             var wrapper = new VisualElement();
             wrapper.AddToClassList("chip-pill-wrapper");
             wrapper.style.flexDirection = FlexDirection.Column;
+            wrapper.style.marginRight = 2f;
+            pill.style.marginRight = 0;
             wrapper.Add(pill);
             wrapper.Add(previewPanel);
             return wrapper;
