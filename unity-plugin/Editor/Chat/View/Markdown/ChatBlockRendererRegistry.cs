@@ -65,12 +65,14 @@ namespace UnityMCP.Editor.Chat
                 linkified = ChatLinkify.ApplyPlainPaths(linkified, ResolveAssetPath);
                 if (linkified != lbl.text || alreadyLinked)
                 {
-                    if (linkified != lbl.text) { lbl.text = linkified; lbl.MarkDirtyText(); }
-                    // Unity bug UUM-142829: <link> tags conflict with isSelectable in ATG.
-                    // After T-7a any paragraph containing a markdown [text](url) link loses
-                    // text selection — not just rare Assets/… or *.cs refs as before T-7a.
-                    // Revisit and remove when Unity patches ATG/isSelectable interaction.
-                    lbl.selection.isSelectable = false;
+                    bool textMutated = linkified != lbl.text;
+                    if (textMutated) { lbl.text = linkified; lbl.MarkDirtyText(); }
+                    // Unity bug UUM-142829: ATGFindIntersectingLink throws null-ref when link events
+                    // fire before ATG buffer repopulates AFTER a .text mutation. Only disable
+                    // selection when we mutated the text — labels with only pre-existing markdown
+                    // links (no mutation) don't have the post-mutation timing window.
+                    // Revisit when Unity patches ATG/isSelectable interaction.
+                    if (textMutated) lbl.selection.isSelectable = false;
                     var add = _addToContext;
                     // Arm handlers only after first layout+ATG generation pass.
                     void Arm(GeometryChangedEvent _)
