@@ -86,5 +86,38 @@ namespace UnityMCP.Editor.Chat.Tests
             public bool CanRender(in MdBlock block) => true;
             public VisualElement Render(in MdBlock block) => _render();
         }
+
+        // B2: alreadyLinked guard must be narrowed to project-specific links only.
+        // url: links from markdown [text](url) must NOT arm ChatRefAction (browser-open handler).
+        [Test]
+        public void IsProjectLink_ExternalUrl_ReturnsFalse()
+        {
+            Assert.IsFalse(ChatBlockRendererRegistry.IsProjectLink(
+                "<link=\"url:#scene\">Main Camera</link>"),
+                "url: links are external URLs — must NOT arm ChatRefAction navigation");
+        }
+
+        [Test]
+        public void IsProjectLink_ChipLink_ReturnsTrue()
+        {
+            Assert.IsTrue(ChatBlockRendererRegistry.IsProjectLink(
+                "<link=\"chip:hierarchy:/Main Camera\">Main Camera</link>"),
+                "chip: links are project references — MUST arm ChatRefAction navigation");
+        }
+
+        [Test]
+        public void IsProjectLink_ObjLink_ReturnsTrue()
+        {
+            Assert.IsTrue(ChatBlockRendererRegistry.IsProjectLink(
+                "<link=\"obj:/Main Camera\">Main Camera</link>"),
+                "obj: links (legacy) are project references — MUST arm ChatRefAction navigation");
+        }
+
+        [Test]
+        public void IsProjectLink_NoLink_ReturnsFalse()
+        {
+            Assert.IsFalse(ChatBlockRendererRegistry.IsProjectLink("plain text"),
+                "plain text without any link must not arm ChatRefAction");
+        }
     }
 }

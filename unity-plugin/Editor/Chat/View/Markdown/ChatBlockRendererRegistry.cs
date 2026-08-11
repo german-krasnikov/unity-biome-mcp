@@ -50,6 +50,16 @@ namespace UnityMCP.Editor.Chat
             return result;
         }
 
+        // Returns true when a label's text already contains project-specific link tags
+        // (chip:, obj:, script:, asset:) that need ChatRefAction handlers.
+        // Excludes url: links (emitted by MarkdownInline for [text](url) markdown links) —
+        // those are external URLs and must NOT arm scene/script navigation handlers.
+        internal static bool IsProjectLink(string text) =>
+            text.Contains("<link=\"chip:")   ||
+            text.Contains("<link=\"obj:")    ||
+            text.Contains("<link=\"script:") ||
+            text.Contains("<link=\"asset:");
+
         // Walks the VisualElement tree; linkifies every rich-text Label and installs click handlers.
         // Link handlers are deferred until GeometryChangedEvent to avoid the Unity 6.3 b7 ATG bug
         // (UUM-142829): ATGFindIntersectingLink throws "TextGenerationInfo pointer is null" when
@@ -60,7 +70,8 @@ namespace UnityMCP.Editor.Chat
             {
                 // F20: scene-object resolver removed — bare object names in code spans are not
                 // underline-linked; they reach BareNameNormalizer as pills instead (Path A).
-                bool alreadyLinked = lbl.text.Contains("<link=");
+                // B2: narrow to project links only — url: markdown links must NOT arm navigation.
+                bool alreadyLinked = IsProjectLink(lbl.text);
                 var linkified = ChatLinkify.Apply(lbl.text, null, _resolver.ResolveScript, ResolveAssetPath);
                 linkified = ChatLinkify.ApplyPlainPaths(linkified, ResolveAssetPath);
                 if (linkified != lbl.text || alreadyLinked)
