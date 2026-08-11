@@ -921,3 +921,10 @@
     -unity-text-overflow-position: end;
     white-space: nowrap;
 }
+
+/* ── T-4.1: CodeEditDiffRenderer ── */
+.code-diff-block { max-height: 300px; overflow-y: scroll; border-radius: 3px; padding: 4px; }
+.diff-header     { font-size: 11px; -unity-font-style: italic; margin-bottom: 2px; cursor: link; }
+.diff-add        { color: var(--chat-success); }
+.diff-remove     { color: var(--unity-colors-error-text); }
+.diff-context    { color: var(--unity-colors-label-text-secondary); }

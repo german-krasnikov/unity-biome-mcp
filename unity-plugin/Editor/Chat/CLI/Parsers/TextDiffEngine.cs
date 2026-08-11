@@ -5,16 +5,16 @@ using System.Collections.Generic;
 
 namespace UnityMCP.Editor.Chat.Parsers
 {
-    internal enum DiffLineKind { Context = 0, Added = 1, Removed = 2 }
+    public enum DiffLineKind { Context = 0, Added = 1, Removed = 2 }
 
-    internal readonly struct DiffLine
+    public readonly struct DiffLine
     {
         public readonly DiffLineKind Kind;
         public readonly string       Text;
         public DiffLine(DiffLineKind kind, string text) { Kind = kind; Text = text; }
     }
 
-    internal readonly struct TextDiffResult
+    public readonly struct TextDiffResult
     {
         public readonly DiffLine[] Lines;
         public readonly bool       IsLargeFile;
@@ -39,11 +39,11 @@ namespace UnityMCP.Editor.Chat.Parsers
         }
     }
 
-    internal static class TextDiffEngine
+    public static class TextDiffEngine
     {
         private const int LineThreshold = 80;
 
-        internal static TextDiffResult Compute(string oldText, string newText)
+        public static TextDiffResult Compute(string oldText, string newText)
         {
             var a = Split(oldText);
             var b = Split(newText);
