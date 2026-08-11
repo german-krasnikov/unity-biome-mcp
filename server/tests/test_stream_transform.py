@@ -858,3 +858,21 @@ def test_thinking_second_block_isolated():
     _transform_line(_delta_thinking("Second"), acc)
     out = _transform_line(_TR_STOP, acc)
     assert out == ["th|Second"]
+
+
+# ── B5 — error with empty body must not be swallowed ─────────────────────────
+
+def test_tool_error_empty_body_emits_event():
+    """B5: tool_result is_error=True with no text deltas must still emit tr event."""
+    acc = _ToolCallAcc()
+    _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_start",'
+        '"content_block":{"type":"tool_result","tool_use_id":"tu-err","is_error":true}}}',
+        acc,
+    )
+    # No content_block_delta — empty body (tool crashed without diagnostic text)
+    result = _transform_line(
+        '{"type":"stream_event","event":{"type":"content_block_stop"}}',
+        acc,
+    )
+    assert result == ["tr|tu-err|false|"]
