@@ -83,7 +83,9 @@ namespace UnityMCP.Editor.Chat
             if (string.IsNullOrEmpty(reference)) return;
             var parts = reference.Split('|');
             var go    = FindObject(parts[0]);
-            if (go != null) Selection.activeGameObject = go;
+            if (go == null) return;
+            EditorGUIUtility.PingObject(go);
+            Selection.activeGameObject = go;
         }
 
         public void Ping(string reference) => Navigate(reference);

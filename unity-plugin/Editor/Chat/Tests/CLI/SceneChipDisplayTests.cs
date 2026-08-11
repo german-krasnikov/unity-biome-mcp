@@ -121,5 +121,37 @@ namespace UnityMCP.Editor.Chat.Tests
             var path = SceneChipProvider.FindScenePathByExactName("__BiomeTest_NoSuchScene_XYZ__");
             Assert.IsNull(path, "Should return null for non-existent scene");
         }
+
+        // D11: Phase 1.2c — dialog override seam: for an already-loaded scene the dialog is skipped.
+        [Test]
+        public void Navigate_SceneAlreadyLoaded_DisplayDialogOverrideNotCalled()
+        {
+            // Find the scene that is currently loaded (bootstrap scene in the test worker).
+            var loadedScene = UnityEditor.SceneManagement.EditorSceneManager.GetSceneAt(0);
+            if (!loadedScene.isLoaded || string.IsNullOrEmpty(loadedScene.name))
+                Assert.Ignore("No loaded scene found in the test worker");
+
+            bool overrideCalled = false;
+            SceneChipProvider.DisplayDialogOverride = _ => { overrideCalled = true; return false; };
+            RegisterCleanup(() => SceneChipProvider.DisplayDialogOverride = null);
+
+            // Navigate to the currently-open scene — dialog must not be shown.
+            Assert.DoesNotThrow(() => _provider.Navigate(loadedScene.name));
+            Assert.IsFalse(overrideCalled,
+                "DisplayDialogOverride must not be called when the scene is already loaded");
+        }
+
+        // D12: Phase 1.2c — dialog override seam: for a scene not found, no dialog is shown.
+        [Test]
+        public void Navigate_SceneNotFound_DisplayDialogOverrideNotCalled()
+        {
+            bool overrideCalled = false;
+            SceneChipProvider.DisplayDialogOverride = _ => { overrideCalled = true; return false; };
+            RegisterCleanup(() => SceneChipProvider.DisplayDialogOverride = null);
+
+            Assert.DoesNotThrow(() => _provider.Navigate("__BiomeTest_NoSuchScene_XYZ__"));
+            Assert.IsFalse(overrideCalled,
+                "DisplayDialogOverride must not be called when the scene asset is not found");
+        }
     }
 }
