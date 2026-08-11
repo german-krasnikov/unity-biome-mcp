@@ -53,8 +53,9 @@ namespace UnityMCP.Editor.Chat
                         else if (_turnEditedCode)
                             _autoFix.Arm();
                     }
-                    // T-6.3: if agent was mentioned but no tool calls fired, delegation never happened.
-                    if (_pendingAgentName != null && !_turnHasToolCalls)
+                    // T-6.3: if agent was mentioned but delegation never happened (no Agent/Task
+                    // tool fired in this turn), warn. Check at TurnDone so the whole turn is visible.
+                    if (_pendingAgentName != null && !_turnHadDelegation)
                         _transcript?.AppendToolChip(
                             $"[Biome] @{_pendingAgentName} was mentioned but no delegation occurred.",
                             ok: false);
@@ -161,18 +162,9 @@ namespace UnityMCP.Editor.Chat
         {
             if (rec.ArgsJson == null && !rec.HasResult)
             {
-                // T-6.3: miss-detector fires on first tool start event in a turn.
-                // If the model's first tool is not Agent/Task, delegation was missed.
-                if (_pendingAgentName != null)
-                {
-                    if (rec.Name != "Agent" && rec.Name != "Task")
-                        _transcript?.AppendToolChip(
-                            $"[Biome] @{_pendingAgentName} was mentioned but no delegation occurred.",
-                            ok: false);
-                    _pendingAgentName = null; // clear regardless
-                }
-
                 // null ArgsJson = chip-creation record (ToolStart moment)
+                if (rec.Name == "Agent" || rec.Name == "Task")
+                    _turnHadDelegation = true; // T-6.3: delegation detected — suppress miss warning
                 if (_activity.FirstToken()) OnActivityChanged();
                 _transcript?.AppendToolChip(rec.Name, ok: true, toolId: rec.Id);
                 _turnHasToolCalls = true;
