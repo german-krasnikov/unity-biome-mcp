@@ -117,5 +117,63 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.IsNotNull(ToolCardRendererRegistry.Resolve("MultiEdit"),
                 "MultiEdit must be registered by CodeEditDiffRenderer [InitializeOnLoad]");
         }
+
+        // ── Collapse threshold (≥5 edits → Foldout) ─────────────────────────
+
+        private static string MakeEditsJson(int count)
+        {
+            var sb = new System.Text.StringBuilder("[");
+            for (int i = 0; i < count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append("{\"old_string\":\"line" + i + "\",\"new_string\":\"LINE" + i + "\"}");
+            }
+            sb.Append(']');
+            return sb.ToString();
+        }
+
+        [Test]
+        public void OnUpdate_FiveEdits_RendersCollapsedFoldout()
+        {
+            var chip = new VisualElement();
+            var rec  = MakeRec("MultiEdit",
+                "{\"file_path\":\"many.cs\",\"edits\":" + MakeEditsJson(5) + "}");
+
+            _renderer.OnUpdate(chip, rec);
+
+            var foldout = chip.Q<Foldout>(className: "diff-edits-foldout");
+            Assert.IsNotNull(foldout,
+                "five or more edits must collapse into a Foldout with class diff-edits-foldout");
+            Assert.IsFalse(foldout.value,
+                "collapsed foldout must start closed (value=false)");
+        }
+
+        [Test]
+        public void OnUpdate_FourEdits_NoFoldout()
+        {
+            var chip = new VisualElement();
+            var rec  = MakeRec("MultiEdit",
+                "{\"file_path\":\"few.cs\",\"edits\":" + MakeEditsJson(4) + "}");
+
+            _renderer.OnUpdate(chip, rec);
+
+            Assert.IsNull(chip.Q<Foldout>(),
+                "fewer than five edits must NOT produce a Foldout");
+        }
+
+        [Test]
+        public void OnUpdate_TenEdits_FoldoutLabelShowsCount()
+        {
+            var chip = new VisualElement();
+            var rec  = MakeRec("MultiEdit",
+                "{\"file_path\":\"big.cs\",\"edits\":" + MakeEditsJson(10) + "}");
+
+            _renderer.OnUpdate(chip, rec);
+
+            var foldout = chip.Q<Foldout>(className: "diff-edits-foldout");
+            Assert.IsNotNull(foldout, "ten edits must produce a collapsed Foldout");
+            StringAssert.Contains("10", foldout.text,
+                "foldout label must include the edit count");
+        }
     }
 }

@@ -36,6 +36,10 @@ namespace UnityMCP.Editor.Chat
 
         // ── Rendering ────────────────────────────────────────────────────────────
 
+        // Collapse into a Foldout when there are this many edits or more.
+        // At ≥5 edits eager rendering risks exceeding the frame budget.
+        private const int CollapseThreshold = 5;
+
         private static void RenderEdits(VisualElement chip, CodeEditArgs args)
         {
             var header = new Label("✎ " + args.FilePath);
@@ -47,7 +51,11 @@ namespace UnityMCP.Editor.Chat
             block.AddToClassList("code-diff-block");
             chip.Add(block);
 
-            if (args.Edits != null && args.Edits.Length > 0)
+            if (args.Edits != null && args.Edits.Length >= CollapseThreshold)
+            {
+                RenderCollapsed(block, args.Edits);
+            }
+            else if (args.Edits != null && args.Edits.Length > 0)
             {
                 foreach (var edit in args.Edits)
                     RenderOnePair(block, edit.OldString, edit.NewString);
@@ -61,6 +69,21 @@ namespace UnityMCP.Editor.Chat
                 foreach (var line in SplitLines(args.Content))
                     block.Add(MakeLine(line, "diff-add"));
             }
+        }
+
+        private static void RenderCollapsed(VisualElement container, CodeEditEdit[] edits)
+        {
+            var foldout = new Foldout { text = $"{edits.Length} edits", value = false };
+            foldout.AddToClassList("diff-edits-foldout");
+            var built = false;
+            foldout.RegisterValueChangedCallback(evt =>
+            {
+                if (!evt.newValue || built) return;
+                built = true;
+                foreach (var edit in edits)
+                    RenderOnePair(foldout.contentContainer, edit.OldString, edit.NewString);
+            });
+            container.Add(foldout);
         }
 
         private static void RenderOnePair(VisualElement container, string oldStr, string newStr)
