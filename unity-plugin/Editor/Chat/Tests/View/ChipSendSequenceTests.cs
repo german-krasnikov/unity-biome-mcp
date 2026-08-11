@@ -56,8 +56,8 @@ namespace UnityMCP.Editor.Chat.Tests
             Type(" text ");
             InsertChip(H("/Enemy", "Enemy", 2));
             var (tj, _) = SimulateSend();
-            StringAssert.Contains("[hierarchy:/Player#1]", tj);
-            StringAssert.Contains("[hierarchy:/Enemy#2]",  tj);
+            StringAssert.Contains("[hierarchy:/Player$1]", tj);
+            StringAssert.Contains("[hierarchy:/Enemy$2]",  tj);
         }
 
         [Test]
@@ -106,8 +106,8 @@ namespace UnityMCP.Editor.Chat.Tests
             InsertChip(H("/Player", "Player", 1));
             InsertChip(H("/Enemy",  "Enemy",  2));
             var (tj, _) = SimulateSend();
-            StringAssert.Contains("[hierarchy:/Player#1]", tj);
-            StringAssert.Contains("[hierarchy:/Enemy#2]",  tj);
+            StringAssert.Contains("[hierarchy:/Player$1]", tj);
+            StringAssert.Contains("[hierarchy:/Enemy$2]",  tj);
         }
 
         [Test]
@@ -132,9 +132,9 @@ namespace UnityMCP.Editor.Chat.Tests
             // F13: order reflected in llm payload position, not raw text @mentions
             Assert.Less(tj.IndexOf("[hierarchy:/Player"), tj.IndexOf("[hierarchy:/Enemy"));
             Assert.Less(tj.IndexOf("[hierarchy:/Enemy"),  tj.IndexOf("[hierarchy:/Boss"));
-            StringAssert.Contains("[hierarchy:/Player#1]", tj);
-            StringAssert.Contains("[hierarchy:/Enemy#2]",  tj);
-            StringAssert.Contains("[hierarchy:/Boss#3]",   tj);
+            StringAssert.Contains("[hierarchy:/Player$1]", tj);
+            StringAssert.Contains("[hierarchy:/Enemy$2]",  tj);
+            StringAssert.Contains("[hierarchy:/Boss$3]",   tj);
             ChatWindowAssertions.AssertBubbleHasChipStrip(ChatWindowAssertions.GetUserBubble(_container, 0), 3);
         }
 
@@ -191,7 +191,7 @@ namespace UnityMCP.Editor.Chat.Tests
             Type(" fix health");
             var (tj, _) = SimulateSend();
             StringAssert.Contains("@/Player", tj);
-            StringAssert.Contains("[hierarchy:/Player#1]", tj);
+            StringAssert.Contains("[hierarchy:/Player$1]", tj);
         }
 
         // E2E_2: chip-only message → turnJson contains @Path (full path)

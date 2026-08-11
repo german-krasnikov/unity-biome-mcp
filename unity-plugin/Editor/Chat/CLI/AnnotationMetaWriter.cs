@@ -66,7 +66,7 @@ namespace UnityMCP.Editor.Chat
                 if (r == null) continue;
                 if (!GeometryUtility.TestPlanesAABB(planes, r.bounds)) continue;
                 var path = ComponentSerializer.GetPath(t.gameObject);
-                sb.AppendLine($"  {path} #{TransientObjectId.GetWireValue(t.gameObject)}");
+                sb.AppendLine($"  {path} {TransientObjectId.GetHexRef(t.gameObject)}");
                 count++;
             }
             if (count == 0) sb.AppendLine("  (none visible)");

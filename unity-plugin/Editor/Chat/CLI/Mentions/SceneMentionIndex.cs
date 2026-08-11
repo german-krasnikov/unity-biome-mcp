@@ -103,7 +103,7 @@ namespace UnityMCP.Editor.Chat
                 var lower = name.ToLowerInvariant();
                 var mask  = MentionFuzzyScorer.BuildCharMask(lower);
                 var path  = ComponentSerializer.GetPath(go);
-                _entries.Add(new Entry(name, lower, mask, path, TransientObjectId.GetWireValue(go)));
+                _entries.Add(new Entry(name, lower, mask, path, TransientObjectId.GetHexRef(go)));
 
                 for (int i = t.childCount - 1; i >= 0; i--)
                     stack.Push(t.GetChild(i));

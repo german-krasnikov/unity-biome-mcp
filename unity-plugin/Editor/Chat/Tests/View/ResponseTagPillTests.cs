@@ -108,10 +108,11 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void RefParser_HierarchyWithId_ExtractsPathAndId()
         {
-            var d = RefParser.Parse("hierarchy", "/Root/Child #-33506");
-            Assert.AreEqual("/Root/Child", d.Path);
-            Assert.AreEqual("-33506",      d.ObjectId);
-            Assert.AreEqual("Child",       d.DisplayName);
+            // -33506 as uint32 = 0xFFFF7D1E
+            var d = RefParser.Parse("hierarchy", "/Root/Child$FFFF7D1E");
+            Assert.AreEqual("/Root/Child",   d.Path);
+            Assert.AreEqual("$FFFF7D1E",     d.ObjectId);
+            Assert.AreEqual("Child",         d.DisplayName);
         }
 
         [Test]
@@ -135,8 +136,9 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void RefParser_NegativeInstanceId_ParsedCorrectly()
         {
-            var d = RefParser.Parse("hierarchy", "/Cam #-1");
-            Assert.AreEqual("-1", d.ObjectId);
+            // -1 as uint32 = 0xFFFFFFFF
+            var d = RefParser.Parse("hierarchy", "/Cam$FFFFFFFF");
+            Assert.AreEqual("$FFFFFFFF", d.ObjectId);
         }
 
         // ── MixedParagraphRenderer VE assembly ───────────────────────────────
@@ -239,10 +241,10 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void Navigate_RefWithInstanceId_RefParserStripsId()
         {
-            // RefParser must produce path "/Player" (no #id) from "/Player #12345"
-            var data = RefParser.Parse("hierarchy", "/Player #12345");
-            Assert.AreEqual("/Player", data.Path, "RefParser must strip #id suffix for Navigate use");
-            Assert.AreEqual("12345",   data.ObjectId);
+            // RefParser must extract path and $HEX id — 12345 = 0x3039
+            var data = RefParser.Parse("hierarchy", "/Player$3039");
+            Assert.AreEqual("/Player", data.Path, "RefParser must strip $HEX suffix for Navigate use");
+            Assert.AreEqual("$3039",   data.ObjectId);
             Assert.AreEqual("Player",  data.DisplayName);
         }
 

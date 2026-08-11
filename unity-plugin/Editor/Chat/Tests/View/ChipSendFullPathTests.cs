@@ -52,7 +52,7 @@ namespace UnityMCP.Editor.Chat.Tests
             StringAssert.Contains("@Assets/Tests/Editor/CommandRouterTests.cs",  tj);
 
             // Bracket context blocks also present
-            StringAssert.Contains("[hierarchy:/GridPlayer#42]",                                    tj);
+            StringAssert.Contains("[hierarchy:/GridPlayer$2A]",                                    tj);
             StringAssert.Contains("[script:Assets/Tests/Editor/CommandRouterTests.cs]",             tj);
         }
 

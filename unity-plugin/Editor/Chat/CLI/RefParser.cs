@@ -1,8 +1,7 @@
 // Parse a raw [kind:ref] reference into ChipData (Path, ObjectId, DisplayName).
 // Inverse of ChipContextResolver.FormatChipRef.
-// Hierarchy: "/Root/Child #-33506" -> Path="/Root/Child", ID=-33506, Display="Child".
-// Hierarchy (new): "/Root/Child#123@goid" -> parsed via HierarchyReference.
-// Asset:     "Assets/Scripts/Foo.cs" -> Path=same, ID=0, Display="Foo.cs".
+// Hierarchy: "/Root/Child$3039@goid" -> parsed via HierarchyReference.
+// Asset:     "Assets/Scripts/Foo.cs" -> Path=same, ID=empty, Display="Foo.cs".
 namespace UnityMCP.Editor.Chat
 {
     internal static class RefParser
@@ -23,13 +22,16 @@ namespace UnityMCP.Editor.Chat
             var pathOnly = rawRef;
             string objectId = "";
 
-            // Strip " #id" suffix (hierarchy legacy refs handled above, but keep for safety).
-            int hashIdx = rawRef.LastIndexOf(" #");
-            var token = hashIdx >= 0 ? rawRef.Substring(hashIdx + 2) : "";
-            if (hashIdx >= 0 && TransientObjectId.TryParse(token, out _))
+            // Strip " $HEX" suffix (defensive for non-hierarchy chips).
+            int dollarIdx = rawRef.LastIndexOf(" $");
+            if (dollarIdx >= 0)
             {
-                pathOnly   = rawRef.Substring(0, hashIdx);
-                objectId = token;
+                var dollarToken = rawRef.Substring(dollarIdx + 1); // "$2B678"
+                if (TransientObjectId.TryParse(dollarToken, out _))
+                {
+                    pathOnly = rawRef.Substring(0, dollarIdx);
+                    objectId = dollarToken;
+                }
             }
 
             // Leaf name: after last '/'

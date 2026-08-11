@@ -25,11 +25,12 @@ namespace UnityMCP.Editor.Chat
             GlobalObjectId = globalObjectId;
         }
 
-        /// <summary>Compatibility constructor for legacy signed instance ID callers.</summary>
+        /// <summary>Constructor for integer instance ID callers — converts to $HEX format.</summary>
         public ChipData(string kindKey, string path, string displayName, int legacyId,
             GlobalObjectId globalObjectId = default)
             : this(kindKey, path, displayName,
-                legacyId == 0 ? "" : legacyId.ToString(CultureInfo.InvariantCulture), globalObjectId)
+                legacyId == 0 ? "" : "$" + ((uint)legacyId).ToString("X", CultureInfo.InvariantCulture),
+                globalObjectId)
         {
         }
     }

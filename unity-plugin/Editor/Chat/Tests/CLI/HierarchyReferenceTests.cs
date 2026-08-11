@@ -13,21 +13,22 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Parsing ───────────────────────────────────────────────────────────
 
         [Test]
-        public void Parse_LegacyPathAndId_ReturnsPathAndId()
+        public void Parse_HexPathAndId_ReturnsPathAndId()
         {
-            var href = HierarchyReference.Parse("/Root/Child #12345");
+            // 12345 decimal = 0x3039 hex
+            var href = HierarchyReference.Parse("/Root/Child$3039");
             Assert.AreEqual("/Root/Child", href.Path);
-            Assert.AreEqual("12345", href.ObjectId);
+            Assert.AreEqual("$3039", href.ObjectId);
             Assert.AreEqual(0UL, href.GlobalObjectId.targetObjectId);
         }
 
         [Test]
-        public void Parse_Unsigned64BitId_PreservesEveryDigit()
+        public void Parse_LargeHexId_PreservesToken()
         {
-            var href = HierarchyReference.Parse("/Root/Child#18446744073709551615");
-
+            // Full 64-bit hex preserved in the token
+            var href = HierarchyReference.Parse("/Root/Child$FFFFFFFFFFFFFFFF");
             Assert.AreEqual("/Root/Child", href.Path);
-            Assert.AreEqual("18446744073709551615", href.ObjectId);
+            Assert.AreEqual("$FFFFFFFFFFFFFFFF", href.ObjectId);
         }
 
         [Test]
@@ -36,10 +37,10 @@ namespace UnityMCP.Editor.Chat.Tests
             // Craft a valid GlobalObjectId string with a non-zero targetObjectId.
             // Parsing must preserve the GOID independently of the path/instanceID.
             const string goidString = "GlobalObjectId_V1-2-00000000000000000000000000000001-12345-0";
-            var raw = $"/Root/Child#12345@{goidString}";
+            var raw = $"/Root/Child$3039@{goidString}";  // 12345 = 0x3039
             var href = HierarchyReference.Parse(raw);
             Assert.AreEqual("/Root/Child", href.Path);
-            Assert.AreEqual("12345", href.ObjectId);
+            Assert.AreEqual("$3039", href.ObjectId);
             Assert.AreEqual(12345UL, href.GlobalObjectId.targetObjectId);
         }
 
@@ -65,6 +66,48 @@ namespace UnityMCP.Editor.Chat.Tests
             var href = HierarchyReference.Parse("/Root/Child@not_a_valid_goid");
             Assert.AreEqual("/Root/Child", href.Path);
             Assert.AreEqual(0UL, href.GlobalObjectId.targetObjectId);
+        }
+
+        // ── $HEX format (Phase 2) ─────────────────────────────────────────────
+
+        [Test]
+        public void Parse_DollarHexFormat_ExtractsPathAndId()
+        {
+            // New format: $HEX attached directly to path, no space
+            var href = HierarchyReference.Parse("/Ground$2B678");
+            Assert.AreEqual("/Ground", href.Path);
+            Assert.AreEqual("$2B678", href.ObjectId);
+            Assert.AreEqual(0UL, href.GlobalObjectId.targetObjectId);
+        }
+
+        [Test]
+        public void Parse_DollarHexWithGlobalObjectId_ExtractsBoth()
+        {
+            const string goidString = "GlobalObjectId_V1-2-00000000000000000000000000000001-12345-0";
+            var raw = $"/Ground$2B678@{goidString}";
+            var href = HierarchyReference.Parse(raw);
+            Assert.AreEqual("/Ground", href.Path);
+            Assert.AreEqual("$2B678", href.ObjectId);
+            Assert.AreEqual(12345UL, href.GlobalObjectId.targetObjectId);
+        }
+
+        [Test]
+        public void Parse_DollarHexNoSpace_NestedPath_ExtractsCorrectly()
+        {
+            // Nested path: $HEX attached after multi-level path
+            var href = HierarchyReference.Parse("/Root/Child/Leaf$FF00");
+            Assert.AreEqual("/Root/Child/Leaf", href.Path);
+            Assert.AreEqual("$FF00", href.ObjectId);
+        }
+
+        [Test]
+        public void Parse_DollarHexInvalidHex_NotExtracted()
+        {
+            // "$g" and similar RefManager slots are not valid hex — should not be extracted
+            var href = HierarchyReference.Parse("/Root/Child$gx");
+            // "$gx" fails TryParse — whole string is the path
+            Assert.AreEqual("/Root/Child$gx", href.Path);
+            Assert.AreEqual("", href.ObjectId);
         }
 
         // ── Resolver fallback chain ───────────────────────────────────────────

@@ -1,5 +1,5 @@
 // Value object for hierarchy references: path + transient object ID + GlobalObjectId.
-// Supports both legacy "path #id" and new "path#id@goid" formats.
+// Format: "/path$HEX" optionally followed by "@GlobalObjectId".
 using System;
 using System.Globalization;
 using UnityEditor;
@@ -42,24 +42,16 @@ namespace UnityMCP.Editor.Chat
             }
 
             string objectId = "";
-            int hashIndex = working.LastIndexOf(" #");
-            if (hashIndex >= 0)
+
+            // $HEX format — e.g. "/Ground$2B678" ($ attached directly, no space).
+            int dollarIndex = working.LastIndexOf('$');
+            if (dollarIndex >= 0)
             {
-                var token = working.Substring(hashIndex + 2);
+                var token = working.Substring(dollarIndex); // "$2B678" — includes $
                 if (TransientObjectId.TryParse(token, out _))
                 {
                     objectId = token;
-                    working = working.Substring(0, hashIndex).TrimEnd();
-                }
-            }
-            else
-            {
-                hashIndex = working.LastIndexOf('#');
-                var token = hashIndex >= 0 ? working.Substring(hashIndex + 1) : "";
-                if (hashIndex >= 0 && TransientObjectId.TryParse(token, out _))
-                {
-                    objectId = token;
-                    working = working.Substring(0, hashIndex).TrimEnd();
+                    working  = working.Substring(0, dollarIndex).TrimEnd();
                 }
             }
 

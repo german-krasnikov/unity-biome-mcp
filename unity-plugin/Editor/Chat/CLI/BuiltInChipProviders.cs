@@ -83,7 +83,7 @@ namespace UnityMCP.Editor.Chat
             var path = ComponentSerializer.GetPath(go);
             var goid = GlobalObjectId.GetGlobalObjectIdSlow(go);
             return new ChipData(Key, path, FormatHierarchyDisplay(path, go.name),
-                TransientObjectId.GetWireValue(go), goid);
+                TransientObjectId.GetHexRef(go), goid);
         }
 
         internal static string FormatHierarchyDisplay(string path, string leafName)
@@ -94,9 +94,7 @@ namespace UnityMCP.Editor.Chat
 
         public string FormatPayload(ChipData chip, ChipPayloadContext ctx)
         {
-            var bracket = !string.IsNullOrEmpty(chip.ObjectId) && chip.ObjectId != "0"
-                ? $"[{Key}:{chip.Path}#{chip.ObjectId}]"
-                : $"[{Key}:{chip.Path}]";
+            var bracket = ChipContextResolver.FormatChipRef(Key, chip.Path, chip.ObjectId);
             if (chip.GlobalObjectId.targetObjectId != 0)
                 bracket = bracket.Insert(bracket.Length - 1, $"@{chip.GlobalObjectId}");
             return ctx.Depth == "none" ? "" :
@@ -149,6 +147,54 @@ namespace UnityMCP.Editor.Chat
 
         public override bool CanHandle(Object obj, string assetPath)
             => obj != null && !string.IsNullOrEmpty(assetPath) && assetPath.EndsWith(".unity");
+
+        // chip.Path = scene name ("MyScene"), not the full asset path.
+        public override ChipData Create(Object obj, string assetPath)
+        {
+            // obj null: direct-call path only — CanHandle requires non-null for registry calls
+            var name = obj != null ? obj.name : Path.GetFileNameWithoutExtension(assetPath);
+            return new ChipData(Key, name, name, 0);
+        }
+
+        public override void Navigate(string reference)
+        {
+            var obj = LoadScene(reference);
+            if (obj == null)
+            {
+                Debug.LogWarning($"{BiomeLabel.Tag} Scene not found: {reference}");
+                return;
+            }
+            EditorGUIUtility.PingObject(obj);
+            Selection.activeObject = obj;
+        }
+
+        public override void Ping(string reference)
+        {
+            var obj = LoadScene(reference);
+            if (obj != null) { EditorGUIUtility.PingObject(obj); Selection.activeObject = obj; }
+        }
+
+        // Full path or .unity extension → direct load; name-only → exact-name lookup.
+        private static Object LoadScene(string reference)
+        {
+            if (reference.Contains("/") || reference.EndsWith(".unity"))
+                return AssetDatabase.LoadAssetAtPath<Object>(reference);
+            var path = FindScenePathByExactName(reference);
+            return path != null ? AssetDatabase.LoadAssetAtPath<Object>(path) : null;
+        }
+
+        // FindAssets uses substring search; filter by exact filename to avoid "Level" matching "Level1".
+        internal static string FindScenePathByExactName(string sceneName)
+        {
+            var guids = AssetDatabase.FindAssets("t:Scene " + sceneName);
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (Path.GetFileNameWithoutExtension(path) == sceneName)
+                    return path;
+            }
+            return null;
+        }
     }
 
     internal sealed class ScriptChipProvider : AssetChipProviderBase

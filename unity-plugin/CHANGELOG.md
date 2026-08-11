@@ -10,6 +10,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.29.0] — 2026-08-11
+
+### Added
+- Scene Drag & Drop into chat — `.unity` files from Project window create scene chips
+- Hierarchy header right-click `🧬MCP/Copy Ref` for scenes (SceneHeaderContextMenu)
+- `MentionRowActions.PingInProject` for scene chips
+- `ServerUpdater` — auto-reinstall Python server when plugin version is newer (UPM update)
+- `PluginUpdateMonitor` — C# version change detection on domain reload
+
+### Changed
+- Chip refs unified to `$HEX` format — `[hierarchy:/Player$3E8]` replaces `[hierarchy:/Player#1000]`
+- Scene chips use name-only path — `[scene:MyScene]` instead of `[scene:Assets/Scenes/MyScene.unity]`
+- `FindAssets` exact-match for scene name resolution (no substring false positives)
+- `AssetMentionIndex` delegates to `SceneChipProvider.Create` for consistent scene bracket format
+
+### Fixed
+- `_default_is_uvx_install()` false-positive for Homebrew/system Python
+- `proc.wait()` timeout guard in `ServerUpdater` — prevents stuck `_updating` flag
+- `asyncio.create_task` lifecycle in bridge — stored reference prevents GC
+
 ## [v1.28.0] — 2026-08-10
 
 ### Added
