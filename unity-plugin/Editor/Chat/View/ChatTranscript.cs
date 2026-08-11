@@ -20,6 +20,9 @@ namespace UnityMCP.Editor.Chat
         private string        _liveTailSrc;
         private int           _committed, _msgCount;
         private bool          _dirty, _restoring;
+        private VisualElement _taskCard;
+        private readonly Dictionary<string, VisualElement> _taskToolMap =
+            new Dictionary<string, VisualElement>();
         private IReadOnlyList<ChipData> _lastTurnChips;
         internal Func<IReadOnlyDictionary<string, string>> SceneObjects;
         private const int MaxMessages = 200;
@@ -139,11 +142,25 @@ namespace UnityMCP.Editor.Chat
         internal void FlushStreaming()
         { if (!_dirty || _assistantBubble == null) return; _dirty = false; RenderProgressive(final: false); }
 
-        internal void FinalizeAssistant() { _grouper.Close(); FreezeAssistantBubble(); }
+        internal void FinalizeAssistant()
+        {
+            _grouper.Close();
+            _taskCard = null;
+            _taskToolMap.Clear();
+            TaskChecklistCard.ClearForNextTurn();
+            FreezeAssistantBubble();
+        }
 
         internal void AppendToolChip(string toolName, bool ok, string toolId = null)
         {
             FreezeAssistantBubble();
+            bool isTaskTool = toolName == "TaskCreate" || toolName == "TaskUpdate";
+            if (isTaskTool && !_restoring)
+            {
+                if (_taskCard == null) { _taskCard = TaskChecklistCard.Create(); Append(_taskCard); }
+                if (toolId != null) _taskToolMap[toolId] = _taskCard;
+                return;
+            }
             var chip = BuildChip(toolName, ok, toolId);
             ToolCardRendererRegistry.Resolve(toolName)
                 ?.OnStart(chip, new ToolCallRecord(toolName, toolId, null));
@@ -166,6 +183,12 @@ namespace UnityMCP.Editor.Chat
             if (string.IsNullOrEmpty(toolId)) return;
             var chip = FindChipById(toolId);
             if (chip == null) return;
+            if (chip.ClassListContains(TaskChecklistCard.CardClass))
+            {
+                if (rec.Name == "TaskCreate") TaskChecklistCard.OnTaskCreate(chip, rec);
+                else if (rec.Name == "TaskUpdate") TaskChecklistCard.OnTaskUpdate(chip, rec);
+                return;
+            }
             chip.userData = rec;
             if (!chip.ClassListContains(CopyAttachedClass))
             { CopyableText.Attach(chip); chip.AddToClassList(CopyAttachedClass); }
@@ -269,9 +292,12 @@ namespace UnityMCP.Editor.Chat
         }
 
         private VisualElement FindChipById(string toolId)
-            => FindDescendant(_container, ve =>
+        {
+            if (_taskToolMap.TryGetValue(toolId, out var tc)) return tc;
+            return FindDescendant(_container, ve =>
                 (ve.userData is string s && s == toolId) ||
                 (ve.userData is ToolCallRecord r && r.Id == toolId));
+        }
 
         private static VisualElement FindDescendant(VisualElement root, Func<VisualElement, bool> pred)
         {
@@ -284,7 +310,12 @@ namespace UnityMCP.Editor.Chat
             return null;
         }
 
-        internal void Clear() { FinalizeAssistant(); _container.Clear(); _msgCount = 0; _entries.Clear(); }
+        internal void Clear()
+        {
+            FinalizeAssistant();
+            _taskCard = null; _taskToolMap.Clear();
+            _container.Clear(); _msgCount = 0; _entries.Clear();
+        }
 
         // F21: reload-survival serialization — cap to MaxMessages to match _container eviction
         internal string SerializeForReload()
