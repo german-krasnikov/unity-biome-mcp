@@ -1,7 +1,7 @@
 {
-    "name": "UnityMCP.Editor.Chat.CLI",
-    "rootNamespace": "UnityMCP.Editor.Chat",
-    "references": ["UnityMCP.Editor", "UnityMCP.Editor.Wizard", "UnityMCP.Editor.Chat.Parsers"],
+    "name": "UnityMCP.Editor.Chat.Parsers",
+    "rootNamespace": "UnityMCP.Editor.Chat.Parsers",
+    "references": [],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
@@ -10,5 +10,5 @@
     "autoReferenced": false,
     "defineConstraints": [],
     "versionDefines": [],
-    "noEngineReferences": false
+    "noEngineReferences": true
 }

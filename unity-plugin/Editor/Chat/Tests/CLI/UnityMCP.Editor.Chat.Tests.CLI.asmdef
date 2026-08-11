@@ -1,7 +1,7 @@
 {
     "name": "UnityMCP.Editor.Chat.Tests.CLI",
     "rootNamespace": "UnityMCP.Editor.Chat.Tests",
-    "references": ["UnityMCP.Editor", "UnityMCP.Editor.TestSupport", "UnityMCP.Editor.Chat.CLI", "UnityMCP.Editor.Chat.View", "UnityMCP.Runtime.TestHelpers", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+    "references": ["UnityMCP.Editor", "UnityMCP.Editor.TestSupport", "UnityMCP.Editor.Chat.CLI", "UnityMCP.Editor.Chat.Parsers", "UnityMCP.Editor.Chat.View", "UnityMCP.Runtime.TestHelpers", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
