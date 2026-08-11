@@ -171,9 +171,20 @@ namespace UnityMCP.Editor.Chat
                 return;
             }
             var chip = BuildChip(toolName, ok, toolId);
-            ToolCardRendererRegistry.Resolve(toolName)
-                ?.OnStart(chip, new ToolCallRecord(toolName, toolId, null));
-            _grouper.Add(chip, isError: !ok);
+            var cardRenderer = ToolCardRendererRegistry.Resolve(toolName);
+            cardRenderer?.OnStart(chip, new ToolCallRecord(toolName, toolId, null));
+            // B1: card-rendered chips bypass the grouper so they stay visible even when
+            // there are 2+ consecutive tool calls. Read-only chips (no card renderer) still group.
+            if (cardRenderer != null)
+            {
+                _grouper.Close(); // flush any pending non-card chips first; preserves feed order
+                chip.AddToClassList("card-chip");
+                Append(chip);
+            }
+            else
+            {
+                _grouper.Add(chip, isError: !ok);
+            }
             if (!_restoring)
             {
                 _entries.Add(new TranscriptEntry {

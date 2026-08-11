@@ -73,5 +73,28 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreNotEqual(assistantEl, chipEl.parent,
                 "chip must not be a direct child of the assistant bubble — FreezeAssistantBubble must separate them");
         }
+
+        // B1: card-chip bypass — Edit has CodeEditDiffRenderer [InitializeOnLoad].
+        // With 2 chips in a turn, grouper normally promotes both into a collapsed Foldout.
+        // Card-rendered chips must bypass the grouper and be directly visible in the feed.
+        [Test]
+        public void CardChip_BypassesGrouper_VisibleDirectlyInFeed()
+        {
+            var t = MakeTranscript(out var container);
+            t.AppendToolChip("Bash", ok: true, toolId: "id1"); // no card renderer → grouper
+            t.AppendToolChip("Edit", ok: true, toolId: "id2"); // has card renderer → must bypass
+            t.FinalizeAssistant();
+
+            // card-chip class is added only when the chip bypasses the grouper
+            var cardChip = container.Q(className: "card-chip");
+            Assert.IsNotNull(cardChip,
+                "Edit chip (with CodeEditDiffRenderer) must have 'card-chip' class and be visible in feed");
+
+            // card-chip must NOT be inside a collapsed tool-group foldout
+            var foldout = container.Q<Foldout>(className: "tool-group");
+            if (foldout != null)
+                Assert.IsNull(foldout.Q(className: "card-chip"),
+                    "card-chip must NOT be hidden inside the collapsed tool-group foldout");
+        }
     }
 }
