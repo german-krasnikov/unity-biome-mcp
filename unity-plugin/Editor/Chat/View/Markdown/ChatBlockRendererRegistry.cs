@@ -60,12 +60,12 @@ namespace UnityMCP.Editor.Chat
             {
                 // F20: scene-object resolver removed — bare object names in code spans are not
                 // underline-linked; they reach BareNameNormalizer as pills instead (Path A).
+                bool alreadyLinked = lbl.text.Contains("<link=");
                 var linkified = ChatLinkify.Apply(lbl.text, null, _resolver.ResolveScript, ResolveAssetPath);
                 linkified = ChatLinkify.ApplyPlainPaths(linkified, ResolveAssetPath);
-                if (linkified != lbl.text)
+                if (linkified != lbl.text || alreadyLinked)
                 {
-                    lbl.text = linkified;
-                    lbl.MarkDirtyText();
+                    if (linkified != lbl.text) { lbl.text = linkified; lbl.MarkDirtyText(); }
                     // Disable selection on linkified labels to avoid ATG/isSelectable conflict.
                     // Plain labels (no links inserted) keep isSelectable=true for Cmd+C.
                     lbl.selection.isSelectable = false;

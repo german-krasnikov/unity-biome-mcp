@@ -65,12 +65,12 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void Link_RendersColoredText()
+        public void Link_RendersAsClickable()
         {
             var result = MarkdownInline.ToRichText("[click](http://example.com)");
-            Assert.IsTrue(result.Contains("click"), $"Got: {result}");
-            Assert.IsTrue(result.Contains("http://example.com"), $"URL missing: {result}");
-            Assert.IsTrue(result.Contains("<color="), $"URL not colored: {result}");
+            Assert.IsTrue(result.Contains("<link="), $"Expected <link= tag. Got: {result}");
+            Assert.IsTrue(result.Contains("click"), $"Link text missing. Got: {result}");
+            Assert.IsTrue(result.Contains("http://example.com"), $"URL missing. Got: {result}");
         }
 
         [Test]

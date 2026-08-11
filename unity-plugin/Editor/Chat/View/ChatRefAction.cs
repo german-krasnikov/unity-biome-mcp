@@ -69,6 +69,12 @@ namespace UnityMCP.Editor.Chat
 
         private static void Navigate(string linkId)
         {
+            if (linkId.StartsWith("url:"))
+            {
+                Application.OpenURL(linkId.Substring(4));
+                return;
+            }
+
             // H2: new format "chip:KEY:REF"
             if (linkId.StartsWith("chip:"))
             {

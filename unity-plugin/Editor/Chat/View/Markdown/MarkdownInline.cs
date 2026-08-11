@@ -74,7 +74,7 @@ namespace UnityMCP.Editor.Chat
             s = _bold.Replace(s, "<b>$1</b>");
             s = _under.Replace(s, "<i>$1</i>");
             s = _ital.Replace(s, "<i>$1</i>");
-            s = _link.Replace(s, m => m.Groups[1].Value + " <color=" + MarkdownInlineFormatter.ActiveLinkColor + ">" + m.Groups[2].Value + "</color>");
+            s = _link.Replace(s, m => $"<link=\"url:{m.Groups[2].Value}\">{m.Groups[1].Value}</link>");
             return s;
         }
     }
