@@ -25,6 +25,7 @@ namespace UnityMCP.Editor.Chat
                 case "si": return ChatEvent.SessionInit(rest);
                 case "hb": return ChatEvent.Heartbeat();
                 case "ss": return ChatEvent.SessionState(rest);
+                case "th": return ChatEvent.Thinking(rest);
 
                 case "tc":
                 {

@@ -129,6 +129,10 @@ namespace UnityMCP.Editor.Chat
                 case ChatEventKind.SessionState:
                 case ChatEventKind.Heartbeat:
                     break;
+                case ChatEventKind.Thinking:
+                    if (EditorPrefs.GetBool(PrefKeys.ShowThinkingBlocks, true))
+                        _transcript?.AppendThinkingBlock(ev.Text);
+                    break;
             }
         }
 

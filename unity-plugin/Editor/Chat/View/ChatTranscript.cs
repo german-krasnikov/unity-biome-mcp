@@ -151,6 +151,15 @@ namespace UnityMCP.Editor.Chat
             FreezeAssistantBubble();
         }
 
+        /// <summary>T-5.2: insert a collapsed reasoning Foldout into the feed.
+        /// Ephemeral — NOT added to _entries; not reloaded after domain reload.</summary>
+        internal void AppendThinkingBlock(string text)
+        {
+            FreezeAssistantBubble(); // close any open text bubble first — MUST
+            _grouper.Close();
+            Append(ThinkingBlock.Build(text));
+        }
+
         internal void AppendToolChip(string toolName, bool ok, string toolId = null)
         {
             FreezeAssistantBubble();

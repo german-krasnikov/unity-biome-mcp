@@ -73,6 +73,14 @@ namespace UnityMCP.Editor.Chat
                 claudeFoldout.Add(warn);
             }
 
+            var thinkingToggle = new Toggle("Show reasoning blocks")
+                { value = EditorPrefs.GetBool(PrefKeys.ShowThinkingBlocks, true) };
+            thinkingToggle.AddToClassList("chat-form-field");
+            thinkingToggle.tooltip = "Show extended thinking blocks (collapsed). Requires extended thinking model.";
+            thinkingToggle.RegisterValueChangedCallback(evt =>
+                EditorPrefs.SetBool(PrefKeys.ShowThinkingBlocks, evt.newValue));
+            claudeFoldout.Add(thinkingToggle);
+
             BackendSettingsForm.BuildClaudeForm(claudeFoldout, store.Claude, () => store.Save());
             parent.Add(claudeFoldout);
 
