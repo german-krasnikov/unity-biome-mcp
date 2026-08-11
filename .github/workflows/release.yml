@@ -30,7 +30,7 @@ jobs:
 
       - name: Run release preflight
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: bash scripts/release.sh --preflight "${TAG_NAME#v}"
 
       - name: Conformance gate
