@@ -923,7 +923,8 @@
 }
 
 /* ── T-4.1: CodeEditDiffRenderer ── */
-.code-diff-block { max-height: 300px; overflow-y: scroll; border-radius: 3px; padding: 4px; }
+.code-diff-block { max-height: 300px; overflow-y: scroll; border-radius: 3px; padding: 4px;
+                   font-size: 11px; -unity-font-definition: resource('Fonts/RobotoMono/RobotoMono-Regular'); }
 .diff-header     { font-size: 11px; -unity-font-style: italic; margin-bottom: 2px; cursor: link; }
 .diff-add        { color: var(--chat-success); }
 .diff-remove     { color: var(--unity-colors-error-text); }
