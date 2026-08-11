@@ -1,13 +1,13 @@
 # Quality Report
 
-> Auto-generated on **2026-08-11** from commit `b487fa2` (v1.29.0)
+> Auto-generated on **2026-08-11** from commit `eb9660c` (v1.30.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.29.0 |
-| Commit | `b487fa2` |
+| Version | v1.30.0 |
+| Commit | `eb9660c` |
 | Date | 2026-08-11 |
 | MCP Tools | 148 |
 
@@ -15,7 +15,7 @@
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.12) | 4860 | 0 | 2 | 4862 | ✅ |
+| Python Server (3.12) | 4879 | 0 | 2 | 4881 | ✅ |
 | Python Install | 76 | 0 | 0 | 76 | ✅ |
 | Python Scripts | 825 | 0 | 0 | 825 | ✅ |
 | C# EditMode (Linux) | 7367 | 0 | 166 | 7533 | ✅ |
