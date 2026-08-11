@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Nested lists no longer fragment** — nested markdown bullet lists were breaking into separate paragraphs; depth-tracking parser now preserves indentation structure
 - **Click handlers on markup links** — links embedded in message output via the link tag system now route clicks to navigation handlers
 - **Space before chip eaten by bold** — whitespace before a chip was consumed during bold-text normalization; StripOrphanBold guard now applied after chip detection
+- **Image cache bounded to 50 entries** — `ImageBlockRenderer` texture cache now evicts oldest entries (FIFO) when reaching capacity; prevents VRAM leaks from accumulated screenshots
 - `_default_is_uvx_install()` false-positive for Homebrew/system Python
 - `proc.wait()` timeout guard in `ServerUpdater` — prevents stuck `_updating` flag
 - `asyncio.create_task` lifecycle in bridge — stored reference prevents GC

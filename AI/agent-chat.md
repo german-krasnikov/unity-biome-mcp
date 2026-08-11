@@ -266,9 +266,9 @@ When backends emit thinking blocks (e.g., Claude with `extended_thinking`), Chat
 
 **C# Side (ChatTranscript / RelayEventParser):**
 - Parses `th|` events → creates `ThinkingBlock` with accumulated text
-- Renders as collapsible section: `▶ Thinking (elapsed: 2s)`
-- Default state: collapsed (user can expand to read)
-- Timer updates per frame while turn is active
+- Renders as collapsible Foldout: `▶ Reasoning…` (user can expand to read full text)
+- Default state: collapsed
+- Ephemeral: not persisted in transcript after domain reload
 
 **Feature:** Keeps chat concise by default while preserving reasoning visibility for debugging or inspection. Independent of tool invocation — thinking blocks are rendered separately from tool cards and the final response.
 
@@ -322,7 +322,7 @@ Backends that return tool results (Claude via stdin streaming) now propagate the
 Users now delegate work to subagents by mentioning them in the chat input, instead of selecting from a footer dropdown:
 
 **Architecture:**
-- `AgentMentionSource` — scans `{projectRoot}/.claude/agents/*.md` and `{homeDir}/.claude/agents/*.md`
+- `AgentMentionSource` — scans ancestor `.claude/agents/` directories (nearest-first via `AgentSearchPath.Resolve`), then `{homeDir}/.claude/agents/*.md`. Walk order: project folder → parent → parent → … → filesystem root, stopping at first match per agent name.
 - `AgentChipProvider` — renders agent mentions as chip kind in chat input
 - `AgentMissDetector` — warns if a mention was typed but the Agent tool was never invoked
 - System prompt injects instruction: `[agent:name]` syntax invokes the `Agent` tool with `subagent_type=name`
