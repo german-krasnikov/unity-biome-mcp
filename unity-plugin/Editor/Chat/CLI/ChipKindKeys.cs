@@ -30,5 +30,8 @@ namespace UnityMCP.Editor.Chat
         public const string Component       = "component";
         // Annotated screenshot captured by the annotation editor. Path = absolute PNG path.
         public const string AnnotatedScreenshot = "annotated_screenshot";
+        // Claude Code sub-agent referenced via @mention. Path = agent name (file stem, e.g. "senior-developer").
+        // Payload format: [agent:name]. Instructs the model to invoke Agent(subagent_type=name).
+        public const string Agent = "agent";
     }
 }

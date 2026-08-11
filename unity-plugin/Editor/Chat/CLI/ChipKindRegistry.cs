@@ -144,6 +144,7 @@ namespace UnityMCP.Editor.Chat
         {
             if (_builtInsRegistered) return;
             _builtInsRegistered = true;
+            Register(new AgentChipProvider());    // priority 5  — sub-agent @-mentions (programmatic only)
             Register(new ImageChipProvider());    // priority 50 — external images (obj==null)
             Register(new HierarchyChipProvider());
             Register(new ComponentChipProvider()); // priority 125 — programmatic only

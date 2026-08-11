@@ -12,7 +12,8 @@ namespace UnityMCP.Editor.Chat
             "  area/center/bounds/objects = polygon selection\n" +
             "  pos = point marker\n" +
             "  type=polyline = path/waypoints\n" +
-            "  dist = ruler measurement";
+            "  dist = ruler measurement\n" +
+            "[agent:name] = delegate task to named subagent (invoke Agent tool, subagent_type=name)";
 
         /// <summary>Returns schema string for the given backend, or null if not applicable.</summary>
         internal static string ForBackend(BackendKind kind)
