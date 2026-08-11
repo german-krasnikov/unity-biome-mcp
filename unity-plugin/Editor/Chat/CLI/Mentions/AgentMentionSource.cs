@@ -1,6 +1,6 @@
 // T-6.2: Disk-based agent mention source.
-// Scans {projectRoot}/.claude/agents/*.md and {homeDir}/.claude/agents/*.md.
-// Pure IO — zero UnityEngine deps. NUnit-testable.
+// Scans all ancestor .claude/agents/ dirs (nearest-first) via AgentSearchPath.Resolve,
+// then homeDir/.claude/agents. Pure IO — zero UnityEngine deps. NUnit-testable.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,7 +20,7 @@ namespace UnityMCP.Editor.Chat
 
         internal AgentMentionSource(string projectRoot, string homeDir, Action onScan = null)
         {
-            _roots  = new[] { projectRoot ?? "", homeDir ?? "" };
+            _roots  = AgentSearchPath.Resolve(projectRoot, homeDir).ToArray();
             _onScan = onScan;
         }
 
@@ -64,11 +64,9 @@ namespace UnityMCP.Editor.Chat
         private long GetMaxMtime()
         {
             long max = -1;
-            foreach (var root in _roots)
+            // _roots entries are already full ".claude/agents" paths from AgentSearchPath.Resolve
+            foreach (var dir in _roots)
             {
-                var dir = string.IsNullOrEmpty(root)
-                    ? null
-                    : Path.Combine(root, ".claude", "agents");
                 if (string.IsNullOrEmpty(dir)) continue;
 
                 string[] files;
@@ -94,11 +92,9 @@ namespace UnityMCP.Editor.Chat
             _agents.Clear();
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
-            foreach (var root in _roots)
+            // _roots entries are already full ".claude/agents" paths from AgentSearchPath.Resolve
+            foreach (var dir in _roots)
             {
-                var dir = string.IsNullOrEmpty(root)
-                    ? null
-                    : Path.Combine(root, ".claude", "agents");
                 if (string.IsNullOrEmpty(dir)) continue;
 
                 string[] files;

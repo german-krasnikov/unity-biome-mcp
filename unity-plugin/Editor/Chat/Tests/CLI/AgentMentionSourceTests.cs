@@ -104,5 +104,29 @@ namespace UnityMCP.Editor.Chat.Tests
             src.RefreshIfDirty();   // cooldown: no re-scan
             Assert.AreEqual(1, scanCount);
         }
+
+        // 7. Agent in a PARENT directory of projectRoot is found (tree-walk).
+        // This is the real-world case: Unity opens unity-test-project/ but
+        // .claude/agents/ lives in the repo root one level up.
+        [Test]
+        public void Search_AgentInParentDir_IsFound()
+        {
+            // Layout: _tmpRoot/child-project (projectRoot), agents at _tmpRoot/.claude/agents/
+            var childRoot  = Path.Combine(_tmpRoot, "child-project");
+            Directory.CreateDirectory(childRoot);
+
+            // _agentsDir is already _tmpRoot/.claude/agents — write an agent there
+            WriteAgent("senior-architect");
+
+            // Source is rooted at the child dir, not _tmpRoot directly
+            var src = new AgentMentionSource(childRoot, Path.GetTempPath());
+            var results = new List<MentionCandidate>();
+            src.RefreshIfDirty();
+            src.Search("arch", 10, results);
+
+            Assert.AreEqual(1, results.Count,
+                "Agent in parent dir must be found via directory tree-walk");
+            Assert.AreEqual("senior-architect", results[0].Chip.Path);
+        }
     }
 }
