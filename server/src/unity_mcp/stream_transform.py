@@ -16,6 +16,9 @@ class _ToolCallAcc:
     name:   str       = ""
     id:     str       = ""
     args:   list[str] = field(default_factory=list)
+    result_id:    str       = ""
+    result_ok:    bool      = True
+    result_parts: list[str] = field(default_factory=list)
 
     def reset(self) -> None:
         self.active = self.muted = False
@@ -86,7 +89,10 @@ def _handle_stream_event(obj: dict, acc: _ToolCallAcc) -> list[str]:
             acc.name = blk.get("name", "")
             acc.id   = blk.get("id", "")
         elif bt == "tool_result":
-            acc.muted = True
+            acc.muted        = True
+            acc.result_id    = blk.get("tool_use_id", "")
+            acc.result_ok    = not blk.get("is_error", False)
+            acc.result_parts = []
         else:
             acc.muted = False
         return []
@@ -96,6 +102,8 @@ def _handle_stream_event(obj: dict, acc: _ToolCallAcc) -> list[str]:
         dt = d.get("type", "")
         if dt == "text_delta":
             if acc.active or acc.muted:
+                if acc.muted and acc.result_id:
+                    acc.result_parts.append(d.get("text", ""))
                 return []
             return [f"t|{d.get('text', '')}"]
         if dt == "input_json_delta":
@@ -107,7 +115,12 @@ def _handle_stream_event(obj: dict, acc: _ToolCallAcc) -> list[str]:
             out = f"tc|{acc.name}|{acc.id}|{acc.complete_args()}"
             acc.reset()
             return [out]
-        acc.muted = False
+        if acc.muted:
+            rid    = acc.result_id
+            ok_str = "true" if acc.result_ok else "false"
+            text   = "".join(acc.result_parts)[:_MAX_TOOL_RESULT_LEN] if acc.result_parts else ""
+            acc.result_id = ""; acc.result_parts = []; acc.muted = False
+            return [f"tr|{rid}|{ok_str}|{text}"] if (rid and text) else []
         return []
 
     return []  # message_start/delta/stop and future events
