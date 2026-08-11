@@ -119,7 +119,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             // Locks restored step-2b: [kind:ref] in non-paragraph contexts (headings, blockquotes,
             // table cells) must produce a <link= rich-text anchor, NOT literal bracket text.
-            UnityMCP.Editor.Chat.ChipKindRegistry.ResetToBuiltIns();
+            UnityMCP.Editor.Chat.ChipKindRegistry.ResetForTests();
             var result = MarkdownInline.ToRichText("[hierarchy:/X#1]");
             StringAssert.Contains("<link=", result, $"Expected <link= tag. Got: {result}");
             StringAssert.DoesNotContain("[hierarchy:/X#1]", result,

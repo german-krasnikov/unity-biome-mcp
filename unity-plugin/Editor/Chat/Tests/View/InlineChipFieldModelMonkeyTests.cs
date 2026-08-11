@@ -12,8 +12,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [Category(TestCategories.Stress)]
     public class InlineChipFieldModelMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         static ChipData H(string path, string name = null)
             => new ChipData(ChipKindKeys.Hierarchy, path, name ?? path, 0);

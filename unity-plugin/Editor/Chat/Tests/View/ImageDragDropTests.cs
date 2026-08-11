@@ -8,8 +8,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class ImageDragDropTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         // ── IsImageExtension ──────────────────────────────────────────────────
 
@@ -145,7 +145,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void ChipKindRegistry_ResolvesImageProvider_ForNullObjPngPath()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             var provider = ChipKindRegistry.Resolve(null, "/some/path/screenshot.png");
             Assert.IsNotNull(provider);
             Assert.AreEqual(ChipKindKeys.Image, provider.Key);

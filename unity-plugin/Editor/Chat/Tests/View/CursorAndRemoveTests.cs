@@ -7,8 +7,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class CursorAndRemoveTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         private static ChipData Chip(string name)
             => new ChipData(ChipKindKeys.Hierarchy, "/" + name, name, 0);

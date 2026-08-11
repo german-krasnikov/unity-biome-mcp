@@ -20,7 +20,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             _tempPath = Path.Combine(Path.GetTempPath(), $"ChipDisplayOverrideTest_{System.Guid.NewGuid():N}.json");
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null; // clean static seam
         }
 
@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void TearDown()
         {
             if (File.Exists(_tempPath)) File.Delete(_tempPath);
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
         }
 

@@ -23,7 +23,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 $"unity-mcp-region-annotation-{Guid.NewGuid():N}.json");
             RegisterCleanup(SceneRegionState.IsolateForTests(_tmpFile, 20).Dispose);
             RegisterCleanup(ChipKindRegistry.PreserveStateForTests().Dispose);
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipKindRegistry.Register(new RegionChipProvider());
             _provider = ChipKindRegistry.ForKey("region") as RegionChipProvider;
         }

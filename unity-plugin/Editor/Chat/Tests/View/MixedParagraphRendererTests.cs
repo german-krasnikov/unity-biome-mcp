@@ -18,7 +18,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             LogAssert.ignoreFailingMessages = false;
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
             InlinePreviewBuilder.TextureLoader = _ => Texture2D.whiteTexture;
             AssetViewerFactory.ReRegisterBuiltIns();
@@ -214,7 +214,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void Render_PillWrapper_HasMarginRight_NotPill()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             var ve = MixedParagraphRenderer.Render("[hierarchy:/Tree0]");
             var wrapper = ve.Q(className: "chip-pill-wrapper");
             var pill    = wrapper?.Q(className: "inline-chip-pill");

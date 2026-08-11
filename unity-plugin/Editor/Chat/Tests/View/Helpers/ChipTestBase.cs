@@ -8,14 +8,14 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public virtual void ChipSetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
         }
 
         [TearDown]
         public virtual void ChipTearDown()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
         }
     }

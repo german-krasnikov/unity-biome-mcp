@@ -8,8 +8,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class UserBubbleRenderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() { ChipKindRegistry.ResetForTests(); ChipPillFactory.ColorResolver = null; }
 
         ChatTranscript MakeTranscript(out VisualElement c) {
             c = new VisualElement();

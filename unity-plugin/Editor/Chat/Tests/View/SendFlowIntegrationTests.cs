@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             _chipField  = new InlineChipField();
             _container  = new VisualElement();
             var registry = ChatBlockRendererFactory.CreateDefault(null, null);
@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [TearDown]
         public void TearDown()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
         }
 

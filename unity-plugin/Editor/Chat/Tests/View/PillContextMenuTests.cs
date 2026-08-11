@@ -14,7 +14,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.AddToContextAction = null;
             ChipPillFactory.ColorResolver      = null;
         }
@@ -22,7 +22,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [TearDown]
         public void TearDown()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.AddToContextAction = null;
             ChipPillFactory.ColorResolver      = null;
             ChipPillFactory.PendingChips.Clear();

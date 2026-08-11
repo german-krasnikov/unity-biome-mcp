@@ -12,8 +12,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class AtMentionNormalizerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         // text with no @mentions → returned unchanged
         [Test]

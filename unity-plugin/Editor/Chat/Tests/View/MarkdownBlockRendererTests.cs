@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
             InlinePreviewBuilder.TextureLoader = _ => UnityEngine.Texture2D.whiteTexture;
             AssetViewerFactory.ReRegisterBuiltIns();
@@ -27,7 +27,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [TearDown]
         public void TearDown()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
         }
 
@@ -68,7 +68,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void D1_RenderQuote_ChipInBlockquote_NoInlinePill()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             var block = MdBlock.Quote(new List<string> { "text [hierarchy:/Car] text" });
             var ve = _renderer.Render(in block);
 

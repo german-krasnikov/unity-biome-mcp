@@ -12,10 +12,10 @@ namespace UnityMCP.Editor.Chat.Tests
     public class ChipContextMenuTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
-        public void SetUp() => ChipKindRegistry.ResetToBuiltIns();
+        public void SetUp() => ChipKindRegistry.ResetForTests();
 
         [TearDown]
-        public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        public void TearDown() => ChipKindRegistry.ResetForTests();
 
         // T6: AssetChipProvider appends "Ping in Project" and "Open"
         [Test]

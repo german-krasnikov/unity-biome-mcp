@@ -11,7 +11,7 @@ namespace UnityMCP.Editor.Chat.Tests
     public class ResponseTagPillTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
-        public void SetUp() => ChipKindRegistry.ResetToBuiltIns();
+        public void SetUp() => ChipKindRegistry.ResetForTests();
 
         // ── HasTags ───────────────────────────────────────────────────────────
 

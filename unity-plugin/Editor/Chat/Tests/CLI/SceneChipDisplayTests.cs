@@ -17,7 +17,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             _provider = new SceneChipProvider();
             var guids = AssetDatabase.FindAssets("t:Scene", new[] { "Assets" });
             if (guids.Length == 0) return;
@@ -26,7 +26,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [TearDown]
-        public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        public void TearDown() => ChipKindRegistry.ResetForTests();
 
         // D1
         [Test]

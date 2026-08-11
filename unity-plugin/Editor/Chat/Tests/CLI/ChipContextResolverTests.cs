@@ -20,7 +20,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             _created = new List<GameObject>();
             ChipContextResolver.FindObjectOverride = null;
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         [TearDown]
@@ -29,7 +29,7 @@ namespace UnityMCP.Editor.Chat.Tests
             foreach (var go in _created)
                 if (go != null) Object.DestroyImmediate(go);
             ChipContextResolver.FindObjectOverride = null;
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         private GameObject MakeGo(string name, GameObject parent = null)

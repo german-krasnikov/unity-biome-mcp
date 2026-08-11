@@ -8,8 +8,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class InlineChipFieldExtraTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         private static ChipData Chip(string path)
             => new ChipData(ChipKindKeys.Script, path, path, 0);

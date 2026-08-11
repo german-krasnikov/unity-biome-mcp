@@ -16,7 +16,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
             _container  = new VisualElement();
             _transcript = new ChatTranscript(_container,
@@ -26,7 +26,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [TearDown]
         public void TearDown()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipPillFactory.ColorResolver = null;
         }
 

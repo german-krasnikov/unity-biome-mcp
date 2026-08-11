@@ -8,8 +8,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class ChipConsolidationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
-        [TearDown] public void TearDown() => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]    public void SetUp()    => ChipKindRegistry.ResetForTests();
+        [TearDown] public void TearDown() => ChipKindRegistry.ResetForTests();
 
         // Verify InlineChipModel.SerializePayload produces [kind:ref] text (regression guard).
         [Test]

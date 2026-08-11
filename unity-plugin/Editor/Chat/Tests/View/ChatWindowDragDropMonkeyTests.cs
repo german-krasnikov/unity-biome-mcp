@@ -21,7 +21,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             _chipField  = new InlineChipField();
             _container  = new VisualElement();
             _transcript = new ChatTranscript(_container, ChatBlockRendererFactory.CreateDefault(null, null));
@@ -29,7 +29,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [TearDown]
-        public void TearDown() { ChipKindRegistry.ResetToBuiltIns(); ChipPillFactory.ColorResolver = null; }
+        public void TearDown() { ChipKindRegistry.ResetForTests(); ChipPillFactory.ColorResolver = null; }
 
         private (string turnJson, string rawText) Send()
             => ChipViewTestHelpers.SimulateSend(_chipField, _transcript, _cfg);

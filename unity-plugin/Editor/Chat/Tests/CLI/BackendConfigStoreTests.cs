@@ -16,14 +16,14 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             _tempPath = Path.Combine(Path.GetTempPath(), $"BackendConfigTest_{System.Guid.NewGuid():N}.json");
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         [TearDown]
         public void TearDown()
         {
             if (File.Exists(_tempPath)) File.Delete(_tempPath);
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         [Test]
