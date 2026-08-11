@@ -23,6 +23,8 @@ class _ToolCallAcc:
     thinking_parts:  list[str] = field(default_factory=list)
 
     def reset(self) -> None:
+        # thinking_active/thinking_parts are NOT reset here — they follow the
+        # thinking-block lifecycle and are cleared in content_block_stop.
         self.active = self.muted = False
         self.name = self.id = ""
         self.args = []
