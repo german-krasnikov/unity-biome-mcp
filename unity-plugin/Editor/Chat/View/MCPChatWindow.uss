@@ -928,3 +928,9 @@
 .diff-add        { color: var(--chat-success); }
 .diff-remove     { color: var(--unity-colors-error-text); }
 .diff-context    { color: var(--unity-colors-label-text-secondary); }
+
+/* ── T-4.2: MutationDiffCard ── */
+.mutation-entry  { flex-direction: row; align-items: center; padding: 1px 0; font-size: 11px; cursor: link; }
+.mutation-prefix { width: 14px; flex-shrink: 0; color: var(--unity-colors-label-text-secondary); }
+.mutation-main   { flex-shrink: 1; white-space: nowrap; overflow: hidden; -unity-text-overflow-position: end; }
+.mutation-was    { color: var(--unity-colors-label-text-secondary); font-size: 10px; margin-left: 2px; }
