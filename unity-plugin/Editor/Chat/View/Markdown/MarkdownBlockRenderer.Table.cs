@@ -1,4 +1,5 @@
 // Partial: table rendering for MarkdownBlockRenderer.
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.Chat
@@ -13,10 +14,11 @@ namespace UnityMCP.Editor.Chat
 
             // First row is the header.
             var headerRow = new VisualElement(); headerRow.AddToClassList("md-table-row");
-            foreach (var cell in b.TableRows[0])
+            for (int colIdx = 0; colIdx < b.TableRows[0].Length; colIdx++)
             {
-                var lbl = ChatLabel.Selectable(MarkdownInline.ToRichText(cell), richText: true);
+                var lbl = ChatLabel.Selectable(MarkdownInline.ToRichText(b.TableRows[0][colIdx]), richText: true);
                 lbl.AddToClassList("md-th");
+                ApplyAlign(lbl, b.Aligns, colIdx);
                 headerRow.Add(lbl);
             }
             table.Add(headerRow);
@@ -25,16 +27,25 @@ namespace UnityMCP.Editor.Chat
             for (int i = 1; i < b.TableRows.Count; i++)
             {
                 var row = new VisualElement(); row.AddToClassList("md-table-row");
-                foreach (var cell in b.TableRows[i])
+                for (int colIdx = 0; colIdx < b.TableRows[i].Length; colIdx++)
                 {
-                    var lbl = ChatLabel.Selectable(MarkdownInline.ToRichText(cell), richText: true);
+                    var lbl = ChatLabel.Selectable(MarkdownInline.ToRichText(b.TableRows[i][colIdx]), richText: true);
                     lbl.AddToClassList("md-td");
+                    ApplyAlign(lbl, b.Aligns, colIdx);
                     row.Add(lbl);
                 }
                 table.Add(row);
             }
 
             return table;
+        }
+
+        private static void ApplyAlign(Label lbl, string[] aligns, int colIdx)
+        {
+            if (aligns == null || colIdx >= aligns.Length) return;
+            if (aligns[colIdx] == "center") lbl.style.unityTextAlign = TextAnchor.MiddleCenter;
+            else if (aligns[colIdx] == "right") lbl.style.unityTextAlign = TextAnchor.MiddleRight;
+            // "left" and "none" use the default alignment
         }
     }
 }

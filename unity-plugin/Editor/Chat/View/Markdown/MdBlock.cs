@@ -28,10 +28,11 @@ namespace UnityMCP.Editor.Chat
         public string         Src       { get; }   // Image: path/url
         public string         Alt       { get; }   // Image: alt text
         public List<int>      Depths    { get; }   // BulletList: per-item indent depth (null for non-list blocks)
+        public string[]       Aligns    { get; }   // Table: per-column alignment ("left"|"right"|"center"|"none"); null otherwise
 
         private MdBlock(MdBlockKind kind, int level = 0, string lang = null,
             List<string> lines = null, List<string[]> tableRows = null,
-            string src = null, string alt = null, List<int> depths = null)
+            string src = null, string alt = null, List<int> depths = null, string[] aligns = null)
         {
             Kind      = kind;
             Level     = level;
@@ -41,6 +42,7 @@ namespace UnityMCP.Editor.Chat
             Src       = src;
             Alt       = alt;
             Depths    = depths;
+            Aligns    = aligns;
         }
 
         public static MdBlock Para(List<string> lines) =>
@@ -73,6 +75,9 @@ namespace UnityMCP.Editor.Chat
 
         public static MdBlock Table(List<string[]> rows) =>
             new MdBlock(MdBlockKind.Table, tableRows: rows);
+
+        public static MdBlock Table(List<string[]> rows, string[] aligns) =>
+            new MdBlock(MdBlockKind.Table, tableRows: rows, aligns: aligns);
 
         public static MdBlock Image(string src, string alt) =>
             new MdBlock(MdBlockKind.Image, src: src, alt: alt);

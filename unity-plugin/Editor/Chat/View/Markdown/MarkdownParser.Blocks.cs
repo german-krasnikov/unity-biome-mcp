@@ -24,11 +24,26 @@ namespace UnityMCP.Editor.Chat
         {
             var rows = new List<string[]>();
             rows.Add(SplitCells(lines[i]));
-            i += 2; // skip separator
+            var aligns = ParseTableAligns(lines[i + 1]); // read alignment from separator row
+            i += 2; // skip header + separator
             while (i < lines.Length && lines[i].Contains("|") && !string.IsNullOrWhiteSpace(lines[i]))
             { rows.Add(SplitCells(lines[i])); i++; }
-            result.Add(MdBlock.Table(rows));
+            result.Add(MdBlock.Table(rows, aligns));
             return i;
+        }
+
+        private static string[] ParseTableAligns(string separatorRow)
+        {
+            var cells = SplitCells(separatorRow);
+            var aligns = new string[cells.Length];
+            for (int j = 0; j < cells.Length; j++)
+            {
+                var c = cells[j].Trim();
+                bool left  = c.StartsWith(":");
+                bool right = c.EndsWith(":");
+                aligns[j] = left && right ? "center" : right ? "right" : left ? "left" : "none";
+            }
+            return aligns;
         }
 
         private static string[] SplitCells(string row)

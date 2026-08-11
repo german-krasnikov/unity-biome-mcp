@@ -197,6 +197,50 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(2, b.Depths[2]);
         }
 
+        // ── T-7c-B item 7: table column alignment ────────────────────────────
+
+        [Test]
+        public void ParseTable_LeftAlign_SetsAligns()
+        {
+            var result = MarkdownParser.Parse("| A | B |\n|:--|---|\n| 1 | 2 |");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(MdBlockKind.Table, result[0].Kind);
+            Assert.IsNotNull(result[0].Aligns);
+            Assert.AreEqual("left", result[0].Aligns[0]);
+            Assert.AreEqual("none", result[0].Aligns[1]);
+        }
+
+        [Test]
+        public void ParseTable_CenterAlign_SetsAligns()
+        {
+            var result = MarkdownParser.Parse("| A |\n|:---:|\n| 1 |");
+            Assert.AreEqual(1, result.Count);
+            Assert.IsNotNull(result[0].Aligns);
+            Assert.AreEqual("center", result[0].Aligns[0]);
+        }
+
+        [Test]
+        public void ParseTable_RightAlign_SetsAligns()
+        {
+            var result = MarkdownParser.Parse("| A |\n|---:|\n| 1 |");
+            Assert.AreEqual(1, result.Count);
+            Assert.IsNotNull(result[0].Aligns);
+            Assert.AreEqual("right", result[0].Aligns[0]);
+        }
+
+        [Test]
+        public void ParseTable_NoColons_AlignNone()
+        {
+            // Backward compat: separator without colons must parse normally, Aligns all "none"
+            var result = MarkdownParser.Parse("| A | B |\n|---|---|\n| 1 | 2 |");
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(MdBlockKind.Table, result[0].Kind);
+            Assert.IsNotNull(result[0].Aligns);
+            Assert.AreEqual("none", result[0].Aligns[0]);
+            Assert.AreEqual("none", result[0].Aligns[1]);
+            Assert.AreEqual(2, result[0].TableRows.Count); // header + 1 data row
+        }
+
         [Test]
         public void ParseBullets_TabIndent_CountsAsDepth()
         {

@@ -134,6 +134,17 @@ namespace UnityMCP.Editor.Chat.Tests
                 "single click must NOT toggle preview panel (navigate instead)");
         }
 
+        // ── T-7c-B item 6: StripOrphanBold guard ─────────────────────────────
+
+        [Test]
+        public void StripOrphanBold_NoBold_PreservesLeadingSpace()
+        {
+            // Text with intentional leading/trailing spaces (between chips) must not be trimmed
+            // when there are no orphan bold markers.
+            const string input = " text between chips ";
+            Assert.AreEqual(input, MixedParagraphRenderer.StripOrphanBold(input));
+        }
+
         // ── helpers ───────────────────────────────────────────────────────────
 
         [Test]

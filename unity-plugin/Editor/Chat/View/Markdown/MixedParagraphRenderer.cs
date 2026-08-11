@@ -105,9 +105,11 @@ namespace UnityMCP.Editor.Chat
         /// <summary>Strip orphan leading/trailing ** from text segments adjacent to pills.</summary>
         internal static string StripOrphanBold(string text)
         {
+            bool startsDouble = text.TrimStart().StartsWith("**");
+            bool endsDouble   = text.TrimEnd().EndsWith("**") && text.TrimEnd().Length >= 4;
+            // Guard: no orphan bold markers — preserve whitespace (e.g. spaces between chips).
+            if (!startsDouble && !endsDouble) return text;
             var t = text.Trim();
-            bool startsDouble = t.StartsWith("**");
-            bool endsDouble   = t.EndsWith("**") && t.Length >= 4;
             if (startsDouble && !endsDouble) t = t.Substring(2).TrimStart();
             if (endsDouble   && !startsDouble) t = t.Substring(0, t.Length - 2).TrimEnd();
             return t;
