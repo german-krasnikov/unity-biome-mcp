@@ -54,5 +54,24 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("Reading scene",
                 ToolVerbMap.Humanize(PermissionConfig.MCP_TOOL_PREFIX + "get_hierarchy"));
         }
+
+        [Test]
+        public void Humanize_BuiltInClaude_ReturnsHumanLabel()
+        {
+            // Agent tool name confirmed from session transcripts (Task absent in practice)
+            Assert.AreEqual("Agent",            ToolVerbMap.Humanize("Agent"));
+            Assert.AreEqual("Agent",            ToolVerbMap.Humanize("Task"));    // insurance for older SDK
+            Assert.AreEqual("Updated tasks",    ToolVerbMap.Humanize("TodoWrite"));
+            Assert.AreEqual("Editing file",     ToolVerbMap.Humanize("Edit"));
+            Assert.AreEqual("Writing file",     ToolVerbMap.Humanize("Write"));
+            Assert.AreEqual("Editing files",    ToolVerbMap.Humanize("MultiEdit"));
+            Assert.AreEqual("Running command",  ToolVerbMap.Humanize("Bash"));
+            Assert.AreEqual("Reading file",     ToolVerbMap.Humanize("Read"));
+            Assert.AreEqual("Listing files",    ToolVerbMap.Humanize("LS"));
+            Assert.AreEqual("Searching files",  ToolVerbMap.Humanize("Glob"));
+            Assert.AreEqual("Searching",        ToolVerbMap.Humanize("Grep"));
+            Assert.AreEqual("Fetching",         ToolVerbMap.Humanize("WebFetch"));
+            Assert.AreEqual("Searching web",    ToolVerbMap.Humanize("WebSearch"));
+        }
     }
 }
