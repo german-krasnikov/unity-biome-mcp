@@ -6,14 +6,14 @@ using System.Collections.Generic;
 
 namespace UnityMCP.Editor.Chat.Parsers
 {
-    public readonly struct CodeEditEdit
+    internal readonly struct CodeEditEdit
     {
         public readonly string OldString;
         public readonly string NewString;
         public CodeEditEdit(string old, string nw) { OldString = old; NewString = nw; }
     }
 
-    public struct CodeEditArgs
+    internal struct CodeEditArgs
     {
         public string FilePath;
         public string OldString;
@@ -23,7 +23,7 @@ namespace UnityMCP.Editor.Chat.Parsers
         public bool IsValid;
     }
 
-    public static class CodeEditArgsParser
+    internal static class CodeEditArgsParser
     {
         public static CodeEditArgs Parse(string argsJson)
         {

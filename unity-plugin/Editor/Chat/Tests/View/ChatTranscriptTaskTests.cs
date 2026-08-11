@@ -89,6 +89,9 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         // ── Test 5: UpdateToolDetail routes TaskUpdate to the card ────────────────
+        // Discriminating: task routing returns before chip.userData = rec and before
+        // CopyableText.Attach. If routing was absent, both would be set by the
+        // ToolDetailBuilder fallback path, failing both assertions below.
 
         [Test]
         public void UpdateToolDetail_TaskUpdate_RoutesToCard()
@@ -101,8 +104,16 @@ namespace UnityMCP.Editor.Chat.Tests
             var updateRec = new ToolCallRecord("TaskUpdate", "id2",
                 "{\"taskId\":\"999\",\"status\":\"completed\"}");
 
-            Assert.DoesNotThrow(() => _transcript.UpdateToolDetail("id2", updateRec),
-                "UpdateToolDetail must not throw for TaskUpdate routing");
+            _transcript.UpdateToolDetail("id2", updateRec);
+
+            // Task routing returns early — chip.userData must NOT be set to the rec.
+            var card = _container.Q(className: "task-card");
+            Assert.IsNull(card.userData,
+                "Task routing must return early — card.userData must remain null");
+
+            // Task routing returns early — CopyableText.Attach not called, no copy-attached class.
+            Assert.IsFalse(card.ClassListContains("copy-attached"),
+                "Task routing must return early — copy-attached class must not be added");
         }
 
         // ── Test 6: FinalizeAssistant resets state so next turn gets fresh card ───

@@ -148,6 +148,22 @@ namespace UnityMCP.Editor.Chat.Tests
                 "Second OnUpdate call must not duplicate .agent-desc elements");
         }
 
+        // ── Test 8a: null argsJson — no children added, idempotency class not set ─
+
+        [Test]
+        public void OnUpdate_NullArgsJson_NoChildrenAndNotRendered()
+        {
+            var chip = new VisualElement();
+            var rec  = new ToolCallRecord("Agent", "id-1", null);  // null argsJson
+
+            _card.OnUpdate(chip, rec);
+
+            Assert.AreEqual(0, chip.childCount,
+                "null argsJson must not add any children to chip");
+            Assert.IsFalse(chip.ClassListContains("agent-rendered"),
+                "null argsJson must not mark chip as rendered (prevents future real render)");
+        }
+
         // ── Test 8: "Agent" is registered (192 real calls confirmed) ─────────────
 
         [Test]
