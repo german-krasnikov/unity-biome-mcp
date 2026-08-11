@@ -55,7 +55,19 @@ namespace UnityMCP.Editor.Chat
             // recreation happens here anymore (removes the old "P0-3" double-create).
             var current      = _backends.Find(b => b.Kind == _selectedKind && b.AgentName == _selectedAgent);
             var initialIndex = choices.IndexOf(current.DisplayName);
-            if (initialIndex < 0) initialIndex = 0;
+            if (initialIndex < 0)
+            {
+                // Saved backend is an agent (excluded from dropdown) or no longer exists.
+                // Sync internal state to the first visible choice so UI and state agree.
+                initialIndex = 0;
+                var firstVisible = _backends.Find(b => b.AgentName == null && b.Enabled);
+                if (firstVisible.DisplayName != null)
+                {
+                    _selectedKind  = firstVisible.Kind;
+                    _selectedAgent = null;
+                    EditorPrefs.SetString(DropdownPrefKey, StableIdFor(firstVisible));
+                }
+            }
 
             _agentDropdown = new DropdownField(choices, initialIndex)
             {

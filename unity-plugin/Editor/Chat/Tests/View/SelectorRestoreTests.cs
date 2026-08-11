@@ -118,5 +118,41 @@ namespace UnityMCP.Editor.Chat.Tests
             }
             finally { Object.DestroyImmediate(w); }
         }
+
+        // ── Defect 3: BuildAgentSelector must sync state when saved backend is an agent ──
+        // Before fix: initialIndex fell back to 0 silently, but _selectedAgent was still set
+        // to the agent value — UI showed "Claude" while internally using the agent backend.
+        // After fix: state is updated to match choices[0] so UI and backend agree.
+        [Test]
+        public void BuildAgentSelector_SavedAgentBackend_SyncsStateTofirstNonAgent()
+        {
+            var w = ScriptableObject.CreateInstance<MCPChatWindow>();
+            try
+            {
+                var specs = new List<BackendSpec>
+                {
+                    new BackendSpec("Claude Code", null,         true,  BackendKind.Claude),
+                    new BackendSpec("junior-dev",  "junior-dev", true,  BackendKind.Claude),
+                };
+                s_backends.SetValue(w, specs);
+
+                // Simulate: user had junior-dev saved from a previous session
+                SetEditorPrefString(PrefKey, "junior-dev");
+                w.RestoreSelectedBackendFromPrefs();
+                // State is now agent — this is expected AFTER restore
+                Assert.AreEqual("junior-dev", (string)s_agent.GetValue(w));
+
+                // BuildAgentSelector must fix the state so dropdown and internal state agree
+                var buildSelector = typeof(MCPChatWindow)
+                    .GetMethod("BuildAgentSelector", BindingFlags.NonPublic | BindingFlags.Instance);
+                buildSelector.Invoke(w, null);
+
+                // After build: agent backend is excluded from dropdown → state must be Claude Code
+                Assert.IsNull((string)s_agent.GetValue(w),
+                    "_selectedAgent must be null (Claude Code, not junior-dev)");
+                Assert.AreEqual(BackendKind.Claude, (BackendKind)s_kind.GetValue(w));
+            }
+            finally { Object.DestroyImmediate(w); }
+        }
     }
 }
