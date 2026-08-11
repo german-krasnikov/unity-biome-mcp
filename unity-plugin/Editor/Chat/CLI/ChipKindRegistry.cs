@@ -103,7 +103,7 @@ namespace UnityMCP.Editor.Chat
         }
 
         /// <summary>TEST-ONLY: clear all providers and re-register built-ins.</summary>
-        public static void ResetToBuiltIns()
+        internal static void ResetForTests()
         {
             _providers.Clear();
             _byKey.Clear();

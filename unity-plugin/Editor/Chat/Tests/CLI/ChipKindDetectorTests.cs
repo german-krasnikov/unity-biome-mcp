@@ -12,10 +12,10 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class ChipKindDetectorTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        [SetUp]  public void SetUp()    => ChipKindRegistry.ResetToBuiltIns();
+        [SetUp]  public void SetUp()    => ChipKindRegistry.ResetForTests();
         [TearDown] public void TearDown()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         // ── Scene GameObject ──────────────────────────────────────────────────

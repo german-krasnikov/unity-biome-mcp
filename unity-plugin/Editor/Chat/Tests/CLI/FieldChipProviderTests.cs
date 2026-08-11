@@ -12,7 +12,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [SetUp]
         public void SetUp()
         {
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             ChipKindRegistry.Register(new FieldChipProvider());
             _provider = ChipKindRegistry.ForKey(ChipKindKeys.Field) as FieldChipProvider;
             Assert.IsNotNull(_provider);
@@ -25,7 +25,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             FieldChipProvider.FindObjectOverride = null;
             FieldChipProvider.FindSOOverride = null;
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         // ── Registration ──────────────────────────────────────────────────────

@@ -44,7 +44,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetUp()
         {
             RegisterCleanup(ChipKindRegistry.PreserveStateForTests().Dispose);
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
         }
 
         // (a) Resolve routes Mesh to FakeProvider
@@ -98,7 +98,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void ResetToBuiltIns_ClearsFakes()
         {
             ChipKindRegistry.Register(new FakeProvider());
-            ChipKindRegistry.ResetToBuiltIns();
+            ChipKindRegistry.ResetForTests();
             Assert.IsNull(ChipKindRegistry.ForKey("custom_widget"));
             Assert.IsNotNull(ChipKindRegistry.ForKey(ChipKindKeys.Hierarchy));
         }
