@@ -61,12 +61,16 @@ namespace UnityMCP.Editor.Chat
         // M1: name of the last tool call in the current turn (for timeout hint).
         internal string _lastToolName;
 
+        // T-6.3: agent name from [agent:name] chip in the sent payload; cleared on first tool call or turn end.
+        internal string _pendingAgentName;
+
         // P0-2: DRY helper — reset all per-turn flags (3 sites in Drain + CancelTurn + NewSession).
         private void ResetTurnFlags()
         {
             _turnEditedCode = _turnHasToolCalls = _needsRefresh = false;
             _lastEventTime  = 0;
             _lastToolName   = null;
+            _pendingAgentName = null;
         }
 
         internal void ResetTokenCounters()
