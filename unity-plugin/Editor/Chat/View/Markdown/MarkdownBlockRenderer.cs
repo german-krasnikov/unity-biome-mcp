@@ -62,6 +62,10 @@ namespace UnityMCP.Editor.Chat
             var code = ChatLabel.Selectable(body, richText: false);
             code.AddToClassList("md-code");
             box.Add(code);
+            // T-7c-A Item 4: one-click copy button for the code block contents.
+            var copyBtn = new Button(() => GUIUtility.systemCopyBuffer = body) { text = "⎘" };
+            copyBtn.AddToClassList("md-code-copy");
+            box.Add(copyBtn);
             return box;
         }
 

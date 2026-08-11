@@ -1,8 +1,9 @@
 // CH5.arch.2 / CH5.test.2: Unit tests for ImageBlockRenderer pure-logic methods.
 // Tests: IsImageFile extension filter, AltLabel fallback, ResolvePath relative-vs-absolute.
-// No Texture2D/File.ReadAllBytes — pure headless.
+// Item 2 (T-7c-A): cache test uses a real temp PNG; ClearCache() in finally to isolate.
 using NUnit.Framework;
 using System.IO;
+using UnityEngine;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
 
@@ -159,6 +160,41 @@ namespace UnityMCP.Editor.Chat.Tests
             var block    = MdBlock.Image("", "empty src");
             var result   = renderer.Render(in block);
             Assert.IsNotNull(result);
+        }
+
+        // ── Texture cache (T-7c-A Item 2) ────────────────────────────────────
+
+        [Test]
+        public void Render_SamePath_ReturnsSameTexture()
+        {
+            // Arrange: write a minimal 1×1 PNG to a temp file so File.Exists passes.
+            var tmp = Path.GetTempFileName() + ".png";
+            var setup = new Texture2D(1, 1);
+            setup.SetPixel(0, 0, Color.white);
+            setup.Apply();
+            File.WriteAllBytes(tmp, setup.EncodeToPNG());
+            Object.DestroyImmediate(setup);
+
+            try
+            {
+                var renderer = new ImageBlockRenderer();
+                var block = MdBlock.Image(tmp, "cache-test");
+
+                var c1 = renderer.Render(in block);
+                var c2 = renderer.Render(in block);
+
+                var img1 = c1.Q<Image>();
+                var img2 = c2.Q<Image>();
+                Assert.IsNotNull(img1, "first Render must produce an Image element");
+                Assert.IsNotNull(img2, "second Render must produce an Image element");
+                Assert.IsTrue(ReferenceEquals(img1.image, img2.image),
+                    "same path must return the same Texture2D instance from cache");
+            }
+            finally
+            {
+                if (File.Exists(tmp)) File.Delete(tmp);
+                ImageBlockRenderer.ClearCache();
+            }
         }
     }
 }

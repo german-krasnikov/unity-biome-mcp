@@ -1,5 +1,8 @@
 // Renders an Image block: loads PNG/JPG from disk into a Texture2D with proper lifecycle.
+// T-7c-A Item 2: static _cache avoids re-loading the same file on every re-render.
+// Cache is cleared by ClearCache() (TearDown) or domain reload.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -9,6 +12,11 @@ namespace UnityMCP.Editor.Chat
 {
     public sealed class ImageBlockRenderer : IChatBlockRenderer
     {
+        // Path → Texture2D. Static: survives multiple ImageBlockRenderer instances.
+        // Cleared on domain reload (static initializer re-runs). ClearCache() for tests.
+        private static readonly Dictionary<string, Texture2D> _cache = new Dictionary<string, Texture2D>();
+        internal static void ClearCache() => _cache.Clear();
+
         private const float MaxWidth = 360f;
 
         public bool CanRender(in MdBlock block) => block.Kind == MdBlockKind.Image;
@@ -34,9 +42,14 @@ namespace UnityMCP.Editor.Chat
 
         private static VisualElement BuildImageElement(string path, string alt)
         {
-            var bytes = File.ReadAllBytes(path);
-            var tex   = new Texture2D(2, 2);
-            tex.LoadImage(bytes);
+            // Cache by path; re-load if Unity destroyed the cached texture (domain reload, etc.)
+            if (!_cache.TryGetValue(path, out var tex) || tex == null)
+            {
+                var bytes = File.ReadAllBytes(path);
+                tex = new Texture2D(2, 2);
+                tex.LoadImage(bytes);
+                _cache[path] = tex;
+            }
 
             float w = Mathf.Min(MaxWidth, tex.width);
             float h = tex.width > 0 ? w * tex.height / tex.width : w;

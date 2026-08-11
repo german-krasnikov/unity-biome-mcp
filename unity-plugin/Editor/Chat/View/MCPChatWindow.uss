@@ -327,6 +327,7 @@
     border-radius: 8px;
     border-bottom-left-radius: 2px;
     max-width: 85%;
+    -unity-text-generator: Standard;
 }
 
 .md-para {
@@ -363,12 +364,17 @@
     color: var(--unity-colors-default-text);
     white-space: pre-wrap;
     font-size: 11px;
+    -unity-text-generator: Standard;
+    -unity-font-definition: resource('Fonts/RobotoMono/RobotoMono-Regular'); /* fallback to system mono if not bundled */
 }
 
+.md-code-copy { font-size: 10px; align-self: flex-end; padding: 1px 4px; margin: 1px; }
+
 .md-quote {
-    border-left-width: 3px;
-    border-left-color: var(--unity-colors-highlight-background);
+    border-left-width: 4px;
+    border-left-color: rgba(128, 128, 128, 0.4);
     padding-left: 8px;
+    margin-left: 4px;
     color: var(--unity-colors-label-text);
     -unity-font-style: italic;
     margin-bottom: 4px;

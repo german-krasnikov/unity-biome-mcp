@@ -174,6 +174,14 @@ namespace UnityMCP.Editor.Chat
             else ToolDetailBuilder.AttachOrUpdate(chip, rec);
         }
 
+        // T-7c-A Item 3: single helper to reset raw+bubble state after normalization.
+        // Called only inside FreezeAssistantBubble where _assistantBubble is already non-null.
+        private void ApplyNormalized(string value)
+        {
+            _assistantRaw.Clear(); _assistantRaw.Append(value);
+            _assistantBubble.Clear(); _committed = 0;
+        }
+
         private void FreezeAssistantBubble()
         {
             if (_assistantBubble == null) return;
@@ -184,12 +192,7 @@ namespace UnityMCP.Editor.Chat
                 var normalized = AtMentionNormalizer.Normalize(raw, _lastTurnChips);
                 normalized     = BareNameNormalizer.Normalize(normalized, _lastTurnChips);
                 if (normalized != raw)
-                {
-                    _assistantRaw.Clear(); _assistantRaw.Append(normalized);
-                    // Re-render all blocks since normalization changed text
-                    _assistantBubble.Clear();
-                    _committed = 0;
-                }
+                    ApplyNormalized(normalized);
             }
             // Scene object normalization: convert bare names even when no chips were sent.
             // Kill-switch: EditorPrefs.GetBool(PrefKeys.DisableSceneNameNorm, false) disables this pass.
@@ -205,11 +208,7 @@ namespace UnityMCP.Editor.Chat
                             sceneChips.Add(new ChipData(ChipKindKeys.Hierarchy, kvp.Value, kvp.Key, 0));
                     var normalized = BareNameNormalizer.Normalize(raw, sceneChips);
                     if (normalized != raw)
-                    {
-                        _assistantRaw.Clear(); _assistantRaw.Append(normalized);
-                        _assistantBubble.Clear();
-                        _committed = 0;
-                    }
+                        ApplyNormalized(normalized);
                 }
             }
             RenderProgressive(final: true);
