@@ -177,6 +177,60 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("   ", MixedParagraphRenderer.StripOrphanBold("   "));
         }
 
+        // ── Regression matrix A1-A4: balanced bold detection fix ──────────────
+
+        // A1 (DEFECT 1 root cause — must be RED before fix)
+        // "**Деревья** — " has a COMPLETE bold span followed by plain text.
+        // The leading ** is NOT an orphan — stripping it leaves "Деревья** — " (visible asterisks).
+        [Test]
+        public void StripOrphanBold_CyrillicBoldWithSuffix_PreservesAll()
+        {
+            Assert.AreEqual("**Деревья** — ", MixedParagraphRenderer.StripOrphanBold("**Деревья** — "));
+        }
+
+        // A2 — same class, ASCII (regression guard: fix must be general, not cyrillic-only)
+        [Test]
+        public void StripOrphanBold_AsciiBoldWithSuffix_PreservesAll()
+        {
+            Assert.AreEqual("**bold** (suffix)", MixedParagraphRenderer.StripOrphanBold("**bold** (suffix)"));
+        }
+
+        // A3 — genuine orphan opener: must still be stripped (regression guard after A1 fix)
+        [Test]
+        public void StripOrphanBold_OrphanOpener_StripsLeading()
+        {
+            Assert.AreEqual("unclosed text", MixedParagraphRenderer.StripOrphanBold("**unclosed text"));
+        }
+
+        // A4 — trailing orphan: must still be stripped (regression guard after A1 fix)
+        [Test]
+        public void StripOrphanBold_TrailingOrphan_StripsTrailing()
+        {
+            Assert.AreEqual("text content", MixedParagraphRenderer.StripOrphanBold("text content **"));
+        }
+
+        // ── V3 structural: margin must live on wrapper, not pill ──────────────
+
+        [Test]
+        public void Render_PillWrapper_HasMarginRight_NotPill()
+        {
+            ChipKindRegistry.ResetToBuiltIns();
+            var ve = MixedParagraphRenderer.Render("[hierarchy:/Tree0]");
+            var wrapper = ve.Q(className: "chip-pill-wrapper");
+            var pill    = wrapper?.Q(className: "inline-chip-pill");
+            Assert.IsNotNull(wrapper, "wrapper must exist");
+            Assert.IsNotNull(pill,    "pill must exist inside wrapper");
+            // IStyle.marginRight is StyleLength in Unity 6; .value is Length; .value.value is float.
+            // Outer margin must be on wrapper so the column container doesn't swallow it.
+            float wrapperMargin = wrapper.style.marginRight.value.value;
+            Assert.AreEqual(2f, wrapperMargin, 0.001f,
+                "spacing must be 2f on the wrapper, not inside the column");
+            // Pill inside the column should NOT carry its own right margin.
+            float pillMargin = pill.style.marginRight.value.value;
+            Assert.AreNotEqual(2f, pillMargin,
+                "pill must not carry redundant marginRight inside column wrapper");
+        }
+
         // ── helpers ───────────────────────────────────────────────────────────
 
         [Test]

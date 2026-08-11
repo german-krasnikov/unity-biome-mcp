@@ -205,5 +205,20 @@ namespace UnityMCP.Editor.Chat.Tests
             public void Ping(string reference) { }
             public void AppendContextMenuItems(UnityEngine.UIElements.DropdownMenu menu, string reference) { }
         }
+
+        // E1 (Regression matrix): emoji before chip must not corrupt char-index calculation.
+        // 🌳 (U+1F333) is a surrogate pair in UTF-16 (2 chars). The '[' for the chip tag
+        // sits at char index 2, not 1. A span-index bug here would miss the tag entirely.
+        [Test]
+        public void E1_Tokenize_EmojiBeforeChip_CorrectTokens()
+        {
+            var tokens = ResponseTagTokenizer.Tokenize("🌳 [hierarchy:/Tree0]");
+            Assert.AreEqual(2, tokens.Count, "must produce exactly 2 tokens");
+            Assert.AreEqual(TokenKind.Text, tokens[0].Kind, "first token must be Text");
+            Assert.AreEqual("🌳 ", tokens[0].Raw, "emoji and space must be in text token");
+            Assert.AreEqual(TokenKind.Tag, tokens[1].Kind, "second token must be Tag");
+            Assert.AreEqual("hierarchy", tokens[1].KindKey);
+            Assert.AreEqual("/Tree0", tokens[1].Ref);
+        }
     }
 }

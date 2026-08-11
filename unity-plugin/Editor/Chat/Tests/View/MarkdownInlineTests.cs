@@ -125,5 +125,21 @@ namespace UnityMCP.Editor.Chat.Tests
             StringAssert.DoesNotContain("[hierarchy:/X#1]", result,
                 $"Literal tag must not survive: {result}");
         }
+
+        // C1 (Regression matrix): bold span followed by non-bold suffix.
+        // The _bold regex must match even when the closing ** is NOT at end-of-string.
+        // Separates responsibility: if this passes but B1 (Render) fails, the bug is in
+        // StripOrphanBold. If this fails, the bug is in the bold regex itself.
+        [Test]
+        public void C1_ToRichText_BoldWithNonBoldSuffix_AppliesBold()
+        {
+            var result = MarkdownInline.ToRichText("**text** — ");
+            StringAssert.Contains("<b>text</b>", result,
+                $"Bold regex must match mid-string closing **: '{result}'");
+            StringAssert.Contains(" — ", result,
+                $"Trailing suffix must be preserved: '{result}'");
+            StringAssert.DoesNotContain("**", result,
+                $"No bare ** should remain: '{result}'");
+        }
     }
 }
