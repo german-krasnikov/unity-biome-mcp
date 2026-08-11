@@ -127,18 +127,29 @@ namespace UnityMCP.Editor.Chat.Parsers
             }
             string arrayText = json.Substring(start, end - start + 1);
 
-            // Split by },{
+            // Parse objects with depth-tracking to handle braces inside string values.
             var result = new List<CodeEditEdit>();
-            int objStart = arrayText.IndexOf('{');
-            while (objStart >= 0)
+            int pos = 0;
+            while (pos < arrayText.Length)
             {
-                int objEnd = arrayText.IndexOf('}', objStart);
-                if (objEnd < 0) break;
-                string obj = arrayText.Substring(objStart, objEnd - objStart + 1);
+                int objStart2 = arrayText.IndexOf('{', pos);
+                if (objStart2 < 0) break;
+                int objDepth = 0, cur = objStart2;
+                bool inStr = false;
+                while (cur < arrayText.Length)
+                {
+                    char c = arrayText[cur];
+                    if (inStr) { if (c == '\\') cur++; else if (c == '"') inStr = false; }
+                    else if (c == '"') inStr = true;
+                    else if (c == '{') objDepth++;
+                    else if (c == '}') { objDepth--; if (objDepth == 0) { cur++; break; } }
+                    cur++;
+                }
+                string obj = arrayText.Substring(objStart2, cur - objStart2);
                 var old = ReadStringField(obj, "old_string");
                 var nw  = ReadStringField(obj, "new_string");
                 result.Add(new CodeEditEdit(old, nw));
-                objStart = arrayText.IndexOf('{', objEnd + 1);
+                pos = cur;
             }
             return result.Count > 0 ? result.ToArray() : null;
         }

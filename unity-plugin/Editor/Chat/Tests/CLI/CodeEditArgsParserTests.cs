@@ -57,6 +57,17 @@ namespace UnityMCP.Editor.Chat.Tests.CLI
             Assert.AreEqual(2, r.Edits.Length);
         }
 
+        // === Multi-edit: values containing braces ===
+
+        [Test]
+        public void ParseMultiEdit_OldStringContainsBraces_Correct()
+        {
+            var json = "{\"file_path\":\"/A.cs\",\"edits\":[{\"old_string\":\"void F(){}\",\"new_string\":\"void F() { }\"}]}";
+            var r = CodeEditArgsParser.Parse(json);
+            Assert.AreEqual(1, r.Edits.Length);
+            Assert.AreEqual("void F(){}", r.Edits[0].OldString);
+        }
+
         // === Error cases ===
 
         [Test]
