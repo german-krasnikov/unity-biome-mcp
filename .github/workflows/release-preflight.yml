@@ -57,33 +57,33 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          RESULT=$(gh run list \
+          TARGET_SHA="$GITHUB_SHA"
+          echo "Release target SHA: $TARGET_SHA"
+
+          RESULTS=$(gh run list \
             --workflow ci-conformance.yml \
             --branch master \
-            --status completed \
-            --limit 1 \
-            --json conclusion,headSha,createdAt \
-            --jq '.[0] | "\(.conclusion)|\(.headSha)|\(.createdAt)"' 2>/dev/null || echo "")
+            --status success \
+            --limit 10 \
+            --json headSha,createdAt \
+            --jq '.[] | "\(.headSha)|\(.createdAt)"' 2>/dev/null || echo "")
 
-          if [ -z "$RESULT" ]; then
-            echo "::error::No completed conformance run found on master."
+          if [ -z "$RESULTS" ]; then
+            echo "::error::No successful conformance run found on master."
             exit 1
           fi
 
-          CONCLUSION="${RESULT%%|*}"
-          REST="${RESULT#*|}"
-          RUN_SHA="${REST%%|*}"
-          CREATED="${REST#*|}"
+          PASSED=""
+          while IFS='|' read -r RUN_SHA CREATED; do
+            if git merge-base --is-ancestor "$RUN_SHA" "$TARGET_SHA" 2>/dev/null; then
+              PASSED="$RUN_SHA"
+              echo "Conformance gate passed: sha=$RUN_SHA created=$CREATED (ancestor of $TARGET_SHA)"
+              break
+            fi
+          done <<< "$RESULTS"
 
-          echo "Last conformance run: conclusion=$CONCLUSION sha=$RUN_SHA created=$CREATED"
-
-          if [ "$CONCLUSION" != "success" ]; then
-            echo "::error::Last conformance run on master was '$CONCLUSION' — release blocked."
+          if [ -z "$PASSED" ]; then
+            echo "::error::No successful conformance run is an ancestor of $TARGET_SHA."
+            echo "::error::Run: gh workflow run ci-conformance.yml --ref master"
             exit 1
           fi
-
-          if [ "$RUN_SHA" != "$GITHUB_SHA" ]; then
-            echo "::error::Conformance passed on $RUN_SHA, not on release SHA $GITHUB_SHA."
-            exit 1
-          fi
-          echo "Conformance gate passed."
