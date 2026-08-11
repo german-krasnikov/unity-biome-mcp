@@ -183,5 +183,42 @@ namespace UnityMCP.Editor.Chat.Tests
                 ToolCardRendererRegistry.Resolve("Task"),
                 "ToolCardRendererRegistry must have a renderer registered for 'Task' (insurance)");
         }
+
+        // ── B6: description with escaped quote must survive extraction ─────────────
+
+        [Test]
+        public void OnUpdate_DescriptionWithEscapedQuote_RenderedUnescaped()
+        {
+            // B6: ExtractStringValue stopped at the first '"' it found after the
+            // opening quote, so a value like Run \"tests\" was returned as "Run \"
+            // (truncated at the backslash-escaped inner quote).
+            var chip = new VisualElement();
+            var args = "{\"description\":\"Run \\\"tests\\\"\",\"prompt\":\"...\"}";
+            // args json value = {"description":"Run \"tests\"","prompt":"..."}
+            // decoded description = Run "tests"
+
+            _card.OnUpdate(chip, new ToolCallRecord("Agent", "id-b6", args));
+
+            var descLabel = chip.Q<Label>(className: "agent-desc");
+            Assert.IsNotNull(descLabel, ".agent-desc must be present");
+            StringAssert.Contains("Run \"tests\"", descLabel.text,
+                "description must include the escaped quote as a real quote character");
+        }
+
+        // ── B6b: null-valued field must not return the next key's name ─────────────
+
+        [Test]
+        public void OnUpdate_NullValuedSubagentType_NotRendered()
+        {
+            // B6: ExtractStringValue found the next key's opening '"' as the value
+            // start when the actual value was null → returned "description" as type.
+            var chip = new VisualElement();
+            var args = "{\"subagent_type\":null,\"description\":\"ok\"}";
+
+            _card.OnUpdate(chip, new ToolCallRecord("Agent", "id-b6b", args));
+
+            var typeLabel = chip.Q<Label>(className: "agent-type");
+            Assert.IsNull(typeLabel, "subagent_type:null must not render an agent-type label");
+        }
     }
 }
