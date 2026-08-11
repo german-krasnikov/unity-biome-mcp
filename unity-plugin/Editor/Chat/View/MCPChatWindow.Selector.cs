@@ -46,7 +46,8 @@ namespace UnityMCP.Editor.Chat
             if (_backends == null) RefreshBackends();
 
             var choices = new List<string>();
-            foreach (var b in _backends) choices.Add(b.DisplayName);
+            foreach (var b in _backends)
+                if (b.AgentName == null) choices.Add(b.DisplayName);
 
             // Issue 28: _selectedKind/_selectedAgent are already restored by
             // RestoreSelectedBackendFromPrefs() (called from OnEnable() before CreateBackend()) —

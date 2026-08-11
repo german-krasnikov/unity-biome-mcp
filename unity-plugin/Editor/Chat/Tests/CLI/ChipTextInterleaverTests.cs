@@ -404,5 +404,18 @@ namespace UnityMCP.Editor.Chat.Tests
             var msg = ChipTextInterleaver.BuildFromRaw("hi", positioned);
             Assert.AreEqual(1, msg.Chips.Count);
         }
+
+        // ── Group A: agent chip tests ──────────────────────────────────────────
+
+        // A1: agent chip in payload → context block contains [agent:name]
+        [Test]
+        public void AgentChip_InContextBlock_FormatsAsAgentTag()
+        {
+            var chip       = new ChipData(ChipKindKeys.Agent, "senior-developer", "senior-developer", 0);
+            var positioned = new List<PositionedChip> { PC(chip, 0) };
+            var msg        = ChipTextInterleaver.Build("fix bug", positioned);
+            var payload    = ChipTextInterleaver.ToLlmPayload(msg, new ChipConfig());
+            StringAssert.Contains("[agent:senior-developer]", payload);
+        }
     }
 }
