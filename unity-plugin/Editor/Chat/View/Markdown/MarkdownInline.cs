@@ -8,7 +8,7 @@ namespace UnityMCP.Editor.Chat
 {
     public static class MarkdownInline
     {
-        internal const string CodeColor = MarkdownInlineFormatter.CodeColor; // single source; ChatLinkify matches this
+        internal static string CodeColor => MarkdownInlineFormatter.CodeColor; // single source; ChatLinkify matches this
 
         // U+FDD0/U+FDD1 are permanent Unicode non-characters — they can never appear in
         // real text, so they are collision-proof placeholders for extracted code spans.
@@ -69,14 +69,12 @@ namespace UnityMCP.Editor.Chat
         private static readonly Regex _under = new Regex(@"\b_(.+?)_\b",       RegexOptions.Compiled);
         private static readonly Regex _ital  = new Regex(@"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", RegexOptions.Compiled);
         private static readonly Regex _link  = new Regex(@"\[([^\]]+)\]\(([^)]+)\)", RegexOptions.Compiled);
-        private const string LinkColor = "#566677";
-
         private static string ApplySpanFormatting(string s)
         {
             s = _bold.Replace(s, "<b>$1</b>");
             s = _under.Replace(s, "<i>$1</i>");
             s = _ital.Replace(s, "<i>$1</i>");
-            s = _link.Replace(s, m => m.Groups[1].Value + " <color=" + LinkColor + ">" + m.Groups[2].Value + "</color>");
+            s = _link.Replace(s, m => m.Groups[1].Value + " <color=" + MarkdownInlineFormatter.ActiveLinkColor + ">" + m.Groups[2].Value + "</color>");
             return s;
         }
     }

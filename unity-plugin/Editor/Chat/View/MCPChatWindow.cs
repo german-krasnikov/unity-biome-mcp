@@ -158,14 +158,21 @@ namespace UnityMCP.Editor.Chat
             _resolver?.Refresh();
         }
 
+        static void TryAddStyleSheet(VisualElement root, string name)
+        {
+            var ss = AssetDatabase.LoadAssetAtPath<StyleSheet>(
+                $"Packages/com.unity-biome-mcp.editor/Editor/Chat/View/{name}");
+            if (ss != null) root.styleSheets.Add(ss);
+        }
+
         private void CreateGUI()
         {
             var root = rootVisualElement;
-            var ss = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Packages/com.unity-biome-mcp.editor/Editor/Chat/View/MCPChatWindow.uss");
-            if (ss != null) root.styleSheets.Add(ss);
+            TryAddStyleSheet(root, "Chat.Tokens.uss");  // semantic --chat-* vars loaded first
+            TryAddStyleSheet(root, "MCPChatWindow.uss"); // existing layout styles
             root.AddToClassList("chat-root");
             if (!EditorGUIUtility.isProSkin) root.AddToClassList("chat-root--light");
+            MarkdownInlineFormatter.IsDarkTheme = EditorGUIUtility.isProSkin;
             _scroll = new ScrollView(ScrollViewMode.Vertical);
             _scroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             _scroll.AddToClassList("chat-scroll");

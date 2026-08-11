@@ -8,8 +8,9 @@ namespace UnityMCP.Editor
 {
     public static class MarkdownInlineFormatter
     {
-        public const string CodeColor = "#9aa5ce";
-        private const string LinkColor = "#566677";
+        public static bool IsDarkTheme { get; set; } = true;
+        public static string CodeColor       => IsDarkTheme ? "#9aa5ce" : "#3b5a8a";
+        internal static string ActiveLinkColor => IsDarkTheme ? "#566677" : "#2c4a6e";
 
         // Collision-proof Unicode non-characters for code-span placeholders.
         private const string SlotOpen  = "﷐";
@@ -44,7 +45,7 @@ namespace UnityMCP.Editor
             text = _under.Replace(text, "<i>$1</i>");
             text = _ital.Replace(text, "<i>$1</i>");
             text = _link.Replace(text,
-                m => m.Groups[1].Value + " <color=" + LinkColor + ">" + m.Groups[2].Value + "</color>");
+                m => m.Groups[1].Value + " <color=" + ActiveLinkColor + ">" + m.Groups[2].Value + "</color>");
 
             for (int i = 0; i < slots.Count; i++)
             {
