@@ -212,6 +212,38 @@ namespace UnityMCP.Editor.Chat.Tests
 
         class ImageDetachTestWindow : UnityEditor.EditorWindow { }
 
+        // ── Cache eviction / ownership ────────────────────────────────────────
+
+        [Test]
+        public void ClearCache_DestroysLoadedTextures()
+        {
+            // Cache owns the texture. ClearCache() must destroy it, not just drop the reference.
+            var tmp = Path.GetTempFileName() + ".png";
+            var setup = new Texture2D(1, 1);
+            setup.SetPixel(0, 0, Color.red);
+            setup.Apply();
+            File.WriteAllBytes(tmp, setup.EncodeToPNG());
+            Object.DestroyImmediate(setup);
+
+            try
+            {
+                var renderer = new ImageBlockRenderer();
+                var block = MdBlock.Image(tmp, "clear-test");
+                var c1 = renderer.Render(in block);
+                var tex = (Texture2D)c1.Q<Image>().image;
+                Assert.IsTrue(tex != null, "texture must be loaded before clear");
+
+                ImageBlockRenderer.ClearCache();
+
+                Assert.IsTrue(tex == null, "ClearCache must destroy owned textures");
+            }
+            finally
+            {
+                if (File.Exists(tmp)) File.Delete(tmp);
+                ImageBlockRenderer.ClearCache(); // safe to call twice
+            }
+        }
+
         // ── Texture cache (T-7c-A Item 2) ────────────────────────────────────
 
         [Test]

@@ -12,10 +12,20 @@ namespace UnityMCP.Editor.Chat
 {
     public sealed class ImageBlockRenderer : IChatBlockRenderer
     {
-        // Path → Texture2D. Static: survives multiple ImageBlockRenderer instances.
-        // Cleared on domain reload (static initializer re-runs). ClearCache() for tests.
+        // Bounded FIFO cache: at most MaxCacheSize textures in memory at once.
+        // Cache owns every Texture2D it holds; eviction and ClearCache() destroy them.
+        // 50 screenshots ≈ 100 MB VRAM — a reasonable editorial limit.
+        private const int MaxCacheSize = 50;
         private static readonly Dictionary<string, Texture2D> _cache = new Dictionary<string, Texture2D>();
-        internal static void ClearCache() => _cache.Clear();
+        private static readonly Queue<string> _keyOrder = new Queue<string>();
+
+        internal static void ClearCache()
+        {
+            foreach (var tex in _cache.Values)
+                if (tex != null) UnityEngine.Object.DestroyImmediate(tex);
+            _cache.Clear();
+            _keyOrder.Clear();
+        }
 
         private const float MaxWidth = 360f;
 
@@ -45,9 +55,24 @@ namespace UnityMCP.Editor.Chat
             // Cache by path; re-load if Unity destroyed the cached texture (domain reload, etc.)
             if (!_cache.TryGetValue(path, out var tex) || tex == null)
             {
+                var isNew = !_cache.ContainsKey(path);
                 var bytes = File.ReadAllBytes(path);
                 tex = new Texture2D(2, 2);
                 tex.LoadImage(bytes);
+                if (isNew)
+                {
+                    // Evict oldest entry when at capacity.
+                    while (_cache.Count >= MaxCacheSize && _keyOrder.Count > 0)
+                    {
+                        var oldest = _keyOrder.Dequeue();
+                        if (_cache.TryGetValue(oldest, out var old))
+                        {
+                            _cache.Remove(oldest);
+                            if (old != null) UnityEngine.Object.DestroyImmediate(old);
+                        }
+                    }
+                    _keyOrder.Enqueue(path);
+                }
                 _cache[path] = tex;
             }
 
