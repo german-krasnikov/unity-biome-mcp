@@ -174,5 +174,15 @@ namespace UnityMCP.Editor
             var newStr = ComponentSerializer.GetPropertyValueString(so.FindProperty(prop));
             return $"{oldStr} → {newStr}";
         }
+
+        /// <summary>Read serialized property value without writing. Returns null if not found.</summary>
+        internal static string ReadPropertyValue(string path, string component, string prop)
+        {
+            var (_, comp) = ResolveComponent(path, component);
+            var so = new SerializedObject(comp);
+            prop = InputNormalizer.NormalizeProperty(prop, so);
+            var property = so.FindProperty(prop);
+            return property != null ? ComponentSerializer.GetPropertyValueString(property) : null;
+        }
     }
 }
