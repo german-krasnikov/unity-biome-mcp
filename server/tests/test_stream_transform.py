@@ -49,9 +49,18 @@ def test_unknown_system_subtype():
 # ── result ───────────────────────────────────────────────────────────────────
 
 def test_result_success():
-    line = json.dumps({"type": "result", "is_error": False, "session_id": "s1",
-                       "total_cost_usd": 0.001, "usage": {"input_tokens": 100, "output_tokens": 50}})
-    assert _transform_line(line, _ToolCallAcc()) == ["d|s1|0.001|100|50"]
+    """Result with all four usage fields → effective context = inp + cc + cr."""
+    line = json.dumps({
+        "type": "result", "is_error": False, "session_id": "s1",
+        "total_cost_usd": 0.001,
+        "usage": {
+            "input_tokens": 100,
+            "cache_creation_input_tokens": 500,
+            "cache_read_input_tokens": 1000,
+            "output_tokens": 50,
+        },
+    })
+    assert _transform_line(line, _ToolCallAcc()) == ["d|s1|0.001|1600|50"]
 
 
 def test_result_error():
@@ -60,15 +69,82 @@ def test_result_error():
 
 
 def test_synthetic_done():
-    """Relay's own clean-exit synthetic becomes d|..."""
+    """Relay's own clean-exit synthetic: no usage → inp=-1 (context unknown)."""
     line = json.dumps({"type": "result", "subtype": "done", "is_error": False})
     r = _transform_line(line, _ToolCallAcc())
-    assert r == ["d||0|0|0"]
+    assert r == ["d||0|-1|0"]
 
 
 def test_synthetic_error():
     line = json.dumps({"type": "result", "is_error": True, "error": "Process cli exited 1"})
     assert _transform_line(line, _ToolCallAcc()) == ["e|Process cli exited 1"]
+
+
+# ── token meter: cache-aware context formula (B1/B2) ─────────────────────────
+# Real numbers from ~/.claude/projects sessions, not synthetic data.
+
+def test_result_effective_context_includes_all_cache_fields():
+    """B1: inp field = input + cache_creation + cache_read (all three).
+    Real session 48979ba8, last turn: inp=3, cc=731, cr=39758, out=192.
+    Effective context = 40492 → 25.3% of 160K (200K window × 0.8 reserve)."""
+    line = json.dumps({
+        "type": "result", "is_error": False, "session_id": "48979ba8",
+        "total_cost_usd": 0.001,
+        "usage": {
+            "input_tokens": 3,
+            "cache_creation_input_tokens": 731,
+            "cache_read_input_tokens": 39758,
+            "output_tokens": 192,
+        },
+    })
+    assert _transform_line(line, _ToolCallAcc()) == ["d|48979ba8|0.001|40492|192"]
+
+
+def test_result_cache_not_accumulated__latest_call_wins():
+    """GUARD: two consecutive result events → second call's value used, NOT cumulative sum.
+
+    Real session 0a49d2c3, calls 555 and 556:
+      555: inp=2, cc=1401, cr=358487  → effective 359890
+      556: inp=2, cc=2047, cr=359888  → effective 361937
+
+    Expected from second _transform_line call: 361937 (NOT 359890+361937=721827).
+    This test MUST fail if someone introduces per-call accumulation."""
+    acc = _ToolCallAcc()
+    call_555 = json.dumps({
+        "type": "result", "is_error": False, "session_id": "s0a49",
+        "total_cost_usd": 0.01,
+        "usage": {
+            "input_tokens": 2,
+            "cache_creation_input_tokens": 1401,
+            "cache_read_input_tokens": 358487,
+            "output_tokens": 1200,
+        },
+    })
+    call_556 = json.dumps({
+        "type": "result", "is_error": False, "session_id": "s0a49",
+        "total_cost_usd": 0.01,
+        "usage": {
+            "input_tokens": 2,
+            "cache_creation_input_tokens": 2047,
+            "cache_read_input_tokens": 359888,
+            "output_tokens": 1884,
+        },
+    })
+    _transform_line(call_555, acc)
+    result = _transform_line(call_556, acc)
+    # 2 + 2047 + 359888 = 361937
+    assert result == ["d|s0a49|0.01|361937|1884"]
+
+
+def test_result_no_cache_fields_signals_absent():
+    """B2: when usage has no cache fields, inp=-1 signals 'context unknown'.
+    C# ContextProgressBar should hide/grey bar when inp < 0."""
+    line = json.dumps({
+        "type": "result", "is_error": False, "session_id": "s-nocache",
+        "total_cost_usd": 0.001,
+        "usage": {"input_tokens": 100, "output_tokens": 50},
+    })
+    assert _transform_line(line, _ToolCallAcc()) == ["d|s-nocache|0.001|-1|50"]
 
 
 # ── tool call accumulation ────────────────────────────────────────────────────
@@ -276,8 +352,8 @@ def test_transform_enormous_tool_args():
 
 
 def test_transform_result_no_optional_fields():
-    """E08: result with only is_error=false → d||0|0|0 (all optional fields default)."""
-    assert _transform_line('{"type":"result","is_error":false}', _ToolCallAcc()) == ["d||0|0|0"]
+    """E08: result with only is_error=false → inp=-1 (no usage/cache fields → context unknown)."""
+    assert _transform_line('{"type":"result","is_error":false}', _ToolCallAcc()) == ["d||0|-1|0"]
 
 
 def test_transform_hook_callback_ask_user():

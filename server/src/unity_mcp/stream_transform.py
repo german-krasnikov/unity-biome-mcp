@@ -61,8 +61,16 @@ def _transform_line(line: str, acc: _ToolCallAcc) -> list[str]:
         sid   = obj.get("session_id", "")
         cost  = obj.get("total_cost_usd", 0) or 0
         usage = obj.get("usage") or {}
-        inp   = usage.get("input_tokens", 0) or 0
         out   = usage.get("output_tokens", 0) or 0
+        inp_new = usage.get("input_tokens", 0) or 0
+        inp_cc  = usage.get("cache_creation_input_tokens")  # None when absent
+        inp_cr  = usage.get("cache_read_input_tokens")      # None when absent
+        # When both cache fields absent the backend doesn't report context size.
+        # Use -1 so C# can distinguish "unknown" from "genuinely zero".
+        if inp_cc is None and inp_cr is None:
+            inp = -1
+        else:
+            inp = inp_new + (inp_cc or 0) + (inp_cr or 0)
         return [f"d|{sid}|{cost}|{inp}|{out}"]
 
     if t in ("control_request", "sdk_control_request"):
