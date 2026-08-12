@@ -124,6 +124,29 @@ namespace UnityMCP.Editor.Chat.Tests
                 "Commands longer than 80 chars must be truncated with '…'");
         }
 
+        // ── Pass 1: short multiline command collapsed to one header line ────────
+        //
+        // RED if BuildCommandHeader passes cmd with embedded '\n' directly to Label —
+        // label renders multiple physical lines, breaking card header layout.
+
+        [Test]
+        public void OnUpdate_ShortMultilineCommand_HeaderIsOneLine()
+        {
+            // 44 chars total — short enough to skip 80-char truncation, has 2 newlines
+            // Real pipeline: cd into project, stage, commit
+            var card = new BashCard();
+            var chip = new VisualElement();
+            var rec  = new ToolCallRecord("Bash", "id-multiline-cmd",
+                "{\"command\":\"cd /project\\ngit add -A\\ngit commit -m \\\"fix\\\"\"}",
+                resultText: null);
+            card.OnUpdate(chip, rec);
+            var cmdLabel = chip.Q<Label>(className: "bash-command");
+            Assert.IsNotNull(cmdLabel, "Command label must be present");
+            Assert.IsFalse(cmdLabel.text.Contains('\n'),
+                "Multi-line command must be collapsed to a single line in the header. " +
+                "Bug: newline in short command reaches Label constructor, breaking layout.");
+        }
+
         // ── Pass 2: multiline output rendered ───────────────────────────────────
 
         [Test]
@@ -210,22 +233,26 @@ namespace UnityMCP.Editor.Chat.Tests
                 "No truncation indicator for short output (well under 2000 chars)");
         }
 
-        // ── Pass 2: output without trailing newline ───────────────────────────────
+        // ── Pass 2: trailing newline trimmed, no spurious empty line ─────────────
+        //
+        // RED if the trailing-empty-entry trim (count--) is removed from BuildOutput:
+        //   Split produces ["line1", "line2", ""] → 3 entries → Assert 2 == 3 FAILS.
 
         [Test]
-        public void OnUpdate_OutputWithoutTrailingNewline_NoSpuriousEmptyLine()
+        public void OnUpdate_OutputWithTrailingNewline_NoSpuriousEmptyLine()
         {
             var card = new BashCard();
             var chip = new VisualElement();
-            // grep output: no trailing newline
-            var result = "server/src/unity_mcp/stream_transform.py:8:_MAX_TOOL_RESULT_LEN = 2000\nserver/src/unity_mcp/stream_transform.py:132:    text[:_MAX_TOOL_RESULT_LEN]";
+            // grep output with trailing newline (typical shell output)
+            var result = "server/src/unity_mcp/stream_transform.py:8:_MAX_TOOL_RESULT_LEN = 2000\n" +
+                         "server/src/unity_mcp/stream_transform.py:132:    text[:_MAX_TOOL_RESULT_LEN]\n";
             var rec  = new ToolCallRecord("Bash", "id-11",
                 "{\"command\":\"grep -n \\\"_MAX_TOOL_RESULT_LEN\\\" server/src/unity_mcp/stream_transform.py\"}",
                 resultText: result, isOk: true);
             card.OnUpdate(chip, rec);
             var lines = chip.Query<Label>(className: "bash-output-line").ToList();
             Assert.AreEqual(2, lines.Count,
-                "Output without trailing newline must produce exactly 2 lines (no spurious empty line)");
+                "Output with trailing newline must produce exactly 2 lines — trailing empty entry must be trimmed");
         }
 
         // ── Pass 2: Cyrillic in output ────────────────────────────────────────────

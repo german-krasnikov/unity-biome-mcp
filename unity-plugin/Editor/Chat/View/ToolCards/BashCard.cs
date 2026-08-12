@@ -80,10 +80,12 @@ namespace UnityMCP.Editor.Chat
                 chip.Add(desc);
             }
 
-            var cmd        = args.IsValid ? args.Command : "";
-            var displayCmd = cmd.Length > MaxCommandLen
-                ? "$ " + cmd.Substring(0, MaxCommandLen) + "…"
-                : "$ " + cmd;
+            var cmd      = args.IsValid ? args.Command : "";
+            // Take only the first line — embedded newlines must not reach Label (breaks layout)
+            var firstLine  = cmd.Contains('\n') ? cmd.Substring(0, cmd.IndexOf('\n')) : cmd;
+            var displayCmd = firstLine.Length > MaxCommandLen
+                ? "$ " + firstLine.Substring(0, MaxCommandLen) + "…"
+                : "$ " + firstLine;
             var cmdLabel = new Label(displayCmd);
             cmdLabel.AddToClassList("bash-command");
             chip.Add(cmdLabel);
