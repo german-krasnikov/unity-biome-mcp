@@ -17,7 +17,7 @@ using UnityMCP.Editor.Chat.Parsers;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class HierarchyResultParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    public class HierarchyResultParserTests
     {
         // ── Sentinel inputs ────────────────────────────────────────────────────
 
@@ -212,6 +212,19 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(2, nodes.Length, "Partial last line must be silently skipped");
             Assert.AreEqual("Main Camera", nodes[0].Name);
             Assert.AreEqual("Player",      nodes[1].Name);
+        }
+
+        [Test]
+        public void Parse_TruncatedMidHexRef_NodeAppearsWithPartialRef()
+        {
+            // 2000-char limit (T0.1) can slice inside the hex digits.
+            // "Directional Light $ABCD" where full ref was "$ABCDEF01" is valid: " $" IS present.
+            // TryParseNode creates the node with the partial ref — user sees it,
+            // NavBindingHelper.Attach logs a warning on click, no crash.
+            var nodes = HierarchyResultParser.Parse("Directional Light $ABC");
+            Assert.AreEqual(1, nodes.Length, "Node with partial hex ref must appear, not be skipped");
+            Assert.AreEqual("Directional Light", nodes[0].Name);
+            StringAssert.StartsWith("$", nodes[0].HexRef, "HexRef must retain $ prefix");
         }
 
         // ── Complex scene (covers all required cases together) ─────────────────
