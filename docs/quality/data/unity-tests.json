@@ -3,26 +3,26 @@
     {
       "name": "C# EditMode (Linux)",
       "platform": "Linux",
-      "passed": 7621,
+      "passed": 7780,
       "failed": 0,
       "skipped": 166,
-      "total": 7787
+      "total": 7946
     },
     {
       "name": "C# EditMode (Windows)",
       "platform": "Windows",
-      "passed": 7508,
+      "passed": 7667,
       "failed": 0,
       "skipped": 279,
-      "total": 7787
+      "total": 7946
     },
     {
       "name": "C# EditMode (macOS)",
       "platform": "macOS",
-      "passed": 7621,
+      "passed": 7780,
       "failed": 0,
       "skipped": 166,
-      "total": 7787
+      "total": 7946
     }
   ]
 }
