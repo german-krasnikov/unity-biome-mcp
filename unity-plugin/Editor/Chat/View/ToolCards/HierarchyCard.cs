@@ -2,9 +2,8 @@
 // Parses the text-tree result, renders the first 20 nodes with depth-indent
 // and click-to-select navigation, then reveals the rest on demand.
 //
-// MARKER LAST rule (from team review): hierarchy-rendered is set AFTER all DOM
-// mutations so a thrown exception in rendering does not permanently block
-// re-rendering on the next OnUpdate call.
+// T2.5: Extends ToolCardBase. The base enforces marker-last and retry-on-throw.
+// ShowMoreButton.Append replaces the inline show-more construction.
 using UnityEditor;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat.Parsers;
@@ -12,61 +11,44 @@ using UnityMCP.Editor.Chat.Parsers;
 namespace UnityMCP.Editor.Chat
 {
     [InitializeOnLoad]
-    internal sealed class HierarchyCard : IToolCardRenderer
+    internal sealed class HierarchyCard : ToolCardBase
     {
-        private const int    VisibleNodeLimit = 20;
-        private const int    IndentPxPerDepth = 12;
-        private const string RenderedClass    = "hierarchy-rendered";
+        private const int VisibleNodeLimit = 20;
+        private const int IndentPxPerDepth = 12;
 
         static HierarchyCard()
         {
-            var inst = new HierarchyCard();
-            ToolCardRendererRegistry.Register("get_hierarchy", inst);
+            ToolCardRendererRegistry.Register("get_hierarchy", new HierarchyCard());
         }
 
-        public void OnStart(VisualElement chip, ToolCallRecord rec) { }
+        internal HierarchyCard() : base("hierarchy-rendered") { }
 
-        public void OnUpdate(VisualElement chip, ToolCallRecord rec)
+        protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
         {
-            if (rec.ResultText == null) return;                // result not arrived yet
-            if (chip.ClassListContains(RenderedClass)) return; // idempotency guard
+            if (rec.ResultText == null) return false; // result not arrived yet
 
-            if (rec.ResultText == "NO_CHANGE")
-            {
-                chip.AddToClassList(RenderedClass);
-                return;
-            }
+            if (rec.ResultText == "NO_CHANGE") return true;
 
             var nodes = HierarchyResultParser.Parse(rec.ResultText);
-            if (nodes.Length == 0)
-            {
-                chip.AddToClassList(RenderedClass);
-                return;
-            }
+            if (nodes.Length == 0) return true;
 
             RenderNodes(chip, nodes);
-            chip.AddToClassList(RenderedClass); // LAST — after successful rendering
+            return true;
         }
 
         private static void RenderNodes(VisualElement chip, HierarchyNode[] nodes)
         {
             int visible = nodes.Length < VisibleNodeLimit ? nodes.Length : VisibleNodeLimit;
-
             for (int i = 0; i < visible; i++)
                 chip.Add(MakeNodeRow(nodes[i]));
 
             if (nodes.Length > VisibleNodeLimit)
             {
-                var remaining = nodes.Length - VisibleNodeLimit;
-                var showMore  = new Label("▼ " + remaining + " more objects…");
-                showMore.AddToClassList("hierarchy-show-more");
+                var remaining     = nodes.Length - VisibleNodeLimit;
                 var capturedNodes = nodes;
-                showMore.RegisterCallback<ClickEvent>(_ =>
-                {
-                    chip.Remove(showMore);
-                    AppendRemainingNodes(chip, capturedNodes, VisibleNodeLimit);
-                });
-                chip.Add(showMore);
+                ShowMoreButton.Append(chip, "hierarchy-show-more",
+                    "▼ " + remaining + " more objects…",
+                    () => AppendRemainingNodes(chip, capturedNodes, VisibleNodeLimit));
             }
         }
 

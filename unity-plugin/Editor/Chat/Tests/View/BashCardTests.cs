@@ -10,6 +10,12 @@
 //   first call sets marker before exception; second call sees marker → skips →
 //   output remains empty → Assert.IsTrue(outputLines.Count > 0) FAILS.
 //
+// Duplication test (OnUpdate_CalledTwiceWithResult_OutputNotDuplicated):
+//   RED if the "bash-output-populated" guard is removed from OnAdditionalRender —
+//   second call appends another set of output lines → Count > 1 → FAILS.
+//
+// T2.5: Inherits ToolCardTestBase for shared registration / OnStart / grouper helpers.
+//
 // Data: real Bash output — git log, ls, grep, Cyrillic, multi-line, truncated.
 using System;
 using System.Linq;
@@ -21,31 +27,19 @@ using UnityMCP.Editor.Testing;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class BashCardTests : UnityMcpTestBase
+    public class BashCardTests : ToolCardTestBase
     {
         // ── Registration (RED B: fails when [InitializeOnLoad] register removed) ─
 
         [Test]
-        public void BashCard_IsRegisteredForBash()
-        {
-            var renderer = ToolCardRendererRegistry.Resolve("Bash");
-            Assert.IsNotNull(renderer,
-                "BashCard must be registered for 'Bash' via [InitializeOnLoad]");
-            Assert.IsInstanceOf<BashCard>(renderer,
-                "Resolved renderer must be BashCard");
-        }
+        public void BashCard_IsRegisteredForBash() =>
+            AssertRegistered("Bash", typeof(BashCard));
 
         // ── OnStart ─────────────────────────────────────────────────────────────
 
         [Test]
-        public void OnStart_DoesNotModifyChip()
-        {
-            var card = new BashCard();
-            var chip = new VisualElement();
-            var rec  = new ToolCallRecord("Bash", "id-s", null);
-            card.OnStart(chip, rec);
-            Assert.AreEqual(0, chip.childCount, "OnStart must be a no-op");
-        }
+        public void OnStart_DoesNotModifyChip() =>
+            AssertOnStartIsNoop(new BashCard(), "Bash");
 
         // ── Pass 1: command label shown before result ────────────────────────────
 
@@ -308,6 +302,29 @@ namespace UnityMCP.Editor.Chat.Tests
                 "Second OnUpdate must not duplicate command label (idempotency)");
         }
 
+        // ── Pass 2 idempotency: two updates with result must not duplicate output ──
+        //
+        // RED if "bash-output-populated" guard is removed from OnAdditionalRender:
+        //   second call re-appends all output lines → Count > 1 → FAILS.
+
+        [Test]
+        public void OnUpdate_CalledTwiceWithResult_OutputNotDuplicated()
+        {
+            var card = new BashCard();
+            var chip = new VisualElement();
+            var rec  = new ToolCallRecord("Bash", "id-16",
+                "{\"command\":\"echo hello\"}",
+                resultText: "hello", isOk: true);
+
+            card.OnUpdate(chip, rec);
+            card.OnUpdate(chip, rec); // second update with same result
+
+            var outputLines = chip.Query<Label>(className: "bash-output-line").ToList();
+            Assert.AreEqual(1, outputLines.Count,
+                "Second OnUpdate with result must not duplicate output lines. " +
+                "Bug: 'bash-output-populated' guard missing from OnAdditionalRender.");
+        }
+
         // ── Retry after failed output build ──────────────────────────────────────
         //
         // Proves marker "bash-output-populated" is set LAST (after content):
@@ -351,29 +368,9 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         // ── Grouper bypass: real BashCard triggers card-chip class ─────────────────
-        //
-        // RED B: unregister BashCard → grouper absorbs both chips → Count < 2 → FAIL.
 
         [Test]
-        public void TwoBashChips_BothVisibleInFeed_NotAbsorbedByGrouper()
-        {
-            var container  = new VisualElement();
-            var registry   = ChatBlockRendererFactory.CreateDefault(null, null);
-            var transcript = new ChatTranscript(container, registry);
-
-            // Real Bash call names (same tool, two consecutive calls)
-            transcript.AppendToolChip("Bash", ok: true, toolId: "bash-1");
-            transcript.AppendToolChip("Bash", ok: true, toolId: "bash-2");
-            transcript.FinalizeAssistant();
-
-            var cardChips = container.Query(className: "card-chip").ToList();
-            Assert.AreEqual(2, cardChips.Count,
-                "Both Bash chips must bypass the grouper and appear as card-chip elements");
-
-            var foldout = container.Q<Foldout>(className: "tool-group");
-            if (foldout != null)
-                Assert.IsNull(foldout.Q(className: "card-chip"),
-                    "No card-chip may reside inside a collapsed tool-group foldout");
-        }
+        public void TwoBashChips_BothVisibleInFeed_NotAbsorbedByGrouper() =>
+            AssertGrouperBypass("Bash", "bash-1", "bash-2");
     }
 }

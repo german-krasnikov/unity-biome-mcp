@@ -5,6 +5,8 @@
 //   B — unregister HierarchyCard → registration test RED
 //       OR strip node-rendering code → structural tests RED
 //
+// T2.5: Inherits ToolCardTestBase for shared registration / OnStart / grouper helpers.
+//
 // Data: real hierarchy strings from HierarchySerializer format.
 // See HierarchyResultParserTests for parser-layer coverage.
 using System.Linq;
@@ -15,31 +17,19 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class HierarchyCardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    public class HierarchyCardTests : ToolCardTestBase
     {
         // ── Registration (RED B: fails if [InitializeOnLoad] register removed) ─
 
         [Test]
-        public void HierarchyCard_IsRegisteredForGetHierarchy()
-        {
-            var renderer = ToolCardRendererRegistry.Resolve("get_hierarchy");
-            Assert.IsNotNull(renderer,
-                "HierarchyCard must be registered for 'get_hierarchy' via [InitializeOnLoad]");
-            Assert.IsInstanceOf<HierarchyCard>(renderer,
-                "Resolved renderer must be HierarchyCard");
-        }
+        public void HierarchyCard_IsRegisteredForGetHierarchy() =>
+            AssertRegistered("get_hierarchy", typeof(HierarchyCard));
 
         // ── OnStart ────────────────────────────────────────────────────────────
 
         [Test]
-        public void OnStart_DoesNotModifyChip()
-        {
-            var card = new HierarchyCard();
-            var chip = new VisualElement();
-            var rec  = new ToolCallRecord("get_hierarchy", "id-s", null);
-            card.OnStart(chip, rec);
-            Assert.AreEqual(0, chip.childCount, "OnStart must be a no-op");
-        }
+        public void OnStart_DoesNotModifyChip() =>
+            AssertOnStartIsNoop(new HierarchyCard(), "get_hierarchy");
 
         // ── Marker-last correctness ────────────────────────────────────────────
         // RED if marker is set before rendering (premature mark blocks 2nd call)
@@ -233,27 +223,8 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Grouper bypass: real HierarchyCard triggers card-chip ─────────────
 
         [Test]
-        public void TwoHierarchyChips_BothVisibleInFeed_NotAbsorbedByGrouper()
-        {
-            // RED B: unregister HierarchyCard → grouper absorbs both → Count == 0 → FAIL.
-            // Both chips must bypass the grouper because a renderer is registered.
-            var container  = new VisualElement();
-            var registry   = ChatBlockRendererFactory.CreateDefault(null, null);
-            var transcript = new ChatTranscript(container, registry);
-
-            transcript.AppendToolChip("get_hierarchy", ok: true, toolId: "h-1");
-            transcript.AppendToolChip("get_hierarchy", ok: true, toolId: "h-2");
-            transcript.FinalizeAssistant();
-
-            var cardChips = container.Query(className: "card-chip").ToList();
-            Assert.AreEqual(2, cardChips.Count,
-                "Both hierarchy chips must bypass the grouper and appear as card-chip elements");
-
-            var foldout = container.Q<Foldout>(className: "tool-group");
-            if (foldout != null)
-                Assert.IsNull(foldout.Q(className: "card-chip"),
-                    "No card-chip may reside inside a collapsed tool-group foldout");
-        }
+        public void TwoHierarchyChips_BothVisibleInFeed_NotAbsorbedByGrouper() =>
+            AssertGrouperBypass("get_hierarchy", "h-1", "h-2");
 
         // ── Truncated result (2000-char limit from T0.1) ───────────────────────
 

@@ -4,7 +4,10 @@
 // Ownership: ImageBlockRenderer._cache owns all Texture2D instances — ScreenshotCard never
 // creates or destroys textures directly. Fallback to AltLabel when file is missing or path
 // is unresolvable.
-using System;
+//
+// T2.5: Extends ToolCardBase. The base owns the idempotency guard and marker-last rule.
+// TryBuildContent lets IOExceptions propagate — base catches them and leaves the card
+// un-marked so the next OnUpdate can retry (TOCTOU scenario).
 using System.IO;
 using UnityEditor;
 using UnityEngine.UIElements;
@@ -13,10 +16,9 @@ using UnityMCP.Editor.Chat.Parsers;
 namespace UnityMCP.Editor.Chat
 {
     [InitializeOnLoad]
-    internal sealed class ScreenshotCard : IToolCardRenderer
+    internal sealed class ScreenshotCard : ToolCardBase
     {
         private const float MaxThumbnailHeight = 160f;
-        private const string RenderedClass     = "screenshot-card-rendered";
 
         static ScreenshotCard()
         {
@@ -25,34 +27,25 @@ namespace UnityMCP.Editor.Chat
             ToolCardRendererRegistry.Register("screenshot_baseline", inst);
         }
 
-        public void OnStart(VisualElement chip, ToolCallRecord rec) { }
+        internal ScreenshotCard() : base("screenshot-card-rendered") { }
 
-        public void OnUpdate(VisualElement chip, ToolCallRecord rec)
+        protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
         {
-            if (rec.ArgsJson == null) return;                          // chip-creation call
-            if (!rec.HasResult) return;                                // result not arrived yet
-            if (chip.ClassListContains(RenderedClass)) return;         // idempotency
+            if (rec.ArgsJson == null || !rec.HasResult) return false; // not ready
 
             var path = ScreenshotResultParser.ExtractPath(rec.ResultText);
             if (path == null || !File.Exists(path))
             {
                 chip.Add(ImageBlockRenderer.AltLabel(path ?? rec.ResultText));
-                chip.AddToClassList(RenderedClass);                    // AFTER content added
-                return;
+                return true;
             }
 
-            try
-            {
-                var el = ImageBlockRenderer.BuildImageElement(path, "screenshot");
-                el.style.maxHeight = MaxThumbnailHeight;
-                chip.Add(el);
-                chip.AddToClassList(RenderedClass);                    // AFTER content added
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                // File disappeared after File.Exists check (TOCTOU). Don't mark rendered —
-                // OnUpdate will retry on the next Editor frame.
-            }
+            // May throw IOException / UnauthorizedAccessException (TOCTOU).
+            // Base catches it, marker not set → retry on next frame.
+            var el = ImageBlockRenderer.BuildImageElement(path, "screenshot");
+            el.style.maxHeight = MaxThumbnailHeight;
+            chip.Add(el);
+            return true;
         }
     }
 }

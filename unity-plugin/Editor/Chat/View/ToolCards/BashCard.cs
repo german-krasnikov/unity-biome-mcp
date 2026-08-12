@@ -1,15 +1,19 @@
 // T2.3b: IToolCardRenderer for Bash tool calls.
 //
 // Two-pass rendering:
-//   Pass 1 (ArgsJson available, before result): command header + output placeholder.
-//          "bash-rendered" is set LAST (after content) — MARKER LAST rule.
-//   Pass 2 (result arrived): fill output container with lines.
+//   Pass 1 (TryBuildContent): ArgsJson available → command header + output placeholder.
+//          Base sets "bash-rendered" marker LAST, after TryBuildContent returns true.
+//   Pass 2 (OnAdditionalRender): result arrived → fill output container.
 //          "bash-output-populated" on the container is set LAST inside try/catch
 //          so an exception does NOT block retry on the next OnUpdate call.
 //
+// T2.5: Extends ToolCardBase. Base owns idempotency + marker-last for Pass 1.
+//       OnAdditionalRender is called every time the primary marker is set;
+//       "bash-output-populated" guards Pass 2 against duplicate rendering.
+//
 // Exit code: rec.IsOk=false → "bash--error" CSS class on chip (red border via USS).
 // Truncation: ResultText.Length >= 2000 (T0.1 threshold) → "bash-truncated" indicator.
-// 20-line limit: more than 20 lines → "bash-show-more" button reveals the rest.
+// 20-line limit: more than 20 lines → ShowMoreButton reveals the rest.
 using System;
 using UnityEditor;
 using UnityEngine.UIElements;
@@ -18,12 +22,11 @@ using UnityMCP.Editor.Chat.Parsers;
 namespace UnityMCP.Editor.Chat
 {
     [InitializeOnLoad]
-    internal sealed class BashCard : IToolCardRenderer
+    internal sealed class BashCard : ToolCardBase
     {
         private const int    VisibleLineLimit = 20;
         private const int    MaxCommandLen    = 80;
         private const int    TruncationLen    = 2000; // T0.1: raised from 200
-        private const string RenderedClass    = "bash-rendered";
         private const string OutputPopulated  = "bash-output-populated";
 
         // Test seam: when non-null, thrown at start of BuildOutput to simulate failure.
@@ -32,27 +35,27 @@ namespace UnityMCP.Editor.Chat
 
         static BashCard()
         {
-            var inst = new BashCard();
-            ToolCardRendererRegistry.Register("Bash", inst);
+            ToolCardRendererRegistry.Register("Bash", new BashCard());
         }
 
-        public void OnStart(VisualElement chip, ToolCallRecord rec) { }
+        internal BashCard() : base("bash-rendered") { }
 
-        public void OnUpdate(VisualElement chip, ToolCallRecord rec)
+        // Pass 1: render command header. Returns false if args not ready yet.
+        protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
         {
-            if (rec.ArgsJson == null) return; // chip-creation call — no args yet
+            if (rec.ArgsJson == null) return false; // chip-creation call — no args yet
 
-            // Pass 1: render command header (idempotent via RenderedClass)
-            if (!chip.ClassListContains(RenderedClass))
-            {
-                var args = BashArgsParser.Parse(rec.ArgsJson);
-                BuildCommandHeader(chip, args);
-                chip.AddToClassList(RenderedClass); // MARKER LAST — after all content
-            }
+            var args = BashArgsParser.Parse(rec.ArgsJson);
+            BuildCommandHeader(chip, args);
+            return true;
+        }
 
+        // Pass 2: fill output container. Called every time the primary marker is set.
+        // "bash-output-populated" marker guards against duplicate rendering.
+        protected override void OnAdditionalRender(VisualElement chip, ToolCallRecord rec)
+        {
             if (!rec.HasResult) return;
 
-            // Pass 2: fill output container (idempotent via OutputPopulated)
             var outputContainer = chip.Q("bash-output");
             if (outputContainer == null || outputContainer.ClassListContains(OutputPopulated)) return;
 
@@ -111,7 +114,22 @@ namespace UnityMCP.Editor.Chat
             }
 
             if (count > VisibleLineLimit)
-                AppendShowMore(container, lines, count);
+            {
+                var remaining     = count - VisibleLineLimit;
+                var capturedLines = lines;
+                var capturedCount = count;
+                ShowMoreButton.Append(container, "bash-show-more",
+                    "▼ " + remaining + " more lines…",
+                    () =>
+                    {
+                        for (int i = VisibleLineLimit; i < capturedCount; i++)
+                        {
+                            var lbl = new Label(capturedLines[i]);
+                            lbl.AddToClassList("bash-output-line");
+                            container.Add(lbl);
+                        }
+                    });
+            }
 
             if (IsLikelyTruncated(rec.ResultText))
             {
@@ -119,26 +137,6 @@ namespace UnityMCP.Editor.Chat
                 ellipsis.AddToClassList("bash-truncated");
                 container.Add(ellipsis);
             }
-        }
-
-        private static void AppendShowMore(VisualElement container, string[] lines, int count)
-        {
-            var remaining = count - VisibleLineLimit;
-            var showMore  = new Label("▼ " + remaining + " more lines…");
-            showMore.AddToClassList("bash-show-more");
-            var capturedLines = lines;
-            var capturedCount = count;
-            showMore.RegisterCallback<ClickEvent>(_ =>
-            {
-                container.Remove(showMore);
-                for (int i = VisibleLineLimit; i < capturedCount; i++)
-                {
-                    var lbl = new Label(capturedLines[i]);
-                    lbl.AddToClassList("bash-output-line");
-                    container.Add(lbl);
-                }
-            });
-            container.Add(showMore);
         }
 
         private static bool IsLikelyTruncated(string text) =>

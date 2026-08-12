@@ -6,6 +6,8 @@
 //       OR make ExtractPath return null → image tests RED
 //       OR move "screenshot-card-rendered" marker above content → retry test RED
 //
+// T2.5: Inherits ToolCardTestBase for shared registration / OnStart / grouper helpers.
+//
 // Test data: real paths including spaces and Cyrillic; missing file paths;
 // multi-turn idempotency. Texture loading requires a real file on disk.
 using System.IO;
@@ -18,44 +20,23 @@ using UnityMCP.Editor.Chat;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class ScreenshotCardTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    public class ScreenshotCardTests : ToolCardTestBase
     {
         // ── Registration ─────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Proves [InitializeOnLoad] fired and registered ScreenshotCard.
-        /// RED B: if ScreenshotCard is not registered, this test fails.
-        /// </summary>
         [Test]
-        public void ScreenshotCard_IsRegisteredForScreenshot()
-        {
-            var renderer = ToolCardRendererRegistry.Resolve("screenshot");
-            Assert.IsNotNull(renderer,
-                "ScreenshotCard must be registered for 'screenshot' via [InitializeOnLoad]");
-            Assert.IsInstanceOf<ScreenshotCard>(renderer,
-                "Resolved renderer must be a ScreenshotCard instance");
-        }
+        public void ScreenshotCard_IsRegisteredForScreenshot() =>
+            AssertRegistered("screenshot", typeof(ScreenshotCard));
 
         [Test]
-        public void ScreenshotCard_IsRegisteredForScreenshotBaseline()
-        {
-            var renderer = ToolCardRendererRegistry.Resolve("screenshot_baseline");
-            Assert.IsNotNull(renderer,
-                "ScreenshotCard must be registered for 'screenshot_baseline' via [InitializeOnLoad]");
-        }
+        public void ScreenshotCard_IsRegisteredForScreenshotBaseline() =>
+            AssertRegistered("screenshot_baseline", typeof(ScreenshotCard));
 
         // ── OnStart ──────────────────────────────────────────────────────────────
 
         [Test]
-        public void OnStart_DoesNotModifyChip()
-        {
-            var card = new ScreenshotCard();
-            var chip = new VisualElement();
-            var rec  = new ToolCallRecord("screenshot", "id-1", null);
-            card.OnStart(chip, rec);
-            Assert.AreEqual(0, chip.childCount,
-                "OnStart must be a no-op — chip must remain empty");
-        }
+        public void OnStart_DoesNotModifyChip() =>
+            AssertOnStartIsNoop(new ScreenshotCard(), "screenshot");
 
         // ── OnUpdate: no result yet ──────────────────────────────────────────────
 
@@ -220,12 +201,11 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         // ── Grouper bypass: real ScreenshotCard must trigger card-chip class ─────
+        //
+        // Uses two different tool names (screenshot + screenshot_baseline), so kept
+        // inline rather than delegating to AssertGrouperBypass.
+        // RED B: if ScreenshotCard is unregistered, card-chip count drops to 0.
 
-        /// <summary>
-        /// Verifies ScreenshotCard (real, not fake) bypasses the grouper when two
-        /// screenshot tool calls appear in the same turn.
-        /// RED B: if ScreenshotCard is unregistered, card-chip count drops to 0.
-        /// </summary>
         [Test]
         public void TwoScreenshotChips_BothVisibleInFeed_NotAbsorbedByGrouper()
         {
@@ -233,9 +213,6 @@ namespace UnityMCP.Editor.Chat.Tests
             var registry  = ChatBlockRendererFactory.CreateDefault(null, null);
             var transcript = new ChatTranscript(container, registry);
 
-            // Both tools must have a registered card renderer (ScreenshotCard).
-            // UnityMcpTestBase preserves the registry, so the real [InitializeOnLoad]
-            // registrations are visible here.
             transcript.AppendToolChip("screenshot",          ok: true, toolId: "ss-1");
             transcript.AppendToolChip("screenshot_baseline", ok: true, toolId: "ss-2");
             transcript.FinalizeAssistant();
