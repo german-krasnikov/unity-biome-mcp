@@ -10,6 +10,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.32.0] — 2026-08-12
+
+### Fixed
+- **Token consumption indicator accuracy** — Context progress bar now reads all four token consumption values (`input_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, and `output_tokens`) from the backend API response. Previously ignored cache tokens, showing 0.6% when the context was actually 188% full, or 0.009% when correct fill was 25%. The bar now displays the accurate effective context window fill.
+- **Token indicator hiding on unknown usage** — When the backend does not report token consumption (e.g., during a cold relay startup), the indicator hides instead of showing a misleading 0% fill.
+- **Relay connection stability — three defects:**
+  - **Leaked poll thread** — `RelayBackend.Stop()` now sets an `_active` flag to prevent `OnRelayReady` from starting a new process thread during a cold start that fires on an abandoned backend; fixes the invisible poll thread that displaced the new backend's connection.
+  - **Dropped multi-window callbacks** — `RequestSpawn` with `IsPending` now accumulates waiter callbacks instead of silently returning; when spawn resolves (success or error), all accumulated callbacks fire via `DrainWaiters`, fixing the second MCPChatWindow's `onReady` never being called and leaving its turn stuck with a 30-second timeout.
+  - **Two-window relay displacement war** — Added single-window policy: `OnEnable` detects a second simultaneous `MCPChatWindow` via `Resources.FindObjectsOfTypeAll`, sets `_isDisplacedWindow`, skips backend creation, and displays a clear message; prevents the relay from being fought over by two UI windows.
+- **Silent exception catches now log** — Secondary render passes in tool cards now catch non-IO exceptions and log them as warnings instead of silently swallowing them, making errors visible in the console during manual QA.
+
+### Added
+- **Context progress bar state thresholds** — Visual states for context window fill (Normal < 70%, Warn 70–89%, Danger 90–99%, Overflow ≥ 100%) apply as CSS state classes (`context-bar--normal`, `context-bar--warn`, `context-bar--danger`, `context-bar--overflow`); fill bar colors controlled by semantic tokens (`--chat-bar-fill`, `--chat-bar-fill-warn`, `--chat-bar-fill-danger`).
+- **Overflow context label** — When the context window is exceeded (≥ 100%), the progress bar label shows the actual percentage (e.g. "226%") so the user can see how far over the limit the input has gone.
+- **Clickable reference pills in table cells** — Tool result tables now render `[kind:ref]` tags in data cells as interactive pills; clicking navigates to the referenced object/asset (applies to all markdown table content, not just headers).
+- **Secondary-pass protection for tool cards** — Tool card subclasses now call `RunSecondaryPass()` when enriching card content in a secondary render pass; the helper enforces marker-after-content ordering structurally, making it impossible to place a secondary marker before content even if the caller tries.
+- **Guard against unhandled transcript entry kinds** — `TranscriptSerializer` guard replaced with enum exhaustiveness check (`Enum.IsDefined`) instead of a hardcoded constant; auto-updates when new `TranscriptEntry.Kind` values are added, eliminating the need for manual version bumps.
+- **OpenCode tool results parsing** — Tool use completion events from OpenCode are now parsed and handled correctly (the previous handler was written for an incorrect format and never worked).
+
+### Test Coverage
+- **Python unit tests:** 6356 passed (was 6289)
+- **C# EditMode:** 7950+ passed, 19 skipped
+- **New test cases:** 19 context bar threshold + overflow tests, 3 relay spawn + waiter tests, relay window displacement policy tests, secondary-pass exception logging tests, transcript Kind exhaustiveness test
+
 ## [v1.31.0] — 2026-08-12
 
 ### Added
