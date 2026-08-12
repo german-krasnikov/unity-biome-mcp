@@ -721,13 +721,47 @@ def test_tool_result_error_flag_false():
     assert r == ["tr|tr_456|false|error msg"]
 
 
-def test_tool_result_text_truncated_at_200():
+def test_tool_result_text_truncated_at_2000():
+    """Result longer than the 2000-char limit is cut at exactly 2000."""
     acc = _ToolCallAcc()
     _transform_line(_tr_start(), acc)
-    _transform_line(_tr_delta("X" * 300), acc)
+    _transform_line(_tr_delta("X" * 3000), acc)
     r = _transform_line(_TR_STOP, acc)
     assert len(r) == 1
-    assert len(r[0].split("|", 3)[3]) == 200
+    assert len(r[0].split("|", 3)[3]) == 2000
+
+
+def test_tool_result_500_chars_not_truncated():
+    """500-char result — well below 2000 — passes through intact.
+
+    Realistic content: Cyrillic object names and escaped slashes as seen in
+    get_hierarchy output for a scene with localized names.
+    """
+    hierarchy_snippet = (
+        "/Сцена/Игрок\n"
+        "/Сцена/Камера\\/Основная\n"
+        "/Сцена/Враги/Враг_01\n"
+        "/Сцена/Враги/Враг_02\n"
+    )
+    # Pad with realistic-looking repeated lines to reach 500 chars
+    text = (hierarchy_snippet * 20)[:500]
+    assert len(text) == 500  # sanity
+    acc = _ToolCallAcc()
+    _transform_line(_tr_start(), acc)
+    _transform_line(_tr_delta(text), acc)
+    r = _transform_line(_TR_STOP, acc)
+    assert len(r) == 1
+    assert len(r[0].split("|", 3)[3]) == 500
+
+
+def test_tool_result_2000_chars_boundary_not_truncated():
+    """Exactly 2000 chars at the boundary — must not be cut."""
+    acc = _ToolCallAcc()
+    _transform_line(_tr_start(), acc)
+    _transform_line(_tr_delta("Z" * 2000), acc)
+    r = _transform_line(_TR_STOP, acc)
+    assert len(r) == 1
+    assert len(r[0].split("|", 3)[3]) == 2000
 
 
 def test_tool_result_delta_not_emitted_directly():

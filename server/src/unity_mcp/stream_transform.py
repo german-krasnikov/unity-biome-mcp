@@ -5,7 +5,7 @@ Pure stateful transformer. Never raises. Unknown input → empty list.
 import json
 from dataclasses import dataclass, field
 
-_MAX_TOOL_RESULT_LEN = 200
+_MAX_TOOL_RESULT_LEN = 2000
 
 
 @dataclass
