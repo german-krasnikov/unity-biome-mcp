@@ -8,7 +8,24 @@
 //   second call sees marker, skips, no content → Assert.AreEqual(1, childCount) FAILS.
 //   Remove the "if (built)" guard → ReturnsFalse test fails (marker set when not ready).
 //   Remove OnAdditionalRender call → AdditionalRenderCalled test fails.
+//   Collapse IOException/Exception split → IOException test logs unexpected warning → FAILS.
+//   Remove LogWarning from Exception catch → NRE test's LogAssert.Expect unsatisfied → FAILS.
+//
+// Guardian test (C2):
+//   AllToolCardRenderers_InheritToolCardBase — RED when any IToolCardRenderer in the
+//   production View assembly does NOT extend ToolCardBase (bypasses marker-last contract).
+//   Currently catches AgentCard, CodeEditDiffRenderer, MutationDiffCard (before migration).
+//
+// RunSecondaryPass tests (C1):
+//   The protected static helper enforces marker-last for secondary passes.
+//   Double-red: remove or break RunSecondaryPass → BuildThrows test sees marker set → FAILS.
+//   Collapse IOException/Exception split → IOException test logs unexpected warning → FAILS.
+//   Remove LogWarning from Exception catch → NonIo test's LogAssert.Expect unsatisfied → FAILS.
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
 using UnityMCP.Editor.Testing;
@@ -56,6 +73,22 @@ namespace UnityMCP.Editor.Chat.Tests
             }
         }
 
+        /// <summary>Always throws IOException — the silent/expected case (file gone between check and read).</summary>
+        private sealed class IoCard : ToolCardBase
+        {
+            public IoCard() : base("io-rendered") { }
+            protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
+                => throw new System.IO.IOException("file gone between check and read");
+        }
+
+        /// <summary>Throws NullReferenceException — must produce a LogWarning.</summary>
+        private sealed class NreCard : ToolCardBase
+        {
+            public NreCard() : base("nre-rendered") { }
+            protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
+                => throw new System.NullReferenceException("simulated null");
+        }
+
         /// <summary>Counts OnAdditionalRender calls.</summary>
         private sealed class AdditionalRenderCard : ToolCardBase
         {
@@ -91,6 +124,9 @@ namespace UnityMCP.Editor.Chat.Tests
             var chip = new VisualElement();
             var rec  = MakeRec();
 
+            // ThrowingCard throws InvalidOperationException (non-IO) → must log a warning.
+            // RED if LogWarning removed from the Exception catch in OnUpdate.
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\].*test-rendered"));
             card.OnUpdate(chip, rec); // first call throws internally — must not propagate
 
             Assert.IsFalse(chip.ClassListContains("test-rendered"),
@@ -134,7 +170,9 @@ namespace UnityMCP.Editor.Chat.Tests
             var chip = new VisualElement();
             var rec  = MakeRec();
 
-            // Skip first-throw, let second succeed
+            // Skip first-throw, let second succeed.
+            // ThrowingCard throws InvalidOperationException (non-IO) → warning logged.
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\].*test-rendered"));
             try { card.OnUpdate(chip, rec); } catch { }
             card.OnUpdate(chip, rec); // sets marker
 
@@ -165,6 +203,39 @@ namespace UnityMCP.Editor.Chat.Tests
                 "OnAdditionalRender must be called on every subsequent update (base does not guard it)");
         }
 
+        // ── IOException is silent (expected I/O race) ─────────────────────────────
+        //
+        // RED if the IOException catch is removed (merged into the Exception catch):
+        //   IoCard throws IOException → LogWarning is called → Unity fails the test
+        //   because an unexpected warning appeared.
+
+        [Test]
+        public void OnUpdate_TryBuildThrowsIO_Silent_NoWarningAndAllowsRetry()
+        {
+            var card = new IoCard();
+            var chip = new VisualElement();
+            // No LogAssert.Expect — IOException must produce NO log (silent, expected I/O race).
+            // Unity fails the test if an unexpected warning appears.
+            card.OnUpdate(chip, MakeRec());
+            Assert.IsFalse(chip.ClassListContains("io-rendered"),
+                "Marker not set on IOException — retry allowed");
+        }
+
+        // ── Non-IO exceptions log a warning ──────────────────────────────────────
+        //
+        // RED if LogWarning is removed from the Exception catch in OnUpdate.
+
+        [Test]
+        public void OnUpdate_TryBuildThrowsNRE_LogsWarning()
+        {
+            var card = new NreCard();
+            var chip = new VisualElement();
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\].*nre-rendered"));
+            card.OnUpdate(chip, MakeRec());
+            Assert.IsFalse(chip.ClassListContains("nre-rendered"),
+                "Marker not set on NRE — retry allowed");
+        }
+
         // ── OnStart is a no-op ────────────────────────────────────────────────────
 
         [Test]
@@ -174,6 +245,164 @@ namespace UnityMCP.Editor.Chat.Tests
             var chip = new VisualElement();
             card.OnStart(chip, MakeRec());
             Assert.AreEqual(0, chip.childCount, "OnStart must be a no-op");
+        }
+
+        // ── Guardian: all production IToolCardRenderer must extend ToolCardBase ──
+        //
+        // RED A: change Assert.IsEmpty to Assert.IsNotEmpty → immediate failure.
+        // RED B: revert AgentCard / CodeEditDiffRenderer / MutationDiffCard to implement
+        //        IToolCardRenderer directly (bypass ToolCardBase) → violations list non-empty → FAILS.
+        // Scans only the production View assembly so test doubles in test assemblies are excluded.
+
+        [Test]
+        public void AllToolCardRenderers_InheritToolCardBase()
+        {
+            // The production assembly owns IToolCardRenderer and all card implementations.
+            var productionAssembly = typeof(IToolCardRenderer).Assembly;
+            var baseType           = typeof(ToolCardBase);
+            var rendererType       = typeof(IToolCardRenderer);
+
+            var violations = new List<string>();
+            foreach (var type in productionAssembly.GetTypes())
+            {
+                if (type.IsAbstract || type.IsInterface) continue;
+                if (!rendererType.IsAssignableFrom(type)) continue;
+                if (baseType.IsAssignableFrom(type)) continue; // correctly on base
+                violations.Add(type.FullName);
+            }
+
+            Assert.IsEmpty(violations,
+                "Every non-abstract IToolCardRenderer in the production assembly must extend " +
+                "ToolCardBase — otherwise the marker-last contract is not structurally enforced.\n" +
+                "Violations found:\n" + string.Join("\n", violations));
+        }
+
+        // ── RunSecondaryPass: protected static helper tests ───────────────────────
+        //
+        // Test doubles below call RunSecondaryPass via a public wrapper on a subclass.
+        // Double-red for each: corrupt the assertion (RED A) or break RunSecondaryPass
+        // (e.g. call AddToClassList before build()) → all BuildThrows and ReturnsFalse tests fail (RED B).
+
+        private sealed class SecondaryPassBridge : ToolCardBase
+        {
+            public SecondaryPassBridge() : base("primary-rendered") { }
+
+            protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
+            {
+                chip.Add(new Label("primary"));
+                return true;
+            }
+
+            // Expose protected static for testing.
+            public static void Run(
+                VisualElement target, string markerClass, System.Func<bool> build)
+                => RunSecondaryPass(target, markerClass, build);
+        }
+
+        [Test]
+        public void RunSecondaryPass_BuildReturnsTrue_SetsMarkerLast()
+        {
+            // marker is set only AFTER build() returns true
+            var target = new VisualElement();
+            SecondaryPassBridge.Run(target, "sec-marker", () =>
+            {
+                // marker must NOT be set inside build()
+                Assert.IsFalse(target.ClassListContains("sec-marker"),
+                    "Marker must not be set while build() is still executing");
+                target.Add(new Label("content"));
+                return true;
+            });
+
+            Assert.IsTrue(target.ClassListContains("sec-marker"),
+                "Marker must be set after build() returns true");
+            Assert.AreEqual(1, target.childCount, "Content must be present");
+        }
+
+        [Test]
+        public void RunSecondaryPass_BuildReturnsFalse_MarkerNotSet()
+        {
+            var target = new VisualElement();
+            SecondaryPassBridge.Run(target, "sec-marker", () => false);
+
+            Assert.IsFalse(target.ClassListContains("sec-marker"),
+                "Marker must NOT be set when build() returns false (not ready yet)");
+        }
+
+        [Test]
+        public void RunSecondaryPass_BuildThrows_MarkerNotSet_AllowsRetry()
+        {
+            // RED B: if RunSecondaryPass sets marker before calling build(), this fails:
+            //   first call sets marker → build throws → second call sees marker, skips → no content.
+            // Non-IO exception → warning expected (mirrors primary pass; unexpected warning fails test).
+            var target = new VisualElement();
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\]"));
+            try
+            {
+                SecondaryPassBridge.Run(target, "sec-marker",
+                    () => throw new System.InvalidOperationException("simulated"));
+            }
+            catch { /* exception must be swallowed by RunSecondaryPass; catch is unreachable */ }
+
+            Assert.IsFalse(target.ClassListContains("sec-marker"),
+                "Marker must NOT be set when build() throws. " +
+                "Bug: RunSecondaryPass sets marker before calling build() — frozen, no retry.");
+
+            // Retry: next call with succeeding build must work.
+            SecondaryPassBridge.Run(target, "sec-marker", () =>
+            {
+                target.Add(new Label("content"));
+                return true;
+            });
+            Assert.IsTrue(target.ClassListContains("sec-marker"),
+                "Marker must be set after successful retry");
+        }
+
+        [Test]
+        public void RunSecondaryPass_GuardAlreadySet_BuildNotCalled()
+        {
+            var target = new VisualElement();
+            target.AddToClassList("sec-marker"); // pre-set the guard
+
+            bool buildCalled = false;
+            SecondaryPassBridge.Run(target, "sec-marker", () =>
+            {
+                buildCalled = true;
+                return true;
+            });
+
+            Assert.IsFalse(buildCalled,
+                "build() must NOT be called when the guard marker is already set (idempotency)");
+        }
+
+        // ── RunSecondaryPass: exception surfacing mirrors primary pass ─────────────
+        //
+        // Non-IO → LogWarning (RED if catch swallows everything silently).
+        // IOException → silent (RED if IOException is caught by the Exception branch and warns).
+
+        [Test]
+        public void RunSecondaryPass_BuildThrows_NonIo_LogsWarning()
+        {
+            // RED: with bare catch { } no warning is emitted → LogAssert.Expect unsatisfied → FAILS.
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\]"));
+            var target = new VisualElement();
+            SecondaryPassBridge.Run(target, "sec-marker",
+                () => throw new System.InvalidOperationException("secondary error"));
+
+            Assert.IsFalse(target.ClassListContains("sec-marker"),
+                "Marker must NOT be set despite the warning");
+        }
+
+        [Test]
+        public void RunSecondaryPass_BuildThrows_Io_Silent()
+        {
+            // No LogAssert.Expect — IOException must produce NO log.
+            // Unity fails the test if an unexpected warning appears.
+            var target = new VisualElement();
+            SecondaryPassBridge.Run(target, "sec-marker",
+                () => throw new System.IO.IOException("file gone"));
+
+            Assert.IsFalse(target.ClassListContains("sec-marker"),
+                "Marker not set on IOException — retry allowed");
         }
     }
 }

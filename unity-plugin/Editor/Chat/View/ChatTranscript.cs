@@ -372,6 +372,10 @@ namespace UnityMCP.Editor.Chat
                         case TranscriptEntry.Kind.Tool:
                             AppendToolChip(e.Text, e.ChipsData == "1", e.LlmPayload);
                             break;
+                        default:
+                            UnityEngine.Debug.LogWarning(
+                                $"[ChatTranscript] RestoreFromReload: unhandled Kind={e.EntryKind} — add a case");
+                            break;
                     }
                     _entries.Add(e); // rebuild _entries from saved data
                 }

@@ -480,6 +480,52 @@ namespace UnityMCP.Editor.Chat.Tests
                 "Bug: guard was set by the empty call, blocking enrichment permanently.");
         }
 
+        // ── C1: secondary-pass retry contract ────────────────────────────────────
+        //
+        // Главный тест задачи C1: наследник, чьё построение во вторичном проходе
+        // бросило исключение, НЕ получает метку и способен отрисоваться при следующей попытке.
+        //
+        // Double-red:
+        //   RED A: corrupt Assert.IsFalse → immediate failure.
+        //   RED B: revert ComponentReadCard to set PropsPopulated BEFORE chip.Add
+        //          (or remove RunSecondaryPass) → seam fires after marker is set →
+        //          chip.ClassListContains(PropsPopulated) returns TRUE → Assert.IsFalse FAILS.
+
+        [Test]
+        public void OnUpdate_GetComponent_EnrichPropsThrows_MarkerNotSetAllowsRetry()
+        {
+            ComponentReadCard._enrichPropsException =
+                new System.InvalidOperationException("simulated props-build failure");
+            RegisterCleanup(() => { ComponentReadCard._enrichPropsException = null; });
+
+            var card = new ComponentReadCard();
+            var chip = new VisualElement();
+            var rec  = new ToolCallRecord("get_component", "id-retry-sec",
+                "{\"path\":\"/Hero\",\"type\":\"Health\"}",
+                resultText: "hp: 100\nmp: 50", isOk: true);
+
+            // In the RED state the exception propagates through OnAdditionalRender.
+            // In the GREEN state RunSecondaryPass swallows it internally.
+            try { card.OnUpdate(chip, rec); } catch { }
+
+            Assert.IsTrue(chip.ClassListContains("comp-read-rendered"),
+                "Primary marker must be set even when secondary pass fails");
+            Assert.IsFalse(chip.ClassListContains("comp-read-props-populated"),
+                "Secondary marker must NOT be set when build throws. " +
+                "Bug: PropsPopulated guard placed BEFORE chip.Add — frozen on exception, no retry.");
+            Assert.AreEqual(0, chip.Query<Label>(className: "comp-read-prop").ToList().Count,
+                "No property labels after failed secondary build");
+
+            // Retry: clear seam, next call must succeed and populate properties.
+            ComponentReadCard._enrichPropsException = null;
+            card.OnUpdate(chip, rec);
+
+            Assert.IsTrue(chip.ClassListContains("comp-read-props-populated"),
+                "Secondary marker must be set after successful retry");
+            Assert.Greater(chip.Query<Label>(className: "comp-read-prop").ToList().Count, 0,
+                "Property labels must appear after successful retry");
+        }
+
         // ── Grouper bypass ────────────────────────────────────────────────────────
 
         [Test]

@@ -1362,7 +1362,7 @@ async def test_error_exit_synthetic_event_is_pipe_format():
 
 @pytest.mark.asyncio
 async def test_clean_exit_synthetic_event_is_done_pipe():
-    """Drain loop wraps clean exit as d||0|0|0 regardless of backend transform."""
+    """Drain loop wraps clean exit as d||0|-1|0: no real API call → context unknown."""
     from unity_mcp.stream_transform import _transform_plain_text_line
     relay = ChatRelay()
     relay._transform_fn = _transform_plain_text_line
@@ -1374,7 +1374,7 @@ async def test_clean_exit_synthetic_event_is_done_pipe():
 
     texts = [b.text for b in relay._buf]
     assert len(texts) == 1
-    assert texts[0] == "d||0|0|0"
+    assert texts[0] == "d||0|-1|0"
 
 
 # ─── Monkey: Category A — Protocol Torture (10 tests) ───────────────────────

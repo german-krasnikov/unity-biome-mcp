@@ -14,7 +14,7 @@ using UnityMCP.Editor.Chat.Parsers;  // JsonFieldReader (InternalsVisibleTo)
 namespace UnityMCP.Editor.Chat
 {
     [InitializeOnLoad]
-    internal sealed class AgentCard : IToolCardRenderer
+    internal sealed class AgentCard : ToolCardBase
     {
         private const int MaxResultLen = 200;
 
@@ -25,17 +25,19 @@ namespace UnityMCP.Editor.Chat
             ToolCardRendererRegistry.Register("Task",  inst);  // insurance: older SDK versions
         }
 
-        public void OnStart(VisualElement chip, ToolCallRecord rec) { }
+        internal AgentCard() : base("agent-rendered") { }
 
-        public void OnUpdate(VisualElement chip, ToolCallRecord rec)
+        protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
         {
-            if (string.IsNullOrEmpty(rec.ArgsJson)) return;
-            if (!chip.ClassListContains("agent-rendered"))
-            {
-                RenderHeader(chip, rec.ArgsJson);
-                chip.AddToClassList("agent-rendered");
-            }
+            if (string.IsNullOrEmpty(rec.ArgsJson)) return false;
+            RenderHeader(chip, rec.ArgsJson);
+            return true;
+        }
 
+        // Element-presence guard: chip.Q("agent-result") == null prevents duplicate result sections.
+        // This is correct for an append-once pattern — RunSecondaryPass is not needed here.
+        protected override void OnAdditionalRender(VisualElement chip, ToolCallRecord rec)
+        {
             if (rec.HasResult && chip.Q(className: "agent-result") == null)
                 AppendResultSummary(chip, rec.ResultText);
         }

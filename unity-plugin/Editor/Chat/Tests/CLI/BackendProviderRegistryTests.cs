@@ -1,7 +1,10 @@
 // TDD: BackendProviderRegistry — discovery, sorting, Get, KindToId.
 // Uses Override seam (TypeCache is Unity-only; tests run in NUnit EditMode).
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Chat.Tests
@@ -97,6 +100,33 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             BackendProviderRegistry.Override = new List<IBackendProvider>();
             Assert.AreEqual(0, BackendProviderRegistry.All.Count);
+        }
+
+        // ── Broken provider instantiation logs a warning ──────────────────────
+        //
+        // Seam: TryInstantiate_ForTest calls the same production helper used by
+        // Discover(), bypassing TypeCache for determinism.
+        //
+        // RED if Debug.LogWarning is removed from TryInstantiate.
+
+        private sealed class ThrowingProvider : IBackendProvider
+        {
+            public ThrowingProvider() => throw new System.Exception("broken provider");
+            public string ProviderId   => throw new System.NotImplementedException();
+            public string BinaryName   => throw new System.NotImplementedException();
+            public string DisplayName  => throw new System.NotImplementedException();
+            public int    SortOrder    => throw new System.NotImplementedException();
+            public IChatBackend Create(BackendCreateArgs a) => throw new System.NotImplementedException();
+        }
+
+        [Test]
+        public void TryInstantiate_BrokenConstructor_LogsWarningAndReturnsFalse()
+        {
+            LogAssert.Expect(LogType.Warning,
+                new Regex(@"\[BackendProviderRegistry\] Failed to instantiate ThrowingProvider"));
+            var ok = BackendProviderRegistry.TryInstantiate_ForTest(typeof(ThrowingProvider), out var p);
+            Assert.IsFalse(ok, "Broken provider must return false");
+            Assert.IsNull(p,   "Provider must be null on failure");
         }
     }
 }

@@ -11,6 +11,9 @@ namespace UnityMCP.Editor.Chat
     {
         private IChatBackend   _backend;
         internal ChatTranscript _transcript;
+        // F-1: set true when this is a second simultaneous window (relay supports one client only).
+        // Displaced windows show a message and skip backend creation to prevent relay displacement war.
+        private bool           _isDisplacedWindow;
         private bool           _agentMode;
         private BackendKind    _selectedKind = BackendKind.Claude;
         private PermissionConfig _permConfig = new PermissionConfig();
@@ -92,6 +95,16 @@ namespace UnityMCP.Editor.Chat
 
         private void OnEnable()
         {
+            // F-1: relay supports exactly one TCP client. A second MCPChatWindow would trigger
+            // the relay's B4 displacement guard, silently breaking both windows after ~6–9 s.
+            // Detect early and skip backend creation so only the first window is functional.
+            // Guard is production-only: tests create windows in an editor where the developer's
+            // own chat window may already be open, which would falsely mark the test window displaced.
+#if !UNITY_INCLUDE_TESTS
+            _isDisplacedWindow = Resources.FindObjectsOfTypeAll<MCPChatWindow>().Length > 1;
+            if (_isDisplacedWindow) return;
+#endif
+
             RefreshColorResolver();
             ChipPillFactory.AddToContextAction = chip => _chipField?.AddChip(chip);
             RegionTool.SceneRegionTool.OnRegionCommitted = (id, label) =>
@@ -132,6 +145,7 @@ namespace UnityMCP.Editor.Chat
 
         private void OnDisable()
         {
+            if (_isDisplacedWindow) return;  // F-1: displaced window has no backend or subscriptions
             _flowMotion?.SetActive(false);
             // P0-A: persist transcript so window close/reopen restores history (not just domain reload)
             SessionState.SetString(PrefKeys.ChatTranscript, _transcript?.SerializeForReload() ?? "");
@@ -179,6 +193,22 @@ namespace UnityMCP.Editor.Chat
             TryAddStyleSheet(root, "Chat.Tokens.uss");  // semantic --chat-* vars loaded first
             TryAddStyleSheet(root, "MCPChatWindow.uss"); // existing layout styles
             root.AddToClassList("chat-root");
+
+            // F-1: displaced window — show a clear message instead of creating a broken backend.
+            if (_isDisplacedWindow)
+            {
+                var msg = new Label(
+                    "Another chat window is already open.\n\n" +
+                    "The chat relay supports one connection at a time. " +
+                    "Close the other window to use this one.");
+                msg.style.whiteSpace    = WhiteSpace.Normal;
+                msg.style.paddingTop    = 24;
+                msg.style.paddingLeft   = 16;
+                msg.style.paddingRight  = 16;
+                msg.style.unityFontStyleAndWeight = FontStyle.Normal;
+                root.Add(msg);
+                return;
+            }
             if (!EditorGUIUtility.isProSkin) root.AddToClassList("chat-root--light");
             MarkdownInlineFormatter.IsDarkTheme = EditorGUIUtility.isProSkin;
             _scroll = new ScrollView(ScrollViewMode.Vertical);

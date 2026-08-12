@@ -10,8 +10,13 @@ using UnityMCP.Editor.Chat.Parsers;
 namespace UnityMCP.Editor.Chat
 {
     [InitializeOnLoad]
-    internal sealed class CodeEditDiffRenderer : IToolCardRenderer
+    internal sealed class CodeEditDiffRenderer : ToolCardBase
     {
+        // Test seam: when non-null, thrown inside TryBuildContent BEFORE RenderEdits.
+        // GREEN: ToolCardBase catches the exception, marker ("diff-rendered") is NOT set → retry allowed.
+        // Double-red B: revert to IToolCardRenderer and move marker before seam → frozen card.
+        internal static System.Exception _renderEditsException = null;
+
         static CodeEditDiffRenderer()
         {
             var inst = new CodeEditDiffRenderer();
@@ -20,18 +25,16 @@ namespace UnityMCP.Editor.Chat
             ToolCardRendererRegistry.Register("MultiEdit", inst);
         }
 
-        public void OnStart(VisualElement chip, ToolCallRecord rec) { }
+        internal CodeEditDiffRenderer() : base("diff-rendered") { }
 
-        public void OnUpdate(VisualElement chip, ToolCallRecord rec)
+        protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
         {
-            if (string.IsNullOrEmpty(rec.ArgsJson)) return; // T1.1: empty string must also skip
-            if (chip.ClassListContains("diff-rendered")) return;  // idempotency guard
-
+            if (string.IsNullOrEmpty(rec.ArgsJson)) return false; // T1.1
             var args = CodeEditArgsParser.Parse(rec.ArgsJson);
-            if (!args.IsValid) return;
-
-            chip.AddToClassList("diff-rendered");
+            if (!args.IsValid) return false;
+            if (_renderEditsException != null) throw _renderEditsException; // test seam BEFORE content
             RenderEdits(chip, args);
+            return true;
         }
 
         // ── Rendering ────────────────────────────────────────────────────────────

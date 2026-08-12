@@ -953,3 +953,14 @@
 /* ── T-5.2: ThinkingBlock ── */
 .thinking-block { opacity: 0.55; margin-bottom: 4px; }
 .thinking-block > .unity-foldout__toggle > .unity-label { font-size: 11px; -unity-font-style: italic; }
+
+/* ── ContextProgressBar (B2/B3) ── */
+/* Fill colour driven by state class on the container; tokens from Chat.Tokens.uss.      */
+/* Normal state: fill uses --chat-bar-fill (blue).                                        */
+/* Warn (70–89 %): --chat-bar-fill-warn (amber, same as --chat-warn).                    */
+/* Danger (90–99 %) and Overflow (≥ 100 %): --chat-bar-fill-danger (red).                */
+/* Overflow displays the actual % in the label (e.g. "226 %") to distinguish from "full".*/
+.context-bar__fill                              { background-color: var(--chat-bar-fill); }
+.context-bar--warn     .context-bar__fill       { background-color: var(--chat-bar-fill-warn); }
+.context-bar--danger   .context-bar__fill,
+.context-bar--overflow .context-bar__fill       { background-color: var(--chat-bar-fill-danger); }

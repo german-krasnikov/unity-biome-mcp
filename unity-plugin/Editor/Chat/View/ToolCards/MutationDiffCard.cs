@@ -12,7 +12,7 @@ using UnityMCP.Editor.Chat.Parsers;
 namespace UnityMCP.Editor.Chat
 {
     [InitializeOnLoad]
-    internal sealed class MutationDiffCard : IToolCardRenderer
+    internal sealed class MutationDiffCard : ToolCardBase
     {
         private static readonly string[] ToolNames =
         {
@@ -29,23 +29,22 @@ namespace UnityMCP.Editor.Chat
                 ToolCardRendererRegistry.Register(name, inst);
         }
 
-        public void OnStart(VisualElement chip, ToolCallRecord rec) { }
+        internal MutationDiffCard() : base("mutation-rendered") { }
 
-        public void OnUpdate(VisualElement chip, ToolCallRecord rec)
+        protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
         {
-            if (string.IsNullOrEmpty(rec.ArgsJson)) return; // T1.1: empty string must also skip
+            if (string.IsNullOrEmpty(rec.ArgsJson)) return false; // T1.1
+            var args = ObjectMutationParser.Parse(rec.Name, rec.ArgsJson);
+            if (!args.IsValid) return false;
+            RenderEntry(chip, rec.Name, args);
+            return true;
+        }
 
-            if (!chip.ClassListContains("mutation-rendered"))
-            {
-                var args = ObjectMutationParser.Parse(rec.Name, rec.ArgsJson);
-                if (!args.IsValid) return;
-                chip.AddToClassList("mutation-rendered");
-                RenderEntry(chip, rec.Name, args);
-            }
-
-            // Second call brings ResultText — update was-value labels in-place.
-            if (rec.HasResult)
-                RefreshWasValues(chip, rec.ResultText);
+        // Second call brings ResultText — update was-value labels in-place.
+        // RefreshWasValues uses text-mutation idempotency (lbl.text == "?"), not a marker.
+        protected override void OnAdditionalRender(VisualElement chip, ToolCallRecord rec)
+        {
+            if (rec.HasResult) RefreshWasValues(chip, rec.ResultText);
         }
 
         // ── Rendering ─────────────────────────────────────────────────────────────

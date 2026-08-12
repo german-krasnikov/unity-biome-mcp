@@ -227,6 +227,47 @@ namespace UnityMCP.Editor.Chat.Tests
                 "error chip must be restored with error class");
         }
 
+        // 14b. Guard exhaustiveness: every Kind declared in the enum must survive Deserialize.
+        // RED when: a new Kind is added to TranscriptEntry.Kind without fixing the guard at
+        // TranscriptSerializer.cs:49 from `kindInt > 2` to `!Enum.IsDefined(...)`.
+        // GREEN permanently after the guard uses Enum.IsDefined — no manual bump needed.
+        [Test]
+        public void Deserialize_AllDeclaredKinds_PassGuardAndRoundTrip()
+        {
+            var text64  = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("test"));
+            var chips64 = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("1"));
+
+            foreach (TranscriptEntry.Kind kind in System.Enum.GetValues(typeof(TranscriptEntry.Kind)))
+            {
+                var line    = $"{(int)kind}|{text64}|{chips64}|||{System.Environment.NewLine}";
+                var entries = TranscriptSerializer.Deserialize(line);
+
+                Assert.AreEqual(1, entries.Count,
+                    $"Kind.{kind} (int={(int)kind}) is silently dropped by the guard. " +
+                    $"Fix: replace `kindInt > 2` with `!Enum.IsDefined(typeof(TranscriptEntry.Kind), kindInt)` " +
+                    $"at TranscriptSerializer.cs:49");
+                Assert.AreEqual(kind, entries[0].EntryKind,
+                    $"Kind.{kind} must round-trip correctly");
+            }
+        }
+
+        // 14c. No exception during restore for any declared Kind (guard + switch consistency).
+        // Catches the case where guard is fixed but switch has no case and throws.
+        [Test]
+        public void RestoreFromReload_AllDeclaredKinds_NoException()
+        {
+            var text64  = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("test"));
+            var chips64 = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("1"));
+
+            foreach (TranscriptEntry.Kind kind in System.Enum.GetValues(typeof(TranscriptEntry.Kind)))
+            {
+                var line = $"{(int)kind}|{text64}|{chips64}|||{System.Environment.NewLine}";
+                var t = Make(out _);
+                Assert.DoesNotThrow(() => t.RestoreFromReload(line),
+                    $"RestoreFromReload must not throw for Kind.{kind}");
+            }
+        }
+
         // 14. Backward compat: data with unknown future kind (e.g. 9) is skipped, no crash
         [Test]
         public void ToolChip_BackwardCompat_UnknownKind_Skipped()
@@ -260,10 +301,18 @@ namespace UnityMCP.Editor.Chat.Tests
 
         // ── T1.2: FinalizeAssistant before error chip clears _taskCard ────────────
 
-        // 16a. BUG reference: without FinalizeAssistant before error chip,
-        //      _taskCard is not cleared → second TaskCreate reuses stale card.
+        // 16a. BUG SNAPSHOT — raw AppendToolChip without FinalizeAssistant leaves _taskCard stale.
+        //
+        // THIS ASSERTION RECORDS THE BUG STATE (taskCards.Count == 1 = stale card).
+        // RED when fixed: if AppendToolChip is improved to clear _taskCard on error chip,
+        //   this test goes RED — that IS the improvement.
+        //   → Change Assert.AreEqual from 1 to 2 (two distinct cards).
+        //   → Confirm 16b (ErrorTurn_ViaProductionMethod_ClearsTaskCardAndCreatesNew) still passes.
+        //
+        // The production path already handles this correctly:
+        //   MCPChatWindow.ApplyErrorTurn → FinalizeAssistant → ClearForNextTurn (see 16b).
         [Test]
-        public void ErrorChip_WithoutFinalizeAssistant_StalesTaskCard()
+        public void ErrorChip_WithoutFinalizeAssistant_BugSnapshot_StalesTaskCard()
         {
             var t = Make(out var c);
 
