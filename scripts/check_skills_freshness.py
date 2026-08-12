@@ -279,6 +279,68 @@ def check_stale_agent_tools(agents: list[AgentFile], tools: frozenset[str]) -> l
     return findings
 
 
+_PROCESS_START_CALL_RE = re.compile(r"Process\.Start\s*\(")
+
+
+def _strip_line_comments(text: str) -> str:
+    """Remove // to end-of-line comments from C# source (non-destructive; multi-line comments ignored)."""
+    return "\n".join(line[: line.find("//")] if "//" in line else line for line in text.splitlines())
+
+
+def check_batch_seam_in_tests(root: Path) -> list[Finding]:
+    """Warn on C# test files that call ShouldWarm() without setting IsBatchModeGetter.
+
+    ShouldWarm() returns false on CI (-batchmode), so any test asserting it returns true
+    must set RelayWarmup.IsBatchModeGetter = () => false in [SetUp] to be environment-independent.
+    """
+    findings = []
+    for f in root.glob("unity-plugin/Editor/Chat/Tests/**/*.cs"):
+        text = f.read_text(encoding="utf-8")
+        if "ShouldWarm()" not in text:
+            continue
+        if "IsBatchModeGetter" in text:
+            continue
+        findings.append(Finding(
+            severity="WARNING",
+            rel_path=str(f.relative_to(root)),
+            check="batch-seam-missing",
+            detail=(
+                "calls ShouldWarm() without IsBatchModeGetter seam — "
+                "add `RelayWarmup.IsBatchModeGetter = () => false;` in [SetUp] so the test "
+                "passes in CI -batchmode (Application.isBatchMode is true there)"
+            ),
+        ))
+    return findings
+
+
+def check_unix_tools_in_tests(root: Path) -> list[Finding]:
+    """Warn on C# test files that call Process.Start() without a Windows-skip guard.
+
+    Process.Start() with a Unix executable path fails on Windows CI.
+    Guard with [UnityMCP.Editor.Testing.SkipOnWindows] or [Platform(Exclude="Win")],
+    or replace with a cross-platform implementation.
+    """
+    findings = []
+    for f in root.glob("unity-plugin/Editor/Chat/Tests/**/*.cs"):
+        text = f.read_text(encoding="utf-8")
+        code = _strip_line_comments(text)
+        if not _PROCESS_START_CALL_RE.search(code):
+            continue
+        if "SkipOnWindows" in text or "[Platform" in text:
+            continue
+        findings.append(Finding(
+            severity="WARNING",
+            rel_path=str(f.relative_to(root)),
+            check="unguarded-unix-tool",
+            detail=(
+                "calls Process.Start() without SkipOnWindows or [Platform] guard — "
+                "add [UnityMCP.Editor.Testing.SkipOnWindows(...)] to the class or method, "
+                "or replace with a cross-platform approach (e.g. File.SetAttributes)"
+            ),
+        ))
+    return findings
+
+
 def check_orphaned_skills(
     dot_claude_skills: list[SkillFile],
     agents: list[AgentFile],
@@ -326,6 +388,8 @@ def run_skills_freshness(repo_root: Path) -> list[Finding]:
         + check_agent_skill_mismatch(agents, repo_root)
         + check_stale_agent_tools(agents, tools)
         + check_orphaned_skills(dot_claude_skills, agents, claude_md)
+        + check_batch_seam_in_tests(repo_root)
+        + check_unix_tools_in_tests(repo_root)
     )
 
 
