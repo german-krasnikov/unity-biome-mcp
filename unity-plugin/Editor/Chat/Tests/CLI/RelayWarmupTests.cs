@@ -25,6 +25,9 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             RelayWarmup.ResetForTests();
             InstallSourceDetector.ClearTestOverride();
+            // Default to interactive mode so tests are environment-independent.
+            // Tests that specifically check CI batch-mode behavior override this explicitly.
+            RelayWarmup.IsBatchModeGetter = () => false;
         }
 
         [TearDown]
