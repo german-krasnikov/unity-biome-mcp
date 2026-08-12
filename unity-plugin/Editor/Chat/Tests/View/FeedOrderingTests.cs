@@ -55,24 +55,13 @@ namespace UnityMCP.Editor.Chat.Tests
                 "children[2] must be or contain the tool chip");
         }
 
-        [Test]
-        public void Feed_ToolChip_DoesNotMergeIntoAssistantBubble()
-        {
-            // FreezeAssistantBubble() must separate tool chip from assistant text.
-            // chip.parent must NOT be the assistant bubble element.
-            var t = MakeTranscript(out var container);
-            t.AppendOrExtendAssistant("assistant text");
-            t.FlushStreaming();
-            t.AppendToolChip("Edit", ok: true, toolId: "id2");
-
-            var chipEl      = container.Q(className: "tool-chip");
-            var assistantEl = container.Q(className: "msg-bubble--assistant");
-
-            Assert.IsNotNull(chipEl,      "tool-chip element must exist in container after AppendToolChip");
-            Assert.IsNotNull(assistantEl, "msg-bubble--assistant must exist in container after AppendOrExtendAssistant");
-            Assert.AreNotEqual(assistantEl, chipEl.parent,
-                "chip must not be a direct child of the assistant bubble — FreezeAssistantBubble must separate them");
-        }
+        // Feed_ToolChip_DoesNotMergeIntoAssistantBubble was deleted (T4.3A).
+        // The assertion Assert.AreNotEqual(assistantEl, chipEl.parent) is a structural
+        // tautology: chipEl.parent is always _container (or a Foldout inside it);
+        // assistantEl is msg-bubble--assistant inside _assistantRow inside _container.
+        // These can never be equal regardless of implementation. The meaningful ordering
+        // check (chip appears after assistant row) is covered by
+        // Feed_AssistantTextAndToolChip_OrderPreserved above.
 
         // B1: card-chip bypass — Edit has CodeEditDiffRenderer [InitializeOnLoad].
         // With 2 chips in a turn, grouper normally promotes both into a collapsed Foldout.

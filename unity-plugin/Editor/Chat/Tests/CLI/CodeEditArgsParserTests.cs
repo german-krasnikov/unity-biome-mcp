@@ -55,7 +55,44 @@ namespace UnityMCP.Editor.Chat.Tests.CLI
             var r = CodeEditArgsParser.Parse(json);
             Assert.IsNotNull(r.Edits);
             Assert.AreEqual(2, r.Edits.Length);
+            // Content assertions — count alone was blind to swapped or empty values.
+            Assert.AreEqual("a", r.Edits[0].OldString, "Edits[0].OldString");
+            Assert.AreEqual("b", r.Edits[0].NewString, "Edits[0].NewString");
+            Assert.AreEqual("c", r.Edits[1].OldString, "Edits[1].OldString");
+            Assert.AreEqual("d", r.Edits[1].NewString, "Edits[1].NewString");
         }
+
+        // Real-world multi-edit: multi-line old_string with braces, Cyrillic, nested paths.
+        // Synthetic "a"/"b"/"c"/"d" data cannot trigger edge cases like unmatched brackets
+        // or unicode in string values. This fixture is derived from the regression sample
+        // in Plans/regression-sample-real-answer.md.
+        [Test]
+        public void ParseMultiEdit_RealWorldData_ExtractsContentCorrectly()
+        {
+            const string oldUpdate =
+                "void Update()\n    {\n        if (Input.GetKeyDown(KeyCode.Space))\n        {\n            Jump();\n        }\n    }";
+            const string newUpdate =
+                "void Update()\n    {\n        HandleInput();\n    }";
+            const string oldComment = "// Старый комментарий";
+            const string newComment = "// Новый комментарий";
+
+            var json = "{\"file_path\":\"/Assets/Scripts/PlayerController.cs\"," +
+                       "\"edits\":[" +
+                       "{\"old_string\":" + QuoteJson(oldUpdate) + ",\"new_string\":" + QuoteJson(newUpdate) + "}," +
+                       "{\"old_string\":" + QuoteJson(oldComment) + ",\"new_string\":" + QuoteJson(newComment) + "}" +
+                       "]}";
+
+            var r = CodeEditArgsParser.Parse(json);
+            Assert.IsNotNull(r.Edits);
+            Assert.AreEqual(2, r.Edits.Length, "must parse 2 edits");
+            Assert.AreEqual(oldUpdate,   r.Edits[0].OldString, "multi-line old_string must be preserved");
+            Assert.AreEqual(newUpdate,   r.Edits[0].NewString, "multi-line new_string must be preserved");
+            Assert.AreEqual(oldComment,  r.Edits[1].OldString, "Cyrillic old_string must be preserved");
+            Assert.AreEqual(newComment,  r.Edits[1].NewString, "Cyrillic new_string must be preserved");
+        }
+
+        private static string QuoteJson(string s)
+            => "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n") + "\"";
 
         // === Multi-edit: values containing braces ===
 
