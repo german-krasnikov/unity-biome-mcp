@@ -67,10 +67,7 @@ def _transform_line(line: str, acc: _ToolCallAcc) -> list[str]:
         inp_cr  = usage.get("cache_read_input_tokens")      # None when absent
         # When both cache fields absent the backend doesn't report context size.
         # Use -1 so C# can distinguish "unknown" from "genuinely zero".
-        if inp_cc is None and inp_cr is None:
-            inp = -1
-        else:
-            inp = inp_new + (inp_cc or 0) + (inp_cr or 0)
+        inp = -1 if inp_cc is None and inp_cr is None else inp_new + (inp_cc or 0) + (inp_cr or 0)
         return [f"d|{sid}|{cost}|{inp}|{out}"]
 
     if t in ("control_request", "sdk_control_request"):
