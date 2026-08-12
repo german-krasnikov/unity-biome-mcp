@@ -12,7 +12,7 @@ namespace UnityMCP.Editor.Chat
 
             if (b.TableRows == null || b.TableRows.Count == 0) return table;
 
-            // First row is the header.
+            // First row is the header — plain Labels (no chip pills in headers).
             var headerRow = new VisualElement(); headerRow.AddToClassList("md-table-row");
             for (int colIdx = 0; colIdx < b.TableRows[0].Length; colIdx++)
             {
@@ -23,16 +23,15 @@ namespace UnityMCP.Editor.Chat
             }
             table.Add(headerRow);
 
-            // Remaining rows are data rows.
+            // Remaining rows are data rows — chips become interactive pills.
             for (int i = 1; i < b.TableRows.Count; i++)
             {
                 var row = new VisualElement(); row.AddToClassList("md-table-row");
                 for (int colIdx = 0; colIdx < b.TableRows[i].Length; colIdx++)
                 {
-                    var lbl = ChatLabel.Selectable(MarkdownInline.ToRichText(b.TableRows[i][colIdx]), richText: true);
-                    lbl.AddToClassList("md-td");
-                    ApplyAlign(lbl, b.Aligns, colIdx);
-                    row.Add(lbl);
+                    var cell = MixedParagraphRenderer.InlineElement(b.TableRows[i][colIdx], "md-td");
+                    ApplyAlign(cell, b.Aligns, colIdx);
+                    row.Add(cell);
                 }
                 table.Add(row);
             }
@@ -40,9 +39,13 @@ namespace UnityMCP.Editor.Chat
             return table;
         }
 
-        private static void ApplyAlign(Label lbl, string[] aligns, int colIdx)
+        // Accepts VisualElement so it works for both plain Label header cells and
+        // mixed-content data cells. Text alignment applies only when the element is a Label;
+        // flex containers (cells with pills) use flex layout defaults.
+        private static void ApplyAlign(VisualElement el, string[] aligns, int colIdx)
         {
             if (aligns == null || colIdx >= aligns.Length) return;
+            if (el is not Label lbl) return;
             if (aligns[colIdx] == "center") lbl.style.unityTextAlign = TextAnchor.MiddleCenter;
             else if (aligns[colIdx] == "right") lbl.style.unityTextAlign = TextAnchor.MiddleRight;
             // "left" and "none" use the default alignment
