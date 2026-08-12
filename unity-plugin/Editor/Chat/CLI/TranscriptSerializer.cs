@@ -46,7 +46,7 @@ namespace UnityMCP.Editor.Chat
                 var parts = line.Split('|');
                 if (parts.Length < 2) continue;
                 if (!int.TryParse(parts[0], out var kindInt)) continue;
-                if (kindInt < 0 || kindInt > 2) continue; // P0-B: was > 1
+                if (!Enum.IsDefined(typeof(TranscriptEntry.Kind), kindInt)) continue;
                 string text;
                 try { text = FromB64(parts[1]); } catch { continue; }
                 string chipsData  = parts.Length > 2 && !string.IsNullOrEmpty(parts[2])

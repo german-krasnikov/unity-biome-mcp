@@ -1,240 +1,13 @@
-// 10 built-in IChipKindProvider implementations.
-// All internal — registered by ChipKindRegistry.EnsureBuiltIns().
-// AssetChipProviderBase: shared FormatPayload + Navigate(PingAsset) + DefaultDepth + Create.
-// HierarchyChipProvider: fully custom (transient EntityId, GlobalObjectId, HierarchyResolver).
-// Preview building moved to ChipPreviewBridge (temporary) until the preview registry (Dev 2).
-using System;
+// 9 thin built-in IChipKindProvider implementations (registered via ChipKindRegistry.EnsureBuiltIns).
+// Larger providers live in their own files:
+//   AssetChipProviderBase.cs, HierarchyChipProvider.cs, SceneChipProvider.cs, ImageChipProvider.cs
 using System.IO;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
 
 namespace UnityMCP.Editor.Chat
 {
-    internal abstract class AssetChipProviderBase : IChipKindProvider
-    {
-        // Set by AssetViewerFactory [InitializeOnLoad]. Returns true if viewer handled the path.
-        // Same seam pattern as ChipPillFactory.AddToContextAction.
-        internal static Func<string, bool> ViewerLauncher;
-
-        public abstract string Key      { get; }
-        public abstract int    Priority { get; }
-        public abstract string IconName { get; }
-        public abstract string HexColor { get; }
-        public virtual  string DefaultDepth => "path";
-        public virtual  string[] BarePathExtensions => Array.Empty<string>();
-
-        public abstract bool CanHandle(Object obj, string assetPath);
-
-        public virtual ChipData Create(Object obj, string assetPath)
-        {
-            var name = obj != null ? obj.name : Path.GetFileNameWithoutExtension(assetPath);
-            return new ChipData(Key, assetPath, name, 0);
-        }
-
-        public virtual string FormatPayload(ChipData chip, ChipPayloadContext ctx)
-            => ctx.Depth == "none" ? "" : $"[{Key}:{chip.Path}]";
-
-        public virtual void Navigate(string reference)
-        {
-            var handled = ViewerLauncher?.Invoke(reference) == true;
-            var obj = AssetDatabase.LoadAssetAtPath<Object>(reference);
-            if (obj == null)
-            {
-                if (!handled)
-                    Debug.LogWarning($"{BiomeLabel.Tag} Asset not found: " + reference);
-                return;
-            }
-            EditorGUIUtility.PingObject(obj);
-            Selection.activeObject = obj;
-        }
-
-        public virtual void Ping(string reference)
-        {
-            var obj = AssetDatabase.LoadAssetAtPath<Object>(reference);
-            if (obj == null) return;
-            EditorGUIUtility.PingObject(obj);
-            Selection.activeObject = obj;
-        }
-
-        public virtual void AppendContextMenuItems(DropdownMenu menu, string reference)
-        {
-            menu.AppendAction("Ping in Project", _ => Ping(reference));
-            menu.AppendAction("Open",            _ => Navigate(reference));
-        }
-    }
-
-    internal sealed class HierarchyChipProvider : IChipKindProvider
-    {
-        public string Key      => ChipKindKeys.Hierarchy;
-        public int    Priority => 100;
-        public string IconName => "d_UnityEditor.SceneHierarchyWindow";
-        public string HexColor => "#4a9eff";
-        public string DefaultDepth => "path";
-        public string[] BarePathExtensions => Array.Empty<string>();
-
-        public bool CanHandle(Object obj, string assetPath)
-            => obj is GameObject go && !AssetDatabase.Contains(go);
-
-        public ChipData Create(Object obj, string assetPath)
-        {
-            var go = (GameObject)obj;
-            var path = ComponentSerializer.GetPath(go);
-            var goid = GlobalObjectId.GetGlobalObjectIdSlow(go);
-            return new ChipData(Key, path, FormatHierarchyDisplay(path, go.name),
-                TransientObjectId.GetHexRef(go), goid);
-        }
-
-        internal static string FormatHierarchyDisplay(string path, string leafName)
-        {
-            var sep = path.IndexOf(":/", System.StringComparison.Ordinal);
-            return sep >= 0 ? "[" + path.Substring(0, sep) + "] " + leafName : leafName;
-        }
-
-        public string FormatPayload(ChipData chip, ChipPayloadContext ctx)
-        {
-            var bracket = ChipContextResolver.FormatChipRef(Key, chip.Path, chip.ObjectId);
-            if (chip.GlobalObjectId.targetObjectId != 0)
-                bracket = bracket.Insert(bracket.Length - 1, $"@{chip.GlobalObjectId}");
-            return ctx.Depth == "none" ? "" :
-                   (ctx.Depth == "summary" || ctx.Depth == "full") && !string.IsNullOrEmpty(ctx.ResolvedSummary)
-                       ? bracket + "\n" + ctx.ResolvedSummary
-                       : bracket;
-        }
-
-        public void Navigate(string reference)
-        {
-            var go = Resolve(reference);
-            if (go == null) { Debug.LogWarning($"{BiomeLabel.Tag} Reference stale: " + reference); return; }
-            EditorGUIUtility.PingObject(go);
-            Selection.activeObject = go;
-        }
-
-        public void Ping(string reference)
-        {
-            var go = Resolve(reference);
-            if (go == null) return;
-            EditorGUIUtility.PingObject(go);
-            Selection.activeObject = go;
-        }
-
-        public void AppendContextMenuItems(DropdownMenu menu, string reference)
-        {
-            menu.AppendAction("Select in Hierarchy", _ => Navigate(reference));
-            menu.AppendAction("Frame in Scene View",  _ =>
-            {
-                Navigate(reference);
-                if (UnityEditor.SceneView.lastActiveSceneView != null)
-                    UnityEditor.SceneView.lastActiveSceneView.FrameSelected();
-            });
-        }
-
-        static GameObject Resolve(string reference)
-        {
-            var href = HierarchyReference.Parse(reference);
-            var resolver = new HierarchyResolver();
-            return resolver.Resolve(href);
-        }
-    }
-
-    internal sealed class SceneChipProvider : AssetChipProviderBase
-    {
-#if UNITY_INCLUDE_TESTS
-        /// <summary>Test seam: override to suppress or fake the Open Scene? dialog.</summary>
-        internal static System.Func<string, bool> DisplayDialogOverride;
-#endif
-
-        public override string Key      => ChipKindKeys.Scene;
-        public override int    Priority => 200;
-        public override string IconName => "d_SceneAsset Icon";
-        public override string HexColor => "#c084fc";
-
-        public override bool CanHandle(Object obj, string assetPath)
-            => obj != null && !string.IsNullOrEmpty(assetPath) && assetPath.EndsWith(".unity");
-
-        // chip.Path = scene name ("MyScene"), not the full asset path.
-        public override ChipData Create(Object obj, string assetPath)
-        {
-            // obj null: direct-call path only — CanHandle requires non-null for registry calls
-            var name = obj != null ? obj.name : Path.GetFileNameWithoutExtension(assetPath);
-            return new ChipData(Key, name, name, 0);
-        }
-
-        public override void Navigate(string reference)
-        {
-            if (UnityEngine.Application.isPlaying)
-            {
-                Debug.LogWarning($"{BiomeLabel.Tag} Cannot open scene in Play Mode: {reference}");
-                return;
-            }
-            var obj = LoadScene(reference);
-            if (obj == null)
-            {
-                Debug.LogWarning($"{BiomeLabel.Tag} Scene not found: {reference}");
-                return;
-            }
-            // Ping first so user can see it in the Project window.
-            EditorGUIUtility.PingObject(obj);
-            Selection.activeObject = obj;
-
-            // Offer to open the scene if it is not currently loaded.
-            var scenePath = AssetDatabase.GetAssetPath(obj);
-            var isLoaded  = false;
-            for (int i = 0; i < UnityEditor.SceneManagement.EditorSceneManager.sceneCount; i++)
-            {
-                var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneAt(i);
-                if (s.isLoaded && string.Equals(s.path, scenePath,
-                        System.StringComparison.Ordinal))
-                { isLoaded = true; break; }
-            }
-            if (!isLoaded && !string.IsNullOrEmpty(scenePath))
-            {
-                bool open;
-#if UNITY_INCLUDE_TESTS
-                // Suppress the modal dialog in tests unless the test explicitly sets the override.
-                open = DisplayDialogOverride != null && DisplayDialogOverride(reference);
-#else
-                open = EditorUtility.DisplayDialog("Open Scene?", $"Load '{reference}' in the Editor?", "Open", "Cancel");
-#endif
-                if (open)
-                {
-                    UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
-                        scenePath,
-                        UnityEditor.SceneManagement.OpenSceneMode.Additive);
-                }
-            }
-        }
-
-        public override void Ping(string reference)
-        {
-            var obj = LoadScene(reference);
-            if (obj != null) { EditorGUIUtility.PingObject(obj); Selection.activeObject = obj; }
-        }
-
-        // Full path or .unity extension → direct load; name-only → exact-name lookup.
-        private static Object LoadScene(string reference)
-        {
-            if (reference.Contains("/") || reference.EndsWith(".unity"))
-                return AssetDatabase.LoadAssetAtPath<Object>(reference);
-            var path = FindScenePathByExactName(reference);
-            return path != null ? AssetDatabase.LoadAssetAtPath<Object>(path) : null;
-        }
-
-        // FindAssets uses substring search; filter by exact filename to avoid "Level" matching "Level1".
-        internal static string FindScenePathByExactName(string sceneName)
-        {
-            var guids = AssetDatabase.FindAssets("t:Scene " + sceneName);
-            foreach (var guid in guids)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(guid);
-                if (Path.GetFileNameWithoutExtension(path) == sceneName)
-                    return path;
-            }
-            return null;
-        }
-    }
-
     internal sealed class ScriptChipProvider : AssetChipProviderBase
     {
         public override string Key      => ChipKindKeys.Script;
@@ -251,7 +24,7 @@ namespace UnityMCP.Editor.Chat
             AssetDatabase.OpenAsset(ms);
         }
 
-        public override void AppendContextMenuItems(DropdownMenu menu, string reference)
+        public override void AppendContextMenuItems(UnityEngine.UIElements.DropdownMenu menu, string reference)
         {
             menu.AppendAction("Ping in Project", _ => Ping(reference));
             menu.AppendAction("Open in IDE",     _ => Navigate(reference));
@@ -314,7 +87,7 @@ namespace UnityMCP.Editor.Chat
             => obj is DefaultAsset && !string.IsNullOrEmpty(assetPath)
                && AssetDatabase.IsValidFolder(assetPath);
 
-        public override void AppendContextMenuItems(DropdownMenu menu, string reference)
+        public override void AppendContextMenuItems(UnityEngine.UIElements.DropdownMenu menu, string reference)
         {
             menu.AppendAction("Open in Project", _ => Navigate(reference));
         }
@@ -373,59 +146,6 @@ namespace UnityMCP.Editor.Chat
             var ext = Path.GetExtension(assetPath).ToLowerInvariant();
             foreach (var e in _exts) if (ext == e) return true;
             return false;
-        }
-    }
-
-    /// <summary>
-    /// Chip kind for external image files dropped from Finder or pasted from clipboard.
-    /// Priority 50 — beats all asset providers (they need non-null obj).
-    /// CanHandle: obj must be null AND path must have an image extension.
-    /// FormatPayload returns "" — images are sent as binary image_url blocks, not text refs.
-    /// </summary>
-    internal sealed class ImageChipProvider : IChipKindProvider
-    {
-        private static readonly string[] _exts = { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tiff", ".tif" };
-
-        // Seam: View assembly wires this to ImageViewerWindow.Show at [InitializeOnLoad].
-        internal static Action<string> ImageFallbackViewer;
-
-        public string Key        => ChipKindKeys.Image;
-        public int    Priority   => 50;
-        public string IconName   => "d_Texture Icon";
-        public string HexColor   => "#f472b6";
-        public string DefaultDepth => "path";
-        public string[] BarePathExtensions => _exts;
-
-        public bool CanHandle(Object obj, string assetPath)
-        {
-            if (obj != null || string.IsNullOrEmpty(assetPath)) return false;
-            var ext = Path.GetExtension(assetPath).ToLowerInvariant();
-            foreach (var e in _exts) if (ext == e) return true;
-            return false;
-        }
-
-        public ChipData Create(Object obj, string assetPath)
-            => new ChipData(Key, assetPath, Path.GetFileName(assetPath), 0);
-
-        // Images go as binary image_url blocks — no text bracket needed.
-        public string FormatPayload(ChipData chip, ChipPayloadContext ctx) => "";
-
-        public void Navigate(string reference)
-        {
-            if (AssetChipProviderBase.ViewerLauncher?.Invoke(reference) == true) return;
-            ImageFallbackViewer?.Invoke(reference);
-        }
-
-        public void Ping(string reference)
-        {
-            // Images have no project asset to ping; reuse the viewer fallback.
-            Navigate(reference);
-        }
-
-        public void AppendContextMenuItems(DropdownMenu menu, string reference)
-        {
-            menu.AppendAction("Ping in Project", _ => Ping(reference));
-            menu.AppendAction("Open in Viewer",  _ => Navigate(reference));
         }
     }
 }
