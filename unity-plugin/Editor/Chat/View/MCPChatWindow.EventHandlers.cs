@@ -33,7 +33,13 @@ namespace UnityMCP.Editor.Chat
                     _resolver?.Refresh();
                     _lastRefresh = EditorApplication.timeSinceStartup;
                     _transcript?.FinalizeAssistant();
-                    if (ev.InputTokens > 0 || ev.OutputTokens > 0)
+                    if (ev.InputTokens < 0)
+                    {
+                        // Backend does not report usage — hide the bar rather than showing empty.
+                        _contextBar?.Update(-1,
+                            ModelContextWindows.GetContextWindow(_selectedModel, _selectedKind));
+                    }
+                    else if (ev.InputTokens > 0 || ev.OutputTokens > 0)
                     {
                         // result.usage carries cumulative session totals, not per-turn deltas.
                         _inputTokens  = ev.InputTokens;

@@ -22,6 +22,11 @@
     --chat-warn:             #e6a23c;
     --chat-warn-tint:        rgba(230, 162, 60, 0.15);
     --chat-warn-border:      rgba(230, 162, 60, 0.55);
+
+    /* CONTEXT PROGRESS BAR — fill colours by state */
+    --chat-bar-fill:         #4d9ef5;
+    --chat-bar-fill-warn:    var(--chat-warn);
+    --chat-bar-fill-danger:  #f04040;
 }
 
 /* Light overrides — only tokens that differ from dark defaults */
@@ -41,4 +46,8 @@
     --chat-warn:             #b7791f;
     --chat-warn-tint:        rgba(183, 121, 31, 0.15);
     --chat-warn-border:      rgba(183, 121, 31, 0.55);
+
+    /* CONTEXT PROGRESS BAR — light mode overrides */
+    --chat-bar-fill:         #1976d2;
+    --chat-bar-fill-danger:  #d32f2f;
 }
