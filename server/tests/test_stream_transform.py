@@ -654,19 +654,141 @@ def test_opencode_error_no_message_fallback():
     assert _transform_opencode_line(line, _ToolCallAcc()) == ["e|OpenCode error"]
 
 
-def test_opencode_tool_start_emits_tc():
+# ── _transform_opencode_line: tool_use completion events ─────────────────────
+# Real event format confirmed from: OpenCode binary v1.14.39 (strings analysis +
+# V("tool_use",{part:S}) call site) and actual part records in opencode.db.
+# Event fires on status=completed|error only. No separate tool_start event exists.
+
+# Real DB record: unity-mcp_get_hierarchy call (session from unity-kiss-mcp project)
+_OC_HIERARCHY_CALL_ID = "ec4e028c-f7c5-4ac9-80a5-cacf51cad0ce"
+_OC_HIERARCHY_OUTPUT  = "Main Camera #47744\nMenuCanvas #47976\nEventSystem #47888\n"
+
+def _oc_tool_use(tool: str, call_id: str, status: str, inp: dict, **state_extra) -> str:
+    """Build a real-format OpenCode tool_use NDJSON line."""
+    return json.dumps({
+        "type": "tool_use",
+        "timestamp": 1778049956537,
+        "sessionID": "ses_unity_kiss",
+        "part": {
+            "type": "tool",
+            "tool": tool,
+            "callID": call_id,
+            "state": {"status": status, "input": inp, **state_extra},
+        },
+    })
+
+
+def test_opencode_tool_use_completed_emits_tc_and_tr():
+    """Normal result: tool_use with status=completed emits tc| then tr|.
+    Data: real unity-mcp_get_hierarchy call from opencode.db."""
+    line = _oc_tool_use(
+        "unity-mcp_get_hierarchy", _OC_HIERARCHY_CALL_ID, "completed",
+        {"depth": 2, "components": False},
+        output=_OC_HIERARCHY_OUTPUT,
+        metadata={"truncated": False},
+    )
+    result = _transform_opencode_line(line, _ToolCallAcc())
+    assert len(result) == 2
+    tc, tr = result
+    assert tc == f'tc|unity-mcp_get_hierarchy|{_OC_HIERARCHY_CALL_ID}|{{"depth":2,"components":false}}'
+    assert tr == f"tr|{_OC_HIERARCHY_CALL_ID}|true|{_OC_HIERARCHY_OUTPUT}"
+
+
+def test_opencode_tool_use_empty_output_emits_tc_and_empty_tr():
+    """Empty output: tool completed with empty string → tr| with empty body."""
+    line = _oc_tool_use(
+        "bash", "cid-empty", "completed", {"command": "true"}, output="",
+    )
+    result = _transform_opencode_line(line, _ToolCallAcc())
+    assert len(result) == 2
+    assert result[0] == 'tc|bash|cid-empty|{"command":"true"}'
+    assert result[1] == "tr|cid-empty|true|"
+
+
+def test_opencode_tool_use_error_status_emits_false_tr():
+    """Error result: status=error, state.error field used, ok=false."""
+    line = _oc_tool_use(
+        "bash", "cid-err", "error", {"command": "rm -rf /"},
+        error="Permission denied",
+    )
+    result = _transform_opencode_line(line, _ToolCallAcc())
+    assert len(result) == 2
+    tc, tr = result
+    assert tc.startswith("tc|bash|cid-err|")
+    assert tr == "tr|cid-err|false|Permission denied"
+
+
+def test_opencode_tool_use_output_truncated_at_2000():
+    """Result longer than 2000 chars is cut at exactly _MAX_TOOL_RESULT_LEN."""
+    long_output = "X" * 3000
+    line = _oc_tool_use(
+        "bash", "cid-long", "completed", {"command": "cat big.txt"}, output=long_output,
+    )
+    result = _transform_opencode_line(line, _ToolCallAcc())
+    assert len(result) == 2
+    tr_text = result[1].split("|", 3)[3]
+    assert len(tr_text) == 2000
+
+
+def test_opencode_tool_use_no_prior_tc_announcement_still_works():
+    """tool_use is self-contained: emits tc+tr even with no prior state.
+    (OpenCode has no separate tool_start event; the completion event carries all info.)"""
+    acc = _ToolCallAcc()  # fresh accumulator — no prior tc| seen
+    line = _oc_tool_use(
+        "unity-mcp_get_component", "cid-fresh", "completed",
+        {"path": "/Camera", "component": "Transform"},
+        output="position: (0,0,0)",
+    )
+    result = _transform_opencode_line(line, acc)
+    assert len(result) == 2
+    assert result[0].startswith("tc|unity-mcp_get_component|cid-fresh|")
+    assert result[1] == "tr|cid-fresh|true|position: (0,0,0)"
+
+
+def test_opencode_two_tool_calls_sequential():
+    """Two tool_use events in sequence produce independent tc+tr pairs."""
+    acc = _ToolCallAcc()
+    call1 = _oc_tool_use(
+        "unity-mcp_get_hierarchy", "cid-1", "completed",
+        {"depth": 1}, output="Camera\n",
+    )
+    call2 = _oc_tool_use(
+        "unity-mcp_get_component", "cid-2", "completed",
+        {"path": "/Camera", "component": "Camera"}, output="fov: 60",
+    )
+    r1 = _transform_opencode_line(call1, acc)
+    r2 = _transform_opencode_line(call2, acc)
+    assert r1[0].startswith("tc|unity-mcp_get_hierarchy|cid-1|")
+    assert r1[1] == "tr|cid-1|true|Camera\n"
+    assert r2[0].startswith("tc|unity-mcp_get_component|cid-2|")
+    assert r2[1] == "tr|cid-2|true|fov: 60"
+
+
+def test_opencode_tool_use_no_tool_name_skips_tc():
+    """tool_use with missing tool name: no tc|, but still emits tr| if callID present."""
+    line = json.dumps({
+        "type": "tool_use",
+        "sessionID": "ses",
+        "part": {
+            "type": "tool",
+            "tool": "",
+            "callID": "cid-notool",
+            "state": {"status": "completed", "input": {}, "output": "ok"},
+        },
+    })
+    result = _transform_opencode_line(line, _ToolCallAcc())
+    assert len(result) == 1
+    assert result[0] == "tr|cid-notool|true|ok"
+
+
+# Legacy: tool_start was the original (incorrect) handler name; kept for history.
+# The real OpenCode event is tool_use (confirmed from binary v1.14.39).
+def test_opencode_tool_start_ignored():
+    """tool_start is NOT a real OpenCode event — unknown types return []."""
     line = json.dumps({
         "type": "tool_start",
         "part": {"name": "bash", "id": "tid_1", "input": {"cmd": "ls"}},
     })
-    result = _transform_opencode_line(line, _ToolCallAcc())
-    assert len(result) == 1
-    assert result[0].startswith("tc|bash|tid_1|")
-    assert '"cmd"' in result[0]
-
-
-def test_opencode_tool_start_no_name_returns_empty():
-    line = json.dumps({"type": "tool_start", "part": {"id": "tid_1"}})
     assert _transform_opencode_line(line, _ToolCallAcc()) == []
 
 

@@ -246,14 +246,24 @@ def _transform_opencode_line(line: str, acc: _ToolCallAcc) -> list[str]:
         part = obj.get("part") or {}
         return [f"e|{part.get('error', 'OpenCode error')}"]
 
-    if t == "tool_start":
-        part = obj.get("part") or {}
-        name = part.get("name", "")
-        tid = part.get("id", "")
-        args = json.dumps(part.get("input", {}), ensure_ascii=False, separators=(",", ":"))
-        return [f"tc|{name}|{tid}|{args}"] if name else []
+    if t == "tool_use":
+        # Real event: fires on status=completed|error (confirmed: OpenCode binary v1.14.39).
+        # Part fields differ from old wrong guess: tool/callID/state.input, not name/id/input.
+        part  = obj.get("part") or {}
+        name  = part.get("tool", "")
+        cid   = part.get("callID", "")
+        state = part.get("state") or {}
+        args  = json.dumps(state.get("input") or {}, ensure_ascii=False, separators=(",", ":"))
+        ok    = state.get("status", "") != "error"
+        result = str(state.get("output") or state.get("error") or "")[:_MAX_TOOL_RESULT_LEN]
+        out: list[str] = []
+        if name:
+            out.append(f"tc|{name}|{cid}|{args}")
+        if cid:
+            out.append(f"tr|{cid}|{'true' if ok else 'false'}|{result}")
+        return out
 
-    return []  # step_start, tool_finish, etc.
+    return []  # step_start, etc.
 
 
 def _transform_kimi_line(line: str, acc: _ToolCallAcc) -> list[str]:
