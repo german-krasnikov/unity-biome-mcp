@@ -19,6 +19,8 @@
 // RunSecondaryPass tests (C1):
 //   The protected static helper enforces marker-last for secondary passes.
 //   Double-red: remove or break RunSecondaryPass → BuildThrows test sees marker set → FAILS.
+//   Collapse IOException/Exception split → IOException test logs unexpected warning → FAILS.
+//   Remove LogWarning from Exception catch → NonIo test's LogAssert.Expect unsatisfied → FAILS.
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
@@ -331,7 +333,9 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             // RED B: if RunSecondaryPass sets marker before calling build(), this fails:
             //   first call sets marker → build throws → second call sees marker, skips → no content.
+            // Non-IO exception → warning expected (mirrors primary pass; unexpected warning fails test).
             var target = new VisualElement();
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\]"));
             try
             {
                 SecondaryPassBridge.Run(target, "sec-marker",
@@ -368,6 +372,37 @@ namespace UnityMCP.Editor.Chat.Tests
 
             Assert.IsFalse(buildCalled,
                 "build() must NOT be called when the guard marker is already set (idempotency)");
+        }
+
+        // ── RunSecondaryPass: exception surfacing mirrors primary pass ─────────────
+        //
+        // Non-IO → LogWarning (RED if catch swallows everything silently).
+        // IOException → silent (RED if IOException is caught by the Exception branch and warns).
+
+        [Test]
+        public void RunSecondaryPass_BuildThrows_NonIo_LogsWarning()
+        {
+            // RED: with bare catch { } no warning is emitted → LogAssert.Expect unsatisfied → FAILS.
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\]"));
+            var target = new VisualElement();
+            SecondaryPassBridge.Run(target, "sec-marker",
+                () => throw new System.InvalidOperationException("secondary error"));
+
+            Assert.IsFalse(target.ClassListContains("sec-marker"),
+                "Marker must NOT be set despite the warning");
+        }
+
+        [Test]
+        public void RunSecondaryPass_BuildThrows_Io_Silent()
+        {
+            // No LogAssert.Expect — IOException must produce NO log.
+            // Unity fails the test if an unexpected warning appears.
+            var target = new VisualElement();
+            SecondaryPassBridge.Run(target, "sec-marker",
+                () => throw new System.IO.IOException("file gone"));
+
+            Assert.IsFalse(target.ClassListContains("sec-marker"),
+                "Marker not set on IOException — retry allowed");
         }
     }
 }

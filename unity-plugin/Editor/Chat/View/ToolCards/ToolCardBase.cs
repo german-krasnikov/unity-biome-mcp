@@ -79,7 +79,12 @@ namespace UnityMCP.Editor.Chat
         {
             if (target.ClassListContains(markerClass)) return;
             try { if (build()) target.AddToClassList(markerClass); }
-            catch { } // no marker on failure → retry on next OnUpdate
+            catch (System.IO.IOException) { } // expected I/O race — silent, retry
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogWarning(
+                    $"[ToolCardBase] secondary pass {markerClass}: {ex.GetType().Name}: {ex.Message}");
+            }
         }
     }
 }

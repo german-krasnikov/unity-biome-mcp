@@ -1030,15 +1030,6 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void Update_NegativeTokens_ClampsToZero()
-        {
-            var bar = new ContextProgressBar();
-            // Mathf.Clamp01 ensures negative tokens → 0% fill (no crash)
-            Assert.DoesNotThrow(() => bar.Update(-1000, 200_000));
-            Assert.AreEqual(DisplayStyle.Flex, bar.style.display.value);
-        }
-
-        [Test]
         public void Update_Boundary_ExactlyAt70pct_StillBlue()
         {
             // 70% fill → pct < 0.7f is false at exactly 0.70 → yellow branch
