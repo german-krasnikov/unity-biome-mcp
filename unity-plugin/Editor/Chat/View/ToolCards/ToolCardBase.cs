@@ -10,7 +10,9 @@
 //
 // SECONDARY RENDER HOOK (OnAdditionalRender):
 //   Called on every OnUpdate once the primary marker is set.
-//   Subclass is responsible for its own idempotency guard (e.g. a second CSS marker).
+//   Use RunSecondaryPass for secondary idempotency guards — it enforces marker-last
+//   so a subclass cannot accidentally set a secondary marker before content is added.
+using System;
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.Chat
@@ -57,8 +59,27 @@ namespace UnityMCP.Editor.Chat
         /// <summary>
         /// Called on every OnUpdate after the primary marker is set.
         /// Override for multi-pass rendering (e.g. BashCard output fill).
-        /// Must be idempotent — guard with a secondary CSS marker if needed.
+        /// Use <see cref="RunSecondaryPass"/> for idempotency guards — it enforces marker-last.
         /// </summary>
         protected virtual void OnAdditionalRender(VisualElement chip, ToolCallRecord rec) { }
+
+        /// <summary>
+        /// Enforce marker-last and retry semantics for a secondary pass.
+        /// Call inside <see cref="OnAdditionalRender"/>.
+        /// <para>
+        /// Guard is checked first. If not set, <paramref name="build"/> is called inside a
+        /// try/catch. On success (<c>true</c>), marker is set LAST. On failure (exception or
+        /// <c>false</c>), marker is not set — next OnUpdate call can retry.
+        /// </para>
+        /// </summary>
+        /// <param name="target">Element whose class list owns the guard (may differ from chip).</param>
+        /// <param name="markerClass">CSS class used as the idempotency guard.</param>
+        /// <param name="build">Returns true when content was successfully added.</param>
+        protected static void RunSecondaryPass(VisualElement target, string markerClass, Func<bool> build)
+        {
+            if (target.ClassListContains(markerClass)) return;
+            try { if (build()) target.AddToClassList(markerClass); }
+            catch { } // no marker on failure → retry on next OnUpdate
+        }
     }
 }

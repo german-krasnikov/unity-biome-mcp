@@ -118,6 +118,46 @@ namespace UnityMCP.Editor.Chat.Tests
                 "MultiEdit must be registered by CodeEditDiffRenderer [InitializeOnLoad]");
         }
 
+        // ── C2: primary-pass retry contract ──────────────────────────────────────
+        //
+        // Double-red:
+        //   RED A: corrupt Assert.IsFalse → immediate failure.
+        //   RED B: revert CodeEditDiffRenderer to set "diff-rendered" marker BEFORE
+        //          RenderEdits (old IToolCardRenderer OnUpdate pattern) → seam fires after
+        //          marker is set → chip.ClassListContains("diff-rendered") returns TRUE →
+        //          Assert.IsFalse FAILS.
+
+        [Test]
+        public void OnUpdate_RenderEditsThrows_MarkerNotSetAllowsRetry()
+        {
+            CodeEditDiffRenderer._renderEditsException =
+                new System.InvalidOperationException("simulated RenderEdits failure");
+            RegisterCleanup(() => { CodeEditDiffRenderer._renderEditsException = null; });
+
+            var chip = new VisualElement();
+            var rec  = MakeRec("Edit",
+                "{\"file_path\":\"Foo.cs\",\"old_string\":\"x\",\"new_string\":\"y\"}");
+
+            // In the RED state the exception propagates (old OnUpdate, no try/catch around it).
+            // In the GREEN state ToolCardBase catches it before the marker is set.
+            try { _renderer.OnUpdate(chip, rec); } catch { }
+
+            Assert.IsFalse(chip.ClassListContains("diff-rendered"),
+                "Marker must NOT be set when RenderEdits throws. " +
+                "Bug: marker placed before RenderEdits — card frozen, no retry.");
+            Assert.IsNull(chip.Q(className: "code-diff-block"),
+                "No diff block after failed primary build");
+
+            // Retry: clear seam, next call must render successfully.
+            CodeEditDiffRenderer._renderEditsException = null;
+            _renderer.OnUpdate(chip, rec);
+
+            Assert.IsTrue(chip.ClassListContains("diff-rendered"),
+                "Marker must be set after successful retry");
+            Assert.IsNotNull(chip.Q(className: "code-diff-block"),
+                "Diff block must be present after retry");
+        }
+
         // ── Collapse threshold (≥5 edits → Foldout) ─────────────────────────
 
         private static string MakeEditsJson(int count)
