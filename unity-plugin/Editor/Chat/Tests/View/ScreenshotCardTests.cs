@@ -133,7 +133,7 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Retry after failed build ─────────────────────────────────────────────
 
         /// <summary>
-        /// Verifies that if content building throws (file disappears after File.Exists check),
+        /// Verifies that if content building throws (file locked at read time),
         /// the rendered marker is NOT set — so the next OnUpdate can retry successfully.
         ///
         /// RED B: move "screenshot-card-rendered" AddToClassList above BuildImageElement →
@@ -151,20 +151,25 @@ namespace UnityMCP.Editor.Chat.Tests
             File.WriteAllBytes(tmpPath, tex.EncodeToPNG());
             Object.DestroyImmediate(tex);
 
+            var card = new ScreenshotCard();
+            var chip = new VisualElement();
+            var rec  = new ToolCallRecord("screenshot", "id-retry", "{}",
+                $"Data saved to: {tmpPath}");
+
             try
             {
-                // Make file unreadable: File.Exists=true, ReadAllBytes throws UnauthorizedAccessException.
-                // This reproduces the TOCTOU scenario (file existed at check time, gone at read time).
-                Chmod(tmpPath, "000");
-
-                var card = new ScreenshotCard();
-                var chip = new VisualElement();
-                var rec  = new ToolCallRecord("screenshot", "id-retry", "{}",
-                    $"Data saved to: {tmpPath}");
-
-                LogAssert.ignoreFailingMessages = true;
-                card.OnUpdate(chip, rec);   // must NOT propagate exception; marker must NOT be set
-                LogAssert.ignoreFailingMessages = false;
+                // Cross-platform: hold an exclusive FileStream so File.ReadAllBytes throws IOException.
+                // File.Exists returns true (file is present), but the read fails — reproduces the
+                // TOCTOU scenario without platform-specific utilities.
+                // Mono (Unity Editor runtime) enforces FileShare.None in a process-level lock table,
+                // so any concurrent FileStream open (including File.ReadAllBytes) throws.
+                using (var lockStream = new FileStream(tmpPath, FileMode.Open,
+                    FileAccess.Read, FileShare.None))
+                {
+                    LogAssert.ignoreFailingMessages = true;
+                    card.OnUpdate(chip, rec);   // must NOT propagate exception; marker must NOT be set
+                    LogAssert.ignoreFailingMessages = false;
+                }
 
                 Assert.AreEqual(0, chip.childCount,
                     "Unreadable file must produce no content on first call");
@@ -172,9 +177,7 @@ namespace UnityMCP.Editor.Chat.Tests
                     "Marker must NOT be set after a failed build. " +
                     "Bug: marker was placed before content, blocking all future retries.");
 
-                // Restore readability → retry must now render
-                Chmod(tmpPath, "644");
-
+                // Lock released → retry must now render
                 LogAssert.ignoreFailingMessages = true;
                 card.OnUpdate(chip, rec);
                 LogAssert.ignoreFailingMessages = false;
@@ -186,18 +189,9 @@ namespace UnityMCP.Editor.Chat.Tests
             }
             finally
             {
-                Chmod(tmpPath, "644");
                 if (File.Exists(tmpPath)) File.Delete(tmpPath);
                 ImageBlockRenderer.ClearCache();
             }
-        }
-
-        private static void Chmod(string path, string mode)
-        {
-            using var p = System.Diagnostics.Process.Start(
-                new System.Diagnostics.ProcessStartInfo("/bin/chmod", $"{mode} \"{path}\"")
-                { UseShellExecute = false });
-            p?.WaitForExit();
         }
 
         // ── Grouper bypass: real ScreenshotCard must trigger card-chip class ─────
