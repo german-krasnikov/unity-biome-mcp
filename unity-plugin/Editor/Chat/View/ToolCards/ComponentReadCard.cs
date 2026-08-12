@@ -135,8 +135,12 @@ namespace UnityMCP.Editor.Chat
 
             // $HEX IDs resolve via TransientObjectId → link to Hierarchy.
             // #decimal IDs do not; HierarchyReference.Parse cannot resolve them.
+            // "comp-read-nav" marks navigable labels — tested in M4.
             if (args.ObjectId != null && args.ObjectId.StartsWith("$"))
+            {
+                idLabel.AddToClassList("comp-read-nav");
                 NavBindingHelper.Attach(idLabel, new NavTarget(ChipKindKeys.Hierarchy, args.ObjectId));
+            }
 
             row.Add(idLabel);
             chip.Add(row);
@@ -147,10 +151,13 @@ namespace UnityMCP.Editor.Chat
         private static void EnrichWithProperties(VisualElement chip, string resultText)
         {
             if (chip.ClassListContains(PropsPopulated)) return;
-            chip.AddToClassList(PropsPopulated); // claim guard before any allocations
 
+            // Parse BEFORE setting guard: an empty result (HasResult=true, ResultText="")
+            // must NOT block a subsequent call with real data.
             var propLines = ParsePropLines(resultText);
             if (propLines.Count == 0) return;
+
+            chip.AddToClassList(PropsPopulated); // guard set only when content will be added
 
             var container = new VisualElement();
             container.AddToClassList("comp-read-props");
@@ -187,9 +194,11 @@ namespace UnityMCP.Editor.Chat
         private static void EnrichWithComponentsList(VisualElement chip, string resultText)
         {
             if (chip.ClassListContains(ResultPopulated)) return;
-            chip.AddToClassList(ResultPopulated);
 
+            // Check content BEFORE setting guard — empty string must not block real data.
             if (string.IsNullOrEmpty(resultText)) return;
+
+            chip.AddToClassList(ResultPopulated); // guard set only when content will be added
 
             // Result format: one type name per line (Transform excluded by C# side)
             var display = resultText.Trim().Replace('\n', ',').TrimEnd(',');
@@ -213,7 +222,12 @@ namespace UnityMCP.Editor.Chat
             return result;
         }
 
-        private static string Truncate(string s, int maxLen) =>
-            s != null && s.Length > maxLen ? s.Substring(0, maxLen) + "…" : s ?? "";
+        private static string Truncate(string s, int maxLen)
+        {
+            if (s == null || s.Length <= maxLen) return s ?? "";
+            // Avoid splitting a surrogate pair: back up one if last included char is a high surrogate
+            int cut = maxLen > 0 && char.IsHighSurrogate(s[maxLen - 1]) ? maxLen - 1 : maxLen;
+            return s.Substring(0, cut) + "…";
+        }
     }
 }
