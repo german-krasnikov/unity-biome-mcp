@@ -58,6 +58,24 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("/var/folders/tmp/screenshot 2026.png", result);
         }
 
+        // ── Pattern priority: first match wins ─────────────────────────────────
+
+        /// <summary>
+        /// When both primary patterns appear, "Data saved to:" must win (first-match semantics).
+        /// RED B: swap "Baseline saved:" before "Data saved to:" in ExtractPath → this fails.
+        /// </summary>
+        [Test]
+        public void ExtractPath_DataSavedAndBaselineBothPresent_DataSavedWins()
+        {
+            const string text =
+                "Data saved to: /Users/german/ScreenShots/primary.png\n" +
+                "Baseline saved: /Users/german/Baselines/secondary.png";
+            var result = ScreenshotResultParser.ExtractPath(text);
+            Assert.AreEqual("/Users/german/ScreenShots/primary.png", result,
+                "'Data saved to:' is the primary pattern and must win over 'Baseline saved:' " +
+                "when both appear in the same result text.");
+        }
+
         // ── No match → null ─────────────────────────────────────────────────────
 
         [Test]

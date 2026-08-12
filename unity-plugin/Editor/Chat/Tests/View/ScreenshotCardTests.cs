@@ -4,6 +4,7 @@
 //   A — break any Assert → test goes RED
 //   B — remove registration (ToolCardRendererRegistry.Unregister) → registration test RED
 //       OR make ExtractPath return null → image tests RED
+//       OR move "screenshot-card-rendered" marker above content → retry test RED
 //
 // Test data: real paths including spaces and Cyrillic; missing file paths;
 // multi-turn idempotency. Texture loading requires a real file on disk.
@@ -87,8 +88,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 "Fallback label must be added for a missing file");
             Assert.IsInstanceOf<Label>(chip[0],
                 "Fallback for a missing file must be a Label, not an Image");
-            chip.AddToClassList("screenshot-card-rendered"); // re-call idempotency check
-            card.OnUpdate(chip, rec); // second call must be no-op
+            card.OnUpdate(chip, rec); // second call must be no-op (marker already set by first call)
             Assert.AreEqual(1, chip.childCount,
                 "Second OnUpdate must be idempotent after fallback rendered");
         }
@@ -147,6 +147,76 @@ namespace UnityMCP.Editor.Chat.Tests
             card.OnUpdate(chip, rec); // must be idempotent
             Assert.AreEqual(1, chip.childCount,
                 "Second OnUpdate call must not add a duplicate child (idempotency)");
+        }
+
+        // ── Retry after failed build ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Verifies that if content building throws (file disappears after File.Exists check),
+        /// the rendered marker is NOT set — so the next OnUpdate can retry successfully.
+        ///
+        /// RED B: move "screenshot-card-rendered" AddToClassList above BuildImageElement →
+        ///        first call sets the marker before throwing; second call exits early; test fails.
+        /// </summary>
+        [Test]
+        public void OnUpdate_ContentBuildThrows_CardRetriableOnNextCall()
+        {
+            var tmpPath = Path.Combine(
+                Path.GetTempPath(), "screenshot_retry_test_карточка.png");
+
+            var tex = new Texture2D(1, 1);
+            tex.SetPixel(0, 0, Color.magenta);
+            tex.Apply();
+            File.WriteAllBytes(tmpPath, tex.EncodeToPNG());
+            Object.DestroyImmediate(tex);
+
+            try
+            {
+                // Make file unreadable: File.Exists=true, ReadAllBytes throws UnauthorizedAccessException.
+                // This reproduces the TOCTOU scenario (file existed at check time, gone at read time).
+                Chmod(tmpPath, "000");
+
+                var card = new ScreenshotCard();
+                var chip = new VisualElement();
+                var rec  = new ToolCallRecord("screenshot", "id-retry", "{}",
+                    $"Data saved to: {tmpPath}");
+
+                LogAssert.ignoreFailingMessages = true;
+                card.OnUpdate(chip, rec);   // must NOT propagate exception; marker must NOT be set
+                LogAssert.ignoreFailingMessages = false;
+
+                Assert.AreEqual(0, chip.childCount,
+                    "Unreadable file must produce no content on first call");
+                Assert.IsFalse(chip.ClassListContains("screenshot-card-rendered"),
+                    "Marker must NOT be set after a failed build. " +
+                    "Bug: marker was placed before content, blocking all future retries.");
+
+                // Restore readability → retry must now render
+                Chmod(tmpPath, "644");
+
+                LogAssert.ignoreFailingMessages = true;
+                card.OnUpdate(chip, rec);
+                LogAssert.ignoreFailingMessages = false;
+
+                Assert.AreEqual(1, chip.childCount,
+                    "Card must render the image on retry after file becomes readable");
+                Assert.IsTrue(chip.ClassListContains("screenshot-card-rendered"),
+                    "Marker must be set after successful render");
+            }
+            finally
+            {
+                Chmod(tmpPath, "644");
+                if (File.Exists(tmpPath)) File.Delete(tmpPath);
+                ImageBlockRenderer.ClearCache();
+            }
+        }
+
+        private static void Chmod(string path, string mode)
+        {
+            using var p = System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo("/bin/chmod", $"{mode} \"{path}\"")
+                { UseShellExecute = false });
+            p?.WaitForExit();
         }
 
         // ── Grouper bypass: real ScreenshotCard must trigger card-chip class ─────

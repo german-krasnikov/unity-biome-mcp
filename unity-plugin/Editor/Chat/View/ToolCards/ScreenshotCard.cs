@@ -4,6 +4,7 @@
 // Ownership: ImageBlockRenderer._cache owns all Texture2D instances — ScreenshotCard never
 // creates or destroys textures directly. Fallback to AltLabel when file is missing or path
 // is unresolvable.
+using System;
 using System.IO;
 using UnityEditor;
 using UnityEngine.UIElements;
@@ -32,18 +33,26 @@ namespace UnityMCP.Editor.Chat
             if (!rec.HasResult) return;                                // result not arrived yet
             if (chip.ClassListContains(RenderedClass)) return;         // idempotency
 
-            chip.AddToClassList(RenderedClass);
-
             var path = ScreenshotResultParser.ExtractPath(rec.ResultText);
             if (path == null || !File.Exists(path))
             {
                 chip.Add(ImageBlockRenderer.AltLabel(path ?? rec.ResultText));
+                chip.AddToClassList(RenderedClass);                    // AFTER content added
                 return;
             }
 
-            var el = ImageBlockRenderer.BuildImageElement(path, "screenshot");
-            el.style.maxHeight = MaxThumbnailHeight;
-            chip.Add(el);
+            try
+            {
+                var el = ImageBlockRenderer.BuildImageElement(path, "screenshot");
+                el.style.maxHeight = MaxThumbnailHeight;
+                chip.Add(el);
+                chip.AddToClassList(RenderedClass);                    // AFTER content added
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // File disappeared after File.Exists check (TOCTOU). Don't mark rendered —
+                // OnUpdate will retry on the next Editor frame.
+            }
         }
     }
 }
