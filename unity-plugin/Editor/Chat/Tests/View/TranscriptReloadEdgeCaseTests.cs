@@ -284,28 +284,29 @@ namespace UnityMCP.Editor.Chat.Tests
                 "both TaskCreates land in the same stale card");
         }
 
-        // 16b. FIX: with FinalizeAssistant before error chip, _taskCard is cleared →
-        //      next turn's TaskCreate creates a separate card.
+        // 16b. FIX: MCPChatWindow.ApplyErrorTurn calls FinalizeAssistant internally,
+        //      so the next turn's TaskCreate gets a fresh card.
+        //      RED B: remove FinalizeAssistant from ApplyErrorTurn → test fails (1 stale card).
         [Test]
-        public void ErrorChip_WithFinalizeAssistant_CreatesNewTaskCard()
+        public void ErrorTurn_ViaProductionMethod_ClearsTaskCardAndCreatesNew()
         {
             var t = Make(out var c);
 
-            // Turn 1: assistant streams and TaskCreate fires
+            // Turn 1: TaskCreate fires (sets _taskCard)
             t.AppendOrExtendAssistant("Создаю задачу: анализ сцены «Возрождение»");
             t.AppendToolChip("TaskCreate", ok: true, toolId: "task-т1-01");
 
-            // T1.2 FIX: FinalizeAssistant clears _taskCard before error chip
-            t.FinalizeAssistant();
-            t.AppendToolChip("✕ Ошибка подключения к Claude API", ok: false);
+            // Call the actual production method that EventHandlers invokes for Error events.
+            // If FinalizeAssistant is removed from ApplyErrorTurn, only 1 card appears → RED.
+            MCPChatWindow.ApplyErrorTurn(t, "✕ Ошибка подключения к Claude API");
 
-            // Next turn: fresh TaskCreate gets its own card
+            // Next turn: fresh TaskCreate must get its own card
             t.AppendToolChip("TaskCreate", ok: true, toolId: "task-т2-02");
 
             var taskCards = c.Query(className: TaskChecklistCard.CardClass).ToList();
             Assert.AreEqual(2, taskCards.Count,
-                "with FinalizeAssistant before error chip, _taskCard is cleared; " +
-                "each turn's TaskCreate produces its own card");
+                "ApplyErrorTurn must call FinalizeAssistant first — removing it leaves " +
+                "_taskCard stale and both TaskCreates land in the same card");
         }
 
         // ── T1.6: multi-image paths survive serialize/deserialize ─────────────────

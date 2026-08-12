@@ -80,8 +80,7 @@ namespace UnityMCP.Editor.Chat
                     ReloadGuard.OnTurnFinished(); // #1 unlock even on error
                     _askPending = false;
                     if (_activity.Fail()) OnActivityChanged();
-                    _transcript?.FinalizeAssistant(); // T1.2: close grouper + clear _taskCard before error chip
-                    _transcript?.AppendToolChip(ev.Text ?? "Error", ok: false);
+                    ApplyErrorTurn(_transcript, ev.Text); // T1.2: extracted for testability
                     ResetTurnFlags(); // P0-2: DRY reset (was 3 inline assignments)
                     // F6: partial mutations still restorable on error.
                     _undoTracker.OnTurnFailed();
@@ -141,6 +140,15 @@ namespace UnityMCP.Editor.Chat
                         _transcript?.AppendThinkingBlock(ev.Text);
                     break;
             }
+        }
+
+        /// <summary>Error-event transcript operations extracted so EditMode tests
+        /// can call the production method directly without CreateGUI context.
+        /// Red B: removing FinalizeAssistant here makes the test fail (stale _taskCard).</summary>
+        internal static void ApplyErrorTurn(ChatTranscript transcript, string errorText)
+        {
+            transcript?.FinalizeAssistant(); // T1.2: clear _taskCard before error chip
+            transcript?.AppendToolChip(errorText ?? "Error", ok: false);
         }
 
         private void OnMcpAskUser(string requestId, string rawQuestionsJson)

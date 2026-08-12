@@ -33,7 +33,7 @@ namespace UnityMCP.Editor.Chat
 
         public void OnUpdate(VisualElement chip, ToolCallRecord rec)
         {
-            if (rec.ArgsJson == null) return;
+            if (string.IsNullOrEmpty(rec.ArgsJson)) return; // T1.1: empty string must also skip
 
             if (!chip.ClassListContains("mutation-rendered"))
             {
