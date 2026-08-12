@@ -32,7 +32,13 @@ namespace UnityMCP.Editor.Chat
                     if (TryBuildContent(chip, rec))
                         chip.AddToClassList(_renderedClass); // ALWAYS last; base owns this line
                 }
-                catch { } // build failed — no marker, next call can retry
+                catch (System.IO.IOException) { } // expected I/O race (file gone) — silent, retry
+                catch (System.Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning(
+                        $"[ToolCardBase] {_renderedClass}: TryBuildContent threw " +
+                        $"{ex.GetType().Name}: {ex.Message}");
+                }
             }
 
             if (chip.ClassListContains(_renderedClass))

@@ -49,7 +49,7 @@ namespace UnityMCP.Editor.Chat
             if (rec.Id != null && !_rowByToolId.TryGetValue(rec.Id, out _))
             {
                 var row = BuildRow(args.Subject);
-                if (rec.Id != null) _rowByToolId[rec.Id] = row;
+                _rowByToolId[rec.Id] = row; // rec.Id non-null guaranteed by outer if
                 card.Add(row);
             }
 

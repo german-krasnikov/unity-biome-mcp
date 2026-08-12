@@ -260,10 +260,18 @@ namespace UnityMCP.Editor.Chat.Tests
 
         // ── T1.2: FinalizeAssistant before error chip clears _taskCard ────────────
 
-        // 16a. BUG reference: without FinalizeAssistant before error chip,
-        //      _taskCard is not cleared → second TaskCreate reuses stale card.
+        // 16a. BUG SNAPSHOT — raw AppendToolChip without FinalizeAssistant leaves _taskCard stale.
+        //
+        // THIS ASSERTION RECORDS THE BUG STATE (taskCards.Count == 1 = stale card).
+        // RED when fixed: if AppendToolChip is improved to clear _taskCard on error chip,
+        //   this test goes RED — that IS the improvement.
+        //   → Change Assert.AreEqual from 1 to 2 (two distinct cards).
+        //   → Confirm 16b (ErrorTurn_ViaProductionMethod_ClearsTaskCardAndCreatesNew) still passes.
+        //
+        // The production path already handles this correctly:
+        //   MCPChatWindow.ApplyErrorTurn → FinalizeAssistant → ClearForNextTurn (see 16b).
         [Test]
-        public void ErrorChip_WithoutFinalizeAssistant_StalesTaskCard()
+        public void ErrorChip_WithoutFinalizeAssistant_BugSnapshot_StalesTaskCard()
         {
             var t = Make(out var c);
 

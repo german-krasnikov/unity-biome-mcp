@@ -59,12 +59,37 @@ namespace UnityMCP.Editor.Chat
             foreach (var type in TypeCache.GetTypesDerivedFrom<IBackendProvider>())
             {
                 if (type.IsAbstract || type.IsInterface) continue;
-                try { result.Add((IBackendProvider)Activator.CreateInstance(type)); }
-                catch { /* skip broken providers */ }
+                if (TryInstantiate(type, out var p)) result.Add(p);
             }
 #endif
             result.Sort((a, b) => a.SortOrder.CompareTo(b.SortOrder));
             return result;
         }
+
+        // Returns false and logs a warning when instantiation fails.
+        // MissingMethodException (no parameterless ctor) is skipped silently — those are
+        // test stubs or abstract-like types, not broken providers.
+        private static bool TryInstantiate(Type type, out IBackendProvider provider)
+        {
+            provider = null;
+            try
+            {
+                provider = (IBackendProvider)Activator.CreateInstance(type);
+                return true;
+            }
+            catch (MissingMethodException) { return false; } // no parameterless ctor — skip
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogWarning(
+                    $"[BackendProviderRegistry] Failed to instantiate {type.Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+#if UNITY_INCLUDE_TESTS
+        // Exposes TryInstantiate for unit tests — same production logic, bypasses TypeCache.
+        internal static bool TryInstantiate_ForTest(Type type, out IBackendProvider p)
+            => TryInstantiate(type, out p);
+#endif
     }
 }

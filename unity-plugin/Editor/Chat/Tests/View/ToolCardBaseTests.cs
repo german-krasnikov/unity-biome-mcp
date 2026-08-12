@@ -8,7 +8,12 @@
 //   second call sees marker, skips, no content → Assert.AreEqual(1, childCount) FAILS.
 //   Remove the "if (built)" guard → ReturnsFalse test fails (marker set when not ready).
 //   Remove OnAdditionalRender call → AdditionalRenderCalled test fails.
+//   Collapse IOException/Exception split → IOException test logs unexpected warning → FAILS.
+//   Remove LogWarning from Exception catch → NRE test's LogAssert.Expect unsatisfied → FAILS.
+using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
 using UnityMCP.Editor.Testing;
@@ -56,6 +61,22 @@ namespace UnityMCP.Editor.Chat.Tests
             }
         }
 
+        /// <summary>Always throws IOException — the silent/expected case (file gone between check and read).</summary>
+        private sealed class IoCard : ToolCardBase
+        {
+            public IoCard() : base("io-rendered") { }
+            protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
+                => throw new System.IO.IOException("file gone between check and read");
+        }
+
+        /// <summary>Throws NullReferenceException — must produce a LogWarning.</summary>
+        private sealed class NreCard : ToolCardBase
+        {
+            public NreCard() : base("nre-rendered") { }
+            protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
+                => throw new System.NullReferenceException("simulated null");
+        }
+
         /// <summary>Counts OnAdditionalRender calls.</summary>
         private sealed class AdditionalRenderCard : ToolCardBase
         {
@@ -91,6 +112,9 @@ namespace UnityMCP.Editor.Chat.Tests
             var chip = new VisualElement();
             var rec  = MakeRec();
 
+            // ThrowingCard throws InvalidOperationException (non-IO) → must log a warning.
+            // RED if LogWarning removed from the Exception catch in OnUpdate.
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\].*test-rendered"));
             card.OnUpdate(chip, rec); // first call throws internally — must not propagate
 
             Assert.IsFalse(chip.ClassListContains("test-rendered"),
@@ -134,7 +158,9 @@ namespace UnityMCP.Editor.Chat.Tests
             var chip = new VisualElement();
             var rec  = MakeRec();
 
-            // Skip first-throw, let second succeed
+            // Skip first-throw, let second succeed.
+            // ThrowingCard throws InvalidOperationException (non-IO) → warning logged.
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\].*test-rendered"));
             try { card.OnUpdate(chip, rec); } catch { }
             card.OnUpdate(chip, rec); // sets marker
 
@@ -163,6 +189,39 @@ namespace UnityMCP.Editor.Chat.Tests
             card.OnUpdate(chip, rec); // marker already set — hook called again
             Assert.AreEqual(2, card.AdditionalCallCount,
                 "OnAdditionalRender must be called on every subsequent update (base does not guard it)");
+        }
+
+        // ── IOException is silent (expected I/O race) ─────────────────────────────
+        //
+        // RED if the IOException catch is removed (merged into the Exception catch):
+        //   IoCard throws IOException → LogWarning is called → Unity fails the test
+        //   because an unexpected warning appeared.
+
+        [Test]
+        public void OnUpdate_TryBuildThrowsIO_Silent_NoWarningAndAllowsRetry()
+        {
+            var card = new IoCard();
+            var chip = new VisualElement();
+            // No LogAssert.Expect — IOException must produce NO log (silent, expected I/O race).
+            // Unity fails the test if an unexpected warning appears.
+            card.OnUpdate(chip, MakeRec());
+            Assert.IsFalse(chip.ClassListContains("io-rendered"),
+                "Marker not set on IOException — retry allowed");
+        }
+
+        // ── Non-IO exceptions log a warning ──────────────────────────────────────
+        //
+        // RED if LogWarning is removed from the Exception catch in OnUpdate.
+
+        [Test]
+        public void OnUpdate_TryBuildThrowsNRE_LogsWarning()
+        {
+            var card = new NreCard();
+            var chip = new VisualElement();
+            LogAssert.Expect(LogType.Warning, new Regex(@"\[ToolCardBase\].*nre-rendered"));
+            card.OnUpdate(chip, MakeRec());
+            Assert.IsFalse(chip.ClassListContains("nre-rendered"),
+                "Marker not set on NRE — retry allowed");
         }
 
         // ── OnStart is a no-op ────────────────────────────────────────────────────
