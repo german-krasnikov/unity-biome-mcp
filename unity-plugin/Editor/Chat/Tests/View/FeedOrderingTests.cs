@@ -96,5 +96,41 @@ namespace UnityMCP.Editor.Chat.Tests
                 Assert.IsNull(foldout.Q(className: "card-chip"),
                     "card-chip must NOT be hidden inside the collapsed tool-group foldout");
         }
+
+        // T0.2: grouper regression — two consecutive read-tool calls in one turn must BOTH
+        // appear as visible card-chip elements, not be collapsed into a tool-group foldout.
+        // This is the exact failure mode from the prior iteration: grouper silently absorbed
+        // all chips when 2+ tool calls were present, even when renderers were registered.
+        // UnityMcpTestBase isolates ToolCardRendererRegistry; registrations here are temporary.
+        [Test]
+        public void TwoReadCards_BothVisibleInFeed_NotAbsorbedByGrouper()
+        {
+            // Fake renderers simulate future get_hierarchy/get_component card implementations.
+            // Without registered renderers the grouper absorbs both chips → Count == 0 → RED.
+            ToolCardRendererRegistry.Register("get_hierarchy", new FakeReadRenderer());
+            ToolCardRendererRegistry.Register("get_component", new FakeReadRenderer());
+
+            var t = MakeTranscript(out var container);
+            t.AppendToolChip("get_hierarchy", ok: true, toolId: "id1");
+            t.AppendToolChip("get_component", ok: true, toolId: "id2");
+            t.FinalizeAssistant();
+
+            // POSITIVE: both chips must carry card-chip (grouper bypass fired for each).
+            var cardChips = container.Query(className: "card-chip").ToList();
+            Assert.AreEqual(2, cardChips.Count,
+                "Both read cards must bypass the grouper and appear as card-chip elements");
+
+            // POSITIVE: no card-chip may be hidden inside a collapsed tool-group foldout.
+            var foldout = container.Q<Foldout>(className: "tool-group");
+            if (foldout != null)
+                Assert.IsNull(foldout.Q(className: "card-chip"),
+                    "No card-chip may reside inside a collapsed tool-group foldout");
+        }
+
+        private sealed class FakeReadRenderer : IToolCardRenderer
+        {
+            public void OnStart(VisualElement chip, ToolCallRecord rec) { }
+            public void OnUpdate(VisualElement chip, ToolCallRecord rec) { }
+        }
     }
 }
