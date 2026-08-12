@@ -29,6 +29,19 @@ In-Unity MCP Chat window: partial `MCPChatWindow`, Markdown-to-UIElements render
 - `Chat/CLI/ChatEvent.cs` — Normalized relay event
 - `Chat/CLI/InlineChipData.cs`, `InlineChipModel.cs` — User input chip data
 - `Chat/CLI/ToolCallRecord.cs` — MCP tool invocation and result
+- `Chat/View/ToolCards/ToolCardBase.cs` — Shared base for read-only tool renderers (idempotency, marker-last order, exception safety)
+
+### Tool Cards (Read-Only Renderers)
+- `Chat/View/ToolCards/ScreenshotCard.cs` — `screenshot` + `screenshot_baseline` results as thumbnail preview (max 160px height); click-to-open via `ImageBlockRenderer`
+- `Chat/View/ToolCards/HierarchyCard.cs` — `get_hierarchy` text-tree with depth-indented nodes; shows ≤20 nodes, "Show more" button reveals remainder; click-to-select via `NavBindingHelper`
+- `Chat/View/ToolCards/BashCard.cs` — `Bash` tool results: description (optional), command line, output (≤20 lines visible, "Show more" for rest); red border for non-zero exit; truncation indicator at ≥2000 chars (T0.1 threshold)
+- `Chat/View/ToolCards/ComponentReadCard.cs` — `get_component`, `inspect`, `get_components_list` results: clickable object path, component type(s), property list (≤20 visible, "Show more" for rest); $HEX IDs resolve via hierarchy navigation, #decimal IDs render as plain labels
+
+### Parsers (Result Extraction)
+- `Chat/CLI/Parsers/ScreenshotResultParser.cs` — Extracts image file path from result text
+- `Chat/CLI/Parsers/HierarchyResultParser.cs` — Parses text-tree into `HierarchyNode[]` (name, depth, inactive marker, hidden child count, hex ref)
+- `Chat/CLI/Parsers/BashArgsParser.cs` — Extracts command and description from args JSON
+- `Chat/CLI/Parsers/ComponentReadArgsParser.cs` — Extracts path, component type, object list from args per tool name
 
 ## MCPChatWindow (Main Window) — Partials
 
@@ -215,6 +228,22 @@ ChipKindRegistry.Register(new SceneChipProvider());  // 3rd party
 
 **Integration:** Chat window can trigger overlay updates via static actions.
 
+## ToolCardBase Pattern (Read-Only Tool Rendering)
+
+**Purpose:** Shared rendering lifecycle enforcing "content before marker" order (prevents empty cards from failed builds).
+
+**Subclass flow:**
+1. `TryBuildContent(chip, rec)` — called every frame until true; returns false if args not ready; must not set marker
+2. Base sets "rendered" marker LAST (after TryBuildContent returns true) — guarantees marker only set when content is built
+3. `OnAdditionalRender(chip, rec)` — called every time marker is set (for two-pass renderers); implement own guard ("props-populated") if result data arrives separately
+4. Exception in TryBuildContent does not set marker → retry on next frame (TOCTOU-safe)
+
+**Key fields:**
+- `_renderedMarkerKey` — CSS class name set at the end (e.g., "screenshot-card-rendered", "hierarchy-rendered")
+- `_showMoreLimit` — elements per page (20 for most cards); `ShowMoreButton.Append` handles pagination
+
+**Four built-in subclasses:** ScreenshotCard, HierarchyCard, BashCard, ComponentReadCard. All register via `[InitializeOnLoad]` static ctor with `ToolCardRendererRegistry.Register()`.
+
 ## Common Patterns
 
 | Pattern | File | Why |
@@ -226,6 +255,7 @@ ChipKindRegistry.Register(new SceneChipProvider());  // 3rd party
 | Handle tool results | ChatTranscript.AppendBlock(ToolBlock) | ToolChipGrouper batches display |
 | Add a CLI backend | Python backend registry + stream transformer, then existing settings/provider UI | Keeps CLI protocol knowledge out of C# |
 | Animate activity state | MCPChatWindow.FlowBar.cs / OnActivityChanged | Drives CSS classes + particle animation via ChatActivityState.Phase |
+| Add a read-only tool card | Inherit `ToolCardBase`, implement `TryBuildContent()`, optionally `OnAdditionalRender()` | Base enforces marker-last + exception safety; register via `[InitializeOnLoad]` + `ToolCardRendererRegistry.Register()` |
 
 ## Reload-Survival (F21 Innovation)
 
