@@ -23,6 +23,9 @@ namespace UnityMCP.Editor.Chat
         private string _queuedTurnJson;
 #endif
 
+        // F-6: set false by Stop() so OnRelayReady ignores a stale cold-start callback after cancel.
+        private volatile bool _active = true;
+
         public bool IsRunning => _proc?.IsRunning ?? false;
 
         private string _sessionId;
@@ -79,6 +82,9 @@ namespace UnityMCP.Editor.Chat
         // Called back (on the main thread) once RelaySpawnState confirms the relay is up.
         private void OnRelayReady(int port)
         {
+            // F-6: backend was stopped (CancelTurn/OnDisable) while cold start was in flight.
+            // Guard prevents a new _proc + poll thread from leaking into an abandoned backend.
+            if (!_active) return;
             _proc = new RelayChatProcess();
             _proc.StartViaRelay(port, _backendId, _mode, _model, _mcpPort,
                 SessionId ?? _resumeSessionId, _appendSystemPrompt);
@@ -156,6 +162,7 @@ namespace UnityMCP.Editor.Chat
 
         public void Stop()
         {
+            _active = false;   // F-6: prevent any pending OnRelayReady from starting a new proc
             _proc?.Kill();
             _proc?.Dispose();
             _proc = null;

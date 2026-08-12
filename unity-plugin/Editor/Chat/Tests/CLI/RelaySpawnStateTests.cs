@@ -204,6 +204,74 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(1, executeCount, "A spawn already in flight must not be started twice");
         }
 
+        // ── F-2: second caller while IsPending ───────────────────────────────
+
+        [Test]
+        public async Task RequestSpawn_SecondCallWhilePending_BothCallbacksFire()
+        {
+            // Regression test: a second RequestSpawn while IsPending must not silently
+            // drop the second caller's onReady. Both windows must receive the port once
+            // the single spawn resolves.
+            RelaySpawnState.LooksAlreadyRunningOverride = () => false;
+            RelaySpawnState.PreparePlanOverride = () =>
+                new RelaySpawner.SpawnPlan("bash", Array.Empty<string>(), true, TimeSpan.FromSeconds(1));
+
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            RelaySpawnState.ExecutePlanAsyncOverride = async plan =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                return (19704, 4244);
+            };
+
+            int? port1 = null, port2 = null;
+            RelaySpawnState.RequestSpawn(port => port1 = port, err => Assert.Fail("first: " + err));
+
+            await AwaitSignalAsync(entered.Task, "First spawn did not enter ExecutePlan");
+            Assert.IsTrue(RelaySpawnState.IsPending);
+
+            // Second window calls while cold start is in flight
+            RelaySpawnState.RequestSpawn(port => port2 = port, err => Assert.Fail("second: " + err));
+
+            release.TrySetResult(true);
+            await WaitForPendingToClearAsync();
+
+            Assert.AreEqual(19704, port1, "First caller's onReady must fire");
+            Assert.AreEqual(19704, port2, "Second caller's onReady must fire — must not be silently dropped");
+        }
+
+        [Test]
+        public async Task RequestSpawn_SecondCallWhilePending_OnErrorBroadcastsToBothCallers()
+        {
+            // If spawn fails, all accumulated waiters receive onError.
+            RelaySpawnState.LooksAlreadyRunningOverride = () => false;
+            RelaySpawnState.PreparePlanOverride = () =>
+                new RelaySpawner.SpawnPlan("bash", Array.Empty<string>(), true, TimeSpan.FromSeconds(1));
+
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            RelaySpawnState.ExecutePlanAsyncOverride = async plan =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                throw new InvalidOperationException("relay down");
+            };
+
+            string err1 = null, err2 = null;
+            RelaySpawnState.RequestSpawn(port => Assert.Fail("port1 must not fire"), msg => err1 = msg);
+
+            await AwaitSignalAsync(entered.Task, "Timed out waiting for ExecutePlan");
+
+            RelaySpawnState.RequestSpawn(port => Assert.Fail("port2 must not fire"), msg => err2 = msg);
+
+            release.TrySetResult(true);
+            await WaitForPendingToClearAsync();
+
+            Assert.AreEqual("relay down", err1, "First caller must receive the error");
+            Assert.AreEqual("relay down", err2, "Second caller must receive the error");
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         // Manually pumps MainThreadDispatcher.Drain() — the same call EditorApplication.update

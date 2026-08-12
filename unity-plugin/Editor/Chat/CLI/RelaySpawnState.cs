@@ -23,6 +23,10 @@ namespace UnityMCP.Editor.Chat
         internal static int    Port      { get; private set; }
         internal static string Error     { get; private set; }
 
+        // F-2: callers that arrive while IsPending accumulate here; all fire when spawn resolves.
+        private static readonly System.Collections.Generic.List<(Action<int> onReady, Action<string> onError)>
+            _waiters = new System.Collections.Generic.List<(Action<int>, Action<string>)>();
+
 #if UNITY_INCLUDE_TESTS
         // Test seams — avoid a real Process/ThreadPool hop in unit tests.
         internal static Func<int>  EnsureRunningOverride;          // fast-path only (see RunFastPath)
@@ -103,6 +107,7 @@ namespace UnityMCP.Editor.Chat
         {
             _testGeneration++;
             IsReady = false; IsPending = false; Port = 0; Error = null;
+            _waiters.Clear();
             EnsureRunningOverride       = null;
             LooksAlreadyRunningOverride = null;
             PreparePlanOverride         = null;
@@ -126,7 +131,12 @@ namespace UnityMCP.Editor.Chat
                 return;
             }
 
-            if (IsPending) return;
+            if (IsPending)
+            {
+                // F-2: accumulate this caller so it fires when the in-flight spawn resolves.
+                _waiters.Add((onReady, onError));
+                return;
+            }
             IsPending = true; IsReady = false; Error = null;
 
 #if UNITY_INCLUDE_TESTS
@@ -163,6 +173,7 @@ namespace UnityMCP.Editor.Chat
                         RelaySpawner.CommitSpawn(port, pid);
                         IsPending = false; IsReady = true; Port = port; Error = null;
                         onReady?.Invoke(port);
+                        DrainWaiters(port, null);
                     });
                 }
                 catch (Exception ex)
@@ -174,9 +185,25 @@ namespace UnityMCP.Editor.Chat
 #endif
                         IsPending = false; Error = ex.Message;
                         onError?.Invoke(ex.Message);
+                        DrainWaiters(-1, ex.Message);
                     });
                 }
             });
+        }
+
+        // Drain accumulated F-2 waiters: fire each one with the final port (success)
+        // or error message (failure). Must run on the main thread; called after IsPending is cleared.
+        private static void DrainWaiters(int port, string error)
+        {
+            if (_waiters.Count == 0) return;
+            var snapshot = new (Action<int>, Action<string>)[_waiters.Count];
+            _waiters.CopyTo(snapshot);
+            _waiters.Clear();
+            foreach (var (onReady, onError) in snapshot)
+            {
+                if (error == null) onReady?.Invoke(port);
+                else               onError?.Invoke(error);
+            }
         }
 
         // Fast path: relay already alive — EnsureRunning() here is cheap (no Spawn(), just
