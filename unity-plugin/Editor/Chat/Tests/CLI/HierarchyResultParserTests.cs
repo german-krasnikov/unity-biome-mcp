@@ -17,7 +17,7 @@ using UnityMCP.Editor.Chat.Parsers;
 namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
-    public class HierarchyResultParserTests
+    public class HierarchyResultParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Sentinel inputs ────────────────────────────────────────────────────
 
