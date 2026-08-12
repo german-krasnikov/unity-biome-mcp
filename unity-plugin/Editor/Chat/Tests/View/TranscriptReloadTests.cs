@@ -151,5 +151,33 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("in-flight question", bubble.userData,
                 "Bubble userData must match the original user text");
         }
+
+        // T2.1: multi-image paths survive serialize/restore round-trip (ChatTranscript.cs:122 fix).
+        // RED B proof: revert line 122 to use imagePaths[0] only → count drops from 3 to 1.
+        [Test]
+        public void SerializeForReload_ThreeImagePaths_AllRestored()
+        {
+            var imagePaths = new System.Collections.Generic.List<string>
+            {
+                "/Users/german/Скриншоты/shot1.png",
+                "/var/folders/tmp/shot 2.png",
+                "/Users/german/shot3.png",
+            };
+
+            var t1 = Make(out _);
+            t1.AppendUserBubble("three shots", chips: null, imagePaths: imagePaths);
+            var data = t1.SerializeForReload();
+
+            var t2 = Make(out var c2);
+            t2.RestoreFromReload(data);
+
+            var bubble = ChatWindowAssertions.GetUserBubble(c2, 0);
+            Assert.IsNotNull(bubble, "User bubble must survive reload");
+            // Each missing image path renders as md-image-alt label (file doesn't exist).
+            var altLabels = bubble.Query(className: "md-image-alt").ToList();
+            Assert.AreEqual(3, altLabels.Count,
+                "All three image paths must survive the serialize/restore round-trip. " +
+                "If only 1 is restored, ChatTranscript.cs:122 uses imagePaths[0] only.");
+        }
     }
 }
