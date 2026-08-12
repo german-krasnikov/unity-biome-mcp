@@ -78,5 +78,49 @@ namespace UnityMCP.Editor.Chat.Tests
             }
             finally { Object.DestroyImmediate(window); }
         }
+
+        // ── T3.1: AbortCurrentTurnIfActive ────────────────────────────────────
+        // After switching backend mid-turn, input must be available immediately —
+        // not after the 120s ReloadGuard watchdog. The observable proxy is
+        // _activity.Phase == Idle; if the phase stays non-Idle the send button
+        // stays disabled and the chat is stuck until the watchdog fires.
+
+        [Test]
+        public void AbortCurrentTurnIfActive_WhenSending_ResetsPhaseToIdle()
+        {
+            var window = ScriptableObject.CreateInstance<MCPChatWindow>();
+            try
+            {
+                var activity = GetActivity(window);
+                activity.Send();
+                Assert.AreEqual(ActivityPhase.Sending, activity.Phase, "precondition: Sending");
+
+                var method = typeof(MCPChatWindow).GetMethod(
+                    "AbortCurrentTurnIfActive",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                Assert.IsNotNull(method, "AbortCurrentTurnIfActive helper must exist");
+                method.Invoke(window, null);
+
+                Assert.AreEqual(ActivityPhase.Idle, activity.Phase,
+                    "backend switch must abort turn immediately — no 120s watchdog needed");
+            }
+            finally { Object.DestroyImmediate(window); }
+        }
+
+        [Test]
+        public void AbortCurrentTurnIfActive_WhenIdle_IsNoOp()
+        {
+            var window = ScriptableObject.CreateInstance<MCPChatWindow>();
+            try
+            {
+                var method = typeof(MCPChatWindow).GetMethod(
+                    "AbortCurrentTurnIfActive",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                Assert.IsNotNull(method, "AbortCurrentTurnIfActive helper must exist");
+                Assert.DoesNotThrow(() => method.Invoke(window, null));
+                Assert.AreEqual(ActivityPhase.Idle, GetActivity(window).Phase);
+            }
+            finally { Object.DestroyImmediate(window); }
+        }
     }
 }

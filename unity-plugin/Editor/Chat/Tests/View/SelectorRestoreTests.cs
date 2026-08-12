@@ -119,12 +119,16 @@ namespace UnityMCP.Editor.Chat.Tests
             finally { Object.DestroyImmediate(w); }
         }
 
-        // ── Defect 3: BuildAgentSelector must sync state when saved backend is an agent ──
-        // Before fix: initialIndex fell back to 0 silently, but _selectedAgent was still set
-        // to the agent value — UI showed "Claude" while internally using the agent backend.
-        // After fix: state is updated to match choices[0] so UI and backend agree.
+        // ── T3.2: BuildAgentSelector must NOT clobber saved agent prefs ──────────
+        // Bug: when saved backend is an agent (excluded from dropdown choices),
+        // initialIndex falls back to -1 and the code silently overwrites the pref
+        // with the first visible backend. Next session starts with wrong backend.
+        // Fix: only reset prefs when the backend no longer exists; if it exists but
+        // is excluded from choices (i.e. it's an agent), show first visible in the
+        // dropdown for display only — do not write prefs.
+
         [Test]
-        public void BuildAgentSelector_SavedAgentBackend_SyncsStateTofirstNonAgent()
+        public void BuildAgentSelector_SavedAgentBackend_DoesNotClobberEditorPrefs()
         {
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
@@ -135,22 +139,46 @@ namespace UnityMCP.Editor.Chat.Tests
                     new BackendSpec("junior-dev",  "junior-dev", true,  BackendKind.Claude),
                 };
                 s_backends.SetValue(w, specs);
-
-                // Simulate: user had junior-dev saved from a previous session
                 SetEditorPrefString(PrefKey, "junior-dev");
                 w.RestoreSelectedBackendFromPrefs();
-                // State is now agent — this is expected AFTER restore
-                Assert.AreEqual("junior-dev", (string)s_agent.GetValue(w));
+                Assert.AreEqual("junior-dev", EditorPrefs.GetString(PrefKey, ""), "precondition");
 
-                // BuildAgentSelector must fix the state so dropdown and internal state agree
                 var buildSelector = typeof(MCPChatWindow)
                     .GetMethod("BuildAgentSelector", BindingFlags.NonPublic | BindingFlags.Instance);
                 buildSelector.Invoke(w, null);
 
-                // After build: agent backend is excluded from dropdown → state must be Claude Code
-                Assert.IsNull((string)s_agent.GetValue(w),
-                    "_selectedAgent must be null (Claude Code, not junior-dev)");
-                Assert.AreEqual(BackendKind.Claude, (BackendKind)s_kind.GetValue(w));
+                Assert.AreEqual("junior-dev", EditorPrefs.GetString(PrefKey, ""),
+                    "BuildAgentSelector must NOT overwrite saved agent pref to first visible backend");
+            }
+            finally { Object.DestroyImmediate(w); }
+        }
+
+        [Test]
+        public void BuildAgentSelector_SavedAgentBackend_InternalStatePreserved()
+        {
+            // T3.2: when the saved backend is a project agent (excluded from dropdown),
+            // internal _selectedKind/_selectedAgent must NOT be reset to the first visible
+            // non-agent backend. The agent backend remains active for this session.
+            var w = ScriptableObject.CreateInstance<MCPChatWindow>();
+            try
+            {
+                var specs = new List<BackendSpec>
+                {
+                    new BackendSpec("Claude Code", null,         true,  BackendKind.Claude),
+                    new BackendSpec("junior-dev",  "junior-dev", true,  BackendKind.Claude),
+                };
+                s_backends.SetValue(w, specs);
+                SetEditorPrefString(PrefKey, "junior-dev");
+                w.RestoreSelectedBackendFromPrefs();
+                Assert.AreEqual("junior-dev", (string)s_agent.GetValue(w), "precondition");
+
+                var buildSelector = typeof(MCPChatWindow)
+                    .GetMethod("BuildAgentSelector", BindingFlags.NonPublic | BindingFlags.Instance);
+                buildSelector.Invoke(w, null);
+
+                // Agent is still the active backend; only dropdown display shows first visible
+                Assert.AreEqual("junior-dev", (string)s_agent.GetValue(w),
+                    "_selectedAgent must stay 'junior-dev' — agent not reset to null");
             }
             finally { Object.DestroyImmediate(w); }
         }
