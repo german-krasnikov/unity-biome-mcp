@@ -22,6 +22,7 @@ namespace UnityMCP.Editor.Chat
         internal static Func<(string cmd, string[] argv)> CommandResolverOverride; // replaces RelayCommandResolver.Resolve
         internal static Func<bool>                        WarmKeyGetterOverride;   // replaces EditorPrefs.GetBool(WarmKey)
         internal static Action<bool>                       WarmKeySetterOverride;   // replaces EditorPrefs.SetBool(WarmKey)
+        internal static Func<bool>                        IsBatchModeGetter;       // replaces Application.isBatchMode
 
         internal static void ResetForTests()
         {
@@ -30,6 +31,7 @@ namespace UnityMCP.Editor.Chat
             CommandResolverOverride   = null;
             WarmKeyGetterOverride     = null;
             WarmKeySetterOverride     = null;
+            IsBatchModeGetter         = null;
         }
 #endif
 
@@ -50,6 +52,7 @@ namespace UnityMCP.Editor.Chat
 #if UNITY_INCLUDE_TESTS
             if (SkipForTests != null && SkipForTests()) return false;
 #endif
+            if (GetBatchMode()) return false; // T1.5: no uvx spawn on CI
             if (InstallSourceDetector.Detect() == InstallSourceDetector.Source.Local) return false;
             if (GetWarmKey()) return false;
             return true;
@@ -127,6 +130,14 @@ namespace UnityMCP.Editor.Chat
             if (CommandResolverOverride != null) return CommandResolverOverride();
 #endif
             return RelayCommandResolver.Resolve();
+        }
+
+        private static bool GetBatchMode()
+        {
+#if UNITY_INCLUDE_TESTS
+            if (IsBatchModeGetter != null) return IsBatchModeGetter();
+#endif
+            return UnityEngine.Application.isBatchMode;
         }
 
         private static bool GetWarmKey()

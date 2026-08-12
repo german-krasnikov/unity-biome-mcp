@@ -61,7 +61,14 @@ namespace UnityMCP.Editor.Chat
                 // ── ordered list ──────────────────────────────────────────────
                 if (OrderedItem.IsMatch(line))
                 {
-                    int start = int.Parse(OrderedItem.Match(line).Groups[1].Value);
+                    var rawNum = OrderedItem.Match(line).Groups[1].Value;
+                    if (!int.TryParse(rawNum, out var n))
+                    {
+                        UnityEngine.Debug.LogWarning(
+                            $"[MarkdownParser] ordered-list start '{rawNum}' overflows int; defaulting to 1");
+                        n = 1;
+                    }
+                    int start = n;
                     i = ParseOrdered(lines, i, result, start);
                     continue;
                 }

@@ -220,5 +220,42 @@ namespace UnityMCP.Editor.Chat.Tests
             var typeLabel = chip.Q<Label>(className: "agent-type");
             Assert.IsNull(typeLabel, "subagent_type:null must not render an agent-type label");
         }
+
+        // ── T1.1: empty argsJson must not freeze card (B = fails when fix reverted) ─
+
+        [Test]
+        public void OnUpdate_EmptyArgsJson_NoChildrenAndNotRendered()
+        {
+            // T1.1: empty string "" passes the old "== null" guard, marks chip
+            // "agent-rendered", and blocks any future real render.
+            var chip = new VisualElement();
+            var rec  = new ToolCallRecord("Agent", "id-empty", "");  // empty, not null
+
+            _card.OnUpdate(chip, rec);
+
+            Assert.AreEqual(0, chip.childCount,
+                "empty argsJson must add no children");
+            Assert.IsFalse(chip.ClassListContains("agent-rendered"),
+                "empty argsJson must not mark chip rendered — would prevent a subsequent real render");
+        }
+
+        [Test]
+        public void OnUpdate_EmptyArgsJson_ThenRealArgs_StillRenders()
+        {
+            // T1.1: after a first call with empty argsJson, a second call with real
+            // data (subagent «workflow», task «Find Player object in scene») must render.
+            var chip = new VisualElement();
+            var realArgs =
+                "{\"subagent_type\":\"workflow\",\"description\":\"Поиск объекта Игрок в сцене\"}";
+
+            _card.OnUpdate(chip, new ToolCallRecord("Agent", "id-seq", ""));      // empty first
+            _card.OnUpdate(chip, new ToolCallRecord("Agent", "id-seq", realArgs)); // real second
+
+            var descLabel = chip.Q<Label>(className: "agent-desc");
+            Assert.IsNotNull(descLabel,
+                "chip must render description on second call after first was empty");
+            StringAssert.Contains("Поиск объекта Игрок", descLabel.text,
+                "description must contain Cyrillic text from real args");
+        }
     }
 }

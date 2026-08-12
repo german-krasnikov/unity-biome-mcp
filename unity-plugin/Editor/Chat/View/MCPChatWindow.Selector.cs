@@ -57,15 +57,20 @@ namespace UnityMCP.Editor.Chat
             var initialIndex = choices.IndexOf(current.DisplayName);
             if (initialIndex < 0)
             {
-                // Saved backend is an agent (excluded from dropdown) or no longer exists.
-                // Sync internal state to the first visible choice so UI and state agree.
                 initialIndex = 0;
-                var firstVisible = _backends.Find(b => b.AgentName == null && b.Enabled);
-                if (firstVisible.DisplayName != null)
+                // T3.2: Only reset prefs when the backend no longer exists (current.DisplayName == null).
+                // If it exists but is excluded from choices (it's an agent), the backend is correct for
+                // this session — only the dropdown's visual selection is undefined. Show first visible in
+                // the UI without clobbering the saved pref or internal state.
+                if (current.DisplayName == null)
                 {
-                    _selectedKind  = firstVisible.Kind;
-                    _selectedAgent = null;
-                    EditorPrefs.SetString(DropdownPrefKey, StableIdFor(firstVisible));
+                    var firstVisible = _backends.Find(b => b.AgentName == null && b.Enabled);
+                    if (firstVisible.DisplayName != null)
+                    {
+                        _selectedKind  = firstVisible.Kind;
+                        _selectedAgent = null;
+                        EditorPrefs.SetString(DropdownPrefKey, StableIdFor(firstVisible));
+                    }
                 }
             }
 
@@ -74,30 +79,33 @@ namespace UnityMCP.Editor.Chat
                 tooltip = "Backend / Agent"
             };
             _agentDropdown.AddToClassList("agent-selector");
-
-            _agentDropdown.RegisterValueChangedCallback(evt =>
-            {
-                var chosenName = evt.newValue;
-                var spec       = _backends.Find(b => b.DisplayName == chosenName);
-
-                if (!spec.Enabled)
-                {
-                    // Revert to previous selection — placeholder, do nothing
-                    _agentDropdown.SetValueWithoutNotify(evt.previousValue);
-                    return;
-                }
-
-                _selectedKind  = spec.Kind;
-                _selectedAgent = spec.AgentName;
-                _selectedModel = ""; // reset before CreateBackend so stale model doesn't leak to new backend
-                EditorPrefs.SetString(DropdownPrefKey, StableIdFor(spec)); // Issue 28: persist stable id, not DisplayName
-                _backend?.Stop();
-                ResetTokenCounters();
-                CreateBackend();
-                RebuildModelDropdown();
-            });
+            _agentDropdown.RegisterValueChangedCallback(OnAgentDropdownChanged);
 
             return _agentDropdown;
+        }
+
+        // Extracted from inline lambda so tests can invoke it directly via reflection.
+        private void OnAgentDropdownChanged(ChangeEvent<string> evt)
+        {
+            var chosenName = evt.newValue;
+            var spec       = _backends.Find(b => b.DisplayName == chosenName);
+
+            if (!spec.Enabled)
+            {
+                // Revert to previous selection — placeholder, do nothing
+                _agentDropdown.SetValueWithoutNotify(evt.previousValue);
+                return;
+            }
+
+            _selectedKind  = spec.Kind;
+            _selectedAgent = spec.AgentName;
+            _selectedModel = ""; // reset before CreateBackend so stale model doesn't leak to new backend
+            EditorPrefs.SetString(DropdownPrefKey, StableIdFor(spec)); // Issue 28: persist stable id, not DisplayName
+            AbortCurrentTurnIfActive(); // T3.1: abort turn before switching backend
+            _backend?.Stop();
+            ResetTokenCounters();
+            CreateBackend();
+            RebuildModelDropdown();
         }
 
         // Issue 28: stable identifier for EditorPrefs persistence — survives DisplayName renames.
@@ -175,25 +183,7 @@ namespace UnityMCP.Editor.Chat
                 }
             }
 
-            _modelDropdown.RegisterValueChangedCallback(evt =>
-            {
-                var presetArr = PresetsForKind(_selectedKind);
-                var p = System.Array.Find(presetArr, x => x.label == evt.newValue);
-                EditorPrefs.SetString(ModelPrefKeyFor(_selectedKind), evt.newValue);
-
-                if (p.modelId == CustomModelSentinel)
-                {
-                    _customModelField.style.display = DisplayStyle.Flex;
-                    _selectedModel = _customModelField.value;
-                    return; // don't restart backend until user types a value
-                }
-
-                _customModelField.style.display = DisplayStyle.None;
-                _selectedModel = p.modelId;
-                _backend?.Stop();
-                ResetTokenCounters();
-                CreateBackend();
-            });
+            _modelDropdown.RegisterValueChangedCallback(OnModelDropdownChanged);
 
             _customModelField.RegisterCallback<FocusOutEvent>(_ => ApplyCustomModel());
             _customModelField.RegisterCallback<KeyDownEvent>(evt =>
@@ -211,14 +201,52 @@ namespace UnityMCP.Editor.Chat
             return container;
         }
 
+        // Extracted from inline lambda so tests can invoke it directly via reflection.
+        private void OnModelDropdownChanged(ChangeEvent<string> evt)
+        {
+            var presetArr = PresetsForKind(_selectedKind);
+            var p = System.Array.Find(presetArr, x => x.label == evt.newValue);
+            EditorPrefs.SetString(ModelPrefKeyFor(_selectedKind), evt.newValue);
+
+            if (p.modelId == CustomModelSentinel)
+            {
+                if (_customModelField != null) _customModelField.style.display = DisplayStyle.Flex;
+                _selectedModel = _customModelField?.value ?? "";
+                return; // don't restart backend until user types a value
+            }
+
+            if (_customModelField != null) _customModelField.style.display = DisplayStyle.None;
+            _selectedModel = p.modelId;
+            AbortCurrentTurnIfActive(); // T3.1: abort turn before switching model
+            _backend?.Stop();
+            ResetTokenCounters();
+            CreateBackend();
+        }
+
         private void ApplyCustomModel()
         {
             var val = _customModelField?.value ?? "";
             EditorPrefs.SetString(ModelPrefKeyFor(_selectedKind) + ".custom", val);
             _selectedModel = val;
+            AbortCurrentTurnIfActive(); // T3.1: abort turn before switching custom model
             _backend?.Stop();
             ResetTokenCounters();
             CreateBackend();
+        }
+
+        // T3.1: abort the current turn without restarting the backend.
+        // Called before _backend?.Stop() + CreateBackend() in all three switch paths
+        // (agent dropdown, model dropdown, custom model). Unlike CancelTurn(), this
+        // helper does NOT call Stop/CreateBackend — the caller owns the backend switch.
+        private void AbortCurrentTurnIfActive()
+        {
+            if (_activity.Phase == ActivityPhase.Idle) return;
+            _transcript?.FinalizeAssistant();
+            ReloadGuard.OnTurnFinished();
+            ResetTurnFlags();
+            _undoTracker.OnTurnFailed();
+            _activity.Fail();
+            OnActivityChanged();
         }
 
         private void RebuildModelDropdown()

@@ -25,6 +25,9 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             RelayWarmup.ResetForTests();
             InstallSourceDetector.ClearTestOverride();
+            // Default to interactive mode so tests are environment-independent.
+            // Tests that specifically check CI batch-mode behavior override this explicitly.
+            RelayWarmup.IsBatchModeGetter = () => false;
         }
 
         [TearDown]
@@ -168,6 +171,33 @@ namespace UnityMCP.Editor.Chat.Tests
 
             Assert.IsTrue(resolverCalled);
             Assert.IsTrue(started);
+        }
+
+        // ── T1.5: batch mode (CI) must not start warmup process ──────────────
+
+        [Test]
+        public void ShouldWarm_BatchMode_ReturnsFalse()
+        {
+            // T1.5 fix: Application.isBatchMode check prevents uvx process on CI.
+            // IsBatchModeGetter seam mirrors WarmKeyGetterOverride pattern.
+            InstallSourceDetector.SetSourceForTest(InstallSourceDetector.Source.Git);
+            RelayWarmup.WarmKeyGetterOverride = () => false;  // would otherwise return true
+            RelayWarmup.IsBatchModeGetter = () => true;       // simulate CI -batchmode
+
+            Assert.IsFalse(RelayWarmup.ShouldWarm(),
+                "ShouldWarm must return false in batch mode — spawning uvx in CI is wasteful and wrong");
+        }
+
+        [Test]
+        public void ShouldWarm_NotBatchMode_StillEligible()
+        {
+            // Verify the batch mode guard does not fire when running interactively.
+            InstallSourceDetector.SetSourceForTest(InstallSourceDetector.Source.Git);
+            RelayWarmup.WarmKeyGetterOverride = () => false;
+            RelayWarmup.IsBatchModeGetter = () => false;      // normal editor session
+
+            Assert.IsTrue(RelayWarmup.ShouldWarm(),
+                "ShouldWarm must remain true when not in batch mode (git install, not warmed)");
         }
     }
 }

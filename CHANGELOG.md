@@ -10,6 +10,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.31.0] — 2026-08-12
+
+### Added
+- **Four new tool card renderers for read-only tools:**
+  - `ScreenshotCard` — displays screenshot results as a clickable thumbnail preview (max 160px height)
+  - `HierarchyCard` — renders `get_hierarchy` results as a text-tree with depth-indented nodes; shows first 20 nodes, "Show more" button for remainder; click on any node selects it in the Hierarchy window
+  - `BashCard` — shows command description, command line, and stdout/stderr output with 20-line preview and "Show more" button; marks exit code errors with red border; indicates truncation at ≥2000 characters
+  - `ComponentReadCard` — displays component inspection results with clickable object path, component type(s), and property list (20 visible, "Show more" for rest); supports `get_component`, `inspect`, and `get_components_list` tools
+- **Tool result display limit raised from 200 to 2000 characters** — longer tool outputs now display in full in chat, enabling complete scene trees and command outputs in tool cards (context payload unaffected; only displays truncated)
+- **ToolCardBase framework** — shared rendering lifecycle for tool cards enforcing "content before marker" order; idempotency guard prevents duplicate rendering; exception safety ensures retry on build failure
+
+### Fixed
+- **AgentCard empty args forever empty** — empty arguments no longer block subsequent renders with real data
+- **Failed turn not closed** — incomplete turns now close properly, preventing next response from flowing into orphaned bubble
+- **Trailing newline hides diff display** — unified diff rendering now strips trailing newlines before display
+- **List number overflow blocks render** — markdown list item number parsing no longer fails on high item counts
+- **Subprocess spawn in headless mode** — background process start now checks `SystemInfo.graphicsDeviceType` before launching windowed processes (CI headless safety)
+- **Reload loses all but first screenshot** — `ImageBlockRenderer` cache now persists across assembly reload; texture references survive via asset path lookup
+- **Backend switch mid-turn freezes input** — backend changes during active turn now properly abort pending state instead of blocking input for 2 minutes
+- **Saved agent clears backend preference** — agent selection now preserves previously active backend configuration
+
+### Test Coverage
+- **Python unit tests:** 6289 passed (was 6247)
+- **C# EditMode:** 7923 passed, 19 skipped
+
 ## [v1.30.0] — 2026-08-12
 
 ### Added

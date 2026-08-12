@@ -257,5 +257,116 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("/tmp/test.png", entries[0].ImagePath,
                 "image path must survive serialization round-trip");
         }
+
+        // ── T1.2: FinalizeAssistant before error chip clears _taskCard ────────────
+
+        // 16a. BUG reference: without FinalizeAssistant before error chip,
+        //      _taskCard is not cleared → second TaskCreate reuses stale card.
+        [Test]
+        public void ErrorChip_WithoutFinalizeAssistant_StalesTaskCard()
+        {
+            var t = Make(out var c);
+
+            // Turn 1: assistant streams and TaskCreate fires (sets _taskCard)
+            t.AppendOrExtendAssistant("Создаю задачу: анализ сцены «Возрождение»");
+            t.AppendToolChip("TaskCreate", ok: true, toolId: "task-т1-01");
+
+            // Error arrives — WITHOUT calling FinalizeAssistant first
+            // (AppendToolChip calls FreezeAssistantBubble but does NOT clear _taskCard)
+            t.AppendToolChip("✕ Ошибка подключения к Claude API", ok: false);
+
+            // Simulated next turn: new TaskCreate sees stale _taskCard and reuses it
+            t.AppendToolChip("TaskCreate", ok: true, toolId: "task-т2-02");
+
+            var taskCards = c.Query(className: TaskChecklistCard.CardClass).ToList();
+            Assert.AreEqual(1, taskCards.Count,
+                "without FinalizeAssistant before error chip, _taskCard is not cleared; " +
+                "both TaskCreates land in the same stale card");
+        }
+
+        // 16b. FIX: MCPChatWindow.ApplyErrorTurn calls FinalizeAssistant internally,
+        //      so the next turn's TaskCreate gets a fresh card.
+        //      RED B: remove FinalizeAssistant from ApplyErrorTurn → test fails (1 stale card).
+        [Test]
+        public void ErrorTurn_ViaProductionMethod_ClearsTaskCardAndCreatesNew()
+        {
+            var t = Make(out var c);
+
+            // Turn 1: TaskCreate fires (sets _taskCard)
+            t.AppendOrExtendAssistant("Создаю задачу: анализ сцены «Возрождение»");
+            t.AppendToolChip("TaskCreate", ok: true, toolId: "task-т1-01");
+
+            // Call the actual production method that EventHandlers invokes for Error events.
+            // If FinalizeAssistant is removed from ApplyErrorTurn, only 1 card appears → RED.
+            MCPChatWindow.ApplyErrorTurn(t, "✕ Ошибка подключения к Claude API");
+
+            // Next turn: fresh TaskCreate must get its own card
+            t.AppendToolChip("TaskCreate", ok: true, toolId: "task-т2-02");
+
+            var taskCards = c.Query(className: TaskChecklistCard.CardClass).ToList();
+            Assert.AreEqual(2, taskCards.Count,
+                "ApplyErrorTurn must call FinalizeAssistant first — removing it leaves " +
+                "_taskCard stale and both TaskCreates land in the same card");
+        }
+
+        // ── T1.6: multi-image paths survive serialize/deserialize ─────────────────
+
+        // 17. Three real screenshot paths must ALL survive a reload round-trip.
+        [Test]
+        public void MultiImage_AllThreePaths_SurviveReload()
+        {
+            var t1 = Make(out _);
+            t1.AppendUserBubble(
+                "три скриншота: до, после и финальный",
+                chips: null,
+                imagePaths: new[]
+                {
+                    "/Users/german/Work/ScreenShots/2026-08-12_09-00-00.png",
+                    "/Users/german/Work/ScreenShots/2026-08-12_09-01-00.png",
+                    "/Users/german/Work/ScreenShots/2026-08-12_09-02-00.png",
+                });
+            var data = t1.SerializeForReload();
+
+            var entries = TranscriptSerializer.Deserialize(data);
+            Assert.AreEqual(1, entries.Count);
+
+            // T1.6 fix: ImagePath stores all paths as \x1E-delimited string
+            var paths = entries[0].ImagePath?.Split('\x1E')
+                        ?? System.Array.Empty<string>();
+            Assert.AreEqual(3, paths.Length,
+                "all 3 image paths must survive serialization (T1.6 fix applies \x1E delimiter)");
+            Assert.AreEqual("/Users/german/Work/ScreenShots/2026-08-12_09-00-00.png", paths[0],
+                "first image path must match");
+            Assert.AreEqual("/Users/german/Work/ScreenShots/2026-08-12_09-01-00.png", paths[1],
+                "second image path must match");
+            Assert.AreEqual("/Users/german/Work/ScreenShots/2026-08-12_09-02-00.png", paths[2],
+                "third image path must match");
+        }
+
+        // 18. After full restore, all 3 image elements appear in DOM.
+        //     Non-existent files render as AltLabel with class "md-image-alt" — one per path.
+        [Test]
+        public void MultiImage_AllThreePaths_AppearedInDomAfterRestore()
+        {
+            var t1 = Make(out _);
+            // Paths that do not exist on disk → ImageBlockRenderer returns AltLabel("[image]")
+            // with class "md-image-alt" — one per path. That's a reliable, renderer-independent signal.
+            var imagePaths = new[]
+            {
+                "/tmp/biome-test-т1.6-кадр-01.png",
+                "/tmp/biome-test-т1.6-кадр-02.png",
+                "/tmp/biome-test-т1.6-кадр-03.png",
+            };
+            t1.AppendUserBubble("три скриншота финала игры", chips: null, imagePaths: imagePaths);
+            var data = t1.SerializeForReload();
+
+            var t2 = Make(out var c2);
+            t2.RestoreFromReload(data);
+
+            // AltLabel is produced for every non-existent image path; class = "md-image-alt"
+            var imageAlts = c2.Query(className: "md-image-alt").ToList();
+            Assert.AreEqual(3, imageAlts.Count,
+                "all 3 image paths must render as md-image-alt in DOM after restore (T1.6 fix)");
+        }
     }
 }

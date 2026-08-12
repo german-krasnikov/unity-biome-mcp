@@ -59,16 +59,18 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void Build_UsesRegistryColor()
         {
-            // Script provider HexColor = "#4ade80"
+            // Script provider HexColor = "#4ade80" → g≈0.87 > 0.80.
+            // Fallback gray-blue #94a3b8 → g≈0.64 < 0.80 — the old "g > r" assertion
+            // passed even without the Script provider (fallback g=0.64 > r=0.58).
             var pill = ChipPillFactory.Build(ChipKindKeys.Script, "Foo.cs");
 
-            // backgroundColor is set inline — inspect the style directly (not resolvedStyle)
             var bg = pill.style.backgroundColor;
             Assert.AreEqual(StyleKeyword.Undefined, bg.keyword,
                 "backgroundColor should be explicitly set (not keyword)");
-            // r≈0.29, g≈0.87, b≈0.50 for #4ade80 @ alpha 0.85
-            Assert.Greater(bg.value.g, bg.value.r,
-                "Script chip must have a greenish background (#4ade80)");
+            // Specific threshold: Script #4ade80 has g≈0.87; fallback #94a3b8 has g≈0.64.
+            // Only the Script provider's color passes this gate.
+            Assert.Greater(bg.value.g, 0.80f,
+                "Script chip must use Script provider color (#4ade80, g≈0.87), not fallback gray-blue");
         }
 
         [Test]

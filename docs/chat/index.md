@@ -28,11 +28,39 @@ The first relay start can take longer while `uvx` prepares the Python package. T
    directly as `[agent:name]`.
 
 5. Select **Send** or press Enter. Use Alt+Enter to insert a newline.
-6. Review tool cards showing code changes, mutations, tasks, or agent delegation;
-   the final response appears below the cards.
+6. Review tool cards showing code changes, mutations, tasks, agent delegation,
+   and read-only inspections; the final response appears below the cards.
 
 Changing the backend or model stops the current process, prepares the new
 selection, and resets the token counters. The next **Send** starts it.
+
+## Tool Cards
+
+Chat displays results from inspection and read-only tools as visual cards below the turn request:
+
+### Screenshot Card
+Displays `screenshot` tool results as a clickable thumbnail (max height 160 pixels). Click to open the full image in a separate viewer. Useful for validating visual state or comparing scene layouts.
+
+### Hierarchy Card
+Renders `get_hierarchy` results as an indented tree showing the active scene structure. Shows the first 20 nodes by default; click **▼ N more objects** to expand the rest. Click any object name to select and frame it in the Hierarchy window.
+
+### Bash Card
+Shows shell command results with three sections:
+
+- **Description** — human-readable summary of what the command does (if provided)
+- **Command** — the executed shell command (first line only if multi-line)
+- **Output** — the command's standard output and error combined
+
+First 20 lines of output display by default. Click **▼ N more lines** to show the rest. A red border indicates non-zero exit code. An ellipsis marker indicates the output was truncated at 2000 characters.
+
+### Component Card
+Displays results from `get_component`, `inspect`, or `get_components_list` tools. Each card shows:
+
+- **Object path** — clickable link to select the object in the Hierarchy
+- **Component type(s)** — the component class name(s) being inspected
+- **Properties** — up to 20 serialized field values (name = value format)
+
+Click **▼ N more** to reveal additional properties. Long values are truncated to 80 characters.
 
 ## Ask and Agent Modes
 

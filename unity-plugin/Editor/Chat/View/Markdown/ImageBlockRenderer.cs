@@ -50,7 +50,7 @@ namespace UnityMCP.Editor.Chat
             }
         }
 
-        private static VisualElement BuildImageElement(string path, string alt)
+        internal static VisualElement BuildImageElement(string path, string alt)
         {
             // Cache by path; re-load if Unity destroyed the cached texture (domain reload, etc.)
             if (!_cache.TryGetValue(path, out var tex) || tex == null)

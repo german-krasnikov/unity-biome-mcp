@@ -29,7 +29,7 @@ namespace UnityMCP.Editor.Chat
 
         public void OnUpdate(VisualElement chip, ToolCallRecord rec)
         {
-            if (rec.ArgsJson == null) return;
+            if (string.IsNullOrEmpty(rec.ArgsJson)) return;
             if (!chip.ClassListContains("agent-rendered"))
             {
                 RenderHeader(chip, rec.ArgsJson);

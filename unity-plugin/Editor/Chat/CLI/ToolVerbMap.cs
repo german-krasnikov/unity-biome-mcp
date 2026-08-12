@@ -26,6 +26,7 @@ namespace UnityMCP.Editor.Chat
                 { P + "wire_event",           "Wiring" },
                 { P + "delete_object",        "Deleting" },
                 { P + "get_component",        "Reading component" },
+                { P + "get_components_list", "Reading components" },
                 { P + "set_parent",           "Re-parenting" },
                 { P + "move_to",              "Moving" },
                 { P + "get_console",          "Reading console" },

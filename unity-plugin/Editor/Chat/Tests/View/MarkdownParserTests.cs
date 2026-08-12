@@ -262,5 +262,37 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(0, b.Depths[1]);
             Assert.AreEqual(0, b.Depths[2]);
         }
+
+        // T1.4: int.Parse on number > INT_MAX throws OverflowException → block not rendered.
+        // LLM hallucination: a number like «99999999999999» overflows int.Parse and must not crash.
+
+        [Test]
+        public void Parse_OversizedOrderedListNumber_DoesNotThrow()
+        {
+            // 2147483648 = int.MaxValue + 1 → int.Parse throws OverflowException without fix.
+            var md = "2147483648. первый элемент\n2147483649. второй элемент";
+            List<MdBlock> result = null;
+            Assert.DoesNotThrow(() => result = MarkdownParser.Parse(md),
+                "ordered list number > INT_MAX must not throw OverflowException");
+            Assert.IsNotNull(result);
+            Assert.AreEqual(1, result.Count,
+                "both items must parse as a single OrderedList block");
+            Assert.AreEqual(MdBlockKind.OrderedList, result[0].Kind,
+                "block must be OrderedList (not swallowed by the exception)");
+        }
+
+        [Test]
+        public void Parse_OversizedOrderedListNumber_CyrillicItems_BothRendered()
+        {
+            // Realistic LLM output with bad numbering; verify actual item text is preserved.
+            var md = "2147483648. Запустить игровой объект «Игрок»\n" +
+                     "2147483649. Добавить компонент CharacterController";
+            var result = MarkdownParser.Parse(md);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(MdBlockKind.OrderedList, result[0].Kind);
+            Assert.AreEqual(2, result[0].Lines.Count,
+                "both Cyrillic items must be in the block");
+        }
     }
 }
+

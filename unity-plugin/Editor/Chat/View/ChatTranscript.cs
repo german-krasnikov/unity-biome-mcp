@@ -119,7 +119,7 @@ namespace UnityMCP.Editor.Chat
                     Text       = text ?? "",
                     ChipsData  = TranscriptSerializer.SerializeChips(chips),
                     LlmPayload = llmPayload,
-                    ImagePath  = imagePaths != null && imagePaths.Count > 0 ? imagePaths[0] : null, // only first image survives reload
+                    ImagePath  = imagePaths != null && imagePaths.Count > 0 ? string.Join("\x1E", imagePaths) : null,
                 });
                 if (_entries.Count > MaxMessages) _entries.RemoveAt(0);
             }
@@ -359,8 +359,11 @@ namespace UnityMCP.Editor.Chat
                     switch (e.EntryKind)
                     {
                         case TranscriptEntry.Kind.User:
+                            var imgPaths = string.IsNullOrEmpty(e.ImagePath)
+                                ? (IReadOnlyList<string>)Array.Empty<string>()
+                                : (IReadOnlyList<string>)e.ImagePath.Split('\x1E');
                             AppendUserBubble(e.Text, TranscriptSerializer.DeserializeChips(e.ChipsData),
-                                imagePath: e.ImagePath, llmPayload: e.LlmPayload);
+                                imagePaths: imgPaths, llmPayload: e.LlmPayload);
                             break;
                         case TranscriptEntry.Kind.Assistant:
                             AppendOrExtendAssistant(e.Text);

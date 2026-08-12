@@ -112,42 +112,12 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.Greater(ToolCardRendererRegistry.Version, vBefore);
         }
 
-        // Phase 4 barrier: every IToolCardRenderer.OnUpdate must be idempotent.
-        // After Phase 2.9, OnUpdate is called twice (ArgsComplete then Result).
-        // A renderer without a guard doubles its children on the second call.
-        //
-        // RED proof: NaiveFakeRenderer (no guard) → childCount=2, test FAILS.
-        // GREEN:     IdempotentFakeRenderer (Q guard) → childCount=1, test PASSES.
-        private class NaiveFakeRenderer : IToolCardRenderer
-        {
-            public void OnStart(VisualElement chip, ToolCallRecord rec) { }
-            public void OnUpdate(VisualElement chip, ToolCallRecord rec)
-                => chip.Add(new Label("detail")); // no guard — doubles on second call
-        }
-
-        private class IdempotentFakeRenderer : IToolCardRenderer
-        {
-            public void OnStart(VisualElement chip, ToolCallRecord rec) { }
-            public void OnUpdate(VisualElement chip, ToolCallRecord rec)
-            {
-                if (chip.Q("detail-label") != null) return; // idempotency guard
-                var lbl = new Label(rec.ArgsJson ?? ""); lbl.name = "detail-label";
-                chip.Add(lbl);
-            }
-        }
-
-        [Test]
-        public void OnUpdate_CalledTwice_IdempotentRendererDoesNotDoubleChildren()
-        {
-            var chip = new VisualElement();
-            var rec  = new ToolCallRecord("Bash", "id-x", "{\"cmd\":\"ls\"}");
-            IToolCardRenderer renderer = new IdempotentFakeRenderer();
-
-            renderer.OnUpdate(chip, rec);
-            renderer.OnUpdate(chip, rec); // second call: ArgsComplete → Result (Phase 2.9+)
-
-            Assert.AreEqual(1, chip.childCount,
-                "OnUpdate must be idempotent: second call must not add duplicate children (Phase 4 barrier)");
-        }
+        // OnUpdate_CalledTwice_IdempotentRendererDoesNotDoubleChildren was deleted (T4.3B).
+        // It tested IdempotentFakeRenderer (a test double with an explicit Q-guard
+        // by construction) — proving the fake is idempotent, not any production code.
+        // The real idempotency contract (marker-based, applies to all ToolCardBase subclasses)
+        // is covered by ToolCardBaseTests.OnUpdate_MarkerAlreadySet_ContentNotCalledAgain
+        // and OnUpdate_ContentBuildThrows_MarkerNotSet_AllowsRetry, which use production
+        // ToolCardBase subclasses and red-provably test the base class mechanism.
     }
 }
