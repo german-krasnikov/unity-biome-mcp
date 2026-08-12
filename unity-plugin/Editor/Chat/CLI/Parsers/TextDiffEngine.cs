@@ -149,7 +149,8 @@ namespace UnityMCP.Editor.Chat.Parsers
         private static string[] Split(string text)
         {
             if (string.IsNullOrEmpty(text)) return Array.Empty<string>();
-            return text.Replace("\r\n", "\n").Split('\n');
+            var normalized = text.Replace("\r\n", "\n").TrimEnd('\n');
+            return normalized.Length == 0 ? Array.Empty<string>() : normalized.Split('\n');
         }
     }
 }

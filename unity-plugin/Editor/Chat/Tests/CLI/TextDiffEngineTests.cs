@@ -171,5 +171,41 @@ namespace UnityMCP.Editor.Chat.Tests.CLI
                 TextDiffEngine.Compute("Привет мир", "Привет мир 2"),
                 "Cyrillic content must not throw");
         }
+
+        // === T1.3: trailing newline must not inflate line count ===
+
+        [Test]
+        public void Compute_TrailingNewline_NotTreatedAsExtraLine()
+        {
+            // 80 real C# lines + trailing newline (как у любого нормального редактора).
+            // Split('\n') without TrimEnd produces 81 elements → IsLargeFile=true (wrong).
+            // Fix: TrimEnd('\n') before Split gives exactly 80 elements → IsLargeFile=false.
+            var line = "    private float _хpHealthPoints = 100f;";
+            var old = string.Join("\n", Enumerable.Repeat(line, 80)) + "\n";
+            var @new = old.Replace("_хpHealthPoints", "_currentHealthPoints");
+
+            var result = TextDiffEngine.Compute(old, @new);
+
+            Assert.IsFalse(result.IsLargeFile,
+                "80 lines + trailing newline must NOT be treated as 81 lines (IsLargeFile must be false); " +
+                "trailing '\\n' is standard editor output and must be stripped before counting");
+        }
+
+        [Test]
+        public void Compute_TrailingNewline_ProducesCorrectDiff()
+        {
+            // Verify that with the fix the diff is actually computed (not TwoBlock).
+            var line = "public class ИгровойОбъект { }";
+            var old = string.Join("\n", Enumerable.Repeat(line, 10)) + "\n";
+            var @new = old.Replace("ИгровойОбъект", "GameEntity");
+
+            var result = TextDiffEngine.Compute(old, @new);
+
+            Assert.IsFalse(result.IsLargeFile, "small file with trailing newline must use diff mode");
+            Assert.IsTrue(result.Lines.Any(l => l.Kind == DiffLineKind.Removed),
+                "removed lines must appear in the diff");
+            Assert.IsTrue(result.Lines.Any(l => l.Kind == DiffLineKind.Added),
+                "added lines must appear in the diff");
+        }
     }
 }

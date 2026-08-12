@@ -61,7 +61,8 @@ namespace UnityMCP.Editor.Chat
                 // ── ordered list ──────────────────────────────────────────────
                 if (OrderedItem.IsMatch(line))
                 {
-                    int start = int.Parse(OrderedItem.Match(line).Groups[1].Value);
+                    var rawNum = OrderedItem.Match(line).Groups[1].Value;
+                    int start = int.TryParse(rawNum, out var n) ? n : 1;
                     i = ParseOrdered(lines, i, result, start);
                     continue;
                 }

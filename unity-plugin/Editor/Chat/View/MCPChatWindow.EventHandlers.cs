@@ -80,6 +80,7 @@ namespace UnityMCP.Editor.Chat
                     ReloadGuard.OnTurnFinished(); // #1 unlock even on error
                     _askPending = false;
                     if (_activity.Fail()) OnActivityChanged();
+                    _transcript?.FinalizeAssistant(); // T1.2: close grouper + clear _taskCard before error chip
                     _transcript?.AppendToolChip(ev.Text ?? "Error", ok: false);
                     ResetTurnFlags(); // P0-2: DRY reset (was 3 inline assignments)
                     // F6: partial mutations still restorable on error.
