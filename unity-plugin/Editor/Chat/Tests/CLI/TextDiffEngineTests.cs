@@ -177,7 +177,7 @@ namespace UnityMCP.Editor.Chat.Tests.CLI
         [Test]
         public void Compute_TrailingNewline_NotTreatedAsExtraLine()
         {
-            // 80 real C# lines + trailing newline (как у любого нормального редактора).
+            // 80 real C# lines + trailing newline (as any standard editor produces).
             // Split('\n') without TrimEnd produces 81 elements → IsLargeFile=true (wrong).
             // Fix: TrimEnd('\n') before Split gives exactly 80 elements → IsLargeFile=false.
             var line = "    private float _хpHealthPoints = 100f;";

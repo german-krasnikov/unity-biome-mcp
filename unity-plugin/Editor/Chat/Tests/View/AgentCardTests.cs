@@ -243,7 +243,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void OnUpdate_EmptyArgsJson_ThenRealArgs_StillRenders()
         {
             // T1.1: after a first call with empty argsJson, a second call with real
-            // data (субагент «workflow», задача «Поиск объекта Игрок в сцене») must render.
+            // data (subagent «workflow», task «Find Player object in scene») must render.
             var chip = new VisualElement();
             var realArgs =
                 "{\"subagent_type\":\"workflow\",\"description\":\"Поиск объекта Игрок в сцене\"}";

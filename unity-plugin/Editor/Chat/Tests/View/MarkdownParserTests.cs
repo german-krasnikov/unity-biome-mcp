@@ -264,7 +264,7 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         // T1.4: int.Parse on number > INT_MAX throws OverflowException → block not rendered.
-        // LLM-галлюцинация: «99999999999999. элемент» или просто большое число.
+        // LLM hallucination: a number like «99999999999999» overflows int.Parse and must not crash.
 
         [Test]
         public void Parse_OversizedOrderedListNumber_DoesNotThrow()
