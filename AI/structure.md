@@ -12,12 +12,12 @@ unity-biome-mcp/
 │   ├── src/unity_mcp/
 │   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
-│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 148 registered MCP tools
+│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 148 registered MCP tools, idle watchdog (useful/transport split, in-flight guard, T4)
 │   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
 │   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0)
 │   │   ├── bridge_retry.py     # RetryPolicy class + unwrap_bridge_result() extracted (v0.70.0)
 │   │   ├── bridge_result.py    # unwrap_bridge_result() helper (v0.70.0)
-│   │   ├── bridge_heartbeat.py # Heartbeat management (extracted)
+│   │   ├── bridge_heartbeat.py # Heartbeat management (extracted); _on_transport_activity callback wired for idle watchdog (T4)
 │   │   ├── bridge_reload_state.py # Reload state tracking (extracted)
 │   │   ├── bridge_socket.py    # Socket management + frame helpers (extracted; v0.80.0: frame_write(), frame_read(), frame_read_with_timeout() — shared by bridge, heartbeat, chat_relay, reload_ladder, doctor)
 │   │   ├── connection_slot.py  # ConnectionSlot: single connection per project

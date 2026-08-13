@@ -440,8 +440,35 @@ async def test_on_transport_activity_callback_wired_after_connect():
     # Simulate what lifespan does after active.start_heartbeat()
     bridge._on_transport_activity = srv_module._touch_transport_activity
 
-    assert bridge._on_transport_activity is srv_module._touch_transport_activity
-
     before = srv_module._last_transport_activity
     bridge._on_transport_activity()
     assert srv_module._last_transport_activity >= before
+
+
+@pytest.mark.asyncio
+async def test_raw_ping_fires_transport_callback():
+    """_raw_ping() fires _on_transport_activity after a successful ping.
+
+    Discriminant: removing the on_ta() block from _raw_ping() makes this fail.
+    """
+    from unittest.mock import patch, AsyncMock
+    from unity_mcp.bridge_heartbeat import HeartbeatMixin
+
+    class FakeBridge(HeartbeatMixin):
+        def __init__(self):
+            self._lock = asyncio.Lock()
+            self._counter = 0
+            self.connected = True
+            self._writer = AsyncMock()
+
+        async def _read_response(self):
+            return {"id": f"hb{self._counter:04x}"}
+
+    bridge = FakeBridge()
+    callback_calls = []
+    bridge._on_transport_activity = lambda: callback_calls.append(1)
+
+    with patch("unity_mcp.bridge_heartbeat.frame_write"):
+        await bridge._raw_ping(timeout=1.0)
+
+    assert callback_calls == [1], "_raw_ping must fire _on_transport_activity exactly once"
