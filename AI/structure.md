@@ -377,7 +377,7 @@ unity-biome-mcp/
 │       ├── ConsoleProblemPersistence.cs    # SessionState-persisted problem entries (Error/Exception/Assert) across domain reload
 │       ├── PrefKeys.cs                     # Central SessionState/EditorPrefs key literals (DRY)
 │       ├── ClientConnectionHandler.cs       # Handles TCP client connections (v0.69.0)
-│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0; v1.0.1: LingerOption(true,0) on all close paths → RST not FIN, no TIME_WAIT on Windows); **T1: CountActive()** method — thread-safe snapshot of active connection count
+│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0; v1.0.1: LingerOption(true,0) on all close paths → RST not FIN, no TIME_WAIT on Windows); **T1: CountActive()** method — thread-safe snapshot of active connection count; **T3: Per-Entry Metadata** — ClientActivityState enum, ConnectionSnapshot struct (11 fields), per-entry fields + methods (SetEntryEndpoint, SetEntryLabel, BeginCommand, EndCommand, GetEntryLabel, SetEntrySession, TakeSnapshot, DisconnectEntry, SetLastUsefulTicksForTest)
 │       ├── MainThreadDispatcher.cs          # Main-thread work queue for TCP callbacks (v0.69.0)
 │       ├── EnvironmentHelper.cs             # Unity environment detection + version checks (v0.69.0)
 │       ├── ErrorClassifier.cs               # Categorizes command failures for recovery (v0.69.0)
@@ -452,6 +452,7 @@ unity-biome-mcp/
 │       │   ├── BatchHelperReadOnlyTests.cs # **WI-8**: Batch DSL read-only mode — verify mutations blocked, reads allowed, verification gates skipped
 │       │   ├── CommandRouterReadOnlyTests.cs # **WI-8**: CommandRouter.IsReadOnly property + CheckGuards write-blocking + get_enabled_tools cache behavior in read-only
 │       │   ├── RequiresReadWriteAttributeTests.cs # **WI-8**: [RequiresReadWrite] attribute + EnforceReadWriteRequirement() unit tests — reason extraction, type/method reflection, skip predicate
+│       │   ├── ClientSlotMetadataTests.cs # 10 NUnit tests (per-entry metadata: ConnectedAt, Label, InFlightCount, ActivityState, LastUsefulAt, EndCommand timestamps, generation stale checks) (T3)
 │       │   ├── MCPServerStartGuardTests.cs # 3 NUnit tests (ShouldStartServer batch mode guard, v0.52.6)
 │       │   ├── MCPStatusModelTests.cs     # 14 NUnit tests (state transitions, labels, pills) [+TestFixture v0.26.0]
 │       │   ├── CatalogParserTests.cs      # [+TestFixture v0.26.0]

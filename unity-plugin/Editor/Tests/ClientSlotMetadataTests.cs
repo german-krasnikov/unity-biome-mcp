@@ -257,5 +257,104 @@ namespace UnityMCP.Editor.Tests
                 handle.clientCts.Dispose();
             }
         }
+
+        // SetEntryEndpoint stores the remote address; snapshot reflects it.
+        [Test]
+        public void SetEntryEndpoint_MatchingGeneration_PopulatesSnapshot()
+        {
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            using var client = new TcpClient();
+            var handle = slot.Add(client, lifetime.Token);
+            try
+            {
+                slot.SetEntryEndpoint(handle.index, handle.generation, "127.0.0.1:12345");
+                var snapshots = slot.TakeSnapshot();
+                Assert.AreEqual(1, snapshots.Length);
+                Assert.AreEqual("127.0.0.1:12345", snapshots[0].RemoteEndpoint);
+            }
+            finally
+            {
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                handle.clientCts.Dispose();
+            }
+        }
+
+        // SetEntrySession stores SessionId and DisplayName; both appear in the snapshot.
+        [Test]
+        public void SetEntrySession_MatchingGeneration_PopulatesSessionIdAndDisplayName()
+        {
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            using var client = new TcpClient();
+            var handle = slot.Add(client, lifetime.Token);
+            try
+            {
+                slot.SetEntrySession(handle.index, handle.generation,
+                    "sess-abc", "lock-tok", "agent-1", "Claude Code");
+                var snapshots = slot.TakeSnapshot();
+                Assert.AreEqual(1, snapshots.Length);
+                Assert.AreEqual("sess-abc", snapshots[0].SessionId);
+                Assert.AreEqual("Claude Code", snapshots[0].DisplayName);
+            }
+            finally
+            {
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                handle.clientCts.Dispose();
+            }
+        }
+
+        // DisconnectEntry with matching generation cancels the CTS; entry transitions to Closing.
+        // Clear() is still the handler's responsibility — DisconnectEntry does not null Client.
+        [Test]
+        public void DisconnectEntry_ValidGeneration_CancelsEntryAndTransitionsToClosing()
+        {
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            using var client = new TcpClient();
+            var handle = slot.Add(client, lifetime.Token);
+            try
+            {
+                slot.DisconnectEntry(handle.index, handle.generation);
+                Assert.IsTrue(handle.clientCts.IsCancellationRequested,
+                    "DisconnectEntry must cancel the entry CTS");
+                var snapshots = slot.TakeSnapshot();
+                Assert.AreEqual(1, snapshots.Length);
+                Assert.AreEqual(ClientActivityState.Closing, snapshots[0].State);
+            }
+            finally
+            {
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                handle.clientCts.Dispose();
+            }
+        }
+
+        // DisconnectEntry with stale generation is a no-op; CTS and state are untouched.
+        [Test]
+        public void DisconnectEntry_StaleGeneration_IsNoOp()
+        {
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            using var client = new TcpClient();
+            var handle = slot.Add(client, lifetime.Token);
+            try
+            {
+                slot.DisconnectEntry(handle.index, handle.generation + 1);
+                Assert.IsFalse(handle.clientCts.IsCancellationRequested,
+                    "Stale generation must not cancel the CTS");
+                var snapshots = slot.TakeSnapshot();
+                Assert.AreEqual(1, snapshots.Length);
+                Assert.AreEqual(ClientActivityState.Idle, snapshots[0].State);
+            }
+            finally
+            {
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                handle.clientCts.Dispose();
+            }
+        }
     }
 }
