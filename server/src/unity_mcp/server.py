@@ -135,7 +135,7 @@ class _UnstructuredMCP(FastMCP):
 
 from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
-from .lockfile import acquire_lock, cleanup_stale_locks, release_lock
+from .lockfile import acquire_lock, cleanup_stale_locks, release_lock, write_lock_metadata
 from .middleware import Middleware, wrap_send
 from .plugins import load_plugins
 from .server_filtering import (
@@ -489,6 +489,15 @@ async def lifespan(app):
         _editor_log.init_corroboration(port=unity_port)
         active = slot.bridge
         if active is not None:
+            # T5: record session identity in lockfile so C# can read lockToken/sessionId.
+            with contextlib.suppress(Exception):
+                write_lock_metadata(lock_fd, {
+                    "v": 2,
+                    "lockToken": active.lock_token,
+                    "sessionId": active.session_id,
+                    "role": os.environ.get("UNITY_MCP_CLIENT") or "mcp",
+                    "cwd": os.getcwd(),
+                })
             if active.connected:
                 await _refresh_tools_cache(active)
                 await _warm_alias_cache(active)
