@@ -14,7 +14,7 @@ unity-biome-mcp/
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
 │   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 148 registered MCP tools, idle watchdog (useful/transport split, in-flight guard, T4)
 │   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
-│   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0)
+│   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0); T5: ClientHelloPayload dataclass, _session_id/_lock_token/_started_at_utc set in __init__, session_id/lock_token read-only properties, _build_hello(msg_id), _check_version_from_hello/_fetch_and_check_version split for new→old fallback
 │   │   ├── bridge_retry.py     # RetryPolicy class + unwrap_bridge_result() extracted (v0.70.0)
 │   │   ├── bridge_result.py    # unwrap_bridge_result() helper (v0.70.0)
 │   │   ├── bridge_heartbeat.py # Heartbeat management (extracted); _on_transport_activity callback wired for idle watchdog (T4)
@@ -36,7 +36,7 @@ unity-biome-mcp/
 │   │   ├── server_filtering.py # Port discovery + TCP probe (v0.23.0), catalog push, tool filtering
 │   │   ├── paths.py            # Canonical path helpers for ~/.unity-biome-mcp layout (v0.70.0: unity_mcp_dir(); v0.96.1: iter_port_files() — yields port files from primary + legacy ~/.unity-mcp/ports/, dedup by filename)
 │   │   ├── server_control.py   # Graceful shutdown: list_servers, stop_server SIGTERM/taskkill (v0.55.10)
-│   │   ├── lockfile.py         # Cross-platform exclusive locking + zombie detection (v0.23.0)
+│   │   ├── lockfile.py         # Cross-platform exclusive locking + zombie detection (v0.23.0); T5: write_lock_metadata/read_lock_metadata for session identity (sessionId, lockToken) on lockfile line 2 (JSON); acquire_lock() gains metadata kwarg
 │   │   ├── diagnose.py         # Shared diagnose parser + verdict logic (_parse_diagnose, _verdict, _DiagnoseFields)
 │   │   ├── _update_check.py    # Version checker — GitHub releases API (v0.47.1: switched from PyPI), 24h cache, includes --reinstall flag in banner
 │   │   ├── compile_state.py    # CompileStateProbe (heuristic Unity compile detection)
@@ -200,8 +200,9 @@ unity-biome-mcp/
 │       ├── test_bridge_reload_gate.py      # Reload gate (asyncio.Event): wakes on reconnect, replaces fixed sleep (5 tests, v0.78.5)
 │       ├── test_bridge_role.py             # Client role/identification: UNITY_MCP_CLIENT env, set_client_label, RoleToLabel (3 tests, v0.78.5)
 │       ├── test_bridge_retry.py            # RetryPolicy unit tests: decide(), allow_hint_retry, is_retry_safe gate (v0.90.0)
+│       ├── test_client_hello.py            # T5: client_hello handshake (8 tests): fast-path hello response, fallback to legacy project check, version parsing from hello, backward compat new↔old protocol
 │       ├── test_connection_status.py       # Semantic connection status: connected/reconnecting/domain-reloading/disconnected (v0.78.10)
-│       ├── test_lockfile.py             # PID lockfile + cleanup_stale_port_files (additions, v0.52.6)
+│       ├── test_lockfile.py             # PID lockfile + cleanup_stale_port_files (additions, v0.52.6); T5: +3 tests for write_lock_metadata/read_lock_metadata
 │       ├── test_server_control.py       # list_servers, stop_server SIGTERM/taskkill (v0.55.10)
 │       ├── test_autobatch.py            # _quote_if_spaces, _DOTTED_KV_RE, setup/set/configure_objects (v0.55.10)
 │       ├── test_parse_kv.py             # parse_kv quote-strip, lookahead _KV_RE (v0.55.10)

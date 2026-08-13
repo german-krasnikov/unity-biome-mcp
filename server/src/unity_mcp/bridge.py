@@ -208,15 +208,15 @@ class UnityBridge(HeartbeatMixin):
         client = os.environ.get("UNITY_MCP_CLIENT", "")
         payload = ClientHelloPayload(
             role=client or "mcp",
-            session_id=getattr(self, "_session_id", ""),
-            lock_token=getattr(self, "_lock_token", ""),
+            session_id=self._session_id,
+            lock_token=self._lock_token,
             bridge_pid=os.getpid(),
             bridge_parent_pid=os.getppid() if hasattr(os, "getppid") else 0,
-            agent_id=getattr(self, "_bridge_id", ""),
+            agent_id=self._bridge_id,
             display_name=client or "mcp",
             bridge_version="",
             cwd=os.getcwd(),
-            started_at_utc=getattr(self, "_started_at_utc", ""),
+            started_at_utc=self._started_at_utc,
         )
         data = {
             "id": msg_id,

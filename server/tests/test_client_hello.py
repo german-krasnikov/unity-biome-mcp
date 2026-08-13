@@ -140,7 +140,7 @@ async def test_open_reconnect_uses_client_hello_when_ok(monkeypatch):
 # _open_reconnect_candidate: old C# fallback (ok:false, no helloVersion)
 # ---------------------------------------------------------------------------
 
-async def test_open_reconnect_falls_back_to_ping_when_hello_fails(monkeypatch):
+async def test_open_reconnect_falls_back_to_get_version_when_hello_fails(monkeypatch):
     """Old C#: hello returns ok:false → fallback sends get_version, then command."""
     monkeypatch.delenv("UNITY_MCP_CLIENT", raising=False)
     mock_open, writer = _make_open_connection([
@@ -175,4 +175,60 @@ async def test_open_reconnect_falls_back_on_going_away(monkeypatch):
     with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open):
         bridge = UnityBridge("127.0.0.1", 9999, probe=make_idle_probe())
         with pytest.raises((DomainReloadError, ConnectionError)):
+            await bridge.send("ping", {})
+
+
+# ---------------------------------------------------------------------------
+# _open_reconnect_candidate: project path verification in hello fast-path
+# ---------------------------------------------------------------------------
+
+async def test_open_reconnect_hello_project_path_match(monkeypatch):
+    """New C# fast-path: projectPath matches expected → connection succeeds."""
+    monkeypatch.delenv("UNITY_MCP_CLIENT", raising=False)
+    project = "/tmp/testproject"
+    mock_open, writer = _make_open_connection([
+        _hello_ok(project_path=project),
+        _pong(),
+    ])
+
+    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open):
+        bridge = UnityBridge("127.0.0.1", 9999, probe=make_idle_probe(),
+                             expected_project_path=project)
+        await bridge.send("ping", {})
+
+    assert writer.write.call_count == 2
+
+
+async def test_open_reconnect_hello_project_path_mismatch_raises(monkeypatch):
+    """New C# fast-path: projectPath mismatch → ConnectionError raised, no command sent."""
+    monkeypatch.delenv("UNITY_MCP_CLIENT", raising=False)
+    mock_open, writer = _make_open_connection([
+        _hello_ok(project_path="/wrong/project"),
+    ])
+
+    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open):
+        bridge = UnityBridge("127.0.0.1", 9999, probe=make_idle_probe(),
+                             expected_project_path="/expected/project")
+        with pytest.raises(ConnectionError):
+            await bridge.send("ping", {})
+
+    # Verify "ping" command never reached C# — only client_hello frames were written.
+    written_cmds = [
+        json.loads(call[0][0][4:].decode()).get("cmd")
+        for call in writer.write.call_args_list
+    ]
+    assert "ping" not in written_cmds
+
+
+async def test_open_reconnect_hello_empty_project_path_raises(monkeypatch):
+    """New C# fast-path: empty projectPath when path verification required → ConnectionError."""
+    monkeypatch.delenv("UNITY_MCP_CLIENT", raising=False)
+    mock_open, _ = _make_open_connection([
+        _hello_ok(project_path=""),
+    ])
+
+    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open):
+        bridge = UnityBridge("127.0.0.1", 9999, probe=make_idle_probe(),
+                             expected_project_path="/expected/project")
+        with pytest.raises(ConnectionError):
             await bridge.send("ping", {})

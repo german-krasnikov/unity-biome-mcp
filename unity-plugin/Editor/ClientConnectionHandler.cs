@@ -101,6 +101,15 @@ namespace UnityMCP.Editor
             cmd != "ping" && cmd != "get_version" && cmd != "status" &&
             cmd != "get_enabled_tools" && cmd != "client_hello";
 
+        // internal so tests can verify the cross-language response format without TCP.
+        // helloVersion:2 is the Python discriminant: present → fast-path (1 RTT), absent → 3-RTT fallback.
+        internal static string BuildClientHelloResponse(string msgId, string ver, string projPath) =>
+            $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":true," +
+            $"\"data\":\"pong\",\"helloVersion\":2," +
+            $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
+            $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"}}";
+
+
         private static async Task HandleClientAsync(TcpClient client, ClientSlot slot, int index, long generation,
             string label, CancellationToken clientToken)
         {
@@ -165,11 +174,7 @@ namespace UnityMCP.Editor
                             var projPath = MCPServer._cachedDataPath != null
                                 ? (System.IO.Path.GetDirectoryName(MCPServer._cachedDataPath)?.Replace('\\', '/') ?? "")
                                 : "";
-                            var resp = $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":true," +
-                                       $"\"data\":\"pong\",\"helloVersion\":2," +
-                                       $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
-                                       $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"}}";
-                            await SendAsync(stream, resp, clientToken).ConfigureAwait(false);
+                            await SendAsync(stream, BuildClientHelloResponse(msgId, ver, projPath), clientToken).ConfigureAwait(false);
                             continue;
                         }
 
