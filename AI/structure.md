@@ -318,7 +318,8 @@ unity-biome-mcp/
 │       ├── AliasExpander.cs                # C#-side $sigil expansion: ExpandJson (args) + ExpandText (DSL); lazy PlaytestConfig cache, AliasConfigPostprocessor invalidation (v0.78.8); BuildPipePath(QueryAlias): preserves path|component|field for ValPath aliases (v0.78.11)
 │       ├── FieldProjector.cs               # Pure static: filter inspect/get_component output to requested fields (v0.78.x, 67 LOC)
 │       ├── DefaultStripper.cs              # Pure static: strip default/zero-value lines from component output (v0.78.x, 62 LOC)
-│       ├── RefManager.cs                   # Ephemeral $a-$zz scene refs (702 slots)
+│       ├── RefManager.cs                   # Ephemeral &-prefixed base62 scene refs (v1.31.0: & prefix + base62 encoding, backward-compat $ parsing)
+│       ├── WirePrefix.cs                    # Wire protocol prefix constants: & (Ref) and $ (Alias) (v1.31.0)
 │       ├── ErrorHelper.cs                  # Contextual errors + "did you mean?"
 │       ├── RuntimeHelper.cs                # Reflection invoke + state read; method dispatch cache + field(args) syntax (v0.74.0)
 │       ├── PlaytestRunner.cs               # DSL playtest executor (partial class, core); abort_on_fail, EvalCompound (v0.74.0); VAR expansion via PlaytestVarRegistry, _cachedConfig (v0.78.x); playtests ROI sprint: suite runner (list_playtest_files), snapshot_on_failure support
@@ -355,6 +356,7 @@ unity-biome-mcp/
 │       ├── SceneHealthAnalyzer.cs          # Scene audit: 7 checks (hierarchy, naming, duplicates, origins, missing, empty, disabled) (v0.62.0)
 │       ├── SpatialHelper.cs                # Raycast, overlap, nearest, bounds, grid_cast
 │       ├── AnimationHelper.cs + AnimationSerializer.cs
+│       ├── AnimationCurveCompactor.cs     # Curve optimization: groups .x/.y/.z into vectors, dedup unchanged (v1.31.0)
 │       ├── AnimatorControllerHelper.cs + AnimatorControllerSerializer.cs
 │       ├── TimelineHelper.cs + TimelineSerializer.cs
 │       ├── ParticleHelper.cs + ParticleSerializer.cs  # 10 presets
@@ -417,8 +419,9 @@ unity-biome-mcp/
 │       ├── BiomeUI.cs                     # Biome section UI orchestrator (docs-critical-review)
 │       ├── UI/                             # UI design system (v0.55.10)
 │       │   └── IconCanvas.cs              # Procedural icon builder (18×18, 2px stroke, theme-agnostic)
-│       ├── MCPStatusWindow.cs             # Connection status monitor (heartbeat animation)
-│       ├── MCPActions.cs                  # Shared actions (Restart, Kill, Reimport)
+│       ├── MCPStatusWindow.cs             # Connection status monitor: server list with Kill buttons, refresh on tick, changelog via MarkdownInlineFormatter (v1.31.0: changelog DRY rendering)
+│       ├── McpServerScanner.cs            # Port/lock file scanner: detects alive/phantom servers, CleanPhantomFiles orphan cleanup (v1.31.0)
+│       ├── MCPActions.cs                  # Shared actions: KillCurrent/KillAll/KillByPort split with DRY helpers (v1.31.0)
 │       ├── MCPStatusModel.cs              # Pure state logic (no deps) — maps connection state → display
 │       ├── MCPStatusBarWidget.cs          # Injects MCP pill into AppStatusBar via reflection
 │       ├── TestSupport/                   # Test infrastructure base class + attributes (v1.12.0, separate asmdef)
@@ -739,6 +742,9 @@ unity-biome-mcp/
 │       │   │   ├── BackendRegistry.cs         # Backend selection
 │       │   │   ├── BackendConfig.cs           # Serializable per-backend settings
 │       │   │   ├── BackendConfigStore.cs      # Project-local settings persistence
+│       │   │   ├── ModelPresets.cs            # Model preset entries with contextWindow field, SetOverrides cache, ForDropdown API (v1.31.0)
+│       │   │   ├── ModelContextWindows.cs     # Per-model context window configuration
+│       │   │   ├── CopyAsMcpRef.cs            # Copy as MCP Ref command: Cmd+Shift+C shortcut (v1.31.0)
 │       │   │   ├── ChatEvent.cs               # Normalized event struct
 │       │   │   ├── UserTurnBuilder.cs         # Encode user turns
 │       │   │   ├── ControlResponseBuilder.cs  # Approval and user-input responses
@@ -764,7 +770,8 @@ unity-biome-mcp/
 │       │   │   ├── ChatSettingsSection.cs     # Delegate class for ChatConnectionSection (F23 refactored)
 │       │   │   ├── ChatConnectionSection.cs   # [InitializeOnLoad] subscriber to ChatSettingsHook.OnBuildConnection (F23)
 │       │   │   ├── ChatActivityState.cs       # Activity state tracking for grouping
-│       │   │   ├── ChatLabel.cs               # Label customization + UI behavior
+│       │   │   ├── ChatLabel.cs               # Label customization + UI behavior: chat-text class for text wrapping (v1.31.0)
+│       │   │   ├── ChatTranscript.cs          # Transcript layout: flex-start alignment + inner width for proper wrapping (v1.31.0)
 │       │   │   ├── ChatRefAction.cs           # Click-navigate + context-menu for interactive refs
 │       │   │   ├── ChatRefResolver.cs         # Scan hierarchy, resolve scene/script refs (F4 #ID)
 │       │   │   ├── CopyableText.cs            # Selectable text wrapper
