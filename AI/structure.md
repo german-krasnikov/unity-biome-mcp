@@ -12,9 +12,9 @@ unity-biome-mcp/
 │   ├── src/unity_mcp/
 │   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
-│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 148 registered MCP tools, idle watchdog (useful/transport split, in-flight guard, T4)
+│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 148 registered MCP tools, idle watchdog (useful/transport split, in-flight guard, T4, T6: dormant scheduling + TOCTOU guard + parent-alive check)
 │   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
-│   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0); T5: ClientHelloPayload dataclass, _session_id/_lock_token/_started_at_utc set in __init__, session_id/lock_token read-only properties, _build_hello(msg_id), _check_version_from_hello/_fetch_and_check_version split for new→old fallback
+│   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0); T5: ClientHelloPayload dataclass, _session_id/_lock_token/_started_at_utc set in __init__, session_id/lock_token read-only properties, _build_hello(msg_id), _check_version_from_hello/_fetch_and_check_version split for new→old fallback; T6: BridgeState.DORMANT/WAKING, suspend() method (CONNECTED→DORMANT, guards: queue empty + state check, resets cooldown/backoff)
 │   │   ├── bridge_retry.py     # RetryPolicy class + unwrap_bridge_result() extracted (v0.70.0)
 │   │   ├── bridge_result.py    # unwrap_bridge_result() helper (v0.70.0)
 │   │   ├── bridge_heartbeat.py # Heartbeat management (extracted); _on_transport_activity callback wired for idle watchdog (T4)

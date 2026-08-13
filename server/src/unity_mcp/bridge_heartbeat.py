@@ -92,8 +92,8 @@ class HeartbeatMixin:
             return  # skip tick, recheck next heartbeat
         self._ppid_mismatch_count = 0
         if not self.connected:
+            import unity_mcp.bridge as _bm  # lazy to avoid circular at module level
             # DORMANT: intentional TCP close — heartbeat must not attempt reconnect.
-            import unity_mcp.bridge as _bm  # lazy to avoid circular
             if self._state == _bm.BridgeState.DORMANT:
                 return
             # Track cumulative disconnected time for startup-grace deadline.
@@ -121,7 +121,6 @@ class HeartbeatMixin:
 
             # Check grace deadline: if elapsed > STARTUP_GRACE_S and not busy,
             # stop silently looping — next send() will surface the STOP error.
-            import unity_mcp.bridge as _bm  # lazy to avoid circular at module level
             if elapsed > _bm.STARTUP_GRACE_S and not busy:
                 self._startup_grace_expired = True
                 return

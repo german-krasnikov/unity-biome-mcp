@@ -816,4 +816,6 @@ class UnityBridge(HeartbeatMixin):
                 await asyncio.wait_for(w.wait_closed(), timeout=2.0)
         self._last_reconnect_at = 0.0
         self._reconnect_backoff = BACKOFF_MIN_S
-        return True
+        # If a concurrent send() reconnected during wait_closed(), state is no longer DORMANT.
+        # Return False so the caller knows suspension did not hold.
+        return self._state == BridgeState.DORMANT

@@ -63,6 +63,35 @@ async def test_suspend_resets_cooldown():
 
 
 # ---------------------------------------------------------------------------
+# suspend() — postcondition: must return False if bridge reconnects during wait_closed
+# ---------------------------------------------------------------------------
+
+async def test_suspend_returns_false_if_reconnected_during_teardown():
+    """suspend() returns False when a concurrent send reconnects during wait_closed().
+
+    Race: state=DORMANT set under lock → writer=None (sync) →
+    await wait_closed() yields → _send_with_retry reconnects → state=CONNECTED.
+    suspend() must see the new state and return False (not True).
+    Discriminating: fails without the `return self._state == BridgeState.DORMANT` fix.
+    """
+    bridge = _connected_bridge()
+    new_writer = make_writer()
+
+    async def simulate_reconnect():
+        # Mimics what _accept_candidate does on successful reconnect.
+        bridge._writer = new_writer
+        bridge._state = BridgeState.CONNECTED
+
+    bridge._writer.wait_closed = AsyncMock(side_effect=simulate_reconnect)
+
+    result = await bridge.suspend()
+
+    assert result is False, "suspend() must return False when bridge reconnected mid-teardown"
+    assert bridge._state == BridgeState.CONNECTED
+    assert bridge._writer is new_writer
+
+
+# ---------------------------------------------------------------------------
 # suspend() — guard conditions
 # ---------------------------------------------------------------------------
 
