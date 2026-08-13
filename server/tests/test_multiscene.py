@@ -9,28 +9,28 @@ from unity_mcp.server import compress_hierarchy
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
 MULTI_SCENE_HIERARCHY = """[MainScene]
-├─ Player $a
-│  ├─ Camera $b
-│  └─ Weapon $c
+├─ Player &1
+│  ├─ Camera &2
+│  └─ Weapon &3
 [AdditiveScene]
-├─ Enemy $d
-│  └─ Health $e
-├─ Alice $f"""
+├─ Enemy &4
+│  └─ Health &5
+├─ Alice &6"""
 
-SINGLE_SCENE_HIERARCHY = """├─ Player $a
-│  ├─ Camera $b
-│  └─ Weapon $c"""
+SINGLE_SCENE_HIERARCHY = """├─ Player &1
+│  ├─ Camera &2
+│  └─ Weapon &3"""
 
 MULTI_SCENE_HIER_WITH_INDENT = """[MainScene]
-├─ Player $a
-├─ Camera $b
+├─ Player &1
+├─ Camera &2
 [AdditiveScene]
-├─ Enemy $c"""
+├─ Enemy &3"""
 
-THREE_SCENES = "[MainScene]\nPlayer $a\n├─ Camera $b\n[Level1]\nEnemy $c\n├─ Health $d\n[Level2]\nBoss $e\n├─ Shield $f\n├─ Weapon $g"
-FIVE_SCENES = "\n".join(f"[Scene{i}]\nObj{i} $r{i}" for i in range(1, 6))
-TEN_SCENES = "\n".join(f"[Scene{i}]\nObj{i} $r{i}" for i in range(10))
-DEEP_HIER = "[Main]\nA $a\n├─ B $b\n│  ├─ C $c\n│  │  ├─ D $d\n│  │  │  └─ E $e"
+THREE_SCENES = "[MainScene]\nPlayer &1\n├─ Camera &2\n[Level1]\nEnemy &3\n├─ Health &4\n[Level2]\nBoss &5\n├─ Shield &6\n├─ Weapon &7"
+FIVE_SCENES = "\n".join(f"[Scene{i}]\nObj{i} &{i}" for i in range(1, 6))
+TEN_SCENES = "\n".join(f"[Scene{i}]\nObj{i} &{i}" for i in range(10))
+DEEP_HIER = "[Main]\nA &1\n├─ B &2\n│  ├─ C &3\n│  │  ├─ D &4\n│  │  │  └─ E &5"
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -122,31 +122,32 @@ class TestPathCacheScale:
 
 class TestPathCacheNameEdgeCases:
     def test_scene_name_with_spaces(self):
-        m = _m("[My Scene Name]\nPlayer $a")
+        m = _m("[My Scene Name]\nPlayer &1")
         assert m.path_to_scene.get("/Player") == "My Scene Name"
 
     def test_scene_name_with_parentheses(self):
-        m = _m("[Level (unsaved)]\nEnemy $a")
+        m = _m("[Level (unsaved)]\nEnemy &1")
         assert m.path_to_scene.get("/Enemy") == "Level (unsaved)"
 
-    def test_dollar_in_scene_name_not_a_header(self):
-        m = _m("[$pecialScene]\nPlayer $a")
-        assert m.path_to_scene.get("/Player") is None
+    def test_dollar_in_scene_name_is_a_header(self):
+        # After $ → & migration, $ in scene name does not prevent header detection
+        m = _m("[$pecialScene]\nPlayer &1")
+        assert m.path_to_scene.get("/Player") == "$pecialScene"
 
     def test_consecutive_scene_headers_empty_first(self):
-        m = _m("[Scene1]\n[Scene2]\nObj $a")
+        m = _m("[Scene1]\n[Scene2]\nObj &1")
         assert "/Obj" in m.known_paths
         assert m.path_to_scene["/Obj"] == "Scene2"
 
     def test_empty_scene_does_not_break_parser(self):
-        m = _m("[EmptyScene]\n[NextScene]\nPlayer $a")
+        m = _m("[EmptyScene]\n[NextScene]\nPlayer &1")
         # P1 fix: both bare and scene-qualified stored
         assert "/Player" in m.known_paths
         assert "NextScene:/Player" in m.known_paths
 
     def test_long_scene_name_with_underscores(self):
         name = "MyVeryLongSceneName_With_Underscores"
-        m = _m(f"[{name}]\nObj $a")
+        m = _m(f"[{name}]\nObj &1")
         assert m.path_to_scene.get("/Obj") == name
 
 
@@ -154,7 +155,7 @@ class TestPathCacheNameEdgeCases:
 
 class TestPathCacheDuplicatesAndDepth:
     def test_duplicate_object_across_scenes_last_wins(self):
-        m = _m("[SceneA]\nPlayer $a\n[SceneB]\nPlayer $b\n[SceneC]\nPlayer $c")
+        m = _m("[SceneA]\nPlayer &1\n[SceneB]\nPlayer &2\n[SceneC]\nPlayer &3")
         # P1 fix: all scene-qualified paths stored (disambiguation), last wins in path_to_scene
         assert "/Player" in m.known_paths
         assert "SceneA:/Player" in m.known_paths
@@ -183,7 +184,9 @@ class TestSplitSceneQualified:
         assert _split_scene_qualified("/foo") == ("", "/foo")
 
     def test_ref_ignored(self):
-        assert _split_scene_qualified("$a") == ("", "$a")
+        # Both & (new) and $ (backward compat) are treated as refs, not scene names
+        assert _split_scene_qualified("&1") == ("", "&1")
+        assert _split_scene_qualified("$1") == ("", "$1")
 
     def test_no_slash_after_colon(self):
         assert _split_scene_qualified("foo:bar") == ("", "foo:bar")
@@ -228,21 +231,25 @@ class TestValidatePathMultiScene:
 
 class TestValidatePathBoundary:
     def test_qualified_nonexistent_path_warns(self):
-        m = _m("[Main]\nPlayer $a")
+        m = _m("[Main]\nPlayer &1")
         result = m.validate_path("Main:/NonExistent")
         assert result is not None
         assert "PATH WARNING" in result
 
     def test_path_with_spaces_exists(self):
-        m = _m("[Main]\nMy Object $a")
+        m = _m("[Main]\nMy Object &1")
         assert m.validate_path("/My Object") is None
 
     def test_dollar_ref_skipped(self):
-        m = _m("[Main]\nPlayer $a")
+        m = _m("[Main]\nPlayer &1")
         assert m.validate_path("$a") is None
 
+    def test_ampersand_ref_skipped(self):
+        m = _m("[Main]\nPlayer &1")
+        assert m.validate_path("&1") is None
+
     def test_instance_id_skipped(self):
-        m = _m("[Main]\nPlayer $a")
+        m = _m("[Main]\nPlayer &1")
         assert m.validate_path("#12345") is None
 
 

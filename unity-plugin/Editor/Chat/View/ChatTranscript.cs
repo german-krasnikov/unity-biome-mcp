@@ -283,6 +283,10 @@ namespace UnityMCP.Editor.Chat
             _grouper.Close(); _assistantRaw.Clear();
             _committed = 0; _liveTail = null; _liveTailSrc = null;
             _assistantRow    = Row(null);
+            // flex-start: bubble sizes to content, not stretched to row width.
+            // Combined with inner's width=100%, Yoga measures labels AT_MOST 85% of viewport
+            // → short text stays compact, long text wraps correctly.
+            _assistantRow.style.alignItems = Align.FlexStart;
             _assistantBubble = new VisualElement();
             _assistantBubble.AddToClassList("msg-bubble");
             _assistantBubble.AddToClassList("msg-bubble--assistant");

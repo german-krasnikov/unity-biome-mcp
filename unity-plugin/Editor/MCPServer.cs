@@ -191,6 +191,7 @@ namespace UnityMCP.Editor
             EditorSceneManager.sceneOpened += (_, _) => InvalidateSceneCaches();
             EditorSceneManager.newSceneCreated += (_, _, _) => InvalidateSceneCaches();
             EditorSceneManager.sceneClosed += _ => InvalidateSceneCaches();
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
         }
 
         private static void OnCompilationStarted()
@@ -210,6 +211,13 @@ namespace UnityMCP.Editor
             if (EditorUtility.scriptCompilationFailed)
                 WriteStateFile("compile_failed");
             // else: state stays "compiling" until reload completes (StartAsync writes "ready")
+        }
+
+        private static void OnPlayModeStateChanged(PlayModeStateChange change)
+        {
+            if (change == PlayModeStateChange.ExitingEditMode ||
+                change == PlayModeStateChange.ExitingPlayMode)
+                InvalidateSceneCaches();
         }
 
         private static void InvalidateSceneCaches()

@@ -1,8 +1,10 @@
 // TDD — CopyAsMcpRef: FormatAsRef + CopySelection logic tests.
 // Tests FormatAsRef pipeline and CopySelection behavior without invoking real MenuItems.
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using UnityEditor.ShortcutManagement;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
 
@@ -101,6 +103,17 @@ namespace UnityMCP.Editor.Chat.Tests
 
             var clipboard = EditorGUIUtility.systemCopyBuffer;
             StringAssert.Contains("hierarchy:/Tank", clipboard);
+        }
+
+        // 8. Shortcut method exists and carries [Shortcut] attribute
+        [Test]
+        public void CopyRefShortcut_HasShortcutAttribute()
+        {
+            var method = typeof(CopyAsMcpRef).GetMethod("CopyRefShortcut",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(method, "CopyRefShortcut method must exist");
+            var attr = method.GetCustomAttribute<ShortcutAttribute>();
+            Assert.IsNotNull(attr, "[Shortcut] attribute must be present");
         }
 
         // 7. MonoBehaviour: GO ref always present; MonoScript ref included when available.

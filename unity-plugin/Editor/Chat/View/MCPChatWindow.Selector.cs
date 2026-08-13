@@ -22,11 +22,11 @@ namespace UnityMCP.Editor.Chat
 
         // Backward-compat property for existing tests — returns default presets (no config I/O)
         internal static Dictionary<BackendKind, (string label, string modelId)[]> ModelPresetsPerKind
-            => ModelPresetDefaults.All;
+            => ModelPresetDefaults.AllDropdown;
 
         // Backward-compat alias for existing tests
         internal static (string label, string modelId)[] ModelPresets
-            => ModelPresetDefaults.All[BackendKind.Claude];
+            => ModelPresetDefaults.ForDropdown(BackendKind.Claude);
 
         private static string ModelPrefKeyFor(BackendKind kind)
             => $"MCPChat.SelectedModel.{kind}";

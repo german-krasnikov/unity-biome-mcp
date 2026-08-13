@@ -1,11 +1,16 @@
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.ShortcutManagement;
 using UnityEngine;
 
 namespace UnityMCP.Editor.Chat
 {
     internal static class CopyAsMcpRef
     {
+        [Shortcut("🧬MCP/Copy Ref", KeyCode.C, ShortcutModifiers.Shift | ShortcutModifiers.Action)]
+        private static void CopyRefShortcut()
+            => CopySelection(Selection.gameObjects);
+
         [MenuItem("GameObject/🧬MCP/Copy Ref", false, 10)]
         private static void ExecuteHierarchy()
             => CopySelection(Selection.gameObjects);

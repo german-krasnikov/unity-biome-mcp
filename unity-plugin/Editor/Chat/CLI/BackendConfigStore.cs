@@ -26,7 +26,11 @@ namespace UnityMCP.Editor.Chat
         {
             path = path ?? DefaultPath;
             if (!File.Exists(path))
-                return new BackendConfigStore();
+            {
+                var def = new BackendConfigStore();
+                def.BuildContextIndex();
+                return def;
+            }
             try
             {
                 var json  = File.ReadAllText(path);
@@ -40,11 +44,14 @@ namespace UnityMCP.Editor.Chat
                 store.ModelPresets  = store.ModelPresets  ?? new ModelPresetsConfig();
                 store.Mention       = store.Mention       ?? new MentionConfig();
                 MigrateKimiModel(store);
+                store.BuildContextIndex();
                 return store;
             }
             catch
             {
-                return new BackendConfigStore();
+                var def = new BackendConfigStore();
+                def.BuildContextIndex();
+                return def;
             }
         }
 
@@ -52,7 +59,7 @@ namespace UnityMCP.Editor.Chat
         {
             var entries = ModelPresets?.For(kind);
             if (entries == null || entries.Length == 0)
-                return ModelPresetDefaults.For(kind);
+                return ModelPresetDefaults.ForDropdown(kind);
 
             var result = new (string, string)[entries.Length + 2];
             result[0] = ("Default", "");
@@ -102,7 +109,28 @@ namespace UnityMCP.Editor.Chat
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
             Chips?.FlushToArrays(); // P4: persist override cache to arrays before serializing
+            BuildContextIndex();
             File.WriteAllText(path, JsonUtility.ToJson(this, prettyPrint: true));
+        }
+
+        // internal so tests can call directly; gathers user presets + defaults into ModelContextWindows cache.
+        internal void BuildContextIndex()
+        {
+            var idx = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (BackendKind kind in System.Enum.GetValues(typeof(BackendKind)))
+            {
+                var entries = ModelPresets?.For(kind);
+                if (entries == null) continue;
+                foreach (var e in entries)
+                    if (e.contextWindow > 0 && !string.IsNullOrEmpty(e.modelId))
+                        idx[e.modelId] = e.contextWindow;
+            }
+            // Fill defaults for models not overridden by user presets
+            foreach (var kv in ModelPresetDefaults.All)
+                foreach (var t in kv.Value)
+                    if (t.contextWindow > 0 && !string.IsNullOrEmpty(t.modelId) && !idx.ContainsKey(t.modelId))
+                        idx[t.modelId] = t.contextWindow;
+            ModelContextWindows.SetOverrides(idx);
         }
     }
 }

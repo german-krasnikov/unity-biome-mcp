@@ -270,3 +270,27 @@
     margin-left: 4px;
     font-size: 9px;
 }
+
+.model-preset-row {
+    flex-direction: row;
+    margin-bottom: 2px;
+    padding: 2px 4px;
+}
+
+.model-preset-id {
+    flex-grow: 1;
+    margin-left: 4px;
+}
+
+.model-preset-ctx {
+    width: 100px;
+    margin-left: 4px;
+}
+
+.mcp-btn--inline {
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 10px;
+    min-height: 16px;
+    margin: 1px 0;
+}

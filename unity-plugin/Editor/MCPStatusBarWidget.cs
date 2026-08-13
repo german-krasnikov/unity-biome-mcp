@@ -183,7 +183,12 @@ namespace UnityMCP.Editor
             m.AddItem(new GUIContent("Restart"),       false, MCPActions.Restart);
             m.AddItem(new GUIContent("Restart Relay"), false, MCPActions.RestartRelay);
             m.AddItem(new GUIContent("Reimport"),      false, MCPActions.Reimport);
-            m.AddItem(new GUIContent("Kill"),     false, MCPActions.Kill);
+            m.AddItem(new GUIContent("Kill (this server)"), false, MCPActions.KillCurrent);
+            m.AddItem(new GUIContent("Kill All Servers"),   false, () => {
+                if (EditorUtility.DisplayDialog("Kill All MCP Servers",
+                    "Stop ALL running MCP servers?", "Kill All", "Cancel"))
+                    MCPActions.KillAll();
+            });
             if (phantoms > 0)
                 m.AddItem(new GUIContent($"Kill Phantoms ({phantoms})"), false, () => MCPServer.KillPhantoms());
             else

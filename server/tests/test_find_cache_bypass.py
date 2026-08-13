@@ -6,13 +6,13 @@ from unity_mcp.middleware import Middleware, wrap_send
 
 HIERARCHY = """\
 SampleScene
-├─ Gameplay $123
-│  ├─ Characters $456
-│  │  ├─ Player $789
-│  │  └─ Enemy $012
-│  └─ Enemies $345
-└─ UI $678
-   └─ HUD $901
+├─ Gameplay &123
+│  ├─ Characters &456
+│  │  ├─ Player &789
+│  │  └─ Enemy &012
+│  └─ Enemies &345
+└─ UI &678
+   └─ HUD &901
 """
 
 

@@ -4,13 +4,13 @@ from unity_mcp.middleware import Middleware
 
 HIERARCHY = """\
 Scene
-├─ Gameplay $123
-│  ├─ Characters $456
-│  │  ├─ Player $789
-│  │  └─ Enemy $012
-│  └─ Enemies $345
-└─ UI $678
-   └─ HUD $901
+├─ Gameplay &123
+│  ├─ Characters &456
+│  │  ├─ Player &789
+│  │  └─ Enemy &012
+│  └─ Enemies &345
+└─ UI &678
+   └─ HUD &901
 """
 
 
@@ -98,12 +98,12 @@ def test_resolve_path_empty_cache_returns_original():
 
 MULTI_SCENE_HIERARCHY = """\
 [Scene1]
-├─ Player $123
-└─ Enemy $456
+├─ Player &123
+└─ Enemy &456
 
 [Scene2]
-├─ Player $789
-└─ Boss $012
+├─ Player &789
+└─ Boss &012
 """
 
 

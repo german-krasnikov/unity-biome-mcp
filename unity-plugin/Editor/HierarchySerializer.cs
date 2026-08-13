@@ -196,7 +196,7 @@ namespace UnityMCP.Editor
                 }
                 sb.Append(']');
             }
-            sb.Append(' ').Append(TransientObjectId.GetHexRef(go));
+            sb.Append(' ').Append(RefManager.Assign(go));
             if (!go.activeSelf) sb.Append(" !");
             if (currentDepth >= maxDepth && go.transform.childCount > 0)
                 sb.Append(" +").Append(CountDescendants(go.transform));

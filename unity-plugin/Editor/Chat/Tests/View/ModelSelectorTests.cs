@@ -254,10 +254,10 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void ModelPresetsPerKind_Codex_Gpt55IsFirstNamed()
+        public void ModelPresetsPerKind_Codex_Gpt56SolIsFirstNamed()
         {
             var presets = MCPChatWindow.ModelPresetsPerKind[BackendKind.Codex];
-            Assert.AreEqual("gpt-5.5", presets[1].modelId, "GPT-5.5 must be first named Codex model");
+            Assert.AreEqual("gpt-5.6-sol", presets[1].modelId, "GPT-5.6-sol must be first named Codex model");
         }
 
         [Test]

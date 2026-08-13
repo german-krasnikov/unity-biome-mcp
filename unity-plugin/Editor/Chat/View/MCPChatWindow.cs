@@ -215,6 +215,9 @@ namespace UnityMCP.Editor.Chat
             _scroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             _scroll.AddToClassList("chat-scroll");
             var inner = new VisualElement();
+            // Constrain to viewport width so max-width: 85% on bubbles resolves to a definite
+            // pixel value and labels with white-space: normal actually wrap instead of clipping.
+            inner.style.width = new StyleLength(new Length(100, LengthUnit.Percent));
             _scroll.Add(inner);
             _resolver = new ChatRefResolver();
             _resolver.Refresh();

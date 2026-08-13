@@ -21,6 +21,9 @@
     padding: 4px 0;
 }
 
+/* ── Text wrapping: ChatLabel.Selectable labels ── */
+.chat-text { white-space: normal; }
+
 /* ── Message rows ── */
 .msg-row {
     flex-direction: column;
@@ -931,7 +934,7 @@
 /* ── T-4.1: CodeEditDiffRenderer ── */
 .code-diff-block { max-height: 300px; overflow-y: scroll; border-radius: 3px; padding: 4px;
                    font-size: 11px; -unity-font-definition: resource('Fonts/RobotoMono/RobotoMono-Regular'); }
-.diff-header     { font-size: 11px; -unity-font-style: italic; margin-bottom: 2px; cursor: link; }
+.diff-header     { font-size: 11px; -unity-font-style: italic; margin-bottom: 2px; cursor: link; white-space: normal; }
 .diff-add        { color: var(--chat-success); }
 .diff-remove     { color: var(--unity-colors-error-text); }
 .diff-context    { color: var(--unity-colors-label-text-secondary); }
@@ -952,7 +955,20 @@
 
 /* ── T-5.2: ThinkingBlock ── */
 .thinking-block { opacity: 0.55; margin-bottom: 4px; }
-.thinking-block > .unity-foldout__toggle > .unity-label { font-size: 11px; -unity-font-style: italic; }
+.thinking-block .unity-foldout__toggle .unity-label { font-size: 11px; -unity-font-style: italic; }
+.thinking-block .unity-foldout__content .unity-label { white-space: normal; overflow: visible; }
+
+/* ── Tool card text wrapping ── */
+.bash-description { white-space: normal; }
+.bash-command     { white-space: pre-wrap; }
+.bash-output-line { white-space: pre-wrap; }
+.agent-desc       { white-space: normal; }
+.agent-result     { white-space: normal; }
+.comp-read-prop   { white-space: normal; }
+.comp-read-path   { white-space: normal; }
+.comp-read-type   { white-space: normal; }
+.chat-warning     { white-space: normal; }
+.chat-hint        { white-space: normal; }
 
 /* ── ContextProgressBar (B2/B3) ── */
 /* Fill colour driven by state class on the container; tokens from Chat.Tokens.uss.      */

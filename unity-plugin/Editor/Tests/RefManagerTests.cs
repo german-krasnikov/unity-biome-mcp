@@ -1,4 +1,4 @@
-// NUnit tests for RefManager — CS2.test.1 + CS2.arch.1 (wrap-around bug regression).
+// NUnit tests for RefManager — prefix migration $ → &, base62 encoding, no wrap-around.
 using NUnit.Framework;
 using UnityEngine;
 
@@ -75,30 +75,49 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNull(RefManager.Resolve(r));
         }
 
-        // ── GenerateRef ───────────────────────────────────────────────────────
+        // ── GenerateRef — base62, no wrap-around ──────────────────────────────
 
         [Test]
-        public void GenerateRef_Zero_ReturnsA()
+        public void GenerateRef_Zero_ReturnsAmpersand1()
         {
-            Assert.AreEqual("$a", RefManager.GenerateRef(0));
+            Assert.AreEqual("&1", RefManager.GenerateRef(0));
         }
 
         [Test]
-        public void GenerateRef_25_ReturnsZ()
+        public void GenerateRef_9_ReturnsAmpersandLowercaseA()
         {
-            Assert.AreEqual("$z", RefManager.GenerateRef(25));
+            // n=9 → val=10 → base62[10]='a'
+            Assert.AreEqual("&a", RefManager.GenerateRef(9));
         }
 
         [Test]
-        public void GenerateRef_Slot26_ReturnsTwoChars()
+        public void GenerateRef_60_ReturnsAmpersandZ()
         {
-            Assert.AreEqual("$aa", RefManager.GenerateRef(26));
+            // n=60 → val=61 → base62[61]='Z' — last single-char ref
+            Assert.AreEqual("&Z", RefManager.GenerateRef(60));
         }
 
         [Test]
-        public void GenerateRef_Wraps702_ReturnsA()
+        public void GenerateRef_61_ReturnsTwoCharRef()
         {
-            Assert.AreEqual("$a", RefManager.GenerateRef(702));
+            // n=61 → val=62 = 1*62+0 → "10" in base62 — first two-char ref
+            Assert.AreEqual("&10", RefManager.GenerateRef(61));
+        }
+
+        [Test]
+        public void GenerateRef_3843_ReturnsThreeCharRef()
+        {
+            // n=3843 → val=3844 = 62^2 → "100" in base62 — first three-char ref
+            Assert.AreEqual("&100", RefManager.GenerateRef(3843));
+        }
+
+        [Test]
+        public void GenerateRef_NoWrapAround_LargeN()
+        {
+            // Counter grows freely — no wrap-around, each n gives unique output
+            var r9999 = RefManager.GenerateRef(9999);
+            Assert.IsTrue(r9999.StartsWith("&"), "Ref must start with &");
+            Assert.AreNotEqual("&1", r9999, "Large n must not wrap to first slot");
         }
 
         // ── Prune ─────────────────────────────────────────────────────────────
@@ -126,25 +145,56 @@ namespace UnityMCP.Editor.Tests
             finally { Object.DestroyImmediate(go); }
         }
 
-        // ── IsRef ─────────────────────────────────────────────────────────────
+        // ── IsRef — & accepts alphanumeric (base62), $ accepts digits only ────
 
         [Test]
-        public void IsRef_ValidShortRef_ReturnsTrue()
+        public void IsRef_AmpersandDecimalRef_ReturnsTrue()
         {
-            Assert.IsTrue(RefManager.IsRef("$a"));
-            Assert.IsTrue(RefManager.IsRef("$zz"));
+            Assert.IsTrue(RefManager.IsRef("&1"));
+            Assert.IsTrue(RefManager.IsRef("&10"));
         }
 
         [Test]
-        public void IsRef_TooLong_ReturnsFalse()
+        public void IsRef_AmpersandBase62Lowercase_ReturnsTrue()
         {
-            Assert.IsFalse(RefManager.IsRef("$abc")); // length 4
+            Assert.IsTrue(RefManager.IsRef("&a"));
+            Assert.IsTrue(RefManager.IsRef("&abc"));
+        }
+
+        [Test]
+        public void IsRef_AmpersandBase62Mixed_ReturnsTrue()
+        {
+            Assert.IsTrue(RefManager.IsRef("&Mo"));
+            Assert.IsTrue(RefManager.IsRef("&Z"));
+        }
+
+        [Test]
+        public void IsRef_DollarDigitsOnly_BackwardCompat_ReturnsTrue()
+        {
+            Assert.IsTrue(RefManager.IsRef("$1"));
+            Assert.IsTrue(RefManager.IsRef("$9999"));
+        }
+
+        [Test]
+        public void IsRef_DollarAlpha_ReturnsFalse()
+        {
+            // $abc is an alias, not a RefManager ref
+            Assert.IsFalse(RefManager.IsRef("$abc"));
+            Assert.IsFalse(RefManager.IsRef("$a"));
+        }
+
+        [Test]
+        public void IsRef_AmpersandPunctuation_ReturnsFalse()
+        {
+            Assert.IsFalse(RefManager.IsRef("&!@"));
+            Assert.IsFalse(RefManager.IsRef("&1_2"));
         }
 
         [Test]
         public void IsRef_NoPrefix_ReturnsFalse()
         {
             Assert.IsFalse(RefManager.IsRef("abc"));
+            Assert.IsFalse(RefManager.IsRef("1"));
         }
 
         [Test]
@@ -154,71 +204,18 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void IsRef_UppercaseLetter_ReturnsFalse()
+        public void IsRef_TooShort_ReturnsFalse()
         {
-            // $A looks like a 1-char ref but uppercase — must not match RefManager slots
-            Assert.IsFalse(RefManager.IsRef("$A"));
-            Assert.IsFalse(RefManager.IsRef("$AB"));
+            Assert.IsFalse(RefManager.IsRef("&"));
+            Assert.IsFalse(RefManager.IsRef("$"));
         }
 
         [Test]
-        public void IsRef_Digits_ReturnsFalse()
+        public void IsRef_HexTransientId_False()
         {
-            // Digits are not valid RefManager slot chars
-            Assert.IsFalse(RefManager.IsRef("$3"));
-            Assert.IsFalse(RefManager.IsRef("$12"));
-        }
-
-        [Test]
-        public void IsRef_UppercaseHex_ReturnsFalse()
-        {
-            // $3E8 is a $HEX object ID, not a RefManager slot
+            // $ + non-digit → not a decimal ref, so TransientObjectId hex path used
             Assert.IsFalse(RefManager.IsRef("$3E8"));
-        }
-
-        // ── Wrap-around regression (CS2.arch.1) ───────────────────────────────
-
-        /// <summary>
-        /// Fill all 702 slots (gos[0..701]), then assign a 703rd distinct GO.
-        /// GenerateRef(702) wraps to "$a", evicting gos[0]'s _idToRef entry.
-        /// OLD code: left _idToRef[gos[0].id] = "$a" stale → Assign(gos[0]) returns "$a"
-        ///           (which now resolves to gos[702]), a silent identity collision.
-        /// NEW code: evicts gos[0] during overwrite → Assign(gos[0]) allocates a fresh slot.
-        /// </summary>
-        [Test]
-        public void WrapAround_OldGO_Evicted_NewGO_Resolves()
-        {
-            // 702 GOs fill every slot ($a..$zz); gos[703] is the wrap-trigger.
-            var gos = new GameObject[704];
-            for (int i = 0; i < 704; i++)
-                gos[i] = new GameObject($"Ref_Wrap_{i}");
-            try
-            {
-                // Fill all 702 slots.
-                for (int i = 0; i < 702; i++)
-                    RefManager.Assign(gos[i]);
-
-                // gos[702] wraps to slot 0 → overwrites "$a" which belonged to gos[0].
-                var refFor702 = RefManager.Assign(gos[702]);
-                Assert.AreEqual("$a", refFor702, "First wrap must land on slot 0 = $a");
-
-                // NEW: gos[0]'s _idToRef entry was evicted, so Assign(gos[0]) must NOT
-                // return "$a" (that slot now belongs to gos[702]).
-                // OLD: stale _idToRef still maps gos[0].id → "$a", so Assign returns "$a"
-                //      silently making two GOs share one ref — this assertion goes red.
-                var refForGos0Again = RefManager.Assign(gos[0]);
-                Assert.AreNotEqual("$a", refForGos0Again,
-                    "gos[0]'s old ref '$a' was stolen by gos[702]; Assign must give gos[0] a new ref");
-
-                // Sanity: $a must still resolve to gos[702], not gos[0].
-                Assert.AreEqual(gos[702], RefManager.Resolve("$a"),
-                    "Resolve($a) must return gos[702] after wrap");
-            }
-            finally
-            {
-                foreach (var g in gos)
-                    if (g != null) Object.DestroyImmediate(g);
-            }
+            Assert.IsFalse(RefManager.IsRef("$2B678"));
         }
     }
 }

@@ -37,11 +37,38 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Kill_ForwardsToKillAll()
+        public void KillCurrent_StaleLockCurrentPort_Cleaned()
         {
-            // Kill() must delegate to KillAll() — both must not throw when no lockfiles present.
-            Assert.DoesNotThrow(() => MCPActions.Kill());
-            Assert.DoesNotThrow(() => MCPActions.KillAll());
+            var port = MCPServer.ServerPort;
+            var lockFile = Path.Combine(_scope.Path, $"server-{port}-99999.lock");
+            File.WriteAllText(lockFile, "99999\n");
+            MCPActions.KillCurrent();
+            Assert.IsFalse(File.Exists(lockFile));
+        }
+
+        [Test]
+        public void KillCurrent_LockDifferentPort_NotTouched()
+        {
+            var differentPort = MCPServer.ServerPort + 1;
+            var lockFile = Path.Combine(_scope.Path, $"server-{differentPort}-99999.lock");
+            File.WriteAllText(lockFile, "99999\n");
+            MCPActions.KillCurrent();
+            Assert.IsTrue(File.Exists(lockFile), "Lock for different port must survive KillCurrent");
+        }
+
+        [Test]
+        public void Kill_DelegatesToKillCurrent_NotKillAll()
+        {
+            // Kill() should only clean current port, not all ports
+            var currentPort = MCPServer.ServerPort;
+            var otherPort = currentPort + 1;
+            var currentLock = Path.Combine(_scope.Path, $"server-{currentPort}-99999.lock");
+            var otherLock = Path.Combine(_scope.Path, $"server-{otherPort}-99999.lock");
+            File.WriteAllText(currentLock, "99999\n");
+            File.WriteAllText(otherLock, "99999\n");
+            MCPActions.Kill();
+            Assert.IsFalse(File.Exists(currentLock), "Current port lock should be cleaned");
+            Assert.IsTrue(File.Exists(otherLock), "Other port lock should survive Kill()");
         }
 
         [Test]
@@ -66,6 +93,48 @@ namespace UnityMCP.Editor.Tests
             MCPActions.KillAll();
             Assert.IsFalse(File.Exists(lockFile),
                 "Lock file with a different port must still be cleaned when PID is dead");
+        }
+
+        [Test]
+        public void KillByPort_MissingDir_DoesNotThrow()
+        {
+            MCPActions.OverrideLockDir = System.IO.Path.Combine(_scope.Path, "nonexistent");
+            Assert.DoesNotThrow(() => MCPActions.KillByPort(9500));
+        }
+
+        [Test]
+        public void KillByPort_StaleLock_Cleaned()
+        {
+            var lockFile = Path.Combine(_scope.Path, "server-9500-99999.lock");
+            File.WriteAllText(lockFile, "99999\n");
+            MCPActions.KillByPort(9500);
+            Assert.IsFalse(File.Exists(lockFile));
+        }
+
+        [Test]
+        public void KillByPort_DifferentPort_NotTouched()
+        {
+            var lock9500 = Path.Combine(_scope.Path, "server-9500-99999.lock");
+            var lock9600 = Path.Combine(_scope.Path, "server-9600-99999.lock");
+            File.WriteAllText(lock9500, "99999\n");
+            File.WriteAllText(lock9600, "99999\n");
+            MCPActions.KillByPort(9500);
+            Assert.IsFalse(File.Exists(lock9500), "Killed port lock must be cleaned");
+            Assert.IsTrue(File.Exists(lock9600), "Other port lock must survive");
+        }
+
+        [Test]
+        public void KillByPort_CleansPortFiles()
+        {
+            var portsDir = Path.Combine(_scope.Path, "ports");
+            Directory.CreateDirectory(portsDir);
+            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
+            File.WriteAllText(Path.Combine(portsDir, "12345.chat-port"), "data");
+            File.WriteAllText(Path.Combine(portsDir, "12345.reload-port"), "data");
+            MCPActions.KillByPort(9500);
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.chat-port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.reload-port")));
         }
 
         // M17: RestartRelay must not thread-hop via Task.Run — SessionState (used deep in
