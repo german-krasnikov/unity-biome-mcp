@@ -111,6 +111,8 @@ class BridgeState(enum.Enum):
     CONNECTED = "connected"
     DOMAIN_RELOADING = "domain_reloading"
     FAILED = "failed"  # startup grace expired
+    DORMANT = "dormant"   # intentional TCP close, heartbeat stopped, process alive
+    WAKING  = "waking"    # reconnect triggered by incoming request from DORMANT
 
 
 class DeliveryState(enum.Enum):
@@ -358,6 +360,8 @@ class UnityBridge(HeartbeatMixin):
             try:
                 async with self._lock:
                     if not self.connected:
+                        if self._state == BridgeState.DORMANT:
+                            self._state = BridgeState.WAKING
                         self._last_reconnect_at = time.monotonic()
                         await self._reconnect(fire_callbacks=False)
                         METRICS.inc("reconnect.send_path")
@@ -734,6 +738,10 @@ class UnityBridge(HeartbeatMixin):
     @property
     def status(self) -> str:
         """Semantic connection status for user-facing display."""
+        if self._state == BridgeState.DORMANT:
+            return "dormant"
+        if self._state == BridgeState.WAKING:
+            return "waking"
         if self._writer is not None and not self._writer.is_closing():
             return "connected"
         if self._state == BridgeState.FAILED:
@@ -745,6 +753,10 @@ class UnityBridge(HeartbeatMixin):
     @property
     def transport_status(self) -> str:
         """TCP transport layer status — independent of stdio health."""
+        if self._state == BridgeState.DORMANT:
+            return "tcp:dormant"
+        if self._state == BridgeState.WAKING:
+            return "tcp:waking"
         if self._writer is not None and not self._writer.is_closing():
             return "tcp:connected"
         if self._state == BridgeState.FAILED:
@@ -778,3 +790,30 @@ class UnityBridge(HeartbeatMixin):
             w.close()
             with contextlib.suppress(Exception):
                 await asyncio.wait_for(w.wait_closed(), timeout=2.0)
+
+    async def suspend(self) -> bool:
+        """CONNECTED → DORMANT. Returns True if suspended, False if aborted.
+
+        Aborts when: state not CONNECTED, or queue non-empty under lock.
+        """
+        async with self._lock:
+            if self._state != BridgeState.CONNECTED:
+                return False
+            if not self._send_queue.empty():
+                return False
+            self._state = BridgeState.DORMANT
+
+        self.stop_heartbeat()
+        w, self._writer = self._writer, None
+        self._reader = None
+        if w:
+            sock = w.get_extra_info("socket")
+            if sock is not None:
+                with contextlib.suppress(OSError):
+                    sock.shutdown(socket.SHUT_WR if os.name == "nt" else socket.SHUT_RDWR)
+            w.close()
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(w.wait_closed(), timeout=2.0)
+        self._last_reconnect_at = 0.0
+        self._reconnect_backoff = BACKOFF_MIN_S
+        return True

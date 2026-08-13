@@ -89,6 +89,7 @@ def _start_idle_watchdog() -> threading.Thread | None:
             if timeout > 0 and idle > timeout:
                 from .bridge_heartbeat import _ORIGINAL_PPID
                 if os.getppid() == _ORIGINAL_PPID:
+                    _schedule_dormant(idle, timeout)
                     continue  # parent alive — don't kill; remain as orphan-reaper only
                 log.warning("idle watchdog: parent dead + idle=%.0fs >= timeout=%ds, exiting", idle, timeout)
                 logging.shutdown()
@@ -97,6 +98,25 @@ def _start_idle_watchdog() -> threading.Thread | None:
     t = threading.Thread(target=_loop, daemon=True, name="unity-biome-mcp-idle-watchdog")
     t.start()
     return t
+
+
+def _schedule_dormant(idle: float, timeout: float) -> None:
+    """Schedule bridge suspension on the asyncio event loop (called from watchdog thread)."""
+    loop = _sigterm_state.get("loop")
+    if loop is None or not loop.is_running():
+        return
+
+    async def _do_dormant() -> None:
+        if time.monotonic() - _last_useful_activity < timeout:
+            return  # TOCTOU guard: fresh activity arrived since the watchdog woke
+        b = slot.bridge if slot else None
+        if b is None or not b.connected:
+            return
+        suspended = await b.suspend()
+        if suspended:
+            log.info("bridge dormant after %.0fs idle", idle)
+
+    asyncio.run_coroutine_threadsafe(_do_dormant(), loop)
 
 
 from contextlib import asynccontextmanager, suppress
