@@ -98,7 +98,8 @@ namespace UnityMCP.Editor
 
         // internal so tests can verify fast-path / slow-path classification without TCP.
         internal static bool IsSlowPath(string cmd) =>
-            cmd != "ping" && cmd != "get_version" && cmd != "status" && cmd != "get_enabled_tools";
+            cmd != "ping" && cmd != "get_version" && cmd != "status" &&
+            cmd != "get_enabled_tools" && cmd != "client_hello";
 
         private static async Task HandleClientAsync(TcpClient client, ClientSlot slot, int index, long generation,
             string label, CancellationToken clientToken)
@@ -131,6 +132,47 @@ namespace UnityMCP.Editor
 
                         var json = Encoding.UTF8.GetString(payload);
 
+                        // Extract cmd/id early — needed by client_hello fast-path before
+                        // the generic first-message block runs.
+                        var cmdName = JsonHelper.ExtractString(json, "cmd");
+                        var msgId = JsonHelper.ExtractString(json, "id");
+
+                        // client_hello: combined handshake — replaces ping + project_path + get_version
+                        // with a single roundtrip. Handles first-message bookkeeping itself.
+                        if (cmdName == "client_hello")
+                        {
+                            var sessionId   = JsonHelper.ExtractString(json, "sessionId");
+                            var lockToken   = JsonHelper.ExtractString(json, "lockToken");
+                            var role        = JsonHelper.ExtractString(json, "role");
+                            var displayName = JsonHelper.ExtractString(json, "displayName");
+                            var agentId     = JsonHelper.ExtractString(json, "agentId");
+
+                            if (!string.IsNullOrEmpty(role)) label = RoleToLabel(role);
+                            if (!string.IsNullOrEmpty(displayName)) label = displayName;
+
+                            slot.SetEntrySession(index, generation, sessionId, lockToken, agentId,
+                                !string.IsNullOrEmpty(displayName) ? displayName : label);
+                            slot.SetEntryLabel(index, generation, label);
+
+                            var ep0 = endPoint; var lbl0 = label;
+                            MainThreadDispatcher.Enqueue(() => Debug.Log(
+                                $"{BiomeLabel.Tag} {lbl0} connected from {ep0}"));
+                            receivedFirstMessage = true;
+
+                            // Combined response: pong + version + projectPath in one frame
+                            var stamp = MCPServer._domainStamp;
+                            var ver   = MCPServer.BuildVersionString(stamp, MCPServer.PluginVersion);
+                            var projPath = MCPServer._cachedDataPath != null
+                                ? (System.IO.Path.GetDirectoryName(MCPServer._cachedDataPath)?.Replace('\\', '/') ?? "")
+                                : "";
+                            var resp = $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":true," +
+                                       $"\"data\":\"pong\",\"helloVersion\":2," +
+                                       $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
+                                       $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"}}";
+                            await SendAsync(stream, resp, clientToken).ConfigureAwait(false);
+                            continue;
+                        }
+
                         // Log "connected" on first real message; probes (no data) stay silent.
                         if (!receivedFirstMessage)
                         {
@@ -147,8 +189,6 @@ namespace UnityMCP.Editor
                         }
 
                         // Fast-path: ping/get_version/status bypass main thread (works even when Editor is busy)
-                        var cmdName = JsonHelper.ExtractString(json, "cmd");
-                        var msgId = JsonHelper.ExtractString(json, "id");
                         if (cmdName == "ping")
                         {
                             await SendAsync(stream, JsonHelper.FormatResponse(msgId, true, "pong", null), clientToken).ConfigureAwait(false);

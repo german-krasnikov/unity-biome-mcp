@@ -14,6 +14,8 @@ namespace UnityMCP.Editor.Tests
         [TestCase("get_version")]
         [TestCase("status")]
         [TestCase("get_enabled_tools")]
+        // client_hello is a handshake fast-path — must not trigger invalidation.
+        [TestCase("client_hello")]
         public void IsSlowPath_FastPathCommands_ReturnFalse(string cmd)
         {
             Assert.IsFalse(ClientConnectionHandler.IsSlowPath(cmd));

@@ -29,6 +29,9 @@ namespace UnityMCP.Editor
         // Cached domain stamp — read from main thread in StartAsync, used in get_version fast-path
         // (which runs on ThreadPool after ConfigureAwait(false); SessionState not thread-safe).
         internal static volatile string _domainStamp = "";
+        // Cached Application.dataPath — read on main thread, used by client_hello fast-path
+        // on ThreadPool (Application.dataPath is main-thread-only).
+        internal static volatile string _cachedDataPath = "";
         // Set on first compilationStarted; never cleared. Distinguishes real compile-in-progress
         // from post-domain-reload stale EditorApplication.isCompiling on Windows.
         private static volatile bool _compileStartedThisDomain;
@@ -245,6 +248,7 @@ namespace UnityMCP.Editor
             _starting = true;
             _shuttingDown = false;
             _domainStamp = SyncHelper.CurrentDomainStamp;  // cache on main thread — safe here, ThreadPool reads below
+            _cachedDataPath = Application.dataPath;         // cache on main thread — ThreadPool reads via client_hello
             OpenBootstrapSceneFromEnvironment();
             // Ensure commands are registered BEFORE TCP bind.
             // InitDefaults() → RegisterAll() → populates _enabledToolsCache atomically.
