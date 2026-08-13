@@ -360,6 +360,9 @@ namespace UnityMCP.Editor
             }
         }
 
+        // Alias for UI consumers — same as TakeSnapshot().
+        internal ConnectionSnapshot[] GetActiveSnapshots() => TakeSnapshot();
+
         // Cancel + close a specific entry without touching the OS process.
         // The handler's finally block will call Clear() after catching OperationCanceledException.
         internal void DisconnectEntry(int index, long generation)
