@@ -35,23 +35,38 @@ def _handle_sigterm(signum, frame) -> None:
     os._exit(0)
 
 # --- Idle watchdog ---
-_last_activity: float = time.monotonic()
+_last_useful_activity: float = time.monotonic()
+_last_transport_activity: float = time.monotonic()
+_in_flight_count: int = 0
 
 
-def _touch_activity() -> None:
-    """Update last-activity timestamp. Call before every MCP tool dispatch."""
-    global _last_activity
-    _last_activity = time.monotonic()
+def _touch_useful_activity() -> None:
+    """Update last-useful-activity timestamp. Called before every MCP tool dispatch."""
+    global _last_useful_activity
+    _last_useful_activity = time.monotonic()
 
+
+def _touch_transport_activity() -> None:
+    """Update last-transport-activity timestamp. Called on heartbeat pings."""
+    global _last_transport_activity
+    _last_transport_activity = time.monotonic()
+
+
+# Backward-compat alias — some tests and callers use the old name.
+_touch_activity = _touch_useful_activity
 
 _watchdog_stop: threading.Event = threading.Event()
 
 
 def _start_idle_watchdog() -> threading.Thread | None:
-    """Start daemon thread that calls os._exit(0) after UNITY_MCP_IDLE_TIMEOUT seconds of inactivity.
-    Returns None if timeout=0 (disabled)."""
+    """Start daemon thread that exits after idle timeout. Returns None if both timeouts are 0.
+
+    UNITY_MCP_IDLE_TIMEOUT     — orphan path: exit only when parent is dead (default 300s).
+    UNITY_MCP_USEFUL_IDLE_TIMEOUT — subagent path: exit regardless of parent (default 0 = off).
+    """
     timeout = int(os.environ.get("UNITY_MCP_IDLE_TIMEOUT", "300"))
-    if timeout <= 0:
+    subagent_timeout = int(os.environ.get("UNITY_MCP_USEFUL_IDLE_TIMEOUT", "0"))
+    if timeout <= 0 and subagent_timeout <= 0:
         return None
 
     _watchdog_stop.clear()
@@ -62,8 +77,16 @@ def _start_idle_watchdog() -> threading.Thread | None:
             time.sleep(30)
             if _watchdog_stop.is_set():
                 return
-            idle = time.monotonic() - _last_activity
-            if idle > timeout:
+            if _in_flight_count > 0:
+                continue  # in-flight guard: don't count idle while a tool call is running
+            idle = time.monotonic() - _last_useful_activity
+            # Path A: subagent timeout — exits regardless of parent liveness.
+            if subagent_timeout > 0 and idle > subagent_timeout:
+                log.warning("idle watchdog: subagent idle=%.0fs >= useful_timeout=%ds, exiting", idle, subagent_timeout)
+                logging.shutdown()
+                os._exit(0)
+            # Path B: orphan — exit only when parent is dead.
+            if timeout > 0 and idle > timeout:
                 from .bridge_heartbeat import _ORIGINAL_PPID
                 if os.getppid() == _ORIGINAL_PPID:
                     continue  # parent alive — don't kill; remain as orphan-reaper only
@@ -389,10 +412,16 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
 
 
 async def _send(cmd: str, args: dict, timeout: float = 0) -> str:
-    _touch_activity()
-    if _wrapped_send is not None:
-        return await _wrapped_send(cmd, args, timeout=timeout)
-    return await _send_raw(cmd, args, timeout)
+    global _in_flight_count
+    _touch_useful_activity()
+    _touch_transport_activity()
+    _in_flight_count += 1
+    try:
+        if _wrapped_send is not None:
+            return await _wrapped_send(cmd, args, timeout=timeout)
+        return await _send_raw(cmd, args, timeout)
+    finally:
+        _in_flight_count -= 1
 
 
 def _args(**kwargs) -> dict:
@@ -496,6 +525,7 @@ async def lifespan(app):
                 slot.add_reconnect_callback(_middleware.reset_session)
                 wire_circuit_breaker(_middleware, active)
             active.start_heartbeat()
+            active._on_transport_activity = _touch_transport_activity
         yield
     finally:
         _wrapped_send = None
@@ -538,8 +568,8 @@ install_list_tools_filter(
 def main():
     from .paths import migrate_data_dir
     migrate_data_dir()
-    global _last_activity
-    _last_activity = time.monotonic()
+    global _last_useful_activity
+    _last_useful_activity = time.monotonic()
     _start_idle_watchdog()
     import signal
     if hasattr(signal, "SIGPIPE"):

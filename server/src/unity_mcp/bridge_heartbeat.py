@@ -218,3 +218,6 @@ class HeartbeatMixin:
                 raise ProtocolDesyncError(
                     f"Heartbeat ID mismatch: {resp.get('id')} != {ping_id}"
                 )
+            on_ta = getattr(self, "_on_transport_activity", None)
+            if on_ta is not None:
+                on_ta()
