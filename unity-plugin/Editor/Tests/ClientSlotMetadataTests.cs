@@ -306,6 +306,31 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
+        // SetEntrySession with bridgePid stores it in the snapshot — used by ExtractActivePids
+        // to suppress dormant-bridge false-positives for actively connected bridges.
+        [Test]
+        public void SetEntrySession_WithBridgePid_PopulatesBridgePidInSnapshot()
+        {
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            using var client = new TcpClient();
+            var handle = slot.Add(client, lifetime.Token);
+            try
+            {
+                slot.SetEntrySession(handle.index, handle.generation,
+                    "sess-xyz", "lock-tok", "agent-1", "mcp", bridgePid: 42000);
+                var snapshots = slot.TakeSnapshot();
+                Assert.AreEqual(1, snapshots.Length);
+                Assert.AreEqual(42000, snapshots[0].BridgePid);
+            }
+            finally
+            {
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                handle.clientCts.Dispose();
+            }
+        }
+
         // DisconnectEntry with matching generation cancels the CTS; entry transitions to Closing.
         // Clear() is still the handler's responsibility — DisconnectEntry does not null Client.
         [Test]

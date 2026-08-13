@@ -378,7 +378,8 @@ unity-biome-mcp/
 │       ├── ConsoleProblemPersistence.cs    # SessionState-persisted problem entries (Error/Exception/Assert) across domain reload
 │       ├── PrefKeys.cs                     # Central SessionState/EditorPrefs key literals (DRY)
 │       ├── ClientConnectionHandler.cs       # Handles TCP client connections (v0.69.0)
-│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0; v1.0.1: LingerOption(true,0) on all close paths → RST not FIN, no TIME_WAIT on Windows); **T1: CountActive()** method — thread-safe snapshot of active connection count; **T3: Per-Entry Metadata** — ClientActivityState enum, ConnectionSnapshot struct (11 fields), per-entry fields + methods (SetEntryEndpoint, SetEntryLabel, BeginCommand, EndCommand, GetEntryLabel, SetEntrySession, TakeSnapshot, DisconnectEntry, SetLastUsefulTicksForTest)
+│       ├── ConnectionSnapshot.cs            # **T7: NEW** — DormantInfo struct (BridgePid, Kind, Cwd) + DormantBridgeScanner static class (Scan(port, activePids) method, OverrideLockDir test seam). Detects bridge processes holding lock files but not in active TCP slots.
+│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0; v1.0.1: LingerOption(true,0) on all close paths → RST not FIN, no TIME_WAIT on Windows); **T1: CountActive()** method — thread-safe snapshot of active connection count; **T3: Per-Entry Metadata** — ClientActivityState enum, ConnectionSnapshot struct (11 fields), per-entry fields + methods (SetEntryEndpoint, SetEntryLabel, BeginCommand, EndCommand, GetEntryLabel, SetEntrySession, TakeSnapshot, DisconnectEntry, SetLastUsefulTicksForTest); **T7: GetActiveSnapshots()** alias for TakeSnapshot() used by MCPStatusWindow to feed hierarchical server list
 │       ├── MainThreadDispatcher.cs          # Main-thread work queue for TCP callbacks (v0.69.0)
 │       ├── EnvironmentHelper.cs             # Unity environment detection + version checks (v0.69.0)
 │       ├── ErrorClassifier.cs               # Categorizes command failures for recovery (v0.69.0)
@@ -420,7 +421,8 @@ unity-biome-mcp/
 │       ├── BiomeUI.cs                     # Biome section UI orchestrator (docs-critical-review)
 │       ├── UI/                             # UI design system (v0.55.10)
 │       │   └── IconCanvas.cs              # Procedural icon builder (18×18, 2px stroke, theme-agnostic)
-│       ├── MCPStatusWindow.cs             # Connection status monitor: server list with Kill buttons, refresh on tick, changelog via MarkdownInlineFormatter (v1.31.0: changelog DRY rendering)
+│       ├── MCPStatusWindow.cs             # Connection status monitor: server list with Kill buttons, refresh on tick, changelog via MarkdownInlineFormatter (v1.31.0: changelog DRY rendering); **T7: hierarchical server list** — per-port tree view with live TCP connections (via TakeSnapshot()) and dormant bridges (via DormantBridgeScanner.Scan), per-connection metadata rows (kind, state, idle, uptime), kill buttons with multi-bridge confirmation
+│       ├── MCPStatus.uss                  # Stylesheet for Status window (T7: +25 lines for connection hierarchy: .server-entry, .server-header, .connection-row, .conn-state, .dormant-section, etc.)
 │       ├── McpServerScanner.cs            # Port/lock file scanner: detects alive/phantom servers, CleanPhantomFiles orphan cleanup (v1.31.0); **T1: multi-lock support** — `ScanDetailed()` returns `UnityServerInfo[]` with per-port `McpConnectionInfo[]` list + `LiveTcpCount`; `Scan()` backward-compat wrapper; `FindConnections(port)` enumerates all server-{port}-*.lock files; test seam `OverrideLiveTcpCountGetter`
 │       ├── MCPActions.cs                  # Shared actions: KillCurrent/KillAll/KillByPort + multi-bridge TerminateByPid/StopAllOnPort/CountBridgesOnPort (v1.31.0: KillByPort; T2: TerminateResult enum, multi-bridge termination with selective cleanup)
 │       ├── MCPStatusModel.cs              # Pure state logic (no deps) — maps connection state → display
@@ -454,6 +456,7 @@ unity-biome-mcp/
 │       │   ├── CommandRouterReadOnlyTests.cs # **WI-8**: CommandRouter.IsReadOnly property + CheckGuards write-blocking + get_enabled_tools cache behavior in read-only
 │       │   ├── RequiresReadWriteAttributeTests.cs # **WI-8**: [RequiresReadWrite] attribute + EnforceReadWriteRequirement() unit tests — reason extraction, type/method reflection, skip predicate
 │       │   ├── ClientSlotMetadataTests.cs # 10 NUnit tests (per-entry metadata: ConnectedAt, Label, InFlightCount, ActivityState, LastUsefulAt, EndCommand timestamps, generation stale checks) (T3)
+│       │   ├── DormantBridgeScannerTests.cs # 5 NUnit tests (Scan behavior: no files, live PIDs, excluded PIDs, dead PIDs, port filtering) (T7)
 │       │   ├── MCPServerStartGuardTests.cs # 3 NUnit tests (ShouldStartServer batch mode guard, v0.52.6)
 │       │   ├── MCPStatusModelTests.cs     # 14 NUnit tests (state transitions, labels, pills) [+TestFixture v0.26.0]
 │       │   ├── CatalogParserTests.cs      # [+TestFixture v0.26.0]

@@ -155,12 +155,14 @@ namespace UnityMCP.Editor
                             var role        = JsonHelper.ExtractString(json, "role");
                             var displayName = JsonHelper.ExtractString(json, "displayName");
                             var agentId     = JsonHelper.ExtractString(json, "agentId");
+                            var bridgePid   = JsonHelper.ExtractInt(json, "bridgePid");
 
                             if (!string.IsNullOrEmpty(role)) label = RoleToLabel(role);
                             if (!string.IsNullOrEmpty(displayName)) label = displayName;
 
                             slot.SetEntrySession(index, generation, sessionId, lockToken, agentId,
-                                !string.IsNullOrEmpty(displayName) ? displayName : label);
+                                !string.IsNullOrEmpty(displayName) ? displayName : label,
+                                bridgePid);
                             slot.SetEntryLabel(index, generation, label);
 
                             var ep0 = endPoint; var lbl0 = label;

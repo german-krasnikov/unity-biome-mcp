@@ -205,9 +205,10 @@
 .conn-kind { width: 88px; font-size: 11px; }
 .conn-pid { width: 76px; font-size: 10px; opacity: 0.70; }
 .conn-state { width: 52px; font-size: 10px; }
-.conn-state--active { color: #3ad29f; }
-.conn-state--idle { color: #e8a23a; }
+.conn-state--active  { color: #3ad29f; }
+.conn-state--idle    { color: #e8a23a; }
 .conn-state--dormant { color: #888888; }
+.conn-state--closing { color: #e94560; }
 .conn-idle { width: 60px; font-size: 10px; opacity: 0.70; }
 .conn-duration { width: 90px; font-size: 10px; opacity: 0.60; }
 .dormant-section { margin-top: 4px; }

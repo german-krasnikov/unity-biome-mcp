@@ -20,11 +20,14 @@ namespace UnityMCP.Editor
         internal readonly ClientActivityState State;
         internal readonly string SessionId;
         internal readonly string DisplayName;
+        // PID of the Python bridge process (from client_hello "bridgePid" field).
+        // Zero when the bridge hasn't sent client_hello yet.
+        internal readonly int    BridgePid;
 
         internal ConnectionSnapshot(int index, long generation, string label,
             string remoteEndpoint, DateTime connectedAt, DateTime lastUsefulAt,
             string lastCommand, int inFlightCount, ClientActivityState state,
-            string sessionId, string displayName)
+            string sessionId, string displayName, int bridgePid = 0)
         {
             Index = index;
             Generation = generation;
@@ -37,6 +40,7 @@ namespace UnityMCP.Editor
             State = state;
             SessionId = sessionId;
             DisplayName = displayName;
+            BridgePid = bridgePid;
         }
     }
 
@@ -64,6 +68,7 @@ namespace UnityMCP.Editor
             internal volatile string LockToken;
             internal volatile string AgentId;
             internal volatile string DisplayName;
+            internal int BridgePid;                        // set once in SetEntrySession; main-thread-read in snapshot
             internal long LastUsefulActivityTicks;         // Interlocked.Exchange
             internal int InFlightCount;                   // Volatile.Write/Read
 
@@ -303,7 +308,7 @@ namespace UnityMCP.Editor
         }
 
         internal void SetEntrySession(int index, long generation, string sessionId,
-            string lockToken, string agentId, string displayName)
+            string lockToken, string agentId, string displayName, int bridgePid = 0)
         {
             if (index < 0 || index >= MaxClients) return;
             if (Interlocked.Read(ref _entries[index].Generation) != generation) return;
@@ -311,6 +316,7 @@ namespace UnityMCP.Editor
             _entries[index].LockToken = lockToken;
             _entries[index].AgentId = agentId;
             _entries[index].DisplayName = displayName;
+            _entries[index].BridgePid = bridgePid;
         }
 
         // Snapshot of all live entries with computed activity state.
@@ -354,7 +360,8 @@ namespace UnityMCP.Editor
                         inFlightCount: inFlight,
                         state: state,
                         sessionId: entry.SessionId,
-                        displayName: entry.DisplayName));
+                        displayName: entry.DisplayName,
+                        bridgePid: entry.BridgePid));
                 }
                 return results.ToArray();
             }

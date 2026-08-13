@@ -9,7 +9,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class DormantBridgeScannerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    public sealed class DormantBridgeScannerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private TempDirScope _scope;
 

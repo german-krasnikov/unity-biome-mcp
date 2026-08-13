@@ -300,8 +300,20 @@ namespace UnityMCP.Editor
             int port = s.Port;
             int bridgeCount = s.Connections.Count;
             bool isCurrent = s.IsCurrentProject;
-            int firstPid = bridgeCount > 0 ? s.Connections[0].BridgePid : s.UnityPid;
 
+            // No known bridge lock files — Kill would be a no-op. Show disabled button
+            // so the user knows kill is unavailable; use the "Clean up" button instead.
+            if (bridgeCount == 0)
+            {
+                var dead = new Button { text = "Kill", tooltip = "No bridge process found; use Clean up" };
+                dead.SetEnabled(false);
+                dead.AddToClassList("mcp-btn");
+                dead.AddToClassList("mcp-btn--danger");
+                dead.AddToClassList("mcp-btn--inline");
+                return dead;
+            }
+
+            int firstPid = s.Connections[0].BridgePid;
             var btn = new Button(() =>
             {
                 if (bridgeCount > 1)
@@ -364,12 +376,7 @@ namespace UnityMCP.Editor
         {
             var pids = new List<int>();
             foreach (var snap in snapshots)
-            {
-                if (string.IsNullOrEmpty(snap.DisplayName)) continue;
-                var parts = snap.DisplayName.Split('/');
-                if (parts.Length > 1 && int.TryParse(parts[parts.Length - 1], out var p))
-                    pids.Add(p);
-            }
+                if (snap.BridgePid > 0) pids.Add(snap.BridgePid);
             return pids;
         }
 
@@ -452,6 +459,7 @@ namespace UnityMCP.Editor
 
         private static string FormatDuration(TimeSpan ts)
         {
+            if (ts < TimeSpan.Zero) ts = TimeSpan.Zero;
             if (ts.TotalHours >= 1)
                 return $"{(int)ts.TotalHours:00}:{ts.Minutes:00}:{ts.Seconds:00}";
             return $"{ts.Minutes:00}:{ts.Seconds:00}";
