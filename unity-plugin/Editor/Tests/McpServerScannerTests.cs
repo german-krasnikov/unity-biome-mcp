@@ -37,7 +37,9 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Scan_PortFileWithoutLock_ReportsNotAlive()
         {
-            File.WriteAllText(Path.Combine(_scope.Path, "1234.port"), "9500\n");
+            const int deadPid = 99999999;
+            Assume.That(!IsProcessAlive(deadPid), "PID must not be alive for this test");
+            File.WriteAllText(Path.Combine(_scope.Path, $"{deadPid}.port"), "9500\n");
 
             var result = McpServerScanner.Scan();
 
@@ -52,7 +54,7 @@ namespace UnityMCP.Editor.Tests
             Assume.That(!IsProcessAlive(deadPid), "PID 99999999 must not be alive for this test");
 
             // Port file in scan dir, lock in lock dir (separate directories)
-            File.WriteAllText(Path.Combine(_scope.Path, "1234.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, $"{deadPid}.port"), "9500\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{deadPid}.lock"), $"{deadPid}\n");
 
             var result = McpServerScanner.Scan();
@@ -65,7 +67,7 @@ namespace UnityMCP.Editor.Tests
         public void Scan_CurrentPortMarked_IsCurrentProject()
         {
             var port = MCPServer.ServerPort;
-            File.WriteAllText(Path.Combine(_scope.Path, "1234.port"), $"{port}\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), $"{port}\n");
 
             var result = McpServerScanner.Scan();
 
@@ -77,7 +79,7 @@ namespace UnityMCP.Editor.Tests
         public void Scan_DifferentPort_NotCurrentProject()
         {
             const int differentPort = 29999;
-            File.WriteAllText(Path.Combine(_scope.Path, "1234.port"), $"{differentPort}\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), $"{differentPort}\n");
 
             var result = McpServerScanner.Scan();
 
