@@ -285,7 +285,7 @@ unity-biome-mcp/
 │   │   ├── skills/             # 11 folder skills with SKILL.md and optional references/resources
 │   │   └── scripts/            # claude_to_codex.py — ownership-checked Claude-to-Codex sync
 │   └── Editor/
-│       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
+│       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern; **T1: ConnectedClientCount** property (sum of active clients from both slots)
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort); **WI-7**: NEW atomic `BindFreePort(startFrom, skipPort, skipPort2)` for TOCTOU-safe port binding; `FindFreePortExcluding(skip1, skip2)` skips multiple ports; `ResolveReloadPort()` discovers reload port; `TrySaveAllPorts()` writes all 3 ports (main/chat/reload) atomically
 │       ├── CommandRouter.cs                # RegisterAll(), guards, core dispatch (partial class)
 │       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class, 274L after v0.80.0 SRP split); get_aliases command + BuildAliasSection/GetAliasesText; ApplyFieldsCompress(args, result) shared by inspect + get_component (v0.78.x)
@@ -377,7 +377,7 @@ unity-biome-mcp/
 │       ├── ConsoleProblemPersistence.cs    # SessionState-persisted problem entries (Error/Exception/Assert) across domain reload
 │       ├── PrefKeys.cs                     # Central SessionState/EditorPrefs key literals (DRY)
 │       ├── ClientConnectionHandler.cs       # Handles TCP client connections (v0.69.0)
-│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0; v1.0.1: LingerOption(true,0) on all close paths → RST not FIN, no TIME_WAIT on Windows)
+│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0; v1.0.1: LingerOption(true,0) on all close paths → RST not FIN, no TIME_WAIT on Windows); **T1: CountActive()** method — thread-safe snapshot of active connection count
 │       ├── MainThreadDispatcher.cs          # Main-thread work queue for TCP callbacks (v0.69.0)
 │       ├── EnvironmentHelper.cs             # Unity environment detection + version checks (v0.69.0)
 │       ├── ErrorClassifier.cs               # Categorizes command failures for recovery (v0.69.0)
@@ -420,7 +420,7 @@ unity-biome-mcp/
 │       ├── UI/                             # UI design system (v0.55.10)
 │       │   └── IconCanvas.cs              # Procedural icon builder (18×18, 2px stroke, theme-agnostic)
 │       ├── MCPStatusWindow.cs             # Connection status monitor: server list with Kill buttons, refresh on tick, changelog via MarkdownInlineFormatter (v1.31.0: changelog DRY rendering)
-│       ├── McpServerScanner.cs            # Port/lock file scanner: detects alive/phantom servers, CleanPhantomFiles orphan cleanup (v1.31.0)
+│       ├── McpServerScanner.cs            # Port/lock file scanner: detects alive/phantom servers, CleanPhantomFiles orphan cleanup (v1.31.0); **T1: multi-lock support** — `ScanDetailed()` returns `UnityServerInfo[]` with per-port `McpConnectionInfo[]` list + `LiveTcpCount`; `Scan()` backward-compat wrapper; `FindConnections(port)` enumerates all server-{port}-*.lock files; test seam `OverrideLiveTcpCountGetter`
 │       ├── MCPActions.cs                  # Shared actions: KillCurrent/KillAll/KillByPort split with DRY helpers (v1.31.0)
 │       ├── MCPStatusModel.cs              # Pure state logic (no deps) — maps connection state → display
 │       ├── MCPStatusBarWidget.cs          # Injects MCP pill into AppStatusBar via reflection

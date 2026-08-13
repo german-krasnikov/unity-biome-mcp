@@ -291,6 +291,32 @@ namespace UnityMCP.Editor.Tests
             Assert.That(result[0].Pid, Is.EqualTo(selfPid), "Should select the alive PID");
         }
 
+        // Discriminating counterpart: dead PID sorts FIRST (ascending), alive must still win.
+        // The test above uses deadPid=99999999 > selfPid, so "just take first" and "first-alive"
+        // produce the same result — this one proves they don't when the order is reversed.
+        [Test]
+        public void Scan_BackwardCompat_AliveWins_WhenDeadSortsFirst()
+        {
+            var selfPid = System.Diagnostics.Process.GetCurrentProcess().Id;
+            // Find a dead PID strictly less than selfPid so it sorts before selfPid.
+            int deadPid = -1;
+            for (int c = selfPid - 1; c >= 2 && deadPid < 0; c--)
+                if (!IsProcessAlive(c)) deadPid = c;
+            Assume.That(deadPid > 0, "Could not find a dead PID < selfPid on this machine");
+
+            File.WriteAllText(Path.Combine(_scope.Path, "0.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{deadPid}.lock"), "");
+            File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{selfPid}.lock"), "");
+
+            var result = McpServerScanner.Scan();
+
+            // Sort order: [deadPid (dead), selfPid (alive)]. "just take first" would return dead.
+            // First-alive strategy must skip deadPid and return selfPid.
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result[0].Pid, Is.EqualTo(selfPid), "alive PID must win over earlier-sorted dead PID");
+            Assert.That(result[0].Alive, Is.True);
+        }
+
         [Test]
         public void ScanDetailed_EightLocks_AllReturned()
         {
