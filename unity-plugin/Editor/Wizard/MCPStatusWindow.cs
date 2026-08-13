@@ -270,17 +270,29 @@ namespace UnityMCP.Editor
 
                 bool isCurrent = s.IsCurrentProject;
                 int port = s.Port;
+                int bridgeCount = s.BridgeCount;
+                int pid = s.Pid;
                 var killBtn = new Button(() =>
                 {
-                    if (isCurrent && !EditorUtility.DisplayDialog(
-                            "Kill Current Server?",
-                            $"Stop MCP server on :{port}?\nClaude will disconnect.",
-                            "Kill", "Cancel"))
-                        return;
-                    MCPActions.KillByPort(port);
+                    if (bridgeCount > 1)
+                    {
+                        if (!EditorUtility.DisplayDialog(
+                                "Stop All Bridges",
+                                $"Port :{port} has {bridgeCount} bridges running.\nStop ALL of them?",
+                                "Stop All", "Cancel")) return;
+                        MCPActions.StopAllOnPort(port);
+                    }
+                    else
+                    {
+                        if (isCurrent && !EditorUtility.DisplayDialog(
+                                "Kill Current Server?",
+                                $"Stop MCP server on :{port}?\nClaude will disconnect.",
+                                "Kill", "Cancel")) return;
+                        MCPActions.TerminateByPid(port, pid);
+                    }
                     RefreshServerList();
                 })
-                { text = "Kill" };
+                { text = bridgeCount > 1 ? $"Kill ({bridgeCount})" : "Kill" };
                 killBtn.AddToClassList("mcp-btn");
                 killBtn.AddToClassList("mcp-btn--danger");
                 killBtn.AddToClassList("mcp-btn--inline");

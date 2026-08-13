@@ -152,5 +152,138 @@ namespace UnityMCP.Editor.Tests
                 "M17: RestartRelay must use EditorApplication.delayCall, not Task.Run — " +
                 "SessionState calls inside InvokeRelay(\"EnsureRunning\") are main-thread-only");
         }
+
+        // ── T2: TerminateByPid / CountBridgesOnPort / StopAllOnPort ──────────────
+
+        [Test]
+        public void TerminateByPid_ExactFileMissing_ReturnsNotFound_NoKillHappens()
+        {
+            var result = MCPActions.TerminateByPid(9500, 99999);
+            Assert.AreEqual(MCPActions.TerminateResult.NotFound, result);
+        }
+
+        [Test]
+        public void TerminateByPid_StaleLock_ReturnsStale_DeletesFile()
+        {
+            var lockFile = Path.Combine(_scope.Path, "server-9500-99999.lock");
+            File.WriteAllText(lockFile, "99999\n");
+            var result = MCPActions.TerminateByPid(9500, 99999);
+            Assert.AreEqual(MCPActions.TerminateResult.Stale, result);
+            Assert.IsFalse(File.Exists(lockFile), "Stale lock file must be deleted");
+        }
+
+        [Test]
+        public void TerminateByPid_WrongPort_ReturnsNotFound()
+        {
+            var lockFile = Path.Combine(_scope.Path, "server-9600-99999.lock");
+            File.WriteAllText(lockFile, "99999\n");
+            var result = MCPActions.TerminateByPid(9500, 99999);
+            Assert.AreEqual(MCPActions.TerminateResult.NotFound, result);
+            Assert.IsTrue(File.Exists(lockFile), "Lock for different port must not be touched");
+        }
+
+        [Test]
+        public void TerminateByPid_LastBridgeOnPort_CleansPortFiles()
+        {
+            File.WriteAllText(Path.Combine(_scope.Path, "server-9500-99999.lock"), "99999\n");
+            var portsDir = Path.Combine(_scope.Path, "ports");
+            Directory.CreateDirectory(portsDir);
+            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
+            File.WriteAllText(Path.Combine(portsDir, "12345.chat-port"), "data");
+            File.WriteAllText(Path.Combine(portsDir, "12345.reload-port"), "data");
+
+            MCPActions.TerminateByPid(9500, 99999);
+
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.chat-port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.reload-port")));
+        }
+
+        [Test]
+        public void TerminateByPid_NotLastBridge_LeavesOtherLockAndPortFiles()
+        {
+            var lock1 = Path.Combine(_scope.Path, "server-9500-99998.lock");
+            var lock2 = Path.Combine(_scope.Path, "server-9500-99999.lock");
+            File.WriteAllText(lock1, "99998\n");
+            File.WriteAllText(lock2, "99999\n");
+            var portsDir = Path.Combine(_scope.Path, "ports");
+            Directory.CreateDirectory(portsDir);
+            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
+
+            MCPActions.TerminateByPid(9500, 99999);
+
+            Assert.IsTrue(File.Exists(lock1), "Other bridge lock must survive");
+            Assert.IsTrue(File.Exists(Path.Combine(portsDir, "12345.port")),
+                "Port file must survive when another bridge still exists");
+        }
+
+        [Test]
+        public void CountBridgesOnPort_EmptyDir_ReturnsZero()
+        {
+            Assert.AreEqual(0, MCPActions.CountBridgesOnPort(9500));
+        }
+
+        [Test]
+        public void CountBridgesOnPort_TwoLockFiles_ReturnsTwo()
+        {
+            File.WriteAllText(Path.Combine(_scope.Path, "server-9500-100.lock"), "100\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "server-9500-101.lock"), "101\n");
+            Assert.AreEqual(2, MCPActions.CountBridgesOnPort(9500));
+        }
+
+        [Test]
+        public void CountBridgesOnPort_MixedPorts_CountsOnlyTargetPort()
+        {
+            File.WriteAllText(Path.Combine(_scope.Path, "server-9500-100.lock"), "100\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "server-9500-101.lock"), "101\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "server-9600-102.lock"), "102\n");
+            Assert.AreEqual(2, MCPActions.CountBridgesOnPort(9500));
+        }
+
+        [Test]
+        public void StopAllOnPort_MultipleLocks_KillsAll()
+        {
+            var lock1 = Path.Combine(_scope.Path, "server-9500-99998.lock");
+            var lock2 = Path.Combine(_scope.Path, "server-9500-99999.lock");
+            File.WriteAllText(lock1, "99998\n");
+            File.WriteAllText(lock2, "99999\n");
+            var portsDir = Path.Combine(_scope.Path, "ports");
+            Directory.CreateDirectory(portsDir);
+            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
+            File.WriteAllText(Path.Combine(portsDir, "12345.chat-port"), "data");
+            File.WriteAllText(Path.Combine(portsDir, "12345.reload-port"), "data");
+
+            MCPActions.StopAllOnPort(9500);
+
+            Assert.IsFalse(File.Exists(lock1), "First lock must be cleaned");
+            Assert.IsFalse(File.Exists(lock2), "Second lock must be cleaned");
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.chat-port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.reload-port")));
+        }
+
+        [Test]
+        public void Scan_TwoLockFilesOnePort_BridgeCountIsTwo()
+        {
+            var portsDir = Path.Combine(_scope.Path, "ports");
+            Directory.CreateDirectory(portsDir);
+            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "server-9500-99998.lock"), "99998\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "server-9500-99999.lock"), "99999\n");
+
+            McpServerScanner.OverrideScanDir = portsDir;
+            McpServerScanner.OverrideLockDir = _scope.Path;
+            try
+            {
+                var servers = McpServerScanner.Scan();
+                Assert.AreEqual(1, servers.Count);
+                Assert.AreEqual(2, servers[0].BridgeCount);
+            }
+            finally
+            {
+                McpServerScanner.OverrideScanDir = null;
+                McpServerScanner.OverrideLockDir = null;
+            }
+        }
     }
 }
