@@ -141,6 +141,18 @@ namespace UnityMCP.Editor
             }
         }
 
+        // Non-atomic snapshot: count may be stale by the time the caller acts on it.
+        internal int CountActive()
+        {
+            lock (_lock)
+            {
+                int count = 0;
+                for (int i = 0; i < MaxClients; i++)
+                    if (IsEntryActive(_entries[i])) count++;
+                return count;
+            }
+        }
+
         internal int CountPhantoms()
         {
             int count = 0;

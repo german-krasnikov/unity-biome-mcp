@@ -80,6 +80,7 @@ namespace UnityMCP.Editor
             }
         }
         public static bool IsClientConnected => _mainSlot.AnyConnected || _chatSlot.AnyConnected;
+        public static int ConnectedClientCount => _mainSlot.CountActive() + _chatSlot.CountActive();
         public static int PhantomCount => _mainSlot.CountPhantoms() + _chatSlot.CountPhantoms();
         public static int KillPhantoms()
         {
