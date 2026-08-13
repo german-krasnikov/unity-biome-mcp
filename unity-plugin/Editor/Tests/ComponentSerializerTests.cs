@@ -619,11 +619,11 @@ namespace UnityMCP.Editor.Tests
         // ── Ref token format ──────────────────────────────────────────────────
 
         [Test]
-        public void SerializeSubtree_RefToken_StartsWithDollar()
+        public void SerializeSubtree_RefToken_StartsWithAmpersand()
         {
             var result = HierarchySerializer.SerializeSubtree(_root);
-            // Each line has a $x ref token
-            Assert.IsTrue(result.Contains("$"), $"Ref token '$' missing: '{result}'");
+            // Each line has a &x ref token
+            Assert.IsTrue(result.Contains("&"), $"Ref token '&' missing: '{result}'");
         }
     }
 }
