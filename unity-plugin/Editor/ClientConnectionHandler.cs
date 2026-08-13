@@ -51,6 +51,7 @@ namespace UnityMCP.Editor
                         Debug.LogWarning($"{BiomeLabel.Tag} {label} rejected connection: client capacity exceeded"));
                     continue;
                 }
+                slot.SetEntryEndpoint(idx, gen, client.Client.RemoteEndPoint?.ToString() ?? "unknown");
                 _ = HandleClientAsync(client, slot, idx, gen, label, clientCts.Token);
             }
         }
@@ -135,7 +136,11 @@ namespace UnityMCP.Editor
                         {
                             slot.Label = null;  // clear stale label from previous session
                             var role = JsonHelper.ExtractString(json, "role");
-                            if (!string.IsNullOrEmpty(role)) label = RoleToLabel(role);
+                            if (!string.IsNullOrEmpty(role))
+                            {
+                                label = RoleToLabel(role);
+                                slot.SetEntryLabel(index, generation, label);
+                            }
                             var ep0 = endPoint; var lbl0 = label;
                             MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} {lbl0} connected from {ep0}"));
                             receivedFirstMessage = true;
@@ -180,6 +185,7 @@ namespace UnityMCP.Editor
                             clientToken, cmdTimeout.Token);
                         // Invalidate on first slow-path command (not on connection, not on fast-path probes).
                         var needsInvalidate = !refInvalidated;
+                        slot.BeginCommand(index, generation, cmdName);
                         MainThreadDispatcher.Enqueue(() =>
                         {
                             // Skip if Python already gave up (per-command timeout fired and
@@ -214,6 +220,7 @@ namespace UnityMCP.Editor
                                     $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":false,\"err\":\"Command '{JsonHelper.EscapeJson(cmdName)}' timed out after {timeoutSec}s (Unity main thread blocked). Retry.\",\"retry\":2000}}");
                         });
                         var result = await tcs.Task.ConfigureAwait(false);
+                        slot.EndCommand(index, generation);
                         await SendAsync(stream, result, clientToken).ConfigureAwait(false);
                     }
                 }
@@ -228,10 +235,11 @@ namespace UnityMCP.Editor
             }
             finally
             {
+                var entryLabel = slot.GetEntryLabel(index, generation) ?? slot.Label ?? label;
                 slot.Clear(index, generation);
                 if (receivedFirstMessage)
                 {
-                    var lbl = slot.Label ?? label; var gen = generation;
+                    var lbl = entryLabel; var gen = generation;
                     MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} {lbl} disconnected (gen={gen})"));
                 }
             }
