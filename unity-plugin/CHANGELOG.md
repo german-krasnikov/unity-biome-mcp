@@ -10,6 +10,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.33.0] — 2026-08-13
+
+### Added
+- **Compact ref IDs** — RefManager uses `&` prefix + base62 encoding (`&1`, `&a`, `&Z`) instead of transient hex IDs. Backward-compatible parsing for `$N` digits.
+- **WirePrefix constants** — centralized wire protocol prefix constants (`&` = Ref, `$` = Alias).
+- **McpServerScanner** — discovers running MCP servers from port files, detects alive/dead via PID check, `CleanPhantomFiles()` removes stale entries.
+- **MCPStatusWindow server list** — shows all detected MCP servers with port, PID, alive/dead status, and per-server Kill button.
+- **KillByPort API** — `MCPActions.KillByPort(port)` kills a specific server by port, cleans lock + port files.
+- **AnimationCurveCompactor** — groups `.x/.y/.z` into vectors, `.r/.g/.b/.a` into colors, omits unchanged properties.
+- **Model presets** — `contextWindow` field on `ModelPresetEntry`, `SetOverrides()` cache, `ForDropdown()` API, ListView UI for all 5 backends.
+- **CopyAsMcpRef** — `Cmd+Shift+C` shortcut copies selected GameObject's MCP ref to clipboard.
+
+### Fixed
+- **Phantom server detection** — `McpServerScanner.FindLock()` now searches lock files in correct directory (`~/.unity-biome-mcp/` root, not `ports/` subdir).
+- **Chat text wrapping** — `ChatLabel.Selectable()` adds `chat-text` CSS class; `ChatTranscript` uses `flex-start` alignment + `width: 100%` on inner container for proper label wrapping.
+- **ThinkingBlock USS selector** — changed `>` (direct child) to descendant selector to match UIToolkit Foldout internals.
+- **Changelog rendering** — MCPStatusWindow now uses `MarkdownInlineFormatter.ToRichText()` (DRY with Updates page).
+- **Tool card text wrapping** — added `white-space: normal/pre-wrap` USS rules for bash, agent, component-read, diff, and settings labels.
+- **Play Mode stale refs** — `playModeStateChanged` hook invalidates scene caches on mode transitions.
+- **ValueParser ref support** — RefManager fast-path for `&N` refs before hex branch in `SetObjectReference`.
+
 ## [v1.32.0] — 2026-08-12
 
 ### Fixed

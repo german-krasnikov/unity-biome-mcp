@@ -257,6 +257,108 @@ namespace UnityMCP.Editor.Chat
             parent.Add(extraField);
         }
 
+        internal static void BuildModelPresetsForm(
+            VisualElement parent,
+            BackendKind kind,
+            BackendConfigStore store,
+            Action onChanged)
+        {
+            var foldout = new Foldout { text = $"{kind} Models", value = false };
+
+            var entries = store.ModelPresets?.For(kind);
+            var list    = entries != null ? new List<ModelPresetEntry>(entries) : new List<ModelPresetEntry>();
+
+            var listView = new ListView
+            {
+                itemsSource          = list,
+                reorderable          = true,
+                showAddRemoveFooter  = true,
+                virtualizationMethod = CollectionVirtualizationMethod.DynamicHeight,
+                showBorder           = true,
+            };
+
+            listView.makeItem = () =>
+            {
+                var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
+                row.AddToClassList("model-preset-row");
+                var name = new TextField { label = "Name" };
+                name.style.flexGrow = 1;
+                var id = new TextField { label = "ID" };
+                id.style.flexGrow = 1;
+                id.AddToClassList("model-preset-id");
+                var ctx = new IntegerField { label = "Context" };
+                ctx.style.width = 100;
+                ctx.AddToClassList("model-preset-ctx");
+                row.Add(name); row.Add(id); row.Add(ctx);
+                return row;
+            };
+
+            listView.unbindItem = (element, _) =>
+            {
+                if (element.userData is Action unreg) { unreg(); element.userData = null; }
+            };
+
+            listView.bindItem = (element, i) =>
+            {
+                // Unregister stale callbacks before rebinding
+                if (element.userData is Action prev) { prev(); element.userData = null; }
+
+                var nameField = element.Query<TextField>().AtIndex(0);
+                var idField   = element.Query<TextField>().AtIndex(1);
+                var ctxField  = element.Q<IntegerField>();
+
+                var entry = list[i];
+                nameField.SetValueWithoutNotify(entry.label);
+                idField.SetValueWithoutNotify(entry.modelId);
+                ctxField.SetValueWithoutNotify(entry.contextWindow);
+
+                EventCallback<ChangeEvent<string>> nameCb = e => { entry.label         = e.newValue; SavePresets(); };
+                EventCallback<ChangeEvent<string>> idCb   = e => { entry.modelId       = e.newValue; SavePresets(); };
+                EventCallback<ChangeEvent<int>>    ctxCb  = e => { entry.contextWindow  = e.newValue; SavePresets(); };
+
+                nameField.RegisterValueChangedCallback(nameCb);
+                idField.RegisterValueChangedCallback(idCb);
+                ctxField.RegisterValueChangedCallback(ctxCb);
+
+                element.userData = (Action)(() =>
+                {
+                    nameField.UnregisterValueChangedCallback(nameCb);
+                    idField.UnregisterValueChangedCallback(idCb);
+                    ctxField.UnregisterValueChangedCallback(ctxCb);
+                });
+            };
+
+            listView.itemsAdded     += indices => { foreach (var i in indices) list[i] = new ModelPresetEntry(); SavePresets(); };
+            listView.itemsRemoved   += _ => SavePresets();
+            listView.itemIndexChanged += (_, _) => SavePresets();
+
+            void SavePresets()
+            {
+                store.ModelPresets.Set(kind, list.ToArray());
+                store.Save();
+                onChanged?.Invoke();
+            }
+
+            foldout.Add(listView);
+
+            var resetBtn = new Button(() =>
+            {
+                list.Clear();
+                foreach (var d in ModelPresetDefaults.For(kind))
+                {
+                    if (string.IsNullOrEmpty(d.modelId) || d.modelId == ModelPresetDefaults.CustomSentinel) continue;
+                    list.Add(new ModelPresetEntry { label = d.label, modelId = d.modelId, contextWindow = d.contextWindow });
+                }
+                listView.RefreshItems();
+                SavePresets();
+            }) { text = "Reset to Defaults" };
+            resetBtn.style.alignSelf = Align.FlexEnd;
+            resetBtn.style.marginTop = 4;
+            foldout.Add(resetBtn);
+
+            parent.Add(foldout);
+        }
+
         internal static void BuildCodexForm(
             VisualElement parent,
             CodexBackendConfig config,

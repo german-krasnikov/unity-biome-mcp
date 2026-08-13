@@ -454,11 +454,11 @@ namespace UnityMCP.TestProject.SceneObject
         }
 
         [Test]
-        public void IsRef_TrueForDollar()
+        public void IsRef_TrueForAmpersand()
         {
-            Assert.That(RefManager.IsRef("$a"), Is.True);
-            Assert.That(RefManager.IsRef("$ab"), Is.True);
-            Assert.That(RefManager.IsRef("$zz"), Is.True);
+            Assert.That(RefManager.IsRef("&a"), Is.True);
+            Assert.That(RefManager.IsRef("&ab"), Is.True);
+            Assert.That(RefManager.IsRef("&1"), Is.True);
         }
 
         [Test]
@@ -496,7 +496,7 @@ namespace UnityMCP.TestProject.SceneObject
             {
                 var r2 = RefManager.Assign(go2);
                 // just verify it works without throwing
-                Assert.That(r2, Does.StartWith("$"));
+                Assert.That(r2, Does.StartWith("&"));
             }
             finally { Object.DestroyImmediate(go2); }
         }
@@ -512,10 +512,10 @@ namespace UnityMCP.TestProject.SceneObject
                 var refs = new string[28];
                 for (int i = 0; i < 28; i++) refs[i] = RefManager.Assign(gos[i]);
 
-                Assert.That(refs[0], Is.EqualTo("$a"));
-                Assert.That(refs[25], Is.EqualTo("$z"));
-                Assert.That(refs[26], Is.EqualTo("$aa"));
-                Assert.That(refs[27], Is.EqualTo("$ab"));
+                Assert.That(refs[0], Is.EqualTo("&1"));
+                Assert.That(refs[25], Is.EqualTo("&q"));
+                Assert.That(refs[26], Is.EqualTo("&r"));
+                Assert.That(refs[27], Is.EqualTo("&s"));
             }
             finally { foreach (var g in gos) Object.DestroyImmediate(g); }
         }
@@ -552,9 +552,9 @@ namespace UnityMCP.TestProject.SceneObject
             try
             {
                 var output = HierarchySerializer.Serialize();
-                Assert.That(output, Does.Contain("$"));
-                // The specific object should have a ref in $HEX format
-                Assert.That(output, Does.Match(@"\$[0-9A-F]+"));
+                Assert.That(output, Does.Contain("&"));
+                // The specific object should have a ref in &base62 format
+                Assert.That(output, Does.Match(@"&[0-9a-zA-Z]+"));
             }
             finally { Object.DestroyImmediate(go); }
         }

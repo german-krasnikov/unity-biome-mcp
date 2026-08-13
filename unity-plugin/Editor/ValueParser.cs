@@ -229,7 +229,13 @@ namespace UnityMCP.Editor
                     // go == null: fall through to sub-asset check below.
                 }
             }
-            // New: $HEX format (e.g. $3E8) — must check before path-based lookup
+            // RefManager decimal ref ($1-$9999) — explicit fast path before path-based lookup
+            if (RefManager.IsRef(value))
+            {
+                var resolved = RefManager.Resolve(value);
+                if (resolved != null) { property.objectReferenceValue = resolved; return; }
+            }
+            // $HEX format (e.g. $3E8) — must check before path-based lookup
             if (value.StartsWith("$") && !RefManager.IsRef(value))
             {
                 if (!TransientObjectId.TryParse(value, out var hexId))

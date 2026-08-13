@@ -251,28 +251,28 @@ def test_path_cache_empty_allows_all(mw):
 
 def test_path_cache_updated_on_hierarchy(mw):
     # Real Unity format: scene name at depth 0, objects at depth 1+
-    hierarchy = "SampleScene\n├─ Main Camera $[Camera]\n├─ Player $[Transform]\n└─ Enemy $[Transform]"
+    hierarchy = "SampleScene\n├─ Main Camera &1\n├─ Player &2\n└─ Enemy &3"
     mw.update_path_cache("get_hierarchy", hierarchy)
     assert "/Player" in mw.known_paths
     assert "/Enemy" in mw.known_paths
 
 
 def test_path_cache_warns_unknown_path(mw):
-    hierarchy = "SampleScene\n├─ Player $[Transform]"
+    hierarchy = "SampleScene\n├─ Player &1"
     mw.update_path_cache("get_hierarchy", hierarchy)
     result = mw.validate_path("/NonExistent")
     assert "PATH WARNING" in result
 
 
 def test_path_cache_allows_known_path(mw):
-    hierarchy = "SampleScene\n├─ Player $[Transform]"
+    hierarchy = "SampleScene\n├─ Player &1"
     mw.update_path_cache("get_hierarchy", hierarchy)
     result = mw.validate_path("/Player")
     assert result is None
 
 
 def test_path_cache_allows_ref_syntax(mw):
-    hierarchy = "Player $[Transform]"
+    hierarchy = "SampleScene\n├─ Player &1"
     mw.update_path_cache("get_hierarchy", hierarchy)
     result = mw.validate_path("$ref:abc")
     assert result is None

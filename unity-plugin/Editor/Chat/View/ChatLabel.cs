@@ -11,9 +11,8 @@ namespace UnityMCP.Editor.Chat
         {
             var l = new Label(text);
             l.enableRichText         = richText;
-            // Selectable enables highlight + copy; do NOT set focusable — it pollutes Tab
-            // order with every transcript label and fights ScrollView drag-scroll.
             l.selection.isSelectable = true;
+            l.AddToClassList("chat-text");
             return l;
         }
     }

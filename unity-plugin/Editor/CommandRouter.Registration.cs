@@ -488,7 +488,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("scene", ExecScene, mutating: false,
                 required: "action", optional: "path,scene,include_unsaved");
             CommandRegistry.Register("animation", ExecAnimationConsolidated, mutating: true,
-                required: "action,path", optional: "clip,clip_name,property,keys,time,component_type,binding_path,tangent,function_name,int_param,float_param,string_param");
+                required: "action,path", optional: "clip,clip_name,property,keys,time,component_type,binding_path,tangent,function_name,int_param,float_param,string_param,compact");
             CommandRegistry.Register("timeline", ExecTimelineConsolidated, mutating: false,
                 required: "action", optional: "path,track,track_type,clip,binding,start,duration,blend_in,blend_out,asset_path,director_path,tracks,time,name,clip_in,index,offset,value");
             CommandRegistry.Register("references", ExecReferencesConsolidated, mutating: true,

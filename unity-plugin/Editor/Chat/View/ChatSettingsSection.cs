@@ -82,26 +82,31 @@ namespace UnityMCP.Editor.Chat
             claudeFoldout.Add(thinkingToggle);
 
             BackendSettingsForm.BuildClaudeForm(claudeFoldout, store.Claude, () => store.Save());
+            BackendSettingsForm.BuildModelPresetsForm(claudeFoldout, BackendKind.Claude, store, () => store.Save());
             parent.Add(claudeFoldout);
 
             var codexFoldout = new Foldout { text = "Codex Settings", value = false };
             codexFoldout.AddToClassList("chat-settings-foldout");
             BackendSettingsForm.BuildCodexForm(codexFoldout, store.Codex, () => store.Save());
+            BackendSettingsForm.BuildModelPresetsForm(codexFoldout, BackendKind.Codex, store, () => store.Save());
             parent.Add(codexFoldout);
 
             var antigravityFoldout = new Foldout { text = "Antigravity Settings", value = false };
             antigravityFoldout.AddToClassList("chat-settings-foldout");
             BackendSettingsForm.BuildAntigravityForm(antigravityFoldout, store.Antigravity, () => store.Save());
+            BackendSettingsForm.BuildModelPresetsForm(antigravityFoldout, BackendKind.Antigravity, store, () => store.Save());
             parent.Add(antigravityFoldout);
 
             var kimiFoldout = new Foldout { text = "Kimi Settings", value = false };
             kimiFoldout.AddToClassList("chat-settings-foldout");
             BackendSettingsForm.BuildKimiForm(kimiFoldout, store.Kimi, () => store.Save());
+            BackendSettingsForm.BuildModelPresetsForm(kimiFoldout, BackendKind.Kimi, store, () => store.Save());
             parent.Add(kimiFoldout);
 
             var openCodeFoldout = new Foldout { text = "OpenCode Settings", value = false };
             openCodeFoldout.AddToClassList("chat-settings-foldout");
             BackendSettingsForm.BuildOpenCodeForm(openCodeFoldout, store.OpenCode, () => store.Save());
+            BackendSettingsForm.BuildModelPresetsForm(openCodeFoldout, BackendKind.OpenCode, store, () => store.Save());
             parent.Add(openCodeFoldout);
 
             // Context Chips — per-kind depth + color overrides

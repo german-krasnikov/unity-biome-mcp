@@ -26,7 +26,7 @@ def _last_segment(path: str) -> str:
 
 def _split_scene_qualified(path: str) -> tuple:
     """'Scene:/foo' -> ('Scene', '/foo'). '/foo' -> ('', '/foo')."""
-    if ":" in path and not path.startswith("$"):
+    if ":" in path and path[0] not in ("$", "&"):
         idx = path.index(":")
         rest = path[idx + 1:]
         if rest.startswith("/"):
@@ -52,14 +52,14 @@ class PathResolverMixin:
             stripped = line.strip()
             if not stripped:
                 continue
-            # Scene header detection: [SceneName] with no $ ref
+            # Scene header detection: [SceneName] with no & ref
             m = _SCENE_HEADER_RE.match(stripped)
-            if m and "$" not in stripped:
+            if m and "&" not in stripped:
                 current_scene = m.group(1)
                 stack = []
                 base_depth = -1  # reset per scene
                 continue
-            if "$" not in line:
+            if "&" not in line:
                 continue
             # Count indent depth: each level uses exactly 3 chars (│  / ├─ / └─ / spaces)
             i = 0
@@ -75,7 +75,7 @@ class PathResolverMixin:
             raw = line[i:].strip()
             if not raw:
                 continue
-            name = raw.split("$")[0].strip()
+            name = raw.split("&")[0].strip()
             if not name:
                 continue
             # Trim stack to relative depth, then append current name
@@ -90,7 +90,7 @@ class PathResolverMixin:
     def validate_path(self, path: str) -> str | None:
         if not self.known_paths:
             return None
-        if path.startswith("$") or path.startswith("#"):
+        if path.startswith("&") or path.startswith("$") or path.startswith("#"):
             return None
         scene, bare = _split_scene_qualified(path)
         check = bare if scene else path
@@ -153,7 +153,7 @@ class PathResolverMixin:
         marker is non-empty string when auto-resolved with context clue.
         resolved_path starts with '__DISAMBIG_BLOCK__\\n...' when block needed.
         """
-        if not path or path.startswith("$") or path.startswith("#"):
+        if not path or path.startswith("&") or path.startswith("$") or path.startswith("#"):
             return path, ""
         if not self.known_paths:
             return path, ""

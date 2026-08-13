@@ -24,6 +24,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             if (File.Exists(_tempPath)) File.Delete(_tempPath);
             ChipKindRegistry.ResetForTests();
+            ModelContextWindows.SetOverrides(null);
         }
 
         [Test]
@@ -396,6 +397,37 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var store = new BackendConfigStore();
             Assert.AreSame(store, store.WithModel((BackendKind)999, "model"));
+        }
+
+        // ── BuildContextIndex / SetOverrides wiring (T8b) ───────────────────
+
+        [Test]
+        public void BuildContextIndex_EntryWithContextWindow_SetsOverride()
+        {
+            var store = new BackendConfigStore();
+            store.ModelPresets.Claude = new[]
+            {
+                new ModelPresetEntry { label = "Test", modelId = "test-model-unique", contextWindow = 500_000 }
+            };
+            store.BuildContextIndex();
+            Assert.AreEqual(500_000, ModelContextWindows.GetContextWindow("test-model-unique", BackendKind.Claude));
+        }
+
+        [Test]
+        public void Load_WithPresets_WiresContextCache()
+        {
+            const string json = "{\"ModelPresets\":{\"Claude\":[{\"label\":\"Big\",\"modelId\":\"big-model\",\"contextWindow\":999000}],\"Codex\":[],\"Antigravity\":[],\"Kimi\":[],\"OpenCode\":[]}}";
+            File.WriteAllText(_tempPath, json);
+            BackendConfigStore.Load(_tempPath);
+            Assert.AreEqual(999_000, ModelContextWindows.GetContextWindow("big-model", BackendKind.Claude));
+        }
+
+        [Test]
+        public void BuildContextIndex_DefaultsIncluded_WhenNoUserOverride()
+        {
+            var store = new BackendConfigStore();
+            store.BuildContextIndex();
+            Assert.AreEqual(1_000_000, ModelContextWindows.GetContextWindow("claude-opus-5", BackendKind.Claude));
         }
 
         private sealed class FakeDepthProvider : IChipKindProvider

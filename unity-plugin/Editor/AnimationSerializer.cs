@@ -20,7 +20,7 @@ namespace UnityMCP.Editor
             ["m_IsActive"]          = "active",
         };
 
-        public static string Serialize(string path, string clipName, float? sampleTime)
+        public static string Serialize(string path, string clipName, float? sampleTime, bool compact = false)
         {
             var go = ComponentSerializer.FindObject(path);
             if (go == null) throw new System.InvalidOperationException(ErrorHelper.ObjectNotFound(path));
@@ -34,7 +34,7 @@ namespace UnityMCP.Editor
             if (sampleTime.HasValue)
                 return SerializeClipAtTime(go, clip, sampleTime.Value);
 
-            return SerializeClipDetail(clip);
+            return SerializeClipDetail(clip, compact);
         }
 
         private static string SerializeClipList(GameObject go)
@@ -62,7 +62,7 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd('\n');
         }
 
-        private static string SerializeClipDetail(AnimationClip clip)
+        private static string SerializeClipDetail(AnimationClip clip, bool compact = false)
         {
             var sb       = new StringBuilder();
             var settings = AnimationUtility.GetAnimationClipSettings(clip);
@@ -131,15 +131,22 @@ namespace UnityMCP.Editor
             }
             sb.AppendLine("---");
 
-            // Float curves
-            foreach (var binding in floatB)
+            // Float curves — compact groups x/y/z and r/g/b/a, omits unchanged
+            if (compact)
             {
-                var keys     = AnimationUtility.GetEditorCurve(clip, binding).keys;
-                var propName = ApplyPropertyAlias(binding.propertyName);
-                sb.Append("curve: ").Append(propName);
-                AppendPathSuffix(sb, binding.path, pathAliasMap);
-                sb.AppendLine();
-                AppendKeyframes(sb, keys);
+                sb.Append(AnimationCurveCompactor.Format(clip, floatB, pathAliasMap));
+            }
+            else
+            {
+                foreach (var binding in floatB)
+                {
+                    var keys     = AnimationUtility.GetEditorCurve(clip, binding).keys;
+                    var propName = ApplyPropertyAlias(binding.propertyName);
+                    sb.Append("curve: ").Append(propName);
+                    AppendPathSuffix(sb, binding.path, pathAliasMap);
+                    sb.AppendLine();
+                    AppendKeyframes(sb, keys);
+                }
             }
 
             // PPtrCurve curves
@@ -241,7 +248,7 @@ namespace UnityMCP.Editor
             dict[path] = dict.TryGetValue(path, out var c) ? c + 1 : 1;
         }
 
-        private static string ApplyPropertyAlias(string propertyName)
+        internal static string ApplyPropertyAlias(string propertyName)
         {
             var dot = propertyName.IndexOf('.');
             if (dot < 0)
@@ -254,7 +261,7 @@ namespace UnityMCP.Editor
                 : propertyName;
         }
 
-        private static void AppendPathSuffix(StringBuilder sb, string path,
+        internal static void AppendPathSuffix(StringBuilder sb, string path,
                                               Dictionary<string, string> pathAliasMap)
         {
             if (string.IsNullOrEmpty(path)) return;

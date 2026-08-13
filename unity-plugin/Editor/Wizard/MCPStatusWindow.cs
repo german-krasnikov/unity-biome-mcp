@@ -17,6 +17,7 @@ namespace UnityMCP.Editor
         private bool          _changelogLoaded;
         private IVisualElementScheduledItem _refreshJob;
         private BiomeAmbientParticles _statusParticles;
+        private VisualElement _serverListContainer;
 
         [MenuItem("🧬MCP/Status", priority = 1)]
         public static void ShowWindow()
@@ -89,9 +90,18 @@ namespace UnityMCP.Editor
                 MCPActions.Reimport,
                 "Reimport the Biome editor package"));
             maintenanceRow.Add(MakeBtn(
-                "Kill Biome",
-                MCPActions.Kill,
-                "Force-stop the Biome server",
+                "Kill",
+                MCPActions.KillCurrent,
+                "Force-stop this server only",
+                "mcp-btn--danger"));
+            maintenanceRow.Add(MakeBtn(
+                "Kill All",
+                () => {
+                    if (EditorUtility.DisplayDialog("Kill All MCP Servers",
+                        "Stop ALL running MCP servers?", "Kill All", "Cancel"))
+                        MCPActions.KillAll();
+                },
+                "Force-stop ALL MCP servers",
                 "mcp-btn--danger"));
             maintenance.Add(maintenanceRow);
 
@@ -119,6 +129,7 @@ namespace UnityMCP.Editor
             root.Add(row2);
             root.Add(maintenance);
             root.Add(_updateLabel);
+            BuildServerListSection(root);
             root.Add(changelogFold);
 
             RefreshState();
@@ -189,11 +200,106 @@ namespace UnityMCP.Editor
 
                 if (!string.IsNullOrEmpty(entry.Content))
                 {
-                    var body = new Label(entry.Content);
-                    body.style.fontSize   = 10;
-                    body.style.whiteSpace = WhiteSpace.Normal;
+                    var body = new Label(MarkdownInlineFormatter.ToRichText(entry.Content));
+                    body.enableRichText = true;
+                    body.style.fontSize = 10;
+                    body.AddToClassList("updates-entry-body");
                     _changelogScroll.Add(body);
                 }
+            }
+        }
+
+        private void BuildServerListSection(VisualElement root)
+        {
+            var fold = new Foldout { text = "MCP Servers", value = true };
+            _serverListContainer = new VisualElement();
+            fold.Add(_serverListContainer);
+            root.Add(fold);
+            RefreshServerList();
+        }
+
+        private void RefreshServerList()
+        {
+            if (_serverListContainer == null) return;
+            _serverListContainer.Clear();
+
+            var servers = McpServerScanner.Scan();
+            bool hasDead = false;
+
+            if (servers.Count == 0)
+            {
+                _serverListContainer.Add(new Label("No servers found"));
+                return;
+            }
+
+            foreach (var s in servers)
+            {
+                if (!s.Alive) hasDead = true;
+
+                var row = new VisualElement();
+                row.style.flexDirection = FlexDirection.Row;
+                row.style.marginBottom = 2;
+
+                var portLabel = new Label($":{s.Port}");
+                portLabel.style.width = 60;
+                if (s.IsCurrentProject) portLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+                row.Add(portLabel);
+
+                var badge = new Label(s.Alive ? "● alive" : "○ dead");
+                badge.style.color = s.Alive ? new Color(0.3f, 0.8f, 0.3f) : new Color(0.8f, 0.3f, 0.3f);
+                badge.style.width = 60;
+                row.Add(badge);
+
+                if (s.Pid > 0)
+                {
+                    var pidLabel = new Label($"PID {s.Pid}");
+                    pidLabel.style.width = 80;
+                    row.Add(pidLabel);
+                }
+
+                if (s.IsCurrentProject)
+                {
+                    var marker = new Label("(this)");
+                    marker.style.unityFontStyleAndWeight = FontStyle.BoldAndItalic;
+                    row.Add(marker);
+                }
+
+                var killSpacer = new VisualElement();
+                killSpacer.style.flexGrow = 1;
+                row.Add(killSpacer);
+
+                bool isCurrent = s.IsCurrentProject;
+                int port = s.Port;
+                var killBtn = new Button(() =>
+                {
+                    if (isCurrent && !EditorUtility.DisplayDialog(
+                            "Kill Current Server?",
+                            $"Stop MCP server on :{port}?\nClaude will disconnect.",
+                            "Kill", "Cancel"))
+                        return;
+                    MCPActions.KillByPort(port);
+                    RefreshServerList();
+                })
+                { text = "Kill" };
+                killBtn.AddToClassList("mcp-btn");
+                killBtn.AddToClassList("mcp-btn--danger");
+                killBtn.AddToClassList("mcp-btn--inline");
+                row.Add(killBtn);
+
+                _serverListContainer.Add(row);
+            }
+
+            if (hasDead)
+            {
+                var cleanBtn = new Button(() =>
+                {
+                    McpServerScanner.CleanPhantomFiles();
+                    RefreshServerList();
+                })
+                { text = "Clean up", tooltip = "Remove stale port files for dead servers" };
+                cleanBtn.AddToClassList("mcp-btn");
+                cleanBtn.AddToClassList("mcp-btn--inline");
+                _serverListContainer.Add(cleanBtn);
             }
         }
 
@@ -248,6 +354,7 @@ namespace UnityMCP.Editor
 
             _word.text = MCPStatusModel.GetLabel(state, MCPServer.ServerPort);
             _sub.text  = MCPStatusModel.GetSub(state);
+            RefreshServerList();
         }
     }
 }

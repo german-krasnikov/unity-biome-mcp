@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace UnityMCP.Editor
@@ -9,12 +10,15 @@ namespace UnityMCP.Editor
         private static Dictionary<GameObject, string> _objectToRef = new Dictionary<GameObject, string>();
         private static int _counter = 0;
 
+        private static readonly char[] Base62 =
+            "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
+
         /// <summary>Assign ref to GO. Returns existing ref if already mapped.</summary>
         public static string Assign(GameObject go)
         {
             if (_objectToRef.TryGetValue(go, out var existing)) return existing;
             var r = GenerateRef(_counter++);
-            // Ring-wrap: evict old GO's _idToRef entry before overwriting the slot
+            // Evict old GO's reverse-lookup entry before overwriting the slot.
             if (_refToObj.TryGetValue(r, out var old) && old != null)
                 _objectToRef.Remove(old);
             _refToObj[r] = go;
@@ -22,7 +26,7 @@ namespace UnityMCP.Editor
             return r;
         }
 
-        /// <summary>Resolve $ref to GO. Returns null if stale.</summary>
+        /// <summary>Resolve &amp;ref to GO. Returns null if stale.</summary>
         public static GameObject Resolve(string r)
         {
             if (!_refToObj.TryGetValue(r, out var go) || go == null)
@@ -33,12 +37,25 @@ namespace UnityMCP.Editor
             return go;
         }
 
-        // Only matches lowercase $a-$z and $aa-$zz — rejects $HEX (uppercase/digits) so
-        // $3E8, $AA etc. fall through to TransientObjectId hex parse in callers.
+        // & prefix: alphanumeric (base62 chars — letters and digits).
+        // $ prefix: digits only — backward compat for one version; $abc is an alias, not a ref.
         public static bool IsRef(string s)
-            => s != null && s.Length >= 2 && s.Length <= 3 && s[0] == '$'
-               && s[1] >= 'a' && s[1] <= 'z'
-               && (s.Length == 2 || (s[2] >= 'a' && s[2] <= 'z'));
+        {
+            if (s == null || s.Length < 2) return false;
+            if (s[0] == WirePrefix.Ref)
+            {
+                for (int i = 1; i < s.Length; i++)
+                    if (!char.IsLetterOrDigit(s[i])) return false;
+                return true;
+            }
+            if (s[0] == WirePrefix.Alias) // $ — backward compat, digits only
+            {
+                for (int i = 1; i < s.Length; i++)
+                    if (!char.IsDigit(s[i])) return false;
+                return true;
+            }
+            return false;
+        }
 
         public static void Invalidate()
         {
@@ -53,22 +70,25 @@ namespace UnityMCP.Editor
             foreach (var kv in _refToObj)
                 if (kv.Value == null) stale.Add(kv.Key);
             foreach (var r in stale)
-            {
-                // Rebuild reverse lookup from remaining live entries.
                 _refToObj.Remove(r);
-            }
             _objectToRef.Clear();
             foreach (var kv in _refToObj)
                 if (kv.Value != null) _objectToRef[kv.Value] = kv.Key;
         }
 
-        /// <summary>$a-$z (n=0..25), $aa-$zz (n=26..701), wraps at 702</summary>
+        /// <summary>
+        /// Encodes n+1 in base62 (counter grows freely, no wrap-around).
+        /// n=0 → "&amp;1", n=9 → "&amp;a", n=60 → "&amp;Z", n=61 → "&amp;10".
+        /// </summary>
         internal static string GenerateRef(int n)
         {
-            n = n % 702; // 26 + 26*26 = 702 total slots
-            if (n < 26) return "$" + (char)('a' + n);
-            var i = n - 26;
-            return "$" + (char)('a' + i / 26) + (char)('a' + i % 26);
+            int val = n + 1;
+            var sb = new StringBuilder(4);
+            do {
+                sb.Insert(0, Base62[val % 62]);
+                val /= 62;
+            } while (val > 0);
+            return WirePrefix.Ref + sb.ToString();
         }
     }
 }

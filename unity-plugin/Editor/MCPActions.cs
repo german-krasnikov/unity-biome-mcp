@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -28,13 +27,51 @@ namespace UnityMCP.Editor
             };
         }
 
-        internal static void Kill() => KillAll();
+        internal static void Kill() => KillCurrent();
+
+        internal static void KillCurrent()
+        {
+            if (MCPServer.ServerPort == 0) return;  // server not started
+            var dir = GetLockDir();
+            if (!Directory.Exists(dir)) return;
+            var pattern = $"server-{MCPServer.ServerPort}-*.lock";
+            int killed = 0, stale = 0;
+            foreach (var f in Directory.GetFiles(dir, pattern))
+            {
+                var (k, s) = KillLockFile(f);
+                if (k) killed++; if (s) stale++;
+            }
+            InvokeRelay("Stop");
+            UnityEngine.Debug.Log($"{BiomeLabel.Tag} Kill current: {killed} killed, {stale} stale");
+        }
+
+        internal static void KillByPort(int port)
+        {
+            var dir = GetLockDir();
+            if (!Directory.Exists(dir)) return;
+            foreach (var f in Directory.GetFiles(dir, $"server-{port}-*.lock"))
+                KillLockFile(f);
+            var portsDir = Path.Combine(dir, "ports");
+            if (Directory.Exists(portsDir))
+            {
+                foreach (var pf in Directory.GetFiles(portsDir, "*.port"))
+                {
+                    var content = File.ReadAllText(pf).Split('\n')[0].Trim();
+                    if (int.TryParse(content, out var p) && p == port)
+                    {
+                        var name = Path.GetFileNameWithoutExtension(pf);
+                        TryDelete(pf);
+                        TryDelete(Path.Combine(portsDir, name + ".chat-port"));
+                        TryDelete(Path.Combine(portsDir, name + ".reload-port"));
+                    }
+                }
+            }
+            if (port == MCPServer.ServerPort) InvokeRelay("Stop");
+        }
 
         internal static void KillAll()
         {
-            var dir = OverrideLockDir ?? System.IO.Path.Combine(
-                System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
-                ".unity-biome-mcp");
+            var dir = GetLockDir();
             if (!Directory.Exists(dir))
             {
                 UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} Kill: no ~/.unity-biome-mcp dir");
@@ -42,27 +79,37 @@ namespace UnityMCP.Editor
             }
 
             // Glob ALL MCP lock files — port-agnostic kill covers port-mismatch after UI change
-            var files = new List<string>(Directory.GetFiles(dir, "server-*.lock"));
-
             int killed = 0, stale = 0;
-            foreach (var f in files)
+            foreach (var f in Directory.GetFiles(dir, "server-*.lock"))
             {
-                var text = File.ReadAllText(f).Trim().Split(new char[] { '\n', '\r', ' ', '\0' })[0];
-                if (!int.TryParse(text, out var pid)) { TryDelete(f); stale++; continue; }
-                try
-                {
-                    Process.GetProcessById(pid).Kill();
-                    killed++;
-                }
-                catch (System.ArgumentException) { TryDelete(f); stale++; }  // already dead
-                catch (System.InvalidOperationException) { TryDelete(f); stale++; }  // exited between lookup & kill
-                catch (System.Exception ex)
-                {
-                    UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} Kill PID {pid}: {ex.Message}");
-                }
+                var (k, s) = KillLockFile(f);
+                if (k) killed++; if (s) stale++;
             }
             InvokeRelay("Stop");
             UnityEngine.Debug.Log($"{BiomeLabel.Tag} Kill All: {killed} killed, {stale} stale cleaned");
+        }
+
+        private static string GetLockDir() =>
+            OverrideLockDir ?? Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
+                ".unity-biome-mcp");
+
+        private static (bool killed, bool stale) KillLockFile(string filePath)
+        {
+            var text = File.ReadAllText(filePath).Trim().Split(new char[] { '\n', '\r', ' ', '\0' })[0];
+            if (!int.TryParse(text, out var pid)) { TryDelete(filePath); return (false, true); }
+            try
+            {
+                Process.GetProcessById(pid).Kill();
+                return (true, false);
+            }
+            catch (System.ArgumentException) { TryDelete(filePath); return (false, true); }  // already dead
+            catch (System.InvalidOperationException) { TryDelete(filePath); return (false, true); }  // exited between lookup & kill
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} Kill PID {pid}: {ex.Message}");
+                return (false, false);
+            }
         }
 
         // Reflection bridge: Chat.CLI assembly depends on Editor, so we can't depend back.

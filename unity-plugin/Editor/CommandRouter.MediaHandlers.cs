@@ -29,7 +29,8 @@ namespace UnityMCP.Editor
             return AnimationSerializer.Serialize(
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "clip"),
-                ParseOptFloat(args, "time"));
+                ParseOptFloat(args, "time"),
+                JsonHelper.ExtractString(args, "compact") == "true");
         }
 
         private static string ExecCreateAnimation(string args)
