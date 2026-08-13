@@ -67,7 +67,7 @@ namespace UnityMCP.Editor
                 CleanPortDiscoveryFiles(port);
                 if (port == MCPServer.ServerPort) InvokeRelay("Stop");
             }
-            return stale ? TerminateResult.Stale : TerminateResult.Killed;
+            return killed ? TerminateResult.Killed : TerminateResult.Stale;
         }
 
         internal static int CountBridgesOnPort(int port)
@@ -133,7 +133,9 @@ namespace UnityMCP.Editor
             if (!int.TryParse(text, out var pid)) { TryDelete(filePath); return (false, true); }
             try
             {
-                Process.GetProcessById(pid).Kill();
+                using (var proc = Process.GetProcessById(pid))
+                    proc.Kill();
+                TryDelete(filePath);  // force-kill means Python won't clean up its own lock file
                 return (true, false);
             }
             catch (System.ArgumentException) { TryDelete(filePath); return (false, true); }  // already dead

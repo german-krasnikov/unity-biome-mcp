@@ -218,6 +218,43 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void TerminateByPid_LiveProcess_DeletesLockAndCleansPortFiles()
+        {
+            // Discriminating test: verifies that KillLockFile deletes the lock file on a
+            // SUCCESSFUL kill, not only on the stale (ArgumentException) path.
+            // Without "TryDelete(filePath)" after proc.Kill(), CountBridgesOnPort would
+            // still see the lock file and skip CleanPortDiscoveryFiles.
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "sleep",
+                Arguments = "60",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            var proc = System.Diagnostics.Process.Start(psi);
+            if (proc == null) { Assert.Ignore("Could not spawn test process"); return; }
+            RegisterCleanup(() =>
+            {
+                if (!proc.HasExited) try { proc.Kill(); } catch { }
+                proc.Dispose();
+            });
+
+            var lockFile = Path.Combine(_scope.Path, $"server-9500-{proc.Id}.lock");
+            File.WriteAllText(lockFile, $"{proc.Id}\n");
+            var portsDir = Path.Combine(_scope.Path, "ports");
+            Directory.CreateDirectory(portsDir);
+            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
+
+            var result = MCPActions.TerminateByPid(9500, proc.Id);
+
+            Assert.AreEqual(MCPActions.TerminateResult.Killed, result);
+            Assert.IsFalse(File.Exists(lockFile),
+                "Lock file must be deleted after force-killing a live process");
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.port")),
+                "Port discovery file must be cleaned when the last bridge is killed");
+        }
+
+        [Test]
         public void CountBridgesOnPort_EmptyDir_ReturnsZero()
         {
             Assert.AreEqual(0, MCPActions.CountBridgesOnPort(9500));

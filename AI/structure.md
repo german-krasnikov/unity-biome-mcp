@@ -421,7 +421,7 @@ unity-biome-mcp/
 │       │   └── IconCanvas.cs              # Procedural icon builder (18×18, 2px stroke, theme-agnostic)
 │       ├── MCPStatusWindow.cs             # Connection status monitor: server list with Kill buttons, refresh on tick, changelog via MarkdownInlineFormatter (v1.31.0: changelog DRY rendering)
 │       ├── McpServerScanner.cs            # Port/lock file scanner: detects alive/phantom servers, CleanPhantomFiles orphan cleanup (v1.31.0); **T1: multi-lock support** — `ScanDetailed()` returns `UnityServerInfo[]` with per-port `McpConnectionInfo[]` list + `LiveTcpCount`; `Scan()` backward-compat wrapper; `FindConnections(port)` enumerates all server-{port}-*.lock files; test seam `OverrideLiveTcpCountGetter`
-│       ├── MCPActions.cs                  # Shared actions: KillCurrent/KillAll/KillByPort split with DRY helpers (v1.31.0)
+│       ├── MCPActions.cs                  # Shared actions: KillCurrent/KillAll/KillByPort + multi-bridge TerminateByPid/StopAllOnPort/CountBridgesOnPort (v1.31.0: KillByPort; T2: TerminateResult enum, multi-bridge termination with selective cleanup)
 │       ├── MCPStatusModel.cs              # Pure state logic (no deps) — maps connection state → display
 │       ├── MCPStatusBarWidget.cs          # Injects MCP pill into AppStatusBar via reflection
 │       ├── TestSupport/                   # Test infrastructure base class + attributes (v1.12.0, separate asmdef)
