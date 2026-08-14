@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, get_args
 
-PlanState = Literal["pending_review", "approved", "rejected", "executing", "completed", "failed"]
+PlanState = Literal["pending_review", "approved", "rejected"]
 _VALID_STATES: frozenset[str] = frozenset(get_args(PlanState))
 
 

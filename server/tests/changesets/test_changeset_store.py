@@ -1,12 +1,12 @@
-"""T16: ContentStore unit tests (7 tests)."""
+"""T16: ContentStore unit tests."""
 from __future__ import annotations
 
 import os
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from pathlib import Path
+import pytest
 
 
 def make_store(tmp_path: Path, max_bytes: int = 50 * 1024 * 1024):
@@ -88,3 +88,35 @@ def test_separate_fingerprints_isolated(tmp_path):
     ref = store_a.put("shared content")
     assert not store_b.has(ref)
     assert store_a.has(ref)
+
+
+# ── M1: atomic write ──────────────────────────────────────────────────────────
+
+def test_put_no_partial_blob_on_write_failure(tmp_path, monkeypatch):
+    """Atomic write: blob path stays absent when write_text crashes mid-write."""
+    from unity_mcp.changeset import ContentRef
+
+    store = make_store(tmp_path)
+    content = "complete content"
+    ref = ContentRef.of(content)
+    blob_path = tmp_path / ref.hash16
+
+    def crash_on_write(self, data, encoding=None, errors=None):
+        self.write_bytes(b"garbage")  # leave partial at whatever path self is
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr(Path, "write_text", crash_on_write)
+
+    with pytest.raises(OSError):
+        store.put(content)
+
+    assert not blob_path.exists()
+
+
+# ── M6: pre-eviction guard ────────────────────────────────────────────────────
+
+def test_put_newly_written_blob_never_evicted(tmp_path):
+    """Newly written blob is retrievable even when it alone exceeds max_bytes."""
+    store = make_store(tmp_path, max_bytes=1)  # 1-byte limit
+    ref = store.put("hello world")  # 11 bytes > 1 byte
+    assert store.get(ref) == "hello world"

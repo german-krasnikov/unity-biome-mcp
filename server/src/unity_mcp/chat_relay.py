@@ -13,17 +13,11 @@ import sys
 import tempfile
 import uuid
 
+from .adapters.legacy import _TRANSFORM_FNS
 from .adapters.pipe_parser import parse_pipe_string
 from .adapters.protocol import EventContext
 from .agent_event import ProviderCapabilities
-from .backend_def import (
-    BACKENDS,
-    OUTPUT_FORMAT_CODEX_JSON,
-    OUTPUT_FORMAT_KIMI_JSON,
-    OUTPUT_FORMAT_OPENCODE_JSON,
-    OUTPUT_FORMAT_PLAIN_TEXT,
-    OUTPUT_FORMAT_STREAM_JSON,
-)
+from .backend_def import BACKENDS
 from .bridge_socket import frame_write
 from .cli_session import (  # noqa: F401
     KILL_WAIT,
@@ -37,20 +31,9 @@ from .cli_session import (  # noqa: F401
 from .relay_buffer import MAX_BUF, RelayBuffer  # noqa: F401
 from .stream_transform import (
     _ToolCallAcc,
-    _transform_codex_line,
-    _transform_kimi_line,
     _transform_line,
-    _transform_opencode_line,
     _transform_plain_text_line,
 )
-
-_TRANSFORM_FNS = {
-    OUTPUT_FORMAT_STREAM_JSON:   _transform_line,
-    OUTPUT_FORMAT_PLAIN_TEXT:    _transform_plain_text_line,
-    OUTPUT_FORMAT_CODEX_JSON:    _transform_codex_line,
-    OUTPUT_FORMAT_OPENCODE_JSON: _transform_opencode_line,
-    OUTPUT_FORMAT_KIMI_JSON:     _transform_kimi_line,
-}
 
 
 def _history_observe(event: object) -> None:
@@ -226,10 +209,12 @@ class ChatRelay:
         prompt     = args.get("prompt") or ""
         session_id = args.get("resume_session_id") or args.get("session_id")
         config_dir = args.get("config_dir") or tempfile.gettempdir()
+        project_id = args.get("project_id")  # C1: stable cross-path fingerprint from C#
         extra_keys = {k: v for k, v in args.items()
                       if k not in {"backend", "mode", "model", "mcp_port",
                                    "prompt", "session_id", "resume_session_id",
-                                   "config_dir", "session_token", "protocol_version"}}
+                                   "config_dir", "session_token", "protocol_version",
+                                   "project_id"}}
 
         try:
             argv, env_set, env_strip = backend.build_args(
@@ -278,14 +263,13 @@ class ChatRelay:
                 session_token_hex=session_token_hex,
                 backend=backend_name, mode=mode,
                 mcp_port=mcp_port, config_dir=config_dir,
+                project_id=project_id,
             )
             self._context_file = write_session_context(identity)
             internal_id = identity.internal_session_id
             with contextlib.suppress(Exception):
-                from .history.manager import get_history_manager, init_history_manager
-                if get_history_manager() is None:
-                    init_history_manager(identity.project_fingerprint)
-                mgr = get_history_manager()
+                from .history.manager import ensure_history_manager
+                mgr = ensure_history_manager(identity.project_fingerprint)
                 if mgr is not None:
                     mgr.open_conversation(backend_name)
 

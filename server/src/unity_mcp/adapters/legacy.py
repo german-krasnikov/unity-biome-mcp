@@ -97,7 +97,7 @@ class LegacyCliAdapter:
     async def close(self) -> None:
         await self.cancel()
 
-    async def events(self) -> AsyncIterator[AgentEvent]:  # type: ignore[override]
+    async def events(self) -> AsyncIterator[AgentEvent]:
         session = self._session
         if session is None:
             return

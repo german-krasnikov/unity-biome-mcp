@@ -44,6 +44,7 @@ class _FakeBridge(HeartbeatMixin):
         self._writer = None
         self._reader = None
         self._counter = 0
+        self._ping_stall_failures = 0
         self._reconnect_started_at = None
         self._startup_grace_expired = False
         self._ppid_mismatch_count = 0
@@ -65,6 +66,12 @@ class _FakeBridge(HeartbeatMixin):
 
     async def _read_response(self):
         return {"id": "ping", "ok": True, "data": "pong"}
+
+
+def test_fake_bridge_has_ping_stall_failures():
+    """_FakeBridge must expose _ping_stall_failures like the real bridge."""
+    bridge = _FakeBridge()
+    assert bridge._ping_stall_failures == 0
 
 
 # P3 tests ──────────────────────────────────────────────────────────────────

@@ -1996,3 +1996,34 @@ async def test_session_meta_has_internal_session_id(tmp_path, monkeypatch):
     sid = relay._session_meta.internal_session_id
     assert sid is not None
     uuid.UUID(sid)  # raises ValueError if not a valid UUID
+
+
+# ─── C1: project_id forwarded to new_session_identity ───────────────────────
+
+async def test_cmd_start_project_id_reflected_in_context_file(tmp_path, monkeypatch):
+    """C1: project_id in args → context file has sha256(project_id)[:12] fingerprint."""
+    import hashlib
+    import json as _json
+    import unity_mcp.paths as _paths
+    monkeypatch.setattr(_paths, "chat_sessions_dir", lambda: tmp_path)
+
+    relay = ChatRelay()
+    proc = make_proc(pid=7777)
+    token = "a" * 64
+    project_id = "cloud-abc-99"
+
+    with patch.dict(BACKENDS, {"claude": _mock_backend()}, clear=False):
+        with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
+                   AsyncMock(return_value=proc)):
+            result = await relay._cmd_start({
+                "backend": "claude", "mode": "ask", "mcp_port": 9500,
+                "session_token": token,
+                "project_id": project_id,
+            })
+
+    assert result["ok"] is True
+    context_files = list(tmp_path.glob("*.json"))
+    assert len(context_files) == 1
+    data = _json.loads(context_files[0].read_text(encoding="utf-8"))
+    expected = hashlib.sha256(project_id.encode()).hexdigest()[:12]
+    assert data["project_fingerprint"] == expected

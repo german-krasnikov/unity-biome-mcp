@@ -19,7 +19,7 @@ async def _write_text_with_capture(path: str, content: str) -> str:
     result = await _send("asset", _args(action="write_text", path=path, content=content))
     after_ref = snapshot_file(path, store) if store else None
 
-    if coord and (before_ref is not None or after_ref is not None):
+    if coord and after_ref != before_ref:
         coord.append_file_op("asset.write_text", path, before_ref, after_ref)
 
     return result

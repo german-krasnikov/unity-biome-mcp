@@ -1,11 +1,6 @@
 """T16: get_changeset MCP tool — returns current ChangeSet as token-efficient text."""
 from __future__ import annotations
 
-from ._common import bind
-
-_send = None
-_args = None
-
 
 async def get_changeset() -> str:
     """Return the current ChangeSet: accumulated mutations this session.
@@ -39,6 +34,5 @@ async def get_changeset() -> str:
 
 
 def register(mcp, send, args):
-    bind(globals(), send, args)
     from ._annotations import RO as _RO
     mcp.tool(annotations=_RO)(get_changeset)

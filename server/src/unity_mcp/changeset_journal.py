@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from .changeset import ChangeOperation, ChangeSet
 
 
@@ -16,7 +15,8 @@ class ChangeSetJournal:
 
         base = _dir if _dir is not None else journals_dir()
         base.mkdir(parents=True, exist_ok=True)
-        self._path = base / f"{session_id}.jsonl"
+        safe_id = Path(session_id).name
+        self._path = base / f"{safe_id}.jsonl"
         self._fh = self._path.open("a", encoding="utf-8")
         self._seen_op_ids: set[str] = set()
 

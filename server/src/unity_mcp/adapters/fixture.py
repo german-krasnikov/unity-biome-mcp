@@ -35,7 +35,7 @@ class FixtureAdapter:
     async def close(self) -> None:
         pass
 
-    async def events(self) -> AsyncIterator[AgentEvent]:  # type: ignore[override]
+    async def events(self) -> AsyncIterator[AgentEvent]:
         for line in self._path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line:

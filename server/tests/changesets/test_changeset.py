@@ -90,7 +90,7 @@ def test_changeset_initial_status_open():
 
 
 def test_changeset_turn_id_zero_by_default():
-    """T15 constraint: turn_id always 0; T16 wires AgentEvent turn_started."""
+    """turn_id is always 0; no T16 wiring planned."""
     from unity_mcp.changeset import ChangeSet
     cs = ChangeSet(changeset_id=str(uuid.uuid4()), session_id="sess-1")
     assert cs.turn_id == 0
@@ -287,3 +287,88 @@ def test_old_unwrap_ignores_receipt_field():
 def test_journals_dir_under_unity_mcp_dir():
     from unity_mcp.paths import journals_dir, unity_mcp_dir
     assert journals_dir() == unity_mcp_dir() / "journals"
+
+
+# ── M2: gate changeset op on actual file change ───────────────────────────────
+
+async def test_write_text_no_record_when_file_unchanged():
+    """No changeset op when write fails (before_ref == after_ref — file unchanged)."""
+    import unity_mcp.tools.asset as asset_mod
+    from unity_mcp.changeset import ContentRef
+
+    ref = ContentRef.of("original content")
+    coord = MagicMock()
+
+    with patch("unity_mcp.changeset_file_capture.snapshot_file", return_value=ref), \
+         patch("unity_mcp.changeset_coordinator.get_coordinator", return_value=coord), \
+         patch("unity_mcp.changeset_store.get_store", return_value=MagicMock()), \
+         patch.object(asset_mod, "_send", AsyncMock(return_value="Error: write failed")), \
+         patch.object(asset_mod, "_args", lambda **kw: kw):
+        await asset_mod._write_text_with_capture("Assets/Foo.cs", "new content")
+
+    coord.append_file_op.assert_not_called()
+
+
+# ── M3: finalized changeset blocks further mutations ─────────────────────────
+
+def test_coordinator_append_after_finalize_starts_new_cs():
+    """After finalize(), append() opens a fresh changeset instead of mutating the old one."""
+    from unity_mcp.changeset_coordinator import ChangeSetCoordinator
+
+    coord = ChangeSetCoordinator(get_session_id=lambda: "sess-1", _no_journal=True)
+    coord.append("set_property", {"path": "/A"})
+    coord.finalize()
+    first_id = coord.get_current().changeset_id
+
+    coord.append("set_property", {"path": "/B"})
+
+    cs = coord.get_current()
+    assert cs.changeset_id != first_id
+    assert cs.status == "open"
+    assert len(cs.operations) == 1  # only the post-finalize op
+
+
+# ── M4: derive kind from before/after refs ────────────────────────────────────
+
+def test_append_file_op_kind_create_when_no_before():
+    """before_ref=None → kind='create'."""
+    from unity_mcp.changeset import ContentRef
+    from unity_mcp.changeset_coordinator import ChangeSetCoordinator
+
+    coord = ChangeSetCoordinator(get_session_id=lambda: "sess-1", _no_journal=True)
+    coord.append_file_op("asset.write_text", "/Foo.cs",
+                         before_ref=None, after_ref=ContentRef.of("content"))
+    assert coord.get_current().operations[0].kind == "create"
+
+
+def test_append_file_op_kind_delete_when_no_after():
+    """after_ref=None → kind='delete'."""
+    from unity_mcp.changeset import ContentRef
+    from unity_mcp.changeset_coordinator import ChangeSetCoordinator
+
+    coord = ChangeSetCoordinator(get_session_id=lambda: "sess-1", _no_journal=True)
+    coord.append_file_op("asset.write_text", "/Foo.cs",
+                         before_ref=ContentRef.of("original"), after_ref=None)
+    assert coord.get_current().operations[0].kind == "delete"
+
+
+def test_append_file_op_kind_modify_when_both_present():
+    """before_ref and after_ref both present → kind='modify'."""
+    from unity_mcp.changeset import ContentRef
+    from unity_mcp.changeset_coordinator import ChangeSetCoordinator
+
+    coord = ChangeSetCoordinator(get_session_id=lambda: "sess-1", _no_journal=True)
+    coord.append_file_op("asset.write_text", "/Foo.cs",
+                         before_ref=ContentRef.of("old"), after_ref=ContentRef.of("new"))
+    assert coord.get_current().operations[0].kind == "modify"
+
+
+# ── ChangeSetJournal path traversal ──────────────────────────────────────────
+
+def test_journal_session_id_path_traversal_rejected(tmp_path):
+    """session_id with directory separators must not escape the base dir."""
+    from unity_mcp.changeset_journal import ChangeSetJournal
+    journal = ChangeSetJournal("../../../etc/evil", _dir=tmp_path)
+    # The file must land inside tmp_path, not outside
+    assert journal._path.parent == tmp_path
+    journal.close()

@@ -1,6 +1,7 @@
 """T16: ContentStore — content-addressed blob store, capped at max_bytes."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from .changeset import ContentRef
@@ -23,8 +24,13 @@ class ContentStore:
         blob = self._dir / ref.hash16
         if not blob.exists():
             self._dir.mkdir(parents=True, exist_ok=True)
-            blob.write_text(content, encoding="utf-8")
-            self._evict_if_needed()
+            tmp = blob.with_suffix(".tmp")
+            try:
+                tmp.write_text(content, encoding="utf-8")
+                os.replace(tmp, blob)
+            finally:
+                tmp.unlink(missing_ok=True)  # no-op after success; cleans up on failure
+            self._evict_if_needed(exclude=blob)
         return ref
 
     def get(self, ref: ContentRef) -> str | None:
@@ -34,14 +40,16 @@ class ContentStore:
     def has(self, ref: ContentRef) -> bool:
         return (self._dir / ref.hash16).exists()
 
-    def _evict_if_needed(self) -> None:
-        blobs = sorted(self._dir.glob("*"), key=lambda p: p.stat().st_mtime)
-        total = sum(p.stat().st_size for p in blobs)
-        for blob in blobs:
+    def _evict_if_needed(self, exclude: Path | None = None) -> None:
+        candidates = sorted(self._dir.glob("*"), key=lambda p: p.stat().st_mtime)
+        total = sum(p.stat().st_size for p in candidates)
+        for candidate in candidates:
+            if candidate == exclude:
+                continue
             if total <= self._max_bytes:
                 break
-            total -= blob.stat().st_size
-            blob.unlink(missing_ok=True)
+            total -= candidate.stat().st_size
+            candidate.unlink(missing_ok=True)
 
 
 # Module-level singleton — initialized in server lifespan

@@ -111,3 +111,11 @@ def init_history_manager(fingerprint: str) -> HistoryManager:
     from ..paths import history_dir
     _manager = HistoryManager(history_dir(fingerprint), fingerprint)
     return _manager
+
+
+def ensure_history_manager(fingerprint: str) -> HistoryManager:
+    """Initialize or re-initialize the manager when fingerprint changes (M12)."""
+    mgr = get_history_manager()
+    if mgr is None or mgr._fingerprint != fingerprint:
+        return init_history_manager(fingerprint)
+    return mgr

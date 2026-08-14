@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     from .changeset import ContentRef
 
-CheckpointState = Literal["preparing", "ready", "restoring", "restored", "failed", "expired"]
+CheckpointState = Literal["preparing", "ready", "restored", "failed", "expired"]
 
 
 @dataclass(frozen=True)

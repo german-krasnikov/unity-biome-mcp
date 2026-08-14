@@ -85,6 +85,37 @@ def test_restore_files_force_overwrites_conflict(tmp_path):
     assert f.read_text(encoding="utf-8") == before_content
 
 
+def test_restore_files_aborts_all_when_any_blob_missing(tmp_path):
+    """C3: if ANY blob is evicted, NO file is written — guard fires before loop."""
+    from unity_mcp.changeset import ContentRef
+    from unity_mcp.checkpoint import FileManifest
+    from unity_mcp.checkpoint_restore import restore_files
+
+    f1 = tmp_path / "a.cs"
+    f2 = tmp_path / "b.cs"
+    f1.write_text("after", encoding="utf-8")
+    f2.write_text("after", encoding="utf-8")
+
+    store = _make_store(tmp_path)
+    ref1 = store.put("before_a")               # blob present
+    ref2 = ContentRef.of("before_b_evicted")   # blob NOT stored (evicted)
+
+    manifest = FileManifest.of({str(f1): ref1, str(f2): ref2})
+    after_refs = {
+        str(f1): ContentRef.of("after").hash16,
+        str(f2): ContentRef.of("after").hash16,
+    }
+
+    result = restore_files(manifest, after_refs, store)
+
+    # f1 must NOT be overwritten — guard aborted before any write
+    assert f1.read_text(encoding="utf-8") == "after"
+    # missing blob path is in skipped
+    assert str(f2) in result.skipped
+    # nothing was restored
+    assert result.restored == []
+
+
 def test_restore_files_skips_missing_blob(tmp_path):
     """No blob in store for before_ref → path added to skipped."""
     from unity_mcp.changeset import ContentRef

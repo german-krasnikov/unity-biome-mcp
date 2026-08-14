@@ -4,6 +4,7 @@ Opt-in via UNITY_MCP_ACP_OPENCODE=1. Default path remains LegacyCliAdapter.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import uuid
@@ -98,7 +99,7 @@ class AcpAgentAdapter:
     async def close(self) -> None:
         await self.cancel()
 
-    async def events(self) -> AsyncIterator[AgentEvent]:  # type: ignore[override]
+    async def events(self) -> AsyncIterator[AgentEvent]:
         session = self._session
         if session is None:
             return
@@ -143,7 +144,8 @@ class AcpAgentAdapter:
             "request_id": evt.payload.get("request_id", ""),
             "outcome":    outcome,
         })
-        await self._session.write_line(response)
+        with contextlib.suppress(Exception):
+            await self._session.write_line(response)
 
     def _next_ctx(self) -> EventContext:
         return EventContext(

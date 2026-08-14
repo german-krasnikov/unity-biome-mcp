@@ -29,7 +29,10 @@ class ChatSessionIdentity:
 
 def _token_hash_prefix(session_token_hex: str) -> str:
     """Return sha256(raw_token_bytes).hex()[:16]. Token is consumed once and discarded."""
-    return hashlib.sha256(bytes.fromhex(session_token_hex)).hexdigest()[:16]
+    try:
+        return hashlib.sha256(bytes.fromhex(session_token_hex)).hexdigest()[:16]
+    except ValueError:
+        return ""
 
 
 def new_session_identity(
@@ -51,7 +54,7 @@ def new_session_identity(
         fingerprint = hashlib.sha256(project_id.encode()).hexdigest()[:12]
     else:
         cwd = config_dir or ""
-        fingerprint = hashlib.sha256(cwd.encode()).hexdigest()[:8]
+        fingerprint = hashlib.sha256(cwd.encode()).hexdigest()[:12]
     return ChatSessionIdentity(
         internal_session_id = str(uuid.uuid4()),
         conversation_id     = conversation_id,

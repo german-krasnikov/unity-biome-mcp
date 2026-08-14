@@ -35,6 +35,8 @@ class CheckpointStore:
             self._dir = checkpoints_dir(fingerprint)
 
     def _path(self, checkpoint_id: str) -> Path:
+        if not checkpoint_id.replace("-", "").replace("_", "").isalnum():
+            raise ValueError(f"Invalid checkpoint_id: {checkpoint_id!r}")
         return self._dir / f"{checkpoint_id}.json"
 
     def save(self, cp: Checkpoint) -> None:
@@ -93,27 +95,45 @@ class CheckpointStore:
         result.sort(key=lambda c: c.created_at, reverse=True)
         return result
 
+    @staticmethod
+    def _safe_mtime(f: Path) -> float:
+        try:
+            return f.stat().st_mtime
+        except OSError:
+            return 0.0
+
+    @staticmethod
+    def _safe_size(f: Path) -> int:
+        try:
+            return f.stat().st_size
+        except OSError:
+            return 0
+
     def evict(self) -> int:
         """Remove checkpoints by age or total size. Returns count evicted."""
         if not self._dir.exists():
             return 0
         files = sorted(
             (f for f in self._dir.glob("*.json")),
-            key=lambda f: f.stat().st_mtime,
+            key=self._safe_mtime,
         )
         cutoff = time.time() - self._max_age_days * 86400
         evicted = 0
 
         # Age-based eviction
         for f in list(files):
-            if f.stat().st_mtime < cutoff:
+            try:
+                mtime = f.stat().st_mtime
+            except OSError:
+                continue
+            if mtime < cutoff:
                 with contextlib.suppress(OSError):
                     f.unlink(missing_ok=True)
                 files.remove(f)
                 evicted += 1
 
         # Size-based eviction (oldest first, already sorted)
-        total = sum(f.stat().st_size for f in files if f.exists())
+        total = sum(self._safe_size(f) for f in files)
         for f in files:
             if total <= self._max_bytes:
                 break

@@ -50,6 +50,24 @@ def test_plan_doc_empty_steps():
     assert plan == plan2
 
 
+def test_plan_state_has_no_executing_completed_failed():
+    """YAGNI: executing/completed/failed are unreachable — must not be valid PlanState values."""
+    from unity_mcp.plan import PlanDocument
+
+    for bad_state in ("executing", "completed", "failed"):
+        with pytest.raises((ValueError, TypeError)):
+            PlanDocument(
+                plan_id="x",
+                session_id="",
+                title="Bad",
+                steps=(),
+                state=bad_state,  # type: ignore[arg-type]
+                created_at="2026-08-14T00:00:00+00:00",
+                reviewed_at=None,
+                notes="",
+            )
+
+
 def test_plan_doc_state_literals():
     from unity_mcp.plan import PlanDocument
 

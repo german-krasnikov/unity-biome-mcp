@@ -517,10 +517,14 @@ async def lifespan(app):
         _init_coordinator(get_session_id=lambda: slot.bridge.session_id if slot.bridge else "")
         import hashlib as _hashlib
 
+        from .changeset_store import get_store as _get_cs
         from .changeset_store import init_store as _init_store
         # MVP: cwd-based fingerprint; post-MVP: wire bridge.project_id for stable identity
         _fp = _hashlib.sha256(os.getcwd().encode()).hexdigest()[:8]
         _init_store(_fp)
+        with contextlib.suppress(Exception):
+            from .checkpoint_store import CheckpointStore as _CheckpointStore
+            _CheckpointStore(_fp, _get_cs()).evict()
         from .plan_store import init_plan_store as _init_plan_store
         _init_plan_store(_fp)
         from .history.manager import init_history_manager as _init_history

@@ -54,7 +54,7 @@ class ChangeOperation:
 class ChangeSet:
     changeset_id: str
     session_id: str
-    turn_id: int = 0  # always 0 in T15; T16 wires AgentEvent turn_started
+    turn_id: int = 0
     operations: list[ChangeOperation] = field(default_factory=list)
     status: ChangeSetStatus = "open"
     created_at: str = ""

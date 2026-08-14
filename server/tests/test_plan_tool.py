@@ -23,8 +23,9 @@ def _make_plan(state: str = "pending_review", plan_id: str | None = None):
 
 
 class MockPlanStore:
-    def __init__(self):
+    def __init__(self, fingerprint: str = "testfp12"):
         self._plans: dict = {}
+        self._fingerprint = fingerprint
 
     def save(self, plan) -> None:
         self._plans[plan.plan_id] = plan
@@ -63,7 +64,7 @@ def mock_plan_store(monkeypatch):
     import unity_mcp.plan_store as ps
     import unity_mcp.tools.plan_tool as pt
     monkeypatch.setattr(ps, "_plan_store", store)
-    monkeypatch.setattr(pt, "_active_plan_id", None)
+    monkeypatch.setattr(pt, "_active_plan_id", {})
     return store
 
 
@@ -82,7 +83,7 @@ async def test_plan_create_parses_steps(mock_plan_store):
     from unity_mcp.tools import plan_tool
 
     await plan_tool.plan_create("Plan", "tool:create_object 1. Create root\n2. Simple step")
-    plan_id = plan_tool._active_plan_id
+    plan_id = plan_tool._active_plan_id.get(mock_plan_store._fingerprint)
     assert plan_id is not None
     plan = mock_plan_store.load(plan_id)
     assert len(plan.steps) == 2
@@ -96,9 +97,9 @@ async def test_plan_create_parses_steps(mock_plan_store):
 async def test_plan_create_sets_active_plan():
     from unity_mcp.tools import plan_tool
 
-    assert plan_tool._active_plan_id is None
+    assert plan_tool._active_plan_id == {}
     await plan_tool.plan_create("Plan", "1. Step")
-    assert plan_tool._active_plan_id is not None
+    assert len(plan_tool._active_plan_id) > 0
 
 
 @pytest.mark.asyncio
@@ -252,6 +253,35 @@ async def test_plan_approve_race_deletion_returns_err(mock_plan_store):
     result = await plan_tool.plan_approve(plan_id=plan.plan_id)
     assert result.startswith("err:")
     assert "plan_not_found" in result
+
+
+@pytest.mark.asyncio
+async def test_plan_create_does_not_contaminate_other_fingerprint(monkeypatch):
+    """Session B creating a plan must not overwrite Session A's active plan pointer."""
+    import unity_mcp.plan_store as ps
+    import unity_mcp.tools.plan_tool as pt
+
+    # Session A store with fingerprint "fp_aaaaaa"
+    store_a = MockPlanStore()
+    store_a._fingerprint = "fp_aaaaaa"
+    store_b = MockPlanStore()
+    store_b._fingerprint = "fp_bbbbbb"
+
+    # Session A creates a plan
+    monkeypatch.setattr(ps, "_plan_store", store_a)
+    await pt.plan_create("Plan A", "1. Step A")
+    plan_id_a = pt._active_plan_id.get("fp_aaaaaa")
+    assert plan_id_a is not None
+
+    # Session B creates a different plan
+    monkeypatch.setattr(ps, "_plan_store", store_b)
+    await pt.plan_create("Plan B", "1. Step B")
+
+    # Session A's pointer must be unchanged
+    assert pt._active_plan_id.get("fp_aaaaaa") == plan_id_a, (
+        "Session B create must not overwrite Session A's active plan id"
+    )
+    assert pt._active_plan_id.get("fp_bbbbbb") is not None
 
 
 @pytest.mark.asyncio

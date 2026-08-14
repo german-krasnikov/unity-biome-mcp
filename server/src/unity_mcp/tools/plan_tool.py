@@ -7,11 +7,8 @@ from datetime import datetime, timezone
 
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
-from ._common import bind
 
-_send = None
-_args = None
-_active_plan_id: str | None = None
+_active_plan_id: dict[str, str] = {}
 
 _TOOL_RE = re.compile(r"^tool:(\S+)\s+(.*)")
 _NUM_RE = re.compile(r"^\d+\.\s*")
@@ -26,7 +23,13 @@ def _get_store():
 
 
 def _resolve_plan_id(plan_id: str) -> str | None:
-    return plan_id if plan_id else _active_plan_id
+    if plan_id:
+        return plan_id
+    try:
+        fp = _get_store()._fingerprint
+    except RuntimeError:
+        return None
+    return _active_plan_id.get(fp)
 
 
 def _parse_steps(text: str) -> tuple:
@@ -51,7 +54,6 @@ async def plan_create(title: str, steps: str, session_id: str = "") -> str:
     """Use when you need user approval before executing a multi-step plan.
     Creates a plan in pending_review state. steps: one step per line,
     optional 'tool:name' prefix. Recommend under 20 steps; split larger plans."""
-    global _active_plan_id
     from ..plan import PlanDocument
     parsed = _parse_steps(steps)
     store = _get_store()
@@ -66,7 +68,7 @@ async def plan_create(title: str, steps: str, session_id: str = "") -> str:
         notes="",
     )
     store.save(plan)
-    _active_plan_id = plan.plan_id
+    _active_plan_id[store._fingerprint] = plan.plan_id
     return f"plan_id={plan.plan_id}  state=pending_review  steps={len(parsed)}"
 
 
@@ -152,7 +154,6 @@ async def plan_status(plan_id: str = "") -> str:
 
 
 def register(mcp, send, args) -> None:
-    bind(globals(), send, args)
     mcp.tool(annotations=_RW)(plan_create)
     mcp.tool(annotations=_RW)(plan_approve)
     mcp.tool(annotations=_RW)(plan_reject)

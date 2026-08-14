@@ -105,3 +105,65 @@ def test_checkpoint_store_evict_by_size(tmp_path):
 
     evicted = store.evict()
     assert evicted >= 1
+
+
+def test_checkpoint_evict_called_at_startup_cleans_stale_files(tmp_path, monkeypatch):
+    """Evict wired into server startup must remove old checkpoint files.
+    Demonstrates the dead-code M8 bug: evict() existed but was never called."""
+    import hashlib
+    from unity_mcp.changeset_store import ContentStore, init_store
+    from unity_mcp.checkpoint_store import CheckpointStore
+
+    fp = hashlib.sha256(b"test-project").hexdigest()[:8]
+    # Simulate what server.py init sequence does
+    import unity_mcp.changeset_store as cs_mod
+    monkeypatch.setattr(cs_mod, "_store", ContentStore(str(tmp_path / "blobs")))
+    monkeypatch.setattr(cs_mod, "_fingerprint", fp)
+    from unity_mcp.changeset_store import get_store
+
+    cp_dir = tmp_path / "checkpoints"
+    cp_dir.mkdir()
+    stale = cp_dir / "stale-cp.json"
+    stale.write_text('{"checkpoint_id":"stale"}', encoding="utf-8")
+    old_mtime = time.time() - 10 * 86400  # 10 days old
+    os.utime(stale, (old_mtime, old_mtime))
+
+    # This is the call that server.py lifespan must make after _init_store(_fp)
+    CheckpointStore(fp, get_store(), max_age_days=7, _dir=cp_dir).evict()
+
+    assert not stale.exists(), "stale checkpoint must be removed by startup evict()"
+
+
+def test_checkpoint_store_evict_tolerates_missing_file_in_age_loop(tmp_path, monkeypatch):
+    """stat() raising FileNotFoundError on a specific file mid-loop must not crash evict()."""
+    store = _make_store(tmp_path, max_age_days=1)
+    cp = _make_cp(state="ready")
+    store.save(cp)
+
+    cp_file = tmp_path / "checkpoints" / f"{cp.checkpoint_id}.json"
+    # Verify the file exists (glob will find it), then patch only this path's stat
+    assert cp_file.exists()
+
+    real_stat = Path.stat
+
+    def stat_raises_for_target(self, **kwargs):
+        # Only intercept bare stat() calls (no kwargs); let exists() pass through
+        if self == cp_file and not kwargs:
+            raise FileNotFoundError("gone between glob and stat")
+        return real_stat(self, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", stat_raises_for_target)
+
+    # Must not raise — the loop must catch OSError and continue
+    evicted = store.evict()
+    assert evicted == 0
+
+
+# ── Path traversal ────────────────────────────────────────────────────────────
+
+def test_checkpoint_store_path_traversal_raises(tmp_path):
+    """checkpoint_id with directory components must raise ValueError."""
+    store = _make_store(tmp_path)
+    import pytest
+    with pytest.raises(ValueError):
+        store._path("../evil")

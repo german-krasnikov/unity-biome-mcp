@@ -68,6 +68,38 @@ def test_title_not_overwritten_by_second_turn(tmp_path):
     assert mgr._header.title == "First question"
 
 
+def test_ensure_history_manager_reinits_on_fingerprint_change(monkeypatch):
+    """ensure_history_manager() must replace the manager when fingerprint changes.
+    This is the guard used in chat_relay.py (M12 fix)."""
+    import unity_mcp.history.manager as hm_mod
+
+    monkeypatch.setattr(hm_mod, "_manager", None)
+
+    hm_mod.init_history_manager("fp_project_a")
+    mgr_a = hm_mod.get_history_manager()
+    assert mgr_a._fingerprint == "fp_project_a"
+
+    # ensure_history_manager with a different fingerprint must replace the manager
+    hm_mod.ensure_history_manager("fp_project_b")
+
+    mgr_b = hm_mod.get_history_manager()
+    assert mgr_b._fingerprint == "fp_project_b"
+    assert mgr_b is not mgr_a
+
+
+def test_ensure_history_manager_noop_same_fingerprint(monkeypatch):
+    """ensure_history_manager() must NOT replace the manager if fingerprint matches."""
+    import unity_mcp.history.manager as hm_mod
+
+    monkeypatch.setattr(hm_mod, "_manager", None)
+
+    hm_mod.init_history_manager("fp_stable")
+    mgr_a = hm_mod.get_history_manager()
+
+    hm_mod.ensure_history_manager("fp_stable")
+    assert hm_mod.get_history_manager() is mgr_a
+
+
 def test_title_truncated_to_80_chars(tmp_path):
     mgr = _make_manager(tmp_path)
     mgr.open_conversation("Claude")

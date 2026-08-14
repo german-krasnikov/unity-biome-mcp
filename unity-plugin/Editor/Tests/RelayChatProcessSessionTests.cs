@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.CLI;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -82,6 +83,35 @@ namespace UnityMCP.Editor.Tests
             proc.Kill();
 
             Assert.That(proc.NegotiatedVersion, Is.EqualTo(1));
+        }
+
+        // ── C1: project_id wiring ────────────────────────────────────────────
+
+        [Test]
+        public void StartViaRelay_IncludesProjectId_InStartJson()
+        {
+            // C1: StartViaRelay must send project_id so Python sha256(project_id)[:12]
+            // matches C# ProjectFingerprint.Compute() and history is found.
+            string capturedCmd = null;
+            var savedGetProjectId = ProjectFingerprint.GetProjectId;
+            try
+            {
+                ProjectFingerprint.GetProjectId = () => "test-project-raw-id";
+                using var proc = new RelayChatProcess(cmd =>
+                {
+                    System.Threading.Interlocked.CompareExchange(ref capturedCmd, cmd, null);
+                    return FakeOk;
+                });
+                proc.StartViaRelay(0, "claude", "ask", null, 9500, null);
+                proc.Kill();
+            }
+            finally
+            {
+                ProjectFingerprint.GetProjectId = savedGetProjectId;
+            }
+
+            Assert.That(capturedCmd, Does.Contain("\"project_id\""));
+            Assert.That(capturedCmd, Does.Contain("test-project-raw-id"));
         }
 
         [Test]

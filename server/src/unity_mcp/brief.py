@@ -32,6 +32,8 @@ def _estimate_tokens(text: str) -> int:
 
 
 def _truncate(text: str, budget_tokens: int) -> tuple[str, bool]:
+    if budget_tokens <= 0:
+        return ("", False)
     max_chars = budget_tokens * 4
     if len(text) <= max_chars:
         return text, False

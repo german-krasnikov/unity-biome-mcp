@@ -34,6 +34,14 @@ def test_context_brief_of_empty_slots():
     assert len(brief.content_hash) == 12
 
 
+def test_truncate_zero_budget_returns_empty():
+    """_truncate with budget_tokens=0 must return ('', False) — no marker bleed."""
+    from unity_mcp.brief import _truncate
+    result, truncated = _truncate("some content", 0)
+    assert result == ""
+    assert truncated is False
+
+
 def test_context_brief_to_text_ordering():
     """Critical before medium; within same priority, alphabetical by kind."""
     slots = [

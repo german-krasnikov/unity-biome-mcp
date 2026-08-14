@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using UnityEditor;
+using UnityMCP.Editor.Chat.CLI;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -81,6 +82,10 @@ namespace UnityMCP.Editor.Chat
             if (!string.IsNullOrEmpty(appendSystemPrompt))
                 sb.Append(",\"append_system_prompt\":\"")
                   .Append(JsonHelper.EscapeJson(appendSystemPrompt)).Append("\"");
+            // C1: send raw project_id so Python sha256(project_id)[:12] == C# Compute()
+            sb.Append(",\"project_id\":\"")
+              .Append(JsonHelper.EscapeJson(ProjectFingerprint.GetProjectId() ?? ""))
+              .Append("\"");
             // T14: request v2 protocol when EditorPrefs flag is enabled (default true)
             if (EditorPrefs.GetBool("UnityMCP.Chat.ProtocolV2", true))
                 sb.Append(",\"protocol_version\":2");

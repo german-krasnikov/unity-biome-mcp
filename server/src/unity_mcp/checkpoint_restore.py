@@ -39,6 +39,12 @@ def restore_files(
 
     result = RestoreResult(conflicts=[] if force else list(conflicts))
 
+    # C3: pre-check — all blobs must exist before any write; no partial restores
+    missing = [path for path, h in manifest.entries if not store.has(ContentRef(h))]
+    if missing:
+        result.skipped.extend(missing)
+        return result
+
     for path, before_hash in manifest.entries:
         if path in conflict_set and not force:
             continue  # skip — already in result.conflicts

@@ -93,6 +93,34 @@ def test_write_session_context_json_fields(tmp_path):
     assert "started_at_utc" in data
 
 
+# ─── new_session_identity — project_id (C1) ─────────────────────────────────
+
+def test_new_session_identity_project_id_produces_12_char_fingerprint():
+    """With project_id: fingerprint is sha256(project_id)[:12] — 12 chars."""
+    import hashlib
+    from unity_mcp.session_identity import new_session_identity
+    project_id = "cloud-abc-123"
+    identity = new_session_identity(
+        conversation_id="c", session_token_hex="a" * 64,
+        backend="claude", mode="ask", mcp_port=9500,
+        config_dir=None, project_id=project_id,
+    )
+    expected = hashlib.sha256(project_id.encode()).hexdigest()[:12]
+    assert identity.project_fingerprint == expected
+    assert len(identity.project_fingerprint) == 12
+
+
+def test_new_session_identity_without_project_id_produces_12_char_fingerprint():
+    """Without project_id: fingerprint falls back to sha256(config_dir or '')[:12]."""
+    from unity_mcp.session_identity import new_session_identity
+    identity = new_session_identity(
+        conversation_id="c", session_token_hex="a" * 64,
+        backend="claude", mode="ask", mcp_port=9500,
+        config_dir=None,
+    )
+    assert len(identity.project_fingerprint) == 12
+
+
 # ─── cleanup_stale_sessions ──────────────────────────────────────────────────
 
 def test_cleanup_stale_sessions_removes_old(tmp_path):
@@ -107,6 +135,18 @@ def test_cleanup_stale_sessions_removes_old(tmp_path):
     assert not old_file.exists()
 
 
+def test_token_hash_prefix_invalid_hex_returns_empty():
+    """Non-hex input must not crash — returns '' instead of raising ValueError."""
+    from unity_mcp.session_identity import _token_hash_prefix
+    assert _token_hash_prefix("not-valid-hex!") == ""
+
+
+def test_token_hash_prefix_odd_length_returns_empty():
+    """Odd-length hex string raises ValueError in fromhex — returns ''."""
+    from unity_mcp.session_identity import _token_hash_prefix
+    assert _token_hash_prefix("abc") == ""  # odd length
+
+
 def test_cleanup_stale_sessions_keeps_fresh(tmp_path):
     from unity_mcp.session_identity import cleanup_stale_sessions
     fresh_file = tmp_path / "fresh123.json"
@@ -115,3 +155,18 @@ def test_cleanup_stale_sessions_keeps_fresh(tmp_path):
 
     cleanup_stale_sessions(context_dir=tmp_path, ttl_s=86400)
     assert fresh_file.exists()
+
+
+# ── Fingerprint length consistency ───────────────────────────────────────────
+
+def test_fingerprint_without_project_id_is_12_chars():
+    """cwd fallback fingerprint must be 12 chars (same as project_id path)."""
+    from unity_mcp.session_identity import new_session_identity
+    identity = new_session_identity(
+        conversation_id="conv-1",
+        session_token_hex="a" * 64,
+        backend="claude", mode="ask",
+        mcp_port=9500, config_dir="/some/path",
+        project_id=None,
+    )
+    assert len(identity.project_fingerprint) == 12

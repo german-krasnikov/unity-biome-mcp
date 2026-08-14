@@ -136,6 +136,27 @@ async def test_prompt_writes_raw_text_to_stdin() -> None:
 
 # ── Adapter: non-zero exit emits error ───────────────────────────────────────
 
+# ── C2: _respond_to_permission must not propagate OS-level subprocess death ──
+
+async def test_respond_to_permission_silent_on_dead_subprocess() -> None:
+    """C2: write_line raises RuntimeError (dead subprocess) → events() must not raise."""
+    perm_line = json.dumps({
+        "type": "session/request_permission",
+        "tool_name": "execute_code",
+        "request_id": "req-dead",
+        "input": {},
+    })
+    adapter = AcpAgentAdapter(BACKENDS["opencode"], PermissionBroker(mode="ask"))
+    s = _perm_sess(perm_line)
+    s.write_line = AsyncMock(side_effect=RuntimeError("broken pipe"))
+    adapter._session = s
+
+    # Must not raise — collect should complete normally
+    evts = await _collect(adapter)
+    # permission_requested event was yielded before the write attempt
+    assert any(e.kind == "permission_requested" for e in evts)
+
+
 async def test_nonzero_exit_emits_error_event() -> None:
     adapter = AcpAgentAdapter(BACKENDS["opencode"], PermissionBroker(mode="ask"))
     s = mock_sess(exit_code=1)
@@ -150,3 +171,27 @@ async def test_nonzero_exit_emits_error_event() -> None:
     assert evts[0].kind == "error"
     assert "exited 1" in evts[0].payload["message"]
     assert "segfault" in evts[0].payload["message"]
+
+
+# ── Cancel ────────────────────────────────────────────────────────────────────
+
+async def test_adapter_cancel_stops_events_generator():
+    """cancel() after first event stops the generator (same guard as LegacyCliAdapter)."""
+    text_line = (_FIXTURES / "session-update-text.ndjson").read_text(encoding="utf-8").strip()
+
+    adapter = AcpAgentAdapter(BACKENDS["opencode"], PermissionBroker(mode="ask"))
+    s = mock_sess(exit_code=0)
+    s.wait = AsyncMock()
+    s.drain_stderr = AsyncMock(return_value="")
+    s.read_stdout_line = AsyncMock(side_effect=[text_line, text_line, None])
+    s._binary = "opencode"
+    adapter._session = s
+
+    collected = []
+    async for evt in adapter.events():
+        collected.append(evt)
+        if len(collected) == 1:
+            await adapter.cancel()
+
+    assert len(collected) == 1
+    assert adapter._session is None

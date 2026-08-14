@@ -27,7 +27,7 @@ class ChangeSetCoordinator:
 
     def append(self, cmd: str, receipt: dict) -> None:  # noqa: ARG002
         sid = self._get_session_id()
-        if self._current is None or self._current.session_id != sid:
+        if self._current is None or self._current.session_id != sid or self._current.status != "open":
             self._open(sid)
         op = ChangeOperation.from_receipt(receipt)
         self._current.operations.append(op)
@@ -43,11 +43,17 @@ class ChangeSetCoordinator:
     ) -> None:
         """Record a file-level mutation directly (not via C# receipt)."""
         sid = self._get_session_id()
-        if self._current is None or self._current.session_id != sid:
+        if self._current is None or self._current.session_id != sid or self._current.status != "open":
             self._open(sid)
+        if before_ref is None:
+            kind = "create"
+        elif after_ref is None:
+            kind = "delete"
+        else:
+            kind = "modify"
         op = ChangeOperation(
             operation_id=str(uuid.uuid4()),
-            kind="modify",
+            kind=kind,
             target_type="asset",
             target_path=path,
             prop=None,
