@@ -86,7 +86,7 @@ jobs:
       - name: Extract changelog section
         id: changelog
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
           python3 -c "
           import pathlib, re, os
@@ -108,6 +108,7 @@ jobs:
 
       - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228  # v3.0.2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           body: ${{ steps.changelog.outputs.body }}
           draft: false
           prerelease: false
