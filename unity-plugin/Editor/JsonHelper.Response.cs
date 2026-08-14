@@ -39,5 +39,14 @@ namespace UnityMCP.Editor
         {
             return $"{{\"id\":\"{EscapeJson(id)}\",\"ok\":false,\"err\":\"{EscapeJson(message)}\",\"retry\":{retryMs}}}";
         }
+
+        // T15: inject receipt before closing brace — backward-compat (old Python ignores key).
+        internal static string FormatResponseWithReceipt(
+            string id, bool ok, string data, string error, string receiptJson)
+        {
+            var base_ = FormatResponse(id, ok, data, error);
+            if (string.IsNullOrEmpty(receiptJson)) return base_;
+            return base_.Substring(0, base_.Length - 1) + "," + receiptJson + "}";
+        }
     }
 }

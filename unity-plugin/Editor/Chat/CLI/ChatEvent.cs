@@ -37,6 +37,12 @@ namespace UnityMCP.Editor.Chat
         /// <summary>Extended thinking block from the model. Text holds the full reasoning text.
         /// Ephemeral — displayed as a collapsed Foldout, not saved to reload state.</summary>
         Thinking,
+        /// <summary>Plan step started or completed (v2 protocol only). Text = stepKind, ArgsJson = description.</summary>
+        PlanUpdate,
+        /// <summary>File change detected by the agent (v2 protocol only). Text = path.</summary>
+        FileChange,
+        /// <summary>Provider capabilities changed (v2 protocol only). State = new state string.</summary>
+        CapabilitiesChanged,
     }
 
     /// <summary>Immutable event emitted by RelayEventParser.</summary>
@@ -131,5 +137,17 @@ namespace UnityMCP.Editor.Chat
 
         public static ChatEvent Thinking(string text) =>
             new ChatEvent(ChatEventKind.Thinking, text: text);
+
+        /// <summary>Plan step event from v2 protocol. stepKind = "plan_step_started" / "plan_step_completed".</summary>
+        public static ChatEvent PlanUpdate(string stepKind, string description) =>
+            new ChatEvent(ChatEventKind.PlanUpdate, text: stepKind, argsJson: description);
+
+        /// <summary>File change detected by agent (v2 protocol). path = file path.</summary>
+        public static ChatEvent FileChange(string path) =>
+            new ChatEvent(ChatEventKind.FileChange, text: path);
+
+        /// <summary>Provider capabilities state change (v2 protocol).</summary>
+        public static ChatEvent CapabilitiesChanged(string state) =>
+            new ChatEvent(ChatEventKind.CapabilitiesChanged, state: state);
     }
 }

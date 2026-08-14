@@ -7,6 +7,24 @@ _send = None
 _args = None
 
 
+async def _write_text_with_capture(path: str, content: str) -> str:
+    from ..changeset_coordinator import get_coordinator
+    from ..changeset_file_capture import snapshot_file
+    from ..changeset_store import get_store
+
+    store = get_store()
+    coord = get_coordinator()
+
+    before_ref = snapshot_file(path, store) if store else None
+    result = await _send("asset", _args(action="write_text", path=path, content=content))
+    after_ref = snapshot_file(path, store) if store else None
+
+    if coord and (before_ref is not None or after_ref is not None):
+        coord.append_file_op("asset.write_text", path, before_ref, after_ref)
+
+    return result
+
+
 async def asset(action: str, path: str | None = None, type: str | None = None,
                 name: str | None = None, folder: str | None = None,
                 source: str | None = None, dest: str | None = None,
@@ -17,6 +35,8 @@ async def asset(action: str, path: str | None = None, type: str | None = None,
                 class_name: str | None = None,
                 path_only: bool = False) -> str:
     """Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."""
+    if action == "write_text" and path is not None and content is not None:
+        return await _write_text_with_capture(path, content)
     return await _send("asset", _args(
         action=action, path=path, type=type, name=name, folder=folder,
         source=source, dest=dest, prop=prop, value=value,

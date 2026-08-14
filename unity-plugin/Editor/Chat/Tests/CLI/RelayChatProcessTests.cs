@@ -566,6 +566,32 @@ namespace UnityMCP.Editor.Chat.Tests
                 $"session_id must be absent when empty: {setModeCmd}");
         }
 
+        [Test]
+        public void SendSetMode_WhenRelayReturnsOkFalse_ReturnsFalse()
+        {
+            // T9: response with ok=false must propagate as false (was always true before)
+            _sut = Spawn(json =>
+            {
+                if (json.Contains("set_mode")) return "{\"ok\":false,\"err\":\"spawn failed\"}";
+                return "{\"ok\":true,\"data\":\"\"}";
+            }, out _);
+            var result = _sut.SendSetMode("agent");
+            Assert.IsFalse(result, "SendSetMode must return false when relay returns ok=false");
+        }
+
+        [Test]
+        public void SendSetMode_WhenRelayReturnsNoOkField_ReturnsFalse()
+        {
+            // T9: missing ok field must be treated as failure (safe default)
+            _sut = Spawn(json =>
+            {
+                if (json.Contains("set_mode")) return "{}";
+                return "{\"ok\":true,\"data\":\"\"}";
+            }, out _);
+            var result = _sut.SendSetMode("agent");
+            Assert.IsFalse(result, "SendSetMode must return false when response has no ok field");
+        }
+
         // ── ParseEvents / C4: newline de-escape ───────────────────────────────
 
         [Test]

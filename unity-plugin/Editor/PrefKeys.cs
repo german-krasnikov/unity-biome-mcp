@@ -30,5 +30,12 @@ namespace UnityMCP.Editor
         public const string ChatAutoScroll          = "MCPChat.AutoScroll";
         public const string DisableSceneNameNorm    = "MCPChat.DisableSceneNameNorm";
         public const string ShowThinkingBlocks      = "MCPChat.ShowThinkingBlocks";
+
+        // Global config — EditorPrefs (synced to ~/.unity-biome-mcp/global-config.json via GlobalConfigSync)
+        public const string IdleAutoSuspend  = "UnityMCP_IdleAutoSuspend";
+        public const string IdleTimeoutMin   = "UnityMCP_IdleTimeoutMin";
+        public const string ShowLastCommand  = "UnityMCP_ShowLastCommand";
+        public const string TerminateOrphan  = "UnityMCP_TerminateOrphan";
+        public const string OrphanGraceMin   = "UnityMCP_OrphanGraceMin";
     }
 }

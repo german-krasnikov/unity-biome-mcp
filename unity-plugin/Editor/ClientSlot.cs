@@ -68,6 +68,7 @@ namespace UnityMCP.Editor
             internal volatile string LockToken;
             internal volatile string AgentId;
             internal volatile string DisplayName;
+            internal volatile string ChatMode;
             internal int BridgePid;                        // set once in SetEntrySession; main-thread-read in snapshot
             internal long LastUsefulActivityTicks;         // Interlocked.Exchange
             internal int InFlightCount;                   // Volatile.Write/Read
@@ -146,6 +147,8 @@ namespace UnityMCP.Editor
                         _entries[i].LockToken = null;
                         _entries[i].AgentId = null;
                         _entries[i].DisplayName = null;
+                        _entries[i].ChatMode = null;
+                        _entries[i].BridgePid = 0;
                         Interlocked.Exchange(ref _entries[i].LastUsefulActivityTicks, 0);
                         Volatile.Write(ref _entries[i].InFlightCount, 0);
                         index = i;
@@ -308,7 +311,8 @@ namespace UnityMCP.Editor
         }
 
         internal void SetEntrySession(int index, long generation, string sessionId,
-            string lockToken, string agentId, string displayName, int bridgePid = 0)
+            string lockToken, string agentId, string displayName, int bridgePid = 0,
+            string chatMode = "")
         {
             if (index < 0 || index >= MaxClients) return;
             if (Interlocked.Read(ref _entries[index].Generation) != generation) return;
@@ -316,7 +320,15 @@ namespace UnityMCP.Editor
             _entries[index].LockToken = lockToken;
             _entries[index].AgentId = agentId;
             _entries[index].DisplayName = displayName;
+            _entries[index].ChatMode = chatMode ?? "";
             _entries[index].BridgePid = bridgePid;
+        }
+
+        internal string GetEntryChatMode(int index, long generation)
+        {
+            if (index < 0 || index >= MaxClients) return "";
+            if (Interlocked.Read(ref _entries[index].Generation) != generation) return "";
+            return _entries[index].ChatMode ?? "";
         }
 
         // Snapshot of all live entries with computed activity state.

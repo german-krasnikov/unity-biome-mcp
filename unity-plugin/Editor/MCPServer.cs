@@ -32,6 +32,9 @@ namespace UnityMCP.Editor
         // Cached Application.dataPath — read on main thread, used by client_hello fast-path
         // on ThreadPool (Application.dataPath is main-thread-only).
         internal static volatile string _cachedDataPath = "";
+        // T19: stable project identity — cloudProjectId or sha256(project root)[:12].
+        // Cached on main thread; ThreadPool reads via client_hello fast-path.
+        internal static volatile string _cachedProjectId = "";
         // Set on first compilationStarted; never cleared. Distinguishes real compile-in-progress
         // from post-domain-reload stale EditorApplication.isCompiling on Windows.
         private static volatile bool _compileStartedThisDomain;
@@ -249,6 +252,7 @@ namespace UnityMCP.Editor
             _shuttingDown = false;
             _domainStamp = SyncHelper.CurrentDomainStamp;  // cache on main thread — safe here, ThreadPool reads below
             _cachedDataPath = Application.dataPath;         // cache on main thread — ThreadPool reads via client_hello
+            _cachedProjectId = GetStableProjectId();        // T19: cache on main thread (PlayerSettings + Application)
             OpenBootstrapSceneFromEnvironment();
             // Ensure commands are registered BEFORE TCP bind.
             // InitDefaults() → RegisterAll() → populates _enabledToolsCache atomically.
@@ -503,6 +507,23 @@ namespace UnityMCP.Editor
             var state = isCompiling ? $"compiling|{elapsed.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}" : "idle|0";
             var compile = isCompiling ? "true" : "false";
             return $"{{\"id\":\"{msgId}\",\"ok\":true,\"data\":\"{state}\",\"compile\":{compile}}}";
+        }
+
+        // T19: stable project identity — main-thread-only (PlayerSettings + Application APIs).
+        internal static string GetStableProjectId()
+        {
+            var cloudId = UnityEditor.PlayerSettings.cloudProjectId;
+            if (!string.IsNullOrEmpty(cloudId)) return cloudId;
+            var path = System.IO.Path.GetFullPath(
+                System.IO.Path.Combine(Application.dataPath, ".."));
+            return ComputeSha256Hex(path).Substring(0, 12);
+        }
+
+        private static string ComputeSha256Hex(string input)
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
+            return BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
         }
 
     }

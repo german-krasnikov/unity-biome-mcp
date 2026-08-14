@@ -33,6 +33,8 @@ _CS_PROTOCOL_ONLY = {
     "search_context",      # internal (resources refresh_dynamic polls this)
     "set_runtime_property",  # C# handler stays: middleware reroutes set_property here in Play Mode
     "warm_type_cache",     # internal (sync_unity warms TypeCache after domain reload)
+    "checkpoint_undo_restore",  # T19: internal C# command called by checkpoint_restore tool
+    "get_profile_context",     # T22: TCP command for profiler data, not an MCP tool
 }
 
 # _SPECS entries with no dedicated C# command (Python-only MCP tools).
@@ -76,6 +78,14 @@ _PYTHON_ONLY = {
     "scene_change_plan", "apply_scene_change",
     # Release orchestrator — composite of C# reads, no C# registration
     "release_smoke",
+    # T16: ChangeSet summary — pure Python coordinator query, no C# command
+    "get_changeset",
+    # T19: checkpoint orchestrators — call C# internally (checkpoint, diagnose, checkpoint_undo_restore)
+    "checkpoint_create", "checkpoint_restore",
+    # T20: plan orchestrators — pure Python, no C# handler
+    "plan_create", "plan_approve", "plan_reject", "plan_edit", "plan_status",
+    # T21: project brief — pure Python context aggregator, no C# handler
+    "brief_build",
 }
 
 

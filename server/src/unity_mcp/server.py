@@ -61,37 +61,51 @@ _watchdog_stop: threading.Event = threading.Event()
 def _start_idle_watchdog() -> threading.Thread | None:
     """Start daemon thread that exits after idle timeout. Returns None if both timeouts are 0.
 
-    UNITY_MCP_IDLE_TIMEOUT     — orphan path: exit only when parent is dead (default 300s).
+    UNITY_MCP_IDLE_TIMEOUT     — orphan path: exit only when parent is dead (GlobalConfig).
     UNITY_MCP_USEFUL_IDLE_TIMEOUT — subagent path: exit regardless of parent (default 0 = off).
+    Config is reloaded every 10 cycles (~300s) to pick up runtime changes.
     """
-    timeout = int(os.environ.get("UNITY_MCP_IDLE_TIMEOUT", "300"))
-    subagent_timeout = int(os.environ.get("UNITY_MCP_USEFUL_IDLE_TIMEOUT", "0"))
+    from .global_config import GlobalConfig
+    config = GlobalConfig.load()
+    timeout, _ = config.effective_idle_timeout_s()
+    try:
+        subagent_timeout = int(os.environ.get("UNITY_MCP_USEFUL_IDLE_TIMEOUT", "0"))
+    except ValueError:
+        subagent_timeout = 0
     if timeout <= 0 and subagent_timeout <= 0:
         return None
 
     _watchdog_stop.clear()
 
     def _loop():
+        nonlocal config
+        cycle_count = 0
         # N2: check stop event for clean exit in tests (no unhandled exception warnings).
         while not _watchdog_stop.is_set():
             time.sleep(30)
             if _watchdog_stop.is_set():
                 return
+            cycle_count += 1
+            if cycle_count % 10 == 0:
+                config = GlobalConfig.load()
             if _in_flight_count > 0:
                 continue  # in-flight guard: don't count idle while a tool call is running
             idle = time.monotonic() - _last_useful_activity
+            loop_timeout, _ = config.effective_idle_timeout_s()
             # Path A: subagent timeout — exits regardless of parent liveness.
             if subagent_timeout > 0 and idle > subagent_timeout:
                 log.warning("idle watchdog: subagent idle=%.0fs >= useful_timeout=%ds, exiting", idle, subagent_timeout)
                 logging.shutdown()
                 os._exit(0)
             # Path B: orphan — exit only when parent is dead.
-            if timeout > 0 and idle > timeout:
+            if loop_timeout > 0 and idle > loop_timeout:
                 from .bridge_heartbeat import _ORIGINAL_PPID
                 if os.getppid() == _ORIGINAL_PPID:
-                    _schedule_dormant(idle, timeout)
+                    auto_suspend, _ = config.effective_auto_suspend()
+                    if auto_suspend:
+                        _schedule_dormant(idle, loop_timeout)
                     continue  # parent alive — don't kill; remain as orphan-reaper only
-                log.warning("idle watchdog: parent dead + idle=%.0fs >= timeout=%ds, exiting", idle, timeout)
+                log.warning("idle watchdog: parent dead + idle=%.0fs >= timeout=%ds, exiting", idle, loop_timeout)
                 logging.shutdown()
                 os._exit(0)
 
@@ -498,6 +512,19 @@ async def lifespan(app):
         manager = slot  # backward-compat alias
         _middleware = build_middleware(_send_raw)
         _budget_tracker, _budget_router = init_budget(_middleware)
+        # T15/T16: ChangeSet coordinator + content store
+        from .changeset_coordinator import init_coordinator as _init_coordinator
+        _init_coordinator(get_session_id=lambda: slot.bridge.session_id if slot.bridge else "")
+        import hashlib as _hashlib
+
+        from .changeset_store import init_store as _init_store
+        # MVP: cwd-based fingerprint; post-MVP: wire bridge.project_id for stable identity
+        _fp = _hashlib.sha256(os.getcwd().encode()).hexdigest()[:8]
+        _init_store(_fp)
+        from .plan_store import init_plan_store as _init_plan_store
+        _init_plan_store(_fp)
+        from .history.manager import init_history_manager as _init_history
+        _init_history(_fp)
         if _budget_tracker is not None:
             from .tools import budget_tool as _bt
             _bt._tracker = _budget_tracker

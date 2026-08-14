@@ -1904,3 +1904,95 @@ def test_main_invokes_asyncio_run_with_main_coroutine():
     coro = mock_run.call_args.args[0]
     assert inspect.iscoroutine(coro)
     coro.close()  # avoid "coroutine was never awaited" warning
+
+
+# ─── T10: conversation_id, turn_id, context-file ────────────────────────────
+
+async def test_conversation_id_stable_across_mode_switch():
+    """T10: _cmd_set_mode must not change _conversation_id."""
+    relay = ChatRelay()
+    original_id = relay._conversation_id
+    assert original_id  # not empty
+
+    # kimi has has_resume=False → _cmd_set_mode returns early with error
+    # but _conversation_id must NOT change regardless
+    relay._session_meta = SessionMeta(
+        backend="kimi", mode="ask", model=None,
+        mcp_port=9500, prompt="", config_dir=None, extra={},
+    )
+    await relay._cmd_set_mode({"mode": "agent"})
+
+    assert relay._conversation_id == original_id
+
+
+async def test_turn_id_increments_on_send():
+    """T10: _turn_id starts at 0, increments each _cmd_send call."""
+    relay = ChatRelay()
+    assert relay._turn_id == 0
+
+    sess = mock_sess()
+    relay._session = sess
+
+    await relay._cmd_send({"line": "hello"})
+    await relay._cmd_send({"line": "world"})
+
+    assert relay._turn_id == 2
+
+
+async def test_cmd_start_with_token_writes_context_file(tmp_path, monkeypatch):
+    """T10: _cmd_start with session_token sets _context_file and writes file."""
+    import unity_mcp.paths as _paths
+    monkeypatch.setattr(_paths, "chat_sessions_dir", lambda: tmp_path)
+
+    relay = ChatRelay()
+    proc = make_proc(pid=1111)
+    token = "a" * 64  # valid 64-char hex
+
+    with patch.dict(BACKENDS, {"claude": _mock_backend()}, clear=False):
+        with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
+                   AsyncMock(return_value=proc)):
+            result = await relay._cmd_start({
+                "backend": "claude", "mode": "ask", "mcp_port": 9500,
+                "session_token": token,
+            })
+
+    assert result["ok"] is True
+    assert relay._context_file is not None
+    assert relay._context_file.exists()
+
+
+async def test_cmd_start_without_token_no_context_file():
+    """T10: _cmd_start without session_token leaves _context_file as None."""
+    relay = ChatRelay()
+    proc = make_proc(pid=2222)
+
+    with patch.dict(BACKENDS, {"claude": _mock_backend()}, clear=False):
+        with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
+                   AsyncMock(return_value=proc)):
+            await relay._cmd_start({"backend": "claude", "mode": "ask", "mcp_port": 9500})
+
+    assert relay._context_file is None
+
+
+async def test_session_meta_has_internal_session_id(tmp_path, monkeypatch):
+    """T10: _session_meta.internal_session_id is a valid UUID after start with token."""
+    import uuid
+    import unity_mcp.paths as _paths
+    monkeypatch.setattr(_paths, "chat_sessions_dir", lambda: tmp_path)
+
+    relay = ChatRelay()
+    proc = make_proc(pid=3333)
+    token = "b" * 64  # valid 64-char hex
+
+    with patch.dict(BACKENDS, {"claude": _mock_backend()}, clear=False):
+        with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
+                   AsyncMock(return_value=proc)):
+            result = await relay._cmd_start({
+                "backend": "claude", "mode": "ask", "mcp_port": 9500,
+                "session_token": token,
+            })
+
+    assert result["ok"] is True
+    sid = relay._session_meta.internal_session_id
+    assert sid is not None
+    uuid.UUID(sid)  # raises ValueError if not a valid UUID

@@ -58,6 +58,14 @@ _SPECS: dict[str, ToolSpec] = {
     'cancel_test_run': ToolSpec(category='TESTS', timeout_s=10.0),
     'check_colliders': ToolSpec(category='SCENE', mutability='read'),
     'checkpoint': ToolSpec(category='SYSTEM'),
+    'checkpoint_create': ToolSpec(category='SYSTEM'),   # T19: Python orchestrator, no C# handler
+    'checkpoint_restore': ToolSpec(category='SYSTEM'),  # T19: Python orchestrator, no C# handler
+    'plan_create': ToolSpec(category='SYSTEM'),          # T20: Python-only, no C# handler
+    'plan_approve': ToolSpec(category='SYSTEM'),
+    'plan_reject': ToolSpec(category='SYSTEM'),
+    'plan_edit': ToolSpec(category='SYSTEM'),
+    'plan_status': ToolSpec(category='SYSTEM', tier1=True, mutability='read'),
+    'brief_build': ToolSpec(category='SYSTEM', mutability='read'),
     # timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
     # timeout=15.0 (fast-fail by design).
     'compile_preflight': ToolSpec(category='VERIFY', core=True, timeout_s=60.0, mutability='read'),
@@ -81,6 +89,7 @@ _SPECS: dict[str, ToolSpec] = {
     'fingerprint': ToolSpec(category='SYSTEM', timeout_s=10.0, mutability='read'),
     'get_aliases': ToolSpec(category='_INTERNAL', mutability='read'),
     'get_capabilities': ToolSpec(category='SYSTEM', mutability='read'),
+    'get_changeset': ToolSpec(category='VERIFY', tier1=True, timeout_s=5.0, mutability='read'),
     'get_changes': ToolSpec(category='SYSTEM', mutability='read'),
     'get_compile_errors': ToolSpec(category='CORE', core=True, mutability='read'),
     'get_component': ToolSpec(category='CORE', core=True, mutability='read'),

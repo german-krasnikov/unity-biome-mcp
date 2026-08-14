@@ -8,8 +8,11 @@ from . import (
     auto_wire,
     autobatch,
     batch,
+    brief_tool,
     budget_tool,
     build,
+    changeset_tool,
+    checkpoint_tool,
     code_intel,
     codegen,
     connection,
@@ -23,6 +26,7 @@ from . import (
     objects,
     packages,
     permission_prompt_tool,
+    plan_tool,
     profiling,
     rendering,
     runtime,
@@ -63,3 +67,7 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
         mod.register(mcp, send, args)
     register_metrics(mcp, send, args)
     budget_tool.register(mcp, send, args)
+    changeset_tool.register(mcp, send, args)
+    checkpoint_tool.register(mcp, send, args)
+    plan_tool.register(mcp, send, args)
+    brief_tool.register(mcp, send, args)

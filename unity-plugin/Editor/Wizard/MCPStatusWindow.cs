@@ -516,6 +516,14 @@ namespace UnityMCP.Editor
 
             _word.text = MCPStatusModel.GetLabel(state, MCPServer.ServerPort);
             _sub.text  = MCPStatusModel.GetSub(state);
+
+            if (EditorPrefs.GetBool(PrefKeys.ShowLastCommand, true)
+                && !string.IsNullOrEmpty(CommandRouter.LastCommandName)
+                && MCPServer.IsClientConnected)
+            {
+                _sub.text += $"\n↳ {CommandRouter.LastCommandName}";
+            }
+
             RefreshServerList();
         }
     }

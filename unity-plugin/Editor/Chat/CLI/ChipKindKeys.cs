@@ -33,5 +33,7 @@ namespace UnityMCP.Editor.Chat
         // Claude Code sub-agent referenced via @mention. Path = agent name (file stem, e.g. "senior-developer").
         // Payload format: [agent:name]. Instructs the model to invoke Agent(subagent_type=name).
         public const string Agent = "agent";
+        // Profiling session. Path = session ID (e.g., "p1"). Payload = formatted stats text.
+        public const string Profile = "profile";
     }
 }

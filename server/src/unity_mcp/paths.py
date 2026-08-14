@@ -43,6 +43,34 @@ def migrate_data_dir() -> None:
         )
 
 
+def runtime_dir() -> Path:
+    return unity_mcp_dir() / "runtime"
+
+
+def chat_sessions_dir() -> Path:
+    return runtime_dir() / "chat-sessions"
+
+
+def journals_dir() -> Path:
+    return unity_mcp_dir() / "journals"
+
+
+def blobs_dir(fingerprint: str) -> Path:
+    return unity_mcp_dir() / "projects" / fingerprint / "blobs"
+
+
+def checkpoints_dir(fingerprint: str) -> Path:
+    return unity_mcp_dir() / "projects" / fingerprint / "checkpoints"
+
+
+def plans_dir(fingerprint: str) -> Path:
+    return unity_mcp_dir() / "projects" / fingerprint / "plans"
+
+
+def history_dir(fingerprint: str) -> Path:
+    return unity_mcp_dir() / "projects" / fingerprint / "history"
+
+
 def iter_port_files(pattern: str, primary_dir: Path | None = None) -> Iterator[Path]:
     """Yield port files from primary + legacy ~/.unity-mcp/ports. Dedup by filename.
 

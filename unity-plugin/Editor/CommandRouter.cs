@@ -40,6 +40,15 @@ namespace UnityMCP.Editor
         // P-322: dedup registry — prevents re-executing retried mutations after lost ACK.
         internal static DedupRegistry _dedupRegistry = new DedupRegistry();
 
+        // T15: thread-local pending receipt — set by handlers, consumed by BuildResponse().
+        [System.ThreadStatic]
+        private static MutationReceipt? _pendingReceipt;
+
+        internal static void PendReceipt(MutationReceipt r) => _pendingReceipt = r;
+
+        // Last command name for UI display (MCPStatusWindow shows it when connected).
+        internal static string LastCommandName { get; set; } = "";
+
         // Tools handled entirely by the Python MCP server — no C# handler exists.
         // Direct TCP callers that send these commands get an actionable error instead of
         // an opaque InvalidOperationException("Command not registered").
@@ -83,13 +92,16 @@ namespace UnityMCP.Editor
         };
 
         // Returns error response string if a guard blocks the command, null otherwise.
-        private static string CheckGuards(string id, string cmd)
+        private static string CheckGuards(string id, string cmd, string chatMode = "")
         {
             if (!CommandRegistry.Ready)
                 return JsonHelper.FormatBusyResponse(id, "Server initializing. Retry in 2s.", 2000);
             if (_PythonOnlyTools.Contains(cmd))
                 return JsonHelper.FormatResponse(id, false, null,
                     $"'{cmd}' is a Python-only tool — use the MCP server (not direct TCP) to call it");
+            var authError = SessionAuthorization.Check(chatMode, cmd);
+            if (authError != null)
+                return JsonHelper.FormatResponse(id, false, null, authError);
             if (IsCompiling() && !IsAllowedDuringCompile(cmd))
                 return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
             if (IsPlayMode() && IsMutatingCommand(cmd) && cmd != "set_parent")
@@ -115,6 +127,7 @@ namespace UnityMCP.Editor
             {
                 var id = JsonHelper.ExtractString(json, "id");
                 var cmd = JsonHelper.ExtractString(json, "cmd");
+                LastCommandName = cmd ?? "";
 
                 var retryOpId = JsonHelper.ExtractString(json, "retry_op_id");
                 if (retryOpId != null)
@@ -194,6 +207,7 @@ namespace UnityMCP.Editor
                     var errorResponse = JsonHelper.FormatResponse(id, false, null, data);
                     if (opId != null)
                         _dedupRegistry.TryRegister(opId, errorResponse);
+                    _pendingReceipt = null;
                     return errorResponse;
                 }
                 var response = BuildResponse(id, data, CommandRegistry.GetMaxResponseChars(cmd));
@@ -213,21 +227,23 @@ namespace UnityMCP.Editor
                 var opId = JsonHelper.ExtractString(json, "op_id");
                 if (opId != null)
                     _dedupRegistry.TryRegister(opId, response);
+                _pendingReceipt = null;
                 return response;
             }
         }
 
-        public static void ProcessAsync(string json, TaskCompletionSource<string> tcs)
+        public static void ProcessAsync(string json, TaskCompletionSource<string> tcs, string chatMode = "")
         {
             SceneContext.InvalidateCache();
             try
             {
                 var cmd = JsonHelper.ExtractString(json, "cmd");
                 var id = JsonHelper.ExtractString(json, "id");
+                LastCommandName = cmd ?? "";
 
                 if (CommandRegistry.HasAsyncHandler(cmd, out var asyncHandler))
                 {
-                    var guard = CheckGuards(id, cmd);
+                    var guard = CheckGuards(id, cmd, chatMode);
                     if (guard != null) { tcs.TrySetResult(guard); return; }
                     UndoGroupHelper.SetCommandFallback(cmd);
                     var argsJson = JsonHelper.ExtractObject(json, "args");
@@ -236,6 +252,8 @@ namespace UnityMCP.Editor
                     return;
                 }
 
+                var syncGuard = CheckGuards(id, cmd, chatMode);
+                if (syncGuard != null) { tcs.TrySetResult(syncGuard); return; }
                 tcs.TrySetResult(Process(json));
             }
             catch (Exception e)
@@ -490,11 +508,14 @@ namespace UnityMCP.Editor
         {
             if (data != null && data.Length > FileOutputHelper.TEXT_THRESHOLD)
             {
+                _pendingReceipt = null;  // clear: file-offload drops receipt
                 var filePath = FileOutputHelper.WriteText(data);
                 return JsonHelper.FormatFileResponse(id, filePath);
             }
             data = ResponseGovernance.Truncate(data, maxResponseChars);
-            return JsonHelper.FormatResponse(id, true, data, null);
+            var receiptJson = _pendingReceipt?.ToJson();
+            _pendingReceipt = null;  // always clear after consuming
+            return JsonHelper.FormatResponseWithReceipt(id, true, data, null, receiptJson);
         }
 
         // Commands that bypass MCPSettings.IsToolEnabled check.

@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using UnityEditor;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -16,7 +17,9 @@ namespace UnityMCP.Editor.Chat
         private Func<string, string>             _sendFunc;
         private Thread                           _pollThread;
         private volatile bool                    _running;
-        private int                              _lastSeq = -1;
+        private int                              _lastSeq         = -1;
+        private int                              _negotiatedVersion = 1;   // T14: set from start response
+        internal int NegotiatedVersion => _negotiatedVersion;
 
         // Production constructor — SpawnViaRelay creates and connects RelayTcpClient.
         internal RelayChatProcess() { }
@@ -55,7 +58,7 @@ namespace UnityMCP.Editor.Chat
         /// </summary>
         internal void StartViaRelay(int relayPort, string backendId, string mode,
             string model, int mcpPort, string resumeSessionId,
-            string appendSystemPrompt = null)
+            string sessionToken = null, string appendSystemPrompt = null)
         {
             if (_sendFunc == null)
             {
@@ -72,13 +75,23 @@ namespace UnityMCP.Editor.Chat
             if (!string.IsNullOrEmpty(resumeSessionId))
                 sb.Append(",\"resume_session_id\":\"")
                   .Append(JsonHelper.EscapeJson(resumeSessionId)).Append("\"");
+            if (!string.IsNullOrEmpty(sessionToken))
+                sb.Append(",\"session_token\":\"")
+                  .Append(JsonHelper.EscapeJson(sessionToken)).Append("\"");
             if (!string.IsNullOrEmpty(appendSystemPrompt))
                 sb.Append(",\"append_system_prompt\":\"")
                   .Append(JsonHelper.EscapeJson(appendSystemPrompt)).Append("\"");
+            // T14: request v2 protocol when EditorPrefs flag is enabled (default true)
+            if (EditorPrefs.GetBool("UnityMCP.Chat.ProtocolV2", true))
+                sb.Append(",\"protocol_version\":2");
             sb.Append("}}");
             var resp = _sendFunc(sb.ToString());
             if (!IsOk(resp))
                 throw new InvalidOperationException($"Relay start failed: {ExtractErr(resp)}");
+            // T14: capture negotiated version (absent = 1, "2" = 2)
+            _negotiatedVersion = 1;
+            if (JsonHelper.ExtractString(resp, "negotiated_version") == "2")
+                _negotiatedVersion = 2;
             _running = true;
             _pollThread = new Thread(PollLoop) { IsBackground = true, Name = "RelayChatProcess.EventPoll" };
             _pollThread.Start();
@@ -97,8 +110,8 @@ namespace UnityMCP.Editor.Chat
                     sb.Append(",\"session_id\":\"")
                       .Append(JsonHelper.EscapeJson(sessionId)).Append("\"");
                 sb.Append("}}");
-                _sendFunc(sb.ToString());
-                return true;
+                var resp = _sendFunc(sb.ToString());
+                return IsOk(resp);
             }
             catch { return false; }
         }
@@ -182,13 +195,35 @@ namespace UnityMCP.Editor.Chat
         {
             var data = JsonHelper.ExtractString(resp, "data");
             if (string.IsNullOrEmpty(data)) return;
+            if (_negotiatedVersion == 2) ParseV2Events(data);
+            else ParseV1Events(data);
+        }
+
+        // T14: internal for direct testing from RelayChatProcessSessionTests.
+        internal void ParseV1Events(string data)
+        {
             var parts = data.Split('\n');
             for (int i = 0; i + 1 < parts.Length; i += 2)
             {
                 if (!int.TryParse(parts[i], out var seq)) break;
                 if (seq > _lastSeq)
                 {
-                    _lines.Enqueue(parts[i + 1].Replace("\\n", "\n"));
+                    _lines.Enqueue(parts[i + 1].Replace("\\n", "\n")); // pipe-format unescape
+                    _lastSeq = seq;
+                }
+            }
+        }
+
+        // T14: v2 — JSON must remain intact; do NOT unescape \\n → \n.
+        internal void ParseV2Events(string data)
+        {
+            var parts = data.Split('\n');
+            for (int i = 0; i + 1 < parts.Length; i += 2)
+            {
+                if (!int.TryParse(parts[i], out var seq)) break;
+                if (seq > _lastSeq)
+                {
+                    _lines.Enqueue(parts[i + 1]); // no unescape: JSON escape preserved
                     _lastSeq = seq;
                 }
             }

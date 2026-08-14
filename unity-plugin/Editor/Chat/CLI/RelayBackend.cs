@@ -14,8 +14,10 @@ namespace UnityMCP.Editor.Chat
         private readonly string _resumeSessionId;
         private readonly string _appendSystemPrompt;
         private string           _mode;
+        private string           _sessionToken;
         private RelayChatProcess _proc;
-        private readonly ToolCallAccumulator _acc = new ToolCallAccumulator();
+        private readonly ToolCallAccumulator _acc         = new ToolCallAccumulator();
+        private readonly AgentEventParser    _agentParser = new AgentEventParser(); // T14: v2 JSON parser
 #if !UNITY_INCLUDE_TESTS
         // Production-only: turn text queued while RelaySpawnState.RequestSpawn() is cold-starting
         // uvx (up to 45s). Flushed once the relay reports ready. Not used by the test seam path,
@@ -63,13 +65,22 @@ namespace UnityMCP.Editor.Chat
             _proc?.Kill();
             _proc?.Dispose();
             _proc = null;
-            _acc.Reset();   // also covers m2: clear dirty accumulator state
+            _acc.Reset();          // also covers m2: clear dirty accumulator state
+            _agentParser.Reset(); // T14: clear v2 parser state on each Start
+
+            // T10: load or generate session token; persist before relay starts so domain reload
+            // survives (Library/UnityMCP/chat_session.json is gitignored, not cleared on reload).
+            if (!SessionContext.TryLoadSession(out _sessionToken) || string.IsNullOrEmpty(_sessionToken))
+            {
+                _sessionToken = SessionContext.GenerateToken();
+                SessionContext.SaveSession(_sessionToken);
+            }
 
 #if UNITY_INCLUDE_TESTS
             var port = RelaySpawner.EnsureRunningOverride?.Invoke() ?? RelaySpawner.EnsureRunning();
             _proc = ProcessFactory?.Invoke() ?? new RelayChatProcess();
             _proc.StartViaRelay(port, _backendId, _mode, _model, _mcpPort,
-                SessionId ?? _resumeSessionId, _appendSystemPrompt);
+                SessionId ?? _resumeSessionId, _sessionToken, _appendSystemPrompt);
 #else
             // Tier 2 (chat-relay-upm-fix.md): don't block the main thread on a uvx cold start
             // (up to 45s). RelaySpawnState hops to the ThreadPool only when actually needed;
@@ -87,7 +98,7 @@ namespace UnityMCP.Editor.Chat
             if (!_active) return;
             _proc = new RelayChatProcess();
             _proc.StartViaRelay(port, _backendId, _mode, _model, _mcpPort,
-                SessionId ?? _resumeSessionId, _appendSystemPrompt);
+                SessionId ?? _resumeSessionId, _sessionToken, _appendSystemPrompt);
             if (_queuedTurnJson != null)
             {
                 var turn = _queuedTurnJson;
@@ -124,14 +135,33 @@ namespace UnityMCP.Editor.Chat
                 UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} SendSetMode failed — mode may be desynced");
         }
 
+        /// <summary>
+        /// Non-blocking mode switch: sends set_mode to the relay on a ThreadPool thread
+        /// (relay kills and respawns the CLI subprocess internally),
+        /// then calls onDone(bool ok) on the main thread via EditorApplication.delayCall.
+        /// </summary>
+        internal void SetModeAsync(string mode, Action<bool> onDone)
+        {
+            _mode = mode;
+            if (_proc == null) { EditorApplication.delayCall += () => onDone(false); return; }
+            var proc = _proc;
+            var sid  = SessionId;
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                bool ok = proc.SendSetMode(mode, sid);
+                EditorApplication.delayCall += () => onDone(ok);
+            });
+        }
+
         public void DrainEvents(List<ChatEvent> output, List<ToolCallRecord> toolOutput = null)
         {
             if (_proc == null) return;
             var lines = new List<string>(8);
             _proc.DrainLines(lines);
+            bool v2 = _proc.NegotiatedVersion == 2;
             foreach (var line in lines)
             {
-                var ev = RelayEventParser.Parse(line);
+                var ev = v2 ? _agentParser.Parse(line) : RelayEventParser.Parse(line);
                 if (ev == null) continue;
 
                 // Capture session ID from terminal events
@@ -167,6 +197,7 @@ namespace UnityMCP.Editor.Chat
             _proc?.Dispose();
             _proc = null;
             _acc.Reset();
+            _agentParser.Reset(); // T14: clear pending cost_update state
         }
 
         public void Dispose() => Stop();

@@ -22,9 +22,9 @@ _TIER1_SNAPSHOT = frozenset({
     "batch", "compile_preflight", "create_object", "editor", "execute_code",
     "get_compile_errors", "get_component", "get_console", "get_hierarchy",
     "inspect", "manage_component", "mcp_status", "set_property",
-    # 23 TIER1-only (non-core) — P-12440 Phase 1; +2 console_mark/get_console_since (B2)
+    # 24 TIER1-only (non-core) — P-12440 Phase 1; +2 console_mark/get_console_since (B2); +1 get_changeset (T16); +1 plan_status (T20)
     "apply_scene_change", "await_compile",
-    "console_mark", "get_console_since",
+    "console_mark", "get_changeset", "get_console_since",
     "delete_object", "discover_tools",
     "lint_scene_refs",
     "permission_prompt", "reconnect_unity", "resolve_tool_schema",
@@ -32,6 +32,7 @@ _TIER1_SNAPSHOT = frozenset({
     "scene", "scene_change_plan", "screenshot",
     "search_scene", "set_active", "set_parent",
     "sync_unity", "validate_references", "verify_after_change",
+    "plan_status",
 })
 
 _ALL_KNOWN_SNAPSHOT = frozenset({
@@ -42,7 +43,7 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "create_object", "create_ui", "debug", "debug_animator", "debug_physics",
     "delete_object", "diagnose", "discover_tools", "do", "doctor", "editor",
     "execute_code", "find_objects", "fingerprint",
-    "get_capabilities", "get_changes", "get_compile_errors", "get_component",
+    "get_capabilities", "get_changeset", "get_changes", "get_compile_errors", "get_component",
     "get_components_list", "get_console", "get_enabled_tools", "get_frame_stats",
     "get_hierarchy", "get_memory", "get_metrics", "get_object_detail",
     "get_schema", "get_selection", "get_spatial_context", "get_test_count",
@@ -91,7 +92,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
         "set_rect", "timeline", "ui_intent", "validate_layout", "vfx_intent",
     },
     "VERIFY": {
-        "await_compile", "compile_preflight", "diagnose", "lint_scene_refs",
+        "await_compile", "compile_preflight", "diagnose", "get_changeset", "lint_scene_refs",
         "resolve_scene_refs", "scan_scene", "scene_health", "validate_references",
         "verify_after_change",
     },
@@ -132,7 +133,7 @@ _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "apply_scene_change": 120.0,
     "ask_user": 300.0, "batch": 120.0, "build": 300.0, "compile_preflight": 60.0,
     "execute_code": 60.0, "export_package": 120.0, "fingerprint": 10.0,
-    "cancel_test_run": 10.0, "get_console": 10.0, "get_hierarchy": 15.0,
+    "cancel_test_run": 10.0, "get_changeset": 5.0, "get_console": 10.0, "get_hierarchy": 15.0,
     "get_test_count": 10.0, "get_test_run": 10.0, "get_version": 5.0,
     "import_package": 120.0,
     "lint_playtest": 60.0, "lint_playtest_suite": 120.0, "package": 60.0,

@@ -1,9 +1,10 @@
 """Tests for backend_def.py — all 5 CLI backends + resolve_binary. No real processes."""
+import asyncio
 import json
 import os
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -18,7 +19,7 @@ from unity_mcp.backend_def import (
     OpenCodeDef,
     _which_via_login_shell,
     _which_windows_registry,
-    _sanitize_extra_args,
+    sanitize_extra_args,
     MCP_BLANKET,
     MCP_PERMISSION_TOOL,
 )
@@ -158,7 +159,26 @@ def test_claude_no_resume_when_none(tmp_path):
     assert "--resume" not in argv
 
 
-# ─── Codex (5 tests) ────────────────────────────────────────────────────────
+# ─── Codex (5 tests + 3 mode-approval tests) ────────────────────────────────
+
+def test_codex_ask_mode_uses_ask_approval():
+    """T9: ask mode must pass -s ask to Codex (not danger-full-access)."""
+    argv, _, _ = CodexDef().build_args(mode="ask", model=None, mcp_port=_TEST_PORT, prompt="x")
+    assert "-s" in argv
+    assert argv[argv.index("-s") + 1] == "ask"
+
+
+def test_codex_agent_mode_uses_danger_full_access_approval():
+    """T9: agent mode must pass -s danger-full-access."""
+    argv, _, _ = CodexDef().build_args(mode="agent", model=None, mcp_port=_TEST_PORT, prompt="x")
+    assert argv[argv.index("-s") + 1] == "danger-full-access"
+
+
+def test_codex_unknown_mode_defaults_to_danger_full_access():
+    """T9: unknown mode falls back to danger-full-access (safe default)."""
+    argv, _, _ = CodexDef().build_args(mode="yolo", model=None, mcp_port=_TEST_PORT, prompt="x")
+    assert argv[argv.index("-s") + 1] == "danger-full-access"
+
 
 def test_codex_first_turn_argv_structure():
     argv, _, _ = CodexDef().build_args(mode="agent", model=None, mcp_port=_TEST_PORT,
@@ -315,30 +335,30 @@ def test_opencode_writes_config_file(tmp_path):
     assert data["mcp"]["unity-biome-mcp"]["environment"]["UNITY_MCP_PORT"] == "9603"
 
 
-# ─── M3: _sanitize_extra_args (7 tests) ─────────────────────────────────────
+# ─── M3: sanitize_extra_args (7 tests) ─────────────────────────────────────
 
 def test_sanitize_passes_safe_flag():
-    assert _sanitize_extra_args("--verbose") == ["--verbose"]
+    assert sanitize_extra_args("--verbose") == ["--verbose"]
 
 
 def test_sanitize_blocks_permission_mode_and_value():
-    result = _sanitize_extra_args("--permission-mode acceptEdits --verbose")
+    result = sanitize_extra_args("--permission-mode acceptEdits --verbose")
     assert "--permission-mode" not in result
     assert "acceptEdits" not in result
     assert "--verbose" in result
 
 
 def test_sanitize_blocks_output_format_and_value():
-    result = _sanitize_extra_args("--output-format text")
+    result = sanitize_extra_args("--output-format text")
     assert result == []
 
 
 def test_sanitize_blocks_format_flag():
-    assert _sanitize_extra_args("--format json -p hello") == ["-p", "hello"]
+    assert sanitize_extra_args("--format json -p hello") == ["-p", "hello"]
 
 
 def test_sanitize_blocks_mcp_config_and_value():
-    result = _sanitize_extra_args("--mcp-config /evil/path --model sonnet")
+    result = sanitize_extra_args("--mcp-config /evil/path --model sonnet")
     assert "--mcp-config" not in result
     assert "/evil/path" not in result
     assert "--model" in result
@@ -346,8 +366,8 @@ def test_sanitize_blocks_mcp_config_and_value():
 
 
 def test_sanitize_empty_string_returns_empty():
-    assert _sanitize_extra_args("") == []
-    assert _sanitize_extra_args(None) == []
+    assert sanitize_extra_args("") == []
+    assert sanitize_extra_args(None) == []
 
 
 def test_claude_extra_args_cannot_inject_permission_mode(tmp_path):
@@ -462,3 +482,83 @@ async def test_login_shell_path_retries_after_ttl_on_failure(monkeypatch):
     clock["t"] += backend_def._LOGIN_PATH_RETRY_TTL + 1
     assert await backend_def.login_shell_path() == ""
     assert calls["n"] == 2
+
+
+# ─── probe_capabilities (5 tests) ───────────────────────────────────────────
+
+async def test_probe_capabilities_claude_has_resume(monkeypatch):
+    from unity_mcp import backend_def
+    backend_def._PROBE_CACHE.clear()
+
+    b = ClaudeDef()
+    monkeypatch.setattr(backend_def, "_run_login_shell", AsyncMock(return_value="claude 0.2.55\n"))
+    result = await b.probe_capabilities()
+    assert result["has_resume"] is True
+
+
+async def test_probe_capabilities_cached_second_call_no_spawn(monkeypatch):
+    from unity_mcp import backend_def
+    backend_def._PROBE_CACHE.clear()
+
+    b = ClaudeDef()
+    call_count = {"n": 0}
+
+    original_probe = b._probe.__func__
+
+    async def counting_probe(self):
+        call_count["n"] += 1
+        return await original_probe(self)
+
+    monkeypatch.setattr(ClaudeDef, "_probe", counting_probe)
+    monkeypatch.setattr(backend_def, "_run_login_shell", AsyncMock(return_value=""))
+
+    await b.probe_capabilities()
+    await b.probe_capabilities()  # second call — should be cache hit
+
+    assert call_count["n"] == 1
+
+
+async def test_probe_capabilities_timeout_returns_defaults(monkeypatch):
+    from unity_mcp import backend_def
+    backend_def._PROBE_CACHE.clear()
+
+    b = ClaudeDef()
+
+    async def slow_probe(self):
+        await asyncio.sleep(10)
+        return {}
+
+    monkeypatch.setattr(ClaudeDef, "_probe", slow_probe)
+    monkeypatch.setattr(backend_def, "_PROBE_TIMEOUT", 0.05)
+
+    result = await b.probe_capabilities()
+
+    assert result["has_resume"] is True  # default for ClaudeDef
+    assert result["has_cancel"] is False
+    assert "has_modes" in result
+    assert result["binary_version"] is None
+
+
+async def test_probe_capabilities_exception_returns_defaults(monkeypatch):
+    from unity_mcp import backend_def
+    backend_def._PROBE_CACHE.clear()
+
+    b = ClaudeDef()
+
+    async def broken_probe(self):
+        raise RuntimeError("probe boom")
+
+    monkeypatch.setattr(ClaudeDef, "_probe", broken_probe)
+
+    result = await b.probe_capabilities()
+
+    assert result["has_resume"] is True  # default for ClaudeDef
+    assert result["has_cancel"] is False
+
+
+async def test_probe_capabilities_kimi_no_resume(monkeypatch):
+    from unity_mcp import backend_def
+    backend_def._PROBE_CACHE.clear()
+
+    result = await KimiDef().probe_capabilities()
+    assert result["has_resume"] is False

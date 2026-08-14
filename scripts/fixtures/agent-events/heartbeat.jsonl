@@ -1,0 +1,5 @@
+{"schema_version": 1, "event_id": "evt-hb-001", "conversation_id": "conv-heartbeat", "session_id": "sess-hb", "turn_id": 0, "sequence": 1, "timestamp": "2024-01-13T00:00:01+00:00", "kind": "heartbeat", "payload": {}, "meta": null}
+{"schema_version": 1, "event_id": "evt-hb-002", "conversation_id": "conv-heartbeat", "session_id": "sess-hb", "turn_id": 0, "sequence": 2, "timestamp": "2024-01-13T00:00:11+00:00", "kind": "heartbeat", "payload": {}, "meta": null}
+{"schema_version": 1, "event_id": "evt-hb-003", "conversation_id": "conv-heartbeat", "session_id": "sess-hb", "turn_id": 0, "sequence": 3, "timestamp": "2024-01-13T00:00:21+00:00", "kind": "heartbeat", "payload": {}, "meta": null}
+{"schema_version": 1, "event_id": "evt-hb-004", "conversation_id": "conv-heartbeat", "session_id": "sess-hb", "turn_id": 0, "sequence": 4, "timestamp": "2024-01-13T00:00:31+00:00", "kind": "heartbeat", "payload": {}, "meta": null}
+{"schema_version": 1, "event_id": "evt-hb-005", "conversation_id": "conv-heartbeat", "session_id": "sess-hb", "turn_id": 0, "sequence": 5, "timestamp": "2024-01-13T00:00:41+00:00", "kind": "heartbeat", "payload": {}, "meta": null}

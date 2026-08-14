@@ -71,6 +71,9 @@ namespace UnityMCP.Editor.Chat
             }
 
             menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Browse Biome History..."), false, OnBrowseHistory);
+
+            menu.AddSeparator("");
             var hasSession = !string.IsNullOrEmpty(_backend?.SessionId);
             if (hasSession)
                 menu.AddItem(new GUIContent("→ CLI  (copy resume command)"), false, OnCopyCliResume);

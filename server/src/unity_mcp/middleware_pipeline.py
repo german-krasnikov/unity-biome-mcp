@@ -176,6 +176,13 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
         # Extract string from dict response (when send_fn is raw bridge.send)
         protocol_err = False
         if isinstance(result, dict):
+            # T15: extract receipt before unwrapping — backward-compat (old Python ignores it)
+            _receipt = result.get("receipt")
+            if _receipt:
+                from .changeset_coordinator import get_coordinator
+                _c = get_coordinator()
+                if _c is not None:
+                    _c.append(cmd, _receipt)
             result, ok = unwrap_bridge_result(result)
             protocol_err = not ok
 

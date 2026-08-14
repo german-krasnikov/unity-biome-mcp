@@ -5,6 +5,7 @@
         "UnityMCP.Editor",
         "UnityMCP.Editor.TestSupport",
         "UnityMCP.Editor.Chat.CLI",
+        "UnityMCP.Editor.Chat.View",
         "UnityMCP.Runtime.TestHelpers",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",

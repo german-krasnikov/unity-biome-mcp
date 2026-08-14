@@ -3,11 +3,15 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+from unity_mcp.permission_broker import PermissionBroker
+
 
 @pytest.fixture(autouse=True)
 def _clean_send(monkeypatch):
     import unity_mcp.tools.permission_prompt_tool as mod
     monkeypatch.setattr(mod, "_send", None)
+    # Default: external client (no mode) — allow all
+    monkeypatch.setattr(mod, "_broker", PermissionBroker(mode=None))
 
 
 async def test_ask_user_routes_to_send(monkeypatch):
@@ -75,3 +79,26 @@ def test_register_wires_send(monkeypatch):
     mod.register(mcp, send, MagicMock())
     assert mod._send is send
     mcp.tool.assert_called_once()
+
+
+async def test_ask_mode_blocks_write_tool_via_broker(monkeypatch):
+    import unity_mcp.tools.permission_prompt_tool as mod
+    monkeypatch.setattr(mod, "_broker", PermissionBroker(mode="ask"))
+    monkeypatch.setattr(mod, "_send", AsyncMock())
+    result = await mod.permission_prompt(
+        "mcp__unity-biome-mcp__set_property", {}, "tu-x"
+    )
+    data = json.loads(result)
+    assert data["behavior"] == "deny"
+    assert "ask mode" in data["message"]
+
+
+async def test_agent_mode_allows_write_tool_via_broker(monkeypatch):
+    import unity_mcp.tools.permission_prompt_tool as mod
+    monkeypatch.setattr(mod, "_broker", PermissionBroker(mode="agent"))
+    monkeypatch.setattr(mod, "_send", AsyncMock())
+    result = await mod.permission_prompt(
+        "mcp__unity-biome-mcp__set_property", {}, "tu-y"
+    )
+    data = json.loads(result)
+    assert data["behavior"] == "allow"

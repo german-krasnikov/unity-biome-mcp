@@ -190,6 +190,11 @@ namespace UnityMCP.Editor
                 try { oldStr = ObjectManager.ReadPropertyValue(path, comp, prp); } catch (ArgumentException) { }
             var actual = ObjectManager.SetProperty(path, comp, prp, val, dryRun);
             if (dryRun) return actual;
+            // T15: pend receipt for single-object set_property (bulk path skips — no single receipt)
+            CommandRouter.PendReceipt(new MutationReceipt {
+                Path = path, Op = "modify", TargetType = "property",
+                Prop = prp, Before = oldStr, After = actual, Reversible = true
+            });
             // F11: skip snapshot serialization inside batch (deferred Physics.Sync handles it)
             if (BatchHelper.InBatch) return FormatPropResult(prp, actual, oldStr);
             var go = ComponentSerializer.FindObject(path);
@@ -232,6 +237,11 @@ namespace UnityMCP.Editor
             var prefabPath = JsonHelper.ExtractString(args, "prefab_path");
             var scene = JsonHelper.ExtractString(args, "scene");
             var path = ObjectManager.CreateObject(name, parent, components, primitive, prefabPath, scene);
+            // T15: pend receipt for create_object
+            CommandRouter.PendReceipt(new MutationReceipt {
+                Path = path, Op = "create", TargetType = "scene_object",
+                Before = null, After = null, Reversible = true
+            });
             GameObject go;
             try { go = ComponentSerializer.FindObject(path); }
             catch (System.ArgumentException) { go = null; } // duplicate name in scene — GO created, lookup ambiguous
@@ -267,6 +277,11 @@ namespace UnityMCP.Editor
             if (go == null) throw new ArgumentException(ErrorHelper.ObjectNotFound(path ?? $"#{id}"));
             var parentGo = go.transform.parent?.gameObject;
             var label = !string.IsNullOrEmpty(id) ? $"#{id}" : path;
+            // T15: pend receipt before deletion (after resolving label)
+            CommandRouter.PendReceipt(new MutationReceipt {
+                Path = label, Op = "delete", TargetType = "scene_object",
+                Before = null, After = null, Reversible = true
+            });
             if (!string.IsNullOrEmpty(id)) ObjectManager.DeleteObjectById(id, force);
             else ObjectManager.DeleteObject(path, force);
             if (parentGo != null)
@@ -280,6 +295,11 @@ namespace UnityMCP.Editor
             var type   = JsonHelper.ExtractString(args, "type");
             var action = JsonHelper.ExtractString(args, "action");
             ObjectManager.ManageComponent(path, type, action);
+            // T15: pend receipt for manage_component
+            CommandRouter.PendReceipt(new MutationReceipt {
+                Path = path, Op = "modify", TargetType = "component",
+                Prop = type, Before = null, After = action, Reversible = true
+            });
             var go = ComponentSerializer.FindObject(path);
             if (go == null) return "ok";
             var list = ComponentSerializer.ListComponentsById(TransientObjectId.GetWireValue(go));

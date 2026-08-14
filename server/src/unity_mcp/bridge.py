@@ -172,6 +172,7 @@ class UnityBridge(HeartbeatMixin):
         self._reload_gate: asyncio.Event = asyncio.Event()
         self._reload_gate.set()  # open by default; wait() returns immediately
         self._ppid_mismatch_count: int = 0
+        self._orphan_detected_at: float | None = None
         self._pinned_port: int | None = None
         self._pinned_pid: int | None = None
         self._bridge_id: str = f"br-{os.getpid():x}-{id(self) & 0xFFFF:04x}"
@@ -187,6 +188,8 @@ class UnityBridge(HeartbeatMixin):
         self._session_id: str = str(uuid.uuid4())
         self._lock_token: str = str(uuid.uuid4())
         self._started_at_utc: str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        # T19: stable project identity extracted from C# client_hello (cloudProjectId or sha256[:12])
+        self._project_id: str | None = None
 
     @property
     def _startup_grace_expired(self) -> bool:
@@ -204,6 +207,12 @@ class UnityBridge(HeartbeatMixin):
     @property
     def lock_token(self) -> str:
         return self._lock_token
+
+    @property
+    def project_id(self) -> str | None:
+        """Stable project identity from C# client_hello (cloudProjectId or sha256[:12]).
+        None until first successful handshake with a C# plugin that sends projectId."""
+        return self._project_id
 
     def _build_hello(self, msg_id: str) -> bytes:
         """Build a client_hello JSON frame for the combined handshake."""
@@ -233,6 +242,7 @@ class UnityBridge(HeartbeatMixin):
             "bridgeVersion": payload.bridge_version,
             "cwd": payload.cwd,
             "startedAtUtc": payload.started_at_utc,
+            "chatMode": os.environ.get("UNITY_MCP_CHAT_MODE", ""),
         }
         return json.dumps(data, ensure_ascii=False).encode("utf-8")
 
@@ -590,6 +600,10 @@ class UnityBridge(HeartbeatMixin):
                             f"Refusing Unity on port {port}: expected project "
                             f"{self._expected_project_path!r}, received {actual!r}"
                         )
+                # T19: extract stable project identity (cloudProjectId or sha256[:12])
+                project_id = hello.get("projectId", "")
+                if isinstance(project_id, str) and project_id.strip():
+                    self._project_id = project_id.strip()
                 await self._check_version_from_hello(hello)
             else:
                 # Old C#: hello returned ok:false — fallback to project check + get_version.

@@ -103,11 +103,14 @@ namespace UnityMCP.Editor
 
         // internal so tests can verify the cross-language response format without TCP.
         // helloVersion:2 is the Python discriminant: present → fast-path (1 RTT), absent → 3-RTT fallback.
+        // T19: projectId added (cloudProjectId or sha256[:12]) — stable across path moves.
         internal static string BuildClientHelloResponse(string msgId, string ver, string projPath) =>
             $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":true," +
             $"\"data\":\"pong\",\"helloVersion\":2," +
             $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
-            $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"}}";
+            $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"," +
+            $"\"projectId\":\"{JsonHelper.EscapeJson(MCPServer._cachedProjectId)}\"}}";
+
 
 
         private static async Task HandleClientAsync(TcpClient client, ClientSlot slot, int index, long generation,
@@ -156,13 +159,14 @@ namespace UnityMCP.Editor
                             var displayName = JsonHelper.ExtractString(json, "displayName");
                             var agentId     = JsonHelper.ExtractString(json, "agentId");
                             var bridgePid   = JsonHelper.ExtractInt(json, "bridgePid");
+                            var chatMode    = JsonHelper.ExtractString(json, "chatMode") ?? "";
 
                             if (!string.IsNullOrEmpty(role)) label = RoleToLabel(role);
                             if (!string.IsNullOrEmpty(displayName)) label = displayName;
 
                             slot.SetEntrySession(index, generation, sessionId, lockToken, agentId,
                                 !string.IsNullOrEmpty(displayName) ? displayName : label,
-                                bridgePid);
+                                bridgePid, chatMode);
                             slot.SetEntryLabel(index, generation, label);
 
                             var ep0 = endPoint; var lbl0 = label;
@@ -233,6 +237,7 @@ namespace UnityMCP.Editor
                         // Invalidate on first slow-path command (not on connection, not on fast-path probes).
                         var needsInvalidate = !refInvalidated;
                         slot.BeginCommand(index, generation, cmdName);
+                        var slotChatMode = slot.GetEntryChatMode(index, generation);
                         MainThreadDispatcher.Enqueue(() =>
                         {
                             // Skip if Python already gave up (per-command timeout fired and
@@ -244,7 +249,7 @@ namespace UnityMCP.Editor
                             if (needsInvalidate) { RefManager.Invalidate(); refInvalidated = true; }
                             try
                             {
-                                CommandRouter.ProcessAsync(json, tcs);
+                                CommandRouter.ProcessAsync(json, tcs, slotChatMode);
                             }
                             catch (Exception e)
                             {
