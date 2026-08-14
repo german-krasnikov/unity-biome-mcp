@@ -54,6 +54,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Permission broker initialization**: Session authorization now properly gated on backend handshake completion.
 
+- **Chat Core Hardening (Architecture Review)**:
+  - **Atomic writes in ContentStore** — `store()` now writes to temporary file, then `os.replace()` atomically to prevent partial writes on crash.
+  - **Path traversal guards in CheckpointStore** — `_path()` validates checkpoint_id format (alphanumeric + hyphens/underscores) to prevent directory traversal.
+  - **Finalize barriers in ChangeSetCoordinator** — `append()` now checks `status != "open"` before operations to prevent mutations on closed changesets. `record_file_mutation()` now infers operation kind (create/delete/modify) from before/after refs.
+  - **Fingerprint consistency in SessionIdentity** — Both project_id and config_dir fallback paths now use 12-char fingerprints (was mixed 8/12). Token hash parsing now gracefully handles invalid hex input.
+  - **Safe file operations in checkpoint eviction** — `_safe_mtime()` and `_safe_size()` helpers catch OSError during stat() calls to prevent eviction crashes on missing/inaccessible files.
+  - **Precondition checking in CheckpointRestore** — `restore_files()` now pre-checks all blobs exist before any writes, preventing partial restores.
+  - **Dead code removal & DRY** — `_TRANSFORM_FNS` consolidated into `adapters/legacy.py` (shared by chat_relay and stream_transform). `ensure_history_manager()` unifies init/get lifecycle.
+  - **26 new tests** covering edge cases: path validation, atomic write failures, eviction with missing files, token hash errors, fingerprint length consistency.
+
 ### Test Coverage
 
 - **Python unit tests**: 6500+ passed (Chat Core modules: +218 new tests covering adapters, agent_event, brief, changeset, checkpoint, history, permission_broker, plan, session_identity)
