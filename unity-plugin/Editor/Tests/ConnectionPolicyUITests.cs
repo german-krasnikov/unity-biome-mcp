@@ -49,8 +49,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void IdleTimeoutField_DisabledWhenAutoSuspendOff()
         {
-            ProtectEditorPrefBool(PrefKeys.IdleAutoSuspend);
-            EditorPrefs.SetBool(PrefKeys.IdleAutoSuspend, false);
+            SetEditorPrefBool(PrefKeys.IdleAutoSuspend, false);
 
             var root = ConnectionPolicyUI.Build();
 
@@ -68,8 +67,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void OrphanGraceField_DisabledWhenTerminateOrphanOff()
         {
-            ProtectEditorPrefBool(PrefKeys.TerminateOrphan);
-            EditorPrefs.SetBool(PrefKeys.TerminateOrphan, false);
+            SetEditorPrefBool(PrefKeys.TerminateOrphan, false);
 
             var root = ConnectionPolicyUI.Build();
 
@@ -111,10 +109,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void IntField_ClampsToRange()
         {
-            ProtectEditorPrefInt(PrefKeys.IdleTimeoutMin);
-            ProtectEditorPrefBool(PrefKeys.IdleAutoSuspend);
-            EditorPrefs.SetBool(PrefKeys.IdleAutoSuspend, true);
-            EditorPrefs.SetInt(PrefKeys.IdleTimeoutMin, 30);
+            SetEditorPrefBool(PrefKeys.IdleAutoSuspend, true);
+            SetEditorPrefInt(PrefKeys.IdleTimeoutMin, 30);
 
             var root = ConnectionPolicyUI.Build();
             _win.rootVisualElement.Add(root);  // attach to panel

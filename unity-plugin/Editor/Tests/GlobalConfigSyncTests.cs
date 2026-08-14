@@ -28,15 +28,10 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SaveToDisk_WritesValidJson()
         {
-            ProtectEditorPrefBool(PrefKeys.IdleAutoSuspend);
-            ProtectEditorPrefInt(PrefKeys.IdleTimeoutMin);
-            ProtectEditorPrefBool(PrefKeys.TerminateOrphan);
-            ProtectEditorPrefInt(PrefKeys.OrphanGraceMin);
-
-            EditorPrefs.SetBool(PrefKeys.IdleAutoSuspend, true);
-            EditorPrefs.SetInt(PrefKeys.IdleTimeoutMin, 30);
-            EditorPrefs.SetBool(PrefKeys.TerminateOrphan, true);
-            EditorPrefs.SetInt(PrefKeys.OrphanGraceMin, 2);
+            SetEditorPrefBool(PrefKeys.IdleAutoSuspend, true);
+            SetEditorPrefInt(PrefKeys.IdleTimeoutMin, 30);
+            SetEditorPrefBool(PrefKeys.TerminateOrphan, true);
+            SetEditorPrefInt(PrefKeys.OrphanGraceMin, 2);
 
             GlobalConfigSync.SaveToDisk();
 
@@ -72,10 +67,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SaveToDisk_IsAtomic_NoTmpLeft()
         {
-            ProtectEditorPrefBool(PrefKeys.IdleAutoSuspend);
-            ProtectEditorPrefInt(PrefKeys.IdleTimeoutMin);
-            EditorPrefs.SetBool(PrefKeys.IdleAutoSuspend, true);
-            EditorPrefs.SetInt(PrefKeys.IdleTimeoutMin, 30);
+            SetEditorPrefBool(PrefKeys.IdleAutoSuspend, true);
+            SetEditorPrefInt(PrefKeys.IdleTimeoutMin, 30);
 
             GlobalConfigSync.SaveToDisk();
 
@@ -102,15 +95,12 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void EffectiveBool_ConfigWins_OverDefault()
         {
-            ProtectEditorPrefBool(PrefKeys.TerminateOrphan);
-            ProtectEditorPrefInt(PrefKeys.OrphanGraceMin);
-
-            EditorPrefs.SetBool(PrefKeys.TerminateOrphan, true);
-            EditorPrefs.SetInt(PrefKeys.OrphanGraceMin, 2);
+            SetEditorPrefBool(PrefKeys.TerminateOrphan, true);
+            SetEditorPrefInt(PrefKeys.OrphanGraceMin, 2);
             GlobalConfigSync.SaveToDisk();
 
             // Change the pref in memory then reload — file value should win
-            EditorPrefs.SetBool(PrefKeys.TerminateOrphan, false);
+            SetEditorPrefBool(PrefKeys.TerminateOrphan, false);
             GlobalConfigSync.LoadFromDisk();
 
             Assert.IsTrue(EditorPrefs.GetBool(PrefKeys.TerminateOrphan, false),
