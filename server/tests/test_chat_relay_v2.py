@@ -1,11 +1,11 @@
-"""Tests for T14: relay v2 protocol negotiation and JSON drain path.
+"""Tests for ACP relay: always-ACP drain path and JSON event buffer.
 
 All tests are pure unit tests — no Unity, no TCP, no live processes.
+Protocol version negotiation is gone; ACP is always active.
 """
 import asyncio
 import contextlib
 import json
-import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -57,7 +57,6 @@ async def _run_cmd_start(relay: ChatRelay, backend, sess, args: dict) -> dict:
     with patch("unity_mcp.chat_relay.BACKENDS", {"claude": backend}), \
          patch("unity_mcp.chat_relay.CliSession", return_value=sess):
         resp = await relay._cmd_start(args)
-    # cancel drain task to avoid pending-task warnings
     if relay._drain_task:
         relay._drain_task.cancel()
         with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -65,71 +64,27 @@ async def _run_cmd_start(relay: ChatRelay, backend, sess, args: dict) -> dict:
     return resp
 
 
-# ─── Test 1: v1 negotiated when protocol_version absent ─────────────────────
+# ─── Test 1: _cmd_start always returns ACP capabilities ──────────────────────
 
-async def test_v1_negotiated_when_protocol_version_absent():
+async def test_acp_negotiated_on_start():
+    """_cmd_start must always return capabilities (ACP-always, no negotiation field needed)."""
     relay = ChatRelay()
     backend, sess = _make_backend()
     resp = await _run_cmd_start(relay, backend, sess, {
         "backend": "claude", "mode": "ask", "model": "m", "mcp_port": 9500,
     })
     assert resp["ok"] is True
-    assert "negotiated_version" not in resp
-    assert "capabilities" not in resp
-
-
-# ─── Test 2: v2 negotiated when protocol_version=2 ──────────────────────────
-
-async def test_v2_negotiated_when_protocol_version_2():
-    relay = ChatRelay()
-    backend, sess = _make_backend()
-    resp = await _run_cmd_start(relay, backend, sess, {
-        "backend": "claude", "mode": "ask", "model": "m", "mcp_port": 9500,
-        "protocol_version": 2,
-    })
-    assert resp["ok"] is True
-    assert resp["negotiated_version"] == 2
+    assert "capabilities" in resp
     caps = resp["capabilities"]
     assert caps["provider_id"] == "claude"
     assert caps["protocol_version"] == "2.0"
     assert isinstance(caps["modes"], list)
 
 
-# ─── Test 3: feature flag disables v2 ───────────────────────────────────────
+# ─── Test 2: drain emits JSON events (no pipe format) ────────────────────────
 
-async def test_v2_disabled_by_env_flag():
+async def test_drain_emits_json_lines():
     relay = ChatRelay()
-    backend, sess = _make_backend()
-    with patch.dict(os.environ, {"UNITY_MCP_CHAT_PROTOCOL_V2": "0"}):
-        resp = await _run_cmd_start(relay, backend, sess, {
-            "backend": "claude", "mode": "ask", "model": "m", "mcp_port": 9500,
-            "protocol_version": 2,
-        })
-    assert resp["ok"] is True
-    assert "negotiated_version" not in resp
-
-
-# ─── Test 4: v1 drain emits pipe-format strings ─────────────────────────────
-
-async def test_v1_drain_emits_pipe_format():
-    relay = ChatRelay()
-    relay._protocol_version = 1
-    relay._transform_fn = _transform_plain_text_line
-    relay._session = _make_drain_session("hello world")
-
-    await relay._drain_stdout_loop()
-
-    texts = [b.text for b in relay._relay_buf._buf]
-    pipe_events = [t for t in texts if t.startswith("t|")]
-    assert len(pipe_events) >= 1
-    assert pipe_events[0] == "t|hello world"
-
-
-# ─── Test 5: v2 drain emits JSON lines ──────────────────────────────────────
-
-async def test_v2_drain_emits_json_lines():
-    relay = ChatRelay()
-    relay._protocol_version = 2
     relay._transform_fn = _transform_plain_text_line
     relay._session = _make_drain_session("hello world")
 
@@ -142,9 +97,9 @@ async def test_v2_drain_emits_json_lines():
     assert json_events[0]["payload"]["text"] == "hello world"
 
 
-# ─── Test 6: v2 JSON lines validate against schema ──────────────────────────
+# ─── Test 3: JSON lines validate against schema ───────────────────────────────
 
-async def test_v2_json_lines_validate_against_schema():
+async def test_json_lines_validate_against_schema():
     jsonschema = pytest.importorskip("jsonschema")
 
     schema_path = (
@@ -156,7 +111,6 @@ async def test_v2_json_lines_validate_against_schema():
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
 
     relay = ChatRelay()
-    relay._protocol_version = 2
     relay._transform_fn = _transform_plain_text_line
     relay._session = _make_drain_session("hello")
 
@@ -169,11 +123,10 @@ async def test_v2_json_lines_validate_against_schema():
         jsonschema.validate(instance=event, schema=schema)
 
 
-# ─── Test 7: v2 sequence is monotonic across events ─────────────────────────
+# ─── Test 4: sequence is monotonic across events ──────────────────────────────
 
-async def test_v2_sequence_monotonic_across_events():
+async def test_sequence_monotonic_across_events():
     relay = ChatRelay()
-    relay._protocol_version = 2
     relay._transform_fn = _transform_plain_text_line
     relay._session = _make_drain_session("line1", "line2", "line3")
 
@@ -183,17 +136,16 @@ async def test_v2_sequence_monotonic_across_events():
     seqs = [d["sequence"] for d in _parse_kind_events(texts) if "sequence" in d]
     assert len(seqs) >= 3
     assert seqs == sorted(seqs), "sequences must be in ascending order"
-    assert len(seqs) == len(set(seqs)), "sequences must be unique (strictly monotonic)"
+    assert len(seqs) == len(set(seqs)), "sequences must be strictly monotonic"
 
 
-# ─── Test 8: v2 EOF emits turn_completed JSON (not raw pipe) ────────────────
+# ─── Test 5: EOF emits turn_completed JSON ────────────────────────────────────
 
-async def test_v2_eof_emits_turn_completed_json():
-    """EOF pipe strings must go through v2 conversion — no raw pipe format in v2 buffer."""
+async def test_eof_emits_turn_completed_json():
+    """Clean EOF must produce turn_completed JSON — no raw pipe strings in buffer."""
     relay = ChatRelay()
-    relay._protocol_version = 2
     relay._transform_fn = _transform_plain_text_line
-    relay._session = _make_drain_session()  # immediate EOF, no content lines
+    relay._session = _make_drain_session()  # immediate EOF
 
     await relay._drain_stdout_loop()
 
@@ -201,15 +153,14 @@ async def test_v2_eof_emits_turn_completed_json():
     kinds = [d["kind"] for d in _parse_kind_events(texts)]
     assert "turn_completed" in kinds, f"Expected turn_completed in kinds, got: {kinds}"
     pipe_strings = [t for t in texts if "|" in t and not t.startswith("{")]
-    assert pipe_strings == [], f"Raw pipe strings found in v2 buffer: {pipe_strings}"
+    assert pipe_strings == [], f"Raw pipe strings found in buffer: {pipe_strings}"
 
 
-# ─── Test 9: v2 buffer contains no pipe-format strings after full drain ──────
+# ─── Test 6: buffer contains no pipe-format strings ──────────────────────────
 
-async def test_v2_buffer_contains_no_pipe_format_strings():
-    """Every item in v2 buffer must be valid JSON with 'kind' field."""
+async def test_buffer_contains_no_pipe_format_strings():
+    """Every item in buffer must be valid JSON with 'kind' field."""
     relay = ChatRelay()
-    relay._protocol_version = 2
     relay._transform_fn = _transform_plain_text_line
     relay._session = _make_drain_session("hello world")
 
@@ -218,14 +169,14 @@ async def test_v2_buffer_contains_no_pipe_format_strings():
     texts = [b.text for b in relay._relay_buf._buf]
     for t in texts:
         parsed = _try_parse(t)
-        assert parsed is not None, f"Non-JSON item in v2 buffer: {t!r}"
-        assert "kind" in parsed, f"Missing 'kind' in v2 buffer item: {t}"
+        assert parsed is not None, f"Non-JSON item in buffer: {t!r}"
+        assert "kind" in parsed, f"Missing 'kind' in buffer item: {t}"
 
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
 
 def _parse_kind_events(texts: list[str]) -> list[dict]:
-    """Return parsed JSON dicts that have a 'kind' field (AgentEvent lines)."""
+    """Return parsed JSON dicts that have a 'kind' field."""
     result = []
     for t in texts:
         parsed = _try_parse(t)

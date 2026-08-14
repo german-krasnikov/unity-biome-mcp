@@ -46,6 +46,7 @@ namespace UnityMCP.Editor.Chat
         private VisualElement      _inputArea;
         private ScrollView         _scroll;
         private InputHeightCalc    _heightCalc = new InputHeightCalc();
+        private string             _capabilities;
 
         [MenuItem("🧬MCP/Chat", priority = 0)]
         public static void ShowWindow()

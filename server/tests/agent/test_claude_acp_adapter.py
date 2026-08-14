@@ -10,7 +10,6 @@ import pytest
 from relay_helpers import mock_sess
 
 from unity_mcp.adapters.claude_acp import ClaudeAcpAdapter, _build_claude_acp_argv
-from unity_mcp.adapters.legacy import LegacyCliAdapter
 from unity_mcp.agent_event import ProviderCapabilities
 from unity_mcp.backend_def import BACKENDS
 from unity_mcp.cli_session import SessionMeta
@@ -155,18 +154,9 @@ async def test_nonzero_exit_emits_error_event() -> None:
     assert "exited 1" in evts[0].payload["message"]
 
 
-# ── Feature flag factory ──────────────────────────────────────────────────────
+# ── Factory: always ACP ───────────────────────────────────────────────────────
 
-def test_make_claude_adapter_flag_set() -> None:
+def test_make_claude_adapter_returns_acp() -> None:
     from unity_mcp.adapters import make_claude_adapter
-    with patch.dict(os.environ, {"UNITY_MCP_ACP_CLAUDE": "1"}):
-        adapter = make_claude_adapter(BACKENDS["claude"], PermissionBroker(mode="ask"))
+    adapter = make_claude_adapter(BACKENDS["claude"], PermissionBroker(mode="ask"))
     assert isinstance(adapter, ClaudeAcpAdapter)
-
-
-def test_make_claude_adapter_flag_unset() -> None:
-    from unity_mcp.adapters import make_claude_adapter
-    env = {k: v for k, v in os.environ.items() if k != "UNITY_MCP_ACP_CLAUDE"}
-    with patch.dict(os.environ, env, clear=True):
-        adapter = make_claude_adapter(BACKENDS["claude"], PermissionBroker(mode="ask"))
-    assert isinstance(adapter, LegacyCliAdapter)

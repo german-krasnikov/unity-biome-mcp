@@ -10,7 +10,6 @@ import pytest
 from relay_helpers import mock_sess
 
 from unity_mcp.adapters.codex_acp import CodexAcpAdapter, _build_codex_acp_argv
-from unity_mcp.adapters.legacy import LegacyCliAdapter
 from unity_mcp.agent_event import ProviderCapabilities
 from unity_mcp.backend_def import BACKENDS
 from unity_mcp.cli_session import SessionMeta
@@ -142,16 +141,9 @@ async def test_permission_allowed_writes_to_stdin() -> None:
 
 # ── Feature flag factory ──────────────────────────────────────────────────────
 
-def test_make_codex_adapter_flag_set() -> None:
+# ── Factory: always ACP ───────────────────────────────────────────────────────
+
+def test_make_codex_adapter_returns_acp() -> None:
     from unity_mcp.adapters import make_codex_adapter
-    with patch.dict(os.environ, {"UNITY_MCP_ACP_CODEX": "1"}):
-        adapter = make_codex_adapter(BACKENDS["codex"], PermissionBroker(mode="ask"))
+    adapter = make_codex_adapter(BACKENDS["codex"], PermissionBroker(mode="ask"))
     assert isinstance(adapter, CodexAcpAdapter)
-
-
-def test_make_codex_adapter_flag_unset() -> None:
-    from unity_mcp.adapters import make_codex_adapter
-    env = {k: v for k, v in os.environ.items() if k != "UNITY_MCP_ACP_CODEX"}
-    with patch.dict(os.environ, env, clear=True):
-        adapter = make_codex_adapter(BACKENDS["codex"], PermissionBroker(mode="ask"))
-    assert isinstance(adapter, LegacyCliAdapter)

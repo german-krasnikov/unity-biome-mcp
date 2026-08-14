@@ -10,7 +10,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.35.0] — 2026-08-15
+
+### Changed
+- **Chat relay ACP-only migration**: Removed legacy v1 pipe protocol support. All chat backends now exclusively use Agent Communication Protocol (ACP) format output. No protocol negotiation or feature flagging; ACP is always-on.
+
+### Removed
+- **Legacy pipe adapter** (`adapters/legacy.py` + LegacyCliAdapter class) — v1 pipe format no longer supported
+- **Plan MCP tools** (`plan_tool.py`) — removed: `plan_create`, `plan_approve`, `plan_reject`, `plan_edit`, `plan_status`
+- **Plan data model** (`plan.py` + `plan_store.py`) — agent-generated action plan storage and workflow
+- **Relay event parser** (C# `RelayEventParser.cs`) — replaced by ACP HandleEvent direct dispatch
+- **Protocol version negotiation** — UNITY_MCP_ACP_* environment flags (OPENCODE, CODEX, CLAUDE) no longer used; ACP required
+
+### Added
+- **Chat UI cards for plan events** (`PlanStepCard.cs`) — visual Approve/Reject buttons for agent-generated plan steps
+- **Extended HandleEvent support** — three new ChatEventKind cases: `PlanUpdate`, `FileChange`, `CapabilitiesChanged`
 
 ## [v1.34.0] — 2026-08-14
 
@@ -3259,5 +3273,6 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.34.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.35.0...HEAD
+[v1.35.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.34.0...v1.35.0
 [v1.34.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.33.0...v1.34.0

@@ -14,7 +14,6 @@ _EXPECTED_TIER1_NONCORE = frozenset({
     "resolve_tool_schema", "run_playtest", "run_playtest_suite", "run_tests", "run_tests_wait",
     "scene", "scene_change_plan", "screenshot", "search_scene", "set_active", "set_parent",
     "sync_unity", "validate_references", "verify_after_change",
-    "plan_status",  # T20: tier1 Python-only plan status tool
 })
 
 _DEMOTED_TOOLS = frozenset({
@@ -28,12 +27,12 @@ def test_core_exact_13():
     assert _CORE_TOOLS == _EXPECTED_CORE
 
 
-def test_tier1_noncore_exact_24():
+def test_tier1_noncore_exact_23():
     assert TIER1 - _CORE_TOOLS == _EXPECTED_TIER1_NONCORE
 
 
 def test_visible_surface_37():
-    assert len(TIER1) == 38  # +1 plan_status (T20)
+    assert len(TIER1) == 37  # plan_status removed (ACP-only migration)
 
 
 def test_promoted_compile_preflight_is_core():

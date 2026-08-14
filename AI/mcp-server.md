@@ -323,12 +323,13 @@ discovery-gated tools show a stub until explicitly enabled in session.
 
 ### Chat Relay Permissions and User Input
 
-Backend-native permission and elicitation events are normalized in `server/src/unity_mcp/stream_transform.py`:
+ACP (Agent Communication Protocol) backend events are normalized server-side in `server/src/unity_mcp/stream_transform.py` and dispatched directly to `MCPChatWindow.HandleEvent()` with no intermediate parser:
 
-- `pp|toolName|requestId|toolInput` for a tool permission prompt
-- `au|requestId|rawJson` for a user question
-
-`RelayEventParser` converts those lines to `ChatEvent` values. The Unity window renders `ToolApprovalCard` or `AskUserCard`, applies Ask/Agent policy, and sends the resulting control payload through `RelayBackend.SendControlResponse()`.
+- `PermissionPrompt` events render `ToolApprovalCard`, apply Ask/Agent policy, and send responses via `RelayBackend.SendControlResponse()`
+- `AskUser` events render `AskUserCard` with user choice collection
+- `PlanUpdate` events render `PlanStepCard` with Approve/Reject buttons for agent plan steps
+- `FileChange` events display brief change notifications
+- `CapabilitiesChanged` events update provider capability state
 
 Do not add backend-native JSON-RPC or stream parsers to the C# window. The canonical architecture is `AI/architecture.md` under **Chat Relay System**.
 

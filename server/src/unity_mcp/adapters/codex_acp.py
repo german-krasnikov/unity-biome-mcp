@@ -1,7 +1,4 @@
-"""CodexAcpAdapter: Codex subprocess in ACP output mode.
-
-Opt-in via UNITY_MCP_ACP_CODEX=1. Default path remains LegacyCliAdapter.
-"""
+"""CodexAcpAdapter: Codex subprocess in ACP output mode."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -56,7 +53,7 @@ def _build_codex_acp_argv(meta: SessionMeta) -> list[str]:
 
 
 class CodexAcpAdapter(AcpAgentAdapter):
-    """Codex subprocess in ACP output mode. Opt-in via UNITY_MCP_ACP_CODEX=1."""
+    """Codex subprocess in ACP output mode."""
 
     def __init__(self, backend: CodexDef, broker: PermissionBroker) -> None:
         super().__init__(backend, broker)

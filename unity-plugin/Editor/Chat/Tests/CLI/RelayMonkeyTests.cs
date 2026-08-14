@@ -1,4 +1,4 @@
-// Monkey / chaos tests for RelayBackend, RelayEventParser, RelaySpawner, RelayChatProcess.
+// Monkey / chaos tests for RelayBackend, RelaySpawner, RelayChatProcess.
 // Goal: find NullReferenceExceptions, resource leaks, and state corruption via edge-case inputs.
 // All tests are fully mocked — no real Python relay required.
 using System;
@@ -34,7 +34,7 @@ namespace UnityMCP.Editor.Chat.Tests
             RelaySpawner.StopForTests();
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────────
 
         private static RelayChatProcess MakeFakeProc(string eventsData = "")
         {
@@ -80,116 +80,6 @@ namespace UnityMCP.Editor.Chat.Tests
             var completed = await Task.WhenAny(signal, Task.Delay(2000));
             Assert.AreSame(signal, completed, timeoutMessage);
             await signal;
-        }
-
-        // ══════════════════════════════════════════════════════════════════════
-        // A. RelayEventParser torture (52 tests)
-        // ══════════════════════════════════════════════════════════════════════
-
-        // A1. Every valid prefix without a pipe → null (sep=-1 → early return)
-        [TestCase("t")][TestCase("tc")][TestCase("tr")][TestCase("pp")][TestCase("au")]
-        [TestCase("tp")][TestCase("d")][TestCase("hb")][TestCase("si")][TestCase("ss")]
-        [TestCase("ar")][TestCase("rl")][TestCase("e")]
-        public void Parse_ValidPrefixNoPipe_ReturnsNull(string s) =>
-            Assert.IsNull(RelayEventParser.Parse(s));
-
-        // A2. Unknown / near-miss prefixes
-        [TestCase("tex|data")][TestCase("tcp|data")][TestCase("T|data")][TestCase("TC|data")]
-        [TestCase("|data")][TestCase("0|data")][TestCase("x|y")][TestCase(" t|data")]
-        [TestCase("t |data")]
-        public void Parse_UnknownPrefix_ReturnsNull(string s) =>
-            Assert.IsNull(RelayEventParser.Parse(s));
-
-        // A3. Valid single-field prefixes with empty rest → event produced
-        [TestCase("t|")][TestCase("e|")][TestCase("ar|")][TestCase("rl|")]
-        [TestCase("si|")][TestCase("ss|")][TestCase("hb|")]
-        public void Parse_ValidPrefixEmptyRest_ReturnsEvent(string s) =>
-            Assert.IsNotNull(RelayEventParser.Parse(s));
-
-        // A4. Multi-field prefixes with too few pipe-separated fields → null
-        [TestCase("tc|")][TestCase("tc|name")][TestCase("tc|name|id")]
-        [TestCase("tr|")][TestCase("tr|id")][TestCase("tr|id|true")]
-        [TestCase("pp|")][TestCase("pp|name")][TestCase("pp|name|id")]
-        [TestCase("au|")][TestCase("tp|")]
-        [TestCase("d|")][TestCase("d|s")][TestCase("d|s|0.01")]
-        public void Parse_TooFewFields_ReturnsNull(string s) =>
-            Assert.IsNull(RelayEventParser.Parse(s));
-
-        // A5. Whitespace-only lines have no pipe → null
-        [TestCase("   ")][TestCase("\t")][TestCase("\n")]
-        public void Parse_WhitespaceOnly_ReturnsNull(string s) =>
-            Assert.IsNull(RelayEventParser.Parse(s));
-
-        // A6. Unicode payload survives round-trip
-        [Test]
-        public void Parse_TextDelta_Unicode_Preserved()
-        {
-            var ev = RelayEventParser.Parse("t|こんにちは🌍");
-            Assert.IsNotNull(ev);
-            Assert.AreEqual("こんにちは🌍", ev.Value.Text);
-        }
-
-        // A7. 10 KB payload — no crash, no truncation
-        [Test]
-        public void Parse_TextDelta_LargePayload_Preserved()
-        {
-            var big = new string('x', 10_000);
-            var ev  = RelayEventParser.Parse("t|" + big);
-            Assert.IsNotNull(ev);
-            Assert.AreEqual(10_000, ev.Value.Text.Length);
-        }
-
-        // A8. Non-numeric pct in tp| → defaults to 0, event still produced
-        [Test]
-        public void Parse_ToolProgress_NonNumericPct_DefaultsToZero()
-        {
-            var ev = RelayEventParser.Parse("tp|notanumber|some text");
-            Assert.IsNotNull(ev);
-            Assert.AreEqual(0f, ev.Value.Percentage, 0.001f);
-            Assert.AreEqual("some text", ev.Value.Text);
-        }
-
-        // A9. Non-numeric tokens in d| → defaults to 0, event still produced
-        [Test]
-        public void Parse_TurnDone_NonNumericFields_DefaultsToZero()
-        {
-            var ev = RelayEventParser.Parse("d|sess|notfloat|notint|notint");
-            Assert.IsNotNull(ev);
-            Assert.AreEqual("sess", ev.Value.SessionId);
-            Assert.AreEqual(0f, ev.Value.CostUsd, 0.001f);
-        }
-
-        // A10. tc| args field containing extra pipes — all remaining content preserved
-        [Test]
-        public void Parse_ToolCall_ArgsContainsExtraPipes_FullArgsPreserved()
-        {
-            var ev = RelayEventParser.Parse("tc|bash|tid1|{\"a\":1}|extra|pipes");
-            Assert.IsNotNull(ev);
-            Assert.AreEqual("{\"a\":1}|extra|pipes", ev.Value.ArgsJson);
-        }
-
-        // A11. Control characters in payload — no crash
-        [Test]
-        public void Parse_TextDelta_ControlChars_DoesNotThrow() =>
-            Assert.DoesNotThrow(() => RelayEventParser.Parse("t|\0\r\t"));
-
-        // A12. Broken JSON-like args in tc| — parsed as string, no crash
-        [Test]
-        public void Parse_ToolCall_BrokenJsonArgs_ReturnedAsIs()
-        {
-            var ev = RelayEventParser.Parse("tc|name|id|{broken json");
-            Assert.IsNotNull(ev);
-            Assert.AreEqual("{broken json", ev.Value.ArgsJson);
-        }
-
-        // A13. tr|id|false|error with pipe in error text
-        [Test]
-        public void Parse_ToolResult_PipeInErrorText_Preserved()
-        {
-            var ev = RelayEventParser.Parse("tr|tid1|false|err|text|more");
-            Assert.IsNotNull(ev);
-            Assert.IsFalse(ev.Value.IsOk);
-            Assert.AreEqual("err|text|more", ev.Value.Text);
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -524,9 +414,10 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public async Task Integration_SessionIdCapturedFromTurnDone()
         {
+            // ACP format: turn_completed with session_id at top level sets SessionId
             var proc = new RelayChatProcess(json =>
                 json.Contains("events")
-                    ? "{\"ok\":true,\"data\":\"0\\nd|test-sess|0.01|10|5\\n\"}"
+                    ? "{\"ok\":true,\"data\":\"0\\n{\\\"kind\\\":\\\"turn_completed\\\",\\\"payload\\\":{},\\\"session_id\\\":\\\"test-sess\\\"}\\n\"}"
                     : "{\"ok\":true,\"data\":\"\"}");
             RelayBackend.ProcessFactory = () => proc;
             var b = Own(new RelayBackend("id", "agent", "m", 0));

@@ -60,11 +60,6 @@ _SPECS: dict[str, ToolSpec] = {
     'checkpoint': ToolSpec(category='SYSTEM'),
     'checkpoint_create': ToolSpec(category='SYSTEM'),   # T19: Python orchestrator, no C# handler
     'checkpoint_restore': ToolSpec(category='SYSTEM'),  # T19: Python orchestrator, no C# handler
-    'plan_create': ToolSpec(category='SYSTEM'),          # T20: Python-only, no C# handler
-    'plan_approve': ToolSpec(category='SYSTEM'),
-    'plan_reject': ToolSpec(category='SYSTEM'),
-    'plan_edit': ToolSpec(category='SYSTEM'),
-    'plan_status': ToolSpec(category='SYSTEM', tier1=True, mutability='read'),
     'brief_build': ToolSpec(category='SYSTEM', mutability='read'),
     # timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
     # timeout=15.0 (fast-fail by design).

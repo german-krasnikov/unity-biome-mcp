@@ -145,6 +145,16 @@ namespace UnityMCP.Editor.Chat
                     if (EditorPrefs.GetBool(PrefKeys.ShowThinkingBlocks, true))
                         _transcript?.AppendThinkingBlock(ev.Text);
                     break;
+                case ChatEventKind.PlanUpdate:
+                    _transcript?.Append(new PlanStepCard(ev.Text, ev.ArgsJson ?? ""));
+                    if (_scroll != null) _scroll.scrollOffset = new UnityEngine.Vector2(0, float.MaxValue);
+                    break;
+                case ChatEventKind.FileChange:
+                    _transcript?.AppendToolChip($"Changed: {ev.Text}", ok: true);
+                    break;
+                case ChatEventKind.CapabilitiesChanged:
+                    _capabilities = ev.State;
+                    break;
             }
         }
 

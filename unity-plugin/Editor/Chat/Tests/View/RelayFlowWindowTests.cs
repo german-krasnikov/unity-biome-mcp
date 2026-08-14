@@ -87,6 +87,12 @@ namespace UnityMCP.Editor.Chat.Tests
             new RelayChatProcess(j => j.Contains("\"cmd\":\"events\"")
                 ? $"{{\"ok\":true,\"data\":\"{JE(d)}\"}}"
                 : "{\"ok\":true,\"data\":\"\"}");
+        static string Q(string s) => "\"" + s.Replace("\\","\\\\").Replace("\"","\\\"") + "\"";
+        static string AsstDelta(string t) => $"{{\"kind\":\"assistant_delta\",\"payload\":{{\"text\":{Q(t)}}}}}";
+        static string CostUpdAcp(string cost, string inTok, string outTok) => $"{{\"kind\":\"cost_update\",\"payload\":{{\"cost_usd\":{Q(cost)},\"input_tokens\":{Q(inTok)},\"output_tokens\":{Q(outTok)}}}}}";
+        static string TurnDoneAcp(string sid) => $"{{\"kind\":\"turn_completed\",\"payload\":{{}},\"session_id\":{Q(sid)}}}";
+        static string AcpErr(string msg) => $"{{\"kind\":\"error\",\"payload\":{{\"message\":{Q(msg)}}}}}";
+        static string SessInitAcp(string id) => $"{{\"kind\":\"session_started\",\"payload\":{{\"provider_session_id\":{Q(id)}}},\"session_id\":{Q(id)}}}";
 
         // ── SetUp / TearDown ──────────────────────────────────────────────────
 
@@ -189,7 +195,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             ResetToIdle();         // CanSend must be true for OnSend
             RestoreRealBackend();  // replace fake with real RelayBackend (uses ProcessFactory)
-            RelayBackend.ProcessFactory = () => Proc(ED("t|Hello from relay", "d|sid|0.01|10|5"));
+            RelayBackend.ProcessFactory = () => Proc(ED(AsstDelta("Hello from relay"), CostUpdAcp("0.01","10","5"), TurnDoneAcp("sid")));
             SetInputText("test message");
             s_send.Invoke(W, null);
             await WaitUntilAsync(
@@ -207,7 +213,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             ResetToIdle();
             RestoreRealBackend();
-            RelayBackend.ProcessFactory = () => Proc(ED("e|Relay error"));
+            RelayBackend.ProcessFactory = () => Proc(ED(AcpErr("Relay error")));
             SetInputText("trigger error");
             s_send.Invoke(W, null);
             await WaitUntilAsync(
@@ -224,7 +230,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             ResetToIdle();
             RestoreRealBackend();
-            RelayBackend.ProcessFactory = () => Proc(ED("si|sess-abc"));
+            RelayBackend.ProcessFactory = () => Proc(ED(SessInitAcp("sess-abc")));
             SetInputText("ping");
             s_send.Invoke(W, null);
             await WaitUntilAsync(() => BackendSessionId() == "sess-abc", DrainAndRender,

@@ -1065,7 +1065,7 @@ Applied by `ApplyFieldsCompress(args, result)` in `CommandRouter.ObjectHandlers.
 
 ### Chat Relay System (v0.66.6+, replaces CliBackendBase + 5 backend variants with unified RelayBackend)
 
-**Architecture:** Python sidecar (`chat_relay.py`) manages single CLI backend lifecycle via output_format discriminator. C# RelayBackend communicates via TCP (same 4-byte BE prefix as MCP bridge). CLI output → pipe-protocol transformer for token efficiency. Role-aware ping distinguishes relay-backed connections from direct MCP probes.
+**Architecture:** Python sidecar (`chat_relay.py`) manages single CLI backend lifecycle via output_format discriminator. C# RelayBackend communicates via TCP (same 4-byte BE prefix as MCP bridge). CLI output → ACP event normalization. Role-aware ping distinguishes relay-backed connections from direct MCP probes. ACP-only: no legacy v1 pipe format fallback or protocol negotiation.
 
 **Python Components:**
 - **backend_def.py** (v0.71.0: shared SERVER_NAME constant, TTL login-shell cache, DRY _run_login_shell helper): Backend definitions with 5 output format types (output_format enum). ClaudeDef (reads_stdin=True, OUTPUT_FORMAT_STREAM_JSON), CodexDef/KimiDef/AgyDef/OpenCodeDef (reads_stdin=False, respective JSON formats). Env vars: UNITY_MCP_PORT passed through env_set for all non-Claude backends. --format flag added to _BLOCKED_FLAGS. Backwards-compat: ANTHROPIC_API_KEY no longer stripped from Claude. **v0.71.0**: SERVER_NAME constant ("unity-biome-mcp", shared with C# PermissionConfig.cs). MCP_BLANKET derived as `f"mcp__{SERVER_NAME}"` = `"mcp__unity-biome-mcp"` (hyphens NOT converted to underscores per MCP convention). **login_shell_path() TTL retry (v0.71.0)**: Successful PATH lookups cached for process lifetime. Failed empty-result cached for 30s TTL (_LOGIN_PATH_RETRY_TTL), then retried — transient shell failures no longer permanently disable PATH prepending. **_run_login_shell() helper (v0.71.0)**: DRY consolidation of shell invocation for both login_shell_path() and _which_via_login_shell(), reducing code duplication and easing future shell command changes.
@@ -1103,8 +1103,8 @@ Applied by `ApplyFieldsCompress(args, result)` in `CommandRouter.ObjectHandlers.
 - **`RelayChatProcess.PollLoop`** requests `events` every 100 ms and reconnects
   with a bounded retry on transport failure. There is no 30-second Chat
   heartbeat in this path.
-- **`RelayEventParser`** converts compact relay events to backend-neutral
-  `ChatEvent` values.
+- **ACP event dispatch:** Incoming ACP events (text_delta, tool_call, tool_result, error, etc.) route directly to `MCPChatWindow.HandleEvent()` with no intermediate parser. New ChatEventKind cases: `PlanUpdate` (agent plan steps), `FileChange` (changed files), `CapabilitiesChanged` (provider capabilities).
+- **`PlanStepCard`** (C# UI component) renders plan steps in chat transcript with Approve/Reject buttons for user decision on agent-generated actions.
 - **`RelaySpawner`** uses `RelayCommandResolver` to choose the local
   venv/uv/Python command or the version-pinned `uvx` console script, then reports
   spawn failures with captured stderr.
@@ -1416,7 +1416,7 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
 - **Debug Subsystem (v0.59.0)** (12 files): MCPDebugPanel, MCPDebugUI (5 partials: WatchRows, EvalBar, AddWatch, ConsolePreview), DebugOverlayDrawer, SparklineHelper, ProfilerHelper, MemoryHelper, AnimatorHelper, PhysicsHelper, WatchEntry, WatchCondition, WatchEvaluator, WatchRegistry, WatchScheduler, WatchCommandHandler (+ 10 test files: WatchEntryTests, WatchRegistryTests, ProfilerHelperTests, SparklineHelperTests, WatchEvaluatorTests, WatchCommandHandlerTests, MCPDebugUITests, WatchConditionTests, MemoryHelperTests, AnimatorHelperTests, PhysicsHelperTests). Stylesheet: MCPDebug.uss.
 - **Chat Module** (130+ files, v0.29.2 split into CLI + View assemblies, v0.66.6 unified RelayBackend):
   - **CLI Assembly** (UnityMCP.Editor.Chat.CLI, protocol + single RelayBackend, compiles independently when main broken):
-    - **Relay Backend (v0.66.6+):** RelayBackend (single implementation, owns RelayChatProcess + SessionState persistence), RelayChatProcess (TCP client to chat_relay.py sidecar), RelayEventParser (pipe-format line → ChatEvent), RelaySpawner (manages relay process lifecycle, free port discovery). Replaces 5 old CliBackendBase subclasses (Claude, Codex, Kimi, Agy, OpenCode now managed server-side). Zero CLI-specific knowledge — semantic commands only. SessionId persisted to SessionState across domain reloads.
+    - **Relay Backend (v0.66.6+, ACP-only):** RelayBackend (single implementation, owns RelayChatProcess + SessionState persistence), RelayChatProcess (TCP client to chat_relay.py sidecar), RelaySpawner (manages relay process lifecycle, free port discovery). ACP event dispatch: incoming agent events route directly to MCPChatWindow.HandleEvent() with no intermediate parser. Replaces 5 old CliBackendBase subclasses (Claude, Codex, Kimi, Agy, OpenCode now managed server-side). Zero CLI-specific knowledge — semantic commands only. SessionId persisted to SessionState across domain reloads.
     - **Infrastructure:** ChatEvent (13 types: TextDelta, Error, AutoReply, RateLimit, SessionInit, Heartbeat, SessionState, ToolStart, ToolResult, PermissionPrompt, AskUser, ToolProgress, Done), ChatTranscript, IChatBackend, ChatBinaryResolver, ChatMcpConfigWriter, PendingTurnState, ReloadGuard, SentTextCache, StderrRingBuffer, ToolCallAccumulator
     - **Tools & Input:** ToolVerbMap, ToolCallRecord, ToolChipGrouper, ToolDetailBuilder, ToolGroupState, ToolGroupSummary, UserTurnBuilder, UserToolResultParser
     - **Backend Configuration (v1.31.0):** ModelPresets (preset entries with contextWindow field, SetOverrides cache, ForDropdown API), ModelContextWindows (per-model context window configuration), BackendSettingsForm (ListView for model presets, reorderable, add/remove), ChatSettingsSection (model presets wiring for all 5 backends)
@@ -1424,14 +1424,14 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
     - **Chip Infrastructure (shared):** ChipContextResolver, ChipKindDetector, InlineChipData, InlineChipModel, ChipPillFactory, BareNameNormalizer
     - **Chip Providers (v0.59.0):** PropertyContextMenuBridge (Inspector context menu), ComponentChipProvider (component-level chip), FieldChipProvider (single-field chip), ChipPropertyFormatter (DRY serialized property rendering)
   - **View Assembly** (UnityMCP.Editor.Chat.View, UI rendering, depends on CLI):
-    - **Windows & Cards:** MCPChatWindow (10 partials: Drain, FlowBar, Chips, InlineChips, Selector, Approve, Slash, Session, Resize, Send), RestoreButton, TurnUndoTracker, SelectionSummary, CompileAutoFix, EditorStateSnapshot, ToolPing, **ToolApprovalCard** (RiskClassifier, SessionAllowlist), **AskUserCard** (radio/checkbox/freetext)
+    - **Windows & Cards:** MCPChatWindow (11 partials: Drain, FlowBar, Chips, InlineChips, Selector, Approve, Slash, Session, Resize, Send, EventHandlers), RestoreButton, TurnUndoTracker, SelectionSummary, CompileAutoFix, EditorStateSnapshot, ToolPing, **ToolApprovalCard** (RiskClassifier, SessionAllowlist), **AskUserCard** (radio/checkbox/freetext), **PlanStepCard** (Approve/Reject buttons for agent plan steps)
     - **Response Rendering:** ResponseTagInliner, MixedParagraphRenderer (paragraph pills), RefParser (ref parsing for response pills)
     - **UX/Formatting (View-specific):** EnterKeySend, EnterKeyLogic, ChatRefAction, CopyTextBuilder, InputHeightCalc, TokenFormat
     - **Rendering:** Markdown/ (MdBlock, MarkdownParser, MarkdownParser.Blocks, MarkdownInline, IChatBlockRenderer, ChatBlockRendererRegistry, ChatBlockRendererFactory, MarkdownBlockRenderer, MarkdownBlockRenderer.Table, MarkdownBlockRenderer.List, ImageBlockRenderer, ChatLinkify), Mermaid/ (MermaidGraph, MermaidParser, MermaidLayout, MermaidLayout.Layers, MermaidBlockRenderer, MermaidView, MermaidEdgePainter)
     - **Styling:** MCPChatWindow.uss, ApproveButtonFactory, ApproveHelper
   - **Test Suites (v0.66.6+, 300+ new relay tests)** (60+ NUnit files, split by assembly):
-    - CLI tests (RelayBackendTests, RelayEventParserTests, RelayBackendConstructionMonkeyTests, RelayBackendDrainMonkeyTests, RelayChatProcessTests, RelaySpawnerTests, ToolVerbMapTests, PendingTurnStateTests, SentTextCacheTests, ArgTokenizerTests, ArgQuotingTests, BackendConfigStoreTests, ChatActivityStateTests, ChatMcpConfigWriterTests, ChatBinaryResolverTests, ChipContextResolverTests, ChipKindDetectorTests, BareNameNormalizerTests)
-    - View tests (ToolApprovalCardTests, AskUserCardTests, EnterKeySendTests, RestoreButtonTests, TurnUndoTrackerTests, SlashRegistryTests, SlashPopupTests, InlineChipModelTests, InlineChipFieldTests, ChipPillFactoryTests, ChipDisplayOverrideTests, ApproveFlowTests, ResponseTagInlinerTests, ResponseTagPillTests, MixedParagraphRendererTests, NewSessionTests, TokenResetTests, SelectionSummaryTests, NormalizationPipelineTests, Markdown/Mermaid render tests, ChatLinkifyTests)
+    - CLI tests (RelayBackendTests, RelayBackendConstructionMonkeyTests, RelayBackendDrainMonkeyTests, RelayChatProcessTests, RelaySpawnerTests, HandleEventAcpCardsTests, ToolVerbMapTests, PendingTurnStateTests, SentTextCacheTests, ArgTokenizerTests, ArgQuotingTests, BackendConfigStoreTests, ChatActivityStateTests, ChatMcpConfigWriterTests, ChatBinaryResolverTests, ChipContextResolverTests, ChipKindDetectorTests, BareNameNormalizerTests)
+    - View tests (ToolApprovalCardTests, AskUserCardTests, PlanStepCardTests, EnterKeySendTests, RestoreButtonTests, TurnUndoTrackerTests, SlashRegistryTests, SlashPopupTests, InlineChipModelTests, InlineChipFieldTests, ChipPillFactoryTests, ChipDisplayOverrideTests, ApproveFlowTests, ResponseTagInlinerTests, ResponseTagPillTests, MixedParagraphRendererTests, NewSessionTests, TokenResetTests, SelectionSummaryTests, NormalizationPipelineTests, Markdown/Mermaid render tests, ChatLinkifyTests)
 
 ## TDD Scenarios (for Developer)
 
@@ -1553,13 +1553,10 @@ Unified multi-provider agent relay with canonical event stream, session authoriz
 
 **Architecture**: Abstract adapter pattern for CLI-based backends.
 - **Protocol layer**: `adapters/protocol.py` — EventContext, AcpPayload, shared defs
-- **ACP (Agent Communication Protocol) adapters**:
+- **ACP (Agent Communication Protocol) adapters** (ACP-only, no legacy fallback):
   - `acp.py` — Claude/OpenCode subprocess launched with `--format acp`, event-streaming output
   - `acp_parser.py` — Line-by-line parser: timestamp extraction, event kind dispatch, delta aggregation
   - `claude_acp.py`, `codex_acp.py` — Provider-specific credential/model routing
-- **Legacy support**:
-  - `legacy.py` — LegacyCliAdapter: stream-json relay (backward-compatible)
-  - `pipe_parser.py` — Pipe-protocol parser
 - **Testing**: `fixture.py` — FixtureAdapter: deterministic in-process event generation
 
 **Provider-specific event filtering** — `AgentEvent._PROVIDER_EVENT_KINDS` dict limits event subset per backend (Claude gets all 16 kinds, Codex excludes `thought_delta`/`session_resumed`, etc.). Unknown providers fall back to full list.

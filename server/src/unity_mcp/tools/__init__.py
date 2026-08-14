@@ -26,7 +26,6 @@ from . import (
     objects,
     packages,
     permission_prompt_tool,
-    plan_tool,
     profiling,
     rendering,
     runtime,
@@ -69,5 +68,4 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     budget_tool.register(mcp, send, args)
     changeset_tool.register(mcp, send, args)
     checkpoint_tool.register(mcp, send, args)
-    plan_tool.register(mcp, send, args)
     brief_tool.register(mcp, send, args)

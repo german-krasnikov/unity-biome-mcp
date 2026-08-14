@@ -1,7 +1,4 @@
-"""ClaudeAcpAdapter: claude-agent-acp subprocess in ACP output mode.
-
-Opt-in via UNITY_MCP_ACP_CLAUDE=1. Default path remains LegacyCliAdapter.
-"""
+"""ClaudeAcpAdapter: claude-agent-acp subprocess in ACP output mode."""
 from __future__ import annotations
 
 import tempfile
@@ -40,10 +37,7 @@ def _build_claude_acp_argv(meta: SessionMeta) -> list[str]:
 
 
 class ClaudeAcpAdapter(AcpAgentAdapter):
-    """claude-agent-acp subprocess in ACP output mode.
-
-    Opt-in via UNITY_MCP_ACP_CLAUDE=1. Default path is LegacyCliAdapter.
-    """
+    """claude-agent-acp subprocess in ACP output mode."""
 
     def __init__(self, backend: ClaudeAcpDef, broker: PermissionBroker) -> None:
         super().__init__(backend, broker)

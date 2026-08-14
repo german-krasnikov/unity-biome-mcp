@@ -264,8 +264,8 @@ When backends emit thinking blocks (e.g., Claude with `extended_thinking`), Chat
 - Emits `th|<text>` pipe-protocol messages
 - Accumulates thinking text until block completes
 
-**C# Side (ChatTranscript / RelayEventParser):**
-- Parses `th|` events → creates `ThinkingBlock` with accumulated text
+**C# Side (MCPChatWindow.HandleEvent):**
+- ACP `thinking` events → creates `ThinkingBlock` with accumulated text
 - Renders as collapsible Foldout: `▶ Reasoning…` (user can expand to read full text)
 - Default state: collapsed
 - Ephemeral: not persisted in transcript after domain reload
@@ -413,7 +413,7 @@ unity-plugin/Editor/Chat/
 ├── CLI/                              # Relay protocol, backend configuration, shared chat models
 │   ├── IChatBackend.cs               # Backend interface
 │   ├── RelayBackend.cs               # Only C# backend implementation
-│   ├── RelayChatProcess.cs, RelaySpawner.cs, RelayEventParser.cs
+│   ├── RelayChatProcess.cs, RelaySpawner.cs
 │   ├── BackendRegistry.cs            # Backend factory + enum
 │   ├── ChatEvent.cs                  # Normalized event struct
 │   ├── ChatBinaryResolver.cs         # Binary PATH resolution
@@ -455,7 +455,7 @@ Internal C# models are structs and plain text strings. JSON is limited to protoc
 
 - **Unity → relay** — command envelopes for start, send, control response, and mode changes
 - **Backend → relay** — backend-native JSON or text, normalized in Python
-- **Relay → Unity** — compact pipe-protocol events parsed by `RelayEventParser`
+- **Relay → Unity** — ACP events dispatched directly to `MCPChatWindow.HandleEvent()` with no parser
 - **MCP configuration** — backend-specific JSON or TOML generated in Python
 
 All Unity-side rendering uses `ChatEvent`, transcript models, and plain text rather than backend-native protocol objects.
