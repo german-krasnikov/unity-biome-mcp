@@ -1545,6 +1545,179 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
 - **Green: 3945** (5 pre-existing reds, same as v0.42.0)
 - **Python pytest**: see CLAUDE.md Commands section for live count and exact test command
 
+## Chat Core System (T9-T24)
+
+Unified multi-provider agent relay with canonical event stream, session authorization, and workflow coordination.
+
+### Multi-Provider Agent Relay (adapters/)
+
+**Architecture**: Abstract adapter pattern for CLI-based backends.
+- **Protocol layer**: `adapters/protocol.py` — EventContext, AcpPayload, shared defs
+- **ACP (Agent Communication Protocol) adapters**:
+  - `acp.py` — Claude/OpenCode subprocess launched with `--format acp`, event-streaming output
+  - `acp_parser.py` — Line-by-line parser: timestamp extraction, event kind dispatch, delta aggregation
+  - `claude_acp.py`, `codex_acp.py` — Provider-specific credential/model routing
+- **Legacy support**:
+  - `legacy.py` — LegacyCliAdapter: stream-json relay (backward-compatible)
+  - `pipe_parser.py` — Pipe-protocol parser
+- **Testing**: `fixture.py` — FixtureAdapter: deterministic in-process event generation
+
+**Provider-specific event filtering** — `AgentEvent._PROVIDER_EVENT_KINDS` dict limits event subset per backend (Claude gets all 16 kinds, Codex excludes `thought_delta`/`session_resumed`, etc.). Unknown providers fall back to full list.
+
+**Event emission lifecycle**: subprocess stdout → ACP parser → AgentEvent envelope → serialization → chat relay consumer.
+
+### Session Identity & Authorization (T5)
+
+**SessionIdentity** — per-connection contract:
+- `session_id`: UUID, stable across bridge reconnects
+- `lock_token`: opaque string for lockfile metadata + permission verification
+- `agent_id`: agent tool agent name (if subagent invoked)
+- `display_name`: user-facing session label
+- `started_at_utc`: session birth timestamp
+
+**ClientHelloPayload** — initial TCP handshake combines all session metadata in one frame. Backward-compatible fallback to legacy 3-roundtrip project check + get_version for old C# clients.
+
+**PermissionBroker** — per-session MCP tool consent management:
+- Receives `permission_prompt` events from relay
+- Caches user decisions per tool per session (ephemeral, SessionState-based)
+- Blocks tool execution until consent granted (or auto-approves trusted tools)
+
+**GlobalConfig** — server-wide settings:
+- Model presets (context window, cost per token)
+- Backend selection (Claude, Codex, Kimi, Agy, OpenCode)
+- Feature flags (ACP mode enablement, relay behavior)
+
+### Context Briefs (Brief + BriefBuilder)
+
+**Brief** — lightweight context envelope returned on-demand:
+```
+{
+  compile_errors: [],      # from get_compile_errors
+  console_errors: [],      # recent console.Error entries
+  hierarchy_summary: "",   # get_hierarchy(depth=3) text snapshot
+  selection: [],           # current scene selection
+  profiler_metrics: {...}  # CPU/GPU/memory/draw calls
+}
+```
+
+**BriefBuilder** — lazy assembly:
+- `build(scope='full'|'compact'|'minimal')` — configurable detail level
+- Prefetch compile status + probe hierarchy in parallel
+- Profiler snapshot via ProfilerBridge (non-blocking ring buffer)
+- Returns Brief or ToolError if compile unstable
+
+**Usage**: Injected on first agent turn + available as explicit `brief` MCP tool.
+
+### Atomic Transactions (Changeset)
+
+**Changeset** — group related mutations with automatic rollback on failure:
+- `mutations: List[MutationRecord]` — each tool call + response
+- `files: Dict[str, BeforeAfter]` — changed asset paths + diffs
+- `journal: TransactionJournal` — audit trail (timestamp, actor, change reason)
+
+**ChangesetCoordinator** — transaction orchestration:
+- `begin()` → capture baseline state
+- `apply(commands)` → execute batch with change tracking
+- `commit() | rollback()` → finalize or undo atomically
+
+**ChangesetStore** — persistent transaction history:
+- JSONL format: timestamp-indexed entries
+- Query: `by_date(start, end)`, `by_actor(agent_id)`, `by_scope(scene|asset|component)`
+- Retention: configurable (default 30-day archive)
+
+### Checkpoints (Checkpoint + CheckpointStore)
+
+**Checkpoint** — full scene state snapshot:
+- Scene asset references (paths)
+- GameObject hierarchy + components + properties
+- Asset state (prefabs, scriptable objects, textures)
+- Metadata: name, timestamp, actor, reason
+
+**CheckpointManifest** — consistency guard:
+- Checksums per scene/asset/component
+- Detects partial save failures (rollback if mismatch)
+- Forward-compatible: unknown fields preserved
+
+**CheckpointStore** — save/load/list operations:
+- `save(name, reason)` → checkpoint_id (UUID)
+- `load(checkpoint_id, verify=true)` → atomic rollback
+- `list()` → paginated snapshot inventory
+- Cleanup: TTL expiry (default 90 days) + user deletions
+
+### Plan Workflow (Plan + PlanStore)
+
+**Plan** — agent-generated action plan:
+```
+{
+  id: UUID,
+  goal: "Create player health system",
+  steps: [
+    { tool: "create_object", args: {...}, rationale: "Base player prefab" },
+    { tool: "manage_component", args: {...} },
+    ...
+  ],
+  approval_state: "pending" | "approved" | "rejected",
+  expires_at: timestamp
+}
+```
+
+**Plan lifecycle**:
+- Agent creates via `plan_tool.create(goal, steps)`
+- User approves/rejects via UI or `plan_tool.approve/reject(plan_id)`
+- `apply_scene_change(plan_id)` executes approved plan as ChangeSet
+- TTL cleanup: unapproved plans expire after 10 minutes
+
+**PlanStore** — plan persistence:
+- Query: `by_status(approved|rejected|pending)`, `by_agent(agent_id)`
+- Metadata: agent intent, estimated complexity, cost prediction
+
+### Conversation History (history/)
+
+**HistoryEntry** — canonical message unit:
+- `kind: 'user' | 'assistant' | 'tool'` — message source
+- `timestamp: datetime` — UTC millisecond precision
+- `metadata: dict` — tool name, cost tokens, model used, etc.
+
+**HistoryStore** — JSONL-based persistence:
+- One entry per line, 5-column format: `kind|timestamp|text|metadata|attachments`
+- Atomic append (no partial reads)
+- Backward-compatible: unknown columns ignored
+
+**HistoryManager** — lifecycle coordination:
+- Lazy load from disk on first access
+- Auto-trim on exceeds max entries (default 500)
+- Auto-archive on exceeds max size (default 50MB)
+- Retention policies: time-based (30-day default) + count-based (500 default)
+
+**Retention** — configurable eviction:
+- `TimeBasedRetention` — delete entries older than N days
+- `CountBasedRetention` — keep only most recent N entries
+- `CompositeRetention` — apply multiple policies
+- On-demand: `cleanup()` executes eviction policies
+
+### Four New MCP Tools
+
+1. **`brief`** — get on-demand scene context
+   - Parameters: `scope` (full|compact|minimal)
+   - Returns: compile status, console errors, hierarchy snapshot, profiler metrics
+   - Tier: TIER1, category: SYSTEM, read-only
+
+2. **`changeset`** — query transaction history
+   - Actions: `status` (query current), `list` (by date/actor), `replay` (reapply past changeset)
+   - Returns: mutations, file diffs, journal entries
+   - Tier: TIER1, category: SCENE, read-only
+
+3. **`checkpoint`** — manage scene snapshots
+   - Actions: `save`, `load`, `list`, `delete`
+   - Parameters: name, reason (for audit trail)
+   - Returns: checkpoint_id or loaded state
+   - Tier: TIER1, category: SCENE, read/write
+
+4. **`plan`** — manage agent action plans
+   - Actions: `create`, `list`, `approve`, `reject`, `edit`, `cancel`
+   - Returns: plan_id, approval status, step details
+   - Tier: TIER1, category: SYSTEM, read/write
+
 ## Related
 
 - Skills: `.claude/skills/`

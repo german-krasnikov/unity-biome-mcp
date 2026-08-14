@@ -114,7 +114,40 @@ unity-biome-mcp/
 │   │   ├── debug/              # Debug subsystem (v0.59.0: state capture + watch system)
 │   │   │   ├── __init__.py
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
-│   │   ├── tools/              # Tool modules (46 files + __init__, pipeline-gap sprint: +build.py, +packages.py; playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
+│   │   ├── adapters/           # Multi-provider agent relay (Chat Core, T9-T24)
+│   │   │   ├── __init__.py
+│   │   │   ├── protocol.py     # Shared protocol defs: EventContext, AcpPayload
+│   │   │   ├── acp.py          # AcpAgentAdapter: Claude/OpenCode subprocess in ACP output mode (--format acp)
+│   │   │   ├── acp_parser.py   # ACP line parser: timestamp/kind/delta/data extraction
+│   │   │   ├── claude_acp.py   # Claude-specific ACP adapter
+│   │   │   ├── codex_acp.py    # Codex-specific ACP adapter
+│   │   │   ├── legacy.py       # LegacyCliAdapter: stream-json relay (backward compat)
+│   │   │   ├── pipe_parser.py  # Pipe-protocol parser (legacy)
+│   │   │   └── fixture.py      # FixtureAdapter for testing + deterministic relay validation
+│   │   ├── agent_event.py      # AgentEvent canonical envelope: 16+ event kinds, provider-specific filtering, forward-compatible schema
+│   │   ├── session_identity.py # SessionIdentity: session_id, lock_token, agent_id, display_name, timestamps
+│   │   ├── permission_broker.py # PermissionBroker: per-session MCP tool permission prompts + consent caching
+│   │   ├── global_config.py    # GlobalConfig singleton: model presets, backend selection, feature flags
+│   │   ├── brief.py            # Brief dataclass: scene context envelope (compile_errors, console, hierarchy, selection, profiler)
+│   │   ├── brief_builder.py    # BriefBuilder: on-demand context assembly from scene state + profiler metrics
+│   │   ├── changeset.py        # Changeset: atomic multi-command transaction model
+│   │   ├── changeset_coordinator.py # ChangesetCoordinator: transaction orchestration + mutation tracking
+│   │   ├── changeset_file_capture.py # File snapshot capture for ChangeSet (before/after diff)
+│   │   ├── changeset_journal.py # Transaction journal: mutation audit log
+│   │   ├── changeset_store.py  # ChangesetStore: persistent transaction storage
+│   │   ├── checkpoint.py       # Checkpoint: full scene state snapshot model
+│   │   ├── checkpoint_manifest.py # CheckpointManifest: consistency verification (asset/object/component checksums)
+│   │   ├── checkpoint_store.py # CheckpointStore: save/load/list checkpoint operations
+│   │   ├── checkpoint_restore.py # CheckpointRestore: snapshot rollback with state verification
+│   │   ├── plan.py             # Plan: agent-generated action plan with approval workflow + TTL
+│   │   ├── plan_store.py       # PlanStore: plan persistence + expiry management
+│   │   ├── history/            # Conversation history management (Chat Core)
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py       # HistoryEntry dataclass: kind (User/Assistant/Tool), timestamp, metadata
+│   │   │   ├── store.py        # HistoryStore: JSONL-based conversation persistence
+│   │   │   ├── manager.py      # HistoryManager: store + model lifecycle + retention coordination
+│   │   │   └── retention.py    # Retention policies: time-based, count-based, TTL eviction
+│   │   ├── tools/              # Tool modules (50 files + __init__, Chat Core: +brief_tool.py, +changeset_tool.py, +checkpoint_tool.py, +plan_tool.py; pipeline-gap sprint: +build.py, +packages.py; playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
 │   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 154 entries (148 user-visible + 6 _INTERNAL)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
@@ -128,6 +161,10 @@ unity-biome-mcp/
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
 │   │   │   ├── transaction.py  # scene_change_plan + apply_scene_change: pre-flight (compile/console/resolve_scene_refs/checkpoint) → plan_id (TTL 600s) → guarded apply with verify + save (playtests ROI sprint)
 │   │   │   ├── verify.py       # verify_after_change: 5-gate additive pipeline (await_compile → get_compile_errors → console_since → run_tests_wait → run_playtest_suite); returns PASS or FAIL with skipped gates listed (playtests ROI sprint)
+│   │   │   ├── brief_tool.py   # brief MCP tool: on-demand context brief retrieval (compile status, console errors, hierarchy, profiler metrics) (Chat Core)
+│   │   │   ├── changeset_tool.py # changeset MCP tool: query atomic transaction history + mutations (Chat Core)
+│   │   │   ├── checkpoint_tool.py # checkpoint MCP tool: save/load/list scene checkpoints with manifest validation (Chat Core)
+│   │   │   ├── plan_tool.py    # plan MCP tool: create/approve/reject/edit agent action plans with TTL cleanup (Chat Core)
 │   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/clone_object/set_material; get_component+inspect accept compress=True (v0.78.9)
 │   │   │   ├── scene.py        # scene, hierarchy, search + save_session/load_session/screenshot_baseline/screenshot_compare (merged from scene_session.py v0.79.1; multi-scene support)
 │   │   │   ├── console.py      # get_console, get_compile_errors split from scene.py (v0.70.0); playtests ROI sprint: +console_mark (timestamp watermark, pure Python), +get_console_since (logs after watermark)
@@ -201,6 +238,39 @@ unity-biome-mcp/
 │       ├── test_bridge_role.py             # Client role/identification: UNITY_MCP_CLIENT env, set_client_label, RoleToLabel (3 tests, v0.78.5)
 │       ├── test_bridge_retry.py            # RetryPolicy unit tests: decide(), allow_hint_retry, is_retry_safe gate (v0.90.0)
 │       ├── test_client_hello.py            # T5: client_hello handshake (8 tests): fast-path hello response, fallback to legacy project check, version parsing from hello, backward compat new↔old protocol
+│       ├── agent/                          # Chat Core adapter + event tests (T9-T24)
+│       │   ├── test_acp_adapter.py         # ACP adapter: --format acp subprocess, event parsing, provider filtering
+│       │   ├── test_acp_parser.py          # ACP line parser: timestamp/kind/delta/data extraction
+│       │   ├── test_adapters.py            # Multi-adapter registration + routing
+│       │   ├── test_agent_event.py         # AgentEvent envelope: event kinds, schema versioning, forward compat
+│       │   ├── test_claude_acp_adapter.py  # Claude ACP specifics
+│       │   ├── test_codex_acp_adapter.py   # Codex ACP specifics
+│       │   ├── test_fixture_adapter.py     # FixtureAdapter: deterministic testing
+│       │   └── test_pipe_parser.py         # Pipe-protocol parser (legacy)
+│       ├── changesets/                     # Chat Core changeset + checkpoint tests
+│       │   ├── test_changeset.py           # Changeset transaction model + coordination
+│       │   ├── test_changeset_file_capture.py # File snapshot capture + diff
+│       │   ├── test_changeset_store.py     # ChangeSet persistence + query
+│       │   ├── test_checkpoint.py          # Checkpoint model + manifest
+│       │   ├── test_checkpoint_manifest.py # Checksum consistency verification
+│       │   ├── test_checkpoint_restore.py  # State rollback + recovery
+│       │   ├── test_checkpoint_store.py    # Checkpoint save/load/list
+│       │   ├── test_checkpoint_tool.py     # checkpoint MCP tool integration
+│       │   ├── test_get_changeset_tool.py  # changeset MCP tool integration
+│       │   └── test_session_identity.py    # SessionIdentity: session_id, lock_token, agent_id tracking
+│       ├── test_brief.py                   # Brief context envelope model
+│       ├── test_brief_builder.py           # BriefBuilder: on-demand context assembly
+│       ├── test_brief_tool.py              # brief MCP tool integration
+│       ├── test_global_config.py           # GlobalConfig singleton: model presets, backend selection
+│       ├── test_history_manager.py         # HistoryManager: store + lifecycle coordination
+│       ├── test_history_models.py          # HistoryEntry dataclass + serialization
+│       ├── test_history_retention.py       # Retention policies: TTL eviction, count limits
+│       ├── test_history_store.py           # JSONL store: persistence + recovery
+│       ├── test_permission_broker.py       # PermissionBroker: per-session consent + caching
+│       ├── test_plan.py                    # Plan model: approval/rejection workflow + TTL
+│       ├── test_plan_store.py              # PlanStore: persistence + expiry
+│       ├── test_plan_tool.py               # plan MCP tool integration
+│       ├── test_chat_relay_v2.py           # Chat relay v2 protocol + schema validation
 │       ├── test_connection_status.py       # Semantic connection status: connected/reconnecting/domain-reloading/disconnected (v0.78.10)
 │       ├── test_lockfile.py             # PID lockfile + cleanup_stale_port_files (additions, v0.52.6); T5: +3 tests for write_lock_metadata/read_lock_metadata
 │       ├── test_server_control.py       # list_servers, stop_server SIGTERM/taskkill (v0.55.10)
