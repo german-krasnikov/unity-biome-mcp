@@ -35,45 +35,102 @@ def _handle_sigterm(signum, frame) -> None:
     os._exit(0)
 
 # --- Idle watchdog ---
-_last_activity: float = time.monotonic()
+_last_useful_activity: float = time.monotonic()
+_last_transport_activity: float = time.monotonic()
+_in_flight_count: int = 0
 
 
-def _touch_activity() -> None:
-    """Update last-activity timestamp. Call before every MCP tool dispatch."""
-    global _last_activity
-    _last_activity = time.monotonic()
+def _touch_useful_activity() -> None:
+    """Update last-useful-activity timestamp. Called before every MCP tool dispatch."""
+    global _last_useful_activity
+    _last_useful_activity = time.monotonic()
 
+
+def _touch_transport_activity() -> None:
+    """Update last-transport-activity timestamp. Called on heartbeat pings."""
+    global _last_transport_activity
+    _last_transport_activity = time.monotonic()
+
+
+# Backward-compat alias — some tests and callers use the old name.
+_touch_activity = _touch_useful_activity
 
 _watchdog_stop: threading.Event = threading.Event()
 
 
 def _start_idle_watchdog() -> threading.Thread | None:
-    """Start daemon thread that calls os._exit(0) after UNITY_MCP_IDLE_TIMEOUT seconds of inactivity.
-    Returns None if timeout=0 (disabled)."""
-    timeout = int(os.environ.get("UNITY_MCP_IDLE_TIMEOUT", "300"))
-    if timeout <= 0:
+    """Start daemon thread that exits after idle timeout. Returns None if both timeouts are 0.
+
+    UNITY_MCP_IDLE_TIMEOUT     — orphan path: exit only when parent is dead (GlobalConfig).
+    UNITY_MCP_USEFUL_IDLE_TIMEOUT — subagent path: exit regardless of parent (default 0 = off).
+    Config is reloaded every 10 cycles (~300s) to pick up runtime changes.
+    """
+    from .global_config import GlobalConfig
+    config = GlobalConfig.load()
+    timeout, _ = config.effective_idle_timeout_s()
+    try:
+        subagent_timeout = int(os.environ.get("UNITY_MCP_USEFUL_IDLE_TIMEOUT", "0"))
+    except ValueError:
+        subagent_timeout = 0
+    if timeout <= 0 and subagent_timeout <= 0:
         return None
 
     _watchdog_stop.clear()
 
     def _loop():
+        nonlocal config
+        cycle_count = 0
         # N2: check stop event for clean exit in tests (no unhandled exception warnings).
         while not _watchdog_stop.is_set():
             time.sleep(30)
             if _watchdog_stop.is_set():
                 return
-            idle = time.monotonic() - _last_activity
-            if idle > timeout:
+            cycle_count += 1
+            if cycle_count % 10 == 0:
+                config = GlobalConfig.load()
+            if _in_flight_count > 0:
+                continue  # in-flight guard: don't count idle while a tool call is running
+            idle = time.monotonic() - _last_useful_activity
+            loop_timeout, _ = config.effective_idle_timeout_s()
+            # Path A: subagent timeout — exits regardless of parent liveness.
+            if subagent_timeout > 0 and idle > subagent_timeout:
+                log.warning("idle watchdog: subagent idle=%.0fs >= useful_timeout=%ds, exiting", idle, subagent_timeout)
+                logging.shutdown()
+                os._exit(0)
+            # Path B: orphan — exit only when parent is dead.
+            if loop_timeout > 0 and idle > loop_timeout:
                 from .bridge_heartbeat import _ORIGINAL_PPID
                 if os.getppid() == _ORIGINAL_PPID:
+                    auto_suspend, _ = config.effective_auto_suspend()
+                    if auto_suspend:
+                        _schedule_dormant(idle, loop_timeout)
                     continue  # parent alive — don't kill; remain as orphan-reaper only
-                log.warning("idle watchdog: parent dead + idle=%.0fs >= timeout=%ds, exiting", idle, timeout)
+                log.warning("idle watchdog: parent dead + idle=%.0fs >= timeout=%ds, exiting", idle, loop_timeout)
                 logging.shutdown()
                 os._exit(0)
 
     t = threading.Thread(target=_loop, daemon=True, name="unity-biome-mcp-idle-watchdog")
     t.start()
     return t
+
+
+def _schedule_dormant(idle: float, timeout: float) -> None:
+    """Schedule bridge suspension on the asyncio event loop (called from watchdog thread)."""
+    loop = _sigterm_state.get("loop")
+    if loop is None or not loop.is_running():
+        return
+
+    async def _do_dormant() -> None:
+        if time.monotonic() - _last_useful_activity < timeout:
+            return  # TOCTOU guard: fresh activity arrived since the watchdog woke
+        b = slot.bridge if slot else None
+        if b is None or not b.connected:
+            return
+        suspended = await b.suspend()
+        if suspended:
+            log.info("bridge dormant after %.0fs idle", idle)
+
+    asyncio.run_coroutine_threadsafe(_do_dormant(), loop)
 
 
 from contextlib import asynccontextmanager, suppress
@@ -112,7 +169,7 @@ class _UnstructuredMCP(FastMCP):
 
 from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
-from .lockfile import acquire_lock, cleanup_stale_locks, release_lock
+from .lockfile import acquire_lock, cleanup_stale_locks, release_lock, write_lock_metadata
 from .middleware import Middleware, wrap_send
 from .plugins import load_plugins
 from .server_filtering import (
@@ -389,10 +446,16 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
 
 
 async def _send(cmd: str, args: dict, timeout: float = 0) -> str:
-    _touch_activity()
-    if _wrapped_send is not None:
-        return await _wrapped_send(cmd, args, timeout=timeout)
-    return await _send_raw(cmd, args, timeout)
+    global _in_flight_count
+    _touch_useful_activity()
+    _touch_transport_activity()
+    _in_flight_count += 1
+    try:
+        if _wrapped_send is not None:
+            return await _wrapped_send(cmd, args, timeout=timeout)
+        return await _send_raw(cmd, args, timeout)
+    finally:
+        _in_flight_count -= 1
 
 
 def _args(**kwargs) -> dict:
@@ -449,6 +512,23 @@ async def lifespan(app):
         manager = slot  # backward-compat alias
         _middleware = build_middleware(_send_raw)
         _budget_tracker, _budget_router = init_budget(_middleware)
+        # T15/T16: ChangeSet coordinator + content store
+        from .changeset_coordinator import init_coordinator as _init_coordinator
+        _init_coordinator(get_session_id=lambda: slot.bridge.session_id if slot.bridge else "")
+        import hashlib as _hashlib
+
+        from .changeset_store import get_store as _get_cs
+        from .changeset_store import init_store as _init_store
+        # MVP: cwd-based fingerprint; post-MVP: wire bridge.project_id for stable identity
+        _fp = _hashlib.sha256(os.getcwd().encode()).hexdigest()[:8]
+        _init_store(_fp)
+        with contextlib.suppress(Exception):
+            from .checkpoint_store import CheckpointStore as _CheckpointStore
+            _CheckpointStore(_fp, _get_cs()).evict()
+        from .plan_store import init_plan_store as _init_plan_store
+        _init_plan_store(_fp)
+        from .history.manager import init_history_manager as _init_history
+        _init_history(_fp)
         if _budget_tracker is not None:
             from .tools import budget_tool as _bt
             _bt._tracker = _budget_tracker
@@ -460,6 +540,15 @@ async def lifespan(app):
         _editor_log.init_corroboration(port=unity_port)
         active = slot.bridge
         if active is not None:
+            # T5: record session identity in lockfile so C# can read lockToken/sessionId.
+            with contextlib.suppress(Exception):
+                write_lock_metadata(lock_fd, {
+                    "v": 2,
+                    "lockToken": active.lock_token,
+                    "sessionId": active.session_id,
+                    "role": os.environ.get("UNITY_MCP_CLIENT") or "mcp",
+                    "cwd": os.getcwd(),
+                })
             if active.connected:
                 await _refresh_tools_cache(active)
                 await _warm_alias_cache(active)
@@ -496,6 +585,7 @@ async def lifespan(app):
                 slot.add_reconnect_callback(_middleware.reset_session)
                 wire_circuit_breaker(_middleware, active)
             active.start_heartbeat()
+            active._on_transport_activity = _touch_transport_activity
         yield
     finally:
         _wrapped_send = None
@@ -538,8 +628,8 @@ install_list_tools_filter(
 def main():
     from .paths import migrate_data_dir
     migrate_data_dir()
-    global _last_activity
-    _last_activity = time.monotonic()
+    global _last_useful_activity
+    _last_useful_activity = time.monotonic()
     _start_idle_watchdog()
     import signal
     if hasattr(signal, "SIGPIPE"):

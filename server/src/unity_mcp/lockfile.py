@@ -1,5 +1,6 @@
 """PID lockfile — per-session presence file, no SIGTERM."""
 import contextlib
+import json
 import logging
 import os
 import socket
@@ -56,6 +57,30 @@ def _write_pid(fd: int) -> None:
     os.write(fd, f"{os.getpid()}\n".encode())
 
 
+def write_lock_metadata(fd: int, metadata: dict) -> None:
+    """Append JSON metadata on line 2 of the lockfile (after the PID line)."""
+    os.lseek(fd, 0, os.SEEK_SET)
+    pid_data = os.read(fd, 64).decode(errors="ignore")
+    pid_end = pid_data.find("\n")
+    if pid_end < 0:
+        pid_end = len(pid_data)
+    os.lseek(fd, pid_end + 1, os.SEEK_SET)
+    os.write(fd, (json.dumps(metadata, ensure_ascii=False) + "\n").encode())
+
+
+def read_lock_metadata(fd: int) -> dict | None:
+    """Read JSON metadata from line 2 of the lockfile. Returns None if absent/corrupt."""
+    os.lseek(fd, 0, os.SEEK_SET)
+    data = os.read(fd, 1024).decode(errors="ignore")
+    lines = data.split("\n")
+    if len(lines) < 2 or not lines[1].strip():
+        return None
+    try:
+        return json.loads(lines[1])
+    except json.JSONDecodeError:
+        return None
+
+
 def _read_pid_from_fd(fd: int) -> int | None:
     """Read PID from bytes 0-31. Always readable — outside the locked region."""
     os.lseek(fd, 0, os.SEEK_SET)
@@ -86,11 +111,13 @@ def is_pid_alive(pid: int | None) -> bool:
         return False
 
 
-def acquire_lock(lock_dir=None, port: int = DEFAULT_PORT) -> int:
+def acquire_lock(lock_dir=None, port: int = DEFAULT_PORT,
+                 metadata: dict | None = None) -> int:
     """Create a per-PID presence file and take exclusive flock on it.
 
     Each session uses server-{port}-{pid}.lock — multiple sessions coexist.
     Raises RuntimeError if this PID already holds the lock (rapid restart race).
+    metadata: optional dict written as JSON on line 2 via write_lock_metadata.
     """
     if lock_dir is None:
         lock_dir = unity_mcp_dir()
@@ -106,6 +133,8 @@ def acquire_lock(lock_dir=None, port: int = DEFAULT_PORT) -> int:
         raise RuntimeError(f"Cannot acquire exclusive lock for port {port} (PID {os.getpid()} already holds it)") from None
 
     _write_pid(fd)
+    if metadata is not None:
+        write_lock_metadata(fd, metadata)
     _lock_paths[fd] = str(lock_file)
     return fd
 

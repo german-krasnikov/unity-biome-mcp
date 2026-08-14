@@ -421,5 +421,78 @@ namespace UnityMCP.Editor.Chat.Tests
                     $"session_id must be absent when SessionId is null: {setMode}");
             }
         }
+
+        // ── SetModeAsync (T9) ────────────────────────────────────────────────
+
+        [Test]
+        public async Task SetModeAsync_WhenProcNull_CallsCallbackWithFalse()
+        {
+            // Fresh backend with no proc (proc defaults to null — no Start() needed)
+            var b = new RelayBackend("claude", "ask", "", 9500);
+
+            bool? result = null;
+            b.SetModeAsync("agent", ok => result = ok);
+
+            // EditorApplication.delayCall fires on next editor tick
+            await WaitUntilAsync(() => result.HasValue, null,
+                "SetModeAsync with null proc did not callback", 2000);
+            Assert.IsFalse(result.Value, "null proc must callback with false");
+        }
+
+        [Test]
+        public async Task SetModeAsync_WhenSendOk_CallsCallbackWithTrue()
+        {
+            // Arrange: fresh proc per test (don't share SetUp's _fakeProc)
+            RelayBackend.ProcessFactory = () => new RelayChatProcess(json =>
+            {
+                if (json.Contains("set_mode")) return "{\"ok\":true,\"data\":\"spawned\"}";
+                return "{\"ok\":true,\"data\":\"\"}";
+            });
+            var b = new RelayBackend("claude", "ask", "", 9500);
+            RegisterCleanup(b.Stop);
+            b.Start();
+
+            bool? result = null;
+            b.SetModeAsync("agent", ok => result = ok);
+
+            await WaitUntilAsync(() => result.HasValue, null,
+                "SetModeAsync ok=true did not callback", 3000);
+            Assert.IsTrue(result.Value, "ok response must callback with true");
+        }
+
+        [Test]
+        public async Task SetModeAsync_WhenSendFails_CallsCallbackWithFalse()
+        {
+            RelayBackend.ProcessFactory = () => new RelayChatProcess(json =>
+            {
+                if (json.Contains("set_mode")) return "{\"ok\":false,\"err\":\"spawn failed\"}";
+                return "{\"ok\":true,\"data\":\"\"}";
+            });
+            var b = new RelayBackend("claude", "ask", "", 9500);
+            RegisterCleanup(b.Stop);
+            b.Start();
+
+            bool? result = null;
+            b.SetModeAsync("agent", ok => result = ok);
+
+            await WaitUntilAsync(() => result.HasValue, null,
+                "SetModeAsync ok=false did not callback", 3000);
+            Assert.IsFalse(result.Value, "error response must callback with false");
+        }
+
+        [Test]
+        public void SetModeAsync_UpdatesModeField()
+        {
+            // _mode is set synchronously before ThreadPool dispatch
+            var b = new RelayBackend("claude", "ask", "", 9500);
+
+            b.SetModeAsync("agent", _ => { });
+
+            var mode = (string)typeof(RelayBackend)
+                .GetField("_mode", System.Reflection.BindingFlags.NonPublic
+                                 | System.Reflection.BindingFlags.Instance)
+                .GetValue(b);
+            Assert.AreEqual("agent", mode, "_mode must be updated synchronously by SetModeAsync");
+        }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using UnityEditor;
 
 namespace UnityMCP.Editor
@@ -5,6 +6,9 @@ namespace UnityMCP.Editor
     public static class UndoGroupHelper
     {
         private static int _currentGroup = -1;
+
+        // T19: injectable seam so tests can spy on revert calls without real Undo stack.
+        internal static Action<int> RevertToGroupAction = id => Undo.RevertAllDownToGroup(id);
 
         public static void BeginGroup(string name)
         {
@@ -45,10 +49,13 @@ namespace UnityMCP.Editor
 
         public static void RevertToBeforeGroup(int groupId)
         {
-            Undo.RevertAllDownToGroup(groupId);
+            RevertToGroupAction(groupId);
         }
 
         /// <summary>True if groupId is a non-negative id. Does NOT verify the group still exists in Unity's undo stack (stale after domain reload).</summary>
         public static bool CanRevert(int groupId) => groupId >= 0;
+
+        /// <summary>Read-only: current open undo group id (-1 if none open).</summary>
+        public static int CurrentGroupId => _currentGroup;
     }
 }

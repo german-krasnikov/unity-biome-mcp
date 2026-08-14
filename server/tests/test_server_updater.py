@@ -207,6 +207,10 @@ async def test_bridge_schedules_update_task_when_plugin_newer():
                     bridge._host = "127.0.0.1"
                     bridge._port = 9500
                     bridge._counter = 0
+                    bridge._session_id = "test-session-id"
+                    bridge._lock_token = "test-lock-token"
+                    bridge._bridge_id = "br-test"
+                    bridge._started_at_utc = "2026-01-01T00:00:00Z"
                     bridge._expected_project_path = None
                     bridge._probe = Mock()
                     bridge._probe.project_uuid = "project-uuid"

@@ -80,18 +80,30 @@ class HeartbeatMixin:
 
     async def _heartbeat_tick(self, interval: float) -> None:
         """Single heartbeat iteration. Separated for safety-net wrapping."""
-        # Parent death: stop heartbeat, let process die naturally from BrokenPipeError.
+        # Parent death: stop heartbeat after grace period expires.
         # Never raise SystemExit/BaseException from a background task — it kills
         # the anyio task group, closing stdio → -32000 for any in-flight MCP call.
         if os.getppid() != _ORIGINAL_PPID:
-            self._ppid_mismatch_count += 1
-            if self._ppid_mismatch_count >= 2:
+            self._ppid_mismatch_count += 1  # kept for diagnostics
+            if self._orphan_detected_at is None:
+                self._orphan_detected_at = time.monotonic()
+            from .global_config import GlobalConfig
+            cfg = GlobalConfig.load()
+            terminate_orphan, _ = cfg.effective_terminate_orphan()
+            if not terminate_orphan:
+                return  # permanent bridge mode — never self-terminate
+            grace_s, _ = cfg.effective_orphan_grace_s()
+            if time.monotonic() - self._orphan_detected_at >= grace_s:
                 _schedule_hard_exit()
                 self.stop_heartbeat()
-                return
-            return  # skip tick, recheck next heartbeat
+            return
         self._ppid_mismatch_count = 0
+        self._orphan_detected_at = None
         if not self.connected:
+            import unity_mcp.bridge as _bm  # lazy to avoid circular at module level
+            # DORMANT: intentional TCP close — heartbeat must not attempt reconnect.
+            if self._state == _bm.BridgeState.DORMANT:
+                return
             # Track cumulative disconnected time for startup-grace deadline.
             if self._reconnect_started_at is None:
                 self._reconnect_started_at = time.monotonic()
@@ -117,7 +129,6 @@ class HeartbeatMixin:
 
             # Check grace deadline: if elapsed > STARTUP_GRACE_S and not busy,
             # stop silently looping — next send() will surface the STOP error.
-            import unity_mcp.bridge as _bm  # lazy to avoid circular at module level
             if elapsed > _bm.STARTUP_GRACE_S and not busy:
                 self._startup_grace_expired = True
                 return
@@ -218,3 +229,6 @@ class HeartbeatMixin:
                 raise ProtocolDesyncError(
                     f"Heartbeat ID mismatch: {resp.get('id')} != {ping_id}"
                 )
+            on_ta = getattr(self, "_on_transport_activity", None)
+            if on_ta is not None:
+                on_ta()

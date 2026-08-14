@@ -261,8 +261,21 @@ namespace UnityMCP.Editor
                 if (string.IsNullOrEmpty(label) || label == "checkpoint")
                     label = $"before_{_recentCmds.Count}_{string.Join("_", _recentCmds)}";
                 UndoGroupHelper.BeginGroup($"AI: {label}");
-                return $"Checkpoint: {label}";
+                var groupId = UndoGroupHelper.CurrentGroupId;
+                var domainStamp = SyncHelper.CurrentDomainStamp;
+                return $"Checkpoint: {label}\ngroup_id={groupId}\ndomain_stamp={domainStamp}";
             }, required: "", optional: "label");
+            CommandRegistry.Register("checkpoint_undo_restore", args =>
+            {
+                var groupIdStr = JsonHelper.ExtractString(args, "group_id");
+                var storedStamp = JsonHelper.ExtractString(args, "domain_stamp");
+                if (!int.TryParse(groupIdStr, out var groupId) || groupId < 0)
+                    return "err=invalid_group_id";
+                if (storedStamp != SyncHelper.CurrentDomainStamp)
+                    return "stale_domain";
+                UndoGroupHelper.RevertToBeforeGroup(groupId);
+                return "ok";
+            }, required: "group_id,domain_stamp", optional: "");
             CommandRegistry.Register("validate_layout", args => LayoutValidator.Validate(
                 JsonHelper.ExtractString(args, "root") ?? "/",
                 float.TryParse(JsonHelper.ExtractString(args, "min_distance") ?? "3",
@@ -335,6 +348,14 @@ namespace UnityMCP.Editor
                 required: "", optional: "");
             CommandRegistry.RegisterAction("profile", Profiling.ProfileRecorder.Dispatch, runtime: true,
                 required: "", optional: "mode,duration,session,focus,compare_with");
+            // NOTE: NOT runtime:true — sessions persist after Play Mode ends
+            CommandRegistry.Register("get_profile_context", args =>
+            {
+                var sid = JsonHelper.ExtractString(args, "session");
+                return sid != null
+                    ? Profiling.ProfileContextSerializer.Get(sid)
+                    : Profiling.ProfileContextSerializer.GetLatest();
+            }, required: "", optional: "session");
             CommandRegistry.Register("debug_animator", args =>
             {
                 var go = ComponentSerializer.FindObjectOrThrow(JsonHelper.ExtractString(args, "path"));
@@ -433,21 +454,39 @@ namespace UnityMCP.Editor
                 required: "", optional: "path,find_type,component,prop,value,dry_run");
             CommandRegistry.Register("set_property_delta", ExecSetPropertyDelta, mutating: true,
                 required: "path,component,prop,delta", optional: "");
-            CommandRegistry.Register("set_active", args => ObjectManager.SetActive(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "active") == "true"), mutating: true,
-                required: "path,active", optional: "");
-            CommandRegistry.Register("wire_event", args => ObjectManager.WireEvent(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "component"),
-                JsonHelper.ExtractString(args, "event"),
-                JsonHelper.ExtractString(args, "target"),
-                JsonHelper.ExtractString(args, "method"),
-                JsonHelper.ExtractString(args, "arg_type") ?? "void",
-                JsonHelper.ExtractString(args, "arg_value"),
-                JsonHelper.ExtractString(args, "target_component_type"),
-                JsonHelper.ExtractString(args, "parameter_types")), mutating: true,
-                required: "path,component,event,target,method",
+            CommandRegistry.Register("set_active", args =>
+            {
+                var path   = JsonHelper.ExtractString(args, "path");
+                var active = JsonHelper.ExtractString(args, "active") == "true";
+                var result = ObjectManager.SetActive(path, active);
+                // T16: pend receipt for set_active
+                CommandRouter.PendReceipt(new MutationReceipt {
+                    Path = path, Op = "modify", TargetType = "scene_object",
+                    Prop = "active", Before = (!active).ToString(), After = active.ToString(),
+                    Reversible = true
+                });
+                return result;
+            }, mutating: true, required: "path,active", optional: "");
+            CommandRegistry.Register("wire_event", args =>
+            {
+                var path            = JsonHelper.ExtractString(args, "path");
+                var component       = JsonHelper.ExtractString(args, "component");
+                var eventName       = JsonHelper.ExtractString(args, "event");
+                var target          = JsonHelper.ExtractString(args, "target");
+                var method          = JsonHelper.ExtractString(args, "method");
+                var argType         = JsonHelper.ExtractString(args, "arg_type") ?? "void";
+                var argValue        = JsonHelper.ExtractString(args, "arg_value");
+                var targetCompType  = JsonHelper.ExtractString(args, "target_component_type");
+                var paramTypes      = JsonHelper.ExtractString(args, "parameter_types");
+                var result = ObjectManager.WireEvent(path, component, eventName, target, method,
+                    argType, argValue, targetCompType, paramTypes);
+                // T16: pend receipt for wire_event
+                CommandRouter.PendReceipt(new MutationReceipt {
+                    Path = path, Op = "modify", TargetType = "component",
+                    Prop = eventName, After = "wired", Reversible = false
+                });
+                return result;
+            }, mutating: true, required: "path,component,event,target,method",
                 optional: "arg_type,arg_value,target_component_type,parameter_types");
             CommandRegistry.Register("unwire_event", args => ObjectManager.UnwireEvent(
                 JsonHelper.ExtractString(args, "path"),
@@ -463,11 +502,24 @@ namespace UnityMCP.Editor
                 required: "path", optional: "type");
             // parent is optional: null/omitted unparents to scene root (ObjectManager.SetParent
             // tolerates a null newParent — this is a valid, intentional operation, not an error).
-            CommandRegistry.Register("set_parent", args => ObjectManager.SetParent(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "parent"),
-                JsonHelper.ExtractString(args, "world_position_stays") != "false"), mutating: true,
-                required: "path", optional: "parent,world_position_stays");
+            CommandRegistry.Register("set_parent", args =>
+            {
+                var path              = JsonHelper.ExtractString(args, "path");
+                var newParent         = JsonHelper.ExtractString(args, "parent");
+                var worldPositionStays = JsonHelper.ExtractString(args, "world_position_stays") != "false";
+                // Capture old parent before mutation
+                var go        = ComponentSerializer.FindObject(path);
+                var oldParent = go?.transform.parent != null
+                    ? ComponentSerializer.GetPath(go.transform.parent.gameObject)
+                    : null;
+                var result = ObjectManager.SetParent(path, newParent, worldPositionStays);
+                // T16: pend receipt for set_parent
+                CommandRouter.PendReceipt(new MutationReceipt {
+                    Path = path, Op = "modify", TargetType = "scene_object",
+                    Prop = "parent", Before = oldParent, After = newParent, Reversible = true
+                });
+                return result;
+            }, mutating: true, required: "path", optional: "parent,world_position_stays");
             CommandRegistry.Register("rename_object", args => ObjectManager.RenameObject(
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "name")), mutating: true,

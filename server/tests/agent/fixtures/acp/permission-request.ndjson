@@ -1,0 +1,1 @@
+{"type": "session/request_permission", "tool_name": "run_tests", "request_id": "req-1", "input": {"mode": "EditMode"}}

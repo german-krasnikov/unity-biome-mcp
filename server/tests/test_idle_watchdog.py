@@ -34,8 +34,8 @@ def test_idle_watchdog_exits_after_timeout():
 
     exit_calls = []
 
-    # monotonic: make _last_activity appear far in the past so idle > timeout.
-    original_last = srv_module._last_activity
+    # monotonic: make _last_useful_activity appear far in the past so idle > timeout.
+    original_last = srv_module._last_useful_activity
     real_ppid = os.getppid()
 
     def fake_exit(c):
@@ -130,18 +130,18 @@ def test_idle_watchdog_nonzero_env_starts_thread():
 
 
 def test_touch_activity_updates_timestamp():
-    """_touch_activity() updates _last_activity to current monotonic time."""
+    """_touch_activity() (alias for _touch_useful_activity) updates _last_useful_activity."""
     before = time.monotonic()
     srv_module._touch_activity()
     after = time.monotonic()
 
-    assert before <= srv_module._last_activity <= after
+    assert before <= srv_module._last_useful_activity <= after
 
 
 @pytest.mark.asyncio
 async def test_send_touches_activity():
-    """_send() calls _touch_activity before delegating — _last_activity advances."""
-    old_ts = srv_module._last_activity
+    """_send() calls _touch_useful_activity before delegating — _last_useful_activity advances."""
+    old_ts = srv_module._last_useful_activity
 
     # Mock _send_raw to avoid real TCP
     async def fake_raw(cmd, args, timeout=0):
@@ -152,9 +152,9 @@ async def test_send_touches_activity():
         try:
             await srv_module._send("ping", {})
         except Exception:
-            pass  # ToolError from None slot is fine; _touch_activity runs first
+            pass  # ToolError from None slot is fine; _touch_useful_activity runs first
 
-    assert srv_module._last_activity >= old_ts
+    assert srv_module._last_useful_activity >= old_ts
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +275,7 @@ def test_idle_watchdog_does_not_exit_when_parent_alive():
 
     exit_calls = []
     sleep_count = [0]
-    original_last = srv._last_activity
+    original_last = srv._last_useful_activity
 
     real_ppid = os.getppid()  # parent is alive throughout test
 
@@ -309,7 +309,7 @@ def test_idle_watchdog_exits_when_parent_dead():
     import unity_mcp.server as srv
 
     exit_calls = []
-    original_last = srv._last_activity
+    original_last = srv._last_useful_activity
     real_ppid = os.getppid()
     dead_ppid = 1  # launchd/init — parent was reparented (orphaned)
 
@@ -330,3 +330,145 @@ def test_idle_watchdog_exits_when_parent_dead():
 
     # Parent dead → watchdog MUST exit
     assert exit_calls == [0], f"Expected os._exit(0) once, got: {exit_calls}"
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: T4 — useful/transport timer split + in-flight guard
+# ---------------------------------------------------------------------------
+
+def test_heartbeat_does_not_update_useful_timer():
+    """_touch_transport_activity() updates only _last_transport_activity, not _last_useful_activity."""
+    before_useful = srv_module._last_useful_activity
+    before_transport = srv_module._last_transport_activity
+
+    srv_module._touch_transport_activity()
+
+    assert srv_module._last_useful_activity == before_useful, "useful timer must not change"
+    assert srv_module._last_transport_activity >= before_transport, "transport timer must advance"
+
+
+@pytest.mark.asyncio
+async def test_send_updates_both_timers_and_inflight():
+    """_send() updates both useful and transport timers; in-flight count is 0 after completion."""
+    before_useful = srv_module._last_useful_activity
+    before_transport = srv_module._last_transport_activity
+
+    async def fake_raw(cmd, args, timeout=0):
+        assert srv_module._in_flight_count == 1, "in-flight must be 1 while executing"
+        return "ok"
+
+    with patch("unity_mcp.server._send_raw", side_effect=fake_raw), \
+         patch("unity_mcp.server._wrapped_send", None):
+        await srv_module._send("ping", {})
+
+    assert srv_module._last_useful_activity >= before_useful
+    assert srv_module._last_transport_activity >= before_transport
+    assert srv_module._in_flight_count == 0
+
+
+def test_watchdog_respects_inflight_guard():
+    """In-flight guard: watchdog does not exit while _in_flight_count > 0; exits once cleared."""
+    import unity_mcp.bridge_heartbeat as hb
+
+    exit_calls = []
+    sleep_count = [0]
+    real_ppid = os.getppid()
+    dead_ppid = 1
+    original_last = srv_module._last_useful_activity
+
+    def fake_sleep(n):
+        sleep_count[0] += 1
+        if sleep_count[0] >= 2:
+            srv_module._in_flight_count = 0  # clear → allow exit on this iteration
+
+    def fake_exit(c):
+        # Discriminator: if guard is removed, exit fires on sleep #1 (too early)
+        assert sleep_count[0] >= 2, f"Guard failed — exit fired on sleep #{sleep_count[0]}"
+        exit_calls.append(c)
+        srv_module._watchdog_stop.set()
+
+    try:
+        srv_module._in_flight_count = 1
+        with patch.dict(os.environ, {"UNITY_MCP_IDLE_TIMEOUT": "5"}), \
+             patch("unity_mcp.server.time.sleep", side_effect=fake_sleep), \
+             patch("unity_mcp.server.time.monotonic", return_value=original_last + 100.0), \
+             patch("unity_mcp.server.os.getppid", return_value=dead_ppid), \
+             patch("unity_mcp.bridge_heartbeat._ORIGINAL_PPID", real_ppid), \
+             patch("unity_mcp.server.os._exit", side_effect=fake_exit), \
+             patch("unity_mcp.server.logging.shutdown"):
+            t = srv_module._start_idle_watchdog()
+            assert t is not None
+            t.join(timeout=3.0)
+    finally:
+        srv_module._in_flight_count = 0
+
+    assert exit_calls == [0], f"Expected exit after in-flight cleared: {exit_calls}"
+
+
+def test_useful_idle_timeout_ignores_ppid():
+    """UNITY_MCP_USEFUL_IDLE_TIMEOUT exits even when parent is alive (subagent path)."""
+    exit_calls = []
+    real_ppid = os.getppid()
+    original_last = srv_module._last_useful_activity
+
+    def fake_exit(c):
+        exit_calls.append(c)
+        srv_module._watchdog_stop.set()
+
+    with patch.dict(os.environ, {"UNITY_MCP_IDLE_TIMEOUT": "300",
+                                  "UNITY_MCP_USEFUL_IDLE_TIMEOUT": "1"}), \
+         patch("unity_mcp.server.time.sleep"), \
+         patch("unity_mcp.server.time.monotonic", return_value=original_last + 100.0), \
+         patch("unity_mcp.server.os.getppid", return_value=real_ppid), \
+         patch("unity_mcp.server.os._exit", side_effect=fake_exit), \
+         patch("unity_mcp.server.logging.shutdown"):
+        t = srv_module._start_idle_watchdog()
+        assert t is not None
+        t.join(timeout=2.0)
+
+    assert exit_calls == [0], f"Expected subagent exit with parent alive, got: {exit_calls}"
+
+
+@pytest.mark.asyncio
+async def test_on_transport_activity_callback_wired_after_connect():
+    """Wiring bridge._on_transport_activity = _touch_transport_activity updates _last_transport_activity when called."""
+
+    class MockBridge:
+        _on_transport_activity = None
+
+    bridge = MockBridge()
+    # Simulate what lifespan does after active.start_heartbeat()
+    bridge._on_transport_activity = srv_module._touch_transport_activity
+
+    before = srv_module._last_transport_activity
+    bridge._on_transport_activity()
+    assert srv_module._last_transport_activity >= before
+
+
+@pytest.mark.asyncio
+async def test_raw_ping_fires_transport_callback():
+    """_raw_ping() fires _on_transport_activity after a successful ping.
+
+    Discriminant: removing the on_ta() block from _raw_ping() makes this fail.
+    """
+    from unittest.mock import patch, AsyncMock
+    from unity_mcp.bridge_heartbeat import HeartbeatMixin
+
+    class FakeBridge(HeartbeatMixin):
+        def __init__(self):
+            self._lock = asyncio.Lock()
+            self._counter = 0
+            self.connected = True
+            self._writer = AsyncMock()
+
+        async def _read_response(self):
+            return {"id": f"hb{self._counter:04x}"}
+
+    bridge = FakeBridge()
+    callback_calls = []
+    bridge._on_transport_activity = lambda: callback_calls.append(1)
+
+    with patch("unity_mcp.bridge_heartbeat.frame_write"):
+        await bridge._raw_ping(timeout=1.0)
+
+    assert callback_calls == [1], "_raw_ping must fire _on_transport_activity exactly once"

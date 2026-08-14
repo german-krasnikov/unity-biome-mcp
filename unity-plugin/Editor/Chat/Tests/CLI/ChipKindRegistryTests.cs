@@ -144,11 +144,11 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void AllKeys_Count_Is15()
+        public void AllKeys_Count_Is16()
         {
-            // 12 original + field (130) + component (125) + agent (5) added to EnsureBuiltIns
+            // 12 original + field (130) + component (125) + agent (5) + profiler (T22) added to EnsureBuiltIns
             var count = System.Linq.Enumerable.Count(ChipKindRegistry.AllKeys);
-            Assert.AreEqual(15, count, $"Expected 15 built-in keys, got {count}");
+            Assert.AreEqual(16, count, $"Expected 16 built-in keys, got {count}");
         }
 
         [Test]

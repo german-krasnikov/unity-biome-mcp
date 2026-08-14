@@ -18,14 +18,14 @@ namespace UnityMCP.Editor.Tests
         private static readonly string[] BaseCommands =
         {
             "alias_status", "analyze_lod_culling", "animation", "animator", "ask_user", "asset", "auto_wire",
-            "autofit_collider", "bake", "batch", "build", "cancel_test_run", "check_colliders", "checkpoint", "clear_console",
+            "autofit_collider", "bake", "batch", "build", "cancel_test_run", "check_colliders", "checkpoint", "checkpoint_undo_restore", "clear_console",
             "compile_preflight", "compile_status", "console_clear_buffer", "create_object", "create_ui", "debug_animator",
             "debug_physics", "delete_object", "diagnose", "editor", "execute_code", "find_objects",
             "export_playtest_aliases_to_defs",
             "fingerprint", "force_play_stop", "force_refresh", "get_capabilities", "get_changes", "get_compile_errors",
             "get_aliases", "get_component", "get_components_list", "get_console", "get_disabled_tools",
             "get_enabled_tools", "get_frame_stats", "get_hierarchy", "get_memory", "get_object_detail",
-            "get_status", "get_test_run",
+            "get_profile_context", "get_status", "get_test_run",
             "get_schema", "get_selection", "get_spatial_context", "get_test_count",
             "get_test_progress", "get_test_results", "get_unity_events", "get_watches", "inspect", "invoke_method", "lint_playtest",
             "lint_scene_refs", "list_playtest_files", "list_test_runs", "manage_component",

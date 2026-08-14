@@ -41,7 +41,7 @@ _BLOCKED_FLAGS = frozenset({
 })
 
 
-def _sanitize_extra_args(raw: str) -> list[str]:
+def sanitize_extra_args(raw: str) -> list[str]:
     """Strip dangerous flags (and their values) from user-supplied extra_args."""
     if not raw:
         return []
@@ -168,6 +168,25 @@ async def _which_via_login_shell(binary: str) -> str | None:
     return None
 
 
+# ── Probe cache ───────────────────────────────────────────────────────────────
+
+_PROBE_CACHE: dict[str, dict] = {}   # backend name → caps; cleared on module reload
+_PROBE_TIMEOUT = 5.0                  # seconds; never blocks server startup
+
+
+def _default_caps(b: BackendDef) -> dict:
+    return {"has_resume": b.has_resume, "has_cancel": False,
+            "has_modes": ["ask", "agent"], "binary_version": None}
+
+
+_VERSION_RE = re.compile(r"\b(\d+\.\d+(?:\.\d+)?)\b")
+
+
+def _parse_binary_version(output: str) -> str | None:
+    m = _VERSION_RE.search(output or "")
+    return m.group(1) if m else None
+
+
 # ── Base class ────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -199,6 +218,21 @@ class BackendDef:
         **kwargs,
     ) -> tuple[list[str], dict[str, str], list[str]]:
         raise NotImplementedError
+
+    async def probe_capabilities(self) -> dict:
+        """Probe binary for capabilities. Returns cached result; falls back to defaults on error."""
+        if self.name in _PROBE_CACHE:
+            return _PROBE_CACHE[self.name]
+        try:
+            caps = await asyncio.wait_for(self._probe(), timeout=_PROBE_TIMEOUT)
+        except Exception:
+            caps = _default_caps(self)
+        _PROBE_CACHE[self.name] = caps
+        return caps
+
+    async def _probe(self) -> dict:
+        """Override per backend. Default: static dict from class fields."""
+        return _default_caps(self)
 
 
 # ── Claude ────────────────────────────────────────────────────────────────────
@@ -243,13 +277,23 @@ class ClaudeDef(BackendDef):
         if model:
             argv += ["--model", model]
         if extra_args:
-            argv += _sanitize_extra_args(extra_args)
+            argv += sanitize_extra_args(extra_args)
 
         strip = ["CLAUDECODE", "UNITY_MCP_PORT"]
-        return argv, {}, strip
+        return argv, {"UNITY_MCP_CHAT_MODE": mode}, strip
+
+    async def _probe(self) -> dict:
+        out = await _run_login_shell(f"{self.binary} --version", timeout=_PROBE_TIMEOUT)
+        return {"has_resume": True, "has_cancel": False,
+                "has_modes": ["ask", "agent"], "binary_version": _parse_binary_version(out)}
 
 
 # ── Codex ─────────────────────────────────────────────────────────────────────
+
+# Maps abstract mode to Codex -s (approval) flag. Unknown modes default to
+# danger-full-access (most permissive) so existing sessions are never blocked.
+_CODEX_APPROVAL: dict[str, str] = {"agent": "danger-full-access", "ask": "ask"}
+
 
 @dataclass
 class CodexDef(BackendDef):
@@ -267,7 +311,8 @@ class CodexDef(BackendDef):
             argv += ["resume", session_id, "--json",
                      "--dangerously-bypass-approvals-and-sandbox"]
         else:
-            argv += ["--json", "-C", os.getcwd(), "-s", "danger-full-access"]
+            approval = _CODEX_APPROVAL.get(mode, "danger-full-access")
+            argv += ["--json", "-C", os.getcwd(), "-s", approval]
 
         argv.append("--skip-git-repo-check")
 
@@ -290,11 +335,16 @@ class CodexDef(BackendDef):
         if model:
             argv += ["--model", model]
         if extra_args:
-            argv += _sanitize_extra_args(extra_args)
+            argv += sanitize_extra_args(extra_args)
         if prompt:
             argv.append(prompt)
 
-        return argv, {"UNITY_MCP_PORT": str(mcp_port)}, []
+        return argv, {"UNITY_MCP_PORT": str(mcp_port), "UNITY_MCP_CHAT_MODE": mode}, []
+
+    async def _probe(self) -> dict:
+        out = await _run_login_shell(f"{self.binary} --version", timeout=_PROBE_TIMEOUT)
+        return {"has_resume": True, "has_cancel": False,
+                "has_modes": ["ask", "agent"], "binary_version": _parse_binary_version(out)}
 
 
 # ── Kimi ──────────────────────────────────────────────────────────────────────
@@ -315,9 +365,13 @@ class KimiDef(BackendDef):
         if model:
             argv += ["--model", model]
         if extra_args:
-            argv += _sanitize_extra_args(extra_args)
+            argv += sanitize_extra_args(extra_args)
 
-        return argv, {"UNITY_MCP_PORT": str(mcp_port)}, []
+        return argv, {"UNITY_MCP_PORT": str(mcp_port), "UNITY_MCP_CHAT_MODE": mode}, []
+
+    async def _probe(self) -> dict:
+        return {"has_resume": False, "has_cancel": False,
+                "has_modes": ["ask"], "binary_version": None}
 
 
 # ── Agy ───────────────────────────────────────────────────────────────────────
@@ -340,9 +394,9 @@ class AgyDef(BackendDef):
         if mode == "agent":
             argv.append("--dangerously-skip-permissions")
         if extra_args:
-            argv += _sanitize_extra_args(extra_args)
+            argv += sanitize_extra_args(extra_args)
 
-        return argv, {"UNITY_MCP_PORT": str(mcp_port)}, []
+        return argv, {"UNITY_MCP_PORT": str(mcp_port), "UNITY_MCP_CHAT_MODE": mode}, []
 
 
 # ── OpenCode ──────────────────────────────────────────────────────────────────
@@ -365,10 +419,39 @@ class OpenCodeDef(BackendDef):
         if session_id:
             argv += ["-s", session_id]
         if extra_args:
-            argv += _sanitize_extra_args(extra_args)
+            argv += sanitize_extra_args(extra_args)
         argv.append(prompt)
 
-        return argv, {"OPENCODE_CONFIG": config_path, "UNITY_MCP_PORT": str(mcp_port)}, []
+        return argv, {"OPENCODE_CONFIG": config_path, "UNITY_MCP_PORT": str(mcp_port), "UNITY_MCP_CHAT_MODE": mode}, []
+
+    async def _probe(self) -> dict:
+        out = await _run_login_shell(f"{self.binary} --version", timeout=_PROBE_TIMEOUT)
+        return {"has_resume": True, "has_cancel": False,
+                "has_modes": ["ask", "agent"], "binary_version": _parse_binary_version(out)}
+
+
+# ── Claude ACP ────────────────────────────────────────────────────────────────
+
+@dataclass
+class ClaudeAcpDef(BackendDef):
+    name:          str  = "claude_acp"
+    binary:        str  = "claude-agent-acp"  # pip/uvx install claude-agent-acp
+    has_resume:    bool = True                 # TBD — verify after install
+    reads_stdin:   bool = True
+
+    def build_args(self, mode, model, mcp_port, prompt="",
+                   session_id=None, config_dir=None, **kwargs,
+                   ) -> tuple[list[str], dict[str, str], list[str]]:
+        config_dir = config_dir or tempfile.gettempdir()
+        mcp_config_writer.write_claude_config(config_dir, mcp_port)
+        # argv unused by AcpAgentAdapter; env matches ClaudeDef pattern
+        return [], {"UNITY_MCP_CHAT_MODE": mode}, ["CLAUDECODE", "UNITY_MCP_PORT"]
+
+    async def _probe(self) -> dict:
+        out = await _run_login_shell(f"{self.binary} --version", timeout=_PROBE_TIMEOUT)
+        return {"has_resume": True, "has_cancel": False,
+                "has_modes": ["ask", "agent"],
+                "binary_version": _parse_binary_version(out)}
 
 
 # ── Registry ──────────────────────────────────────────────────────────────────
@@ -380,4 +463,5 @@ BACKENDS: dict[str, BackendDef] = {
     "agy":          AgyDef(),
     "antigravity":  AgyDef(),
     "opencode":     OpenCodeDef(),
+    "claude_acp":   ClaudeAcpDef(),
 }

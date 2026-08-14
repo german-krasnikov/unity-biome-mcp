@@ -532,3 +532,42 @@ def test_cleanup_stale_port_files_no_tcp_probe_by_default(tmp_path):
     assert cleaned == 0
     assert f.exists()
     assert not probe_calls  # TCP probe was NOT called
+
+
+# ---------------------------------------------------------------------------
+# T5: write_lock_metadata / read_lock_metadata
+# ---------------------------------------------------------------------------
+
+def test_write_lock_metadata_appends_json_on_line2(tmp_path):
+    """write_lock_metadata writes JSON on line 2 of the lockfile after the PID."""
+    from unity_mcp.lockfile import write_lock_metadata, read_lock_metadata
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    try:
+        meta = {"v": 2, "lockToken": "tok123", "sessionId": "sess456"}
+        write_lock_metadata(fd, meta)
+        result = read_lock_metadata(fd)
+        assert result == meta
+    finally:
+        release_lock(fd)
+
+
+def test_read_lock_metadata_returns_none_when_absent(tmp_path):
+    """read_lock_metadata returns None when no JSON on line 2."""
+    from unity_mcp.lockfile import read_lock_metadata
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    try:
+        assert read_lock_metadata(fd) is None
+    finally:
+        release_lock(fd)
+
+
+def test_acquire_lock_with_metadata_writes_json(tmp_path):
+    """acquire_lock with metadata kwarg immediately writes JSON to line 2."""
+    from unity_mcp.lockfile import read_lock_metadata
+    meta = {"v": 2, "role": "mcp", "cwd": "/some/path"}
+    fd = acquire_lock(lock_dir=tmp_path, port=9500, metadata=meta)
+    try:
+        result = read_lock_metadata(fd)
+        assert result == meta
+    finally:
+        release_lock(fd)

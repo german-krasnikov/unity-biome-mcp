@@ -188,3 +188,29 @@
     scale: 3;
     opacity: 0.4;
 }
+
+/* ── Connection list hierarchy (T7) ── */
+.server-entry { margin-bottom: 4px; border-left-width: 2px;
+    border-left-color: var(--unity-colors-default-border); padding-left: 4px; }
+.server-header { flex-direction: row; align-items: center; min-height: 22px; }
+.server-port { width: 52px; }
+.server-port--this { -unity-font-style: bold; }
+.server-status-badge { width: 56px; font-size: 10px; }
+.server-pid { width: 90px; font-size: 10px; opacity: 0.75; }
+.server-project { flex-grow: 1; font-size: 10px; -unity-font-style: italic; opacity: 0.65; }
+.server-this-marker { font-size: 10px; -unity-font-style: bold-and-italic; margin-right: 4px; }
+.connections-section { padding-left: 14px; margin-top: 2px; }
+.connections-count { font-size: 10px; opacity: 0.65; margin-bottom: 2px; }
+.connection-row { flex-direction: row; align-items: center; min-height: 20px; margin-bottom: 1px; }
+.conn-kind { width: 88px; font-size: 11px; }
+.conn-pid { width: 76px; font-size: 10px; opacity: 0.70; }
+.conn-state { width: 52px; font-size: 10px; }
+.conn-state--active  { color: #3ad29f; }
+.conn-state--idle    { color: #e8a23a; }
+.conn-state--dormant { color: #888888; }
+.conn-state--closing { color: #e94560; }
+.conn-idle { width: 60px; font-size: 10px; opacity: 0.70; }
+.conn-duration { width: 90px; font-size: 10px; opacity: 0.60; }
+.dormant-section { margin-top: 4px; }
+.dormant-header { font-size: 10px; opacity: 0.55; margin-bottom: 2px; }
+.batch-actions { flex-direction: row; flex-wrap: wrap; margin-top: 4px; }

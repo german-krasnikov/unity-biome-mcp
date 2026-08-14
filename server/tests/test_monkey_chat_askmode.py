@@ -12,7 +12,7 @@ Sections:
 
 Key invariants verified:
   Claude ask→"plan", agent→"acceptEdits"
-  Codex always "danger-full-access" regardless of mode
+  Codex ask→"-s ask", agent→"-s danger-full-access"
   Kimi no mode flag at all
   Agy ask→no --dangerously-skip-permissions, agent→has it
   OpenCode always --dangerously-skip-permissions
@@ -98,7 +98,9 @@ async def test_ask_mode_per_backend(backend: str, scenario: int) -> None:
             idx = argv.index("--permission-mode")
             assert argv[idx + 1] == "plan", f"claude ask should use plan, got {argv[idx+1]}"
         elif backend == "codex":
-            assert "danger-full-access" in argv, "codex ask should still have danger-full-access"
+            # T9: ask mode uses -s ask (not danger-full-access)
+            assert "-s" in argv
+            assert argv[argv.index("-s") + 1] == "ask", "codex ask should use -s ask"
         elif backend in ("kimi",):
             # kimi has no mode flag at all
             assert "--permission-mode" not in argv
@@ -141,9 +143,10 @@ async def test_ask_mode_per_backend(backend: str, scenario: int) -> None:
             assert argv_ask[ask_idx + 1]   == "plan"
             assert argv_agent[agent_idx + 1] == "acceptEdits"
         elif backend == "codex":
-            # mode is irrelevant for codex — argv identical except codex doesn't use mode
-            assert "danger-full-access" in argv_ask
-            assert "danger-full-access" in argv_agent
+            # T9: ask and agent produce different approval flags
+            assert argv_ask != argv_agent, "codex ask vs agent must differ in approval flag"
+            assert argv_ask[argv_ask.index("-s") + 1] == "ask"
+            assert argv_agent[argv_agent.index("-s") + 1] == "danger-full-access"
         elif backend in ("kimi",):
             # kimi ignores mode entirely
             assert argv_ask == argv_agent
@@ -315,7 +318,8 @@ def test_model_switch_per_backend(backend: str, model_idx: int) -> None:
     elif backend in ("agy", "antigravity"):
         assert "--dangerously-skip-permissions" not in argv  # ask mode
     elif backend == "codex":
-        assert "danger-full-access" in argv
+        # T9: model+ask mode uses -s ask
+        assert argv[argv.index("-s") + 1] == "ask"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

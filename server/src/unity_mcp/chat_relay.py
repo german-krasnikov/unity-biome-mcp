@@ -11,15 +11,13 @@ import signal
 import struct
 import sys
 import tempfile
+import uuid
 
-from .backend_def import (
-    BACKENDS,
-    OUTPUT_FORMAT_CODEX_JSON,
-    OUTPUT_FORMAT_KIMI_JSON,
-    OUTPUT_FORMAT_OPENCODE_JSON,
-    OUTPUT_FORMAT_PLAIN_TEXT,
-    OUTPUT_FORMAT_STREAM_JSON,
-)
+from .adapters.legacy import _TRANSFORM_FNS
+from .adapters.pipe_parser import parse_pipe_string
+from .adapters.protocol import EventContext
+from .agent_event import ProviderCapabilities
+from .backend_def import BACKENDS
 from .bridge_socket import frame_write
 from .cli_session import (  # noqa: F401
     KILL_WAIT,
@@ -33,34 +31,38 @@ from .cli_session import (  # noqa: F401
 from .relay_buffer import MAX_BUF, RelayBuffer  # noqa: F401
 from .stream_transform import (
     _ToolCallAcc,
-    _transform_codex_line,
-    _transform_kimi_line,
     _transform_line,
-    _transform_opencode_line,
     _transform_plain_text_line,
 )
 
-_TRANSFORM_FNS = {
-    OUTPUT_FORMAT_STREAM_JSON:   _transform_line,
-    OUTPUT_FORMAT_PLAIN_TEXT:    _transform_plain_text_line,
-    OUTPUT_FORMAT_CODEX_JSON:    _transform_codex_line,
-    OUTPUT_FORMAT_OPENCODE_JSON: _transform_opencode_line,
-    OUTPUT_FORMAT_KIMI_JSON:     _transform_kimi_line,
-}
+
+def _history_observe(event: object) -> None:
+    """Best-effort history observation — never raises."""
+    import contextlib
+    with contextlib.suppress(Exception):
+        from .history.manager import get_history_manager
+        mgr = get_history_manager()
+        if mgr is not None:
+            mgr.observe(event)  # type: ignore[arg-type]
 
 
 class ChatRelay:
     """TCP server: single Unity client, one CLI session, reconnect-safe buffer."""
 
     def __init__(self):
-        self._session:        CliSession | None          = None
-        self._session_meta:   SessionMeta | None         = None
-        self._relay_buf:      RelayBuffer                = RelayBuffer()
-        self._current_writer: asyncio.StreamWriter | None = None  # B4: single-client guard
-        self._orig_ppid:      int                        = os.getppid()
-        self._drain_task:     asyncio.Task | None        = None  # M3: prevent GC
-        self._watchdog_task:  asyncio.Task | None        = None  # M3: prevent GC
-        self._transform_fn                               = _transform_line  # default: stream-json
+        self._session:          CliSession | None          = None
+        self._session_meta:     SessionMeta | None         = None
+        self._relay_buf:        RelayBuffer                = RelayBuffer()
+        self._current_writer:   asyncio.StreamWriter | None = None  # B4: single-client guard
+        self._orig_ppid:        int                        = os.getppid()
+        self._drain_task:       asyncio.Task | None        = None  # M3: prevent GC
+        self._watchdog_task:    asyncio.Task | None        = None  # M3: prevent GC
+        self._transform_fn                                 = _transform_line  # default: stream-json
+        self._conversation_id:  str                        = str(uuid.uuid4())
+        self._turn_id:          int                        = 0
+        self._context_file                                 = None  # set after first context write
+        self._protocol_version: int                        = 1   # negotiated per-session (T14)
+        self._relay_seq:        int                        = 0   # monotonic seq for v2 events
 
     # ── Public TCP server ────────────────────────────────────────────────
 
@@ -140,6 +142,7 @@ class ChatRelay:
         return {"ok": True, "data": f"spawned pid={session.pid}"}
 
     async def _cmd_send(self, args: dict) -> dict:
+        self._turn_id += 1
         meta = self._session_meta
         if meta:
             backend = BACKENDS.get(meta.backend)
@@ -206,9 +209,12 @@ class ChatRelay:
         prompt     = args.get("prompt") or ""
         session_id = args.get("resume_session_id") or args.get("session_id")
         config_dir = args.get("config_dir") or tempfile.gettempdir()
+        project_id = args.get("project_id")  # C1: stable cross-path fingerprint from C#
         extra_keys = {k: v for k, v in args.items()
                       if k not in {"backend", "mode", "model", "mcp_port",
-                                   "prompt", "session_id", "resume_session_id", "config_dir"}}
+                                   "prompt", "session_id", "resume_session_id",
+                                   "config_dir", "session_token", "protocol_version",
+                                   "project_id"}}
 
         try:
             argv, env_set, env_strip = backend.build_args(
@@ -243,13 +249,50 @@ class ChatRelay:
 
         self._session      = session
         self._transform_fn = _TRANSFORM_FNS.get(backend.output_format, _transform_plain_text_line)
+        # T10: probe capabilities (cached, 5 s timeout) + write context file
+        capabilities: dict = {}
+        import contextlib
+        with contextlib.suppress(Exception):
+            capabilities = await backend.probe_capabilities()
+        session_token_hex = args.get("session_token")
+        internal_id = None
+        if session_token_hex:
+            from .session_identity import new_session_identity, write_session_context
+            identity = new_session_identity(
+                conversation_id=self._conversation_id,
+                session_token_hex=session_token_hex,
+                backend=backend_name, mode=mode,
+                mcp_port=mcp_port, config_dir=config_dir,
+                project_id=project_id,
+            )
+            self._context_file = write_session_context(identity)
+            internal_id = identity.internal_session_id
+            with contextlib.suppress(Exception):
+                from .history.manager import ensure_history_manager
+                mgr = ensure_history_manager(identity.project_fingerprint)
+                if mgr is not None:
+                    mgr.open_conversation(backend_name)
+
         self._session_meta = SessionMeta(
             backend=backend_name, mode=mode, model=model,
             mcp_port=mcp_port, prompt=prompt, config_dir=config_dir,
             extra=extra_keys,
+            internal_session_id=internal_id,
+            capabilities=capabilities,
         )
         self._drain_task = asyncio.create_task(self._drain_stdout_loop())
-        return {"ok": True, "data": f"spawned pid={session.pid}"}
+
+        # T14: v2 protocol negotiation
+        _v2_enabled = os.environ.get("UNITY_MCP_CHAT_PROTOCOL_V2", "1") != "0"
+        requested_version = int(args.get("protocol_version", 1))
+        self._protocol_version = 2 if (_v2_enabled and requested_version >= 2) else 1
+
+        result: dict = {"ok": True, "data": f"spawned pid={session.pid}"}
+        if self._protocol_version == 2:
+            caps_obj = ProviderCapabilities.from_probe(backend_name, capabilities)
+            result["negotiated_version"] = 2
+            result["capabilities"] = json.loads(caps_obj.model_dump_json())
+        return result
 
     async def _cmd_set_mode(self, args: dict) -> dict:
         """Kill current session and respawn with new mode, reusing stored meta."""
@@ -279,6 +322,9 @@ class ChatRelay:
         session = self._session
         fn      = self._transform_fn   # capture — avoids TOCTOU
         acc     = _ToolCallAcc()       # fresh accumulator per subprocess
+        conv_id = self._conversation_id
+        is_v2   = self._protocol_version == 2
+
         while session is self._session:
             line = await session.read_stdout_line()
             if line is None:
@@ -294,10 +340,36 @@ class ChatRelay:
                     raw = '{"type":"result","subtype":"done","is_error":false}'
                 # EOF synthetic events always use _transform_line (our own format, not backend's)
                 for p in _transform_line(raw, acc):
-                    self._relay_buf.enqueue(p)
+                    if is_v2:
+                        ctx = EventContext(
+                            conversation_id=conv_id,
+                            session_id="",
+                            turn_id=self._turn_id,
+                            sequence=self._relay_seq,
+                        )
+                        for evt in parse_pipe_string(p, ctx):
+                            self._relay_seq += 1
+                            updated = evt.model_copy(update={"sequence": self._relay_seq})
+                            self._relay_buf.enqueue(updated.model_dump_json())
+                            _history_observe(updated)
+                    else:
+                        self._relay_buf.enqueue(p)
                 break
-            for p in fn(line, acc):
-                self._relay_buf.enqueue(p)
+            for pipe_str in fn(line, acc):
+                if is_v2:
+                    ctx = EventContext(
+                        conversation_id=conv_id,
+                        session_id="",
+                        turn_id=self._turn_id,
+                        sequence=self._relay_seq,
+                    )
+                    for evt in parse_pipe_string(pipe_str, ctx):
+                        self._relay_seq += 1
+                        updated = evt.model_copy(update={"sequence": self._relay_seq})
+                        self._relay_buf.enqueue(updated.model_dump_json())
+                        _history_observe(updated)
+                else:
+                    self._relay_buf.enqueue(pipe_str)
 
     async def _ppid_watchdog(self) -> None:
         """Exit relay if Unity (parent) dies."""
@@ -333,6 +405,11 @@ class ChatRelay:
             await self._session.kill()
             self._session = None
             self._relay_buf.clear()  # prevent cross-session contamination; seq stays monotonic
+            with contextlib.suppress(Exception):
+                from .history.manager import get_history_manager
+                mgr = get_history_manager()
+                if mgr is not None:
+                    mgr.close_conversation()
 
     async def _shutdown(self) -> None:
         """Graceful shutdown: kill child then exit. Wired to SIGTERM."""
@@ -359,6 +436,8 @@ def _extract_text_from_turn(line: str) -> str:
 
 
 async def _main() -> None:
+    from .session_identity import cleanup_stale_sessions
+    cleanup_stale_sessions()
     port = _find_free_port()
     relay = ChatRelay()
     loop = asyncio.get_running_loop()

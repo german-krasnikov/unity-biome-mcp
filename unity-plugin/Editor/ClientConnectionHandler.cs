@@ -51,6 +51,7 @@ namespace UnityMCP.Editor
                         Debug.LogWarning($"{BiomeLabel.Tag} {label} rejected connection: client capacity exceeded"));
                     continue;
                 }
+                slot.SetEntryEndpoint(idx, gen, client.Client.RemoteEndPoint?.ToString() ?? "unknown");
                 _ = HandleClientAsync(client, slot, idx, gen, label, clientCts.Token);
             }
         }
@@ -97,7 +98,20 @@ namespace UnityMCP.Editor
 
         // internal so tests can verify fast-path / slow-path classification without TCP.
         internal static bool IsSlowPath(string cmd) =>
-            cmd != "ping" && cmd != "get_version" && cmd != "status" && cmd != "get_enabled_tools";
+            cmd != "ping" && cmd != "get_version" && cmd != "status" &&
+            cmd != "get_enabled_tools" && cmd != "client_hello";
+
+        // internal so tests can verify the cross-language response format without TCP.
+        // helloVersion:2 is the Python discriminant: present → fast-path (1 RTT), absent → 3-RTT fallback.
+        // T19: projectId added (cloudProjectId or sha256[:12]) — stable across path moves.
+        internal static string BuildClientHelloResponse(string msgId, string ver, string projPath) =>
+            $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":true," +
+            $"\"data\":\"pong\",\"helloVersion\":2," +
+            $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
+            $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"," +
+            $"\"projectId\":\"{JsonHelper.EscapeJson(MCPServer._cachedProjectId)}\"}}";
+
+
 
         private static async Task HandleClientAsync(TcpClient client, ClientSlot slot, int index, long generation,
             string label, CancellationToken clientToken)
@@ -130,20 +144,62 @@ namespace UnityMCP.Editor
 
                         var json = Encoding.UTF8.GetString(payload);
 
+                        // Extract cmd/id early — needed by client_hello fast-path before
+                        // the generic first-message block runs.
+                        var cmdName = JsonHelper.ExtractString(json, "cmd");
+                        var msgId = JsonHelper.ExtractString(json, "id");
+
+                        // client_hello: combined handshake — replaces ping + project_path + get_version
+                        // with a single roundtrip. Handles first-message bookkeeping itself.
+                        if (cmdName == "client_hello")
+                        {
+                            var sessionId   = JsonHelper.ExtractString(json, "sessionId");
+                            var lockToken   = JsonHelper.ExtractString(json, "lockToken");
+                            var role        = JsonHelper.ExtractString(json, "role");
+                            var displayName = JsonHelper.ExtractString(json, "displayName");
+                            var agentId     = JsonHelper.ExtractString(json, "agentId");
+                            var bridgePid   = JsonHelper.ExtractInt(json, "bridgePid");
+                            var chatMode    = JsonHelper.ExtractString(json, "chatMode") ?? "";
+
+                            if (!string.IsNullOrEmpty(role)) label = RoleToLabel(role);
+                            if (!string.IsNullOrEmpty(displayName)) label = displayName;
+
+                            slot.SetEntrySession(index, generation, sessionId, lockToken, agentId,
+                                !string.IsNullOrEmpty(displayName) ? displayName : label,
+                                bridgePid, chatMode);
+                            slot.SetEntryLabel(index, generation, label);
+
+                            var ep0 = endPoint; var lbl0 = label;
+                            MainThreadDispatcher.Enqueue(() => Debug.Log(
+                                $"{BiomeLabel.Tag} {lbl0} connected from {ep0}"));
+                            receivedFirstMessage = true;
+
+                            // Combined response: pong + version + projectPath in one frame
+                            var stamp = MCPServer._domainStamp;
+                            var ver   = MCPServer.BuildVersionString(stamp, MCPServer.PluginVersion);
+                            var projPath = MCPServer._cachedDataPath != null
+                                ? (System.IO.Path.GetDirectoryName(MCPServer._cachedDataPath)?.Replace('\\', '/') ?? "")
+                                : "";
+                            await SendAsync(stream, BuildClientHelloResponse(msgId, ver, projPath), clientToken).ConfigureAwait(false);
+                            continue;
+                        }
+
                         // Log "connected" on first real message; probes (no data) stay silent.
                         if (!receivedFirstMessage)
                         {
                             slot.Label = null;  // clear stale label from previous session
                             var role = JsonHelper.ExtractString(json, "role");
-                            if (!string.IsNullOrEmpty(role)) label = RoleToLabel(role);
+                            if (!string.IsNullOrEmpty(role))
+                            {
+                                label = RoleToLabel(role);
+                                slot.SetEntryLabel(index, generation, label);
+                            }
                             var ep0 = endPoint; var lbl0 = label;
                             MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} {lbl0} connected from {ep0}"));
                             receivedFirstMessage = true;
                         }
 
                         // Fast-path: ping/get_version/status bypass main thread (works even when Editor is busy)
-                        var cmdName = JsonHelper.ExtractString(json, "cmd");
-                        var msgId = JsonHelper.ExtractString(json, "id");
                         if (cmdName == "ping")
                         {
                             await SendAsync(stream, JsonHelper.FormatResponse(msgId, true, "pong", null), clientToken).ConfigureAwait(false);
@@ -180,6 +236,8 @@ namespace UnityMCP.Editor
                             clientToken, cmdTimeout.Token);
                         // Invalidate on first slow-path command (not on connection, not on fast-path probes).
                         var needsInvalidate = !refInvalidated;
+                        slot.BeginCommand(index, generation, cmdName);
+                        var slotChatMode = slot.GetEntryChatMode(index, generation);
                         MainThreadDispatcher.Enqueue(() =>
                         {
                             // Skip if Python already gave up (per-command timeout fired and
@@ -191,7 +249,7 @@ namespace UnityMCP.Editor
                             if (needsInvalidate) { RefManager.Invalidate(); refInvalidated = true; }
                             try
                             {
-                                CommandRouter.ProcessAsync(json, tcs);
+                                CommandRouter.ProcessAsync(json, tcs, slotChatMode);
                             }
                             catch (Exception e)
                             {
@@ -214,6 +272,7 @@ namespace UnityMCP.Editor
                                     $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":false,\"err\":\"Command '{JsonHelper.EscapeJson(cmdName)}' timed out after {timeoutSec}s (Unity main thread blocked). Retry.\",\"retry\":2000}}");
                         });
                         var result = await tcs.Task.ConfigureAwait(false);
+                        slot.EndCommand(index, generation);
                         await SendAsync(stream, result, clientToken).ConfigureAwait(false);
                     }
                 }
@@ -228,10 +287,11 @@ namespace UnityMCP.Editor
             }
             finally
             {
+                var entryLabel = slot.GetEntryLabel(index, generation) ?? slot.Label ?? label;
                 slot.Clear(index, generation);
                 if (receivedFirstMessage)
                 {
-                    var lbl = slot.Label ?? label; var gen = generation;
+                    var lbl = entryLabel; var gen = generation;
                     MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} {lbl} disconnected (gen={gen})"));
                 }
             }

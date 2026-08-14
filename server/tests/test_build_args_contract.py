@@ -79,10 +79,11 @@ def test_claude_env_strip_all_keys(tmp_path):
         assert key in strip, f"expected {key!r} in env_strip"
 
 
-def test_claude_no_env_set(tmp_path):
+def test_claude_env_set_contains_chat_mode(tmp_path):
+    # T11: Claude relays UNITY_MCP_CHAT_MODE so the spawned MCP server can enforce mode policy.
     _, env_set, _ = ClaudeDef().build_args(mode="ask", model=None, mcp_port=_TEST_PORT,
                                             config_dir=str(tmp_path))
-    assert env_set == {}
+    assert env_set.get("UNITY_MCP_CHAT_MODE") == "ask"
 
 
 # ── Claude: mode + resume + model ───────────────────────────────────────────
@@ -318,7 +319,7 @@ def test_opencode_uses_stream_json_false():
     assert OpenCodeDef().uses_stream_json is False
 
 
-# ── _sanitize_extra_args: equals-style blocked flags ────────────────────────
+# ── sanitize_extra_args: equals-style blocked flags ────────────────────────
 
 def test_sanitize_blocks_equals_style_permission_mode(tmp_path):
     argv, _, _ = ClaudeDef().build_args(

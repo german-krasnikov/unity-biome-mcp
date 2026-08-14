@@ -12,12 +12,12 @@ unity-biome-mcp/
 │   ├── src/unity_mcp/
 │   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
-│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 148 registered MCP tools
+│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 148 registered MCP tools, idle watchdog (useful/transport split, in-flight guard, T4, T6: dormant scheduling + TOCTOU guard + parent-alive check)
 │   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
-│   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0)
+│   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0); T5: ClientHelloPayload dataclass, _session_id/_lock_token/_started_at_utc set in __init__, session_id/lock_token read-only properties, _build_hello(msg_id), _check_version_from_hello/_fetch_and_check_version split for new→old fallback; T6: BridgeState.DORMANT/WAKING, suspend() method (CONNECTED→DORMANT, guards: queue empty + state check, resets cooldown/backoff)
 │   │   ├── bridge_retry.py     # RetryPolicy class + unwrap_bridge_result() extracted (v0.70.0)
 │   │   ├── bridge_result.py    # unwrap_bridge_result() helper (v0.70.0)
-│   │   ├── bridge_heartbeat.py # Heartbeat management (extracted)
+│   │   ├── bridge_heartbeat.py # Heartbeat management (extracted); _on_transport_activity callback wired for idle watchdog (T4)
 │   │   ├── bridge_reload_state.py # Reload state tracking (extracted)
 │   │   ├── bridge_socket.py    # Socket management + frame helpers (extracted; v0.80.0: frame_write(), frame_read(), frame_read_with_timeout() — shared by bridge, heartbeat, chat_relay, reload_ladder, doctor)
 │   │   ├── connection_slot.py  # ConnectionSlot: single connection per project
@@ -36,7 +36,7 @@ unity-biome-mcp/
 │   │   ├── server_filtering.py # Port discovery + TCP probe (v0.23.0), catalog push, tool filtering
 │   │   ├── paths.py            # Canonical path helpers for ~/.unity-biome-mcp layout (v0.70.0: unity_mcp_dir(); v0.96.1: iter_port_files() — yields port files from primary + legacy ~/.unity-mcp/ports/, dedup by filename)
 │   │   ├── server_control.py   # Graceful shutdown: list_servers, stop_server SIGTERM/taskkill (v0.55.10)
-│   │   ├── lockfile.py         # Cross-platform exclusive locking + zombie detection (v0.23.0)
+│   │   ├── lockfile.py         # Cross-platform exclusive locking + zombie detection (v0.23.0); T5: write_lock_metadata/read_lock_metadata for session identity (sessionId, lockToken) on lockfile line 2 (JSON); acquire_lock() gains metadata kwarg
 │   │   ├── diagnose.py         # Shared diagnose parser + verdict logic (_parse_diagnose, _verdict, _DiagnoseFields)
 │   │   ├── _update_check.py    # Version checker — GitHub releases API (v0.47.1: switched from PyPI), 24h cache, includes --reinstall flag in banner
 │   │   ├── compile_state.py    # CompileStateProbe (heuristic Unity compile detection)
@@ -114,7 +114,40 @@ unity-biome-mcp/
 │   │   ├── debug/              # Debug subsystem (v0.59.0: state capture + watch system)
 │   │   │   ├── __init__.py
 │   │   │   └── snapshots.py    # State capture + diff (snapshot comparison for debugging)
-│   │   ├── tools/              # Tool modules (46 files + __init__, pipeline-gap sprint: +build.py, +packages.py; playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
+│   │   ├── adapters/           # Multi-provider agent relay (Chat Core, T9-T24)
+│   │   │   ├── __init__.py
+│   │   │   ├── protocol.py     # Shared protocol defs: EventContext, AcpPayload
+│   │   │   ├── acp.py          # AcpAgentAdapter: Claude/OpenCode subprocess in ACP output mode (--format acp)
+│   │   │   ├── acp_parser.py   # ACP line parser: timestamp/kind/delta/data extraction
+│   │   │   ├── claude_acp.py   # Claude-specific ACP adapter
+│   │   │   ├── codex_acp.py    # Codex-specific ACP adapter
+│   │   │   ├── legacy.py       # LegacyCliAdapter: stream-json relay (backward compat)
+│   │   │   ├── pipe_parser.py  # Pipe-protocol parser (legacy)
+│   │   │   └── fixture.py      # FixtureAdapter for testing + deterministic relay validation
+│   │   ├── agent_event.py      # AgentEvent canonical envelope: 16+ event kinds, provider-specific filtering, forward-compatible schema
+│   │   ├── session_identity.py # SessionIdentity: session_id, lock_token, agent_id, display_name, timestamps
+│   │   ├── permission_broker.py # PermissionBroker: per-session MCP tool permission prompts + consent caching
+│   │   ├── global_config.py    # GlobalConfig singleton: model presets, backend selection, feature flags
+│   │   ├── brief.py            # Brief dataclass: scene context envelope (compile_errors, console, hierarchy, selection, profiler)
+│   │   ├── brief_builder.py    # BriefBuilder: on-demand context assembly from scene state + profiler metrics
+│   │   ├── changeset.py        # Changeset: atomic multi-command transaction model
+│   │   ├── changeset_coordinator.py # ChangesetCoordinator: transaction orchestration + mutation tracking
+│   │   ├── changeset_file_capture.py # File snapshot capture for ChangeSet (before/after diff)
+│   │   ├── changeset_journal.py # Transaction journal: mutation audit log
+│   │   ├── changeset_store.py  # ChangesetStore: persistent transaction storage
+│   │   ├── checkpoint.py       # Checkpoint: full scene state snapshot model
+│   │   ├── checkpoint_manifest.py # CheckpointManifest: consistency verification (asset/object/component checksums)
+│   │   ├── checkpoint_store.py # CheckpointStore: save/load/list checkpoint operations
+│   │   ├── checkpoint_restore.py # CheckpointRestore: snapshot rollback with state verification
+│   │   ├── plan.py             # Plan: agent-generated action plan with approval workflow + TTL
+│   │   ├── plan_store.py       # PlanStore: plan persistence + expiry management
+│   │   ├── history/            # Conversation history management (Chat Core)
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py       # HistoryEntry dataclass: kind (User/Assistant/Tool), timestamp, metadata
+│   │   │   ├── store.py        # HistoryStore: JSONL-based conversation persistence
+│   │   │   ├── manager.py      # HistoryManager: store + model lifecycle + retention coordination
+│   │   │   └── retention.py    # Retention policies: time-based, count-based, TTL eviction
+│   │   ├── tools/              # Tool modules (50 files + __init__, Chat Core: +brief_tool.py, +changeset_tool.py, +checkpoint_tool.py, +plan_tool.py; pipeline-gap sprint: +build.py, +packages.py; playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
 │   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 154 entries (148 user-visible + 6 _INTERNAL)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
@@ -128,6 +161,10 @@ unity-biome-mcp/
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
 │   │   │   ├── transaction.py  # scene_change_plan + apply_scene_change: pre-flight (compile/console/resolve_scene_refs/checkpoint) → plan_id (TTL 600s) → guarded apply with verify + save (playtests ROI sprint)
 │   │   │   ├── verify.py       # verify_after_change: 5-gate additive pipeline (await_compile → get_compile_errors → console_since → run_tests_wait → run_playtest_suite); returns PASS or FAIL with skipped gates listed (playtests ROI sprint)
+│   │   │   ├── brief_tool.py   # brief MCP tool: on-demand context brief retrieval (compile status, console errors, hierarchy, profiler metrics) (Chat Core)
+│   │   │   ├── changeset_tool.py # changeset MCP tool: query atomic transaction history + mutations (Chat Core)
+│   │   │   ├── checkpoint_tool.py # checkpoint MCP tool: save/load/list scene checkpoints with manifest validation (Chat Core)
+│   │   │   ├── plan_tool.py    # plan MCP tool: create/approve/reject/edit agent action plans with TTL cleanup (Chat Core)
 │   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/clone_object/set_material; get_component+inspect accept compress=True (v0.78.9)
 │   │   │   ├── scene.py        # scene, hierarchy, search + save_session/load_session/screenshot_baseline/screenshot_compare (merged from scene_session.py v0.79.1; multi-scene support)
 │   │   │   ├── console.py      # get_console, get_compile_errors split from scene.py (v0.70.0); playtests ROI sprint: +console_mark (timestamp watermark, pure Python), +get_console_since (logs after watermark)
@@ -200,8 +237,42 @@ unity-biome-mcp/
 │       ├── test_bridge_reload_gate.py      # Reload gate (asyncio.Event): wakes on reconnect, replaces fixed sleep (5 tests, v0.78.5)
 │       ├── test_bridge_role.py             # Client role/identification: UNITY_MCP_CLIENT env, set_client_label, RoleToLabel (3 tests, v0.78.5)
 │       ├── test_bridge_retry.py            # RetryPolicy unit tests: decide(), allow_hint_retry, is_retry_safe gate (v0.90.0)
+│       ├── test_client_hello.py            # T5: client_hello handshake (8 tests): fast-path hello response, fallback to legacy project check, version parsing from hello, backward compat new↔old protocol
+│       ├── agent/                          # Chat Core adapter + event tests (T9-T24)
+│       │   ├── test_acp_adapter.py         # ACP adapter: --format acp subprocess, event parsing, provider filtering
+│       │   ├── test_acp_parser.py          # ACP line parser: timestamp/kind/delta/data extraction
+│       │   ├── test_adapters.py            # Multi-adapter registration + routing
+│       │   ├── test_agent_event.py         # AgentEvent envelope: event kinds, schema versioning, forward compat
+│       │   ├── test_claude_acp_adapter.py  # Claude ACP specifics
+│       │   ├── test_codex_acp_adapter.py   # Codex ACP specifics
+│       │   ├── test_fixture_adapter.py     # FixtureAdapter: deterministic testing
+│       │   └── test_pipe_parser.py         # Pipe-protocol parser (legacy)
+│       ├── changesets/                     # Chat Core changeset + checkpoint tests
+│       │   ├── test_changeset.py           # Changeset transaction model + coordination
+│       │   ├── test_changeset_file_capture.py # File snapshot capture + diff
+│       │   ├── test_changeset_store.py     # ChangeSet persistence + query
+│       │   ├── test_checkpoint.py          # Checkpoint model + manifest
+│       │   ├── test_checkpoint_manifest.py # Checksum consistency verification
+│       │   ├── test_checkpoint_restore.py  # State rollback + recovery
+│       │   ├── test_checkpoint_store.py    # Checkpoint save/load/list
+│       │   ├── test_checkpoint_tool.py     # checkpoint MCP tool integration
+│       │   ├── test_get_changeset_tool.py  # changeset MCP tool integration
+│       │   └── test_session_identity.py    # SessionIdentity: session_id, lock_token, agent_id tracking
+│       ├── test_brief.py                   # Brief context envelope model
+│       ├── test_brief_builder.py           # BriefBuilder: on-demand context assembly
+│       ├── test_brief_tool.py              # brief MCP tool integration
+│       ├── test_global_config.py           # GlobalConfig singleton: model presets, backend selection
+│       ├── test_history_manager.py         # HistoryManager: store + lifecycle coordination
+│       ├── test_history_models.py          # HistoryEntry dataclass + serialization
+│       ├── test_history_retention.py       # Retention policies: TTL eviction, count limits
+│       ├── test_history_store.py           # JSONL store: persistence + recovery
+│       ├── test_permission_broker.py       # PermissionBroker: per-session consent + caching
+│       ├── test_plan.py                    # Plan model: approval/rejection workflow + TTL
+│       ├── test_plan_store.py              # PlanStore: persistence + expiry
+│       ├── test_plan_tool.py               # plan MCP tool integration
+│       ├── test_chat_relay_v2.py           # Chat relay v2 protocol + schema validation
 │       ├── test_connection_status.py       # Semantic connection status: connected/reconnecting/domain-reloading/disconnected (v0.78.10)
-│       ├── test_lockfile.py             # PID lockfile + cleanup_stale_port_files (additions, v0.52.6)
+│       ├── test_lockfile.py             # PID lockfile + cleanup_stale_port_files (additions, v0.52.6); T5: +3 tests for write_lock_metadata/read_lock_metadata
 │       ├── test_server_control.py       # list_servers, stop_server SIGTERM/taskkill (v0.55.10)
 │       ├── test_autobatch.py            # _quote_if_spaces, _DOTTED_KV_RE, setup/set/configure_objects (v0.55.10)
 │       ├── test_parse_kv.py             # parse_kv quote-strip, lookahead _KV_RE (v0.55.10)
@@ -285,7 +356,7 @@ unity-biome-mcp/
 │   │   ├── skills/             # 11 folder skills with SKILL.md and optional references/resources
 │   │   └── scripts/            # claude_to_codex.py — ownership-checked Claude-to-Codex sync
 │   └── Editor/
-│       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern
+│       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern; **T1: ConnectedClientCount** property (sum of active clients from both slots)
 │       ├── PortResolver.cs                 # Pure testable port helpers (ResolvePort, FindFreePort, SavePorts, SaveProjectSettings) + 35 tests (v0.35.0: 4-arg chain env→ProjectSettings→Library→FindFreePort); **WI-7**: NEW atomic `BindFreePort(startFrom, skipPort, skipPort2)` for TOCTOU-safe port binding; `FindFreePortExcluding(skip1, skip2)` skips multiple ports; `ResolveReloadPort()` discovers reload port; `TrySaveAllPorts()` writes all 3 ports (main/chat/reload) atomically
 │       ├── CommandRouter.cs                # RegisterAll(), guards, core dispatch (partial class)
 │       ├── CommandRouter.ObjectHandlers.cs # Object mutation handlers (partial class, 274L after v0.80.0 SRP split); get_aliases command + BuildAliasSection/GetAliasesText; ApplyFieldsCompress(args, result) shared by inspect + get_component (v0.78.x)
@@ -377,7 +448,8 @@ unity-biome-mcp/
 │       ├── ConsoleProblemPersistence.cs    # SessionState-persisted problem entries (Error/Exception/Assert) across domain reload
 │       ├── PrefKeys.cs                     # Central SessionState/EditorPrefs key literals (DRY)
 │       ├── ClientConnectionHandler.cs       # Handles TCP client connections (v0.69.0)
-│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0; v1.0.1: LingerOption(true,0) on all close paths → RST not FIN, no TIME_WAIT on Windows)
+│       ├── ConnectionSnapshot.cs            # **T7: NEW** — DormantInfo struct (BridgePid, Kind, Cwd) + DormantBridgeScanner static class (Scan(port, activePids) method, OverrideLockDir test seam). Detects bridge processes holding lock files but not in active TCP slots.
+│       ├── ClientSlot.cs                    # Per-connection state + command dispatch (v0.69.0; v1.0.1: LingerOption(true,0) on all close paths → RST not FIN, no TIME_WAIT on Windows); **T1: CountActive()** method — thread-safe snapshot of active connection count; **T3: Per-Entry Metadata** — ClientActivityState enum, ConnectionSnapshot struct (11 fields), per-entry fields + methods (SetEntryEndpoint, SetEntryLabel, BeginCommand, EndCommand, GetEntryLabel, SetEntrySession, TakeSnapshot, DisconnectEntry, SetLastUsefulTicksForTest); **T7: GetActiveSnapshots()** alias for TakeSnapshot() used by MCPStatusWindow to feed hierarchical server list
 │       ├── MainThreadDispatcher.cs          # Main-thread work queue for TCP callbacks (v0.69.0)
 │       ├── EnvironmentHelper.cs             # Unity environment detection + version checks (v0.69.0)
 │       ├── ErrorClassifier.cs               # Categorizes command failures for recovery (v0.69.0)
@@ -419,9 +491,10 @@ unity-biome-mcp/
 │       ├── BiomeUI.cs                     # Biome section UI orchestrator (docs-critical-review)
 │       ├── UI/                             # UI design system (v0.55.10)
 │       │   └── IconCanvas.cs              # Procedural icon builder (18×18, 2px stroke, theme-agnostic)
-│       ├── MCPStatusWindow.cs             # Connection status monitor: server list with Kill buttons, refresh on tick, changelog via MarkdownInlineFormatter (v1.31.0: changelog DRY rendering)
-│       ├── McpServerScanner.cs            # Port/lock file scanner: detects alive/phantom servers, CleanPhantomFiles orphan cleanup (v1.31.0)
-│       ├── MCPActions.cs                  # Shared actions: KillCurrent/KillAll/KillByPort split with DRY helpers (v1.31.0)
+│       ├── MCPStatusWindow.cs             # Connection status monitor: server list with Kill buttons, refresh on tick, changelog via MarkdownInlineFormatter (v1.31.0: changelog DRY rendering); **T7: hierarchical server list** — per-port tree view with live TCP connections (via TakeSnapshot()) and dormant bridges (via DormantBridgeScanner.Scan), per-connection metadata rows (kind, state, idle, uptime), kill buttons with multi-bridge confirmation
+│       ├── MCPStatus.uss                  # Stylesheet for Status window (T7: +25 lines for connection hierarchy: .server-entry, .server-header, .connection-row, .conn-state, .dormant-section, etc.)
+│       ├── McpServerScanner.cs            # Port/lock file scanner: detects alive/phantom servers, CleanPhantomFiles orphan cleanup (v1.31.0); **T1: multi-lock support** — `ScanDetailed()` returns `UnityServerInfo[]` with per-port `McpConnectionInfo[]` list + `LiveTcpCount`; `Scan()` backward-compat wrapper; `FindConnections(port)` enumerates all server-{port}-*.lock files; test seam `OverrideLiveTcpCountGetter`
+│       ├── MCPActions.cs                  # Shared actions: KillCurrent/KillAll/KillByPort + multi-bridge TerminateByPid/StopAllOnPort/CountBridgesOnPort (v1.31.0: KillByPort; T2: TerminateResult enum, multi-bridge termination with selective cleanup)
 │       ├── MCPStatusModel.cs              # Pure state logic (no deps) — maps connection state → display
 │       ├── MCPStatusBarWidget.cs          # Injects MCP pill into AppStatusBar via reflection
 │       ├── TestSupport/                   # Test infrastructure base class + attributes (v1.12.0, separate asmdef)
@@ -452,6 +525,8 @@ unity-biome-mcp/
 │       │   ├── BatchHelperReadOnlyTests.cs # **WI-8**: Batch DSL read-only mode — verify mutations blocked, reads allowed, verification gates skipped
 │       │   ├── CommandRouterReadOnlyTests.cs # **WI-8**: CommandRouter.IsReadOnly property + CheckGuards write-blocking + get_enabled_tools cache behavior in read-only
 │       │   ├── RequiresReadWriteAttributeTests.cs # **WI-8**: [RequiresReadWrite] attribute + EnforceReadWriteRequirement() unit tests — reason extraction, type/method reflection, skip predicate
+│       │   ├── ClientSlotMetadataTests.cs # 10 NUnit tests (per-entry metadata: ConnectedAt, Label, InFlightCount, ActivityState, LastUsefulAt, EndCommand timestamps, generation stale checks) (T3)
+│       │   ├── DormantBridgeScannerTests.cs # 5 NUnit tests (Scan behavior: no files, live PIDs, excluded PIDs, dead PIDs, port filtering) (T7)
 │       │   ├── MCPServerStartGuardTests.cs # 3 NUnit tests (ShouldStartServer batch mode guard, v0.52.6)
 │       │   ├── MCPStatusModelTests.cs     # 14 NUnit tests (state transitions, labels, pills) [+TestFixture v0.26.0]
 │       │   ├── CatalogParserTests.cs      # [+TestFixture v0.26.0]

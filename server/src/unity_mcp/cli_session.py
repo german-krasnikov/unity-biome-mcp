@@ -19,13 +19,15 @@ class BufLine:
 @dataclass
 class SessionMeta:
     """Tracks what was spawned so _cmd_set_mode can respawn with new mode."""
-    backend:    str
-    mode:       str
-    model:      str | None
-    mcp_port:   int
-    prompt:     str
-    config_dir: str | None
-    extra:      dict = field(default_factory=dict)
+    backend:             str
+    mode:                str
+    model:               str | None
+    mcp_port:            int
+    prompt:              str
+    config_dir:          str | None
+    extra:               dict = field(default_factory=dict)
+    internal_session_id: str | None = None
+    capabilities:        dict = field(default_factory=dict)
 
 
 class CliSession:

@@ -10,6 +10,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [v1.34.0] — 2026-08-14
+
+### Added
+
+- **Chat Core System (T9-T24)**: Unified multi-provider agent relay architecture with canonical event stream.
+  - **Agent Communication Protocol (ACP) adapters**: Support for Claude, Codex, and OpenCode subprocess backends via ACP format output mode. Feature-flagged via environment variables (UNITY_MCP_ACP_OPENCODE, etc.).
+  - **Agent event model**: Canonical `AgentEvent` envelope with 16+ event kinds (session_started, turn_completed, tool_call_completed, cost_update, capabilities_changed, etc.), provider-specific event filtering, and forward-compatible schema versioning.
+  - **Multi-provider routing**: Dynamic backend selection (Claude, Codex, Kimi, Agy, OpenCode) with protocol abstraction via `adapters/` package (acp.py, legacy.py, fixture.py for testing).
+  - **Session identity & authorization**: `SessionIdentity` tracks session ID, lock token, agent ID, display name, started timestamp. `PermissionBroker` manages per-session MCP tool permission prompts and consent caching.
+  - **Global configuration**: `GlobalConfig` singleton for server-wide settings (model presets, backend selection, feature flags).
+  - **Context briefs**: `Brief` + `BriefBuilder` for on-demand scene context injection (compile errors, console, hierarchy, selection, profiler data).
+  - **ChangeSet tracking**: Atomic multi-command transaction support via `Changeset` + `ChangesetCoordinator`. File capture, journal, and store for mutation tracking and rollback.
+  - **Checkpoint save/restore**: Full scene state snapshots with `CheckpointStore` and `CheckpointRestore`. Manifest-based consistency checking.
+  - **Plan workflow**: `Plan` + `PlanStore` for agent-generated action plans with approval/rejection workflow and TTL-based cleanup.
+  - **Conversation history**: JSONL-based conversation store with retention eviction policies. `HistoryManager` coordinates store, models, and retention.
+
+- **Four new MCP tools for Chat Core workflows**:
+  - `brief` — on-demand context brief retrieval (compile status, console errors, hierarchy snapshot, profiler metrics)
+  - `changeset` — query atomic transaction history and mutations
+  - `checkpoint` — save/load/list scene checkpoints with manifest validation
+  - `plan` — create/approve/reject/edit agent action plans
+
+- **Client identity in TCP handshake (T5)**: `ClientHelloPayload` dataclass combines session identity, role, and connection metadata in single initial frame. Backward-compatible fallback to legacy project check for old C# clients.
+
+- **Connection metadata tracking (T3)**: Per-connection snapshots with `ConnectionSnapshot` struct (11 fields: Kind, State, RemoteEndpoint, Label, SessionId, DisplayName, LastCommand, InFlightCount, idle time, connected timestamp, generation). `ClientActivityState` enum (Active/Idle/Dormant/Closing) tracks per-entry lifecycle.
+
+- **Dormant bridge detection (T7)**: `DormantBridgeScanner` static class identifies bridge processes holding lock files but not in active TCP slots. Hierarchical server list in MCPStatusWindow shows both live and dormant bridges.
+
+- **Chat relay v2 schema**: `protocol/chat-relay/v2/agent-event.schema.json` with JSON Schema validation for incoming events. Validation tests ensure ACP adapter compliance.
+
+### Changed
+
+- **Multi-lock file support**: `McpServerScanner` now detects multiple MCP connections per port via `server-{port}-*.lock` file enumeration. `UnityServerInfo` includes per-port `McpConnectionInfo[]` list.
+
+- **Idle watchdog enhancements**: Transport-layer activity tracking split from user-initiated work via `_on_transport_activity` callback (T4). `BridgeState` enum expanded with DORMANT and WAKING states for low-power mode.
+
+- **Profiler context bridge**: ProfilerChipProvider enables profiler to chat handoff with performance metrics as context.
+
+### Fixed
+
+- **ACP adapter compliance**: Parse errors in agent event streams now bubble to surface instead of silently failing.
+
+- **Permission broker initialization**: Session authorization now properly gated on backend handshake completion.
+
+- **Chat Core Hardening (Architecture Review)**:
+  - **Atomic writes in ContentStore** — `store()` now writes to temporary file, then `os.replace()` atomically to prevent partial writes on crash.
+  - **Path traversal guards in CheckpointStore** — `_path()` validates checkpoint_id format (alphanumeric + hyphens/underscores) to prevent directory traversal.
+  - **Finalize barriers in ChangeSetCoordinator** — `append()` now checks `status != "open"` before operations to prevent mutations on closed changesets. `record_file_mutation()` now infers operation kind (create/delete/modify) from before/after refs.
+  - **Fingerprint consistency in SessionIdentity** — Both project_id and config_dir fallback paths now use 12-char fingerprints (was mixed 8/12). Token hash parsing now gracefully handles invalid hex input.
+  - **Safe file operations in checkpoint eviction** — `_safe_mtime()` and `_safe_size()` helpers catch OSError during stat() calls to prevent eviction crashes on missing/inaccessible files.
+  - **Precondition checking in CheckpointRestore** — `restore_files()` now pre-checks all blobs exist before any writes, preventing partial restores.
+  - **Dead code removal & DRY** — `_TRANSFORM_FNS` consolidated into `adapters/legacy.py` (shared by chat_relay and stream_transform). `ensure_history_manager()` unifies init/get lifecycle.
+  - **26 new tests** covering edge cases: path validation, atomic write failures, eviction with missing files, token hash errors, fingerprint length consistency.
+
+### Test Coverage
+
+- **Python unit tests**: 6500+ passed (Chat Core modules: +218 new tests covering adapters, agent_event, brief, changeset, checkpoint, history, permission_broker, plan, session_identity)
+- **C# EditMode**: 7950+ passed
+- **New test files**: test_acp_adapter.py, test_agent_event.py, test_brief_builder.py, test_changeset.py, test_checkpoint_store.py, test_history_manager.py, test_permission_broker.py, test_plan.py, test_plan_store.py, test_session_identity.py, test_client_hello.py
+
 ## [v1.33.0] — 2026-08-13
 
 ### Added
@@ -3196,3 +3258,6 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - Cycle 16b: Domain Reload TCP Self-Healing (bind retry, watchdog, state file)
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
+
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.34.0...HEAD
+[v1.34.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.33.0...v1.34.0

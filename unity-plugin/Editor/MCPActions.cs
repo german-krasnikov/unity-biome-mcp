@@ -9,6 +9,8 @@ namespace UnityMCP.Editor
     /// <summary>Shared MCP action methods — used by status window and status bar widget.</summary>
     internal static class MCPActions
     {
+        internal enum TerminateResult { Killed, Stale, NotFound }
+
         // Test seam: override to isolate KillAll from real ~/.unity-biome-mcp in tests.
         internal static string OverrideLockDir;
 
@@ -51,21 +53,52 @@ namespace UnityMCP.Editor
             if (!Directory.Exists(dir)) return;
             foreach (var f in Directory.GetFiles(dir, $"server-{port}-*.lock"))
                 KillLockFile(f);
-            var portsDir = Path.Combine(dir, "ports");
-            if (Directory.Exists(portsDir))
+            CleanPortDiscoveryFiles(port);
+            if (port == MCPServer.ServerPort) InvokeRelay("Stop");
+        }
+
+        internal static TerminateResult TerminateByPid(int port, int pid)
+        {
+            var lockPath = Path.Combine(GetLockDir(), $"server-{port}-{pid}.lock");
+            if (!File.Exists(lockPath)) return TerminateResult.NotFound;
+            var (killed, stale) = KillLockFile(lockPath);
+            if (CountBridgesOnPort(port) == 0)
             {
-                foreach (var pf in Directory.GetFiles(portsDir, "*.port"))
-                {
-                    var content = File.ReadAllText(pf).Split('\n')[0].Trim();
-                    if (int.TryParse(content, out var p) && p == port)
-                    {
-                        var name = Path.GetFileNameWithoutExtension(pf);
-                        TryDelete(pf);
-                        TryDelete(Path.Combine(portsDir, name + ".chat-port"));
-                        TryDelete(Path.Combine(portsDir, name + ".reload-port"));
-                    }
-                }
+                CleanPortDiscoveryFiles(port);
+                if (port == MCPServer.ServerPort) InvokeRelay("Stop");
             }
+            return killed ? TerminateResult.Killed : TerminateResult.Stale;
+        }
+
+        internal static int CountBridgesOnPort(int port)
+        {
+            var dir = GetLockDir();
+            if (!Directory.Exists(dir)) return 0;
+            return Directory.GetFiles(dir, $"server-{port}-*.lock").Length;
+        }
+
+        private static void CleanPortDiscoveryFiles(int port)
+        {
+            var portsDir = Path.Combine(GetLockDir(), "ports");
+            if (!Directory.Exists(portsDir)) return;
+            foreach (var pf in Directory.GetFiles(portsDir, "*.port"))
+            {
+                var content = File.ReadAllText(pf).Split('\n')[0].Trim();
+                if (!int.TryParse(content, out var p) || p != port) continue;
+                var name = Path.GetFileNameWithoutExtension(pf);
+                TryDelete(pf);
+                TryDelete(Path.Combine(portsDir, name + ".chat-port"));
+                TryDelete(Path.Combine(portsDir, name + ".reload-port"));
+            }
+        }
+
+        internal static void StopAllOnPort(int port)
+        {
+            var dir = GetLockDir();
+            if (!Directory.Exists(dir)) return;
+            foreach (var f in Directory.GetFiles(dir, $"server-{port}-*.lock"))
+                KillLockFile(f);
+            CleanPortDiscoveryFiles(port);
             if (port == MCPServer.ServerPort) InvokeRelay("Stop");
         }
 
@@ -100,7 +133,9 @@ namespace UnityMCP.Editor
             if (!int.TryParse(text, out var pid)) { TryDelete(filePath); return (false, true); }
             try
             {
-                Process.GetProcessById(pid).Kill();
+                using (var proc = Process.GetProcessById(pid))
+                    proc.Kill();
+                TryDelete(filePath);  // force-kill means Python won't clean up its own lock file
                 return (true, false);
             }
             catch (System.ArgumentException) { TryDelete(filePath); return (false, true); }  // already dead

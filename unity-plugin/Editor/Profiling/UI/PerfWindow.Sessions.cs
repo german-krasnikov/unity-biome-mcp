@@ -7,6 +7,16 @@ namespace UnityMCP.Editor
 {
     internal sealed partial class PerfWindow
     {
+        private void AnalyzeSelectedInChat()
+        {
+            if (_selectedSessions.Count > 1) { _compareVerdict.text = "Select one session to analyze."; return; }
+            string sid = _selectedSessions.Count == 1
+                ? System.Linq.Enumerable.First(_selectedSessions)
+                : ProfileContextSerializer.GetLatestSessionId();
+            if (sid == null) { _compareVerdict.text = "No session to analyze."; return; }
+            ProfileContextBridge.RequestAnalyzeInChat(sid);
+        }
+
         private VisualElement _sessionList;
         private Label _compareVerdict;
         private readonly HashSet<string> _selectedSessions = new();
@@ -31,6 +41,9 @@ namespace UnityMCP.Editor
             var compareBtn = new Button(CompareSelected) { text = "Compare Selected" };
             compareBtn.AddToClassList("perf-btn");
             ctrlRow.Add(compareBtn);
+            var analyzeBtn = new Button(AnalyzeSelectedInChat) { text = "Analyze in Chat" };
+            analyzeBtn.AddToClassList("perf-btn");
+            ctrlRow.Add(analyzeBtn);
             root.Add(ctrlRow);
 
             // Verdict panel

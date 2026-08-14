@@ -11,36 +11,87 @@ namespace UnityMCP.Editor
         public readonly int  Pid;
         public readonly bool Alive;
         public readonly bool IsCurrentProject;
+        public readonly int  BridgeCount;  // count of server-{port}-*.lock files
 
-        public ServerInfo(int port, int pid, bool alive, bool isCurrentProject)
+        public ServerInfo(int port, int pid, bool alive, bool isCurrentProject, int bridgeCount = 0)
         {
             Port = port; Pid = pid; Alive = alive; IsCurrentProject = isCurrentProject;
+            BridgeCount = bridgeCount;
+        }
+    }
+
+    internal readonly struct McpConnectionInfo
+    {
+        public readonly int  BridgePid;
+        public readonly bool BridgeAlive;
+        public McpConnectionInfo(int pid, bool alive) { BridgePid = pid; BridgeAlive = alive; }
+    }
+
+    internal readonly struct UnityServerInfo
+    {
+        public readonly int  Port;
+        public readonly int  UnityPid;
+        public readonly bool IsCurrentProject;
+        public readonly IReadOnlyList<McpConnectionInfo> Connections;
+        public readonly int  LiveTcpCount;
+
+        public UnityServerInfo(int port, int unityPid, bool isCurrent,
+            IReadOnlyList<McpConnectionInfo> connections, int liveTcp)
+        {
+            Port = port; UnityPid = unityPid; IsCurrentProject = isCurrent;
+            Connections = connections; LiveTcpCount = liveTcp;
         }
     }
 
     internal static class McpServerScanner
     {
-        internal static string OverrideScanDir; // for tests: ports/ directory
-        internal static string OverrideLockDir; // for tests: lock file directory (root level)
+        internal static string OverrideScanDir;                     // for tests: ports/ directory
+        internal static string OverrideLockDir;                     // for tests: lock file directory
+        internal static Func<int, int> OverrideLiveTcpCountGetter; // for tests: inject TCP count
 
-        internal static IReadOnlyList<ServerInfo> Scan()
+        internal static IReadOnlyList<UnityServerInfo> ScanDetailed()
         {
             var (scanDir, lockDir) = GetDirs();
+            if (!Directory.Exists(scanDir)) return new List<UnityServerInfo>();
 
-            if (!Directory.Exists(scanDir))
-                return new List<ServerInfo>();
-
-            var results = new List<ServerInfo>();
+            var results = new List<UnityServerInfo>();
             foreach (var portFile in Directory.GetFiles(scanDir, "*.port"))
             {
-                var fileName = Path.GetFileNameWithoutExtension(portFile);
                 var firstLine = File.ReadAllText(portFile).Split('\n')[0].Trim();
                 if (!int.TryParse(firstLine, out var port)) continue;
 
-                var (pid, alive) = FindLock(lockDir, port);
-                if (pid == 0 && int.TryParse(fileName, out var filePid))
-                    (pid, alive) = (filePid, IsProcessAlive(filePid));
-                results.Add(new ServerInfo(port, pid, alive, port == MCPServer.ServerPort));
+                var connections = FindConnections(lockDir, port);
+                var isCurrent = port == MCPServer.ServerPort;
+                int unityPid = 0;
+                var fileName = Path.GetFileNameWithoutExtension(portFile);
+                if (int.TryParse(fileName, out var filePid)) unityPid = filePid;
+                var liveTcp = isCurrent ? GetLiveTcpCount(port) : 0;
+                results.Add(new UnityServerInfo(port, unityPid, isCurrent, connections, liveTcp));
+            }
+            return results;
+        }
+
+        internal static IReadOnlyList<ServerInfo> Scan()
+        {
+            var detailed = ScanDetailed();
+            var results = new List<ServerInfo>(detailed.Count);
+            foreach (var us in detailed)
+            {
+                // First-alive-BridgePid strategy preserved for backward compat
+                int pid = 0; bool alive = false;
+                foreach (var c in us.Connections)
+                {
+                    if (c.BridgeAlive) { pid = c.BridgePid; alive = true; break; }
+                }
+                if (pid == 0 && us.Connections.Count > 0) pid = us.Connections[0].BridgePid;
+                if (pid == 0 && us.UnityPid != 0)
+                {
+                    // Backward-compat fallback: use PID from filename and check liveness
+                    pid = us.UnityPid;
+                    alive = IsProcessAlive(pid);
+                }
+                results.Add(new ServerInfo(us.Port, pid, alive, us.IsCurrentProject,
+                    us.Connections.Count));
             }
             return results;
         }
@@ -54,7 +105,7 @@ namespace UnityMCP.Editor
                 foreach (var portFile in Directory.GetFiles(scanDir, "*.port"))
                 {
                     var name = Path.GetFileNameWithoutExtension(portFile);
-                    if (!int.TryParse(name, out var pid)) continue; // skip .chat/.reload variants
+                    if (!int.TryParse(name, out var pid)) continue;
                     if (IsProcessAlive(pid)) continue;
 
                     TryDelete(portFile);
@@ -84,18 +135,26 @@ namespace UnityMCP.Editor
             return (scanDir, lockDir);
         }
 
-        private static (int pid, bool alive) FindLock(string lockDir, int port)
+        private static IReadOnlyList<McpConnectionInfo> FindConnections(string lockDir, int port)
         {
-            if (!Directory.Exists(lockDir)) return (0, false);
-
+            if (!Directory.Exists(lockDir)) return new List<McpConnectionInfo>();
             var locks = Directory.GetFiles(lockDir, $"server-{port}-*.lock");
-            if (locks.Length == 0) return (0, false);
+            var result = new List<McpConnectionInfo>(locks.Length);
+            foreach (var lf in locks)
+            {
+                var parts = Path.GetFileNameWithoutExtension(lf).Split('-');
+                if (parts.Length < 3 || !int.TryParse(parts[parts.Length - 1], out var pid)) continue;
+                result.Add(new McpConnectionInfo(pid, IsProcessAlive(pid)));
+            }
+            result.Sort((a, b) => a.BridgePid.CompareTo(b.BridgePid));
+            return result;
+        }
 
-            var parts = Path.GetFileNameWithoutExtension(locks[0]).Split('-');
-            if (parts.Length < 3 || !int.TryParse(parts[parts.Length - 1], out var pid))
-                return (0, false);
-
-            return (pid, IsProcessAlive(pid));
+        private static int GetLiveTcpCount(int port)
+        {
+            if (OverrideLiveTcpCountGetter != null) return OverrideLiveTcpCountGetter(port);
+            // Lightweight: same-process only; 0 for other projects
+            return MCPServer.ConnectedClientCount;
         }
 
         private static bool IsProcessAlive(int pid)

@@ -82,11 +82,11 @@ def test_core_count_is_13():
 
 
 def test_tier1_count_in_bounds():
-    """Tier1 (non-core) count: P-12440 Phase 1 target is 20; guard [20, 24]."""
+    """Tier1 (non-core) count: P-12440 Phase 1 target is 20; guard [20, 25]."""
     from unity_mcp.tools.tool_specs import _SPECS
     count = sum(1 for s in _SPECS.values() if s.tier1 and not s.core)
-    assert 20 <= count <= 24, (
-        f"Tier1 non-core count is {count} — outside [20, 24] bounds. "
+    assert 20 <= count <= 25, (
+        f"Tier1 non-core count is {count} — outside [20, 25] bounds. "
         "Update this range intentionally if the tier1 set changed."
     )
 

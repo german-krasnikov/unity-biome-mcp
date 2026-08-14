@@ -104,7 +104,7 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
      * **CI Integration** — `ci-python.yml` job `tool-quality` runs export_tools + linters → quality_delta → uploads metrics. `release-preflight.yml` enforces quality gate (exit nonzero on critical issues). **v1.19.0**: CodeCov integration with per-ecosystem flags (Python: `server/coverage.xml` → Codecov `flag=python`; C#: OpenCover XML from Linux EditMode → Codecov `flag=csharp`). SonarCloud C# quality scan (`ci-csharp-quality.yml`) performs source-only analysis on Editor/Reload assemblies (configured via `sonar-project.properties`). OpenSSF Scorecard (`scorecard.yml`) publishes security posture to api.securityscorecards.dev with SARIF upload to GitHub Security tab.
    - **In-Unity Chat System (v0.66.6+)**: Unified RelayBackend on C# side communicates with Python chat_relay.py sidecar. Five backends are managed server-side (Claude, Codex, Kimi, Agy, OpenCode) via `backend_def.py` with CLI argument builders and stream transforms. C# dispatches semantic commands; the relay owns CLI protocols, binary resolution, model selection, and event normalization. See the Chat Relay System section below.
    - `_UnstructuredMCP(FastMCP)` subclass: overrides `add_tool()` to force `structured_output=False` on all registered tools, eliminating duplicate `content` + `structuredContent` in responses + `outputSchema` from ListTools (v0.50.3). Reduces MCP response size & Claude parsing overhead. **FastMCP Contract Tests (v0.78.11, `test_tool_schema_coverage.py`)**: 7 new tests verify the JSON Schema FastMCP actually emits to MCP clients (`mcp._tool_manager._tools[name].parameters["properties"]`). Guards against FastMCP silently dropping params (e.g., `compress` from `get_component`/`inspect`, `validate_aliases` from `batch`). Also verifies `alias_status` registration and that all core tools with params have non-empty properties.
-   - Lifespan: auto-discover Unity port from `~/.unity-biome-mcp/ports/*.port`, acquire exclusive PID lockfile, create ConnectionSlot, connect bridge, fetch disabled tools cache (`get_disabled_tools`), push Python-authoritative catalog (`_push_catalog`), start heartbeat, register reconnect callbacks, load_plugins()
+   - **Lifespan** (v0.36.0+, T6: idle watchdog + dormant): auto-discover Unity port from `~/.unity-biome-mcp/ports/*.port`, acquire exclusive PID lockfile, create ConnectionSlot, connect bridge, fetch disabled tools cache (`get_disabled_tools`), push Python-authoritative catalog (`_push_catalog`), start heartbeat, register reconnect callbacks, load_plugins(), start idle watchdog thread. **Idle Watchdog (T6)**: Background thread monitors two idle timers: (1) `_last_useful_activity` — timestamp of tool dispatch/response (reset on every send/receive); (2) `_transport_activity` — timestamp of heartbeat ping (touched by bridge._on_transport_activity callback). Three paths: (A) subagent timeout — exits if idle > subagent_timeout (user-configured); (B) orphan timeout + parent alive — if idle > timeout and parent PID unchanged, schedules `_schedule_dormant()` (CONNECTED→DORMANT) via asyncio.run_coroutine_threadsafe(), then stays alive as orphan-reaper; (C) orphan timeout + parent dead — exits if parent PID changed (parent died). Guard: in_flight_count > 0 prevents counting idle time during active tool execution. Dormant scheduling uses TOCTOU guard (rechecks idle time under asyncio lock before state transition). Dormant mode is low-power: TCP closed, heartbeat stopped, process waits for next user request to wake.
    - **MCP SDK Version (v0.31.0, v0.50.3)**: Pinned `mcp>=1.28.0,<2` — v2.0 ships 2026-07-28 with breaking changes (e.g., `response.content` structure). Upper bound prevents silent breakage. v0.50.3: bumped to 1.28.0+ for structured_output support.
    - Plugin system (3-source discovery: pkgutil built-in, entry_points, UNITY_MCP_PLUGIN_DIRS env): each plugin has `register(mcp, send_fn, args_fn)`. UNITY_MCP_SKIP_PLUGINS env (comma-separated prefixes) skips matching plugins.
    - _send() helper: sends to bridge via slot, raises ToolError on !ok
@@ -118,12 +118,13 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
    - **Port Persistence (v0.35.0)** — PortResolver discovery chain: env UNITY_MCP_PORT → ProjectSettings/MCPSettings.json (user intent, survives Library purge) → Library/MCP_Port.json (cache) → FindFreePort. MCPServer.cs calls SaveProjectSettings() to persist both main + chat port assignments at startup. `MCPServer.WritePortFile()` writes `{pid}.port`. DeletePortFile() cleans it. Backward compatible: nil ProjectSettings falls through to Library cache. **v1.0.1: SaveRuntimePorts** — new PortFileManager method: updates `MCP_Port.json` + `{pid}.port` but NOT `MCPSettings.json`. Called by MCPServer when bind falls back to an alternate port — preserves user intent so next reload retries the configured port, no cascade drift (9514→9516→9518). **CleanStalePeerPortFiles** — called at startup, removes `.port` files from dead PIDs before writing our own.
    - **TCP Frame Helpers (`bridge_socket.py`, v0.80.0 M67)**: `frame_write(writer, payload)`, `frame_read(reader)`, `frame_read_with_timeout(reader, timeout)` — 4-byte BE length-prefix framing extracted to single module. Used by bridge, heartbeat, chat_relay, reload_ladder, and doctor. Eliminates inline struct.pack/unpack at every call site.
    - **UnityBridge (v0.36.0)**: AsyncIO TCP client, 4-byte BE length prefix JSON
-     * **BridgeState enum**: DISCONNECTED | CONNECTED | DOMAIN_RELOADING | FAILED (startup grace expired)
+     * **BridgeState enum**: DISCONNECTED | CONNECTED | DOMAIN_RELOADING | FAILED (startup grace expired) | DORMANT (intentional TCP close, heartbeat stopped) | WAKING (reconnect triggered by incoming request)
      * **DomainReloadTracker** (`bridge_reload_state.py`, v0.36.0): Tracks domain reload state independently from compile probe (30s expiry). Shared between bridge.send() and heartbeat via `_reload` instance. Three methods: `mark()` (on DomainReloadError), `clear()` (on success), `is_active()` (checks expiry). Decouples reload window from compile heuristics.
      * **should_retry()** (`bridge.py`, v0.36.0): Pure decision function invoked by _send_with_retry on error. Returns (should_retry: bool, delay_s: float, reason: str). Logic: (1) check attempt count/deadline, (2) on DomainReloadError mark reload + state→DOMAIN_RELOADING, (3) on any error check reload.is_active() or probe_busy(), backoff 2^attempt ≤ 8s. Extracted from inline retry logic for testability + clarity.
+     * **Suspend & Dormant Mode (T6)**: `suspend() → bool` method transitions CONNECTED→DORMANT. Aborts if queue non-empty or state != CONNECTED (returns False). On success (returns True): stops heartbeat, closes TCP reader/writer, resets cooldown/backoff. Dormant is an intentional low-power state — TCP is closed but process is alive. Next `send()` from DORMANT triggers DORMANT→WAKING transition (reconnects). Heartbeat skips reconnect attempts when state==DORMANT, preventing reconnect spam. Idle watchdog can schedule dormant via `_schedule_dormant()` when parent process is alive + idle time exceeds threshold (Path B: orphan mode). See idle watchdog section below.
      * **Atomic reader/writer swap** (v0.36.0): In _reconnect(), both reader and writer closed atomically within lock to prevent zombie reads after close. Fixed CancelledError cleanup.
    - Socket: TCP_NODELAY, SO_KEEPALIVE (idle=60s, interval=10s, count=3 on macOS/Linux)
-   - **Heartbeat (v0.78.5 lifecycle fix, v0.78.8 exception split)**: 15s interval, raw ping. Task created ONLY in `_reconnect()`, destroyed ONLY in `close()`. `_ensure_heartbeat()` deleted — heartbeat no longer restarted on every `send()` call. Self-cancel guard in `close()`: `asyncio.current_task() is not self._heartbeat_task` prevents heartbeat from cancelling itself (avoids swallowing its own close path as CancelledError). **Ping exception split (v0.78.8)**: `asyncio.TimeoutError` (Unity alive, App Nap/heavy compile) → apply `_ping_stall_failures` counter; `Exception` (ConnectionReset, IncompleteRead, OSError = dead TCP) → close immediately and reconnect. This prevents 6-min zombie bridges caused by TCP errors being treated as transient stalls. **Stall logic**: 3 consecutive `TimeoutError`s + process alive → increment `_ping_stall_failures` and reset failure window. After 6 stall windows (~6 min of sustained stall), force-close. `TimeoutError` + process dead → close immediately. 2s polling when disconnected (5s when busy).
+   - **Heartbeat (v0.78.5 lifecycle fix, v0.78.8 exception split, T4 callback, T6 DORMANT guard)**: 15s interval, raw ping. Task created ONLY in `_reconnect()`, destroyed ONLY in `close()`. `_ensure_heartbeat()` deleted — heartbeat no longer restarted on every `send()` call. Self-cancel guard in `close()`: `asyncio.current_task() is not self._heartbeat_task` prevents heartbeat from cancelling itself (avoids swallowing its own close path as CancelledError). **Ping exception split (v0.78.8)**: `asyncio.TimeoutError` (Unity alive, App Nap/heavy compile) → apply `_ping_stall_failures` counter; `Exception` (ConnectionReset, IncompleteRead, OSError = dead TCP) → close immediately and reconnect. This prevents 6-min zombie bridges caused by TCP errors being treated as transient stalls. **Stall logic**: 3 consecutive `TimeoutError`s + process alive → increment `_ping_stall_failures` and reset failure window. After 6 stall windows (~6 min of sustained stall), force-close. `TimeoutError` + process dead → close immediately. 2s polling when disconnected (5s when busy). **Transport activity callback (T4)**: After successful ping, `_raw_ping()` invokes `_on_transport_activity()` callback if set. Wired to `server._touch_transport_activity()` in lifespan after `start_heartbeat()` — updates the idle watchdog's transport-layer activity timer. Distinguishes transport-level keepalive (heartbeat) from user work (tool dispatch). **DORMANT guard (T6)**: When state==DORMANT, `_tick()` returns early (skips all reconnect logic). Prevents heartbeat from waking the bridge prematurely during intentional dormant suspend.
    - **connected property (v0.78.5)**: Simplified to `self._writer is not None and not self._writer.is_closing()`. Removed `select + MSG_PEEK` path — it caused false negatives on Python 3.12+ `TransportSocket` wrapper.
    - **Reload gate (v0.78.5, v0.78.8 guard removed)**: `_reload_gate: asyncio.Event` (open by default; `wait()` returns immediately). On `domain_reload` retry: gate is always `clear()`d (v0.78.8 removed the `if not self.connected:` guard — gate must clear regardless of connection state to prevent retries sleeping through reconnect). On `_reconnect()` success, gate is `set()` and `_ping_stall_failures` reset. `send()` retry path uses `asyncio.wait_for(_reload_gate.wait(), timeout=delay+jitter)` — wakes immediately on reconnect instead of sleeping full backoff.
    - **Retry Policy (v0.70.0, C8, A1)**: NEW `RetryPolicy` class in `bridge_retry.py` consolidates retry decisions:
@@ -150,13 +151,14 @@ Claude Code ←──stdio──→ Python MCP Server ←──TCP:PORT[+CHAT]�
    - **SIGPIPE handling**: guarded with `hasattr(signal, "SIGPIPE")` since Windows lacks SIGPIPE. Suppressed on Unix to prevent server crash on client disconnect.
    - **Reconnect (v0.30.3, v0.52.7)**: exponential backoff throttling (MIN=5s → MAX=60s, reset on success, jitter ±10%). v0.52.7: cooldown re-armed on every attempt (not only success), preventing retry spam when port unavailable. Heartbeat debounce=30s. send() reconnect no longer fires callbacks (only heartbeat does) — breaks reconnect feedback loop. push_catalog skips if already locked.
    - **Client Identification (v0.78.5)**: `UNITY_MCP_CLIENT` env var sent as `role` field in ping JSON (`"codex"`, `"cursor"`, `"windsurf"`, `"claude-desktop"`; falls back to `"mcp"` when unset). `install_initialized_hook(mcp, get_slot)` in `server_filtering.py` registers `InitializedNotification` handler — on MCP handshake, reads `session.client_params.clientInfo.name`, skips `"Claude Code"` (default), fire-and-forgets `set_client_label` command to Unity (3s timeout, DEBUG log on failure). C# `RoleToLabel()` in `ClientConnectionHandler.cs` expanded: codex→"Codex session", cursor→"Cursor session", windsurf→"Windsurf session", claude-desktop→"Claude Desktop session". `ClientSlot.Label` (new `volatile string` field): cleared on new session connect, updated by `set_client_label` command, used in disconnect log.
+   - **Client Hello Handshake (T5, new→new 1 RT, new→old fallback 3 RT)**: Combined reconnect sequence replaces 3-roundtrip ping + project_path + get_version protocol with single-frame client_hello exchange. **Python UnityBridge changes**: `ClientHelloPayload` dataclass contains full session identity (role, session_id, lock_token, bridge_pid, agent_id, display_name, cwd, started_at_utc). `UnityBridge.__init__` sets `_session_id`, `_lock_token`, `_started_at_utc` once per bridge instance (stable across reconnects). `session_id` and `lock_token` are read-only properties. `_build_hello(msg_id)` constructs the client_hello JSON frame with all payload fields. `_open_reconnect_candidate` now sends client_hello first; delegates to `_check_version_from_hello` (fast path, new C#) or falls back to `_verify_candidate_project + _fetch_and_check_version` (legacy, old C#). **C# ClientConnectionHandler changes**: `IsSlowPath(cmd)` adds `client_hello` to fast-path list (never dispatches to main thread). On receiving client_hello, extracts cmd/id early (before first-message block) to handle first-message bookkeeping itself (no double-logging). `client_hello` response combines pong + helloVersion:2 + version string + projectPath in single frame. Calls `SetEntrySession(sessionId, lockToken, agentId)` from payload. **MCPServer._cachedDataPath**: `volatile string` cached from `Application.dataPath` on main thread in StartAsync(); used by ThreadPool client_hello fast-path handler (Application.dataPath is main-thread-only, cannot call from TCP handler). **lockfile.py metadata**: `write_lock_metadata(path, sessionId, lockToken)` and `read_lock_metadata(path)` store/retrieve session identity in lockfile line 2 (JSON). `acquire_lock()` gains optional metadata kwarg. Server lifespan writes lockToken + sessionId to lockfile after successful connect. **Backward compatibility**: new→new (v0.76.0+) sends client_hello, receives combined response (1 RT). new→old (v0.75.x or earlier C#) sends client_hello, gets ok:false or missing helloVersion field, falls back to legacy project check + get_version (3 RT). old→new: Python 3-roundtrip unchanged, C# accepts and responds to ping/get_version as before. old→old: unchanged 3-roundtrip protocol.
    - Max message: 10MB. Timeout ownership is layered across wrappers, the
      retry session, Unity request deadlines, and operation arguments; use the
      canonical table in [`AI/tcp-bridge.md`](tcp-bridge.md#timeout-layers).
 
 3. **Unity Plugin** (C#: 165+ files, ~17800 LOC, v0.42.0: Wizard asmdef split, Updates folder, MarkdownInlineFormatter extraction, v0.44.0: LevelUp UX, v0.45.0: InstallSourceDetector + async updaters, v0.55.10: unified SceneMcpOverlay + IconCanvas + PluginToolGrouping, v0.59.0: Runtime Debug + Watch System + Chat field chips + Debug UI panel, ROI sprint v0.69.0: CommandOptions struct, CallerIsPlugin gate, v0.73.1: command registration race fix — Bootstrap.cs deleted, registration moved to MCPServer.StartAsync, tools gap sprint v0.77.0: +ShaderGraphHelper.Mutations.cs +961 LOC across TimelineHelper/AnimatorControllerHelper/AnimationHelper/ParticleHelper/MaterialHelper/CommandRouter — 6126 C# NUnit green, v0.78.5: MaxClients 4→8, ClientSlot.Label, set_client_label command, RoleToLabel expansion, v0.78.8: AliasExpander.cs (C#-side $alias expansion in batch DSL + direct MCP tools), SceneTestBase.cs (abstract TearDown base for 36 test classes) — 6426 C# NUnit green, v0.78.9: AliasStatusTests.cs (alias_status command + IsStale tracking), PlaytestGlobalAliasTests.cs (PlaytestConfig alias auto-injection into run_playtest) — 6550+ C# NUnit green, v0.78.10: AliasStatusTests.cs count assertion relaxed to existence-only check, v0.78.11: AliasExpander BuildPipePath (pipe-preserving ValPath resolution), TestRunner DeleteTempScene cleanup, +13 C# alias pipe tests + 6 PlaytestGlobalAlias tests — 6633+ C# NUnit green, v0.79.1: +PlaytestPathTests.cs (run_playtest path= file execution, traversal guard), check_colliders path optional fix — 6452 C# NUnit green, v0.80.1: +SceneCleanTestBase.cs (root-object leak-detection base), +force_play_stop command (allowedDuringCompile, T5 ladder), force_refresh enhanced (ReloadGuard unlock + RequestScriptReload + RepaintAllViews), DiagnoseCommand isReallyCompiling field — 6455+ C# NUnit green; playtests ROI sprint: +PlaytestLinter.cs, +PlaytestRunner.Snapshot.cs, +SceneRefResolver.cs, +SceneRefLinter.cs, +WAIT_CAPTURED/SWEEP_PATH/provenance in PlaytestParser, +9 new test files (~1200 new NUnit tests); v0.86.0: test quality review — 25 C# tests deleted (self-testing/duplicate), ~10 assertions hardened, 8 test renames (snake_case→PascalCase), TearDown/SetUp added for SetParentTests + UndoGroupHelperTests + EnabledToolsCacheTests + GetAliasesTypedTests + ColliderFitHelperTests, RenderAnalyzer.cs MissingComponentException crash fix (try/catch moved to cover GetComponent call) — 6537 C# NUnit green; v0.90.0: +PlaytestRunner.FrameCapture.cs (CAPTURE_FRAMES step execution), +PlaytestLaunchWindow.cs (MCP/Playtest Launcher EditorWindow), +6 new test files (PlaytestForLoopTests, PlaytestFrameCaptureTests, PlaytestPathPrefixTests, PlaytestCaptureStringTests, Sprint3FrictionTests, RuntimeHelperInvokeTests), SyncHelper._pumpActive singleton guard + isCompiling early-exit, TestRunner dirty-scene save before NewScene, SceneCleanTestBase leaked-name error report — 6687 C# NUnit green (1 pre-existing failure); v0.91.0: real-project audit — CommandRouter VALIDATION errors → Debug.LogWarning (was LogError); mutating commands now call UndoGroupStack.Push + ChangeWatcher.RecordMutation inline (get_changes + undo_last now track MCP commands); lint_playtest/render_analyze/compile_preflight throw InvalidOperationException on error → ok:false; run_playtest returns ok:false when result contains FAIL; CompleteFromInner gains isSuccess predicate; ObjectManager set_property+set_property_delta call MarkSceneDirty in Edit Mode; transfer_object cross-scene parent guard (validates parent is in target scene); ErrorClassifier.Classify+FormatError unwrap TargetInvocationException before type-switch; SceneHelper.SaveScene throws IOException on failure (was silent); ChangeWatcher.RecordMutation public static inline hook; +MultiSceneOperationsTests.cs (29) +ObjectManagerTests.cs (25) +ResultEnvelopeTests.cs (32) — 6699 C# NUnit green (1 pre-existing failure); v0.92.0: API pragmatic review — +SerializedFieldRenameAudit.cs (YAML scan for stale field data after rename), +Roslyn/UnityPreflightHints.cs (static analyzer: serialized Dictionary/interface/abstract/rename checks), MaterialHelper target=shared|instance|asset, ScriptableObjectHelper Set echoes old→new + missing field list, PrefabHelper Save mode=new|overwrite + GetOverrides format=structured + Revert scope=children, AnimationHelper CreateClip try/catch+rollback, BatchHelper.HasErrors promotes inner ok:false to batch envelope, UIHelper atomic create rollback — 6700+ C# NUnit green (1 pre-existing failure); v1.15.0: +ShaderGraphHelper.Layout.cs (graph_get_layout, graph_set_layout, graph_auto_layout; topological sort with overlap detection), +ShaderGraphLayoutTests.cs (18 tests) — 7230+ C# NUnit green (1 pre-existing failure))
    - **SyncHelper.cs (v0.90.0 reload stability)**: `_pumpActive` singleton guard — `StartTickPump` returns immediately if already active, preventing N×300 concurrent pump accumulation on rapid reconnects. Pump exits when `EditorApplication.isCompiling` becomes true (early-exit). `RequestScriptReload()` gated on `!isCompiling`. `Refresh()` called after `AllowAutoRefresh` in `force_refresh` handler. TestRunner.cs: dirty temp scene saved silently before `NewScene` in `RunFinished` to suppress "Save modified scenes?" dialog.
-   - **MCPServer.cs**: Dual TCP listeners (main port 9500-9599 + chat port auto-assigned, separate), 4-byte BE framing, 10MB max, SO_KEEPALIVE, **v0.23.0: SO_REUSEPORT** (macOS/Linux) for rapid reconnect recovery, auto-assigns free ports via `PortResolver.FindFreePort()`, persists to Library/MCP_Port.json, state file (`ready`/`compiling`/`reloading`), `going_away` event before domain reload, ClientSlot pattern isolates CLI and Chat connections (**v0.78.5: MaxClients raised 4→8; `volatile string Label` field added — cleared on new session connect, updated by `set_client_label` command, used in disconnect log**). **v0.37.0: IsReallyCompiling** — managed flag replaces EditorApplication.isCompiling latching, 120s wedge guard prevents false-positive "backgrounded" state. **v0.36.0: WritePortFile** writes `{pid}.port` (main) + `{pid}.chat-port` (chat listener discovery, managed by PortFileManager.cs). **v0.52.6: ShouldStartServer guard** — static ctor checks `ShouldStartServer(isBatchMode)` to prevent AssetImportWorker from creating conflicting port files during batch asset reimports. Detects batch mode via `EditorApplication.isBatchMode` OR `-nographics` args. **v1.0.1: Windows port fixes** — bind fallback calls `SaveRuntimePorts` (not `SavePorts`) to avoid MCPSettings.json drift; `CleanStalePeerPortFiles()` called at startup; `ClientSlot.cs` sets `LingerOption(true, 0)` on all close paths (DisconnectAll/KillPhantoms/eviction) to force RST instead of FIN — eliminates TIME_WAIT on Windows so port is freed immediately after domain reload.
+   - **MCPServer.cs**: Dual TCP listeners (main port 9500-9599 + chat port auto-assigned, separate), 4-byte BE framing, 10MB max, SO_KEEPALIVE, **v0.23.0: SO_REUSEPORT** (macOS/Linux) for rapid reconnect recovery, auto-assigns free ports via `PortResolver.FindFreePort()`, persists to Library/MCP_Port.json, state file (`ready`/`compiling`/`reloading`), `going_away` event before domain reload, ClientSlot pattern isolates CLI and Chat connections (**v0.78.5: MaxClients raised 4→8; `volatile string Label` field added — cleared on new session connect, updated by `set_client_label` command, used in disconnect log**; **T3: Per-Entry Metadata** — `ClientActivityState` enum (Active/Idle/Dormant/Closing), `ConnectionSnapshot` readonly struct (Index, Generation, Label, RemoteEndpoint, ConnectedAt, LastUsefulAt, LastCommand, InFlightCount, State, SessionId, DisplayName), per-entry metadata fields (ConnectedAtTicks, RemoteEndpoint, Label, LastCommand, SessionId, LockToken, AgentId, DisplayName, LastUsefulActivityTicks, InFlightCount with atomic sync primitives), methods: SetEntryEndpoint, SetEntryLabel, BeginCommand, EndCommand, GetEntryLabel, SetEntrySession, TakeSnapshot, DisconnectEntry, SetLastUsefulTicksForTest — enables connection state snapshots for diagnostics and connection lifecycle tracking). **T7: DormantBridgeScanner** — NEW static class in `ConnectionSnapshot.cs` with `Scan(port, activePids)` method that detects bridge processes holding lock files but not in active TCP slots. Returns `IReadOnlyList<DormantInfo>` (lightweight descriptors: BridgePid, Kind="Unknown", Cwd=null). Test seam `OverrideLockDir` for lock file path isolation. `GetActiveSnapshots()` alias on ClientSlot returns per-connection snapshots for integration with MCPStatusWindow.). **v0.37.0: IsReallyCompiling** — managed flag replaces EditorApplication.isCompiling latching, 120s wedge guard prevents false-positive "backgrounded" state. **v0.36.0: WritePortFile** writes `{pid}.port` (main) + `{pid}.chat-port` (chat listener discovery, managed by PortFileManager.cs). **v0.52.6: ShouldStartServer guard** — static ctor checks `ShouldStartServer(isBatchMode)` to prevent AssetImportWorker from creating conflicting port files during batch asset reimports. Detects batch mode via `EditorApplication.isBatchMode` OR `-nographics` args. **v1.0.1: Windows port fixes** — bind fallback calls `SaveRuntimePorts` (not `SavePorts`) to avoid MCPSettings.json drift; `CleanStalePeerPortFiles()` called at startup; `ClientSlot.cs` sets `LingerOption(true, 0)` on all close paths (DisconnectAll/KillPhantoms/eviction) to force RST instead of FIN — eliminates TIME_WAIT on Windows so port is freed immediately after domain reload. **T5: _cachedDataPath** — `volatile string` field caches `Application.dataPath` on main thread in StartAsync(); used by ThreadPool client_hello fast-path handler (Application.dataPath is main-thread-only and cannot be called from TCP async handlers).
    - **PortResolver.cs**: Pure testable helpers (ResolvePort, ResolveChatPort, FindFreePort, SavePorts, IsValidPort, ParsePortFromJson) with 25 NUnit tests. Validates 1024–65535 range, skips reserved ports, fallback to OS-assigned via port 0. **v0.52.6: Chat port collision guard** — ResolveChatPort ensures chat port ≠ main port (prevents accidental self-binding). FindFreePort ceiling raised 9599→9699 to accommodate dual-port scanning. **WI-7 (centralized 3-port allocation)**: NEW atomic `BindFreePort(exclude: List<int>)` method eliminates TOCTOU race (scan+bind in single operation); `ResolveReloadPort()` for reload port discovery; `FindFreePortExcluding(exclude: List<int>)` skips multiple ports; `TrySaveAllPorts(main, reload, chat)` writes all 3 ports atomically. PortFileManager.ReloadPort property + EnsureAllPorts() orchestrates full 3-port resolution chain on startup.
    - **CommandRouter.cs** (v0.57.0 refactor, v0.70.0 B1: Registration split): RegisterAll() → calls core commands + PluginRegistry.RegisterAllPlugins() for external plugins, data-driven IsMutating/IsRuntime. **v0.37.0: DefaultIsCompiling** — two-layer check (IsReallyCompiling + 120s wedge guard) prevents false-positive compile blocks. **v0.57.0: ProcessAsync simplified** — switch-based dispatch table via `CommandRegistry.HasAsyncHandler()` replaced inline if/else chains (148→27 lines, Open/Closed Principle). Extracted 6 async handlers: AsyncRunTests, AsyncWaitUntil, AsyncMoveTo, AsyncTestStep, AsyncRunPlaytest, AsyncAskUser. **B1 (v0.70.0): Registration Split** — NEW `CommandRouter.Registration.cs` partial class splits ~340-line RegisterAll() into 4 themed methods matching guard-flag precedence. **WI-2 (ReadOnly MCP mode)**: NEW `IsReadOnly` property (reads `MCPSettings.json`); `CheckGuards()` blocks all write commands when IsReadOnly=true via early return with error message. PortFileManager.ReadOnly exposes setting. BatchHelper integration: read-only batches bypass verification gates. Tests: BatchHelperReadOnlyTests, CommandRouterReadOnlyTests, PortResolverReadOnlyTests verify blocking behavior and read-command passthrough.
      * `RegisterMetaCommands()` — always-allowed + compile-safe (ping, get_enabled_tools, set_tool_catalog, diagnose, set_client_label, etc.)
@@ -1209,7 +1211,7 @@ Applied by `ApplyFieldsCompress(args, result)` in `CommandRouter.ObjectHandlers.
 - **Chat Settings page** (`ChatSettingsSection.cs`): Inactivity timeout, model
   selection, context-chip display, and extension settings. Stored binary and
   launch controls are not currently forwarded by the relay start request.
-- **MCPStatus Window** (MCPStatusWindow.cs): Connection status monitor. UIToolkit-based with smooth `ArcadeAnim.SmoothLoop` orb + halo pulse (speed tracks connection state: connected=3.4 Hz, listening=2.0 Hz, stopped=1.1 Hz). Main buttons: **Restart** (primary), **Diagnose**, **Setup Wizard**, **Check for Updates**. **Maintenance** foldout (collapsed by default): Reimport, Kill MCP (danger). `BiomeAmbientParticles` (Ecosystem pattern) attached to stage. Stylesheet: `MCPStatus.uss`.
+- **MCPStatus Window** (MCPStatusWindow.cs, **T7: hierarchical connection list**): Connection status monitor. UIToolkit-based with smooth `ArcadeAnim.SmoothLoop` orb + halo pulse (speed tracks connection state: connected=3.4 Hz, listening=2.0 Hz, stopped=1.1 Hz). Main buttons: **Restart** (primary), **Diagnose**, **Setup Wizard**, **Check for Updates**. **Maintenance** foldout (collapsed by default): Reimport, Kill MCP (danger). `BiomeAmbientParticles` (Ecosystem pattern) attached to stage. Stylesheet: `MCPStatus.uss`. **T7**: Server list section displays per-port hierarchy: live TCP connections (via `TakeSnapshot()`), dormant bridges (via `DormantBridgeScanner.Scan(port, activePids)`), and kill buttons with multi-bridge confirmation dialogs. Per-connection row shows kind, state, idle duration, and uptime. CSS hierarchy support added (`.server-entry`, `.connection-row`, `.dormant-section`, etc.).
 - **Stylesheet Helper** (MCPEditorUtils.LoadStyleSheet): Shared two-path loader for `.uss` files, called by windows (DRY; handles package-relative asset lookup).
 
 ### Code Execution (C#: CodeExecutor, v0.59.0: Play Mode + Security Hardening)
@@ -1410,7 +1412,7 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
   - `server/tests/test_cli_session_spawn.py` — **NEW (v0.71.0)** Characterization tests pinning 4 CliSession.start() crash-fixes (DEVNULL stdin, stderr capture, 16 MiB line limit, login-shell PATH prepend). RED signals live regression.
 
 **C#** (165+ files, 17850+ LOC, review sprint v0.70.0: B1 CommandRouter.Registration split + C7 PendingAskRegistry + C4 ExtractVector3 + B3 CommandOptions demoted to internal, v0.71.0: shared SERVER_NAME constant in PermissionConfig, v0.80.0: CommandRouter SRP split +3 partials (AliasHandlers/ScreenshotHandlers/ToolsCache), UNITY_MCP_CHAT define removed — Chat always compiled, BackendConfigStore.WithModel immutable clone, GetCapabilities emits mutating_cmds + runtime_cmds, PlaytestStep semantic aliases C5, VisualStep composition C6-A):
-- **Core** (55+ files): MCPServer, CommandRouter (7 partials: main + **v0.70.0 B1: Registration** + **v0.80.0 SRP: ObjectHandlers, AliasHandlers (68L), ScreenshotHandlers (72L, FileHandler delegate for OCP), ToolsCache (42L)** + MediaHandlers), **v0.70.0 C7: PendingAskRegistry** (isolated ask_user state machine), CommandRegistry/Validator, IMCPPlugin/PluginRegistry, ObjectManager, ValueParser, InputNormalizer, BatchHelper, HierarchySerializer, ComponentSerializer, RefManager, WirePrefix, ErrorHelper, RuntimeHelper, PlaytestRunner (2 partials), PlaytestParser, MultiViewCapture, CodeExecutor, SearchHelper, SpatialHelper, AnimationHelper, AnimationCurveCompactor, TimelineHelper, AnimatorControllerHelper, ParticleHelper, ShaderHelper, ShaderGraphHelper, UIHelper, ReferenceHelper, AssetDatabaseHelper, ProjectSettingsHelper, MaterialHelper, PrefabHelper, ScriptableObjectHelper, MCPSettings (data class), MCPSettingsHub, MCPHubUI, MCPSettingsUI, MCPSettingsPermUI, MCPStatusWindow, McpServerScanner, MCPStatusModel, MCPStatusBarWidget, MCPActions; **v0.80.0: GetCapabilities emits `mutating_cmds` + `runtime_cmds` sets** (Python `_warm_cmd_flags()` syncs at connect/reconnect); **v1.31.0: MCPStatusWindow server list with Kill buttons, changelog DRY rendering; McpServerScanner phantom detection + CleanPhantomFiles; MCPActions.KillByPort(port) API; WirePrefix.cs constants for wire protocol; RefManager & base62 prefix with persistent hierarchy refs; AnimationCurveCompactor vector/color grouping; BackendConfigStore.WithModel** immutable clone — `MCPChatWindow.ApplySelectedModel` collapsed 110→1L
+- **Core** (55+ files): MCPServer, CommandRouter (7 partials: main + **v0.70.0 B1: Registration** + **v0.80.0 SRP: ObjectHandlers, AliasHandlers (68L), ScreenshotHandlers (72L, FileHandler delegate for OCP), ToolsCache (42L)** + MediaHandlers), **v0.70.0 C7: PendingAskRegistry** (isolated ask_user state machine), CommandRegistry/Validator, IMCPPlugin/PluginRegistry, ObjectManager, ValueParser, InputNormalizer, BatchHelper, HierarchySerializer, ComponentSerializer, RefManager, WirePrefix, ErrorHelper, RuntimeHelper, PlaytestRunner (2 partials), PlaytestParser, MultiViewCapture, CodeExecutor, SearchHelper, SpatialHelper, AnimationHelper, AnimationCurveCompactor, TimelineHelper, AnimatorControllerHelper, ParticleHelper, ShaderHelper, ShaderGraphHelper, UIHelper, ReferenceHelper, AssetDatabaseHelper, ProjectSettingsHelper, MaterialHelper, PrefabHelper, ScriptableObjectHelper, MCPSettings (data class), MCPSettingsHub, MCPHubUI, MCPSettingsUI, MCPSettingsPermUI, MCPStatusWindow, McpServerScanner, MCPStatusModel, MCPStatusBarWidget, MCPActions; **v0.80.0: GetCapabilities emits `mutating_cmds` + `runtime_cmds` sets** (Python `_warm_cmd_flags()` syncs at connect/reconnect); **v1.31.0: MCPStatusWindow server list with Kill buttons, changelog DRY rendering; McpServerScanner phantom detection + CleanPhantomFiles; MCPActions.KillByPort(port) API; WirePrefix.cs constants for wire protocol; RefManager & base62 prefix with persistent hierarchy refs; AnimationCurveCompactor vector/color grouping; BackendConfigStore.WithModel** immutable clone — `MCPChatWindow.ApplySelectedModel` collapsed 110→1L; **T1: McpServerScanner multi-lock support** — `ScanDetailed()` returns `UnityServerInfo[]` with per-port connection list (`McpConnectionInfo[]`) and `LiveTcpCount`; `Scan()` backward-compat wrapper; `ClientSlot.CountActive()` + `MCPServer.ConnectedClientCount` property support live TCP count injection; test seam `OverrideLiveTcpCountGetter`; **T2: MCPActions multi-bridge termination** — NEW `TerminateResult` enum (Killed/Stale/NotFound), `TerminateByPid(port, pid)` surgical kill by process ID + clean port files only when last bridge dies, `CountBridgesOnPort(port)` query active bridges per port, `StopAllOnPort(port)` kill all bridges on port, private `CleanPortDiscoveryFiles(port)` DRY extract consolidates cleanup across both kill paths; MCPStatusWindow confirm dialog for multi-bridge kill operations; 10 NUnit tests (TerminateByPid edge cases, CountBridgesOnPort filtering, StopAllOnPort atomicity)
 - **Debug Subsystem (v0.59.0)** (12 files): MCPDebugPanel, MCPDebugUI (5 partials: WatchRows, EvalBar, AddWatch, ConsolePreview), DebugOverlayDrawer, SparklineHelper, ProfilerHelper, MemoryHelper, AnimatorHelper, PhysicsHelper, WatchEntry, WatchCondition, WatchEvaluator, WatchRegistry, WatchScheduler, WatchCommandHandler (+ 10 test files: WatchEntryTests, WatchRegistryTests, ProfilerHelperTests, SparklineHelperTests, WatchEvaluatorTests, WatchCommandHandlerTests, MCPDebugUITests, WatchConditionTests, MemoryHelperTests, AnimatorHelperTests, PhysicsHelperTests). Stylesheet: MCPDebug.uss.
 - **Chat Module** (130+ files, v0.29.2 split into CLI + View assemblies, v0.66.6 unified RelayBackend):
   - **CLI Assembly** (UnityMCP.Editor.Chat.CLI, protocol + single RelayBackend, compiles independently when main broken):
@@ -1542,6 +1544,179 @@ Claude → MCP tool call → TCP send → Unity dispatch → Serialize → TCP r
 - **Total: 3945 EditMode + PlayMode** (was 3912), +33 new tests (12 LevelUp + 9 Config + 12 misc)
 - **Green: 3945** (5 pre-existing reds, same as v0.42.0)
 - **Python pytest**: see CLAUDE.md Commands section for live count and exact test command
+
+## Chat Core System (T9-T24)
+
+Unified multi-provider agent relay with canonical event stream, session authorization, and workflow coordination.
+
+### Multi-Provider Agent Relay (adapters/)
+
+**Architecture**: Abstract adapter pattern for CLI-based backends.
+- **Protocol layer**: `adapters/protocol.py` — EventContext, AcpPayload, shared defs
+- **ACP (Agent Communication Protocol) adapters**:
+  - `acp.py` — Claude/OpenCode subprocess launched with `--format acp`, event-streaming output
+  - `acp_parser.py` — Line-by-line parser: timestamp extraction, event kind dispatch, delta aggregation
+  - `claude_acp.py`, `codex_acp.py` — Provider-specific credential/model routing
+- **Legacy support**:
+  - `legacy.py` — LegacyCliAdapter: stream-json relay (backward-compatible)
+  - `pipe_parser.py` — Pipe-protocol parser
+- **Testing**: `fixture.py` — FixtureAdapter: deterministic in-process event generation
+
+**Provider-specific event filtering** — `AgentEvent._PROVIDER_EVENT_KINDS` dict limits event subset per backend (Claude gets all 16 kinds, Codex excludes `thought_delta`/`session_resumed`, etc.). Unknown providers fall back to full list.
+
+**Event emission lifecycle**: subprocess stdout → ACP parser → AgentEvent envelope → serialization → chat relay consumer.
+
+### Session Identity & Authorization (T5)
+
+**SessionIdentity** — per-connection contract:
+- `session_id`: UUID, stable across bridge reconnects
+- `lock_token`: opaque string for lockfile metadata + permission verification
+- `agent_id`: agent tool agent name (if subagent invoked)
+- `display_name`: user-facing session label
+- `started_at_utc`: session birth timestamp
+
+**ClientHelloPayload** — initial TCP handshake combines all session metadata in one frame. Backward-compatible fallback to legacy 3-roundtrip project check + get_version for old C# clients.
+
+**PermissionBroker** — per-session MCP tool consent management:
+- Receives `permission_prompt` events from relay
+- Caches user decisions per tool per session (ephemeral, SessionState-based)
+- Blocks tool execution until consent granted (or auto-approves trusted tools)
+
+**GlobalConfig** — server-wide settings:
+- Model presets (context window, cost per token)
+- Backend selection (Claude, Codex, Kimi, Agy, OpenCode)
+- Feature flags (ACP mode enablement, relay behavior)
+
+### Context Briefs (Brief + BriefBuilder)
+
+**Brief** — lightweight context envelope returned on-demand:
+```
+{
+  compile_errors: [],      # from get_compile_errors
+  console_errors: [],      # recent console.Error entries
+  hierarchy_summary: "",   # get_hierarchy(depth=3) text snapshot
+  selection: [],           # current scene selection
+  profiler_metrics: {...}  # CPU/GPU/memory/draw calls
+}
+```
+
+**BriefBuilder** — lazy assembly:
+- `build(scope='full'|'compact'|'minimal')` — configurable detail level
+- Prefetch compile status + probe hierarchy in parallel
+- Profiler snapshot via ProfilerBridge (non-blocking ring buffer)
+- Returns Brief or ToolError if compile unstable
+
+**Usage**: Injected on first agent turn + available as explicit `brief` MCP tool.
+
+### Atomic Transactions (Changeset)
+
+**Changeset** — group related mutations with automatic rollback on failure:
+- `mutations: List[MutationRecord]` — each tool call + response
+- `files: Dict[str, BeforeAfter]` — changed asset paths + diffs
+- `journal: TransactionJournal` — audit trail (timestamp, actor, change reason)
+
+**ChangesetCoordinator** — transaction orchestration:
+- `begin()` → capture baseline state
+- `apply(commands)` → execute batch with change tracking
+- `commit() | rollback()` → finalize or undo atomically
+
+**ChangesetStore** — persistent transaction history:
+- JSONL format: timestamp-indexed entries
+- Query: `by_date(start, end)`, `by_actor(agent_id)`, `by_scope(scene|asset|component)`
+- Retention: configurable (default 30-day archive)
+
+### Checkpoints (Checkpoint + CheckpointStore)
+
+**Checkpoint** — full scene state snapshot:
+- Scene asset references (paths)
+- GameObject hierarchy + components + properties
+- Asset state (prefabs, scriptable objects, textures)
+- Metadata: name, timestamp, actor, reason
+
+**CheckpointManifest** — consistency guard:
+- Checksums per scene/asset/component
+- Detects partial save failures (rollback if mismatch)
+- Forward-compatible: unknown fields preserved
+
+**CheckpointStore** — save/load/list operations:
+- `save(name, reason)` → checkpoint_id (UUID)
+- `load(checkpoint_id, verify=true)` → atomic rollback
+- `list()` → paginated snapshot inventory
+- Cleanup: TTL expiry (default 90 days) + user deletions
+
+### Plan Workflow (Plan + PlanStore)
+
+**Plan** — agent-generated action plan:
+```
+{
+  id: UUID,
+  goal: "Create player health system",
+  steps: [
+    { tool: "create_object", args: {...}, rationale: "Base player prefab" },
+    { tool: "manage_component", args: {...} },
+    ...
+  ],
+  approval_state: "pending" | "approved" | "rejected",
+  expires_at: timestamp
+}
+```
+
+**Plan lifecycle**:
+- Agent creates via `plan_tool.create(goal, steps)`
+- User approves/rejects via UI or `plan_tool.approve/reject(plan_id)`
+- `apply_scene_change(plan_id)` executes approved plan as ChangeSet
+- TTL cleanup: unapproved plans expire after 10 minutes
+
+**PlanStore** — plan persistence:
+- Query: `by_status(approved|rejected|pending)`, `by_agent(agent_id)`
+- Metadata: agent intent, estimated complexity, cost prediction
+
+### Conversation History (history/)
+
+**HistoryEntry** — canonical message unit:
+- `kind: 'user' | 'assistant' | 'tool'` — message source
+- `timestamp: datetime` — UTC millisecond precision
+- `metadata: dict` — tool name, cost tokens, model used, etc.
+
+**HistoryStore** — JSONL-based persistence:
+- One entry per line, 5-column format: `kind|timestamp|text|metadata|attachments`
+- Atomic append (no partial reads)
+- Backward-compatible: unknown columns ignored
+
+**HistoryManager** — lifecycle coordination:
+- Lazy load from disk on first access
+- Auto-trim on exceeds max entries (default 500)
+- Auto-archive on exceeds max size (default 50MB)
+- Retention policies: time-based (30-day default) + count-based (500 default)
+
+**Retention** — configurable eviction:
+- `TimeBasedRetention` — delete entries older than N days
+- `CountBasedRetention` — keep only most recent N entries
+- `CompositeRetention` — apply multiple policies
+- On-demand: `cleanup()` executes eviction policies
+
+### Four New MCP Tools
+
+1. **`brief`** — get on-demand scene context
+   - Parameters: `scope` (full|compact|minimal)
+   - Returns: compile status, console errors, hierarchy snapshot, profiler metrics
+   - Tier: TIER1, category: SYSTEM, read-only
+
+2. **`changeset`** — query transaction history
+   - Actions: `status` (query current), `list` (by date/actor), `replay` (reapply past changeset)
+   - Returns: mutations, file diffs, journal entries
+   - Tier: TIER1, category: SCENE, read-only
+
+3. **`checkpoint`** — manage scene snapshots
+   - Actions: `save`, `load`, `list`, `delete`
+   - Parameters: name, reason (for audit trail)
+   - Returns: checkpoint_id or loaded state
+   - Tier: TIER1, category: SCENE, read/write
+
+4. **`plan`** — manage agent action plans
+   - Actions: `create`, `list`, `approve`, `reject`, `edit`, `cancel`
+   - Returns: plan_id, approval status, step details
+   - Tier: TIER1, category: SYSTEM, read/write
 
 ## Related
 

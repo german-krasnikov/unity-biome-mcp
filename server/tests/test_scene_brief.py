@@ -1,6 +1,5 @@
 """Tests for SceneBrief — P2 feature."""
 import os
-from unittest.mock import AsyncMock, patch
 
 from unity_mcp.console_levels import PROBLEM_LEVELS
 
@@ -60,6 +59,7 @@ def test_scene_brief_reset_clears_cache():
 
 
 async def test_scene_brief_ensure_calls_send_raw(monkeypatch):
+    """T21: ensure() returns raw concatenated data (no LLM call)."""
     monkeypatch.setenv("UNITY_MCP_SCENE_BRIEF", "1")
     brief = _make_brief()
     call_log = []
@@ -68,17 +68,15 @@ async def test_scene_brief_ensure_calls_send_raw(monkeypatch):
         call_log.append(cmd)
         return f"data:{cmd}"
 
-    with patch("unity_mcp.scene_brief.SamplingService") as MockSvc:
-        instance = MockSvc.return_value
-        instance.enabled = True
-        instance.summarize = AsyncMock(return_value="5 objects, no errors, stopped")
-        result = await brief.ensure(fake_send)
+    result = await brief.ensure(fake_send)
 
     assert "get_hierarchy" in call_log
     assert "get_console" in call_log
     assert "editor" in call_log
-    assert result == "5 objects, no errors, stopped"
-    assert brief.brief == "5 objects, no errors, stopped"
+    assert result is not None
+    assert "HIERARCHY:" in result
+    assert "CONSOLE:" in result
+    assert "STATE:" in result
 
 
 async def test_scene_brief_ensure_uses_problem_levels(monkeypatch):
@@ -92,12 +90,7 @@ async def test_scene_brief_ensure_uses_problem_levels(monkeypatch):
             seen_args["level"] = args["level"]
         return f"data:{cmd}"
 
-    with patch("unity_mcp.scene_brief.SamplingService") as MockSvc:
-        instance = MockSvc.return_value
-        instance.enabled = True
-        instance.summarize = AsyncMock(return_value="5 objects, no errors, stopped")
-        await brief.ensure(fake_send)
-
+    await brief.ensure(fake_send)
     assert seen_args["level"] == PROBLEM_LEVELS
 
 
@@ -139,17 +132,3 @@ async def test_scene_brief_ensure_send_raw_raises(monkeypatch):
     assert result is None
 
 
-async def test_scene_brief_ensure_sampling_disabled(monkeypatch):
-    """ensure() returns None when SamplingService is not enabled."""
-    monkeypatch.setenv("UNITY_MCP_SCENE_BRIEF", "1")
-    brief = _make_brief()
-
-    async def fake_send(cmd, args, **kw):
-        return "data"
-
-    with patch("unity_mcp.scene_brief.SamplingService") as MockSvc:
-        instance = MockSvc.return_value
-        instance.enabled = False
-        result = await brief.ensure(fake_send)
-
-    assert result is None

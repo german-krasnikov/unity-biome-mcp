@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -223,84 +224,245 @@ namespace UnityMCP.Editor
             if (_serverListContainer == null) return;
             _serverListContainer.Clear();
 
-            var servers = McpServerScanner.Scan();
+            var servers = McpServerScanner.ScanDetailed();
+            if (servers.Count == 0) { _serverListContainer.Add(new Label("No servers found")); return; }
+
             bool hasDead = false;
-
-            if (servers.Count == 0)
-            {
-                _serverListContainer.Add(new Label("No servers found"));
-                return;
-            }
-
             foreach (var s in servers)
             {
-                if (!s.Alive) hasDead = true;
-
-                var row = new VisualElement();
-                row.style.flexDirection = FlexDirection.Row;
-                row.style.marginBottom = 2;
-
-                var portLabel = new Label($":{s.Port}");
-                portLabel.style.width = 60;
-                if (s.IsCurrentProject) portLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-                row.Add(portLabel);
-
-                var badge = new Label(s.Alive ? "● alive" : "○ dead");
-                badge.style.color = s.Alive ? new Color(0.3f, 0.8f, 0.3f) : new Color(0.8f, 0.3f, 0.3f);
-                badge.style.width = 60;
-                row.Add(badge);
-
-                if (s.Pid > 0)
-                {
-                    var pidLabel = new Label($"PID {s.Pid}");
-                    pidLabel.style.width = 80;
-                    row.Add(pidLabel);
-                }
-
-                if (s.IsCurrentProject)
-                {
-                    var marker = new Label("(this)");
-                    marker.style.unityFontStyleAndWeight = FontStyle.BoldAndItalic;
-                    row.Add(marker);
-                }
-
-                var killSpacer = new VisualElement();
-                killSpacer.style.flexGrow = 1;
-                row.Add(killSpacer);
-
-                bool isCurrent = s.IsCurrentProject;
-                int port = s.Port;
-                var killBtn = new Button(() =>
-                {
-                    if (isCurrent && !EditorUtility.DisplayDialog(
-                            "Kill Current Server?",
-                            $"Stop MCP server on :{port}?\nClaude will disconnect.",
-                            "Kill", "Cancel"))
-                        return;
-                    MCPActions.KillByPort(port);
-                    RefreshServerList();
-                })
-                { text = "Kill" };
-                killBtn.AddToClassList("mcp-btn");
-                killBtn.AddToClassList("mcp-btn--danger");
-                killBtn.AddToClassList("mcp-btn--inline");
-                row.Add(killBtn);
-
-                _serverListContainer.Add(row);
+                if (!HasAliveBridge(s)) hasDead = true;
+                _serverListContainer.Add(BuildServerEntry(s));
             }
 
             if (hasDead)
             {
-                var cleanBtn = new Button(() =>
-                {
-                    McpServerScanner.CleanPhantomFiles();
-                    RefreshServerList();
-                })
-                { text = "Clean up", tooltip = "Remove stale port files for dead servers" };
-                cleanBtn.AddToClassList("mcp-btn");
-                cleanBtn.AddToClassList("mcp-btn--inline");
-                _serverListContainer.Add(cleanBtn);
+                var clean = new Button(() => { McpServerScanner.CleanPhantomFiles(); RefreshServerList(); })
+                    { text = "Clean up", tooltip = "Remove stale port files for dead servers" };
+                clean.AddToClassList("mcp-btn");
+                clean.AddToClassList("mcp-btn--inline");
+                _serverListContainer.Add(clean);
             }
+        }
+
+        private static bool HasAliveBridge(UnityServerInfo s)
+        {
+            foreach (var c in s.Connections)
+                if (c.BridgeAlive) return true;
+            return false;
+        }
+
+        private VisualElement BuildServerEntry(UnityServerInfo s)
+        {
+            var entry = new VisualElement();
+            entry.AddToClassList("server-entry");
+            entry.Add(BuildServerHeader(s));
+            if (s.IsCurrentProject) entry.Add(BuildConnectionSection(s.Port));
+            return entry;
+        }
+
+        private VisualElement BuildServerHeader(UnityServerInfo s)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("server-header");
+
+            var portLabel = new Label($":{s.Port}");
+            portLabel.AddToClassList("server-port");
+            if (s.IsCurrentProject) portLabel.AddToClassList("server-port--this");
+            row.Add(portLabel);
+
+            bool alive = HasAliveBridge(s);
+            var badge = new Label(alive ? "● alive" : "○ dead");
+            badge.AddToClassList("server-status-badge");
+            badge.style.color = alive ? new Color(0.3f, 0.8f, 0.3f) : new Color(0.8f, 0.3f, 0.3f);
+            row.Add(badge);
+
+            if (s.UnityPid > 0)
+            {
+                var pidLabel = new Label($"PID {s.UnityPid}");
+                pidLabel.AddToClassList("server-pid");
+                row.Add(pidLabel);
+            }
+
+            if (s.IsCurrentProject)
+            {
+                var marker = new Label("(this)");
+                marker.AddToClassList("server-this-marker");
+                row.Add(marker);
+            }
+
+            row.Add(new VisualElement { style = { flexGrow = 1 } });
+            row.Add(BuildKillButton(s));
+            return row;
+        }
+
+        private Button BuildKillButton(UnityServerInfo s)
+        {
+            int port = s.Port;
+            int bridgeCount = s.Connections.Count;
+            bool isCurrent = s.IsCurrentProject;
+
+            // No known bridge lock files — Kill would be a no-op. Show disabled button
+            // so the user knows kill is unavailable; use the "Clean up" button instead.
+            if (bridgeCount == 0)
+            {
+                var dead = new Button { text = "Kill", tooltip = "No bridge process found; use Clean up" };
+                dead.SetEnabled(false);
+                dead.AddToClassList("mcp-btn");
+                dead.AddToClassList("mcp-btn--danger");
+                dead.AddToClassList("mcp-btn--inline");
+                return dead;
+            }
+
+            int firstPid = s.Connections[0].BridgePid;
+            var btn = new Button(() =>
+            {
+                if (bridgeCount > 1)
+                {
+                    if (!EditorUtility.DisplayDialog("Stop All Bridges",
+                        $"Port :{port} has {bridgeCount} bridges running.\nStop ALL of them?",
+                        "Stop All", "Cancel")) return;
+                    MCPActions.StopAllOnPort(port);
+                }
+                else
+                {
+                    if (isCurrent && !EditorUtility.DisplayDialog("Kill Current Server?",
+                        $"Stop MCP server on :{port}?\nClaude will disconnect.",
+                        "Kill", "Cancel")) return;
+                    MCPActions.TerminateByPid(port, firstPid);
+                }
+                RefreshServerList();
+            }) { text = bridgeCount > 1 ? $"Kill ({bridgeCount})" : "Kill" };
+
+            btn.AddToClassList("mcp-btn");
+            btn.AddToClassList("mcp-btn--danger");
+            btn.AddToClassList("mcp-btn--inline");
+            return btn;
+        }
+
+        private VisualElement BuildConnectionSection(int port)
+        {
+            var section = new VisualElement();
+            section.AddToClassList("connections-section");
+
+            var snapshots = MCPServer._mainSlot.GetActiveSnapshots();
+            var activePids = ExtractActivePids(snapshots);
+
+            if (snapshots.Length > 0)
+            {
+                var count = new Label($"{snapshots.Length} connection(s)");
+                count.AddToClassList("connections-count");
+                section.Add(count);
+                foreach (var snap in snapshots)
+                    section.Add(BuildConnectionRow(snap));
+            }
+
+            var dormant = DormantBridgeScanner.Scan(port, activePids);
+            if (dormant.Count > 0)
+            {
+                var ds = new VisualElement();
+                ds.AddToClassList("dormant-section");
+                var dh = new Label("Dormant bridges:");
+                dh.AddToClassList("dormant-header");
+                ds.Add(dh);
+                foreach (var d in dormant)
+                    ds.Add(BuildDormantRow(port, d));
+                section.Add(ds);
+            }
+
+            return section;
+        }
+
+        private static List<int> ExtractActivePids(ConnectionSnapshot[] snapshots)
+        {
+            var pids = new List<int>();
+            foreach (var snap in snapshots)
+                if (snap.BridgePid > 0) pids.Add(snap.BridgePid);
+            return pids;
+        }
+
+        private VisualElement BuildConnectionRow(ConnectionSnapshot snap)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("connection-row");
+
+            var kind = new Label(string.IsNullOrEmpty(snap.Label) ? "unknown" : snap.Label);
+            kind.AddToClassList("conn-kind");
+            row.Add(kind);
+
+            var stateName = snap.State.ToString().ToLowerInvariant();
+            var stateBadge = new Label(snap.State.ToString());
+            stateBadge.AddToClassList("conn-state");
+            stateBadge.AddToClassList($"conn-state--{stateName}");
+            row.Add(stateBadge);
+
+            if (snap.LastUsefulAt > DateTime.MinValue)
+            {
+                var idle = new Label(FormatDuration(DateTime.UtcNow - snap.LastUsefulAt));
+                idle.AddToClassList("conn-idle");
+                row.Add(idle);
+            }
+
+            var dur = new Label(FormatDuration(DateTime.UtcNow - snap.ConnectedAt));
+            dur.AddToClassList("conn-duration");
+            row.Add(dur);
+
+            row.Add(new VisualElement { style = { flexGrow = 1 } });
+
+            int idx = snap.Index; long gen = snap.Generation;
+            bool isActive = snap.State == ClientActivityState.Active;
+            var discBtn = new Button(() =>
+            {
+                if (isActive && !EditorUtility.DisplayDialog("Disconnect Active Connection",
+                    "Disconnect this connection?\nThe bridge will reconnect.", "Disconnect", "Cancel"))
+                    return;
+                MCPServer._mainSlot.DisconnectEntry(idx, gen);
+                RefreshServerList();
+            }) { text = "Disconnect" };
+            discBtn.AddToClassList("mcp-btn");
+            discBtn.AddToClassList("mcp-btn--inline");
+            row.Add(discBtn);
+
+            return row;
+        }
+
+        private VisualElement BuildDormantRow(int port, DormantInfo d)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("connection-row");
+
+            var pidLabel = new Label($"PID {d.BridgePid}");
+            pidLabel.AddToClassList("conn-kind");
+            row.Add(pidLabel);
+
+            var state = new Label("Dormant");
+            state.AddToClassList("conn-state");
+            state.AddToClassList("conn-state--dormant");
+            row.Add(state);
+
+            row.Add(new VisualElement { style = { flexGrow = 1 } });
+
+            int bridgePid = d.BridgePid;
+            var termBtn = new Button(() =>
+            {
+                if (!EditorUtility.DisplayDialog("Terminate Dormant Bridge",
+                    $"Kill bridge process PID {bridgePid}?", "Terminate", "Cancel")) return;
+                MCPActions.TerminateByPid(port, bridgePid);
+                RefreshServerList();
+            }) { text = "Terminate" };
+            termBtn.AddToClassList("mcp-btn");
+            termBtn.AddToClassList("mcp-btn--danger");
+            termBtn.AddToClassList("mcp-btn--inline");
+            row.Add(termBtn);
+
+            return row;
+        }
+
+        private static string FormatDuration(TimeSpan ts)
+        {
+            if (ts < TimeSpan.Zero) ts = TimeSpan.Zero;
+            if (ts.TotalHours >= 1)
+                return $"{(int)ts.TotalHours:00}:{ts.Minutes:00}:{ts.Seconds:00}";
+            return $"{ts.Minutes:00}:{ts.Seconds:00}";
         }
 
         private static void OpenDiagnosePanel()
@@ -354,6 +516,14 @@ namespace UnityMCP.Editor
 
             _word.text = MCPStatusModel.GetLabel(state, MCPServer.ServerPort);
             _sub.text  = MCPStatusModel.GetSub(state);
+
+            if (EditorPrefs.GetBool(PrefKeys.ShowLastCommand, true)
+                && !string.IsNullOrEmpty(CommandRouter.LastCommandName)
+                && MCPServer.IsClientConnected)
+            {
+                _sub.text += $"\n↳ {CommandRouter.LastCommandName}";
+            }
+
             RefreshServerList();
         }
     }

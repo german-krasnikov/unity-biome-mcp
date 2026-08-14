@@ -164,8 +164,10 @@ async def lifespan(app):
     # Shutdown: stop heartbeat, cancel watchdog, close bridge, release lock, delete own config
 
 def main():
-    _last_activity = time.monotonic()
-    _start_idle_watchdog()  # daemon: exits if parent dies + idle > UNITY_MCP_IDLE_TIMEOUT (default 300s)
+    _last_useful_activity = time.monotonic()
+    _last_transport_activity = time.monotonic()
+    _in_flight_count = 0
+    _start_idle_watchdog()  # daemon: exits if parent dies + idle > UNITY_MCP_IDLE_TIMEOUT (default 300s), or if subagent > UNITY_MCP_USEFUL_IDLE_TIMEOUT (default 0)
     transport = os.environ.get("UNITY_MCP_TRANSPORT", "stdio")
     if transport == "http":
         port = int(os.environ.get("UNITY_MCP_HTTP_PORT", "8765"))
@@ -174,7 +176,15 @@ def main():
         mcp.run(transport="stdio")
 ```
 
-**Idle watchdog (v0.53.0)** — daemon thread calling `os._exit(0)` after UNITY_MCP_IDLE_TIMEOUT seconds of inactivity. Key gate: `if os.getppid() == _ORIGINAL_PPID: continue` (line 40 in server.py) — only exits if parent process has changed (truly orphaned). Alive parent → watchdog remains dormant, acting as orphan-reaper only. Timeout=0 disables. Updated on every `_touch_activity()` call before MCP tool dispatch.
+**Idle watchdog (T4: Activity Tracking)** — daemon thread with two idle timeout paths:
+- **Path A (Subagent)**: UNITY_MCP_USEFUL_IDLE_TIMEOUT env var (default 0 = off). When set, exits regardless of parent liveness if useful activity idle > timeout. Used by subagent runtimes to enforce timeout independent of stdio parent.
+- **Path B (Orphan Reaper)**: UNITY_MCP_IDLE_TIMEOUT env var (default 300s). Only exits when parent process has changed (truly orphaned) AND idle > timeout. Alive parent → watchdog remains dormant, acting as orphan-reaper only. Key gate: `if os.getppid() == _ORIGINAL_PPID: continue` — parent alive so skip exit.
+
+**Activity Tracking Split (v1.x)**:
+- `_last_useful_activity` — updated by `_touch_useful_activity()` before every MCP tool dispatch (in `_send()`). Measures work being done.
+- `_last_transport_activity` — updated by `_touch_transport_activity()` on successful heartbeat ping. Measures transport-layer connectivity.
+- `_in_flight_count` — counter incremented/decremented around `_send()` calls (try/finally guard). Watchdog skips idle check if `_in_flight_count > 0` — prevents premature exit while a tool is executing.
+- Backward-compat alias: `_touch_activity = _touch_useful_activity` for legacy code.
 
 ### Bridge / Connection
 

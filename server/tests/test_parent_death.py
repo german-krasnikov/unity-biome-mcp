@@ -1,7 +1,9 @@
 """TDD tests for parent-death detection in bridge_heartbeat.py."""
 import asyncio
+import contextlib
 import os
-from unittest.mock import patch, AsyncMock
+import time
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -22,7 +24,7 @@ def test_original_ppid_is_module_level_int():
 
 
 def test_original_ppid_matches_real_ppid_at_import():
-    assert hb_module._ORIGINAL_PPID == os.getppid()
+    assert os.getppid() == hb_module._ORIGINAL_PPID
 
 
 def _make_bridge_mixin():
@@ -40,9 +42,10 @@ def _make_bridge_mixin():
             self._reconnect_started_at = None
             self._startup_grace_expired = False
             self._ppid_mismatch_count = 0
+            self._orphan_detected_at = None
             self._connected = True
-            from unity_mcp.bridge_reload_state import DomainReloadTracker
             from unity_mcp.bridge import BridgeState
+            from unity_mcp.bridge_reload_state import DomainReloadTracker
             self._reload = DomainReloadTracker()
             self._state = BridgeState.DISCONNECTED
 
@@ -62,52 +65,62 @@ def _make_bridge_mixin():
     return _Stub()
 
 
+def _cfg_no_terminate():
+    cfg = MagicMock()
+    cfg.effective_terminate_orphan.return_value = (True, "config")
+    cfg.effective_orphan_grace_s.return_value = (0, "config")  # grace=0 → instant
+    return cfg
+
+
+def _cfg_long_grace():
+    cfg = MagicMock()
+    cfg.effective_terminate_orphan.return_value = (True, "config")
+    cfg.effective_orphan_grace_s.return_value = (120, "config")
+    return cfg
+
+
 @pytest.mark.asyncio
 async def test_parent_death_stops_heartbeat_no_systemexit():
-    """After 2 consecutive PPID mismatches, heartbeat stops — no SystemExit/os._exit."""
+    """PPID mismatch + grace expired → heartbeat stops, no SystemExit/os._exit."""
     bridge = _make_bridge_mixin()
+    # Pre-set orphan_detected_at so grace (0s) is already expired.
+    bridge._orphan_detected_at = time.monotonic() - 10
 
     fake_original = os.getppid() + 9999
-    # Patch threading.Timer so _schedule_hard_exit doesn't fire real os._exit after test.
     with patch.object(hb_module, "_ORIGINAL_PPID", fake_original), \
          patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=os.getppid()), \
+         patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_no_terminate()), \
          patch("unity_mcp.bridge_heartbeat.threading.Timer"), \
          patch("unity_mcp.bridge_heartbeat.os._exit"):
-        # First mismatch: returns early
         await bridge._heartbeat_tick(15.0)
-        assert bridge._ppid_mismatch_count == 1
-
-        # Second mismatch: stops heartbeat, does NOT raise
-        await bridge._heartbeat_tick(15.0)
-        assert bridge._ppid_mismatch_count == 2
         assert bridge._heartbeat_task is None  # stopped
 
 
 @pytest.mark.asyncio
 async def test_single_ppid_mismatch_does_not_stop():
-    """Single mismatch is a race guard — heartbeat keeps running."""
+    """Single mismatch within grace — heartbeat keeps running."""
     bridge = _make_bridge_mixin()
     bridge._heartbeat_task = asyncio.ensure_future(asyncio.sleep(999))
 
     fake_original = os.getppid() + 9999
     with patch.object(hb_module, "_ORIGINAL_PPID", fake_original), \
-         patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=os.getppid()):
+         patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=os.getppid()), \
+         patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_long_grace()):
         await bridge._heartbeat_tick(15.0)
         assert bridge._ppid_mismatch_count == 1
         assert bridge._heartbeat_task is not None  # still running
 
     bridge._heartbeat_task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await bridge._heartbeat_task
-    except asyncio.CancelledError:
-        pass
 
 
 @pytest.mark.asyncio
 async def test_ppid_match_resets_counter():
-    """When ppid matches again, mismatch counter resets."""
+    """When ppid matches again, mismatch counter and _orphan_detected_at reset."""
     bridge = _make_bridge_mixin()
     bridge._ppid_mismatch_count = 1
+    bridge._orphan_detected_at = time.monotonic() - 5
     bridge._connected = False
 
     real_ppid = os.getppid()
@@ -116,6 +129,7 @@ async def test_ppid_match_resets_counter():
          patch("asyncio.sleep", new=AsyncMock()):
         await bridge._heartbeat_tick(15.0)
         assert bridge._ppid_mismatch_count == 0
+        assert bridge._orphan_detected_at is None
 
 
 @pytest.mark.asyncio
