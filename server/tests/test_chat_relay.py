@@ -528,8 +528,8 @@ async def test_crash_nonzero_exit_enqueues_error():
     await relay._drain_stdout_loop()
 
     texts = [b.text for b in relay._buf]
-    # EOF error events are pipe-format: e|<message>
-    assert any(t.startswith("e|") for t in texts)
+    # ACP path: EOF error events are JSON AgentEvent with kind="error"
+    assert any('"kind":"error"' in t for t in texts)
 
 
 async def test_crash_error_event_format():
@@ -543,9 +543,9 @@ async def test_crash_error_event_format():
 
     texts = [b.text for b in relay._buf]
     assert len(texts) == 1
-    # Pipe format: e|Process claude exited 3
-    assert texts[0].startswith("e|")
-    assert "claude" in texts[0]
+    parsed = json.loads(texts[0])
+    assert parsed["kind"] == "error"
+    assert "claude" in parsed["payload"]["message"]
 
 
 # ─── PPID Watchdog (3 tests) ────────────────────────────────────────────────
@@ -610,7 +610,7 @@ async def test_tcp_spawn_send_events_cycle(running_relay):
     relay, port = running_relay
     proc = make_proc(pid=5555, stdout_lines=[b"stream line one\n", b"stream line two\n"])
 
-    # Use plain-text transform so raw lines land as t| events in the buffer
+    # Use plain-text transform: raw lines → assistant_delta JSON in buffer
     relay._transform_fn = _transform_plain_text_line
     with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec", AsyncMock(return_value=proc)):
         spawn_resp = await relay._cmd_spawn({  # direct call — spawn removed from TCP dispatch
@@ -624,8 +624,9 @@ async def test_tcp_spawn_send_events_cycle(running_relay):
 
     events_resp = await tcp_cmd(port, "events", {"after_seq": -1})
     assert events_resp["ok"] is True
-    assert "t|stream line one" in events_resp["data"]
-    assert "t|stream line two" in events_resp["data"]
+    # ACP path: text lines arrive as JSON assistant_delta events
+    assert "stream line one" in events_resp["data"]
+    assert "stream line two" in events_resp["data"]
 
 
 async def test_reconnect_replay(running_relay):
@@ -929,7 +930,7 @@ async def test_send_large_stdin_no_deadlock():
 
 
 async def test_exit_code_zero_enqueues_done_event():
-    """B3: Clean exit (code 0) must enqueue a done event so C# spinner clears."""
+    """B3: Clean exit (code 0) must enqueue turn_completed JSON so C# spinner clears."""
     relay = ChatRelay()
     sess = mock_sess(alive=False, exit_code=0)
     sess.read_stdout_line = AsyncMock(return_value=None)
@@ -938,9 +939,9 @@ async def test_exit_code_zero_enqueues_done_event():
     await relay._drain_stdout_loop()
 
     texts = [b.text for b in relay._buf]
-    assert len(texts) == 1
-    # EOF clean exit → pipe-format done event d|<sid>|<cost>|<in>|<out>
-    assert texts[0].startswith("d|")
+    # ACP path: clean exit → cost_update + turn_completed JSON events
+    kinds = [json.loads(t)["kind"] for t in texts]
+    assert "turn_completed" in kinds
 
 
 async def test_kill_clears_buffer_and_resets_seq():
@@ -1339,11 +1340,11 @@ async def test_kill_current_no_spurious_event():
     assert relay._drain_task is None
 
 
-# ─── Synthetic exit events (pipe-format regardless of backend transform) ──────
+# ─── Synthetic exit events (always JSON AgentEvent) ──────────────────────────
 
 @pytest.mark.asyncio
-async def test_error_exit_synthetic_event_is_pipe_format():
-    """Drain loop wraps error-exit as e| pipe event even for plain-text backends."""
+async def test_error_exit_emits_error_json():
+    """Drain loop wraps error-exit as JSON error event (not pipe format)."""
     from unity_mcp.stream_transform import _transform_plain_text_line
     relay = ChatRelay()
     relay._transform_fn = _transform_plain_text_line
@@ -1355,14 +1356,15 @@ async def test_error_exit_synthetic_event_is_pipe_format():
 
     texts = [b.text for b in relay._buf]
     assert len(texts) == 1
-    assert texts[0].startswith("e|")
-    assert "cli" in texts[0]
-    assert "1" in texts[0]
+    parsed = json.loads(texts[0])
+    assert parsed["kind"] == "error"
+    assert "cli" in parsed["payload"]["message"]
+    assert "1" in parsed["payload"]["message"]
 
 
 @pytest.mark.asyncio
-async def test_clean_exit_synthetic_event_is_done_pipe():
-    """Drain loop wraps clean exit as d||0|-1|0: no real API call → context unknown."""
+async def test_clean_exit_emits_turn_completed_json():
+    """Drain loop wraps clean exit as turn_completed JSON (not pipe format d|...)."""
     from unity_mcp.stream_transform import _transform_plain_text_line
     relay = ChatRelay()
     relay._transform_fn = _transform_plain_text_line
@@ -1373,8 +1375,8 @@ async def test_clean_exit_synthetic_event_is_done_pipe():
     await relay._drain_stdout_loop()
 
     texts = [b.text for b in relay._buf]
-    assert len(texts) == 1
-    assert texts[0] == "d||0|-1|0"
+    kinds = [json.loads(t)["kind"] for t in texts]
+    assert "turn_completed" in kinds
 
 
 # ─── Monkey: Category A — Protocol Torture (10 tests) ───────────────────────
@@ -1830,43 +1832,6 @@ async def test_start_rejects_unknown_backend_via_tcp(running_relay):
     resp = await tcp_cmd(port, "start", {"backend": "/bin/sh", "mode": "ask", "mcp_port": 9500})
     assert resp["ok"] is False
     assert "unknown backend" in resp["err"]
-
-
-# ─── T1/T2: _transform_fn set by _cmd_start ─────────────────────────────────
-
-async def test_cmd_start_codex_sets_codex_transform_fn():
-    """T1: _cmd_start(backend=codex) must set _transform_fn = _transform_codex_line."""
-    relay = ChatRelay()
-    proc = make_proc(pid=5001)
-    backend = _mock_backend()
-    backend.output_format = OUTPUT_FORMAT_CODEX_JSON
-    with patch.dict(BACKENDS, {"codex": backend}, clear=False):
-        with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
-                   AsyncMock(return_value=proc)):
-            result = await relay._cmd_start({"backend": "codex", "mode": "ask", "mcp_port": 9601})
-    assert result["ok"] is True
-    assert relay._transform_fn is _transform_codex_line
-
-
-@pytest.mark.parametrize("backend_name,output_format,expected_fn", [
-    ("claude",    OUTPUT_FORMAT_STREAM_JSON,   _transform_line),
-    ("codex",     OUTPUT_FORMAT_CODEX_JSON,    _transform_codex_line),
-    ("kimi",      OUTPUT_FORMAT_KIMI_JSON,     _transform_kimi_line),
-    ("agy",       OUTPUT_FORMAT_PLAIN_TEXT,    _transform_plain_text_line),
-    ("opencode",  OUTPUT_FORMAT_OPENCODE_JSON, _transform_opencode_line),
-])
-async def test_cmd_start_sets_correct_transform_per_backend(
-        backend_name, output_format, expected_fn):
-    """T2: every backend maps to the correct transform function."""
-    relay = ChatRelay()
-    proc = make_proc(pid=5002)
-    backend = _mock_backend()
-    backend.output_format = output_format
-    with patch.dict(BACKENDS, {backend_name: backend}, clear=False):
-        with patch("unity_mcp.chat_relay.asyncio.create_subprocess_exec",
-                   AsyncMock(return_value=proc)):
-            await relay._cmd_start({"backend": backend_name, "mode": "ask", "mcp_port": 9500})
-    assert relay._transform_fn is expected_fn
 
 
 # ─── T4: env_set overrides inherited UNITY_MCP_PORT ─────────────────────────

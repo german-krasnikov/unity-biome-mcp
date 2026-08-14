@@ -22,7 +22,7 @@ _TIER1_SNAPSHOT = frozenset({
     "batch", "compile_preflight", "create_object", "editor", "execute_code",
     "get_compile_errors", "get_component", "get_console", "get_hierarchy",
     "inspect", "manage_component", "mcp_status", "set_property",
-    # 24 TIER1-only (non-core) — P-12440 Phase 1; +2 console_mark/get_console_since (B2); +1 get_changeset (T16); +1 plan_status (T20)
+    # 23 TIER1-only (non-core) — P-12440 Phase 1; +2 console_mark/get_console_since (B2); +1 get_changeset (T16)
     "apply_scene_change", "await_compile",
     "console_mark", "get_changeset", "get_console_since",
     "delete_object", "discover_tools",
@@ -32,7 +32,6 @@ _TIER1_SNAPSHOT = frozenset({
     "scene", "scene_change_plan", "screenshot",
     "search_scene", "set_active", "set_parent",
     "sync_unity", "validate_references", "verify_after_change",
-    "plan_status",
 })
 
 _ALL_KNOWN_SNAPSHOT = frozenset({

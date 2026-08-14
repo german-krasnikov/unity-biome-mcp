@@ -7,7 +7,7 @@ In-Unity MCP Chat window: partial `MCPChatWindow`, Markdown-to-UIElements render
 ### CLI Layer (Backend Abstraction)
 - `Chat/CLI/IChatBackend.cs` — Backend interface used by the window
 - `Chat/CLI/RelayBackend.cs` — Only C# backend implementation
-- `Chat/CLI/RelayChatProcess.cs`, `RelaySpawner.cs`, `RelayEventParser.cs` — Sidecar connection, lifecycle, and pipe-event parsing
+- `Chat/CLI/RelayChatProcess.cs`, `RelaySpawner.cs` — Sidecar connection and lifecycle (ACP-only event dispatch)
 - `Chat/CLI/BackendRegistry.cs`, `BackendConfigStore.cs` — Backend selection and project-local settings
 - `Chat/CLI/ChipKindRegistry.cs` — Plugin-extensible chip display registry (provider pattern)
 

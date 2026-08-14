@@ -45,44 +45,21 @@ namespace UnityMCP.Editor.Tests
             Assert.That(firstCmd, Does.Not.Contain("\"session_token\""));
         }
 
-        // ── V2 protocol negotiation ──────────────────────────────────────────
+        // ── Protocol version (always v2, no negotiation) ─────────────────────
 
         [Test]
-        public void StartViaRelay_Sends_ProtocolVersion_2_When_Flag_Enabled()
+        public void StartViaRelay_AlwaysSendsProtocolVersion2()
         {
-            ProtectEditorPrefBool("UnityMCP.Chat.ProtocolV2");
-            // EditorPrefs.GetBool("UnityMCP.Chat.ProtocolV2", true) defaults true.
-            string firstCmd = null;
+            string capturedCmd = null;
             using var proc = new RelayChatProcess(cmd =>
             {
-                Interlocked.CompareExchange(ref firstCmd, cmd, null);
+                Interlocked.CompareExchange(ref capturedCmd, cmd, null);
                 return FakeOk;
             });
             proc.StartViaRelay(0, "claude", "ask", null, 9500, null);
             proc.Kill();
 
-            Assert.That(firstCmd, Does.Contain("\"protocol_version\":2"));
-        }
-
-        [Test]
-        public void StartViaRelay_NegotiatedVersion_Set_To_2_On_V2_Response()
-        {
-            const string V2Resp = "{\"ok\":true,\"data\":\"spawned pid=1\",\"negotiated_version\":2}";
-            using var proc = new RelayChatProcess(_ => V2Resp);
-            proc.StartViaRelay(0, "claude", "ask", null, 9500, null);
-            proc.Kill();
-
-            Assert.That(proc.NegotiatedVersion, Is.EqualTo(2));
-        }
-
-        [Test]
-        public void StartViaRelay_NegotiatedVersion_Defaults_To_1_On_Missing_Field()
-        {
-            using var proc = new RelayChatProcess(_ => FakeOk);
-            proc.StartViaRelay(0, "claude", "ask", null, 9500, null);
-            proc.Kill();
-
-            Assert.That(proc.NegotiatedVersion, Is.EqualTo(1));
+            Assert.That(capturedCmd, Does.Contain("\"protocol_version\":2"));
         }
 
         // ── C1: project_id wiring ────────────────────────────────────────────

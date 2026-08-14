@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Chat relay ACP-only migration**: Removed legacy v1 pipe protocol support. All chat backends now exclusively use Agent Communication Protocol (ACP) format output. No protocol negotiation or feature flagging; ACP is always-on.
+
+### Removed
+- **Legacy pipe adapter** (`adapters/legacy.py` + LegacyCliAdapter class) — v1 pipe format no longer supported
+- **Plan MCP tools** (`plan_tool.py`) — removed: `plan_create`, `plan_approve`, `plan_reject`, `plan_edit`, `plan_status`
+- **Plan data model** (`plan.py` + `plan_store.py`) — agent-generated action plan storage and workflow
+- **Relay event parser** (C# `RelayEventParser.cs`) — replaced by ACP HandleEvent direct dispatch
+- **Protocol version negotiation** — UNITY_MCP_ACP_* environment flags (OPENCODE, CODEX, CLAUDE) no longer used; ACP required
+
+### Added
+- **Chat UI cards for plan events** (`PlanStepCard.cs`) — visual Approve/Reject buttons for agent-generated plan steps
+- **Extended HandleEvent support** — three new ChatEventKind cases: `PlanUpdate`, `FileChange`, `CapabilitiesChanged`
+
 ## [v1.34.0] — 2026-08-14
 
 ### Added

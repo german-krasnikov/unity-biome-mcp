@@ -592,65 +592,6 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.IsFalse(result, "SendSetMode must return false when response has no ok field");
         }
 
-        // ── ParseEvents / C4: newline de-escape ───────────────────────────────
-
-        [Test]
-        public async Task ParseEvents_EventLineWithEscapedNewline_DeescapedCorrectly()
-        {
-            // Python escapes \n in event text as literal 2-char backslash+n before sending.
-            // In JSON: "0\nhello\\nworld\n" decodes to:  seq=0, text="hello\nworld" (2-char \n)
-            // C# must de-escape: "hello\nworld" → "hello" + newline + "world"
-            bool delivered = false;
-            _sut = Spawn(json =>
-            {
-                if (!json.Contains("events")) return "{\"ok\":true,\"data\":\"\"}";
-                if (!delivered)
-                {
-                    delivered = true;
-                    return "{\"ok\":true,\"data\":\"0\\nhello\\\\nworld\\n\"}";
-                }
-                return "{\"ok\":true,\"data\":\"\"}";
-            }, out _);
-            var output = new List<string>();
-            await WaitUntilAsync(() =>
-            {
-                _sut.DrainLines(output);
-                return output.Count > 0;
-            }, "Escaped-newline event was not delivered");
-            Assert.AreEqual(1, output.Count, "Expected exactly one line");
-            Assert.IsTrue(output[0].Contains("\n"),
-                $"Deescaped newline not present: [{output[0]}]");
-            Assert.IsTrue(output[0].StartsWith("hello"),
-                $"Line content wrong: [{output[0]}]");
-        }
-
-        [Test]
-        public async Task ParseEvents_MultipleEventsWithEscapedNewlines_AllDelivered()
-        {
-            // Two events: seq=0 "a\nb" (embedded newline), seq=1 "c"
-            // JSON data: "0\na\\nb\n1\nc\n"
-            bool delivered = false;
-            _sut = Spawn(json =>
-            {
-                if (!json.Contains("events")) return "{\"ok\":true,\"data\":\"\"}";
-                if (!delivered)
-                {
-                    delivered = true;
-                    return "{\"ok\":true,\"data\":\"0\\na\\\\nb\\n1\\nc\\n\"}";
-                }
-                return "{\"ok\":true,\"data\":\"\"}";
-            }, out _);
-            var output = new List<string>();
-            await WaitUntilAsync(() =>
-            {
-                _sut.DrainLines(output);
-                return output.Count >= 2;
-            }, "Expected events were not delivered");
-            Assert.AreEqual(2, output.Count, $"Expected 2 lines, got {output.Count}");
-            Assert.IsTrue(output[0].Contains("\n"), "First event must have embedded newline");
-            Assert.AreEqual("c", output[1]);
-        }
-
         // ── Tool call / result pass-through ───────────────────────────────────
 
         [Test]

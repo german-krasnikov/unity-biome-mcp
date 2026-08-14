@@ -121,8 +121,6 @@ unity-biome-mcp/
 │   │   │   ├── acp_parser.py   # ACP line parser: timestamp/kind/delta/data extraction
 │   │   │   ├── claude_acp.py   # Claude-specific ACP adapter
 │   │   │   ├── codex_acp.py    # Codex-specific ACP adapter
-│   │   │   ├── legacy.py       # LegacyCliAdapter: stream-json relay (backward compat)
-│   │   │   ├── pipe_parser.py  # Pipe-protocol parser (legacy)
 │   │   │   └── fixture.py      # FixtureAdapter for testing + deterministic relay validation
 │   │   ├── agent_event.py      # AgentEvent canonical envelope: 16+ event kinds, provider-specific filtering, forward-compatible schema
 │   │   ├── session_identity.py # SessionIdentity: session_id, lock_token, agent_id, display_name, timestamps
@@ -139,15 +137,13 @@ unity-biome-mcp/
 │   │   ├── checkpoint_manifest.py # CheckpointManifest: consistency verification (asset/object/component checksums)
 │   │   ├── checkpoint_store.py # CheckpointStore: save/load/list checkpoint operations
 │   │   ├── checkpoint_restore.py # CheckpointRestore: snapshot rollback with state verification
-│   │   ├── plan.py             # Plan: agent-generated action plan with approval workflow + TTL
-│   │   ├── plan_store.py       # PlanStore: plan persistence + expiry management
 │   │   ├── history/            # Conversation history management (Chat Core)
 │   │   │   ├── __init__.py
 │   │   │   ├── models.py       # HistoryEntry dataclass: kind (User/Assistant/Tool), timestamp, metadata
 │   │   │   ├── store.py        # HistoryStore: JSONL-based conversation persistence
 │   │   │   ├── manager.py      # HistoryManager: store + model lifecycle + retention coordination
 │   │   │   └── retention.py    # Retention policies: time-based, count-based, TTL eviction
-│   │   ├── tools/              # Tool modules (50 files + __init__, Chat Core: +brief_tool.py, +changeset_tool.py, +checkpoint_tool.py, +plan_tool.py; pipeline-gap sprint: +build.py, +packages.py; playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
+│   │   ├── tools/              # Tool modules (50 files + __init__, Chat Core: +brief_tool.py, +changeset_tool.py, +checkpoint_tool.py; pipeline-gap sprint: +build.py, +packages.py; playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
 │   │   │   ├── __init__.py     # Tool module registry
 │   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 154 entries (148 user-visible + 6 _INTERNAL)
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
@@ -164,7 +160,6 @@ unity-biome-mcp/
 │   │   │   ├── brief_tool.py   # brief MCP tool: on-demand context brief retrieval (compile status, console errors, hierarchy, profiler metrics) (Chat Core)
 │   │   │   ├── changeset_tool.py # changeset MCP tool: query atomic transaction history + mutations (Chat Core)
 │   │   │   ├── checkpoint_tool.py # checkpoint MCP tool: save/load/list scene checkpoints with manifest validation (Chat Core)
-│   │   │   ├── plan_tool.py    # plan MCP tool: create/approve/reject/edit agent action plans with TTL cleanup (Chat Core)
 │   │   │   ├── objects.py      # create/delete/find/inspect/set_parent/rename_object/clone_object/set_material; get_component+inspect accept compress=True (v0.78.9)
 │   │   │   ├── scene.py        # scene, hierarchy, search + save_session/load_session/screenshot_baseline/screenshot_compare (merged from scene_session.py v0.79.1; multi-scene support)
 │   │   │   ├── console.py      # get_console, get_compile_errors split from scene.py (v0.70.0); playtests ROI sprint: +console_mark (timestamp watermark, pure Python), +get_console_since (logs after watermark)
@@ -241,12 +236,10 @@ unity-biome-mcp/
 │       ├── agent/                          # Chat Core adapter + event tests (T9-T24)
 │       │   ├── test_acp_adapter.py         # ACP adapter: --format acp subprocess, event parsing, provider filtering
 │       │   ├── test_acp_parser.py          # ACP line parser: timestamp/kind/delta/data extraction
-│       │   ├── test_adapters.py            # Multi-adapter registration + routing
 │       │   ├── test_agent_event.py         # AgentEvent envelope: event kinds, schema versioning, forward compat
 │       │   ├── test_claude_acp_adapter.py  # Claude ACP specifics
 │       │   ├── test_codex_acp_adapter.py   # Codex ACP specifics
-│       │   ├── test_fixture_adapter.py     # FixtureAdapter: deterministic testing
-│       │   └── test_pipe_parser.py         # Pipe-protocol parser (legacy)
+│       │   └── test_fixture_adapter.py     # FixtureAdapter: deterministic testing
 │       ├── changesets/                     # Chat Core changeset + checkpoint tests
 │       │   ├── test_changeset.py           # Changeset transaction model + coordination
 │       │   ├── test_changeset_file_capture.py # File snapshot capture + diff
@@ -267,9 +260,6 @@ unity-biome-mcp/
 │       ├── test_history_retention.py       # Retention policies: TTL eviction, count limits
 │       ├── test_history_store.py           # JSONL store: persistence + recovery
 │       ├── test_permission_broker.py       # PermissionBroker: per-session consent + caching
-│       ├── test_plan.py                    # Plan model: approval/rejection workflow + TTL
-│       ├── test_plan_store.py              # PlanStore: persistence + expiry
-│       ├── test_plan_tool.py               # plan MCP tool integration
 │       ├── test_chat_relay_v2.py           # Chat relay v2 protocol + schema validation
 │       ├── test_connection_status.py       # Semantic connection status: connected/reconnecting/domain-reloading/disconnected (v0.78.10)
 │       ├── test_lockfile.py             # PID lockfile + cleanup_stale_port_files (additions, v0.52.6); T5: +3 tests for write_lock_metadata/read_lock_metadata
@@ -813,7 +803,6 @@ unity-biome-mcp/
 │       │   │   ├── RelayBackend.cs            # Only C# backend implementation
 │       │   │   ├── RelayChatProcess.cs        # TCP command/event connection to Python relay
 │       │   │   ├── RelaySpawner.cs            # Sidecar lifecycle and domain-reload reattachment
-│       │   │   ├── RelayEventParser.cs        # Pipe protocol to normalized ChatEvent
 │       │   │   ├── BackendRegistry.cs         # Backend selection
 │       │   │   ├── BackendConfig.cs           # Serializable per-backend settings
 │       │   │   ├── BackendConfigStore.cs      # Project-local settings persistence
@@ -874,6 +863,7 @@ unity-biome-mcp/
 │       │   │   ├── AskUserCard.cs             # Interactive user input dialog (radio/checkbox/freetext, v0.29.11+, v0.29.38: codex: support)
 │       │   │   ├── AskUserQuestionRow.cs      # Extracted pill-button row UI (217 LOC, v0.29.37)
 │       │   │   ├── ToolApprovalCard.cs        # Risk-classified tool approval UI (Allow/Deny/Session/Always, v0.29.2)
+│       │   │   ├── PlanStepCard.cs            # Agent plan step UI (Approve/Reject buttons, ACP-only)
 │       │   │   ├── RiskClassifier.cs          # Tool risk categorization (v0.29.2)
 │       │   │   ├── SessionAllowlist.cs        # Session-scoped tool allowlist manager (v0.29.2)
 │       │   │   ├── ApproveHelper.cs           # Session management for approvals
@@ -949,13 +939,11 @@ unity-biome-mcp/
 │       │   │   │   │   ├── ControlResponseBuilderTests.cs # Response serialization (v0.29.38+)
 │       │   │   │   │   ├── RelayBackendTests.cs # Relay backend core logic (v0.66.0+)
 │       │   │   │   │   ├── RelayChatProcessTests.cs # Process spawning + lifecycle (v0.66.0+)
-│       │   │   │   │   ├── RelayEventParserTests.cs # Stream-json event parsing (v0.66.0+)
 │       │   │   │   │   ├── RelayTcpClientTests.cs # TCP bidirectional communication (v0.66.0+)
 │       │   │   │   │   ├── RelayBackendConstructionMonkeyTests.cs # Initialization chaos (v0.66.0+)
 │       │   │   │   │   ├── RelayBackendDrainMonkeyTests.cs # Drain path stress (v0.66.0+)
 │       │   │   │   │   ├── RelayConnectionChaosTests.cs # Connection failures + recovery (v0.66.0+)
 │       │   │   │   │   ├── RelayDrainStressTests.cs # High-volume message drain (v0.66.0+)
-│       │   │   │   │   ├── RelayParserStress2Tests.cs # Parser chaos + edge cases (v0.66.0+)
 │       │   │   │   │   ├── RelayReloadSurvivalTests.cs # Domain reload recovery (v0.66.0+)
 │       │   │   │   │   ├── RelayMonkeyTests.cs # Initialization monkey tests (v0.66.0+)
 │       │   │   │   │   ├── RelayMonkeyChatTests.cs # Chat flow monkey tests (v0.66.0+)
@@ -977,6 +965,8 @@ unity-biome-mcp/
 │       │   │   │   │   ├── AnnotateToolbarButtonTests.cs # Annotation editor launcher (v0.46.0, 42 tests)
 │       │   │   │   └── View/                  # View assembly tests (UI, cards, interactivity, v0.66.0+: relay flow tests)
 │       │   │   │   │   ├── AskUserCardTests.cs     # User input dialog + Codex protocol (v0.29.38 addition)
+│       │   │   │   │   ├── HandleEventAcpCardsTests.cs # ACP event dispatch for PlanUpdate/FileChange/CapabilitiesChanged
+│       │   │   │   │   ├── PlanStepCardTests.cs    # Plan step cards with Approve/Reject buttons
 │       │   │   │   │   ├── ApproveFlowTests.cs     # Interactive approvals flow
 │       │   │   │   │   ├── ChatUIMonkeyTests.cs    # Chat UI interaction monkey tests (v0.66.0+)
 │       │   │   │   │   ├── ChatWindowButtonStateTests.cs # Button state transitions (v0.66.0+)

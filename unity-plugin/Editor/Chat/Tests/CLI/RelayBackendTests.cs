@@ -2,6 +2,7 @@
 // All tests use injected fake RelayChatProcess (no real TCP, no relay process).
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
@@ -91,6 +92,23 @@ namespace UnityMCP.Editor.Chat.Tests
 
         // ── DrainEvents ──────────────────────────────────────────────────────
 
+        // ACP JSON helpers for DrainEvents tests
+        static string Q(string s) => "\"" + s.Replace("\\","\\\\").Replace("\"","\\\"") + "\"";
+        static string JEsc(string s) => s.Replace("\\","\\\\").Replace("\"","\\\"").Replace("\n","\\n");
+        static string EventsData(params string[] evs)
+        {
+            var sb = new StringBuilder();
+            for (int i = 0; i < evs.Length; i++) sb.Append(i).Append('\n').Append(evs[i]).Append('\n');
+            return $"{{\"ok\":true,\"data\":\"{JEsc(sb.ToString())}\"}}";
+        }
+        static string AsstDelta(string t) => $"{{\"kind\":\"assistant_delta\",\"payload\":{{\"text\":{Q(t)}}}}}";
+        static string SessInitAcp(string id) => $"{{\"kind\":\"session_started\",\"payload\":{{\"provider_session_id\":{Q(id)}}},\"session_id\":{Q(id)}}}";
+        static string CostUpdAcp(string cost, string inTok, string outTok) =>
+            $"{{\"kind\":\"cost_update\",\"payload\":{{\"cost_usd\":{Q(cost)},\"input_tokens\":{Q(inTok)},\"output_tokens\":{Q(outTok)}}}}}";
+        static string TurnDoneAcp(string sid) => $"{{\"kind\":\"turn_completed\",\"payload\":{{}},\"session_id\":{Q(sid)}}}";
+        static string TStartAcp(string name, string id, string args) =>
+            $"{{\"kind\":\"tool_call_started\",\"payload\":{{\"name\":{Q(name)},\"id\":{Q(id)},\"args\":{args}}}}}";
+
         private void EnqueueLine(string line)
         {
             // Temporarily override sendFunc so next "events" poll returns this line.
@@ -127,7 +145,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var fakeProcWithLine = new RelayChatProcess(json =>
             {
                 if (json.Contains("\"cmd\":\"events\""))
-                    return "{\"ok\":true,\"data\":\"0\\nt|Hello relay\\n\"}";
+                    return EventsData(AsstDelta("Hello relay"));
                 return "{\"ok\":true,\"data\":\"\"}";
             });
             RelayBackend.ProcessFactory = () => fakeProcWithLine;
@@ -153,7 +171,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var fakeProcWithLine = new RelayChatProcess(json =>
             {
                 if (json.Contains("\"cmd\":\"events\""))
-                    return "{\"ok\":true,\"data\":\"0\\nd|my-session|0.01|100|50\\n\"}";
+                    return EventsData(CostUpdAcp("0.01","100","50"), TurnDoneAcp("my-session"));
                 return "{\"ok\":true,\"data\":\"\"}";
             });
             RelayBackend.ProcessFactory = () => fakeProcWithLine;
@@ -173,11 +191,13 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public async Task DrainEvents_ToolCallComplete_ProducesToolRecord()
         {
-            // tc| then tr| — should produce two ToolCallRecords (chip + result)
+            // tool_call_started then tool_call_completed — should produce ToolCallRecords
             var fakeProcWithLine = new RelayChatProcess(json =>
             {
                 if (json.Contains("\"cmd\":\"events\""))
-                    return "{\"ok\":true,\"data\":\"0\\ntc|bash|tid1|{}\\n1\\ntr|tid1|true|ok\\n\"}";
+                    return EventsData(
+                        TStartAcp("bash","tid1","{}"),
+                        $"{{\"kind\":\"tool_call_completed\",\"payload\":{{\"id\":\"tid1\",\"result\":\"ok\"}}}}");
                 return "{\"ok\":true,\"data\":\"\"}";
             });
             RelayBackend.ProcessFactory = () => fakeProcWithLine;
@@ -193,39 +213,6 @@ namespace UnityMCP.Editor.Chat.Tests
             b.Stop();
 
             Assert.IsTrue(toolOut.Count >= 1, "Expected at least one ToolCallRecord");
-        }
-
-        [Test]
-        public async Task DrainEvents_AutoReply_WritesBackToProc()
-        {
-            var writtenBack = new List<string>();
-            var fakeProcWithLine = new RelayChatProcess(json =>
-            {
-                if (json.Contains("\"cmd\":\"events\""))
-                    return "{\"ok\":true,\"data\":\"0\\nar|{\\\"reply\\\":1}\\n\"}";
-                if (json.Contains("\"cmd\":\"send\""))
-                    lock (writtenBack) writtenBack.Add(json);
-                return "{\"ok\":true,\"data\":\"\"}";
-            });
-            RelayBackend.ProcessFactory = () => fakeProcWithLine;
-
-            var b = new RelayBackend("claude", "ask", "", 0);
-            RegisterCleanup(b.Stop);
-            b.Start();
-
-            var output = new List<ChatEvent>();
-            await WaitUntilAsync(
-                () => { lock (writtenBack) return writtenBack.Count > 0; },
-                () => b.DrainEvents(output),
-                "AutoReply was not written back to the process");
-            b.Stop();
-
-            // AutoReply must NOT appear in output
-            foreach (var ev in output)
-                Assert.AreNotEqual(ChatEventKind.AutoReply, ev.Kind);
-
-            // Must have written the json back to proc stdin
-            Assert.IsTrue(writtenBack.Count > 0, "AutoReply must be written back to proc");
         }
 
         // ── C2: mcp_port protocol ────────────────────────────────────────────
@@ -315,7 +302,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 {
                     pollCount++;
                     if (pollCount == 1)
-                        return "{\"ok\":true,\"data\":\"0\\ntc|bash|tid1|{\\\"x\\\":1}\\n\"}";
+                        return EventsData(TStartAcp("bash","tid1","{\"x\":1}"));
                 }
                 return "{\"ok\":true,\"data\":\"\"}";
             });
@@ -376,7 +363,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 if (json.Contains("\"cmd\":\"events\"") && !siDelivered)
                 {
                     siDelivered = true;
-                    return "{\"ok\":true,\"data\":\"0\\nsi|sess-relay\\n\"}";
+                    return EventsData(SessInitAcp("sess-relay"));
                 }
                 return "{\"ok\":true,\"data\":\"\"}";
             });
@@ -388,7 +375,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var events = new List<ChatEvent>();
             await WaitUntilAsync(() => b.SessionId == "sess-relay", () => b.DrainEvents(events),
                 "SessionInit did not update SessionId");
-            Assert.AreEqual("sess-relay", b.SessionId, "SessionId must be set from si| event");
+            Assert.AreEqual("sess-relay", b.SessionId, "SessionId must be set from session_started event");
 
             // Act
             b.SetMode("agent");

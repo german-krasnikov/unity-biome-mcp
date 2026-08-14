@@ -1,7 +1,4 @@
-"""AcpAgentAdapter: OpenCode subprocess in ACP output mode.
-
-Opt-in via UNITY_MCP_ACP_OPENCODE=1. Default path remains LegacyCliAdapter.
-"""
+"""AcpAgentAdapter: runs a CLI subprocess in ACP output mode."""
 from __future__ import annotations
 
 import contextlib
@@ -40,7 +37,7 @@ def _build_acp_argv(meta: SessionMeta) -> list[str]:
 
 
 class AcpAgentAdapter:
-    """OpenCode subprocess in ACP output mode. Opt-in via UNITY_MCP_ACP_OPENCODE=1."""
+    """CLI subprocess in ACP output mode."""
 
     def __init__(self, backend: BackendDef, broker: PermissionBroker) -> None:
         self._backend         = backend

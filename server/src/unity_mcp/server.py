@@ -525,8 +525,6 @@ async def lifespan(app):
         with contextlib.suppress(Exception):
             from .checkpoint_store import CheckpointStore as _CheckpointStore
             _CheckpointStore(_fp, _get_cs()).evict()
-        from .plan_store import init_plan_store as _init_plan_store
-        _init_plan_store(_fp)
         from .history.manager import init_history_manager as _init_history
         _init_history(_fp)
         if _budget_tracker is not None:

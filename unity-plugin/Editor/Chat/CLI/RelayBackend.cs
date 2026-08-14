@@ -158,10 +158,9 @@ namespace UnityMCP.Editor.Chat
             if (_proc == null) return;
             var lines = new List<string>(8);
             _proc.DrainLines(lines);
-            bool v2 = _proc.NegotiatedVersion == 2;
             foreach (var line in lines)
             {
-                var ev = v2 ? _agentParser.Parse(line) : RelayEventParser.Parse(line);
+                var ev = _agentParser.Parse(line);
                 if (ev == null) continue;
 
                 // Capture session ID from terminal events

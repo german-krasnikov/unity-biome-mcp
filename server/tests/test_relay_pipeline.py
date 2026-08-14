@@ -2,8 +2,11 @@
 
 Uses sys.executable -c '<script>' as a mock CLI, verifying the full path:
   _cmd_spawn → _drain_stdout_loop → _transform_line → _enqueue → _cmd_events
+
+After ACP-only migration: buffer always contains JSON AgentEvent objects.
 """
 import asyncio
+import json
 import sys
 
 from unity_mcp.chat_relay import ChatRelay
@@ -50,8 +53,31 @@ def event_lines(resp: dict) -> list[str]:
     return [parts[i] for i in range(1, len(parts), 2)]
 
 
+def _kinds(lines: list[str]) -> list[str]:
+    kinds = []
+    for l in lines:
+        try:
+            kinds.append(json.loads(l)["kind"])
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return kinds
+
+
+def _texts(lines: list[str]) -> list[str]:
+    """Extract payload.text from assistant_delta events."""
+    result = []
+    for l in lines:
+        try:
+            obj = json.loads(l)
+            if obj.get("kind") == "assistant_delta":
+                result.append(obj["payload"]["text"])
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return result
+
+
 async def wait_for_events(relay: ChatRelay, after: int = -1, timeout: float = 2.0) -> list[str]:
-    """Poll _cmd_events, accumulating until terminal d| or e| event or timeout."""
+    """Poll _cmd_events, accumulating until terminal turn_completed or error event or timeout."""
     deadline = asyncio.get_event_loop().time() + timeout
     all_lines: list[str] = []
     current_after = after
@@ -62,7 +88,9 @@ async def wait_for_events(relay: ChatRelay, after: int = -1, timeout: float = 2.
             all_lines.extend(batch)
             parts = resp["data"].splitlines()
             current_after = int(parts[-2])
-            if any(l.startswith(("d|", "e|")) for l in batch):
+            # Terminal: turn_completed or error JSON event
+            terminal_kinds = {"turn_completed", "error"}
+            if any(k in terminal_kinds for k in _kinds(batch)):
                 return all_lines
         await asyncio.sleep(0.05)
     return all_lines
@@ -70,7 +98,6 @@ async def wait_for_events(relay: ChatRelay, after: int = -1, timeout: float = 2.
 
 async def spawn(relay: ChatRelay, script: str, transform: bool = True) -> None:
     """Spawn subprocess. transform=True → stream-json; False → plain-text."""
-    # Set before _cmd_spawn so drain task sees the correct fn from the start
     relay._transform_fn = _transform_line if transform else _transform_plain_text_line
     await relay._cmd_spawn({
         "binary": sys.executable,
@@ -81,22 +108,27 @@ async def spawn(relay: ChatRelay, script: str, transform: bool = True) -> None:
 
 # ── Tests ────────────────────────────────────────────────────────────────────
 
-async def test_pipeline_text_arrives_as_pipe_format():
+async def test_pipeline_text_arrives_as_json():
     relay = ChatRelay()
     await spawn(relay, ECHO_STREAM)
     lines = await wait_for_events(relay)
-    assert any(l == "si|sid1" for l in lines)
-    assert any(l == "t|Hello!" for l in lines)
-    assert any(l.startswith("d|") for l in lines)
+    kinds = _kinds(lines)
+    assert "session_started" in kinds
+    assert "assistant_delta" in kinds
+    assert "turn_completed" in kinds
+    delta_texts = _texts(lines)
+    assert "Hello!" in delta_texts
     await relay._kill_current()
 
 
-async def test_pipeline_no_raw_json_with_transform():
-    """transform=True must not pass raw JSON lines to the event buffer."""
+async def test_pipeline_all_events_are_json():
+    """ACP drain: every buffer item is valid JSON with a kind field."""
     relay = ChatRelay()
     await spawn(relay, ECHO_STREAM)
     lines = await wait_for_events(relay)
-    assert not any(l.startswith("{") for l in lines)
+    for l in lines:
+        parsed = json.loads(l)  # must not raise
+        assert "kind" in parsed, f"Missing 'kind': {l}"
     await relay._kill_current()
 
 
@@ -105,7 +137,7 @@ async def test_pipeline_tool_result_text_suppressed():
     await spawn(relay, TOOL_RESULT_THEN_TEXT)
     lines = await wait_for_events(relay)
     assert not any("SUPPRESSED" in l for l in lines)
-    assert any(l == "t|visible text" for l in lines)
+    assert "visible text" in _texts(lines)
     await relay._kill_current()
 
 
@@ -113,8 +145,9 @@ async def test_pipeline_clean_exit_produces_done_event():
     relay = ChatRelay()
     await spawn(relay, EXIT_ZERO)
     lines = await wait_for_events(relay)
-    assert any(l.startswith("d|") for l in lines)
-    assert not any(l.startswith("e|") for l in lines)
+    kinds = _kinds(lines)
+    assert "turn_completed" in kinds
+    assert "error" not in kinds
     await relay._kill_current()
 
 
@@ -122,16 +155,16 @@ async def test_pipeline_exit1_produces_error_event():
     relay = ChatRelay()
     await spawn(relay, EXIT_ONE)
     lines = await wait_for_events(relay)
-    assert any(l.startswith("e|") for l in lines)
+    assert "error" in _kinds(lines)
     await relay._kill_current()
 
 
-async def test_pipeline_plain_text_wraps_as_t_event():
-    """plain-text transform: raw stdout lines arrive as t| events."""
+async def test_pipeline_plain_text_wraps_as_assistant_delta():
+    """plain-text transform: raw stdout lines arrive as assistant_delta JSON events."""
     relay = ChatRelay()
     await spawn(relay, RAW_LINE, transform=False)
     lines = await wait_for_events(relay)
-    assert any(l == "t|raw_output_line" for l in lines)
+    assert "raw_output_line" in _texts(lines)
     await relay._kill_current()
 
 
@@ -187,7 +220,7 @@ print(os.environ.get('UNITY_MCP_PORT', 'MISSING'), flush=True)
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 async def test_pipeline_codex_mcp_tool_call_emits_tc_event():
-    """T5: Codex item.started mcp_tool_call → tc| event in buffer."""
+    """T5: Codex item.started mcp_tool_call → tool_call_started JSON in buffer."""
     relay = ChatRelay()
     relay._transform_fn = _transform_codex_line
     await relay._cmd_spawn({
@@ -197,13 +230,15 @@ async def test_pipeline_codex_mcp_tool_call_emits_tc_event():
         "env_strip": [],
     })
     lines = await wait_for_events(relay)
-    assert any(l.startswith("tc|get_hierarchy|item_1|") for l in lines), \
-        f"tc| event not found; got: {lines}"
+    tc_events = [json.loads(l) for l in lines
+                 if _safe_kind(l) == "tool_call_started"]
+    assert tc_events, f"tool_call_started not found; got: {lines}"
+    assert tc_events[0]["payload"]["name"] == "get_hierarchy"
     await relay._kill_current()
 
 
 async def test_pipeline_codex_mcp_tool_result_emits_tr_event():
-    """T6: Codex item.completed mcp_tool_call → tr| event in buffer."""
+    """T6: Codex item.completed mcp_tool_call → tool_call_completed JSON in buffer."""
     relay = ChatRelay()
     relay._transform_fn = _transform_codex_line
     await relay._cmd_spawn({
@@ -213,8 +248,9 @@ async def test_pipeline_codex_mcp_tool_result_emits_tr_event():
         "env_strip": [],
     })
     lines = await wait_for_events(relay)
-    assert any(l == "tr|item_1|true|Main Camera" for l in lines), \
-        f"tr| event not found; got: {lines}"
+    tr_events = [json.loads(l) for l in lines
+                 if _safe_kind(l) == "tool_call_completed"]
+    assert tr_events, f"tool_call_completed not found; got: {lines}"
     await relay._kill_current()
 
 
@@ -229,6 +265,12 @@ async def test_pipeline_env_port_forwarded_to_subprocess():
         "env_strip": [],
     })
     lines = await wait_for_events(relay)
-    assert any(l == "t|9601" for l in lines), \
-        f"t|9601 not found; got: {lines}"
+    assert "9601" in _texts(lines), f"9601 not found in texts; got: {lines}"
     await relay._kill_current()
+
+
+def _safe_kind(text: str) -> str:
+    try:
+        return json.loads(text).get("kind", "")
+    except (json.JSONDecodeError, AttributeError):
+        return ""

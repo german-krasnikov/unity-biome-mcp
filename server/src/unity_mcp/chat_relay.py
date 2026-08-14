@@ -13,11 +13,17 @@ import sys
 import tempfile
 import uuid
 
-from .adapters.legacy import _TRANSFORM_FNS
 from .adapters.pipe_parser import parse_pipe_string
 from .adapters.protocol import EventContext
 from .agent_event import ProviderCapabilities
-from .backend_def import BACKENDS
+from .backend_def import (
+    BACKENDS,
+    OUTPUT_FORMAT_CODEX_JSON,
+    OUTPUT_FORMAT_KIMI_JSON,
+    OUTPUT_FORMAT_OPENCODE_JSON,
+    OUTPUT_FORMAT_PLAIN_TEXT,
+    OUTPUT_FORMAT_STREAM_JSON,
+)
 from .bridge_socket import frame_write
 from .cli_session import (  # noqa: F401
     KILL_WAIT,
@@ -31,9 +37,20 @@ from .cli_session import (  # noqa: F401
 from .relay_buffer import MAX_BUF, RelayBuffer  # noqa: F401
 from .stream_transform import (
     _ToolCallAcc,
+    _transform_codex_line,
+    _transform_kimi_line,
     _transform_line,
+    _transform_opencode_line,
     _transform_plain_text_line,
 )
+
+_TRANSFORM_FNS = {
+    OUTPUT_FORMAT_STREAM_JSON:   _transform_line,
+    OUTPUT_FORMAT_PLAIN_TEXT:    _transform_plain_text_line,
+    OUTPUT_FORMAT_CODEX_JSON:    _transform_codex_line,
+    OUTPUT_FORMAT_OPENCODE_JSON: _transform_opencode_line,
+    OUTPUT_FORMAT_KIMI_JSON:     _transform_kimi_line,
+}
 
 
 def _history_observe(event: object) -> None:
@@ -58,11 +75,11 @@ class ChatRelay:
         self._drain_task:       asyncio.Task | None        = None  # M3: prevent GC
         self._watchdog_task:    asyncio.Task | None        = None  # M3: prevent GC
         self._transform_fn                                 = _transform_line  # default: stream-json
+        self._adapter                                      = None  # ACP adapter (set by caller for adapter-path drain)
         self._conversation_id:  str                        = str(uuid.uuid4())
         self._turn_id:          int                        = 0
         self._context_file                                 = None  # set after first context write
-        self._protocol_version: int                        = 1   # negotiated per-session (T14)
-        self._relay_seq:        int                        = 0   # monotonic seq for v2 events
+        self._relay_seq:        int                        = 0   # monotonic seq for ACP events
 
     # ── Public TCP server ────────────────────────────────────────────────
 
@@ -213,7 +230,7 @@ class ChatRelay:
         extra_keys = {k: v for k, v in args.items()
                       if k not in {"backend", "mode", "model", "mcp_port",
                                    "prompt", "session_id", "resume_session_id",
-                                   "config_dir", "session_token", "protocol_version",
+                                   "config_dir", "session_token",
                                    "project_id"}}
 
         try:
@@ -282,17 +299,12 @@ class ChatRelay:
         )
         self._drain_task = asyncio.create_task(self._drain_stdout_loop())
 
-        # T14: v2 protocol negotiation
-        _v2_enabled = os.environ.get("UNITY_MCP_CHAT_PROTOCOL_V2", "1") != "0"
-        requested_version = int(args.get("protocol_version", 1))
-        self._protocol_version = 2 if (_v2_enabled and requested_version >= 2) else 1
-
-        result: dict = {"ok": True, "data": f"spawned pid={session.pid}"}
-        if self._protocol_version == 2:
-            caps_obj = ProviderCapabilities.from_probe(backend_name, capabilities)
-            result["negotiated_version"] = 2
-            result["capabilities"] = json.loads(caps_obj.model_dump_json())
-        return result
+        caps_obj = ProviderCapabilities.from_probe(backend_name, capabilities)
+        return {
+            "ok": True,
+            "data": f"spawned pid={session.pid}",
+            "capabilities": json.loads(caps_obj.model_dump_json()),
+        }
 
     async def _cmd_set_mode(self, args: dict) -> dict:
         """Kill current session and respawn with new mode, reusing stored meta."""
@@ -318,12 +330,15 @@ class ChatRelay:
     # ── Background tasks ─────────────────────────────────────────────────
 
     async def _drain_stdout_loop(self) -> None:
-        """Read subprocess stdout line-by-line, buffer with seq_id."""
+        """Read subprocess stdout line-by-line, buffer ACP JSON events."""
+        if self._adapter is not None:
+            await self._drain_adapter_loop()
+            return
+
         session = self._session
         fn      = self._transform_fn   # capture — avoids TOCTOU
         acc     = _ToolCallAcc()       # fresh accumulator per subprocess
         conv_id = self._conversation_id
-        is_v2   = self._protocol_version == 2
 
         while session is self._session:
             line = await session.read_stdout_line()
@@ -340,36 +355,32 @@ class ChatRelay:
                     raw = '{"type":"result","subtype":"done","is_error":false}'
                 # EOF synthetic events always use _transform_line (our own format, not backend's)
                 for p in _transform_line(raw, acc):
-                    if is_v2:
-                        ctx = EventContext(
-                            conversation_id=conv_id,
-                            session_id="",
-                            turn_id=self._turn_id,
-                            sequence=self._relay_seq,
-                        )
-                        for evt in parse_pipe_string(p, ctx):
-                            self._relay_seq += 1
-                            updated = evt.model_copy(update={"sequence": self._relay_seq})
-                            self._relay_buf.enqueue(updated.model_dump_json())
-                            _history_observe(updated)
-                    else:
-                        self._relay_buf.enqueue(p)
+                    self._enqueue_event(p, conv_id)
                 break
             for pipe_str in fn(line, acc):
-                if is_v2:
-                    ctx = EventContext(
-                        conversation_id=conv_id,
-                        session_id="",
-                        turn_id=self._turn_id,
-                        sequence=self._relay_seq,
-                    )
-                    for evt in parse_pipe_string(pipe_str, ctx):
-                        self._relay_seq += 1
-                        updated = evt.model_copy(update={"sequence": self._relay_seq})
-                        self._relay_buf.enqueue(updated.model_dump_json())
-                        _history_observe(updated)
-                else:
-                    self._relay_buf.enqueue(pipe_str)
+                self._enqueue_event(pipe_str, conv_id)
+
+    async def _drain_adapter_loop(self) -> None:
+        """Drain events from an injected ACP adapter into the relay buffer."""
+        async for evt in self._adapter.events():
+            self._relay_seq += 1
+            updated = evt.model_copy(update={"sequence": self._relay_seq})
+            self._relay_buf.enqueue(updated.model_dump_json())
+            _history_observe(updated)
+
+    def _enqueue_event(self, pipe_str: str, conv_id: str) -> None:
+        """Convert one pipe-format string to AgentEvent JSON and enqueue."""
+        ctx = EventContext(
+            conversation_id=conv_id,
+            session_id="",
+            turn_id=self._turn_id,
+            sequence=self._relay_seq,
+        )
+        for evt in parse_pipe_string(pipe_str, ctx):
+            self._relay_seq += 1
+            updated = evt.model_copy(update={"sequence": self._relay_seq})
+            self._relay_buf.enqueue(updated.model_dump_json())
+            _history_observe(updated)
 
     async def _ppid_watchdog(self) -> None:
         """Exit relay if Unity (parent) dies."""
