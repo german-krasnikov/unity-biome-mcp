@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.34.0] — 2026-08-14
+
 ### Added
 
 - **Chat Core System (T9-T24)**: Unified multi-provider agent relay architecture with canonical event stream.
@@ -3256,3 +3258,6 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - Cycle 16b: Domain Reload TCP Self-Healing (bind retry, watchdog, state file)
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
+
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.34.0...HEAD
+[v1.34.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.33.0...v1.34.0
