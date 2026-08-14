@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.35.0] — 2026-08-15
 
 ### Changed
 - **Chat relay ACP-only migration**: Removed legacy v1 pipe protocol support. All chat backends now exclusively use Agent Communication Protocol (ACP) format output. No protocol negotiation or feature flagging; ACP is always-on.
@@ -3273,5 +3273,6 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.34.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.35.0...HEAD
+[v1.35.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.34.0...v1.35.0
 [v1.34.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.33.0...v1.34.0
