@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic, SetActive, Setup, Teardown, WaitStable, CaptureMin, CaptureMax, AssertMin, AssertMax }
+    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic, SetActive, Setup, Teardown, WaitStable, CaptureMin, CaptureMax, AssertMin, AssertMax, Fill, Focus }
 
     /// <summary>A script line with origin metadata (file, line number, macro call chain).</summary>
     internal struct SourcedLine
@@ -133,7 +133,8 @@ namespace UnityMCP.Editor
             "COMMENT", "END_COMMENT",
             "SET_ACTIVE",
             "SETUP", "SETUP_END", "TEARDOWN", "TEARDOWN_END",
-            "WAIT_STABLE", "CAPTURE_MIN", "CAPTURE_MAX", "ASSERT_MIN", "ASSERT_MAX"
+            "WAIT_STABLE", "CAPTURE_MIN", "CAPTURE_MAX", "ASSERT_MIN", "ASSERT_MAX",
+            "FILL", "FOCUS"
         };
 
         public static ParseResult Parse(string script, IncludeResolver resolver = null)
@@ -664,6 +665,27 @@ namespace UnityMCP.Editor
                         int waitIdx = Array.FindIndex(tokens, 2, t => t.ToUpperInvariant() == "WAIT");
                         if (waitIdx >= 0 && waitIdx + 1 < tokens.Length)
                             step.Delay = float.Parse(tokens[waitIdx + 1], CultureInfo.InvariantCulture);
+                        break;
+                    }
+
+                    case "FILL":
+                    {
+                        if (tokens.Length < 2)
+                            throw new ArgumentException("FILL requires a path");
+                        step.Type = StepType.Fill;
+                        step.Path = tokens[1];
+                        step.Value = tokens.Length > 2
+                            ? string.Join(" ", tokens, 2, tokens.Length - 2)
+                            : "";
+                        break;
+                    }
+
+                    case "FOCUS":
+                    {
+                        if (tokens.Length < 2)
+                            throw new ArgumentException("FOCUS requires a path");
+                        step.Type = StepType.Focus;
+                        step.Path = tokens[1];
                         break;
                     }
 

@@ -1,0 +1,6 @@
+# Session 10: DSL CLICK for UIDocument (Phase 2)
+# Requires: /HUD UIDocument with Button "submitBtn" and Label "counter"
+# Scene must enter Play Mode (or RunInEditMode=true on UIDocument).
+VAL $hud /HUD|UIDocument
+CLICK $hud|submitBtn
+ASSERT_CONSOLE_CLEAN

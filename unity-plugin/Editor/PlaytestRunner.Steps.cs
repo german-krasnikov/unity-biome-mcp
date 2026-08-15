@@ -408,6 +408,38 @@ namespace UnityMCP.Editor
 
                 case StepType.Click:
                 {
+                    // UIDocument branch: "/go|UIDocument|selector" form (Phase 2)
+                    // Must precede uGUI path — |UIDocument| cannot appear in a bare GO path.
+                    if (step.Path.Contains("|UIDocument|"))
+                    {
+                        int sep    = step.Path.IndexOf("|UIDocument|", System.StringComparison.Ordinal);
+                        var goPath = step.Path[..sep];
+                        var elemSel = step.Path[(sep + "|UIDocument|".Length)..];
+                        var uitkGo = ComponentSerializer.FindObject(goPath);
+                        if (uitkGo == null)
+                        {
+                            results.Add($"{label} CLICK — ERR: object not found: {goPath}");
+                            failed++;
+                            phase = Phase.Done;
+                            break;
+                        }
+                        bool clicked = UIElementHelper.SimulateClick(uitkGo, elemSel);
+                        if (clicked)
+                        {
+                            results.Add($"{label} CLICK UIDocument#{elemSel} on {goPath} — PASS");
+                            passed++;
+                        }
+                        else
+                        {
+                            results.Add($"{label} CLICK — FAIL: no element '{elemSel}' in UIDocument on {goPath}. " +
+                                        $"Call inspect_uitk(path=\"{goPath}\") to see available names.");
+                            failed++;
+                        }
+                        if (step.Delay > 0) { phase = Phase.WaitingDelay; phaseStart = Time.realtimeSinceStartup; }
+                        else phase = Phase.Done;
+                        break;
+                    }
+                    // Existing uGUI path (unchanged) ──────────────────────────────────────
                     var go = ComponentSerializer.FindObject(step.Path);
                     if (go == null)
                     {
@@ -461,6 +493,77 @@ namespace UnityMCP.Editor
                     {
                         phase = Phase.Done;
                     }
+                    break;
+                }
+
+                case StepType.Fill:
+                {
+                    if (!step.Path.Contains("|UIDocument|"))
+                    {
+                        results.Add($"{label} FILL — ERR: only UIDocument|selector form supported. Got: {step.Path}");
+                        failed++;
+                        phase = Phase.Done;
+                        break;
+                    }
+                    int fillSep  = step.Path.IndexOf("|UIDocument|", System.StringComparison.Ordinal);
+                    var fillGoPath  = step.Path[..fillSep];
+                    var fillElemSel = step.Path[(fillSep + "|UIDocument|".Length)..];
+                    var fillGo = ComponentSerializer.FindObject(fillGoPath);
+                    if (fillGo == null)
+                    {
+                        results.Add($"{label} FILL — ERR: object not found: {fillGoPath}");
+                        failed++;
+                        phase = Phase.Done;
+                        break;
+                    }
+                    bool filled = UIElementHelper.FillText(fillGo, fillElemSel, step.Value ?? "");
+                    if (filled)
+                    {
+                        results.Add($"{label} FILL {fillElemSel} = \"{step.Value}\" — PASS");
+                        passed++;
+                    }
+                    else
+                    {
+                        results.Add($"{label} FILL — FAIL: no TextField '{fillElemSel}' in UIDocument on {fillGoPath}. " +
+                                    $"Call inspect_uitk(path=\"{fillGoPath}\") to see available elements.");
+                        failed++;
+                    }
+                    phase = Phase.Done;
+                    break;
+                }
+
+                case StepType.Focus:
+                {
+                    if (!step.Path.Contains("|UIDocument|"))
+                    {
+                        results.Add($"{label} FOCUS — ERR: only UIDocument|selector form supported. Got: {step.Path}");
+                        failed++;
+                        phase = Phase.Done;
+                        break;
+                    }
+                    int focusSep  = step.Path.IndexOf("|UIDocument|", System.StringComparison.Ordinal);
+                    var focusGoPath  = step.Path[..focusSep];
+                    var focusElemSel = step.Path[(focusSep + "|UIDocument|".Length)..];
+                    var focusGo = ComponentSerializer.FindObject(focusGoPath);
+                    if (focusGo == null)
+                    {
+                        results.Add($"{label} FOCUS — ERR: object not found: {focusGoPath}");
+                        failed++;
+                        phase = Phase.Done;
+                        break;
+                    }
+                    bool focused = UIElementHelper.FocusElement(focusGo, focusElemSel);
+                    if (focused)
+                    {
+                        results.Add($"{label} FOCUS {focusElemSel} — PASS");
+                        passed++;
+                    }
+                    else
+                    {
+                        results.Add($"{label} FOCUS — FAIL: element not found '{focusElemSel}' in UIDocument on {focusGoPath}");
+                        failed++;
+                    }
+                    phase = Phase.Done;
                     break;
                 }
 
