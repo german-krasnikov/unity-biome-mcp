@@ -11,18 +11,18 @@
     {
       "name": "C# EditMode (Windows)",
       "platform": "Windows",
-      "passed": 7780,
+      "passed": 7851,
       "failed": 0,
-      "skipped": 284,
-      "total": 8064
+      "skipped": 288,
+      "total": 8139
     },
     {
       "name": "C# EditMode (macOS)",
       "platform": "macOS",
-      "passed": 7893,
+      "passed": 7964,
       "failed": 0,
-      "skipped": 171,
-      "total": 8064
+      "skipped": 175,
+      "total": 8139
     }
   ]
 }
