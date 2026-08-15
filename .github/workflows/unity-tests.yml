@@ -48,7 +48,7 @@ jobs:
             runner: ubuntu-latest
             build-target: StandaloneLinux64
             build-output: artifacts/player-smoke/UnityMCP
-            hub-version: '3.19.5'
+            hub-version: ''
             coverage-args: >-
               -enableCodeCoverage
               -coverageOptions assemblyFilters:+UnityMCP*,-*Tests*,-*TestSupport*,-*TestHelpers*;generateAdditionalMetrics

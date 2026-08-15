@@ -5,6 +5,7 @@ import contextlib
 import hashlib
 import json
 import os
+import sys
 import time
 import uuid
 from dataclasses import dataclass
@@ -71,7 +72,7 @@ def write_session_context(
     identity: ChatSessionIdentity,
     context_dir: Path | None = None,
 ) -> Path:
-    """Write JSON context file atomically (tmp + os.replace). chmod 0o600. Non-critical."""
+    """Write JSON context file atomically (tmp + os.replace). chmod 0o600 (POSIX only). Non-critical."""
     from .paths import chat_sessions_dir
     target_dir = context_dir if context_dir is not None else chat_sessions_dir()
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -93,7 +94,8 @@ def write_session_context(
 
     try:
         tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-        tmp.chmod(0o600)
+        if sys.platform != "win32":  # POSIX chmod; no-op on Windows
+            tmp.chmod(0o600)
         os.replace(tmp, dest)
     except OSError:
         with contextlib.suppress(OSError):
