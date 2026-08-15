@@ -48,7 +48,7 @@ jobs:
             runner: ubuntu-latest
             build-target: StandaloneLinux64
             build-output: artifacts/player-smoke/UnityMCP
-            hub-version: ''
+            hub-version: '3.19.5'
             coverage-args: >-
               -enableCodeCoverage
               -coverageOptions assemblyFilters:+UnityMCP*,-*Tests*,-*TestSupport*,-*TestHelpers*;generateAdditionalMetrics
@@ -97,7 +97,7 @@ jobs:
             upm-${{ runner.os }}-
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
-        timeout-minutes: 15
+        timeout-minutes: 30
         with:
           unity-version: 6000.0.65f1
           build-targets: ${{ matrix.build-target }}
