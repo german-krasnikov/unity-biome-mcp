@@ -7,9 +7,8 @@ namespace UnityMCP.Editor
     public static partial class CommandRouter
     {
         // Shared UIElementSerializer instance — holds VERefTable across Exec* calls.
-        // ResetRefTable() is called at the start of every Serialize() invocation (Session 3),
-        // and later also explicitly from ExecInspectUITK (Session 5, invariant §8.2).
-        private static UIElementSerializer _serializer = new UIElementSerializer();
+        // ResetRefTable() is called at the start of every Serialize() invocation.
+        private static readonly UIElementSerializer _serializer = new UIElementSerializer();
 
         private static float? ParseOptFloat(string args, string key)
         {
@@ -270,6 +269,15 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "offset_min"),
                 JsonHelper.ExtractString(args, "offset_max"));
         }
+
+        private static string ExecInspectUITK(string args) =>
+            UIHelper.InspectUITK(
+                JsonHelper.ExtractString(args, "path"),
+                ParseOptInt(args, "depth") ?? 4,
+                JsonHelper.ExtractString(args, "selector"),
+                JsonHelper.ExtractString(args, "filter"),
+                ParseOptBool(args, "include_internal") ?? false,
+                ParseOptBool(args, "show_style") ?? false);
 
         private static string ExecEditor(string args)
         {

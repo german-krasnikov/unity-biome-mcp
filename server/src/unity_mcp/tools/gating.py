@@ -21,9 +21,9 @@ from .tool_specs import _SPECS
 # ---------------------------------------------------------------------------
 
 _THEMED_CATEGORY_KEYS: tuple[str, ...] = (
-    "SCENE", "COMPONENTS", "ASSETS", "MEDIA",
+    "SCENE", "COMPONENTS", "ASSETS", "MEDIA", "UITOOLKIT",
     "VERIFY", "RUNTIME", "TESTS", "SYSTEM",
-    "UGUI", "UITOOLKIT",
+    "UGUI",
 )
 
 # ---------------------------------------------------------------------------

@@ -553,6 +553,8 @@ namespace UnityMCP.Editor
                 required: "", optional: "root");
             CommandRegistry.Register("lint_uitk", ExecLintUITK, mutating: false,
                 required: "", optional: "path,fix");
+            CommandRegistry.Register("inspect_uitk", ExecInspectUITK, mutating: false,
+                required: "", optional: "path,depth,selector,filter,include_internal,show_style");
             CommandRegistry.Register("animator", ExecAnimatorConsolidated, mutating: true,
                 required: "action,path", optional: "state,states,params,source,target,conditions,duration,exit_time,has_exit_time,type,name,blend_type,param,param_y,children,edit_action,layer,weight,blending,value,avatar_path");
             CommandRegistry.Register("particle", ExecParticleConsolidated, mutating: true,

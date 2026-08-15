@@ -70,3 +70,4 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     changeset_tool.register(mcp, send, args)
     checkpoint_tool.register(mcp, send, args)
     brief_tool.register(mcp, send, args)
+    uitk.register(mcp, send, args)

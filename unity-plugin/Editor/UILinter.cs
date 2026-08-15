@@ -49,6 +49,8 @@ namespace UnityMCP.Editor
         // Returns: "ok: 0 issues" or "warn: N issues\n[AX] ..." text.
         internal static string LintUITK(string path, bool fix)
         {
+            if (string.IsNullOrEmpty(path))
+                return "err: path is required";
             if (!File.Exists(path))
                 return $"err: file not found: {path}";
 
