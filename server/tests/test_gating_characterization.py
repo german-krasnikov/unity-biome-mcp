@@ -57,7 +57,7 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "save_session",
     "export_playtest_aliases_to_defs",
     "attach_uitk", "inspect_uitk", "lint_playtest", "lint_playtest_suite", "lint_scene_refs", "lint_ugui", "lint_uitk",
-    "uitk_element",
+    "uitk_element", "uitk_file",
     "save_skill", "save_template", "scan_scene", "scene", "scene_diff",
     "scene_environment", "scene_health", "screenshot", "screenshot_baseline",
     "screenshot_compare", "scriptable_object", "search_scene", "set_active",
@@ -92,7 +92,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
         "timeline", "validate_layout", "vfx_intent",
     },
     "UGUI": {"create_ui", "lint_ugui", "set_rect", "ui_intent"},
-    "UITOOLKIT": {"attach_uitk", "inspect_uitk", "lint_uitk", "uitk_element"},
+    "UITOOLKIT": {"attach_uitk", "inspect_uitk", "lint_uitk", "uitk_element", "uitk_file"},
     "VERIFY": {
         "await_compile", "compile_preflight", "diagnose", "get_changeset", "lint_scene_refs",
         "resolve_scene_refs", "scan_scene", "scene_health", "validate_references",

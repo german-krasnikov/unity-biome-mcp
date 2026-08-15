@@ -569,6 +569,9 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("attach_uitk", ExecAttachUITK, mutating: true,
                 required: "path",
                 optional: "uxml,panel_settings,sort_order");
+            CommandRegistry.Register("uitk_file", ExecUitkFile, mutating: true,
+                required: "path",
+                optional: "action,content,selector,attr,value,class,parent,tag,attrs,prop");
             // UITK Phase 1 commands — Session 1-8 implementations pending for this branch
             CommandRegistry.Register("inspect_uitk", _ => "err: inspect_uitk requires Phase 1 C# implementation", mutating: false,
                 optional: "path,depth,selector,filter,include_internal,show_style");

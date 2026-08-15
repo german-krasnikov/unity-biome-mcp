@@ -1,4 +1,4 @@
-"""UI Toolkit tools: inspect_uitk, lint_uitk, uitk_element, attach_uitk."""
+"""UI Toolkit tools: inspect_uitk, lint_uitk, uitk_element, attach_uitk, uitk_file."""
 from typing import Literal
 
 from ._annotations import RO as _RO
@@ -99,9 +99,54 @@ async def attach_uitk(
     ))
 
 
+async def uitk_file(
+    path: str,
+    action: Literal[
+        "read", "write", "create_uxml", "create_uss",
+        "set-attr", "add-class", "remove-class",
+        "add-element", "remove-element",
+        "set-rule", "remove-rule", "revert",
+    ] = "read",
+    content: str | None = None,
+    selector: str | None = None,
+    attr: str | None = None,
+    value: str | None = None,
+    cls: str | None = None,  # maps to "class" key — reserved word in Python
+    parent: str | None = None,
+    tag: str | None = None,
+    attrs: str | None = None,
+    prop: str | None = None,
+) -> str:
+    """Read or edit a UXML or USS asset file
+    (UI Toolkit only — use `asset` for other Unity asset types,
+    use `inspect_uitk` to inspect the live VisualElement tree at runtime,
+    use `attach_uitk` to wire a UIDocument to a GameObject).
+    action=read: compact normalized text (one element/rule per line, defaults stripped).
+    action=write: full file replace; validates and triggers AssetDatabase.ImportAsset.
+    action=create_uxml: new UXML file with minimal template; content optional.
+    action=create_uss: new empty USS file; content optional.
+    action=set-attr: set attribute on UXML element by name (selector=name, attr=attr, value=val).
+    action=add-class|remove-class: manage USS class on UXML element by name.
+    action=add-element: append child (parent=name, tag=ui:Label, attrs='k=v ...').
+    action=remove-element: delete UXML element and children by name.
+    action=set-rule: set CSS property in USS rule; creates rule if selector absent.
+    action=remove-rule: delete USS rule block by exact selector string.
+    action=revert: restore file to state before last write (single-level, cleared on domain reload).
+    path: Assets/ path to .uxml or .uss file. Library/ and Packages/ are rejected.
+    """
+    if not path.endswith((".uxml", ".uss")):
+        return f"err: unsupported extension — path must end in .uxml or .uss, got: {path!r}"
+    return await _send("uitk_file", _args(
+        path=path, action=action, content=content, selector=selector,
+        attr=attr, value=value, **{"class": cls},
+        parent=parent, tag=tag, attrs=attrs, prop=prop,
+    ))
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RO)(inspect_uitk)
     mcp.tool(annotations=_RO)(lint_uitk)
     mcp.tool(annotations=_RW)(uitk_element)
     mcp.tool(annotations=_RW)(attach_uitk)
+    mcp.tool(annotations=_RW)(uitk_file)

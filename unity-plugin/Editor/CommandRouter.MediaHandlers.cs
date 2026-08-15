@@ -299,6 +299,33 @@ namespace UnityMCP.Editor
                 sortingOrder);
         }
 
+        // Session 12: uitk_file — UXML/USS CRUD with two-gate validation
+        private static string ExecUitkFile(string args)
+        {
+            var assetPath = JsonHelper.ExtractString(args, "path");
+            var action    = JsonHelper.ExtractString(args, "action") ?? "read";
+
+            if (action == "read")
+                return UIFileHelper.ReadUIFile(assetPath);
+
+            if (action == "revert")
+                return UIFileHelper.RevertUIFile(assetPath);
+
+            if (action == "write" || action == "create_uxml" || action == "create_uss")
+                return UIFileHelper.WriteUIFile(assetPath, action,
+                    JsonHelper.ExtractString(args, "content"));
+
+            return UIFileHelper.EditUIFile(assetPath, action,
+                selector: JsonHelper.ExtractString(args, "selector"),
+                attr:     JsonHelper.ExtractString(args, "attr"),
+                value:    JsonHelper.ExtractString(args, "value"),
+                cssClass: JsonHelper.ExtractString(args, "class"),
+                parent:   JsonHelper.ExtractString(args, "parent"),
+                tag:      JsonHelper.ExtractString(args, "tag"),
+                attrs:    JsonHelper.ExtractString(args, "attrs"),
+                prop:     JsonHelper.ExtractString(args, "prop"));
+        }
+
         private static string ExecEditor(string args)
         {
             var action = JsonHelper.ExtractString(args, "action") ?? "state";
