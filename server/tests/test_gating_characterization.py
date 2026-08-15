@@ -56,7 +56,7 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "resolve_test_request", "resolve_tool_schema", "run_playtest", "run_playtest_suite", "run_tests",
     "save_session",
     "export_playtest_aliases_to_defs",
-    "inspect_uitk", "lint_playtest", "lint_playtest_suite", "lint_scene_refs", "lint_ugui", "lint_uitk",
+    "attach_uitk", "inspect_uitk", "lint_playtest", "lint_playtest_suite", "lint_scene_refs", "lint_ugui", "lint_uitk",
     "uitk_element",
     "save_skill", "save_template", "scan_scene", "scene", "scene_diff",
     "scene_environment", "scene_health", "screenshot", "screenshot_baseline",
@@ -92,7 +92,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
         "timeline", "validate_layout", "vfx_intent",
     },
     "UGUI": {"create_ui", "lint_ugui", "set_rect", "ui_intent"},
-    "UITOOLKIT": {"inspect_uitk", "lint_uitk", "uitk_element"},
+    "UITOOLKIT": {"attach_uitk", "inspect_uitk", "lint_uitk", "uitk_element"},
     "VERIFY": {
         "await_compile", "compile_preflight", "diagnose", "get_changeset", "lint_scene_refs",
         "resolve_scene_refs", "scan_scene", "scene_health", "validate_references",
@@ -141,11 +141,12 @@ _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "get_test_count": 10.0, "get_test_run": 10.0, "get_version": 5.0,
     "import_package": 120.0,
     "inspect_uitk": 15.0, "lint_playtest": 60.0, "lint_playtest_suite": 120.0,
-    "lint_ugui": 15.0, "lint_uitk": 15.0, "uitk_element": 15.0, "package": 60.0,
+    "lint_ugui": 15.0, "lint_uitk": 15.0, "package": 60.0,
     "list_playtest_files": 10.0, "list_test_runs": 10.0,
     "ping": 5.0, "resolve_test_request": 10.0, "run_playtest": 300.0,
     "run_playtest_suite": 3600.0, "run_tests_wait": 1200.0,
-    "resolve_scene_refs": 15.0, "search_scene": 15.0, "verify_after_change": 600.0,
+    "resolve_scene_refs": 15.0, "search_scene": 15.0, "uitk_element": 15.0,
+    "verify_after_change": 600.0,
 }
 
 

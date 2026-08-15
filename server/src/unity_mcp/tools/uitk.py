@@ -1,4 +1,4 @@
-"""UI Toolkit tools: inspect_uitk, lint_uitk, uitk_element."""
+"""UI Toolkit tools: inspect_uitk, lint_uitk, uitk_element, attach_uitk."""
 from typing import Literal
 
 from ._annotations import RO as _RO
@@ -81,8 +81,27 @@ async def uitk_element(
     ))
 
 
+async def attach_uitk(
+    path: str,
+    uxml: str | None = None,
+    panel_settings: str | None = None,
+    sort_order: int | None = None,
+) -> str:
+    """Attach UIDocument to a GameObject (use for UI Toolkit runtime panels).
+    path: scene path to the target GameObject.
+    uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted).
+    panel_settings: Assets/ path to PanelSettings asset (auto-created at Assets/UI/DefaultPanel.asset if omitted).
+    sort_order: UIDocument.sortingOrder (default 0).
+    err: if UIDocument already present — remove it first or use inspect_uitk/uitk_element.
+    """
+    return await _send("attach_uitk", _args(
+        path=path, uxml=uxml, panel_settings=panel_settings, sort_order=sort_order,
+    ))
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RO)(inspect_uitk)
     mcp.tool(annotations=_RO)(lint_uitk)
     mcp.tool(annotations=_RW)(uitk_element)
+    mcp.tool(annotations=_RW)(attach_uitk)

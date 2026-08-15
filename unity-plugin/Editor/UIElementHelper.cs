@@ -5,7 +5,7 @@ namespace UnityMCP.Editor
 {
     // Bridge between PlaytestRunner and UI Toolkit VisualElements.
     // Phase 1: read-only (ReadValue + IsElementEnabled).
-    // Phase 2 adds: SimulateClick, FillText, FocusElement.
+    // Phase 2: SimulateClick, FillText, FocusElement.
     // ONLY caller: PlaytestRunner.cs and PlaytestRunner.Steps.cs.
     internal static class UIElementHelper
     {
@@ -32,6 +32,65 @@ namespace UnityMCP.Editor
             if (doc?.rootVisualElement == null) return false;
             var el = FindElement(doc.rootVisualElement, selector);
             return el?.enabledInHierarchy ?? false;
+        }
+
+        // Phase 2: UIDocument# branch in PlaytestRunner.Steps.cs StepType.Click.
+        // M4 fix: Toggle uses SetValueWithoutNotify + ChangeEvent, NOT clickable.Invoke().
+        internal static bool SimulateClick(GameObject go, string selector)
+        {
+            var doc = go.GetComponent<UIDocument>();
+            if (doc?.rootVisualElement == null) return false;
+            var el = FindElement(doc.rootVisualElement, selector);
+            if (el == null) return false;
+
+            if (el is Button btn)
+            {
+                btn.clickable.Invoke(Vector2.zero);
+                return true;
+            }
+            // M4: Toggle needs value flip — not clickable.Invoke()
+            if (el is Toggle tg)
+            {
+                bool newVal = !tg.value;
+                tg.SetValueWithoutNotify(newVal);
+                using var ce = ChangeEvent<bool>.GetPooled(!newVal, newVal);
+                ce.target = tg;
+                tg.SendEvent(ce);
+                return true;
+            }
+            // Generic: PointerDown + PointerUp pair
+            using var down = PointerDownEvent.GetPooled();
+            down.target = el;
+            el.SendEvent(down);
+            using var up = PointerUpEvent.GetPooled();
+            up.target = el;
+            el.SendEvent(up);
+            return true;
+        }
+
+        // Phase 2: FILL /go|UIDocument|selector value="text"
+        internal static bool FillText(GameObject go, string selector, string value)
+        {
+            var doc = go.GetComponent<UIDocument>();
+            if (doc?.rootVisualElement == null) return false;
+            var el = FindElement(doc.rootVisualElement, selector);
+            if (el is TextField tf)
+            {
+                tf.SetValueWithoutNotify(value);
+                return true;
+            }
+            return false;
+        }
+
+        // Phase 2: FOCUS /go|UIDocument|selector
+        internal static bool FocusElement(GameObject go, string selector)
+        {
+            var doc = go.GetComponent<UIDocument>();
+            if (doc?.rootVisualElement == null) return false;
+            var el = FindElement(doc.rootVisualElement, selector);
+            if (el == null) return false;
+            el.Focus();
+            return true;
         }
 
         // ── Private helpers ──────────────────────────────────────────────────────

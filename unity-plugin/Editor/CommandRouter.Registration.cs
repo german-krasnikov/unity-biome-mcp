@@ -566,6 +566,17 @@ namespace UnityMCP.Editor
                 required: "action,path", optional: "target,preset,code,shader_name,prop,value,keyword,enabled,node_type,node_id,node_action,output_node,output_slot,input_node,input_slot,edge_action,name,type,default_value,reference_name,new_name");
             CommandRegistry.Register("menu", ExecMenu, mutating: true,
                 required: "action", optional: "path");
+            CommandRegistry.Register("attach_uitk", ExecAttachUITK, mutating: true,
+                required: "path",
+                optional: "uxml,panel_settings,sort_order");
+            // UITK Phase 1 commands — Session 1-8 implementations pending for this branch
+            CommandRegistry.Register("inspect_uitk", _ => "err: inspect_uitk requires Phase 1 C# implementation", mutating: false,
+                optional: "path,depth,selector,filter,include_internal,show_style");
+            CommandRegistry.Register("lint_uitk", _ => "err: lint_uitk requires Phase 1 C# implementation", mutating: false,
+                optional: "path,fix");
+            CommandRegistry.Register("uitk_element", _ => "err: uitk_element requires Phase 1 C# implementation", mutating: true,
+                required: "action",
+                optional: "path,ref,selector,name,value,property,class_name");
 
             // Action-based (Phase 26, mutating). Per-action params genuinely vary (e.g. asset's
             // create/move/delete each need different fields) — flat contract is intentionally
