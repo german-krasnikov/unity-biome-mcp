@@ -31,7 +31,7 @@ Do not return a transcript of every tool call.
 3. Load the smallest required domain skill, one at a time:
    - `.claude/skills/unity-assets-prefabs/SKILL.md`
    - `.claude/skills/unity-materials-shaders/SKILL.md`
-   - `.claude/skills/unity-ui-authoring/SKILL.md`
+   - `.claude/skills/unity-ugui-authoring/SKILL.md`
    - `.claude/skills/unity-animation/SKILL.md`
    - `.claude/skills/unity-particles-vfx/SKILL.md`
    - `.claude/skills/unity-physics-spatial/SKILL.md`

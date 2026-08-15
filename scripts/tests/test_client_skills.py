@@ -17,12 +17,12 @@ SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 FENCED_TEXT_RE = re.compile(r"```text\n(.*?)```", re.DOTALL)
 TOOL_CATEGORY_OWNERS = {
     "CORE": {"unity-mcp-operations", "unity-scene-authoring"},
-    "SCENE": {"unity-scene-authoring", "unity-ui-authoring", "unity-physics-spatial"},
+    "SCENE": {"unity-scene-authoring", "unity-ugui-authoring", "unity-physics-spatial"},
     "COMPONENTS": {"unity-scene-authoring"},
     "ASSETS": {"unity-assets-prefabs", "unity-materials-shaders"},
     "MEDIA": {
         "unity-animation",
-        "unity-ui-authoring",
+        "unity-ugui-authoring",
         "unity-materials-shaders",
         "unity-particles-vfx",
     },
@@ -145,7 +145,7 @@ def test_skills_use_current_directory_shape_and_metadata(repo_root: pathlib.Path
 
     assert list(skills_root.glob("*.md")) == []
     skill_dirs = sorted(path for path in skills_root.iterdir() if path.is_dir())
-    assert len(skill_dirs) == 11
+    assert len(skill_dirs) == 12
 
     for directory in skill_dirs:
         assert SAFE_ID_RE.fullmatch(directory.name)
@@ -568,7 +568,7 @@ def test_codex_render_preserves_preloads_resources_and_read_only_agents(repo_roo
         pathlib.Path("/tmp/codex-agents"),
     )
 
-    assert len(skill_files) == 11
+    assert len(skill_files) == 12
     assert any(target.name == "batching.md" for _, target in resources)
     assert any(target.name == "test-authoring.md" for _, target in resources)
     test_authoring_resources = [
