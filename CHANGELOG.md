@@ -12,9 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.35.1] — 2026-08-15
+
 ### Fixed
 
-- **CI stability**: Windows `chmod(0o600)` guard (POSIX only), Linux hub-version pin removal (timeout fix), xvfb exit-code 5 race condition handling, changelog diff downgraded to warning during development.
+- **CI stability**: Windows `chmod(0o600)` guard (POSIX only), Linux unity-setup timeout increased (30min), xvfb exit-code 5 race condition handling, changelog diff downgraded to warning during development.
 
 ## [v1.35.0] — 2026-08-15
 
@@ -3279,6 +3281,7 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.35.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.35.1...HEAD
+[v1.35.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.35.0...v1.35.1
 [v1.35.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.34.0...v1.35.0
 [v1.34.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.33.0...v1.34.0
