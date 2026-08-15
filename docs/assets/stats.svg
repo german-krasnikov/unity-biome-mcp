@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" width="560" height="380"
      role="img" aria-labelledby="stats-title stats-desc">
   <title id="stats-title">Unity Biome MCP project inventory</title>
-  <desc id="stats-desc" data-biome-marker="STATS_DESC"><!-- BIOME:STATS_DESC -->152 registered MCP tools. Test inventory: 13126 entries: 5221 regular Python, 511 Python stress, 334 live Python, and 7060 Unity source attributes. Unity count source: static source scan. Server package version: v1.35.1.<!-- /BIOME:STATS_DESC --></desc>
+  <desc id="stats-desc" data-biome-marker="STATS_DESC"><!-- BIOME:STATS_DESC -->160 registered MCP tools. Test inventory: 13289 entries: 5309 regular Python, 511 Python stress, 334 live Python, and 7135 Unity source attributes. Unity count source: static source scan. Server package version: v1.35.1.<!-- /BIOME:STATS_DESC --></desc>
 
   <defs>
     <filter id="stats-core-glow" x="-80%" y="-80%" width="260%" height="260%">
@@ -189,7 +189,7 @@
   <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
     <text x="280" y="82" text-anchor="middle" fill="#f2f2f2" font-size="42"
           data-biome-marker="TOOLS"
-          font-weight="700" data-mobile-critical="true"><!-- BIOME:TOOLS -->152<!-- /BIOME:TOOLS --></text>
+          font-weight="700" data-mobile-critical="true"><!-- BIOME:TOOLS -->160<!-- /BIOME:TOOLS --></text>
     <text x="280" y="116" text-anchor="middle" fill="#46e6a6" font-size="17"
           font-weight="700" data-mobile-critical="true">REGISTERED MCP TOOLS</text>
   </g>
@@ -238,15 +238,15 @@
   <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
     <text x="280" y="218" text-anchor="middle" fill="#f2f2f2" font-size="38"
           data-biome-marker="TESTS"
-          font-weight="700" data-mobile-critical="true"><!-- BIOME:TESTS -->13126<!-- /BIOME:TESTS --></text>
+          font-weight="700" data-mobile-critical="true"><!-- BIOME:TESTS -->13289<!-- /BIOME:TESTS --></text>
     <text x="280" y="245" text-anchor="middle" fill="#59a7ff" font-size="17"
           font-weight="700" data-mobile-critical="true">TEST INVENTORY</text>
     <text x="280" y="266" text-anchor="middle" fill="#d2d2d2" font-size="17"
           data-biome-marker="BREAKDOWN_PRIMARY"
-          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_PRIMARY -->5221 regular / 511 stress<!-- /BIOME:BREAKDOWN_PRIMARY --></text>
+          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_PRIMARY -->5309 regular / 511 stress<!-- /BIOME:BREAKDOWN_PRIMARY --></text>
     <text x="280" y="283" text-anchor="middle" fill="#b7b7bd" font-size="17"
           data-biome-marker="BREAKDOWN_SECONDARY"
-          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_SECONDARY -->334 live / 7060 Unity<!-- /BIOME:BREAKDOWN_SECONDARY --></text>
+          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_SECONDARY -->334 live / 7135 Unity<!-- /BIOME:BREAKDOWN_SECONDARY --></text>
   </g>
 
   <!-- second bridge -->
@@ -260,15 +260,15 @@
     <rect data-biome-bar="CS"
           x="82" y="322" height="7" width="396" rx="3" fill="#59a7ff" opacity=".85"/>
     <text data-biome-bar-label="CS"
-          x="478" y="331" text-anchor="end" fill="#b7b7bd" font-size="10">7060 c#</text>
+          x="478" y="331" text-anchor="end" fill="#b7b7bd" font-size="10">7135 c#</text>
 
     <rect data-biome-bar="PY"
-          x="82" y="337" height="7" width="293" rx="3" fill="#46e6a6" opacity=".85"/>
+          x="82" y="337" height="7" width="295" rx="3" fill="#46e6a6" opacity=".85"/>
     <text data-biome-bar-label="PY"
-          x="478" y="346" text-anchor="end" fill="#b7b7bd" font-size="10">5221 py</text>
+          x="478" y="346" text-anchor="end" fill="#b7b7bd" font-size="10">5309 py</text>
 
     <rect data-biome-bar="STRESS"
-          x="82" y="352" height="7" width="29" rx="3" fill="#f0a536" opacity=".85"/>
+          x="82" y="352" height="7" width="28" rx="3" fill="#f0a536" opacity=".85"/>
     <text data-biome-bar-label="STRESS"
           x="478" y="361" text-anchor="end" fill="#b7b7bd" font-size="10">511 stress</text>
 
