@@ -20,9 +20,10 @@ TOOL_CATEGORY_OWNERS = {
     "SCENE": {"unity-scene-authoring", "unity-ugui-authoring", "unity-physics-spatial"},
     "COMPONENTS": {"unity-scene-authoring"},
     "ASSETS": {"unity-assets-prefabs", "unity-materials-shaders"},
+    "UGUI": {"unity-ugui-authoring"},
+    "UITOOLKIT": {"unity-uitoolkit-authoring"},
     "MEDIA": {
         "unity-animation",
-        "unity-ugui-authoring",
         "unity-materials-shaders",
         "unity-particles-vfx",
     },

@@ -43,7 +43,7 @@ configure_objects(config="""
 get_spatial_context(path="/Crate", radius=5)
 spatial_query(action="nearest", path="/Crate", component="Collider")
 spatial_query(action="raycast", path="/Camera", target="/Crate")
-validate_layout(root="/Gameplay", min_distance=2)
+validate_triggers(root="/Gameplay", min_distance=2)
 ```
 
 ## NavMesh

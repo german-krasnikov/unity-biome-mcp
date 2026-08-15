@@ -749,17 +749,23 @@ Menu: `MCP/Playtest Composer` (Shift+Alt+P). Rewritten from IMGUI to UI Toolkit 
 ### CORE (13, always visible, full schema)
 batch, compile_preflight, create_object, editor, execute_code, get_compile_errors, get_component, get_console, get_hierarchy, inspect, manage_component, mcp_status, set_property
 
-### Category: SCENE (29)
-apply_scene_change†, autofit_collider, check_colliders, configure_objects, delete_object†, find_objects, get_components_list, get_object_detail, get_selection, get_spatial_context, navmesh_query, object_diff, ping_object, region_clear, rename_object, scene†, scene_change_plan†, scene_diff, scene_environment, search_scene†, set_active†, set_material, set_parent†, set_properties, set_property_delta, set_sibling_index, setup_objects, spatial_query, transfer_object
+### Category: SCENE (30)
+apply_scene_change†, autofit_collider, check_colliders, configure_objects, delete_object†, find_objects, get_components_list, get_object_detail, get_selection, get_spatial_context, navmesh_query, object_diff, ping_object, region_clear, rename_object, scene†, scene_change_plan†, scene_diff, scene_environment, search_scene†, set_active†, set_material, set_parent†, set_properties, set_property_delta, set_sibling_index, setup_objects, spatial_query, transfer_object, validate_triggers
 
-### Category: COMPONENTS (4)
-auto_wire, references, unwire_event, wire_event
+### Category: COMPONENTS (5)
+auto_wire, list_events, references, unwire_event, wire_event
 
 ### Category: ASSETS (7)
 asset, material, material_audit, prefab, project_settings, scriptable_object, shader
 
-### Category: MEDIA (14)
-analyze_lod_culling, animation, animator, create_ui, particle, render_analyze, screenshot†, screenshot_baseline, screenshot_compare, set_rect, timeline, ui_intent, validate_layout, vfx_intent
+### Category: UGUI (6)
+create_ui, lint_ugui, list_events (see COMPONENTS), set_rect, ui_intent
+
+### Category: UITOOLKIT (6)
+attach_uitk, inspect_uitk, lint_uitk, uitk_element, uitk_file, uitk_intent
+
+### Category: MEDIA (9)
+analyze_lod_culling, animation, animator, particle, render_analyze, screenshot†, screenshot_baseline, screenshot_compare, vfx_intent
 
 ### Category: VERIFY (9)
 await_compile†, compile_preflight, diagnose, lint_scene_refs†, resolve_scene_refs, scan_scene, scene_health, validate_references†, verify_after_change†
@@ -779,7 +785,7 @@ alias_status, animator_intent, apply_template, ask, ask_user, auto_fix, budget_s
 
 † = tier1=True (always visible)
 
-**Backward-compat aliases** (`_CATEGORY_ALIAS`): object→[SCENE,COMPONENTS], animation→MEDIA, asset→ASSETS, advanced→SYSTEM, ui→MEDIA, runtime→[RUNTIME,TESTS], connection→SYSTEM, session→SYSTEM, profiling→RUNTIME, rendering→MEDIA, debug→RUNTIME, SCENE_EDIT→SCENE, ANIMATION→MEDIA, SHADERS_MATERIAL→ASSETS, VFX→MEDIA, UI→MEDIA, SCREENSHOTS→MEDIA, UNIT_TESTS→TESTS, DEBUG→RUNTIME, ADVANCED_CODE→SYSTEM, SESSION_SKILLS→SYSTEM, CONNECTION→SYSTEM, META→SYSTEM, PROFILING→RUNTIME, RENDERING→MEDIA, PLUGINS→SYSTEM
+**Backward-compat aliases** (`_CATEGORY_ALIAS`): object→[SCENE,COMPONENTS], animation→MEDIA, asset→ASSETS, advanced→SYSTEM, ui→[UGUI,UITOOLKIT], runtime→[RUNTIME,TESTS], connection→SYSTEM, session→SYSTEM, profiling→RUNTIME, rendering→MEDIA, debug→RUNTIME, SCENE_EDIT→SCENE, ANIMATION→MEDIA, SHADERS_MATERIAL→ASSETS, VFX→MEDIA, UI→[UGUI,UITOOLKIT], SCREENSHOTS→MEDIA, UNIT_TESTS→TESTS, DEBUG→RUNTIME, ADVANCED_CODE→SYSTEM, SESSION_SKILLS→SYSTEM, CONNECTION→SYSTEM, META→SYSTEM, PROFILING→RUNTIME, RENDERING→MEDIA, PLUGINS→SYSTEM
 
 ## C# Commands (CommandRouter)
 
@@ -787,13 +793,13 @@ alias_status, animator_intent, apply_template, ask, ask_user, auto_fix, budget_s
 ping, get_version, get_enabled_tools, get_disabled_tools, set_tool_catalog
 
 ### Read (non-mutating)
-get_hierarchy, get_component, get_components_list, get_object_detail, find_objects, inspect, get_console, get_compile_errors, compile_status, screenshot, search_scene, validate_references, validate_layout, get_spatial_context, fingerprint, scan_scene, check_colliders, get_schema, get_changes, scene_diff, run_tests, get_test_results, recompile, checkpoint
+get_hierarchy, get_component, get_components_list, get_object_detail, find_objects, inspect, get_console, get_compile_errors, compile_status, screenshot, search_scene, validate_references, validate_triggers, get_spatial_context, fingerprint, scan_scene, check_colliders, get_schema, get_changes, scene_diff, run_tests, get_test_results, recompile, checkpoint
 
 ### Write (mutating)
 create_object, delete_object, set_property, set_property_delta, set_active, wire_event, unwire_event, manage_component, set_parent, set_material, batch (mutating=false), execute_code
 
 ### Consolidated (action-based)
-scene (new/open/save/discard), animation (get/create/edit/add_key/remove_key/remove_curve/set_keys/set_loop/preview), timeline (get/create/edit/add_track/remove_track/add_clip/remove_clip/set_binding/set_timing/mute/unmute/lock/unlock/preview), references (get/find_to/remap), editor (state/play/stop/pause/select/project_path), animator (get/add_param/add_state/add_transition/set_default/remove), particle (get/create/set/apply), shader (get/create/set/graph_get/graph_create/graph_node/graph_edge/graph_get_layout/graph_set_layout/graph_auto_layout), asset (find/get_info/create/move/duplicate/delete/validate_move/get_dependencies/import_settings/export_package/import_package), material (create/get/set/copy/list_properties), prefab (save/create_variant/apply/revert/get_overrides/unpack), scriptable_object (create/get/set/list_types/find), project_settings (get/set), spatial_query (nearest/in_front_of/objects_in_radius/bounds_info/raycast/spatial_map), create_ui, set_rect, menu (execute/list)
+scene (new/open/save/discard), animation (get/create/edit/add_key/remove_key/remove_curve/set_keys/set_loop/preview), timeline (get/create/edit/add_track/remove_track/add_clip/remove_clip/set_binding/set_timing/mute/unmute/lock/unlock/preview), references (get/find_to/remap), editor (state/play/stop/pause/select/project_path), animator (get/add_param/add_state/add_transition/set_default/remove), particle (get/create/set/apply), shader (get/create/set/graph_get/graph_create/graph_node/graph_edge/graph_get_layout/graph_set_layout/graph_auto_layout), asset (find/get_info/create/move/duplicate/delete/validate_move/get_dependencies/import_settings/export_package/import_package), material (create/get/set/copy/list_properties), prefab (save/create_variant/apply/revert/get_overrides/unpack), scriptable_object (create/get/set/list_types/find), project_settings (get/set), spatial_query (nearest/in_front_of/objects_in_radius/bounds_info/raycast/spatial_map), create_ui (uGUI), set_rect (uGUI), ui_intent (uGUI), lint_ugui, inspect_uitk (UI Toolkit), lint_uitk (UI Toolkit), uitk_element (UI Toolkit), attach_uitk (UI Toolkit), uitk_file (UI Toolkit), uitk_intent (UI Toolkit), menu (execute/list)
 
 ### Runtime (Play Mode only)
 invoke_method, set_runtime_property, query_state, wait_until, move_to, test_step, run_playtest

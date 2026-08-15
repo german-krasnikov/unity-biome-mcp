@@ -68,14 +68,14 @@ if clicks do not register.
 Bad:
 
 ```text
-# INVALID: validate_layout uses root, not path.
-validate_layout(path="/HUD")
+# INVALID: validate_triggers uses root, not path.
+validate_triggers(path="/HUD")
 ```
 
 Good:
 
 ```text
-validate_layout(root="/HUD", min_distance=3)
+validate_triggers(root="/HUD", min_distance=3)
 ```
 
 ## Deadly Traps

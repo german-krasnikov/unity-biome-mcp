@@ -18,7 +18,9 @@ Tools are organized into a 13-tool Core and eight task-oriented categories. Use 
 | **SCENE** | Scene and object lifecycle, hierarchy queries, spatial context, and scene changes |
 | **COMPONENTS** | Component references and event wiring |
 | **ASSETS** | Prefabs, materials, shaders, ScriptableObjects, and project settings |
-| **MEDIA** | Animation, Timeline, particles, screenshots, rendering, and UI |
+| **UGUI** | Canvas-based UI creation, layout, event validation, and uGUI authoring |
+| **UITOOLKIT** | UI Toolkit (UXML/USS) inspection, validation, and VisualElement manipulation |
+| **MEDIA** | Animation, Timeline, particles, screenshots, rendering |
 | **VERIFY** | Compile checks, scene validation, diagnostics, and post-change verification |
 | **RUNTIME** | Play Mode state, methods, watches, debugging, and profiling |
 | **TESTS** | Unity tests, Playtest execution, linting, and alias synchronization |
@@ -93,7 +95,13 @@ Tools are organized into a 13-tool Core and eight task-oriented categories. Use 
 To unlock advanced tools, enable the category:
 
 ```python
-# Enable animation, Timeline, particles, screenshots, rendering, and UI tools
+# Enable Canvas-based (uGUI) UI tools
+await discover_tools("UGUI", enable=True)
+
+# Enable UI Toolkit (UXML/USS) tools
+await discover_tools("UITOOLKIT", enable=True)
+
+# Enable animation, Timeline, particles, screenshots, rendering
 await discover_tools("MEDIA", enable=True)
 
 # Enable validation and compile tools
@@ -109,6 +117,8 @@ After enabling, the tools appear in your AI's tool list and become callable.
 - `SCENE`
 - `COMPONENTS`
 - `ASSETS`
+- `UGUI` (Canvas-based UI)
+- `UITOOLKIT` (UI Toolkit / UXML)
 - `MEDIA`
 - `VERIFY`
 - `RUNTIME`
