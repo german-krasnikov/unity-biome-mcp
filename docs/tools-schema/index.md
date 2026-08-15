@@ -5,9 +5,9 @@ hide:
 
 # MCP Tool Schema
 
-> **148 registered tools** — auto-generated from server tool definitions.
+> **152 registered tools** — auto-generated from server tool definitions.
 
-> Quality: **83.6/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
+> Quality: **83.7/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
 
 ## Overview
 
@@ -29,11 +29,14 @@ hide:
 | [`await_compile`](#await_compile) | 🟢 85/100 | 🟢 low | Block until Unity finishes compiling + reloading, then return compile errors. |
 | [`bake`](#bake) | 🟢 92/100 | 🟢 low | Bake operations. |
 | [`batch`](#batch) | 🟡 78/100 | 🔴 high | Execute multiple commands in one call. Use for 2+ ops — reads AND writes. com... |
+| [`brief_build`](#brief_build) | 🟢 82/100 | 🔴 high | Use to get a snapshot of project state before starting work. |
 | [`budget_status`](#budget_status) | 🟢 95/100 | 🟢 low | Returns Haiku cost: session/cap/day/skipped features. Text format. |
 | [`build`](#build) | 🟢 90/100 | 🟡 medium | Build player. action: build. |
 | [`cancel_test_run`](#cancel_test_run) | 🟢 83/100 | 🟡 medium | Request cancellation of one exact test run; cancellation is asynchronous. |
 | [`check_colliders`](#check_colliders) | 🟢 90/100 | 🟡 medium | Check collider issues: triggers without Rigidbody, negative scale, micro coll... |
 | [`checkpoint`](#checkpoint) | 🟡 78/100 | 🟡 medium | Create a named Undo checkpoint. Use before major scene changes. Allows rollba... |
+| [`checkpoint_create`](#checkpoint_create) | 🟡 78/100 | 🟡 medium | Create a durable checkpoint before an agent turn. |
+| [`checkpoint_restore`](#checkpoint_restore) | 🟢 91/100 | 🟡 medium | Restore files to their pre-turn state. |
 | [`compile_preflight`](#compile_preflight) | 🟢 86/100 | 🟡 medium | Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — ca... |
 | [`configure_objects`](#configure_objects) | 🟢 92/100 | 🟡 medium | Configure multiple objects at once. |
 | [`console_mark`](#console_mark) | 🟢 88/100 | 🟢 low | Create a console watermark. Returns mark_id encoding current timestamp. |
@@ -54,6 +57,7 @@ hide:
 | [`fingerprint`](#fingerprint) | 🟢 85/100 | 🟡 medium | Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens. |
 | [`get_capabilities`](#get_capabilities) | 🟢 95/100 | 🟢 low | Unity version, platform, render pipeline, scripting backend, and optional pac... |
 | [`get_changes`](#get_changes) | 🟢 89/100 | 🟢 low | Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo, |
+| [`get_changeset`](#get_changeset) | 🟢 95/100 | 🟢 low | Return the current ChangeSet: accumulated mutations this session. |
 | [`get_compile_errors`](#get_compile_errors) | 🟢 95/100 | 🟡 medium | Compilation errors with file:line:column. Not lost on Console.Clear(). Struct... |
 | [`get_component`](#get_component) | 🟢 83/100 | 🟡 medium | Component properties as key-value. For MULTIPLE objects, use inspect(paths='a... |
 | [`get_components_list`](#get_components_list) | 🟢 90/100 | 🟢 low | List all components on object by instance ID. |
@@ -1628,6 +1632,58 @@ Execute multiple commands in one call. Use for 2+ ops — reads AND writes. comm
 
 ---
 
+### `brief_build`
+
+🟢 82/100 · Risk: 🔴 high
+
+Use to get a snapshot of project state before starting work.     Returns compact text block with requested context within token budget.     kinds: comma-separated subset of: console, compile_errors, hierarchy, selection, profiler     budget: max token estimate (default 2000; 1 token ≈ 4 chars)
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `budget` | integer |  |  (default: `2000`) |
+| `kinds` | string |  |  (default: `console,compile_errors,hierarchy`) |
+
+<details>
+<summary>6 quality issues</summary>
+
+- **warning**: Object schema has properties but no required list.
+- **info**: Parameter 'kinds' has no description.
+- **info**: Free-form string parameter 'kinds' has no maxLength.
+- **info**: Parameter 'budget' has no description.
+- **warning**: Numeric parameter 'budget' has no bounds.
+- **warning**: outputSchema is missing.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "kinds": {
+      "default": "console,compile_errors,hierarchy",
+      "title": "Kinds",
+      "type": "string"
+    },
+    "budget": {
+      "default": 2000,
+      "title": "Budget",
+      "type": "integer"
+    }
+  },
+  "title": "brief_buildArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
 ### `budget_status`
 
 🟢 95/100 · Risk: 🟢 low
@@ -1872,6 +1928,105 @@ Create a named Undo checkpoint. Use before major scene changes. Allows rollback 
     }
   },
   "title": "checkpointArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
+### `checkpoint_create`
+
+🟡 78/100 · Risk: 🟡 medium
+
+Create a durable checkpoint before an agent turn.     paths: comma-separated file paths to snapshot. Empty = open dirty scenes.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `paths` | string |  |  (default: ``) |
+
+<details>
+<summary>6 quality issues</summary>
+
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
+- **warning**: Object schema has properties but no required list.
+- **info**: Parameter 'paths' has no description.
+- **info**: Free-form string parameter 'paths' has no maxLength.
+- **warning**: outputSchema is missing.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "paths": {
+      "default": "",
+      "title": "Paths",
+      "type": "string"
+    }
+  },
+  "title": "checkpoint_createArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
+### `checkpoint_restore`
+
+🟢 91/100 · Risk: 🟡 medium
+
+Restore files to their pre-turn state.     Tries Unity Undo first when domain stamp matches; falls back to file restore.     MVP: after_refs always empty — no ChangeSet-based conflict detection yet.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `checkpoint_id` | string | ✓ |  |
+| `force` | boolean |  |  (default: `False`) |
+
+<details>
+<summary>5 quality issues</summary>
+
+- **info**: Parameter 'checkpoint_id' has no description.
+- **info**: Free-form string parameter 'checkpoint_id' has no maxLength.
+- **info**: Parameter 'force' has no description.
+- **warning**: outputSchema is missing.
+- **info**: Tool appears read-only but does not declare readOnlyHint=true.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "checkpoint_id": {
+      "title": "Checkpoint Id",
+      "type": "string"
+    },
+    "force": {
+      "default": false,
+      "title": "Force",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "checkpoint_id"
+  ],
+  "title": "checkpoint_restoreArguments",
   "type": "object",
   "additionalProperties": false
 }
@@ -3155,6 +3310,21 @@ Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo, 
   "additionalProperties": false
 }
 ```
+
+</details>
+
+---
+
+### `get_changeset`
+
+🟢 95/100 · Risk: 🟢 low
+
+Return the current ChangeSet: accumulated mutations this session.     Use after any mutation sequence to review what changed.
+
+<details>
+<summary>1 quality issues</summary>
+
+- **warning**: outputSchema is missing.
 
 </details>
 

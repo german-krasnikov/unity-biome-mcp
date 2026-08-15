@@ -1,37 +1,37 @@
 # Quality Report
 
-> Auto-generated on **2026-08-13** from commit `1d3e9b3` (v1.33.0)
+> Auto-generated on **2026-08-15** from commit `3df6ce6` (v1.35.1)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.33.0 |
-| Commit | `1d3e9b3` |
-| Date | 2026-08-13 |
-| MCP Tools | 148 |
+| Version | v1.35.1 |
+| Commit | `3df6ce6` |
+| Date | 2026-08-15 |
+| MCP Tools | 152 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.12) | 4891 | 0 | 2 | 4893 | ✅ |
+| Python Server (3.12) | 5218 | 0 | 3 | 5221 | ✅ |
 | Python Install | 76 | 0 | 0 | 76 | ✅ |
 | Python Scripts | 837 | 0 | 0 | 837 | ✅ |
-| C# EditMode (Linux) | 7813 | 0 | 166 | 7979 | ✅ |
-| C# EditMode (Windows) | 7700 | 0 | 279 | 7979 | ✅ |
-| C# EditMode (macOS) | 7813 | 0 | 166 | 7979 | ✅ |
+| C# EditMode (Linux) | 7893 | 0 | 171 | 8064 | ✅ |
+| C# EditMode (Windows) | 7780 | 0 | 284 | 8064 | ✅ |
+| C# EditMode (macOS) | 7893 | 0 | 171 | 8064 | ✅ |
 
 ## Tool Quality
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 4 | 376 | 83.61/100 |
+| mcp-tool-card-linter | 4 | 385 | 83.68/100 |
 
 ### Per-Tool Scores
 
 <details>
-<summary>148 tools scored (click to expand)</summary>
+<summary>152 tools scored (click to expand)</summary>
 
 | Tool | Score | Errors | Warnings | Risk |
 |------|-------|--------|----------|------|
@@ -72,6 +72,7 @@
 | `wire_event` | 77 | 0 | 2 | high |
 | `batch` | 78 | 0 | 4 | high |
 | `checkpoint` | 78 | 0 | 4 | medium |
+| `checkpoint_create` | 78 | 0 | 4 | medium |
 | `material` | 78 | 0 | 3 | medium |
 | `references` | 78 | 0 | 3 | medium |
 | `apply_scene_change` | 79 | 0 | 3 | medium |
@@ -86,6 +87,7 @@
 | `prefab` | 81 | 0 | 2 | high |
 | `scene_change_plan` | 81 | 0 | 3 | medium |
 | `autofit_collider` | 82 | 0 | 3 | medium |
+| `brief_build` | 82 | 0 | 3 | high |
 | `get_metrics` | 82 | 0 | 3 | high |
 | `region_clear` | 82 | 0 | 3 | high |
 | `ui_intent` | 82 | 0 | 3 | medium |
@@ -154,6 +156,7 @@
 | `get_unity_events` | 90 | 0 | 2 | medium |
 | `inspect` | 90 | 0 | 2 | low |
 | `render_analyze` | 90 | 0 | 1 | medium |
+| `checkpoint_restore` | 91 | 0 | 1 | medium |
 | `apply_template` | 92 | 0 | 1 | medium |
 | `bake` | 92 | 0 | 1 | low |
 | `configure_objects` | 92 | 0 | 1 | medium |
@@ -170,6 +173,7 @@
 | `auto_fix` | 95 | 0 | 1 | low |
 | `budget_status` | 95 | 0 | 1 | low |
 | `get_capabilities` | 95 | 0 | 1 | low |
+| `get_changeset` | 95 | 0 | 1 | low |
 | `get_compile_errors` | 95 | 0 | 1 | medium |
 | `get_enabled_tools` | 95 | 0 | 1 | low |
 | `get_selection` | 95 | 0 | 1 | medium |
