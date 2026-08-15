@@ -147,7 +147,7 @@ namespace UnityMCP.TestProject.Visual
         public void CreateUI_InvalidType_Error()
         {
             LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("Unknown UI type"));
-            var json = "{\"id\":\"u7\",\"cmd\":\"create_ui\",\"args\":{\"type\":\"Slider\"}}";
+            var json = "{\"id\":\"u7\",\"cmd\":\"create_ui\",\"args\":{\"type\":\"UnknownWidget\"}}";
             var result = ProcessOwned(json);
             StringAssert.Contains("\"ok\":false", result);
             StringAssert.Contains("Unknown UI type", result);
