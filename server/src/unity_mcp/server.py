@@ -271,7 +271,7 @@ from .tools.spatial import (  # noqa: F401
 from .tools.testing import get_test_results, run_tests  # noqa: F401
 from .tools.ui import create_ui, lint_ugui, menu, set_rect, shader  # noqa: F401
 from .tools.ui_intent_tool import ui_intent  # noqa: F401
-from .tools.uitk import inspect_uitk, lint_uitk  # noqa: F401
+from .tools.uitk import inspect_uitk, lint_uitk, uitk_element  # noqa: F401
 from .tools.vfx_intent_tool import vfx_intent  # noqa: F401
 from .tools.watch import get_watches, watch  # noqa: F401
 

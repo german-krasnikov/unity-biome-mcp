@@ -192,7 +192,7 @@ namespace UnityMCP.Editor
             return false;
         }
 
-        private static VisualElement Dispatch(VisualElement root, string selector)
+        internal static VisualElement Dispatch(VisualElement root, string selector)
         {
             if (selector.StartsWith(".")) return root.Q(className: selector.Substring(1));
             if (selector.StartsWith("#")) return root.Q(selector.Substring(1));

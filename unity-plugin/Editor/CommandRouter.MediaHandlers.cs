@@ -6,10 +6,6 @@ namespace UnityMCP.Editor
     // scene/ui/editor/menu/references) split from CommandRouter.cs for <200-line focus.
     public static partial class CommandRouter
     {
-        // Shared UIElementSerializer instance — holds VERefTable across Exec* calls.
-        // ResetRefTable() is called at the start of every Serialize() invocation.
-        private static readonly UIElementSerializer _serializer = new UIElementSerializer();
-
         private static float? ParseOptFloat(string args, string key)
         {
             var s = JsonHelper.ExtractString(args, key);
@@ -278,6 +274,18 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "filter"),
                 ParseOptBool(args, "include_internal") ?? false,
                 ParseOptBool(args, "show_style") ?? false);
+
+        // Phase 2: uitk_element — read/mutate a VisualElement
+        private static string ExecUitkElement(string args) =>
+            UIHelper.UitkElement(
+                JsonHelper.ExtractString(args, "action"),
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractString(args, "ref"),
+                JsonHelper.ExtractString(args, "selector"),
+                JsonHelper.ExtractString(args, "name"),
+                JsonHelper.ExtractString(args, "value"),
+                JsonHelper.ExtractString(args, "property"),
+                JsonHelper.ExtractString(args, "class_name"));
 
         private static string ExecEditor(string args)
         {
