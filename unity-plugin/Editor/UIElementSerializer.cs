@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor
 {
-    internal class UIElementSerializer
+    internal class UIElementSerializer : IDisposable
     {
         private const int MaxElements = 300;
 
@@ -25,6 +25,11 @@ namespace UnityMCP.Editor
 
         private void OnBeforeReload() => ResetRefTable();
 
+        public void Dispose()
+        {
+            AssemblyReloadEvents.beforeAssemblyReload -= OnBeforeReload;
+        }
+
         /// <summary>Clear the ref table and restart the counter. Old ~N refs become stale.</summary>
         internal void ResetRefTable()
         {
@@ -38,7 +43,7 @@ namespace UnityMCP.Editor
         /// so every call produces fresh ~N refs starting at ~1.
         /// </summary>
         internal string Serialize(VisualElement root, int depth = 4, string selector = null,
-                                  bool includeInternal = false, bool showStyle = false)
+                                  string filter = null, bool includeInternal = false, bool showStyle = false)
         {
             ResetRefTable();
 
@@ -51,7 +56,7 @@ namespace UnityMCP.Editor
 
             var sb = new StringBuilder();
             int count = 0;
-            AppendElement(sb, target, 0, depth, showStyle, includeInternal, ref count);
+            AppendElement(sb, target, 0, depth, showStyle, includeInternal, filter, ref count);
             return sb.ToString().TrimEnd();
         }
 
@@ -82,7 +87,7 @@ namespace UnityMCP.Editor
 
         private void AppendElement(StringBuilder sb, VisualElement ve, int depth,
                                    int maxDepth, bool showStyle, bool includeInternal,
-                                   ref int count)
+                                   string filter, ref int count)
         {
             if (count >= MaxElements)
             {
@@ -91,6 +96,7 @@ namespace UnityMCP.Editor
             }
 
             if (!includeInternal && ve.name?.StartsWith("#unity-") == true) return;
+            if (!string.IsNullOrEmpty(filter) && !MatchesFilter(ve, filter)) return;
 
             int id = ++_counter;
             _refTable[id] = new WeakReference<VisualElement>(ve);
@@ -107,7 +113,7 @@ namespace UnityMCP.Editor
             }
 
             foreach (var child in ve.Children())
-                AppendElement(sb, child, depth + 1, maxDepth, showStyle, includeInternal, ref count);
+                AppendElement(sb, child, depth + 1, maxDepth, showStyle, includeInternal, filter, ref count);
         }
 
         private static int CountVisibleChildren(VisualElement ve, bool includeInternal)
@@ -176,6 +182,14 @@ namespace UnityMCP.Editor
             if (t == typeof(VisualElement)) return "VE";
             if (t == typeof(TextElement)) return "TE";
             return t.Name;
+        }
+
+        private static bool MatchesFilter(VisualElement ve, string filter)
+        {
+            if (ve.name != null && ve.name.Contains(filter)) return true;
+            foreach (var cls in ve.GetClasses())
+                if (cls.Contains(filter)) return true;
+            return false;
         }
 
         private static VisualElement Dispatch(VisualElement root, string selector)

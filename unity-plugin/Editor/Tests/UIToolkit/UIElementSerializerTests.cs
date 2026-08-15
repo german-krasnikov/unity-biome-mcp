@@ -1,5 +1,6 @@
 // TDD — RED: these tests fail until UIElementSerializer is implemented.
 using NUnit.Framework;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.Tests
@@ -16,6 +17,9 @@ namespace UnityMCP.Editor.Tests
             _win = CreateOwnedEditorWindow<ScratchEditorWindow>();
             _s = new UIElementSerializer();
         }
+
+        [TearDown]
+        public void TearDown() { _s?.Dispose(); }
 
         // 1: root with no children → exactly one line (TrimEnd removes trailing newline)
         [Test]
@@ -145,6 +149,56 @@ namespace UnityMCP.Editor.Tests
 
             Assert.That(result.Length, Is.LessThanOrEqualTo(800),
                 $"Token budget exceeded: {result.Length} chars (expected ≤800)");
+        }
+
+        // 10: Label with text → output contains "hi" in quotes
+        [Test]
+        public void Serialize_SingleLabel_TextInline()
+        {
+            var label = new Label { name = "lbl", text = "hi" };
+            var result = _s.Serialize(label);
+            Assert.That(result, Does.Contain("\"hi\""));
+        }
+
+        // 11: element with display=None → !hidden flag in output
+        [Test]
+        public void Serialize_HiddenElement_HasBangHiddenFlag()
+        {
+            var root = new VisualElement { name = "root" };
+            var hidden = new VisualElement { name = "hidden-el" };
+            root.Add(hidden);
+            hidden.style.display = DisplayStyle.None;
+
+            var result = _s.Serialize(root);
+            Assert.That(result, Does.Contain("!hidden"));
+        }
+
+        // 12: showStyle=true → non-default style tokens appear
+        [Test]
+        public void Serialize_StyleTrue_IncludesNonDefaultStyles()
+        {
+            var el = new VisualElement { name = "styled-el" };
+            el.style.backgroundColor = new Color(1, 0, 0, 1);
+
+            var result = _s.Serialize(el, showStyle: true);
+            Assert.That(result, Does.Contain("bg="));
+        }
+
+        // 13: every element line ends with ~N (tilde ref id)
+        [Test]
+        public void Serialize_RefId_TildeFormat()
+        {
+            var root = new VisualElement { name = "root" };
+            root.Add(new VisualElement { name = "child" });
+
+            var result = _s.Serialize(root);
+            foreach (var line in result.Split('\n'))
+            {
+                var t = line.Trim();
+                if (string.IsNullOrEmpty(t) || t.Contains("more") || t.Contains("limit"))
+                    continue;
+                Assert.That(t, Does.Match(@"~\d+$"), $"Line should end with ~N: '{line}'");
+            }
         }
     }
 }

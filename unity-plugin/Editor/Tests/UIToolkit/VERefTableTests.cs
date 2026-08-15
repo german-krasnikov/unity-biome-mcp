@@ -17,6 +17,9 @@ namespace UnityMCP.Editor.Tests
             _s = new UIElementSerializer();
         }
 
+        [TearDown]
+        public void TearDown() { _s?.Dispose(); }
+
         // 1: ResetRefTable increments generation (counter restarts at ~1 after reset)
         [Test]
         public void ResetRefTable_IncrementsGeneration()
@@ -50,29 +53,22 @@ namespace UnityMCP.Editor.Tests
             Assert.Throws<ArgumentException>(() => _s.ResolveRef("~"));
         }
 
-        // 3: WeakReference target collected → returns null
+        // 3: deterministic stale-ref: Serialize twice — refs from first call are gone after second (table reset)
         [Test]
-        public void ResolveRef_GarbageCollected_ReturnsNull()
+        public void ResolveRef_StaleAfterNextSerialize_ReturnsNull()
         {
-            PopulateRefAndLetGoOutOfScope(_s);
-            // Two GC passes: collect gen0→gen1→gen2
-            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
-            GC.WaitForPendingFinalizers();
-            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+            // First call: root + child → ~1=root, ~2=child
+            var root = new VisualElement { name = "root" };
+            root.Add(new VisualElement { name = "child" });
+            _s.Serialize(root);
+            Assert.That(_s.ResolveRef("~2"), Is.Not.Null, "precondition: ~2 exists after first call");
 
-            // If GC collected the VE, ResolveRef returns null.
-            // GC is non-deterministic, so we skip if still alive (not a hard failure).
-            var result = _s.ResolveRef("~1");
-            // VisualElement is a plain C# type — should be collected.
-            Assert.That(result, Is.Null, "WeakReference target should be null after GC");
-        }
+            // Second call resets the table → ~2 no longer exists
+            var single = new VisualElement { name = "single" };
+            _s.Serialize(single);
 
-        // Helper: creates VE in a separate call frame so it goes out of scope on return.
-        private static void PopulateRefAndLetGoOutOfScope(UIElementSerializer s)
-        {
-            var el = new VisualElement { name = "temp" };
-            s.Serialize(el);
-            // el goes out of scope when this method returns
+            Assert.That(_s.ResolveRef("~2"), Is.Null,
+                "~2 should be null after second Serialize resets the table");
         }
 
         // 4: ResetRefTable clears all entries
@@ -118,6 +114,48 @@ namespace UnityMCP.Editor.Tests
                 Assert.That(_s.ResolveRef("~1"), Is.Null,
                     "ResetRefTable (proxying beforeAssemblyReload) should clear all refs");
             }
+        }
+
+        // 6: Serialize returns string containing ~1 for first element
+        [Test]
+        public void Assign_NewElement_ReturnsTildeRef()
+        {
+            var el = new VisualElement { name = "el" };
+            var result = _s.Serialize(el);
+            Assert.That(result, Does.Contain("~1"));
+        }
+
+        // 7: round-trip: Serialize → ResolveRef("~1") → same element
+        [Test]
+        public void Resolve_AssignedRef_ReturnsSameElement()
+        {
+            var el = new VisualElement { name = "el" };
+            _s.Serialize(el);
+            Assert.That(_s.ResolveRef("~1"), Is.SameAs(el));
+        }
+
+        // 8: unknown ref returns null, does not throw
+        [Test]
+        public void Resolve_UnknownRef_ReturnsNull()
+        {
+            var el = new VisualElement { name = "el" };
+            _s.Serialize(el); // only ~1 in table
+            Assert.That(_s.ResolveRef("~999"), Is.Null);
+        }
+
+        // 9: CRITICAL — calling Serialize N times does not grow the ref table
+        [Test]
+        public void InspectUITK_CalledNTimes_RefTableSizeStaysConstant()
+        {
+            var el = new VisualElement { name = "el" };
+            _s.Serialize(el);
+            _s.Serialize(el);
+            _s.Serialize(el); // 3 calls
+
+            // Only ~1 exists (counter resets on each call, table does not accumulate)
+            Assert.That(_s.ResolveRef("~1"), Is.Not.Null, "~1 must exist after last Serialize");
+            Assert.That(_s.ResolveRef("~2"), Is.Null, "~2 must not exist — table was not accumulated");
+            Assert.That(_s.ResolveRef("~3"), Is.Null, "~3 must not exist — table was not accumulated");
         }
     }
 }
