@@ -1310,6 +1310,8 @@ namespace UnityMCP.Editor
                 if (alias != null) return (alias.path, alias.component, alias.field);
             }
             var parts = query.Split('|');
+            if (parts.Length >= 4 && parts[1].Trim() == "UIDocument")
+                return (parts[0].Trim(), "UIDocument", parts[2].Trim() + "|" + parts[3].Trim());
             if (parts.Length >= 3) return (parts[0].Trim(), parts[1].Trim(), parts[2].Trim());
             if (parts.Length == 2) return (parts[0].Trim(), parts[1].Trim(), "");
             return (query, "", "");

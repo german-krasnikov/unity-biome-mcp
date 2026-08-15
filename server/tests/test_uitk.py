@@ -55,14 +55,14 @@ async def test_inspect_uitk_selector_forwarded(mock_bridge):
     # 2. Remove selector forwarding → KeyError → RED
 
 
-async def test_inspect_uitk_include_internal_forwarded(mock_bridge):
+async def test_inspect_uitk_show_unity_private_forwarded(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok: 0 elements"})
-    await inspect_uitk(path="/HUD", include_internal=True)
+    await inspect_uitk(path="/HUD", show_unity_private=True)
     args = mock_bridge.send.call_args[0][1]
-    assert args["include_internal"] is True
+    assert args["include_internal"] is True  # C# JSON key stays "include_internal"
     # Double-red:
     # 1. Change to args["include_internal"] is False → fails
-    # 2. Remove include_internal forwarding → KeyError → RED
+    # 2. Remove include_internal forwarding in _args() → KeyError → RED
 
 
 async def test_lint_uitk_sends_correct_cmd(mock_bridge):

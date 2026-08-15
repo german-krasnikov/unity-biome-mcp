@@ -11,7 +11,7 @@ async def inspect_uitk(
     depth: int | None = None,
     selector: str | None = None,
     filter: str | None = None,
-    include_internal: bool | None = None,
+    show_unity_private: bool | None = None,
     show_style: bool | None = None,
 ) -> str:
     """Inspect the VisualElement tree of a UIDocument panel
@@ -23,12 +23,12 @@ async def inspect_uitk(
     depth: max traversal depth (default 4; use selector to focus a subtree).
     selector: start tree from first matching element (name, .class, TypeName, ~refid).
     filter: show only elements whose name or classes contain this substring.
-    include_internal: include Unity-internal elements (names start with #unity-).
+    show_unity_private: show #unity-* prefixed elements normally hidden by default.
     show_style: include non-default computed style values per element.
     """
     return await _send("inspect_uitk", _args(
         path=path, depth=depth, selector=selector,
-        filter=filter, include_internal=include_internal, show_style=show_style,
+        filter=filter, include_internal=show_unity_private, show_style=show_style,
     ))
 
 
