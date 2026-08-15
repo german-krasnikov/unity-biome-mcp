@@ -24,13 +24,13 @@ namespace UnityMCP.Editor
 
             // Check EventSystem presence (required for uGUI click dispatch).
             // EventSystem is always scene-level; root scoping never applies here.
-            bool hasEventSystem = Object.FindFirstObjectByType<EventSystem>() != null;
+            bool hasEventSystem = UnityEngine.Object.FindFirstObjectByType<EventSystem>() != null;
             if (!hasEventSystem)
                 issues.Add("warn: no EventSystem in scene — uGUI clicks will not work; " +
                            "add GameObject > UI > Event System");
 
             // Check GraphicRaycaster on every Canvas within scope.
-            var canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            var canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
             foreach (var canvas in canvases)
             {
                 if (rootGO != null && !canvas.transform.IsChildOf(rootGO.transform)) continue;

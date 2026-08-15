@@ -47,21 +47,11 @@ namespace UnityMCP.Editor
                 { "SYSTEM",     new[] { "alias_status","animator_intent","apply_template","ask","ask_user","auto_fix","checkpoint","do","doctor","execute_code","fingerprint","get_capabilities","get_changes","get_enabled_tools","get_schema","list_skills","list_templates","load_session","menu","permission_prompt","recompile","reconnect_unity","save_session","save_skill","save_template","set_llm_config","smart_build","sync_unity","undo_last","use_skill" } },
             };
 
-        // Returns catalog categories (from EditorPrefs JSON or built-in default).
-        public static Dictionary<string, string[]> GetCatalogCategories()
-        {
-            var raw = GetCatalog();
-            if (!string.IsNullOrEmpty(raw))
-            {
-                try
-                {
-                    var parsed = CatalogParser.Parse(raw);
-                    if (parsed.Count > 0) return parsed;
-                }
-                catch { /* fall through */ }
-            }
-            return _defaultCatalog;
-        }
+        // Returns catalog categories — _defaultCatalog is the source of truth for
+        // category keys and tool assignments. Saved EditorPrefs catalog only adds
+        // per-tool enabled/disabled state; it never hides categories that the plugin
+        // defines. On plugin update new categories appear immediately.
+        public static Dictionary<string, string[]> GetCatalogCategories() => _defaultCatalog;
 
         // ── Tool name list (P0 backward-compat) ──────────────────────────────
         public static string[] GetToolNames()
