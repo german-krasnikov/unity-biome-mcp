@@ -101,7 +101,7 @@ jobs:
           - name: macOS
             runner: macos-latest
             build-target: StandaloneOSX
-            hub-version: '3.19.5'
+            hub-version: ''
           - name: Windows
             runner: windows-2022
             build-target: StandaloneWindows64
