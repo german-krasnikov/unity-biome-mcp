@@ -195,6 +195,7 @@ _SPECS: dict[str, ToolSpec] = {
     'validate_references': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
     'verify_after_change': ToolSpec(category='VERIFY', tier1=True, timeout_s=600.0, mutability='read', direct_only=True),
     'vfx_intent': ToolSpec(category='MEDIA', direct_only=True),
+    'lint_ugui': ToolSpec(category='MEDIA', tier1=False, mutability='read', timeout_s=15.0),
     'wait_until': ToolSpec(category='RUNTIME', runtime_only=True, mutability='read'),
     'watch': ToolSpec(category='RUNTIME', direct_only=True),
     'wire_event': ToolSpec(category='COMPONENTS'),

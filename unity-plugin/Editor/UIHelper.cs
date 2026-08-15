@@ -33,7 +33,7 @@ namespace UnityMCP.Editor
 
         public static string CreateUI(string type, string name, string parent,
             string anchor, string pos, string size, string pivot,
-            string color, string text, string font_size)
+            string color, string text, string font_size, string render_mode = null)
         {
             if (string.IsNullOrEmpty(type))
                 throw new ArgumentException("type is required");
@@ -42,7 +42,7 @@ namespace UnityMCP.Editor
 
             switch (type.ToLower())
             {
-                case "canvas":  return CreateCanvas(name);
+                case "canvas":  return CreateCanvas(name, render_mode);
                 case "panel":   return CreateElement(name, parent, anchor ?? "stretch", pos, size, pivot, color, "Image");
                 case "button":  return CreateButton(name, parent, anchor ?? "center", pos, size ?? "(160,30)", pivot, color, text, font_size);
                 case "text":    return CreateText(name, parent, anchor ?? "center", pos, size ?? "(200,50)", pivot, color, text, font_size);
@@ -73,13 +73,21 @@ namespace UnityMCP.Editor
 
         // --- Private helpers ---
 
-        private static string CreateCanvas(string name)
+        private static string CreateCanvas(string name, string renderModeStr = null)
         {
-            var go = MakeCanvas(name);
+            var go = MakeCanvas(name, ParseRenderMode(renderModeStr));
             Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
             var path = ComponentSerializer.GetPath(go);
             return $"Created {path}\n{HierarchySerializer.SerializeSubtree(go)}";
         }
+
+        // G1: parse render_mode string → RenderMode enum
+        private static RenderMode ParseRenderMode(string s) => s?.ToLower() switch
+        {
+            "ssc" or "screenspacecamera" or "camera" => RenderMode.ScreenSpaceCamera,
+            "worldspace" or "world" => RenderMode.WorldSpace,
+            _ => RenderMode.ScreenSpaceOverlay,
+        };
 
         private static string CreateElement(string name, string parent, string anchor,
             string pos, string size, string pivot, string color, string componentType)
@@ -188,20 +196,26 @@ namespace UnityMCP.Editor
             return FindOrCreateCanvas();
         }
 
-        private static GameObject FindOrCreateCanvas()
+        // G3: name-first lookup before FindFirstObjectByType — deterministic in multi-canvas scenes.
+        private static GameObject FindOrCreateCanvas(string name = null)
         {
+            if (!string.IsNullOrEmpty(name))
+            {
+                var named = GameObject.Find(name);
+                if (named != null && named.GetComponent<Canvas>() != null) return named;
+            }
             var existing = UnityEngine.Object.FindFirstObjectByType<Canvas>();
             if (existing != null) return existing.gameObject;
-
-            var go = MakeCanvas("Canvas");
+            var go = MakeCanvas(name ?? "Canvas");
             Undo.RegisterCreatedObjectUndo(go, "Auto-create Canvas");
             return go;
         }
 
-        private static GameObject MakeCanvas(string name)
+        // G1: renderMode parameter — was hardcoded to ScreenSpaceOverlay.
+        private static GameObject MakeCanvas(string name, RenderMode renderMode = RenderMode.ScreenSpaceOverlay)
         {
             var go = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            go.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            go.GetComponent<Canvas>().renderMode = renderMode;
             var scaler = go.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);

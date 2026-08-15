@@ -240,8 +240,13 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "pivot"),
                 JsonHelper.ExtractString(args, "color"),
                 JsonHelper.ExtractString(args, "text"),
-                JsonHelper.ExtractString(args, "font_size"));
+                JsonHelper.ExtractString(args, "font_size"),
+                JsonHelper.ExtractString(args, "render_mode"));
         }
+
+        // G2: Lint uGUI — check EventSystem presence and GraphicRaycaster on Canvas.
+        private static string ExecLintUGUI(string args) =>
+            UILinter.LintUGUI(JsonHelper.ExtractString(args, "root"));
 
         private static string ExecSetRect(string args)
         {
