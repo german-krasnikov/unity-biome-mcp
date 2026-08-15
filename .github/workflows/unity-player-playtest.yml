@@ -107,7 +107,7 @@ jobs:
 
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
-        timeout-minutes: 15
+        timeout-minutes: 30
         with:
           unity-version: 6000.0.65f1
           build-targets: ${{ matrix.build-target }}
@@ -223,8 +223,17 @@ jobs:
             exit 1
           fi
           if [[ "$EXPECTED_FAILURE_RC" -ne 1 ]]; then
-            echo "expected-failure PlayTest returned unexpected exit code: $EXPECTED_FAILURE_RC"
-            exit "$EXPECTED_FAILURE_RC"
+            # xvfb-run 2:21.1.x on Ubuntu exits with 5 when its temp-dir cleanup
+            # races with Xvfb shutdown, overriding the player's Application.Quit(1).
+            # Treat exit 5 as equivalent to exit 1 when the receipt file exists,
+            # which proves the player ran and wrote its output before quitting.
+            if [[ "$EXPECTED_FAILURE_RC" -eq 5 && "$RUNNER_OS" == "Linux" \
+                  && -f "artifacts/player-playtest-failure.json" ]]; then
+              echo "xvfb-run temp-dir cleanup failed (exit 5); receipt exists — treating as playtest failure"
+            else
+              echo "expected-failure PlayTest returned unexpected exit code: $EXPECTED_FAILURE_RC"
+              exit "$EXPECTED_FAILURE_RC"
+            fi
           fi
 
       - name: Validate Player PlayTest Expected Failure Receipts

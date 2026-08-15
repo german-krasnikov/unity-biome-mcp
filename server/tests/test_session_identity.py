@@ -1,7 +1,10 @@
 """Tests for session_identity.py — ChatSessionIdentity + atomic writer + cleanup."""
 import json
 import os
+import sys
 import time
+
+import pytest
 
 # ─── Token hash prefix ──────────────────────────────────────────────────────
 
@@ -59,6 +62,7 @@ def test_write_session_context_uses_tmp_replace(tmp_path, monkeypatch):
     assert len(replace_calls) == 1
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX chmod 0o600 not enforced on Windows")
 def test_write_session_context_permissions(tmp_path):
     from unity_mcp.session_identity import write_session_context
     identity = _make_identity()
