@@ -1,21 +1,21 @@
 # Quality Report
 
-> Auto-generated on **2026-08-15** from commit `3df6ce6` (v1.35.1)
+> Auto-generated on **2026-08-15** from commit `a168af3` (v1.36.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.35.1 |
-| Commit | `3df6ce6` |
+| Version | v1.36.0 |
+| Commit | `a168af3` |
 | Date | 2026-08-15 |
-| MCP Tools | 152 |
+| MCP Tools | 160 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.12) | 5218 | 0 | 3 | 5221 | ✅ |
+| Python Server (3.12) | 5306 | 0 | 3 | 5309 | ✅ |
 | Python Install | 76 | 0 | 0 | 76 | ✅ |
 | Python Scripts | 837 | 0 | 0 | 837 | ✅ |
 | C# EditMode (Linux) | 7893 | 0 | 171 | 8064 | ✅ |
@@ -26,19 +26,23 @@
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 4 | 385 | 83.68/100 |
+| mcp-tool-card-linter | 9 | 410 | 83.03/100 |
 
 ### Per-Tool Scores
 
 <details>
-<summary>152 tools scored (click to expand)</summary>
+<summary>160 tools scored (click to expand)</summary>
 
 | Tool | Score | Errors | Warnings | Risk |
 |------|-------|--------|----------|------|
+| `lint_uitk` | 49 | 2 | 4 | high |
+| `uitk_file` | 52 | 1 | 5 | high |
 | `shader` | 58 | 0 | 4 | high |
 | `animator` | 60 | 0 | 4 | high |
+| `attach_uitk` | 61 | 1 | 4 | high |
+| `uitk_intent` | 64 | 1 | 3 | high |
 | `verify_after_change` | 64 | 0 | 5 | high |
-| `create_ui` | 68 | 0 | 5 | medium |
+| `create_ui` | 65 | 0 | 5 | medium |
 | `execute_code` | 68 | 1 | 3 | high |
 | `run_tests_wait` | 68 | 0 | 6 | high |
 | `wait_until` | 68 | 0 | 5 | medium |
@@ -50,8 +54,8 @@
 | `profile` | 70 | 0 | 4 | low |
 | `animation` | 71 | 0 | 3 | medium |
 | `test_step` | 71 | 0 | 4 | medium |
+| `set_rect` | 72 | 0 | 4 | medium |
 | `run_playtest_suite` | 73 | 0 | 4 | high |
-| `set_rect` | 73 | 0 | 4 | medium |
 | `sync_unity` | 73 | 0 | 5 | medium |
 | `run_tests` | 74 | 0 | 5 | medium |
 | `set_sibling_index` | 74 | 0 | 5 | medium |
@@ -81,6 +85,7 @@
 | `set_active` | 79 | 0 | 4 | medium |
 | `set_parent` | 79 | 0 | 4 | medium |
 | `debug` | 80 | 0 | 3 | medium |
+| `uitk_element` | 80 | 0 | 3 | high |
 | `animator_intent` | 81 | 0 | 3 | medium |
 | `move_to` | 81 | 0 | 3 | medium |
 | `object_diff` | 81 | 0 | 3 | medium |
@@ -104,7 +109,7 @@
 | `setup_objects` | 83 | 0 | 3 | medium |
 | `undo_last` | 83 | 0 | 3 | low |
 | `use_skill` | 83 | 0 | 3 | medium |
-| `validate_layout` | 83 | 0 | 3 | medium |
+| `validate_triggers` | 83 | 0 | 3 | medium |
 | `create_object` | 84 | 0 | 3 | medium |
 | `get_console_since` | 84 | 0 | 2 | low |
 | `menu` | 84 | 0 | 3 | medium |
@@ -122,11 +127,13 @@
 | `sync_playtest_aliases_from_defs` | 85 | 0 | 2 | medium |
 | `transfer_object` | 85 | 0 | 2 | medium |
 | `compile_preflight` | 86 | 0 | 2 | medium |
+| `list_events` | 86 | 0 | 2 | medium |
 | `project_settings` | 86 | 0 | 2 | high |
 | `unwire_event` | 86 | 0 | 2 | high |
 | `validate_playtest_aliases` | 86 | 0 | 2 | medium |
 | `diagnose` | 87 | 0 | 2 | low |
 | `editor` | 87 | 0 | 2 | medium |
+| `inspect_uitk` | 87 | 0 | 2 | medium |
 | `rename_object` | 87 | 0 | 2 | medium |
 | `console_mark` | 88 | 0 | 2 | low |
 | `find_objects` | 88 | 0 | 2 | medium |
@@ -155,6 +162,7 @@
 | `get_object_detail` | 90 | 0 | 2 | low |
 | `get_unity_events` | 90 | 0 | 2 | medium |
 | `inspect` | 90 | 0 | 2 | low |
+| `lint_ugui` | 90 | 0 | 2 | medium |
 | `render_analyze` | 90 | 0 | 1 | medium |
 | `checkpoint_restore` | 91 | 0 | 1 | medium |
 | `apply_template` | 92 | 0 | 1 | medium |

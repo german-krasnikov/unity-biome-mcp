@@ -5,9 +5,9 @@ hide:
 
 # MCP Tool Schema
 
-> **152 registered tools** — auto-generated from server tool definitions.
+> **160 registered tools** — auto-generated from server tool definitions.
 
-> Quality: **83.7/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
+> Quality: **83.0/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
 
 ## Overview
 
@@ -23,6 +23,7 @@ hide:
 | [`ask`](#ask) | 🟢 93/100 | 🟢 low | Answer a read-only question about the Unity scene (AI-routed, not interactive... |
 | [`ask_user`](#ask_user) | 🟢 93/100 | 🟢 low | Show a question card in Unity chat; wait for user answer (interactive UI — us... |
 | [`asset`](#asset) | 🟡 79/100 | 🔴 high | Asset database. Creates, moves, or deletes assets. No confirmation required. ... |
+| [`attach_uitk`](#attach_uitk) | 🟡 61/100 | 🔴 high | Attach UIDocument to a GameObject (use for UI Toolkit runtime panels). |
 | [`auto_fix`](#auto_fix) | 🟢 95/100 | 🟢 low | Auto-detect and fix Unity errors. Uses MCP sampling to ask Claude for fixes. |
 | [`auto_wire`](#auto_wire) | 🟢 89/100 | 🔴 high | Fill null ObjectReference fields on a GameObject by matching field name or ty... |
 | [`autofit_collider`](#autofit_collider) | 🟢 82/100 | 🟡 medium | Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule. |
@@ -41,7 +42,7 @@ hide:
 | [`configure_objects`](#configure_objects) | 🟢 92/100 | 🟡 medium | Configure multiple objects at once. |
 | [`console_mark`](#console_mark) | 🟢 88/100 | 🟢 low | Create a console watermark. Returns mark_id encoding current timestamp. |
 | [`create_object`](#create_object) | 🟢 84/100 | 🟡 medium | Create new GameObject. components: comma-separated types to add on creation. ... |
-| [`create_ui`](#create_ui) | 🟡 68/100 | 🟡 medium | Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. ... |
+| [`create_ui`](#create_ui) | 🟡 65/100 | 🟡 medium | Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|T... |
 | [`debug`](#debug) | 🟢 80/100 | 🟡 medium | AI-assisted scene debug: gather diagnostic context based on symptom (not comp... |
 | [`debug_animator`](#debug_animator) | 🟢 89/100 | 🟡 medium | [Play Mode] Read Animator state: layers, transitions, parameters (use `debug`... |
 | [`debug_physics`](#debug_physics) | 🟢 83/100 | 🟡 medium | [Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (us... |
@@ -79,11 +80,15 @@ hide:
 | [`get_unity_events`](#get_unity_events) | 🟢 90/100 | 🟡 medium | List all UnityEvent persistent listeners in the active scene. |
 | [`get_watches`](#get_watches) | 🟢 95/100 | 🟢 low | Get all active watches and recent log entries. |
 | [`inspect`](#inspect) | 🟢 90/100 | 🟢 low | Get components for multiple objects at once. paths: comma-separated. componen... |
+| [`inspect_uitk`](#inspect_uitk) | 🟢 87/100 | 🟡 medium | Inspect the VisualElement tree of a UIDocument panel |
 | [`invoke_method`](#invoke_method) | 🟢 83/100 | 🟡 medium | [Play Mode] Call public method on a component via reflection. |
 | [`lint_playtest`](#lint_playtest) | 🟡 69/100 | 🔴 high | Static validation for playtest DSL. Read-only — no scene changes. Returns war... |
 | [`lint_playtest_suite`](#lint_playtest_suite) | 🟢 88/100 | 🟡 medium | Read-only preflight check across multiple .playtest files. |
 | [`lint_scene_refs`](#lint_scene_refs) | 🟢 89/100 | 🔴 high | Read-only linter for scene references in DSL scripts or batch commands. |
+| [`lint_ugui`](#lint_ugui) | 🟢 90/100 | 🟡 medium | Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster.... |
+| [`lint_uitk`](#lint_uitk) | 🔴 49/100 | 🔴 high | Validate a UXML or USS file for structural errors and broken references |
 | [`list_connections`](#list_connections) | 🟢 95/100 | 🟢 low | List Unity connection status. |
+| [`list_events`](#list_events) | 🟢 86/100 | 🟡 medium | Read persistent listeners on a UnityEvent field. Use after wire_event to verify. |
 | [`list_skills`](#list_skills) | 🟢 95/100 | 🟢 low | List all saved skills with descriptions and usage counts. |
 | [`list_templates`](#list_templates) | 🟢 95/100 | 🟢 low | List available scene templates in .claude/templates/. |
 | [`list_test_runs`](#list_test_runs) | 🟢 85/100 | 🟢 low | List recent durable test runs as JSON, newest first. |
@@ -141,7 +146,7 @@ hide:
 | [`set_properties`](#set_properties) | 🟡 77/100 | 🟡 medium | Set multiple properties on ONE object. For multiple objects, use configure_ob... |
 | [`set_property`](#set_property) | 🟡 76/100 | 🟡 medium | Set component property (Edit Mode, SerializedObject — for Play Mode use `invo... |
 | [`set_property_delta`](#set_property_delta) | 🟡 75/100 | 🟡 medium | Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new. |
-| [`set_rect`](#set_rect) | 🟡 73/100 | 🟡 medium | Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bott... |
+| [`set_rect`](#set_rect) | 🟡 72/100 | 🟡 medium | Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bott... |
 | [`set_sibling_index`](#set_sibling_index) | 🟡 74/100 | 🟡 medium | Set sibling index of a GameObject within its parent. index=0 moves to first c... |
 | [`setup_objects`](#setup_objects) | 🟢 83/100 | 🟡 medium | Create+configure multiple objects in one call. |
 | [`shader`](#shader) | 🔴 58/100 | 🔴 high | Read or write shader assets (.shader / .shadergraph). Creates or modifies sha... |
@@ -154,12 +159,15 @@ hide:
 | [`timeline`](#timeline) | 🟡 69/100 | 🟡 medium | Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinema... |
 | [`transfer_object`](#transfer_object) | 🟢 85/100 | 🟡 medium | Move or copy a GameObject to another loaded scene. action: move|copy. |
 | [`ui_intent`](#ui_intent) | 🟢 82/100 | 🟡 medium | Convert NL intent to Unity UI hierarchy. Templates bypass Haiku. |
+| [`uitk_element`](#uitk_element) | 🟢 80/100 | 🔴 high | Mutate or query a VisualElement in a UIDocument |
+| [`uitk_file`](#uitk_file) | 🔴 52/100 | 🔴 high | Read or edit a UXML or USS asset file |
+| [`uitk_intent`](#uitk_intent) | 🟡 64/100 | 🔴 high | Generate a UXML + USS file pair from a natural-language UI description. |
 | [`undo_last`](#undo_last) | 🟢 83/100 | 🟢 low | Undo the last N AI turns in the Unity Undo stack. Default: 1. |
 | [`unwire_event`](#unwire_event) | 🟢 86/100 | 🔴 high | Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation... |
 | [`use_skill`](#use_skill) | 🟢 83/100 | 🟡 medium | Execute a previously saved skill. params: comma-separated key=value for subst... |
-| [`validate_layout`](#validate_layout) | 🟢 83/100 | 🟡 medium | Check trigger overlaps. Warns if triggers closer than min_distance meters. |
 | [`validate_playtest_aliases`](#validate_playtest_aliases) | 🟢 86/100 | 🟡 medium | Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/... |
 | [`validate_references`](#validate_references) | 🟢 82/100 | 🟡 medium | Validate all ObjectReference fields under path recursively. |
+| [`validate_triggers`](#validate_triggers) | 🟢 83/100 | 🟡 medium | Check 3D trigger/collider overlaps. Warns if triggers closer than min_distanc... |
 | [`verify_after_change`](#verify_after_change) | 🟡 64/100 | 🔴 high | Single verification gate after code/scene changes. |
 | [`vfx_intent`](#vfx_intent) | 🟡 74/100 | 🟡 medium | Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely. |
 | [`wait_until`](#wait_until) | 🟡 68/100 | 🟡 medium | [Play Mode] Poll field until it matches value (or timeout). |
@@ -1327,6 +1335,97 @@ Asset database. Creates, moves, or deletes assets. No confirmation required. act
 
 ---
 
+### `attach_uitk`
+
+🟡 61/100 · Risk: 🔴 high
+
+Attach UIDocument to a GameObject (use for UI Toolkit runtime panels).     path: scene path to the target GameObject.     uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted).     panel_settings: Assets/ path to PanelSettings asset (auto-created at Assets/UI/DefaultPanel.asset if omitted).     sort_order: UIDocument.sortingOrder (default 0).     err: if UIDocument already present — remove it first or use inspect_uitk/uitk_element.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `panel_settings` | any |  |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
+| `sort_order` | any |  |  |
+| `uxml` | any |  |  |
+
+<details>
+<summary>9 quality issues</summary>
+
+- **error**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
+- **info**: Free-form string parameter 'path' has no maxLength.
+- **warning**: Path-like parameter 'path' has no structural constraint.
+- **info**: Parameter 'uxml' has no description.
+- **info**: Parameter 'panel_settings' has no description.
+- **info**: Parameter 'sort_order' has no description.
+- **warning**: outputSchema is missing.
+- **warning**: Tool appears destructive but lacks destructiveHint=true.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "path": {
+      "title": "Path",
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
+    },
+    "uxml": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Uxml"
+    },
+    "panel_settings": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Panel Settings"
+    },
+    "sort_order": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sort Order"
+    }
+  },
+  "required": [
+    "path"
+  ],
+  "title": "attach_uitkArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
 ### `auto_fix`
 
 🟢 95/100 · Risk: 🟢 low
@@ -2299,9 +2398,9 @@ Create new GameObject. components: comma-separated types to add on creation. pri
 
 ### `create_ui`
 
-🟡 68/100 · Risk: 🟡 medium
+🟡 65/100 · Risk: 🟡 medium
 
-Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Auto-creates Canvas if needed.
+Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type.
 
 **Parameters:**
 
@@ -2309,17 +2408,20 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Aut
 |-----------|------|----------|-------------|
 | `anchor` | any |  |  |
 | `color` | any |  |  |
+| `font_max` | any |  |  |
+| `font_min` | any |  |  |
 | `font_size` | any |  |  |
 | `name` | any |  | Name of the GameObject |
 | `parent` | any |  | Scene path to the parent GameObject |
 | `pivot` | any |  |  |
 | `pos` | any |  |  |
+| `render_mode` | any |  |  |
 | `size` | any |  |  |
 | `text` | any |  |  |
 | `type` | string | ✓ | Component type name (e.g. 'Rigidbody', 'BoxCollider') |
 
 <details>
-<summary>12 quality issues</summary>
+<summary>15 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
@@ -2332,6 +2434,9 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Aut
 - **info**: Parameter 'color' has no description.
 - **warning**: Parameter 'text' has no description.
 - **info**: Parameter 'font_size' has no description.
+- **info**: Parameter 'render_mode' has no description.
+- **info**: Parameter 'font_min' has no description.
+- **info**: Parameter 'font_max' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -2456,6 +2561,42 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Aut
       ],
       "default": null,
       "title": "Font Size"
+    },
+    "render_mode": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Render Mode"
+    },
+    "font_min": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Font Min"
+    },
+    "font_max": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Font Max"
     }
   },
   "required": [
@@ -4436,6 +4577,126 @@ Get components for multiple objects at once. paths: comma-separated. components:
 
 ---
 
+### `inspect_uitk`
+
+🟢 87/100 · Risk: 🟡 medium
+
+Inspect the VisualElement tree of a UIDocument panel     (UI Toolkit only — use `get_component` for UIDocument component fields,     use `get_hierarchy` for the scene GameObject tree,     use `create_ui` for uGUI Canvas elements).     Returns compact text tree with ~N refids; pass ~N to uitk_element as selector.     path: scene path to UIDocument GameObject (e.g. /HUD), or 'scene' to list all.     depth: max traversal depth (default 4; use selector to focus a subtree).     selector: start tree from first matching element (name, .class, TypeName, ~refid).     filter: show only elements whose name or classes contain this substring.     show_unity_private: show #unity-* prefixed elements normally hidden by default.     show_style: include non-default computed style values per element.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `depth` | any |  | Maximum hierarchy depth to traverse |
+| `filter` | any |  | Substring filter to narrow results |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
+| `selector` | any |  |  |
+| `show_style` | any |  |  |
+| `show_unity_private` | any |  |  |
+
+<details>
+<summary>5 quality issues</summary>
+
+- **warning**: Object schema has properties but no required list.
+- **info**: Parameter 'selector' has no description.
+- **info**: Parameter 'show_unity_private' has no description.
+- **info**: Parameter 'show_style' has no description.
+- **warning**: outputSchema is missing.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
+    },
+    "depth": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Depth",
+      "description": "Maximum hierarchy depth to traverse"
+    },
+    "selector": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selector"
+    },
+    "filter": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Filter",
+      "description": "Substring filter to narrow results"
+    },
+    "show_unity_private": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Show Unity Private"
+    },
+    "show_style": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Show Style"
+    }
+  },
+  "title": "inspect_uitkArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
 ### `invoke_method`
 
 🟢 83/100 · Risk: 🟡 medium
@@ -4701,6 +4962,124 @@ Read-only linter for scene references in DSL scripts or batch commands.     path
 
 ---
 
+### `lint_ugui`
+
+🟢 90/100 · Risk: 🟡 medium
+
+Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken.     Returns compact text: 'ok: 0 issues' or newline-separated warnings.     root: scene path to root GameObject to scan (default: scan all loaded scenes).
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `root` | any |  | Scene path to scope the tree (omit = whole scene) |
+
+<details>
+<summary>2 quality issues</summary>
+
+- **warning**: Object schema has properties but no required list.
+- **warning**: outputSchema is missing.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "root": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Root",
+      "description": "Scene path to scope the tree (omit = whole scene)"
+    }
+  },
+  "title": "lint_uguiArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
+### `lint_uitk`
+
+🔴 49/100 · Risk: 🔴 high
+
+Validate a UXML or USS file for structural errors and broken references     (use `get_compile_errors` for C# compile errors,     use `verify_after_change` for multi-gate scene verification after mutations).     Checks: well-formed XML (UXML), broken <Style src> refs, missing <Template src> deps,     CamelCase class names (use kebab-case), star selectors, duplicate CSS variables.     fix: auto-remove unsupported CSS properties and normalize format.     path: Assets/ path to UXML or USS file.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `fix` | any |  |  |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
+
+<details>
+<summary>7 quality issues</summary>
+
+- **error**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
+- **warning**: Object schema has properties but no required list.
+- **info**: Parameter 'fix' has no description.
+- **warning**: outputSchema is missing.
+- **error**: Tool appears to have side effects but is annotated as read-only.
+- **warning**: Tool appears destructive but lacks destructiveHint=true.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
+    },
+    "fix": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fix"
+    }
+  },
+  "title": "lint_uitkArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
 ### `list_connections`
 
 🟢 95/100 · Risk: 🟢 low
@@ -4711,6 +5090,68 @@ List Unity connection status.
 <summary>1 quality issues</summary>
 
 - **warning**: outputSchema is missing.
+
+</details>
+
+---
+
+### `list_events`
+
+🟢 86/100 · Risk: 🟡 medium
+
+Read persistent listeners on a UnityEvent field. Use after wire_event to verify.     Returns listener details: target path, method name, call state, arg type/value.     event: serialized field name — same as wire_event 'event' param (e.g. 'onClick').
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `component` | string | ✓ | Component type name on the target object |
+| `event` | string | ✓ |  |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
+
+<details>
+<summary>6 quality issues</summary>
+
+- **info**: Free-form string parameter 'path' has no maxLength.
+- **warning**: Path-like parameter 'path' has no structural constraint.
+- **info**: Free-form string parameter 'component' has no maxLength.
+- **info**: Parameter 'event' has no description.
+- **info**: Free-form string parameter 'event' has no maxLength.
+- **warning**: outputSchema is missing.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "path": {
+      "title": "Path",
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
+    },
+    "component": {
+      "title": "Component",
+      "type": "string",
+      "description": "Component type name on the target object"
+    },
+    "event": {
+      "title": "Event",
+      "type": "string"
+    }
+  },
+  "required": [
+    "path",
+    "component",
+    "event"
+  ],
+  "title": "list_eventsArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
 
 </details>
 
@@ -8906,9 +9347,9 @@ Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new
 
 ### `set_rect`
 
-🟡 73/100 · Risk: 🟡 medium
+🟡 72/100 · Risk: 🟡 medium
 
-Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y).
+Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given).
 
 **Parameters:**
 
@@ -8920,10 +9361,11 @@ Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-
 | `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
 | `pivot` | any |  |  |
 | `pos` | any |  |  |
+| `pos3` | any |  |  |
 | `size` | any |  |  |
 
 <details>
-<summary>11 quality issues</summary>
+<summary>12 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
@@ -8935,6 +9377,7 @@ Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-
 - **info**: Parameter 'pivot' has no description.
 - **info**: Parameter 'offset_min' has no description.
 - **info**: Parameter 'offset_max' has no description.
+- **info**: Parameter 'pos3' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -9021,6 +9464,18 @@ Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-
       ],
       "default": null,
       "title": "Offset Max"
+    },
+    "pos3": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pos3"
     }
   },
   "required": [
@@ -10503,6 +10958,458 @@ Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.      template: 
 
 ---
 
+### `uitk_element`
+
+🟢 80/100 · Risk: 🔴 high
+
+Mutate or query a VisualElement in a UIDocument     (use inspect_uitk to find elements first, then pass ~N ref for zero-token addressing;     use set_property for serialized component fields on the UIDocument GameObject;     use create_ui for uGUI Canvas elements).     action: query (find elements) | get (read value/text) | set_style | add_class | remove_class | get_style | enable | disable.     Element addressing priority: ref (~N from inspect_uitk) → name → selector (CSS class/type).     path: scene path to UIDocument GameObject (e.g. /HUD).     ref: ~N refid from inspect_uitk (highest priority, stale after re-inspect or domain reload).     selector: CSS selector — .class-name, TypeName, or element name.     name: element name (equivalent to bare name in selector).     value: value to write (for set_style/add_class).     property: CSS property name for set_style/get_style.     class_name: USS class name for add_class/remove_class (no leading dot).     warn: set_style/add_class/remove_class/enable/disable in Play Mode — change not persisted.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | `query` \| `get` \| `set_style` \| `add_class` \| `remove_class` \| `get_style` \| `enable` \| `disable` | ✓ | Operation to perform — see tool docstring for allowed values |
+| `class_name` | any |  |  |
+| `name` | any |  | Name of the GameObject |
+| `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
+| `property` | any |  |  |
+| `ref` | any |  |  |
+| `selector` | any |  |  |
+| `value` | any |  | New value to set |
+
+<details>
+<summary>8 quality issues</summary>
+
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
+- **info**: Free-form string parameter 'action' has no maxLength.
+- **info**: Parameter 'ref' has no description.
+- **info**: Parameter 'selector' has no description.
+- **info**: Parameter 'property' has no description.
+- **info**: Parameter 'class_name' has no description.
+- **warning**: outputSchema is missing.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "action": {
+      "enum": [
+        "query",
+        "get",
+        "set_style",
+        "add_class",
+        "remove_class",
+        "get_style",
+        "enable",
+        "disable"
+      ],
+      "title": "Action",
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Path",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
+    },
+    "ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ref"
+    },
+    "selector": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selector"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name",
+      "description": "Name of the GameObject"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Value",
+      "description": "New value to set"
+    },
+    "property": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Property"
+    },
+    "class_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Class Name"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "title": "uitk_elementArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
+### `uitk_file`
+
+🔴 52/100 · Risk: 🔴 high
+
+Read or edit a UXML or USS asset file     (UI Toolkit only — use `asset` for other Unity asset types,     use `inspect_uitk` to inspect the live VisualElement tree at runtime,     use `attach_uitk` to wire a UIDocument to a GameObject).     action=read: compact normalized text (one element/rule per line, defaults stripped).     action=write: full file replace; validates and triggers AssetDatabase.ImportAsset.     action=create_uxml: new UXML file with minimal template; content optional.     action=create_uss: new empty USS file; content optional.     action=set-attr: set attribute on UXML element by name (selector=name, attr=attr, value=val).     action=add-class|remove-class: manage USS class on UXML element by name.     action=add-element: append child (parent=name, tag=ui:Label, attrs='k=v ...').     action=remove-element: delete UXML element and children by name.     action=set-rule: set CSS property in USS rule; creates rule if selector absent.     action=remove-rule: delete USS rule block by exact selector string.     action=revert: restore file to state before last write (single-level, cleared on domain reload).     path: Assets/ path to .uxml or .uss file. Library/ and Packages/ are rejected.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | `read` \| `write` \| `create_uxml` \| `create_uss` \| `set-attr` \| `add-class` \| `remove-class` \| `add-element` \| `remove-element` \| `set-rule` \| `remove-rule` \| `revert` |  | Operation to perform — see tool docstring for allowed values (default: `read`) |
+| `attr` | any |  |  |
+| `attrs` | any |  |  |
+| `cls` | any |  |  |
+| `content` | any |  |  |
+| `parent` | any |  | Scene path to the parent GameObject |
+| `path` | string | ✓ | Scene path to target GameObject (e.g. /Parent/Child) |
+| `prop` | any |  | Property name as shown in Inspector (e.g. 'mass', 'localPosition.x') |
+| `selector` | any |  |  |
+| `tag` | any |  |  |
+| `value` | any |  | New value to set |
+
+<details>
+<summary>14 quality issues</summary>
+
+- **warning**: Tool description is very long and may increase context cost or hide important constraints.
+- **error**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
+- **info**: Free-form string parameter 'path' has no maxLength.
+- **warning**: Path-like parameter 'path' has no structural constraint.
+- **info**: Free-form string parameter 'action' has no maxLength.
+- **info**: Parameter 'content' has no description.
+- **info**: Parameter 'selector' has no description.
+- **info**: Parameter 'attr' has no description.
+- **info**: Parameter 'cls' has no description.
+- **info**: Parameter 'tag' has no description.
+- **info**: Parameter 'attrs' has no description.
+- **warning**: outputSchema is missing.
+- **warning**: Tool appears destructive but lacks destructiveHint=true.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "path": {
+      "title": "Path",
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
+    },
+    "action": {
+      "default": "read",
+      "enum": [
+        "read",
+        "write",
+        "create_uxml",
+        "create_uss",
+        "set-attr",
+        "add-class",
+        "remove-class",
+        "add-element",
+        "remove-element",
+        "set-rule",
+        "remove-rule",
+        "revert"
+      ],
+      "title": "Action",
+      "type": "string",
+      "description": "Operation to perform \u2014 see tool docstring for allowed values"
+    },
+    "content": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Content"
+    },
+    "selector": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selector"
+    },
+    "attr": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Attr"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Value",
+      "description": "New value to set"
+    },
+    "cls": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cls"
+    },
+    "parent": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent",
+      "description": "Scene path to the parent GameObject"
+    },
+    "tag": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tag"
+    },
+    "attrs": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Attrs"
+    },
+    "prop": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prop",
+      "description": "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
+    }
+  },
+  "required": [
+    "path"
+  ],
+  "title": "uitk_fileArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
+### `uitk_intent`
+
+🟡 64/100 · Risk: 🔴 high
+
+Generate a UXML + USS file pair from a natural-language UI description.     Use for UI Toolkit file authoring (not scene mutation — for uGUI use ui_intent).     template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely.     name: base filename (e.g. "InventoryPanel" → InventoryPanel.uxml + .uss).     path: output folder, default "Assets/UI".     attach_to: scene path to UIDocument GameObject to wire after creation.     dry_run: return UXML+USS text without writing files.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `attach_to` | any |  |  |
+| `dry_run` | boolean |  | Preview changes without applying them (default: `False`) |
+| `intent` | string | ✓ |  |
+| `name` | string | ✓ | Name of the GameObject |
+| `path` | string |  | Scene path to target GameObject (e.g. /Parent/Child) (default: `Assets/UI`) |
+| `template` | any |  |  |
+
+<details>
+<summary>10 quality issues</summary>
+
+- **error**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
+- **info**: Parameter 'intent' has no description.
+- **info**: Free-form string parameter 'intent' has no maxLength.
+- **info**: Free-form string parameter 'name' has no maxLength.
+- **info**: Free-form string parameter 'path' has no maxLength.
+- **warning**: Path-like parameter 'path' has no structural constraint.
+- **info**: Parameter 'attach_to' has no description.
+- **info**: Parameter 'template' has no description.
+- **warning**: outputSchema is missing.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "intent": {
+      "title": "Intent",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string",
+      "description": "Name of the GameObject"
+    },
+    "path": {
+      "default": "Assets/UI",
+      "title": "Path",
+      "type": "string",
+      "description": "Scene path to target GameObject (e.g. /Parent/Child)"
+    },
+    "attach_to": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Attach To"
+    },
+    "template": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Template"
+    },
+    "dry_run": {
+      "default": false,
+      "title": "Dry Run",
+      "type": "boolean",
+      "description": "Preview changes without applying them"
+    }
+  },
+  "required": [
+    "intent",
+    "name"
+  ],
+  "title": "uitk_intentArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
 ### `undo_last`
 
 🟢 83/100 · Risk: 🟢 low
@@ -10685,58 +11592,6 @@ Execute a previously saved skill. params: comma-separated key=value for substitu
 
 ---
 
-### `validate_layout`
-
-🟢 83/100 · Risk: 🟡 medium
-
-Check trigger overlaps. Warns if triggers closer than min_distance meters.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `min_distance` | number |  |  (default: `3.0`) |
-| `root` | string |  | Scene path to scope the tree (omit = whole scene) (default: `/`) |
-
-<details>
-<summary>5 quality issues</summary>
-
-- **warning**: Object schema has properties but no required list.
-- **info**: Free-form string parameter 'root' has no maxLength.
-- **info**: Parameter 'min_distance' has no description.
-- **warning**: Numeric parameter 'min_distance' has no bounds.
-- **warning**: outputSchema is missing.
-
-</details>
-
-<details>
-<summary>JSON Schema</summary>
-
-```json
-{
-  "properties": {
-    "root": {
-      "default": "/",
-      "title": "Root",
-      "type": "string",
-      "description": "Scene path to scope the tree (omit = whole scene)"
-    },
-    "min_distance": {
-      "default": 3.0,
-      "title": "Min Distance",
-      "type": "number"
-    }
-  },
-  "title": "validate_layoutArguments",
-  "type": "object",
-  "additionalProperties": false
-}
-```
-
-</details>
-
----
-
 ### `validate_playtest_aliases`
 
 🟢 86/100 · Risk: 🟡 medium
@@ -10848,6 +11703,58 @@ Validate all ObjectReference fields under path recursively.     Returns [ERROR]/
     "path"
   ],
   "title": "validate_referencesArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
+### `validate_triggers`
+
+🟢 83/100 · Risk: 🟡 medium
+
+Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `min_distance` | number |  |  (default: `3.0`) |
+| `root` | string |  | Scene path to scope the tree (omit = whole scene) (default: `/`) |
+
+<details>
+<summary>5 quality issues</summary>
+
+- **warning**: Object schema has properties but no required list.
+- **info**: Free-form string parameter 'root' has no maxLength.
+- **info**: Parameter 'min_distance' has no description.
+- **warning**: Numeric parameter 'min_distance' has no bounds.
+- **warning**: outputSchema is missing.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "root": {
+      "default": "/",
+      "title": "Root",
+      "type": "string",
+      "description": "Scene path to scope the tree (omit = whole scene)"
+    },
+    "min_distance": {
+      "default": 3.0,
+      "title": "Min Distance",
+      "type": "number"
+    }
+  },
+  "title": "validate_triggersArguments",
   "type": "object",
   "additionalProperties": false
 }
