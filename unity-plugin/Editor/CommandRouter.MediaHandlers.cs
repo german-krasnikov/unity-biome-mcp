@@ -6,6 +6,11 @@ namespace UnityMCP.Editor
     // scene/ui/editor/menu/references) split from CommandRouter.cs for <200-line focus.
     public static partial class CommandRouter
     {
+        // Shared UIElementSerializer instance — holds VERefTable across Exec* calls.
+        // ResetRefTable() is called at the start of every Serialize() invocation (Session 3),
+        // and later also explicitly from ExecInspectUITK (Session 5, invariant §8.2).
+        private static UIElementSerializer _serializer = new UIElementSerializer();
+
         private static float? ParseOptFloat(string args, string key)
         {
             var s = JsonHelper.ExtractString(args, key);
