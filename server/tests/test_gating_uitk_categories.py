@@ -40,9 +40,8 @@ def test_discover_ui_returns_both():
 
 
 def test_discover_single_category_token_budget():
-    """Single category response <= 2000 chars."""
+    """Single category has <= 50 tools (token budget guard)."""
     from unity_mcp.tools.gating import CATEGORIES
     for cat in ("ugui", "uitoolkit"):
         tools = CATEGORIES.get(cat, set())
-        response = f"Category '{cat}': {', '.join(sorted(tools))}"
-        assert len(response) <= 2000, f"'{cat}' response too large: {len(response)} chars"
+        assert len(tools) <= 50, f"Category {cat} has {len(tools)} tools — token budget risk"

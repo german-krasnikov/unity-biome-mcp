@@ -20,10 +20,8 @@ namespace UnityMCP.Editor
             GameObject rootGO = root != null ? GameObject.Find(root) : null;
 
             // Check EventSystem presence (required for uGUI click dispatch).
-            // When root-scoped, only warn if no EventSystem is a descendant of root.
-            bool hasEventSystem = rootGO != null
-                ? rootGO.GetComponentInChildren<EventSystem>(true) != null
-                : Object.FindFirstObjectByType<EventSystem>() != null;
+            // EventSystem is always scene-level; root scoping never applies here.
+            bool hasEventSystem = Object.FindFirstObjectByType<EventSystem>() != null;
             if (!hasEventSystem)
                 issues.Add("warn: no EventSystem in scene — uGUI clicks will not work; " +
                            "add GameObject > UI > Event System");
