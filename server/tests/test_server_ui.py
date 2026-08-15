@@ -73,6 +73,22 @@ async def test_set_rect_none_args_omitted(mock_bridge):
     assert "offset_min" not in args
 
 
+async def test_set_rect_pos3_forwarded(mock_bridge):
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "rect:/WsCanvas/WsImg updated"})
+    await set_rect(path="/WsCanvas/WsImg", pos3="(10,20,5)")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["pos3"] == "(10,20,5)"
+    assert "pos" not in args
+
+
+async def test_create_ui_font_min_max_forwarded(mock_bridge):
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Created /Canvas/Label"})
+    await create_ui(type="Text", name="Label", parent="/Canvas", font_min="10", font_max="36")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["font_min"] == "10"
+    assert args["font_max"] == "36"
+
+
 async def test_set_material_success(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Material set: /Cube #FF0000"})
     result = await set_material(path="/Cube", color="#FF0000")

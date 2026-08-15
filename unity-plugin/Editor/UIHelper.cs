@@ -33,7 +33,8 @@ namespace UnityMCP.Editor
 
         public static string CreateUI(string type, string name, string parent,
             string anchor, string pos, string size, string pivot,
-            string color, string text, string font_size, string render_mode = null)
+            string color, string text, string font_size, string render_mode = null,
+            string font_min = null, string font_max = null)
         {
             if (string.IsNullOrEmpty(type))
                 throw new ArgumentException("type is required");
@@ -45,7 +46,7 @@ namespace UnityMCP.Editor
                 case "canvas":  return CreateCanvas(name, render_mode);
                 case "panel":   return CreateElement(name, parent, anchor ?? "stretch", pos, size, pivot, color, "Image");
                 case "button":  return CreateButton(name, parent, anchor ?? "center", pos, size ?? "(160,30)", pivot, color, text, font_size);
-                case "text":    return CreateText(name, parent, anchor ?? "center", pos, size ?? "(200,50)", pivot, color, text, font_size);
+                case "text":    return CreateText(name, parent, anchor ?? "center", pos, size ?? "(200,50)", pivot, color, text, font_size, font_min, font_max);
                 case "image":       return CreateImage(name, parent, anchor ?? "center", pos, size ?? "(100,100)", pivot, color);
                 case "toggle":      return CreateToggle(name, parent, anchor ?? "center", pos, size ?? "(160,30)", pivot, color, text, font_size);
                 case "slider":      return CreateSlider(name, parent, anchor ?? "center", pos, size ?? "(160,20)", pivot, color);
@@ -57,7 +58,7 @@ namespace UnityMCP.Editor
         }
 
         public static string SetRect(string path, string anchor, string pos, string size,
-            string pivot, string offset_min, string offset_max)
+            string pivot, string offset_min, string offset_max, string pos3 = null)
         {
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("path is required");
@@ -71,7 +72,7 @@ namespace UnityMCP.Editor
                 throw new ArgumentException($"No RectTransform on '{path}'. Use create_ui to create UI elements.");
 
             Undo.RecordObject(rt, "SetRect");
-            ApplyRect(rt, anchor, pos, size, pivot, offset_min, offset_max);
+            ApplyRect(rt, anchor, pos, size, pivot, offset_min, offset_max, pos3);
             return $"rect:{path} updated";
         }
 
@@ -155,7 +156,8 @@ namespace UnityMCP.Editor
         }
 
         private static string CreateText(string name, string parent, string anchor,
-            string pos, string size, string pivot, string color, string text, string font_size)
+            string pos, string size, string pivot, string color, string text, string font_size,
+            string font_min = null, string font_max = null)
         {
             var parentGo = ResolveParent(parent);
             var created = new List<GameObject>();
@@ -168,7 +170,7 @@ namespace UnityMCP.Editor
                 var rt = go.GetComponent<RectTransform>();
                 ApplyRect(rt, anchor, pos, size, pivot, null, null);
 
-                AddTextComponent(go, text ?? name, font_size, color);
+                AddTextComponent(go, text ?? name, font_size, color, font_min, font_max);
 
                 Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
                 return FormatCreated(go);
@@ -431,7 +433,8 @@ namespace UnityMCP.Editor
             Undo.RegisterCreatedObjectUndo(es, "Create EventSystem");
         }
 
-        private static void AddTextComponent(GameObject go, string text, string font_size, string color)
+        private static void AddTextComponent(GameObject go, string text, string font_size, string color,
+            string font_min = null, string font_max = null)
         {
             // Try TMPro first
             var tmpType = FindTMPTextType();
@@ -441,7 +444,7 @@ namespace UnityMCP.Editor
                 try
                 {
                     comp = Undo.AddComponent(go, tmpType);
-                    SetTMPText(comp, text, font_size, color);
+                    SetTMPText(comp, text, font_size, color, font_min, font_max);
                     return;
                 }
                 catch
@@ -450,7 +453,7 @@ namespace UnityMCP.Editor
                         UnityEngine.Object.DestroyImmediate(comp);
                 }
             }
-            // Fallback to legacy Text
+            // Fallback to legacy Text (font_min/font_max ignored — legacy Text has no autoSize)
             var t = Undo.AddComponent<Text>(go);
             t.text = text ?? "";
             t.alignment = TextAnchor.MiddleCenter;
@@ -471,7 +474,8 @@ namespace UnityMCP.Editor
             return null;
         }
 
-        private static void SetTMPText(Component comp, string text, string font_size, string color)
+        private static void SetTMPText(Component comp, string text, string font_size, string color,
+            string font_min = null, string font_max = null)
         {
             var type = comp.GetType();
             EnsureTMPFont(comp, type);
@@ -482,6 +486,17 @@ namespace UnityMCP.Editor
                 TrySetProp(comp, type, "fontSize", (float)fs);
             if (!string.IsNullOrEmpty(color))
                 TrySetProp(comp, type, "color", ValueParser.ParseColor(color));
+            // G9: TMP autoSize — activate when either bound is given
+            if (!string.IsNullOrEmpty(font_min) || !string.IsNullOrEmpty(font_max))
+            {
+                TrySetProp(comp, type, "enableAutoSizing", true);
+                if (!string.IsNullOrEmpty(font_min) &&
+                    float.TryParse(font_min, NumberStyles.Float, CultureInfo.InvariantCulture, out var fMin))
+                    TrySetProp(comp, type, "fontSizeMin", fMin);
+                if (!string.IsNullOrEmpty(font_max) &&
+                    float.TryParse(font_max, NumberStyles.Float, CultureInfo.InvariantCulture, out var fMax))
+                    TrySetProp(comp, type, "fontSizeMax", fMax);
+            }
         }
 
         private static void TrySetProp(Component comp, System.Type type, string name, object value)
@@ -516,7 +531,7 @@ namespace UnityMCP.Editor
         }
 
         private static void ApplyRect(RectTransform rt, string anchor, string pos, string size,
-            string pivot, string offset_min, string offset_max)
+            string pivot, string offset_min, string offset_max, string pos3 = null)
         {
             if (!string.IsNullOrEmpty(anchor))
             {
@@ -537,6 +552,9 @@ namespace UnityMCP.Editor
                 rt.offsetMin = ValueParser.ParseVector2(offset_min);
             if (!string.IsNullOrEmpty(offset_max))
                 rt.offsetMax = ValueParser.ParseVector2(offset_max);
+            // G8: pos3 wins over pos — sets full Vector3 for WorldSpace canvases
+            if (!string.IsNullOrEmpty(pos3))
+                rt.anchoredPosition3D = ValueParser.ParseVector3(pos3);
         }
 
         private static string FormatCreated(GameObject go)

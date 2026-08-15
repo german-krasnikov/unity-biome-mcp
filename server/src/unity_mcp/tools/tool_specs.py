@@ -191,7 +191,7 @@ _SPECS: dict[str, ToolSpec] = {
     'undo_last': ToolSpec(category='SYSTEM'),
     'unwire_event': ToolSpec(category='COMPONENTS'),
     'use_skill': ToolSpec(category='SYSTEM', direct_only=True),
-    'validate_layout': ToolSpec(category='MEDIA', mutability='read'),
+    'validate_triggers': ToolSpec(category='SCENE', mutability='read'),
     'validate_playtest_aliases': ToolSpec(category='TESTS', mutability='read'),
     'validate_references': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
     'verify_after_change': ToolSpec(category='VERIFY', tier1=True, timeout_s=600.0, mutability='read', direct_only=True),

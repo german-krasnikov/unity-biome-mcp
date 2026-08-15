@@ -66,7 +66,7 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "setup_objects", "shader", "smart_build", "snapshot", "spatial_query",
     "sync_playtest_aliases_from_defs",
     "sync_unity", "test_step", "timeline", "transfer_object", "ui_intent",
-    "undo_last", "unwire_event", "use_skill", "validate_layout",
+    "undo_last", "unwire_event", "use_skill", "validate_triggers",
     "validate_playtest_aliases", "validate_references", "verify_after_change", "vfx_intent",
     "wait_until", "watch", "wire_event",
 })
@@ -81,7 +81,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
         "region_clear", "rename_object", "scene_change_plan", "scene_diff",
         "scene_environment", "set_active", "set_material", "set_properties",
         "set_property_delta", "set_sibling_index", "setup_objects", "spatial_query",
-        "transfer_object",
+        "transfer_object", "validate_triggers",
     },
     "COMPONENTS": {"auto_wire", "references", "unwire_event", "wire_event"},
     "ASSETS": {"asset", "bake", "material", "material_audit", "prefab", "project_settings",
@@ -89,7 +89,7 @@ _THEMED_CATEGORIES_SNAPSHOT = {
     "MEDIA": {
         "analyze_lod_culling", "animation", "animator", "particle",
         "render_analyze", "screenshot", "screenshot_baseline", "screenshot_compare",
-        "timeline", "validate_layout", "vfx_intent",
+        "timeline", "vfx_intent",
     },
     "UGUI": {"create_ui", "lint_ugui", "set_rect", "ui_intent"},
     "UITOOLKIT": {"attach_uitk", "inspect_uitk", "lint_uitk", "uitk_element", "uitk_file"},
@@ -127,8 +127,8 @@ _THEMED_CATEGORIES_SNAPSHOT = {
 _CATEGORY_SIZES_SNAPSHOT = {
     # Phase 1a: object grows +4 (delete_object/set_parent/scene/search_scene added to SCENE)
     # Session 2: animation/rendering shrunk (UGUI/UITOOLKIT split from MEDIA); ui now UGUI+UITOOLKIT
-    "advanced": 34, "animation": 11, "asset": 7, "connection": 34, "debug": 17,
-    "object": 29, "perf": 17, "plugins": 34, "profiling": 17, "rendering": 11,
+    "advanced": 34, "animation": 10, "asset": 7, "connection": 34, "debug": 17,
+    "object": 29, "perf": 17, "plugins": 34, "profiling": 17, "rendering": 10,
     "runtime": 30, "session": 34, "ui": 6,
     "ugui": 4, "uitoolkit": 2,
 }

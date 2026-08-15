@@ -7,9 +7,9 @@ _send = None
 _args = None
 
 
-async def validate_layout(root: str = "/", min_distance: float = 3.0) -> str:
-    """Check trigger overlaps. Warns if triggers closer than min_distance meters."""
-    return await _send("validate_layout", _args(root=root, min_distance=str(min_distance)))
+async def validate_triggers(root: str = "/", min_distance: float = 3.0) -> str:
+    """Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."""
+    return await _send("validate_triggers", _args(root=root, min_distance=str(min_distance)))
 
 
 async def get_spatial_context(path: str, radius: float = 5.0) -> str:
@@ -141,7 +141,7 @@ async def analyze_lod_culling(focus: str | None = None) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(validate_layout)
+    mcp.tool(annotations=_RO)(validate_triggers)
     mcp.tool(annotations=_RO)(get_spatial_context)
     mcp.tool(annotations=_RO)(scan_scene)
     mcp.tool(annotations=_RO)(check_colliders)

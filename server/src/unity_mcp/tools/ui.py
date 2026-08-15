@@ -20,11 +20,14 @@ async def create_ui(
     text: str | None = None,
     font_size: str | None = None,
     render_mode: str | None = None,
+    font_min: str | None = None,
+    font_max: str | None = None,
 ) -> str:
-    """Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace."""
+    """Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type."""
     return await _send("create_ui", _args(type=type, name=name, parent=parent, anchor=anchor,
                                           pos=pos, size=size, pivot=pivot, color=color,
-                                          text=text, font_size=font_size, render_mode=render_mode))
+                                          text=text, font_size=font_size, render_mode=render_mode,
+                                          font_min=font_min, font_max=font_max))
 
 
 async def set_rect(
@@ -35,10 +38,12 @@ async def set_rect(
     pivot: str | None = None,
     offset_min: str | None = None,
     offset_max: str | None = None,
+    pos3: str | None = None,
 ) -> str:
-    """Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y)."""
+    """Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given)."""
     return await _send("set_rect", _args(path=path, anchor=anchor, pos=pos, size=size,
-                                         pivot=pivot, offset_min=offset_min, offset_max=offset_max))
+                                         pivot=pivot, offset_min=offset_min, offset_max=offset_max,
+                                         pos3=pos3))
 
 
 async def menu(action: str, path: str | None = None) -> str:

@@ -35,10 +35,10 @@ namespace UnityMCP.Editor
             new Dictionary<string, string[]>
             {
                 { "CORE",       new[] { "batch","create_object","editor","get_compile_errors","get_component","get_console","get_hierarchy","inspect","manage_component","set_property" } },
-                { "SCENE",      new[] { "apply_scene_change","autofit_collider","check_colliders","delete_object","find_objects","get_components_list","get_object_detail","get_selection","get_spatial_context","navmesh_query","object_diff","ping_object","region_clear","rename_object","scene","scene_change_plan","scene_diff","scene_environment","search_scene","set_active","set_material","set_parent","set_properties","set_property_delta","set_sibling_index","spatial_query","transfer_object" } },
+                { "SCENE",      new[] { "apply_scene_change","autofit_collider","check_colliders","delete_object","find_objects","get_components_list","get_object_detail","get_selection","get_spatial_context","navmesh_query","object_diff","ping_object","region_clear","rename_object","scene","scene_change_plan","scene_diff","scene_environment","search_scene","set_active","set_material","set_parent","set_properties","set_property_delta","set_sibling_index","spatial_query","transfer_object","validate_triggers" } },
                 { "COMPONENTS", new[] { "auto_wire","references","unwire_event","wire_event" } },
                 { "ASSETS",     new[] { "asset","material","material_audit","prefab","project_settings","scriptable_object","shader" } },
-                { "MEDIA",      new[] { "analyze_lod_culling","animation","animator","particle","render_analyze","screenshot","screenshot_baseline","screenshot_compare","timeline","validate_layout","vfx_intent" } },
+                { "MEDIA",      new[] { "analyze_lod_culling","animation","animator","particle","render_analyze","screenshot","screenshot_baseline","screenshot_compare","timeline","vfx_intent" } },
                 { "UGUI",       new[] { "create_ui","lint_ugui","set_rect","ui_intent" } },
                 { "UITOOLKIT",  new[] { "attach_uitk","inspect_uitk","lint_uitk","uitk_element","uitk_file","uitk_intent" } },
                 { "VERIFY",     new[] { "compile_preflight","diagnose","lint_scene_refs","resolve_scene_refs","scan_scene","scene_health","validate_references" } },

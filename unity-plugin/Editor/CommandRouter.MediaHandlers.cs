@@ -241,7 +241,9 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "color"),
                 JsonHelper.ExtractString(args, "text"),
                 JsonHelper.ExtractString(args, "font_size"),
-                JsonHelper.ExtractString(args, "render_mode"));
+                JsonHelper.ExtractString(args, "render_mode"),
+                JsonHelper.ExtractString(args, "font_min"),   // G9: TMP autoSize min
+                JsonHelper.ExtractString(args, "font_max"));  // G9: TMP autoSize max
         }
 
         // G2: Lint uGUI — check EventSystem presence and GraphicRaycaster on Canvas.
@@ -263,7 +265,8 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "size"),
                 JsonHelper.ExtractString(args, "pivot"),
                 JsonHelper.ExtractString(args, "offset_min"),
-                JsonHelper.ExtractString(args, "offset_max"));
+                JsonHelper.ExtractString(args, "offset_max"),
+                JsonHelper.ExtractString(args, "pos3"));  // G8: anchoredPosition3D
         }
 
         private static string ExecInspectUITK(string args) =>

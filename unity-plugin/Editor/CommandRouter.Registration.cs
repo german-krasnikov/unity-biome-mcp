@@ -276,7 +276,7 @@ namespace UnityMCP.Editor
                 UndoGroupHelper.RevertToBeforeGroup(groupId);
                 return "ok";
             }, required: "group_id,domain_stamp", optional: "");
-            CommandRegistry.Register("validate_layout", args => LayoutValidator.Validate(
+            CommandRegistry.Register("validate_triggers", args => LayoutValidator.Validate(
                 JsonHelper.ExtractString(args, "root") ?? "/",
                 float.TryParse(JsonHelper.ExtractString(args, "min_distance") ?? "3",
                     System.Globalization.NumberStyles.Float,
@@ -551,9 +551,9 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("references", ExecReferencesConsolidated, mutating: true,
                 required: "action", optional: "path,children,depth,source,target,mappings");
             CommandRegistry.Register("create_ui", ExecCreateUI, mutating: true,
-                required: "type", optional: "name,parent,anchor,pos,size,pivot,color,text,font_size,render_mode");
+                required: "type", optional: "name,parent,anchor,pos,size,pivot,color,text,font_size,render_mode,font_min,font_max");
             CommandRegistry.Register("set_rect", ExecSetRect, mutating: true,
-                required: "path", optional: "anchor,pos,size,pivot,offset_min,offset_max");
+                required: "path", optional: "anchor,pos,size,pivot,offset_min,offset_max,pos3");
             CommandRegistry.Register("lint_ugui", ExecLintUGUI, mutating: false,
                 required: "", optional: "root");
             CommandRegistry.Register("lint_uitk", ExecLintUITK, mutating: false,

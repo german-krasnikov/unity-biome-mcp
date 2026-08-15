@@ -266,7 +266,7 @@ from .tools.spatial import (  # noqa: F401
     get_spatial_context,
     scan_scene,
     spatial_query,
-    validate_layout,
+    validate_triggers,
 )
 from .tools.testing import get_test_results, run_tests  # noqa: F401
 from .tools.ui import create_ui, lint_ugui, menu, set_rect, shader  # noqa: F401
