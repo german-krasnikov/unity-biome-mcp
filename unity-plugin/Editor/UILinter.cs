@@ -117,6 +117,9 @@ namespace UnityMCP.Editor
         // USS checks: A5 (duplicate selectors), A6 (empty rules).
         private static void LintUssContent(string text, List<string> issues)
         {
+            // Strip CSS block comments so selectors inside comments are not matched.
+            text = Regex.Replace(text, @"/\*.*?\*/", "", RegexOptions.Singleline);
+
             // A5: find duplicate selectors.
             // Match selector blocks: "selector { ... }" — simplified: capture text before {.
             var selectorPattern = new Regex(@"([^{}]+?)\s*\{", RegexOptions.Multiline);

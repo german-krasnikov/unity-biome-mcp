@@ -1,7 +1,7 @@
 // TDD — RED: these tests fail until UILinter.LintUITK is implemented.
 using System.IO;
-using System.Threading.Tasks;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 using UnityMCP.Editor.Testing;
 
@@ -19,6 +19,13 @@ namespace UnityMCP.Editor.Tests
             Directory.CreateDirectory(_tempDir);
         }
 
+        [TearDown]
+        public void TearDownTempDir()
+        {
+            if (AssetDatabase.IsValidFolder("Assets/TestsTemp/UIToolkitLinter"))
+                AssetDatabase.DeleteAsset("Assets/TestsTemp/UIToolkitLinter");
+        }
+
         // Write a temp file and track it for cleanup.
         private string WriteTempFile(string name, string content)
         {
@@ -31,7 +38,7 @@ namespace UnityMCP.Editor.Tests
         // ── A1: well-formed XML ──────────────────────────────────────────────
 
         [Test]
-        public async Task LintUITK_ValidUxml_ReturnsZeroIssues()
+        public void LintUITK_ValidUxml_ReturnsZeroIssues()
         {
             const string uxml =
                 "<ui:UXML xmlns:ui=\"UnityEngine.UIElements\">" +
@@ -44,7 +51,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public async Task LintUITK_MalformedXml_ReportsA1()
+        public void LintUITK_MalformedXml_ReportsA1()
         {
             string path = WriteTempFile("malformed.uxml", "<ui:UXML><unclosed>");
             string result = UILinter.LintUITK(path, false);
@@ -55,7 +62,7 @@ namespace UnityMCP.Editor.Tests
         // ── A2: broken <Style src> ───────────────────────────────────────────
 
         [Test]
-        public async Task LintUITK_BrokenStyleSrc_ReportsA2()
+        public void LintUITK_BrokenStyleSrc_ReportsA2()
         {
             const string uxml =
                 "<ui:UXML xmlns:ui=\"UnityEngine.UIElements\">" +
@@ -71,7 +78,7 @@ namespace UnityMCP.Editor.Tests
         // ── A3: missing <Template src> ───────────────────────────────────────
 
         [Test]
-        public async Task LintUITK_MissingTemplateSrc_ReportsA3()
+        public void LintUITK_MissingTemplateSrc_ReportsA3()
         {
             const string uxml =
                 "<ui:UXML xmlns:ui=\"UnityEngine.UIElements\">" +
@@ -87,7 +94,7 @@ namespace UnityMCP.Editor.Tests
         // ── A4: unnamed interactive elements ─────────────────────────────────
 
         [Test]
-        public async Task LintUITK_UnnamedButton_ReportsA4()
+        public void LintUITK_UnnamedButton_ReportsA4()
         {
             const string uxml =
                 "<ui:UXML xmlns:ui=\"UnityEngine.UIElements\">" +
@@ -100,7 +107,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public async Task LintUITK_NamedButton_NoWarning()
+        public void LintUITK_NamedButton_NoWarning()
         {
             const string uxml =
                 "<ui:UXML xmlns:ui=\"UnityEngine.UIElements\">" +
@@ -115,7 +122,7 @@ namespace UnityMCP.Editor.Tests
         // ── A5: duplicate selectors in USS ───────────────────────────────────
 
         [Test]
-        public async Task LintUITK_DuplicateSelector_ReportsA5()
+        public void LintUITK_DuplicateSelector_ReportsA5()
         {
             const string uss =
                 ".btn { background-color: blue; }\n" +
@@ -130,7 +137,7 @@ namespace UnityMCP.Editor.Tests
         // ── A6: empty rules in USS ────────────────────────────────────────────
 
         [Test]
-        public async Task LintUITK_EmptyRule_ReportsA6()
+        public void LintUITK_EmptyRule_ReportsA6()
         {
             const string uss = ".empty {  }\n.ok { color: white; }\n";
             string path = WriteTempFile("empty_rule.uss", uss);
@@ -140,7 +147,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public async Task LintUITK_ValidUss_ReturnsZeroIssues()
+        public void LintUITK_ValidUss_ReturnsZeroIssues()
         {
             const string uss =
                 ".panel { background-color: black; }\n" +
@@ -154,7 +161,7 @@ namespace UnityMCP.Editor.Tests
         // ── Multiple issues ───────────────────────────────────────────────────
 
         [Test]
-        public async Task LintUITK_MultipleIssues_ReportsAll()
+        public void LintUITK_MultipleIssues_ReportsAll()
         {
             // Test A5+A6 together in a USS file (A1 malformed prevents further parsing)
             const string uss =

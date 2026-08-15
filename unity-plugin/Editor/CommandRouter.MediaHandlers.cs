@@ -257,7 +257,7 @@ namespace UnityMCP.Editor
         private static string ExecLintUITK(string args) =>
             UILinter.LintUITK(
                 JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractBool(args, "fix"));
+                JsonHelper.ExtractString(args, "fix") == "true");
 
         private static string ExecSetRect(string args)
         {
