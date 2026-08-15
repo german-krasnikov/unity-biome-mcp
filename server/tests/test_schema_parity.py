@@ -86,6 +86,8 @@ _PYTHON_ONLY = {
     "plan_create", "plan_approve", "plan_reject", "plan_edit", "plan_status",
     # T21: project brief — pure Python context aggregator, no C# handler
     "brief_build",
+    # UITOOLKIT tools — C# handlers added in Session 4
+    "inspect_uitk", "lint_uitk",
 }
 
 

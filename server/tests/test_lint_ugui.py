@@ -6,7 +6,6 @@ Tests verify:
 - root param forwarded when provided
 - root NOT forwarded when absent (None filtered by _args)
 """
-import pytest
 from unittest.mock import AsyncMock
 
 from unity_mcp.server import lint_ugui

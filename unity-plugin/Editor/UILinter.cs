@@ -16,14 +16,23 @@ namespace UnityMCP.Editor
         {
             var issues = new List<string>();
 
+            // Resolve optional root scope.
+            GameObject rootGO = root != null ? GameObject.Find(root) : null;
+
             // Check EventSystem presence (required for uGUI click dispatch).
-            if (Object.FindFirstObjectByType<EventSystem>() == null)
+            // When root-scoped, only warn if no EventSystem is a descendant of root.
+            bool hasEventSystem = rootGO != null
+                ? rootGO.GetComponentInChildren<EventSystem>(true) != null
+                : Object.FindFirstObjectByType<EventSystem>() != null;
+            if (!hasEventSystem)
                 issues.Add("warn: no EventSystem in scene — uGUI clicks will not work; " +
                            "add GameObject > UI > Event System");
 
-            // Check GraphicRaycaster on every Canvas.
-            foreach (var canvas in Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            // Check GraphicRaycaster on every Canvas within scope.
+            var canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            foreach (var canvas in canvases)
             {
+                if (rootGO != null && !canvas.transform.IsChildOf(rootGO.transform)) continue;
                 if (canvas.GetComponent<GraphicRaycaster>() == null)
                     issues.Add($"warn: Canvas '{canvas.name}' missing GraphicRaycaster — " +
                                "add it for raycast-based interaction");

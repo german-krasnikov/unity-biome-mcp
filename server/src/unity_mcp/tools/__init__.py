@@ -39,6 +39,7 @@ from . import (
     transaction,
     ui,
     ui_intent_tool,
+    uitk,
     verify,
     vfx_intent_tool,
     watch,
@@ -49,7 +50,7 @@ from .metrics_tool import register as register_metrics
 def register_all(mcp, send, args, *, get_slot, get_middleware=None,
                   refresh_tools_cache=None, push_catalog=None):
     for mod in [scene, objects, asset, animation, runtime, watch, code_intel,
-                batch, codegen, skills, spatial, ui, sync, diagnose,
+                batch, codegen, skills, spatial, ui, uitk, sync, diagnose,
                 debug_tool, diagnostics, snapshot_tool, profiling, rendering, scene_health, auto_wire, meta, build, packages,
                 console, screenshot, testing, editor_control, verify, transaction]:
         mod.register(mcp, send, args)

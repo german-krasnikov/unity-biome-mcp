@@ -563,12 +563,15 @@ def test_ui_intent_hidden_by_default():
     assert gating.filter_by_tier([_make_tool("ui_intent")]) == []
 
 
-async def test_vfx_intent_visible_after_discover_ui_category():
+async def test_lint_ugui_visible_after_discover_ui_category():
+    # "ui" now maps to UGUI + UITOOLKIT; vfx_intent is MEDIA (not in "ui")
     from unity_mcp.tools import gating
     gating.reset()
     await gating.discover_tools(category="ui")
     try:
-        assert gating.is_visible("vfx_intent")
+        assert gating.is_visible("lint_ugui")
+        assert gating.is_visible("inspect_uitk")
+        assert not gating.is_visible("vfx_intent")
     finally:
         gating.reset()
 
@@ -676,11 +679,15 @@ def test_discover_new_categories_work():
         assert cat in CATEGORIES, f"New category {cat!r} must be directly in CATEGORIES"
 
 
-def test_catalog_has_8_themed_categories():
+def test_catalog_has_10_themed_categories():
+    # Session 2: UGUI + UITOOLKIT added alongside original 8
     from unity_mcp.tools.gating import get_catalog
     cats = get_catalog()["categories"]
     themed = {k for k in cats if k != "CORE"}
-    assert themed == {"SCENE", "COMPONENTS", "ASSETS", "MEDIA", "VERIFY", "RUNTIME", "TESTS", "SYSTEM"}
+    assert themed == {
+        "SCENE", "COMPONENTS", "ASSETS", "MEDIA", "VERIFY", "RUNTIME", "TESTS", "SYSTEM",
+        "UGUI", "UITOOLKIT",
+    }
 
 
 def test_demoted_tools_are_tier1_not_core():

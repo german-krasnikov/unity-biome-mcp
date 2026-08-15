@@ -108,7 +108,7 @@ namespace UnityMCP.Editor
         }
 
         private static readonly HashSet<string> _noVisualsOff =
-            new HashSet<string> { "MEDIA" };
+            new HashSet<string> { "MEDIA", "UGUI", "UITOOLKIT" };
 
         private static void ApplyNoVisuals()
         {

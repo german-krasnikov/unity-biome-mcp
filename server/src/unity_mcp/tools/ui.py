@@ -90,8 +90,7 @@ async def shader(
 
 
 async def lint_ugui(root: str | None = None) -> str:
-    """Find uGUI problems in the scene (missing EventSystem, Canvas without GraphicRaycaster).
-    Use when create_ui elements are not receiving clicks or appear broken.
+    """Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken.
     Returns compact text: 'ok: 0 issues' or newline-separated warnings.
     root: scene path to root GameObject to scan (default: scan all loaded scenes).
     """
