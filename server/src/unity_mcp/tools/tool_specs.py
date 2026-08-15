@@ -200,6 +200,7 @@ _SPECS: dict[str, ToolSpec] = {
     'uitk_element': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=15.0),
     'attach_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=30.0),
     'uitk_file': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=30.0),
+    'uitk_intent': ToolSpec(category='UITOOLKIT', direct_only=True, timeout_s=60.0),
     'lint_ugui': ToolSpec(category='UGUI', tier1=False, mutability='read', timeout_s=15.0),
     'wait_until': ToolSpec(category='RUNTIME', runtime_only=True, mutability='read'),
     'watch': ToolSpec(category='RUNTIME', direct_only=True),

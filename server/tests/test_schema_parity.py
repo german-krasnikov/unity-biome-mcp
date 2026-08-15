@@ -63,7 +63,7 @@ _PYTHON_ONLY = {
     # Autobatch orchestrators (pure Python)
     "setup_objects", "set_properties", "configure_objects",
     # Intent tools (LLM orchestration over existing C# commands)
-    "animator_intent", "vfx_intent", "ui_intent",
+    "animator_intent", "vfx_intent", "ui_intent", "uitk_intent",
     # Code helpers (delegate to execute_code / get_console C# internally)
     "smart_build", "auto_fix",
     # Watch: Python orchestrator dispatches to watch_add/watch_remove/etc. sub-commands

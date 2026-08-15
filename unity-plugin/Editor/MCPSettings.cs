@@ -40,7 +40,7 @@ namespace UnityMCP.Editor
                 { "ASSETS",     new[] { "asset","material","material_audit","prefab","project_settings","scriptable_object","shader" } },
                 { "MEDIA",      new[] { "analyze_lod_culling","animation","animator","particle","render_analyze","screenshot","screenshot_baseline","screenshot_compare","timeline","validate_layout","vfx_intent" } },
                 { "UGUI",       new[] { "create_ui","lint_ugui","set_rect","ui_intent" } },
-                { "UITOOLKIT",  new[] { "attach_uitk","inspect_uitk","lint_uitk","uitk_element","uitk_file" } },
+                { "UITOOLKIT",  new[] { "attach_uitk","inspect_uitk","lint_uitk","uitk_element","uitk_file","uitk_intent" } },
                 { "VERIFY",     new[] { "compile_preflight","diagnose","lint_scene_refs","resolve_scene_refs","scan_scene","scene_health","validate_references" } },
                 { "RUNTIME",    new[] { "debug","debug_animator","debug_physics","get_frame_stats","get_memory","get_watches","invoke_method","move_to","profile","query_state","set_runtime_property","wait_until" } },
                 { "TESTS",      new[] { "export_playtest_aliases_to_defs","get_test_count","get_test_progress","get_test_results","lint_playtest","run_playtest","run_tests","sync_playtest_aliases_from_defs","test_step","validate_playtest_aliases" } },

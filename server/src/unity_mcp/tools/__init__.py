@@ -40,6 +40,7 @@ from . import (
     ui,
     ui_intent_tool,
     uitk,
+    uitk_intent_tool,
     verify,
     vfx_intent_tool,
     watch,
@@ -64,7 +65,7 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     ask_user_tool.register(mcp, send, args)
     permission_prompt_tool.register(mcp, send, args)
     uitk.register(mcp, send, args)
-    for mod in [animator_intent_tool, vfx_intent_tool, ui_intent_tool]:
+    for mod in [animator_intent_tool, vfx_intent_tool, ui_intent_tool, uitk_intent_tool]:
         mod.register(mcp, send, args)
     register_metrics(mcp, send, args)
     budget_tool.register(mcp, send, args)

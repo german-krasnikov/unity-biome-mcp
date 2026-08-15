@@ -27,6 +27,7 @@ FEATURES: dict[str, FeatureMeta] = {
     "animator_intent":     FeatureMeta("medium",   0.6, 800,  400, False),
     "vfx_intent":          FeatureMeta("medium",   0.6, 800,  400, False),
     "ui_intent":           FeatureMeta("medium",   0.6, 800,  400, False),
+    "uitk_intent":         FeatureMeta("medium",   0.6, 900,  500, False),
     "som_visual":          FeatureMeta("medium",   0.9, 1700, 200, True),
     "distiller":           FeatureMeta("medium",   0.5, 2000, 400, False),
 }
