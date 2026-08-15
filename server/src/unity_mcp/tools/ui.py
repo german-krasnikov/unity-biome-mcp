@@ -1,4 +1,5 @@
-"""UI authoring + visual asset tools: create_ui, set_rect, menu, shader."""
+"""UI authoring + visual asset tools: create_ui, set_rect, menu, shader, lint_ugui."""
+from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
@@ -18,11 +19,15 @@ async def create_ui(
     color: str | None = None,
     text: str | None = None,
     font_size: str | None = None,
+    render_mode: str | None = None,
+    font_min: str | None = None,
+    font_max: str | None = None,
 ) -> str:
-    """Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Auto-creates Canvas if needed."""
+    """Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type."""
     return await _send("create_ui", _args(type=type, name=name, parent=parent, anchor=anchor,
                                           pos=pos, size=size, pivot=pivot, color=color,
-                                          text=text, font_size=font_size))
+                                          text=text, font_size=font_size, render_mode=render_mode,
+                                          font_min=font_min, font_max=font_max))
 
 
 async def set_rect(
@@ -33,10 +38,12 @@ async def set_rect(
     pivot: str | None = None,
     offset_min: str | None = None,
     offset_max: str | None = None,
+    pos3: str | None = None,
 ) -> str:
-    """Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y)."""
+    """Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given)."""
     return await _send("set_rect", _args(path=path, anchor=anchor, pos=pos, size=size,
-                                         pivot=pivot, offset_min=offset_min, offset_max=offset_max))
+                                         pivot=pivot, offset_min=offset_min, offset_max=offset_max,
+                                         pos3=pos3))
 
 
 async def menu(action: str, path: str | None = None) -> str:
@@ -87,9 +94,18 @@ async def shader(
         new_name=new_name, layout=layout, h_gap=h_gap, v_gap=v_gap))
 
 
+async def lint_ugui(root: str | None = None) -> str:
+    """Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken.
+    Returns compact text: 'ok: 0 issues' or newline-separated warnings.
+    root: scene path to root GameObject to scan (default: scan all loaded scenes).
+    """
+    return await _send("lint_ugui", _args(root=root))
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RW)(create_ui)
     mcp.tool(annotations=_RW_IDEM)(set_rect)
     mcp.tool(annotations=_RW)(menu)
     mcp.tool(annotations=_RW)(shader)
+    mcp.tool(annotations=_RO)(lint_ugui)

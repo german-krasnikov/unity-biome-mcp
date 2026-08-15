@@ -276,7 +276,7 @@ namespace UnityMCP.Editor
                 UndoGroupHelper.RevertToBeforeGroup(groupId);
                 return "ok";
             }, required: "group_id,domain_stamp", optional: "");
-            CommandRegistry.Register("validate_layout", args => LayoutValidator.Validate(
+            CommandRegistry.Register("validate_triggers", args => LayoutValidator.Validate(
                 JsonHelper.ExtractString(args, "root") ?? "/",
                 float.TryParse(JsonHelper.ExtractString(args, "min_distance") ?? "3",
                     System.Globalization.NumberStyles.Float,
@@ -494,6 +494,11 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "event"),
                 JsonHelper.ExtractString(args, "index")), mutating: true,
                 required: "path,component,event", optional: "index");
+            CommandRegistry.Register("list_events", args => ObjectManager.ListEvents(
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractString(args, "component"),
+                JsonHelper.ExtractString(args, "event")), mutating: false,
+                required: "path,component,event", optional: "");
             CommandRegistry.Register("auto_wire", ExecAutoWire, mutating: true,
                 required: "path", optional: "dry_run");
             CommandRegistry.Register("manage_component", ExecManageComponent, mutating: true,
@@ -546,9 +551,18 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("references", ExecReferencesConsolidated, mutating: true,
                 required: "action", optional: "path,children,depth,source,target,mappings");
             CommandRegistry.Register("create_ui", ExecCreateUI, mutating: true,
-                required: "type", optional: "name,parent,anchor,pos,size,pivot,color,text,font_size");
+                required: "type", optional: "name,parent,anchor,pos,size,pivot,color,text,font_size,render_mode,font_min,font_max");
             CommandRegistry.Register("set_rect", ExecSetRect, mutating: true,
-                required: "path", optional: "anchor,pos,size,pivot,offset_min,offset_max");
+                required: "path", optional: "anchor,pos,size,pivot,offset_min,offset_max,pos3");
+            CommandRegistry.Register("lint_ugui", ExecLintUGUI, mutating: false,
+                required: "", optional: "root");
+            CommandRegistry.Register("lint_uitk", ExecLintUITK, mutating: false,
+                required: "", optional: "path,fix");
+            CommandRegistry.Register("inspect_uitk", ExecInspectUITK, mutating: false,
+                required: "", optional: "path,depth,selector,filter,include_internal,show_style");
+            CommandRegistry.Register("uitk_element", ExecUitkElement, mutating: true,
+                required: "action",
+                optional: "path,ref,selector,name,value,property,class_name");
             CommandRegistry.Register("animator", ExecAnimatorConsolidated, mutating: true,
                 required: "action,path", optional: "state,states,params,source,target,conditions,duration,exit_time,has_exit_time,type,name,blend_type,param,param_y,children,edit_action,layer,weight,blending,value,avatar_path");
             CommandRegistry.Register("particle", ExecParticleConsolidated, mutating: true,
@@ -557,6 +571,12 @@ namespace UnityMCP.Editor
                 required: "action,path", optional: "target,preset,code,shader_name,prop,value,keyword,enabled,node_type,node_id,node_action,output_node,output_slot,input_node,input_slot,edge_action,name,type,default_value,reference_name,new_name");
             CommandRegistry.Register("menu", ExecMenu, mutating: true,
                 required: "action", optional: "path");
+            CommandRegistry.Register("attach_uitk", ExecAttachUITK, mutating: true,
+                required: "path",
+                optional: "uxml,panel_settings,sort_order");
+            CommandRegistry.Register("uitk_file", ExecUitkFile, mutating: true,
+                required: "path",
+                optional: "action,content,selector,attr,value,class,parent,tag,attrs,prop");
 
             // Action-based (Phase 26, mutating). Per-action params genuinely vary (e.g. asset's
             // create/move/delete each need different fields) — flat contract is intentionally

@@ -34,7 +34,7 @@ server/src/unity_mcp/
 │   ├── code_intel.py   # compile_preflight, await_compile
 │   ├── runtime.py      # invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest (script|path)
 │   ├── batch.py        # batch, references, validate_references + DRY serialization
-│   ├── spatial.py      # spatial_query, validate_layout, get_spatial_context, scan_scene, check_colliders
+│   ├── spatial.py      # spatial_query, validate_triggers, get_spatial_context, scan_scene, check_colliders
 │   ├── ui.py           # create_ui, set_rect, menu, shader
 │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
 │   ├── skills.py       # save_skill, use_skill, list_skills, apply_template, save_template, list_templates
@@ -88,7 +88,7 @@ Other tier1 (30): alias_status, ask, ask_user, await_compile, compile_preflight,
 | SCENE | autofit_collider, check_colliders, find_objects, get_components_list, get_object_detail, get_selection, get_spatial_context, get_unity_events, navmesh_query, object_diff, ping_object, region_clear, rename_object, scene_diff, scene_environment, set_material, set_properties, set_property_delta, set_sibling_index, spatial_query, transfer_object |
 | COMPONENTS | auto_wire, references, unwire_event, wire_event |
 | ASSETS | asset, material, material_audit, prefab, project_settings, scriptable_object, shader |
-| MEDIA | analyze_lod_culling, animation, animator, create_ui, particle, render_analyze, screenshot_baseline, screenshot_compare, set_rect, timeline, ui_intent, validate_layout, vfx_intent |
+| MEDIA | analyze_lod_culling, animation, animator, create_ui, particle, render_analyze, screenshot_baseline, screenshot_compare, set_rect, timeline, ui_intent, validate_triggers, vfx_intent |
 | VERIFY | diagnose, scan_scene, scene_health, serialized_field_rename_audit |
 | RUNTIME | debug, debug_animator, debug_physics, get_frame_stats, get_memory, get_metrics, get_watches, invoke_method, move_to, profile, query_state, runtime_snapshot, set_runtime_property, snapshot, wait_until, watch |
 | TESTS | export_playtest_aliases_to_defs, get_test_count, get_test_progress, lint_playtest_suite, run_playtest_suite, sync_playtest_aliases_from_defs, test_step, validate_playtest_aliases |
@@ -360,7 +360,7 @@ Guard conditions and reroute logic have been reordered for correctness:
 6. **Command execution** (actual send to Unity)
 
 **READ_CMDS / WRITE_CMDS audit (v0.78.11, `middleware_types.py`):**
-- `READ_CMDS` expanded from 15 → 40 entries (removed `get_metrics` in v1.22.0): added `screenshot_compare`, `get_selection`, `get_capabilities`, `alias_status`, `get_aliases`, `list_connections`, `get_enabled_tools`, `budget_status`, `permission_prompt`, `get_test_results`, `get_test_progress`, `get_test_count`, `get_frame_stats`, `get_memory`, `get_watches`, `debug`, `debug_animator`, `debug_physics`, `profile`, `object_diff`, `scene_diff`, `scene_health`, `material_audit`, `analyze_lod_culling`, `render_analyze`, `fingerprint`, `validate_layout`, `check_colliders`, `spatial_query`, `get_schema`, `get_changes`, `compile_preflight`, `await_compile`, `auto_fix`, `diagnose`, `list_skills`, `list_templates`, `load_session`, `ask`, `ask_user`
+- `READ_CMDS` expanded from 15 → 40 entries (removed `get_metrics` in v1.22.0): added `screenshot_compare`, `get_selection`, `get_capabilities`, `alias_status`, `get_aliases`, `list_connections`, `get_enabled_tools`, `budget_status`, `permission_prompt`, `get_test_results`, `get_test_progress`, `get_test_count`, `get_frame_stats`, `get_memory`, `get_watches`, `debug`, `debug_animator`, `debug_physics`, `profile`, `object_diff`, `scene_diff`, `scene_health`, `material_audit`, `analyze_lod_culling`, `render_analyze`, `fingerprint`, `validate_triggers`, `check_colliders`, `spatial_query`, `get_schema`, `get_changes`, `compile_preflight`, `await_compile`, `auto_fix`, `diagnose`, `list_skills`, `list_templates`, `load_session`, `ask`, `ask_user`
 - `compress_hierarchy` removed from `READ_CMDS` (dead command — does not exist in Unity plugin)
 - `WRITE_CMDS` gains `get_metrics` (v1.22.0 — now mutating when reset=True), `rename_object`, and `set_sibling_index`
 - `_EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})` — `editor` cmd is dual-use; only these two actions are reads; all others (play/stop/pause/step/select) are writes. Used by `_is_batch_readonly()` and `transition()` to avoid misclassifying editor state queries as mutations.

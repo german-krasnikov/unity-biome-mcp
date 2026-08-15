@@ -1,0 +1,4 @@
+# WAIT_UNTIL polling via UIDocument alias
+# Required scene: SampleScene with /HUD UIDocument containing a score element
+VAL $hud /HUD|UIDocument
+WAIT_UNTIL $hud|score|value > 10 TIMEOUT 5

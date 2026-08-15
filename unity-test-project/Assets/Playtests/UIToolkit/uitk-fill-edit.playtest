@@ -1,0 +1,5 @@
+# Requires: /TestUI UIDocument with TextField named "emailInput" (RunInEditMode=true)
+VAL $ui /TestUI|UIDocument
+FILL $ui|emailInput user@test.com
+ASSERT $ui|emailInput|value == user@test.com
+FOCUS $ui|emailInput

@@ -133,6 +133,13 @@ async def unwire_event(path: str, component: str, event: str, index: int | None 
         path=path, component=component, event=event, index=index))
 
 
+async def list_events(path: str, component: str, event: str) -> str:
+    """Read persistent listeners on a UnityEvent field. Use after wire_event to verify.
+    Returns listener details: target path, method name, call state, arg type/value.
+    event: serialized field name — same as wire_event 'event' param (e.g. 'onClick')."""
+    return await _send("list_events", _args(path=path, component=component, event=event))
+
+
 async def delete_object(id: int | None = None, path: str | None = None, force: bool = False) -> str:
     """Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."""
     if id is None and not path:
@@ -222,3 +229,4 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW)(set_sibling_index)
     mcp.tool(annotations=_RO)(object_diff)
     mcp.tool(annotations=_RO)(get_unity_events)
+    mcp.tool(annotations=_RO)(list_events)

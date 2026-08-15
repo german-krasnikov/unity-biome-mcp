@@ -49,7 +49,7 @@ def test_set_sibling_index_in_write_cmds():
     "scene_diff",
     "scene_health",
     "screenshot_compare",
-    "validate_layout",
+    "validate_triggers",
     "analyze_lod_culling",
     "check_colliders",
     "spatial_query",

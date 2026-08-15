@@ -1,0 +1,4 @@
+# Required scene: SampleScene with /HUD UIDocument (RunInEditMode=true or PlayMode)
+# UIDocument must have a Label named "health-label" with text "75 HP"
+VAL $hud /HUD|UIDocument
+ASSERT $hud|health-label|text == "75 HP"

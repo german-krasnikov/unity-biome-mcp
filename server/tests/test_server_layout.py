@@ -2,37 +2,37 @@ import pytest
 from unittest.mock import AsyncMock
 from mcp.server.fastmcp.exceptions import ToolError
 
-from unity_mcp.server import validate_layout, get_spatial_context
+from unity_mcp.server import validate_triggers, get_spatial_context
 
 
-async def test_validate_layout_sends_correct_command(mock_bridge):
+async def test_validate_triggers_sends_correct_command(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "Layout: 3 triggers, 5 solids\nOK: no trigger overlaps"})
-    result = await validate_layout(root="/Arena", min_distance=2.0)
+    result = await validate_triggers(root="/Arena", min_distance=2.0)
     mock_bridge.send.assert_called_once_with(
-        "validate_layout", {"root": "/Arena", "min_distance": "2.0"}, timeout=30.0
+        "validate_triggers", {"root": "/Arena", "min_distance": "2.0"}, timeout=30.0
     )
     assert "no trigger overlaps" in result
 
 
-async def test_validate_layout_default_min_distance(mock_bridge):
+async def test_validate_triggers_default_min_distance(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "OK"})
-    await validate_layout(root="/Root")
+    await validate_triggers(root="/Root")
     args = mock_bridge.send.call_args[0][1]
     assert args["root"] == "/Root"
     assert args["min_distance"] == "3.0"
 
 
-async def test_validate_layout_default_root(mock_bridge):
+async def test_validate_triggers_default_root(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "OK"})
-    await validate_layout()
+    await validate_triggers()
     args = mock_bridge.send.call_args[0][1]
     assert args["root"] == "/"
 
 
-async def test_validate_layout_error(mock_bridge):
+async def test_validate_triggers_error(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "'/Arena' not found"})
     with pytest.raises(ToolError, match="not found"):
-        await validate_layout(root="/Arena")
+        await validate_triggers(root="/Arena")
 
 
 async def test_get_spatial_context_sends_correct_command(mock_bridge):

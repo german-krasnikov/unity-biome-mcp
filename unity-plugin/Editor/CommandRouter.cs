@@ -64,7 +64,7 @@ namespace UnityMCP.Editor
             "run_tests_wait", "save_session", "save_skill", "save_template",
             "scene_change_plan", "screenshot_baseline", "screenshot_compare",
             "set_llm_config", "set_properties", "setup_objects", "smart_build",
-            "snapshot", "sync_unity", "ui_intent", "use_skill", "verify_after_change",
+            "snapshot", "sync_unity", "ui_intent", "uitk_intent", "use_skill", "verify_after_change",
             "vfx_intent", "watch",
         };
 

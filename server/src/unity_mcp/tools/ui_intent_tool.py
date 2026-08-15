@@ -34,11 +34,34 @@ canvas Canvas
     image Cell3 size=100,100""",
 }
 
-_LAYOUT_COMPONENTS = {"layout": "VerticalLayoutGroup", "hlayout": "HorizontalLayoutGroup", "grid": "GridLayoutGroup"}
+_LAYOUT_COMPONENTS = {
+    "layout":   "VerticalLayoutGroup",
+    "hlayout":  "HorizontalLayoutGroup",
+    "grid":     "GridLayoutGroup",
+    "fitter":   "ContentSizeFitter",
+    "element":  "LayoutElement",
+}
+
+_FIT_VALUES = {"unconstrained": "0", "min": "1", "preferred": "2"}
+_TEXT_ANCHOR = {
+    "upperleft": 0, "uppercenter": 1, "upperright": 2,
+    "middleleft": 3, "middlecenter": 4, "middleright": 5,
+    "lowerleft": 6, "lowercenter": 7, "lowerright": 8,
+    "center": 4,
+}
+_GRID_CORNER = {"upperleft": 0, "upperright": 1, "lowerleft": 2, "lowerright": 3}
+_PADDING_PROPS = ["m_Padding.m_Left", "m_Padding.m_Right", "m_Padding.m_Top", "m_Padding.m_Bottom"]
+_ELEMENT_PROPS = {
+    "minW": "m_MinWidth", "minH": "m_MinHeight",
+    "prefW": "m_PreferredWidth", "prefH": "m_PreferredHeight",
+    "flexW": "m_FlexibleWidth", "flexH": "m_FlexibleHeight",
+}
 
 _PROMPT_TEMPLATE = """\
-Generate a Unity UI DSL. Use 2-space indent for parent/child. Types: canvas|panel|image|text|button|layout.
+Generate a Unity UI DSL. Use 2-space indent for parent/child. Types: canvas|panel|image|text|button|layout|fitter|element.
 Attrs: anchor=<preset> pos=x,y size=w,h color=#hex text="..." fontSize=N dir=vertical|horizontal spacing=N
+       hfit=preferred|min|unconstrained vfit=... prefW=N prefH=N flexW=N flexH=N
+       padding=L,R,T,B align=UpperLeft|MiddleCenter|... cellSize=W,H startCorner=UpperLeft|...
 
 Anchor presets: top-left top-right bottom-left bottom-right center stretch top-center bottom-center
 
@@ -128,6 +151,48 @@ def build_ui_batch(nodes: list[dict], parent: str | None) -> list[str]:
                 lines.append(build_batch_line("set_property", path=node_path,
                                               component=layout_comp, prop="spacing",
                                               value=attrs["spacing"]))
+            # G6: ContentSizeFitter attrs
+            if layout_comp == "ContentSizeFitter":
+                for attr, prop in [("hfit", "m_HorizontalFit"), ("vfit", "m_VerticalFit")]:
+                    if attr in attrs:
+                        val = _FIT_VALUES.get(attrs[attr].lower(), attrs[attr])
+                        lines.append(build_batch_line("set_property", path=node_path,
+                                                      component=layout_comp, prop=prop, value=val))
+            # G6: LayoutElement attrs
+            if layout_comp == "LayoutElement":
+                for attr, prop in _ELEMENT_PROPS.items():
+                    if attr in attrs:
+                        lines.append(build_batch_line("set_property", path=node_path,
+                                                      component=layout_comp, prop=prop,
+                                                      value=attrs[attr]))
+            # G7: padding=L,R,T,B → 4 set_property calls
+            if "padding" in attrs:
+                parts = attrs["padding"].split(",")
+                if len(parts) == 4:
+                    for prop, val in zip(_PADDING_PROPS, parts, strict=True):
+                        lines.append(build_batch_line("set_property", path=node_path,
+                                                      component=layout_comp, prop=prop,
+                                                      value=val.strip()))
+            # G7: align=<TextAnchor> → m_ChildAlignment
+            if "align" in attrs:
+                anchor_val = _TEXT_ANCHOR.get(attrs["align"].lower())
+                if anchor_val is not None:
+                    lines.append(build_batch_line("set_property", path=node_path,
+                                                  component=layout_comp, prop="m_ChildAlignment",
+                                                  value=str(anchor_val)))
+            # G7: Grid-only attrs
+            if layout_comp == "GridLayoutGroup":
+                if "cellSize" in attrs:
+                    w, h = attrs["cellSize"].split(",", 1)
+                    lines.append(build_batch_line("set_property", path=node_path,
+                                                  component=layout_comp, prop="m_CellSize",
+                                                  value=f"({w.strip()},{h.strip()})"))
+                if "startCorner" in attrs:
+                    corner_val = _GRID_CORNER.get(attrs["startCorner"].lower())
+                    if corner_val is not None:
+                        lines.append(build_batch_line("set_property", path=node_path,
+                                                      component=layout_comp, prop="m_StartCorner",
+                                                      value=str(corner_val)))
 
     return lines
 

@@ -26,7 +26,7 @@ _OLD_READ_CMDS = {
     "get_watches", "debug", "debug_animator", "debug_physics", "profile",
     "object_diff", "scene_diff", "scene_health", "material_audit",
     "analyze_lod_culling", "render_analyze", "fingerprint",
-    "validate_layout", "check_colliders", "spatial_query",
+    "validate_triggers", "check_colliders", "spatial_query",
     "get_schema", "get_changes",
     "compile_preflight", "await_compile", "auto_fix", "diagnose",
     "list_skills", "list_templates", "load_session",

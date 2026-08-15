@@ -56,7 +56,8 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "resolve_test_request", "resolve_tool_schema", "run_playtest", "run_playtest_suite", "run_tests",
     "save_session",
     "export_playtest_aliases_to_defs",
-    "lint_playtest", "lint_playtest_suite", "lint_scene_refs",
+    "attach_uitk", "inspect_uitk", "lint_playtest", "lint_playtest_suite", "lint_scene_refs", "lint_ugui", "lint_uitk",
+    "uitk_element", "uitk_file",
     "save_skill", "save_template", "scan_scene", "scene", "scene_diff",
     "scene_environment", "scene_health", "screenshot", "screenshot_baseline",
     "screenshot_compare", "scriptable_object", "search_scene", "set_active",
@@ -65,7 +66,7 @@ _ALL_KNOWN_SNAPSHOT = frozenset({
     "setup_objects", "shader", "smart_build", "snapshot", "spatial_query",
     "sync_playtest_aliases_from_defs",
     "sync_unity", "test_step", "timeline", "transfer_object", "ui_intent",
-    "undo_last", "unwire_event", "use_skill", "validate_layout",
+    "undo_last", "unwire_event", "use_skill", "validate_triggers",
     "validate_playtest_aliases", "validate_references", "verify_after_change", "vfx_intent",
     "wait_until", "watch", "wire_event",
 })
@@ -80,16 +81,18 @@ _THEMED_CATEGORIES_SNAPSHOT = {
         "region_clear", "rename_object", "scene_change_plan", "scene_diff",
         "scene_environment", "set_active", "set_material", "set_properties",
         "set_property_delta", "set_sibling_index", "setup_objects", "spatial_query",
-        "transfer_object",
+        "transfer_object", "validate_triggers",
     },
     "COMPONENTS": {"auto_wire", "references", "unwire_event", "wire_event"},
     "ASSETS": {"asset", "bake", "material", "material_audit", "prefab", "project_settings",
                "scriptable_object", "shader"},
     "MEDIA": {
-        "analyze_lod_culling", "animation", "animator", "create_ui", "particle",
+        "analyze_lod_culling", "animation", "animator", "particle",
         "render_analyze", "screenshot", "screenshot_baseline", "screenshot_compare",
-        "set_rect", "timeline", "ui_intent", "validate_layout", "vfx_intent",
+        "timeline", "vfx_intent",
     },
+    "UGUI": {"create_ui", "lint_ugui", "set_rect", "ui_intent"},
+    "UITOOLKIT": {"attach_uitk", "inspect_uitk", "lint_uitk", "uitk_element", "uitk_file"},
     "VERIFY": {
         "await_compile", "compile_preflight", "diagnose", "get_changeset", "lint_scene_refs",
         "resolve_scene_refs", "scan_scene", "scene_health", "validate_references",
@@ -123,9 +126,11 @@ _THEMED_CATEGORIES_SNAPSHOT = {
 
 _CATEGORY_SIZES_SNAPSHOT = {
     # Phase 1a: object grows +4 (delete_object/set_parent/scene/search_scene added to SCENE)
-    "advanced": 34, "animation": 14, "asset": 7, "connection": 34, "debug": 17,
-    "object": 29, "perf": 17, "plugins": 34, "profiling": 17, "rendering": 14,
-    "runtime": 30, "session": 34, "ui": 14,
+    # Session 2: animation/rendering shrunk (UGUI/UITOOLKIT split from MEDIA); ui now UGUI+UITOOLKIT
+    "advanced": 34, "animation": 10, "asset": 7, "connection": 34, "debug": 17,
+    "object": 29, "perf": 17, "plugins": 34, "profiling": 17, "rendering": 10,
+    "runtime": 30, "session": 34, "ui": 6,
+    "ugui": 4, "uitoolkit": 2,
 }
 
 _TIMEOUT_CATEGORIES_SNAPSHOT = {
@@ -135,11 +140,14 @@ _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "cancel_test_run": 10.0, "get_changeset": 5.0, "get_console": 10.0, "get_hierarchy": 15.0,
     "get_test_count": 10.0, "get_test_run": 10.0, "get_version": 5.0,
     "import_package": 120.0,
-    "lint_playtest": 60.0, "lint_playtest_suite": 120.0, "package": 60.0,
+    "inspect_uitk": 15.0, "lint_playtest": 60.0, "lint_playtest_suite": 120.0,
+    "lint_ugui": 15.0, "lint_uitk": 15.0, "package": 60.0,
     "list_playtest_files": 10.0, "list_test_runs": 10.0,
     "ping": 5.0, "resolve_test_request": 10.0, "run_playtest": 300.0,
     "run_playtest_suite": 3600.0, "run_tests_wait": 1200.0,
-    "resolve_scene_refs": 15.0, "search_scene": 15.0, "verify_after_change": 600.0,
+    "resolve_scene_refs": 15.0, "search_scene": 15.0, "uitk_element": 15.0,
+    "verify_after_change": 600.0,
+    "uitk_intent": 60.0,
 }
 
 

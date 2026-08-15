@@ -2,6 +2,32 @@
 
 Connect and disconnect UnityEvent persistent listeners. Wire UI buttons to methods, trigger events, and manage event callbacks without manual serialization.
 
+## list_events
+
+List all UnityEvent persistent listeners on a component.
+
+**Parameters:**
+- `path` (string) — Scene path to GameObject
+- `component` (string) — Component type (e.g., "Button", "Toggle", "MyScript")
+- `event` (string) — Event field name (e.g., "onClick", "onValueChanged")
+
+**Output:** Array of persistent listeners with target GameObject, method name, and parameter details.
+
+**Example:**
+
+```python
+# List Button click listeners
+listeners = await list_events(path="Canvas/PlayButton", component="Button", event="onClick")
+
+# List Toggle value change listeners
+listeners = await list_events(path="Canvas/SoundToggle", component="Toggle", event="onValueChanged")
+
+# Check custom script events
+listeners = await list_events(path="GameManager", component="GameManager", event="onGameStart")
+```
+
+---
+
 ## wire_event
 
 Connect a button, trigger, or other event to a method.

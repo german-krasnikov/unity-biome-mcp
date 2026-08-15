@@ -240,8 +240,21 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "pivot"),
                 JsonHelper.ExtractString(args, "color"),
                 JsonHelper.ExtractString(args, "text"),
-                JsonHelper.ExtractString(args, "font_size"));
+                JsonHelper.ExtractString(args, "font_size"),
+                JsonHelper.ExtractString(args, "render_mode"),
+                JsonHelper.ExtractString(args, "font_min"),   // G9: TMP autoSize min
+                JsonHelper.ExtractString(args, "font_max"));  // G9: TMP autoSize max
         }
+
+        // G2: Lint uGUI — check EventSystem presence and GraphicRaycaster on Canvas.
+        private static string ExecLintUGUI(string args) =>
+            UILinter.LintUGUI(JsonHelper.ExtractString(args, "root"));
+
+        // S4: Lint UITK — structural checks for .uxml/.uss files (A1–A6).
+        private static string ExecLintUITK(string args) =>
+            UILinter.LintUITK(
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractString(args, "fix") == "true");
 
         private static string ExecSetRect(string args)
         {
@@ -252,7 +265,68 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "size"),
                 JsonHelper.ExtractString(args, "pivot"),
                 JsonHelper.ExtractString(args, "offset_min"),
-                JsonHelper.ExtractString(args, "offset_max"));
+                JsonHelper.ExtractString(args, "offset_max"),
+                JsonHelper.ExtractString(args, "pos3"));  // G8: anchoredPosition3D
+        }
+
+        private static string ExecInspectUITK(string args) =>
+            UIHelper.InspectUITK(
+                JsonHelper.ExtractString(args, "path"),
+                ParseOptInt(args, "depth") ?? 4,
+                JsonHelper.ExtractString(args, "selector"),
+                JsonHelper.ExtractString(args, "filter"),
+                ParseOptBool(args, "include_internal") ?? false,
+                ParseOptBool(args, "show_style") ?? false);
+
+        // Phase 2: uitk_element — read/mutate a VisualElement
+        private static string ExecUitkElement(string args) =>
+            UIHelper.UitkElement(
+                JsonHelper.ExtractString(args, "action"),
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractString(args, "ref"),
+                JsonHelper.ExtractString(args, "selector"),
+                JsonHelper.ExtractString(args, "name"),
+                JsonHelper.ExtractString(args, "value"),
+                JsonHelper.ExtractString(args, "property"),
+                JsonHelper.ExtractString(args, "class_name"));
+
+        // Session 9: attach UIDocument component to a GameObject
+        private static string ExecAttachUITK(string args)
+        {
+            var sortingOrderStr = JsonHelper.ExtractString(args, "sort_order");
+            int sortingOrder = sortingOrderStr != null && int.TryParse(sortingOrderStr, out int so) ? so : 0;
+            return UIHelper.AttachUITK(
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractString(args, "uxml"),
+                JsonHelper.ExtractString(args, "panel_settings"),
+                sortingOrder);
+        }
+
+        // Session 12: uitk_file — UXML/USS CRUD with two-gate validation
+        private static string ExecUitkFile(string args)
+        {
+            var assetPath = JsonHelper.ExtractString(args, "path");
+            var action    = JsonHelper.ExtractString(args, "action") ?? "read";
+
+            if (action == "read")
+                return UIFileHelper.ReadUIFile(assetPath);
+
+            if (action == "revert")
+                return UIFileHelper.RevertUIFile(assetPath);
+
+            if (action == "write" || action == "create_uxml" || action == "create_uss")
+                return UIFileHelper.WriteUIFile(assetPath, action,
+                    JsonHelper.ExtractString(args, "content"));
+
+            return UIFileHelper.EditUIFile(assetPath, action,
+                selector: JsonHelper.ExtractString(args, "selector"),
+                attr:     JsonHelper.ExtractString(args, "attr"),
+                value:    JsonHelper.ExtractString(args, "value"),
+                cssClass: JsonHelper.ExtractString(args, "class"),
+                parent:   JsonHelper.ExtractString(args, "parent"),
+                tag:      JsonHelper.ExtractString(args, "tag"),
+                attrs:    JsonHelper.ExtractString(args, "attrs"),
+                prop:     JsonHelper.ExtractString(args, "prop"));
         }
 
         private static string ExecEditor(string args)

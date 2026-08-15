@@ -170,20 +170,22 @@ unity-biome-mcp/
 │   │   │   ├── batch.py        # batch, references, validate_references + _dsl_tools set; batch accepts validate_aliases=True for dry-run alias check (v0.78.9)
 │   │   │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
 │   │   │   ├── skills.py       # save/use/list_skill, apply/save/list_template + _skills_dir
-│   │   │   ├── spatial.py      # validate_layout, get_spatial_context, scan_scene, check_colliders (path=optional, fixed v0.79.1), spatial_query, objects_in_polygon (v0.46.0: polygon validation + vertices param); navmesh_query +get_settings, +set_settings (pipeline-gap sprint)
-│   │   │   ├── ui.py           # create_ui, set_rect, menu, shader
+│   │   │   ├── spatial.py      # validate_triggers, get_spatial_context, scan_scene, check_colliders (path=optional, fixed v0.79.1), spatial_query, objects_in_polygon (v0.46.0: polygon validation + vertices param); navmesh_query +get_settings, +set_settings (pipeline-gap sprint); validate_triggers renamed from validate_layout (v1.34.0)
+│   │   │   ├── ui.py           # uGUI tools: create_ui, set_rect, lint_ugui, list_events, ui_intent, menu, shader
+│   │   │   ├── uitk.py         # UI Toolkit tools: inspect_uitk, lint_uitk, uitk_element, attach_uitk, uitk_file (NEW, v1.34.0)
 │   │   │   ├── animation.py    # animation, timeline, animator, particle
 │   │   │   ├── asset.py        # asset, material, prefab, scriptable_object, project_settings, validate_move (v0.30.4); pipeline-gap sprint: +read_text, +write_text, +reimport, +create AnimatorController/ScriptableObject, +project_settings graphics|audio|input targets, +build_target
 │   │   │   ├── connection.py   # list_connections, reconnect_unity
 │   │   │   ├── autobatch.py    # setup_objects, set_properties, configure_objects (v0.55.10: _quote_if_spaces, _DOTTED_KV_RE lookahead)
-│   │   │   ├── gating.py       # TIER1 + category-based capability filtering (v0.29.37; v0.83.0: _THEMED_CATEGORY_KEYS reduced 18→8 — SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM; _CATEGORY_ALIAS dict for backward-compat legacy name mapping; register_tools() resolves aliases before populating themed groups; FORCE_VISIBLE removed v0.70.0)
+│   │   │   ├── gating.py       # TIER1 + category-based capability filtering (v0.29.37; v0.83.0: _THEMED_CATEGORY_KEYS reduced 18→8 — SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM; v1.34.0: +UGUI, +UITOOLKIT categories — 10 total; _CATEGORY_ALIAS dict for backward-compat legacy name mapping; register_tools() resolves aliases before populating themed groups; FORCE_VISIBLE removed v0.70.0)
 │   │   │   ├── do_tool.py      # NL intent → Haiku plan → batch execute
 │   │   │   ├── ask_tool.py     # NL read-only → route → Haiku summarize
 │   │   │   ├── ask_user_tool.py # ask_user MCP tool (ask_user AskUserCard routing, v0.29.11)
 │   │   │   ├── permission_prompt_tool.py # permission_prompt MCP tool (Claude --permission-prompt-tool routing, v0.29.37)
 │   │   │   ├── animator_intent_tool.py  # Domain NL: animator
 │   │   │   ├── vfx_intent_tool.py       # Domain NL: VFX/particles
-│   │   │   ├── ui_intent_tool.py        # Domain NL: UI
+│   │   │   ├── ui_intent_tool.py        # Domain NL: uGUI (updated v1.34.0: +Toggle, Slider, InputField, ScrollView, render_mode, font_min/max params)
+│   │   │   ├── uitk_intent_tool.py      # Domain NL: UI Toolkit/UXML/USS (NEW, v1.34.0)
 │   │   │   ├── intent_common.py         # Shared intent infrastructure
 │   │   │   ├── budget_tool.py           # Haiku spend tracking
 │   │   │   ├── metrics_tool.py          # Performance metrics tool
@@ -422,7 +424,11 @@ unity-biome-mcp/
 │       ├── TimelineHelper.cs + TimelineSerializer.cs
 │       ├── ParticleHelper.cs + ParticleSerializer.cs  # 10 presets
 │       ├── ShaderHelper.cs + ShaderSerializer.cs + ShaderGraphHelper.cs + ShaderGraphHelper.Mutations.cs + ShaderGraphHelper.Layout.cs  # +110 LOC: SetNodeValue, ConnectPorts, AddNode (v0.77.0); +322 LOC: GetLayout, SetLayout, AutoLayout (v1.15.0)
-│       ├── UIHelper.cs + LayoutValidator.cs
+│       ├── UIHelper.cs + UIHelper.UIToolkit.cs + LayoutValidator.cs  # UIHelper extended with UI Toolkit support (v1.34.0+)
+│       ├── UIElementSerializer.cs  # VisualElement → compact text tree with refids (NEW, v1.34.0)
+│       ├── UIElementHelper.cs  # VisualElement querying, styling, class manipulation (NEW, v1.34.0)
+│       ├── UIFileHelper.cs + UIFileHelper.Uxml.cs + UIFileHelper.Uss.cs  # UXML/USS file creation + validation (NEW, v1.34.0)
+│       ├── UILinter.cs  # UXML/USS linter + structural validation (NEW, v1.34.0)
 │       ├── AssetDatabaseHelper.cs + AssetHelper.cs  # pipeline-gap sprint: +read_text, +write_text, +reimport, +create AnimatorController/ScriptableObject
 │       ├── BakeHelper.cs                  # Lighting + occlusion bake operations via BakeAsync + MainThreadDispatcher (pipeline-gap sprint)
 │       ├── BuildHelper.cs                 # BuildPipeline player builder with target/scenes/path/dev params (pipeline-gap sprint)

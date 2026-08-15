@@ -21,8 +21,9 @@ from .tool_specs import _SPECS
 # ---------------------------------------------------------------------------
 
 _THEMED_CATEGORY_KEYS: tuple[str, ...] = (
-    "SCENE", "COMPONENTS", "ASSETS", "MEDIA",
+    "SCENE", "COMPONENTS", "ASSETS", "MEDIA", "UITOOLKIT",
     "VERIFY", "RUNTIME", "TESTS", "SYSTEM",
+    "UGUI",
 )
 
 # ---------------------------------------------------------------------------
@@ -65,7 +66,9 @@ _CATEGORY_ALIAS: dict[str, list[str]] = {
     "animation":    ["MEDIA"],
     "asset":        ["ASSETS"],
     "advanced":     ["SYSTEM"],
-    "ui":           ["MEDIA"],
+    "ui":           ["UGUI", "UITOOLKIT"],
+    "ugui":         ["UGUI"],
+    "uitoolkit":    ["UITOOLKIT"],
     "runtime":      ["RUNTIME", "TESTS"],
     "connection":   ["SYSTEM"],
     "session":      ["SYSTEM"],

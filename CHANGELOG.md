@@ -12,6 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.36.0] — 2026-08-15
+
+### Added
+- **UI Toolkit tools**: `inspect_uitk` (VE tree inspection with `~N` refs), `uitk_element` (8-action query/mutation), `uitk_file` (12-action UXML/USS CRUD), `attach_uitk` (wire UIDocument + PanelSettings), `lint_uitk` (structural UXML/USS validation A1-A6), `uitk_intent` (NL → DSL → UXML/USS generation via Haiku).
+- **uGUI tools**: `lint_ugui` (diagnose missing EventSystem, Canvas without GraphicRaycaster), `list_events` (read persistent listeners on UnityEvent fields).
+- **Tool categories**: `UGUI` (4 tools) and `UITOOLKIT` (6 tools) — separate foldouts in Settings, both discovery-gated (not TIER1). `discover_tools("ugui")` / `discover_tools("uitoolkit")` for targeted discovery.
+- **Playtest DSL**: `CLICK`, `FILL`, `FOCUS` steps for UI Toolkit via typed alias (`VAL $hud /Path|UIDocument`); 4-segment addressing (Variant B).
+- **create_ui enhancements**: new types Toggle, Slider, InputField, ScrollView; `render_mode` param (SSO/SSC/WorldSpace); `font_min`/`font_max` for TMP autoSize.
+- **set_rect**: `pos3` param for anchoredPosition3D (WorldSpace Canvas).
+- **ui_intent DSL**: ContentSizeFitter (`hfit`/`vfit`), LayoutElement (`prefW`/`prefH`/`flexW`/`flexH`), padding/childAlignment/cellSize for layout groups.
+- **ClientSkills**: split `unity-ui-authoring` → `unity-ugui-authoring` + `unity-uitoolkit-authoring` with wire_event bridge guidance and deadly traps documentation.
+
+### Changed
+- **`validate_layout` → `validate_triggers`**: renamed to reflect actual behavior (3D collider/trigger overlap check, not UI layout), moved from MEDIA to SCENE category. No backward compatibility alias.
+- **`discover_tools("ui")`**: now returns `UGUI` + `UITOOLKIT` tools only (previously returned all MEDIA).
+- **Canvas selection**: `create_ui` uses deterministic `FindOrCreateCanvas` with name-first lookup (G3 fix).
+- **Settings catalog**: `GetCatalogCategories()` always returns `_defaultCatalog` — stale EditorPrefs no longer hide new categories on plugin update.
+
 ## [v1.35.1] — 2026-08-15
 
 ### Fixed

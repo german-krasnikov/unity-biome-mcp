@@ -140,3 +140,32 @@ async def test_set_parent_wps_false_sends_string(monkeypatch):
     await set_parent(path="/Child", parent="/Root", world_position_stays=False)
     args = mock.call_args[0][1]
     assert args["world_position_stays"] == "false"
+
+
+# ── G4: list_events ───────────────────────────────────────────────────────────
+
+async def test_list_events_sends_all_three_args(monkeypatch):
+    """G4: list_events forwards path, component, event to bridge."""
+    mock = _setup(monkeypatch)
+    from unity_mcp.tools.objects import list_events
+    await list_events(path="/UI/Button", component="Button", event="onClick")
+    call_args = mock.call_args[0]
+    assert call_args[0] == "list_events"
+    assert call_args[1]["path"] == "/UI/Button"
+    assert call_args[1]["component"] == "Button"
+    assert call_args[1]["event"] == "onClick"
+
+
+def test_list_events_is_registered_as_ro():
+    """G4: list_events is registered with _RO annotation in register()."""
+    import inspect
+    from unity_mcp.tools import objects
+    src = inspect.getsource(objects.register)
+    assert "_RO)(list_events)" in src, "list_events must be registered with _RO"
+
+
+def test_list_events_has_toolspec():
+    """G4: list_events has a ToolSpec with mutability='read'."""
+    from unity_mcp.tools.tool_specs import _SPECS
+    assert "list_events" in _SPECS, "'list_events' missing from _SPECS"
+    assert _SPECS["list_events"].mutability == "read"

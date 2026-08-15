@@ -2,7 +2,7 @@
 
 Design standards: `AI/api-design-standards.md`
 
-Tool index organized by category. TIER1 tools (33 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools are discovered dynamically.
+Tool index organized by category. TIER1 tools (33 always-visible) require no `discover_tools`. Tier2 tools require `discover_tools(category)` first. Plugin tools are discovered dynamically. UI tools split into UGUI (Canvas) and UITOOLKIT (UXML/USS) categories (v1.34.0+).
 
 Parameter lists are intentionally not duplicated here because the MCP schemas are the runtime contract. Resolve the current schema before calling an unfamiliar tool:
 
@@ -98,12 +98,13 @@ Scene manipulation beyond CORE/TIER1 basics.
 | scene_environment | Get/set scene lighting/environment |
 | scene_diff | Compare the current hierarchy with the previous `scene_diff()` snapshot |
 
-### COMPONENTS (4 tools)
+### COMPONENTS (5 tools)
 
-Component event wiring.
+Component event wiring and inspection.
 
 | Tool | Purpose |
 | ------ | --------- |
+| list_events | List UnityEvent persistent listeners |
 | wire_event | Connect event to method |
 | unwire_event | Disconnect event listener |
 | auto_wire | Auto-wire compatible fields by type |
@@ -125,9 +126,34 @@ Asset database: import/export, prefab, ScriptableObject, project settings.
 | bake | Lighting and occlusion bake operations |
 | package | PackageManager operations (list/search/add/remove) |
 
-### MEDIA (14 tools)
+### UGUI (6 tools)
 
-Visual output, UI, animations, VFX, rendering analysis.
+Canvas-based (uGUI) UI creation, layout, and validation.
+
+| Tool | Purpose |
+| ------ | --------- |
+| create_ui | Spawn Canvas/uGUI elements with smart defaults |
+| set_rect | Modify RectTransform anchor/position/size |
+| lint_ugui | Validate Canvas setup and event listeners |
+| list_events | List UnityEvent persistent listeners (also in COMPONENTS) |
+| ui_intent | AI description → uGUI hierarchy + batch commands |
+
+### UITOOLKIT (6 tools)
+
+UI Toolkit (UXML/USS) panel inspection, validation, and VisualElement manipulation.
+
+| Tool | Purpose |
+| ------ | --------- |
+| inspect_uitk | Read VisualElement tree with compact refids |
+| lint_uitk | Validate UXML/USS file structure and references |
+| uitk_element | Query/mutate VisualElement (style, class, state) |
+| attach_uitk | Attach UXML panel to GameObject |
+| uitk_file | Create/modify UXML/USS files |
+| uitk_intent | AI description → UXML/USS code |
+
+### MEDIA (9 tools)
+
+Visual output, animations, VFX, rendering analysis.
 
 | Tool | Purpose |
 | ------ | --------- |
@@ -137,10 +163,6 @@ Visual output, UI, animations, VFX, rendering analysis.
 | timeline | Control Timeline |
 | animator | Get/set Animator parameters |
 | particle | Emit/stop particles |
-| create_ui | Spawn UI elements |
-| set_rect | Modify RectTransform |
-| validate_layout | Check UI constraints |
-| ui_intent | AI ui description → components |
 | vfx_intent | AI vfx description → settings |
 | render_analyze | Rendering bottleneck analysis (9 actions) |
 | analyze_lod_culling | LOD and culling audit |
@@ -246,7 +268,7 @@ Old category names still work but emit a warning. Use canonical names instead:
 |----------|-----------|
 | `object` / `SCENE_EDIT` | `SCENE` + `COMPONENTS` |
 | `animation` / `ANIMATION` | `MEDIA` |
-| `ui` / `UI` | `MEDIA` |
+| `ui` / `UI` | `UGUI` + `UITOOLKIT` |
 | `vfx` / `VFX` | `MEDIA` |
 | `rendering` / `RENDERING` | `MEDIA` |
 | `asset` / `SHADERS_MATERIAL` | `ASSETS` |

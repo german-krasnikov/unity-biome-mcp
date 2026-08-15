@@ -211,9 +211,9 @@ result = await region_clear(
 
 ---
 
-## validate_layout
+## validate_triggers
 
-Check for trigger overlaps. Warns if triggers are closer than minimum distance.
+Check 3D trigger/collider overlaps. Warns if triggers are closer than minimum distance.
 
 **Parameters:**
 - `root` (string, default="/") — Root path to scan (default: whole scene)
@@ -225,10 +225,10 @@ Check for trigger overlaps. Warns if triggers are closer than minimum distance.
 
 ```python
 # Validate whole scene triggers (3m minimum spacing)
-result = await validate_layout()
+result = await validate_triggers()
 
 # Check specific subtree with 5m minimum
-result = await validate_layout(root="Dungeon", min_distance=5.0)
+result = await validate_triggers(root="Dungeon", min_distance=5.0)
 ```
 
 ---
@@ -281,7 +281,7 @@ occlusion = await analyze_lod_culling(focus="occlusion")
 |------|-------|---------|
 | Find nearest interactable | spatial_query("nearest") | `result = await spatial_query("nearest", path="Player", component="Interactable")` |
 | Check line of sight | spatial_query("raycast") | `hits = await spatial_query("raycast", path="Player", target="Enemy", distance=50)` |
-| Validate trigger spacing | validate_layout | `await validate_layout(min_distance=3.0)` |
+| Validate trigger spacing | validate_triggers | `await validate_triggers(min_distance=3.0)` |
 | Check collider health | check_colliders | `issues = await check_colliders()` |
 | Clear zone of objects | region_clear | Preview with `dry_run=True`, then delete with `dry_run=False` |
 | Verify NavMesh | navmesh_query | `stats = await navmesh_query("status")` then `await navmesh_query("bake")` |

@@ -15,8 +15,9 @@ The live server schema and the current Unity state are authoritative.
 2. Read the smallest useful scope. Start with a hierarchy summary, targeted
    `inspect`, or one component rather than a full-scene dump.
 3. Enable a gated category with its uppercase canonical name:
-   `SCENE`, `COMPONENTS`, `ASSETS`, `MEDIA`, `VERIFY`, `RUNTIME`, `TESTS`, or
-   `SYSTEM`.
+   `SCENE`, `COMPONENTS`, `ASSETS`, `MEDIA`, `UGUI`, `UITOOLKIT`, `VERIFY`,
+   `RUNTIME`, `TESTS`, or `SYSTEM`. For UI use the specific alias:
+   `discover_tools("ugui")` or `discover_tools("uitoolkit")`.
 4. Call `resolve_tool_schema(tools="<name>")` before relying on a parameter you
    have not used in the current session. Do not reconstruct signatures from
    memory.
@@ -73,10 +74,12 @@ dispatch again. A bound listener endpoint outranks configured/cached port state.
 | Category | Route |
 |---|---|
 | `CORE` | this skill or `unity-scene-authoring` |
-| `SCENE` | `unity-scene-authoring`, `unity-ui-authoring`, or `unity-physics-spatial` |
+| `SCENE` | `unity-scene-authoring` or `unity-physics-spatial` |
 | `COMPONENTS` | `unity-scene-authoring` |
 | `ASSETS` | `unity-assets-prefabs`, `unity-materials-shaders`, or this skill for build/package/bake |
-| `MEDIA` | `unity-animation`, `unity-ui-authoring`, `unity-materials-shaders`, or `unity-particles-vfx` |
+| `MEDIA` | `unity-animation`, `unity-materials-shaders`, or `unity-particles-vfx` |
+| `UGUI` | `unity-ugui-authoring` |
+| `UITOOLKIT` | `unity-uitoolkit-authoring` |
 | `VERIFY` | `unity-csharp-editing`, `unity-testing-verification`, or `unity-diagnostics-performance` |
 | `RUNTIME` | `unity-testing-verification`, `unity-diagnostics-performance`, or `unity-physics-spatial` |
 | `TESTS` | `unity-testing-verification` |

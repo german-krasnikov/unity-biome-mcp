@@ -35,31 +35,23 @@ namespace UnityMCP.Editor
             new Dictionary<string, string[]>
             {
                 { "CORE",       new[] { "batch","create_object","editor","get_compile_errors","get_component","get_console","get_hierarchy","inspect","manage_component","set_property" } },
-                { "SCENE",      new[] { "apply_scene_change","autofit_collider","check_colliders","delete_object","find_objects","get_components_list","get_object_detail","get_selection","get_spatial_context","navmesh_query","object_diff","ping_object","region_clear","rename_object","scene","scene_change_plan","scene_diff","scene_environment","search_scene","set_active","set_material","set_parent","set_properties","set_property_delta","set_sibling_index","spatial_query","transfer_object" } },
+                { "SCENE",      new[] { "apply_scene_change","autofit_collider","check_colliders","delete_object","find_objects","get_components_list","get_object_detail","get_selection","get_spatial_context","navmesh_query","object_diff","ping_object","region_clear","rename_object","scene","scene_change_plan","scene_diff","scene_environment","search_scene","set_active","set_material","set_parent","set_properties","set_property_delta","set_sibling_index","spatial_query","transfer_object","validate_triggers" } },
                 { "COMPONENTS", new[] { "auto_wire","references","unwire_event","wire_event" } },
                 { "ASSETS",     new[] { "asset","material","material_audit","prefab","project_settings","scriptable_object","shader" } },
-                { "MEDIA",      new[] { "analyze_lod_culling","animation","animator","create_ui","particle","render_analyze","screenshot","screenshot_baseline","screenshot_compare","set_rect","timeline","ui_intent","validate_layout","vfx_intent" } },
+                { "MEDIA",      new[] { "analyze_lod_culling","animation","animator","particle","render_analyze","screenshot","screenshot_baseline","screenshot_compare","timeline","vfx_intent" } },
+                { "UGUI",       new[] { "create_ui","lint_ugui","set_rect","ui_intent" } },
+                { "UITOOLKIT",  new[] { "attach_uitk","inspect_uitk","lint_uitk","uitk_element","uitk_file","uitk_intent" } },
                 { "VERIFY",     new[] { "compile_preflight","diagnose","lint_scene_refs","resolve_scene_refs","scan_scene","scene_health","validate_references" } },
                 { "RUNTIME",    new[] { "debug","debug_animator","debug_physics","get_frame_stats","get_memory","get_watches","invoke_method","move_to","profile","query_state","set_runtime_property","wait_until" } },
                 { "TESTS",      new[] { "export_playtest_aliases_to_defs","get_test_count","get_test_progress","get_test_results","lint_playtest","run_playtest","run_tests","sync_playtest_aliases_from_defs","test_step","validate_playtest_aliases" } },
                 { "SYSTEM",     new[] { "alias_status","animator_intent","apply_template","ask","ask_user","auto_fix","checkpoint","do","doctor","execute_code","fingerprint","get_capabilities","get_changes","get_enabled_tools","get_schema","list_skills","list_templates","load_session","menu","permission_prompt","recompile","reconnect_unity","save_session","save_skill","save_template","set_llm_config","smart_build","sync_unity","undo_last","use_skill" } },
             };
 
-        // Returns catalog categories (from EditorPrefs JSON or built-in default).
-        public static Dictionary<string, string[]> GetCatalogCategories()
-        {
-            var raw = GetCatalog();
-            if (!string.IsNullOrEmpty(raw))
-            {
-                try
-                {
-                    var parsed = CatalogParser.Parse(raw);
-                    if (parsed.Count > 0) return parsed;
-                }
-                catch { /* fall through */ }
-            }
-            return _defaultCatalog;
-        }
+        // Returns catalog categories — _defaultCatalog is the source of truth for
+        // category keys and tool assignments. Saved EditorPrefs catalog only adds
+        // per-tool enabled/disabled state; it never hides categories that the plugin
+        // defines. On plugin update new categories appear immediately.
+        public static Dictionary<string, string[]> GetCatalogCategories() => _defaultCatalog;
 
         // ── Tool name list (P0 backward-compat) ──────────────────────────────
         public static string[] GetToolNames()
