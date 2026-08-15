@@ -1,4 +1,5 @@
-"""UI authoring + visual asset tools: create_ui, set_rect, menu, shader."""
+"""UI authoring + visual asset tools: create_ui, set_rect, menu, shader, lint_ugui."""
+from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
@@ -87,9 +88,18 @@ async def shader(
         new_name=new_name, layout=layout, h_gap=h_gap, v_gap=v_gap))
 
 
+async def lint_ugui(root: str | None = None) -> str:
+    """Find uGUI structural problems: missing EventSystem, GraphicRaycaster.
+    Use when uGUI clicks stop working or Canvas interaction fails.
+    root: optional scene path to scope checks to a sub-hierarchy; omit to scan all loaded scenes.
+    """
+    return await _send("lint_ugui", _args(root=root))
+
+
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RW)(create_ui)
     mcp.tool(annotations=_RW_IDEM)(set_rect)
     mcp.tool(annotations=_RW)(menu)
     mcp.tool(annotations=_RW)(shader)
+    mcp.tool(annotations=_RO)(lint_ugui)

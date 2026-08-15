@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace UnityMCP.Editor
 {
-    public static class UIHelper
+    public static partial class UIHelper
     {
         private static readonly Dictionary<string, (Vector2 min, Vector2 max, Vector2 pivot)> Presets =
             new Dictionary<string, (Vector2, Vector2, Vector2)>(StringComparer.OrdinalIgnoreCase)

@@ -6,6 +6,10 @@ namespace UnityMCP.Editor
     // scene/ui/editor/menu/references) split from CommandRouter.cs for <200-line focus.
     public static partial class CommandRouter
     {
+        // Shared UIElementSerializer instance for VERefTable lifecycle.
+        // ResetRefTable() is called inside Serialize() on every call.
+        private static readonly UIElementSerializer _serializer = new UIElementSerializer();
+
         private static float? ParseOptFloat(string args, string key)
         {
             var s = JsonHelper.ExtractString(args, key);
@@ -254,6 +258,23 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "offset_min"),
                 JsonHelper.ExtractString(args, "offset_max"));
         }
+
+        private static string ExecLintUGUI(string args) =>
+            UILinter.LintUGUI(JsonHelper.ExtractString(args, "root"));
+
+        private static string ExecLintUITK(string args) =>
+            UIHelper.LintUITK(
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractString(args, "fix") == "true");
+
+        private static string ExecInspectUITK(string args) =>
+            UIHelper.InspectUITK(
+                JsonHelper.ExtractString(args, "path"),
+                ParseOptInt(args, "depth") ?? 4,
+                JsonHelper.ExtractString(args, "selector"),
+                JsonHelper.ExtractString(args, "filter"),
+                ParseOptBool(args, "include_internal") ?? false,
+                ParseOptBool(args, "show_style") ?? false);
 
         private static string ExecEditor(string args)
         {
