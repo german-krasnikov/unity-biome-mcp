@@ -39,6 +39,7 @@ namespace UnityMCP.Editor
                 { "COMPONENTS", new[] { "auto_wire","references","unwire_event","wire_event" } },
                 { "ASSETS",     new[] { "asset","material","material_audit","prefab","project_settings","scriptable_object","shader" } },
                 { "MEDIA",      new[] { "analyze_lod_culling","animation","animator","create_ui","particle","render_analyze","screenshot","screenshot_baseline","screenshot_compare","set_rect","timeline","ui_intent","validate_layout","vfx_intent" } },
+                { "UITOOLKIT",  new[] { "inspect_uitk","lint_uitk","uitk_element","attach_uitk" } },
                 { "VERIFY",     new[] { "compile_preflight","diagnose","lint_scene_refs","resolve_scene_refs","scan_scene","scene_health","validate_references" } },
                 { "RUNTIME",    new[] { "debug","debug_animator","debug_physics","get_frame_stats","get_memory","get_watches","invoke_method","move_to","profile","query_state","set_runtime_property","wait_until" } },
                 { "TESTS",      new[] { "export_playtest_aliases_to_defs","get_test_count","get_test_progress","get_test_results","lint_playtest","run_playtest","run_tests","sync_playtest_aliases_from_defs","test_step","validate_playtest_aliases" } },

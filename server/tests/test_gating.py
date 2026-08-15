@@ -676,11 +676,13 @@ def test_discover_new_categories_work():
         assert cat in CATEGORIES, f"New category {cat!r} must be directly in CATEGORIES"
 
 
-def test_catalog_has_8_themed_categories():
+def test_catalog_has_themed_categories():
     from unity_mcp.tools.gating import get_catalog
     cats = get_catalog()["categories"]
     themed = {k for k in cats if k != "CORE"}
-    assert themed == {"SCENE", "COMPONENTS", "ASSETS", "MEDIA", "VERIFY", "RUNTIME", "TESTS", "SYSTEM"}
+    # Phase 2+ adds UGUI and UITOOLKIT; use subset check so future additions don't break this.
+    required = {"SCENE", "COMPONENTS", "ASSETS", "MEDIA", "VERIFY", "RUNTIME", "TESTS", "SYSTEM"}
+    assert required.issubset(themed), f"Missing required themed categories: {required - themed}"
 
 
 def test_demoted_tools_are_tier1_not_core():

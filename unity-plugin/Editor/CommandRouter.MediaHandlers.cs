@@ -255,6 +255,18 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "offset_max"));
         }
 
+        // Phase 2: attach UIDocument component to a GameObject
+        private static string ExecAttachUITK(string args)
+        {
+            var sortingOrderStr = JsonHelper.ExtractString(args, "sort_order");
+            int sortingOrder = sortingOrderStr != null && int.TryParse(sortingOrderStr, out int so) ? so : 0;
+            return UIHelper.AttachUITK(
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractString(args, "uxml"),
+                JsonHelper.ExtractString(args, "panel_settings"),
+                sortingOrder);
+        }
+
         private static string ExecEditor(string args)
         {
             var action = JsonHelper.ExtractString(args, "action") ?? "state";

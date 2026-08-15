@@ -79,6 +79,7 @@ TOOL_MODULES = [
     "unity_mcp.tools.transaction",
     "unity_mcp.tools.ui",
     "unity_mcp.tools.ui_intent_tool",
+    "unity_mcp.tools.uitk",
     "unity_mcp.tools.verify",
     "unity_mcp.tools.vfx_intent_tool",
     "unity_mcp.tools.watch",
@@ -97,6 +98,8 @@ ARGS_KEY_EXCEPTIONS = {
     ("runtime", "run_playtest", "fresh", "_fresh"),
     # watch uses watch_id locally but TCP key is id
     ("watch", "watch", "id", "watch_id"),
+    # inspect_uitk: user-facing 'show_unity_private' maps to C# key 'include_internal'
+    ("uitk", "inspect_uitk", "include_internal", "show_unity_private"),
 }
 
 

@@ -198,4 +198,8 @@ _SPECS: dict[str, ToolSpec] = {
     'wait_until': ToolSpec(category='RUNTIME', runtime_only=True, mutability='read'),
     'watch': ToolSpec(category='RUNTIME', direct_only=True),
     'wire_event': ToolSpec(category='COMPONENTS'),
+    'inspect_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),
+    'lint_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),
+    'uitk_element': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=15.0),
+    'attach_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=30.0),
 }
