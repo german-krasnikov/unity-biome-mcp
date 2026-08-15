@@ -253,6 +253,12 @@ namespace UnityMCP.Editor
         private static string ExecLintUGUI(string args) =>
             UILinter.LintUGUI(JsonHelper.ExtractString(args, "root"));
 
+        // S4: Lint UITK — structural checks for .uxml/.uss files (A1–A6).
+        private static string ExecLintUITK(string args) =>
+            UILinter.LintUITK(
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractBool(args, "fix"));
+
         private static string ExecSetRect(string args)
         {
             return UIHelper.SetRect(
