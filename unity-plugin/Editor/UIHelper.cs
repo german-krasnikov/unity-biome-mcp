@@ -46,9 +46,13 @@ namespace UnityMCP.Editor
                 case "panel":   return CreateElement(name, parent, anchor ?? "stretch", pos, size, pivot, color, "Image");
                 case "button":  return CreateButton(name, parent, anchor ?? "center", pos, size ?? "(160,30)", pivot, color, text, font_size);
                 case "text":    return CreateText(name, parent, anchor ?? "center", pos, size ?? "(200,50)", pivot, color, text, font_size);
-                case "image":   return CreateImage(name, parent, anchor ?? "center", pos, size ?? "(100,100)", pivot, color);
+                case "image":       return CreateImage(name, parent, anchor ?? "center", pos, size ?? "(100,100)", pivot, color);
+                case "toggle":      return CreateToggle(name, parent, anchor ?? "center", pos, size ?? "(160,30)", pivot, color, text, font_size);
+                case "slider":      return CreateSlider(name, parent, anchor ?? "center", pos, size ?? "(160,20)", pivot, color);
+                case "inputfield":  return CreateInputField(name, parent, anchor ?? "center", pos, size ?? "(200,30)", pivot, color, text, font_size);
+                case "scrollview":  return CreateScrollView(name, parent, anchor ?? "stretch", pos, size, pivot, color);
                 default:
-                    throw new ArgumentException($"Unknown UI type '{type}'. Valid: Canvas, Panel, Button, Text, Image.");
+                    throw new ArgumentException($"Unknown UI type '{type}'. Valid: Canvas, Panel, Button, Text, Image, Toggle, Slider, InputField, ScrollView.");
             }
         }
 
@@ -181,6 +185,203 @@ namespace UnityMCP.Editor
             string pos, string size, string pivot, string color)
         {
             return CreateElement(name, parent, anchor, pos, size, pivot, color, "Image");
+        }
+
+        private static string CreateToggle(string name, string parent, string anchor,
+            string pos, string size, string pivot, string color, string text, string font_size)
+        {
+            var created = new System.Collections.Generic.List<GameObject>();
+            try
+            {
+                var parentGo = ResolveParent(parent);
+
+                var root = new GameObject(name, typeof(RectTransform));
+                created.Add(root);
+                root.transform.SetParent(parentGo.transform, false);
+                ApplyRect(root.GetComponent<RectTransform>(), anchor, pos, size, pivot, null, null);
+                var toggle = Undo.AddComponent<Toggle>(root);
+
+                // Background → targetGraphic
+                var bg = new GameObject("Background", typeof(RectTransform));
+                created.Add(bg);
+                bg.transform.SetParent(root.transform, false);
+                var bgImg = Undo.AddComponent<Image>(bg);
+
+                // Checkmark → graphic
+                var checkmark = new GameObject("Checkmark", typeof(RectTransform));
+                created.Add(checkmark);
+                checkmark.transform.SetParent(bg.transform, false);
+                var ckImg = Undo.AddComponent<Image>(checkmark);
+
+                // Label
+                var label = new GameObject("Label", typeof(RectTransform));
+                created.Add(label);
+                label.transform.SetParent(root.transform, false);
+                AddTextComponent(label, text ?? name, font_size, color);
+
+                Undo.RecordObject(toggle, $"Wire Toggle {name}");
+                toggle.targetGraphic = bgImg;
+                toggle.graphic = ckImg;
+
+                foreach (var go in created) Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
+                return FormatCreated(root);
+            }
+            catch
+            {
+                foreach (var o in created) if (o != null) UnityEngine.Object.DestroyImmediate(o);
+                throw;
+            }
+        }
+
+        private static string CreateSlider(string name, string parent, string anchor,
+            string pos, string size, string pivot, string color)
+        {
+            var created = new System.Collections.Generic.List<GameObject>();
+            try
+            {
+                var parentGo = ResolveParent(parent);
+
+                var root = new GameObject(name, typeof(RectTransform));
+                created.Add(root);
+                root.transform.SetParent(parentGo.transform, false);
+                ApplyRect(root.GetComponent<RectTransform>(), anchor, pos, size, pivot, null, null);
+                var slider = Undo.AddComponent<Slider>(root);
+
+                // Background
+                var bg = new GameObject("Background", typeof(RectTransform));
+                created.Add(bg);
+                bg.transform.SetParent(root.transform, false);
+                Undo.AddComponent<Image>(bg);
+
+                // Fill Area → Fill
+                var fillArea = new GameObject("Fill Area", typeof(RectTransform));
+                created.Add(fillArea);
+                fillArea.transform.SetParent(root.transform, false);
+                var fill = new GameObject("Fill", typeof(RectTransform));
+                created.Add(fill);
+                fill.transform.SetParent(fillArea.transform, false);
+                Undo.AddComponent<Image>(fill);
+
+                // Handle Slide Area → Handle
+                var handleArea = new GameObject("Handle Slide Area", typeof(RectTransform));
+                created.Add(handleArea);
+                handleArea.transform.SetParent(root.transform, false);
+                var handle = new GameObject("Handle", typeof(RectTransform));
+                created.Add(handle);
+                handle.transform.SetParent(handleArea.transform, false);
+                Undo.AddComponent<Image>(handle);
+
+                Undo.RecordObject(slider, $"Wire Slider {name}");
+                slider.fillRect = fill.GetComponent<RectTransform>();
+                slider.handleRect = handle.GetComponent<RectTransform>();
+                slider.minValue = 0f;
+                slider.maxValue = 1f;
+                slider.value = 0f;
+
+                foreach (var go in created) Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
+                return FormatCreated(root);
+            }
+            catch
+            {
+                foreach (var o in created) if (o != null) UnityEngine.Object.DestroyImmediate(o);
+                throw;
+            }
+        }
+
+        private static string CreateInputField(string name, string parent, string anchor,
+            string pos, string size, string pivot, string color, string text, string font_size)
+        {
+            var created = new System.Collections.Generic.List<GameObject>();
+            try
+            {
+                var parentGo = ResolveParent(parent);
+
+                var root = new GameObject(name, typeof(RectTransform));
+                created.Add(root);
+                root.transform.SetParent(parentGo.transform, false);
+                ApplyRect(root.GetComponent<RectTransform>(), anchor, pos, size, pivot, null, null);
+                Undo.AddComponent<Image>(root);
+                var inputField = Undo.AddComponent<InputField>(root);
+
+                // InputField (legacy) requires UnityEngine.UI.Text — not TMP.
+                // Add Text directly to guarantee wiring works regardless of TMP presence.
+
+                // Placeholder
+                var placeholder = new GameObject("Placeholder", typeof(RectTransform));
+                created.Add(placeholder);
+                placeholder.transform.SetParent(root.transform, false);
+                var placeholderText = Undo.AddComponent<UnityEngine.UI.Text>(placeholder);
+                placeholderText.text = "Enter text...";
+                placeholderText.color = new Color(0.67f, 0.67f, 0.67f);
+
+                // Text
+                var textGo = new GameObject("Text", typeof(RectTransform));
+                created.Add(textGo);
+                textGo.transform.SetParent(root.transform, false);
+                var textComp = Undo.AddComponent<UnityEngine.UI.Text>(textGo);
+                textComp.text = "";
+
+                // Wire
+                Undo.RecordObject(inputField, $"Wire InputField {name}");
+                inputField.textComponent = textComp;
+                inputField.placeholder = placeholderText;
+
+                foreach (var go in created) Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
+                return FormatCreated(root);
+            }
+            catch
+            {
+                foreach (var o in created) if (o != null) UnityEngine.Object.DestroyImmediate(o);
+                throw;
+            }
+        }
+
+        private static string CreateScrollView(string name, string parent, string anchor,
+            string pos, string size, string pivot, string color)
+        {
+            var created = new System.Collections.Generic.List<GameObject>();
+            try
+            {
+                var parentGo = ResolveParent(parent);
+
+                var root = new GameObject(name, typeof(RectTransform));
+                created.Add(root);
+                root.transform.SetParent(parentGo.transform, false);
+                ApplyRect(root.GetComponent<RectTransform>(), anchor, pos, size, pivot, null, null);
+                Undo.AddComponent<Image>(root);
+                Undo.AddComponent<Mask>(root);
+                var scrollRect = Undo.AddComponent<ScrollRect>(root);
+
+                // Viewport
+                var viewport = new GameObject("Viewport", typeof(RectTransform));
+                created.Add(viewport);
+                viewport.transform.SetParent(root.transform, false);
+                Undo.AddComponent<Image>(viewport);
+                Undo.AddComponent<Mask>(viewport);
+
+                // Content
+                var content = new GameObject("Content", typeof(RectTransform));
+                created.Add(content);
+                content.transform.SetParent(viewport.transform, false);
+                var contentRt = content.GetComponent<RectTransform>();
+                contentRt.anchorMin = Vector2.zero;
+                contentRt.anchorMax = Vector2.one;
+                contentRt.sizeDelta = Vector2.zero;
+
+                Undo.RecordObject(scrollRect, $"Wire ScrollRect {name}");
+                scrollRect.viewport = viewport.GetComponent<RectTransform>();
+                scrollRect.content = contentRt;
+                scrollRect.horizontal = true;
+                scrollRect.vertical = true;
+
+                foreach (var go in created) Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");
+                return FormatCreated(root);
+            }
+            catch
+            {
+                foreach (var o in created) if (o != null) UnityEngine.Object.DestroyImmediate(o);
+                throw;
+            }
         }
 
         private static GameObject ResolveParent(string parent)

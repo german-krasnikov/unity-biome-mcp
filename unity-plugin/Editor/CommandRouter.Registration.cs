@@ -494,6 +494,11 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "event"),
                 JsonHelper.ExtractString(args, "index")), mutating: true,
                 required: "path,component,event", optional: "index");
+            CommandRegistry.Register("list_events", args => ObjectManager.ListEvents(
+                JsonHelper.ExtractString(args, "path"),
+                JsonHelper.ExtractString(args, "component"),
+                JsonHelper.ExtractString(args, "event")), mutating: false,
+                required: "path,component,event", optional: "");
             CommandRegistry.Register("auto_wire", ExecAutoWire, mutating: true,
                 required: "path", optional: "dry_run");
             CommandRegistry.Register("manage_component", ExecManageComponent, mutating: true,

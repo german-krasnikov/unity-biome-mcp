@@ -246,5 +246,93 @@ namespace UnityMCP.Editor
             so.ApplyModifiedProperties();
             return $"Removed {eventField}[{idx}], {calls.arraySize} remaining";
         }
+
+        public static string ListEvents(string path, string component, string eventField)
+        {
+            var (_, comp) = ResolveComponent(path, component);
+
+            if (string.IsNullOrEmpty(eventField))
+                throw new ArgumentException("event field name must not be empty");
+
+            var so = new SerializedObject(comp);
+            var evtProp = so.FindProperty(eventField);
+            if (evtProp == null)
+            {
+                var alt = "m_" + char.ToUpper(eventField[0]) + eventField.Substring(1);
+                evtProp = so.FindProperty(alt);
+                if (evtProp != null) eventField = alt;
+            }
+            if (evtProp == null)
+                throw new ArgumentException($"Field '{eventField}' not found on {component}");
+
+            var calls = evtProp.FindPropertyRelative("m_PersistentCalls.m_Calls");
+            if (calls == null)
+                throw new ArgumentException($"Field '{eventField}' is not a UnityEvent");
+
+            int count = calls.arraySize;
+            if (count == 0)
+                return $"{eventField}: 0 listeners";
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"{eventField} ({count} listener{(count == 1 ? "" : "s")})");
+            for (int i = 0; i < count; i++)
+                sb.Append(FormatCall(calls.GetArrayElementAtIndex(i), i));
+            return sb.ToString().TrimEnd();
+        }
+
+        private static string FormatCall(UnityEditor.SerializedProperty call, int idx)
+        {
+            // m_CallState: 0=Off, 1=EditorOnly, 2=RuntimeOnly
+            var callStateMap = new[] { "Off", "EditorOnly", "RuntimeOnly" };
+            int stateIdx = call.FindPropertyRelative("m_CallState").enumValueIndex;
+            var state = stateIdx >= 0 && stateIdx < callStateMap.Length
+                ? callStateMap[stateIdx] : stateIdx.ToString();
+
+            var targetProp = call.FindPropertyRelative("m_Target");
+            var targetObj = targetProp?.objectReferenceValue;
+            string targetPath;
+            string targetType;
+            if (targetObj == null)
+            {
+                targetPath = "(null)";
+                targetType = "?";
+            }
+            else if (targetObj is Component c)
+            {
+                targetPath = ComponentSerializer.GetPath(c.gameObject);
+                targetType = targetObj.GetType().Name;
+            }
+            else
+            {
+                targetPath = AssetDatabase.GetAssetPath(targetObj);
+                if (string.IsNullOrEmpty(targetPath)) targetPath = targetObj.name;
+                targetType = targetObj.GetType().Name;
+            }
+
+            var methodName = call.FindPropertyRelative("m_MethodName")?.stringValue ?? "?";
+
+            // m_Mode: 0=Dynamic(skip), 1=Void, 2=Object, 3=Int, 4=Float, 5=String, 6=Bool
+            int mode = call.FindPropertyRelative("m_Mode").enumValueIndex;
+            string argStr = "";
+            var args = call.FindPropertyRelative("m_Arguments");
+            if (args != null && mode > 1)
+            {
+                switch (mode)
+                {
+                    case 2: // Object
+                        var objRef = args.FindPropertyRelative("m_ObjectArgument")?.objectReferenceValue;
+                        var objPath = objRef != null ? AssetDatabase.GetAssetPath(objRef) : "(null)";
+                        argStr = $"object={objPath}";
+                        break;
+                    case 3: argStr = $"int={args.FindPropertyRelative("m_IntArgument")?.intValue}"; break;
+                    case 4: argStr = $"float={args.FindPropertyRelative("m_FloatArgument")?.floatValue.ToString(System.Globalization.CultureInfo.InvariantCulture)}"; break;
+                    case 5: argStr = $"string={args.FindPropertyRelative("m_StringArgument")?.stringValue}"; break;
+                    case 6: argStr = $"bool={args.FindPropertyRelative("m_BoolArgument")?.boolValue}"; break;
+                }
+            }
+
+            var argPart = string.IsNullOrEmpty(argStr) ? "()" : $"({argStr})";
+            return $"[{idx}] {targetPath}|{targetType}.{methodName}{argPart} {state}\n";
+        }
     }
 }

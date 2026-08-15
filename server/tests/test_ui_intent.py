@@ -269,3 +269,107 @@ def test_build_ui_batch_no_spacing_no_extra_line():
     lines = build_ui_batch(nodes, parent=None)
     sp_lines = [l for l in lines if "set_property" in l and "spacing" in l]
     assert not sp_lines, f"Unexpected set_property for spacing: {sp_lines}"
+
+
+# ---------------------------------------------------------------------------
+# G6: ContentSizeFitter + LayoutElement
+# ---------------------------------------------------------------------------
+
+def test_fitter_emits_manage_component():
+    """G6: fitter node emits manage_component add ContentSizeFitter."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  fitter F"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    mc_lines = [l for l in lines if "manage_component" in l]
+    assert any("ContentSizeFitter" in l for l in mc_lines), f"Missing ContentSizeFitter in: {mc_lines}"
+
+
+def test_fitter_hfit_preferred_maps_to_2():
+    """G6: hfit=preferred emits set_property m_HorizontalFit value=2."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  fitter F hfit=preferred"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    sp_lines = [l for l in lines if "set_property" in l and "m_HorizontalFit" in l]
+    assert sp_lines, f"Expected m_HorizontalFit set_property, got: {lines}"
+    assert "value=2" in sp_lines[0], sp_lines[0]
+
+
+def test_element_emits_manage_component():
+    """G6: element node emits manage_component add LayoutElement."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  element E prefW=200"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    mc_lines = [l for l in lines if "manage_component" in l]
+    assert any("LayoutElement" in l for l in mc_lines), f"Missing LayoutElement in: {mc_lines}"
+
+
+def test_element_prefW_emits_set_property():
+    """G6: prefW=200 emits set_property m_PreferredWidth value=200."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  element E prefW=200"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    sp_lines = [l for l in lines if "set_property" in l and "m_PreferredWidth" in l]
+    assert sp_lines, f"Expected m_PreferredWidth set_property, got: {lines}"
+    assert "value=200" in sp_lines[0], sp_lines[0]
+
+
+# ---------------------------------------------------------------------------
+# G7: padding + align + cellSize + startCorner
+# ---------------------------------------------------------------------------
+
+def test_padding_emits_4_set_property_calls():
+    """G7: padding=L,R,T,B emits 4 set_property calls for m_Padding sub-props."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  layout L dir=vertical padding=10,10,20,20"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    for prop in ["m_Padding.m_Left", "m_Padding.m_Right", "m_Padding.m_Top", "m_Padding.m_Bottom"]:
+        assert any(prop in l for l in lines), f"Missing {prop} in: {lines}"
+
+
+def test_align_middlecenter_maps_to_4():
+    """G7: align=MiddleCenter emits m_ChildAlignment value=4."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  layout L align=MiddleCenter"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    align_lines = [l for l in lines if "m_ChildAlignment" in l]
+    assert align_lines, f"Expected m_ChildAlignment set_property, got: {lines}"
+    assert "value=4" in align_lines[0], align_lines[0]
+
+
+def test_align_shorthand_center_maps_to_4():
+    """G7: align=center (shorthand) emits m_ChildAlignment value=4."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  layout L align=center"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    align_lines = [l for l in lines if "m_ChildAlignment" in l]
+    assert align_lines, f"Expected m_ChildAlignment set_property, got: {lines}"
+    assert "value=4" in align_lines[0], align_lines[0]
+
+
+def test_cellsize_emits_set_property():
+    """G7: cellSize=80,80 on grid emits m_CellSize value=(80,80)."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  grid G dir=grid cellSize=80,80"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    cs_lines = [l for l in lines if "m_CellSize" in l]
+    assert cs_lines, f"Expected m_CellSize set_property, got: {lines}"
+    assert "value=(80,80)" in cs_lines[0], cs_lines[0]
+
+
+def test_startcorner_upperleft_maps_to_0():
+    """G7: startCorner=UpperLeft on grid emits m_StartCorner value=0."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  grid G dir=grid startCorner=UpperLeft"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    sc_lines = [l for l in lines if "m_StartCorner" in l]
+    assert sc_lines, f"Expected m_StartCorner set_property, got: {lines}"
+    assert "value=0" in sc_lines[0], sc_lines[0]

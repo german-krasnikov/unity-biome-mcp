@@ -45,7 +45,11 @@ namespace UnityMCP.Editor
 
             if (el is Button btn)
             {
-                btn.clickable.Invoke(Vector2.zero);
+                // Unity 6: Clickable.Invoke(EventBase) is protected.
+                // Invoke the protected method via reflection (null EventBase is safe — Invoke just fires clicked?.Invoke()).
+                btn.clickable.GetType()
+                    .GetMethod("Invoke", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?
+                    .Invoke(btn.clickable, new object[] { null });
                 return true;
             }
             // M4: Toggle needs value flip — not clickable.Invoke()

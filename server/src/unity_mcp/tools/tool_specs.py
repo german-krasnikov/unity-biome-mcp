@@ -105,6 +105,7 @@ _SPECS: dict[str, ToolSpec] = {
     'get_test_results': ToolSpec(category='TESTS', mutability='read'),
     'get_test_run': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
     'get_unity_events': ToolSpec(category='SCENE', mutability='read'),
+    'list_events': ToolSpec(category='COMPONENTS', mutability='read'),
     'get_version': ToolSpec(category='_INTERNAL', timeout_s=5.0),
     'get_watches': ToolSpec(category='RUNTIME', mutability='read'),
     'import_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),

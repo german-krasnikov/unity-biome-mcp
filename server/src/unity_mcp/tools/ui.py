@@ -21,7 +21,7 @@ async def create_ui(
     font_size: str | None = None,
     render_mode: str | None = None,
 ) -> str:
-    """Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace."""
+    """Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace."""
     return await _send("create_ui", _args(type=type, name=name, parent=parent, anchor=anchor,
                                           pos=pos, size=size, pivot=pivot, color=color,
                                           text=text, font_size=font_size, render_mode=render_mode))

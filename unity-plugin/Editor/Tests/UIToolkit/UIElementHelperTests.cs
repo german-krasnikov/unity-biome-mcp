@@ -117,14 +117,17 @@ namespace UnityMCP.Editor.Tests
             bool clicked = false;
             var btn = new Button(() => { clicked = true; }) { name = "myBtn" };
 
-            // Directly invoke the click action to test the callable mechanism
-            btn.clickable.Invoke(Vector2.zero);
+            // Unity 6: Clickable.Invoke(EventBase) is protected.
+            // Use reflection to invoke the protected method (null EventBase is safe).
+            btn.clickable.GetType()
+                .GetMethod("Invoke", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?
+                .Invoke(btn.clickable, new object[] { null });
 
             Assert.That(clicked, Is.True,
-                "Button.clickable.Invoke must trigger the click action");
+                "Button click action must be triggered via Clickable.Invoke reflection");
             // Double-red:
             // 1. Invert: Assert.That(clicked, Is.False) → fails after invoke → RED
-            // 2. Remove btn.clickable.Invoke call → clicked stays false → RED
+            // 2. Remove SendEvent call → clicked stays false → RED
         }
 
         // Test 7: FillText on TextField sets value

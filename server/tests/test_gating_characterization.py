@@ -147,6 +147,7 @@ _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "run_playtest_suite": 3600.0, "run_tests_wait": 1200.0,
     "resolve_scene_refs": 15.0, "search_scene": 15.0, "uitk_element": 15.0,
     "verify_after_change": 600.0,
+    "uitk_intent": 60.0,
 }
 
 
