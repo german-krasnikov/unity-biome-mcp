@@ -310,11 +310,8 @@ async def apply_scene_change(
 
             if broken == 0:
                 plan = _plans[plan_id]
-                since = _time.time() - plan.get("created_at", 0)
-                console_args: dict = {"level": "error,exception"}
-                if since > 0:
-                    console_args["since"] = since
-                console_data = await _send("get_console", console_args)
+                since = max(0.0, _time.time() - plan.get("created_at", _time.time()))
+                console_data = await _send("get_console", {"level": "error,exception", "since": since})
                 console_lines = [ln for ln in console_data.splitlines() if ln.strip()]
                 if len(console_lines) == 1 and console_lines[0].strip().lower() == "no logs":
                     console_lines = []

@@ -163,7 +163,7 @@ and other external side effects are outside the guarantee. Default
 `atomic=false` is backward-compatible and token-neutral.
 
 **Semantics:**
-- **Outermost-only grouping**: `_batchDepth` counter ensures only the outermost batch (depth=1) opens/closes the Undo group. Nested batches roll back under the single outer group.
+- **Root batch grouping**: `_batchDepth` counter ensures only the outermost batch (depth=1) opens/closes an Undo group. Atomic root batches open a `MCP Atomic Batch` group and revert on failure. Non-atomic root batches open a `MCP Batch` group, track mutations, and push the group to UndoGroupStack for `undo_last` targeting when mutations occur. Nested batches execute within the outer group.
 - **atomic overrides on_error**: When atomic, batch always stops on first failure regardless of on_error setting.
 - **Error output format**:
   - Normal rollback: `ATOMIC_ROLLBACK: reverted ops 0..K-1` (ops 0 through K-1 reverted)

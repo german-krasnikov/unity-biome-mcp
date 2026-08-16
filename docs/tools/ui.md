@@ -50,6 +50,14 @@ await create_ui(
     size="160,48",
     text="Pause",
 )
+await create_ui(
+    type="ScrollView",
+    name="ItemList",
+    parent="/HUD",
+    anchor="stretch",
+    pos="0,0",
+    size="0,0",
+)
 ```
 
 Canvas render modes are `SSO` (Screen Space Overlay), `SSC` (Screen Space
@@ -57,6 +65,10 @@ Camera), and `WorldSpace`. Camera assignment and project-specific components
 can be configured afterward with the normal component tools. `font_min` and
 `font_max` enable TextMeshPro auto-sizing; the legacy `Text` fallback ignores
 them when TextMeshPro is unavailable.
+
+`ScrollView` creates a canonical hierarchy: full-stretch Viewport with Mask,
+top-left-anchored Content with ContentSizeFitter for automatic sizing, and a
+root Image for visual background. Omit `color` to skip the root Image coloring.
 
 ### Refine RectTransform layout
 
@@ -89,15 +101,25 @@ await set_rect(path="/WorldCanvas/Label", pos3="0,0,0.02")
 
 ### Validate interaction infrastructure
 
-`lint_ugui` checks for a scene `EventSystem` and for a `GraphicRaycaster` on
-each Canvas in scope. It does not validate layout geometry or listener method
-signatures.
+`lint_ugui` performs eight structural checks:
+
+**ScrollRect checks (S1–S5):**
+- [S1] Viewport missing or not full-stretch (0,0)→(1,1)
+- [S2] Content cannot grow (missing ContentSizeFitter, LayoutGroup, or nonzero sizeDelta)
+- [S3] Masks on both root and Viewport (keep only Viewport)
+- [S4] Scrollbar in children but not wired to horizontalScrollbar or verticalScrollbar
+- [S5] Content is null
+
+**General layout checks (G1–G3):**
+- [G1] Active RectTransform with point anchor and zero size
+- [G2] Image without sprite + raycastTarget=true with no interactable ancestor (blocks raycasts invisibly)
+- [G3] LayoutGroup with no active children
 
 ```python
 report = await lint_ugui(root="/HUD")
 ```
 
-An `ok: 0 issues` result means those structural checks passed. Use
+An `ok: 0 issues` result means all structural checks passed. Use
 [`list_events`](components.md#list_events) to inspect persistent UnityEvent
 listeners and the screenshot workflow to verify the rendered result.
 
@@ -185,14 +207,14 @@ await uitk_file(
 
 ### Lint source files
 
-`lint_uitk` is validation-only. It performs six checks:
+`lint_uitk` is validation-only. It performs structural UXML and USS validation:
 
-1. malformed UXML;
-2. broken `<Style src>` references;
-3. missing `<Template src>` references;
-4. unnamed interactive elements;
-5. duplicate USS selectors;
-6. empty USS rules.
+- malformed UXML;
+- broken `<Style src>` references;
+- missing `<Template src>` references;
+- unnamed interactive elements;
+- duplicate USS selectors;
+- empty USS rules.
 
 ```python
 report = await lint_uitk(path="Assets/UI/PauseMenu.uxml")

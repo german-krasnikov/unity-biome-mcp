@@ -21,6 +21,15 @@ transform = await get_component(
 health = await get_component(path="/Player", type="Health")
 ```
 
+The `type` parameter is required. You can use `component=` as an alias for
+backward compatibility with `set_property` naming:
+
+```python
+# These are equivalent:
+await get_component(path="/Player", type="Health")
+await get_component(path="/Player", component="Health")
+```
+
 `fields` projects the returned text to the requested names. Use `compress=True` to
 strip defaults from a large result, or `full=True` only when diagnostic detail was
 removed by response distillation.

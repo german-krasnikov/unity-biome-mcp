@@ -247,6 +247,8 @@ result = await verify_after_change(
     timeout=300,
     restart_between=True,
 )
+# Returns: "PASS: compile + errors + console + tests + playtests"
+# or "PASS: compile + errors | SKIPPED: tests, playtests" if tests/playtests not requested
 ```
 
 The test and playtest gates can change Editor/runtime state. A playtest suite
@@ -254,6 +256,9 @@ stops Play Mode when it finishes. With `restart_between=True`, verification
 first stops Play Mode, enters it automatically for the first file, and restarts
 it between later files. With the default `False`, enter Play Mode before the
 playtest gate.
+
+The result includes a `SKIPPED:` suffix when optional gates (console, tests, playtests)
+are not requested, so you can see which gates were omitted from the test plan.
 
 `timeout` limits the compile wait (capped at 120 seconds) and the Unity test
 gate; it is not one wall-clock deadline for the entire workflow and does not set
