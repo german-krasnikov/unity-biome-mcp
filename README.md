@@ -29,7 +29,11 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 
 ## Quick Start
 
-Requirements: Unity 6 (`6000.0` or newer) and [uv](https://docs.astral.sh/uv/). You do not need to install Python separately when using `uvx`.
+Requirements: Unity 6 (`6000.0` or newer), Git 2.14+ on `PATH`, and
+[uv](https://docs.astral.sh/uv/). The MCP server does not need a separate Python
+installation when it runs through `uvx`; optional Codex skill synchronization
+requires Python 3.10 or newer on `PATH`. See the full
+[Getting Started prerequisites](docs/getting-started/index.md#prerequisites).
 
 ### 1. Install uv
 
@@ -216,7 +220,7 @@ Codex synchronization.
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="160 registered MCP tools. Test inventory: 13289 entries: 5309 regular Python, 511 Python stress, 334 live Python, and 7135 Unity source attributes. Unity count source: static source scan. Server package version: v1.36.0.">
+<img src="docs/assets/stats.svg" width="100%" alt="160 registered MCP tools. Test inventory: 13658 entries: 5511 regular Python, 511 Python stress, 334 live Python, and 7302 Unity source attributes. Unity count source: static source scan. Server package version: v1.36.0.">
 <!-- README_STATS_END -->
 
 ## Unity MCP Product Comparison
