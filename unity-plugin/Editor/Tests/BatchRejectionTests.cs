@@ -8,7 +8,20 @@ namespace UnityMCP.Editor.Tests
     public class BatchRejectionTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
-        public void SetUp() => CommandRegistry.Clear();
+        public void SetUp()
+        {
+            CommandRegistry.Clear();
+            // Restore Ready=true so existing tests exercise the normal operating path.
+            // The Ready=false scenario is covered by Execute_RejectsCommandsWhenRegistryNotReady.
+            CommandRegistry.Ready = true;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            // Ensure Ready is restored even if a test sets it to false.
+            CommandRegistry.Ready = true;
+        }
 
         [Test]
         public void BatchRejection_AsyncCmd_NotBatchable()
@@ -58,9 +71,21 @@ namespace UnityMCP.Editor.Tests
         public void BatchRejection_UnknownCmd_NotBlockedByBatchableCheck()
         {
             // Unregistered commands pass IsBatchable and fall through to Validate().
+            // (SetUp ensures Ready=true so the Ready guard is not the blocker here.)
             var result = BatchHelper.Execute("totally_unknown_cmd", "continue");
 
             StringAssert.Contains("Unknown command", result);
+        }
+
+        [Test]
+        public void Execute_RejectsCommandsWhenRegistryNotReady()
+        {
+            CommandRegistry.Register("test_ready_cmd", _ => "ok", required: "");
+            CommandRegistry.Ready = false; // simulate mid-reload window
+
+            var result = BatchHelper.Execute("test_ready_cmd", "continue");
+
+            StringAssert.Contains("registry not ready", result);
         }
     }
 }

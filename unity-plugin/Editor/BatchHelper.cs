@@ -133,6 +133,14 @@ namespace UnityMCP.Editor
                     if (AtomicFail(i)) break; else continue;
                 }
 
+                // Registry guard: during domain reload, Clear() empties _commands before
+                // RegisterAll() completes — reject early so callers get a clear retry message.
+                if (!CommandRegistry.Ready)
+                {
+                    sb.AppendLine($"[{i}] err: registry not ready — retry after domain reload");
+                    if (AtomicFail(i)) break; else continue;
+                }
+
                 // Validate schema before execution
                 var validationErr = CommandValidator.Validate(cmd, argsJson);
                 if (validationErr != null)

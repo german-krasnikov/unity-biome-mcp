@@ -43,16 +43,39 @@ async def test_reconnect_unity_auto_discovers(mock_bridge):
 
 
 async def test_reconnect_unity_clears_session_enabled(mock_bridge, monkeypatch):
-    """Issue 24: reconnect_unity must reset gating._session_enabled.
+    """Issue 24: reconnect_unity must reset gating._session_enabled on project switch.
 
     Categories enabled via discover_tools(category=..., enable=True) for a PRIOR
-    Unity project must not stay force-visible after switching to a different one.
+    Unity project must not stay force-visible after switching to a DIFFERENT one.
+    Port change = project switch → clear session.
+    """
+    import unity_mcp.server as srv
+    from unity_mcp.tools import gating
+    from unity_mcp.server import reconnect_unity
+
+    # make connect(9501) update slot.port so port-change is detected
+    async def _connect_update(port):
+        srv.slot.port = port
+        return f"Connected to Unity on port {port}"
+    srv.slot.connect = AsyncMock(side_effect=_connect_update)
+    srv.slot.port = 9500  # initial port
+
+    monkeypatch.setattr(gating, "_session_enabled", {"asset"})
+    await reconnect_unity(9501)  # different port = project switch
+    assert gating._session_enabled == set()
+
+
+async def test_reconnect_preserves_session_on_same_port(mock_bridge, monkeypatch):
+    """Same-port reconnect (domain reload) must preserve _session_enabled.
+
+    When Unity reloads its domain on the same port, session-enabled tools
+    should stay enabled so the user doesn't have to re-discover categories.
     """
     from unity_mcp.tools import gating
     from unity_mcp.server import reconnect_unity
     monkeypatch.setattr(gating, "_session_enabled", {"asset"})
-    await reconnect_unity(9500)
-    assert gating._session_enabled == set()
+    await reconnect_unity(9500)  # same port as mock_slot.port (9500)
+    assert "asset" in gating._session_enabled
 
 
 async def test_reconnect_unity_does_not_reset_gating_when_connect_fails(monkeypatch):
@@ -85,17 +108,20 @@ async def test_reconnect_unity_does_not_reset_gating_when_connect_fails(monkeypa
 
 
 async def test_reconnect_unity_resets_gating_only_after_connect_call(mock_bridge, monkeypatch):
-    """M19: verify call order — s.connect(port) must run BEFORE gating.reset()."""
+    """M19: verify call order — s.connect(port) must run BEFORE gating.reset(),
+    and reset only fires on port change (project switch)."""
     import unity_mcp.server as srv
     from unity_mcp.server import reconnect_unity
 
     call_order = []
-    original_connect = srv.slot.connect
 
     async def tracked_connect(*a, **kw):
         call_order.append("connect")
-        return await original_connect(*a, **kw)
+        port_arg = a[0] if a else kw.get("port", 9500)
+        srv.slot.port = port_arg  # update port to trigger port-change detection
+        return f"Connected to Unity on port {port_arg}"
 
+    srv.slot.port = 9500  # initial port
     srv.slot.connect = AsyncMock(side_effect=tracked_connect)
 
     from unity_mcp.tools import gating
@@ -107,7 +133,7 @@ async def test_reconnect_unity_resets_gating_only_after_connect_call(mock_bridge
 
     monkeypatch.setattr(gating, "reset", tracked_reset)
 
-    await reconnect_unity(9500)
+    await reconnect_unity(9501)  # different port → triggers reset after connect
 
     assert call_order == ["connect", "reset"]
 

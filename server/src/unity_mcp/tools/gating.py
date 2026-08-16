@@ -239,7 +239,12 @@ async def discover_tools(category: str | None = None, enable: bool = True,
             [f"Category '{category}':"]
             + [_tool_surface_line(name) for name in names]
         )
-    return f"Category '{category}': {', '.join(names)}"
+    batchable = [n for n in names if n not in _DIRECT_ONLY]
+    direct = [n for n in names if n in _DIRECT_ONLY]
+    parts = ", ".join(batchable)
+    if direct:
+        parts += f" | direct-only: {', '.join(direct)}"
+    return f"Category '{category}': {parts}"
 
 
 discover_tools.__test__ = False  # prevent pytest collection

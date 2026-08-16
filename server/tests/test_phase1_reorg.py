@@ -14,6 +14,8 @@ _EXPECTED_TIER1_NONCORE = frozenset({
     "resolve_tool_schema", "run_playtest", "run_playtest_suite", "run_tests", "run_tests_wait",
     "scene", "scene_change_plan", "screenshot", "search_scene", "set_active", "set_parent",
     "sync_unity", "validate_references", "verify_after_change",
+    # Step 1: intent tools promoted to tier1
+    "ui_intent", "vfx_intent", "uitk_intent",
 })
 
 _DEMOTED_TOOLS = frozenset({
@@ -31,8 +33,8 @@ def test_tier1_noncore_exact_23():
     assert TIER1 - _CORE_TOOLS == _EXPECTED_TIER1_NONCORE
 
 
-def test_visible_surface_37():
-    assert len(TIER1) == 37  # plan_status removed (ACP-only migration)
+def test_visible_surface_40():
+    assert len(TIER1) == 40  # +3 intent tools promoted to tier1 (Step 1)
 
 
 def test_promoted_compile_preflight_is_core():

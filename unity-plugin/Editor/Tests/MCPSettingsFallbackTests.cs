@@ -35,5 +35,14 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNotNull(cats);
             Assert.IsTrue(cats.ContainsKey("CORE"));
         }
+
+        [Test]
+        public void DefaultCatalog_DoesNotContain_DirectOnlyTools()
+        {
+            var cats = MCPSettings.GetCatalogCategories();
+            CollectionAssert.DoesNotContain(cats["UGUI"], "ui_intent");
+            CollectionAssert.DoesNotContain(cats["MEDIA"], "vfx_intent");
+            CollectionAssert.DoesNotContain(cats["UITOOLKIT"], "uitk_intent");
+        }
     }
 }

@@ -564,20 +564,12 @@ def test_tier1_residual_names_still_present():
     assert not (residual_expected & _CORE_TOOLS)
 
 
-# --- TDD Fix 1: TIER1 pollution — vfx_intent/animator_intent/ui_intent must be Tier2+ ---
+# --- TDD Fix 1 (updated): animator_intent is Tier2+; ui_intent/vfx_intent/uitk_intent promoted to tier1 ---
 
-def test_tier1_excludes_intent_tools():
-    """vfx_intent, animator_intent, ui_intent must NOT be in TIER1 — they are themed
-    (VFX/UI/META) tools, not always-on core."""
+def test_tier1_excludes_animator_intent():
+    """animator_intent must NOT be in TIER1 — it is a themed (ANIM/META) tool, not always-on core."""
     from unity_mcp.tools.gating import TIER1
-    for name in ("vfx_intent", "animator_intent", "ui_intent"):
-        assert name not in TIER1, f"{name} should be Tier2+, not TIER1"
-
-
-def test_vfx_intent_hidden_by_default():
-    from unity_mcp.tools import gating
-    gating.reset()
-    assert gating.filter_by_tier([_make_tool("vfx_intent")]) == []
+    assert "animator_intent" not in TIER1, "animator_intent should be Tier2+, not TIER1"
 
 
 def test_animator_intent_hidden_by_default():
@@ -586,21 +578,29 @@ def test_animator_intent_hidden_by_default():
     assert gating.filter_by_tier([_make_tool("animator_intent")]) == []
 
 
-def test_ui_intent_hidden_by_default():
+def test_ui_intent_visible_by_default():
+    """ui_intent promoted to tier1 — must be visible after reset."""
     from unity_mcp.tools import gating
     gating.reset()
-    assert gating.filter_by_tier([_make_tool("ui_intent")]) == []
+    assert gating.filter_by_tier([_make_tool("ui_intent")]) != []
+
+
+def test_vfx_intent_visible_by_default():
+    """vfx_intent promoted to tier1 — must be visible after reset."""
+    from unity_mcp.tools import gating
+    gating.reset()
+    assert gating.filter_by_tier([_make_tool("vfx_intent")]) != []
 
 
 async def test_lint_ugui_visible_after_discover_ui_category():
-    # "ui" now maps to UGUI + UITOOLKIT; vfx_intent is MEDIA (not in "ui")
+    # "ui" now maps to UGUI + UITOOLKIT; vfx_intent is tier1 so always visible
     from unity_mcp.tools import gating
     gating.reset()
     await gating.discover_tools(category="ui")
     try:
         assert gating.is_visible("lint_ugui")
         assert gating.is_visible("inspect_uitk")
-        assert not gating.is_visible("vfx_intent")
+        assert gating.is_visible("vfx_intent")  # tier1 — always on
     finally:
         gating.reset()
 
@@ -772,6 +772,59 @@ def test_tier1_tool_count():
     """P-319 regression: TIER1 count must match CHANGELOG documentation.
     If this fails, update CHANGELOG.md and this assertion together."""
     from unity_mcp.tools.gating import TIER1
-    assert len(TIER1) == 37, (
+    assert len(TIER1) == 40, (
         f"TIER1 count changed: {len(TIER1)}. Update CHANGELOG.md and this assertion."
     )
+
+
+# --- Step 1: intent tools promoted to tier1 ---
+
+def test_ui_intent_is_tier1():
+    from unity_mcp.tools.gating import TIER1
+    assert 'ui_intent' in TIER1
+
+
+def test_vfx_intent_is_tier1():
+    from unity_mcp.tools.gating import TIER1
+    assert 'vfx_intent' in TIER1
+
+
+def test_uitk_intent_is_tier1():
+    from unity_mcp.tools.gating import TIER1
+    assert 'uitk_intent' in TIER1
+
+
+def test_intent_tools_visible_after_reset():
+    from unity_mcp.tools import gating
+    gating.reset()
+    for name in ('ui_intent', 'vfx_intent', 'uitk_intent'):
+        result = gating.filter_by_tier([_make_tool(name)])
+        assert result != [], f"{name} should be visible after reset (tier1)"
+
+
+# --- Step 2: discover_tools separates direct_only tools ---
+
+async def test_discover_separates_direct_only():
+    """discover_tools plain response must label direct_only tools separately."""
+    from unity_mcp.tools.gating import discover_tools, reset
+    reset()
+    result = await discover_tools(category="UGUI", enable=False)
+    assert "| direct-only:" in result, f"Expected '| direct-only:' marker, got: {result}"
+    marker_pos = result.index("| direct-only:")
+    assert "ui_intent" in result[marker_pos:], (
+        f"ui_intent should appear after | direct-only: marker, got: {result}"
+    )
+
+
+async def test_discover_direct_only_count():
+    """Batchable tools (before [direct-only:) must not include direct_only tools."""
+    from unity_mcp.tools.gating import discover_tools, reset
+    reset()
+    result = await discover_tools(category="UGUI", enable=False)
+    # split on | direct-only: to get batchable section
+    batchable_part = result.split("| direct-only:")[0]
+    # create_ui, lint_ugui, set_rect are batchable; ui_intent is direct-only
+    assert "create_ui" in batchable_part
+    assert "lint_ugui" in batchable_part
+    assert "set_rect" in batchable_part
+    assert "ui_intent" not in batchable_part

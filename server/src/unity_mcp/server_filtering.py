@@ -36,6 +36,8 @@ _SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
     "timeline", "animation", "animator",
     # B4: SYSTEM tool with label param; sub-agents need full schema to construct calls
     "checkpoint",
+    # Step 1: intent tools promoted to tier1 — must expose full schema
+    "ui_intent", "vfx_intent", "uitk_intent",
 })
 _SCHEMA_KEEP_FULL: frozenset[str] = _CORE_TOOLS | _SCHEMA_KEEP_FULL_EXTRA
 
