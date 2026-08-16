@@ -62,5 +62,15 @@ namespace UnityMCP.Editor.Tests
             Assert.That(result, Does.StartWith("err:"),
                 "Non-existent file should return err: file not found");
         }
+
+        [Test]
+        public void UitkElement_WhenNameAndSelectorProvided_NameWins()
+        {
+            var selectedAddress = UIHelper.PreferredUitkAddress(
+                "preferred-by-name", ".fallback-selector");
+
+            Assert.That(selectedAddress, Is.EqualTo("preferred-by-name"),
+                "published addressing order is ref -> name -> selector");
+        }
     }
 }

@@ -201,6 +201,23 @@ namespace UnityMCP.Editor
 
         public static bool IsRegistered(string cmd) => _commands.ContainsKey(cmd);
         internal static bool IsMutating(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Mutating;
+
+        /// <summary>
+        /// Returns the effective mutability for one invocation. Most commands use their
+        /// registration-level classification; mixed read/write commands narrow it from args.
+        /// Unknown or unrecognised actions remain conservatively mutating.
+        /// </summary>
+        internal static bool IsMutating(string cmd, string argsJson)
+        {
+            if (!IsMutating(cmd)) return false;
+            if (cmd != "uitk_file") return true;
+
+            // ExecUitkFile defaults a missing action to read. Every other action writes,
+            // reverts, or is conservatively treated as a possible external file mutation.
+            var action = JsonHelper.ExtractString(argsJson, "action") ?? "read";
+            return !action.Equals("read", StringComparison.Ordinal);
+        }
+
         internal static bool IsRuntime(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Runtime;
         // Guard-list flags (DRY audit issues-23-29 Cat.1) — single source of truth, travels
         // with the registration. CommandRouter.IsAlwaysAllowed/IsAllowedDuringCompile delegate here.

@@ -173,6 +173,30 @@ def test_is_write_get_component():
 def test_is_write_unknown_cmd_is_not_write():
     assert is_write("nonexistent_cmd", {}) is False
 
+
+def test_is_write_uitk_file_read_is_read():
+    assert is_write("uitk_file", {"action": "read"}) is False
+
+
+def test_is_write_uitk_file_mutations_and_unknown_actions_fail_closed():
+    assert is_write("uitk_file", {"action": "write"}) is True
+    assert is_write("uitk_file", {"action": "future_action"}) is True
+    assert is_write("uitk_file", {}) is True
+
+
+def test_is_write_doctor_is_argument_aware():
+    assert is_write("doctor", {}) is False
+    assert is_write("doctor", {"fix": False}) is False
+    assert is_write("doctor", {"fix": True}) is True
+
+
+@pytest.mark.parametrize("cmd", [
+    "test_step", "run_playtest", "run_playtest_suite", "screenshot_baseline",
+    "verify_after_change",
+])
+def test_playtest_and_baseline_side_effect_tools_are_writes(cmd):
+    assert is_write(cmd, {}) is True
+
 # ── is_write: animation ───────────────────────────────────────────────────────
 
 def test_is_write_animation_get_is_read():

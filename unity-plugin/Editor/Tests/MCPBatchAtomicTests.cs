@@ -170,5 +170,127 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNull(f, "AtomicF should be reverted");
             Assert.IsNull(g, "AtomicG should never have been created");
         }
+
+        [TestCase("err: rejected")]
+        [TestCase("ERROR: rejected")]
+        [TestCase("  blocked: rejected")]
+        [TestCase("\twarn: context\n  TIMEOUT: rejected")]
+        [TestCase("DRY-RUN RESOLVE ERROR: target not found")]
+        public void HandlerFailurePrefixes_AreClassifiedAcrossAllLines(string result)
+        {
+            Assert.IsTrue(BatchHelper.IsFailureResult(result), result);
+        }
+
+        [Test]
+        public void NonAtomic_HandlerReturnedError_Stop_DoesNotCountOkOrRunNext()
+        {
+            CommandRegistry.Register("test_returned_error", _ => "error: rejected",
+                required: "", alwaysAllowed: true);
+
+            var result = BatchHelper.Execute(
+                "test_returned_error\ncreate_object name=ReturnedErrorNext",
+                "stop", 25000, atomic: false);
+
+            StringAssert.Contains("error: rejected", result, result);
+            StringAssert.Contains("ok:0 err:1", result, result);
+            Assert.IsTrue(BatchHelper.HasErrors(result), result);
+            var next = GameObject.Find("ReturnedErrorNext");
+            if (next != null) _toDestroy.Add(next);
+            Assert.IsNull(next, "on_error=stop must not execute the next operation");
+        }
+
+        [Test]
+        public void Atomic_WarningThenReturnedError_RollsBackPriorMutationAndStops()
+        {
+            CommandRegistry.Register("test_returned_multiline_error",
+                _ => "warn: validation context\n  ErR: rejected after warning",
+                required: "", alwaysAllowed: true);
+
+            var result = BatchHelper.Execute(
+                "create_object name=ReturnedErrorBefore\n" +
+                "test_returned_multiline_error\n" +
+                "create_object name=ReturnedErrorAfter",
+                "continue", 25000, atomic: true);
+
+            StringAssert.Contains("ATOMIC_ROLLBACK", result, result);
+            StringAssert.Contains("ok:1 err:1", result, result);
+            Assert.IsTrue(BatchHelper.HasErrors(result), result);
+
+            var before = GameObject.Find("ReturnedErrorBefore");
+            var after = GameObject.Find("ReturnedErrorAfter");
+            if (before != null) _toDestroy.Add(before);
+            if (after != null) _toDestroy.Add(after);
+            Assert.IsNull(before, "the prior mutation must be reverted");
+            Assert.IsNull(after, "the operation after the returned error must not run");
+        }
+
+        [TestCase("This is an error: shown as ordinary prose")]
+        [TestCase("note: DRY-RUN RESOLVE ERROR: appears in documentation")]
+        [TestCase("DRY-RUN: value contains ERROR: but operation succeeded")]
+        public void OrdinaryProseContainingError_IsNotFailureProtocol(string result)
+        {
+            Assert.IsFalse(BatchHelper.IsFailureResult(result), result);
+        }
+
+        [Test]
+        public void Atomic_DryRunResolveError_RollsBackPriorMutationAndStops()
+        {
+            CommandRegistry.Register("test_dry_run_resolve_error",
+                _ => "DRY-RUN RESOLVE ERROR: target not found: /Missing",
+                required: "", alwaysAllowed: true);
+
+            var result = BatchHelper.Execute(
+                "create_object name=DryRunResolveBefore\n" +
+                "test_dry_run_resolve_error\n" +
+                "create_object name=DryRunResolveAfter",
+                "continue", 25000, atomic: true);
+
+            StringAssert.Contains("DRY-RUN RESOLVE ERROR:", result, result);
+            StringAssert.Contains("ATOMIC_ROLLBACK", result, result);
+            StringAssert.Contains("ok:1 err:1", result, result);
+
+            var before = GameObject.Find("DryRunResolveBefore");
+            var after = GameObject.Find("DryRunResolveAfter");
+            if (before != null) _toDestroy.Add(before);
+            if (after != null) _toDestroy.Add(after);
+            Assert.IsNull(before, "the prior mutation must be reverted");
+            Assert.IsNull(after, "the operation after the protocol error must not run");
+        }
+
+        [Test]
+        public void Atomic_ActualBulkDryRunResolveError_RollsBackAndStops()
+        {
+            var result = BatchHelper.Execute(
+                "create_object name=BulkResolveBefore components=Rigidbody2D\n" +
+                "set_property find_type=Rigidbody2D component=Rigidbody2D " +
+                "prop=m_ConnectedBody value=/DefinitelyMissingBulkTarget dry_run=true\n" +
+                "create_object name=BulkResolveAfter",
+                "continue", 25000, atomic: true);
+
+            StringAssert.Contains("DRY-RUN BULK ERROR:", result, result);
+            StringAssert.Contains("ATOMIC_ROLLBACK", result, result);
+            StringAssert.Contains("ok:1 err:1", result, result);
+
+            var before = GameObject.Find("BulkResolveBefore");
+            var after = GameObject.Find("BulkResolveAfter");
+            if (before != null) _toDestroy.Add(before);
+            if (after != null) _toDestroy.Add(after);
+            Assert.IsNull(before, "the created Rigidbody2D object must be reverted");
+            Assert.IsNull(after, "the operation after the bulk failure must not run");
+        }
+
+        [Test]
+        public void NonAtomic_DeadlineTimeout_IsAnErrorEvenWhenErrCountIsZero()
+        {
+            var elapsed = new Queue<long>(new[] { 0L, 1001L });
+
+            var result = BatchHelper.Execute(
+                "ping\nping", "continue", timeoutMs: 1000,
+                elapsedMilliseconds: () => elapsed.Dequeue());
+
+            StringAssert.Contains("TIMEOUT: batch deadline", result, result);
+            StringAssert.Contains("ok:1 err:0 timeout:1", result, result);
+            Assert.IsTrue(BatchHelper.HasErrors(result), result);
+        }
     }
 }

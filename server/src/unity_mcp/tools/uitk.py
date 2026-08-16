@@ -1,6 +1,8 @@
 """UI Toolkit tools: inspect_uitk, lint_uitk, uitk_element, attach_uitk, uitk_file."""
 from typing import Literal
 
+from mcp.server.fastmcp.exceptions import ToolError
+
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._common import bind
@@ -42,11 +44,13 @@ async def lint_uitk(
     """Validate a UXML or USS file for structural errors and broken references
     (use `get_compile_errors` for C# compile errors,
     use `verify_after_change` for multi-gate scene verification after mutations).
-    Checks: well-formed XML (UXML), broken <Style src> refs, missing <Template src> deps,
-    CamelCase class names (use kebab-case), star selectors, duplicate CSS variables.
-    fix: auto-remove unsupported CSS properties and normalize format.
+    Checks: A1 malformed UXML; A2 broken <Style src>; A3 missing <Template src>;
+    A4 unnamed interactive elements; A5 duplicate USS selectors; A6 empty USS rules.
+    fix: reserved for compatibility. True is unsupported and never changes the file.
     path: Assets/ path to UXML or USS file.
     """
+    if fix:
+        raise ToolError("fix=True is unsupported for lint_uitk; no file was changed")
     return await _send("lint_uitk", _args(path=path, fix=fix))
 
 
@@ -88,9 +92,11 @@ async def attach_uitk(
     sort_order: int | None = None,
 ) -> str:
     """Attach UIDocument to a GameObject (use for UI Toolkit runtime panels).
+    Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating
+    every supplied asset; it does not create UXML or PanelSettings assets.
     path: scene path to the target GameObject.
     uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted).
-    panel_settings: Assets/ path to PanelSettings asset (auto-created at Assets/UI/DefaultPanel.asset if omitted).
+    panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset.
     sort_order: UIDocument.sortingOrder (default 0).
     err: if UIDocument already present — remove it first or use inspect_uitk/uitk_element.
     """
@@ -117,11 +123,13 @@ async def uitk_file(
     attrs: str | None = None,
     prop: str | None = None,
 ) -> str:
-    """Read or edit a UXML or USS asset file
+    """Read or edit a UXML or USS asset file.
+    action=read is read-only. Side effect: every other action may create, replace, import,
+    or restore a project file; review the target path before calling it.
     (UI Toolkit only — use `asset` for other Unity asset types,
     use `inspect_uitk` to inspect the live VisualElement tree at runtime,
     use `attach_uitk` to wire a UIDocument to a GameObject).
-    action=read: compact normalized text (one element/rule per line, defaults stripped).
+    action=read: return the file's UTF-8 text verbatim (no normalization).
     action=write: full file replace; validates and triggers AssetDatabase.ImportAsset.
     action=create_uxml: new UXML file with minimal template; content optional.
     action=create_uss: new empty USS file; content optional.

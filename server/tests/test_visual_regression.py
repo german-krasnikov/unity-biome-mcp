@@ -1,7 +1,10 @@
 """Tests for visual regression screenshot tools."""
 import os
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, mock_open
+from mcp.server.fastmcp.exceptions import ToolError
+
 from unity_mcp.tools.scene import screenshot_baseline, screenshot_compare
 
 pytest.importorskip("PIL")
@@ -64,3 +67,19 @@ async def test_screenshot_compare_no_baseline(tmp_path, mock_bridge):
 
     assert "No baseline" in result
     assert "screenshot_baseline" in result
+
+
+@pytest.mark.parametrize("name", ["", "../outside", "folder/name", r"folder\name"])
+async def test_screenshot_baseline_rejects_unsafe_name_before_capture(name, mock_bridge):
+    with pytest.raises(ToolError, match="Invalid baseline name"):
+        await screenshot_baseline(name)
+
+    mock_bridge.send.assert_not_awaited()
+
+
+@pytest.mark.parametrize("name", ["", "../outside", "folder/name", r"folder\name"])
+async def test_screenshot_compare_rejects_unsafe_name_before_lookup(name, mock_bridge):
+    with pytest.raises(ToolError, match="Invalid baseline name"):
+        await screenshot_compare(name)
+
+    mock_bridge.send.assert_not_awaited()

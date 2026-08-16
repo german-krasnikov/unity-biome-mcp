@@ -125,4 +125,7 @@ def test_write_cmds_bounded_size():
     from unity_mcp.middleware_types import WRITE_CMDS
     # If this fails, a tool was added without mutability='read' annotation.
     # Either annotate it as read, or increase this number intentionally.
-    assert len(WRITE_CMDS) <= 73, f"WRITE_CMDS grew to {len(WRITE_CMDS)} — annotate new tools with mutability='read' if they don't mutate"  # +4: plan_create/approve/reject/edit (T20)
+    # 79 includes six side-effecting tools corrected from read to write:
+    # test_step, run_playtest, run_playtest_suite, screenshot_baseline,
+    # verify_after_change, and conditionally mutating doctor.
+    assert len(WRITE_CMDS) <= 79, f"WRITE_CMDS grew to {len(WRITE_CMDS)} — annotate new tools with mutability='read' if they don't mutate"

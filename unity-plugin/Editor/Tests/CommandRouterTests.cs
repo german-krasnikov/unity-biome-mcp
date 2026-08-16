@@ -92,6 +92,16 @@ namespace UnityMCP.Editor.Tests
         public bool Registry_IsMutating_ReadCommands_ReturnFalse(string cmd)
             => CommandRegistry.IsMutating(cmd);
 
+        [TestCase("{}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"read\"}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"READ\"}", ExpectedResult = true)]
+        [TestCase("{\"action\":\"write\"}", ExpectedResult = true)]
+        [TestCase("{\"action\":\"create_uxml\"}", ExpectedResult = true)]
+        [TestCase("{\"action\":\"revert\"}", ExpectedResult = true)]
+        [TestCase("{\"action\":\"unknown\"}", ExpectedResult = true)]
+        public bool Registry_IsMutating_UitkFile_DependsOnAction(string argsJson)
+            => CommandRegistry.IsMutating("uitk_file", argsJson);
+
         [TestCase("invoke_method",          ExpectedResult = true)]
         [TestCase("set_runtime_property",   ExpectedResult = true)]
         [TestCase("wait_until",             ExpectedResult = true)]
@@ -241,6 +251,35 @@ namespace UnityMCP.Editor.Tests
             finally
             {
                 CommandRouter._dedupRegistry = previousDedup;
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+                CommandRegistry.RestoreForTest(snapshot);
+            }
+        }
+
+        [Test]
+        public void Process_BatchTimeoutSummary_ReturnsFailureResponse()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode = () => false;
+            try
+            {
+                CommandRegistry.Clear();
+                CommandRegistry.Register("batch", _ => "ok:1 err:0 timeout:1",
+                    required: "commands", alwaysAllowed: true,
+                    allowedDuringCompile: true);
+                CommandRegistry.Ready = true;
+
+                var result = CommandRouter.Process(
+                    "{\"id\":\"batch-timeout\",\"cmd\":\"batch\"," +
+                    "\"args\":{\"commands\":\"ping\\nping\"}}");
+
+                StringAssert.Contains("\"ok\":false", result, result);
+                StringAssert.Contains("timeout:1", result, result);
+            }
+            finally
+            {
                 CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
                 CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
                 CommandRegistry.RestoreForTest(snapshot);

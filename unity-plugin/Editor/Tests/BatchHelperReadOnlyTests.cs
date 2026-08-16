@@ -60,5 +60,21 @@ namespace UnityMCP.Editor.Tests
             // Read command at [0] returned "ok" — no line output for it
             StringAssert.DoesNotContain("[0]", result);
         }
+
+        [Test]
+        public void Batch_ReadOnly_UitkFileReadAllowed_WriteBlocked()
+        {
+            CommandRouter.IsReadOnly = () => true;
+            const string path = "Assets/DoesNotExist/BatchReadOnlyProbe.uxml";
+
+            var read = BatchHelper.Execute(
+                $"uitk_file path={path} action=read", "continue");
+            var write = BatchHelper.Execute(
+                $"uitk_file path={path} action=create_uxml", "continue");
+
+            StringAssert.DoesNotContain("READ_ONLY_BLOCKED", read, read);
+            StringAssert.Contains("file not found", read, read);
+            StringAssert.Contains("READ_ONLY_BLOCKED", write, write);
+        }
     }
 }

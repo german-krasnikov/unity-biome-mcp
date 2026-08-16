@@ -7,12 +7,14 @@ namespace UnityMCP.Editor
     internal static class SessionAuthorization
     {
         // Returns null if allowed, error string if blocked.
-        internal static string Check(string chatMode, string cmd)
+        internal static string Check(string chatMode, string cmd, string argsJson = null)
         {
             if (string.IsNullOrEmpty(chatMode)) return null;
             if (chatMode == "agent" || chatMode == "full-access") return null;
             if (chatMode == "ask")
-                return CommandRegistry.IsMutating(cmd) ? $"ask mode: '{cmd}' requires agent mode" : null;
+                return CommandRegistry.IsMutating(cmd, argsJson)
+                    ? $"ask mode: '{cmd}' requires agent mode"
+                    : null;
             return $"unknown chatMode '{chatMode}': denied by default";
         }
     }

@@ -1,6 +1,8 @@
 // Pure static DSL builder — no Unity API calls, fully NUnit-testable.
+using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 
@@ -10,6 +12,15 @@ namespace UnityMCP.Editor
     {
         static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
+        internal static readonly IReadOnlyList<StepType> SelectableTypes = new[]
+        {
+            StepType.Move, StepType.Teleport, StepType.Wait, StepType.WaitUntil,
+            StepType.Assert, StepType.AssertConsoleClean, StepType.Log, StepType.Section,
+            StepType.Invoke, StepType.TimeScale, StepType.Monitor, StepType.Set,
+            StepType.Click, StepType.Invariant, StepType.Capture,
+            StepType.AssertCaptured, StepType.AssertNear,
+        };
+
         /// <summary>Build a full DSL script from a list of visual steps.</summary>
         public static string Export(List<VisualStep> steps, bool globalAbort)
         {
@@ -17,10 +28,10 @@ namespace UnityMCP.Editor
             if (globalAbort) sb.AppendLine("ABORT_ON_FAIL");
             foreach (var step in steps)
             {
-                if (!IsSupportedType(step.type) && string.IsNullOrEmpty(step.message)) continue;
+                if (!IsSupportedType(step.type) && string.IsNullOrEmpty(step.rawLine)) continue;
                 sb.AppendLine(StepToDsl(step));
             }
-            return sb.ToString().TrimEnd();
+            return sb.ToString().TrimEnd('\r', '\n');
         }
 
         /// <summary>Convert one VisualStep to its DSL line(s). Prepends DESC if description set.</summary>
@@ -55,7 +66,7 @@ namespace UnityMCP.Editor
             StepType.Capture      => $"CAPTURE {s.message} {s.query}",
             StepType.AssertCaptured => AssertCapturedLine(s),
             StepType.AssertNear   => $"ASSERT_NEAR {s.path} {s.value} {F(s.delay)}",
-            _                     => $"# (raw: {s.message})"
+            _                     => s.rawLine
         };
 
         static string AssertCapturedLine(VisualStep s)
@@ -89,21 +100,20 @@ namespace UnityMCP.Editor
             if (!IsSupportedType(p.Type))
             {
                 var copy = p.ShallowClone();
-                copy.Message = p.RawLine ?? p.Message;
+                var source = (p.RawLine ?? "").Trim();
+                if (PlaytestParser.SigilRegex.IsMatch(source) &&
+                    !string.IsNullOrEmpty(p.ExpandedRawLine) &&
+                    !string.Equals(source, p.ExpandedRawLine, StringComparison.Ordinal))
+                {
+                    // VAL/PATH_PREFIX directives are parse-time metadata, not visual
+                    // steps. Preserve semantics by exporting their resolved line.
+                    copy.RawLine = p.ExpandedRawLine;
+                }
                 return new VisualStep(copy);
             }
             return new VisualStep(p);
         }
 
-        static bool IsSupportedType(StepType t) => t switch
-        {
-            StepType.Move or StepType.Teleport or StepType.Wait or StepType.WaitUntil
-            or StepType.Assert or StepType.AssertConsoleClean or StepType.Log
-            or StepType.Section or StepType.Invoke or StepType.TimeScale
-            or StepType.Monitor or StepType.Set or StepType.Click
-            or StepType.Invariant or StepType.Capture or StepType.AssertCaptured
-            or StepType.AssertNear => true,
-            _ => false
-        };
+        internal static bool IsSupportedType(StepType t) => SelectableTypes.Contains(t);
     }
 }

@@ -101,3 +101,12 @@ def test_run_playtest_suite_is_tier1():
     spec = _SPECS["run_playtest_suite"]
     assert spec.tier1 is True, "run_playtest_suite must be tier1=True to appear in gateway"
     assert "run_playtest_suite" in TIER1
+
+
+def test_side_effecting_playtest_and_baseline_tools_are_writes():
+    from unity_mcp.tools.tool_specs import _SPECS
+
+    for name in (
+        "test_step", "run_playtest", "run_playtest_suite", "screenshot_baseline",
+    ):
+        assert _SPECS[name].mutability == "write", name

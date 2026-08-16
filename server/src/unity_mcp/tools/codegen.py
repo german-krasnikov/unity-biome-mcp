@@ -33,7 +33,8 @@ except ImportError:
 
 
 async def auto_fix(ctx: _Context) -> str:
-    """Auto-detect and fix Unity errors. Uses MCP sampling to ask Claude for fixes."""
+    """Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.
+    This read-only tool does not edit files or apply the suggested change."""
     from .. import editor_log
     console = await _send("get_console", {"count": 10, "level": PROBLEM_LEVELS})
     compile_errors = editor_log.corroborate(await _send("get_compile_errors", {}))

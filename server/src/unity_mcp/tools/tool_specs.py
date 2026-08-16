@@ -75,7 +75,9 @@ _SPECS: dict[str, ToolSpec] = {
     'diagnose': ToolSpec(category='VERIFY', mutability='read'),
     'discover_tools': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     'do': ToolSpec(category='SYSTEM', direct_only=True),
-    'doctor': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
+    # Conditional: default is observational; fix=True removes stale local files.
+    # middleware_types.is_write() handles the argument-aware classification.
+    'doctor': ToolSpec(category='SYSTEM', direct_only=True),
     'editor': ToolSpec(category='CORE', core=True),
     'execute_code': ToolSpec(category='SYSTEM', core=True, timeout_s=60.0),
     'export_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
@@ -149,8 +151,8 @@ _SPECS: dict[str, ToolSpec] = {
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
     # timeout+20.0 explicitly.
-    'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, runtime_only=True, mutability='read'),
-    'run_playtest_suite': ToolSpec(category='TESTS', tier1=True, timeout_s=3600.0, mutability='read', direct_only=True),
+    'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, runtime_only=True, mutability='write'),
+    'run_playtest_suite': ToolSpec(category='TESTS', tier1=True, timeout_s=3600.0, mutability='write', direct_only=True),
     'runtime_snapshot': ToolSpec(category='RUNTIME', mutability='read'),
     'run_tests': ToolSpec(category='TESTS', tier1=True, timeout_s=30.0),
     'run_tests_wait': ToolSpec(category='TESTS', tier1=True, timeout_s=1200.0, direct_only=True),
@@ -164,7 +166,7 @@ _SPECS: dict[str, ToolSpec] = {
     'scene_change_plan': ToolSpec(category='SCENE', tier1=True, timeout_s=30.0, direct_only=True),
     'scene_health': ToolSpec(category='VERIFY', mutability='read'),
     'screenshot': ToolSpec(category='MEDIA', tier1=True, mutability='read'),
-    'screenshot_baseline': ToolSpec(category='MEDIA', mutability='read', direct_only=True),
+    'screenshot_baseline': ToolSpec(category='MEDIA', mutability='write', direct_only=True),
     'screenshot_compare': ToolSpec(category='MEDIA', mutability='read', direct_only=True),
     'scriptable_object': ToolSpec(category='ASSETS'),
     'search_scene': ToolSpec(category='SCENE', tier1=True, timeout_s=15.0, mutability='read'),
@@ -184,7 +186,7 @@ _SPECS: dict[str, ToolSpec] = {
     'spatial_query': ToolSpec(category='SCENE', mutability='read'),
     'sync_playtest_aliases_from_defs': ToolSpec(category='TESTS'),
     'sync_unity': ToolSpec(category='SYSTEM', tier1=True, direct_only=True),
-    'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='read'),
+    'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='write'),
     'timeline': ToolSpec(category='MEDIA'),
     'transfer_object': ToolSpec(category='SCENE'),
     'ui_intent': ToolSpec(category='UGUI', direct_only=True),
@@ -194,7 +196,8 @@ _SPECS: dict[str, ToolSpec] = {
     'validate_triggers': ToolSpec(category='SCENE', mutability='read'),
     'validate_playtest_aliases': ToolSpec(category='TESTS', mutability='read'),
     'validate_references': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
-    'verify_after_change': ToolSpec(category='VERIFY', tier1=True, timeout_s=600.0, mutability='read', direct_only=True),
+    # May run Unity tests/playtests and stop or restart Play Mode.
+    'verify_after_change': ToolSpec(category='VERIFY', tier1=True, timeout_s=600.0, direct_only=True),
     'vfx_intent': ToolSpec(category='MEDIA', direct_only=True),
     'inspect_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),
     'lint_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),

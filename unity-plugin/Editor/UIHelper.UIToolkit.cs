@@ -57,7 +57,7 @@ namespace UnityMCP.Editor
             if (action == "query")
             {
                 if (root == null) return "err: path is required for action=query";
-                return UitkQuery(root, selector ?? name);
+                return UitkQuery(root, PreferredUitkAddress(name, selector));
             }
 
             // Resolve single element
@@ -71,7 +71,7 @@ namespace UnityMCP.Editor
             }
             else if (root != null)
             {
-                var sel = selector ?? name;
+                var sel = PreferredUitkAddress(name, selector);
                 if (string.IsNullOrEmpty(sel)) return "err: selector or name is required";
                 ve = UIElementSerializer.Dispatch(root, sel);
                 if (ve == null)
@@ -116,32 +116,40 @@ namespace UnityMCP.Editor
             if (go.GetComponent<UIDocument>() != null)
                 return $"err: {path} already has UIDocument. Remove it first or use inspect_uitk.";
 
-            Undo.AddComponent<UIDocument>(go);
-            var doc = go.GetComponent<UIDocument>();
-
+            VisualTreeAsset vta = null;
             if (!string.IsNullOrEmpty(uxmlPath))
             {
-                var vta = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(uxmlPath);
+                vta = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(uxmlPath);
                 if (vta == null)
                     return $"err: uxml not found at {uxmlPath}. Use uitk_file to create it first.";
-                doc.visualTreeAsset = vta;
             }
 
+            PanelSettings settings = null;
             if (!string.IsNullOrEmpty(panelSettings))
             {
-                var ps = AssetDatabase.LoadAssetAtPath<PanelSettings>(panelSettings);
-                if (ps == null)
+                settings = AssetDatabase.LoadAssetAtPath<PanelSettings>(panelSettings);
+                if (settings == null)
                     return $"err: PanelSettings not found at {panelSettings}";
-                doc.panelSettings = ps;
             }
 
+            // Resolve every supplied asset before the single scene mutation. Invalid input
+            // must never leave a partially configured UIDocument behind.
+            var doc = Undo.AddComponent<UIDocument>(go);
+            doc.visualTreeAsset = vta;
+            doc.panelSettings = settings;
             doc.sortingOrder = sortingOrder;
+            EditorUtility.SetDirty(doc);
 
             var uxmlHint = !string.IsNullOrEmpty(uxmlPath) ? $" (vta={uxmlPath})" : " (no vta)";
             return $"ok: UIDocument added to {path}{uxmlHint}";
         }
 
         // ── Phase 2 private helpers ──────────────────────────────────────────────
+
+        // Public tool contract: refId wins before this method is reached; when both
+        // remaining fields are present, the explicit element name wins over selector.
+        internal static string PreferredUitkAddress(string name, string selector) =>
+            !string.IsNullOrEmpty(name) ? name : selector;
 
         private static string UitkQuery(VisualElement root, string selector)
         {

@@ -1,5 +1,7 @@
 """Tests for scene_change_plan + apply_scene_change (P1.4 transaction tools)."""
 import time
+from unittest.mock import AsyncMock
+
 import pytest
 import unity_mcp.tools.transaction as tr
 
@@ -9,7 +11,7 @@ async def _default_send(cmd, args, **kw):
     if cmd == "get_console": return ""
     if cmd == "resolve_scene_refs": return "OK\t$target\t/Path"
     if cmd == "checkpoint": return "cp_abc123"
-    if cmd == "batch": return "3/3 ok"
+    if cmd == "batch": return "ok:3"
     if cmd == "validate_references": return "0 broken"
     if cmd == "scene": return "saved"
     if cmd == "editor": return "state: editing"
@@ -40,6 +42,24 @@ class TestSceneChangePlan:
         result = await tr.scene_change_plan("wire unlock")
         assert result.startswith("FAIL:")
         assert not tr._plans  # plan not created
+
+    async def test_console_errors_block_plan_before_checkpoint(self, monkeypatch):
+        calls: list[str] = []
+
+        async def console_error_send(cmd, args, **kw):
+            calls.append(cmd)
+            if cmd == "editor": return "state: editing"
+            if cmd == "get_compile_errors": return "compile clean"
+            if cmd == "get_console": return "[Error] NullReferenceException: existing"
+            raise AssertionError(f"unexpected call after console gate: {cmd}")
+
+        monkeypatch.setattr(tr, "_send", console_error_send)
+        result = await tr.scene_change_plan("wire unlock")
+
+        assert result.startswith("FAIL: console errors")
+        assert "plan not created" in result
+        assert "checkpoint" not in calls
+        assert not tr._plans
 
     async def test_target_miss(self, monkeypatch):
         async def miss_send(cmd, args, **kw):
@@ -102,11 +122,127 @@ class TestApplySceneChange:
 
     async def test_valid_plan(self):
         plan_id = self._insert_plan()
-        result = await tr.apply_scene_change(plan_id, "[]")
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
         assert "mutations=ok" in result
         assert "refs=ok" in result
         assert "console=clean" in result
+        assert "verified=true" in result
         assert "saved=true" in result
+
+    async def test_batch_is_atomic_and_stops_on_error(self, monkeypatch):
+        plan_id = self._insert_plan()
+        calls: list[tuple[str, dict]] = []
+
+        async def tracking_send(cmd, args, **kw):
+            calls.append((cmd, dict(args)))
+            return await _default_send(cmd, args, **kw)
+
+        monkeypatch.setattr(tr, "_send", tracking_send)
+        await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        batch_args = next(args for cmd, args in calls if cmd == "batch")
+        assert batch_args == {
+            "commands": "create_object name=A",
+            "atomic": "true",
+            "on_error": "stop",
+        }
+
+    @pytest.mark.parametrize(
+        "batch_data",
+        ["", "   \n", "unrecognized batch output", "ok", "ok:0", "1/1 ok"],
+    )
+    async def test_unrecognized_or_nonpositive_batch_output_fails_closed(
+        self, monkeypatch, batch_data
+    ):
+        plan_id = self._insert_plan()
+        calls: list[str] = []
+
+        async def adversarial_send(cmd, args, **kw):
+            calls.append(cmd)
+            if cmd == "batch":
+                return batch_data
+            raise AssertionError(f"unexpected call after unproven batch result: {cmd}")
+
+        monkeypatch.setattr(tr, "_send", adversarial_send)
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        assert result.startswith("state=FAILED")
+        assert "verified=false" in result
+        assert "saved=false" in result
+        assert calls == ["batch"]
+
+    def test_batch_state_accepts_only_current_positive_terminal_summary(self):
+        assert tr._batch_state("created A\nok:1") == "APPLIED"
+        assert tr._batch_state("ok:2 err:0 timeout:0") == "APPLIED"
+        assert tr._batch_state("This is an error: ordinary prose\nok:1") == "APPLIED"
+        assert (
+            tr._batch_state("DRY-RUN RESOLVE ERROR: missing target\nok:1")
+            == "FAILED"
+        )
+        assert tr._batch_state("ok:1 err:0 timeout:1") == "FAILED"
+
+    @pytest.mark.parametrize("commands", ["", "  \n# comment only\n\t"])
+    async def test_empty_or_comment_only_commands_are_rejected_before_send(
+        self, monkeypatch, commands
+    ):
+        plan_id = self._insert_plan()
+        send = AsyncMock()
+        monkeypatch.setattr(tr, "_send", send)
+
+        result = await tr.apply_scene_change(plan_id, commands)
+
+        assert result.startswith("state=FAILED")
+        assert "mutations=not attempted" in result
+        assert "no executable scene mutations" in result
+        assert "verified=false" in result
+        assert "saved=false" in result
+        send.assert_not_awaited()
+
+    async def test_unsafe_mixed_batch_is_rejected_whole_before_send(self, monkeypatch):
+        """A file write followed by a failure can never be labelled rolled back."""
+        plan_id = self._insert_plan()
+        send = AsyncMock()
+        monkeypatch.setattr(tr, "_send", send)
+        commands = (
+            "create_object name=A\n"
+            "uitk_file action=create_uss path=Assets/UI/A.uss content=x\n"
+            "missing_plugin_command value=1"
+        )
+
+        result = await tr.apply_scene_change(plan_id, commands)
+
+        assert result.startswith("state=FAILED")
+        assert "uitk_file" in result
+        assert "missing_plugin_command" in result
+        assert "ROLLED_BACK" not in result
+        send.assert_not_awaited()
+
+    @pytest.mark.parametrize("command", ["batch", "execute_code", "asset", "prefab"])
+    async def test_non_scene_or_nested_commands_are_rejected(
+        self, monkeypatch, command
+    ):
+        plan_id = self._insert_plan()
+        send = AsyncMock()
+        monkeypatch.setattr(tr, "_send", send)
+
+        result = await tr.apply_scene_change(plan_id, f"{command} value=x")
+
+        assert result.startswith("state=FAILED")
+        assert command in result
+        send.assert_not_awaited()
+
+    async def test_preflight_matches_batch_literal_space_command_grammar(
+        self, monkeypatch
+    ):
+        plan_id = self._insert_plan()
+        send = AsyncMock()
+        monkeypatch.setattr(tr, "_send", send)
+
+        result = await tr.apply_scene_change(plan_id, "create_object\tname=A")
+
+        assert result.startswith("state=FAILED")
+        assert "create_object\tname=A" in result
+        send.assert_not_awaited()
 
     async def test_expired_plan(self):
         plan_id = "expired1"
@@ -114,7 +250,7 @@ class TestApplySceneChange:
             "goal": "x", "targets": "", "checkpoint": "",
             "created_at": 0, "resolved": {},  # epoch 0 = expired
         }
-        result = await tr.apply_scene_change(plan_id, "[]")
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
         assert "unknown" in result or "expired" in result
 
     async def test_unknown_plan(self):
@@ -126,12 +262,14 @@ class TestApplySceneChange:
 
         async def broken_send(cmd, args, **kw):
             if cmd == "validate_references": return "5 broken refs"
-            if cmd == "batch": return "3/3 ok"
+            if cmd == "batch": return "ok:3"
             return ""
         monkeypatch.setattr(tr, "_send", broken_send)
 
-        result = await tr.apply_scene_change(plan_id, "[]")
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
         assert "BROKEN" in result
+        assert "verified=false" in result
+        assert "saved=false (verification failed)" in result
 
     async def test_no_verify(self, monkeypatch):
         plan_id = self._insert_plan()
@@ -139,13 +277,16 @@ class TestApplySceneChange:
 
         async def tracking_send(cmd, args, **kw):
             calls.append(cmd)
-            if cmd == "batch": return "ok"
+            if cmd == "batch": return "ok:1"
             return "saved"
         monkeypatch.setattr(tr, "_send", tracking_send)
 
-        await tr.apply_scene_change(plan_id, "[]", verify=False)
+        result = await tr.apply_scene_change(
+            plan_id, "create_object name=A", verify=False
+        )
         assert "validate_references" not in calls
         assert calls.count("get_console") == 0
+        assert "verified=skipped" in result
 
     async def test_no_save(self, monkeypatch):
         plan_id = self._insert_plan()
@@ -154,11 +295,13 @@ class TestApplySceneChange:
         async def tracking_send(cmd, args, **kw):
             calls.append(cmd)
             if cmd == "validate_references": return "0 broken"
-            if cmd == "batch": return "ok"
+            if cmd == "batch": return "ok:1"
             return ""
         monkeypatch.setattr(tr, "_send", tracking_send)
 
-        result = await tr.apply_scene_change(plan_id, "[]", save=False)
+        result = await tr.apply_scene_change(
+            plan_id, "create_object name=A", save=False
+        )
         assert "scene" not in calls
         assert "unsaved=true" in result
 
@@ -166,14 +309,14 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def failing_send(cmd, args, **kw):
-            if cmd == "batch": return "2/2 ok"
+            if cmd == "batch": return "ok:2"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
             if cmd == "scene": raise TimeoutError("TCP timeout")
             return ""
         monkeypatch.setattr(tr, "_send", failing_send)
 
-        result = await tr.apply_scene_change(plan_id, "[]")
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
         assert "saved=FAILED (TimeoutError)" in result
         assert "state=APPLIED" in result
 
@@ -181,27 +324,29 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def tracking_send(cmd, args, **kw):
-            if cmd == "batch": return "1/1 ok"
+            if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
             return ""
         monkeypatch.setattr(tr, "_send", tracking_send)
 
-        result = await tr.apply_scene_change(plan_id, "[]", save=False)
+        result = await tr.apply_scene_change(
+            plan_id, "create_object name=A", save=False
+        )
         assert "unsaved=true" in result
 
     async def test_save_success_confirmed_by_response(self, monkeypatch):
         plan_id = self._insert_plan()
 
         async def ok_send(cmd, args, **kw):
-            if cmd == "batch": return "1/1 ok"
+            if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
             if cmd == "scene": return "ok saved"
             return ""
         monkeypatch.setattr(tr, "_send", ok_send)
 
-        result = await tr.apply_scene_change(plan_id, "[]")
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
         assert "saved=true" in result
 
     async def test_verify_clean_refs(self, monkeypatch):
@@ -209,11 +354,13 @@ class TestApplySceneChange:
 
         async def clean_send(cmd, args, **kw):
             if cmd == "validate_references": return "0 broken"
-            if cmd == "batch": return "2/2 ok"
+            if cmd == "batch": return "ok:2"
             return ""
         monkeypatch.setattr(tr, "_send", clean_send)
 
-        result = await tr.apply_scene_change(plan_id, "[]", save=False)
+        result = await tr.apply_scene_change(
+            plan_id, "create_object name=A", save=False
+        )
         assert "refs=ok" in result
 
     async def test_apply_graceful_on_validate_error(self, monkeypatch):
@@ -221,22 +368,114 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def err_send(cmd, args, **kw):
-            if cmd == "batch": return "2/2 ok"
+            if cmd == "batch": return "ok:2"
             if cmd == "validate_references": raise Exception("NullReferenceException: verify phase")
             if cmd == "scene": return "saved"
             return ""
         monkeypatch.setattr(tr, "_send", err_send)
 
-        result = await tr.apply_scene_change(plan_id, "[]")
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
         assert "mutations=ok" in result
         assert "refs=unchecked" in result
+        assert "saved=false (verification failed)" in result
+
+    async def test_batch_rollback_stops_before_verify_and_save(self, monkeypatch):
+        plan_id = self._insert_plan()
+        calls: list[str] = []
+
+        async def rollback_send(cmd, args, **kw):
+            calls.append(cmd)
+            if cmd == "batch":
+                return "[0] ok\n[1] err: missing target\nATOMIC_ROLLBACK: reverted ops 0..0\nok:1 err:1"
+            raise AssertionError(f"unexpected call after rollback: {cmd}")
+
+        monkeypatch.setattr(tr, "_send", rollback_send)
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        assert result.startswith("state=ROLLED_BACK")
+        assert "verified=false" in result
+        assert "saved=false" in result
+        assert calls == ["batch"]
+
+    async def test_batch_failure_without_rollback_is_not_reported_as_applied(self, monkeypatch):
+        plan_id = self._insert_plan()
+        calls: list[str] = []
+
+        async def failed_send(cmd, args, **kw):
+            calls.append(cmd)
+            if cmd == "batch":
+                return "[0] err: READ_ONLY_BLOCKED\nok:0 err:1"
+            raise AssertionError(f"unexpected call after failure: {cmd}")
+
+        monkeypatch.setattr(tr, "_send", failed_send)
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        assert result.startswith("state=FAILED")
+        assert calls == ["batch"]
+
+    async def test_multiline_handler_error_is_classified_as_failed(self, monkeypatch):
+        """A warning line cannot hide a later handler-returned err: line."""
+        plan_id = self._insert_plan()
+        calls: list[str] = []
+
+        async def failed_send(cmd, args, **kw):
+            calls.append(cmd)
+            if cmd == "batch":
+                return (
+                    "[0] warn: import emitted a warning\n"
+                    "err: USS import failed\n"
+                    "ok:0 err:1"
+                )
+            raise AssertionError(f"unexpected call after failure: {cmd}")
+
+        monkeypatch.setattr(tr, "_send", failed_send)
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        assert result.startswith("state=FAILED")
+        assert "ROLLED_BACK" not in result
+        assert calls == ["batch"]
+
+    async def test_console_errors_block_save(self, monkeypatch):
+        plan_id = self._insert_plan()
+        calls: list[str] = []
+
+        async def console_error_send(cmd, args, **kw):
+            calls.append(cmd)
+            if cmd == "batch": return "ok:1"
+            if cmd == "validate_references": return "0 ERROR, 4 OK"
+            if cmd == "get_console": return "NullReferenceException: boom"
+            raise AssertionError(f"save must not run after console failure: {cmd}")
+
+        monkeypatch.setattr(tr, "_send", console_error_send)
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        assert "console=1 errors" in result
+        assert "saved=false (verification failed)" in result
+        assert "scene" not in calls
+
+    async def test_unrecognized_reference_response_blocks_save(self, monkeypatch):
+        plan_id = self._insert_plan()
+        calls: list[str] = []
+
+        async def unknown_send(cmd, args, **kw):
+            calls.append(cmd)
+            if cmd == "batch": return "ok:1"
+            if cmd == "validate_references": return "validation finished"
+            raise AssertionError(f"no later call expected: {cmd}")
+
+        monkeypatch.setattr(tr, "_send", unknown_send)
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        assert "refs=unchecked (unrecognized response)" in result
+        assert "saved=false (verification failed)" in result
+        assert calls == ["batch", "validate_references"]
 
     async def test_dirty_flag_verified_partial_after_save(self, monkeypatch):
         """P-414: saved=PARTIAL dirty=true when scene stays dirty post-save."""
         plan_id = self._insert_plan()
 
         async def fake_send(cmd, args, **kw):
-            if cmd == "batch": return "1/1 ok"
+            if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
             if cmd == "scene": return "Assets/Scenes/Test.unity"  # save "succeeds"
@@ -244,7 +483,9 @@ class TestApplySceneChange:
             return ""
         monkeypatch.setattr(tr, "_send", fake_send)
 
-        result = await tr.apply_scene_change(plan_id, "[]", save=True)
+        result = await tr.apply_scene_change(
+            plan_id, "create_object name=A", save=True
+        )
         assert "saved=PARTIAL dirty=true" in result, f"Expected PARTIAL but got: {result}"
 
     async def test_dirty_flag_verified_clean_after_save(self, monkeypatch):
@@ -252,7 +493,7 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def fake_send(cmd, args, **kw):
-            if cmd == "batch": return "1/1 ok"
+            if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
             if cmd == "scene": return "Assets/Scenes/Test.unity"
@@ -260,5 +501,7 @@ class TestApplySceneChange:
             return ""
         monkeypatch.setattr(tr, "_send", fake_send)
 
-        result = await tr.apply_scene_change(plan_id, "[]", save=True)
+        result = await tr.apply_scene_change(
+            plan_id, "create_object name=A", save=True
+        )
         assert "saved=true dirty=false" in result, f"Expected clean but got: {result}"

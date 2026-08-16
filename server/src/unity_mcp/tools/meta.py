@@ -8,8 +8,8 @@ from mcp.server.fastmcp import Context
 from ..doctor import format_report, run_doctor
 from ..llm_config import apply_config, parse_tcp_config
 from . import code_intel as _ci
-from ._annotations import RO as _RO
-from ._common import bind
+from ._annotations import RO as _RO, RW as _RW
+from ._common import _guard_read_only, bind
 from .gating import discover_tools as _discover_tools_impl
 from .schema_registry import _registry as _schema_registry
 
@@ -21,7 +21,8 @@ async def discover_tools(category: str | None = None, enable: bool = True,
                          include_legacy: bool = False, structured: bool = False,
                          ctx: Context = None) -> str:
     """Find and enable tools by category.
-    Canonical 8: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM.
+    Canonical 10: SCENE, COMPONENTS, ASSETS, UGUI, UITOOLKIT, MEDIA,
+    VERIFY, RUNTIME, TESTS, SYSTEM.
     include_legacy=True adds legacy aliases (object, animation, etc.).
     structured=True adds surface/mutability info. enable=False to browse only."""
     result = await _discover_tools_impl(category, enable, include_legacy, structured)
@@ -31,7 +32,9 @@ async def discover_tools(category: str | None = None, enable: bool = True,
 
 
 async def doctor(fix: bool = False) -> str:
-    """Run health diagnostics. Use fix=True to auto-repair safe issues."""
+    """Run health diagnostics. fix=True removes safe stale port/lock files."""
+    if fix:
+        _guard_read_only("doctor")
     results = await run_doctor(fix=fix)
     return format_report(results)
 
@@ -86,7 +89,9 @@ async def release_smoke() -> str:
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool()(discover_tools)
-    mcp.tool()(doctor)
+    # Conservative annotation: fix=True may remove stale local files. Runtime
+    # read-only enforcement remains argument-aware in doctor() itself.
+    mcp.tool(annotations=_RW)(doctor)
     mcp.tool()(resolve_tool_schema)
     mcp.tool()(set_llm_config)
     mcp.tool(annotations=_RO)(alias_status)

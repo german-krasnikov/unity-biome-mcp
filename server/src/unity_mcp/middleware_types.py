@@ -61,6 +61,7 @@ ACTION_READS: dict[str, frozenset[str]] = {
     "bake":              frozenset({"status", "settings"}),
     "package":           frozenset({"list", "search"}),
     "scene_environment": frozenset({"get"}),
+    "uitk_file":         frozenset({"read"}),
 }
 
 
@@ -73,6 +74,10 @@ def is_write(cmd: str, args: dict | None = None) -> bool:
     """
     if cmd not in WRITE_CMDS:
         return False
+    # doctor is observational by default, but fix=True deletes stale local
+    # discovery files. Treat unknown truthy values conservatively as writes.
+    if cmd == "doctor":
+        return bool((args or {}).get("fix", False))
     reads = ACTION_READS.get(cmd)
     if reads is None:
         return True  # plain write cmd, no action map

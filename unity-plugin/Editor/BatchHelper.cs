@@ -20,9 +20,17 @@ namespace UnityMCP.Editor
         internal static Func<bool> IsPlayMode = () => EditorApplication.isPlaying;
 
         private static readonly Regex _sigilRe = new Regex(@"\$([A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
-        private static readonly Regex _errCountRe = new Regex(@"\berr:\s*[1-9]", RegexOptions.Compiled);
+        private static readonly Regex _failureCountRe = new Regex(
+            @"\b(?:err|timeout):\s*[1-9]\d*\b",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex _failureLineRe = new Regex(
+            @"^[ \t]*(?:(?i:err(?:or)?|blocked|timeout)[ \t]*:|" +
+            @"(?:[A-Z][A-Z0-9_-]*[ \t]+)+ERROR[ \t]*:)",
+            RegexOptions.Compiled | RegexOptions.Multiline);
 
-        public static string Execute(string commandsText, string onError, int timeoutMs = 25000, bool atomic = false, bool validateAliases = false)
+        public static string Execute(string commandsText, string onError,
+            int timeoutMs = 25000, bool atomic = false, bool validateAliases = false,
+            Func<long> elapsedMilliseconds = null)
         {
             if (validateAliases)
                 return ValidateAliases(commandsText);
@@ -30,6 +38,7 @@ namespace UnityMCP.Editor
             var commands = ParseLines(commandsText);
             var sb = new StringBuilder();
             var sw = System.Diagnostics.Stopwatch.StartNew();
+            elapsedMilliseconds ??= () => sw.ElapsedMilliseconds;
             bool stopped = false;
             int okCount = 0, errCount = 0, timeoutCount = 0;
 
@@ -68,9 +77,10 @@ namespace UnityMCP.Editor
                     continue;
                 }
 
-                if (sw.ElapsedMilliseconds > Math.Max(timeoutMs, 1000))
+                var elapsedMs = elapsedMilliseconds();
+                if (elapsedMs > Math.Max(timeoutMs, 1000))
                 {
-                    sb.AppendLine($"[{i}] TIMEOUT: batch deadline reached after {sw.ElapsedMilliseconds / 1000.0:F1}s");
+                    sb.AppendLine($"[{i}] TIMEOUT: batch deadline reached after {elapsedMs / 1000.0:F1}s");
                     for (int j = i + 1; j < commands.Count; j++)
                         sb.AppendLine($"[{j}] skip");
                     timeoutCount = commands.Count - i;
@@ -89,7 +99,7 @@ namespace UnityMCP.Editor
                 }
 
                 // Play Mode guards
-                if (IsPlayMode() && CommandRegistry.IsMutating(cmd) && cmd != "set_parent")
+                if (IsPlayMode() && CommandRegistry.IsMutating(cmd, argsJson) && cmd != "set_parent")
                 {
                     sb.AppendLine($"[{i}] BLOCKED: '{cmd}' is mutating, skipped in Play Mode");
                     if (AtomicFail(i)) break; else continue;
@@ -101,7 +111,7 @@ namespace UnityMCP.Editor
                 }
 
                 // Compile guard
-                if (IsCompiling() && CommandRegistry.IsMutating(cmd)
+                if (IsCompiling() && CommandRegistry.IsMutating(cmd, argsJson)
                     && !CommandRouter.IsAllowedDuringCompile(cmd))
                 {
                     sb.AppendLine($"[{i}] BLOCKED: '{cmd}' skipped during compilation");
@@ -109,7 +119,7 @@ namespace UnityMCP.Editor
                 }
 
                 // ReadOnly guard
-                if (CommandRouter.IsReadOnly() && CommandRegistry.IsMutating(cmd))
+                if (CommandRouter.IsReadOnly() && CommandRegistry.IsMutating(cmd, argsJson))
                 {
                     sb.AppendLine($"[{i}] err: READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only");
                     if (AtomicFail(i)) break; else continue;
@@ -135,8 +145,18 @@ namespace UnityMCP.Editor
                     var result = CommandRouter.ExecuteCommand(cmd, argsJson);
                     if (result != "ok")
                         sb.AppendLine($"[{i}] {result}");
+
+                    // Handlers report expected failures as text rather than exceptions.
+                    // Inspect every returned line so a leading warning cannot hide a later
+                    // error, block, or timeout from stop/atomic semantics.
+                    if (IsFailureResult(result))
+                    {
+                        if (AtomicFail(i)) break;
+                        continue;
+                    }
+
                     okCount++;
-                    if (CommandRegistry.IsMutating(cmd) && !result.StartsWith("err:"))
+                    if (CommandRegistry.IsMutating(cmd, argsJson))
                         ChangeWatcher.RecordMutation($"MCP_BATCH_{cmd.ToUpper()}");
                 }
                 catch (Exception e)
@@ -356,15 +376,18 @@ namespace UnityMCP.Editor
             return sb.ToString();
         }
 
-        // Returns true when the batch summary line reports one or more errors.
+        // Returns true when the batch summary line reports one or more errors/timeouts.
         // Checks only the last non-empty line (always the summary: "ok:N err:M ...").
         public static bool HasErrors(string batchOutput)
         {
             if (string.IsNullOrEmpty(batchOutput)) return false;
             var lastNl = batchOutput.LastIndexOf('\n');
             var lastLine = (lastNl < 0 ? batchOutput : batchOutput.Substring(lastNl + 1)).Trim();
-            return _errCountRe.IsMatch(lastLine);
+            return _failureCountRe.IsMatch(lastLine);
         }
+
+        internal static bool IsFailureResult(string result) =>
+            !string.IsNullOrEmpty(result) && _failureLineRe.IsMatch(result);
 
     }
 }

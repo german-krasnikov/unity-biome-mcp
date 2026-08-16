@@ -1,13 +1,13 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
-import contextlib
+import asyncio
+import re
 
 from ..sampling import sampling_service as _sampling
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
-from .editor_state import is_paused as _is_paused
-from .editor_state import is_play_mode as _is_play_mode
+from .editor_state import parse_editor_field as _editor_field
 
 _send = None
 _args = None
@@ -15,6 +15,8 @@ _args = None
 _TCP_POLL_BUFFER = 5.0
 _TCP_STEP_BUFFER = 10.0
 _TCP_PLAYTEST_BUFFER = 20.0
+_PLAY_STATE_POLLS = 15
+_PLAY_STATE_POLL_INTERVAL = 1.0
 
 
 async def invoke_method(path: str, component: str, method: str, args: str = "") -> str:
@@ -161,6 +163,71 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
 run_playtest.__test__ = False  # prevent pytest from collecting as test
 
 
+def _editor_command_error(action: str, response: str | None) -> str | None:
+    """Return why an editor lifecycle command is not proven successful."""
+    text = (response or "").strip()
+    if not text:
+        return f"editor {action} returned an empty response"
+    lowered = text.lower()
+    if lowered == "compile_pending" or lowered == "timeout" or lowered.startswith((
+        "err:", "error:", "fail:", "failed:", "blocked:", "timeout:",
+    )):
+        return f"editor {action} failed: {text}"
+    return None
+
+
+async def _read_play_state() -> bool:
+    """Read a canonical editor state; malformed state is not evidence."""
+    state = await _send("editor", _args(action="state"), timeout=5.0)
+    playing = _editor_field(state, "playing")
+    if playing is None or playing.lower() not in ("true", "false"):
+        raise RuntimeError(f"editor state missing playing:true|false: {state!r}")
+    return playing.lower() == "true"
+
+
+async def _wait_for_play_state(expected: bool, action: str) -> None:
+    """Poll boundedly until Unity proves the requested Play Mode state."""
+    last_state = None
+    for attempt in range(_PLAY_STATE_POLLS):
+        state = await _send("editor", _args(action="state"), timeout=5.0)
+        last_state = state
+        playing = _editor_field(state, "playing")
+        if playing is None or playing.lower() not in ("true", "false"):
+            raise RuntimeError(f"editor state missing playing:true|false: {state!r}")
+        if (playing.lower() == "true") == expected:
+            return
+        if attempt + 1 < _PLAY_STATE_POLLS:
+            await asyncio.sleep(_PLAY_STATE_POLL_INTERVAL)
+    target = "Play Mode" if expected else "Edit Mode"
+    raise RuntimeError(
+        f"editor {action} did not reach {target} after {_PLAY_STATE_POLLS} polls; "
+        f"last state: {last_state!r}"
+    )
+
+
+async def _transition_play_state(expected: bool) -> None:
+    """Request and then prove a Play/Edit Mode transition."""
+    action = "play" if expected else "stop"
+    timeout = 5.0 if expected else 10.0
+    response = await _send("editor", _args(action=action), timeout=timeout)
+    error = _editor_command_error(action, response)
+    if error:
+        raise RuntimeError(error)
+    await _wait_for_play_state(expected, action)
+
+
+def _is_playtest_pass(result: str) -> bool:
+    """Require a non-empty, complete PLAYTEST ratio and no failure signals."""
+    first_line = (result or "").splitlines()[0] if result else ""
+    match = re.match(r"PLAYTEST:\s*(\d+)\s*/\s*(\d+)\b", first_line)
+    if not match:
+        return False
+    passed, total = (int(match.group(1)), int(match.group(2)))
+    if total <= 0 or passed != total:
+        return False
+    return not re.search(r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b", result)
+
+
 async def run_playtest_suite(
     pattern: "str | None" = None,
     suite_path: "str | None" = None,
@@ -170,7 +237,9 @@ async def run_playtest_suite(
     auto_play: bool = False,
     restart_between: bool = False,
 ) -> str:
-    """[Play Mode] Run multiple .playtest files sequentially and return a compact matrix. Enters Play Mode. No confirmation required.
+    """Run multiple .playtest files sequentially and return a compact matrix.
+    Side effects: auto_play/restart_between may enter or restart Play Mode;
+    stop_after exits Play Mode. No confirmation is requested.
     pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,
              or newline-separated list of project-relative paths.
     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).
@@ -178,7 +247,11 @@ async def run_playtest_suite(
     stop_on_fail=True: abort suite after first failure.
     stop_after=True: exit Play Mode when suite completes.
     auto_play=True: enter Play Mode automatically if not already playing.
-    restart_between=True: stop+play between each file to reset runtime state.
+    restart_between=True: stop+play between each file to reset runtime state;
+    with auto_play=True, also resets an already-running editor before file one.
+    Lifecycle commands must return successfully and reach their observed state.
+    A failed transition stops the suite and is reported as a failed row.
+    Empty matches return a failing SUITE: 0/0 report.
     Output: SUITE: X/Y passed (Zs) + per-file line + full failure details."""
     if pattern and suite_path:
         raise ValueError("pattern and suite_path are mutually exclusive")
@@ -188,72 +261,134 @@ async def run_playtest_suite(
     import time as _time
     results = []
     suite_start = _time.monotonic()
+    empty_reason = None
+    primary_error = None
 
     try:
         if auto_play:
-            import asyncio as _asyncio
-            state = await _send("editor", _args(action="state"), timeout=5.0)
-            if not _is_play_mode(state) and not _is_paused(state):
-                await _send("editor", _args(action="play"), timeout=5.0)
-                for _ in range(15):
-                    await _asyncio.sleep(1.0)
-                    state = await _send("editor", _args(action="state"), timeout=5.0)
-                    if _is_play_mode(state) or _is_paused(state):
-                        break
-
-        if suite_path:
-            import pathlib as _pathlib
-            file_list = [l.strip() for l in
-                         _pathlib.Path(suite_path).read_text(encoding="utf-8").splitlines()
-                         if l.strip() and not l.strip().startswith("#")]
-            if not file_list:
-                return "SUITE: no files in suite"
-        elif "*" in pattern or "?" in pattern:
-            file_list_raw = await _send("list_playtest_files", _args(pattern=pattern), timeout=10.0)
-            if file_list_raw.startswith("err:") or file_list_raw == "no files":
-                return file_list_raw
-            file_list = [f.strip() for f in file_list_raw.strip().split("\n") if f.strip()]
-        else:
-            sep = "," if "," in pattern else "\n"
-            file_list = [f.strip() for f in pattern.split(sep) if f.strip()]
-
-        if not file_list:
-            return "SUITE: no files matched"
-        for filepath in file_list:
-            if restart_between and results:  # not before first file
-                import asyncio as _asyncio
-                try:
-                    await _send("editor", _args(action="stop"), timeout=10.0)
-                    await _asyncio.sleep(1.0)
-                    await _send("editor", _args(action="play"), timeout=5.0)
-                    for _ in range(15):
-                        await _asyncio.sleep(1.0)
-                        s = await _send("editor", _args(action="state"), timeout=5.0)
-                        if _is_play_mode(s):
-                            break
-                except Exception:
-                    pass  # best-effort
-            t0 = _time.monotonic()
             try:
-                raw = await _send("run_playtest", _args(
-                    path=filepath,
-                    timeout=str(timeout_per_test),
-                    abort_on_fail=None),
-                    timeout=timeout_per_test + _TCP_PLAYTEST_BUFFER)
+                playing = await _read_play_state()
+                # restart_between promises an isolated first file too when the
+                # suite owns Play Mode and Unity was already running.
+                if restart_between and playing:
+                    await _transition_play_state(False)
+                    playing = False
+                if not playing:
+                    await _transition_play_state(True)
             except Exception as exc:
-                # P-336: capture network/timeout exceptions as failed results
-                raw = f"PLAYTEST: 0/0 ERROR: {type(exc).__name__}: {exc}"
-            elapsed = _time.monotonic() - t0
-            passed = raw.startswith("PLAYTEST:") and "FAIL" not in raw and "CONSOLE_ERR" not in raw and "ERROR" not in raw
-            results.append((filepath, raw, elapsed, passed))
-            if stop_on_fail and not passed:
-                break
-    finally:
-        if stop_after:
-            with contextlib.suppress(Exception):  # best-effort
-                await _send("editor", _args(action="stop"), timeout=10.0)
+                raw = f"PLAYTEST: 0/1 ERROR: startup failed: {type(exc).__name__}: {exc}"
+                results.append(("<suite startup>", raw, 0.0, False))
 
-    return _format_suite_report(results, _time.monotonic() - suite_start)
+        if not results:
+            if suite_path:
+                import pathlib as _pathlib
+                file_list = [
+                    line.strip()
+                    for line in _pathlib.Path(suite_path).read_text(
+                        encoding="utf-8"
+                    ).splitlines()
+                    if line.strip() and not line.strip().startswith("#")
+                ]
+                if not file_list:
+                    empty_reason = "no files in suite"
+            elif "*" in pattern or "?" in pattern:
+                file_list_raw = await _send(
+                    "list_playtest_files", _args(pattern=pattern), timeout=10.0
+                )
+                if file_list_raw.lower().startswith(("err:", "error:")):
+                    empty_reason = file_list_raw.strip()
+                    file_list = []
+                elif file_list_raw.strip().lower() == "no files":
+                    empty_reason = "no files matched"
+                    file_list = []
+                else:
+                    file_list = [
+                        file_path.strip()
+                        for file_path in file_list_raw.strip().split("\n")
+                        if file_path.strip()
+                    ]
+            else:
+                sep = "," if "," in pattern else "\n"
+                file_list = [
+                    file_path.strip()
+                    for file_path in pattern.split(sep)
+                    if file_path.strip()
+                ]
+
+            if not file_list and empty_reason is None:
+                empty_reason = "no files matched"
+
+            if empty_reason is None:
+                for filepath in file_list:
+                    if restart_between and results:  # not before first file
+                        try:
+                            await _transition_play_state(False)
+                            await _transition_play_state(True)
+                        except Exception as exc:
+                            raw = (
+                                "PLAYTEST: 0/1 ERROR: restart failed: "
+                                f"{type(exc).__name__}: {exc}"
+                            )
+                            results.append((filepath, raw, 0.0, False))
+                            break
+                    t0 = _time.monotonic()
+                    try:
+                        raw = await _send(
+                            "run_playtest",
+                            _args(
+                                path=filepath,
+                                timeout=str(timeout_per_test),
+                                abort_on_fail=None,
+                            ),
+                            timeout=timeout_per_test + _TCP_PLAYTEST_BUFFER,
+                        )
+                    except Exception as exc:
+                        # P-336: capture network/timeout exceptions as failed results
+                        raw = f"PLAYTEST: 0/0 ERROR: {type(exc).__name__}: {exc}"
+                    elapsed = _time.monotonic() - t0
+                    passed = _is_playtest_pass(raw)
+                    results.append((filepath, raw, elapsed, passed))
+                    if stop_on_fail and not passed:
+                        break
+    except BaseException as exc:
+        primary_error = exc
+
+    cleanup_error = None
+    if stop_after:
+        try:
+            await _transition_play_state(False)
+        except Exception as exc:
+            cleanup_error = exc
+
+    if primary_error is not None:
+        if cleanup_error is not None and hasattr(primary_error, "add_note"):
+            primary_error.add_note(
+                "Play Mode cleanup also failed: "
+                f"{type(cleanup_error).__name__}: {cleanup_error}"
+            )
+        raise primary_error
+
+    if cleanup_error is not None:
+        raw = (
+            "PLAYTEST: 0/1 ERROR: cleanup failed: "
+            f"{type(cleanup_error).__name__}: {cleanup_error}"
+        )
+        results.append(("<suite cleanup>", raw, 0.0, False))
+
+    elapsed = _time.monotonic() - suite_start
+    if empty_reason is not None:
+        cleanup_detail = ""
+        if cleanup_error is not None:
+            cleanup_detail = (
+                "\nFAIL suite cleanup: "
+                f"{type(cleanup_error).__name__}: {cleanup_error}"
+            )
+        return (
+            f"SUITE: 0/0 passed ({elapsed:.1f}s)\n"
+            f"FAIL suite input: {empty_reason}{cleanup_detail}"
+        )
+
+    return _format_suite_report(results, elapsed)
 
 
 run_playtest_suite.__test__ = False  # prevent pytest from collecting as test

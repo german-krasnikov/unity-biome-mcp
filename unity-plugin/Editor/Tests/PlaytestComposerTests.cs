@@ -3,7 +3,6 @@
 // SetValueWithoutNotify (called by Bind) and direct state, not value setter events.
 using System.Collections.Generic;
 using NUnit.Framework;
-using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.Tests
@@ -11,13 +10,42 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     internal class PlaytestComposerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        // Red 1: Bind sets EnumField to step.type
+        // Red 1: Bind sets the restricted type dropdown to step.type
         [Test]
         public void PlaytestStepElement_Bind_SetsTypeField()
         {
             var elem = new PlaytestStepElement();
             elem.Bind(new VisualStep { type = StepType.Assert }, () => { });
-            Assert.AreEqual(StepType.Assert, (StepType)elem.Q<EnumField>().value);
+            Assert.AreEqual(StepType.Assert.ToString(), elem.Q<DropdownField>("step-type-field").value);
+        }
+
+        [Test]
+        public void PlaytestStepElement_TypeDropdown_ContainsOnlyExporterSupportedTypes()
+        {
+            var elem = new PlaytestStepElement();
+            var dropdown = elem.Q<DropdownField>("step-type-field");
+            var expected = new List<string>();
+            foreach (var type in PlaytestDslExporter.SelectableTypes)
+                expected.Add(type.ToString());
+
+            CollectionAssert.AreEquivalent(expected, dropdown.choices);
+            CollectionAssert.DoesNotContain(dropdown.choices, StepType.Snapshot.ToString());
+            CollectionAssert.DoesNotContain(dropdown.choices, StepType.Fill.ToString());
+        }
+
+        [Test]
+        public void PlaytestStepElement_BindUnsupportedStep_DisplaysButDoesNotOfferType()
+        {
+            var elem = new PlaytestStepElement();
+            elem.Bind(new VisualStep(new PlaytestStep
+            {
+                Type = StepType.Snapshot,
+                RawLine = "SNAPSHOT hp,pos",
+            }), () => { });
+            var dropdown = elem.Q<DropdownField>("step-type-field");
+
+            Assert.AreEqual(StepType.Snapshot.ToString(), dropdown.value);
+            CollectionAssert.DoesNotContain(dropdown.choices, StepType.Snapshot.ToString());
         }
 
         // Red 2: Bind sets description TextField

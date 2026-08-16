@@ -50,6 +50,24 @@ def test_env_override_preserves_base_timeout(monkeypatch):
     assert get_profile("visual_verify").timeout == 15.0
 
 
+def test_env_model_override_preserves_non_claude_backend_for_fail_closed_sampling(monkeypatch):
+    from unity_mcp.llm_config import apply_config, get_profile
+
+    apply_config({
+        "visual_verify": {
+            "model": "gemini-old",
+            "max_turns": 2,
+            "timeout": 15.0,
+            "backend": "gemini",
+        }
+    })
+    monkeypatch.setenv("UNITY_MCP_LLM_MODEL_VISUAL_VERIFY", "gemini-new")
+
+    profile = get_profile("visual_verify")
+    assert profile.model == "gemini-new"
+    assert profile.backend == "gemini"
+
+
 def test_to_cli_args_basic():
     from unity_mcp.llm_config import LlmProfile
     args = LlmProfile("haiku", max_turns=2, timeout=15.0).to_cli_args()

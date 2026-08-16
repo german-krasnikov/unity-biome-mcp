@@ -1,6 +1,9 @@
 """UI Toolkit tool tests: inspect_uitk, lint_uitk, attach_uitk command forwarding."""
 from unittest.mock import AsyncMock
 
+import pytest
+from mcp.server.fastmcp.exceptions import ToolError
+
 from unity_mcp.server import attach_uitk, inspect_uitk, lint_uitk
 
 
@@ -95,6 +98,20 @@ async def test_lint_uitk_path_none_absent(mock_bridge):
     # 2. Forward path=None explicitly → _args drops it → absent → RED
 
 
+async def test_lint_uitk_fix_true_is_explicitly_unsupported(mock_bridge):
+    with pytest.raises(ToolError, match="unsupported.*no file was changed"):
+        await lint_uitk(path="Assets/UI/HUD.uss", fix=True)
+    mock_bridge.send.assert_not_called()
+
+
+def test_lint_uitk_doc_lists_exact_a1_a6_checks():
+    doc = lint_uitk.__doc__ or ""
+    for code in ("A1", "A2", "A3", "A4", "A5", "A6"):
+        assert code in doc
+    assert "CamelCase" not in doc
+    assert "auto-remove" not in doc
+
+
 async def test_attach_uitk_sends_cmd(mock_bridge):
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok: UIDocument added"})
     await attach_uitk(path="/HUD")
@@ -133,6 +150,12 @@ async def test_attach_uitk_uxml_none_absent(mock_bridge):
     # Double-red:
     # 1. Change to assert "uxml" in args → fails when absent
     # 2. Forward uxml=None explicitly → present → RED
+
+
+def test_attach_uitk_doc_describes_optional_panel_settings_truthfully():
+    doc = attach_uitk.__doc__ or ""
+    assert "omitted leaves the field unset" in doc
+    assert "auto-created" not in doc
 
 
 async def test_attach_uitk_panel_settings_forwarded(mock_bridge):

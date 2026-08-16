@@ -330,6 +330,52 @@ def _make_prompt(intent: str, name: str, path: str, error: str | None = None) ->
     return base
 
 
+def _result_error(result: str | None) -> str | None:
+    """Return an explicit tool error line from an otherwise successful bridge response."""
+    for line in (result or "").splitlines():
+        stripped = line.strip()
+        if stripped.lower().startswith(("err:", "error:")):
+            return stripped
+    return None
+
+
+def _confirms_auto_revert(error: str) -> bool:
+    """Return True only for UIFileHelper's explicit cleanup acknowledgement."""
+    return "— auto-reverted." in error.lower()
+
+
+def _intent_failure(
+    step: str,
+    error: str,
+    completed: list[str],
+    total_ops: int,
+    processed_files: list[str],
+    attempted_file: str | None = None,
+    attempted_file_auto_reverted: bool = False,
+) -> str:
+    lines = [
+        f"uitk_intent failed at {step}: {len(completed)}/{total_ops} ops completed",
+        error,
+    ]
+    if processed_files:
+        lines.append("Files already created or modified (not rolled back):")
+        lines.extend(f"- {file_path}" for file_path in processed_files)
+
+    if attempted_file and attempted_file not in processed_files:
+        if attempted_file_auto_reverted:
+            lines.append("Attempted file was auto-reverted by Unity:")
+        else:
+            lines.append(
+                "Attempted file may have been created or modified "
+                "(cleanup unconfirmed):"
+            )
+        lines.append(f"- {attempted_file}")
+
+    if not processed_files and not attempted_file:
+        lines.append("No file operations were attempted.")
+    return "\n".join(lines)
+
+
 async def uitk_intent(
     intent: str,
     name: str,
@@ -339,7 +385,13 @@ async def uitk_intent(
     dry_run: bool = False,
 ) -> str:
     """Generate a UXML + USS file pair from a natural-language UI description.
-    Use for UI Toolkit file authoring (not scene mutation — for uGUI use ui_intent).
+    Side effects: unless dry_run=True, writes both project assets; attach_to also adds a
+    UIDocument scene component. Completed steps are not rolled back if a later
+    step fails. Failure output distinguishes retained files, confirmed Unity
+    auto-reverts, and attempted files whose cleanup is uncertain. Without
+    template, invokes
+    configured Claude sampling and may
+    consume provider quota. For uGUI use ui_intent.
     template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely.
     name: base filename (e.g. "InventoryPanel" → InventoryPanel.uxml + .uss).
     path: output folder, default "Assets/UI".
@@ -380,14 +432,66 @@ async def uitk_intent(
     if dry_run:
         return f"{uxml_str}\n---\n{uss_str}"
 
+    total_ops = 3 if attach_to else 2
+    completed: list[str] = []
+    processed_files: list[str] = []
+
+    async def run_step(command: str, args: dict, label: str, file_path: str | None = None) -> None:
+        try:
+            result = await _send(command, args)
+        except Exception as exc:
+            raise ToolError(_intent_failure(
+                label,
+                f"{type(exc).__name__}: {exc}",
+                completed,
+                total_ops,
+                processed_files,
+                file_path,
+            )) from None
+        error = _result_error(result)
+        if error:
+            raise ToolError(_intent_failure(
+                label,
+                error,
+                completed,
+                total_ops,
+                processed_files,
+                file_path,
+                attempted_file_auto_reverted=_confirms_auto_revert(error),
+            ))
+        completed.append(label)
+        if file_path:
+            processed_files.append(file_path)
+
     # R04: USS must be written before UXML (so <Style src> import works)
-    await _send("uitk_file", {"action": "create_uss", "path": uss_path, "content": uss_str})
-    await _send("uitk_file", {"action": "create_uxml", "path": uxml_path, "content": uxml_str})
+    await run_step(
+        "uitk_file",
+        {"action": "create_uss", "path": uss_path, "content": uss_str},
+        "create_uss",
+        uss_path,
+    )
+    await run_step(
+        "uitk_file",
+        {"action": "create_uxml", "path": uxml_path, "content": uxml_str},
+        "create_uxml",
+        uxml_path,
+    )
 
     if attach_to:
-        await _send("attach_uitk", {"gameobject": attach_to, "uxml_path": uxml_path})
+        await run_step(
+            "attach_uitk",
+            {"path": attach_to, "uxml": uxml_path},
+            "attach_uitk",
+        )
 
-    return f"uitk_intent: 2 ops\nCreated {uxml_path}\nCreated {uss_path}"
+    lines = [
+        f"uitk_intent: {len(completed)} ops completed",
+        f"Processed {uss_path}",
+        f"Processed {uxml_path}",
+    ]
+    if attach_to:
+        lines.append(f"Attached {uxml_path} to {attach_to}")
+    return "\n".join(lines)
 
 
 def register(mcp, send, args):

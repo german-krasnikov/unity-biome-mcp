@@ -348,3 +348,155 @@ async def test_e2e_system_prompt_contains_bem():
             await uitk_intent(intent="test", name="P", path="Assets/UI")
             prompt = mock_svc.generate.call_args[0][0]
             assert "BEM" in prompt or "block__element" in prompt
+
+
+async def test_attach_uses_public_attach_uitk_keys_and_counts_operation():
+    from unity_mcp.tools.uitk_intent_tool import uitk_intent
+
+    with patch("unity_mcp.tools.uitk_intent_tool._send", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = "ok"
+        result = await uitk_intent(
+            intent="dialog",
+            name="Panel",
+            template="dialog",
+            attach_to="/UIRoot",
+        )
+
+    attach_call = [c for c in mock_send.call_args_list if c.args[0] == "attach_uitk"]
+    assert len(attach_call) == 1
+    assert attach_call[0].args[1] == {
+        "path": "/UIRoot",
+        "uxml": "Assets/UI/Panel.uxml",
+    }
+    assert "uitk_intent: 3 ops completed" in result
+    assert "Attached Assets/UI/Panel.uxml to /UIRoot" in result
+
+
+async def test_first_file_error_reports_attempted_file_as_possible_residual():
+    from unity_mcp.tools.uitk_intent_tool import uitk_intent
+
+    with patch("unity_mcp.tools.uitk_intent_tool._send", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = "err: USS import failed"
+        with pytest.raises(ToolError, match="failed at create_uss: 0/3 ops completed") as exc:
+            await uitk_intent(
+                intent="dialog",
+                name="Panel",
+                template="dialog",
+                attach_to="/UIRoot",
+            )
+
+    assert mock_send.call_count == 1
+    message = str(exc.value)
+    assert "may have been created or modified" in message
+    assert "cleanup unconfirmed" in message
+    assert "Assets/UI/Panel.uss" in message
+    assert "No files were processed" not in message
+
+
+async def test_new_uss_auto_reverted_error_reports_confirmed_cleanup():
+    from unity_mcp.tools.uitk_intent_tool import uitk_intent
+
+    with patch(
+        "unity_mcp.tools.uitk_intent_tool._send", new_callable=AsyncMock
+    ) as mock_send:
+        mock_send.return_value = "err: USS import failed — auto-reverted."
+        with pytest.raises(ToolError) as exc:
+            await uitk_intent(
+                intent="dialog",
+                name="Panel",
+                template="dialog",
+            )
+
+    message = str(exc.value)
+    assert "Attempted file was auto-reverted by Unity:" in message
+    assert "Assets/UI/Panel.uss" in message
+    assert "cleanup unconfirmed" not in message
+    assert "not rolled back" not in message
+
+
+async def test_first_file_transport_exception_reports_attempted_residual():
+    from unity_mcp.tools.uitk_intent_tool import uitk_intent
+
+    with patch(
+        "unity_mcp.tools.uitk_intent_tool._send", new_callable=AsyncMock
+    ) as mock_send:
+        mock_send.side_effect = ConnectionError("Unity disconnected during import")
+        with pytest.raises(ToolError) as exc:
+            await uitk_intent(
+                intent="dialog",
+                name="Panel",
+                template="dialog",
+            )
+
+    message = str(exc.value)
+    assert "failed at create_uss: 0/2 ops completed" in message
+    assert "ConnectionError" in message
+    assert "Assets/UI/Panel.uss" in message
+    assert "may have been created or modified" in message
+
+
+async def test_second_file_error_reports_completed_and_attempted_files():
+    from unity_mcp.tools.uitk_intent_tool import uitk_intent
+
+    with patch("unity_mcp.tools.uitk_intent_tool._send", new_callable=AsyncMock) as mock_send:
+        mock_send.side_effect = ["ok: create_uss", "error: invalid XML"]
+        with pytest.raises(ToolError, match="failed at create_uxml: 1/3 ops completed") as exc:
+            await uitk_intent(
+                intent="dialog",
+                name="Panel",
+                template="dialog",
+                attach_to="/UIRoot",
+            )
+
+    assert [call.args[0] for call in mock_send.call_args_list] == ["uitk_file", "uitk_file"]
+    message = str(exc.value)
+    assert "Assets/UI/Panel.uss" in message
+    assert "Assets/UI/Panel.uxml" in message
+    assert "may have been created or modified" in message
+    assert "cleanup unconfirmed" in message
+    assert "not rolled back" in message
+
+
+async def test_new_uxml_auto_reverted_preserves_only_prior_uss_as_residual():
+    from unity_mcp.tools.uitk_intent_tool import uitk_intent
+
+    with patch(
+        "unity_mcp.tools.uitk_intent_tool._send", new_callable=AsyncMock
+    ) as mock_send:
+        mock_send.side_effect = [
+            "ok: create_uss",
+            "err: UXML import failed (asset null) — auto-reverted. "
+            "Check get_console for [UXML Import Error].",
+        ]
+        with pytest.raises(ToolError) as exc:
+            await uitk_intent(
+                intent="dialog",
+                name="Panel",
+                template="dialog",
+            )
+
+    message = str(exc.value)
+    retained, reverted = message.split("Attempted file was auto-reverted by Unity:")
+    assert "Files already created or modified (not rolled back):" in retained
+    assert "Assets/UI/Panel.uss" in retained
+    assert "Assets/UI/Panel.uxml" not in retained
+    assert "Assets/UI/Panel.uxml" in reverted
+    assert "cleanup unconfirmed" not in message
+
+
+async def test_attach_error_reports_both_processed_files():
+    from unity_mcp.tools.uitk_intent_tool import uitk_intent
+
+    with patch("unity_mcp.tools.uitk_intent_tool._send", new_callable=AsyncMock) as mock_send:
+        mock_send.side_effect = ["ok", "ok", "err: target not found"]
+        with pytest.raises(ToolError, match="failed at attach_uitk: 2/3 ops completed") as exc:
+            await uitk_intent(
+                intent="dialog",
+                name="Panel",
+                template="dialog",
+                attach_to="/Missing",
+            )
+
+    message = str(exc.value)
+    assert "Assets/UI/Panel.uss" in message
+    assert "Assets/UI/Panel.uxml" in message

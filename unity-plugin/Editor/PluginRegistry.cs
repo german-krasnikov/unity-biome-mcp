@@ -61,10 +61,20 @@ namespace UnityMCP.Editor
         public static string[] GetAllPluginToolNames() =>
             _plugins.SelectMany(p => GetCommandsForPlugin(p)).ToArray();
 
-        private static bool BelongsToPlugin(IMCPPlugin plugin, string cmd) =>
-            (!string.IsNullOrEmpty(plugin.CommandPrefix)
-                && (cmd == plugin.CommandPrefix || cmd.StartsWith(plugin.CommandPrefix + "_")))
-            || plugin.AdditionalCommands.Contains(cmd);
+        private static bool BelongsToPlugin(IMCPPlugin plugin, string cmd)
+        {
+            // Canonical prefixes omit the separator ("my"). Older plugins commonly
+            // supplied it ("my_"). Normalize both to one command boundary so neither
+            // form can accidentally claim a neighbouring command such as "myth".
+            var prefix = plugin.CommandPrefix;
+            if (!string.IsNullOrEmpty(prefix)
+                && prefix.EndsWith("_", System.StringComparison.Ordinal))
+                prefix = prefix.Substring(0, prefix.Length - 1);
+            return (!string.IsNullOrEmpty(prefix)
+                    && (string.Equals(cmd, prefix, System.StringComparison.Ordinal)
+                        || cmd.StartsWith(prefix + "_", System.StringComparison.Ordinal)))
+                || plugin.AdditionalCommands.Contains(cmd);
+        }
 
         public static IReadOnlyList<IMCPPlugin> GetAll() => _plugins;
 

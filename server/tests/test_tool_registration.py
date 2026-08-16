@@ -248,6 +248,32 @@ def test_b2_split_modules_wired_into_register_all():
         assert name in src, f"{name} missing from register_all() module wiring"
 
 
+def test_register_all_wires_uitk_module_exactly_once(monkeypatch):
+    """Schema export wires UITK once without rebinding every tool module."""
+    import unity_mcp.tools as tools_pkg
+
+    register_uitk = MagicMock()
+    # register_all() binds module-global transports. This call-count test does
+    # not need any real registration, so mock every other imported registrar
+    # instead of leaking a fake _send/_args/get_slot into later tests.
+    for candidate in vars(tools_pkg).values():
+        register = getattr(candidate, "register", None)
+        if candidate is tools_pkg.uitk or not callable(register):
+            continue
+        monkeypatch.setattr(candidate, "register", MagicMock())
+    monkeypatch.setattr(tools_pkg.uitk, "register", register_uitk)
+    monkeypatch.setattr(tools_pkg, "register_metrics", MagicMock())
+
+    tools_pkg.register_all(
+        _make_mcp(),
+        AsyncMock(),
+        MagicMock(),
+        get_slot=lambda: None,
+    )
+
+    register_uitk.assert_called_once()
+
+
 def test_b2_split_total_tool_count_unchanged(monkeypatch):
     """Split modules include the durable test-run protocol tools."""
     monkeypatch.setattr("unity_mcp.editor_log.init_corroboration", lambda: None, raising=False)

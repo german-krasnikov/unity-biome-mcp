@@ -35,6 +35,33 @@ async def test_disabled_returns_none(monkeypatch):
     assert await svc.summarize("text") is None
 
 
+@pytest.mark.parametrize("backend", ["codex", "gemini"])
+async def test_unsupported_sampling_backend_fails_closed_before_spawn(monkeypatch, backend):
+    monkeypatch.setenv("UNITY_MCP_VISUAL_VERIFY", "1")
+    from unity_mcp.llm_config import apply_config, reset
+    from unity_mcp.sampling import SamplingService
+
+    apply_config({
+        "do_intent": {
+            "model": "unsupported-model",
+            "max_turns": 1,
+            "timeout": 15.0,
+            "backend": backend,
+        }
+    })
+    try:
+        with patch(
+            "unity_mcp.sampling.asyncio.create_subprocess_exec",
+            new_callable=AsyncMock,
+        ) as mock_exec:
+            result = await SamplingService().generate("prompt")
+    finally:
+        reset()
+
+    assert result is None
+    mock_exec.assert_not_called()
+
+
 # ── verify_visual ───────────────────────────────────────────────────────────
 
 async def test_verify_visual_calls_claude_cli(monkeypatch):
@@ -305,5 +332,4 @@ async def test_cancellederror_kills_proc_and_propagates(monkeypatch):
     with pytest.raises(asyncio.CancelledError):
         await task
     assert proc_killed[0], "proc.kill() not called on cancellation"
-
 
