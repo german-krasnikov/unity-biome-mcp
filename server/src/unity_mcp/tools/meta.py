@@ -8,7 +8,8 @@ from mcp.server.fastmcp import Context
 from ..doctor import format_report, run_doctor
 from ..llm_config import apply_config, parse_tcp_config
 from . import code_intel as _ci
-from ._annotations import RO as _RO, RW as _RW
+from ._annotations import RO as _RO
+from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
 from .gating import discover_tools as _discover_tools_impl
 from .schema_registry import _registry as _schema_registry

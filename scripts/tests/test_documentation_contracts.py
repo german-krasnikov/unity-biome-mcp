@@ -6,8 +6,11 @@ import ast
 import re
 import unicodedata
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import unquote
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
@@ -138,10 +141,7 @@ def _resolve_target(source: Path, destination: str, docs_root: Path) -> tuple[Pa
     path_text = unquote(path_text).replace(r"\(", "(").replace(r"\)", ")")
     if not path_text:
         return source, unquote(fragment)
-    if path_text.startswith("/"):
-        target = docs_root / path_text.lstrip("/")
-    else:
-        target = source.parent / path_text
+    target = docs_root / path_text.lstrip("/") if path_text.startswith("/") else source.parent / path_text
     if target.is_dir():
         target = target / "index.md"
     elif not target.suffix and not target.exists():
