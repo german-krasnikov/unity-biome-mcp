@@ -62,7 +62,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Batch_ReadOnly_UitkFileReadAllowed_WriteBlocked()
+        public void Batch_ReadOnly_UitkFileAsyncOnly_RejectedInBatch()
         {
             CommandRouter.IsReadOnly = () => true;
             const string path = "Assets/DoesNotExist/BatchReadOnlyProbe.uxml";
@@ -72,9 +72,8 @@ namespace UnityMCP.Editor.Tests
             var write = BatchHelper.Execute(
                 $"uitk_file path={path} action=create_uxml", "continue");
 
-            StringAssert.DoesNotContain("READ_ONLY_BLOCKED", read, read);
-            StringAssert.Contains("file not found", read, read);
-            StringAssert.Contains("READ_ONLY_BLOCKED", write, write);
+            StringAssert.Contains("async-only", read, read);
+            StringAssert.Contains("async-only", write, write);
         }
     }
 }

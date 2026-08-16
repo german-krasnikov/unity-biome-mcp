@@ -504,6 +504,7 @@ namespace UnityMCP.TestProject.SceneObject
         [Test]
         public void GenerateRef_Sequence()
         {
+            RefManager.Invalidate();
             // Assign 28 GOs and check the refs
             var gos = new GameObject[28];
             for (int i = 0; i < 28; i++) gos[i] = new GameObject($"Gen{i}");
