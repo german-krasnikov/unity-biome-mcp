@@ -10,7 +10,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.37.1] — 2026-08-16
+
+### Fixed
+
+- **Intent tool gating**: `ui_intent`, `vfx_intent`, and `uitk_intent` are now visible in the MCP tool list after `discover_tools`. Five compounding defects prevented them from appearing: missing `tier1` flag, absent full-schema entry, `discover_tools`/`get_catalog` count mismatch, `reconnect_unity` wiping session state unconditionally, and no `CommandRegistry.Ready` guard in batch.
 
 ## [v1.37.0] — 2026-08-16
 
@@ -3325,7 +3329,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.1...HEAD
+[v1.37.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.0...v1.37.1
 [v1.37.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.36.0...v1.37.0
 [v1.36.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.35.1...v1.36.0
 [v1.35.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.35.0...v1.35.1
