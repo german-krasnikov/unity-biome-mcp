@@ -32,6 +32,8 @@ _TIER1_SNAPSHOT = frozenset({
     "scene", "scene_change_plan", "screenshot",
     "search_scene", "set_active", "set_parent",
     "sync_unity", "validate_references", "verify_after_change",
+    # Step 1: intent tools promoted to tier1
+    "ui_intent", "vfx_intent", "uitk_intent",
 })
 
 _ALL_KNOWN_SNAPSHOT = frozenset({

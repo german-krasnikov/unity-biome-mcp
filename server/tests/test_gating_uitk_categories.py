@@ -1,10 +1,11 @@
 """G2 Session 2: UGUI + UITOOLKIT category gating tests."""
 
 
-def test_no_ui_tool_is_tier1():
-    """All 6 UI tools (UGUI + UITOOLKIT) are absent from TIER1."""
+def test_non_intent_ugui_tools_not_tier1():
+    """Gating tools (UGUI + UITOOLKIT) not promoted to tier1, except ui_intent/uitk_intent (Step 1)."""
     from unity_mcp.tools.gating import TIER1
-    ui_tools = {"create_ui", "set_rect", "ui_intent", "lint_ugui", "inspect_uitk", "lint_uitk"}
+    # create_ui, set_rect, lint_ugui, inspect_uitk, lint_uitk remain Tier2+
+    ui_tools = {"create_ui", "set_rect", "lint_ugui", "inspect_uitk", "lint_uitk"}
     in_tier1 = ui_tools & TIER1
     assert not in_tier1, f"UI tools must not be TIER1: {sorted(in_tier1)}"
 

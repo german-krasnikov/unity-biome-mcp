@@ -34,11 +34,13 @@ async def reconnect_unity(port: int = 0, ctx: Context = None) -> str:
     if port <= 0:
         from unity_mcp.server_filtering import read_unity_port
         port = read_unity_port()
+    old_port = s.port
     result = await s.connect(port)
     if s.connected:
         from unity_mcp.tools.gating import reset as _reset_gating
-        _reset_gating()  # clear session-enabled tools only after a successful connect —
-        # a failed connect must not wipe gating for the still-active prior project.
+        if s.port != old_port:  # port changed = project switch → wipe session
+            _reset_gating()  # clear session-enabled tools only on project switch —
+        # a same-port reconnect (domain reload) preserves session state.
         if _refresh_tools_cache is not None:
             await _refresh_tools_cache(s.bridge)
         if _push_catalog is not None:

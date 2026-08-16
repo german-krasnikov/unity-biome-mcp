@@ -101,6 +101,12 @@ async def test_disabled_tier1_tool_hidden():
         gating.reset()
 
 
+def test_intent_tools_in_schema_keep_full():
+    from unity_mcp.server_filtering import _SCHEMA_KEEP_FULL
+    for name in ('ui_intent', 'vfx_intent', 'uitk_intent'):
+        assert name in _SCHEMA_KEEP_FULL, f"{name} must be in _SCHEMA_KEEP_FULL"
+
+
 async def test_core_tools_survive_disabled():
     """_CORE_TOOLS must never be hidden even if in disabled set.
 
