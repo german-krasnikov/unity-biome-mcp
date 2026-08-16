@@ -11,8 +11,8 @@
     {
       "name": "C# EditMode (Windows)",
       "platform": "Windows",
-      "passed": 7979,
-      "failed": 3,
+      "passed": 7982,
+      "failed": 0,
       "skipped": 292,
       "total": 8274
     },
