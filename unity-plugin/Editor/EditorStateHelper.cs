@@ -8,6 +8,10 @@ namespace UnityMCP.Editor
 {
     internal static class EditorStateHelper
     {
+        // Testable seams — tests inject false/no-op to avoid entering real Play Mode.
+        internal static System.Func<bool> GetIsPlaying = () => EditorApplication.isPlaying;
+        internal static System.Action<bool> SetIsPlaying = v => { EditorApplication.isPlaying = v; };
+
         public static string GetState()
         {
             var sb = new StringBuilder();
@@ -53,19 +57,10 @@ namespace UnityMCP.Editor
             switch (action)
             {
                 case "play":
-                    if (EditorApplication.isPlaying)
+                    if (GetIsPlaying())
                         return "already_playing";
-                    EditorApplication.isPlaying = true;
-                    var playDeadline = EditorApplication.timeSinceStartup + 5.0;
-                    while (EditorApplication.timeSinceStartup < playDeadline)
-                    {
-                        if (EditorApplication.isPlaying && !EditorApplication.isCompiling)
-                            return "entered";
-                        System.Threading.Thread.Sleep(100);
-                    }
-                    if (EditorApplication.isCompiling)
-                        return "compile_pending";
-                    return EditorApplication.isPlaying ? "entered" : "timeout";
+                    SetIsPlaying(true);
+                    return "requested";
                 case "pause":
                     EditorApplication.isPaused = !EditorApplication.isPaused;
                     return "ok";

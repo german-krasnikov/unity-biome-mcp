@@ -1,0 +1,5 @@
+# Protocol baseline: default responses for common commands used in wire tests.
+{"cmd": "ping", "response": {"ok": true, "data": "pong"}}
+{"cmd": "get_version", "response": {"ok": true, "data": "proto:3|plugin:1.0|stamp:test"}}
+{"cmd": "get_hierarchy", "response": {"ok": true, "data": "Scene: Test\n/Main Camera\n/Player"}}
+{"cmd": "get_status", "response": {"ok": true, "data": "scene=Test\ndirty=false\nplaying=false\ncompiling=false\nport=0\naliases=0"}}

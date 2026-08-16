@@ -79,6 +79,14 @@ def test_track_editor_state_already_playing_sets_playing():
     assert mw.is_playing is True
 
 
+def test_track_editor_state_requested_sets_playing():
+    """EditorStateHelper.Control('play') returns 'requested' — must set is_playing=True."""
+    mw = _make_mw(play_state_known=False)
+    mw.track_editor_state("editor", "requested", args={"action": "play"})
+    assert mw._play_state_known is True
+    assert mw.is_playing is True
+
+
 def test_play_guard_does_not_block_after_editor_play_entered():
     """P-415: runtime cmd allowed after editor(play) returns 'entered'."""
     mw = _make_mw(play_state_known=True, is_playing=False)
@@ -91,6 +99,49 @@ def test_stop_action_ok_clears_playing():
     mw = _make_mw(play_state_known=True, is_playing=True)
     mw.track_editor_state("editor", "ok", args={"action": "stop"})
     assert mw.is_playing is False
+
+
+# ── V6: track_editor_state updates from non-editor commands ─────────────────
+
+def test_mcp_status_updates_is_playing():
+    """V6: mcp_status response with playing:True updates is_playing."""
+    mw = _make_mw(play_state_known=False)
+    mw.track_editor_state("mcp_status", "playing:True\npaused:False\n")
+    assert mw._play_state_known is True
+    assert mw.is_playing is True
+
+
+def test_mcp_status_updates_is_not_playing():
+    """V6: mcp_status response with playing:False clears is_playing."""
+    mw = _make_mw(play_state_known=False)
+    mw.track_editor_state("mcp_status", "playing:False\npaused:False\n")
+    assert mw._play_state_known is True
+    assert mw.is_playing is False
+
+
+def test_ttl_prevents_rapid_non_editor_update():
+    """V6: second non-editor update within 5s TTL does NOT override cached state."""
+    import time
+    mw = _make_mw(play_state_known=True, is_playing=True)
+    mw._play_state_ts = time.monotonic()  # just updated
+    mw.track_editor_state("mcp_status", "playing:False\npaused:False\n")
+    assert mw.is_playing is True  # unchanged — TTL not expired
+
+
+def test_editor_always_updates_regardless_of_ttl():
+    """V6: editor command always wins immediately, ignoring TTL."""
+    import time
+    mw = _make_mw(play_state_known=True, is_playing=True)
+    mw._play_state_ts = time.monotonic()  # just updated non-editor
+    mw.track_editor_state("editor", "playing:False\npaused:False\n")
+    assert mw.is_playing is False
+
+
+def test_non_editor_without_playing_field_ignored():
+    """V6: response without playing: field leaves state unchanged."""
+    mw = _make_mw(play_state_known=False)
+    mw.track_editor_state("get_hierarchy", "Root\n  Child")
+    assert mw._play_state_known is False
 
 
 # ── pipeline integration test ─────────────────────────────────────────────────

@@ -21,6 +21,9 @@ from . import testing as _test
 from ._common import bind
 
 _DROPPED_RE = re.compile(r"\[\+\d+ older problem entries dropped\]")
+_ALWAYS_GATES = ("compile", "errors_clean")
+_ALL_OPTIONAL = ("console", "tests", "playtests")
+_TOTAL_GATES = len(_ALWAYS_GATES) + len(_ALL_OPTIONAL)
 
 _send = None
 _args = None
@@ -261,10 +264,9 @@ async def verify_after_change(
         else:
             return _fail("playtests", suite_result, [])
 
-    _ALL_OPTIONAL = ("console", "tests", "playtests")
     skipped = [g for g in _ALL_OPTIONAL if g not in set(optional_gates)]
     suffix = f" | SKIPPED: {', '.join(skipped)}" if skipped else ""
-    return "PASS: " + " + ".join(passed) + suffix
+    return f"PASS({len(passed)}/{_TOTAL_GATES}): " + " + ".join(passed) + suffix
 
 
 def register(mcp, send, args):

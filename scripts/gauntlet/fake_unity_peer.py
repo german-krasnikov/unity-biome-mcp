@@ -107,6 +107,15 @@ class ScriptedUnityPeer:
         if isinstance(command, str) and command in self._responses:
             return self._responses[command]
 
+        if isinstance(command, str) and command == "get_status":
+            try:
+                port = self.port
+            except RuntimeError:
+                port = 0
+            return PeerReply(data=(
+                f"scene=Synthetic\ndirty=false\nplaying=false\ncompiling=false\n"
+                f"port={port}\naliases=0"
+            ))
         defaults = {
             "get_disabled_tools": "",
             "get_aliases": "",
@@ -119,10 +128,6 @@ class ScriptedUnityPeer:
                 f"proto:3|plugin:{self.plugin_version}|stamp:fake-epoch"
             ),
             "get_hierarchy": "Scene: Synthetic\n/Main Camera",
-            "get_status": (
-                f"scene=Synthetic\ndirty=false\nplaying=false\ncompiling=false\n"
-                f"port={self.port}\naliases=0"
-            ),
         }
         if isinstance(command, str) and command in defaults:
             return PeerReply(data=defaults[command])

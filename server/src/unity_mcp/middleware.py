@@ -57,6 +57,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self.is_playing: bool = False
         self.is_read_only: bool = os.environ.get("UNITY_MCP_READ_ONLY", "0") == "1"
         self._play_state_known: bool = False
+        self._play_state_ts: float = 0.0  # timestamp of last non-editor play state update
         self._last_writes: OrderedDict = OrderedDict()
         self._MAX_WRITES = 128
         self._circuit_ready_fn = None
