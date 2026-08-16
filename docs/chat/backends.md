@@ -12,7 +12,12 @@ MCP Chat runs supported CLI tools through a local Python relay. Install and sign
 | Antigravity | `agy` | New process for each turn | Not defined | Temporary Antigravity settings |
 | OpenCode | `opencode` | New `opencode run` process for each turn | `-s` | Temporary config through `OPENCODE_CONFIG` |
 
-The model selector and launch options come from **MCP > Settings > Chat Settings**. Model availability and authentication are owned by the selected CLI, so verify custom model IDs in that CLI before using them in Chat.
+The selected model comes from **MCP > Settings > Chat Settings** and is applied
+when the relay starts the backend. Other launch-option fields shown there are
+currently saved by the UI but are not forwarded by `RelayBackend`; do not rely
+on them to configure CLI permissions, sandboxing, or extra arguments. Model
+availability and authentication are owned by the selected CLI, so verify custom
+model IDs in that CLI before using them in Chat.
 
 ## Process Lifecycle
 

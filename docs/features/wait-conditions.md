@@ -105,7 +105,9 @@ WAIT_UNTIL /Boss|BossAI|Phase == 2 TIMEOUT 30 ABORT
 
 - A normal timeout records a failed step and continues the script.
 - `ABORT` on the step records the failure and stops Play Mode.
-- `ABORT_ON_FAIL` applies fail-fast behavior to the script.
+- `ABORT_ON_FAIL` is global: any failed step or automatic console failure skips
+  every remaining step, including TEARDOWN. The per-step `ABORT` token above is
+  narrower and stops Play Mode only when that `WAIT_UNTIL` times out.
 
 Use `ABORT` only for a gate after which later steps cannot provide useful evidence.
 Finish successful paths with `ASSERT_CONSOLE_CLEAN`.

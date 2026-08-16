@@ -36,13 +36,25 @@ selection, and resets the token counters. The next **Send** starts it.
 
 ## Tool Cards
 
-Chat displays results from inspection and read-only tools as visual cards below the turn request:
+Chat displays selected tool-call results as visual cards below the turn request:
 
 ### Screenshot Card
 Displays `screenshot` tool results as a clickable thumbnail (max height 160 pixels). Click to open the full image in a separate viewer. Useful for validating visual state or comparing scene layouts.
 
 ### Hierarchy Card
-Renders `get_hierarchy` results as an indented tree showing the active scene structure. Shows the first 20 nodes by default; click **▼ N more objects** to expand the rest. Click any object name to select and frame it in the Hierarchy window.
+
+Renders `get_hierarchy` results as an indented tree. Without a `scene` filter,
+the result includes all loaded scenes; scene headers appear when more than one
+is loaded. A `summary=True` result is shown as a plain-text overview instead.
+The card initially shows 20 entries, including scene headers; select
+**▼ N more entries…** to reveal the rest. Select an object name to ping and
+select it in Unity.
+
+Clickable `&...` references are process-local. Refresh the card with
+`get_hierarchy` after an Editor restart or when an older card reports a stale
+reference after a connection lifecycle change. Within one Editor process,
+invalidated references are not reused, and a stale click does not fall back to
+a similarly named object.
 
 ### Bash Card
 Shows shell command results with three sections:

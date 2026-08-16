@@ -18,9 +18,9 @@ Port discovery normally removes the need to put a fixed port in client configura
 
 | Level | Behavior |
 |---|---|
-| Standard | Blocks dangerous APIs and runtime reflection access while allowing type-information reflection |
+| Standard | Blocks dangerous APIs and reflection invocation/value access; permits limited field/property metadata inspection such as `typeof(T).GetFields()` |
 | Allow All | Bypasses the code security scan |
-| Strict | Applies the Standard restrictions and also blocks type-information reflection |
+| Strict | Applies the Standard restrictions and also blocks field/property metadata inspection |
 
 `Allow All` is the current default. Use it only for trusted prompts and projects.
 
@@ -33,7 +33,13 @@ These pages control different layers:
 | **Tools** | Whether a Unity MCP command is enabled at all | On the next MCP reconnect |
 | **Permissions** | The per-tool deny-set stored for the in-Unity Chat agent | Saved immediately; not currently forwarded to CLI backends |
 
-Disabling a tool on the **Tools** page blocks both external clients and MCP Chat. The **Permissions** page stores a separate Chat-only deny-set and does not change external-client visibility.
+Disabling a Unity-backed handler on the **Tools** page blocks its dispatch from
+both external clients and MCP Chat after reconnect. For Python-only tools,
+capability gating controls advertised visibility rather than a separate Unity
+dispatch authorization. The **Permissions** page stores a separate Chat-only
+deny-set and does not change external-client visibility. See the
+[security policy](https://github.com/german-krasnikov/unity-biome-mcp/blob/master/SECURITY.md#trust-model)
+for the distinction between these layers.
 
 The current relay start request does not forward that deny-set to CLI backends. Until it does, use **Tools** when a restriction must be enforced by the Unity MCP server; treat **Permissions** as saved Chat policy rather than a security boundary.
 

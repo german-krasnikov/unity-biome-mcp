@@ -4,7 +4,10 @@ Execute C# scripts directly in the Unity Editor.
 
 ## Overview
 
-`execute_code()` runs arbitrary C# code in the Editor. With the default **AllowAll** level it has full access to Unity APIs; **Standard** and **Strict** scan for blocked patterns before execution. Use it for complex mutations that don't fit simple tool parameters.
+`execute_code()` runs arbitrary C# code in the Editor. The default **AllowAll**
+level skips the source-pattern scan; **Standard** and **Strict** scan for blocked
+patterns before execution. Use it for complex mutations that do not fit simple
+tool parameters.
 
 ## Basic Usage
 
@@ -12,15 +15,15 @@ Execute C# scripts directly in the Unity Editor.
 # Simple script
 await execute_code("""
 var player = GameObject.Find("Player");
-player.SetActive(false);
+if (player != null) player.SetActive(false);
 """)
 
 # With return value
 result = await execute_code("""
-var enemies = FindObjectsOfType<Enemy>();
-return enemies.Length.ToString();
+var lights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+return lights.Length.ToString();
 """)
-# → "3"
+# → number of Light components in the loaded scenes
 ```
 
 ## Editor API Access
@@ -29,7 +32,7 @@ At the **AllowAll** level, code can access:
 
 | API | Example |
 |-----|---------|
-| GameObject API | `GameObject.Find()`, `Instantiate()` |
+| GameObject API | `GameObject.Find()`, `Object.Instantiate()` |
 | Transform | `transform.position`, `SetParent()` |
 | Physics | `Physics.Raycast()`, `Physics2D.OverlapArea()` |
 | Components | `GetComponent<>()`, `AddComponent<>()` |
@@ -43,7 +46,7 @@ Code execution uses a three-tier security system. The active level is set via th
 
 | Level | Default? | Behavior |
 |-------|----------|----------|
-| **AllowAll** | **Yes** | Skips all pattern scanning. No restrictions beyond compilation and timeout. |
+| **AllowAll** | **Yes** | Skips the source-pattern scan; compilation, timeout, read-only, and command guards still apply. |
 | **Standard** | No | Moderate scanning — blocks filesystem, network, reflection, process, and editor-exit patterns. |
 | **Strict** | No | Densest scanning — everything in Standard plus `GetField()`, `GetProperty()`, `GetFields()`, `GetProperties()`. |
 
@@ -61,7 +64,7 @@ These patterns are **not checked** when the level is AllowAll.
 - Threading: `System.Threading`, `System.Runtime.InteropServices`
 - Editor-exit: `EditorApplication.Exit`, `Application.Quit`, `Environment.FailFast`, `EditorApplication.isPlaying`, `EditorApplication.isPaused`
 - Editor-destructive: `AssetDatabase.ExportPackage`, `AssetDatabase.ImportPackage`, `EditorApplication.OpenProject`, `ProjectWindowUtil`
-- Using guards: `using System.Diagnostics`, `using System.IO`, `using System.Net`, `using System.Reflection`
+- Namespace guards: `using System.Diagnostics`, `using System.IO`, `using System.Net`, `using System.Reflection`, and aliases assigned from those namespaces (for example, `IO = System.IO`)
 - Keywords (word-boundary): `extern`, `unsafe`
 
 **Tier 2 — blocked in Standard and Strict:**
@@ -109,9 +112,12 @@ var list = new List<Object>();  // Resolves to UnityEngine.Object
 
 ```python
 await execute_code("""
-Undo.RecordObject(player, "custom edit");
-player.health = 50;
-""", undo_label="set health")
+var player = GameObject.Find("Player");
+if (player == null) return "Player not found";
+Undo.RecordObject(player.transform, "move player");
+player.transform.position = Vector3.zero;
+return "Player moved";
+""", undo_label="move player")
 ```
 
 `undo_label` names the Unity Undo group. The wrapper does not automatically make
@@ -125,7 +131,7 @@ Compilation errors stop execution:
 
 ```python
 # This fails (Player not defined)
-await execute_code("Player.SetActive(false)")
+await execute_code("Player.SetActive(false);")
 # → ERROR: The name 'Player' does not exist in the current context
 ```
 
@@ -133,7 +139,12 @@ await execute_code("Player.SetActive(false)")
 
 ```python
 # Correct
-await execute_code('GameObject.Find("Player").SetActive(false);')
+await execute_code("""
+var player = GameObject.Find("Player");
+if (player == null) return "Player not found";
+player.SetActive(false);
+return "Player disabled";
+""")
 ```
 
 ## Common Patterns
@@ -141,18 +152,23 @@ await execute_code('GameObject.Find("Player").SetActive(false);')
 **Batch property changes:**
 ```python
 await execute_code("""
-var objects = FindObjectsOfType<MyComponent>();
-foreach (var obj in objects) {
-    obj.health = 100;
+var lights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+Undo.RecordObjects(lights, "clamp light intensity");
+foreach (var light in lights) {
+    light.intensity = Mathf.Max(0f, light.intensity);
 }
+return $"checked={lights.Length}";
 """)
 ```
 
 **Prefab instantiation:**
 ```python
+# Project-specific asset path: replace it with a prefab that exists.
 result = await execute_code("""
 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Enemy.prefab");
-var instance = Instantiate(prefab, new Vector3(5, 0, 0), Quaternion.identity);
+if (prefab == null) return "Prefab not found";
+var instance = Object.Instantiate(prefab, new Vector3(5, 0, 0), Quaternion.identity);
+Undo.RegisterCreatedObjectUndo(instance, "instantiate enemy prefab");
 instance.name = "Enemy_1";
 return instance.GetInstanceID().ToString();
 """)
@@ -161,7 +177,8 @@ return instance.GetInstanceID().ToString();
 **Query and modify:**
 ```python
 await execute_code("""
-var colliders = FindObjectsOfType<Collider>();
+var colliders = Object.FindObjectsByType<Collider>(FindObjectsSortMode.None);
+Undo.RecordObjects(colliders, "enable colliders");
 foreach (var col in colliders) {
     if (!col.enabled) col.enabled = true;
 }
@@ -176,9 +193,9 @@ The static wrapper returns an object and the bridge sends its `ToString()` value
 ```python
 result = await execute_code("""
 var obj = GameObject.Find("Player");
-return obj.transform.position.ToString();
+return obj == null ? "Player not found" : obj.transform.position.ToString();
 """)
-# → "(5.0, 0.0, 3.0)"
+# → "(5.0, 0.0, 3.0)" when Player exists
 ```
 
 Return an explicit string when the output format matters. Complex objects are
@@ -186,15 +203,17 @@ not JSON-serialized automatically.
 
 ## Play Mode Notes
 
-`execute_code()` is callable in both Edit and Play Mode. Changes made in Play
-Mode are runtime changes and normally disappear when Play Mode stops. Prefer a
-runtime-specific tool or the Playtest DSL for gameplay state.
+`execute_code()` is callable in both Edit and Play Mode. Runtime scene and object
+state normally disappears when Play Mode stops. AssetDatabase operations,
+filesystem writes, package changes, and project settings can persist, so Play
+Mode is not a rollback boundary. Prefer a runtime-specific tool or the Playtest
+DSL for gameplay state.
 
 ```python
 # Edit Mode: full access
-await execute_code("GameObject.Find('Player').SetActive(false)")
+await execute_code('var player = GameObject.Find("Player"); if (player != null) player.SetActive(false);')
 
-# Play Mode: structured runtime method preferred
+# Play Mode: structured runtime method preferred; names below are project-specific.
 await invoke_method("/Player", "PlayerController", "SetHealth", args="50")  # runtime reflection
 ```
 
@@ -203,7 +222,8 @@ await invoke_method("/Player", "PlayerController", "SetHealth", args="50")  # ru
 - **MCP request timeout:** 60 seconds
 - **Editor impact:** execution is synchronous in the Unity Editor; avoid long or
   unbounded work
-- **Compilation:** First call warm (~500ms); cached after
+- **Compilation:** the Roslyn compiler load is reused after warm-up, but every
+  submitted snippet is compiled separately
 
 ```python
 # Keep the work bounded and return a compact result.

@@ -99,8 +99,9 @@ await create_object(
 )
 ```
 
-`parent` must already exist. Use `scene` when the new object belongs in a specific
-loaded scene.
+`parent` must already exist. Pass `scene="Gameplay"` to `create_object` when the
+new object belongs in a specific loaded scene; use `scene(action="list")` first
+to confirm the loaded scene name.
 
 ## `delete_object` {#delete_object}
 

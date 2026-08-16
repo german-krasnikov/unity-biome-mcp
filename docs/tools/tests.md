@@ -50,13 +50,23 @@ manual MCP reconnect between the modes is not part of the workflow.
 
 ## Completion evidence
 
-Accept a run only when its durable snapshot proves all of the following:
+`run_tests_wait` returns terminal JSON only after the server has validated the
+full durable snapshot. It requires:
 
-- `state` and `lifecycle` are `terminal`;
-- `is_terminal`, `execution_finished`, and `cleanup_complete` are true;
-- `outcome` is `passed`;
-- the snapshot's mode and filter match the request;
-- its `issues` list contains no blocking infrastructure problem.
+- `source="mcp"`, the requested mode and filter, a non-empty `utf_guid`, and a
+  recognized `utf_xml_scope`;
+- terminal lifecycle plus true execution, cleanup, run-start, manifest,
+  run-finish, and build-coherence boundary flags;
+- a positive expected count; matching declared, readable-manifest, completed,
+  and unique-terminal counts; and zero unmaterialized, missing, unexpected, and
+  conflicting tests;
+- non-negative status counts whose sum equals the expected count, and a
+  structured `issues` list with no error-severity entry.
+
+After those invariants pass, accept the test result only when `outcome` is
+`passed`. The short example above is sufficient for JSON returned by
+`run_tests_wait`; it is not a validator for a raw `get_test_run` snapshot. A
+caller that owns lower-level polling must enforce the same complete contract.
 
 Do not treat a timeout, a progress message, or the newest entry in a run list as
 evidence for the run you requested.
@@ -176,5 +186,6 @@ correlation, and cleanup evidence.
 | Terminal `failed` | Read counts and `issues`, fix the tests, then dispatch a new run |
 | Terminal `incomplete` or `dispatch_failed` | Treat as infrastructure failure, not a test pass |
 
-See [Reliable Test Execution](../testing-reliability.md) for the lifecycle model and
-[Diagnostics](diagnostics.md) for compile and domain recovery.
+See [Reliable Test Execution](../testing-reliability.md) for layer selection and
+the standalone-runner workflow, and [Diagnostics](diagnostics.md) for compile
+and domain recovery.

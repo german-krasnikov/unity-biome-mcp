@@ -29,17 +29,19 @@ In-Unity MCP Chat window: partial `MCPChatWindow`, Markdown-to-UIElements render
 - `Chat/CLI/ChatEvent.cs` — Normalized relay event
 - `Chat/CLI/InlineChipData.cs`, `InlineChipModel.cs` — User input chip data
 - `Chat/CLI/ToolCallRecord.cs` — MCP tool invocation and result
-- `Chat/View/ToolCards/ToolCardBase.cs` — Shared base for read-only tool renderers (idempotency, marker-last order, exception safety)
+- `Chat/View/ToolCards/ToolCardBase.cs` — Shared base for presentation-only tool renderers (idempotency, marker-last order, exception safety)
 
-### Tool Cards (Read-Only Renderers)
+### Tool Cards (Presentation Renderers)
 - `Chat/View/ToolCards/ScreenshotCard.cs` — `screenshot` + `screenshot_baseline` results as thumbnail preview (max 160px height); click-to-open via `ImageBlockRenderer`
-- `Chat/View/ToolCards/HierarchyCard.cs` — `get_hierarchy` text-tree with depth-indented nodes; shows ≤20 nodes, "Show more" button reveals remainder; click-to-select via `NavBindingHelper`
+- `Chat/View/ToolCards/HierarchyCard.cs` — `get_hierarchy` text-tree with depth-indented nodes; shows ≤20 nodes, "Show more" button reveals remainder; canonical object references drive click-to-select via `NavBindingHelper`
 - `Chat/View/ToolCards/BashCard.cs` — `Bash` tool results: description (optional), command line, output (≤20 lines visible, "Show more" for rest); red border for non-zero exit; truncation indicator at ≥2000 chars (T0.1 threshold)
 - `Chat/View/ToolCards/ComponentReadCard.cs` — `get_component`, `inspect`, `get_components_list` results: clickable object path, component type(s), property list (≤20 visible, "Show more" for rest); $HEX IDs resolve via hierarchy navigation, #decimal IDs render as plain labels
 
 ### Parsers (Result Extraction)
 - `Chat/CLI/Parsers/ScreenshotResultParser.cs` — Extracts image file path from result text
-- `Chat/CLI/Parsers/HierarchyResultParser.cs` — Parses text-tree into `HierarchyNode[]` (name, depth, inactive marker, hidden child count, hex ref)
+- `Chat/CLI/Parsers/HierarchyResultParser.cs` — Parses text-tree into
+  `HierarchyNode[]` (name, depth, inactive marker, hidden child count, object
+  reference)
 - `Chat/CLI/Parsers/BashArgsParser.cs` — Extracts command and description from args JSON
 - `Chat/CLI/Parsers/ComponentReadArgsParser.cs` — Extracts path, component type, object list from args per tool name
 
@@ -48,11 +50,11 @@ In-Unity MCP Chat window: partial `MCPChatWindow`, Markdown-to-UIElements render
 | Partial | Responsibility |
 |---------|-----------------|
 | MCPChatWindow.cs | Lifecycle, fields, shared state, transcript construction |
-| MCPChatWindow.Send.cs / ChipInput.cs | Turn construction and send path |
-| MCPChatWindow.Drain.cs / EventHandlers.cs | Relay event draining and state changes |
+| MCPChatWindow.Send.cs / MCPChatWindow.ChipInput.cs | Turn construction and send path |
+| MCPChatWindow.Drain.cs / MCPChatWindow.EventHandlers.cs | Relay event draining and state changes |
 | MCPChatWindow.Selector.cs | Backend, model, and mode selection |
 | MCPChatWindow.Session.cs | Session restore and pending-turn recovery |
-| MCPChatWindow.Chips.cs / InlineChips.cs / Mention.cs | Context-chip and mention workflows |
+| MCPChatWindow.Chips.cs / MCPChatWindow.InlineChips.cs / MCPChatWindow.Mention.cs | Context-chip and mention workflows |
 | MCPChatWindow.Approve.cs | Ask-to-Agent approval flow |
 | MCPChatWindow.FlowBar.cs | Activity animation and footer controls |
 
@@ -138,7 +140,7 @@ Active-only activity animation bar. Driven by `ArcadeAnim.ControlledSmoothLoop`.
 
 **Fence Priority:** Checked first (code blocks take precedence over other syntax).
 
-### Render: MarkdownRenderers.Render(block) → VisualElement
+### Render: ChatBlockRendererRegistry.RenderBlock(block) → VisualElement
 
 **Dispatcher pattern:** SwitchOnKind → Create block renderer (Label, Markdown UI, RichText, etc.).
 
@@ -242,13 +244,14 @@ ChipKindRegistry.Register(new SceneChipProvider());  // 3rd party
 - `_renderedMarkerKey` — CSS class name set at the end (e.g., "screenshot-card-rendered", "hierarchy-rendered")
 - `_showMoreLimit` — elements per page (20 for most cards); `ShowMoreButton.Append` handles pagination
 
-**Four built-in subclasses:** ScreenshotCard, HierarchyCard, BashCard, ComponentReadCard. All register via `[InitializeOnLoad]` static ctor with `ToolCardRendererRegistry.Register()`.
+Built-in subclasses live under `Chat/View/ToolCards/` and register through
+`ToolCardRendererRegistry`; inspect that directory for the current set.
 
 ## Common Patterns
 
 | Pattern | File | Why |
 |---------|------|-----|
-| Add new block type | Markdown/MarkdownParser.cs + MarkdownRenderers.cs | Single-pass parse + dispatch render |
+| Add new block type | Markdown/MarkdownParser.cs + Markdown/MarkdownBlockRenderer.cs + ChatBlockRendererRegistry.cs / ChatBlockRendererFactory.cs | Single-pass parse + dispatch render |
 | Add 3rd-party chip | ChipKindRegistry.Register(new MyProvider()) | No core edits; extensible |
 | Persist chat state | ChatTranscript._entries + SerializeForReload() | Reload-survival; survives domain reload |
 | Stream response | ChatTranscript._assistantBubble | Live tail; append + FinalizeAssistant() |

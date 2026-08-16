@@ -16,6 +16,19 @@ HTML_ID_RE = re.compile(r"<(?:a|span)\s+[^>]*\bid=[\"']([^\"']+)[\"']", re.IGNOR
 PYTHON_FENCE_RE = re.compile(r"```(?:python|py)\s*\n(.*?)```", re.DOTALL | re.IGNORECASE)
 FENCE_RE = re.compile(r"^\s*(```+|~~~+)")
 
+LEGACY_PUBLIC_PATHS = (
+    "docs/plugins/ui-toolkit-best-practices.md",
+    "docs/unity-assistant-2.17-analysis.md",
+)
+LEGACY_PUBLIC_ANCHORS = {
+    "docs/tools/batch.md": {"batch-behavior"},
+    "docs/features/intent-tools.md": {"common-workflow"},
+    "docs/features/prefab-edit.md": {
+        "when-to-use-prefab-edit-vs-set_property",
+        "verification",
+    },
+}
+
 
 @dataclass(frozen=True)
 class ToolSignature:
@@ -221,6 +234,20 @@ def test_public_markdown_relative_links_and_anchors(repo_root: Path) -> None:
                     errors.append(f"{location}: missing anchor {destination}")
 
     assert not errors, "Broken public Markdown links:\n" + "\n".join(errors)
+
+
+def test_legacy_public_urls_and_anchors_are_preserved(repo_root: Path) -> None:
+    """Keep intentionally relocated pages and renamed sections link-compatible."""
+    missing_paths = [path for path in LEGACY_PUBLIC_PATHS if not (repo_root / path).is_file()]
+    missing_anchors: list[str] = []
+    for path, expected in LEGACY_PUBLIC_ANCHORS.items():
+        present = _anchors(repo_root / path)
+        missing_anchors.extend(
+            f"{path}#{anchor}" for anchor in sorted(expected - present)
+        )
+
+    assert not missing_paths, f"Missing compatibility pages: {missing_paths}"
+    assert not missing_anchors, f"Missing compatibility anchors: {missing_anchors}"
 
 
 def test_all_delivered_markdown_relative_links_and_anchors(repo_root: Path) -> None:

@@ -34,7 +34,7 @@ Toolbar controls:
 | **Copy for AI** | Copies a fenced `playtest` block with timeout and abort metadata |
 | **Smart Command** | Converts a description into candidate steps |
 | **TO** | Sets the run timeout in seconds |
-| **Abort** | Prepends `ABORT_ON_FAIL` and enables fail-fast execution |
+| **Abort** | Prepends `ABORT_ON_FAIL`; the first failed step or automatic console failure skips every remaining step, including TEARDOWN |
 
 **Run does not enter Play Mode.** Enter Play Mode first, wait for the scene to be
 ready, then run the script. The button remains disabled for an empty or invalid

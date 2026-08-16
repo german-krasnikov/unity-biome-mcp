@@ -1,9 +1,15 @@
-# Unified Unity Reload API — Canonical Reference
+# Unity Compilation and Reload — Research and Current Contract
 
-Purpose: single source of truth for designing unity-biome-mcp's future `sync_unity` (external file edit → import → compile → domain reload → reconnect) on Unity 2021.3→6000.x, macOS/Windows/Linux.
-Claim format: `[U<ver>–U<ver> | HIGH/MED/LOW | URL]` — HIGH = official docs/UnityCsReference verbatim; MED = official-derived inference or staff statement; LOW = community (hard cap for community claims). NOT FOUND = no source located; never upgraded.
-Verified by V1 (API existence: PASS, 0 hallucinations), V2 (version/OS audit: PASS-WITH-CORRECTIONS — all corrections applied below), V3 (contradiction matrix: resolutions baked in) on 2026-06-10.
-Trust hierarchy: docs.unity3d.com / UnityCsReference source > issuetracker (staff-triaged) > Unity-staff forum replies > community threads/blogs.
+Sections §1–§12 preserve a research snapshot verified on 2026-06-10 for
+Unity 2021.3 through the Unity 6 versions cited inline. They are the dated design
+basis for the implementation, not a live task list or a substitute for the
+current contract in §13.
+
+Claim format: `[U<ver>–U<ver> | HIGH/MED/LOW | URL]`. HIGH means official
+documentation or UnityCsReference; MED means an official-derived inference or
+staff statement; LOW means a community source. `NOT FOUND` remains explicitly
+unverified. The source trust order is official Unity documentation and source,
+then staff-triaged issue reports, Unity staff statements, and community material.
 
 ## §1 AssetDatabase.Refresh / ImportAsset semantics (T1)
 
@@ -48,8 +54,8 @@ Trust hierarchy: docs.unity3d.com / UnityCsReference source > issuetracker (staf
 - [U2021.3–U6000.x | HIGH | https://docs.unity3d.com/6000.0/Documentation/Manual/domain-reloading.html] Domain = isolated memory with compiled assemblies + app state; reload tears down and recreates it.
 - [U2021.3–U6000.x | HIGH | https://docs.unity3d.com/2022.3/Documentation/Manual/ConfigurableEnterPlayModeDetails.html] Docs-backed in-reload order — before unload: `beforeAssemblyReload` → `OnDisable()` → `OnBeforeSerialize()` → Mono domain unload; after load: `OnAfterDeserialize()` → `OnValidate()` → `[ExecuteInEditMode]` lifecycle → `[InitializeOnLoad]`/`[InitializeOnLoadMethod]` → `afterAssemblyReload`.
 - **Ordering caveat (V3 C2):** docs-backed order is only `InitializeOnLoad → afterAssemblyReload`. `[DidReloadScripts]` position relative to `afterAssemblyReload` is NOT officially documented.
-- [U2021.3–U6000.x | LOW | https://discussions.unity.com/t/initializeonload-vs-didreloadscripts/572660] Community-only: InitializeOnLoad always before DidReloadScripts. **Needs empirical test if any handshake depends on it (§15).**
-- [U6000.5+ | HIGH | https://docs.unity3d.com/6000.5/Documentation/Manual/programming-code-lifecycle.html] Unity 6.5+ adds `[OnCodeDeinitializing]`/`[OnCodeUnloading]`/`[OnCodeLoaded]`/`[OnCodeInitializing]` — NOT on 6000.3 target (provisional, §15).
+- [U2021.3–U6000.x | LOW | https://discussions.unity.com/t/initializeonload-vs-didreloadscripts/572660] Community-only: InitializeOnLoad always before DidReloadScripts. Do not make a handshake depend on this ordering without new empirical evidence; the current contract does not.
+- [U6000.5+ | HIGH | https://docs.unity3d.com/6000.5/Documentation/Manual/programming-code-lifecycle.html] Unity 6.5+ adds `[OnCodeDeinitializing]`/`[OnCodeUnloading]`/`[OnCodeLoaded]`/`[OnCodeInitializing]`; these APIs were outside the 6000.3 target evaluated by the research snapshot.
 - [U2021.3–U6000.x | HIGH | https://docs.unity3d.com/ScriptReference/InitializeOnLoadAttribute.html] `[InitializeOnLoad]` static ctors run on every recompile, on launch, on play-enter only if domain reload enabled; they run BEFORE asset import completes (asset loads may return null — use OnPostprocessAllAssets for asset work).
 - **isCompiling/isUpdating "false gap" is REAL — 3 sourced mechanisms:**
   - [U2021.3–U6000.x | HIGH | https://docs.unity3d.com/Manual/AssetDatabaseRefreshing.html] (1) scripted Refresh defers the reload past the refresh — flags read false while reload still pending.
@@ -137,7 +143,11 @@ Trust hierarchy: docs.unity3d.com / UnityCsReference source > issuetracker (staf
 - External Roslyn/csc/MSBuild vs generated csproj [MED | https://discussions.unity.com/t/expose-sln-and-csproj-generation/892301]: staff — "Csproj's today are only for the IDE experience"; requires populated Library; misses per-asmdef defines [HIGH], source generators (`RoslynAnalyzer` label) [HIGH], ILPostProcessor/Burst codegen [LOW/MED]. Fast pre-filter only, never a verdict.
 - `Library/Bee` (dag.json/rsp) is parsable but internal/unsupported — NOT FOUND: any supported standalone bee_backend invocation. `Library/ScriptAssemblies` = last-GOOD compile output, stale the moment code changes [MED].
 
-## §8 MCP prior-art survey — 5 bridges (T8) [all cited @main — pin SHAs when canonizing, §15]
+## §8 MCP prior-art survey (T8)
+
+The repository links in this dated survey pointed at their default branches when
+captured. Re-verify their current source before relying on an implementation
+detail.
 
 | Repo | Refresh trigger | Reload survival | Reconnect | Steal |
 |---|---|---|---|---|
@@ -169,7 +179,7 @@ Trust hierarchy: docs.unity3d.com / UnityCsReference source > issuetracker (staf
 - [U2021.3–U6000.x | MED | https://discussions.unity.com/t/how-to-tell-that-compilation-exceptions-are-resolved-when-no-recompiling-occurred/1576369] Trap: reverting a file to last-compiled content can SKIP recompilation entirely (content hash) — no events fire at all.
 - NOT FOUND: any official externally-observable "reload complete" signal.
 - De-facto substitutes [MED | IvanMurzak wiki + CoplayDev #1173]: TCP listener drop (beforeAssemblyReload) + reconnect (new domain) IS the external signal; Editor.log markers `Begin MonoManager ReloadAssembly` + `Domain Reload Profiling` block [MED | issuetracker].
-- **Editor.log marker caveat: per-OS log paths + `-logFile` override — see §11/§16.** If the editor was launched with `-logFile`, the default path is NOT written.
+- **Editor.log marker caveat: per-OS log paths + `-logFile` override — see §11.** If the editor was launched with `-logFile`, the default path is NOT written.
 - State machine (each transition + observable):
 
 ```
@@ -246,125 +256,59 @@ RELOADING ─▶ RELOADED (new code live)                         in-process: In
 | Auto Refresh disabled by user | irrelevant for us: scripted `Refresh()` is unconditional (§5) | normal gates |
 | Compile FAILED | terminal: NO reload, old assemblies live; `compilationFinished` still fired | `scriptCompilationFailed==true` / CompilerMessage errors → surface errors, do NOT report "synced"; next fix → new `Refresh()` |
 
-## §13 Canonical `sync_unity` handshake (numbered, with races)
+## §13 Current `sync_unity` Contract
 
-Hard constraint: C# command handlers are synchronous → **the wait-loop lives Python-side**; C# only triggers, signals, and persists.
+The public agent API is
+`sync_unity(resolve=False, bump=False, timeout=SESSION_TIMEOUT)` in
+`server/src/unity_mcp/tools/sync.py`. Agents should call it after external C#
+or package changes; they should not call internal recovery commands directly.
 
-1. External tool finishes file edits (all writes flushed; never mid-batch).
-2. Python sends `sync` over TCP → C# main-thread dispatch → `AssetDatabase.Refresh()` (+ `Client.Resolve()` first if package metadata touched). Works unfocused, ignores Auto Refresh prefs AND DisallowAutoRefresh on all 3 OSes (§5). C# returns immediately: "refresh queued, epoch=N".
-3. C# `CompilationPipeline.compilationStarted` → persist epoch/token in SessionState + state file "compiling".
-4. C# `compilationFinished` → **fires on FAIL too** — must check `EditorUtility.scriptCompilationFailed` + aggregated `assemblyCompilationFinished` errors.
-   - FAILED → write state "compile_failed" + errors; NO reload will happen; Python reports errors. Terminal.
-   - OK → reload is coming (conditional-on-success, §9).
-5. Conditional domain reload begins → `beforeAssemblyReload` (last code in old domain): send `going_away`, write state file "reloading", TCP listener teardown (cooperative thread exit — never rely on ThreadAbort reaching native `select`, §3).
-6. [domain swap — managed state, SyncContext queue, and event handlers die]
-7. New domain: `[InitializeOnLoad]` → rebind listener → `afterAssemblyReload` path writes state "ready". Python's reconnect = the external "reload complete" signal.
-8. Out-of-band corroboration (both-signals gate): Editor.log `Begin MonoManager ReloadAssembly` + `Domain Reload Profiling` + Bee/Csc markers + `Library/ScriptAssemblies` DLL mtime heuristic (no official API — §10 NOT FOUND). Per-OS log paths + `-logFile` override: §11.
-9. Python declares synced ONLY when: epoch matches AND state=ready AND reconnect succeeded AND zero compile errors.
+1. When `bump=True`, Python increments the source checkout's plugin patch
+   version at most once per connection session and implies `resolve=True`.
+   Standalone installs without the repository package manifest reject this mode.
+2. Python reads the current domain stamp when available, then sends the C#
+   `sync` command. `resolve=True` asks `SyncHelper` to call
+   `Client.Resolve()` before refresh.
+3. `SyncHelper.TriggerSync()` allocates an epoch in `SessionState`, marks the
+   state compiling, optionally resolves packages, refreshes assets, requests
+   script compilation, and starts its tick pump. It returns
+   `sync_ack|epoch=N|will_compile=<bool>`.
+4. If Unity reports that no compile is needed, Python still checks corroborated
+   compile errors and warms the type cache before returning a clean no-op result.
+5. Otherwise Python polls `sync_status` until the same epoch is ready or failed.
+   Stale epochs are ignored. Connection loss and `DomainReloadError` during the
+   expected domain swap are retried within the caller's deadline.
+6. A failed state returns compile evidence; it is never reported as synced. A
+   timeout returns a stop/manual-recovery result rather than a success.
+7. A ready state is checked for compile errors. When an expected compile leaves a
+   comparable main-assembly MVID frozen, Python invokes bounded internal recovery
+   before it may report success.
 
-**Known races (mark in implementation):**
+`unity-plugin/Editor/SyncHelper.cs` owns the persisted epoch/state/error/stamp
+machine and compilation/reload event handlers. A ready state may come from the
+verified no-compile path, clean self-heal guards, or a completed domain reload;
+a compile failure stays terminal for that epoch.
 
-- isCompiling false-gap — T3's 3 mechanisms (scripted-Refresh deferred reload; By-Design sync refocus compile invisible to flag; next-tick compile start) + T9's compile-end→reload-start window. Polling flags can NEVER prove done; events + epoch only.
-- Failed-compile-no-reload: waiting for reconnect after a failed compile waits forever — step 4 gate is mandatory before any reload wait.
-- Epoch/token need: a Refresh may be a no-op (already imported / content-hash revert skips compile entirely, §9) — without an epoch, Python can confuse a stale "ready" with the new cycle. Persist token in SessionState (survives reload, dies with editor — correct scope).
-- False-"ready" window: writing "ready" from `compilationFinished`+delayCall can land BEFORE beforeAssemblyReload writes "reloading" (V3 row MCPServer.cs:80-88) — success-path "ready" must come from the post-reload path only.
-- Unbounded reload hang (stuck "Reloading Script Assemblies", Burst stalls, Safe Mode) → Python-side timeout + watchdog, never infinite wait.
+## §14 Recovery Boundary
 
-## §14 Implications for current codebase (V3, file:line)
+`server/src/unity_mcp/tools/reload_ladder.py` is internal recovery plumbing.
+It may use the main listener or the independent reload listener to diagnose the
+domain, request refresh/recompile, resolve package state, or return an actionable
+manual result. Platform focus automation is optional. The play-stop tier requires
+explicit consent that the public `sync_unity` wrapper does not expose.
 
-| File:line | Research finding | Risk | Required change |
-|---|---|---|---|
-| `unity-plugin/Editor/CommandRouter.cs:267` | `recompile` = bare `Refresh()` (Default), returns `"ok"` synchronously; T1/T10: scripted Refresh queues compile async, never reloads inline; Default = no-op if already imported | LLM reads "ok" as "recompiled" while compile/reload hasn't started | Return state ("refresh queued — poll compile_status"); consider `ForceUpdate` |
-| `server/src/unity_mcp/tools/scene.py:126` | Docstring: "recompile … and wait for completion (up to 60s)" — false; C# returns instantly, 60s is only socket timeout | Agent trusts completion that never happened | Fix docstring or chain `await_compile` internally |
-| `server/src/unity_mcp/tools/code_intel.py:60-107` | `await_compile` polls `compile_status` only; T9: "idle" reads true in the compile-end→reload-start window and after FAILED compiles; docstring promises "compiling + reloading" but reload is never verified | False "compile clean" while old code live; next command eats the reload disconnect | Both-signals: also require state-file ≠ "reloading"/`going_away`→reconnect handshake before declaring done |
-| `unity-plugin/Editor/CompileNotifier.cs:18-24` | `compilationFinished` fires on failure too (T9 CsRef); status "idle\|dur" after failed compile is indistinguishable from success-with-reload | Status alone can't discriminate; mitigated only because callers also fetch errors | Add fail marker (e.g. `EditorUtility.scriptCompilationFailed` → "idle-failed\|dur") |
-| `unity-plugin/Editor/MCPServer.cs:80-88` | `compilationFinished`→`delayCall`→`WriteStateFile("ready")` can run in the T9 gap before `beforeAssemblyReload` writes "reloading" | Transient false-"ready" in state file → Python sends straight into reload | Defer success-path "ready" until after reload (write from afterAssemblyReload path / next StartAsync) |
-| `unity-plugin/Editor/MCPServer.cs:130` | `ReuseAddress=true` on all platforms; T11: Windows SO_REUSEADDR = port-hijack semantics, hardening is `ExclusiveAddressUse`; CoplayDev#1173 fix used it | Foreign process can steal :9500 on Windows | `#if UNITY_EDITOR_WIN` → `ExclusiveAddressUse=true` + keep retry-bind (existing 500–2500ms ladder ≈7.5s satisfies T11 ≥2s budget); keep ReuseAddress on Unix |
-| `unity-plugin/Editor/MCPServer.cs:474-485` | `OnBeforeReload`: going_away → state "reloading" → TeardownCore (listener closed) | — | None — matches T3/T8 best practice (confirmed OK) |
-| `unity-plugin/Editor/MCPServer.cs:502-505` | "rename(2) atomic" comment — `File.Delete`+`File.Move` is NOT atomic on Windows | Reader can hit missing state file in delete-move window | Use `File.Replace`/`File.Move(overwrite:true)` on Windows |
-| `unity-plugin/Editor/Chat/MCPChatWindow.Drain.cs:61-131` | `TryResumePendingTurn` has no isCompiling/isUpdating gate; fires from afterAssemblyReload while follow-up import/compile may be queued (T1 double-import) | Resumed turn races a second reload; ReloadGuard then defers it up to 120s watchdog | Gate on `!isCompiling && !isUpdating`, reschedule via delayCall (imperfect per T3, strictly better) |
-| `unity-plugin/Editor/Chat/MCPChatWindow.Drain.cs:164-167` | `_needsRefresh` → `Refresh(ForceUpdate)` after EVERY code-edit result, mid-turn under lock; T6: import+compile proceed under lock → half-finished multi-file edits compile → phantom CS errors arm auto-fix at TurnDone | Spurious auto-fix turns; wasted compiles | Debounce: single Refresh at turn end (after unlock), or only on last edit of batch |
-| `unity-plugin/Editor/Chat/ReloadGuard.cs:31,50` | Lock WITHOUT `DisallowAutoRefresh` (T6 risk 3: mid-turn focus-refresh imports under AI's feet); no SessionState marker / no `[InitializeOnLoad]` rebalance (T6 risk 1: native counter survives reload, managed `_lockDepth` + update-watchdog die with domain) | Wedged reload-lock with no in-process recovery after any lock-crossing reload | T6 safe pattern: `Disallow→Lock→try/finally{Unlock→Allow}` + `Refresh()` kick + SessionState lock-marker rebalanced in InitializeOnLoad |
-| `unity-plugin/Editor/Chat/ChatProcess.cs:34-35` | Comment "unlock is handled by the guard itself on reload; the watchdog will also fire" — false across reload (both are managed state in the dying domain) | Misleads future maintainers into trusting nonexistent recovery | Fix comment; tie to ReloadGuard rebalance above |
-| `server/src/unity_mcp/bridge_heartbeat.py` + `bridge.py` | **v0.78.5 RESOLVED** (3 fixes): **(1) `_reload_gate` (asyncio.Event):** `_send_with_retry()` no longer sleeps a fixed duration on `domain_reload` retries; clears gate when disconnected, then `asyncio.wait_for(gate.wait(), timeout=delay+jitter)` — wakes immediately when `_reconnect()` sets the gate. Race guard: gate only cleared `if not self.connected`. **(2) `_ping_stall_failures` counter:** When ping fails ≥3× but `is_process_dead()` returns False (Unity alive, heavy compile or App Nap), increments stall counter instead of force-closing. After 6 stall windows (~6 min) → force-close. Resets on DomainReloadError, ProtocolDesyncError, successful ping, confirmed-dead close, or reconnect. **(3) `connected` property simplified:** `self._writer is not None and not self._writer.is_closing()` — removed `select.select + MSG_PEEK` which caused false negatives and triggered unnecessary reconnects. | Low (resolved — behavior now matches T8 best-in-class ladders) | None — implemented in v0.78.5 |
-| `server/src/unity_mcp/editor_log_parser.py:22-46` | Per-OS paths present and match T11 official list (darwin/win32/linux) — NOT macOS-hardcoded; reopen-per-call survives Editor-prev.log inode swap | Gap: `-logFile`-launched editors write nowhere near default path; only manual env override exists | Detect/document `-logFile` override (warn when log mtime ancient); optional Editor-prev.log fallback |
+Internal C# commands such as `force_refresh` and `force_play_stop` may be
+named when explaining architecture, but must not appear as direct agent workflow
+steps. Recovery success requires observed state/evidence; an acknowledged
+command alone is not proof that new code is live.
 
-**Cross-platform (R23) gaps in current code (V3):**
+## §15 Maintenance
 
-- Python code is clean: no `osascript` / `open -a` / hardcoded `Library/Logs` outside the correct darwin branch of `editor_log_parser.py:37`; `compile_state.py:104` Bee lock path and `unity_state.py:32` state path use portable `Path` joins.
-- C# keepalive (`MCPServer.cs:205-224`): per-OS `#if` branches for macOS/Win/Linux present — OK.
-- Windows deltas to fix: `ReuseAddress` → `ExclusiveAddressUse`; `File.Delete+Move` non-atomic state-file write; no MAX_PATH guard for project paths (T11 140-char package cap — doc-level concern only).
-- Linux deltas unhandled anywhere: case-sensitive FS (case-twin infinite-import loop), 6000.3.6–.8 Auto-Refresh regression (UUM-133944), ulimit refresh freeze (UUM-79033) — relevant only for docs/watchdog heuristics.
-- Legacy macOS-only `osascript … activate` recipes are unsupported folklore
-  per T5; the in-process `recompile` command (once semantics are verified) is
-  the portable replacement.
-
-## §15 Open questions & provisional-beta empirical tests (target: 6000.3.0b7)
-
-1. `[OnCode*]` lifecycle attributes (T3) — 6000.5-docs-only; 6000.3 page 404s. Test: reference attribute in throwaway editor script on b7 → expect CS0246; keep `beforeAssemblyReload`/`[InitializeOnLoad]` canonical.
-2. UUM-133944 b7 status (T11) — repro list starts 6000.3.6f1; beta status unknown (Linux-only). Test (Linux): 10× external-edit → focus (Auto Refresh=Enabled) → assert recompile each cycle.
-3. IN-93874 CleanBuildCache no-op (T2) — single community report, no public tracker entry. Test on b7: `RequestScriptCompilation(CleanBuildCache)` with zero dirty scripts; assert `assemblyCompilationFinished` fires, not `assemblyCompilationNotRequired`.
-4. UUM-40547 fix presence on b7 (T6) — "fixed in 6000.0.X" unspecific; repro included 6000.0.0b11. Test: Auto Refresh=Disabled, touch .cs, refocus, assert no compile starts.
-5. End-to-end b7 smoke of the §13 handshake (external edit → scripted Refresh → compilationFinished → beforeAssemblyReload → reconnect after afterAssemblyReload) with Editor.log `Begin MonoManager ReloadAssembly` corroboration — 6000.3 docs describe final 6000.3.x; b7 may predate late fixes.
-6. Re-pin T8 repo citations (§8, §17) from `@main` to commit SHAs when canonizing.
-7. C2 ordering test (V3): if any handshake ever depends on `[DidReloadScripts]` vs `afterAssemblyReload` order, measure it empirically — not officially documented (§3).
-8. Design-blocking NOT FOUNDs carried from T-reports:
-   - `Refresh()` re-entrancy (refresh-during-refresh: queue vs merge, T1) — affects debounce design.
-   - Exact post-Unlock reload timing (same stack vs next pump, T6) — affects ReloadGuard release sequencing.
-   - No public reader for Lock/DisallowAutoRefresh counters (T6) — recovery must be marker-based (SessionState), not query-based.
-   - No official external reload-complete signal (T9) — the both-signals gate is mandatory, not optional.
-   - No compile-only CLI flag (T7) — headless gate stays `-executeMethod NoOp` + log grep.
-   - No DLL-freshness comparison recipe (T10) — heuristic tier only, never the sole gate.
-
-## §16 Per-OS matrix (R23)
-
-**IDENTICAL on macOS / Windows / Linux** (the sync core is OS-independent because everything happens in-process via TCP — no focus hacks, no osascript):
-
-- Scripted `Refresh()` semantics: unconditional on prefs/focus/DisallowAutoRefresh (§5).
-- Event order: compilationStarted → assemblyCompilationFinished× → compilationFinished → [success] → beforeAssemblyReload → reload → InitializeOnLoad → afterAssemblyReload (§9).
-- TCP handshake design (§13), SessionState/EditorPrefs APIs, conditional-reload-on-success rule, Safe Mode behavior, single-instance project lock.
-
-**DIFFERS:**
-
-| Axis | macOS | Windows | Linux |
-|---|---|---|---|
-| Editor.log | `~/Library/Logs/Unity/Editor.log` | `%LOCALAPPDATA%\Unity\Editor\Editor.log` | `~/.config/unity3d/Editor.log` |
-| (all OS) | `-logFile` override → default path NOT written; `Editor-prev.log` rotation (de-facto, undocumented) — reopen by path when tailing | | |
-| Directory Monitoring | absent (full-scan) | **only OS with it** (detection-only; auto-disabled by symlinks) | absent (inference) |
-| Socket rebind after reload | immediate | `SO_EXCLUSIVEADDRUSE` + port not immediately rebindable → ≥2s wait / retry-bind; SO_REUSEADDR = hijack semantics | immediate; ulimit UUM-79033 freeze (fixed 2022.3.55f1/6000.0.36f1) |
-| FS case | APFS default insensitive | NTFS insensitive | **sensitive** (case-twin import loop) |
-| OS-specific bugs | reload-completion focus-steal (Mission Control) | case-only rename "Moving file failed" (2020.3–2021.2); MAX_PATH/140-char package cap; Defender scan cost | Auto-Refresh regression 6000.3.6–3.8 (fixed 6000.3.10f1); Wayland **experimental** |
-| Headless binary | `/Applications/Unity/Hub/Editor/<v>/Unity.app/Contents/MacOS/Unity` | `C:\Program Files\Unity\Hub\Editor\<v>\Editor\Unity.exe` | docs `/opt/Unity/Hub/Editor/<v>/Editor/Unity`; real default `~/Unity/Hub/Editor` (configurable) |
-| EditorPrefs storage | `~/Library/Preferences/com.unity3d.UnityEditor5.x.plist` | `HKCU\Software\Unity Technologies\Unity Editor 5.x` | `~/.local/share/unity3d/prefs` |
-
-**PARAMETRIZE in our code** (vs handled in-process):
-
-- Editor.log path table + `-logFile` override detection (already per-OS in `editor_log_parser.py`).
-- `ExclusiveAddressUse` under `#if UNITY_EDITOR_WIN`; rebind backoff budget (Windows ≥2s).
-- State-file atomic write (`File.Replace` on Windows).
-- Headless binary path table (Linux via Hub config, not hardcoded).
-- ulimit guidance + case-sensitivity warnings — docs/watchdog tier (Linux).
-- Everything else rides the in-process TCP path and needs NO per-OS branches.
-
-## §17 Source index (deduplicated, grouped by domain)
-
-**docs.unity3d.com — Manual** (base `https://docs.unity3d.com/<ver>/Documentation/Manual/`):
-AssetDatabaseRefreshing.html (2021.3, 6000.0/.1/.3) · AssetDatabaseBatching.html (2021.3) · domain-reloading.html (6000.0) · ConfigurableEnterPlayModeDetails.html (2021.3, 2022.3) · configurable-enter-play-mode-details.html (6000.6) · programming-code-lifecycle.html (6000.5) · preferences-asset-pipeline.html (2021.3, 6000.0/.3) · Preferences.html (2021.3, 6000.1) · SafeMode.html (6000.1/.4) · log-files.html / LogFiles.html (2021.3, current) · EditorCommandLineArguments.html (2021.3, 6000.0, current) · upm-concepts.html (6000.3) · upm-embed.html (6000.3) · cus-location.html (6000.3) · upm-conflicts-auto.html (6000.3) · upm-localpath.html · system-requirements.html (2021.3, 6000.4) · managed-code-debugging.html (6000.0) · async-awaitable-continuations.html (6000.0/.3) · job-system-overview.html (6000.2) · programming-best-practices.html (6000.3) · ImporterConsistency.html · ScriptCompilationAssemblyDefinitionFiles.html (2021.3) · roslyn-analyzers.html (2021.3)
-
-**docs.unity3d.com — ScriptReference** (base `https://docs.unity3d.com/<ver>/Documentation/ScriptReference/`):
-AssetDatabase.Refresh (2021.3, 6000.0/.4) · AssetDatabase.ImportAsset · AssetDatabase.ScheduleRefresh (2022.3 only) · AssetDatabase.StartAssetEditing · AssetDatabase.DisallowAutoRefresh (2021.3, 6000.0) · AssetDatabase.AllowAutoRefresh · AssetDatabase.IsDirectoryMonitoringEnabled (2021.1) · ImportAssetOptions (+ .ForceUpdate, .ForceSynchronousImport) · Compilation.CompilationPipeline.RequestScriptCompilation (2019.3, 2020.3, 2021.3, 6000.0/.3) · Compilation.RequestScriptCompilationOptions (2021.1, 2021.3) + .CleanBuildCache · Compilation.CompilationPipeline-assemblyCompilationNotRequired (2022.3) · -compilationStarted · -compilationFinished (6000.3) · -assemblyCompilationFinished (6000.3) · -codeOptimization (2020.1) · Compilation.AssemblyBuilder (2021.3, 2022.3, 2023.1) + .Build · Compilation.CompilerMessage · EditorApplication-isCompiling · -isUpdating · -focusChanged (2022.2/.3) · -delayCall · -update · EditorApplication.LockReloadAssemblies · EditorUtility-scriptCompilationFailed · EditorUtility.RequestScriptReload · AssemblyReloadEvents-beforeAssemblyReload · -afterAssemblyReload · InitializeOnLoadAttribute · Callbacks.DidReloadScripts (+ -ctor, 6000.3) · SessionState · EditorPrefs · PackageManager.Client.Resolve (2021.3, 6000.2) · PackageManager.Client.Add · PackageManager.Events-registeredPackages (6000.3) · AssetPostprocessor.OnPostprocessAllAssets (6000.1) · Awaitable.MainThreadAsync (6000.0)
-
-**docs.unity3d.com — Packages**: com.unity.test-framework@1.4 manual/reference-command-line.html · com.unity.burst@1.8 changelog/CHANGELOG.html · com.unity.asset-store-validation@0.1 manual/path-length-validation.html
-
-**github.com/Unity-Technologies/UnityCsReference**: Editor/Mono/Scripting/ScriptCompilation/CompilationPipeline.cs · Editor/Mono/Scripting/ScriptCompilation/EditorCompilation.cs · Editor/Mono/PreferencesWindow/AssetPipelinePreferences.cs (branches 2021.2, 2021.3, 2022.1, master) · Editor/Mono/EditorApplication.bindings.cs · Editor/Mono/EditorUtility.bindings.cs · Runtime/Export/Scripting/UnitySynchronizationContext.cs
-
-**issuetracker.unity3d.com**: editorapplication-dot-iscompiling-is-not-called…refocusing-the-editor (By Design) · editor-is-frozen-on-reloading-domain…socket-dot-poll-1 (Won't Fix) · editor-gets-stuck…named-pipe · domain-reload-missing-when-entering-play-mode · auto-refresh-is-still-active…disable-in-the-preferences (UUM-40547) · code-coverage-windows…locks-assembly-reload-in-the-editor · lockreloadassemblies-is-not-working-correctly (U5) · packman-isnt-refreshed-when-calling-assetdatabase-dot-refresh (1248326, By Design) · assemblies-not-being-reloaded-when-reimporting-c-number-script-asset · script-recompiles-in-play-mode…recompile-after-finished-playing (UUM-20409) · recompile-after-finish-playmode-option-is-gone · editorutility-dot-scriptcompilationfailed-not-flagging-package…startup · editor-freezes-at-begin-monomanager-reloadassembly · linux-auto-refresh-fails-to-reimport (UUM-133944) · linux-editor-freezes-for-1-2-minutes…refreshed (UUM-79033) · linux-having-same-case-insensitive-named-assets · moving-file-failed…case (Windows) · long-visualscripting-path · unity-terminates-with-error-code-0…batch-mode · unity-server-run-time-does-not-respond-to-sigterm · an-infinite-import-loop-has-been-detected · a-polybrushmesh-with-an-assetpostprocessor…infinite-import-loop · unity-editor-gets-focused-on-mac…mission-control
-
-**Repos (T8) — flagged: pin to commit SHA when canonizing (currently @main)**:
-github.com/CoplayDev/unity-biome-mcp (RefreshUnity.cs, StdioBridgeReloadHandler.cs, plugin_hub.py, unity_transport.py; issues #1173, #672; discussions #241) · github.com/CoderGamester/mcp-unity (RecompileScriptsTool.cs, McpUnityServer.cs, unityConnection.ts, mcpUnity.ts) · github.com/Arodoid/UnityMCP (UnityMCPConnection.cs, index.ts) · github.com/IvanMurzak/Unity-MCP (Assets.Refresh.cs, Startup.Editor.cs, wiki/Troubleshooting) · github.com/hatayama/unity-cli-loop (McpServerController.cs, DomainReloadRecoveryUseCase.cs, CompileUseCase.cs, CompilationLockService.cs, unity-discovery.ts) · github.com/AnkleBreaker-Studio/unity-biome-mcp-server (not investigated) · github.com/inkle/ink-unity-integration (issues #137, #145) · github.com/microsoft/MSBuildForUnity · github.com/baba-s/unity-compile-in-background (archived) · github.com/needle-mirror/com.unity.burst (BurstILPostProcessor.cs)
-
-**learn.microsoft.com**: system.appdomain.unload · winsock using-so-reuseaddr-and-so-exclusiveaddruse · system.net.sockets.socket.exclusiveaddressuse · fileio maximum-file-path-limitation · defender-endpoint antivirus-performance-mode (+ devblogs.microsoft.com/visualstudio/devdrive)
-
-**Other official-adjacent**: jetbrains.com/help/rider/Refreshing_Unity_Assets.html · support.unity.com (115003118426 multiple-instances · project-open lockfile 40828087523092 · 208456906 exclude-scripts-symlinks · 46719618344852 build-automation failures) · support.apple.com Disk Utility file-system formats · unity.com/releases (2020-1 editor-team-workflows · 6000.3.0f1 notes) · game.ci docs (github/builder · github/test-runner · troubleshooting/common-issues)
-
-**Community (LOW cap)**: discussions.unity.com t/572660 (InitializeOnLoad vs DidReloadScripts) · t/231945 · t/929827 · t/705717 (asmdef no-reload on error) · t/707907 · t/920018 · t/919319 · t/739571 · t/763929 · t/878449 · t/927783 · t/938010 · t/1649233 · t/903346 · t/1589996 (IN-93874) · t/1576369 · t/859164 · t/892301 (csproj staff) · t/607546 + t/248925 (lockfile) · t/715610 · threads/629140 (force-reload staff) · t/809214 · t/823112 · t/739406 · t/99369 (Editor-prev.log) · threads/912602 (packages-lock staff) · t/1692576 (Burst domain stall) · t/898620 · t/1688645 · t/680321 · t/632359 (EditorPrefs magic strings) · forum.unity.com threads/627952, /1368849, /446610 · answers.unity.com q/52013 · feedback.vrchat.com (isCompiling+isUpdating poll pattern) · blogs: hextantstudios.com/unity-log-compile-times · johnaustin.io domain-reloads · blog.s-schoener.com (Burst) · medium.com/openupm 2020.1 round-up · codedojo.com (project copies) · gio.blue (ILPP) · sdumetz.github.io (unix signals) · gitlab.com/game-ci issue 116 · git.cardiff.ac.uk unity-pong Bee artifacts · blog.unity.com incremental-build-pipeline
+- Treat §§1–§12 as dated research. Re-verify a cited Unity version or platform
+  before extending a claim beyond its stated range.
+- Update §13 when `tools/sync.py` or `SyncHelper.cs` changes the public
+  handshake. Update §14 when the internal ladder or reload package changes.
+- Keep shipped work and release history in `CHANGELOG.md`, tests and evidence in
+  `AI/testing.md`, and user recovery instructions in `docs/`.
+- Do not add file:line audit tables, future-task backlogs, or duplicated OS/source
+  indexes here.

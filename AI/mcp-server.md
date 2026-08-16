@@ -17,9 +17,9 @@ server/src/unity_mcp/
 ├── server.py           # FastMCP instance, lifespan, tool registration
 ├── bridge.py           # UnityBridge (TCP, heartbeat, keepalive)
 ├── connection_slot.py  # ConnectionSlot (single connection)
-├── lockfile.py         # Exclusive fcntl.flock per port, stale server cleanup
+├── lockfile.py         # Per-session PID presence locks and stale-file cleanup
 ├── compile_state.py    # CompileStateProbe (heuristic Unity compile detection)
-├── middleware.py        # Middleware class: 23 layers (env-gated), holds _alias_cache (name→pipe_value, cleared on reset_session)
+├── middleware.py        # Middleware state and feature composition; owns the session alias cache
 ├── middleware_alias.py  # Pure alias functions (stdlib only): parse_aliases_from_hierarchy, parse_aliases_from_get_aliases, resolve_aliases_in_args, strip_alias_block
 ├── middleware_pipeline.py  # wrap_send() — assembles all hooks in order
 ├── plugin_api.py       # Stable public API for external plugins
@@ -71,9 +71,9 @@ server/src/unity_mcp/
 │   ├── watch.py        # Watch system — path-based field polling in Play Mode
 │   ├── reload_ladder.py     # T0-T5 reload-recovery ladder
 │   ├── transaction.py       # scene_change_plan + apply_scene_change (transactional scene edits)
-│   └── verify.py            # verify_after_change — 5-gate verification pipeline
+│   └── verify.py            # verify_after_change orchestration
 └── plugins/
-    └── __init__.py              # 3-source auto-discovery (pkgutil, entry_points, UNITY_MCP_PLUGIN_DIRS)
+    └── __init__.py              # Plugin discovery and loading
 ```
 
 ### Tool surface
@@ -90,24 +90,28 @@ are also derived/verified from metadata rather than copied here.
 
 ### Compile-Tool Corroboration (v0.7.0+)
 
-`get_compile_errors`, `await_compile`, `auto_fix`, and `ask` now cross-verify clean responses via `editor_log.py`: an out-of-band reader of Unity's `Editor.log` that catches cases where the in-plugin C# reporter is itself broken (stale bytecode, unsafe to trust). Only overrides when both signals agree: log shows errors AND dll is stale. Zero false positives (fresh dll trusted). Resolves P0 silent-blindness bug where plugin compile failures masked themselves.
+`get_compile_errors`, `await_compile`, `auto_fix`, and `ask` cross-verify clean responses via `editor_log.py`: an out-of-band reader of Unity's `Editor.log` that catches cases where the in-plugin C# reporter is itself broken (stale bytecode, unsafe to trust). It overrides only when both signals agree that the log shows errors and the DLL is stale; a fresh DLL signal remains trusted.
 
 **get_unity_events:** Returns all UnityEvent fields on a component with fully-qualified
 target paths. Replaces manual `get_component` + parsing when auditing event wiring.
 
 ### Capability Gating (gating.py)
 
-- CORE and `tier1=True` tools are always visible to the MCP client
+- CORE tools remain visible with full schemas. Tier 1 bypasses category gating,
+  but Unity settings can still hide a non-CORE Tier 1 tool.
 - Categories enabled per-session via `discover_tools(category, enable=True)`
 - Double-filtered: Python gating × Unity-side MCPSettings (tool cache from `get_enabled_tools`)
 - Plugin self-registration: `gating.register_tools("category", tools_set)` adds
   tools to the category-gated surface; plugins have no tier1 escape hatch
 
-**Tool Visibility Logic (v0.57.0, commit 2fac0bd)** — fixed AND logic in `server_filtering.py`:
-- Previously: tool visibility had OR bug; disabled tools remained visible
-- Fixed: tool is hidden only if explicitly in disabled set (AND logic: visible = `name not in disabled`)
-- Impact: `is_visible=false` checkbox in MCPSettings now correctly hides tools
-- Implementation: `_apply_gating()` calls `filter_by_tier()` which respects disabled tool set correctly
+`server_filtering.filter_tools()` applies two ordered visibility stages:
+
+1. `_apply_gating()` exposes CORE, Tier 1, and session-enabled categories.
+2. The Unity disabled-tool cache removes matching names, except CORE tools,
+   which remain visible by contract.
+
+Schema stripping happens only after both stages. Category visibility and the
+disabled cache affect `ListTools`; they are not authorization boundaries.
 
 **InitializedNotification Hook (`install_initialized_hook`, server_filtering.py):**
 - Registers a `notification_handlers[InitializedNotification]` handler on the MCP server.
@@ -177,13 +181,17 @@ def main():
 ### Bridge / Connection
 
 - **ConnectionSlot**: single `UnityBridge` connection
-  - `connect(port)`, `reconnect()`, `bridge` property
+  - `connect(port)`, `close()`, `bridge` property
   - `status` property (v0.78.10): delegates to `bridge.status`; returns `"disconnected"` when bridge is None
 - **UnityBridge**: single TCP connection
-  - `status` property (v0.78.10): `"connected"` / `"reconnecting"` / `"domain-reloading"` / `"disconnected"`. Used by `list_connections` (replaces binary connected/disconnected boolean)
+  - `status` property: `"connected"`, `"reconnecting"`, `"domain-reloading"`,
+    `"disconnected"`, `"dormant"`, or `"waking"`. The canonical meanings are
+    in [`connection-tools.md`](connection-tools.md).
   - Protocol: JSON over TCP, 4-byte big-endian length prefix
   - Socket: `TCP_NODELAY`, `SO_KEEPALIVE` (macOS: idle=60s, interval=10s, count=3)
-  - Heartbeat: 15s interval, raw ping, 3 failures → close, 2s polling when disconnected (5s if compile busy)
+  - Heartbeat: 15-second interval and 5-second ping timeout. Dead sockets close
+    immediately; live-process timeouts use bounded stall windows. Disconnected
+    polling waits 2 seconds, or 5 seconds while the compile probe is busy.
   - Reconnect backoff (v0.52.7): exponential (5s→60s, reset on success, ±10% jitter), cooldown re-armed on every attempt. Ping verification, fires callbacks
   - **DomainReloadError fast-fail (v0.81.4):** `send()` raises `DomainReloadError("Domain reload in progress — retry after recompile")` immediately on entry if reload state is active (checked via `_reload.is_active()`). No retry inside send(); caller must handle timeout/retry post-recompile. Reload state tracked independently via `DomainReloadTracker` (90s expiry window, marked when `going_away` event fires or explicit reload detection).
   - **ConnectionRefused during reload:** When Unity closes TCP during domain reload, bridge detects it through stale reload state + connection failure pattern. Fast-fail gate prevents commands from queuing during reload window.
@@ -244,7 +252,7 @@ errors = await get_console_since(mark, keyword="NullRef", count_only=True)
 
 Static and dynamic resource URIs registered with `biome://` scheme:
 
-**Static resources** (4):
+**Static resources:**
 - `biome://scene/hierarchy` — current scene hierarchy summary
 - `biome://console/errors` — recent console errors
 - `biome://editor/state` — editor state (play mode, scene, selection)
@@ -284,7 +292,7 @@ sampling_service = SamplingService()
 
 ### Plugin System
 
-3-source discovery:
+Discovery sources:
 1. **pkgutil built-in**: discovers modules inside `plugins/` package
 2. **entry_points**: `importlib.metadata.entry_points(group="unity_mcp.plugins")` for pip-installed packages
 3. **UNITY_MCP_PLUGIN_DIRS**: env var pointing to filesystem directories with plugin modules
@@ -293,7 +301,11 @@ Each plugin implements `register(mcp, send_fn, args_fn)`. Plugin API facade (`pl
 
 ### Code Intel Tools (server 0.4.0)
 
-**await_compile (NEW):** Read-only tool that blocks until Unity finishes C# compilation AND domain-reloading. Returns compile errors as plain text. Survives domain-reload disconnect via reconnect + re-query. `timeout=0` = instant snapshot. Replaces `sleep`-then-poll patterns.
+**await_compile:** Read-only observation of an already-triggered compile/reload.
+It returns compile errors as plain text, retries the expected domain-reload
+disconnect, and supports `timeout=0` for one immediate check. Use `sync_unity`
+after an external code or package edit because observation alone does not trigger
+the refresh/compile handshake.
 
 - `compile_preflight` — pre-compile validation + type inference for code edits
 
@@ -323,7 +335,8 @@ ACP (Agent Communication Protocol) backend events are normalized server-side in 
 - `FileChange` events display brief change notifications
 - `CapabilitiesChanged` events update provider capability state
 
-Do not add backend-native JSON-RPC or stream parsers to the C# window. The canonical architecture is `AI/architecture.md` under **Chat Relay System**.
+Do not add backend-native JSON-RPC or stream parsers to the C# window. The
+canonical detailed relay contract is [`agent-chat.md`](agent-chat.md).
 
 ### Middleware (`UNITY_MCP_MIDDLEWARE=1`)
 
@@ -435,7 +448,7 @@ Tests organized by module in `server/tests/`:
 - `test_server.py` — tool registration, _send helper, ToolError handling
 - `test_bridge.py` — TCP connection, circuit breaker, heartbeat, keepalive, DomainReloadError
 - `test_connection_slot.py` — single connection slot management
-- `test_lockfile.py` — exclusive lock, stale cleanup, PID liveness
+- `test_lockfile.py` — per-PID presence lock, stale cleanup, PID liveness
 - `test_compile_state.py` — probe signals, estimated remaining
 - `test_middleware.py` — each middleware layer independently
 - `test_middleware_play_guard.py` — play mode fail-fast guard: state-unknown passthrough, edit-mode block, watch_remove exclusion
@@ -447,7 +460,7 @@ Tests organized by module in `server/tests/`:
 - `test_docstring_crossrefs.py` — all `use \`tool\`` cross-references in docstrings name real tools in _SPECS
 - `test_gating.py` — tier filtering, category enable/disable
 - `test_server_filtering.py` — `install_initialized_hook`: label sent for non-default client ("Cursor", "Codex"), skipped for "Claude Code", skipped when `client_params` is None
-- `test_tool_schema_coverage.py` — 7 FastMCP contract tests: validates actual JSON Schema generated by FastMCP for TIER1 tools (required params, type annotations, optional with defaults); catches schema drift between Python signatures and what MCP clients see
+- `test_tool_schema_coverage.py` — validates actual JSON Schema generated by FastMCP for TIER1 tools (required params, type annotations, optional with defaults); catches schema drift between Python signatures and what MCP clients see
 - `test_plugins.py` — plugin loader, skip env, error handling
 - `test_tools_*.py` — per-tool argument validation and response parsing
 
@@ -455,7 +468,8 @@ Tests organized by module in `server/tests/`:
 
 ## Review Checklist (for Reviewer)
 
-- [ ] Tool descriptions < 20 tokens each
+- [ ] Tool descriptions satisfy the executable length and content rules in
+  `server/tests/test_tool_descriptions.py`
 - [ ] All tools async
 - [ ] ToolError for user-facing errors
 - [ ] Logging to stderr, not stdout

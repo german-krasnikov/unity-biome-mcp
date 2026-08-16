@@ -169,12 +169,20 @@ Then:
 2. Wait for a clean Unity compile.
 3. Open **MCP > Status**, select **Restart**, and restart the external MCP
    client so the Python entry point is loaded again.
-4. Ask the client to call `my_count_objects(name_filter="Player")`.
+4. Ask the client to enable the plugin's custom category.
+
+Then call the tool:
+
+```python
+await discover_tools(category="my_plugin", enable=True)
+result = await my_count_objects(name_filter="Player")
+```
 
 A successful response contains `count: <number>`. If the tool is absent, run
 **MCP > Status > Diagnose**, confirm that the Python distribution is installed
 in the environment that launches the server, and inspect the Unity Console for
-plugin registration errors.
+plugin registration errors. Custom plugin categories are hidden until enabled
+in each new server session.
 
 ## 4. Test the Python Wrapper
 

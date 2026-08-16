@@ -67,9 +67,12 @@ register_write_cmds("my_update")
   therefore cannot be nested in `batch`.
 
 Call `register_tools` for every plugin tool. If a plugin omits it, newly
-registered names are placed in the hidden `plugins` category and remain outside
-the default tool budget until a client calls
-`discover_tools(category="plugins")`.
+registered names are auto-enrolled in the hidden legacy `plugins` category.
+That alias currently resolves to `SYSTEM`, so the tool becomes known and hidden
+by default, but it does not receive an isolated plugin-only gate. Calling
+`discover_tools(category="plugins", enable=True)` exposes the shared SYSTEM set.
+Give the plugin a distinct category such as `my_plugin`, then enable it with
+`discover_tools(category="my_plugin", enable=True)`.
 
 ### Feature Metadata
 

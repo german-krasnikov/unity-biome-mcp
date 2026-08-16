@@ -142,7 +142,9 @@ This returns `"still compiling"` for an active compile/reload or the corroborate
 
 ### await_compile(timeout=60.0)
 
-**Purpose:** Block until compile + reload finish, return errors (if any).
+**Purpose:** Observe a compile/reload that another action already started and
+return its terminal errors or clean result. It does not refresh assets or start
+compilation; after writing C# use `sync_unity` instead.
 
 **Timeout Semantics:**
 - `timeout=0` → single check, no loop (immediate return)
@@ -174,7 +176,7 @@ error CS0103: The name 'Projectile' does not exist...
 
 **Example:**
 ```python
-# After writing .cs files:
+# Only when another action already started compilation:
 result = await await_compile(timeout=30.0)
 if "clean" in result:
     print("Ready to test")

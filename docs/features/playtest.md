@@ -100,7 +100,7 @@ SETUP_END
 ASSERT /Player|Score > 0
 
 TEARDOWN
-  # Always runs, even if test failed
+  # Runs after normal completion or a non-aborting failure
   ASSERT_CONSOLE_CLEAN
   LOG Test complete
 TEARDOWN_END
@@ -108,7 +108,10 @@ TEARDOWN_END
 
 **Behavior:**
 - **SETUP** runs before main steps. If any SETUP step fails, the runner skips remaining SETUP steps and jumps directly to TEARDOWN (if present). Main steps do NOT execute.
-- **TEARDOWN** always runs at the end, after main steps (success or failure), for cleanup. All TEARDOWN steps execute in full.
+- **TEARDOWN** runs after normal completion and non-aborting setup or main-step
+  failures. A global `ABORT_ON_FAIL`, a per-step timeout `ABORT`, an external
+  Play Mode stop, a global timeout, or an unhandled runner error can end the run
+  before TEARDOWN completes. Do not use it as the only restoration mechanism.
 - Use SETUP for one-time initialization (spawn objects, set state).
 - Use TEARDOWN for verification of final state and log collection.
 
@@ -184,7 +187,7 @@ TEARDOWN_END
 | `CALL` | Invoke a macro | `CALL check_health` |
 | `INCLUDE` | Import definitions file | `INCLUDE path/to/file.defs` |
 | `FOR` / `END_FOR` | Loop with range | `FOR $i IN 0..5 ... END_FOR` |
-| `ABORT_ON_FAIL` | Stop on first failure | `ABORT_ON_FAIL` |
+| `ABORT_ON_FAIL` | Stop after the first failed step or automatic console failure; remaining steps, including TEARDOWN, are skipped | `ABORT_ON_FAIL` |
 | `SET_DEFAULT_TIMEOUT` | Default timeout for steps | `SET_DEFAULT_TIMEOUT 10` |
 | `PATH_PREFIX` | Prefix for all paths | `PATH_PREFIX /Level1` |
 | `COMMENT` / `END_COMMENT` | Block comment | `COMMENT ... END_COMMENT` |
@@ -244,7 +247,10 @@ ASSERT /Folder\\Path|Component|field == value
 ASSERT /[Zone A/Zone B]/Child|Comp|field == value
 ```
 
-Round-trip guarantee: `GetPath(go)` → parse → `FindObject(path)` always finds the original object.
+`GetPath(go)` round-trips through `FindObject(path)` only when every hierarchy
+segment name identifies a unique child. Duplicate root or sibling names make a
+text path ambiguous; use the transient `$HEX` entity reference reported by the
+ambiguity response for the current Editor process instead.
 
 ## GameObject Property Shorthands
 
@@ -383,7 +389,10 @@ ASSERT /Player|Position != (0,0,0)
 | ERR | Exception | `ASSERT NonExistent/Field — ERR` |
 | TIMEOUT | Deadline exceeded | `WAIT_UNTIL X timeout=5 — TIMEOUT` |
 
-Use `abort_on_fail=True` or the `ABORT_ON_FAIL` directive to stop at first failure.
+Use `abort_on_fail=True` or the global `ABORT_ON_FAIL` directive to stop after
+the first `FAIL`, `ERR`, `TIMEOUT`, or automatic `CONSOLE_ERR`. This skips every
+remaining step, including TEARDOWN. A per-step `ABORT` applies only to that
+`WAIT_UNTIL` timeout and stops Play Mode.
 
 Use `snapshot_on_failure=True` to capture alias values and console errors on failure.
 

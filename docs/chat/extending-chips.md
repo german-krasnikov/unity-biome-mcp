@@ -205,9 +205,10 @@ Transcript chip links use `chip:KEY:REFERENCE`. The registry passes the
 `REFERENCE` segment to `Navigate`, `Ping`, and context-menu callbacks.
 
 During an Editor domain reload, Chat stores each pending chip's key and
-rebinds it with `ForKey`. If the provider has not registered yet, Chat attempts
-normal detection again. A provider should therefore register from a stable
-`[InitializeOnLoad]` entry point and keep its key unchanged across releases.
+rebinds it with `ForKey`. If that provider is absent, payload resolution uses
+the generic persisted key/path fallback; it does not rerun object detection.
+A provider should therefore register from a stable `[InitializeOnLoad]` entry
+point and keep its key unchanged across releases.
 
 ## Test Without Internal Hooks
 

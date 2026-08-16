@@ -8,7 +8,7 @@ a model-generated description is not a pixel-perfect assertion.
 
 ## Capture an image
 
-The default capture is 640 × 480 and is saved under the project-local
+The default capture is 640 × 480 and is saved as a PNG under the project-local
 `ScreenShots/` directory:
 
 ```python
@@ -52,9 +52,16 @@ image = await screenshot(
 )
 ```
 
-`output_path` may choose a different destination inside the Unity project. The
-plugin rejects paths outside the project. Old automatic captures are pruned by
-the plugin, so copy or baseline an image that must be retained.
+Every capture writes a project-contained PNG artifact. `output_path` may choose
+a different destination inside the Unity project; paths outside the project and
+non-`.png` destinations are rejected. Before writing an automatic capture, the
+plugin prunes older PNG artifacts in `ScreenShots/`, so copy or baseline an
+image that must be retained. In Play Mode, the default capture uses the
+composited Game view.
+
+Because capture writes a file, `screenshot` is unavailable through a Python
+endpoint with `UNITY_MCP_READ_ONLY=1` or a Unity bridge whose project setting
+has `readOnly: true`.
 
 ### Request a description
 
@@ -149,6 +156,12 @@ result = await screenshot_compare(
 `pixel` is deterministic and local. Model-assisted modes require sampling and
 consume its configured budget; treat their prose as supporting evidence. The
 result can include a diff image and similarity data depending on mode.
+
+After finding the named baseline, every comparison captures a fresh PNG and
+leaves it under the project-local `ScreenShots/` directory.
+`screenshot_compare` is therefore write-classified, including in `pixel` mode,
+and follows the capture pruning and read-only rules above. It does not modify
+the saved baseline.
 
 ## Reliable workflow
 

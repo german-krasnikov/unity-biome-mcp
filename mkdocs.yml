@@ -52,6 +52,7 @@ nav:
   - Home: index.md
   - Getting Started:
     - getting-started/index.md
+    - Product Comparison: comparison.md
   - Installation:
     - install/index.md
     - AI Skills and Agents: install/ai-skills.md
@@ -107,7 +108,6 @@ nav:
   - Develop:
     - plugins/index.md
     - Plugin API Reference: plugins/api-reference.md
-    - Product Comparison: comparison.md
 
 plugins:
   - search

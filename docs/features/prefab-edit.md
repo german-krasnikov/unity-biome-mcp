@@ -4,6 +4,8 @@ Use `prefab(action="edit")` to change a prefab asset without unpacking an
 instance into the open scene. The change affects future instances and existing
 instances that have not overridden the edited property.
 
+<span id="when-to-use-prefab-edit-vs-set_property"></span>
+
 ## Choose the target
 
 | Goal | Tool |
@@ -108,6 +110,8 @@ await create_object(
 unrenamed instance in the active scene. Its public wrapper does not accept
 `name`, `parent`, or `scene`; use `create_object(prefab_path=...)` when any of
 those controls is required.
+
+<span id="verification"></span>
 
 ## Verify the asset change
 

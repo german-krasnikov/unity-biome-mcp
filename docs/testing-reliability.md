@@ -1,16 +1,24 @@
 # Reliable Unity test runs
 
-Unity test execution can cross compilation and domain-reload boundaries. Unity
-Biome MCP therefore gives each NUnit request a durable `request_id` and each
-actual run a `run_id`. Keep those identities together and accept a result only
-when the exact run reaches a reconciled terminal state.
+Choose the smallest test layer that proves the behavior, then use the durable
+runner that matches the caller. Exact request/run identity, lifecycle fields,
+terminal evidence, cancellation, and polling contracts are owned by
+[NUnit Test Tools](tools/tests.md).
 
-This page is for users running tests in their own Unity project. Repository
-fixture design and CI policy live in the contributor documentation.
+## Choose a workflow
 
-## Preferred workflow
+| Need | Workflow |
+|---|---|
+| Normal interactive NUnit run | [`run_tests_wait`](tools/tests.md#run_tests_wait) |
+| Integration that owns polling | [`run_tests`](tools/tests.md#run_tests), then poll its exact `run_id` |
+| Deterministic gameplay assertion without an NUnit fixture | [Playtest DSL](features/playtest.md) |
+| Repository automation without an MCP-client poll loop | [Standalone runner](#standalone-runner) |
 
-For an interactive MCP session, use `run_tests_wait`:
+Run focused EditMode tests first. Use PlayMode only when behavior needs the
+player loop, runtime scene state, physics, rendering, or coroutines. After a C#
+change, call `sync_unity` and require a clean result before trusting any test.
+
+## Preferred interactive run
 
 ```python
 result = await run_tests_wait(
@@ -20,112 +28,37 @@ result = await run_tests_wait(
 )
 ```
 
-The tool performs a preflight, dispatches once, follows the exact run through
-reloads, and returns either terminal JSON or an explicit `BLOCKED`, `TIMEOUT`,
-or `PROTOCOL-ERROR` result.
+`run_tests_wait` owns preflight, one durable dispatch, reload recovery, and
+polling. Accept only the exact terminal evidence described in
+[Completion evidence](tools/tests.md#completion-evidence); a timeout is not a
+pass and does not cancel the Unity run.
 
-Before accepting success, require all of the following in terminal JSON:
+## Recover from a reported result
 
-- `state` and `lifecycle` are `terminal`;
-- `outcome` is `passed`;
-- expected, completed, and unique terminal counts agree;
-- `cleanup_complete` and the execution-boundary flags are true;
-- `issues` contains no infrastructure error.
+| Result | Action |
+|---|---|
+| `BLOCKED` | Fix the reported compile or domain condition, then retry intentionally |
+| `START-UNKNOWN` | Resolve the same `request_id`; do not create a second dispatch |
+| `TIMEOUT` | Poll or cancel the returned `run_id`; do not assume the run stopped |
+| `PROTOCOL-ERROR` | Preserve the record and inspect the correlated run; never accept it as a pass |
+| terminal `failed` | Inspect that run's failure records, fix them, then start a new run |
 
-A client-side timeout is observational. It does not cancel the Unity run and it
-is not completion evidence.
-
-## Nonblocking workflow
-
-Use `run_tests` only when the caller needs to do its own polling:
-
-```python
-ack = await run_tests(
-    mode="EditMode",
-    filter="Game.Tests.InventoryTests",
-    request_id="inventory-tests-2026-08-16",
-)
-```
-
-A normal acknowledgment contains the same `request_id` plus a `run_id`. Poll
-that run directly:
-
-```python
-snapshot = await get_test_run(run_id="<run-id-from-ack>")
-```
-
-Do not use an implicit “latest run” as acceptance evidence. Another client can
-start a run while you are waiting.
-
-## Recover an uncertain start
-
-If the connection drops after Unity may have accepted the request,
-`run_tests` returns `START-UNKNOWN` with the original `request_id`. Do not create
-a replacement ID and do not dispatch a second run. Resolve the original intent:
-
-```python
-resolved = await resolve_test_request(
-    request_id="inventory-tests-2026-08-16"
-)
-```
-
-Possible outcomes:
-
-- a correlated run exists: use its `run_id` and continue polling;
-- the intent is still prepared: retry with the **same** `request_id` so the
-  server can complete the one durable dispatch;
-- the identity is bound to a different mode or filter: stop and choose a new
-  ID for the different request;
-- the response cannot be correlated: treat it as a protocol failure, not a
-  passing test.
-
-## Cancel safely
-
-Cancellation is asynchronous:
-
-```python
-await cancel_test_run(run_id="<run-id>")
-snapshot = await get_test_run(run_id="<same-run-id>")
-```
-
-Continue polling until the same run is terminal. A cancellation acknowledgment
-only means the request was received.
-
-## Choose the right test layer
-
-Run focused EditMode tests first. Use PlayMode when behavior needs the player
-loop, scene runtime state, physics, rendering, or coroutines. Use the
-[Playtest DSL](features/playtest.md) for deterministic gameplay assertions that
-do not need an NUnit fixture.
-
-When C# changed, run `sync_unity` before testing. A stale domain can report old
-tests or old code even when the source file on disk is correct.
-
-## Diagnose failures
-
-| Result | Meaning | Next action |
-|---|---|---|
-| `BLOCKED` | Preflight or Unity state rejected dispatch | Fix the reported compile/domain condition, then retry |
-| `START-UNKNOWN` | Dispatch may have occurred but its ACK was lost | Resolve the same `request_id` |
-| `TIMEOUT` | Caller stopped waiting; run may continue | Poll the returned `run_id` or cancel it |
-| `PROTOCOL-ERROR` | Identity or terminal invariants do not reconcile | Preserve the snapshot and inspect logs; do not accept results |
-| terminal `failed` | Tests completed with failures | Inspect the exact run's failure records |
-| terminal `incomplete` or `invalid` | Unity could not produce complete evidence | Inspect `issues`, console, and Editor log |
-
-Use [Testing Tools](tools/tests.md) for the individual tool contracts and
-[Diagnostics](tools/diagnostics.md) for compilation, console, and domain
-recovery. `list_test_runs` is useful for diagnosis, but the `run_id` returned by
-your own dispatch remains the authoritative identity.
+The canonical recovery sequence and cancellation semantics are in
+[Recover a lost start](tools/tests.md#recover-a-lost-start) and
+[Cancel a run](tools/tests.md#cancel_test_run). Use
+[Diagnostics](tools/diagnostics.md) for compile, console, and domain failures.
 
 ## Standalone runner
 
-Repository automation and other environments that should not depend on an MCP
-client poll loop can use the included durable runner:
+Automation that should not implement the MCP polling loop can use the included
+durable runner from the repository root:
 
 ```bash
-python3 run_unity_tests.py EditMode --project /absolute/path/to/UnityProject
+server/.venv/bin/python run_unity_tests.py EditMode \
+  --project /absolute/path/to/UnityProject
 ```
 
-It follows the same one-dispatch identity rule. Use `--filter` for a focused
-fixture and `--json` for machine-readable output. The runner must target an
-already open project with the Unity Biome MCP plugin active.
+On Windows, use `server\.venv\Scripts\python.exe`. Add `--filter` for a focused
+fixture and `--json` for machine-readable output. The target project must
+already be open with Unity Biome MCP active; the runner verifies the responding
+endpoint belongs to that project.

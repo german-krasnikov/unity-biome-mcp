@@ -45,7 +45,8 @@ that disables middleware must not assume that route exists. The playtest DSL
 
 **Negate:** If True, waits for field ≠ value.
 
-**abort_on_fail:** If True, Unity stops Play Mode on timeout instead of returning an error.
+**abort_on_fail:** If true, Unity also stops Play Mode on timeout. The timeout
+still returns as an error.
 
 **Errors:** Timeout → "timeout waiting for X" message.
 
@@ -103,7 +104,9 @@ await query_state("$score,$posX")
 
 ## test_step(path, position, checks_before="", checks_after="", wait_after=0.5, timeout=15.0)
 
-**Purpose:** Atomic test: move character, snapshot state before/after, check console for errors.
+**Purpose:** Sequential test helper: snapshot state, move a character, wait,
+snapshot again, and inspect the console. It does not provide rollback or atomic
+execution.
 
 **Checks Format:** Comma-separated 'path|component|field' triplets (same as query_state).
 
@@ -116,10 +119,10 @@ await query_state("$score,$posX")
 
 **Returns:** Structured report:
 ```
-[BEFORE] Score: 100
-[MOVE] arrived
-[AFTER] Score: 105
-[CONSOLE] clean
+BEFORE: Score: 100
+MOVE: arrived
+AFTER: Score: 105
+CONSOLE: no errors
 ```
 
 **RW Annotation:** Mutating (movement + snapshots).
@@ -137,7 +140,11 @@ to bypass middleware path resolution.
 
 **script:** Inline DSL text. Use for ad-hoc or generated scripts.
 
-**abort_on_fail:** If True, stops Play Mode when any WAIT_UNTIL times out. Equivalent to placing `ABORT_ON_FAIL` as first line of the script.
+**abort_on_fail:** If True, enables the global fail-fast policy, equivalent to
+placing `ABORT_ON_FAIL` as the first line. After any failed step or automatic
+console failure, the runner stops Play Mode and finishes immediately; no
+remaining SETUP, main, or TEARDOWN steps run. This is broader than a per-step
+`WAIT_UNTIL ... ABORT`, which applies only when that wait times out.
 
 **defs:** Optional inline VAL definitions. Works with both `script` and `path`. Format: one `VAL $name path|comp|field` line per entry. Note: `PlaytestConfig.aliases` are auto-injected by `PlaytestRunner` (v0.78.9) — no need to pass them via `defs`.
 
@@ -152,9 +159,15 @@ finishes, so the returned report does not prove that asynchronous cleanup hook
 completed. Prefer DSL `SETUP`/`TEARDOWN` when its command set is sufficient and
 reserve hooks for code-only setup or cleanup.
 
-**Setup/Teardown Blocks (v1.15.0):**
-- `SETUP` → steps → `SETUP_END`: Runs before main steps. If any SETUP step fails, the runner skips remaining SETUP steps and jumps to TEARDOWN (if present), then finishes. Main steps do NOT execute in this case.
-- `TEARDOWN` → steps → `TEARDOWN_END`: Runs after main steps (success or failure). TEARDOWN always executes in full for cleanup. Results are included in the report.
+**Setup/Teardown Blocks:**
+- `SETUP` → steps → `SETUP_END`: Runs before main steps. Without global abort,
+  a failed SETUP step skips the remaining SETUP and all main steps, then runs
+  TEARDOWN if present.
+- `TEARDOWN` → steps → `TEARDOWN_END`: Runs after normal main completion and
+  after a non-global SETUP failure. Global abort finishes immediately and skips
+  any TEARDOWN steps that have not run.
+- Without global abort, an ordinary main-step failure does not stop later main
+  steps, and TEARDOWN still runs.
 - Use SETUP for one-time initialization (spawn objects, set state). Use TEARDOWN for cleanup (verify final state, collect logs).
 
 ```python
@@ -211,7 +224,8 @@ await run_playtest(
 - Do not poll `get_test_results`. `run_playtest` returns its own report; ordinary
   NUnit callers use `run_tests_wait`, while only low-level protocol clients poll
   an exact `get_test_run(run_id)`.
-- Domain reload: Transparently reconnects mid-script if compilation detected
+- A compile or domain reload interrupts the in-memory runner. Complete
+  `sync_unity`, then start the playtest again; there is no mid-script resume.
 
 ## run_playtest_suite(pattern=None, suite_path=None, timeout_per_test=120.0, stop_on_fail=False, stop_after=True, auto_play=False, restart_between=False)
 
@@ -378,7 +392,8 @@ reuse the original value.
 
 **Returns:** Final test result string, `"TIMEOUT: <last>"`, or `"BLOCKED: <reason>"`.
 
-**RW_IDEM Annotation:** Idempotent mutating.
+**RW Annotation:** Mutating and non-idempotent. Reuse the original `request_id`
+to recover an uncertain dispatch; do not start a replacement run.
 
 ## console_mark(label="")
 
@@ -410,7 +425,7 @@ must treat the value as opaque and pass it back unchanged.
 **Purpose:** Single call verification pipeline after any code or scene change. Additive gates — only the ones you enable run.
 
 **Gates (always):**
-1. `await_compile` — wait for compilation to finish
+1. `await_compile` — observe an already-triggered compilation until it finishes
 2. `get_compile_errors` — confirm zero errors
 
 **Gates (optional):**
@@ -499,7 +514,7 @@ dirty-state readback and may report `saved=PARTIAL dirty=true` or
 | Ad-hoc script | run_playtest(script=...) | DSL readable; compression saves tokens |
 | Saved script | run_playtest(path="Playtests/x.playtest") | C# reads the file directly |
 | Single file explicit | run_playtest(path="Playtests/x.playtest") | Same execution path |
-| Multi-phase fail-fast | run_playtest(abort_on_fail=True) | Stop Play Mode immediately on timeout |
+| Multi-phase fail-fast | run_playtest(abort_on_fail=True) | Stop Play Mode after any failed step or automatic console failure; skip all remaining phases |
 | Suite of files | run_playtest_suite(pattern="Playtests/*.playtest") | One call; compact pass/fail matrix |
 | Lint before run | lint_playtest_suite(pattern="Playtests/*.playtest") | Catch errors without entering Play Mode |
 | Compound wait | WAIT_UNTIL … AND/OR … | Single poll for multi-condition gate |
@@ -510,7 +525,7 @@ dirty-state readback and may report `saved=PARTIAL dirty=true` or
 | Sync .defs → .asset | sync_playtest_aliases_from_defs(...) | Bidirectional alias sync |
 | Failure root cause | run_playtest(path="...", snapshot_on_failure=True) | Inline values + console at each FAIL |
 | Log-window slice | console_mark() → ... mutations ... → get_console_since(mark_id) | Only see errors from this change |
-| Post-change gate | verify_after_change(run_tests_mode="EditMode") | One call replaces compile+test loop |
+| Post-change gate | verify_after_change(run_tests_mode="EditMode") | After `sync_unity`, combine compile evidence with tests |
 | Safe scene edit | scene_change_plan → apply_scene_change | Pre-flight + checkpoint + post-verify |
 | Ref preflight | resolve_scene_refs("$player,$enemy") | Confirm all targets exist before batch |
 | NUnit sync | run_tests_wait(mode="EditMode", filter="MyTest") | No manual poll loop |
@@ -519,7 +534,7 @@ dirty-state readback and may report `saved=PARTIAL dirty=true` or
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| "not in Play Mode" | Tool called outside Play | Start play session first (scene_view + scene.play) |
+| "not in Play Mode" | Tool called outside Play | Start Play Mode with `editor(action="play")` |
 | "timeout waiting for X" | wait_until deadline exceeded | Increase timeout; check game logic |
 | "blocked" | move_to collision | Choose different destination or clear obstacles |
 | Sampling summary unavailable | Optional summarization failed | Read the locally compressed report or split the test |

@@ -18,12 +18,16 @@ Do not treat the three identity syntaxes as interchangeable:
 | Syntax | Owner | Meaning |
 |---|---|---|
 | `&<base62>` | `RefManager` | Compact hierarchy reference, for example `&1`, `&a`, `&10` |
-| `$<hex>` | `TransientObjectId` | Current transient Unity object ID format |
-| `#<decimal>` | compatibility parser | Legacy transient object ID input |
+| `$<decimal>` | `RefManager` compatibility parser | Legacy compact hierarchy input; current hierarchy output never emits it |
+| `$<hex>` | Chat `HierarchyResultParser` compatibility | Reference token accepted in old v1.32-format `get_hierarchy` result text; it is not a current `RefManager` reference |
+| `$<HEX>` | `TransientObjectId` | Current process-local Unity object or component identity outside hierarchy serialization |
+| `#<decimal>` | `TransientObjectId` compatibility parser | Legacy transient object ID input |
 
 `$name` is also the playtest-alias syntax. For that reason, new hierarchy
-references use `&`; only numeric `$...` values are accepted by the compatibility
-reference parser.
+references use `&`. `RefManager` recognizes only decimal `$...` compatibility
+tokens, while the Chat result parser accepts the hexadecimal shape produced by
+the old hierarchy format. Current `$HEX` identities are resolved by
+`TransientObjectId`; the owner and surrounding format determine the meaning.
 
 ## Hierarchy Output
 
@@ -54,8 +58,10 @@ Player [Rigidbody,PlayerController] &3
 `RefManager` encodes `counter + 1`, so the first values are `&1`, `&2`, and so
 on; after `&Z` it continues with `&10`. It does not wrap at a fixed slot count.
 The server invalidates the map on connection lifecycle boundaries that make
-references unsafe. A reference is therefore a convenient short-lived address,
-not a durable object identity.
+references unsafe. Invalidating the maps does not reset the process-local
+counter, so a stale reference cannot alias an object assigned later in the same
+Editor process. A reference is still a convenient short-lived address, not a
+durable object identity.
 
 ### Multi-scene output
 
@@ -177,7 +183,8 @@ duplicating the mutation rules here.
 ## Invalidation and Safety
 
 - A destroyed target resolves as stale and is removed from `RefManager`.
-- `Invalidate()` clears both maps and resets the counter.
+- `Invalidate()` clears both maps but keeps the counter monotonic for the life
+  of the Editor process.
 - `Prune()` removes destroyed objects without renumbering live entries.
 - Hierarchy changes may invalidate assumptions even when a previously assigned
   reference still resolves; verify the target before a consequential write.
@@ -188,7 +195,6 @@ duplicating the mutation rules here.
 
 Focused coverage lives in:
 
-- `unity-plugin/Editor/Tests/HierarchySerializerTests.cs`
 - `unity-plugin/Editor/Tests/MultiSceneHierarchyTests.cs`
 - `unity-plugin/Editor/Tests/RefManagerTests.cs`
 - component serializer/finder fixtures under `unity-plugin/Editor/Tests/`

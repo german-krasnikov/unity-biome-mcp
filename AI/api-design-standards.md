@@ -132,7 +132,8 @@ _SPECS = {
 
 - `core=True`: always visible with a full schema; reserve for the minimum
   cross-domain workflow.
-- `tier1=True`: always visible, but not core.
+- `tier1=True`: bypasses category gating, but a non-CORE tool can still be
+  hidden by Unity tool settings.
 - neither: category-gated and enabled through `discover_tools`.
 - `direct_only=True`: may be called as a typed MCP tool but is rejected inside
   the batch DSL.
@@ -204,7 +205,7 @@ input path; do not conflate them.
 |---|---|
 | `get_compile_errors` | Current corroborated compile-error view |
 | `compile_preflight` | Check proposed C# content before applying it |
-| `await_compile` | Wait for compilation/reload reconciliation |
+| `await_compile` | Observe compilation/reload reconciliation that another action started |
 | `verify_after_change` | Additive compile, error, console, NUnit, and playtest gates |
 
 Do not describe `verify_after_change` as running reference, scene-scan, or

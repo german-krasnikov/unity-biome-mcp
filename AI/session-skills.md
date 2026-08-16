@@ -261,8 +261,10 @@ await screenshot_baseline("tutorial_end", camera="MainCamera")
 
 ## screenshot_compare(name: str = "default", width: int = 640, height: int = 480, camera: str | None = None, mode: str = "auto", question: str | None = None)
 
-**Read-only / optional sampling.** Compare a current screenshot with a saved
-baseline; semantic modes degrade to pixel evidence when sampling is unavailable.
+**Write / optional sampling.** After finding the saved baseline, capture a fresh
+project-local PNG and compare the two images. The capture remains under
+`ScreenShots/`, so the tool is write-classified even in `pixel` mode. Semantic
+modes degrade to pixel evidence when sampling is unavailable.
 
 ```python
 # Auto mode: pixel diff first, escalate to structural on changes

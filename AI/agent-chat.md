@@ -29,13 +29,14 @@ available backend IDs, argv, environment, authentication, resume, and MCP
 configuration. Lifecycle is capability-driven: stdin-driven backends may stay
 alive, while one-shot backends are started per turn.
 
-The canonical implementation description is `AI/architecture.md` under **Chat Relay System**. Do not add CLI-specific process logic to the Unity window or create another C# backend implementation.
+This document is the canonical detailed relay contract. Do not add CLI-specific
+process logic to the Unity window or create another C# backend implementation.
 
 ### Module Isolation
 
 **C# asmdefs:**
-- `UnityMCP.Editor.Chat.CLI` references `UnityMCP.Editor` and the Wizard assembly.
-- `UnityMCP.Editor.Chat.View` references Core and Chat.CLI.
+- `UnityMCP.Editor.Chat.CLI` references Core, Parsers, and the Wizard assembly.
+- `UnityMCP.Editor.Chat.View` references Core, Parsers, and Chat.CLI.
 - Both are Editor-only and `autoReferenced=false`.
 
 **InternalsVisibleTo:**
@@ -73,43 +74,23 @@ public interface IChatBackend
 
 **Implementation:** `RelayBackend`. Backend-specific lifecycle remains in the Python relay.
 
-**ChatEvent struct:**
-- Normalized event type (ToolCard, ToolResult, UserMessage, Error, Status, Done)
-- Humanized text output (e.g., "Editing /Enemies/Boss" not raw JSON)
-- Raw event data preserved for debugging
+`RelayEventParser` converts relay records into the `ChatEventKind` values defined
+in `Chat/CLI/ChatEvent.cs`. They cover streamed text, tool lifecycle, turn and
+session lifecycle, control requests, errors, reasoning, plans, and capability
+updates. Treat that enum as the exhaustive event contract; consumers should not
+invent display-oriented event kinds.
 
 ## Features
 
-### Annotation Tools & Scene Regions (Plugin v0.18.0+)
+### Scene Regions and Chat Chips
 
-Scene annotations enable domain-specific markup via visual regions (points, polylines, measurements) that become selectable chip references in the chat. Implementation:
-
-**RegionChipProvider.cs** — Implements `IChipKindProvider` for scene region objects:
-- **Detects** region objects by component type (e.g., `PointMarker`, `RegionOutline`)
-- **Renders** regions as graphical overlays in the Scene view (via OnSceneGUI)
-- **Formats** annotations as `[region:path/to/annotation]` chips for send-time context
-- **Navigate** — Click chip → selects region object in Inspector + flashes in Scene view
-- **Ping** — Highlights region, moves focus to Scene view
-- **Context Menu** (`AppendContextMenuItems`)** — Right-click options: "Delete Annotation", "Edit Properties"
-
-**Annotation Types** (extensible via plugin registration):
-- **Point:** Single world-space position (e.g., "place trap here at position X")
-- **Polyline:** Connected line segments (e.g., "patrol path from A to B to C")
-- **Measurement:** Distance/angle between two points (e.g., "gap is 5 units wide")
-
-**Integration with Chat:**
-- Regions created via `create_object component=PointMarker` (MCP tool)
-- Chips render as colored pills matching the annotation kind
-- Send-time context includes region properties (position, length, label)
-- AI can modify via `set_property path=/region/name ...`
-
-**Classes:**
-- `RegionChipProvider.cs` — Chip kind provider for regions
-- `AnnotationMarker.cs` — Base component for all annotation types
-- `PointMarker.cs` — Single-point annotation
-- `PolylineMarker.cs` — Multi-point path
-- `MeasurementMarker.cs` — Distance/angle annotation
-- `RegionRenderer.cs` — OnSceneGUI drawing (handles selection highlight, label rendering)
+The Scene region tools store `RegionSnapshot` values in `SceneRegionState` and
+refer to them with eight-character UUID paths such as `[region:12ab34cd]`.
+`RegionChipProvider` formats those snapshots for chat, frames or highlights the
+region, and removes it from the registry. It deliberately returns `false` from
+`CanHandle`: region chips are created by the region workflow, not by dragging a
+scene component. Rendering and annotation modes belong to the Region Tool
+implementation; see [`region-tool.md`](region-tool.md).
 
 ### Compile Auto-Fix Loop (F5, plugin 0.8.0)
 
@@ -179,7 +160,9 @@ requested context before the turn is sent.
 
 `TurnUndoTracker.cs` + `RestoreButton.cs` wrap each agent turn in a named Unity Undo group. An amber **Restore** button appears after each turn and reverts that turn's scene mutations in one click (native Unity Undo, scene-only). Only the last turn's button is active; older buttons disable when a new turn starts. Resumed-after-domain-reload turns also get a group.
 
-Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI + revert logic), `MCPChatWindow.Undo.cs` (partial, split from MCPChatWindow.cs), `.chat-btn--restore` in `MCPChatWindow.uss`.
+Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI +
+revert logic), the `_undoTracker` field and call sites in `MCPChatWindow*.cs`,
+and `.chat-btn--restore` in `MCPChatWindow.uss`.
 
 **Reusable Primitive:** Built on the public `UndoGroupHelper` core API (`OpenNamedGroup`, `CloseNamedGroup`, `RevertToBeforeGroup`, `CanRevert`). Batch Undo rollback reuses the same mechanism for Undo-recorded Unity changes.
 
@@ -197,7 +180,9 @@ side effects are outside this guarantee.
 3. **DrainAndRender() watchdog check** — If no events for longer than timeout while backend is running, emit failure card with context hint, finalize turn, call `OnTurnFailed()` (resets undo group, unlocks reload)
 4. **Resets:** `_lastEventTime` updated on every OnSend (turn start) and every event drain
 
-**v0.36.0: Timeout Context Hint** — Failure message now includes the last tool name executed (tracked via `_lastToolName` in EventHandlers.cs when ToolStart event fires). Format: `[Timed out: no response for 300s (last tool: set_property)]`. Helps debug which operation was in-flight when timeout occurred.
+**Timeout context hint:** The failure message includes the last tool name,
+tracked through `_lastToolName` in `MCPChatWindow.EventHandlers.cs` when a
+`ToolStart` event arrives. This identifies the operation that was in flight.
 
 **Dead-Process Guard (v0.36.0)** — If backend process unexpectedly exits mid-turn (detected via `OnProcessDead()`), appends `[Process exited]` to transcript and finalizes. Surfaces unexpected connection loss (vs. timeout) as distinct error. Also clears turn flags to unlock reload guard.
 

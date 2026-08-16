@@ -21,8 +21,10 @@ async def menu(action: str, path: str | None = None) -> str:
 - `ListRoots()` — enumerates File/Edit/Assets/GameObject/Component/Window/Help/Tools
 
 ### CommandRouter
-- `case "menu"` → `ExecMenu(args)` with action switch
-- Added to `IsMutatingCommand` (execute can modify scene)
+- `CommandRouter.Registration.cs` registers `menu` through `CommandRegistry`
+  as mutating because `execute` can change Editor or project state.
+- `ExecMenu(args)` owns the `execute` / `list` action switch and delegates to
+  `MenuHelper`.
 
 ### Plugin Menu
 
@@ -39,7 +41,7 @@ the emoji or `Biome` according to the Editor preference.
 - **Dynamic label:** Maps state → pill text via MCPStatusModel.GetPill()
 - **Breathing animation:** Dot/halo scale and opacity reflect connected, listening, chat-active, and down states
 - **Click menu:** Restart server/relay, reimport, kill current/all/phantom servers, or open Status
-- **Fully defensive:** Try/catch at every reflection step; if AppStatusBar unavailable, retries; logs warnings but never crashes
+- **Defensive fallback:** Reflection steps are guarded; if `AppStatusBar` is unavailable, the widget retries and logs a warning instead of assuming injection succeeded
 
 ## API
 
@@ -80,8 +82,10 @@ menu action=list  # lists all root menus
 - `Menu.GetEnabled(path)` — public API, checks if item is enabled
 
 ## Tests
-- Python: `server/tests/test_server_menu.py` (8 tests)
-- C#: `unity-plugin/Editor/Tests/BiomeMenuPathTests.cs` covers label/status behavior
+- Python: `server/tests/test_server_menu.py`
+- C#: `unity-test-project/Assets/Tests/Editor/Server/MenuTests.cs` covers menu
+  helper behavior; `unity-plugin/Editor/Tests/BiomeMenuPathTests.cs` covers
+  plugin label and status-menu paths
 
 ## Static Unity Menu Items
 

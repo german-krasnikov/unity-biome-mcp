@@ -43,8 +43,10 @@ get_component path=/Player type=Transform
 )
 ```
 
-Do not assume every tool can be batched. Check `surfaces` in `discover_tools` or
-the generated schema. Intent tools, test runners, and other direct-only tools must
+Do not assume every tool can be batched. Use
+`discover_tools(enable=False, structured=True)` as the source of truth for
+supported surfaces. The generated schema owns parameters and signatures, not
+batch eligibility. Intent tools, test runners, and other direct-only tools must
 be called through their typed interface. See [Batch Operations](../tools/batch.md)
 for atomic and failure behavior.
 

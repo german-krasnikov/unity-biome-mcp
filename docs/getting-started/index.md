@@ -12,6 +12,7 @@ then return here for the appropriate first-connection check.
 ## Prerequisites
 
 - Unity 6000.0 or later
+- Git 2.14 or later available on `PATH`
 - `uvx`, provided by [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - An MCP-compatible client, or a supported CLI for [MCP Chat](../chat/index.md)
 
@@ -33,6 +34,10 @@ The plugin starts on port `9500` by default and automatically selects another av
 
 4. Wait for Unity to import the package and finish compiling.
 
+If Package Manager reports that Git is missing or invalid, install or update
+Git, confirm `git --version` works in a new terminal, restart Unity, and retry
+the Git URL.
+
 The package starts the Unity-side server and maintains these project-local client files:
 
 | Client | File relative to the Unity project |
@@ -40,7 +45,7 @@ The package starts the Unity-side server and maintains these project-local clien
 | Claude Code | `.mcp.json` |
 | Cursor | `.cursor/mcp.json` |
 | VS Code | `.vscode/mcp.json` |
-| Windsurf | `.windsurf/mcp.json` |
+| Windsurf compatibility artifact | `.windsurf/mcp.json` |
 | Codex | `.codex/config.toml` |
 | Junie | `.junie/mcp/mcp.json` |
 
@@ -63,8 +68,14 @@ Use the flow that matches your client:
 
 ### Project-local configuration
 
-Claude Code, Cursor, VS Code, Windsurf, Codex, and Junie use the generated files
-listed above. Restart or reload the client after Unity creates the file.
+Claude Code, Cursor, VS Code, Codex, and Junie use the generated files listed
+above. Restart or reload the client after Unity creates the file.
+
+Windsurf is an exception. Legacy Cascade's documented primary configuration is
+the global `~/.codeium/windsurf/mcp_config.json` (or the platform equivalent).
+The generated `.windsurf/mcp.json` is retained as a compatibility artifact; do
+not assume every Windsurf or Devin surface discovers it. Follow the
+[Windsurf guide](../install/windsurf.md).
 
 ### Chat-start configuration
 

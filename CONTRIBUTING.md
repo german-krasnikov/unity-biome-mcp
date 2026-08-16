@@ -7,18 +7,25 @@ protect each part of the project, and the documentation contract.
 
 Requirements:
 
+- Git 2.14 or newer on `PATH`
 - Python 3.10 or newer (CI also exercises 3.11 and 3.12)
 - Unity 6000.0 or newer for Unity and live tests
 - macOS, Linux, or Windows
 
-Clone the repository and create the managed Python environment:
+Clone the repository and create the managed Python environment. On POSIX:
 
 ```bash
 git clone https://github.com/german-krasnikov/unity-biome-mcp.git
 cd unity-biome-mcp
 python install.py setup
-python install.py doctor
+server/.venv/bin/python install.py doctor
 ```
+
+On Windows PowerShell, use `py install.py setup`, then
+`server\.venv\Scripts\python.exe install.py doctor`. Commands below show the
+POSIX virtual-environment path; substitute the Windows path when applicable.
+Before running pytest in PowerShell, set
+`$env:PYTHONWARNDEFAULTENCODING = "1"` for the current shell.
 
 Run server commands from `server/`; run installer, scripts, documentation, and
 Unity runner commands from the repository root.
@@ -32,19 +39,19 @@ non-live suites before opening a pull request.
 
 ```bash
 # From server/
-PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ \
+PYTHONWARNDEFAULTENCODING=1 .venv/bin/python -m pytest tests/ \
   -m "not live and not monkey" -q --tb=short
 
 # From the repository root
-PYTHONWARNDEFAULTENCODING=1 python -m pytest install/tests/ -q --tb=short
-PYTHONWARNDEFAULTENCODING=1 python -m pytest scripts/tests/ -q --tb=short
+PYTHONWARNDEFAULTENCODING=1 server/.venv/bin/python -m pytest install/tests/ -q --tb=short
+PYTHONWARNDEFAULTENCODING=1 server/.venv/bin/python -m pytest scripts/tests/ -q --tb=short
 ```
 
 The `monkey` stress suite is intentionally separate:
 
 ```bash
 cd server
-PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ \
+PYTHONWARNDEFAULTENCODING=1 .venv/bin/python -m pytest tests/ \
   -m "monkey and not live" -q --tb=short
 ```
 
@@ -55,8 +62,8 @@ durable runner is the preferred local entry point because it preserves request
 identity through a domain reload:
 
 ```bash
-python3 run_unity_tests.py EditMode --project unity-test-project
-python3 run_unity_tests.py PlayMode --project unity-test-project
+server/.venv/bin/python run_unity_tests.py EditMode --project unity-test-project
+server/.venv/bin/python run_unity_tests.py PlayMode --project unity-test-project
 ```
 
 Use `--filter Namespace.Fixture.TestName` for a focused run. An unfiltered
@@ -75,8 +82,12 @@ Live tests require the target Unity project to be open:
 ```bash
 cd server
 export UNITY_MCP_PROJECT_PATH="/absolute/path/to/unity-test-project"
-PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/live/ -m live -q
+PYTHONWARNDEFAULTENCODING=1 .venv/bin/python -m pytest tests/live/ -m live -q
 ```
+
+In Windows PowerShell, set
+`$env:UNITY_MCP_PROJECT_PATH = "C:\absolute\path\to\unity-test-project"`, then
+run `.venv\Scripts\python.exe -m pytest tests/live/ -m live -q` from `server`.
 
 `UNITY_MCP_PROJECT_PATH` is mandatory for the live harness. Use
 `UNITY_MCP_PORT` only when you deliberately need to override project-based port
@@ -121,8 +132,8 @@ Documentation ships with the code:
 - `README.md` is the concise project entry point.
 - `docs/` teaches user tasks and troubleshooting.
 - `AI/` records developer and agent implementation constraints.
-- `CHANGELOG.md` records user-visible changes; the package mirror is generated
-  from it.
+- `CHANGELOG.md` records user-visible changes and is canonical; synchronize its
+  byte-identical package mirror with `scripts/sync_changelog.py`.
 - generated tool schemas, quality data, counts, and README fact blocks must be
   changed through their generators.
 
@@ -130,12 +141,21 @@ Update the canonical page that owns a fact and link to it elsewhere. User
 guides should explain prerequisites, a copyable example, expected result, and
 recovery without duplicating the generated parameter reference.
 
+After editing the changelog, synchronize the package mirror from the repository
+root:
+
+```bash
+server/.venv/bin/python scripts/sync_changelog.py
+server/.venv/bin/python scripts/sync_changelog.py --check
+```
+
 Before committing generated facts, run:
 
 ```bash
-python scripts/update_readme.py --check-facts
-python scripts/update_readme.py --check
-mkdocs build --strict
+server/.venv/bin/python scripts/update_readme.py --check-facts
+server/.venv/bin/python scripts/update_readme.py --check
+uvx --from mkdocs --with mkdocs-material --with mkdocs-minify-plugin \
+  mkdocs build --strict
 ```
 
 See [`docs/index.md`](docs/index.md) for the public documentation map and

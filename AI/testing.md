@@ -138,6 +138,14 @@ same requirement. Prefer class-level NUnit categories and category constants.
 Do not duplicate a category already applied by an attribute such as
 `BiomeWorkerOnly` or `RequiresGraphicsDevice`.
 
+## Documentation and Skill Checks
+
+Run `python scripts/check_skills_freshness.py --strict` after changing bundled
+skills or agents. Strict mode exits non-zero for findings classified as errors;
+warnings still require human triage. The checker is a heuristic static guard, so
+even a clean report does not prove that a workflow remains semantically current.
+Review the affected instructions against the live tool and product contracts.
+
 ## Acceptance Order
 
 Freeze executable files before a formal release gate. Run these lanes

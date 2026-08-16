@@ -6,10 +6,12 @@ that runtime state normally disappears when Play Mode ends.
 
 ```python
 await editor(action="play")
-state = await query_state(
-    queries="/Player|Health|CurrentHealth,/Player|Rigidbody|speed"
-)
-await editor(action="stop")
+try:
+    state = await query_state(
+        queries="/Player|Health|CurrentHealth,/Player|Rigidbody|speed"
+    )
+finally:
+    await editor(action="stop")
 ```
 
 Use [Object Tools](objects.md) for serialized Edit Mode authoring. Use public
@@ -198,9 +200,15 @@ context = await debug(
 )
 ```
 
-Pass `gather="inspect,get_console,screenshot"` only when you need to override the
-automatic tool selection. Use [`diagnose`](diagnostics.md#diagnose) for compile or
-domain problems.
+Pass `gather="inspect,get_console"` only when you need to override the automatic
+selection. Capture visual evidence separately, because `screenshot` writes a
+project-local PNG:
+
+```python
+image = await screenshot(camera="single_view", path="/Enemy")
+```
+
+Use [`diagnose`](diagnostics.md#diagnose) for compile or domain problems.
 
 ### `debug_animator` and `debug_physics`
 

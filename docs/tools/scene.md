@@ -13,7 +13,8 @@ see [System Tools](system.md).
 
 ### `get_hierarchy`
 
-Returns the current hierarchy as a compact text tree.
+Returns the loaded scene hierarchy as a compact text tree. Without a `scene`
+filter, it includes every loaded scene and adds scene headers when needed.
 
 ```python
 # Begin with a shallow overview.
@@ -27,16 +28,20 @@ Useful parameters:
 
 - `root` scopes the read to one subtree.
 - `filter` keeps objects whose names contain the supplied text.
-- `scene` selects one loaded scene by name.
-- `summary=True` returns root-level counts instead of a tree.
+- `scene` selects one loaded scene by name; omitting it includes all loaded
+  scenes.
+- `summary=True` returns scene/root counts and direct root objects without
+  compact object references.
 - `incremental=True` returns `NO_CHANGE` when the scene has not changed since the
   previous incremental read.
 - `compress=True` groups repeated sibling slots, points, and visual meshes.
 - `full=True` bypasses response distillation.
 
-Object references are shown as compact `&...` identifiers. Prefer a stable scene
-path in calls that accept one; use an identifier when duplicate names make the path
-ambiguous.
+Object references are shown as compact `&...` identifiers. They are
+process-local: never reuse them after an Editor restart, and call
+`get_hierarchy` again when one becomes stale after a connection lifecycle
+change. Prefer a stable scene path in calls that accept one, and use an
+identifier when duplicate names make the path ambiguous.
 
 ### `search_scene`
 

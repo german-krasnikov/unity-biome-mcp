@@ -29,7 +29,7 @@ Valid grid coordinates are `0` through `9` on each axis.
 | `PosX`, `PosZ` | `int` | Current grid cell |
 | `Score` | `int` | Collected item count |
 | `IsMoving` | `bool` | Whether movement is in progress |
-| `MoveCount` | `int` | Completed move count |
+| `MoveCount` | `int` | Accepted and started move count |
 
 `invoke_method` can call:
 
@@ -45,7 +45,7 @@ Valid grid coordinates are `0` through `9` on each axis.
 Read two fields in one request:
 
 ```python
-query_state(
+await query_state(
     queries="/GridPlayer|GridPlayer|PosX,/GridPlayer|GridPlayer|Score"
 )
 ```
@@ -53,7 +53,7 @@ query_state(
 Call a public method:
 
 ```python
-invoke_method(
+await invoke_method(
     path="/GridPlayer",
     component="GridPlayer",
     method="Move",
@@ -64,7 +64,7 @@ invoke_method(
 Wait for movement to finish:
 
 ```python
-wait_until(
+await wait_until(
     path="/GridPlayer",
     component="GridPlayer",
     field="IsMoving",
@@ -89,7 +89,11 @@ TIMESCALE 1
 ASSERT_CONSOLE_CLEAN
 ```
 
-All runtime changes disappear when Play Mode stops.
+`MoveCount` increments when a valid move starts, before its movement coroutine
+finishes. Use `IsMoving == False` or the final position as completion evidence.
+
+The fixture's in-memory fields, transforms, and collectible state normally reset
+when Play Mode stops. File, asset, and project-setting side effects do not.
 
 ## Run the fixture tests
 

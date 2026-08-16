@@ -17,6 +17,7 @@ Use a typed MCP call for a single operation, for a direct-only tool, or when the
 next call depends on parsing the previous result.
 
 <span id="batch"></span>
+<span id="batch-behavior"></span>
 
 ## Check whether a tool is batchable
 
@@ -115,8 +116,10 @@ a full schema, object-existence, or component-existence dry run.
 
 ## Understand guards and results
 
-Every subcommand keeps its normal category, read-only, compile-state, and Play
-Mode guards. A disabled tool remains disabled. A write may be blocked while a
+Every subcommand keeps its Unity MCP Settings toggle, read-only, compile-state,
+and Play Mode guards. A disabled Unity handler remains disabled. Deferred
+categories control which typed tools appear in the advertised MCP list; they are
+not an authorization boundary inside `batch`. A write may be blocked while a
 read in the same `continue` batch still runs. Runtime-only commands require Play
 Mode, while ordinary Editor mutations are generally blocked there.
 

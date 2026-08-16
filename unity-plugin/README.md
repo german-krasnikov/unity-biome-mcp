@@ -7,6 +7,7 @@ MCP-compatible AI clients.
 ## Requirements
 
 - Unity `6000.0` or newer
+- Git 2.14 or newer available on `PATH` for the Git URL install
 - [uv](https://docs.astral.sh/uv/) for the standard server launch
 - An MCP-compatible client or a supported CLI for In-Unity Chat
 

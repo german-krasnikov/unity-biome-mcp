@@ -14,6 +14,7 @@ Intent tools are direct calls; they cannot run inside `batch`.
 | `animator_intent` | Build Animator parameters, states, and transitions | Yes |
 | `vfx_intent` | Configure a Particle System from a preset or description | Yes |
 | `ui_intent` | Build a Canvas-based UI hierarchy | Yes |
+| [`uitk_intent`](../tools/ui.md#generate-a-panel-from-intent) | Build a UI Toolkit UXML/USS panel | Yes |
 
 Generated plans are validated, but they still operate on your project. Preview
 ambiguous or wide changes and verify the result with a read tool.
@@ -41,16 +42,28 @@ plan = await do(
     dry_run=True,
 )
 
-# Review the returned batch plan, then apply the same request.
-result = await do(
-    "Create three evenly spaced spawn points under /Level/Spawns"
-)
+# Review the returned DSL. To execute those exact commands, copy the plan after
+# the "DRY RUN plan:" line into a direct batch call.
+result = await batch(commands="""
+create_object name=Spawn1 parent=/Level/Spawns
+set_property path=/Level/Spawns/Spawn1 component=Transform prop=position value=-2,0,0
+create_object name=Spawn2 parent=/Level/Spawns
+set_property path=/Level/Spawns/Spawn2 component=Transform prop=position value=0,0,0
+create_object name=Spawn3 parent=/Level/Spawns
+set_property path=/Level/Spawns/Spawn3 component=Transform prop=position value=2,0,0
+""", on_error="stop")
 ```
 
 `do` reads a compact hierarchy, generates a batch plan, validates the plan, and
-then executes it. An invalid or unavailable plan fails without applying commands.
-For an all-or-nothing change with explicit compile, reference, and save gates, use
-the [guarded scene-change workflow](../tools/scene.md#apply-a-guarded-scene-change).
+then executes it. A second `do` call samples a new plan; a dry run is advisory,
+not an approval token for the next call. Execution uses `on_error="continue"`.
+After a small partial failure, `do` may sample and run one repair plan, while
+successful earlier operations remain applied. An invalid or unavailable initial
+plan fails without applying commands.
+
+When every required command is in its Unity-Undo allowlist, use the
+[guarded scene-change workflow](../tools/scene.md#apply-a-guarded-scene-change)
+for explicit stop-on-error, verification, and save gates.
 
 ## `animator_intent(target, intent, dry_run=False)` {#animator_intent}
 
@@ -138,6 +151,8 @@ presets and UI templates do not make a generation call. Configure sampling under
 by the budget router. Treat it as an estimate, not a provider invoice. Limits and
 model pricing can change, so this guide intentionally does not hard-code a
 per-request price.
+
+<span id="common-workflow"></span>
 
 ## Reliable workflow
 

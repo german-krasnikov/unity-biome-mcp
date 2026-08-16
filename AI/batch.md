@@ -15,7 +15,7 @@ multi-object component reads, prefer `inspect`.
 ```
 Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Editor Plugin
                             │                              │
-              batch tool (no parsing)    CommandRouter (batch case)
+              batch preflight/filter    CommandRouter (batch case)
                                                     │
                                      BatchHelper.Execute
                                       (ParseLines → seq ops)
@@ -37,7 +37,9 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 
 ### Data Format
 - Commands as text, one per line: `cmd key=value key=value`
-- Python forwards raw text to Unity (no JSON parsing)
+- Python preflights the DSL, rejects non-batchable lines, strips Python-only
+  parameters, and remaps result indices. It then forwards text DSL to Unity
+  without decoding each command into a Python JSON object.
 - C# pipeline: `ParseLines()` → `JsonHelper.UnescapeJsonString()` → split lines → `ParseLine()` → `ParseKeyValuePairs()` → `BuildJsonObject()` (values escaped via `JsonHelper.EscapeJson()`)
 - All values always quoted as JSON strings: `{"name":"123"}` (no type detection)
 - Quoted values: `name="My Object"` (handles spaces inside quotes)
@@ -68,10 +70,14 @@ Example: A hypothetical `Python-only_flag=true` parameter would be stripped from
 With `on_error=continue` (the default), direct_only lines are filtered out before TCP dispatch. Their errors are prepended to the final result with original line numbers remapped correctly. With `on_error=stop`, a ToolError is raised immediately before any dispatch.
 
 ```
-[1] err: 'do' is direct-only; call it as a typed MCP tool, not in batch
-[2] ok: /Player
+[0] err: 'do' is direct-only; call it as a typed MCP tool, not in batch
+[1] ok: /Player
 ok:1 err:1
 ```
+
+Result indices are zero-based executable-command ordinals. Blank lines and
+comments do not consume an ordinal; Python preserves these ordinals when it
+filters a line before Unity dispatch.
 
 ### Constraints
 - No async commands allowed (wait_until, move_to, run_tests, test_step, run_playtest prohibited)
@@ -90,13 +96,26 @@ ok:1 err:1
 
 ### Blast Radius Exemption for Read-Only Batches (v0.78.10)
 
-`_is_batch_readonly(commands)` helper (`middleware_guards.py`) checks if every non-blank, non-comment line in the batch text is a read command. When true, `check_blast_radius()`, `check_verification_needed()`, and `transition()` all return `None` immediately — no blast-radius warning, no verification nudge, no FSM write counter increment. Read-only batches (`get_hierarchy`, `get_component`, `inspect`, etc.) pass through middleware cleanly without any guard noise.
+`_is_batch_readonly(commands)` in `middleware_guards.py` checks every non-blank,
+non-comment line. A command in the source-derived `READ_CMDS` set is a read. For
+an action-based command in `ACTION_READS`, the invocation is a read only when its
+explicit `action` belongs to that command's mapped read subset. A missing or
+unknown action, a write action, an unknown command, or any other unclassified
+line fails closed as a write. Do not copy the changing command/action roster
+into documentation.
 
-`editor` is special-cased: only `action=state` and `action=project_path` count
-as reads (`_EDITOR_READ_ACTIONS` constant); absent or any other action
-(`play`, `stop`, `pause`, `step`, or `select`) is treated conservatively as a
-write. All other commands are checked against the source-owned `READ_CMDS` set;
-do not copy its changing membership into documentation.
+Examples of the generic rule:
+
+| Invocation | Middleware classification |
+|---|---|
+| `editor action=state` | Read |
+| `editor action=play` | Write |
+| `uitk_file action=read path=Assets/UI/Main.uxml` | Read |
+| `uitk_file action=write path=Assets/UI/Main.uxml` | Write |
+| `uitk_file path=Assets/UI/Main.uxml` | Conservative write because `action` is absent |
+
+Only a batch classified entirely read-only bypasses blast-radius warnings,
+verification nudges, and the middleware write-state transition.
 
 ### C# Command Filtering Options
 

@@ -33,9 +33,15 @@ Tool controls have distinct, limited purposes:
 - The MCP Hub can enable or disable Unity command handlers in its catalog.
   Those handlers are enabled by default unless you change their setting.
 - Python capability discovery controls which deferred typed MCP tools are
-  visible in the current server session.
-- The in-Editor chat permission deny-set limits which MCP tools a spawned chat
-  backend receives. It does not authenticate arbitrary loopback clients.
+  visible in the current server session, including custom plugin categories.
+- `UNITY_MCP_READ_ONLY=1` makes that Python server endpoint reject commands
+  classified as mutating. The Unity listener has a separate project guard:
+  `readOnly: true` in `ProjectSettings/UnityMCP.json`. Enable both when both
+  entry points must reject mutations. These are mutation guards, not
+  authentication.
+- The in-Editor Chat permission deny-set is saved as UI policy. The current
+  `RelayBackend` does not forward or enforce that deny-set when it starts a
+  backend, so do not treat it as a server-side control.
 
 These controls are not one universal authorization layer. Always-allowed
 protocol commands and Python-only orchestration do not all pass through the

@@ -8,7 +8,9 @@ Tools are organized into a 13-tool Core and ten task-oriented categories. Use th
 
 **Category-gated tools** — Enable via `discover_tools(category, enable=True)` or through the Unity Biome MCP Settings panel.
 
-**Unknown tools** — Plugin-registered tools pass through automatically.
+**Custom plugin categories** — Tools registered to an explicit custom category
+are hidden until that category is enabled. A plugin that omits category
+registration does not receive isolated category gating.
 
 ## Categories Overview
 
@@ -111,7 +113,11 @@ await discover_tools("VERIFY", enable=True)
 await discover_tools("ASSETS", enable=True)
 ```
 
-After enabling, the tools appear in your AI's tool list and become callable.
+After enabling, the tools appear in the advertised tool list. Category gating
+controls discovery and context budget; it is not authorization, and a client
+that already knows a hidden Python tool name may still call it. Use the
+[security controls](../settings.md#tools-and-permissions) when access must be
+restricted.
 
 **Available categories:**
 - `SCENE`
@@ -126,6 +132,10 @@ After enabling, the tools appear in your AI's tool list and become callable.
 - `SYSTEM`
 
 Run `discover_tools(enable=False, structured=True)` to inspect the current catalog, including each tool's supported surfaces. Legacy category aliases remain available with `include_legacy=True`.
+
+Custom plugin categories use the same session gate. For example, enable a
+plugin registered as `my_plugin` with
+`discover_tools(category="my_plugin", enable=True)`.
 
 ## Batch: Combine Operations for Token Savings
 
@@ -145,7 +155,9 @@ get_component path=Player type=Transform
 """)
 ```
 
-See [Batch Reference](batch.md) for all batch-eligible commands.
+Use `discover_tools(enable=False, structured=True)` as the source of truth for
+batch eligibility. See [Batch Reference](batch.md) for command syntax, failure
+handling, and rollback behavior.
 
 ## Tool Status & Discovery
 

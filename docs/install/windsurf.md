@@ -10,26 +10,33 @@ Install and sign in from the
 
 ## Configure
 
-Unity Biome MCP creates `.windsurf/mcp.json` in the Unity project. Reload the
-project in Windsurf, then run the
+For legacy Cascade, use Windsurf's documented global configuration. The
+packaged CLI writes the `mcpServers` entry without replacing unrelated servers:
+
+```bash
+uvx --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server \
+  unity-biome-mcp configure --tool windsurf
+```
+
+The path is `~/.codeium/windsurf/mcp_config.json` on macOS and Linux, and
+`%APPDATA%\Codeium\windsurf\mcp_config.json` on Windows. Restart Windsurf, open
+**Windsurf Settings > Cascade > MCP Servers**, enable the server if necessary,
+then run the
 [first connection check](../getting-started/index.md#3-verify-the-first-connection).
-
-If Windsurf does not discover the project file, use the
-[global configuration command](../getting-started/index.md#python-cli-global-configuration)
-with client key `windsurf`. The packaged CLI writes the platform-specific
-`mcp_config.json` using the `mcpServers` shape.
-
-Restart the client after changing either configuration.
-
-Windsurf also exposes MCP controls under
-**Windsurf Settings > Cascade > MCP Servers**. Its
+Windsurf's
 [MCP documentation](https://docs.windsurf.com/windsurf/cascade/mcp)
 describes server status, tool visibility, and the global configuration path.
+
+Unity Biome MCP may also generate `.windsurf/mcp.json` in the Unity project.
+Treat it only as a compatibility artifact, not as authoritative discovery for
+legacy Cascade. Devin Local and newer Windsurf tabs are separate surfaces; this
+integration does not claim that the project artifact configures them. Use the
+configuration UI and documentation for the surface you are running.
 
 ## Client-specific Troubleshooting
 
 | Symptom | Action |
 |---|---|
-| Project-local server is not discovered | Use the global Python CLI flow above |
+| Server is absent from legacy Cascade | Run the global configuration command above, then restart Windsurf |
 | Server is configured but inactive | Open the client's MCP settings, enable the server, and restart the client |
 | Tools cannot reach Unity | Keep Unity open and follow [connection diagnostics](../getting-started/index.md#diagnose-a-failure) |
