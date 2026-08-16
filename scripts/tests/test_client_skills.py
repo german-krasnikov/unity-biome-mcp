@@ -281,6 +281,12 @@ def test_high_value_workflows_use_current_coordination_tools(repo_root: pathlib.
     csharp = (root / "unity-csharp-editing" / "SKILL.md").read_text(encoding="utf-8")
     testing = (root / "unity-testing-verification" / "SKILL.md").read_text(encoding="utf-8")
     operations = (root / "unity-mcp-operations" / "SKILL.md").read_text(encoding="utf-8")
+    transaction_reference = (
+        root
+        / "unity-mcp-operations"
+        / "references"
+        / "transactions-and-verification.md"
+    ).read_text(encoding="utf-8")
 
     assert "sync_unity(timeout=60)" in csharp
     assert "await_compile` only when compilation was already started" in csharp
@@ -288,6 +294,9 @@ def test_high_value_workflows_use_current_coordination_tools(repo_root: pathlib.
     assert "One correlated `run_tests_wait" in operations
     assert "Direct `run_tests` is low-level" in operations
     assert "hand-roll this polling protocol" in testing
+    assert "sync_unity(timeout=60)" in transaction_reference
+    assert "Use `await_compile` only when another action already started" in transaction_reference
+    assert "| Code compiles and is live | Clean terminal `sync_unity` result" in transaction_reference
     for tool in ("resolve_scene_refs", "lint_playtest", "lint_scene_refs", "validate_playtest_aliases"):
         assert tool in testing
 

@@ -10,6 +10,7 @@ import pytest
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 RELEASE_HELPER = REPO_ROOT / "scripts" / "release.sh"
+CHANGELOG_SYNC = REPO_ROOT / "scripts" / "sync_changelog.py"
 CHANGELOG = REPO_ROOT / "CHANGELOG.md"
 RELEASE_HEADING_RE = re.compile(
     r"^## \[(v\d+\.\d+\.\d+)\](?:[ \t]+.*)?$",
@@ -41,10 +42,48 @@ def test_legacy_release_invocation_fails_closed() -> None:
     assert "--preflight" in result.stderr
 
 
-def test_plugin_changelog_is_exact_generated_mirror() -> None:
+def test_plugin_changelog_is_exact_synchronized_mirror() -> None:
     root = CHANGELOG.read_bytes()
     plugin = (REPO_ROOT / "unity-plugin" / "CHANGELOG.md").read_bytes()
     assert plugin == root
+
+
+def test_changelog_sync_command_checks_and_repairs_exact_bytes(
+    tmp_path: pathlib.Path,
+) -> None:
+    (tmp_path / "unity-plugin").mkdir()
+    (tmp_path / "CHANGELOG.md").write_bytes(b"canonical\r\nbytes\n")
+    mirror = tmp_path / "unity-plugin" / "CHANGELOG.md"
+    mirror.write_bytes(b"stale\n")
+
+    check_stale = subprocess.run(
+        [sys.executable, str(CHANGELOG_SYNC), "--check", "--repo-root", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    assert check_stale.returncode == 1
+    assert mirror.read_bytes() == b"stale\n"
+
+    sync = subprocess.run(
+        [sys.executable, str(CHANGELOG_SYNC), "--repo-root", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    assert sync.returncode == 0
+    assert mirror.read_bytes() == b"canonical\r\nbytes\n"
+
+    check_current = subprocess.run(
+        [sys.executable, str(CHANGELOG_SYNC), "--check", "--repo-root", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    assert check_current.returncode == 0
 
 
 def test_changelog_release_headings_are_unique_and_canonical() -> None:
@@ -55,7 +94,7 @@ def test_changelog_release_headings_are_unique_and_canonical() -> None:
     release_matches = [RELEASE_HEADING_RE.fullmatch(line) for line in release_lines[1:]]
     malformed = [
         line
-        for line, match in zip(release_lines[1:], release_matches)
+        for line, match in zip(release_lines[1:], release_matches, strict=True)
         if match is None
     ]
     assert not malformed, f"non-canonical release headings: {malformed}"

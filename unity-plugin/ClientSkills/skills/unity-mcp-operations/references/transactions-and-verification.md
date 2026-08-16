@@ -60,9 +60,10 @@ compile_preflight(
 )
 ```
 
-Write only after preflight succeeds. Then trigger the normal Unity refresh and
-call `await_compile(timeout=60)`. `await_compile` waits and reports; it does not
-start compilation.
+Write only after preflight succeeds. Then call `sync_unity(timeout=60)` once;
+it triggers the Unity refresh and waits for compilation, domain reload, and
+reconnection. Use `await_compile` only when another action already started
+compilation and you only need to wait for its result.
 
 ## Evidence Levels
 
@@ -71,6 +72,6 @@ start compilation.
 | Serialized value changed | Read the exact component field |
 | References remain valid | `validate_references` on the changed root |
 | No new runtime errors | Console watermark delta |
-| Code compiles | `await_compile` plus compile-error result |
+| Code compiles and is live | Clean terminal `sync_unity` result from the new domain |
 | Behavior works | Data assertion or NUnit/playtest result |
 | Layout looks correct | Screenshot or visual comparison |

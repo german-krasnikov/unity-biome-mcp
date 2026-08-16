@@ -66,8 +66,9 @@ watch(action="clear")
 
 Resolve schemas for gated probes in one request and enable only their category.
 
-`verify_after_change` always waits for compilation and reads compile errors. It
-checks the console only when `mark_id` is provided, runs NUnit only when
+`verify_after_change` waits for an already-started compilation and reads compile
+errors; it does not refresh assets or start compilation. It checks the console
+only when `mark_id` is provided, runs NUnit only when
 `run_tests_mode` is provided, and runs playtests only when `playtests` is
 provided. It does not validate object references, scan the scene, or capture a
 screenshot; add those probes explicitly when the claim requires them.

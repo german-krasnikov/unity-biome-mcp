@@ -24,6 +24,20 @@ def load_converter(repo_root: pathlib.Path):
     return module
 
 
+def snapshot_tree(root: pathlib.Path) -> tuple[tuple[str, str, bytes], ...]:
+    """Capture directory presence and exact file bytes below a test root."""
+    if not root.exists():
+        return ()
+    entries: list[tuple[str, str, bytes]] = []
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if path.is_dir():
+            entries.append((relative, "directory", b""))
+        else:
+            entries.append((relative, "file", path.read_bytes()))
+    return tuple(entries)
+
+
 def test_normalize_codex_paths_uses_skill_md(repo_root: pathlib.Path) -> None:
     converter = load_converter(repo_root)
 
@@ -520,6 +534,247 @@ def test_apply_rolls_back_when_atomic_write_fails(
 
     assert first.read_text() == "old-a"
     assert second.read_text() == "old-b"
+
+
+def test_apply_rolls_back_replacement_removal_and_manifest_after_post_write_failure(
+    tmp_path: pathlib.Path,
+    repo_root: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    converter = load_converter(repo_root)
+    current = tmp_path / ".codex" / "agents" / "current.toml"
+    retired = tmp_path / ".codex" / "agents" / "retired.toml"
+    current.parent.mkdir(parents=True)
+    current.write_bytes(b"old current\n")
+    retired.write_bytes(b"retired generated\n")
+    original_manifest = {
+        current.relative_to(tmp_path).as_posix(): converter.file_hash(current),
+        retired.relative_to(tmp_path).as_posix(): converter.file_hash(retired),
+    }
+    converter.write_manifest(tmp_path, original_manifest)
+    manifest = tmp_path / converter.MANIFEST_RELATIVE_PATH
+    manifest_before = manifest.read_bytes()
+    files = [converter.GeneratedFile(current, "new current\n")]
+    plan = converter.build_sync_plan(tmp_path, files, [], prune=True)
+    assert plan.remove == (retired,)
+    original_write = converter._atomic_write
+
+    def fail_after_manifest_write(path: pathlib.Path, content: bytes) -> None:
+        original_write(path, content)
+        if path == manifest:
+            raise OSError("manifest acknowledgement lost")
+
+    monkeypatch.setattr(converter, "_atomic_write", fail_after_manifest_write)
+    with pytest.raises(OSError, match="manifest acknowledgement lost"):
+        converter.apply_sync_plan(
+            tmp_path,
+            plan,
+            converter.expected_hashes(tmp_path, files, []),
+        )
+
+    assert current.read_bytes() == b"old current\n"
+    assert retired.read_bytes() == b"retired generated\n"
+    assert manifest.read_bytes() == manifest_before
+    assert converter.load_manifest(tmp_path) == original_manifest
+
+
+@pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+@pytest.mark.parametrize("stage", ["new", "replaced", "removed", "manifest"])
+def test_apply_interrupt_rolls_back_exact_tree_and_reraises_original(
+    tmp_path: pathlib.Path,
+    repo_root: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    interrupt_type: type[BaseException],
+    stage: str,
+) -> None:
+    converter = load_converter(repo_root)
+    new_target = tmp_path / ".agents" / "skills" / "new" / "SKILL.md"
+    replaced = tmp_path / ".codex" / "agents" / "current.toml"
+    retired = tmp_path / ".codex" / "agents" / "retired.toml"
+    preserved_empty = tmp_path / ".agents" / "skills" / "personal-empty"
+    replaced.parent.mkdir(parents=True)
+    preserved_empty.mkdir(parents=True)
+    replaced.write_bytes(b"old current\n")
+    retired.write_bytes(b"retired generated\n")
+    converter.write_manifest(
+        tmp_path,
+        {
+            replaced.relative_to(tmp_path).as_posix(): converter.file_hash(replaced),
+            retired.relative_to(tmp_path).as_posix(): converter.file_hash(retired),
+        },
+    )
+    manifest = tmp_path / converter.MANIFEST_RELATIVE_PATH
+    files = [
+        converter.GeneratedFile(new_target, "new skill\n"),
+        converter.GeneratedFile(replaced, "new current\n"),
+    ]
+    plan = converter.build_sync_plan(tmp_path, files, [], prune=True)
+    before = snapshot_tree(tmp_path)
+    original_write = converter._atomic_write
+    original_replace = converter.os.replace
+
+    def interrupt_after_write(path: pathlib.Path, content: bytes) -> None:
+        original_write(path, content)
+        expected = {
+            "new": new_target,
+            "replaced": replaced,
+            "manifest": manifest,
+        }.get(stage)
+        if path == expected:
+            raise interrupt_type(f"interrupt after {stage}")
+
+    def interrupt_after_remove(source: pathlib.Path, destination: pathlib.Path) -> None:
+        original_replace(source, destination)
+        if stage == "removed" and source == retired:
+            raise interrupt_type("interrupt after removed")
+
+    monkeypatch.setattr(converter, "_atomic_write", interrupt_after_write)
+    monkeypatch.setattr(converter.os, "replace", interrupt_after_remove)
+
+    with pytest.raises(interrupt_type, match=f"interrupt after {stage}"):
+        converter.apply_sync_plan(
+            tmp_path,
+            plan,
+            converter.expected_hashes(tmp_path, files, []),
+        )
+
+    assert snapshot_tree(tmp_path) == before
+    assert preserved_empty.is_dir()
+    assert list(tmp_path.glob(".claude-to-codex-*")) == []
+
+
+def test_apply_interrupt_preserves_recovery_backup_and_chains_original(
+    tmp_path: pathlib.Path,
+    repo_root: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    converter = load_converter(repo_root)
+    target = tmp_path / ".codex" / "agents" / "current.toml"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"old current\n")
+    converter.write_manifest(
+        tmp_path,
+        {target.relative_to(tmp_path).as_posix(): converter.file_hash(target)},
+    )
+    files = [converter.GeneratedFile(target, "new current\n")]
+    plan = converter.build_sync_plan(tmp_path, files, [], prune=True)
+    original_replace = converter.os.replace
+
+    def interrupt_after_write(path: pathlib.Path, content: bytes) -> None:
+        path.write_bytes(content)
+        raise KeyboardInterrupt("sync interrupted")
+
+    def fail_backup_restore(source: pathlib.Path, destination: pathlib.Path) -> None:
+        if "backup" in source.parts and destination == target:
+            raise OSError("restore blocked")
+        original_replace(source, destination)
+
+    monkeypatch.setattr(converter, "_atomic_write", interrupt_after_write)
+    monkeypatch.setattr(converter.os, "replace", fail_backup_restore)
+
+    with pytest.raises(RuntimeError, match="rollback was incomplete") as caught:
+        converter.apply_sync_plan(
+            tmp_path,
+            plan,
+            converter.expected_hashes(tmp_path, files, []),
+        )
+
+    assert isinstance(caught.value.__cause__, KeyboardInterrupt)
+    transactions = list(tmp_path.glob(".claude-to-codex-*"))
+    assert len(transactions) == 1
+    backup = transactions[0] / "backup" / target.relative_to(tmp_path)
+    assert backup.read_bytes() == b"old current\n"
+    assert target.read_bytes() == b"new current\n"
+
+
+def test_rollback_keeps_user_file_added_to_transaction_created_directory(
+    tmp_path: pathlib.Path,
+    repo_root: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    converter = load_converter(repo_root)
+    target = tmp_path / ".agents" / "skills" / "new" / "SKILL.md"
+    user_file = target.parent / "notes.txt"
+    files = [converter.GeneratedFile(target, "generated\n")]
+    plan = converter.build_sync_plan(tmp_path, files, [], prune=True)
+    original_write = converter._atomic_write
+
+    def interrupt_with_user_file(path: pathlib.Path, content: bytes) -> None:
+        original_write(path, content)
+        user_file.write_text("keep me\n", encoding="utf-8")
+        raise KeyboardInterrupt("sync interrupted")
+
+    monkeypatch.setattr(converter, "_atomic_write", interrupt_with_user_file)
+    with pytest.raises(KeyboardInterrupt, match="sync interrupted"):
+        converter.apply_sync_plan(
+            tmp_path,
+            plan,
+            converter.expected_hashes(tmp_path, files, []),
+        )
+
+    assert not target.exists()
+    assert user_file.read_text(encoding="utf-8") == "keep me\n"
+
+
+def test_transaction_directory_cleanup_failure_warns_after_successful_commit(
+    tmp_path: pathlib.Path,
+    repo_root: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    converter = load_converter(repo_root)
+    target = tmp_path / ".codex" / "agents" / "current.toml"
+    files = [converter.GeneratedFile(target, "current\n")]
+    plan = converter.build_sync_plan(tmp_path, files, [], prune=True)
+
+    def fail_cleanup(_path: pathlib.Path) -> None:
+        raise OSError("cleanup busy")
+
+    monkeypatch.setattr(converter.shutil, "rmtree", fail_cleanup)
+    converter.apply_sync_plan(
+        tmp_path,
+        plan,
+        converter.expected_hashes(tmp_path, files, []),
+    )
+
+    assert target.read_text(encoding="utf-8") == "current\n"
+    assert converter.check_generated_state(tmp_path, files, []) == []
+    assert "WARNING cleanup incomplete" in capsys.readouterr().err
+    assert len(list(tmp_path.glob(".claude-to-codex-*"))) == 1
+
+
+def test_empty_managed_directory_cleanup_failure_warns_after_successful_commit(
+    tmp_path: pathlib.Path,
+    repo_root: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    converter = load_converter(repo_root)
+    retired = tmp_path / ".agents" / "skills" / "retired" / "SKILL.md"
+    retired.parent.mkdir(parents=True)
+    personal_empty = tmp_path / ".agents" / "skills" / "personal-empty"
+    personal_empty.mkdir(parents=True)
+    retired.write_text("retired\n", encoding="utf-8")
+    converter.write_manifest(
+        tmp_path,
+        {retired.relative_to(tmp_path).as_posix(): converter.file_hash(retired)},
+    )
+    plan = converter.build_sync_plan(tmp_path, [], [], prune=True)
+    original_rmdir = converter.Path.rmdir
+
+    def fail_retired_directory(path: pathlib.Path) -> None:
+        if path == retired.parent:
+            raise OSError("directory busy")
+        original_rmdir(path)
+
+    monkeypatch.setattr(converter.Path, "rmdir", fail_retired_directory)
+    converter.apply_sync_plan(tmp_path, plan, {})
+
+    assert not retired.exists()
+    assert converter.load_manifest(tmp_path) == {}
+    assert retired.parent.is_dir()
+    assert personal_empty.is_dir()
+    assert "WARNING cleanup incomplete" in capsys.readouterr().err
 
 
 def test_python_310_fallback_validates_generated_toml(
