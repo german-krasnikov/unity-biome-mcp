@@ -439,7 +439,8 @@ def test_retired_consumer_artifacts_have_exact_migration_hashes(
     old_agent = converter.build_agent_files(tmp_path)[0]
     for generated in (old_skill, old_agent):
         generated.path.parent.mkdir(parents=True, exist_ok=True)
-        generated.path.write_text(generated.content, encoding="utf-8")
+        with open(generated.path, "w", encoding="utf-8", newline="") as f:
+            f.write(generated.content)
 
     assert converter.git_blob_hash(old_skill.path) in expected[
         ".agents/skills/unity-ui-authoring/SKILL.md"
