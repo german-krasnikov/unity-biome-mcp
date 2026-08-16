@@ -173,5 +173,29 @@ namespace UnityMCP.Editor.Tests
             Assert.That(result, Does.Contain("[A5]"), $"Expected [A5] in: {result}");
             Assert.That(result, Does.Contain("[A6]"), $"Expected [A6] in: {result}");
         }
+
+        [Test]
+        public void LintUITK_FixTrue_ReturnsUnsupportedBeforeFileAccess()
+        {
+            string result = UILinter.LintUITK(
+                Path.Combine(_tempDir, "file-that-does-not-exist.uxml"), true);
+
+            Assert.That(result, Does.StartWith("err:").And.Contain("fix=true").And.Contain("not supported"));
+            Assert.That(result, Does.Not.Contain("file not found"),
+                "fix=true must fail before probing the supplied path");
+        }
+
+        [Test]
+        public void LintUITK_FixTrue_DoesNotModifyFile()
+        {
+            const string content = ".duplicate { color: red; }\n.duplicate { color: blue; }\n";
+            string path = WriteTempFile("no_fix.uss", content);
+            byte[] before = File.ReadAllBytes(path);
+
+            string result = UILinter.LintUITK(path, true);
+
+            Assert.That(result, Does.StartWith("err:").And.Contain("not supported"));
+            CollectionAssert.AreEqual(before, File.ReadAllBytes(path));
+        }
     }
 }

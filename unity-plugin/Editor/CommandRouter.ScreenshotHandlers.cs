@@ -8,6 +8,11 @@ namespace UnityMCP.Editor
         private static string BuildScreenshotResponse(string id, string args)
         {
             var camera = JsonHelper.ExtractString(args, "camera");
+            var requestedOutputPath = JsonHelper.ExtractString(args, "output_path");
+            if (string.IsNullOrEmpty(requestedOutputPath)
+                && camera != "multi_view" && camera != "single_view")
+                requestedOutputPath = JsonHelper.ExtractString(args, "path");
+            FileOutputHelper.ValidatePngOutputPath(requestedOutputPath);
 
             if (camera == "annotation_frame")
             {

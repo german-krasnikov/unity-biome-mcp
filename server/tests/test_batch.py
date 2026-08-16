@@ -248,14 +248,32 @@ async def test_batch_rejects_all_direct_only_tools(mock_bridge):
 
 
 async def test_batch_remaps_line_numbers_after_direct_only_filter(mock_bridge, bridge_response):
-    """C# result line numbers are remapped to original positions when direct_only lines are filtered."""
-    bridge_response(data="[1] ok: /A\n[2] ok: root")
-    # Line 1: valid, Line 2: direct_only (filtered out), Line 3: valid
-    result = await batch(commands="create_object name=A\nrun_playtest_suite paths=x\nget_hierarchy")
-    assert "[2] err:" in result          # pre_error at original line 2
-    assert "[1] ok: /A" in result        # C# [1] → original line 1 (unchanged)
-    assert "[3] ok: root" in result      # C# [2] → original line 3 (remapped)
-    assert "[2] ok:" not in result       # C# [2] was remapped away
+    """Filtered results retain zero-based original command ordinals."""
+    bridge_response(data="[0] ok: /A\n[1] ok: root\nok:2")
+    commands = """
+# Blank lines and comments are not commands.
+create_object name=A
+run_playtest_suite paths=x
+
+get_hierarchy
+"""
+    result = await batch(commands=commands)
+    assert "[0] ok: /A" in result
+    assert "[1] err:" in result
+    assert "[2] ok: root" in result
+    assert "[1] ok:" not in result
+    assert result.endswith("ok:2 err:1")
+
+
+async def test_batch_combines_preflight_and_unity_error_counts(mock_bridge, bridge_response):
+    """Preflight errors augment, rather than replace, Unity's terminal counts."""
+    bridge_response(data="[0] err: missing object\nok:0 err:1 timeout:2")
+
+    result = await batch(commands="run_playtest_suite paths=x\nget_hierarchy")
+
+    assert "[0] err: 'run_playtest_suite' is direct-only" in result
+    assert "[1] err: missing object" in result
+    assert result.endswith("ok:0 err:2 timeout:2")
 
 
 async def test_batch_strips_python_only_full_param(mock_bridge, bridge_response):

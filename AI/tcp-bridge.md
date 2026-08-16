@@ -84,55 +84,35 @@ Columns:
 
 **UnityBridge** — single TCP connection to one Unity instance.
 
-Key features:
-- **BridgeState enum** (v0.36.0): DISCONNECTED | CONNECTED | DOMAIN_RELOADING | FAILED (startup grace expired). Tracks connection lifecycle state explicitly.
-- **DomainReloadTracker** (v0.36.0, `bridge_reload_state.py`): Dataclass with 90s expiry tracking domain reload state independently from compile probe (v0.42.1: increased from 30s to 90s for 9-assembly window). Three methods: `mark()` (called on DomainReloadError), `clear()` (on successful send), `is_active()` (checks expiry + elapsed). Shared between `send()` retry logic and heartbeat.
-- **should_retry()** (v0.36.0): Pure decision function extracting retry logic from _send_with_retry. Signature: `(error: Exception, attempt: int, session_deadline: float) → (bool, float, str)` returning (retry yes/no, delay_s, reason). On DomainReloadError: marks reload + state→DOMAIN_RELOADING. On any error: checks reload.is_active() or probe_busy(), backoff 2^(attempt+1) sequence: 2s→4s→8s (restored in v0.37.0, was regressed to 1s→2s→4s). Testable without mocking networking.
-- Socket options: `TCP_NODELAY`, `SO_KEEPALIVE` (macOS: idle=60s, interval=10s, count=3; detects dead peers within ~90s)
-- **`close()` socket shutdown (Windows fix):** `SHUT_WR` on Windows (`os.name == "nt"`), `SHUT_RDWR` on all other platforms. Windows rejects `SHUT_RDWR` on already-half-closed sockets, causing spurious OSError on disconnect.
-- Heartbeat: 15s interval `_raw_ping()` (bypasses retry machinery). Starts only in `_reconnect()`, stops only in `close()` — fire-and-forget spawn on every `send()` was deleted (caused 45+ GB memory leak). Disconnected polling: 5s if probe busy, 2s otherwise.
-- `_raw_ping()`: lightweight ping (default timeout=10s, heartbeat calls with 20s) that acquires lock, sends framed message directly on socket, validates response ID match. Prevents heartbeat from consuming RPC responses. Sends `UNITY_MCP_CLIENT` env var as `role` field; empty value → `"mcp"` (default).
-- **`_ping_stall_failures` counter (v0.78.8 exception split)**: `asyncio.TimeoutError` (Unity alive, unresponsive — App Nap/heavy compile) → apply stall counter. `Exception` (ConnectionReset, IncompleteRead, OSError = dead TCP) → close immediately and reconnect (no stall tolerance). This distinction prevents 6-min zombie bridges where a dead TCP connection was treated as a transient stall. Stall logic: 3 consecutive `TimeoutError`s + `is_process_dead()` False → increment `_ping_stall_failures`, reset `_ping_failures`. After 6 stall windows (~6 min total), force-close. `TimeoutError` + process dead → close immediately. Resets on: DomainReloadError, ProtocolDesyncError, successful ping, confirmed-dead close, reconnect.
-- **Self-cancel guard in `close()`**: `if asyncio.current_task() is not self._heartbeat_task: self.stop_heartbeat()` — prevents the heartbeat task from cancelling itself when it calls `close()`.
-- **`connected` property**: simplified to `self._writer is not None and not self._writer.is_closing()`. Previous `select() + MSG_PEEK` check caused false negatives that triggered unnecessary reconnects.
-- **Reconnect with Exponential Backoff (v0.52.7)**: Throttles retries via exponential backoff (MIN=5s → MAX=60s) with jitter ±10%. Backoff doubles on each failure, resets to MIN on successful TCP connect. Cooldown `_last_reconnect_at` now re-armed BEFORE try block (not only on success), preventing retry spam when port discovery returns None. `_reconnect_cooldown_ok()` uses current backoff value for sleep duration instead of fixed interval, preventing thundering herd when multiple servers reconnect. **v0.52.6 regression:** Fixed silent 9500 fallback — `read_unity_port(skip_probe=True)` now returns `None` instead of default port when no live candidates found; bridge preserves current port; caller (`doctor.py`) explicitly handles None with fallback. **v0.53.0 backoff re-arm:** Cooldown re-armed BEFORE reconnect attempt (`_last_reconnect_at = time.monotonic()` line 122 before `try`). Exponential formula (line 134–137): `backoff = min(backoff * 2 * (1.0 + jitter[-0.1…+0.1]), 60.0)`, reset to 5s on success (line 130). **MIN_RECONNECT_INTERVAL:** Base interval is 5s (only applies to heartbeat disconnected polling and cooldown gate; does not override exponential backoff which is independent). Exponential backoff series when domain reload active: 2s → 4s → 8s (capped) within 90s window (v0.42.1).
-- `DomainReloadError`: raised immediately when `send()` detects active domain reload state via `_reload.is_active()` check at entry point. No retry — caller must handle and retry after recompile. **Fast-fail (v0.36.0 onwards)**: Returns error immediately instead of retrying with backoff, letting the caller decide timeout/retry strategy. Reload state tracked via `DomainReloadTracker` (90s expiry window, v0.42.1) which marks state when `going_away` event fires or when an explicit domain reload is detected. Heartbeat calls `_reload.mark()` to extend retry window during reload phase.
-- **Atomic reader/writer close** (v0.36.0): Both reader and writer closed atomically within lock during _reconnect() to prevent zombie reads after close.
-- **Pin guard (v0.52.6)**: Bridge caches `_pinned_pid` from initial connection to stick to same Unity instance. `_reconnect()` explicitly checks `_pinned_pid is not None` before trusting pin, preventing silent re-bind to different instance if pinned process dies. Falls back to port discovery if pin invalid.
-- **Pin reset on `ConnectionRefusedError` (v1.0.2):** If `_reconnect()` gets `ConnectionRefusedError`, both `_pinned_port` and `_pinned_pid` are cleared so the next attempt uses full port rediscovery. `TimeoutError` and `OSError` do NOT clear the pin — they signal transient network issues, not a port change. This prevents the bridge from retrying a dead port indefinitely after Unity restarts on a different port.
-- **`_reload_gate` (asyncio.Event)**: replaces fixed `asyncio.sleep()` during DomainReloadError retry. Always cleared on `domain_reload` retry path (v0.78.8 removed the `if not self.connected:` guard that could skip the clear). Set on successful reconnect. Wakes retries immediately on reconnect instead of sleeping the full backoff window.
-- `send()` early-exit gate (v0.81.4 onwards): **Fast-fail on reload**: If `_reload.is_active()` at entry, raise `DomainReloadError` immediately. No retry logic inside send(). Caller handles retry strategy post-reload.
-- `send()` retry logic (non-reload path): idle errors get 1 grace attempt; busy (compile probe) gets full retries with exponential backoff (capped at 8s). Session deadline `SESSION_TIMEOUT=120s` prevents infinite retries and is overridable via `UNITY_MCP_SESSION_TIMEOUT`. **v0.31.1 Fix**: When `DomainReloadError` is caught (pre-v0.81.4), `domain_reload_in_progress` flag was pinned to True for all subsequent retries within that send() call, preventing `_probe_busy()` re-evaluation from returning False too early (Editor.log may clear "compiling" status before TCP 9700 is restored). **v0.81.4 Change**: DomainReloadError now raised at entry point; legacy retry suppression logic no longer needed. **v0.57.0 RuntimeError**: send() now raises `RuntimeError(f"_send_with_retry exhausted {MAX_RETRIES} retries without result for cmd={cmd!r}")` on max retries (previously returned None silently); errors are explicit, no silent command failures.
-- Lock per connection for thread safety
+Current invariants:
 
-**P0 (Cycle 17+) Fix — Domain Reload Sticky Flag**
-- `_domain_reload_in_progress` now auto-expires after `DOMAIN_RELOAD_EXPIRY_S=90s` (v0.42.1: increased from 30s to 90s for 9-assembly window)
-- Cleared on successful reconnect (when TCP fully restores)
-- Prevents permanent "busy" state if domain reload never completes (e.g., compile error during reload)
-- Regression: flag was set but never cleared, causing -32000 errors on all subsequent commands
-
-**P2 (Cycle 17+) Fix — Startup Grace Latch Recovery**
-- `_startup_grace_expired` death latch: `send()` now attempts one reconnect before raising ConnectionError
-- Allows recovery from permanent-death state (grace period elapsed without successful connection)
-- If reconnect succeeds, clears flag and proceeds; if fails, raises original error
-
-**P4 (Cycle 17+) Safety Comment — Lock Serialization**
-- Both `_raw_ping()` and `send()` hold `self._lock` for their full write→read cycle
-- asyncio.Lock serializes them — heartbeat ping can never interleave with a tool-call response
-- ID collision is impossible by design
-
-**v0.54.1 — Focus-Loss CPU Storm Fix (Multi-CLI Reconnect Storm Prevention)**
-- **Root Cause:** All socket I/O awaits in `MCPServer.cs` captured `UnitySynchronizationContext` (18 awaits, no `ConfigureAwait(false)`). Focus loss → `EditorApplication.update` throttle → task continuations freeze → heartbeat timeout → reconnect storm on focus regain.
-- **Fix — C# Threading Model (MCPServer.cs, v0.54.1):**
-  - **Socket I/O (RunAcceptLoop, HandleClientAsync):** All 18 awaits now use `ConfigureAwait(false)`. Continuations execute on ThreadPool, not main thread.
-  - **Invariant: Unity API only on main thread** — No direct Editor API calls after ThreadPool continuations. All `Debug.Log*`, `EditorApplication.QueuePlayerLoopUpdate()`, and `RefManager.Invalidate()` marshaled via `_mainThreadQueue.Enqueue()` lambda.
-  - **Domain Stamp Cache:** Volatile `_domainStamp` field cached on main thread in `StartAsync()`, read on ThreadPool by fast-path `get_version` (SessionState not thread-safe).
-  - **Comments:** Added `// WARNING: All awaits here use ConfigureAwait(false)...` at method boundary (RunAcceptLoop, HandleClientAsync).
-- **Fix — Python Reconnect Cooldown (bridge.py, v0.54.1):**
-  - **Dual-gate:** `send()` and `_send_with_retry()` both check `_reconnect_cooldown_ok()` before first reconnect attempt. Prevents burst storms when multiple CLIs reconnect simultaneously.
-  - **Jitter:** Retry delays now include ±10% random jitter to desynchronize reconnect attempts across multiple bridge instances.
-  - **Observability:** Crash log enriched with `bridge_id` (unique per instance), `reconnect_reason`, `path` ("send" vs "heartbeat"). METRICS.inc("reconnect.send_path") for telemetry.
-- **Defense-in-depth:** Atomic `_on_port_change` lock swap in server.py prevents race during port re-discovery. No socket thundering herd (max 3 retries at 30s+ intervals per policy).
+- `BridgeState` is `DISCONNECTED`, `CONNECTED`, `DOMAIN_RELOADING`, `FAILED`,
+  `DORMANT`, or `WAKING`. [`connection-tools.md`](connection-tools.md) owns the
+  user-facing status meanings.
+- `send()` queues requests through one serial consumer. Each request carries an
+  operation ID; a retry after a committed write carries `retry_op_id` so Unity
+  can suppress duplicate execution.
+- `DomainReloadTracker` marks a `going_away` event for up to 90 seconds and is
+  cleared by a successful response or reconnect. A new send fails fast while
+  that marker is active; callers use `sync_unity` for the compile/reload
+  lifecycle instead of waiting inside an unrelated tool call.
+- `RetryPolicy` permits retries only for commands classified retry-safe. Busy or
+  connection-refused attempts use bounded 2/4/8-second delays; an ordinary
+  transient failure receives one grace retry. `SESSION_TIMEOUT` bounds the
+  complete request lifecycle.
+- Connected bridges ping every 15 seconds with a 5-second ping timeout. The
+  connection lock serializes ping and request write/read cycles. Protocol
+  mismatch or a dead socket closes immediately; repeated timeouts from a live
+  process use the bounded stall policy.
+- A disconnected heartbeat polls after 5 seconds when Unity is busy and 2
+  seconds otherwise. Reconnect attempts have a separate 5-to-60-second
+  exponential cooldown with jitter. `DORMANT` disables heartbeat reconnect;
+  the next request transitions through `WAKING`.
+- Reconnect candidates must prove the expected project and protocol version.
+  A live PID/port pin is reused only while it still identifies that project;
+  refusal or identity mismatch returns to project-aware discovery.
+- Sockets use `TCP_NODELAY` and `SO_KEEPALIVE`. `close()` atomically detaches the
+  reader/writer and uses the platform-appropriate shutdown direction.
 
 ### ConnectionSlot (connection_slot.py)
 
@@ -148,6 +128,8 @@ Single-connection manager (replaces former multi-connection BridgeManager):
 - `"connected"` — writer is open and not closing
 - `"domain-reloading"` — `BridgeState.DOMAIN_RELOADING`
 - `"disconnected"` — `BridgeState.FAILED` (startup grace expired)
+- `"dormant"` — idle suspension intentionally closed the TCP connection
+- `"waking"` — an incoming request is reconnecting a dormant bridge
 - `"reconnecting"` — all other states (attempting reconnect)
 
 Used by `list_connections` to replace the binary connected/disconnected boolean.
@@ -188,15 +170,12 @@ Append-only JSONL crash log for unhandled exceptions:
 
 ### Parent PID Monitoring (bridge_heartbeat.py)
 
-**P3 (Cycle 17+) Fix — Double-Check Parent Death**
-- PPID mismatch now requires 2 consecutive checks (not immediate kill)
-- Prevents race-condition kills during rapid fork() activity (e.g., subprocess spawn)
-- Counter resets to 0 if PPID matches on next check
-
-**P5 (Cycle 18+) Fix — Graceful Heartbeat Stop on Parent Death**
-- When parent dies (2 consecutive PPID mismatches), calls `self.stop_heartbeat()` instead of `raise SystemExit(0)`
-- **Why:** `SystemExit` is `BaseException` — escapes `except Exception` safety net in `_heartbeat_loop`, kills anyio task group, closes stdio → -32000 errors on in-flight MCP calls
-- Process now dies naturally from `BrokenPipeError` on next stdio write, leaving in-flight MCP operations intact
+The heartbeat compares the current parent PID with the value captured at import.
+On mismatch it reads `GlobalConfig`: permanent-bridge mode keeps running, while
+termination mode waits the configured orphan grace period (two minutes by
+default), schedules a bounded hard exit, and stops the heartbeat. Returning to
+the original parent clears the orphan timer. Environment overrides are owned by
+`global_config.py`.
 
 ### C# Server (MCPServer.cs) — v0.23.0 SO_REUSEPORT Recovery
 
@@ -218,12 +197,9 @@ Append-only JSONL crash log for unhandled exceptions:
 - Linear backoff: 400ms × (attempt + 1)
 - Re-registration of watchdog + heartbeat callback on success
 
-**KillPhantoms (v0.56.0):**
-- Cleans up stale TCP connections from dead processes at startup
-- Scans port file lockfiles (server-{port}*.lock) for dead PIDs
-- Forcibly closes zombie TcpClient entries that fail `IsSocketAlive()` check
-- Atomic under ClientSlot._lock (per-connection ring buffer logic)
-- Prevents hung-connection accumulation across rapid reconnects
+**KillPhantoms:** `MCPServer.KillPhantoms()` is an explicit status-menu action.
+It asks each `ClientSlot` to close inactive client entries while holding the
+slot lock. It does not scan PID lockfiles or run automatically at startup.
 
 **Watchdog (Cycle 16+):**
 - Separate `EditorApplication.update` callback (WatchdogTick)
@@ -237,8 +213,10 @@ Append-only JSONL crash log for unhandled exceptions:
 
 **State file:**
 - Writes `~/.unity-biome-mcp/state/port-{port}.state`
-- States: `ready`, `compiling`, `reloading`, `restarting` (new in Cycle 16)
-- "restarting": written when compilationFinished but server not yet running; indicates startup in progress (TCP client should wait)
+- A compilation start writes `compiling`. A failed compilation writes
+  `compile_failed`; a successful compilation deliberately remains `compiling`
+  until the reloaded server binds and `StartAsync` writes `ready`.
+- Reload and bind lifecycle paths also write `reloading` and `bind_failed`.
 
 **Domain reload handling (OnBeforeReload):**
 1. Sets `_shuttingDown = true`
@@ -254,7 +232,7 @@ Append-only JSONL crash log for unhandled exceptions:
 - **Impact:** prevents unsaved settings loss on unclean shutdown (e.g., force-kill)
 
 **Fast-path commands** (bypass main thread dispatch):
-- `ping`, `get_version`, `status`, `get_enabled_tools`
+- `client_hello`, `ping`, `get_version`, `status`, `get_enabled_tools`
 
 ### Timeout Layers
 
@@ -287,10 +265,6 @@ timeouts. Its disconnected-startup guard is not a tool-call deadline.
 Legacy `get_test_results` and `get_test_progress` remain diagnostic facades. An
 uncorrelated latest result is never acceptance evidence.
 
-**P0 (Cycle 17+) Fix — Domain Reload Sticky Flag**
-- `_domain_reload_in_progress` flag now auto-expires after 90s (v0.42.1: increased from 30s to 90s for 9-assembly window), cleared on successful reconnect
-- Prevents permanent "busy" state if domain reload doesn't complete (e.g., compile error)
-
 ## Code Locations
 
 - Python bridge: `server/src/unity_mcp/bridge.py` (UnityBridge TCP client, BridgeState enum, should_retry() v0.36.0, RuntimeError raising v0.57.0)
@@ -304,151 +278,56 @@ uncorrelated latest result is never acceptance evidence.
 - Python server filtering: `server/src/unity_mcp/server_filtering.py` (with v0.23.0 TCP probe)
 - Python server wrapper: `server/src/unity_mcp/server.py` (main() crash handler)
 - C#: `unity-plugin/Editor/CommandRouter.cs`, `unity-plugin/Editor/MCPServer.cs`, `unity-plugin/Editor/BatchHelper.cs` (atomic timeout rollback v0.57.0), `unity-plugin/Editor/MCPSettings.cs` (OnWantsToQuit flush v0.57.0)
-- Tests: `server/tests/test_bridge.py` (37 base + new tests v0.36.0), `server/tests/test_bridge_edge_cases.py` (expanded, includes Windows SHUT_WR + pin reset tests), `server/tests/test_bridge_port_rediscovery.py` (pin reset on ConnectionRefusedError; 300 lines), `server/tests/test_bridge_reload_state.py` (8 new DomainReloadTracker tests, v0.36.0), `server/tests/test_bridge_should_retry.py` (8 new should_retry() tests, v0.36.0), `server/tests/test_bridge_reload_gate.py` (reload gate asyncio.Event tests), `server/tests/test_bridge_role.py` (client role in ping tests), `server/tests/test_heartbeat.py` (4 new P3+P5 tests: double-check + graceful stop), `server/tests/test_connection_slot.py` (8), `server/tests/test_lockfile.py` (17), `server/tests/test_crash_log.py` (10), `server/tests/test_server.py` (4 new main() crash tests), `server/tests/test_parent_death.py` (updated for P3+P5), `server/tests/test_package_json.py` (package.json schema validation)
+- Tests: see the source-backed [Tests](#tests) section and `AI/testing.md`.
 
 ## Reconnection Strategy
 
-**Problem:** Unity domain reload closes socket; compile/reloading blocks commands; stale state file blocks reconnect; state loss on rapid reconnect.
+Unity domain reload closes the socket. Recovery is coordinated by the event,
+state file, heartbeat, and project-aware port discovery:
 
-**Solution:** Multi-layered resilience (Cycles 14–16):
+1. Unity writes `reloading`, sends `going_away`, and closes the listener.
+2. Python marks `DomainReloadTracker`, closes the socket, and fails new sends
+   fast while the marker is active.
+3. The disconnected heartbeat uses compile state only to choose its polling
+   delay. The reconnect cooldown prevents concurrent retry storms.
+4. A candidate must pass project identity and protocol checks before the bridge
+   swaps its reader/writer pair and clears the reload marker.
+5. Reconnect callbacks refresh the Unity tool cache and other session state.
 
-1. **Exclusive lockfile** (fcntl LOCK_EX): single MCP server per port, kill-old semantics prevent multiple processes interfering
-2. **`_raw_ping()` heartbeat** (15s when connected; 5s/2s when disconnected based on probe): sole reconnect mechanism, validates ID match to prevent response misroute
-3. **Reconnect cooldown** (`MIN_RECONNECT_INTERVAL=2.0s`): `_reconnect_cooldown_ok()` gate prevents thundering-herd storms
-4. **Probe for timing, not gating**: compile-state heuristic used only to compute delay (5s vs 2s), NOT to block reconnect
-5. **DomainReloadError immediate close**: going_away event triggers close immediately (no wait for 3 failures), fast reconnect path
-6. **`_reload_gate` (asyncio.Event)**: domain-reload retries wait on gate instead of sleeping full backoff; gate is set on successful reconnect — wakes waiting senders immediately
-7. **`_ping_stall_failures` threshold (v0.78.8)**: only `asyncio.TimeoutError` increments stall counter (Unity alive, App Nap/heavy compile); other Exceptions close immediately (dead TCP). Tolerates up to 6 stall windows before force-closing; prevents premature disconnect on App Nap AND prevents zombie bridges on dead TCP
-8. **State file management**: MCPServer writes "ready" on `compilationFinished` handler (not just startup); prevents stale "compiling" blocking reconnect
-9. **SO_KEEPALIVE**: OS-level dead peer detection (~90s: idle=60s + 3 probes at 10s intervals)
-10. **Reconnect callbacks**: invalidate tool cache, re-probe capabilities
-11. **CrashLogger**: JSONL append-only log at `~/.unity-biome-mcp/crash.jsonl` (500 entries max, 15MB rotation) — logs disconnect, reconnect, exhausted events
-12. **Pin reset on `ConnectionRefusedError` (v1.0.2):** `_reconnect()` clears `_pinned_port` + `_pinned_pid` on `ConnectionRefusedError` only (not `TimeoutError`/`OSError`) — triggers full port rediscovery instead of retrying a dead port indefinitely
+Each Python process owns a per-PID presence lock. Multiple MCP sessions may use
+the same Unity port; lock acquisition rejects only a duplicate from the same
+PID, and stale dead-PID files are removed without terminating processes.
 
 ```
 send(cmd, args, timeout=30.0)
-  → write frame + await response
-  → on retry hint from Unity: sleep retry_ms, re-send (up to MAX_RETRIES=3)
-  → idle errors get 1 grace attempt; busy (domain reload) gets full retries with exp backoff
+  → enqueue one operation-id-bearing request
+  → serial consumer writes frame and awaits the matching response
+  → retry only when RetryPolicy classifies the command as safe
   
 _heartbeat_loop():
   when connected:
     → await 15s
     → skip if lock held (RPC in progress)
-    → _raw_ping(timeout=20s) (direct socket, ID-match verify)
-    → ping fails + is_process_dead() → force-close immediately
-    → ping fails + process alive → _ping_stall_failures++ (App Nap / heavy compile)
-      → after 6 stall windows (~6 min) → force-close
-    → ping succeeds → _ping_stall_failures reset to 0
-  when disconnected (domain reload path):
-    → _reload_gate.clear()
-    → await _reload_gate (wakes immediately on reconnect, no full backoff sleep)
-  when disconnected (normal path):
+    → _raw_ping(timeout=5s), with response-ID validation
+    → dead socket/protocol mismatch closes immediately
+    → live-process timeouts use the bounded stall policy
+  when dormant:
+    → do not reconnect until a request transitions the bridge to waking
+  when disconnected:
     → await 5s (probe busy) or 2s (not busy)
-    → if _reconnect_cooldown_ok() → reconnect() → _reload_gate.set()
-  
-On event frame {"ev":"going_away"}:
-  → raise DomainReloadError → close immediately (no delay)
-  
-On asyncio.TimeoutError (Unity process alive):
-  → _ping_failures++ → after 3: _ping_stall_failures++ (App Nap/heavy compile)
-  → after 6 stall windows (~6 min): force-close
-  → if is_process_dead(): close immediately
-On Exception (ConnectionReset / OSError / dead TCP):
-  → close immediately → heartbeat picks up disconnected state → reconnect on next poll
+    → reconnect only after the current 5–60s cooldown
 ```
 
-## TDD Scenarios (for Developer)
+## Tests
 
-### Python Client (37 tests in test_bridge.py + 16 new tests in v0.36.0)
+Python coverage is split by responsibility under `server/tests/test_bridge*.py`,
+with focused lifecycle coverage in `test_connection_slot.py`, `test_heartbeat.py`,
+`test_lockfile.py`, and `test_parent_death.py`. Unity-side framing, connection,
+and startup behavior is covered by `unity-plugin/Editor/Tests/ClientConnectionHandlerTests.cs`,
+`MCPServerSplitTests.cs`, and `MCPServerStartGuardTests.cs`.
 
-**Protocol / framing:**
-- `test_send_encodes_header_as_big_endian_uint32`, `test_send_encodes_payload_as_utf8_json`
-- `test_send_includes_incremental_id`, `test_read_response_decodes_json`
-- `test_message_too_large_raises_error`, `test_send_concurrent_unique_ids`
-- `test_close_cleans_up_writer`
-
-**Port config:**
-- `test_bridge_default_port`, `test_bridge_custom_port`, `test_bridge_env_port`
-- `test_bridge_explicit_port_overrides_env`, `test_bridge_invalid_env_port_falls_back_to_default`
-
-**Retry / error handling:**
-- `test_send_fails_fast_on_connection_error`, `test_send_raises_on_connection_error`
-- `test_bridge_auto_retry_on_retry_hint`, `test_bridge_no_retry_on_normal_error`
-- `test_send_raises_timeout_error_after_max_retries`, `test_bridge_retry_respects_max_retries`
-- `test_idle_retry_gets_one_grace_attempt`
-- `test_domain_reload_pins_busy_for_all_retries` — DomainReloadError sets `domain_reload_in_progress=True` flag which persists across retries, preventing `_probe_busy()` from returning False early when Editor.log clears "compiling" status before TCP port 9700 is restored
-- `test_non_domain_reload_still_re_evaluates_probe` — Non-DomainReloadError exceptions still allow `_probe_busy()` re-evaluation per attempt (existing behavior)
-
-**P0 + P2 (Cycle 17+) — Edge case fixes:**
-- `test_domain_reload_flag_auto_expires` — flag clears after DOMAIN_RELOAD_EXPIRY_S=30s even if domain reload never completes
-- `test_startup_grace_latch_recovery` — send() retries reconnect instead of immediate failure when grace period expired
-- `test_reconnect_clears_domain_reload_flags` — successful reconnect clears both `_domain_reload_in_progress` and `_domain_reload_since`
-
-**Heartbeat:**
-- `test_heartbeat_default_interval_is_15`, `test_heartbeat_detects_zombie_connection`
-- `test_heartbeat_reconnects_when_disconnected`, `test_heartbeat_reconnects_when_busy`
-- `test_heartbeat_stops_on_close`, `test_heartbeat_immediate_close_when_pid_dead`
-- `test_heartbeat_immediate_close_on_domain_reload_error`
-- `test_heartbeat_respects_reconnect_cooldown`
-- `test_heartbeat_survives_tick_exception`
-
-**P3 (Cycle 17+) — Parent Death Double-Check:**
-- `test_ppid_mismatch_requires_two_checks` — single PPID change doesn't exit
-- `test_ppid_mismatch_counter_resets_on_match` — counter zeroes if PPID matches next check
-- `test_ppid_mismatch_exits_on_second_mismatch` — raises SystemExit(0) on consecutive mismatches
-- `test_ppid_mismatch_allows_cleanup` — SystemExit permits finally blocks and atexit handlers
-
-**Raw ping:**
-- `test_raw_ping_bypasses_send_retry`, `test_raw_ping_raises_on_disconnected`
-
-**Reconnect cooldown:**
-- `test_reconnect_cooldown_default_2s`, `test_reconnect_cooldown_blocks_rapid_reconnect`
-- `test_reconnect_cooldown_allows_after_interval`
-- `test_reconnect_callback_debounce_skips_rapid_calls`, `test_reconnect_callback_debounce_allows_after_cooldown`
-
-**Failure description:**
-- `test_describe_failure_reports_crash_when_pid_dead`
-
-### v0.36.0 Refactoring (16 new tests across 2 files)
-
-**test_bridge_reload_state.py (8 tests for DomainReloadTracker):**
-- `test_tracker_not_active_initially` — new instance has is_active()=False
-- `test_tracker_mark_activates` — mark() sets _active=True
-- `test_tracker_elapsed_increases` — elapsed() returns monotonic delta from mark time
-- `test_tracker_is_active_true_while_within_expiry` — is_active()=True while < 90s (v0.42.1: increased from 30s)
-- `test_tracker_is_active_false_after_expiry` — is_active()=False after 90s+ elapsed (v0.42.1: increased from 30s)
-- `test_tracker_clear_deactivates` — clear() sets _active=False, _since=None
-- `test_tracker_clear_without_mark_safe` — clear() on unmarked tracker is safe
-- `test_tracker_elapsed_zero_when_unmarked` — elapsed()=0.0 when _since is None
-
-**test_bridge_reload_gate.py (reload gate asyncio.Event):**
-- Gate cleared on disconnect during domain reload, set on successful reconnect
-- Retry wakes immediately when gate is set instead of sleeping full backoff window
-
-**test_bridge_role.py (client role in ping):**
-- `UNITY_MCP_CLIENT` env var present → sent as `role` field in ping payload
-- `UNITY_MCP_CLIENT` empty or absent → `role` defaults to `"mcp"`
-
-**test_bridge_should_retry.py (8 tests for should_retry() decision logic):**
-- `test_should_retry_max_retries_gate` — attempt >= MAX_RETRIES returns (False, 0.0, "max_retries")
-- `test_should_retry_deadline_gate` — time.monotonic() >= deadline returns (False, 0.0, "deadline")
-- `test_should_retry_domain_reload_error_marks_reload` — DomainReloadError sets state→DOMAIN_RELOADING (90s window as of v0.42.1)
-- `test_should_retry_domain_reload_gets_backoff` — DomainReloadError attempt<MAX_RETRIES returns (True, 2^attempt≤8, "domain_reload") within 90s window (v0.42.1)
-- `test_should_retry_reload_active_retries` — reload.is_active()=True gets backoff within 90s window (v0.42.1), attempt < MAX_RETRIES
-- `test_should_retry_probe_busy_retries` — probe_busy()=True gets backoff
-- `test_should_retry_transient_attempt_0` — attempt < 1 with no busy returns (True, 1.0, "transient")
-- `test_should_retry_grace_expired_attempt_1_plus` — attempt ≥ 1 with no busy returns (False, 0.0, "grace_expired")
-
-### C# Server
-
-1. **Test_AcceptsConnection**: start → client connects successfully
-2. **Test_ParsesMessage**: receive bytes → command extracted
-3. **Test_DispatchesToMainThread**: command → processed on main thread
-4. **Test_GoingAwayOnDomainReload**: assembly reload → event frame sent
-5. **Test_StateFileUpdated**: compile/reload → state file written
-6. **Test_FastPathBypassesMainThread**: ping → response without main thread dispatch
-
+Use [`AI/testing.md`](testing.md) for current commands and acceptance policy.
+Do not copy test names or counts into this protocol document.
 ## Review Checklist (for Reviewer)
 
 - [ ] Big-endian byte order (4-byte prefix)
@@ -464,11 +343,11 @@ On Exception (ConnectionReset / OSError / dead TCP):
 - [ ] Port file cleaned up on exit
 - [ ] State file written before compile/reload
 - [ ] Heartbeat interval (15s) appropriate
-- [ ] Reconnect cooldown (2s min) prevents thrashing
+- [ ] Reconnect cooldown (5s minimum by default) prevents thrashing
 - [ ] Lifecycle guards: IsRunning, Stop(), OnBeforeReload() all try/catch protected
 
 ## Related
 
-- Skill: `.claude/skills/tcp-protocol.md`
+- Server composition: `AI/mcp-server.md`
 - MCP Server: `AI/mcp-server.md`
 - Architecture: `AI/architecture.md`

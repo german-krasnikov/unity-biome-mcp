@@ -95,7 +95,7 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "commands":         "One command per line (e.g. 'get_component path=/Player type=Transform')",
         "on_error":         "Error behavior: continue (default) | stop — stop aborts remaining commands",
         "timeout":          "Total timeout in seconds (default 75)",
-        "atomic":           "True = revert ALL prior ops on first failure via Unity Undo (fs side-effects not reverted)",
+        "atomic":           "On failure, revert prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain",
         "validate_aliases": "Dry-run alias validation before executing any mutations",
     },
 
@@ -104,11 +104,82 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "undo_label": "Label for the Undo group entry (default 'execute_code')",
     },
 
+    "asset": {
+        "path": "Action-specific project asset/package path (usually Assets/...; import_package accepts a package file path)",
+        "name": "Asset-name search filter used by find (not a GameObject name)",
+        "type": "Unity asset type filter or create kind (for example Material or ScriptableObject)",
+        "value": "Import-setting/property value for the selected asset action",
+    },
+
+    "build": {
+        "path": "Player build output file or directory (default Builds/<target>)",
+    },
+
+    "lint_playtest": {
+        "path": "Project-relative path to a .playtest DSL file (mutually exclusive with script)",
+    },
+
+    "package": {
+        "name": "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)",
+    },
+
+    "scriptable_object": {
+        "path": "Project asset path to the ScriptableObject .asset file",
+    },
+
+    "shader": {
+        "path": "Project asset path to a .shader or .shadergraph file",
+        "name": "Action-specific Shader Graph property/node name (not a GameObject name)",
+        "type": "Action-specific Shader Graph property value type (not a component type)",
+        "shader_name": "Shader declaration name used when creating shader source",
+    },
+
+    "uitk_file": {
+        "path": "Assets/ path to a .uxml or .uss project file; Library/ and Packages/ are rejected",
+    },
+
+    "apply_template": {
+        "name": "Saved scene-template identifier from .claude/templates (without .cs)",
+    },
+
+    "use_skill": {
+        "name": "Saved learned-skill identifier from list_skills",
+    },
+
+    "autofit_collider": {
+        "type": "Collider shape to fit: box|sphere|capsule",
+    },
+
+    "create_ui": {
+        "type": "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView",
+    },
+
+    "lint_scene_refs": {
+        "path": "Project-relative path to a .playtest DSL file",
+    },
+
+    "lint_uitk": {
+        "path": "Assets/ path to the UXML or USS file to validate",
+    },
+
+    "menu": {
+        "path": "Unity Editor menu-item path to execute, or submenu prefix to list",
+    },
+
+    "uitk_element": {
+        "name": "VisualElement name used after ref and before selector in addressing priority",
+    },
+
+    "timeline": {
+        "name": "Action-specific Timeline track, clip, or marker name",
+        "value": "Action-specific Timeline value; set_track_offset accepts auto|transform|scene",
+    },
+
     # ── TIER1 TOOLS ─────────────────────────────────────────────────────────
 
     "get_console": {
         "count": "Max log entries to return (default 10)",
-        "level": "Filter by level: log|warning|error|exception (omit = all)",
+        "level": "Filter by level: log|warning|error|exception|assert (omit = all)",
         "first": "Skip the first N entries (pagination offset)",
     },
 
@@ -121,7 +192,7 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     "run_tests_wait": {
         "mode":          "Test runner mode: EditMode or PlayMode",
         "filter":        "NUnit filter expression (e.g. 'MyNamespace.MyTest')",
-        "timeout":       "Max seconds to wait for completion (default 120)",
+        "timeout":       "Max seconds to wait for completion (default 900)",
         "poll_interval": "Seconds between status polls (default 5)",
         "request_id":    "Caller-supplied idempotency ID",
     },
@@ -130,8 +201,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "width":          "Image width in pixels (default 640)",
         "height":         "Image height in pixels (default 480)",
         "camera":         "View type: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game",
-        "path":           "Save to this file path (omit = auto-generate in ScreenShots/)",
-        "output_path":    "Alias for path — save to this file path",
+        "path":           "For single_view/multi_view: target GameObject scene path; for standard captures: legacy project-contained .png destination (prefer output_path)",
+        "output_path":    "Unambiguous project-contained .png destination for every capture mode",
         "describe":       "Haiku prompt for AI text description instead of returning file path (15-100x fewer tokens)",
         "raw":            "Force returning file path even when describe= is set",
         "zoom":           "Zoom factor — higher = closer",
@@ -145,10 +216,28 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "annotation_id":  "Frame + highlight annotation by ID (auto-sets camera=annotation_frame)",
     },
 
+    "screenshot_baseline": {
+        "name": "File-safe baseline identifier (not a GameObject name; no '/', '\\', or '..')",
+    },
+
+    "screenshot_compare": {
+        "name": "File-safe saved-baseline identifier (not a GameObject name; no '/', '\\', or '..')",
+    },
+
+    "wait_until": {
+        "value": "Expected field value to compare against (this tool does not set the field)",
+        "abort_on_fail": "Stop Play Mode if the comparison times out (default False)",
+    },
+
+    "uitk_intent": {
+        "name": "Base asset filename without extension (for <name>.uxml and <name>.uss)",
+        "path": "Project asset output folder for the generated UXML/USS pair (default Assets/UI)",
+    },
+
     "run_playtest": {
         "script":              "Inline DSL script (mutually exclusive with path)",
         "timeout":             "Max seconds to wait for the playtest to finish (default 120)",
-        "abort_on_fail":       "Stop script execution on first ASSERT failure",
+        "abort_on_fail":       "Stop after the first failed step or automatic console failure; remaining steps, including teardown, are skipped",
         "defs":                "Inline VAL definitions prepended to script (alias block)",
         "path":                "Path to .playtest DSL file on disk (mutually exclusive with script)",
         "snapshot_on_failure": "Auto-capture screenshot on first ASSERT failure",
@@ -182,10 +271,12 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
 
     "save_skill": {
+        "name": "File-safe identifier for the learned skill",
         "code": "C# code or batch commands to save as a reusable skill",
     },
 
     "save_template": {
+        "name": "File-safe identifier for the reusable scene template",
         "code": "C# code or batch commands to save as a scene template",
     },
 

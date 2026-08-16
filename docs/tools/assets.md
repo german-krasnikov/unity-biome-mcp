@@ -1,696 +1,339 @@
-# Asset Tools
+# Asset and Project Tools
 
-Manage prefabs, materials, ScriptableObjects, and project settings. Control the asset pipeline without leaving chat.
+Manage Unity assets, prefabs, project settings, packages, builds, baking, and
+rendering analysis. Use `Assets/...` paths for project assets unless a tool
+explicitly asks for an absolute file-system path.
 
-## asset
+Material and shader authoring has one canonical guide:
+[Shaders and Materials](shaders.md).
 
-Core asset database operations: search, copy, move, delete, import/export.
+## `asset`
 
-**Parameters:**
-- `action` (string) — "find" | "get_info" | "create" | "move" | "validate_move" | "duplicate" | "delete" | "get_dependencies" | "find_dependents" | "import_settings" | "export_package" | "import_package" | "read_text" | "write_text" | "reimport"
-- `path` (string) — Asset path (Assets-relative)
-- `type` (string, optional) — Asset type filter
-- `name` (string, optional) — Name for search
-- `folder` (string, optional) — Folder scope for search
-- `source`, `dest` (string, optional) — For move operations
-- `recursive` (bool, default=false) — Include subfolders
-- `output` (string, optional) — Export destination
-- `include_deps` (bool, default=true) — Include dependencies
-- `labels` (string, optional) — Comma-separated labels filter for find action
-- `content` (string, optional) — Text content for write_text action
-- `class_name` (string, optional) — Class name for ScriptableObject creation
+`asset` wraps common `AssetDatabase` operations. Prefer it over direct file-system
+moves so Unity keeps `.meta` files and GUID references intact.
 
-**Actions:**
-
-| Action | Purpose | Required Params | Example |
-|--------|---------|-----------------|---------|
-| find | Search assets by name/type/labels | name OR type, folder (opt) | `asset("find", name="PlayerMesh", folder="Assets/Meshes")` |
-| get_info | Read asset metadata | path | `asset("get_info", path="Assets/Models/Player.fbx")` |
-| create | Create new asset | type, path | `asset("create", type="Folder", path="Assets/NewFolder")` |
-| move | Relocate asset + .meta | source, dest | `asset("move", source="Assets/Old/X.mat", dest="Assets/Materials/X.mat")` |
-| validate_move | Test move without executing | source, dest | `asset("validate_move", source="Assets/A.cs", dest="Assets/B.cs")` |
-| duplicate | Copy asset | path | `asset("duplicate", path="Assets/Material.mat")` |
-| delete | Remove asset + .meta | path | `asset("delete", path="Assets/Temp.prefab")` |
-| get_dependencies | List forward dependencies | path | `asset("get_dependencies", path="Assets/Scene.unity", include_deps=True)` |
-| find_dependents | Reverse dependencies — who references this asset | path | `asset("find_dependents", path="Assets/Materials/Shared.mat")` |
-| import_settings | Configure import params | path, prop, value | `asset("import_settings", path="Assets/Mesh.fbx", prop="importer_type", value="humanoid")` |
-| export_package | Create .unitypackage | path, output | `asset("export_package", path="Assets/MyFeature", output="/tmp/export.unitypackage")` |
-| import_package | Load .unitypackage | path (file system) | `asset("import_package", path="/tmp/export.unitypackage")` |
-| read_text | Read text file asset | path | `asset("read_text", path="Assets/Config.txt")` |
-| write_text | Write or update text file | path, content | `asset("write_text", path="Assets/Config.txt", content="key=value")` |
-| reimport | Force re-import asset | path | `asset("reimport", path="Assets/Models/Player.fbx")` |
-
-**Example:**
+### Find and inspect assets
 
 ```python
-# Find materials in folder
-mats = await asset("find", type="Material", folder="Assets/UI", labels="hud,animated")
-
-# Get asset info
-info = await asset("get_info", path="Assets/Models/Player.fbx")
-
-# Create new folder
-await asset("create", type="Folder", path="Assets/Materials")
-
-# Move asset
-await asset("move", source="Assets/Old/Player.mat", dest="Assets/Materials/Player.mat")
-
-# Delete temp file
-await asset("delete", path="Assets/Temp.prefab")
-
-# Get forward dependencies
-deps = await asset("get_dependencies", path="Assets/Scenes/Level1.unity", include_deps=True)
-
-# Find reverse dependencies (who references this asset)
-dependents = await asset("find_dependents", path="Assets/Materials/Shared.mat")
-
-# Export package
-await asset("export_package", path="Assets/MyFeature", output="/tmp/feature.unitypackage", include_deps=True)
-
-# Import package
-await asset("import_package", path="/tmp/feature.unitypackage")
-
-# Read text file
-config = await asset("read_text", path="Assets/Config.txt")
-
-# Write text file
-await asset("write_text", path="Assets/Config.txt", content="gameVersion=1.0\nmaxPlayers=16")
-
-# Re-import asset (forces AssetDatabase refresh)
-await asset("reimport", path="Assets/Models/Player.fbx")
-```
-
----
-
-## material
-
-Manage materials and shaders. Create, modify, and assign materials to objects.
-
-**Parameters:**
-- `action` (string) — "create" | "get" | "set" | "copy" | "list_properties" | "list_slots" | "get_errors" | "list_shaders" | "set_fields"
-- `path` (string, optional) — Material asset path
-- `object_path` (string, optional) — Scene object path
-- `shader` (string, optional) — Shader name (e.g., "Standard", "Unlit/Color")
-- `prop` (string, optional) — Property name (e.g., "_Color", "_MainTexture")
-- `value` (string, optional) — Property value (for set_fields: newline-separated prop=val pairs)
-- `source` (string, optional) — Source material for copy
-- `targets` (string, optional) — Comma-separated scene paths for apply
-- `slot` (int, optional) — Material slot index (default 0)
-- `filter` (string, optional) — Name filter for list_shaders
-- `target` (string, optional) — "shared" | "instance" | "asset" (default "shared") — controls which material is modified by set
-
-**Actions:**
-
-| Action | Purpose | Required Params | Example |
-|--------|---------|-----------------|---------|
-| create | Create material with shader | path, shader | `material("create", path="Assets/NewMat.mat", shader="Standard")` |
-| get | Read material properties | path OR object_path | `material("get", path="Assets/PlayerMat.mat")` |
-| set | Modify material property | path OR object_path, prop, value | `material("set", path="Assets/Mat.mat", prop="_Color", value="1,0,0,1")` |
-| set_fields | Set multiple properties at once | path, value (newline-separated) | `material("set_fields", path="Assets/Mat.mat", value="_Color=1,0,0,1\n_Metallic=0.8")` |
-| copy | Clone + assign to objects | source, targets | `material("copy", source="Assets/Base.mat", targets="Player,Enemy")` |
-| list_properties | Enumerate all properties | path OR object_path | `material("list_properties", path="Assets/Mat.mat")` |
-| list_slots | List material slots on object | object_path | `material("list_slots", object_path="Player")` |
-| list_shaders | List available shaders | filter (optional) | `material("list_shaders", filter="URP")` |
-| get_errors | Get shader compilation errors | path | `material("get_errors", path="Assets/Shaders/Custom.shader")` |
-
-**Color Format:** RGB or hex
-- Vector: `"0.5,0.2,1,1"` (RGBA)
-- Hex: `"#FF0000"` (red)
-- Shorthand: `"red"` (standard colors)
-
-**Example:**
-
-```python
-# Create material
-await material("create", path="Assets/RedMat.mat", shader="Standard")
-
-# Read properties
-props = await material("get", path="Assets/RedMat.mat")
-
-# Set color
-await material("set", path="Assets/RedMat.mat", prop="_Color", value="#FF0000")
-
-# Set texture
-await material("set", path="Assets/Mat.mat", prop="_MainTexture", value="Assets/Textures/Wood.png")
-
-# Copy material to scene objects
-await material("copy", source="Assets/BaseMat.mat", targets="Player,Enemy,Boss")
-
-# List all properties
-props = await material("list_properties", path="Assets/Mat.mat")
-
-# Modify material on scene object
-await material("set", object_path="Player", prop="_Metallic", value="0.8")
-
-# List material slots on scene object
-slots = await material("list_slots", object_path="Player")
-
-# Set multiple properties at once
-await material("set_fields", path="Assets/Mat.mat", value="_Color=1,0,0,1\n_Metallic=0.8\n_Smoothness=0.5")
-
-# List available shaders (with optional filter)
-shaders = await material("list_shaders", filter="URP")
-
-# Check shader errors
-errors = await material("get_errors", path="Assets/Shaders/Custom.shader")
-
-# Use specific material slot
-await material("set", object_path="Player", prop="_Color", value="#FF0000", slot=1)
-
-# Modify instance material (not shared)
-await material("set", object_path="Player", prop="_Color", value="#FF0000", target="instance")
-```
-
----
-
-## prefab
-
-Create, modify, and manage prefabs. Save instances as prefabs or edit prefabs directly (v0.56.0+).
-
-**Parameters:**
-- `action` (string) — "save" | "create_variant" | "apply" | "revert" | "get_overrides" | "unpack" | "edit"
-- `path` (string, optional) — Scene instance path
-- `asset_path` (string, optional) — Prefab asset path (Assets-relative)
-- `base_path` (string, optional) — Base prefab for variant
-- `variant_path` (string, optional) — New variant path
-- `component` (string, optional) — Component for edit action
-- `add_component`, `remove_component` (string, optional) — For component management
-- `prop`, `value` (string, optional) — Property to modify
-- `recursive` (bool, default=false) — Apply/revert recursively
-- `mode` (string, optional) — For save: "new" | "overwrite" (default "overwrite")
-- `scope` (string, optional) — For revert: "object" (default) | "children"
-- `format` (string, optional) — For get_overrides: "text" (default) | "structured"
-
-**Actions:**
-
-| Action | Purpose | Required Params | Example |
-|--------|---------|-----------------|---------|
-| save | Scene instance → prefab asset | path, asset_path | `prefab("save", path="Player", asset_path="Assets/Prefabs/Player.prefab")` |
-| create_variant | Make variant from base | base_path, variant_path | `prefab("create_variant", base_path="Assets/Enemy.prefab", variant_path="Assets/Variants/EnemyFast.prefab")` |
-| apply | Push instance changes → base | path | `prefab("apply", path="Player")` |
-| revert | Discard instance changes | path | `prefab("revert", path="Player")` |
-| get_overrides | List property modifications | path | `prefab("get_overrides", path="Enemy")` |
-| unpack | Convert instance → GameObject | path | `prefab("unpack", path="SpawnedPrefab")` |
-| edit | Modify prefab asset directly | asset_path, component, prop, value | `prefab("edit", asset_path="Assets/Player.prefab", component="Health", prop="MaxHP", value="200")` |
-| edit (add) | Add component to prefab | asset_path, add_component | `prefab("edit", asset_path="Assets/Player.prefab", add_component="Rigidbody")` |
-| edit (remove) | Remove component | asset_path, remove_component | `prefab("edit", asset_path="Assets/Player.prefab", remove_component="AudioSource")` |
-
-**Workflow: Two-step prefab creation**
-
-```python
-# 1. Design in scene
-await create_object("Player")
-await manage_component(path="Player", type="Health", action="add")
-await set_property("Player", "Health", "maxHp", "100")
-
-# 2. Save as prefab
-await prefab("save", path="Player", asset_path="Assets/Prefabs/Player.prefab")
-```
-
-**Workflow: Direct prefab editing (v0.56.0+)**
-
-```python
-# Modify prefab asset without unpacking
-await prefab("edit", 
-  asset_path="Assets/Prefabs/Player.prefab",
-  component="Health",
-  prop="MaxHP",
-  value="200"
+materials = await asset(
+    action="find",
+    type="Material",
+    name="UI",
+    folder="Assets/Art",
+    labels="approved",
 )
 
-# Add component to prefab
-await prefab("edit",
-  asset_path="Assets/Prefabs/Player.prefab",
-  add_component="Rigidbody"
-)
-
-# Remove component
-await prefab("edit",
-  asset_path="Assets/Prefabs/Player.prefab",
-  remove_component="AudioSource"
+info = await asset(
+    action="get_info",
+    path="Assets/Models/Player.fbx",
 )
 ```
 
-**Workflow: Variant management**
+`find` accepts any combination of `type`, `name`, `folder`, and comma-separated
+`labels`; at least one is required. Results are capped at 200. `get_info` returns
+the type, GUID, file size, and direct dependencies.
+
+### Create, duplicate, move, and delete
 
 ```python
-# Create variant (inherits from base)
-await prefab("create_variant",
-  base_path="Assets/Prefabs/Enemy.prefab",
-  variant_path="Assets/Prefabs/Variants/EnemyFast.prefab"
+await asset(action="create", type="Folder", path="Assets/Game/Generated")
+
+await asset(
+    action="duplicate",
+    source="Assets/Game/Base.asset",
+    dest="Assets/Game/Generated/Variant.asset",
 )
 
-# Modify variant (doesn't affect base)
-await prefab("edit",
-  asset_path="Assets/Prefabs/Variants/EnemyFast.prefab",
-  component="Health",
-  prop="maxHp",
-  value="50"
+check = await asset(
+    action="validate_move",
+    source="Assets/Game/Old.asset",
+    dest="Assets/Game/New.asset",
+)
+await asset(
+    action="move",
+    source="Assets/Game/Old.asset",
+    dest="Assets/Game/New.asset",
 )
 ```
 
----
+`validate_move` uses Unity's move validation without changing the asset. Use
+`path_only=True` only for a syntax check before the destination folder exists.
 
-## scriptable_object
-
-Manage ScriptableObject assets. Create, modify, and save ScriptableObject configurations.
-
-**Parameters:**
-- `action` (string) — "create" | "get" | "set" | "list_types" | "find"
-- `path` (string, optional) — Asset path or scene instance
-- `type` (string, optional) — ScriptableObject class name
-- `prop` (string, optional) — Property name
-- `value` (string, optional) — Property value
-- `fields` (string, optional) — Newline-separated prop=value pairs (for create/set bulk)
-- `filter` (string, optional) — Name filter for list_types / comma-separated field filter for get
-
-**Actions:**
-
-| Action | Purpose | Required Params | Example |
-|--------|---------|-----------------|---------|
-| create | Create new ScriptableObject | path, type [, fields] | `scriptable_object("create", path="Assets/GameConfig.asset", type="GameSettings")` |
-| get | Read ScriptableObject | path [, filter] | `scriptable_object("get", path="Assets/GameConfig.asset")` |
-| set | Modify property | path, prop, value OR fields | `scriptable_object("set", path="Assets/GameConfig.asset", prop="maxLevel", value="50")` |
-| list_types | List available SO types | filter (optional) | `scriptable_object("list_types", filter="Game")` |
-| find | Find SO assets by type | type | `scriptable_object("find", type="GameSettings")` |
-
-**Example:**
+`create` supports `Folder`, `Material`, `PhysicMaterial`, `AnimatorController`, and
+`ScriptableObject`. Creating a ScriptableObject through this generic action also
+requires `class_name`; the dedicated `scriptable_object` tool below is clearer for
+initial field values.
 
 ```python
-# Create new ScriptableObject
-await scriptable_object("create", 
-  path="Assets/GameConfig.asset",
-  type="GameSettings"
+# Destructive: removes the asset through AssetDatabase, including its .meta file.
+await asset(action="delete", path="Assets/Game/Generated/Variant.asset")
+```
+
+Check reverse dependencies before deleting or moving a widely used asset.
+
+### Dependencies and importer settings
+
+```python
+direct = await asset(
+    action="get_dependencies",
+    path="Assets/Scenes/Main.unity",
+)
+transitive = await asset(
+    action="get_dependencies",
+    path="Assets/Scenes/Main.unity",
+    recursive=True,
+)
+users = await asset(
+    action="find_dependents",
+    path="Assets/Materials/Shared.mat",
+)
+```
+
+`find_dependents` scans project assets and caps the result at 100. It is more
+expensive than a forward dependency read.
+
+Read an importer property by omitting `value`, or write a public writable importer
+property and let Unity reimport the asset:
+
+```python
+current = await asset(
+    action="import_settings",
+    path="Assets/Textures/Icon.png",
+    prop="isReadable",
+)
+await asset(
+    action="import_settings",
+    path="Assets/Textures/Icon.png",
+    prop="isReadable",
+    value="true",
+)
+```
+
+Importer properties depend on the asset type. An omitted `prop` and `value` dumps
+the public readable properties for discovery.
+
+### Text, packages, and reimport
+
+```python
+text = await asset(action="read_text", path="Assets/Config/game.json")
+await asset(
+    action="write_text",
+    path="Assets/Config/game.json",
+    content='{"difficulty":"normal"}',
+)
+await asset(action="reimport", path="Assets/Config/game.json")
+```
+
+`write_text` participates in the Python change-capture pipeline, but it still
+overwrites the target text file. Read the current file first when ownership is
+uncertain.
+
+`export_package` requires an asset `path` and an output file-system `output`.
+`include_deps` defaults to true. `import_package` takes the absolute or accessible
+file-system path to a `.unitypackage`.
+
+## `prefab`
+
+Use the canonical [Prefab Workflow](../features/prefab-edit.md) for save,
+instantiate, variant, override, edit, apply, revert, and unpack examples.
+
+The public actions are `save`, `instantiate`, `create_variant`, `apply`, `revert`,
+`get_overrides`, `unpack`, and `edit`. A reliable creation flow is:
+
+```python
+await create_object(name="Pickup", primitive="Sphere")
+await manage_component(path="/Pickup", type="Pickup", action="add")
+await prefab(
+    action="save",
+    path="/Pickup",
+    asset_path="Assets/Prefabs/Pickup.prefab",
+    mode="new",
+)
+```
+
+Direct prefab editing changes the asset and therefore every instance that inherits
+the value. Inspect overrides before applying or reverting instance changes.
+
+## `scriptable_object`
+
+Create and maintain ScriptableObject configuration assets.
+
+```python
+await scriptable_object(
+    action="create",
+    type="GameSettings",
+    path="Assets/Config/GameSettings.asset",
+    fields="maxLevel=50\nstartingGold=100",
 )
 
-# Create with initial fields
-await scriptable_object("create",
-  path="Assets/GameConfig.asset",
-  type="GameSettings",
-  fields="maxLevel=50\nstartGold=100"
+settings = await scriptable_object(
+    action="get",
+    path="Assets/Config/GameSettings.asset",
+    filter="maxLevel,startingGold",
 )
 
-# Read configuration
-config = await scriptable_object("get", path="Assets/GameConfig.asset")
+await scriptable_object(
+    action="set",
+    path="Assets/Config/GameSettings.asset",
+    prop="maxLevel",
+    value="60",
+)
+```
 
-# Read specific fields only
-config = await scriptable_object("get", path="Assets/GameConfig.asset", filter="maxLevel,startGold")
+Other actions are `list_types` (optional name `filter`) and `find` (required
+`type`). For a multi-field update, pass newline-separated `fields` instead of
+`prop` and `value`.
 
-# Modify property
-await scriptable_object("set",
-  path="Assets/GameConfig.asset",
-  prop="maxLevel",
-  value="100"
+## `project_settings`
+
+Read or change supported project-wide settings. Always read the target first and
+record the original value; these changes can affect every scene and build.
+
+```python
+physics = await project_settings(action="get", target="physics")
+await project_settings(
+    action="set",
+    target="physics",
+    prop="gravity",
+    value="0,-15,0",
 )
 
-# Set multiple fields at once
-await scriptable_object("set",
-  path="Assets/GameConfig.asset",
-  fields="maxLevel=100\nstartGold=500"
+tags = await project_settings(action="get", target="tags")
+await project_settings(action="set", target="tags", prop="Enemy")
+await project_settings(
+    action="set",
+    target="tags",
+    prop="remove",
+    value="Obsolete",
 )
 
-# List available ScriptableObject types
-types = await scriptable_object("list_types", filter="Config")
-
-# Find all instances of a type
-configs = await scriptable_object("find", type="GameSettings")
+await project_settings(
+    action="set",
+    target="layers",
+    index=8,
+    value="Enemy",
+)
 ```
 
----
+Targets are `tags`, `layers`, `sorting_layers`, `quality`, `physics`, `time`,
+`player`, `graphics`, `audio`, and `input`. Sorting layers, audio, and legacy input
+are read-only in the current implementation.
 
-## project_settings
-
-Access and modify project-wide settings.
-
-**Parameters:**
-- `action` (string) — "get" | "set"
-- `target` (string) — Setting category: "tags" | "layers" | "sorting_layers" | "quality" | "physics" | "time" | "player" | "graphics" | "audio" | "input"
-- `prop` (string, optional) — Property name within the target category
-- `value` (string, optional) — New value
-- `index` (int, optional) — Index for array-based settings (e.g., layers)
-- `build_target` (string, optional) — Build target for ScriptingBackend: "Standalone" | "iOS" | "Android" | etc. (required when setting ScriptingBackend)
-
-**Actions:**
-
-| Target | Action | Purpose | Example |
-|--------|--------|---------|---------|
-| tags | get | List all tags | `project_settings("get", target="tags")` |
-| tags | set | Add tag (prop or value) | `project_settings("set", target="tags", prop="Enemy")` |
-| tags | set (remove) | Remove tag | `project_settings("set", target="tags", prop="remove", value="Obsolete")` |
-| layers | get | List layers 0–31 | `project_settings("get", target="layers")` |
-| layers | set | Set layer name at index | `project_settings("set", target="layers", index=8, value="Enemy")` |
-| sorting_layers | get | List sorting layers | `project_settings("get", target="sorting_layers")` |
-| quality | get | Quality settings (shadow, LOD, etc.) | `project_settings("get", target="quality")` |
-| quality | set (currentLevel) | Switch quality level | `project_settings("set", target="quality", prop="currentLevel", value="2")` |
-| quality | set (property) | Adjust via reflection | `project_settings("set", target="quality", prop="shadowDistance", value="50")` |
-| physics | get | Physics settings (gravity, solver, collision matrix) | `project_settings("get", target="physics")` |
-| physics | set | Modify physics | `project_settings("set", target="physics", prop="gravity", value="0,-15,0")` |
-| time | get | Time settings (fixedDeltaTime, timeScale, etc.) | `project_settings("get", target="time")` |
-| time | set | Modify time property | `project_settings("set", target="time", prop="fixedDeltaTime", value="0.02")` |
-| player | get | Player settings (company, product name, version) | `project_settings("get", target="player")` |
-| player | set (ScriptingBackend) | Set IL2CPP/Mono backend | `project_settings("set", target="player", prop="ScriptingBackend", value="IL2CPP", build_target="Standalone")` |
-| player | set (property) | Modify player property | `project_settings("set", target="player", prop="companyName", value="MyStudio")` |
-| graphics | get | Graphics settings (render pipeline, color space, etc.) | `project_settings("get", target="graphics")` |
-| graphics | set | Modify graphics | `project_settings("set", target="graphics", prop="colorSpace", value="Linear")` |
-| audio | get | Audio settings (master volume, rolloff, speaker mode) — read-only | `project_settings("get", target="audio")` |
-| input | get | Input axes (Horizontal, Vertical, etc.) — read-only | `project_settings("get", target="input")` |
-
-**Example:**
+Specify the scripting backend's build target explicitly; otherwise Unity defaults
+this operation to the Standalone target group:
 
 ```python
-# Read physics settings
-physics = await project_settings("get", target="physics")
-
-# Set gravity
-await project_settings("set", target="physics", prop="gravity", value="0,-15,0")
-
-# Read time settings
-time = await project_settings("get", target="time")
-
-# Read tags
-tags = await project_settings("get", target="tags")
-
-# Add a tag
-await project_settings("set", target="tags", prop="Enemy")
-
-# Remove a tag
-await project_settings("set", target="tags", prop="remove", value="Obsolete")
-
-# Set a layer by index (0-5 reserved, use 6+)
-await project_settings("set", target="layers", index=8, value="EnemyLayer")
-
-# Switch quality level
-await project_settings("set", target="quality", prop="currentLevel", value="2")
-
-# Set scripting backend (requires build_target)
-await project_settings("set", target="player", prop="ScriptingBackend", value="IL2CPP", build_target="Standalone")
-
-# Read graphics settings
-graphics = await project_settings("get", target="graphics")
-
-# Set color space to linear
-await project_settings("set", target="graphics", prop="colorSpace", value="Linear")
-
-# Read audio settings (read-only)
-audio = await project_settings("get", target="audio")
-
-# Read input axes (read-only)
-input_axes = await project_settings("get", target="input")
+await project_settings(
+    action="set",
+    target="player",
+    prop="ScriptingBackend",
+    value="IL2CPP",
+    build_target="Standalone",
+)
 ```
 
----
+## `build`
 
-## build
-
-Build player executables for target platforms.
-
-**Parameters:**
-- `action` (string, required) — Build action (e.g., "build")
-- `target` (string, optional) — Build target: "StandaloneWindows64" | "StandaloneOSX" | "Android" | "iOS" | "WebGL" (default: active build target)
-- `scenes` (string, optional) — Comma-separated scene asset paths (default: Build Settings scene list)
-- `path` (string, optional) — Output path (default: Builds/<target>)
-- `dev` (bool, default=false) — Development build flag (enables logging, profiler, slower startup)
-
-**Actions:**
-
-| Action | Purpose | Required Params | Example |
-|--------|---------|-----------------|---------|
-| build | Build player | action | `build("build")` or `build("build", target="iOS", path="Builds/iOS")` |
-
-**Example:**
+Builds a player with the current project configuration.
 
 ```python
-# Build for active target (Standalone)
-result = await build("build")
-
-# Build for iOS with custom path
-result = await build("build", target="iOS", path="Builds/iOS", scenes="Assets/Scenes/Menu.unity,Assets/Scenes/Main.unity")
-
-# Development build (logging + profiler enabled)
-result = await build("build", target="Android", dev=True, path="Builds/Android/dev")
+result = await build(
+    action="build",
+    target="StandaloneOSX",
+    scenes="Assets/Scenes/Boot.unity,Assets/Scenes/Main.unity",
+    path="Builds/macOS/Game.app",
+    dev=True,
+)
 ```
 
----
+`target`, `scenes`, and `path` are optional; Unity uses the active target, enabled
+Build Settings scenes, and `Builds/<target>` defaults when omitted. Build output is
+not automatically acceptance evidence—read the result and run the built player or
+project-specific smoke checks.
 
-## package
+## `package`
 
-Package Manager operations: list, search, add, or remove packages.
-
-**Parameters:**
-- `action` (string) — "list" | "search" | "add" | "remove"
-- `name` (string, optional) — Package name (required for add/remove)
-- `version` (string, optional) — Package version (optional for add, e.g., "1.2.3")
-- `query` (string, optional) — Search query (required for search)
-
-**Actions:**
-
-| Action | Purpose | Required Params | Example |
-|--------|---------|-----------------|---------|
-| list | List all installed packages | action | `package("list")` |
-| search | Search registry by name | query | `package("search", query="UI")` |
-| add | Install package | name [, version] | `package("add", name="com.unity.textmeshpro")` |
-| remove | Uninstall package | name | `package("remove", name="com.unity.textmeshpro")` |
-
-**Example:**
+Wraps Unity Package Manager list, search, add, and remove operations.
 
 ```python
-# List installed packages
-packages = await package("list")
-
-# Search for UI packages
-results = await package("search", query="UI")
-
-# Add a package (latest version)
-await package("add", name="com.unity.textmeshpro")
-
-# Add specific version
-await package("add", name="com.unity.textmeshpro", version="3.0.6")
-
-# Remove package
-await package("remove", name="com.unity.textmeshpro")
+installed = await package(action="list")
+matches = await package(action="search", query="cinemachine")
+await package(action="add", name="com.unity.cinemachine")
 ```
 
----
+Use `version` with `add` only when the project intentionally pins a compatible
+version. Adding or removing a package can trigger downloads, asset imports, and a
+domain reload; wait for compilation before continuing.
 
-## bake
+## `bake`
 
-Lighting and occlusion bake operations.
-
-**Parameters:**
-- `target` (string) — "lighting" | "occlusion"
-- `action` (string, optional, default="start") — Specific action:
-  - Lighting: "start" | "status" | "cancel" | "clear" | "settings"
-  - Occlusion: "start" | "status" | "clear"
-
-**Actions:**
-
-| Target | Action | Purpose | Example |
-|--------|--------|---------|---------|
-| lighting | start | Begin async lighting bake | `bake("lighting")` or `bake("lighting", action="start")` |
-| lighting | status | Poll bake progress | `bake("lighting", action="status")` |
-| lighting | cancel | Cancel running bake | `bake("lighting", action="cancel")` |
-| lighting | clear | Clear all lightmaps | `bake("lighting", action="clear")` |
-| lighting | settings | Get bake settings (mode, resolution, bounces, etc.) | `bake("lighting", action="settings")` |
-| occlusion | start | Synchronous occlusion bake (blocks until done) | `bake("occlusion")` or `bake("occlusion", action="start")` |
-| occlusion | status | Check bake status and data size | `bake("occlusion", action="status")` |
-| occlusion | clear | Clear occlusion data | `bake("occlusion", action="clear")` |
-
-**Example:**
+Controls lighting and occlusion baking.
 
 ```python
-# Start async lighting bake (fire-and-forget)
-await bake("lighting")
-
-# Poll lighting status
-status = await bake("lighting", action="status")
-# Returns: "status:baking\nprogress:0.45" or "status:idle"
-
-# Get lighting bake settings
-settings = await bake("lighting", action="settings")
-
-# Cancel if needed
-await bake("lighting", action="cancel")
-
-# Synchronous occlusion bake (waits until complete)
-result = await bake("occlusion")
-
-# Check occlusion status
-status = await bake("occlusion", action="status")
-# Returns: status (running|idle), baked (true|false), bytes (data size)
-
-# Clear occlusion data
-await bake("occlusion", action="clear")
+await bake(target="lighting", action="start")
+status = await bake(target="lighting", action="status")
 ```
 
----
+Lighting actions are `start`, `status`, `cancel`, `clear`, and `settings`. Lighting
+start is asynchronous, so poll `status` until it becomes idle and check the
+Console. Occlusion actions are `start`, `status`, and `clear`; occlusion start is a
+synchronous Unity operation.
 
-## render_analyze
+## Analyze rendering {#analyze-rendering}
 
-Rendering analysis and optimization audit: draw calls, batching, materials, shaders, lights, and frame debug data.
-
-**Parameters:**
-- `action` (string) — Analysis type: "stats" | "materials" | "shaders" | "lights" | "batching" | "overdraw" | "audit" | "compare" | "frame_debug" | "shadow_audit" | "probe_audit" | "light_optimize"
-- `path` (string, optional) — Subtree root for analysis (default: whole scene)
-- `detail` (string, default="brief") — "brief" | "full"
-- `baseline_id` (string, optional) — Baseline snapshot ID for compare action
-- `max_events` (int, optional) — Max frame debug events to fetch (for frame_debug action)
-
-**Actions:**
-
-| Action | Purpose | Example |
-|--------|---------|---------|
-| stats | Draw calls, batches, triangles, vertices, set-pass (from UnityStats) | `render_analyze("stats")` |
-| materials | List all materials in scene | `render_analyze("materials", detail="full")` |
-| shaders | List all shaders and variants in use | `render_analyze("shaders")` |
-| lights | Analyze light count, types, shadows, culling | `render_analyze("lights")` |
-| batching | SRP Batcher, static/dynamic/GPU instancing analysis | `render_analyze("batching")` |
-| overdraw | Overdraw heat map and problem areas | `render_analyze("overdraw", path="Canvas")` |
-| audit | Full rendering health check (all sections, brief) | `render_analyze("audit")` |
-| compare | Diff against last baseline snapshot | `render_analyze("compare", baseline_id="snap_2024_01_15")` |
-| frame_debug | Per-draw-call data (pauses rendering briefly) | `render_analyze("frame_debug", max_events=100)` |
-| shadow_audit | Shadow map usage and cascade analysis | `render_analyze("shadow_audit")` |
-| probe_audit | Light probe density and coverage | `render_analyze("probe_audit", path="GameArea")` |
-| light_optimize | Optimization suggestions (lights, baking, LOD) | `render_analyze("light_optimize")` |
-
-**Example:**
+`render_analyze` reads scene rendering health:
 
 ```python
-# Quick rendering stats (draw calls, batches, triangles)
-stats = await render_analyze("stats")
-
-# Audit materials in scene
-materials = await render_analyze("materials", detail="brief")
-
-# Full shader analysis
-shaders = await render_analyze("shaders", detail="full")
-
-# Check light count and shadow settings
-lights = await render_analyze("lights")
-
-# Analyze batching efficiency (SRP Batcher, instancing)
-batching = await render_analyze("batching")
-
-# Detect overdraw problem areas
-overdraw = await render_analyze("overdraw")
-
-# Full rendering health check
-audit = await render_analyze("audit", detail="full")
-
-# Per-draw-call frame debug (pauses rendering)
-frame_data = await render_analyze("frame_debug", max_events=50)
-
-# Shadow map usage
-shadow_info = await render_analyze("shadow_audit")
-
-# Light probe coverage (in a specific area)
-probes = await render_analyze("probe_audit", path="Player/CameraArea")
-
-# Get optimization recommendations
-recommendations = await render_analyze("light_optimize")
-
-# Analyze subtree rendering
-subtree_stats = await render_analyze("stats", path="UI/HUD")
+stats = await render_analyze(action="stats", detail="full")
+batching = await render_analyze(action="batching", path="/Level")
+lights = await render_analyze(action="lights")
+audit = await render_analyze(action="audit", path="/Level")
 ```
 
----
+Actions are `stats`, `materials`, `shaders`, `lights`, `batching`, `overdraw`,
+`audit`, `compare`, `frame_debug`, `shadow_audit`, `probe_audit`, and
+`light_optimize`. `detail` is `brief` or `full` where the action supports it.
+`frame_debug` uses Unity's Frame Debugger data and briefly pauses rendering.
 
-## material_audit
-
-Scene-wide material and texture audit. Finds duplicates, compression issues, and optimization opportunities.
-
-**Parameters:**
-- `action` (string, default="summary") — "summary" | "materials" | "textures" | "duplicates" | "compression" | "recommendations"
-- `platform` (string, optional) — "Android" | "iOS" | "Standalone" | "Default" (for compression check)
-
-**Actions:**
-
-| Action | Purpose | Example |
-|--------|---------|---------|
-| summary | Overview of all materials/textures | `material_audit("summary")` |
-| materials | List all materials in scene | `material_audit("materials")` |
-| textures | List all textures in scene | `material_audit("textures")` |
-| duplicates | Find duplicate materials | `material_audit("duplicates")` |
-| compression | Check texture compression settings | `material_audit("compression", platform="Android")` |
-| recommendations | Optimization suggestions | `material_audit("recommendations")` |
-
-**Example:**
+Calling `stats` saves one in-memory rendering baseline. A later `compare` compares
+current draw calls, batches, and set-pass calls with that last baseline:
 
 ```python
-# Quick overview
-summary = await material_audit()
-
-# Check for duplicate materials
-dupes = await material_audit("duplicates")
-
-# Platform-specific compression audit
-issues = await material_audit("compression", platform="Android")
-
-# Get optimization recommendations
-recs = await material_audit("recommendations")
+await render_analyze(action="stats")
+# ...make a rendering change...
+delta = await render_analyze(action="compare")
 ```
 
----
+The current implementation does not select named baselines; `baseline_id` is
+accepted by the wrapper but comparison still uses the most recent `stats` sample.
+Live render counters can be zero when no Scene View is open, and analysis is not a
+substitute for profiling the target platform.
 
-## shader
+## `material` {#material}
 
-Manage shaders and their properties. See [Shader Tools](shaders.md) for the complete reference.
+Material creation, values, renderer slots, shared-vs-instance behavior, shader
+errors, and audits are documented in [Shaders and Materials](shaders.md).
 
----
+## `material_audit`
 
-## references
+See [Audit materials and textures](shaders.md#audit-materials-and-textures).
 
-Find, search, and remap asset references (standalone MCP tool, also batchable).
+## `shader`
 
-**Parameters:**
-- `action` (string) — "get" | "find_to" | "remap"
-- `path` (string) — Asset path to analyze
-- `children` (bool, default=false) — Include child objects
-- `depth` (int, default=1) — Recursion depth
-- `source` (string, optional) — Source asset for remap
-- `target` (string, optional) — Target asset for remap / reverse search target
-- `mappings` (string, optional) — Bulk remap mappings (for remap action)
+See [Shaders and Materials](shaders.md#create-a-shader-asset) and
+[Shader Graph](shaders.md#work-with-shader-graph).
 
-**Actions:**
+## `references`
 
-| Action | Purpose | Required Params | Example |
-|--------|---------|-----------------|---------|
-| get | Outgoing references from asset | path | `references("get", path="Assets/Prefabs/Player.prefab")` |
-| find_to | Reverse search — who references this asset | path | `references("find_to", path="Assets/Materials/Shared.mat")` |
-| remap | Remap references from source to target | path, source, target OR mappings | `references("remap", path="Assets/Scene.unity", source="Assets/Old.mat", target="Assets/New.mat")` |
+The `references` tool reads and remaps **scene-object** references, not asset-file
+dependencies. See [Object references](objects.md#references). For asset GUID
+dependencies, use `asset(action="get_dependencies")` or
+`asset(action="find_dependents")` above.
 
-**Example:**
+## Related workflows
 
-```python
-# Outgoing references from a prefab
-refs = await references("get", path="Assets/Prefabs/Player.prefab")
-
-# Who references this material?
-users = await references("find_to", path="Assets/Materials/Shared.mat")
-
-# Remap a reference
-await references("remap", path="Assets/Scene.unity", source="Assets/Old.mat", target="Assets/New.mat")
-
-# Deep scan with children
-refs = await references("get", path="Assets/Prefabs/Player.prefab", children=True, depth=3)
-```
-
----
-
-## Common Patterns
-
-| Task | Tools | Example |
-|------|-------|---------|
-| Create material + assign | material("create") + material("copy") | `await material("create", path="Assets/New.mat", shader="Standard"); await material("copy", source="Assets/New.mat", targets="Player")` |
-| Save scene instance as prefab | prefab("save") | `await prefab("save", path="Player", asset_path="Assets/Prefabs/Player.prefab")` |
-| Edit prefab without unpacking | prefab("edit") | `await prefab("edit", asset_path="Assets/Prefabs/Player.prefab", component="Health", prop="maxHp", value="200")` |
-| Create variant | prefab("create_variant") | `await prefab("create_variant", base_path="Assets/Enemy.prefab", variant_path="Assets/Variants/EnemyFast.prefab")` |
-| Organize assets | asset("move") + asset("create") | `await asset("create", type="Folder", path="Assets/Materials"); await asset("move", source="Assets/Old.mat", dest="Assets/Materials/Old.mat")` |
-| Export for sharing | asset("export_package") | `await asset("export_package", path="Assets/MyFeature", output="/tmp/export.unitypackage")` |
-| Bake and verify | bake("lighting") + bake("lighting", action="status") | Start bake, poll status until idle |
-| Rendering audit | render_analyze("audit") | `result = await render_analyze("audit", detail="full")` → full health check |
-| Build player | build("build") | `await build("build", target="iOS", path="Builds/iOS")` |
-| Manage packages | package("add") + package("remove") | `await package("add", name="com.unity.textmeshpro", version="3.0.6")` |
-
----
-
-**See also:** [Batch](batch.md) for combining asset operations, [Objects](objects.md) for scene-instance material assignment.
+- [Shaders and Materials](shaders.md) — canonical material/shader guide.
+- [Prefab Workflow](../features/prefab-edit.md) — safe prefab asset operations.
+- [Object Tools](objects.md) — scene objects and serialized references.
+- [Batch Operations](batch.md) — combine compatible operations.
+- [Generated Tool Schema](../tools-schema/index.md) — exhaustive parameters.

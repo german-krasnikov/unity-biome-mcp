@@ -22,8 +22,10 @@ await save_skill(
 ```
 
 **Auto-detection:**
-- C# keywords detected: `var`, `new`, `GameObject`, `//`, `;`, `using` → **kind=csharp**
-- Batch keywords: `echo`, `if`, `for`, etc. → **kind=batch**
+- Any of `var `, `new `, `GameObject`, `//`, `;`, or `using ` →
+  **kind=csharp**
+- Otherwise → **kind=batch**. This is a deliberately small heuristic, not a
+  language parser.
 
 **Metadata stored:**
 - `name`, `description`, `code`, `kind`, `created` (timestamp), `used_count` (incremented on use)
@@ -111,7 +113,7 @@ await apply_template(
 # → Substitutes ${platform_count}, ${spacing}, ${height} in template
 ```
 
-**Returns:** Scene hierarchy summary or error.
+**Returns:** The underlying `execute_code` result, or a missing-template error.
 
 ---
 
@@ -134,7 +136,7 @@ await list_templates()
 
 ```python
 fp = await fingerprint()
-# → "scene_v0_hash=abc123def456..."
+# → "fp:1A2B3C4D"
 # Can be compared later for regression detection
 ```
 
@@ -165,26 +167,29 @@ diff = await scene_diff()
 
 ## get_changes(clear: bool = True)
 
-**Write-idempotent.** Retrieve logged editor events since last call (hierarchy, undo/redo, play/stop, selection).
+**Read tool with a consuming default.** Retrieve logged editor events since the
+last clear (hierarchy, undo/redo, play/stop, selection, and explicit MCP
+mutations).
 
 ```python
 # Get all changes, clear log
 changes = await get_changes(clear=True)
 # →
-# [timestamp] HierarchyChanged: Player spawned
-# [timestamp] SelectionChanged: Enemy selected
-# [timestamp] PlayModeChanged: entered PlayMode
+# 10:12:03 HIERARCHY_CHANGED
+# 10:12:04 SELECTED:Enemy
+# 10:12:05 PLAY_MODE:EnteredPlayMode
 
 # Next call returns NO_CHANGES (log cleared)
 ```
 
 **Event types tracked:**
-- `HierarchyChanged`: Object created/deleted/reparented
-- `SelectionChanged`: User selected object
-- `PlayModeChanged`: Entered/exited Play Mode
-- `UndoRedoPerformed`: Undo/Redo executed
-- `SceneOpened`: Scene loaded
-- `SceneSaved`: Scene saved
+- `HIERARCHY_CHANGED`: object created, deleted, or reparented
+- `SELECTED:<name>`: active GameObject selection changed
+- `PLAY_MODE:<state>`: Unity play-mode state changed
+- `UNDO_REDO`: Undo or Redo executed
+- `SCENE_OPENED:<name>`: scene loaded
+- `SCENE_SAVED:<name>`: scene saved
+- `MCP_<COMMAND>` / `MCP_BATCH_<COMMAND>`: a routed mutation was recorded
 
 **clear=False:**
 ```python
@@ -204,14 +209,9 @@ await save_session()
 
 **File format:**
 ```text
-1234567890.0
+<Unix timestamp>
 === hierarchy ===
-Scene (Root)
-  Player (active)
-    Collider (component)
-    Rigidbody (component)
-  Enemy (active)
-    ...
+<get_hierarchy(summary=True) output>
 ```
 
 **Use case:** Recover after MCP disconnect or PC crash.
@@ -261,7 +261,10 @@ await screenshot_baseline("tutorial_end", camera="MainCamera")
 
 ## screenshot_compare(name: str = "default", width: int = 640, height: int = 480, camera: str | None = None, mode: str = "auto", question: str | None = None)
 
-**Read-only / LLM.** Compare current screenshot with saved baseline; detect visual regressions.
+**Write / optional sampling.** After finding the saved baseline, capture a fresh
+project-local PNG and compare the two images. The capture remains under
+`ScreenShots/`, so the tool is write-classified even in `pixel` mode. Semantic
+modes degrade to pixel evidence when sampling is unavailable.
 
 ```python
 # Auto mode: pixel diff first, escalate to structural on changes
@@ -270,14 +273,15 @@ await screenshot_compare("menu_screen", mode="auto")
 # Pixel-only (fast, free)
 await screenshot_compare("menu_screen", mode="pixel")
 
-# Structural diff (Haiku model, ~$0.005)
+# Structural semantic diff through the configured sampling profile
 await screenshot_compare("menu_screen", mode="structural")
 
-# Specialized modes (very low cost)
+# Specialized semantic prompts
 await screenshot_compare("menu_screen", mode="ui_layout")
 await screenshot_compare("menu_screen", mode="animation")
 await screenshot_compare("menu_screen", mode="color")
 await screenshot_compare("menu_screen", mode="position")
+await screenshot_compare("menu_screen", mode="regression")
 
 # Custom question
 await screenshot_compare(
@@ -289,20 +293,24 @@ await screenshot_compare(
 
 **Modes:**
 
-| Mode | Cost | Purpose |
-|------|------|---------|
-| auto | $0-0.005 | Pixel diff first; escalate to structural if diff found |
-| pixel | $0 | Free: exact RGB comparison (fails on minor antialiasing) |
-| structural | ~$0.005 | Haiku full-image analysis (general, catches layout shifts) |
-| targeted | ~$0.001 | Haiku with custom question (pinpoint specific changes) |
-| ui_layout | ~$0.001 | Specialized: button positions, alignment, spacing |
-| animation | ~$0.001 | Specialized: motion, timing changes |
-| color | ~$0.001 | Specialized: color palette shifts |
-| position | ~$0.001 | Specialized: object placement (e.g., enemy spawn point) |
+| Mode | Purpose |
+|------|---------|
+| auto | Pixel diff first; escalate to structural sampling only when needed |
+| pixel | Local pixel comparison; no sampling |
+| structural | General two-image semantic comparison |
+| targeted | Custom semantic question; requires `question` |
+| ui_layout | Specialized alignment and spacing prompt |
+| animation | Specialized motion/timing prompt |
+| color | Specialized palette prompt |
+| position | Specialized object-placement prompt |
+| regression | PASS/FAIL-oriented visual-regression prompt |
 
-**Caching:** Results cached by image hash; same baseline + current = cached result (no LLM cost).
+**Caching:** Semantic results are cached in memory by image and prompt hashes
+for five minutes (bounded to 64 entries). Pixel analysis still runs before the
+semantic-cache lookup.
 
-**Returns:** "IDENTICAL" or structured diff (pixel deltas + LLM analysis).
+**Returns:** A pixel verdict, a combined pixel/semantic result, or an explicit
+degraded result when semantic sampling is unavailable.
 
 ---
 
@@ -349,9 +357,12 @@ before = await get_changes(clear=True)
 await run_playtest(script="...")  # run scenario
 # After: see what changed
 after = await get_changes(clear=False)
-# Log: "HierarchyChanged", "SelectionChanged", etc.
+# Log: "HIERARCHY_CHANGED", "SELECTED:...", "MCP_...", etc.
 ```
 
 ---
 
-**See also:** AI/tools-reference.md (SYSTEM category — session tools), `.claude/skills/playmode-verification.md` (regression patterns), CLAUDE.md § Verification Gates.
+**See also:** `AI/tools-reference.md` (SYSTEM ownership), `AI/testing.md`
+(repository evidence),
+`unity-plugin/ClientSkills/skills/unity-mcp-operations/references/session-and-reuse.md`,
+and `unity-plugin/ClientSkills/skills/unity-testing-verification/SKILL.md`.

@@ -32,7 +32,7 @@ Inspect and modify GameObjects, components, assets, materials, shaders, and UI e
 
 <div class="ubm-feature">
 
-### PlayTest DSL
+### Playtest DSL
 
 Deterministic test workflows with assertions, wait conditions, sweeps, and visual baselines.
 
@@ -42,7 +42,7 @@ Deterministic test workflows with assertions, wait conditions, sweeps, and visua
 
 ### Batch Operations
 
-Group compatible operations into a single call with undo-backed rollback on failure.
+Group compatible operations into a single call, with optional undo-backed rollback on failure.
 
 </div>
 
@@ -100,6 +100,7 @@ Extend with project-specific server tools, Unity commands, chat chips, and hook 
 | Assets | [Asset Tools](tools/assets.md) |
 | Diagnostics | [Diagnostics](tools/diagnostics.md) |
 | Runtime | [Runtime & Playtest](tools/runtime.md) |
+| System | [System & Orchestration](tools/system.md) |
 
 ## Architecture
 
@@ -120,10 +121,10 @@ Extend with project-specific server tools, Unity commands, chat chips, and hook 
 - [Region Selection](features/region-tool.md)
 - [Code Execution](features/code-execution.md)
 - [Skills and Templates](features/session-skills.md)
+- [Reliable Test Runs](testing-reliability.md)
 
 ## Developer Reference
 
 - [Plugin Quick Start](plugins/index.md)
 - [Plugin API Reference](plugins/api-reference.md)
 - [Extending Chat Chip Kinds](chat/extending-chips.md)
-- [UI Toolkit Engineering Guide](plugins/ui-toolkit-best-practices.md)

@@ -33,6 +33,10 @@ namespace UnityMCP.Editor
 
         // All mutations happen on Unity main thread (dispatched by MCPServer).
         private static readonly Dictionary<string, Entry> _commands = new Dictionary<string, Entry>();
+        private static readonly HashSet<string> _navMeshReadActions = new HashSet<string>
+        {
+            "sample", "path", "raycast", "status", "get_settings"
+        };
 
         // True after RegisterAll() completes. volatile: written once on main thread (RegisterAll),
         // read on TCP background thread. Reset by Clear() on each domain reload.
@@ -201,6 +205,50 @@ namespace UnityMCP.Editor
 
         public static bool IsRegistered(string cmd) => _commands.ContainsKey(cmd);
         internal static bool IsMutating(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Mutating;
+
+        /// <summary>
+        /// Returns the effective mutability for one invocation. Most commands use their
+        /// registration-level classification; mixed read/write commands narrow it from args.
+        /// Unknown or unrecognised actions remain conservatively mutating.
+        /// </summary>
+        internal static bool IsMutating(string cmd, string argsJson)
+        {
+            if (!IsMutating(cmd)) return false;
+            if (cmd == "uitk_file")
+            {
+                // ExecUitkFile defaults a missing action to read. Every other action writes,
+                // reverts, or is conservatively treated as a possible external file mutation.
+                var fileAction = JsonHelper.ExtractString(argsJson, "action") ?? "read";
+                return !fileAction.Equals("read", StringComparison.Ordinal);
+            }
+            if (cmd == "navmesh")
+            {
+                // Missing/unknown/case-mismatched actions stay conservatively mutating.
+                var navMeshAction = JsonHelper.ExtractString(argsJson, "action");
+                return navMeshAction == null || !_navMeshReadActions.Contains(navMeshAction);
+            }
+            if (cmd == "wait_until")
+            {
+                // Missing/false only polls. Any other value may stop Play Mode.
+                var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail");
+                return abortOnFail != null && !abortOnFail.Equals("false", StringComparison.Ordinal);
+            }
+            if (cmd == "get_changes")
+            {
+                // ChangeWatcher defaults clear=true; only explicit false preserves its buffer.
+                var clear = JsonHelper.ExtractString(argsJson, "clear");
+                return clear == null || !clear.Equals("false", StringComparison.Ordinal);
+            }
+            if (cmd == "profile")
+            {
+                var profileAction = JsonHelper.ExtractString(argsJson, "action");
+                return profileAction == null ||
+                    (profileAction != "status" && profileAction != "analyze" &&
+                     profileAction != "compare" && profileAction != "list_sessions");
+            }
+            return true;
+        }
+
         internal static bool IsRuntime(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Runtime;
         // Guard-list flags (DRY audit issues-23-29 Cat.1) — single source of truth, travels
         // with the registration. CommandRouter.IsAlwaysAllowed/IsAllowedDuringCompile delegate here.
@@ -212,10 +260,11 @@ namespace UnityMCP.Editor
         // Unregistered commands are treated as "batchable" so they fall through to
         // Validate(), which reports "Unknown command" instead of a misleading
         // "not batchable" error. A REGISTERED command is blocked here if it's async-only
-        // OR marked SpecialDispatch (e.g. screenshot — its Handler is a throwing stub,
-        // the real implementation runs outside CommandRegistry.Execute).
+        // OR marked SpecialDispatch/file-response (e.g. screenshot — its Handler is a
+        // throwing stub), or owns external file effects that cannot join Unity Undo.
         internal static bool IsBatchable(string cmd) =>
-            !_commands.TryGetValue(cmd, out var e) || (e.AsyncHandler == null && !e.SpecialDispatch && e.FileHandler == null);
+            !_commands.TryGetValue(cmd, out var e) ||
+            (cmd != "uitk_file" && e.AsyncHandler == null && !e.SpecialDispatch && e.FileHandler == null);
 
         /// <summary>Read-only view of a command's contract for CommandValidator. Returns false if unregistered.</summary>
         internal static bool TryGetContract(string cmd, out string[] required, out string[] optional, out bool isFreeForm)

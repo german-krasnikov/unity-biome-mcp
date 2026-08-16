@@ -11,7 +11,6 @@ Returns PASS when all enabled gates pass, FAIL at the first gate that fails.
 """
 from __future__ import annotations
 
-import contextlib
 import json
 import re
 
@@ -116,12 +115,22 @@ def _is_tests_pass(result: str) -> bool:
 
 
 def _is_suite_pass(result: str) -> bool:
-    if not result.startswith("SUITE:"):
+    if not result:
         return False
-    m = re.search(r"(\d+)/(\d+)", result)
-    if m:
-        return m.group(1) == m.group(2)
-    return "FAIL" not in result
+    first_line = result.strip().splitlines()[0]
+    match = re.fullmatch(
+        r"SUITE:\s*(\d+)\s*/\s*(\d+)\s+passed\s*\([^)]*\)",
+        first_line,
+        re.IGNORECASE,
+    )
+    if not match:
+        return False
+    passed, total = int(match.group(1)), int(match.group(2))
+    if total <= 0 or passed != total:
+        return False
+    return not re.search(
+        r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b", result, re.IGNORECASE
+    )
 
 
 def _extract_ratio(result: str) -> str:
@@ -148,12 +157,6 @@ def _fail(gate: str, detail: str, skipped: list[str]) -> str:
     if skipped:
         lines.append(f"next gates skipped: {', '.join(skipped)}")
     return "\n".join(lines)
-
-
-async def _stop_play_mode() -> None:
-    """Stop Play Mode before playtests — best-effort."""
-    with contextlib.suppress(Exception):
-        await _send("editor", _args(action="stop"), timeout=10.0)
 
 
 async def verify_after_change(
@@ -243,9 +246,16 @@ async def verify_after_change(
 
     # Gate 5: run_playtest_suite (optional)
     if playtests:
-        if restart_between:
-            await _stop_play_mode()
-        suite_result = await _rt.run_playtest_suite(playtests)
+        try:
+            # The suite owns and verifies the initial clean stop/play transition
+            # when both options are true; do not duplicate a best-effort stop here.
+            suite_result = await _rt.run_playtest_suite(
+                playtests,
+                auto_play=restart_between,
+                restart_between=restart_between,
+            )
+        except Exception as e:
+            return _fail("playtests", f"{type(e).__name__}: {e}", [])
         if _is_suite_pass(suite_result):
             passed.append(f"playtests({_extract_ratio(suite_result)})")
         else:

@@ -52,6 +52,7 @@ nav:
   - Home: index.md
   - Getting Started:
     - getting-started/index.md
+    - Product Comparison: comparison.md
   - Installation:
     - install/index.md
     - AI Skills and Agents: install/ai-skills.md
@@ -82,6 +83,7 @@ nav:
     - Asset Tools: tools/assets.md
     - Runtime & Playtest: tools/runtime.md
     - Diagnostics: tools/diagnostics.md
+    - System & Orchestration: tools/system.md
   - Workflows:
     - features/index.md
     - Tool Decision Guide: features/tool-guide.md
@@ -94,6 +96,7 @@ nav:
     - Region Selection: features/region-tool.md
     - Code Execution: features/code-execution.md
     - Skills & Templates: features/session-skills.md
+    - Test Reliability: testing-reliability.md
   - Chat:
     - chat/index.md
     - Chat Backends: chat/backends.md
@@ -101,13 +104,10 @@ nav:
     - Extending Chip Kinds: chat/extending-chips.md
   - Quality:
     - Tool Schema: tools-schema/index.md
+    - Tool Quality Report: quality/REPORT.md
   - Develop:
     - plugins/index.md
     - Plugin API Reference: plugins/api-reference.md
-    - UI Toolkit Best Practices: plugins/ui-toolkit-best-practices.md
-    - Test Reliability: testing-reliability.md
-    - Product Comparison: comparison.md
-  - Wiki: wiki.md
 
 plugins:
   - search

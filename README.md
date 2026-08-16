@@ -29,7 +29,11 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 
 ## Quick Start
 
-Requirements: Unity 6 (`6000.0` or newer) and [uv](https://docs.astral.sh/uv/). You do not need to install Python separately when using `uvx`.
+Requirements: Unity 6 (`6000.0` or newer), Git 2.14+ on `PATH`, and
+[uv](https://docs.astral.sh/uv/). The MCP server does not need a separate Python
+installation when it runs through `uvx`; optional Codex skill synchronization
+requires Python 3.10 or newer on `PATH`. See the full
+[Getting Started prerequisites](docs/getting-started/index.md#prerequisites).
 
 ### 1. Install uv
 
@@ -202,7 +206,7 @@ The external path is `MCP client -> Python MCP server -> localhost TCP -> Unity 
 
 ## AI Skills
 
-The Unity package includes 11 reusable domain skills and 4 focused agents for
+The Unity package includes 12 reusable domain skills and 4 focused agents for
 Claude Code and Codex. They cover efficient MCP tool selection, batching,
 Unity authoring, playtesting, diagnostics, and evidence-based verification.
 
@@ -216,18 +220,18 @@ Codex synchronization.
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="160 registered MCP tools. Test inventory: 13289 entries: 5309 regular Python, 511 Python stress, 334 live Python, and 7135 Unity source attributes. Unity count source: static source scan. Server package version: v1.36.0.">
+<img src="docs/assets/stats.svg" width="100%" alt="160 registered MCP tools. Test inventory: 13658 entries: 5511 regular Python, 511 Python stress, 334 live Python, and 7302 Unity source attributes. Unity count source: static source scan. Server package version: v1.37.0.">
 <!-- README_STATS_END -->
 
 ## Unity MCP Product Comparison
 
-Verified July 29, 2026:
+Verified August 16, 2026:
 
-- **Unity Biome MCP:** deterministic PlayTest DSL and visual baseline/diff workflows.
-- **Unity MCP Server:** first-party local bridge, connection approval, and multi-client support.
-- **MCP for Unity:** Unity 2021.3 compatibility and authenticated remote hosting.
-- **AI Game Developer:** compiled-player runtime support plus local, HTTP, cloud, and Docker deployment.
-- **MCP Unity:** optional Unity Undo rollback for batch operations and an interactive MCP App dashboard.
+- **Unity Biome MCP:** 160 registered tools, deterministic PlayTest DSL, and visual baseline/diff workflows.
+- **Unity MCP Server 2.17:** first-party local bridge, connection approval, and multi-client support.
+- **MCP for Unity 10.1.2:** Unity 2021.3 compatibility, 47 tool entrypoints, and authenticated remote hosting.
+- **AI Game Developer 0.87.0:** compiled-player runtime plus local, HTTP, cloud, and Docker deployment.
+- **MCP Unity:** 33 listed tools, optional Undo rollback for batches, and an MCP App dashboard.
 
 The detailed matrix cites exact source commits or versioned official documentation
 and records constraints as well as strengths.
@@ -237,7 +241,7 @@ and records constraints as well as strengths.
 ## Recent Changes
 
 <!-- CHANGELOG_START -->
-**Current release: v1.36.0 (2026-08-15).** [Read the full changelog.](CHANGELOG.md)
+**Current release: v1.37.0 (2026-08-16).** [Read the full changelog.](CHANGELOG.md)
 <!-- CHANGELOG_END -->
 
 ## Contributing

@@ -73,6 +73,12 @@ namespace UnityMCP.Editor.Chat
 
         static GameObject Resolve(string reference)
         {
+            // HierarchySerializer emits process-local &base62 references. Resolve that
+            // canonical shape directly; a stale compact ref must not become a path/name.
+            if (!string.IsNullOrEmpty(reference) && reference[0] == WirePrefix.Ref &&
+                RefManager.IsRef(reference))
+                return RefManager.Resolve(reference);
+
             var href = HierarchyReference.Parse(reference);
             var resolver = new HierarchyResolver();
             return resolver.Resolve(href);

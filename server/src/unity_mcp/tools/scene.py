@@ -2,27 +2,46 @@ import os
 import re
 import time
 
+from mcp.server.fastmcp.exceptions import ToolError
+
 from ._annotations import DEL as _DEL
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
 
-_RE_SLOT = re.compile(r'slot_\d+\s+\[\]\s+#')
-_RE_POINT = re.compile(r'point_\d+\s+\[\]\s+#')
-_RE_MESH = re.compile(r'\[MeshFilter,MeshRenderer\]\s+#')
+_OBJECT_REF = r'(?:&[0-9A-Za-z]+|#[^\s]+)'
+_RE_SLOT = re.compile(rf'slot_\d+\s+\[\]\s+{_OBJECT_REF}')
+_RE_POINT = re.compile(rf'point_\d+\s+\[\]\s+{_OBJECT_REF}')
+_RE_MESH = re.compile(rf'\[MeshFilter,MeshRenderer\]\s+{_OBJECT_REF}')
+_RE_TREE_PREFIX = re.compile(r'(?:(?:│  |   ))*(?:├─ |└─ )')
 
 _send = None
 _args = None
 
 
+def _indent_key(line: str) -> tuple[str, int, str]:
+    """Return hierarchy depth identity plus the prefix to preserve in output."""
+    tree = _RE_TREE_PREFIX.match(line)
+    if tree:
+        prefix = tree.group(0)
+        return "tree", len(prefix) // 3, prefix
+    prefix = line[:len(line) - len(line.lstrip())]
+    return "space", len(prefix), prefix
+
+
 def _count_group(lines: list[str], i: int, regex, extra_check=None) -> tuple[str, int]:
     """Count consecutive lines matching regex (with optional extra_check). Returns (indent, count)."""
-    indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
+    indent_kind, indent_depth, indent = _indent_key(lines[i])
     count = 1
     while i + count < len(lines) and regex.search(lines[i + count]):
-        if extra_check and not extra_check(lines[i + count]):
+        candidate = lines[i + count]
+        candidate_kind, candidate_depth, _ = _indent_key(candidate)
+        if ((candidate_kind, candidate_depth) != (indent_kind, indent_depth)
+                or (extra_check and not extra_check(candidate))):
             break
         count += 1
+    # Preserve the final sibling marker (└─ when the compressed run ends a subtree).
+    _, _, indent = _indent_key(lines[i + count - 1])
     return indent, count
 
 
@@ -76,7 +95,8 @@ async def get_hierarchy(depth: int = 2, root: str | None = None, filter: str | N
 async def scene(action: str, path: str | None = None, scene: str | None = None,
                 include_unsaved: bool = True) -> str:
     """Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.
-    path: required for open/save/open_additive/close/set_active/save_copy. list requires no path.
+    path: required for open/open_additive/close/set_active/save_copy. For save,
+    omit it to save to the current path; an untitled scene requires a path.
     scene: save/discard/save_copy target when multiple scenes loaded (identifies by name).
     save_copy: writes current dirty state to path as backup; active scene reference unchanged.
     include_unsaved: always True — save_copy always captures current in-memory state."""
@@ -119,6 +139,15 @@ def _extract_saved_path(result: str) -> str:
     return result.split("Data saved to: ")[-1].strip()
 
 
+def _safe_baseline_name(name: str) -> str:
+    """Reject baseline names that could escape the managed baseline directory."""
+    if not name or "/" in name or "\\" in name or ".." in name:
+        raise ToolError(
+            "Invalid baseline name: use a non-empty identifier without '/', '\\', or '..'"
+        )
+    return name
+
+
 async def save_session() -> str:
     """Save current scene state to .claude/session-context.json for cold-start recovery."""
     _guard_read_only("save_session")
@@ -152,8 +181,9 @@ async def load_session() -> str:
 
 async def screenshot_baseline(name: str = "default", width: int = 640, height: int = 480,
                                camera: str | None = None) -> str:
-    """Save screenshot as baseline for visual regression. name: identifier for this baseline."""
+    """Save screenshot as baseline for visual regression. name: file-safe identifier."""
     import shutil
+    name = _safe_baseline_name(name)
     result = await _send("screenshot", _args(width=width, height=height, camera=camera))
     if "Data saved to:" not in result:
         return result
@@ -175,10 +205,11 @@ async def screenshot_compare(name: str = "default", width: int = 640, height: in
                               camera: str | None = None, mode: str = "auto",
                               question: str | None = None) -> str:
     """Compare current screenshot with saved baseline.
-    mode: auto (pixel->escalate), pixel (free), structural (Haiku general),
-          targeted (needs question=), ui_layout|animation|color|position (specialized).
-    Cached by image hashes. Cost: structural ~$0.005."""
+    mode: auto (pixel->escalate), pixel (local), structural (general),
+          targeted (needs question=), ui_layout|animation|color|position|regression.
+    Model-assisted modes require configured sampling. Cached by image hashes."""
     from ..visual_diff import visual_diff
+    name = _safe_baseline_name(name)
     baseline_path = os.path.join(os.getcwd(), ".claude", "baselines", f"{name}.png")
     if not os.path.exists(baseline_path):
         return f"No baseline '{name}' found. Use screenshot_baseline first."
@@ -200,5 +231,5 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW)(save_session)
     mcp.tool(annotations=_RO)(load_session)
     mcp.tool(annotations=_RW)(screenshot_baseline)
-    mcp.tool(annotations=_RO)(screenshot_compare)
-    mcp.tool(annotations=_RO)(get_changes)
+    mcp.tool(annotations=_RW)(screenshot_compare)
+    mcp.tool(annotations=_RW)(get_changes)

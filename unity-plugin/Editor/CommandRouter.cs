@@ -92,24 +92,25 @@ namespace UnityMCP.Editor
         };
 
         // Returns error response string if a guard blocks the command, null otherwise.
-        private static string CheckGuards(string id, string cmd, string chatMode = "")
+        private static string CheckGuards(string id, string cmd, string argsJson, string chatMode = "")
         {
             if (!CommandRegistry.Ready)
                 return JsonHelper.FormatBusyResponse(id, "Server initializing. Retry in 2s.", 2000);
             if (_PythonOnlyTools.Contains(cmd))
                 return JsonHelper.FormatResponse(id, false, null,
                     $"'{cmd}' is a Python-only tool — use the MCP server (not direct TCP) to call it");
-            var authError = SessionAuthorization.Check(chatMode, cmd);
+            var authError = SessionAuthorization.Check(chatMode, cmd, argsJson);
             if (authError != null)
                 return JsonHelper.FormatResponse(id, false, null, authError);
             if (IsCompiling() && !IsAllowedDuringCompile(cmd))
                 return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
-            if (IsPlayMode() && IsMutatingCommand(cmd) && cmd != "set_parent")
+            if (IsPlayMode() && IsMutatingCommand(cmd, argsJson)
+                && !IsAllowedMutationInPlayMode(cmd, argsJson))
                 return JsonHelper.FormatResponse(id, false, null,
                     "Play mode active — changes will be lost. Stop play mode first.");
             if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))
                 return JsonHelper.FormatResponse(id, false, null, "Not in Play Mode. Use editor(action='play') first.");
-            if (IsReadOnly() && IsMutatingCommand(cmd))
+            if (IsReadOnly() && IsMutatingCommand(cmd, argsJson))
                 return JsonHelper.FormatResponse(id, false, null,
                     $"READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only");
             if (!IsAlwaysAllowed(cmd) && !IsToolEnabledFn(cmd))
@@ -118,7 +119,20 @@ namespace UnityMCP.Editor
         }
 
         // editor excluded: play/stop/select don't corrupt scene data
-        private static bool IsMutatingCommand(string cmd) => CommandRegistry.IsMutating(cmd);
+        private static bool IsMutatingCommand(string cmd, string argsJson) =>
+            CommandRegistry.IsMutating(cmd, argsJson);
+
+        // These mutations intentionally target the live Play Mode context. Keep
+        // this permission separate from read/write classification.
+        internal static bool IsAllowedMutationInPlayMode(string cmd, string argsJson = null)
+        {
+            if (cmd == "set_parent" || cmd == "execute_code" || cmd == "screenshot" ||
+                cmd == "wait_until")
+                return true;
+            if (cmd != "profile") return false;
+            var action = JsonHelper.ExtractString(argsJson, "action");
+            return action == "start" || action == "stop";
+        }
 
         public static string Process(string json)
         {
@@ -143,13 +157,13 @@ namespace UnityMCP.Editor
 
                 var opId = JsonHelper.ExtractString(json, "op_id");
 
-                var guard = CheckGuards(id, cmd);
-                if (guard != null) return guard;
-
                 var argsJson = JsonHelper.ExtractObject(json, "args");
                 argsJson = AliasExpander.ExpandJson(argsJson);  // expand $sigils in args
 
-                bool mutating = IsMutatingCommand(cmd);
+                var guard = CheckGuards(id, cmd, argsJson);
+                if (guard != null) return guard;
+
+                bool mutating = IsMutatingCommand(cmd, argsJson);
                 int groupId = -1;
 
                 if (mutating)
@@ -243,16 +257,18 @@ namespace UnityMCP.Editor
 
                 if (CommandRegistry.HasAsyncHandler(cmd, out var asyncHandler))
                 {
-                    var guard = CheckGuards(id, cmd, chatMode);
-                    if (guard != null) { tcs.TrySetResult(guard); return; }
-                    UndoGroupHelper.SetCommandFallback(cmd);
                     var argsJson = JsonHelper.ExtractObject(json, "args");
                     argsJson = AliasExpander.ExpandJson(argsJson);  // expand $sigils in args
+                    var guard = CheckGuards(id, cmd, argsJson, chatMode);
+                    if (guard != null) { tcs.TrySetResult(guard); return; }
+                    UndoGroupHelper.SetCommandFallback(cmd);
                     asyncHandler(id, argsJson, tcs);
                     return;
                 }
 
-                var syncGuard = CheckGuards(id, cmd, chatMode);
+                var syncArgsJson = JsonHelper.ExtractObject(json, "args");
+                syncArgsJson = AliasExpander.ExpandJson(syncArgsJson);
+                var syncGuard = CheckGuards(id, cmd, syncArgsJson, chatMode);
                 if (syncGuard != null) { tcs.TrySetResult(syncGuard); return; }
                 tcs.TrySetResult(Process(json));
             }

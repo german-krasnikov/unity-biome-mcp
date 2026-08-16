@@ -1,17 +1,18 @@
-# Menu & Editor Chrome (Phase 25 + Pass 2)
+# Menu and Editor Chrome
 
 ## Overview
 
-**Phase 25:** MCP tool for executing and listing Unity Editor menu items (MenuItem).
-
-**Pass 2 (2026-06-03):** Flattened the "Tools/Unity Biome MCP" menu → top-level "MCP/" prefix (priority 0=Chat, 1=Status, 2=Settings). Added MCPStatusBarWidget injection into Editor AppStatusBar via reflection. Extracted MCPActions (Restart, Kill, Reimport) as shared utilities.
+The `menu` MCP tool lists and executes Unity Editor menu items. The plugin also
+adds its own Editor windows and a status-bar control; those UI entry points call
+shared `MCPActions` directly rather than routing back through MCP.
 
 ## Architecture
 
-### Python (server.py)
+### Python (`server/src/unity_mcp/tools/ui.py`)
 ```python
 @mcp.tool(annotations=_RW)
-async def menu(action: str, path: str | None = None) -> str
+async def menu(action: str, path: str | None = None) -> str:
+    ...
 ```
 
 ### C# (MenuHelper.cs)
@@ -20,30 +21,27 @@ async def menu(action: str, path: str | None = None) -> str
 - `ListRoots()` — enumerates File/Edit/Assets/GameObject/Component/Window/Help/Tools
 
 ### CommandRouter
-- `case "menu"` → `ExecMenu(args)` with action switch
-- Added to `IsMutatingCommand` (execute can modify scene)
+- `CommandRouter.Registration.cs` registers `menu` through `CommandRegistry`
+  as mutating because `execute` can change Editor or project state.
+- `ExecMenu(args)` owns the `execute` / `list` action switch and delegates to
+  `MenuHelper`.
 
-### Menu Structure (2026-06-03)
+### Plugin Menu
 
-```
-MCP/ [priority 0 → top of Window menu]
-├── Chat [priority 0] → MCPChatWindow.ShowWindow()
-├── Status [priority 1] → MCPStatusWindow.ShowWindow()
-└── Settings [priority 2] → MCPSettings.ShowWindow()
-
-MCP Status Bar Widget
-├── Injected into Editor AppStatusBar via reflection
-├── Displays state pill: "MCP :{port}" (UP), "MCP ..." (Listen), "MCP off" (Down)
-└── Breathing pulse animation (connected=bright, listening=subdued, down=dimmed)
-```
+Plugin windows are registered under the top-level `🧬MCP/` menu. The exact
+entries are intentionally not duplicated here; use `menu(action="list",
+path="🧬MCP")` or inspect `[MenuItem]` declarations for the current catalog.
+Window titles and the status pill use `BiomeLabel.DisplayName`, which is either
+the emoji or `Biome` according to the Editor preference.
 
 ### Status Bar Widget (MCPStatusBarWidget.cs)
 
 - **Reflection-based injection:** Finds `AppStatusBar` root VE at startup (delayed via `EditorApplication.delayCall` until panel exists)
-- **State polling:** 600ms scheduled tick reads `MCPServer.IsRunning` + `MCPServer.IsClientConnected`
+- **State polling:** 900 ms scheduled tick reads server, client, and chat-backend state
 - **Dynamic label:** Maps state → pill text via MCPStatusModel.GetPill()
-- **Breathing animation:** Opacity toggled every 600ms (up=0.35↔1.0, listen=0.55↔0.85, down=steady 0.55)
-- **Fully defensive:** Try/catch at every reflection step; if AppStatusBar unavailable, retries; logs warnings but never crashes
+- **Breathing animation:** Dot/halo scale and opacity reflect connected, listening, chat-active, and down states
+- **Click menu:** Restart server/relay, reimport, kill current/all/phantom servers, or open Status
+- **Defensive fallback:** Reflection steps are guarded; if `AppStatusBar` is unavailable, the widget retries and logs a warning instead of assuming injection succeeded
 
 ## API
 
@@ -62,7 +60,7 @@ Python-side `editor` command (wraps EditorStateHelper.cs methods):
 | `play` | none | Start play mode |
 | `pause` | none | Toggle pause |
 | `stop` | none | Exit play mode |
-| `select` | `path` (required) | Set active selection to GameObject path |
+| `select` | `path` or comma-separated `paths` | Set one or more selected GameObjects |
 | `project_path` | none | Get project root directory path |
 
 ### Examples
@@ -84,14 +82,19 @@ menu action=list  # lists all root menus
 - `Menu.GetEnabled(path)` — public API, checks if item is enabled
 
 ## Tests
-- Python: `server/tests/test_server_menu.py` (8 tests)
-- C#: `unity-test-project/Assets/Tests/Editor/MCPMenuTests.cs` (10 tests)
+- Python: `server/tests/test_server_menu.py`
+- C#: `unity-test-project/Assets/Tests/Editor/Server/MenuTests.cs` covers menu
+  helper behavior; `unity-plugin/Editor/Tests/BiomeMenuPathTests.cs` covers
+  plugin label and status-menu paths
 
 ## Static Unity Menu Items
 
-**MCPActions.cs** provides shared static methods used by status window and status bar widget:
+**MCPActions.cs** provides shared static methods used by the status window and
+status-bar widget:
 - `Restart()` — Stop + StartAsync
-- `Kill()` / `KillAll()` — Kill MCP server process(es) via lockfile PID
+- `RestartRelay()` — restart the chat relay
+- `KillCurrent()` / `KillAll()` — kill MCP server process(es) via lockfile PID
+- `KillByPort()` / `TerminateByPid()` / `StopAllOnPort()` — targeted multi-server cleanup
 - `Reimport()` — Force plugin reimport + recompile (finds com.unity-biome-mcp.editor asmdef)
 
 These are invoked directly from editor UI without going through MCP protocol.
@@ -101,3 +104,8 @@ These are invoked directly from editor UI without going through MCP protocol.
 - Graceful fallback when internal APIs unavailable
 - `Debug.LogWarning` on startup if reflection fails
 - MCPActions used for UI-driven restarts (not MCP tool-invoked)
+
+## Related
+
+- [`AI/tools-reference.md`](tools-reference.md) — public tool discovery and schemas
+- [`AI/testing.md`](testing.md) — current verification policy

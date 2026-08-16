@@ -11,6 +11,7 @@ namespace UnityMCP.Editor
     internal static partial class PlaytestRunner
     {
         enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, WaitingStable, Done }
+        internal enum StepAdvanceDecision { Continue, JumpToTeardown, AbortRun }
 
         static PlaytestRunner()
         {
@@ -100,15 +101,31 @@ namespace UnityMCP.Editor
             PlaytestStep currentExpanded = null; // VAR-expanded clone of current step
             int failedBeforeStep = 0;           // captured before each step to detect setup failures
 
+            void FinishRun()
+            {
+                EditorApplication.update -= Tick;
+                _isRunning = false;
+                var report = BuildReport(results, passed, failed, testStart);
+                var stateReport = state.BuildReport();
+                if (stateReport != null) report += "\n" + stateReport;
+                tcs.TrySetResult(report);
+            }
+
             void AdvanceStep()
             {
-                int prevFailed = failedBeforeStep; // compare against pre-step snapshot
                 if (CheckStepConsoleErrors(steps[stepIdx], stepIdx, stepStartUtc, results))
                     failed++;
-                bool thisStepFailed = failed > prevFailed;
                 stepIdx++;
-                // If a setup step failed, skip main steps and jump to teardown
-                if (thisStepFailed && setupEndIdx > 0 && stepIdx <= setupEndIdx && stepIdx < teardownStartIdx)
+                var decision = DetermineStepAdvance(
+                    globalAbort, failedBeforeStep, failed, stepIdx, setupEndIdx, teardownStartIdx);
+                if (decision == StepAdvanceDecision.AbortRun)
+                {
+                    EditorApplication.isPlaying = false;
+                    FinishRun();
+                    return;
+                }
+                // Without global fail-fast, a setup failure skips main steps and runs teardown.
+                if (decision == StepAdvanceDecision.JumpToTeardown)
                 {
                     results.Add("--- SETUP FAILED: skipping main steps");
                     stepIdx = teardownStartIdx;
@@ -117,14 +134,7 @@ namespace UnityMCP.Editor
                 currentExpanded = null;
                 phase = Phase.Ready;
                 if (stepIdx >= steps.Count)
-                {
-                    EditorApplication.update -= Tick;
-                    _isRunning = false;
-                    var report = BuildReport(results, passed, failed, testStart);
-                    var stateReport = state.BuildReport();
-                    if (stateReport != null) report += "\n" + stateReport;
-                    tcs.TrySetResult(report);
-                }
+                    FinishRun();
             }
 
             void Tick()
@@ -222,7 +232,7 @@ namespace UnityMCP.Editor
                         if (effectiveTimeout <= 0f) effectiveTimeout = 5f; // guard: SET_DEFAULT_TIMEOUT 0
                         if (now - phaseStart > effectiveTimeout)
                         {
-                            bool abortThis = pollStep.AbortOnFail || globalAbort;
+                            bool abortThis = ShouldStopPlayModeOnPollTimeout(pollStep.AbortOnFail, globalAbort);
                             if (abortThis) EditorApplication.isPlaying = false;
                             string lastVal = "?";
                             try { var (lp, lc, lf) = PlaytestParser.ResolveQuery(pollStep.Query, config); lastVal = ReadValue(lp, lc, lf); } catch { }
@@ -435,6 +445,22 @@ namespace UnityMCP.Editor
         internal static void CompleteRunCleanupForTests() => CompleteRunCleanup();
         // consecutive exceptions during WAIT_UNTIL polling — reset on success or new step
         static int _waitPollErrors;
+
+        internal static StepAdvanceDecision DetermineStepAdvance(
+            bool globalAbort, int failedBeforeStep, int failedAfterStep,
+            int nextStepIndex, int setupEndIndex, int teardownStartIndex)
+        {
+            bool stepFailed = failedAfterStep > failedBeforeStep;
+            if (globalAbort && stepFailed)
+                return StepAdvanceDecision.AbortRun;
+            if (stepFailed && setupEndIndex > 0 &&
+                nextStepIndex <= setupEndIndex && nextStepIndex < teardownStartIndex)
+                return StepAdvanceDecision.JumpToTeardown;
+            return StepAdvanceDecision.Continue;
+        }
+
+        internal static bool ShouldStopPlayModeOnPollTimeout(bool stepAbortOnFail, bool globalAbort)
+            => stepAbortOnFail || globalAbort;
 
         /// <summary>Execute a single synchronous step. Returns true if step completed (phase=Done), false if async.</summary>
         internal static bool ExecuteSyncStep(PlaytestStep step, PlaytestConfig config, List<string> results,

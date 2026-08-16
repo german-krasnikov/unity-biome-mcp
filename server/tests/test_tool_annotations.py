@@ -3,7 +3,8 @@ import pytest
 from typing import Optional
 from mcp.types import ToolAnnotations
 from unity_mcp.tools import objects, scene, asset, ui, connection, runtime
-from unity_mcp.tools import console, testing, editor_control
+from unity_mcp.tools import console, testing, editor_control, screenshot, spatial
+from unity_mcp.tools import metrics_tool, profiling
 
 
 def _get_annotation(module, fn_name: str) -> Optional[ToolAnnotations]:
@@ -83,6 +84,23 @@ def test_run_tests_not_marked_read_only():
     ann = _get_annotation(testing, "run_tests")
     assert ann is not None, "run_tests: no annotation found"
     assert ann.readOnlyHint is not True, "run_tests causes domain reload — readOnlyHint must be False"
+
+
+@pytest.mark.parametrize(
+    "module,name",
+    [
+        (spatial, "navmesh_query"),
+        (screenshot, "screenshot"),
+        (scene, "get_changes"),
+        (scene, "screenshot_compare"),
+        (metrics_tool, "get_metrics"),
+        (profiling, "profile"),
+    ],
+)
+def test_conditionally_or_file_mutating_tools_are_not_read_only(module, name):
+    ann = _get_annotation(module, name)
+    assert ann is not None
+    assert ann.readOnlyHint is not True
 
 
 async def test_retry_safe_cmds_includes_only_readonly_or_idempotent():

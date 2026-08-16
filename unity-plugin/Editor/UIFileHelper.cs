@@ -41,6 +41,18 @@ namespace UnityMCP.Editor
 
         // action: "write" | "create_uxml" | "create_uss"
         public static string WriteUIFile(string assetPath, string action, string content)
+            => WriteUIFile(
+                assetPath,
+                action,
+                content,
+                path => AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(path),
+                path => AssetDatabase.LoadAssetAtPath<StyleSheet>(path));
+
+        // Loader parameters keep post-import failure paths deterministic in tests without
+        // introducing mutable global seams. Production always uses AssetDatabase loaders.
+        internal static string WriteUIFile(string assetPath, string action, string content,
+            Func<string, VisualTreeAsset> loadVisualTreeAsset,
+            Func<string, StyleSheet> loadStyleSheet)
         {
             var abs = ToAbsPath(assetPath, out var err);
             if (err != null) return err;
@@ -60,7 +72,10 @@ namespace UnityMCP.Editor
             if (File.Exists(abs) && NormalizeForComparison(content) == NormalizeForComparison(File.ReadAllText(abs, JsonHelper.Utf8NoBom)))
                 return "no-op: content unchanged";
 
-            BackupFile(abs);
+            // A path recreated after an external deletion must not inherit an old in-memory
+            // backup. On failed validation this invocation owns the new file and removes it.
+            if (isNew) _fileBackups.Remove(abs);
+            else BackupFile(abs);
             Directory.CreateDirectory(Path.GetDirectoryName(abs)!);
             File.WriteAllText(abs, content, JsonHelper.Utf8NoBom); // C4: no BOM; C2: in-place
 
@@ -68,13 +83,18 @@ namespace UnityMCP.Editor
 
             if (isUxml)
             {
-                var valErr = ValidateImportedUxml(abs, assetPath);
+                var valErr = ValidateImportedUxml(
+                    abs, assetPath, isNew, loadVisualTreeAsset);
                 if (valErr != null) return valErr;
                 return $"{warn}ok: {action}\npath: {assetPath}\nvalidated: CloneTree OK{(isNew ? "\nnew-file: true" : "")}";
             }
 
-            var ss = AssetDatabase.LoadAssetAtPath<StyleSheet>(assetPath);
-            if (ss == null) { AutoRevert(abs, assetPath); return "err: USS import failed — auto-reverted."; }
+            var ss = loadStyleSheet(assetPath);
+            if (ss == null)
+            {
+                AutoRevert(abs, assetPath, isNew);
+                return "err: USS import failed — auto-reverted.";
+            }
             return $"{warn}ok: {action}\npath: {assetPath}{(isNew ? "\nnew-file: true" : "")}";
         }
 
@@ -138,8 +158,19 @@ namespace UnityMCP.Editor
                 _fileBackups[absPath] = File.ReadAllText(absPath, JsonHelper.Utf8NoBom);
         }
 
-        internal static void AutoRevert(string absPath, string assetPath)
+        internal static void AutoRevert(string absPath, string assetPath,
+            bool createdThisCall = false)
         {
+            if (createdThisCall)
+            {
+                _fileBackups.Remove(absPath);
+                AssetDatabase.DeleteAsset(assetPath);
+                if (File.Exists(absPath)) File.Delete(absPath);
+                if (File.Exists(absPath + ".meta")) File.Delete(absPath + ".meta");
+                AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
+                return;
+            }
+
             if (!_fileBackups.TryGetValue(absPath, out var backup)) return;
             File.WriteAllText(absPath, backup, JsonHelper.Utf8NoBom);
             AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
@@ -158,11 +189,14 @@ namespace UnityMCP.Editor
             return null;
         }
 
-        internal static string ValidateImportedUxml(string absPath, string assetPath)
+        internal static string ValidateImportedUxml(string absPath, string assetPath,
+            bool createdThisCall = false,
+            Func<string, VisualTreeAsset> loadVisualTreeAsset = null)
         {
-            var vta = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(assetPath);
-            if (vta == null) { AutoRevert(absPath, assetPath); return "err: UXML import failed (asset null) — auto-reverted. Check get_console for [UXML Import Error]."; }
-            if (vta.CloneTree() == null) { AutoRevert(absPath, assetPath); return "err: UXML import failed (CloneTree null) — auto-reverted. Check get_console for [UXML Import Error]."; }
+            loadVisualTreeAsset ??= path => AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(path);
+            var vta = loadVisualTreeAsset(assetPath);
+            if (vta == null) { AutoRevert(absPath, assetPath, createdThisCall); return "err: UXML import failed (asset null) — auto-reverted. Check get_console for [UXML Import Error]."; }
+            if (vta.CloneTree() == null) { AutoRevert(absPath, assetPath, createdThisCall); return "err: UXML import failed (CloneTree null) — auto-reverted. Check get_console for [UXML Import Error]."; }
             return null;
         }
 

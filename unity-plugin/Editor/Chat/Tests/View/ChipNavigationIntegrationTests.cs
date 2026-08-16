@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
 using Object = UnityEngine.Object;
 
@@ -77,6 +78,122 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(go, Selection.activeGameObject);
         }
 
+        [Test]
+        public void HierarchySerializerOutput_CardClick_SelectsAssignedGameObject()
+        {
+            RefManager.Invalidate();
+            RegisterCleanup(RefManager.Invalidate);
+            var go = Make("SerializerCardTarget");
+            var result = HierarchySerializer.SerializeSubtree(go, depth: 0);
+            StringAssert.Contains(" &", result,
+                "Real serializer output must contain its compact reference");
+
+            var card = new HierarchyCard();
+            var chip = new VisualElement();
+            var window = CreateOwnedEditorWindow<HierarchyCardNavigationTestWindow>();
+            window.ShowUtility();
+            window.rootVisualElement.Add(chip);
+            Assert.IsNotNull(chip.panel,
+                "ClickEvent dispatch requires the card to be attached to a UI panel");
+            card.OnUpdate(chip, new ToolCallRecord(
+                "get_hierarchy", "serializer-nav", "{}", resultText: result));
+
+            var row = chip.Q(className: "hierarchy-node");
+            Assert.IsNotNull(row, "HierarchyCard must render the serializer node");
+            Selection.activeGameObject = null;
+            row.SendEvent(new ClickEvent { target = row });
+
+            Assert.AreEqual(go, Selection.activeGameObject,
+                "Serializer reference must flow through parser, card, and navigation");
+        }
+
+        [Test]
+        public void Navigate_StaleCompactRef_DoesNotFallBackToMatchingObjectName()
+        {
+            RefManager.Invalidate();
+            RegisterCleanup(RefManager.Invalidate);
+            Make("&NotAssigned");
+            Selection.activeGameObject = null;
+            LogAssert.ignoreFailingMessages = true;
+
+            _provider.Navigate("&NotAssigned");
+
+            Assert.IsNull(Selection.activeGameObject,
+                "A stale compact reference must not be reinterpreted as a path or fuzzy name");
+        }
+
+        [Test]
+        public void Navigate_RefInvalidatedBeforeNewAssignment_StaleRefDoesNotAliasNewObject()
+        {
+            RefManager.Invalidate();
+            RegisterCleanup(RefManager.Invalidate);
+            var original = Make("OriginalRefTarget");
+            var staleRef = RefManager.Assign(original);
+
+            RefManager.Invalidate();
+            var replacement = Make("ReplacementRefTarget");
+            var replacementRef = RefManager.Assign(replacement);
+
+            Assert.AreNotEqual(staleRef, replacementRef,
+                "Invalidate must not recycle a reference that may still exist in chat output");
+            Selection.activeGameObject = null;
+            LogAssert.ignoreFailingMessages = true;
+
+            _provider.Navigate(staleRef);
+
+            Assert.IsNull(Selection.activeGameObject,
+                "The stale reference must not select the newly assigned object");
+            Assert.AreEqual(replacement, RefManager.Resolve(replacementRef),
+                "The replacement remains reachable through its new reference");
+        }
+
+        [Test]
+        public void CappedResultEndingInPartialRef_DropsLastLineAndKeepsCompleteNavigation()
+        {
+            RefManager.Invalidate();
+            RegisterCleanup(RefManager.Invalidate);
+            var completeTarget = Make("CompleteTarget");
+            var unrelatedTarget = Make("UnrelatedLiveTarget");
+            var completeRef = RefManager.Assign(completeTarget);
+            var livePrefix = RefManager.Assign(unrelatedTarget);
+
+            // stream_transform can cut a longer reference immediately after a prefix
+            // that is itself a valid, live reference. Build that exact 2000-char shape.
+            var fullReferenceBeforeCut = livePrefix + "A";
+            Assert.IsTrue(RefManager.IsRef(fullReferenceBeforeCut));
+            var unterminatedLine = "CutTarget " + livePrefix;
+            int completeNameLength = 2000 - (" " + completeRef + "\n").Length -
+                unterminatedLine.Length;
+            Assert.Greater(completeNameLength, 0);
+            var completeName = new string('S', completeNameLength);
+            var cappedResult = completeName + " " + completeRef + "\n" + unterminatedLine;
+            Assert.AreEqual(2000, cappedResult.Length, "Regression input must hit the relay cap");
+
+            var card = new HierarchyCard();
+            var chip = new VisualElement();
+            var window = CreateOwnedEditorWindow<HierarchyCardNavigationTestWindow>();
+            window.ShowUtility();
+            window.rootVisualElement.Add(chip);
+            Assert.IsNotNull(chip.panel);
+            card.OnUpdate(chip, new ToolCallRecord(
+                "get_hierarchy", "capped-ref", "{}", resultText: cappedResult));
+
+            Assert.AreEqual(1, chip.childCount,
+                "Only the complete newline-terminated hierarchy row may render");
+            var row = chip.Q(className: "hierarchy-node");
+            Assert.IsNotNull(row);
+            Assert.AreEqual(completeName, row.Q<Label>().text,
+                "The complete row before the cut must remain visible");
+            Selection.activeGameObject = null;
+
+            row.SendEvent(new ClickEvent { target = row });
+
+            Assert.AreEqual(completeTarget, Selection.activeGameObject,
+                "The preserved complete row must retain navigation");
+            Assert.AreNotEqual(unrelatedTarget, Selection.activeGameObject,
+                "The unterminated reference prefix must never receive navigation");
+        }
+
         // B5 — leaf-name fuzzy fallback: mismatched parent path → GameObject.Find(leaf) succeeds
         [Test]
         public void Navigate_LeafFuzzyMatch_FindsGO()
@@ -132,5 +249,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var resolved = new HierarchyResolver().Resolve(href);
             Assert.AreEqual(go, resolved, "Round-trip must resolve back to the original GameObject");
         }
+
+        private sealed class HierarchyCardNavigationTestWindow : EditorWindow { }
     }
 }

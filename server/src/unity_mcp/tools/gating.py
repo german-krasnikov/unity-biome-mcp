@@ -51,7 +51,7 @@ TIER1: set[str] = {name for name, spec in _SPECS.items() if spec.core or spec.ti
 _ALL_KNOWN: set[str] = {name for name, spec in _SPECS.items()
                         if spec.category != "_INTERNAL"}
 
-# Python-only tools: have no C# CommandRegistry handler; never sent to Unity.
+# Direct-call tools: exposed through typed MCP wrappers but rejected inside batch.
 _DIRECT_ONLY: frozenset[str] = frozenset(
     name for name, spec in _SPECS.items() if spec.direct_only
 )
@@ -85,7 +85,7 @@ def _rebuild_categories() -> dict[str, set[str]]:
     plugin registered via the fallback branch (documented public API — a
     themed-category registration by a DIFFERENT plugin must not wipe them).
 
-    Also includes the 8 themed keys directly so discover_tools("SCENE") etc. work.
+    Also includes the 10 themed keys directly so discover_tools("SCENE") etc. work.
     """
     rebuilt = {
         alias: set().union(*(set(_THEMED_CATEGORIES[k]) for k in groups))
@@ -214,7 +214,8 @@ def _tool_surface_line(name: str) -> str:
 async def discover_tools(category: str | None = None, enable: bool = True,
                          include_legacy: bool = False, structured: bool = False) -> str:
     """Find and enable tools by category.
-    Canonical categories: SCENE, COMPONENTS, ASSETS, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM.
+    Canonical categories: SCENE, COMPONENTS, ASSETS, UGUI, UITOOLKIT, MEDIA,
+    VERIFY, RUNTIME, TESTS, SYSTEM.
     Legacy aliases (object, animation, etc.) available with include_legacy=True.
     structured=True adds surface/mutability info per tool. enable=False to browse only."""
     if category is None:
@@ -233,6 +234,11 @@ async def discover_tools(category: str | None = None, enable: bool = True,
     names = sorted(CATEGORIES[category])
     if enable:
         _session_enabled.update(CATEGORIES[category])
+    if structured:
+        return "\n".join(
+            [f"Category '{category}':"]
+            + [_tool_surface_line(name) for name in names]
+        )
     return f"Category '{category}': {', '.join(names)}"
 
 

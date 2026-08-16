@@ -7,6 +7,7 @@ MCP-compatible AI clients.
 ## Requirements
 
 - Unity `6000.0` or newer
+- Git 2.14 or newer available on `PATH` for the Git URL install
 - [uv](https://docs.astral.sh/uv/) for the standard server launch
 - An MCP-compatible client or a supported CLI for In-Unity Chat
 
@@ -38,7 +39,7 @@ fails, open **MCP > Status > Diagnose**.
 ## Optional AI Skills
 
 Open **MCP > Install AI Skills** to install the bundled project-local guidance
-for Claude Code and Codex. The package contains 11 domain skills, 4 focused
+for Claude Code and Codex. The package contains 12 domain skills, 4 focused
 agents, and a Claude-to-Codex conversion script.
 
 The installer checks ownership and conflicts before replacement, preserves

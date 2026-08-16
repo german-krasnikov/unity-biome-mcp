@@ -2,7 +2,10 @@
 
 ## Overview
 
-Search GameObject hierarchy by name, component type, tag, layer, and active state. Single MCP tool `search_scene` with Unity-style query syntax: `t:ComponentName tag=Tag layer=0 active=true`. Returns flat list of matches with components and instance IDs.
+Search the GameObject hierarchy by name, component type, tag, layer, and active
+state. The `search_scene` tool uses compact query syntax such as
+`t:ComponentName tag=Tag layer=0 active=true` and returns paths, transient IDs,
+components, and active-state markers.
 
 ## Architecture
 
@@ -20,7 +23,7 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 ### Query Syntax
 
 - `Player` — name substring match (case-insensitive, plain text, no wildcards or `name:` prefix)
-- `t:Rigidbody` — component type (exact class name)
+- `t:Rigidbody` — component type name (case-insensitive; namespace optional)
 - `tag=Player` — Unity tag (exact match)
 - `layer=5` — layer number 0-31
 - `active=true|false` — GameObject.activeSelf
@@ -29,11 +32,11 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 
 One match per line:
 ```
-/Path/To/Object #InstanceID [Component1,Component2] !
+/Path/To/Object $HEX [Component1,Component2] !
 ```
 
 - `/Path/To/Object` — full hierarchy path via `ComponentSerializer.GetPath()` (includes scene prefix in multi-scene: `SceneName:/Path/To/Object`)
-- `#ID` — decimal instance ID
+- `$HEX` — process-local transient object ID; prefer the path in durable examples
 - `[Comp1,Comp2]` — list of component types (excluding Transform, comma-separated, no spaces)
 - `!` — suffix if GameObject inactive
 
@@ -46,10 +49,10 @@ One match per line:
 ## Code Locations
 
 - Python tool: `server/src/unity_mcp/tools/scene.py` (1 tool)
-- C# helper: `unity-plugin/Editor/SearchHelper.cs` (166 lines)
-- C# command: `unity-plugin/Editor/CommandRouter.cs` (`CommandRegistry.Register`)
-- Python tests: `server/tests/test_search.py` (8 tests)
-- C# tests: `unity-test-project/Assets/Tests/Editor/MCPSearchTests.cs` (14 tests)
+- C# helper: `unity-plugin/Editor/SearchHelper.cs`
+- C# registration: `unity-plugin/Editor/CommandRouter.Registration.cs`
+- Python tests: `server/tests/test_search.py` and `test_search_scoped.py`
+- C# tests: `unity-plugin/Editor/Tests/SearchHelperFilterTests.cs` and `SearchHelperScopedTests.cs`
 
 ## MCP Tool
 
@@ -57,7 +60,8 @@ One match per line:
 
 **Parameters:**
 - `query` (required) — search expression
-- `root` (optional) — scope search to subtree (object path); `None` searches whole scene; limits results to children of this object
+- `root` (optional) — scope search to an object and its descendants; `None`
+  searches the whole scene
 - `limit` (optional, default 50) — cap results; `0` = unlimited. Default not sent over wire for token savings.
 - `scene` (optional, multi-scene only) — filter to a single scene by name
 
@@ -66,28 +70,28 @@ Search GameObject hierarchy by name, component, tag, layer, active state.
 ```
 # Search by component
 search_scene(query="t:Rigidbody")
-→ /Player #2000 [Rigidbody,PlayerController]
-  /Enemy #3000 [Rigidbody,EnemyAI] !
+→ /Player $7D0 [Rigidbody,PlayerController]
+  /Enemy $BB8 [Rigidbody,EnemyAI] !
 
 # Search by name (substring, case-insensitive)
 search_scene(query="Player")
-→ /Player #2000 [Rigidbody,PlayerController]
-  /UI/PlayerUI #1302 [Canvas,PlayerUIScript]
+→ /Player $7D0 [Rigidbody,PlayerController]
+  /UI/PlayerUI $516 [Canvas,PlayerUIScript]
 
 # Combine filters
 search_scene(query="t:Light active=true")
-→ /Lights/Directional Light #1200 [Light]
-  /Lights/Spotlight #1201 [Light]
+→ /Lights/Directional Light $4B0 [Light]
+  /Lights/Spotlight $4B1 [Light]
 
 # Scoped search — within subtree, limit results
 search_scene(query="t:Renderer", root="/Level/Cave", limit=10)
-→ /Level/Cave/Rock_1 #4050 [Renderer]
-  /Level/Cave/Rock_2 #4051 [Renderer]
+→ /Level/Cave/Rock_1 $FD2 [Renderer]
+  /Level/Cave/Rock_2 $FD3 [Renderer]
   ...+8 more (limit=10)
 
 # Multi-scene search — filter to specific scene
 search_scene(query="t:Light", scene="Forest")
-→ Forest:/Lights/Directional Light #1200 [Light]
+→ Forest:/Lights/Directional Light $4B0 [Light]
 ```
 
 **Overflow marker:** When results exceed limit, the final line is `...+{N} more (limit={L})` showing remaining count.
@@ -96,27 +100,13 @@ search_scene(query="t:Light", scene="Forest")
 
 **PrefabStage support:** If Prefab Stage is open, search roots in that stage's prefabContentsRoot instead of scenes.
 
-## TDD Scenarios
+## Tests
 
-### Red Phase
-1. **test_search_scene_calls_bridge**: query → sends command
-2. **test_search_scene_empty_query**: empty → error (query required)
-3. **test_search_scene_by_name**: name substring → matches found
-4. **test_search_scene_by_component**: t:Type → objects with component
-5. **test_search_scene_by_tag**: tag=Tag → objects with tag
-6. **test_search_scene_combined_filters**: multiple filters → AND logic
-
-C# tests (14 total, in MCPSearchTests.cs):
-1. **SearchHelper_ByName_FindsMatchingObjects**: fuzzy name match
-2. **SearchHelper_ByComponent_FindsWithComponent**: t: filter
-3. **SearchHelper_CombineFilters_ReturnsIntersection**: AND logic
-4. **SearchHelper_FormatResults_IncludesInactiveMarker**: `!` suffix
-
-### Green Phase
-- Python: 1 tool + bridge call + 8 tests
-- C#: SearchHelper.cs (SearchQuery struct, ParseQuery, Matches, CollectMatches, BuildEmptyHint)
-- C#: CommandRouter `CommandRegistry.Register` for `search_scene`
-
+- `server/tests/test_search.py` covers the base wrapper/query contract.
+- `server/tests/test_search_scoped.py` covers root, limit, and scene scoping.
+- `unity-plugin/Editor/Tests/SearchHelperFilterTests.cs` and
+  `SearchHelperScopedTests.cs` cover C# filtering and traversal.
+- Use [`AI/testing.md`](testing.md) for current commands and acceptance policy.
 ## Review Checklist
 
 - [ ] Security: GameObject.Find safe, no eval, no path traversal
@@ -126,5 +116,5 @@ C# tests (14 total, in MCPSearchTests.cs):
 
 ## Related
 
-- Skill: `.claude/skills/csharp-unity.md` (Editor API)
-- Knowledge: `AI/hierarchy-serializer.md` (formatting)
+- Consumer workflow: `unity-plugin/ClientSkills/skills/unity-scene-authoring/SKILL.md`
+- Knowledge: [`AI/hierarchy-serializer.md`](hierarchy-serializer.md) (paths and reference lifetime)

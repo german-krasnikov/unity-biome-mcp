@@ -23,15 +23,20 @@ Unity Editor Window (MCPChatWindow)
 
 ### Relay Lifecycle
 
-Unity sends semantic `start`, `send`, `events`, `set_mode`, and `kill` commands to the relay. `server/src/unity_mcp/backend_def.py` owns backend-specific argv, environment, authentication, resume, and MCP configuration. Claude keeps one stdin-driven process; Codex, Kimi, Antigravity, and OpenCode are started per turn.
+Unity sends semantic `start`, `send`, `events`, `set_mode`, and `kill` commands
+to the relay. `server/src/unity_mcp/backend_def.py` is the source of truth for
+available backend IDs, argv, environment, authentication, resume, and MCP
+configuration. Lifecycle is capability-driven: stdin-driven backends may stay
+alive, while one-shot backends are started per turn.
 
-The canonical implementation description is `AI/architecture.md` under **Chat Relay System**. Do not add CLI-specific process logic to the Unity window or create another C# backend implementation.
+This document is the canonical detailed relay contract. Do not add CLI-specific
+process logic to the Unity window or create another C# backend implementation.
 
 ### Module Isolation
 
 **C# asmdefs:**
-- `UnityMCP.Editor.Chat.CLI` references `UnityMCP.Editor` and the Wizard assembly.
-- `UnityMCP.Editor.Chat.View` references Core and Chat.CLI.
+- `UnityMCP.Editor.Chat.CLI` references Core, Parsers, and the Wizard assembly.
+- `UnityMCP.Editor.Chat.View` references Core, Parsers, and Chat.CLI.
 - Both are Editor-only and `autoReferenced=false`.
 
 **InternalsVisibleTo:**
@@ -69,43 +74,23 @@ public interface IChatBackend
 
 **Implementation:** `RelayBackend`. Backend-specific lifecycle remains in the Python relay.
 
-**ChatEvent struct:**
-- Normalized event type (ToolCard, ToolResult, UserMessage, Error, Status, Done)
-- Humanized text output (e.g., "Editing /Enemies/Boss" not raw JSON)
-- Raw event data preserved for debugging
+`RelayEventParser` converts relay records into the `ChatEventKind` values defined
+in `Chat/CLI/ChatEvent.cs`. They cover streamed text, tool lifecycle, turn and
+session lifecycle, control requests, errors, reasoning, plans, and capability
+updates. Treat that enum as the exhaustive event contract; consumers should not
+invent display-oriented event kinds.
 
 ## Features
 
-### Annotation Tools & Scene Regions (Plugin v0.18.0+)
+### Scene Regions and Chat Chips
 
-Scene annotations enable domain-specific markup via visual regions (points, polylines, measurements) that become selectable chip references in the chat. Implementation:
-
-**RegionChipProvider.cs** — Implements `IChipKindProvider` for scene region objects:
-- **Detects** region objects by component type (e.g., `PointMarker`, `RegionOutline`)
-- **Renders** regions as graphical overlays in the Scene view (via OnSceneGUI)
-- **Formats** annotations as `[region:path/to/annotation]` chips for send-time context
-- **Navigate** — Click chip → selects region object in Inspector + flashes in Scene view
-- **Ping** — Highlights region, moves focus to Scene view
-- **Context Menu** (`AppendContextMenuItems`)** — Right-click options: "Delete Annotation", "Edit Properties"
-
-**Annotation Types** (extensible via plugin registration):
-- **Point:** Single world-space position (e.g., "place trap here at position X")
-- **Polyline:** Connected line segments (e.g., "patrol path from A to B to C")
-- **Measurement:** Distance/angle between two points (e.g., "gap is 5 units wide")
-
-**Integration with Chat:**
-- Regions created via `create_object component=PointMarker` (MCP tool)
-- Chips render as colored pills matching the annotation kind
-- Send-time context includes region properties (position, length, label)
-- AI can modify via `set_property path=/region/name ...`
-
-**Classes:**
-- `RegionChipProvider.cs` — Chip kind provider for regions
-- `AnnotationMarker.cs` — Base component for all annotation types
-- `PointMarker.cs` — Single-point annotation
-- `PolylineMarker.cs` — Multi-point path
-- `MeasurementMarker.cs` — Distance/angle annotation
-- `RegionRenderer.cs` — OnSceneGUI drawing (handles selection highlight, label rendering)
+The Scene region tools store `RegionSnapshot` values in `SceneRegionState` and
+refer to them with eight-character UUID paths such as `[region:12ab34cd]`.
+`RegionChipProvider` formats those snapshots for chat, frames or highlights the
+region, and removes it from the registry. It deliberately returns `false` from
+`CanHandle`: region chips are created by the region workflow, not by dragging a
+scene component. Rendering and annotation modes belong to the Region Tool
+implementation; see [`region-tool.md`](region-tool.md).
 
 ### Compile Auto-Fix Loop (F5, plugin 0.8.0)
 
@@ -168,19 +153,22 @@ Files: `SlashTemplate.cs` (`[Flags] ContextGather` enum + readonly struct), `Sla
 
 **Optional context-gather** (compile errors / selection / scene state / console) with graceful "(context unavailable)" fallback on throw. KeyDown handler on parent at TrickleDown ensures deterministic trickle-down order: Enter resolves template BEFORE `EnterKeySend` fires.
 
-**Result:** Speed up common workflows with one keystroke; templates provide context automatically. 16 NUnit EditMode tests green. +44 lines MCPChatWindow.uss.
+**Result:** Common workflows start from one keystroke, and templates gather the
+requested context before the turn is sent.
 
 ### Per-Turn Undo Rollback (F6, plugin 0.11.0)
 
 `TurnUndoTracker.cs` + `RestoreButton.cs` wrap each agent turn in a named Unity Undo group. An amber **Restore** button appears after each turn and reverts that turn's scene mutations in one click (native Unity Undo, scene-only). Only the last turn's button is active; older buttons disable when a new turn starts. Resumed-after-domain-reload turns also get a group.
 
-Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI + revert logic), `MCPChatWindow.Undo.cs` (partial, split from MCPChatWindow.cs), `.chat-btn--restore` in `MCPChatWindow.uss`.
+Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI +
+revert logic), the `_undoTracker` field and call sites in `MCPChatWindow*.cs`,
+and `.chat-btn--restore` in `MCPChatWindow.uss`.
 
 **Reusable Primitive:** Built on the public `UndoGroupHelper` core API (`OpenNamedGroup`, `CloseNamedGroup`, `RevertToBeforeGroup`, `CanRevert`). Batch Undo rollback reuses the same mechanism for Undo-recorded Unity changes.
 
-**Tests:** 11 NUnit EditMode tests green (TurnUndoTrackerTests 9/9, RestoreButtonTests 2/2). Core `UndoGroupHelper` has 6 NUnit EditMode tests.
-
-**Result:** Agents can now safely mutate scene state with instant undo per turn. 9 EditMode tests in Chat, 6 EditMode tests in Core.
+**Result:** Scene mutations made during the latest turn can be reverted through
+the same Undo primitive used by batch rollback. Filesystem and other non-Undo
+side effects are outside this guarantee.
 
 ### Inactivity Watchdog for Reasoning Models (v0.30.5, v0.36.0 timeout messaging)
 
@@ -192,13 +180,13 @@ Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI + r
 3. **DrainAndRender() watchdog check** — If no events for longer than timeout while backend is running, emit failure card with context hint, finalize turn, call `OnTurnFailed()` (resets undo group, unlocks reload)
 4. **Resets:** `_lastEventTime` updated on every OnSend (turn start) and every event drain
 
-**v0.36.0: Timeout Context Hint** — Failure message now includes the last tool name executed (tracked via `_lastToolName` in EventHandlers.cs when ToolStart event fires). Format: `[Timed out: no response for 300s (last tool: set_property)]`. Helps debug which operation was in-flight when timeout occurred.
+**Timeout context hint:** The failure message includes the last tool name,
+tracked through `_lastToolName` in `MCPChatWindow.EventHandlers.cs` when a
+`ToolStart` event arrives. This identifies the operation that was in flight.
 
 **Dead-Process Guard (v0.36.0)** — If backend process unexpectedly exits mid-turn (detected via `OnProcessDead()`), appends `[Process exited]` to transcript and finalizes. Surfaces unexpected connection loss (vs. timeout) as distinct error. Also clears turn flags to unlock reload guard.
 
 **Why:** Event silence is not treated as an immediate process death. Relay heartbeat events reset the watchdog without rendering anything, while the configurable inactivity timeout handles a genuinely stalled turn.
-
-**Tests:** 2 new inactivity timeout scenarios, 2 new dead-process guard scenarios.
 
 ### Chat Context Resolution via Chips (F2, plugin 0.9.0)
 
@@ -216,7 +204,8 @@ Files: `TurnUndoTracker.cs` (group lifecycle), `RestoreButton.cs` (button UI + r
 
 **Integration:** Wired into MCPChatWindow's send path via `OnSend` callback + `AttachScreenshot`. Before sending user message, `ChipContextResolver.ResolveAll()` translates each chip to plain text and inlines it. Reuses `SelectionSummary` + `ComponentSerializer` (DRY).
 
-**Result:** Eliminates 1–3 `get_component` round-trips agents used to make on first turn with chipped objects. 12 NUnit EditMode tests green.
+**Result:** The first turn receives useful object context without an initial
+`get_component` round trip.
 
 ### Tool Card Rendering System
 
@@ -287,28 +276,20 @@ Backends that return tool results (Claude via stdin streaming) now propagate the
 - Shows result text (truncated to ~500 chars to avoid spam)
 - Color-coded: green for success, red for error
 
-**Availability:** Only Claude currently emits tool results. OpenCode format is unknown; Codex, Kimi, and Antigravity do not expose result events. Tool cards remain fully functional without results as they already show mutation summaries.
+**Availability:** The current transformers emit tool results for Claude, Codex,
+and OpenCode when their native event contains one. Other backends still render
+tool-call summaries even when their protocol exposes no result event. Keep this
+capability statement aligned with `server/src/unity_mcp/stream_transform.py`.
 
-### Per-Backend Model Selector (v0.30.5)
+### Per-Backend Model Selector
 
-**MCPChatWindow.Selector.cs** provides a dropdown menu for model selection with presets per backend. **Implementation:**
-
-1. **Presets expanded (v0.30.5):** Per-backend model dropdown with hardcoded fallback presets per `BackendKind` (Claude, Codex, Gemini). Users can override via `Library/MCP_ChatBackendConfig.json` ModelPresets field. Custom model ID field always available.
-
-2. **ModelPresets.cs (NEW)** — Extracted from BackendConfig.cs:
-   - `ModelPresetEntry` (label, modelId)
-   - `ModelPresetsConfig` (Claude[], Codex[], Gemini[])
-   - `ModelPresetDefaults.All` — hardcoded fallback presets per BackendKind
-
-3. **BackendConfigStore.GetPresetsForKind(BackendKind)** — Lookup presets in Library/MCP_ChatBackendConfig.json ModelPresets field; if not found, use hardcoded defaults. Allows users to override model lists without recompile.
-
-4. **EditorPrefs persistence** — Selected model saved per backend (`MCPChat.SelectedModel.{Claude|Codex|Gemini}`). Rebuilt on backend switch.
-
-5. **Custom field** — Typing an arbitrary model ID adds it to the dropdown (e.g., "claude-opus-4-8-123-custom").
-
-**Why:** Codex reasoning (o3/o3-pro) requires explicit model selection (no default equivalents). Claude/Gemini update frequently; presets decouple model list from plugin version.
-
-**Tests:** 44 BackendConfigStoreTests (preset lookup, fallback, config merge), 231 ModelSelectorTests (dropdown state, persistence, custom entry, backend switching).
+`MCPChatWindow.Selector.cs` builds the model selector from `ModelPresetDefaults`
+and optional `Library/MCP_ChatBackendConfig.json` overrides. Presets are keyed
+by `BackendKind` (Claude, Codex, Antigravity, Kimi, and OpenCode); every backend
+also accepts a custom model ID. `BackendConfigStore` persists the selected model
+per backend, and Python `BackendDef.build_args()` is the authority for forwarding
+that value to the corresponding CLI. Keep concrete model rosters in
+`ModelPresets.cs`, not in this document.
 
 ### Drag-Drop GameObjects / Assets
 
@@ -423,19 +404,19 @@ unity-plugin/Editor/Chat/
 │   ├── ChipContextResolver.cs        # Resolve object chips to plain text at 3 depths
 │   ├── InlineChipModel.cs, InlineChipData.cs, ChipKindRegistry.cs  # Chip system
 │   ├── BareNameNormalizer.cs, AtMentionNormalizer.cs  # Name normalization
-│   ├── Mentions/                     # @mention system (7 files)
+│   ├── Mentions/                     # @mention discovery and ranking
 │   └── UnityMCP.Editor.Chat.CLI.asmdef
-├── View/                             # UI rendering (50 .cs files)
-│   ├── MCPChatWindow.cs + 19 partials (Drain, FlowBar, Send, Selector, Chips, etc.)
+├── View/                             # UI rendering
+│   ├── MCPChatWindow.cs + focused partials (Drain, FlowBar, Send, Selector, Chips, etc.)
 │   ├── MCPChatWindow.uss             # UIToolkit styling
-│   ├── Annotation/                   # Screenshot annotation overlay (11 files)
-│   ├── Markdown/                     # Markdown rendering + Mermaid (25 files)
-│   ├── Preview/                      # Asset/object preview cards (14 files)
-│   └── Viewers/                      # Specialized content viewers (11 files)
+│   ├── Annotation/                   # Screenshot annotation overlay
+│   ├── Markdown/                     # Markdown rendering + Mermaid
+│   ├── Preview/                      # Asset/object preview cards
+│   └── Viewers/                      # Specialized content viewers
 ├── Tests/
-│   ├── CLI/                          # Backend + chip logic tests (93 files)
-│   │   ├── Helpers/                  # Test utilities (2 files)
-│   │   └── Mentions/                 # @mention tests (7 files)
+│   ├── CLI/                          # Backend + chip logic tests
+│   │   ├── Helpers/                  # Test utilities
+│   │   └── Mentions/                 # @mention tests
 │   └── View/                         # UI rendering tests
 │       └── Helpers/                  # Test utilities
 └── [.meta files omitted]
@@ -443,8 +424,8 @@ unity-plugin/Editor/Chat/
 
 ## Enabling the Feature
 
-Open **MCP > Chat**. Chat is compiled and available without an enable toggle.
-Use **MCP > Settings > Chat Settings** for the inactivity timeout, model
+Open **🧬MCP > Chat**. Chat is compiled and available without an enable toggle.
+Use **🧬MCP > Settings > Chat Settings** for the inactivity timeout, model
 selection, context-chip display, and extension-provided settings. Backend
 binaries must be available on the login-shell `PATH`; stored binary overrides
 are not forwarded by the current relay start request.
@@ -469,7 +450,8 @@ All Unity-side rendering uses `ChatEvent`, transcript models, and plain text rat
 
 Chat tests are split between `unity-plugin/Editor/Chat/Tests/CLI/` for relay protocol and shared models, and `unity-plugin/Editor/Chat/Tests/View/` for UI behavior. Python backend definitions, relay lifecycle, and stream transformers are covered under `server/tests/`.
 
-Run via **Window > TextExecution > Test Runner** when `UNITY_INCLUDE_TESTS` is defined.
+Use [`AI/testing.md`](testing.md) for the current Unity and Python test commands;
+do not hand-maintain suite counts here.
 
 ## Billing / Terms of Service
 
@@ -590,7 +572,6 @@ Two paired changes guarantee the model receives full object/file paths and the U
 ## Known Limitations
 
 - **ChipPath Repaint After Resume:** Object chips are persisted via `PendingTurnState` and restored after domain reload, but the chip strip UI is not repainted. The turn executes with correct context; the visual strip just shows stale paths until the next user message. This is a cosmetic UX issue; the actual turn data is correct.
-- **MCPChatWindow Partials:** MCPChatWindow.cs (284 lines) plus 19 partial files (Drain, FlowBar, Send, Selector, Chips, etc.). Already well-split.
 
 ## Related
 
@@ -598,3 +579,4 @@ Two paired changes guarantee the model receives full object/file paths and the U
 - **TCP Bridge:** `AI/tcp-bridge.md` (4-byte framing, heartbeat, SO_KEEPALIVE)
 - **MCP Server:** `AI/mcp-server.md` (Python _UnstructuredMCP(FastMCP), structured_output=False on all tools, deferred schema loading, plugin system, tool gating)
 - **Changelog:** `CHANGELOG.md` (feature timeline)
+- **Testing:** `AI/testing.md` (current commands and acceptance policy)

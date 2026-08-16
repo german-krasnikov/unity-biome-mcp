@@ -69,9 +69,15 @@ async def spatial_query(action: str, path: str | None = None, target: str | None
     bounds_info: detailed bounds/dimensions of object.
     raycast: cast ray from path/pos to target, returns hits sorted by distance.
     spatial_map: ASCII grid map of objects in XZ plane. cell_size in meters.
-    objects_in_polygon: objects whose XZ pivot is inside polygon. vertices='x1,z1;x2,z2;...' (>=3 pairs). cap=max results (default 50). region_id=optional tag forwarded to Unity (e.g. for named zones)."""
+    objects_in_polygon: objects whose XZ pivot is inside a polygon. Provide either
+    vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id;
+    supplied vertices are always validated. cap=max results (default 50)."""
     if action == "objects_in_polygon":
-        _validate_polygon(vertices)
+        if vertices is None and not region_id:
+            from mcp.server.fastmcp.exceptions import ToolError
+            raise ToolError("vertices or region_id required for objects_in_polygon")
+        if vertices is not None:
+            _validate_polygon(vertices)
     return await _send("spatial_query", _args(
         action=action, path=path, target=target,
         distance=str(distance) if distance is not None else None,

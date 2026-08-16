@@ -9,7 +9,7 @@ namespace UnityMCP.Editor
 {
     internal sealed class PlaytestStepElement : VisualElement
     {
-        readonly EnumField    _typeField;
+        readonly DropdownField _typeField;
         readonly TextField    _descField;
         readonly TextField    _pathField;
         readonly Vector3Field _posField;
@@ -46,10 +46,18 @@ namespace UnityMCP.Editor
                 evt.menu.AppendAction("Duplicate", _ => _onDuplicate?.Invoke(_step));
                 evt.menu.AppendAction("Delete",    _ => _onDelete?.Invoke(_step));
             }));
-            _typeField = new EnumField(StepType.Wait); _typeField.AddToClassList("step-type-field");
+            var typeChoices = new List<string>();
+            foreach (var type in PlaytestDslExporter.SelectableTypes)
+                typeChoices.Add(type.ToString());
+            _typeField = new DropdownField(typeChoices, typeChoices.IndexOf(StepType.Wait.ToString()));
+            _typeField.name = "step-type-field";
+            _typeField.AddToClassList("step-type-field");
             _typeField.RegisterValueChangedCallback(e => {
                 if (!_bound || _step == null) return;
-                _step.type = (StepType)e.newValue; SetTypeClass(_step.type); ShowPanel(_step.type); _onChanged?.Invoke();
+                if (!Enum.TryParse(e.newValue, out StepType selected)
+                    || !PlaytestDslExporter.IsSupportedType(selected)) return;
+                _step.type = selected;
+                SetTypeClass(_step.type); ShowPanel(_step.type); UpdateValidationState(); _onChanged?.Invoke();
             });
             _descField = Tf("step-desc-field");
             _descField.RegisterValueChangedCallback(e => Mut(() => _step.description = e.newValue));
@@ -198,7 +206,7 @@ namespace UnityMCP.Editor
         {
             if (step == null) { Unbind(); return; }
             _step = step; _onChanged = onChanged; _onDuplicate = onDuplicate; _onDelete = onDelete; _bound = true;
-            _typeField.SetValueWithoutNotify(step.type);
+            _typeField.SetValueWithoutNotify(step.type.ToString());
             _descField.SetValueWithoutNotify(step.description ?? "");
             SetTypeClass(step.type); ShowPanel(step.type);
             _pathField.SetValueWithoutNotify(step.path ?? ""); _posField.SetValueWithoutNotify(step.position);

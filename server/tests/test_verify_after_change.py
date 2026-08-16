@@ -124,6 +124,24 @@ def test_test_gate_rejects_legacy_summaries_without_durable_evidence():
     assert not _v._is_tests_pass("10 tests: 8 passed, 0 failed, 2 skipped")
 
 
+@pytest.mark.parametrize("result", [
+    "SUITE: 0/0 passed (0.0s)",
+    "SUITE: no files matched",
+    "SUITE: 1/1 passed (1.0s)\nFAIL hidden failure",
+    "SUITE: 1/1 passed (1.0s)\nPLAYTEST: 1/1 ERROR: reset failed",
+    "SUITE: 1/1",
+    "err: no files",
+])
+def test_playtest_suite_gate_rejects_empty_or_unproven_results(result):
+    assert not _v._is_suite_pass(result)
+
+
+def test_playtest_suite_gate_accepts_nonempty_complete_clean_result():
+    assert _v._is_suite_pass(
+        "SUITE: 2/2 passed (1.0s)\nOK 0.4s a.playtest\nOK 0.6s b.playtest"
+    )
+
+
 @pytest.mark.parametrize("field", [
     "is_terminal",
     "execution_finished",
@@ -312,37 +330,53 @@ async def test_verify_timeout_passed_to_run_tests_wait():
 
 # ── G47: restart_between ──────────────────────────────────────────────────────
 
-_STOP_PLAY = "unity_mcp.tools.verify._stop_play_mode"
-
-
 @pytest.mark.asyncio
-async def test_verify_restart_between_stops_play_before_playtests():
-    """restart_between=True calls _stop_play_mode before playtest suite."""
-    stop_mock = AsyncMock()
+async def test_verify_restart_between_delegates_verified_reset_to_suite():
+    """The runtime suite centrally owns the verified initial and between-file reset."""
+    suite_mock = AsyncMock(return_value="SUITE: 1/1 passed (1.0s)")
     with (
         patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean")),
         patch(_GET_ERRORS, AsyncMock(return_value="")),
-        patch(_STOP_PLAY, stop_mock),
-        patch(_RUN_SUITE, AsyncMock(return_value="SUITE: 1/1 passed (1.0s)")),
+        patch(_RUN_SUITE, suite_mock),
     ):
         result = await _v.verify_after_change(playtests="t.playtest", restart_between=True)
     assert "PASS" in result
-    stop_mock.assert_called_once()
+    suite_mock.assert_awaited_once_with(
+        "t.playtest", auto_play=True, restart_between=True
+    )
 
 
 @pytest.mark.asyncio
-async def test_verify_restart_between_false_no_stop():
-    """restart_between=False (default) must not call _stop_play_mode."""
-    stop_mock = AsyncMock()
+async def test_verify_restart_between_false_forwards_no_lifecycle_ownership():
+    """The default suite call neither auto-starts nor requests isolated restarts."""
+    suite_mock = AsyncMock(return_value="SUITE: 1/1 passed (1.0s)")
     with (
         patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean")),
         patch(_GET_ERRORS, AsyncMock(return_value="")),
-        patch(_STOP_PLAY, stop_mock),
-        patch(_RUN_SUITE, AsyncMock(return_value="SUITE: 1/1 passed (1.0s)")),
+        patch(_RUN_SUITE, suite_mock),
     ):
         result = await _v.verify_after_change(playtests="t.playtest", restart_between=False)
     assert "PASS" in result
-    stop_mock.assert_not_called()
+    suite_mock.assert_awaited_once_with(
+        "t.playtest", auto_play=False, restart_between=False
+    )
+
+
+@pytest.mark.asyncio
+async def test_verify_playtest_suite_exception_returns_fail():
+    suite_mock = AsyncMock(side_effect=ConnectionError("Unity disconnected"))
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_RUN_SUITE, suite_mock),
+    ):
+        result = await _v.verify_after_change(
+            playtests="t.playtest", restart_between=True
+        )
+
+    assert result.startswith("FAIL: playtests gate failed")
+    assert "ConnectionError" in result
+    assert "Unity disconnected" in result
 
 
 # ── P-NEW-3: Overflow gate ────────────────────────────────────────────────────

@@ -142,6 +142,35 @@ async def test_discover_tools_browse_only():
     assert "animation" in result
 
 
+async def test_discover_tools_category_structured_preserves_enable_behavior():
+    from unity_mcp.tools.gating import discover_tools, is_visible, reset
+    reset()
+
+    result = await discover_tools(category="SYSTEM", structured=True)
+
+    assert result.startswith("Category 'SYSTEM':\n")
+    assert "  build" in result
+    assert "surfaces=direct" in next(
+        line for line in result.splitlines() if line.strip().startswith("build")
+    )
+    assert "mutability=write" in next(
+        line for line in result.splitlines() if line.strip().startswith("build")
+    )
+    assert is_visible("build")
+
+
+async def test_discover_tools_category_structured_browse_only_does_not_enable():
+    from unity_mcp.tools.gating import discover_tools, is_visible, reset
+    reset()
+
+    result = await discover_tools(
+        category="SYSTEM", structured=True, enable=False
+    )
+
+    assert "surfaces=direct" in result
+    assert not is_visible("build")
+
+
 # --- TDD: runtime tools in TIER1 ---
 
 def test_runtime_tools_in_tier1():

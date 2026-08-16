@@ -123,8 +123,25 @@ async def test_polygon_region_id_forwarded(mock_bridge):
 
 async def test_polygon_no_vertices_raises_before_send(mock_bridge):
     """Validation runs before TCP send — bridge never called."""
-    with pytest.raises(ToolError, match="vertices required"):
+    with pytest.raises(ToolError, match="vertices or region_id required"):
         await spatial_query(action="objects_in_polygon")
+    mock_bridge.send.assert_not_called()
+
+
+async def test_polygon_region_id_is_an_alternative_source(mock_bridge):
+    await spatial_query(action="objects_in_polygon", region_id="north_forest")
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["region_id"] == "north_forest"
+    assert "vertices" not in sent
+
+
+async def test_polygon_supplied_vertices_are_validated_with_region_id(mock_bridge):
+    with pytest.raises(ToolError, match=">=3 vertices"):
+        await spatial_query(
+            action="objects_in_polygon",
+            vertices="0,0;1,0",
+            region_id="north_forest",
+        )
     mock_bridge.send.assert_not_called()
 
 

@@ -941,11 +941,11 @@ class TestCommittedReadme:
         assert "readme-typing-svg" not in readme
         assert "## Unity MCP Product Comparison" in readme
         assert "(docs/comparison.md)" in readme
-        assert "This July 29, 2026 snapshot" in comparison
+        assert "This August 16, 2026 snapshot" in comparison
         assert "### Unity Biome MCP" in comparison
         assert "Unity Biome MCP v1.2.0" not in comparison
-        assert "Unity MCP Server / Assistant 2.16.0-pre.1" in comparison
-        for snapshot in ("fc70dda", "f6db1c2", "bbfb1c0"):
+        assert "Unity MCP Server / Assistant 2.17.0-pre.1" in comparison
+        for snapshot in ("4ce7dd3", "3a9eb6c", "0e9fdb6"):
             assert snapshot in comparison
         assert "not documented" in comparison.lower()
         assert "quality or coverage score" in comparison

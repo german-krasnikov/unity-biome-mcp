@@ -131,6 +131,31 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains(fullPath, result);
         }
 
+        [Test]
+        public void Process_PlayModeGuard_AllowsScreenshotCapture()
+        {
+            TrackOwnedAsset(AssetFolder);
+            TestPaths.EnsureFolder(AssetFolder);
+            var output = AssetFolder + "/play_guard_capture.png";
+            var fullPath = Path.GetFullPath(output);
+            var savedPlayMode = CommandRouter.IsPlayMode;
+            CommandRouter.IsPlayMode = () => true;
+            try
+            {
+                var result = CommandRouter.Process(
+                    "{\"cmd\":\"screenshot\",\"id\":\"shot-play\",\"args\":" +
+                    "{\"width\":\"16\",\"height\":\"16\",\"output_path\":\"" +
+                    output + "\"}}");
+
+                StringAssert.DoesNotContain("Play mode active", result, result);
+                Assert.IsTrue(File.Exists(fullPath), result);
+            }
+            finally
+            {
+                CommandRouter.IsPlayMode = savedPlayMode;
+            }
+        }
+
         // ── P-317: PNG dimension validation ──────────────────────────────────
 
         [Test]

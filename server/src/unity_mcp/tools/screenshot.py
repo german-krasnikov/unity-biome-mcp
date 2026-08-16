@@ -1,5 +1,5 @@
 """Screenshot capture + optional Haiku description (B2: split from scene.py)."""
-from ._annotations import RO as _RO
+from ._annotations import RW as _RW
 from ._common import bind
 
 _send = None
@@ -63,4 +63,4 @@ async def screenshot(width: int = 640, height: int = 480, camera: str | None = N
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(screenshot)
+    mcp.tool(annotations=_RW)(screenshot)

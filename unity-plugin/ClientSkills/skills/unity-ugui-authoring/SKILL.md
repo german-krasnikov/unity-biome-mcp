@@ -1,45 +1,81 @@
 ---
 name: unity-ugui-authoring
-description: Use when creating or validating Canvas (uGUI) UI, RectTransforms, UI layout, controls, or visual-regression baselines.
+description: Use when creating or validating Canvas (uGUI) UI, RectTransforms, controls, persistent UI events, or visual-regression baselines.
 ---
 
 # Unity uGUI Authoring
 
-> **uGUI skill.** For UI Toolkit (UXML/USS/VisualElement) → `unity-uitoolkit-authoring`.
+For UXML, USS, `UIDocument`, or `VisualElement` work, use
+`unity-uitoolkit-authoring` instead.
 
-If it is not already loaded, read
-`.claude/skills/unity-mcp-operations/SKILL.md` once. This skill covers
-Canvas-based (uGUI) UI exposed by the current MCP tools. It does not cover
-UI Toolkit UXML or USS.
+Read `.claude/skills/unity-mcp-operations/SKILL.md` once if it is not already
+loaded. Enable `UGUI` when these tools are gated.
 
-## Workflow
+## Tool Map
+
+| Tool | Use |
+|---|---|
+| `create_ui` | Create a Canvas, Panel, Button, Text, Image, Toggle, Slider, InputField, or ScrollView |
+| `set_rect` | Set anchors, position, size, pivot, offsets, or World Space depth |
+| `lint_ugui` | Check EventSystem and Canvas GraphicRaycaster requirements |
+| `ui_intent` | Draft a uGUI hierarchy from a template or natural-language intent |
+| `list_events` | Inspect a persistent `UnityEvent` listener after wiring |
+
+`list_events` is shared with component authoring. Resolve the live schema before
+using an unfamiliar parameter.
+
+## Deterministic Workflow
 
 1. Inspect the existing Canvas and hierarchy.
-2. Enable `UGUI` when UI tools are gated.
-3. Create semantic controls with `create_ui`.
-4. Set stable anchors, size, pivot, and offsets with `set_rect`.
-5. Inspect `RectTransform` values.
-6. Validate layout and capture a visual result at the required viewport.
+2. Mark the console.
+3. Create controls with stable names.
+4. Set anchors and constraints before pixel offsets.
+5. Inspect the resulting `RectTransform` fields.
+6. Run `lint_ugui`, verify event listeners, and check the console delta.
+7. Use a screenshot only for layout and appearance acceptance.
 
 ```text
 batch(
   commands="""
-create_ui type=Canvas name=HUD
+create_ui type=Canvas name=HUD render_mode=SSO
 create_ui type=Panel name=StatusPanel parent=/HUD anchor=top-right size=(320,120) color=#202226E6
-create_ui type=Text name=Status parent=/HUD/StatusPanel anchor=stretch text=READY font_size=24
+create_ui type=Text name=Status parent=/HUD/StatusPanel anchor=stretch text=READY font_size=24 font_min=14 font_max=28
 set_rect path=/HUD/StatusPanel/Status anchor=stretch offset_min=(16,12) offset_max=(-16,-12)
-get_component path=/HUD/StatusPanel/Status type=RectTransform
 """,
   on_error="stop",
   atomic=True
 )
+get_component(path="/HUD/StatusPanel/Status", type="RectTransform")
+lint_ugui(root="/HUD")
 ```
 
-## wire_event for uGUI
+`render_mode` accepts `SSO` (Screen Space Overlay, the default), `SSC` (Screen
+Space Camera), or `WorldSpace`. For a World Space Canvas, use `set_rect.pos3` to
+set `anchoredPosition3D`; it takes precedence over `pos`. `font_min` and
+`font_max` enable TextMeshPro autosizing for a Text element.
 
-`wire_event` is the canonical way to connect persistent listeners to uGUI
-controls. Target any serialized `UnityEvent` field on a `Button`, `Toggle`, or
-custom `MonoBehaviour`:
+## Intent Drafts
+
+Use a built-in `hud`, `menu`, `dialog`, or `grid` template when it matches the
+request. Preview first:
+
+```text
+ui_intent(
+  intent="A compact pause menu with resume and quit actions",
+  parent="/HUD",
+  template="menu",
+  dry_run=True
+)
+```
+
+Inspect the returned commands. Run the precise typed calls yourself when names,
+layout values, or event wiring must be exact. An intent result does not prove
+that the layout is usable.
+
+## Persistent Events
+
+`wire_event` connects a serialized `UnityEvent` on a uGUI control or custom
+`MonoBehaviour`. Verify the exact listener with `list_events`:
 
 ```text
 wire_event(
@@ -49,41 +85,25 @@ wire_event(
   target="/GameManager",
   method="OnStartClicked"
 )
+list_events(
+  path="/HUD/StartButton",
+  component="Button",
+  event="onClick"
+)
 ```
 
-Verify the connection with `get_component` and confirm the persistent listener
-is present. `wire_event` requires `EventSystem` in the scene — run `lint_ugui`
-if clicks do not register.
+Use `unwire_event` with an explicit listener index unless clearing the entire
+event is intended. If pointer input fails, `lint_ugui` can identify a missing
+EventSystem or GraphicRaycaster.
 
 ## Rules
 
-- Use anchors and constraints before absolute offsets.
-- Verify long text and narrow viewports.
-- Keep touch targets and dense toolbars appropriate for their audience.
-- Use data inspection for interactability and references; use screenshots for
-  layout and appearance.
-- Establish a baseline only after the intended state is stable.
-- A pixel difference proves that pixels changed, not that behavior is correct.
-
-Bad:
-
-```text
-# INVALID: validate_triggers uses root, not path.
-validate_triggers(path="/HUD")
-```
-
-Good:
-
-```text
-validate_triggers(root="/HUD", min_distance=3)
-```
-
-## Deadly Traps
-
-- `ExecuteEvents` on a UI Toolkit panel does nothing — no error, just silence.
-  Use `ExecuteEvents` only with uGUI objects.
-- uGUI coordinate system is `RectTransform`. UI Toolkit uses `worldBound`
-  (panel-space, y-down) + `RuntimePanelUtils.PanelToScreen`. Do not mix them.
-- `wire_event` works only with serialized `UnityEvent` fields (uGUI/MonoBehaviour).
-  There is no direct UI Toolkit equivalent — use `unity-uitoolkit-authoring` for
-  the bridge pattern.
+- Keep touch targets, text wrapping, and narrow viewports in the acceptance
+  criteria.
+- Inspect interactability, references, and listeners as data; screenshots do
+  not prove them.
+- Establish a visual baseline only after deterministic state checks pass.
+- Do not send uGUI events to a UI Toolkit `VisualElement`. UI Toolkit uses its
+  panel event system and runtime C# callbacks.
+- Do not mix `RectTransform` coordinates with UI Toolkit `worldBound` panel
+  coordinates.

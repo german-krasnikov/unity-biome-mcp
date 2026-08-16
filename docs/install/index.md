@@ -16,7 +16,7 @@ choose the matching client setup below, then return to
 | [Claude Desktop](claude-desktop.md) | Wizard clipboard or global CLI | Not used |
 | [Codex](codex.md) | Project `.codex/config.toml` | Codex backend |
 | [Cursor](cursor.md) | Project `.cursor/mcp.json` | Not used |
-| [Windsurf](windsurf.md) | Project `.windsurf/mcp.json` or global CLI | Not used |
+| [Windsurf](windsurf.md) | Global legacy Cascade `mcp_config.json` | Not used |
 | [VS Code](vscode.md) | Project `.vscode/mcp.json` | Not used |
 | [Kimi](kimi.md) | Global CLI | Kimi backend |
 | [OpenCode](opencode.md) | Global CLI | OpenCode backend |
@@ -29,7 +29,11 @@ configuration, use the canonical
 [Python CLI command](../getting-started/index.md#python-cli-global-configuration)
 with the client key from the matching guide.
 
-Do not copy configuration between clients: Codex uses TOML, VS Code uses a `servers` object, OpenCode uses its own local-server shape, and the remaining supported JSON clients use `mcpServers`.
+Do not copy configuration between clients: Codex uses TOML, VS Code uses a
+`servers` object, OpenCode uses its own local-server shape, and the supported
+JSON clients use `mcpServers`. Windsurf's generated project file is only a
+compatibility artifact; use the global path documented in its guide for legacy
+Cascade.
 
 ## Optional Project Guidance
 

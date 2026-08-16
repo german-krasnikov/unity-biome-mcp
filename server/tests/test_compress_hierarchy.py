@@ -92,3 +92,41 @@ def test_single_slot_not_grouped():
     result = compress_hierarchy(text)
     # Single slot becomes [1x slot]
     assert "slot" in result
+
+
+def test_groups_current_base62_refs():
+    text = "\n".join([
+        "  slot_0  []  &1",
+        "  slot_1  []  &a",
+        "  slot_2  []  &Mo",
+    ])
+    assert "[3x slot]" in compress_hierarchy(text)
+
+
+def test_does_not_group_matches_at_different_indent_levels():
+    text = "\n".join([
+        "  slot_0  []  &1",
+        "    slot_1  []  &2",
+        "  slot_2  []  &3",
+    ])
+    result = compress_hierarchy(text)
+    assert "[3x slot]" not in result
+    assert result.count("[1x slot]") == 3
+
+
+def test_tree_prefix_depth_prevents_parent_child_grouping():
+    text = "\n".join([
+        "├─ slot_0 [] &1",
+        "│  └─ slot_1 [] &2",
+    ])
+    result = compress_hierarchy(text)
+    assert result.splitlines() == ["├─ [1x slot]", "│  └─ [1x slot]"]
+
+
+def test_tree_sibling_group_preserves_final_branch_marker():
+    text = "\n".join([
+        "├─ slot_0 [] &1",
+        "├─ slot_1 [] &2",
+        "└─ slot_2 [] &3",
+    ])
+    assert compress_hierarchy(text) == "└─ [3x slot]"

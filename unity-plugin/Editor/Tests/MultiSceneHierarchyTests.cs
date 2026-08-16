@@ -225,6 +225,53 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void HierarchySummary_SceneFilter_OnlyTargetScene()
+        {
+            CreateIn(_additiveScene, "AdditiveOnly_SummaryFilter");
+            var activeGo = new GameObject("ActiveOnly_SummaryFilter");
+            TrackOwnedObject(activeGo);
+
+            var result = HierarchySerializer.SerializeSummary(scene: _additiveScene.name);
+
+            Assert.That(result, Does.Contain("AdditiveOnly_SummaryFilter"));
+            Assert.That(result, Does.Not.Contain("ActiveOnly_SummaryFilter"));
+            Assert.That(result, Does.Not.Match(@"(?m)^\["),
+                "A single filtered scene must use the same no-header semantics as normal hierarchy output");
+        }
+
+        [Test]
+        public void HierarchySummary_SceneFilter_ScopesDuplicateRoot()
+        {
+            var activeRoot = new GameObject("DuplicateSummaryRoot");
+            TrackOwnedObject(activeRoot);
+            CreateChild(activeRoot, "ActiveSummaryChild");
+            CreateChild(activeRoot, "SecondActiveSummaryChild");
+            var additiveRoot = CreateIn(_additiveScene, "DuplicateSummaryRoot");
+            CreateChild(additiveRoot, "AdditiveSummaryChild");
+
+            var result = HierarchySerializer.SerializeSummary(
+                root: "DuplicateSummaryRoot", scene: _additiveScene.name);
+
+            Assert.That(result, Does.Contain("DuplicateSummaryRoot"));
+            Assert.That(result, Does.Contain("1 children"));
+            Assert.That(result, Does.Not.Contain("2 children"));
+        }
+
+        [Test]
+        public void CommandRouter_GetHierarchySummary_ThreadsSceneFilter()
+        {
+            CreateIn(_additiveScene, "RouterAdditiveSummaryObject");
+            var activeGo = new GameObject("RouterActiveSummaryObject");
+            TrackOwnedObject(activeGo);
+
+            var result = CommandRouter.Process(
+                $"{{\"id\":\"summary-scene\",\"cmd\":\"get_hierarchy\",\"args\":{{\"summary\":\"true\",\"scene\":\"{_additiveScene.name}\"}}}}");
+
+            Assert.That(result, Does.Contain("RouterAdditiveSummaryObject"));
+            Assert.That(result, Does.Not.Contain("RouterActiveSummaryObject"));
+        }
+
+        [Test]
         public void Hierarchy_NoFilter_AllScenes()
         {
             var go = new GameObject("NoFilterObj");

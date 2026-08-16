@@ -68,6 +68,29 @@ async def test_wait_until_abort_on_fail_default_omits(mock_bridge):
     assert "abort_on_fail" not in sent
 
 
+async def test_wait_until_abort_on_fail_blocked_before_tcp_in_read_only(
+    mock_bridge, monkeypatch
+):
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await wait_until("/P", "C", "f", "v", abort_on_fail=True)
+
+    mock_bridge.send.assert_not_awaited()
+
+
+async def test_wait_until_observational_form_allowed_in_read_only(
+    mock_bridge, monkeypatch
+):
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    mock_bridge.send.return_value = {"ok": True, "data": "matched"}
+
+    result = await wait_until("/P", "C", "f", "v", abort_on_fail=False)
+
+    assert result == "matched"
+    mock_bridge.send.assert_awaited_once()
+
+
 async def test_run_playtest_abort_on_fail_passes_arg(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
     await run_playtest("ASSERT_CONSOLE_CLEAN", abort_on_fail=True)
@@ -209,15 +232,24 @@ async def test_run_playtest_suite_restart_between(monkeypatch):
     """restart_between=True issues editor stop+play between files."""
     from unity_mcp.tools import runtime
     calls = []
+    playing = True
 
     async def fake_send(cmd, args, **kw):
+        nonlocal playing
         calls.append((cmd, args))
         if cmd == "list_playtest_files":
             return "a.playtest\nb.playtest"
         if cmd == "run_playtest":
             return "PLAYTEST: 1/1 (0.1s) OK"
         if cmd == "editor":
-            return "state: playing"
+            action = args.get("action")
+            if action == "stop":
+                playing = False
+                return "ok"
+            if action == "play":
+                playing = True
+                return "entered"
+            return f"playing:{playing}\npaused:False\ncompiling:False"
         return "ok"
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -227,6 +259,202 @@ async def test_run_playtest_suite_restart_between(monkeypatch):
     editor_cmds = [(c, a.get("action")) for c, a in calls if c == "editor"]
     assert ("editor", "stop") in editor_cmds
     assert ("editor", "play") in editor_cmds
+
+
+@pytest.mark.asyncio
+async def test_restart_stop_exception_fails_and_does_not_run_next_file(monkeypatch):
+    from unity_mcp.tools import runtime
+    run_paths = []
+
+    async def fake_send(cmd, args, **kw):
+        if cmd == "list_playtest_files":
+            return "a.playtest\nb.playtest\nc.playtest"
+        if cmd == "run_playtest":
+            run_paths.append(args["path"])
+            return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "editor" and args.get("action") == "stop":
+            raise ConnectionError("stop transport failed")
+        raise AssertionError(f"unexpected command: {cmd} {args}")
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    result = await runtime.run_playtest_suite(
+        "Playtests/*.playtest",
+        restart_between=True,
+        stop_after=False,
+        auto_play=False,
+    )
+
+    assert run_paths == ["a.playtest"]
+    assert "SUITE: 1/2" in result
+    assert "restart failed" in result
+    assert "ConnectionError" in result
+
+
+@pytest.mark.asyncio
+async def test_restart_play_exception_fails_and_does_not_run_next_file(monkeypatch):
+    from unity_mcp.tools import runtime
+    run_paths = []
+    playing = True
+
+    async def fake_send(cmd, args, **kw):
+        nonlocal playing
+        if cmd == "list_playtest_files":
+            return "a.playtest\nb.playtest"
+        if cmd == "run_playtest":
+            run_paths.append(args["path"])
+            return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "editor":
+            action = args.get("action")
+            if action == "stop":
+                playing = False
+                return "ok"
+            if action == "state":
+                return f"playing:{playing}\npaused:False\ncompiling:False"
+            if action == "play":
+                raise ConnectionError("play transport failed")
+        raise AssertionError(f"unexpected command: {cmd} {args}")
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    result = await runtime.run_playtest_suite(
+        "Playtests/*.playtest",
+        restart_between=True,
+        stop_after=False,
+        auto_play=False,
+    )
+
+    assert run_paths == ["a.playtest"]
+    assert "SUITE: 1/2" in result
+    assert "restart failed" in result
+    assert "ConnectionError" in result
+
+
+@pytest.mark.asyncio
+async def test_restart_stuck_in_play_mode_fails_without_next_file(monkeypatch):
+    from unity_mcp.tools import runtime
+    run_paths = []
+
+    async def fake_send(cmd, args, **kw):
+        if cmd == "list_playtest_files":
+            return "a.playtest\nb.playtest"
+        if cmd == "run_playtest":
+            run_paths.append(args["path"])
+            return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "editor" and args.get("action") == "stop":
+            return "ok"
+        if cmd == "editor" and args.get("action") == "state":
+            return "playing:True\npaused:False\ncompiling:False"
+        raise AssertionError(f"unexpected command: {cmd} {args}")
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    monkeypatch.setattr(runtime.asyncio, "sleep", AsyncMock(return_value=None))
+
+    result = await runtime.run_playtest_suite(
+        "Playtests/*.playtest",
+        restart_between=True,
+        stop_after=False,
+        auto_play=False,
+    )
+
+    assert run_paths == ["a.playtest"]
+    assert "SUITE: 1/2" in result
+    assert "did not reach Edit Mode" in result
+
+
+@pytest.mark.asyncio
+async def test_initial_auto_play_exception_fails_without_running_file(monkeypatch):
+    from unity_mcp.tools import runtime
+    run_paths = []
+
+    async def fake_send(cmd, args, **kw):
+        if cmd == "editor" and args.get("action") == "state":
+            return "playing:False\npaused:False\ncompiling:False"
+        if cmd == "editor" and args.get("action") == "play":
+            raise ConnectionError("play failed")
+        if cmd == "run_playtest":
+            run_paths.append(args["path"])
+        raise AssertionError(f"unexpected command: {cmd} {args}")
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    result = await runtime.run_playtest_suite(
+        "a.playtest", auto_play=True, stop_after=False
+    )
+
+    assert run_paths == []
+    assert "SUITE: 0/1" in result
+    assert "startup failed" in result
+    assert "ConnectionError" in result
+
+
+@pytest.mark.asyncio
+async def test_initial_auto_play_stuck_state_fails_without_running_file(monkeypatch):
+    from unity_mcp.tools import runtime
+    run_paths = []
+
+    async def fake_send(cmd, args, **kw):
+        if cmd == "editor" and args.get("action") == "state":
+            return "playing:False\npaused:False\ncompiling:False"
+        if cmd == "editor" and args.get("action") == "play":
+            return "entered"
+        if cmd == "run_playtest":
+            run_paths.append(args["path"])
+        raise AssertionError(f"unexpected command: {cmd} {args}")
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    monkeypatch.setattr(runtime.asyncio, "sleep", AsyncMock(return_value=None))
+
+    result = await runtime.run_playtest_suite(
+        "a.playtest", auto_play=True, stop_after=False
+    )
+
+    assert run_paths == []
+    assert "SUITE: 0/1" in result
+    assert "did not reach Play Mode" in result
+
+
+@pytest.mark.asyncio
+async def test_restart_between_auto_play_resets_before_first_file(monkeypatch):
+    from unity_mcp.tools import runtime
+    calls = []
+    playing = True
+
+    async def fake_send(cmd, args, **kw):
+        nonlocal playing
+        calls.append((cmd, args.get("action"), args.get("path")))
+        if cmd == "editor":
+            action = args.get("action")
+            if action == "state":
+                return f"playing:{playing}\npaused:False\ncompiling:False"
+            if action == "stop":
+                playing = False
+                return "ok"
+            if action == "play":
+                playing = True
+                return "entered"
+        if cmd == "run_playtest":
+            return "PLAYTEST: 1/1 (0.1s) OK"
+        raise AssertionError(f"unexpected command: {cmd} {args}")
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    result = await runtime.run_playtest_suite(
+        "a.playtest",
+        auto_play=True,
+        restart_between=True,
+        stop_after=False,
+    )
+
+    assert result.startswith("SUITE: 1/1")
+    actions_before_test = [action for cmd, action, _ in calls if cmd == "editor"]
+    assert actions_before_test == ["state", "stop", "state", "play", "state"]
 
 
 async def test_run_playtest_suite_restart_between_false_no_editor_cmds(monkeypatch):
@@ -263,6 +491,26 @@ async def test_run_playtest_suite_console_err_counts_as_failure(monkeypatch):
     result = await runtime.run_playtest_suite("Playtests/*.playtest", stop_after=False, auto_play=False)
     assert "0/1" in result, f"Expected 0/1 passed, got:\n{result}"
     assert "FAIL" in result, f"Expected FAIL in report, got:\n{result}"
+
+
+@pytest.mark.asyncio
+async def test_run_playtest_suite_zero_total_is_not_a_pass(monkeypatch):
+    from unity_mcp.tools import runtime
+
+    async def fake_send(cmd, args, **kw):
+        if cmd == "run_playtest":
+            return "PLAYTEST: 0/0 (0.0s) OK"
+        raise AssertionError(f"unexpected command: {cmd} {args}")
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    result = await runtime.run_playtest_suite(
+        "a.playtest", stop_after=False, auto_play=False
+    )
+
+    assert result.startswith("SUITE: 0/1")
+    assert "FAIL" in result
 
 
 # ── #17: runtime_snapshot ──────────────────────────────────────────────────────
@@ -366,7 +614,8 @@ async def test_run_playtest_suite_empty_suite_file(tmp_path, monkeypatch):
     monkeypatch.setattr(runtime, "_send", fake_send)
     monkeypatch.setattr(runtime, "_args", dict)
     result = await runtime.run_playtest_suite(suite_path=str(suite), stop_after=False, auto_play=False)
-    assert "no files" in result
+    assert result.startswith("SUITE: 0/0 passed")
+    assert "FAIL suite input: no files" in result
 
 
 @pytest.mark.asyncio

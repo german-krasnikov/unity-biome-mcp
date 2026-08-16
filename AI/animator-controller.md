@@ -1,16 +1,18 @@
-# Feature: Animator Controller Management (Phase 16)
+# Feature: Animator Controller Management
 
 ## Overview
 
-1 consolidated MCP tool `animator` with 6 actions for managing Unity AnimatorController state machines. Handles parameters, states, transitions with conditions, default state. Uses AnimatorControllerSerializer (read) and AnimatorControllerHelper (write).
+The consolidated `animator` MCP tool manages Unity Animator Controller parameters,
+states, transitions, blend trees, layers, defaults, speed, and avatar assignment.
+`AnimatorControllerSerializer` owns reads; `AnimatorControllerHelper` owns mutations.
 
 ## Architecture
 
 ```
 Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Editor Plugin
                             │                              │
-                     animator tool              CommandRouter (1 case)
-                     6 actions                  ExecAnimatorConsolidated
+                     animator tool              CommandRouter.MediaHandlers
+                                                ExecAnimatorConsolidated
                                                          │
                                               ┌──────────┴──────────┐
                                               │                     │
@@ -20,7 +22,10 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 
 ## Tool Parameters
 
-**Python signature:** `animator(action, path, state?, states?, params?, source?, target?, conditions?, duration?, exit_time?, has_exit_time?, type?, name?)`
+**Python signature:** `animator(action, path, state?, states?, params?, source?, target?, conditions?, duration?, exit_time?, has_exit_time?, type?, name?, blend_type?, param?, param_y?, children?, edit_action?, layer?, weight?, blending?, value?, avatar_path?)`
+
+Use `resolve_tool_schema(name="animator")` when generating calls dynamically;
+the source signature is authoritative.
 
 ## Tool Actions
 
@@ -32,11 +37,24 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 | `add_transition` | Add transition with conditions, duration, exit_time | `source`, `target`, `conditions`, `duration`, `exit_time`, `has_exit_time` |
 | `set_default` | Set default state | `state` |
 | `remove` | Remove param/state/transition | `type` (param\|state\|transition), `name`, `source`, `target` |
+| `add_blend_tree` | Create a blend-tree state | `state`, `blend_type`, `param`, `param_y`, `children` |
+| `edit_blend_tree` | Edit children, parameters, or type | `state`, `edit_action`, blend-tree fields |
+| `get_blend_tree` | Read blend-tree details | `state` |
+| `add_layer` | Add a controller layer | `name`, `weight`, `blending` |
+| `remove_layer` | Remove a layer by name or index | `layer` |
+| `rename_layer` | Rename a layer | `layer`, `name` |
+| `set_layer_weight` | Set the default layer weight | `layer`, `weight` |
+| `set_layer_blending` | Set `Override` or `Additive` blending | `layer`, `blending` |
 | `set_state_speed` | Set speed multiplier for a state | `state`, `value` (float) |
 | `update_transition` | Modify existing transition params | `source`, `target`, `duration`, `exit_time`, `has_exit_time` |
-| `set_avatar` | Assign avatar from asset path | `path` (asset path to Avatar) |
-| `rename_state` | Rename an existing state | `name` (old name), `value` (new name) |
-| `rename_param` | Rename an existing parameter | `name` (old name), `value` (new name) |
+| `set_avatar` | Assign an Avatar asset to the target Animator | `avatar_path` |
+| `rename_state` | Rename an existing state | `state` (old), `name` (new) |
+| `rename_param` | Rename an existing parameter | `param` (old), `name` (new) |
+
+`add_state`, `add_transition`, `set_default`, and `update_transition` use a
+zero-based `layer` index (default `0`). Layer CRUD actions accept a layer name
+or index where noted. `remove` operates on the base layer for state/transition
+removal; rename and blend-tree detail helpers search across layers.
 
 ## Condition Format
 
@@ -47,8 +65,8 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 "State!=0"     → NotEqual
 "IsGrounded"   → If (bool/trigger true)
 "!IsGrounded"  → IfNot (bool false)
-"Param==true"  → Greater 0.5 (bool shorthand)
-"Param==false" → Less 0.5 (bool shorthand)
+"Param==true"  → If (bool shorthand)
+"Param==false" → IfNot (bool shorthand)
 ```
 
 Multiple conditions: `"Speed>0.1; IsGrounded"` (AND logic, `;` separator).
@@ -56,7 +74,9 @@ Output format uses ` & ` separator between conditions.
 
 ## Key Implementation Details
 
-- `GetOrCreateController(path)` auto-creates Animator + controller if missing
+- Mutation helpers that call `GetOrCreateController(path)` auto-create an
+  Animator and controller when missing; read/detail/rename actions may require
+  an existing controller
 - Controller saved to `Assets/Animations/{objectName}.controller`
 - `source="*"` maps to `stateMachine.AddAnyStateTransition()` with `canTransitionToSelf=false`
 - States auto-positioned at (300, i*80, 0) for clean layout
@@ -67,14 +87,15 @@ Output format uses ` & ` separator between conditions.
 
 ## Files
 
-| File | Lines | Role |
-|------|-------|------|
-| `unity-plugin/Editor/AnimatorControllerSerializer.cs` | ~187 | Read controller → text |
-| `unity-plugin/Editor/AnimatorControllerHelper.cs` | ~606 | CRUD operations (+215 lines for M7–M10: SetStateSpeed, UpdateTransition, SetAvatar, RenameState, RenameParameter) |
-| `server/src/unity_mcp/tools/animation.py` | ~70 | Python `animator` tool definition |
-| `server/src/unity_mcp/tools/animator_intent_tool.py` | ~127 | NL → DSL → batch (uses sampling) |
-| `unity-plugin/Editor/CommandRouter.cs` | +35 | Routing + action handlers |
-| `server/tests/test_server_animator.py` | 166 | 14 Python tests for M7–M10 actions |
+| File | Role |
+|------|------|
+| `unity-plugin/Editor/AnimatorControllerSerializer.cs` | Controller reads and text serialization |
+| `unity-plugin/Editor/AnimatorControllerHelper.cs` | Controller mutations |
+| `unity-plugin/Editor/CommandRouter.MediaHandlers.cs` | C# action dispatch |
+| `server/src/unity_mcp/tools/animation.py` | Public `animator` wrapper |
+| `server/src/unity_mcp/tools/animator_intent_tool.py` | Intent DSL parsing and batch construction |
+| `server/tests/test_server_animator.py` | Python contract tests |
+| `unity-plugin/Editor/Tests/SerializerTests.cs` and `BlendTreeTests.cs` | C# serializer and blend-tree tests |
 
 ## Text Output Format
 
@@ -109,7 +130,8 @@ transitions:
 
 ## `animator_intent` Tool
 
-Separate NL-to-DSL tool that converts natural language intent into `animator` batch commands via Haiku sampling.
+Separate NL-to-DSL tool that converts natural-language intent into `animator`
+batch commands through the configured sampling service.
 
 **Python signature:** `animator_intent(target, intent, dry_run=False)`
 
@@ -121,4 +143,12 @@ DEFAULT <state>
 TRANS <src> -> <dst> dur=<float> [if <Param><op><value>]
 ```
 
-Pipeline: NL intent → Haiku generates DSL → parse + validate (undeclared state/param checks) → build batch lines → execute via `batch` command. `dry_run=True` returns the plan without executing.
+Pipeline: intent → configured sampling backend generates DSL → parse and validate
+(including undeclared state/parameter checks) → build batch lines → execute through
+`batch`. `dry_run=True` returns the plan without executing it.
+
+## Related
+
+- [`AI/intent-tools.md`](intent-tools.md) — shared intent pipeline and failure semantics
+- `unity-plugin/ClientSkills/skills/unity-animation/SKILL.md` — consumer workflow
+- [`AI/testing.md`](testing.md) — current verification policy

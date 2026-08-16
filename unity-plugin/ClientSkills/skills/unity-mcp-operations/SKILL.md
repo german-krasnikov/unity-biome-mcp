@@ -1,6 +1,6 @@
 ---
 name: unity-mcp-operations
-description: Use when operating Unity Biome MCP: selecting or discovering tools, batching compatible commands, resolving schemas, reducing response size, or recovering a connection or session.
+description: Use when operating Unity Biome MCP to select or discover tools, batch compatible commands, resolve schemas, reduce response size, or recover a connection or session.
 ---
 
 # Unity MCP Operations
@@ -54,8 +54,6 @@ special-dispatch commands are still rejected by Unity's batch executor.
 
 Use `run_tests_wait` for an ordinary interactive NUnit run. It owns the
 correlation state machine; do not reproduce that polling loop in an agent.
-Repository and disposable-worker verification uses the repository's standalone
-`run_unity_tests.py` runner instead.
 
 Direct `run_tests` is low-level nonblocking/recovery API, not the default. It is
 dispatch, not completion. Preserve its `request_id`, `run_id`, and `utf_guid`,
@@ -65,7 +63,7 @@ and accept only the reconciled terminal snapshot returned for that exact
 `get_test_results()` and `get_test_progress()` values are diagnostic only.
 A structured `ok=false` response with a positive numeric `retry` field is a
 temporary initialization state: wait, rediscover the endpoint for the same
-canonical project, and preserve the same request. Once `run_id` exists,
+project, and preserve the same request. Once `run_id` exists,
 re-resolve that request, require the same run, and continue polling it; never
 dispatch again. A bound listener endpoint outranks configured/cached port state.
 
@@ -105,7 +103,7 @@ Use one probe for the current question:
 | Connection, ports, mode, or version | `mcp_status` |
 | Reconnect after transport loss | `reconnect_unity` |
 | Tool enablement state | `get_enabled_tools` |
-| Sync or reload state | `sync_status` |
+| Trigger refresh and wait for the new domain | `sync_unity(timeout=60)` |
 | Current full capability surface | `discover_tools(enable=False)` |
 | Several uncertain contracts | one `resolve_tool_schema(tools="...")` call |
 

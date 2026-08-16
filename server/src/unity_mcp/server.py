@@ -397,7 +397,7 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
         raise ToolError("Server not initialized. Restart MCP server (/mcp).")
     from .tools.tool_specs import _SPECS
     spec = _SPECS.get(cmd)
-    if spec is not None and spec.direct_only:
+    if spec is not None and spec.direct_only and not spec.unity_transport:
         raise ToolError(
             f"'{cmd}' is a Python-only control-plane tool and cannot be sent to Unity. "
             "Call it as a typed MCP tool."

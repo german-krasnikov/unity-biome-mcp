@@ -31,7 +31,6 @@ _TERMINAL_OUTCOMES = {
     "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
 }
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
-_FULL_EDITMODE_EXPECTED_FLOOR = 6000
 
 
 def _new_request_id() -> str:
@@ -197,13 +196,6 @@ def _terminal_snapshot_error(
     expected = snapshot.get("expected_count")
     if isinstance(expected, bool) or not isinstance(expected, int) or expected <= 0:
         return "expected-count-invalid"
-    if (
-        mode == "EditMode"
-        and not filter_name
-        and expected <= _FULL_EDITMODE_EXPECTED_FLOOR
-    ):
-        return "full-editmode-count-below-floor"
-
     for field in (
         "declared_expected_count",
         "readable_manifest_count",

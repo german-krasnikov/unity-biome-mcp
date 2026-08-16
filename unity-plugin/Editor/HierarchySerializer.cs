@@ -78,7 +78,7 @@ namespace UnityMCP.Editor
             return sb.ToString();
         }
 
-        public static string SerializeSummary(string root = null)
+        public static string SerializeSummary(string root = null, string scene = null)
         {
             var sb = new StringBuilder();
             if (string.IsNullOrEmpty(root))
@@ -94,8 +94,8 @@ namespace UnityMCP.Editor
                     return sb.ToString();
                 }
                 var ctx = SceneContext.Current;
-                var scenes = ctx.Scenes;
-                bool multi = ctx.IsMulti;
+                var scenes = string.IsNullOrEmpty(scene) ? ctx.Scenes : ctx.FilterByScene(scene);
+                bool multi = scenes.Count > 1;
                 foreach (var (name, roots) in scenes)
                 {
                     int total = 0;
@@ -112,7 +112,11 @@ namespace UnityMCP.Editor
             }
             else
             {
-                var roots = GetSubtreeRoots(root);
+                // Match Serialize(): a scene parameter scopes an otherwise unqualified root.
+                var qualifiedRoot = (!string.IsNullOrEmpty(scene) && !root.Contains(":/"))
+                    ? $"{scene}:/{root.TrimStart('/')}"
+                    : root;
+                var roots = GetSubtreeRoots(qualifiedRoot);
                 if (roots.Length == 0) { sb.AppendLine($"Not found: {root}"); return sb.ToString(); }
                 var r = roots[0];
                 int desc = CountDescendants(r.transform);

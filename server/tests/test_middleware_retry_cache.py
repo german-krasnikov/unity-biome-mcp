@@ -38,7 +38,7 @@ def test_retry_cache_expires_after_ttl(mw):
 # ── Test 2: read commands never blocked ───────────────────────────────────────
 
 def test_read_commands_never_blocked(mw):
-    """READ cmds always return None regardless of repeat count."""
+    """Reads and repeatable screenshot captures are never retry-blocked."""
     for cmd in ("get_hierarchy", "get_console", "get_compile_errors",
                 "validate_references", "screenshot"):
         for _ in range(20):

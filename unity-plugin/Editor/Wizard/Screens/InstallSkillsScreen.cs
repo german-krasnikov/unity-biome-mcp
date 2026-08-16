@@ -20,6 +20,7 @@ namespace UnityMCP.Editor.Wizard.Screens
         private Button  _installBtn;
         private Button  _finishBtn;
         private Button  _skipBtn;
+        private Button  _backBtn;
         private Label   _statusLabel;
         private ScrollView _logScroll;
         private SkillsInstallAnim _headerAnim;
@@ -28,6 +29,7 @@ namespace UnityMCP.Editor.Wizard.Screens
         private VisualElement _root;
         private int _runGeneration;
         private string _pendingVersion;
+        private bool _syncInProgress;
 
         public string Title => "Install AI Skills";
 
@@ -41,7 +43,7 @@ namespace UnityMCP.Editor.Wizard.Screens
         {
             _root = new VisualElement();
             _root.AddToClassList("wiz-container");
-            _root.RegisterCallback<DetachFromPanelEvent>(_ => StopProcess());
+            _root.RegisterCallback<DetachFromPanelEvent>(_ => DeactivateView());
 
             var title = new Label("Install AI Skills");
             title.AddToClassList("wiz-title");
@@ -79,12 +81,13 @@ namespace UnityMCP.Editor.Wizard.Screens
             _root.Add(spacer);
 
             _installBtn = WizardUI.Primary("Install", RunInstall);
-            _finishBtn = WizardUI.Secondary("Finish", _onDone);
+            _finishBtn = WizardUI.Secondary("Finish", CompleteIfIdle);
             _finishBtn.SetEnabled(false);
             _finishBtn.style.display = DisplayStyle.None;
-            _skipBtn = WizardUI.Quiet("Skip skills", _onDone);
+            _skipBtn = WizardUI.Quiet("Skip skills", CompleteIfIdle);
+            _backBtn = WizardUI.Secondary("← Back", BackIfIdle);
             _root.Add(WizardUI.Navigation(
-                WizardUI.Secondary("← Back", _onBack),
+                _backBtn,
                 _skipBtn,
                 _installBtn,
                 _finishBtn));
@@ -94,7 +97,14 @@ namespace UnityMCP.Editor.Wizard.Screens
 
         public void OnEnter()
         {
-            _headerAnim?.SetWorking(false);
+            _headerAnim?.SetWorking(_syncInProgress);
+            if (_syncInProgress)
+            {
+                SetSyncControls(true);
+                SetStatus("Codex sync is still running...", "warning");
+                return;
+            }
+            SetSyncControls(false);
             _log.Clear();
             if (_logLabel != null) _logLabel.text = "";
 
@@ -121,30 +131,20 @@ namespace UnityMCP.Editor.Wizard.Screens
 
         public void OnExit()
         {
-            StopProcess();
+            DeactivateView();
         }
 
-        private void StopProcess()
+        private void DeactivateView()
         {
             _runGeneration++;
             _headerAnim?.SetWorking(false);
-            _skipBtn?.SetEnabled(true);
-            var process = _proc;
-            _proc = null;
-            if (process == null) return;
-            try
-            {
-                if (!process.HasExited)
-                    process.Kill();
-            }
-            catch { }
-            try { process.Dispose(); } catch { }
         }
 
         // ── Private ───────────────────────────────────────────────────────────
 
         private void RunInstall()
         {
+            if (_syncInProgress) return;
             var src = SkillsInstaller.FindSource();
             if (src == null)
             {
@@ -174,7 +174,13 @@ namespace UnityMCP.Editor.Wizard.Screens
 
             var result = SkillsInstaller.Install(src, projectRoot, _overwriteToggle.value);
             AppendLog($"✓ Copied {result.Copied}, unchanged {result.Skipped}, removed {result.Removed}");
-            foreach (var e in result.Errors) AppendLog("✗ " + e);
+            foreach (var message in result.Errors)
+            {
+                if (message.StartsWith("WARNING: ", StringComparison.Ordinal))
+                    AppendLog("⚠ " + message.Substring("WARNING: ".Length));
+                else
+                    AppendLog("✗ " + message);
+            }
 
             if (result.IsSuccess)
                 _pendingVersion =
@@ -239,10 +245,15 @@ namespace UnityMCP.Editor.Wizard.Screens
 
         private void RunCodexSync(string projectRoot)
         {
+            if (_syncInProgress) return;
+            _syncInProgress = true;
+            SetSyncControls(true);
             var script = Path.Combine(projectRoot, ".codex", "scripts", "claude_to_codex.py");
             if (!File.Exists(script))
             {
+                _syncInProgress = false;
                 _headerAnim?.SetWorking(false);
+                SetSyncControls(false);
                 SetCompletionActions(false);
                 SetStatus("Codex sync script was not found; installation is incomplete.", "error");
                 return;
@@ -253,9 +264,10 @@ namespace UnityMCP.Editor.Wizard.Screens
 #else
             const string exe = "python3";
 #endif
+            int generation = ++_runGeneration;
+            Process proc = null;
             try
             {
-                int generation = ++_runGeneration;
                 var psi = new ProcessStartInfo(exe, $"\"{script}\" --repo-root \"{projectRoot}\" --prune")
                 {
                     UseShellExecute        = false,
@@ -263,7 +275,7 @@ namespace UnityMCP.Editor.Wizard.Screens
                     RedirectStandardError  = true,
                     CreateNoWindow         = true,
                 };
-                var proc = _proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
+                proc = _proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
                 proc.OutputDataReceived += (_, e) =>
                 {
                     if (e.Data == null) return;
@@ -280,32 +292,72 @@ namespace UnityMCP.Editor.Wizard.Screens
                 {
                     int code;
                     try { code = proc.ExitCode; }
-                    catch { return; }
-                    QueueIfActive(generation, () =>
-                    {
-                        AppendLog(code == 0 ? "✓ Codex sync done" : $"✗ Codex exit {code}");
-                        var ready = code == 0 && CompleteVersionWrite(projectRoot);
-                        _headerAnim?.SetWorking(false);
-                        _skipBtn?.SetEnabled(true);
-                        SetCompletionActions(ready);
-                        SetStatus(
-                            ready ? "Skills and Codex sync are ready." :
-                                code == 0 ? "Version marker write failed." : "Codex sync failed.",
-                            ready ? "success" : "error");
-                        ReleaseProcess(proc);
-                    });
+                    catch { code = -1; }
+                    EditorApplication.delayCall += () =>
+                        FinishCodexSync(generation, proc, code, projectRoot);
                 };
-                proc.Start();
+                if (!proc.Start())
+                    throw new InvalidOperationException("Python process did not start.");
+            }
+            catch (Exception ex)
+            {
+                _runGeneration++;
+                _syncInProgress = false;
+                ReleaseProcess(proc);
+                AppendLog("ERROR: " + ex.Message);
+                _headerAnim?.SetWorking(false);
+                SetSyncControls(false);
+                SetCompletionActions(false);
+                SetStatus("Could not start Codex sync.", "error");
+                return;
+            }
+
+            try
+            {
                 proc.BeginOutputReadLine();
                 proc.BeginErrorReadLine();
             }
             catch (Exception ex)
             {
-                StopProcess();
-                AppendLog("ERROR: " + ex.Message);
-                SetCompletionActions(false);
-                SetStatus("Could not start Codex sync.", "error");
+                AppendLog("WARNING: Could not capture all Codex sync output: " + ex.Message);
             }
+        }
+
+        private void FinishCodexSync(
+            int generation,
+            Process process,
+            int code,
+            string projectRoot)
+        {
+            if (!ReferenceEquals(_proc, process))
+            {
+                try { process?.Dispose(); } catch { }
+                return;
+            }
+
+            var canFinalize = generation == _runGeneration && _root?.panel != null;
+            _syncInProgress = false;
+            ReleaseProcess(process);
+            if (!canFinalize)
+            {
+                if (_root?.panel != null)
+                {
+                    SetSyncControls(false);
+                    SetCompletionActions(false);
+                    SetStatus("Codex sync finished after this page was left; install again to finalize.", "warning");
+                }
+                return;
+            }
+
+            AppendLog(code == 0 ? "✓ Codex sync done" : $"✗ Codex exit {code}");
+            var ready = code == 0 && CompleteVersionWrite(projectRoot);
+            _headerAnim?.SetWorking(false);
+            SetSyncControls(false);
+            SetCompletionActions(ready);
+            SetStatus(
+                ready ? "Skills and Codex sync are ready." :
+                    code == 0 ? "Version marker write failed." : "Codex sync failed.",
+                ready ? "success" : "error");
         }
 
         private bool CompleteVersionWrite(string projectRoot)
@@ -355,6 +407,26 @@ namespace UnityMCP.Editor.Wizard.Screens
             }
         }
 
+        private void SetSyncControls(bool syncing)
+        {
+            _installBtn?.SetEnabled(!syncing);
+            if (syncing) _finishBtn?.SetEnabled(false);
+            _skipBtn?.SetEnabled(!syncing);
+            _backBtn?.SetEnabled(!syncing);
+            _overwriteToggle?.SetEnabled(!syncing);
+            _codexToggle?.SetEnabled(!syncing);
+        }
+
+        private void CompleteIfIdle()
+        {
+            if (!_syncInProgress) _onDone?.Invoke();
+        }
+
+        private void BackIfIdle()
+        {
+            if (!_syncInProgress) _onBack?.Invoke();
+        }
+
         private void QueueIfActive(int generation, Action action)
         {
             EditorApplication.delayCall += () =>
@@ -367,6 +439,7 @@ namespace UnityMCP.Editor.Wizard.Screens
 
         private void ReleaseProcess(Process process)
         {
+            if (process == null) return;
             if (!ReferenceEquals(_proc, process)) return;
             _proc = null;
             try { process.Dispose(); } catch { }

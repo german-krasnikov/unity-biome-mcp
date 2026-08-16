@@ -40,7 +40,8 @@ def get_profile(feature: str) -> LlmProfile:
     base = _overrides.get(feature) or _DEFAULTS.get(feature) or LlmProfile()
     if env_model:
         return LlmProfile(model=env_model, max_turns=base.max_turns,
-                          timeout=base.timeout, max_tokens=base.max_tokens)
+                          timeout=base.timeout, max_tokens=base.max_tokens,
+                          backend=base.backend)
     return base
 
 

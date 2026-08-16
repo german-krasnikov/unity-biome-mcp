@@ -1,14 +1,16 @@
-# Feature: Shader Management (Phase 20)
+# Shader Management
 
 ## Overview
-Consolidated `shader` MCP tool with 7 actions for ShaderLab code shaders, Shader Graph, and material property management.
+The consolidated `shader` MCP tool reads and authors ShaderLab and Shader Graph
+assets. Material assets are managed by the separate `material` tool.
 
 ## Architecture (for Architect)
 - **ShaderSerializer** — reads shader/material properties via Unity API (`Shader.GetPropertyCount/Name/Type`)
 - **ShaderHelper** — creates .shader files from presets (unlit/lit/transparent) or custom code, sets material properties with Undo
 - **ShaderGraphHelper** — reads/creates/edits .shadergraph files; uses Unity API for compiled info, raw file parsing for graph structure (no public API exists)
 - **CommandRouter** — routes `shader` command to appropriate helper based on `action` field
-- All 7 actions consolidated into single MCP tool with 18 parameters
+- `server/src/unity_mcp/tools/ui.py` is the public signature source;
+  `CommandRouter.MediaHandlers.cs` is the C# action source.
 
 ## Implementation Notes (for Developer)
 - **Shader Graph has NO public C# API** for graph structure — must parse MultiJson format directly
@@ -34,9 +36,12 @@ Consolidated `shader` MCP tool with 7 actions for ShaderLab code shaders, Shader
 | graph_create | ShaderGraphHelper | Create .shadergraph from Unity template |
 | graph_node | ShaderGraphHelper | Add/remove node in .shadergraph |
 | graph_edge | ShaderGraphHelper | Add/remove edge in .shadergraph |
-| graph_set_value | ShaderGraphHelper.Mutations | Set input value on a Shader Graph node by node name + port name |
-| graph_connect | ShaderGraphHelper.Mutations | Connect two ports in a Shader Graph (source nodeId/port → target nodeId/port) |
-| graph_add_node | ShaderGraphHelper.Mutations | Add a new node of specified type to a Shader Graph |
+| graph_add_property | ShaderGraphHelper | Add a graph property |
+| graph_remove_property | ShaderGraphHelper | Remove a graph property |
+| graph_rename_property | ShaderGraphHelper | Rename a graph property |
+| graph_get_layout | ShaderGraphHelper | Read node positions |
+| graph_set_layout | ShaderGraphHelper | Apply explicit node positions |
+| graph_auto_layout | ShaderGraphHelper | Arrange nodes by data flow |
 
 ### Material Tool (MaterialHelper)
 | Action | Description |
@@ -47,15 +52,21 @@ Consolidated `shader` MCP tool with 7 actions for ShaderLab code shaders, Shader
 | set_fields | Batch set multiple properties in one call (`\n`-separated `prop=value` pairs) |
 | copy | Copy material to new asset (with property preservation) |
 | list_properties | Enumerate all properties of a material |
+| list_slots | List renderer material slots for a scene object |
 | list_shaders | List available shaders with optional name filter |
 | get_errors | Return compilation errors for a shader asset |
+
+For `material(action="set")`, `target=shared|instance|asset` controls mutation
+ownership; the default is `shared`. Use `resolve_tool_schema` for conditional
+parameters instead of duplicating the full signature here.
 
 ## Code Locations
 - Python: `server/src/unity_mcp/tools/ui.py` (shader tool)
 - C#: `unity-plugin/Editor/ShaderSerializer.cs`, `ShaderHelper.cs`, `ShaderGraphHelper.cs`, `ShaderGraphHelper.Mutations.cs`
 - C# Material: `unity-plugin/Editor/MaterialHelper.cs`
 - Router: `unity-plugin/Editor/CommandRouter.MediaHandlers.cs`
-- Tests: `server/tests/test_server_shader.py`, `server/tests/test_server_material.py`
+- Tests: `server/tests/test_server_shader.py`, `server/tests/test_server_material.py`,
+  and `unity-plugin/Editor/Tests/ShaderGraphLayoutTests.cs`
 
 ## Review Checklist (for Reviewer)
 - [ ] Security: no arbitrary file writes outside Assets/
@@ -64,5 +75,6 @@ Consolidated `shader` MCP tool with 7 actions for ShaderLab code shaders, Shader
 - [ ] Edge cases: URP vs Standard pipeline, missing Shader Graph package, invalid presets
 
 ## Related
-- Skill: `.claude/skills/csharp-unity.md`
-- Knowledge: `AI/architecture.md`
+- Consumer workflow: `unity-plugin/ClientSkills/skills/unity-materials-shaders/SKILL.md`
+- Knowledge: [`AI/architecture.md`](architecture.md)
+- Testing: [`AI/testing.md`](testing.md)

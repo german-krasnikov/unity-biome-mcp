@@ -37,6 +37,15 @@ async def test_non_direct_only_cmd_passes_through():
     bridge.send.assert_called_once()
 
 
+async def test_direct_only_unity_wrapper_passes_through():
+    """Typed-only Unity wrappers are blocked from batch, not from their transport."""
+    bridge = _make_bridge()
+    slot = _make_slot(bridge)
+    with patch("unity_mcp.server.slot", slot):
+        await _send_raw("run_tests", {"request_id": "req-1"})
+    bridge.send.assert_called_once()
+
+
 async def test_batch_passes_through():
     """batch is not direct_only — must reach the bridge."""
     bridge = _make_bridge()

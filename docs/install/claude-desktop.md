@@ -24,7 +24,9 @@ Claude Desktop does not use one of the generated project-local files. Choose one
 
 ### Python CLI
 
-Use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `claude-desktop`. The packaged CLI writes:
+Use the [global configuration command](../getting-started/index.md#python-cli-global-configuration)
+with client key `claude-desktop`. The packaged CLI writes the platform path
+listed below.
 
 ### Configuration files
 

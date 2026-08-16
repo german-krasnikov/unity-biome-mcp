@@ -264,7 +264,96 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(hadErrors, "AssertConsoleClean step should not count as console error");
         }
 
-        // ── EvalCompound short-circuit ────────────────────────────────────────
+        // ── Abort-on-fail advance policy ─────────────────────────────────────
+
+        [Test]
+        public void AdvanceDecision_GlobalAbortAfterOrdinaryFailedStep_AbortsRun()
+        {
+            var go = new GameObject("AbortPolicyTarget");
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.Assert,
+                    Query = "/AbortPolicyTarget|activeSelf",
+                    Op = "==",
+                    Value = "false"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+
+                PlaytestRunner.ExecuteSyncStep(
+                    step, null, results, ref passed, ref failed, stepIdx: 0);
+                var decision = PlaytestRunner.DetermineStepAdvance(
+                    globalAbort: true, failedBeforeStep: 0, failedAfterStep: failed,
+                    nextStepIndex: 1, setupEndIndex: 0, teardownStartIndex: 2);
+
+                Assert.AreEqual(1, failed);
+                StringAssert.Contains("FAIL", results[0]);
+                Assert.AreEqual(PlaytestRunner.StepAdvanceDecision.AbortRun, decision);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        [UnityMCP.Editor.Testing.SkipOnWindows("DateTime.Now low resolution on Windows causes timestamp filter to exclude injected entries")]
+        public void AdvanceDecision_GlobalAbortAfterConsoleFailure_AbortsRun()
+        {
+            var before = DateTime.Now;
+            ConsoleCapture.InjectForTest("failure raised during otherwise successful step", LogType.Error);
+            var step = new PlaytestStep { Type = StepType.Log };
+            var results = new List<string>();
+            int failed = 0;
+
+            if (PlaytestRunner.CheckStepConsoleErrors(step, 0, before, results))
+                failed++;
+            var decision = PlaytestRunner.DetermineStepAdvance(
+                globalAbort: true, failedBeforeStep: 0, failedAfterStep: failed,
+                nextStepIndex: 1, setupEndIndex: 0, teardownStartIndex: 2);
+
+            Assert.AreEqual(1, failed);
+            StringAssert.Contains("CONSOLE_ERR", results[0]);
+            Assert.AreEqual(PlaytestRunner.StepAdvanceDecision.AbortRun, decision);
+        }
+
+        [Test]
+        public void AdvanceDecision_GlobalAbortTakesPrecedenceOverTeardownRecovery()
+        {
+            var withoutGlobalAbort = PlaytestRunner.DetermineStepAdvance(
+                globalAbort: false, failedBeforeStep: 0, failedAfterStep: 1,
+                nextStepIndex: 1, setupEndIndex: 1, teardownStartIndex: 2);
+            var withGlobalAbort = PlaytestRunner.DetermineStepAdvance(
+                globalAbort: true, failedBeforeStep: 0, failedAfterStep: 1,
+                nextStepIndex: 1, setupEndIndex: 1, teardownStartIndex: 2);
+
+            Assert.AreEqual(
+                PlaytestRunner.StepAdvanceDecision.JumpToTeardown, withoutGlobalAbort,
+                "Default setup failure behavior must still run teardown");
+            Assert.AreEqual(
+                PlaytestRunner.StepAdvanceDecision.AbortRun, withGlobalAbort,
+                "Global fail-fast must skip teardown as well as main steps");
+        }
+
+        [Test]
+        public void PerStepTimeoutAbort_StopsPlayModeWithoutEnablingGlobalFailFast()
+        {
+            var step = PlaytestParser.Parse(
+                "WAIT_UNTIL /P|H|v > 0 TIMEOUT 5 ABORT")[0];
+
+            Assert.IsTrue(PlaytestRunner.ShouldStopPlayModeOnPollTimeout(
+                step.AbortOnFail, globalAbort: false));
+            Assert.AreEqual(
+                PlaytestRunner.StepAdvanceDecision.Continue,
+                PlaytestRunner.DetermineStepAdvance(
+                    globalAbort: false, failedBeforeStep: 0, failedAfterStep: 1,
+                    nextStepIndex: 1, setupEndIndex: 0, teardownStartIndex: 2),
+                "Per-step ABORT stops Play Mode through the timeout path; it must not become a global policy");
+        }
+
+        // ── EvalCompound short-circuit
 
         [Test]
         public void EvalCompound_And_PrimaryFalse_ShortCircuitsWithoutCallingReadFn()

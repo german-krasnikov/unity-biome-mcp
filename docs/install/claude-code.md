@@ -5,7 +5,7 @@ Prerequisite: complete the
 
 ## Install and Sign In
 
-Install Claude Code using the [official setup guide](https://docs.anthropic.com/en/docs/claude-code/getting-started), then run:
+Install Claude Code using the [official setup guide](https://code.claude.com/docs/en/setup), then run:
 
 ```bash
 claude

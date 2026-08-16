@@ -5,7 +5,8 @@ Prerequisite: complete the
 
 ## Install and Sign In
 
-Install Codex and complete its first-run sign-in using the [official Codex CLI guide](https://learn.chatgpt.com/docs/codex/cli):
+Install Codex and complete its first-run sign-in using the
+[official Codex CLI guide](https://developers.openai.com/codex/cli):
 
 ```bash
 codex
@@ -13,13 +14,28 @@ codex
 
 ## External MCP Client
 
-Unity Biome MCP creates `.codex/config.toml` in the Unity project. Restart Codex
-after Unity creates or updates this file, open Codex from that project, and run
-the [first connection check](../getting-started/index.md#3-verify-the-first-connection).
+Unity Biome MCP creates `.codex/config.toml` in the Unity project. Codex loads
+project-scoped MCP configuration only for a trusted project, so review the
+generated command before trusting the checkout. Restart Codex after Unity
+creates or updates the file, open Codex from that project, and run:
+
+```bash
+codex mcp list
+```
+
+Confirm that `unity-biome-mcp` is listed, then run the
+[first connection check](../getting-started/index.md#3-verify-the-first-connection).
+Inside an interactive Codex session, `/mcp` shows the same connection and tool
+status.
 
 Codex uses TOML. Do not paste the standard `mcpServers` JSON into `config.toml`.
 
 For user-level configuration instead, use the [global configuration command](../getting-started/index.md#python-cli-global-configuration) with client key `codex`. It writes `~/.codex/config.toml`.
+
+Codex's ChatGPT desktop app, CLI, and IDE extension share the Codex-host MCP
+configuration. See the
+[official Codex MCP guide](https://developers.openai.com/codex/mcp/) for current
+client behavior; use this guide for the Unity-generated entry.
 
 For optional project-local skills and generated Codex agents, follow
 [Install AI Skills and Agents](ai-skills.md). The guide explains ownership
@@ -40,5 +56,5 @@ session behavior.
 | Symptom | Action |
 |---|---|
 | Codex is not found | Make `codex` available on the login-shell `PATH`, then restart Unity |
-| External Codex reports an unknown server | Confirm `.codex/config.toml` exists in the Unity project and restart Codex |
+| External Codex reports an unknown server | Confirm the project is trusted, `.codex/config.toml` exists, and `codex mcp list` includes `unity-biome-mcp` |
 | A Chat turn times out too early | Codex uses a higher inactivity floor; review Chat Settings before increasing it further |

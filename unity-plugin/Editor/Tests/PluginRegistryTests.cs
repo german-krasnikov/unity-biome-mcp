@@ -176,6 +176,18 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(PluginRegistry.IsPluginCommand("other_command"));
         }
 
+        [TestCase("my")]
+        [TestCase("my_")]
+        public void IsPluginCommand_NormalizesCanonicalAndLegacyPrefix(string prefix)
+        {
+            PluginRegistry.Register(new FakePlugin("PrefixPlugin", prefix));
+
+            Assert.IsTrue(PluginRegistry.IsPluginCommand("my"));
+            Assert.IsTrue(PluginRegistry.IsPluginCommand("my_count"));
+            Assert.IsFalse(PluginRegistry.IsPluginCommand("myth"));
+            Assert.IsFalse(PluginRegistry.IsPluginCommand("myth_count"));
+        }
+
         // ── GetCommandsForPlugin ─────────────────────────────────────────────
 
         [Test]
@@ -213,6 +225,23 @@ namespace UnityMCP.Editor.Tests
             CollectionAssert.DoesNotContain(result1, "p2_cmd");
             CollectionAssert.Contains(result2, "p2_cmd");
             CollectionAssert.DoesNotContain(result2, "p1_cmd");
+        }
+
+        [Test]
+        public void GetCommandsForPlugin_LegacyTrailingSeparator_UsesSingleBoundary()
+        {
+            CommandRegistry.Clear();
+            var plugin = new FakePlugin("LegacyPrefix", "my_");
+            CommandRegistry.Register("my", _ => "ok");
+            CommandRegistry.Register("my_count", _ => "ok");
+            CommandRegistry.Register("myth", _ => "ok");
+            PluginRegistry.Register(plugin);
+
+            var result = PluginRegistry.GetCommandsForPlugin(plugin);
+
+            CollectionAssert.Contains(result, "my");
+            CollectionAssert.Contains(result, "my_count");
+            CollectionAssert.DoesNotContain(result, "myth");
         }
 
         [Test]

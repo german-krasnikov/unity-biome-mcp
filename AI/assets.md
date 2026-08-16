@@ -2,7 +2,7 @@
 
 Asset database CRUD, prefab lifecycle, material configuration, ScriptableObject management, project-wide settings.
 
-## asset(action, path=None, type=None, name=None, folder=None, source=None, dest=None, prop=None, value=None, recursive=False, labels=None, output=None, include_deps=True)
+## asset(action, path=None, type=None, name=None, folder=None, source=None, dest=None, prop=None, value=None, recursive=False, labels=None, output=None, include_deps=True, content=None, class_name=None, path_only=False)
 
 **Write.** Asset database operations with import/export.
 
@@ -12,15 +12,19 @@ Asset database CRUD, prefab lifecycle, material configuration, ScriptableObject 
 |--------|---------|-----------------|---------|
 | find | Search assets by name/type/labels | name OR type, folder (optional) | `asset("find", name="PlayerMesh", folder="Assets/Meshes")` |
 | get_info | Read asset metadata | path | `asset("get_info", path="Assets/Models/Player.fbx")` |
-| create | Create new asset | type (Folder/Material/PhysicMaterial), path | `asset("create", type="Material", path="Assets/NewMat.mat")` |
+| create | Create a supported asset | type, path; `class_name` for ScriptableObject | `asset("create", type="Material", path="Assets/NewMat.mat")` |
 | move | Relocate asset + .meta | source, dest (both Assets/ paths) | `asset("move", source="Assets/A.prefab", dest="Assets/Prefabs/A.prefab")` |
-| validate_move | Test move without executing | source, dest | `asset("validate_move", source="Assets/Old/X.cs", dest="Assets/New/X.cs")` |
-| duplicate | Copy asset | path | `asset("duplicate", path="Assets/Material.mat")` |
+| validate_move | Test move without executing | source, dest; optional `path_only` | `asset("validate_move", source="Assets/Old/X.cs", dest="Assets/New/X.cs")` |
+| duplicate | Copy asset | source, dest | `asset("duplicate", source="Assets/Material.mat", dest="Assets/MaterialCopy.mat")` |
 | delete | Remove asset | path | `asset("delete", path="Assets/Temp.prefab")` |
 | get_dependencies | List dependencies | path, recursive (bool) | `asset("get_dependencies", path="Assets/Scene.unity", recursive=True)` |
+| find_dependents | Find assets that reference an asset | path | `asset("find_dependents", path="Assets/Player.mat")` |
 | import_settings | Configure import params | path, prop, value (varies by type) | `asset("import_settings", path="Assets/Mesh.fbx", prop="importer_type", value="humanoid")` |
 | export_package | Serialize to .unitypackage | path, output (filesystem path), include_deps (bool) | `asset("export_package", path="Assets/MyFeature", output="/tmp/export.unitypackage", include_deps=True)` |
 | import_package | Load .unitypackage | path (filesystem) | `asset("import_package", path="/tmp/export.unitypackage")` |
+| read_text | Read a text asset | path | `asset("read_text", path="Assets/Config.json")` |
+| write_text | Write a text asset with change capture | path, content | `asset("write_text", path="Assets/Config.json", content="{}")` |
+| reimport | Force asset reimport | path | `asset("reimport", path="Assets/Config.json")` |
 
 **Batch find:**
 ```python
@@ -48,6 +52,7 @@ await asset("get_dependencies", path="Assets/", recursive=True)
 | set_fields | Batch property setting — multiple `prop=value` pairs | path, value (`\n`-separated `prop=value`) | `material("set_fields", path="Assets/Mat.mat", value="_Color=1,0,0,1\n_Glossiness=0.8")` |
 | copy | Clone + assign to scene objects | source (asset), targets (comma-sep scene paths) | `material("copy", source="Assets/Base.mat", targets="Player,Enemy")` |
 | list_properties | Enumerate all properties | path OR object_path | `material("list_properties", path="Assets/Mat.mat")` |
+| list_slots | List Renderer material slots | object_path | `material("list_slots", object_path="/Player")` |
 | list_shaders | List available shaders with optional name filter | filter (optional substring) | `material("list_shaders", filter="URP")` |
 | get_errors | Return shader compilation errors | path (shader asset) | `material("get_errors", path="Assets/Shaders/Effect.shader")` |
 
@@ -66,6 +71,9 @@ await material("get", object_path="Player")
 await material("set", object_path="Player", prop="_MainColor", value="0,1,0,1")
 ```
 
+For `set`, `target="shared"|"instance"|"asset"` selects ownership. The default
+is `shared`; use `instance` only when a scene-local material clone is intended.
+
 ---
 
 ## prefab(action, path=None, asset_path=None, base_path=None, variant_path=None, component=None, prop=None, value=None, add_component=None, remove_component=None, recursive=False, mode=None, scope=None, format=None)
@@ -82,6 +90,7 @@ await material("set", object_path="Player", prop="_MainColor", value="0,1,0,1")
 | revert | Discard instance changes → base state | path (scene instance) | `prefab("revert", path="Player")` |
 | get_overrides | List property modifications | path (scene instance) | `prefab("get_overrides", path="Enemy")` |
 | unpack | Convert instance → normal GameObject | path (scene instance) | `prefab("unpack", path="SpawnedPrefab")` |
+| instantiate | Instantiate a prefab in the active scene | asset_path | `prefab("instantiate", asset_path="Assets/Enemy.prefab")` |
 | edit | Modify prefab asset directly (v0.56.0+) | asset_path, component, prop, value | `prefab("edit", asset_path="Assets/Prefabs/Player.prefab", component="Health", prop="MaxHP", value="200")` |
 | edit (add component) | Add component to prefab asset | asset_path, add_component | `prefab("edit", asset_path="Assets/Prefabs/Player.prefab", add_component="Rigidbody")` |
 | edit (remove component) | Remove component from prefab | asset_path, remove_component | `prefab("edit", asset_path="Assets/Prefabs/Player.prefab", remove_component="AudioSource")` |
@@ -100,6 +109,10 @@ await prefab("save", path="Player", asset_path="Assets/Prefabs/Player.prefab")
 await prefab("edit", asset_path="Assets/Prefabs/Player.prefab", 
              component="Collider", prop="enabled", value="false")
 ```
+
+`save` accepts `mode="new"|"overwrite"` (default `overwrite`), `revert` accepts
+`scope="object"|"children"`, and `get_overrides` accepts
+`format="text"|"structured"`.
 
 ---
 
@@ -128,9 +141,10 @@ await scriptable_object("list_types", filter="Preset")
 
 ---
 
-## project_settings(action, target, prop=None, value=None, index=None)
+## project_settings(action, target, prop=None, value=None, index=None, build_target=None)
 
-**Write-idempotent.** Project-wide settings: tags, layers, quality, physics, time, player.
+**Write-idempotent.** Project-wide settings: tags, layers, sorting layers,
+quality, physics, time, player, graphics, audio, and input.
 
 ### Targets & Properties
 
@@ -139,10 +153,16 @@ await scriptable_object("list_types", filter="Preset")
 | tags | Tag list | `project_settings("get", target="tags")` | `project_settings("set", target="tags", prop="add", value="Enemy")` |
 | layers | Layer list | `project_settings("get", target="layers")` | `project_settings("set", target="layers", prop="add", value="UI")` |
 | sorting_layers | Sorting layer list | `project_settings("get", target="sorting_layers")` | `project_settings("set", target="sorting_layers", prop="add", value="UI")` |
-| quality | QualitySettings (presets) | `project_settings("get", target="quality")` | `project_settings("set", target="quality", prop="level", value="2")` |
-| physics | Physics settings | `project_settings("get", target="physics")` | `project_settings("set", target="physics", prop="gravity", value="-9.81,0,0")` |
+| quality | QualitySettings (presets) | `project_settings("get", target="quality")` | `project_settings("set", target="quality", prop="currentLevel", value="2")` |
+| physics | Physics settings | `project_settings("get", target="physics")` | `project_settings("set", target="physics", prop="gravity", value="0,-9.81,0")` |
 | time | Time settings | `project_settings("get", target="time")` | `project_settings("set", target="time", prop="fixed_timestep", value="0.02")` |
 | player | Player settings | `project_settings("get", target="player")` | `project_settings("set", target="player", prop="icon", value="Assets/Icon.png")` |
+| graphics | Graphics settings | `project_settings("get", target="graphics")` | Action-specific property/value |
+| audio | Audio settings | `project_settings("get", target="audio")` | Action-specific property/value |
+| input | Input settings | `project_settings("get", target="input")` | Action-specific property/value |
+
+Changing `player` property `ScriptingBackend` also requires `build_target`
+(for example `Standalone`, `iOS`, or `Android`).
 
 **Batch tag/layer setup:**
 ```python
@@ -158,7 +178,7 @@ for tag in ["Player", "Enemy", "Projectile"]:
 **One-shot prefab creation:**
 ```python
 # Design object in scene
-await create_object(name="Player", parent="/", components=["Rigidbody", "Health"])
+await create_object(name="Player", parent="/", components="Rigidbody,Health")
 await set_property(path="Player", component="Health", prop="MaxHP", value="100")
 
 # Save → prefab
@@ -192,4 +212,6 @@ await scriptable_object("set", path="Assets/GameConfig.asset", prop="difficulty"
 
 ---
 
-**See also:** AI/tools-reference.md (ASSETS category), AI/batch.md (batch operations), `.claude/skills/token-optimization.md`.
+**See also:** `AI/tools-reference.md` (ASSETS ownership), `AI/batch.md` (batch
+operations), and `unity-plugin/ClientSkills/skills/unity-assets-prefabs/SKILL.md`
+(consumer workflow).

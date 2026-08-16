@@ -1,6 +1,6 @@
 # Tools Reference
 
-Tools are organized into a 13-tool Core and eight task-oriented categories. Use the live catalog to discover the tools available in your installed version.
+Tools are organized into a 13-tool Core and ten task-oriented categories. Use the live catalog to discover the tools available in your installed version.
 
 ## How Tools Work
 
@@ -8,7 +8,9 @@ Tools are organized into a 13-tool Core and eight task-oriented categories. Use 
 
 **Category-gated tools** — Enable via `discover_tools(category, enable=True)` or through the Unity Biome MCP Settings panel.
 
-**Unknown tools** — Plugin-registered tools pass through automatically.
+**Custom plugin categories** — Tools registered to an explicit custom category
+are hidden until that category is enabled. A plugin that omits category
+registration does not receive isolated category gating.
 
 ## Categories Overview
 
@@ -62,9 +64,9 @@ Tools are organized into a 13-tool Core and eight task-oriented categories. Use 
 - [screenshot_compare](screenshots.md#screenshot_compare) — Visual diff against baseline
 
 **Debug & Verify**
-- [doctor](diagnostics.md#doctor) — Health check with auto-fix
+- [doctor](diagnostics.md#doctor) — Health check with optional stale-file cleanup
 - [verify_after_change](diagnostics.md#verify_after_change) — 5-gate verification (compile, errors, console, tests, playtests)
-- [scan_scene](diagnostics.md#scan_scene) — Scene infrastructure audit
+- [scan_scene](spatial.md#scan_scene) — Scene infrastructure audit
 - [scene_health](diagnostics.md#scene_health) — Hierarchy and health checks
 - [validate_references](diagnostics.md#validate_references) — ObjectReference field validation
 - [resolve_scene_refs](diagnostics.md#resolve_scene_refs) — Resolve paths and aliases
@@ -79,7 +81,7 @@ Tools are organized into a 13-tool Core and eight task-oriented categories. Use 
 
 **Advanced: Code analysis**
 - [compile_preflight](diagnostics.md#compile_preflight) — Validate C# before write
-- [execute_code](diagnostics.md#execute_code) — Run arbitrary C# in Unity
+- [execute_code](../features/code-execution.md#basic-usage) — Run bounded C# in Unity
 
 ## TIER1 Tools (Always Available)
 
@@ -111,7 +113,11 @@ await discover_tools("VERIFY", enable=True)
 await discover_tools("ASSETS", enable=True)
 ```
 
-After enabling, the tools appear in your AI's tool list and become callable.
+After enabling, the tools appear in the advertised tool list. Category gating
+controls discovery and context budget; it is not authorization, and a client
+that already knows a hidden Python tool name may still call it. Use the
+[security controls](../settings.md#tools-and-permissions) when access must be
+restricted.
 
 **Available categories:**
 - `SCENE`
@@ -126,6 +132,10 @@ After enabling, the tools appear in your AI's tool list and become callable.
 - `SYSTEM`
 
 Run `discover_tools(enable=False, structured=True)` to inspect the current catalog, including each tool's supported surfaces. Legacy category aliases remain available with `include_legacy=True`.
+
+Custom plugin categories use the same session gate. For example, enable a
+plugin registered as `my_plugin` with
+`discover_tools(category="my_plugin", enable=True)`.
 
 ## Batch: Combine Operations for Token Savings
 
@@ -145,7 +155,9 @@ get_component path=Player type=Transform
 """)
 ```
 
-See [Batch Reference](batch.md) for all batch-eligible commands.
+Use `discover_tools(enable=False, structured=True)` as the source of truth for
+batch eligibility. See [Batch Reference](batch.md) for command syntax, failure
+handling, and rollback behavior.
 
 ## Tool Status & Discovery
 
@@ -167,24 +179,24 @@ This helps your AI assistant optimize its decision tree — it only offers tools
 
 1. Is the tool's category enabled?
    ```python
-   catalog = await discover_tools(enable=False, structured=True)
-   # Find the tool's category in the catalog, then enable it:
-   await discover_tools("MEDIA", enable=True)
+catalog = await discover_tools(enable=False, structured=True)
+# Find the tool's category in the catalog, then enable it:
+await discover_tools("MEDIA", enable=True)
    ```
 
 2. Is the MCP connection alive?
    ```python
-   await list_connections()
+await list_connections()
    ```
 
 3. Check for plugin errors:
    ```python
-   await get_console(level="Error,Exception,Assert")  # All problem levels (per PROBLEM_LEVELS convention)
+await get_console(level="Error,Exception,Assert")
    ```
 
 4. Run diagnostics:
    ```python
-   await doctor(fix=True)
+await doctor(fix=True)
    ```
 
 ## Next Steps
@@ -202,6 +214,7 @@ This helps your AI assistant optimize its decision tree — it only offers tools
 - **[Playtest Guide](../features/playtest.md)** — Automated scenarios and DSL reference
 - **[Asset Tools](assets.md)** — Prefabs, materials, ScriptableObjects
 - **[Diagnostics](diagnostics.md)** — Troubleshoot and debug
+- **[System & Orchestration](system.md)** — Discover, synchronize, recover, and coordinate
 
 ---
 

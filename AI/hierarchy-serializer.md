@@ -1,324 +1,157 @@
-# Feature: Serializers
+# Hierarchy and Component Serialization
 
-## Overview
+This document owns the compact Unity-to-text formats used by scene reads.
+Public usage belongs in `docs/tools/scene.md` and `docs/tools/components.md`.
 
-Serialization of Unity data into compact text format:
-- **HierarchySerializer**: scene → compact text tree
-- **ComponentSerializer**: components → key-value (90% vs JSON)
-- **ConsoleCapture**: logs → formatted text
-- **ScreenshotCapture**: window → base64 PNG
+## Boundaries
 
-## Architecture (for Architect)
+- `HierarchySerializer` serializes the scene GameObject tree.
+- `ComponentSerializer` serializes component fields and resolves scene paths.
+- `RefManager` assigns compact hierarchy references.
+- `TransientObjectId` formats transient object identities used outside the
+  hierarchy format.
+- `ConsoleCapture` and screenshot capture have independent formats and are not
+  hierarchy serializers.
 
-### Output Format (default, components=false)
+Do not treat the three identity syntaxes as interchangeable:
 
-**Single scene:**
-```
-Main Camera $a
-Directional Light $b
-GameManager $c
-├─ UIRoot $d
-│  ├─ HealthBar $e
-│  └─ PauseMenu $f !
-Player $g
-├─ Body $h
-└─ WeaponSlot $i
-   └─ Sword $j
-```
+| Syntax | Owner | Meaning |
+|---|---|---|
+| `&<base62>` | `RefManager` | Compact hierarchy reference, for example `&1`, `&a`, `&10` |
+| `$<decimal>` | `RefManager` compatibility parser | Legacy compact hierarchy input; current hierarchy output never emits it |
+| `$<hex>` | Chat `HierarchyResultParser` compatibility | Reference token accepted in old v1.32-format `get_hierarchy` result text; it is not a current `RefManager` reference |
+| `$<HEX>` | `TransientObjectId` | Current process-local Unity object or component identity outside hierarchy serialization |
+| `#<decimal>` | `TransientObjectId` compatibility parser | Legacy transient object ID input |
 
-**Multiple scenes (with headers):**
-```
-[MainScene]
-Main Camera $a
-Directional Light $b
-GameManager $c
-├─ UIRoot $d
+`$name` is also the playtest-alias syntax. For that reason, new hierarchy
+references use `&`. `RefManager` recognizes only decimal `$...` compatibility
+tokens, while the Chat result parser accepts the hexadecimal shape produced by
+the old hierarchy format. Current `$HEX` identities are resolved by
+`TransientObjectId`; the owner and surrounding format determine the meaning.
 
-[AdditiveScene]
-Player $e
-├─ Body $f
-└─ WeaponSlot $g
-   └─ Sword $h
-```
+## Hierarchy Output
 
-### Output Format (components=true)
+The default format is a Unicode tree. Every emitted object ends with an
+`&<base62>` reference:
 
-**Single scene:**
-```
-Main Camera [Camera,AudioListener] $a
-Directional Light [Light] $b
-GameManager [GameManager,AudioSource] $c
-├─ UIRoot [Canvas,CanvasScaler] $d
-│  ├─ HealthBar [Image,HealthBarUI] $e
-│  └─ PauseMenu [CanvasGroup] $f !
-Player [Rigidbody,PlayerController] $g
-├─ Body [SkinnedMeshRenderer] $h
-└─ WeaponSlot [] $i
-   └─ Sword [MeshFilter,MeleeWeapon] $j
+```text
+Main Camera &1
+Directional Light &2
+Player [Rigidbody,PlayerController] &3
+├─ Body [SkinnedMeshRenderer] &4
+└─ WeaponSlot [] &5
+   └─ Sword [MeshFilter,MeleeWeapon] &6 !
 ```
 
-**Multiple scenes:**
-```
-[MainScene]
-Main Camera [Camera,AudioListener] $a
-Directional Light [Light] $b
+### Format rules
 
-[AdditiveScene]
-Player [Rigidbody,PlayerController] $c
-├─ Body [SkinnedMeshRenderer] $d
-```
+| Element | Contract |
+|---|---|
+| Name | GameObject name as plain text |
+| Components | `[Type1,Type2]` only when `components=true`; `Transform` is omitted |
+| Reference | `&` plus an unbounded base-62 sequence assigned by `RefManager` |
+| Inactive | `!` suffix when `activeSelf` is false |
+| Depth limit | `+N` suffix is the descendant count below a truncated node |
+| Global limit | `MAX_NODES = 3000`, followed by a narrowing hint when reached |
+| Tree structure | `├─`, `└─`, and `│` connectors |
 
-### Format Rules
+`RefManager` encodes `counter + 1`, so the first values are `&1`, `&2`, and so
+on; after `&Z` it continues with `&10`. It does not wrap at a fixed slot count.
+The server invalidates the map on connection lifecycle boundaries that make
+references unsafe. Invalidating the maps does not reset the process-local
+counter, so a stale reference cannot alias an object assigned later in the same
+Editor process. A reference is still a convenient short-lived address, not a
+durable object identity.
 
-| Element | Format | Example |
-|---------|--------|---------|
-| Scene header (multi-scene) | `[SceneName]` (single scene = no headers) | `[MainScene]` |
-| Duplicate scene names | disambiguate with parent dir | `[Scene (Assets/Scenes)]` |
-| Unsaved scenes | mark as (unsaved) | `[Scene (unsaved)]` |
-| Name | plain text | `Main Camera` |
-| Short ref | `$a`-`$zz` (702 slots via RefManager) | `$a`, `$ab` |
-| Components | `[Type1,Type2]` (only when `components=true`) | `[Camera,AudioListener]` |
-| Transform | OMITTED (100% have it) | - |
-| Inactive | `!` suffix | `PauseMenu ... !` |
-| Depth-truncated | `+N` descendant count | `WeaponSlot $i +3` |
-| Tree chars | `├─ └─ │` | Unicode box drawing |
-| MAX_NODES | 3000, truncates with message | `... truncated at 3000 nodes` |
-| Sibling truncation | when MAX_NODES hit mid-children | `... +5 siblings` |
+### Multi-scene output
 
-### Compression Mode (compress=True)
+`SceneContext.Current` owns loaded-scene enumeration and filtering.
 
-Groups consecutive slot_N/point_N sequences into compact summaries:
-- `WeaponSlot $i [5 slots]` instead of listing all 5 children
-- Reduces token count for large hierarchies (~60–100 tokens for 50-object scene)
-- Usage: `get_hierarchy(compress=True)`
+- One selected scene is emitted without a header.
+- Multiple selected scenes use `[SceneName]` headers.
+- Duplicate scene names are disambiguated with their directory; an unsaved
+  duplicate uses `(unsaved)`.
+- `scene="Name"` filters enumeration to that scene.
+- When `root` is also supplied, the handler scene-qualifies an unqualified root
+  before lookup.
+- A Prefab Stage takes precedence over ordinary loaded-scene enumeration.
 
-### Summary Mode (summary=True)
+Never build `sceneName + ":/" + path` at call sites. Use the shared scene/path
+helpers (`SceneContext`, `ScenePathParser`, and
+`ComponentSerializer.GetPath`) so single- and multi-scene behavior stays
+consistent.
 
-Root-only overview with per-scene node counts. Useful for quick navigation.
-- Output: `[MainScene] 1200 nodes, [AdditiveScene] 45 nodes`
-- Token cost: 60–100 tokens
-- Usage: `get_hierarchy(summary=True)`
+### Filter and depth
 
-### Scene Filter (scene="SceneName")
+The name filter is case-insensitive. An ancestor is retained when a descendant
+within the requested depth matches, preserving enough tree context to navigate
+the result. `root` resolves one subtree before serialization.
 
-Isolates serialization to a single scene in multi-scene projects.
-- Usage: `get_hierarchy(scene="MainScene")`
-- Omit to serialize all loaded scenes
+### Summary and incremental modes
 
-### Token Budget
+`summary=true` calls `SerializeSummary`. It emits scene/root counts and direct
+root objects without per-object references or component lists. It is a
+navigation overview, not a schema-compatible variant of the full tree.
 
-- 50 objects: ~350 tokens (vs ~4000 JSON)
-- Compact text mode omits repeated structure and default values
+`incremental=true` calls `SerializeIncremental`. The Unity side compares the
+complete serialized string with the last incremental result and returns
+`NO_CHANGE` when equal. The cache is process-local and is reset explicitly; it
+is not a persisted scene version.
 
-## Implementation Notes (for Developer)
+### Python-only compression
 
-### HierarchySerializer.cs
+`compress=true` is implemented in `server/src/unity_mcp/tools/scene.py` after
+Unity returns the hierarchy. It groups consecutive same-depth `slot_N` and
+`point_N` objects and runs of visual mesh nodes. This presentation transform is
+not part of `HierarchySerializer.cs` and must preserve the final sibling
+connector.
 
-```csharp
-using System.Collections.Generic;
-using System.Text;
-using UnityEngine;
-using UnityEditor.SceneManagement;
-using UnityEngine.SceneManagement;
+`full=true` bypasses response distillation; it does not change Unity's
+serialization format.
 
-namespace UnityMCP.Editor
-{
-    public static class HierarchySerializer
-    {
-        public const int MAX_NODES = 3000;
+## Implementation Flow
 
-        public static string Serialize(int depth = 99, string root = null, string filter = null, bool components = false)
-        {
-            var sb = new StringBuilder();
-            int nodeCount = 0;
-
-            if (string.IsNullOrEmpty(root))
-            {
-                var stage = PrefabStageUtility.GetCurrentPrefabStage();
-                if (stage != null)
-                {
-                    SerializeObject(sb, stage.prefabContentsRoot, depth, 0, new List<bool>(), true, filter, ref nodeCount, components);
-                }
-                else
-                {
-                    var scenes = GetAllLoadedSceneRoots();
-                    bool multi = scenes.Count > 1;
-                    foreach (var (name, roots) in scenes)
-                    {
-                        if (nodeCount >= MAX_NODES) break;
-                        if (multi)
-                        {
-                            int headerPos = sb.Length;
-                            sb.AppendLine($"[{name}]");
-                            int beforeCount = nodeCount;
-                            for (int i = 0; i < roots.Length && nodeCount < MAX_NODES; i++)
-                                SerializeObject(sb, roots[i], depth, 0, new List<bool>(), i == roots.Length - 1, filter, ref nodeCount, components);
-                            if (nodeCount == beforeCount) sb.Length = headerPos; // remove phantom header
-                        }
-                        else
-                        {
-                            for (int i = 0; i < roots.Length && nodeCount < MAX_NODES; i++)
-                                SerializeObject(sb, roots[i], depth, 0, new List<bool>(), i == roots.Length - 1, filter, ref nodeCount, components);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                var roots = GetSubtreeRoots(root);
-                for (int i = 0; i < roots.Length && nodeCount < MAX_NODES; i++)
-                    SerializeObject(sb, roots[i], depth, 0, new List<bool>(), i == roots.Length - 1, filter, ref nodeCount, components);
-            }
-
-            if (nodeCount >= MAX_NODES)
-                sb.AppendLine($"... truncated at {MAX_NODES} nodes. Use filter/root/depth to narrow.");
-
-            return sb.ToString();
-        }
-
-        // Key per-node logic (simplified):
-        // 1. AppendIndent(sb, parentIsLast, isLast)  — parent continuation lines + connector
-        // 2. sb.Append(go.name)
-        // 3. if (components) → sb.Append(" [Type1,Type2]")  — Transform omitted, no space after comma
-        // 4. sb.Append(' ').Append(RefManager.Assign(go))   — short ref ($a-$zz) instead of instance ID
-        // 5. if (!go.activeSelf) sb.Append(" !")
-        // 6. if (depth-truncated && has children) sb.Append(" +").Append(descendantCount)
-        // 7. Recurse children; at MAX_NODES mid-children → "... +N siblings"
-
-        // Multi-scene support: GetAllLoadedSceneRoots() returns all loaded scenes
-        // When 2+ scenes loaded: emit [SceneName] headers; duplicate names disambiguate with parent dir
-        // When 1 scene: no headers (zero overhead)
-        // Phantom header removal: if multi-scene but scene had no matching objects, remove the header line
-
-        // Incremental cache: SerializeIncremental() returns "NO_CHANGE" if hierarchy unchanged
-        // Summary mode: SerializeSummary() returns compact root-level overview + scene stats
-        // Subtree: SerializeSubtree(go, depth) for single object
-        // Helper: GetAllLoadedSceneRoots() → List<(name, roots[])> with dedup logic
-
-        internal static List<(string name, GameObject[] roots)> GetAllLoadedSceneRoots()
-        {
-            var raw = new List<(Scene scene, GameObject[] roots)>();
-            for (int i = 0; i < SceneManager.sceneCount; i++)
-            {
-                var s = SceneManager.GetSceneAt(i);
-                // Exclude DontDestroyOnLoad virtual scene (runtime only, has no path)
-                if (!s.isLoaded || s.name == "DontDestroyOnLoad") continue;
-                raw.Add((s, s.GetRootGameObjects()));
-            }
-            if (raw.Count == 0)
-            {
-                var active = SceneManager.GetActiveScene();
-                return new List<(string, GameObject[])> { (active.name, active.GetRootGameObjects()) };
-            }
-            // Detect duplicate names — disambiguate with directory path
-            var nameCount = new Dictionary<string, int>();
-            foreach (var (s, _) in raw)
-            {
-                nameCount.TryGetValue(s.name, out var c);
-                nameCount[s.name] = c + 1;
-            }
-            var result = new List<(string, GameObject[])>();
-            foreach (var (s, roots) in raw)
-            {
-                string label;
-                if (nameCount[s.name] > 1)
-                    label = string.IsNullOrEmpty(s.path)
-                        ? $"{s.name} (unsaved)"
-                        : $"{s.name} ({System.IO.Path.GetDirectoryName(s.path)})";
-                else
-                    label = s.name;
-                result.Add((label, roots));
-            }
-            return result;
-        }
-
-        private static GameObject[] GetSubtreeRoots(string rootPath)
-        {
-            var root = ComponentSerializer.FindObject(rootPath);
-            return root != null ? new[] { root } : new GameObject[0];
-        }
-    }
-}
+```text
+get_hierarchy (Python)
+  -> command "get_hierarchy"
+  -> CommandRouter.ObjectHandlers
+  -> SerializeSummary | SerializeIncremental | Serialize
+  -> optional Python compression
+  -> optional response distillation
 ```
 
-### Version Tracking
+Primary files:
 
-```csharp
-[InitializeOnLoad]
-public static class VersionTracker
-{
-    private static int _version = 0;
+- `server/src/unity_mcp/tools/scene.py`
+- `unity-plugin/Editor/CommandRouter.ObjectHandlers.cs`
+- `unity-plugin/Editor/HierarchySerializer.cs`
+- `unity-plugin/Editor/RefManager.cs`
+- `unity-plugin/Editor/SceneContext.cs`
+- `unity-plugin/Editor/ComponentSerializer.Finder.cs` (`ScenePathParser`)
 
-    static VersionTracker()
-    {
-        EditorApplication.hierarchyChanged += IncrementVersion;
-        Undo.undoRedoPerformed += IncrementVersion;
-    }
+## Alias Separation
 
-    public static int Version => System.Threading.Volatile.Read(ref _version);
+Playtest aliases are read from `PlaytestConfig` by the separate `get_aliases`
+command. `get_hierarchy` does not append an alias block. The Python middleware
+may strip a legacy `--- ALIASES ---` block defensively, but new Unity responses
+must not emit one.
 
-    private static void IncrementVersion()
-    {
-        System.Threading.Interlocked.Increment(ref _version);
-    }
-}
-```
+Example `get_aliases` response:
 
-### Alias System (PlaytestConfig Integration)
-
-`BuildAliasSection()` in `CommandRouter.ObjectHandlers.cs` reads aliases from the first `PlaytestConfig` ScriptableObject found via `AssetDatabase.FindAssets("t:PlaytestConfig")`:
-- Returns `--- ALIASES ---\nname=path|comp|field\n---` block, or `null` when no config / no aliases
-- Each alias line: `alias=path|component|field` (pipe-separated, no `$` prefix)
-
-**`get_hierarchy` does NOT prepend this block** — it was removed in Wave 3. Python `strip_alias_block()` in `middleware_alias.py` is a safety net only (strips if C# re-introduces it).
-
-**`get_aliases` TCP command** (read-only, `allowedDuringCompile=true`): returns bare `name=value` lines via `GetAliasesText()`. No header/footer, just one alias per line. Returns `"no aliases"` when config absent or alias list empty. Used by Python middleware to seed `_alias_cache` on demand without triggering a hierarchy call.
-
-```
-# get_aliases response example
-hp=Player/Health|HealthComponent|m_HP
+```text
+hp=/Player|HealthComponent|m_HP
 speed=/Player|Rigidbody|m_Velocity
 ```
 
-### Incremental Cache
+Alias cache and expansion behavior are documented in `AI/mcp-server.md` and
+`AI/playtest-dsl.md`.
 
-`SerializeIncremental()` stores last serialized result. Returns `"NO_CHANGE"` if hierarchy is identical.
-`ResetIncrementalCache()` clears stored state.
-No Python-side cache — all calls go to Unity via `bridge.send("get_hierarchy", {...})`.
+## Component Serialization
 
-### ScenePathParser Struct (v0.31.0+)
+`ComponentSerializer` uses `SerializedObject` / `SerializedProperty` for
+serialized Unity state. Output is compact sectioned text:
 
-Multi-scene path parsing utility: handles `"SceneName:/"` prefix extraction.
-- Prevents hallucination of hand-built scene paths
-- Used internally by ComponentSerializer + HierarchySerializer
-- Public static method: `ScenePathParser.ExtractSceneName(path) → (sceneName, path)`
-
-### RefManager Ring (702 Slots)
-
-Ephemeral short references ($a–$zz) valid within a single scene serialization.
-- Slot allocation: wraps around at 702 (eviction on wrap)
-- Prune() on refresh: clears all slots on hierarchy change
-- Thread-safe: lock-based access
-- Useful for quick object reference in LLM prompts
-
-## Code Locations
-
-**C#:**
-- `unity-plugin/Editor/HierarchySerializer.cs` — Scene → text tree (MAX_NODES=3000, summary mode, incremental cache, $refs)
-- `unity-plugin/Editor/ComponentSerializer.cs` — Component → key-value + ObjectReference + UnityEvent
-- `unity-plugin/Editor/VersionTracker.cs` — Version tracking
-- `unity-plugin/Editor/ConsoleCapture.cs` — Logs → text (orchestrates bounded ring buffer + SessionState-persisted problem entries)
-- `unity-plugin/Editor/ScreenshotCapture.cs` — Camera modes: default, overview, overview_game, multi_view
-- `unity-plugin/Editor/MultiViewCapture.cs` — 4-panel grid (Front, Left, Top, Isometric)
-- `unity-plugin/Editor/MultiViewOverlay.cs` — Overlay rendering for multi-view
-- `unity-plugin/Editor/OverlayDrawer.cs` — Drawing utilities
-- `unity-plugin/Editor/RefManager.cs` — Short refs ($a-$zz, 702 slots)
-
-## ComponentSerializer (427 lines)
-
-### Output Format
-
-```
+```text
 name: Player
 active: true
 tag: Player
@@ -326,156 +159,65 @@ layer: Default
 ---
 [Transform]
 m_LocalPosition: (1.2, 3.4, 5.6)
-m_LocalRotation: (0, 0.7, 0, 0.7)
-m_LocalScale: (1, 1, 1)
 ---
 [Rigidbody]
 m_Mass: 1
-m_Drag: 0
 m_UseGravity: true
 ```
 
-**Features:**
-- Uses `SerializedProperty` API — serializes all visible fields via `prop.name: value`
-- Separator `: ` (colon-space), sections separated by `---`
-- Component headers: `[TypeName]`
-- Handles all built-in types: int, float, bool, string, Vector3, Color, Enum, ObjectReference, etc.
-- **Float format**: ToString("G4") — 4 significant figures (for example, 1.234 or 0.005678)
-- Null reference → `null`
-- Arrays → element-per-line with `[i]` indices
-- Skips internal Unity properties (m_Script, m_ObjectHideFlags, etc.)
-- Compact key-value output instead of repeated JSON structure
+Important invariants:
 
-### Usage
+- component sections use `[TypeName]` and `---` separators;
+- property lines use `name: value`;
+- object references include a human-readable scene or asset description plus the
+  current `$<hex>` transient identity when available;
+- null object references serialize as `null`;
+- floats use compact invariant-culture formatting;
+- `get_component` field filtering and `inspect` composition belong to their
+  handlers, not to the serializer itself.
 
-```csharp
-string text = ComponentSerializer.Serialize("/Player", "Rigidbody");
-```
+ObjectReference writes must be preceded by an exact read when the middleware
+requires it. See `AI/references.md` and `AI/api-design-standards.md` rather than
+duplicating the mutation rules here.
 
-## ConsoleCapture + Console Buffers (Issue 27)
+## Invalidation and Safety
 
-**Files (3-file split for domain-reload survival):**
-- `ConsoleCapture.cs` (183 lines) — Public query API + wiring between ring buffer and problem persistence
-- `ConsoleRingBuffer.cs` (141 lines) — Bounded in-memory log capture: init phase (50 entries, 5s window) + fixed-size ring (450 entries)
-- `ConsoleProblemPersistence.cs` (144 lines) — SessionState-persisted problem-type entries (Error/Exception/Assert) across domain reload
+- A destroyed target resolves as stale and is removed from `RefManager`.
+- `Invalidate()` clears both maps but keeps the counter monotonic for the life
+  of the Editor process.
+- `Prune()` removes destroyed objects without renumbering live entries.
+- Hierarchy changes may invalidate assumptions even when a previously assigned
+  reference still resolves; verify the target before a consequential write.
+- Multi-scene tests must cover both qualified and unqualified paths and retain a
+  single-scene regression case.
 
-### Output Format
+## Verification
 
-```
-[Log] 14:30:22.123 Log message here
-[Warning] 14:30:22.456 Warning message
-[Error] 14:30:22.789 Error message
-[Exception] 14:30:23.100 Unhandled exception
-[Assert] 14:30:23.200 Assertion failed
-```
+Focused coverage lives in:
 
-**Features:**
-- Captures Unity debug logs via `Application.logMessageReceived`
-- Dual-buffer capture:
-  - **Init buffer** (ConsoleRingBuffer): 50 entries, 5-second post-load window — captures initial setup spam
-  - **Ring buffer** (ConsoleRingBuffer): 450 entries, wraps on overflow
-  - **SessionState persistence** (ConsoleProblemPersistence): stores Error/Exception/Assert entries across domain reload (FIFO cap: 20 entries)
-- Problem-level convention: `PROBLEM_LEVELS = Error,Exception,Assert` (per `console_levels.py`) — not just Error alone
-  - Unhandled C# exceptions arrive as `LogType.Exception`, not Error
-  - Assertions fail as `LogType.Assert`
-- `count=-1` returns all; `first=N` returns first N from init + last from ring
-- `GetErrorsSince(DateTime since)` for post-playtest problem checks (filters by PROBLEM_LEVELS)
-- Thread-safe (lock-based)
+- `unity-plugin/Editor/Tests/MultiSceneHierarchyTests.cs`
+- `unity-plugin/Editor/Tests/RefManagerTests.cs`
+- component serializer/finder fixtures under `unity-plugin/Editor/Tests/`
+- `server/tests/test_compress_hierarchy.py`
+- scene wrapper and middleware tests under `server/tests/`
 
-### Usage
+Follow the fixture and durable-run requirements in `AI/testing.md`.
 
-```csharp
-var logs = ConsoleCapture.GetLogs(count: 20, level: "Error,Exception,Assert");
-var problems = ConsoleCapture.GetErrorsSince(startTime, maxCount: 5); // catches all problem types
-ConsoleCapture.Clear();
-```
+## Review Checklist
 
-## ScreenshotCapture
-
-### Output Format
-
-Base64-encoded PNG or file path.
-
-**Features:**
-- Camera modes: `default`, `overview`, `overview_game`, `multi_view`
-- Custom width/height, supersample (1-4x)
-- `multi_view`: 4-panel grid (Front, Left, Top, Isometric) of target object
-  - Params: path, cellSize, custom angles, zoom, offset, fixed_size, highlight
-  - Returns file path + optional manifest (for highlight markers)
-- `overview`: Top-down scene capture
-- `highlight`: Draw markers on specific objects
-- Saves to file or returns base64
-
-## TDD Scenarios (for Developer)
-
-### Implemented Tests (all passing)
-
-**HierarchySerializer** (Unity plugin, no Python tests for C# code):
-- Serialize empty scene → empty string
-- Serialize single object → correct format
-- Components only shown when `components=true`
-- Omit Transform from component list
-- Short refs via RefManager (`$a`-`$zz`)
-- Mark inactive objects with `!`
-- Depth limiting works + `+N` descendant count suffix
-- MAX_NODES=3000 truncation + sibling truncation
-- Tree characters render correctly `├─ └─ │`
-- Incremental cache returns `NO_CHANGE` when unchanged
-- Summary mode (`SerializeSummary`)
-- Version tracking increments on hierarchy change (thread-safe)
-- **Multi-scene support (new, v0.23.23):**
-  - Single scene: no scene headers emitted
-  - Multiple loaded scenes: `[SceneName]` headers for each
-  - Duplicate scene names: disambiguate with parent directory path
-  - Unsaved scenes: mark as `(unsaved)` instead of path
-  - Phantom header removal: if scene matches filter but has no objects, remove header
-  - Root param overrides multi-scene (single object subtree, no headers)
-  - `GetAllLoadedSceneRoots()` excludes DontDestroyOnLoad virtual scene
-  - SerializeSummary works with multi-scene + per-scene node counts
-
-**ComponentSerializer**:
-- Serialize built-in types (Vector3, Color, Quaternion)
-- Handle null references
-- Array serialization
-- Nested object handling
-
-**ConsoleCapture**:
-- Capture debug logs
-- Filter by level
-- Limit to last N entries
-- Preserve timestamps
-
-**ScreenshotCapture**:
-- Render viewport to texture
-- Export as PNG
-- Support custom dimensions
-
-## Review Checklist (for Reviewer)
-
-- [ ] Transform always omitted from component list
-- [ ] Tree chars render correctly
-- [ ] Short refs ($a-$zz) via RefManager, not instance IDs
-- [ ] Inactive objects marked with `!`
-- [ ] Components only shown when `components=true`
-- [ ] Depth limiting works + `+N` descendant suffix
-- [ ] MAX_NODES=3000 truncation works
-- [ ] Version increments on hierarchy change (thread-safe)
-- [ ] Prefab stage detection in Serialize
-- [ ] **Multi-scene checks (v0.23.23):**
-  - [ ] Single scene: no `[SceneName]` headers
-  - [ ] Multiple scenes: headers present for each scene
-  - [ ] Duplicate names: dir path or `(unsaved)` appended to label
-  - [ ] Phantom headers: removed if scene has no matching objects
-  - [ ] Root param: overrides multi-scene (no headers)
-  - [ ] DontDestroyOnLoad: excluded from scene list
-  - [ ] Summary mode: shows per-scene node counts
-- [ ] **Multi-scene API hygiene (skill: `.claude/skills/multi-scene.md`):**
-  - [ ] No raw `SceneManager.sceneCount > 1` — use `SceneContext.Current.IsMulti`
-  - [ ] No hand-built `sceneName + ":/" + path` — use `ComponentSerializer.GetPath(go)`
-  - [ ] Scene iteration uses `SceneContext.Current.Scenes`, not raw `SceneManager.GetSceneAt(i)`
-  - [ ] Each multi-scene test has a single-scene regression counterpart
+- Hierarchy output uses `&<base62>`, never alphabetic `$alias` syntax.
+- Component output and hierarchy output keep their distinct identity formats.
+- `Transform` is omitted only from the optional hierarchy component list, not
+  from full component serialization.
+- Scene filtering scopes unqualified roots correctly.
+- Summary, incremental, compression, and distillation are not conflated.
+- New scene iteration uses the shared multi-scene helpers.
+- Tests cover invalidation, ambiguity, depth, filtering, and node limits.
 
 ## Related
 
-- Skill: `.claude/skills/token-optimization.md`
-- Knowledge: `AI/tcp-bridge.md`
+- `AI/search.md`
+- `AI/references.md`
+- `AI/testing.md`
+- `unity-plugin/ClientSkills/skills/unity-mcp-operations/SKILL.md`
+- `unity-plugin/ClientSkills/skills/unity-scene-authoring/SKILL.md`

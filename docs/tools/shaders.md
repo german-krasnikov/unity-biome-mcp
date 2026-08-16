@@ -1,126 +1,267 @@
-# Shader & Material Tools
+# Shaders and Materials
 
-Inspect, create, and modify shader assets, materials, and Shader Graph networks. Use these tools for shader development, material configuration, and visual effects.
+Use `shader` to inspect or create shader assets and edit Shader Graph files. Use
+`material` to create material assets, change their values, and assign them to
+renderers. This page is the canonical material/shader workflow; [Asset Tools](assets.md)
+links here instead of repeating it.
 
-## shader
-
-Read or write shader assets (.shader / .shadergraph). Inspect shader properties and keywords, create new shaders from presets or raw HLSL, or edit Shader Graph node networks.
-
-**Parameters:**
-- `action` (string) — "get" | "create" | "set" | "graph_get" | "graph_create" | "graph_node" | "graph_edge" | "graph_get_layout" | "graph_set_layout" | "graph_auto_layout"
-- `path` (string) — Shader asset path (Assets/...)
-- `target` (string, optional) — Shader compilation target
-- `preset` (string, optional) — Shader preset: "unlit" | "lit" | "transparent"
-- `code` (string, optional) — Raw HLSL shader code (used with create)
-- `shader_name` (string, optional) — Shader name identifier
-- `prop` (string, optional) — Property name (for set action)
-- `value` (string, optional) — Property value
-- `keyword` (string, optional) — Shader keyword name
-- `enabled` (string, optional) — Keyword enabled state
-- `node_type` (string, optional) — Shader Graph node type
-- `node_id` (string, optional) — Shader Graph node ID
-- `node_action` (string, optional) — Node action: "add" | "remove" | "configure"
-- `output_node` (string, optional) — Output node ID (for edge)
-- `output_slot` (int, optional) — Output slot index (for edge)
-- `input_node` (string, optional) — Input node ID (for edge)
-- `input_slot` (int, optional) — Input slot index (for edge)
-- `edge_action` (string, optional) — Edge action: "connect" | "disconnect"
-- `name` (string, optional) — Property name (for graph_node configure)
-- `type` (string, optional) — Property type (for graph_node)
-- `default_value` (string, optional) — Default value (for graph_node property)
-- `reference_name` (string, optional) — Shader reference name (for graph_node property)
-- `new_name` (string, optional) — New name for rename operations
-- `layout` (string, optional) — Compact node layout text (for graph_set_layout)
-- `h_gap` (number, optional) — Horizontal spacing in pixels for auto-layout (default 80)
-- `v_gap` (number, optional) — Vertical spacing in pixels for auto-layout (default 50)
-
-**Actions:**
-
-| Action | Purpose | Required Params | Example |
-|--------|---------|-----------------|---------|
-| get | Inspect shader properties and keywords | path | `shader("get", path="Assets/Shaders/MyShader.shader")` |
-| create | New shader from preset or code | path, preset OR code | `shader("create", path="Assets/Shaders/Custom.shader", preset="lit")` |
-| set | Change property or keyword | path, (prop+value) OR (keyword+enabled) | `shader("set", path="Assets/Shaders/MyShader.shader", prop="_Color", value="#FF0000")` |
-| graph_get | Read Shader Graph nodes/edges | path | `shader("graph_get", path="Assets/Shaders/MyGraph.shadergraph")` |
-| graph_create | New .shadergraph | path | `shader("graph_create", path="Assets/Shaders/NewGraph.shadergraph")` |
-| graph_node | Add/remove/configure node | path, node_type, node_id, node_action | `shader("graph_node", path="Assets/Shaders/MyGraph.shadergraph", node_type="ColorNode", node_id="node_1", node_action="add")` |
-| graph_edge | Connect/disconnect slots | path, output_node, output_slot, input_node, input_slot, edge_action | `shader("graph_edge", path="Assets/Shaders/MyGraph.shadergraph", output_node="node_1", output_slot=0, input_node="node_2", input_slot=0, edge_action="connect")` |
-| graph_get_layout | Read node positions | path | `shader("graph_get_layout", path="Assets/Shaders/MyGraph.shadergraph")` |
-| graph_set_layout | Apply node positions | path, layout | `shader("graph_set_layout", path="Assets/Shaders/MyGraph.shadergraph", layout="<node_id> x,y WxH\n...")` |
-| graph_auto_layout | Auto-arrange nodes by data flow | path, h_gap (optional), v_gap (optional) | `shader("graph_auto_layout", path="Assets/Shaders/MyGraph.shadergraph", h_gap=100, v_gap=60)` |
-
-**Example:**
+## Inspect before editing
 
 ```python
-# Inspect shader
-info = await shader("get", path="Assets/Shaders/Standard.shader")
+shader_info = await shader(
+    action="get",
+    path="Assets/Shaders/Water.shader",
+)
 
-# Create new shader from preset
-await shader("create", path="Assets/Shaders/MyUnlit.shader", preset="unlit")
-
-# Modify shader property
-await shader("set", path="Assets/Shaders/MyShader.shader", 
-            prop="_MainColor", value="#FF5500")
-
-# Enable keyword
-await shader("set", path="Assets/Shaders/MyShader.shader",
-            keyword="USE_NORMALMAP", enabled="true")
-
-# Create Shader Graph
-await shader("graph_create", path="Assets/Shaders/MyGraph.shadergraph")
-
-# Add node
-await shader("graph_node", path="Assets/Shaders/MyGraph.shadergraph",
-            node_type="ColorNode", node_id="node_1", node_action="add")
-
-# Connect nodes
-await shader("graph_edge", path="Assets/Shaders/MyGraph.shadergraph",
-            output_node="node_1", output_slot=0,
-            input_node="node_2", input_slot=0,
-            edge_action="connect")
-
-# Read node positions
-layout = await shader("graph_get_layout", path="Assets/Shaders/MyGraph.shadergraph")
-
-# Save and restore node layout
-await shader("graph_set_layout", path="Assets/Shaders/MyGraph.shadergraph",
-            layout=layout)
-
-# Auto-arrange nodes
-await shader("graph_auto_layout", path="Assets/Shaders/MyGraph.shadergraph",
-            h_gap=100, v_gap=60)
+material_info = await material(
+    action="get",
+    path="Assets/Materials/Water.mat",
+)
 ```
 
-**Use Cases:**
-- Inspect built-in shader properties and keywords
-- Create custom shaders without manual file editing
-- Build Shader Graph networks visually
-- Modify material shader assignments via `material` tool
+For a renderer, inspect its slots before choosing one:
 
-**Note:** For material shader assignment (applying a shader to a scene material), use `material` tool instead.
+```python
+slots = await material(action="list_slots", object_path="/Lake")
+properties = await material(
+    action="list_properties",
+    object_path="/Lake",
+    slot=0,
+)
+```
 
----
+Shader property names vary by render pipeline. Read `list_properties` rather than
+assuming that Built-in, URP, and HDRP use the same names.
 
-## material
+## Create and configure a material
 
-Create and configure materials. See [Asset Tools — material](assets.md#material) for full documentation.
+```python
+await material(
+    action="create",
+    path="Assets/Materials/Alert.mat",
+    shader="Universal Render Pipeline/Lit",
+)
 
----
+await material(
+    action="set_fields",
+    path="Assets/Materials/Alert.mat",
+    value="_BaseColor=#D92B2B\n_Smoothness=0.35",
+)
+```
 
-## Common Patterns
+`set_fields` accepts newline-separated `property=value` pairs and also recognizes
+`shader` and `renderQueue`. Unknown properties are skipped, so read the result and
+verify important values with `material(action="get", ...)`.
 
-| Task | Tools | Example |
-|------|-------|---------|
-| Inspect shader properties | shader("get", path) | `await shader("get", path="Assets/Shaders/Standard.shader")` |
-| Create custom shader | shader("create", path, preset) | `await shader("create", path="Assets/Shaders/Custom.shader", preset="unlit")` |
-| Create material with shader | material("create", path, shader) | `await material("create", path="Assets/Materials/New.mat", shader="Standard")` |
-| Change material color | material("set", path, prop, value) | `await material("set", path="Assets/Materials/Player.mat", prop="_Color", value="#FF0000")` |
-| Apply material to scene object | material("copy", source, targets) | `await material("copy", source="Assets/Materials/Base.mat", targets="Player")` |
-| Build Shader Graph | shader("graph_create") → shader("graph_node") → shader("graph_edge") | Sequential node/edge operations |
-| Save node layout | shader("graph_get_layout", path) | `await shader("graph_get_layout", path="Assets/Shaders/MyGraph.shadergraph")` |
-| Restore node layout | shader("graph_set_layout", path, layout) | `await shader("graph_set_layout", path="Assets/Shaders/MyGraph.shadergraph", layout=...)` |
-| Auto-arrange nodes | shader("graph_auto_layout", path) | `await shader("graph_auto_layout", path="Assets/Shaders/MyGraph.shadergraph", h_gap=100, v_gap=60)` |
+For one property, use `set`:
 
----
+```python
+await material(
+    action="set",
+    path="Assets/Materials/Alert.mat",
+    prop="_BaseColor",
+    value="#D92B2B",
+)
+```
 
-**See also:** [Assets Tools](assets.md) for material asset management, [Objects Tools](objects.md) for `set_material` quick helper.
+Material values accept the type exposed by the shader: numbers, colors, vectors,
+or a texture asset path. `prop="shader"` changes the shader;
+`prop="renderQueue"` requires an integer. When `prop` is not a declared property,
+`value="true"` or `"false"` enables or disables a material keyword of that name.
+
+## Shared asset or renderer instance
+
+When `material(action="set")` targets `object_path`, the default `target="shared"`
+edits the renderer's shared material. Every renderer using that asset can change.
+
+```python
+# Deliberately edit the shared asset in slot 1.
+await material(
+    action="set",
+    object_path="/Robot",
+    slot=1,
+    target="shared",
+    prop="_EmissionColor",
+    value="#40A0FFFF",
+)
+
+# Clone the selected slot for this renderer, then edit the clone.
+await material(
+    action="set",
+    object_path="/Robot",
+    slot=1,
+    target="instance",
+    prop="_EmissionColor",
+    value="#40A0FFFF",
+)
+```
+
+`target="asset"` currently follows the shared-material path. `target="instance"`
+requires `object_path` and creates a non-asset Material for that renderer slot.
+If durable reuse matters, create a `.mat` asset and assign it explicitly instead.
+
+## Assign an existing material
+
+`copy` assigns the same shared material to one or more renderers; it does not clone
+the material asset.
+
+```python
+result = await material(
+    action="copy",
+    source="Assets/Materials/Alert.mat",
+    targets="/Enemies/GuardA,/Enemies/GuardB",
+    slot=0,
+)
+```
+
+`source` can also be a scene object with a renderer. Targets that cannot be found
+or have no renderer are skipped, so confirm the returned assignment count and
+inspect the target slots.
+
+For the small “create a new material and set only a color” helper, see
+[`set_material`](objects.md#set_material). It creates a new Material object; use
+the explicit workflow above when asset identity and reuse matter.
+
+## Discover shaders and compilation errors
+
+```python
+available = await material(action="list_shaders", filter="Water")
+errors = await material(
+    action="get_errors",
+    path="Assets/Shaders/Water.shader",
+)
+```
+
+`list_shaders` searches shader assets in the project. `get_errors` reads Unity's
+shader compiler messages for one shader asset.
+
+## Create a `.shader` asset
+
+`shader(action="create")` writes a shader file from raw code or one of the
+`unlit`, `lit`, and `transparent` templates.
+
+```python
+created = await shader(
+    action="create",
+    path="Assets/Shaders/Selection.shader",
+    preset="unlit",
+    shader_name="Game/Selection",
+)
+```
+
+The path must end in `.shader`. Unity imports the new file immediately and the
+result includes the first compiler error when import fails. The built-in templates
+use conventional shader source and may need adaptation for the project's render
+pipeline.
+
+`shader(action="set")` is different from the other shader actions: its `path` is a
+**scene object with a Renderer**, not a shader asset. It changes a property or
+keyword on that renderer's shared material. Prefer `material(action="set", ...)`
+for clearer slot and shared/instance control.
+
+## Work with Shader Graph
+
+Start by inspecting the graph and retain the returned node IDs:
+
+```python
+graph = await shader(
+    action="graph_get",
+    path="Assets/Shaders/Dissolve.shadergraph",
+)
+```
+
+Create a graph from a supported preset:
+
+```python
+created = await shader(
+    action="graph_create",
+    path="Assets/Shaders/NewEffect.shadergraph",
+    preset="lit_graph",
+)
+```
+
+The supported Shader Graph templates are `lit_graph` and `unlit_graph` and target
+the Universal Render Pipeline.
+
+Node and edge mutations operate on the serialized graph:
+
+```python
+graph = await shader(
+    action="graph_node",
+    path="Assets/Shaders/NewEffect.shadergraph",
+    node_type="MultiplyNode",
+    node_action="add",
+)
+
+graph = await shader(
+    action="graph_edge",
+    path="Assets/Shaders/NewEffect.shadergraph",
+    output_node="<source-node-id>",
+    output_slot=0,
+    input_node="<target-node-id>",
+    input_slot=0,
+    edge_action="add",
+)
+```
+
+For removal, pass `node_action="remove"` with `node_id`, or
+`edge_action="remove"` with both node IDs and slot numbers. The current public
+wrapper does not implement node configuration through `node_action`; a value other
+than `remove` adds a node.
+
+Layout is independent of topology:
+
+```python
+layout = await shader(
+    action="graph_get_layout",
+    path="Assets/Shaders/NewEffect.shadergraph",
+)
+
+await shader(
+    action="graph_set_layout",
+    path="Assets/Shaders/NewEffect.shadergraph",
+    layout=layout,
+)
+
+await shader(
+    action="graph_auto_layout",
+    path="Assets/Shaders/NewEffect.shadergraph",
+    h_gap=100,
+    v_gap=60,
+)
+```
+
+After any serialized graph mutation, call `graph_get` and check Unity's Console or
+shader errors. Keep Shader Graph files under version control so malformed edits are
+recoverable.
+
+## Audit materials and textures
+
+`material_audit` scans the current scene:
+
+```python
+summary = await material_audit(action="summary")
+duplicates = await material_audit(action="duplicates")
+compression = await material_audit(
+    action="compression",
+    platform="Android",
+)
+recommendations = await material_audit(action="recommendations")
+```
+
+Actions are `summary`, `materials`, `textures`, `duplicates`, `compression`, and
+`recommendations`. The duplicate fingerprint intentionally ignores textures;
+review each group before consolidating materials.
+
+## Verification checklist
+
+1. Read the shader's actual property names.
+2. Decide whether the change should affect a shared asset or one renderer.
+3. Apply one focused change.
+4. Read the material or renderer slot again.
+5. Check shader compiler messages and the Unity Console.
+6. Capture a [screenshot](screenshots.md) when visual output is acceptance evidence.
+
+See [Rendering analysis](assets.md#analyze-rendering) for draw calls, batching,
+lights, and overdraw, and the [Generated Tool Schema](../tools-schema/index.md)
+for exhaustive signatures.

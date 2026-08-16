@@ -185,6 +185,27 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Install_SecondRunIsIdempotent()
+        {
+            var src = Path.Combine(_tmp, "idempotent-src");
+            var dst = Path.Combine(_tmp, "idempotent-dst");
+            Directory.CreateDirectory(Path.Combine(src, "skills", "sample"));
+            Directory.CreateDirectory(Path.Combine(src, "agents"));
+            File.WriteAllText(Path.Combine(src, "skills", "sample", "SKILL.md"), "skill");
+            File.WriteAllText(Path.Combine(src, "agents", "sample.md"), "agent");
+
+            var first = SkillsInstaller.Install(src, dst);
+            var second = SkillsInstaller.Install(src, dst);
+
+            Assert.IsTrue(first.IsSuccess);
+            Assert.AreEqual(2, first.Copied);
+            Assert.IsTrue(second.IsSuccess);
+            Assert.AreEqual(0, second.Copied);
+            Assert.AreEqual(2, second.Skipped);
+            Assert.AreEqual(0, second.Removed);
+        }
+
+        [Test]
         public void Install_OverwritesWhenFlagSet()
         {
             var src = Path.Combine(_tmp, "src5");
@@ -278,6 +299,405 @@ namespace UnityMCP.Editor.Tests
                 dst, ".claude", "skills", "new-skill", "SKILL.md")));
         }
 
+        [Test]
+        public void Install_RetiredFilesAreRemovedInSameTransactionAsReplacementSkills()
+        {
+            var src = Path.Combine(_tmp, "retired-src");
+            var dst = Path.Combine(_tmp, "retired-dst");
+            Directory.CreateDirectory(Path.Combine(src, "skills", "unity-ugui-authoring"));
+            Directory.CreateDirectory(Path.Combine(src, "skills", "unity-uitoolkit-authoring"));
+            File.WriteAllText(Path.Combine(
+                src, "skills", "unity-ugui-authoring", "SKILL.md"), "ugui");
+            File.WriteAllText(Path.Combine(
+                src, "skills", "unity-uitoolkit-authoring", "SKILL.md"), "uitk");
+
+            var oldUi = Path.Combine(
+                dst, ".claude", "skills", "unity-ui-authoring", "SKILL.md");
+            var oldReviewer = Path.Combine(
+                dst, ".claude", "agents", "unity-test-reviewer.md");
+            var oldPolicy = Path.Combine(
+                dst, ".claude", "skills", "unity-testing-verification",
+                "references", "test-authoring.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(oldUi));
+            Directory.CreateDirectory(Path.GetDirectoryName(oldReviewer));
+            Directory.CreateDirectory(Path.GetDirectoryName(oldPolicy));
+            File.WriteAllText(oldUi, "old ui");
+            File.WriteAllText(oldReviewer, "old reviewer");
+            File.WriteAllText(oldPolicy, "old policy");
+
+            var legacyFiles =
+                new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyCollection<string>>
+            {
+                {
+                    "skills/unity-ui-authoring/SKILL.md",
+                    new[] { SkillsInstaller.ComputeGitBlobSha1(oldUi) }
+                },
+                {
+                    "agents/unity-test-reviewer.md",
+                    new[] { SkillsInstaller.ComputeGitBlobSha1(oldReviewer) }
+                },
+                {
+                    "skills/unity-testing-verification/references/test-authoring.md",
+                    new[] { SkillsInstaller.ComputeGitBlobSha1(oldPolicy) }
+                },
+            };
+
+            var result = SkillsInstaller.Install(src, dst, false, legacyFiles);
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(2, result.Copied);
+            Assert.AreEqual(3, result.Removed);
+            Assert.IsFalse(File.Exists(oldUi));
+            Assert.IsFalse(File.Exists(oldReviewer));
+            Assert.IsFalse(File.Exists(oldPolicy));
+            Assert.IsTrue(File.Exists(Path.Combine(
+                dst, ".claude", "skills", "unity-ugui-authoring", "SKILL.md")));
+            Assert.IsTrue(File.Exists(Path.Combine(
+                dst, ".claude", "skills", "unity-uitoolkit-authoring", "SKILL.md")));
+        }
+
+        [Test]
+        public void Install_ModifiedRetiredFileBlocksEveryRemovalAndCopy()
+        {
+            var src = Path.Combine(_tmp, "retired-conflict-src");
+            var dst = Path.Combine(_tmp, "retired-conflict-dst");
+            Directory.CreateDirectory(Path.Combine(src, "skills", "replacement"));
+            File.WriteAllText(Path.Combine(src, "skills", "replacement", "SKILL.md"), "new");
+
+            var unchanged = Path.Combine(dst, ".claude", "agents", "old-agent.md");
+            var modified = Path.Combine(dst, ".claude", "skills", "old", "SKILL.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(unchanged));
+            Directory.CreateDirectory(Path.GetDirectoryName(modified));
+            File.WriteAllText(unchanged, "managed agent");
+            File.WriteAllText(modified, "managed skill");
+            var unchangedHash = SkillsInstaller.ComputeGitBlobSha1(unchanged);
+            var modifiedHash = SkillsInstaller.ComputeGitBlobSha1(modified);
+            File.WriteAllText(modified, "user customization");
+
+            var legacyFiles =
+                new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyCollection<string>>
+            {
+                { "agents/old-agent.md", new[] { unchangedHash } },
+                { "skills/old/SKILL.md", new[] { modifiedHash } },
+            };
+
+            var result = SkillsInstaller.Install(src, dst, false, legacyFiles);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, result.Copied);
+            Assert.AreEqual(0, result.Removed);
+            Assert.AreEqual("managed agent", File.ReadAllText(unchanged));
+            Assert.AreEqual("user customization", File.ReadAllText(modified));
+            Assert.IsFalse(File.Exists(Path.Combine(
+                dst, ".claude", "skills", "replacement", "SKILL.md")));
+        }
+
+        [Test]
+        public void Install_FailureAfterDestinationReplacement_RestoresExactState()
+        {
+            var src = Path.Combine(_tmp, "destination-rollback-src");
+            var dst = Path.Combine(_tmp, "destination-rollback-dst");
+            var newSource = Path.Combine(src, "skills", "a-new", "SKILL.md");
+            var replacementSource = Path.Combine(src, "skills", "b-existing.md");
+            var newDestination = Path.Combine(
+                dst, ".claude", "skills", "a-new", "SKILL.md");
+            var replacementDestination = Path.Combine(
+                dst, ".claude", "skills", "b-existing.md");
+            var personalEmpty = Path.Combine(
+                dst, ".claude", "skills", "personal-empty");
+            var originalBytes = new byte[] { 0x00, 0x7f, 0x80, 0xff, 0x0a };
+
+            Directory.CreateDirectory(Path.GetDirectoryName(newSource));
+            Directory.CreateDirectory(Path.GetDirectoryName(replacementDestination));
+            Directory.CreateDirectory(personalEmpty);
+            File.WriteAllBytes(newSource, new byte[] { 0x01, 0x02, 0x03 });
+            File.WriteAllBytes(replacementSource, new byte[] { 0x04, 0x05, 0x06 });
+            File.WriteAllBytes(replacementDestination, originalBytes);
+            var before = SnapshotTree(dst);
+
+            var result = SkillsInstaller.Install(
+                src,
+                dst,
+                true,
+                new System.Collections.Generic.Dictionary<
+                    string,
+                    System.Collections.Generic.IReadOnlyCollection<string>>(),
+                (mutation, path) =>
+                {
+                    if (mutation == SkillsInstaller.InstallMutation.DestinationApplied &&
+                        string.Equals(
+                            path,
+                            replacementDestination,
+                            StringComparison.OrdinalIgnoreCase))
+                        throw new IOException("Injected failure after destination replacement.");
+                });
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, result.Copied);
+            Assert.AreEqual(0, result.Skipped);
+            Assert.AreEqual(0, result.Removed);
+            Assert.IsTrue(result.StateRestored);
+            Assert.IsNull(result.RecoveryPath);
+            Assert.IsFalse(File.Exists(newDestination));
+            CollectionAssert.AreEqual(originalBytes, File.ReadAllBytes(replacementDestination));
+            CollectionAssert.AreEqual(before, SnapshotTree(dst));
+            Assert.IsTrue(Directory.Exists(personalEmpty));
+            StringAssert.Contains("Injected failure", result.Errors[0]);
+            Assert.AreEqual(
+                0,
+                Directory.GetDirectories(
+                    dst,
+                    ".unity-biome-skills-*",
+                    SearchOption.TopDirectoryOnly).Length);
+        }
+
+        [Test]
+        public void Install_FailureAfterDestinationJournal_RestoresExactState()
+        {
+            var src = Path.Combine(_tmp, "destination-journal-src");
+            var dst = Path.Combine(_tmp, "destination-journal-dst");
+            var newSource = Path.Combine(src, "skills", "a-new", "SKILL.md");
+            var replacementSource = Path.Combine(src, "skills", "b-existing.md");
+            var replacementDestination = Path.Combine(
+                dst, ".claude", "skills", "b-existing.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(newSource));
+            Directory.CreateDirectory(Path.GetDirectoryName(replacementDestination));
+            File.WriteAllText(newSource, "new");
+            File.WriteAllText(replacementSource, "replacement");
+            File.WriteAllText(replacementDestination, "original");
+            var before = SnapshotTree(dst);
+
+            var result = SkillsInstaller.Install(
+                src,
+                dst,
+                true,
+                new System.Collections.Generic.Dictionary<
+                    string,
+                    System.Collections.Generic.IReadOnlyCollection<string>>(),
+                (mutation, path) =>
+                {
+                    if (mutation == SkillsInstaller.InstallMutation.DestinationJournaled &&
+                        string.Equals(
+                            path,
+                            replacementDestination,
+                            StringComparison.OrdinalIgnoreCase))
+                        throw new IOException("Injected failure after destination journal.");
+                });
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.IsTrue(result.StateRestored);
+            CollectionAssert.AreEqual(before, SnapshotTree(dst));
+            StringAssert.Contains("Injected failure", result.Errors[0]);
+        }
+
+        [Test]
+        public void Install_FailureAfterNewDestinationJournal_RestoresExactState()
+        {
+            var src = Path.Combine(_tmp, "new-journal-src");
+            var dst = Path.Combine(_tmp, "new-journal-dst");
+            var source = Path.Combine(src, "skills", "new", "SKILL.md");
+            var destination = Path.Combine(
+                dst, ".claude", "skills", "new", "SKILL.md");
+            var personalEmpty = Path.Combine(
+                dst, ".claude", "skills", "personal-empty");
+            Directory.CreateDirectory(Path.GetDirectoryName(source));
+            Directory.CreateDirectory(personalEmpty);
+            File.WriteAllText(source, "generated");
+            var before = SnapshotTree(dst);
+
+            var result = SkillsInstaller.Install(
+                src,
+                dst,
+                false,
+                new System.Collections.Generic.Dictionary<
+                    string,
+                    System.Collections.Generic.IReadOnlyCollection<string>>(),
+                (mutation, path) =>
+                {
+                    if (mutation == SkillsInstaller.InstallMutation.DestinationJournaled)
+                        throw new IOException("Injected failure after new destination journal.");
+                });
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.IsTrue(result.StateRestored);
+            Assert.IsFalse(File.Exists(destination));
+            CollectionAssert.AreEqual(before, SnapshotTree(dst));
+            StringAssert.Contains("Injected failure", result.Errors[0]);
+        }
+
+        [Test]
+        public void Install_FailureAfterLegacyRemoval_RestoresRetiredFileAndNewFiles()
+        {
+            var src = Path.Combine(_tmp, "legacy-rollback-src");
+            var dst = Path.Combine(_tmp, "legacy-rollback-dst");
+            var source = Path.Combine(src, "skills", "replacement", "SKILL.md");
+            var destination = Path.Combine(
+                dst, ".claude", "skills", "replacement", "SKILL.md");
+            var retired = Path.Combine(dst, ".claude", "agents", "retired.md");
+            var personalEmpty = Path.Combine(
+                dst, ".claude", "skills", "personal-empty");
+            var retiredBytes = new byte[] { 0xff, 0x00, 0x81, 0x42, 0x0a };
+
+            Directory.CreateDirectory(Path.GetDirectoryName(source));
+            Directory.CreateDirectory(Path.GetDirectoryName(retired));
+            Directory.CreateDirectory(personalEmpty);
+            File.WriteAllBytes(source, new byte[] { 0x10, 0x20, 0x30 });
+            File.WriteAllBytes(retired, retiredBytes);
+            var before = SnapshotTree(dst);
+            var legacyFiles =
+                new System.Collections.Generic.Dictionary<
+                    string,
+                    System.Collections.Generic.IReadOnlyCollection<string>>
+                {
+                    {
+                        "agents/retired.md",
+                        new[] { SkillsInstaller.ComputeGitBlobSha1(retired) }
+                    },
+                };
+
+            var result = SkillsInstaller.Install(
+                src,
+                dst,
+                false,
+                legacyFiles,
+                (mutation, path) =>
+                {
+                    if (mutation == SkillsInstaller.InstallMutation.LegacyRemoved &&
+                        string.Equals(path, retired, StringComparison.OrdinalIgnoreCase))
+                        throw new IOException("Injected failure after legacy removal.");
+                });
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, result.Copied);
+            Assert.AreEqual(0, result.Skipped);
+            Assert.AreEqual(0, result.Removed);
+            Assert.IsTrue(result.StateRestored);
+            Assert.IsNull(result.RecoveryPath);
+            Assert.IsFalse(File.Exists(destination));
+            CollectionAssert.AreEqual(retiredBytes, File.ReadAllBytes(retired));
+            CollectionAssert.AreEqual(before, SnapshotTree(dst));
+            Assert.IsTrue(Directory.Exists(personalEmpty));
+            StringAssert.Contains("Injected failure", result.Errors[0]);
+            Assert.AreEqual(
+                0,
+                Directory.GetDirectories(
+                    dst,
+                    ".unity-biome-skills-*",
+                    SearchOption.TopDirectoryOnly).Length);
+        }
+
+        [Test]
+        public void Install_FailureAfterLegacyJournal_RestoresExactState()
+        {
+            var src = Path.Combine(_tmp, "legacy-journal-src");
+            var dst = Path.Combine(_tmp, "legacy-journal-dst");
+            var source = Path.Combine(src, "skills", "replacement", "SKILL.md");
+            var retired = Path.Combine(dst, ".claude", "agents", "retired.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(source));
+            Directory.CreateDirectory(Path.GetDirectoryName(retired));
+            File.WriteAllText(source, "replacement");
+            File.WriteAllText(retired, "retired");
+            var before = SnapshotTree(dst);
+            var legacyFiles =
+                new System.Collections.Generic.Dictionary<
+                    string,
+                    System.Collections.Generic.IReadOnlyCollection<string>>
+                {
+                    {
+                        "agents/retired.md",
+                        new[] { SkillsInstaller.ComputeGitBlobSha1(retired) }
+                    },
+                };
+
+            var result = SkillsInstaller.Install(
+                src,
+                dst,
+                false,
+                legacyFiles,
+                (mutation, path) =>
+                {
+                    if (mutation == SkillsInstaller.InstallMutation.LegacyRemovalJournaled)
+                        throw new IOException("Injected failure after legacy journal.");
+                });
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.IsTrue(result.StateRestored);
+            CollectionAssert.AreEqual(before, SnapshotTree(dst));
+            StringAssert.Contains("Injected failure", result.Errors[0]);
+        }
+
+        [Test]
+        public void Install_RollbackKeepsUserFileAddedToCreatedDirectory()
+        {
+            var src = Path.Combine(_tmp, "nonempty-rollback-src");
+            var dst = Path.Combine(_tmp, "nonempty-rollback-dst");
+            var source = Path.Combine(src, "skills", "new", "SKILL.md");
+            var destination = Path.Combine(
+                dst, ".claude", "skills", "new", "SKILL.md");
+            var userFile = Path.Combine(
+                dst, ".claude", "skills", "new", "notes.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(source));
+            File.WriteAllText(source, "generated");
+
+            var result = SkillsInstaller.Install(
+                src,
+                dst,
+                false,
+                new System.Collections.Generic.Dictionary<
+                    string,
+                    System.Collections.Generic.IReadOnlyCollection<string>>(),
+                (mutation, path) =>
+                {
+                    if (mutation != SkillsInstaller.InstallMutation.DestinationApplied)
+                        return;
+                    File.WriteAllText(userFile, "keep me");
+                    throw new IOException("Injected failure after user write.");
+                });
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.IsTrue(result.StateRestored);
+            Assert.IsFalse(File.Exists(destination));
+            Assert.AreEqual("keep me", File.ReadAllText(userFile));
+            Assert.IsTrue(Directory.Exists(Path.GetDirectoryName(userFile)));
+        }
+
+        [Test]
+        public void Install_TransactionCleanupFailureIsNonFatalWarning()
+        {
+            var src = Path.Combine(_tmp, "cleanup-warning-src");
+            var dst = Path.Combine(_tmp, "cleanup-warning-dst");
+            var source = Path.Combine(src, "skills", "new", "SKILL.md");
+            var destination = Path.Combine(
+                dst, ".claude", "skills", "new", "SKILL.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(source));
+            File.WriteAllText(source, "generated");
+
+            var result = SkillsInstaller.Install(
+                src,
+                dst,
+                false,
+                new System.Collections.Generic.Dictionary<
+                    string,
+                    System.Collections.Generic.IReadOnlyCollection<string>>(),
+                cleanupTransaction: _ => throw new IOException("cleanup blocked"));
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(1, result.Copied);
+            Assert.IsTrue(result.StateRestored);
+            Assert.IsNull(result.RecoveryPath);
+            Assert.AreEqual(1, result.Errors.Length);
+            StringAssert.StartsWith("WARNING: ", result.Errors[0]);
+            StringAssert.Contains("cleanup blocked", result.Errors[0]);
+            StringAssert.Contains("Recovery files", result.Errors[0]);
+            Assert.IsTrue(File.Exists(destination));
+            Assert.AreEqual(
+                1,
+                Directory.GetDirectories(
+                    dst,
+                    ".unity-biome-skills-*",
+                    SearchOption.TopDirectoryOnly).Length);
+        }
+
         // ── Version file ──────────────────────────────────────────────────────
 
         [Test]
@@ -343,6 +763,25 @@ namespace UnityMCP.Editor.Tests
         {
             Directory.CreateDirectory(Path.Combine(_tmp, ".codex"));
             Assert.IsTrue(SkillsInstaller.HasCodexDir(_tmp));
+        }
+
+        private static string[] SnapshotTree(string root)
+        {
+            if (!Directory.Exists(root)) return Array.Empty<string>();
+            var paths = Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories);
+            Array.Sort(paths, StringComparer.Ordinal);
+            var prefix = root.TrimEnd(
+                Path.DirectorySeparatorChar,
+                Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var snapshot = new string[paths.Length];
+            for (var i = 0; i < paths.Length; i++)
+            {
+                var relative = paths[i].Substring(prefix.Length).Replace('\\', '/');
+                snapshot[i] = Directory.Exists(paths[i])
+                    ? "D:" + relative
+                    : "F:" + relative + ":" + Convert.ToBase64String(File.ReadAllBytes(paths[i]));
+            }
+            return snapshot;
         }
     }
 }

@@ -19,7 +19,7 @@ State persists across Unity sessions in `<ProjectRoot>/Library/PlaytestComposerS
 | **Save** | SaveFilePanel → `.playtest` file; default folder `<ProjectRoot>/Playtests/` (auto-created) |
 | **Load** | OpenFilePanel → parses DSL via PlaytestParser → repopulates step list (macros/aliases are expanded and flattened) |
 | **Copy DSL** | Copies raw DSL text to clipboard |
-| **Copy for AI** | Copies a fenced ` ```playtest timeout=N abort_on_fail=true/false ``` ` block — paste directly into Claude chat |
+| **Copy for AI** | Copies a fenced ` ```playtest timeout=N abort_on_fail=true/false ``` ` block for an agent chat |
 | **＋ Smart Command** | Opens the NL→DSL entry window (see below) |
 | **TO: [float]** | Global timeout in seconds (default 60s); passed as `globalTimeout` to `PlaytestRunner.Run` |
 | **Abort [toggle]** | Prepends `ABORT_ON_FAIL` to the generated DSL when checked |
@@ -145,7 +145,13 @@ Modal 400×360 window for entering steps in natural language.
 - Extension: `.playtest` (plain UTF-8 text, raw DSL)
 - Default folder: `<ProjectRoot>/Playtests/` (auto-created on first Save)
 - Last used path is remembered per session
-- **Load round-trip note:** MACRO/VAL/MOVE_PATH directives are expanded by the parser; the loaded step list shows the flattened result, not the original macro structure (ALIAS removed v0.92.x)
+- **Load round-trip note:** Parser-only structure such as macros, static
+  `VAL`/`PATH_PREFIX` directives, and comments is not reconstructed from the
+  loaded step list. An ordinary step type that the Composer cannot edit
+  visually keeps its exact source `RawLine`. If static `VAL` or `PATH_PREFIX`
+  processing changed that line, export uses `ExpandedRawLine` instead so the
+  saved step is self-contained. Runtime `VAR` sigils are not statically
+  expanded and remain intact.
 
 ---
 
@@ -201,9 +207,12 @@ Visual manager for `PlaytestConfig.aliases` — maps short `$name` sigils to `pa
 | Button | Action |
 |--------|--------|
 | **+ Add** | Insert empty alias row |
-| **Export .defs** | Write all aliases as VAL lines to `Assets/PlaytestDefs/aliases.defs` (auto-creates folder) |
-| **Copy VAL block** | Copy multi-line `VAL $name path|comp|field` block to clipboard |
-| Token label | Displays `~N tokens saved` — live estimate from `PlaytestAliasHelpers.TokenSavingsEstimate` |
+| **Copy defs block** | Copy the aliases as a multi-line definitions block |
+| Token label | Displays `~N tokens/call` from `PlaytestAliasHelpers.TokenSavingsEstimate` |
+
+The **DSL Preview** foldout contains **Export .defs**, which writes the current
+definitions to `Assets/PlaytestDefs/aliases.defs` and creates the folder when
+needed.
 
 ### Drop Zone
 
@@ -258,9 +267,13 @@ Below the list, a live preview shows the full `VAL` block that will be generated
 1. Open Alias Manager (`Shift+Alt+A`).
 2. Drag GameObjects from Hierarchy into the drop zone.
 3. Set `component` and `field` via **Pick…** or manually.
-4. Click **Copy VAL block** and paste at the top of the DSL script, OR click **Export .defs** and add `INCLUDE aliases.defs` to the script.
+4. Click **Copy defs block** and paste it at the top of the DSL script, or open
+   **DSL Preview**, click **Export .defs**, and add `INCLUDE aliases.defs` to the
+   script.
 5. Alternatively: pass the block as `defs` to `run_playtest(script, defs=block)` from Python, or save the script to `Playtests/` and call `run_playtest(path="Playtests/x.playtest")` for minimal token cost.
 
 ---
 
-**See also:** `AI/playtest-dsl.md` for full DSL syntax reference; `.claude/skills/playmode-verification.md` for assertion patterns.
+**See also:** `AI/playtest-dsl.md` for the full DSL contract and
+`unity-plugin/ClientSkills/skills/unity-testing-verification/SKILL.md` for the
+consumer-agent verification workflow.

@@ -56,7 +56,9 @@ Only the rightmost `/` before the path body is split by the parser. Slashes insi
 
 ### SETUP
 
-Declare a block of steps that run before the main test steps. If any step in the SETUP block fails, execution skips directly to the TEARDOWN block (if present) rather than continuing to main steps.
+Declare a block of steps that run before the main test steps. Without global
+abort, a failed SETUP step skips the remaining SETUP and all main steps, then
+runs TEARDOWN if present.
 
 ```
 SETUP
@@ -70,13 +72,16 @@ ASSERT /Player|Score > 0
 
 **Syntax:** `SETUP` → steps → `SETUP_END` (no other tokens required)
 
-If SETUP fails, remaining SETUP steps execute, then TEARDOWN runs. Main steps and TEARDOWN still execute in full for cleanup, but the test report indicates setup failure.
+With `ABORT_ON_FAIL`, the same failure stops Play Mode and finishes immediately;
+pending TEARDOWN does not run.
 
 ---
 
 ### TEARDOWN
 
-Declare a cleanup block that runs after main steps complete (success or failure). Useful for reverting test state or capturing final diagnostics.
+Declare a cleanup block that runs after normal main completion or after a
+non-global SETUP failure. Useful for reverting test state or capturing final
+diagnostics.
 
 ```
 TEARDOWN
@@ -87,7 +92,9 @@ TEARDOWN_END
 
 **Syntax:** `TEARDOWN` → steps → `TEARDOWN_END`
 
-TEARDOWN steps always execute in full, even if earlier steps failed. Their results are included in the report. If TEARDOWN is explicitly reached (no SETUP failure), main steps ran to completion.
+Without global abort, TEARDOWN continues through its steps even when an ordinary
+main or TEARDOWN step fails. Global abort stops immediately after any failed
+step or automatic console failure, so remaining TEARDOWN steps are skipped.
 
 ---
 
@@ -111,7 +118,9 @@ MOVE player TO $player_start
 
 ### ABORT_ON_FAIL
 
-Global directive — stop Play Mode immediately when any WAIT_UNTIL times out.
+Global directive — after any failed step or automatic console failure, stop Play
+Mode and finish immediately. All remaining SETUP, main, and TEARDOWN steps are
+skipped.
 
 ```
 ABORT_ON_FAIL
@@ -123,7 +132,9 @@ Must appear as its own line anywhere in the script. Does not emit a step.
 
 **Syntax:** `ABORT_ON_FAIL`
 
-Per-step variant: add `ABORT` token to a single `WAIT_UNTIL` line.
+The per-step `ABORT` token is narrower: it stops Play Mode only when that
+particular `WAIT_UNTIL` times out. It does not enable the global policy for other
+failures.
 
 ```
 WAIT_UNTIL /Enemy|AI|IsDead == true TIMEOUT 10 ABORT
@@ -815,6 +826,10 @@ WAIT_UNTIL /Door|Door|IsOpen == true OR /Player|Player|IsDead == true TIMEOUT 15
 WAIT_UNTIL /Enemy|AI|IsPatrolling == true TIMEOUT 5 ABORT
 ```
 
+`ABORT` applies only to this wait's timeout. Use the standalone
+`ABORT_ON_FAIL` directive for fail-fast behavior across every step type and
+automatic console failures.
+
 **Syntax:** `WAIT_UNTIL query op value [AND|OR query op value ...] [TIMEOUT n] [ABORT]`  
 **Operators (numeric):** `==`, `!=`, `>`, `<`, `>=`, `<=`  
 **Operators (string):** `==` (case-insensitive), `!=`, `contains` (substring)  
@@ -982,4 +997,7 @@ MOVE_PATH $patrol_start_0 > $patrol_start_1
 
 ---
 
-**See also:** `run_playtest` (inline `script=` or file `path=`) in `AI/runtime-playtest.md`; `AI/playtest-composer.md` for the visual editor; `.claude/skills/playmode-verification.md` for assertion patterns.
+**See also:** `run_playtest` (inline `script=` or file `path=`) in
+`AI/runtime-playtest.md`, `AI/playtest-composer.md` for the visual editor, and
+`unity-plugin/ClientSkills/skills/unity-testing-verification/references/playtest-dsl.md`
+for the concise installed-agent workflow.

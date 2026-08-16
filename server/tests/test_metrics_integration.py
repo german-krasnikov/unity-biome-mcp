@@ -132,3 +132,17 @@ async def test_get_metrics_tool_reset_clears():
     METRICS.inc("x", 5)
     await get_metrics(reset=True)
     assert METRICS.snapshot()["counters"] == {}
+
+
+async def test_get_metrics_reset_blocked_in_read_only(monkeypatch):
+    from mcp.server.fastmcp.exceptions import ToolError
+    from unity_mcp.metrics import METRICS
+    from unity_mcp.tools.metrics_tool import get_metrics
+
+    METRICS.inc("read-only-probe", 1)
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await get_metrics(reset=True)
+
+    assert METRICS.snapshot()["counters"]["read-only-probe"] == 1

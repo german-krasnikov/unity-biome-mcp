@@ -1,6 +1,4 @@
 """TDD tests for objects_in_polygon region_id support."""
-import pytest
-from mcp.server.fastmcp.exceptions import ToolError
 from unity_mcp.tools.spatial import spatial_query
 
 
@@ -28,7 +26,8 @@ async def test_objects_in_polygon_region_id_none_omitted(mock_bridge):
     assert "region_id" not in sent
 
 
-async def test_objects_in_polygon_vertices_still_required(mock_bridge):
-    """Sanity: region_id alone doesn't bypass the vertices requirement."""
-    with pytest.raises(ToolError, match="vertices required"):
-        await spatial_query(action="objects_in_polygon", region_id="zone_a")
+async def test_objects_in_polygon_region_id_only_is_accepted(mock_bridge):
+    await spatial_query(action="objects_in_polygon", region_id="zone_a")
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["region_id"] == "zone_a"
+    assert "vertices" not in sent

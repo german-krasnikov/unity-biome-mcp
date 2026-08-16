@@ -50,9 +50,13 @@ def test_old_write_cmds_subset_of_derived():
 
 
 def test_old_read_cmds_subset_of_derived():
-    """Every old READ_CMDS member must be in derived READ_CMDS."""
+    """Old pure reads remain reads; newly argument-aware tools may be writes."""
     from unity_mcp.middleware_types import READ_CMDS
-    missing = _OLD_READ_CMDS - READ_CMDS
+    conditional = {
+        "get_changes", "get_metrics", "profile", "screenshot",
+        "screenshot_compare",
+    }
+    missing = (_OLD_READ_CMDS - conditional) - READ_CMDS
     assert not missing, f"Lost from READ_CMDS: {missing}"
 
 
@@ -125,4 +129,8 @@ def test_write_cmds_bounded_size():
     from unity_mcp.middleware_types import WRITE_CMDS
     # If this fails, a tool was added without mutability='read' annotation.
     # Either annotate it as read, or increase this number intentionally.
-    assert len(WRITE_CMDS) <= 73, f"WRITE_CMDS grew to {len(WRITE_CMDS)} — annotate new tools with mutability='read' if they don't mutate"  # +4: plan_create/approve/reject/edit (T20)
+    # 87 includes the side-effecting tools corrected from read to write,
+    # plus the raw navmesh transport alias used by navmesh_query.
+    # test_step, run_playtest, run_playtest_suite, screenshot_baseline,
+    # verify_after_change, and conditionally mutating doctor.
+    assert len(WRITE_CMDS) <= 87, f"WRITE_CMDS grew to {len(WRITE_CMDS)} — annotate new tools with mutability='read' if they don't mutate"

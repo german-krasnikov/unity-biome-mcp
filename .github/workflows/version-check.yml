@@ -10,6 +10,9 @@ on:
       - "server/src/unity_mcp/__version__.py"
       - "unity-plugin/Editor/MCPServer.cs"
       - "docs/assets/_meta.json"
+      - "CHANGELOG.md"
+      - "unity-plugin/CHANGELOG.md"
+      - "scripts/sync_changelog.py"
 
 permissions:
   contents: read
@@ -31,8 +34,4 @@ jobs:
         run: python scripts/sync_versions.py --check
 
       - name: Check changelogs match
-        continue-on-error: true
-        run: |
-          if ! diff CHANGELOG.md unity-plugin/CHANGELOG.md; then
-            echo "::warning::Changelogs diverge — expected during development, must be synced before release"
-          fi
+        run: python scripts/sync_changelog.py --check

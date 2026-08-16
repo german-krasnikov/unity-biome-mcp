@@ -17,10 +17,10 @@ or `MEDIA` only when needed.
 3. `console_mark`, reproduce once, then `get_console_since(mark_id=...)`.
 4. Targeted hierarchy or component inspection.
 5. `scan_scene`, `scene_health`, or domain-specific diagnostics.
-5.5. `verify_after_change()` for 5-gate verification (compile clean, references valid,
-   console clean, scene scan, screenshot).
-6. Runtime snapshot, watch, frame statistics, or profile in Play Mode.
-7. Screenshot only for a visual symptom.
+6. `verify_after_change(...)` when a completed change needs compile checks plus
+   explicitly requested console, NUnit, or playtest gates.
+7. Runtime snapshot, watch, frame statistics, or profile in Play Mode.
+8. Screenshot only for a visual symptom.
 
 ```text
 console_mark()
@@ -57,7 +57,7 @@ watch(action="clear")
 |---|---|
 | Animator state or transition | `debug_animator` |
 | Rigidbody or collider behavior | `debug_physics` |
-| Navigation or pathfinding | `debug_navigation` or `navmesh_query` |
+| Navigation or pathfinding | `navmesh_query` |
 | Rendering or overdraw | `render_analyze` |
 | Many runtime fields | `query_state` or `runtime_snapshot` |
 | One changing field | a bounded `watch`, then clear it |
@@ -65,6 +65,13 @@ watch(action="clear")
 | Scene integrity check | `scene_health(focus="...")` with options: `all`, `hierarchy`, `naming`, `duplicates`, `origins`, `missing`, `empty`, or `disabled` |
 
 Resolve schemas for gated probes in one request and enable only their category.
+
+`verify_after_change` waits for an already-started compilation and reads compile
+errors; it does not refresh assets or start compilation. It checks the console
+only when `mark_id` is provided, runs NUnit only when
+`run_tests_mode` is provided, and runs playtests only when `playtests` is
+provided. It does not validate object references, scan the scene, or capture a
+screenshot; add those probes explicitly when the claim requires them.
 
 ## Rules
 

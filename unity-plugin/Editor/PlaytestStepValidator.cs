@@ -8,6 +8,10 @@ namespace UnityMCP.Editor
         public static string GetValidationError(VisualStep step)
         {
             if (step == null) return "step is null";
+            if (!PlaytestDslExporter.IsSupportedType(step.type))
+                return string.IsNullOrEmpty(step.rawLine)
+                    ? $"unsupported step type: {step.type}"
+                    : null;
             return step.type switch
             {
                 StepType.Move or StepType.Teleport =>

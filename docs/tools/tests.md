@@ -1,244 +1,191 @@
-# Testing Tools
+# NUnit Test Tools
 
-Dispatch and manage NUnit tests (EditMode and PlayMode). Control test execution, monitor progress, and verify test outcomes with durable run identity for reliable automation.
+Run Unity Test Framework EditMode or PlayMode tests with durable request and run
+identity. For a normal interactive MCP session, use one `run_tests_wait` call. The
+lower-level tools exist for protocol recovery and non-blocking integrations.
 
-## run_tests
+Repository maintainers use the standalone `run_unity_tests.py` worker for
+this repository's C# acceptance runs; the tools on this page are for an open
+consumer project connected through MCP.
 
-Dispatch NUnit tests without waiting for completion. Returns immediately with a stable `run_id` for polling.
+## Preferred workflow: `run_tests_wait` {#run_tests_wait}
 
-**Parameters:**
-- `mode` (string, default="EditMode") — "EditMode" | "PlayMode"
-- `filter` (string, optional) — Pipe-separated test class names (e.g., "HealthTest|DamageTest") for fast focused runs
-- `request_id` (string, optional) — Caller-supplied stable identity; reuse it when resolving an uncertain start
-
-**Output:**
-- Success: `tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched`
-- Lost ACK: `START-UNKNOWN|request_id=...|reason=...` (call `resolve_test_request()` with same `request_id`)
-
-**Example:**
+`run_tests_wait` dispatches one run, keeps its `request_id` and `run_id`, resolves a
+lost start acknowledgment, and polls until the exact run reaches terminal state.
 
 ```python
-# Start EditMode tests
-ack = await run_tests(mode="EditMode")
-# -> tests-started|request_id=abc123|run_id=xyz789|utf_guid=...|state=dispatched
+import json
 
-# Run only specific failing tests (much faster)
-ack = await run_tests(mode="EditMode", filter="HealthTest|DamageTest")
+raw = await run_tests_wait(
+    mode="EditMode",
+    filter="HealthTests|DamageTests",
+    timeout=300,
+)
+
+if not raw.startswith("{"):
+    raise RuntimeError(raw)  # BLOCKED, TIMEOUT, or PROTOCOL-ERROR
+
+run = json.loads(raw)
+if run["state"] != "terminal" or run["outcome"] != "passed":
+    raise RuntimeError(raw)
 ```
 
-**Use `run_tests_wait()` for most workflows** — it polls automatically until completion.
+Parameters:
 
----
+- `mode` is `EditMode` (default) or `PlayMode`.
+- `filter` is an optional pipe-separated list of test class/filter names.
+- `timeout` defaults to 900 seconds.
+- `poll_interval` defaults to five seconds.
+- `request_id` is optional. Supply a stable ID when an external workflow must
+  correlate or safely resume the same dispatch intent.
 
-## run_tests_wait
+The return value is text. A successful terminal result is compact JSON; failures
+to establish or observe a valid run use explicit `BLOCKED`, `TIMEOUT`, or
+`PROTOCOL-ERROR` records. A timeout is observational: the Unity run may still be
+active.
 
-Dispatch tests and block until that exact run reaches a terminal state. The preferred entry point for consumer-project MCP sessions.
+When both modes matter, use a passing EditMode run as the fast gate before starting
+PlayMode tests. `run_tests_wait` handles domain reload and transport recovery; a
+manual MCP reconnect between the modes is not part of the workflow.
 
-**Parameters:**
-- `mode` (string, default="EditMode") — "EditMode" | "PlayMode"
-- `filter` (string, optional) — Pipe-separated test class names for focused runs
-- `timeout` (float, default=900.0) — Max seconds to wait
-- `poll_interval` (float, default=5.0) — Seconds between status polls
-- `request_id` (string, optional) — Caller-supplied stable identity
+## Completion evidence
 
-**Returns:** Reconciled terminal JSON snapshot, timeout message, protocol error, or `BLOCKED` reason.
+`run_tests_wait` returns terminal JSON only after the server has validated the
+full durable snapshot. It requires:
 
-**Example:**
+- `source="mcp"`, the requested mode and filter, a non-empty `utf_guid`, and a
+  recognized `utf_xml_scope`;
+- terminal lifecycle plus true execution, cleanup, run-start, manifest,
+  run-finish, and build-coherence boundary flags;
+- a positive expected count; matching declared, readable-manifest, completed,
+  and unique-terminal counts; and zero unmaterialized, missing, unexpected, and
+  conflicting tests;
+- non-negative status counts whose sum equals the expected count, and a
+  structured `issues` list with no error-severity entry.
+
+After those invariants pass, accept the test result only when `outcome` is
+`passed`. The short example above is sufficient for JSON returned by
+`run_tests_wait`; it is not a validator for a raw `get_test_run` snapshot. A
+caller that owns lower-level polling must enforce the same complete contract.
+
+Do not treat a timeout, a progress message, or the newest entry in a run list as
+evidence for the run you requested.
+
+## Non-blocking dispatch: `run_tests` {#run_tests}
+
+Use `run_tests` only when the caller intentionally owns polling and recovery.
 
 ```python
-# Wait for all EditMode tests
-result = await run_tests_wait(mode="EditMode")
-
-# Run specific tests with shorter timeout
-result = await run_tests_wait(mode="EditMode", filter="HealthTest|DamageTest", timeout=60)
+ack = await run_tests(
+    mode="EditMode",
+    filter="HealthTests",
+    request_id="health-edit-001",
+)
 ```
 
-**Workflow:**
+A normal acknowledgment is:
 
-```python
-# 1. Run EditMode first (fast gate)
-result = await run_tests_wait(mode="EditMode")
-
-# 2. If pass, run PlayMode (requires MCP reconnect)
-if "passed" in result:
-    result = await run_tests_wait(mode="PlayMode")
+```text
+tests-started|request_id=health-edit-001|run_id=<id>|utf_guid=<id>|state=dispatched
 ```
 
-**Note:** Repository and disposable-worker C# verification use the standalone `run_unity_tests.py` runner, not this MCP poll loop.
+If dispatch may have happened but the acknowledgment was lost, the tool returns:
 
----
-
-## resolve_test_request
-
-Resolve a potentially lost start acknowledgment without launching another run. Use only if `run_tests()` returned `START-UNKNOWN`.
-
-**Parameters:**
-- `request_id` (string, required) — The `request_id` from the lost ACK or `START-UNKNOWN` response
-
-**Returns:** `test-request|request_id=...|run_id=...|state=...` if a run exists with that request ID, or error.
-
-**Example:**
-
-```python
-# Retry resolution if dispatch ACK was lost
-status = await resolve_test_request(request_id="abc123")
-# -> test-request|request_id=abc123|run_id=xyz789|state=running
-
-# Use the resolved run_id for polling
-result = await get_test_run(run_id="xyz789")
+```text
+START-UNKNOWN|request_id=health-edit-001|reason=<reason>
 ```
 
----
+Do not submit a new request ID in that case. Resolve the existing intent.
 
-## get_test_run
+## Recover a lost start
 
-Fetch the durable JSON snapshot for one exact run. **Only a reconciled `state="terminal"` snapshot is completion evidence.**
-
-**Parameters:**
-- `run_id` (string, required) — Value returned by `run_tests()`, `run_tests_wait()`, or `resolve_test_request()`
-
-**Returns:** Complete JSON snapshot with state, outcome, manifest, test counts, and cleanup evidence.
-
-**Output includes:**
-- `state` — "prepared", "dispatched", "running", "finalizing", or "terminal"
-- `outcome` — "passed", "failed", "cancelled", "incomplete", etc. (only valid when `state="terminal"`)
-- `expected_count`, `passed`, `failed`, `skipped` — Test manifest and results
-- `cleanup_complete`, `is_terminal` — Completion proof
-- `issues` — Infrastructure errors or test problems (list of {severity, message})
-
-**Example:**
+### `resolve_test_request`
 
 ```python
-# Check exact run status
-snapshot = await get_test_run(run_id="xyz789")
-
-# Verify terminal state before accepting result
-if snapshot.get("state") == "terminal":
-    if snapshot.get("outcome") == "passed":
-        print("All tests passed")
-    else:
-        print(f"Tests failed: {snapshot.get('failed')} failures")
+status = await resolve_test_request(request_id="health-edit-001")
 ```
 
----
+This reads the durable request record without launching another run. A correlated
+record includes its `run_id` and current state. Poll that exact ID with
+`get_test_run`.
 
-## get_test_count
-
-Return the total number of NUnit tests currently available in the project.
-
-**Parameters:** None
-
-**Returns:** Single number (string).
-
-**Example:**
+### `get_test_run`
 
 ```python
-count = await get_test_count()
-# -> "3290"
+import json
+
+raw = await get_test_run(run_id="<run-id>")
+snapshot = json.loads(raw)
 ```
 
----
+`get_test_run` returns a JSON string, not an already-decoded Python dictionary.
+Keep polling only the `run_id` bound to the request you dispatched.
 
-## get_test_results
-
-Legacy result facade. **Prefer `get_test_run()` for acceptance** — the durable snapshot includes lifecycle and cleanup evidence.
-
-**Parameters:**
-- `run_id` (string, optional) — Specific run identity (defaults to latest)
-
-**Output:** Result summary with pass/fail counts, or "pending".
-
-**Example:**
+### Manual recovery sequence
 
 ```python
-# Legacy convenience (diagnostic only)
-result = await get_test_results(run_id=run_id)
-```
+import asyncio
+import json
 
----
+status = await resolve_test_request(request_id="health-edit-001")
+# Parse run_id from the correlated pipe-delimited status.
+run_id = next(part.split("=", 1)[1] for part in status.split("|")
+              if part.startswith("run_id="))
 
-## get_test_progress
-
-Legacy progress facade. **Prefer `get_test_run()` for acceptance.**
-
-**Parameters:**
-- `run_id` (string, optional) — Specific run identity (defaults to latest)
-
-**Output:** Progress summary or "pending".
-
-**Example:**
-
-```python
-# Legacy convenience (diagnostic only)
-progress = await get_test_progress(run_id=run_id)
-```
-
----
-
-## cancel_test_run
-
-Request cancellation of one exact run. Cancellation is asynchronous.
-
-**Parameters:**
-- `run_id` (string, required) — The run to cancel
-
-**Returns:** Acknowledgment; keep polling `get_test_run()` until the run reaches terminal state.
-
-**Example:**
-
-```python
-# Cancel an in-progress run
-status = await cancel_test_run(run_id="xyz789")
-
-# Poll until actually stopped
 while True:
-    snapshot = await get_test_run(run_id="xyz789")
+    raw = await get_test_run(run_id=run_id)
+    snapshot = json.loads(raw)
     if snapshot.get("state") == "terminal":
-        print(f"Cancelled with outcome: {snapshot.get('outcome')}")
         break
-    await asyncio.sleep(2)
+    await asyncio.sleep(5)
 ```
 
----
+## Cancel a run {#cancel_test_run}
 
-## list_test_runs
-
-List recent durable runs, newest first. **Diagnostic aid only** — do not substitute a "latest" entry for the `run_id` you dispatched.
-
-**Parameters:**
-- `limit` (int, default=20) — Max runs to return
-
-**Returns:** List of recent run snapshots (newest first).
-
-**Example:**
+`cancel_test_run(run_id)` requests cancellation; it does not make the run terminal
+immediately. Continue polling the same run until its terminal snapshot reports the
+final outcome and cleanup evidence.
 
 ```python
-runs = await list_test_runs(limit=10)
-# -> [{"run_id": "xyz789", "state": "terminal", "outcome": "passed"}, ...]
+await cancel_test_run(run_id="<run-id>")
 ```
 
----
+## Discovery and diagnostic facades
 
-## Common Patterns
+### `list_test_runs`
 
-| Task | Tools | Example |
-|------|-------|---------|
-| Run all EditMode tests | run_tests_wait | `result = await run_tests_wait(mode="EditMode")` |
-| Run specific failing tests | run_tests_wait + filter | `result = await run_tests_wait(mode="EditMode", filter="HealthTest")` |
-| Run PlayMode after EditMode passes | run_tests_wait (two calls) | First EditMode, then PlayMode if pass |
-| Recover from lost start ACK | resolve_test_request | `run_id = await resolve_test_request(request_id=...)` |
-| Poll async test run manually | run_tests + get_test_run | Use `run_tests()` then `get_test_run(run_id=...)` |
-| Check terminal test result | get_test_run | Verify `state="terminal"` and `outcome` field |
+Returns recent durable snapshots as JSON, newest first. It is useful for diagnosis,
+not for replacing a lost `run_id` with “latest.” `limit` is clamped to 1–100.
 
----
+### `get_test_count`
 
-**Warnings:**
+Test discovery is asynchronous. The first call can return `discovering`; a later
+call returns a record such as:
 
-- **Start both test modes:** Never run PlayMode without first running EditMode as a gate.
-- **Durable identity:** Always use the `run_id` returned by dispatch or resolved via `resolve_test_request()`. Do not poll an implicit "latest" run.
-- **Terminal proof:** Only `state="terminal"` snapshots are valid completion evidence. Timeout is observational and does not mark the run complete.
-- **Repository verification:** Use standalone `run_unity_tests.py` runner for Biome repository and disposable-worker C# tests, not this MCP poll loop.
+```text
+742|edit=610|play=132
+```
 
----
+An incoherent build can instead return an `unavailable|...` record. A cached count
+is discovery information only and never certifies execution.
 
-**See also:** [Diagnostics](diagnostics.md) for compile checks before tests, [Runtime Tools](runtime.md) for PlayMode state assertions.
+### `get_test_results` and `get_test_progress`
+
+These are legacy convenience facades. When using them for diagnosis, always pass
+`run_id`. Use `get_test_run` for acceptance because it includes lifecycle,
+correlation, and cleanup evidence.
+
+## Troubleshooting
+
+| Result | Next action |
+|---|---|
+| `BLOCKED: ...` | Fix the reported compile/domain state, then start a new intentional run |
+| `START-UNKNOWN` | Call `resolve_test_request` with the same `request_id` |
+| `TIMEOUT|...|run_id=...` | Poll that `run_id`; do not assume the run stopped |
+| `PROTOCOL-ERROR` | Preserve the full record and inspect the correlated run; do not accept it |
+| Terminal `failed` | Read counts and `issues`, fix the tests, then dispatch a new run |
+| Terminal `incomplete` or `dispatch_failed` | Treat as infrastructure failure, not a test pass |
+
+See [Reliable Test Execution](../testing-reliability.md) for layer selection and
+the standalone-runner workflow, and [Diagnostics](diagnostics.md) for compile
+and domain recovery.

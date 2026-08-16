@@ -1,539 +1,339 @@
 # Object Tools
 
-Create, modify, and inspect GameObjects. Manage components, properties, and object relationships.
+Read and author GameObjects, components, serialized properties, hierarchy
+relationships, and scene-object references. Prefer full scene paths such as
+`/Level/Player`; qualify them as `SceneName:/Level/Player` when loaded scenes
+contain ambiguous paths.
 
-## get_component
+Most authoring tools on this page operate on serialized Edit Mode state. Use the
+[Runtime Tools](runtime.md) or Playtest DSL for intentional Play Mode changes.
 
-Read a component's properties from a scene object.
+## `get_component` {#get_component}
 
-**Parameters:**
-- `path` (string) — GameObject path (e.g., "Player" or "Player/Head")
-- `type` (string) — Component type (e.g., "Transform", "Rigidbody", "Health")
-- `fields` (string, optional) — Comma-separated field names to keep (e.g., "mass,position") — projects result to save tokens
-- `full` (bool, default=false) — Bypass distillation, return raw response
-- `compress` (bool, default=false) — Strip default values before transfer
-
-**Output Format:**
-```
-Transform
-  position: 0,1,0
-  rotation: 0,0,0,1
-  scale: 1,1,1
-  eulerAngles: 0,0,0
-```
-
-**Example:**
+Read one component when you know its object path and type:
 
 ```python
-# Read Transform
-transform = await get_component("Player", "Transform")
-
-# Read custom component
-health = await get_component("Player", "Health")
-# → "maxHp: 100"
-# → "currentHp: 85"
-
-# Read from nested object
-renderer = await get_component("Player/Body", "SkinnedMeshRenderer")
+transform = await get_component(
+    path="/Player",
+    type="Transform",
+    fields="position,rotation",
+)
+health = await get_component(path="/Player", type="Health")
 ```
 
-**Use Cases:**
-- Verify object state before/after operations
-- Read numeric values (position, health, score) for test assertions
-- Check component enablement and settings
+`fields` projects the returned text to the requested names. Use `compress=True` to
+strip defaults from a large result, or `full=True` only when diagnostic detail was
+removed by response distillation.
 
----
+## `inspect` {#inspect}
 
-## inspect
-
-Read multiple components from one or more objects in one call.
-
-**Parameters:**
-- `paths` (string, optional) — Single path or comma-separated list
-- `components` (string, optional) — Comma-separated component types to read (default: all)
-- `fields` (string, optional) — Comma-separated field names to keep across all objects — projects result to save tokens
-- `full` (bool, default=false) — Bypass distillation, return raw response
-- `compress` (bool, default=false) — Strip default values before transfer
-- `find_type` (string, optional) — Component type to find — populates paths automatically (replaces explicit paths)
-
-**Output Format:**
-```
-Player
-  Transform: position=(0,1,0), rotation=(0,0,0,1)
-  Rigidbody: mass=1.0, useGravity=true
-  Health: maxHp=100, currentHp=85
-
-Enemy
-  Transform: position=(5,0,0), rotation=(0,0,0,1)
-  Health: maxHp=50, currentHp=30
-```
-
-**Example:**
+Use one `inspect` call for a related multi-object or multi-component snapshot:
 
 ```python
-# Inspect single object (all components)
-info = await inspect(paths="Player")
-
-# Inspect multiple objects
-info = await inspect(paths="Player,Enemy,Boss")
-
-# Inspect specific components only
-info = await inspect(paths="Player", components="Transform,Health")
-
-# Combine with batch for max efficiency
-result = await batch("""
-inspect paths=Player,Enemy components=Health,Rigidbody
-""")
+state = await inspect(
+    paths="/Player,/Enemies/GuardA,/Enemies/GuardB",
+    components="Transform,Health",
+    fields="position,currentHealth",
+)
 ```
 
-**Use Cases:**
-- Quick snapshot of multiple objects
-- Verify component state in test assertions
-- Prefer this bulk read over a loop of individual `get_component` calls
-
----
-
-## set_property
-
-Change a component property on a scene object. Edit Mode only (via SerializedObject). For Play Mode runtime changes, use `invoke_method` or `execute_code`.
-
-**Parameters:**
-- `path` (string, optional) — GameObject path
-- `component` (string) — Component type
-- `prop` (string) — Property name
-- `value` (string) — New value (always as string; types inferred by Unity)
-- `dry_run` (bool, default=false) — Show what would change without applying
-- `find_type` (string, optional) — Component type — bulk-sets prop on all matching objects without specifying paths
-
-**Type Inference:**
-- `"true"` / `"false"` → bool
-- `"1.5"` → float
-- `"100"` → int
-- `"0,1,0"` → Vector3
-- `"1,0,0,1"` → Quaternion (normalized)
-- `"#FF0000"` → Color (hex)
-- Plain text → string
-- `""` (empty string) or `"null"` → null/none (clears ObjectReference fields)
-
-**Example:**
+Alternatively, `find_type` discovers objects with one component and inspects them:
 
 ```python
-# Position
-await set_property("Player", "Transform", "position", "10,5,0")
-
-# Rotation (quaternion or euler)
-await set_property("Player", "Transform", "rotation", "0,90,0")
-
-# Scale
-await set_property("Player", "Transform", "scale", "2,2,2")
-
-# Health (custom component)
-await set_property("Player", "Health", "maxHp", "150")
-
-# Color
-await set_property("Player/Renderer", "Material", "_Color", "#FF0000")
-
-# Boolean
-await set_property("Player", "Rigidbody", "isKinematic", "true")
-
-# Batch multiple compatible updates
-await batch("""
-set_property path=Player component=Transform prop=position value=0,1,0
-set_property path=Player component=Health prop=maxHp value=100
-set_property path=Enemy component=Transform prop=position value=5,0,0
-""")
+lights = await inspect(find_type="Light", components="Transform,Light")
 ```
 
----
+Do not combine `find_type` with a separately maintained path list; choose one scope
+so the result is reproducible.
 
-## create_object
+## `find_objects` {#find_objects}
 
-Spawn a new GameObject in the scene.
-
-**Parameters:**
-- `name` (string) — Name or path for new object (e.g., "Enemy" or "Enemies/Goblin")
-- `primitive` (string, optional) — Template type: "Cube", "Sphere", "Capsule", "Cylinder", "Quad", "Plane"
-- `parent` (string, optional) — Parent object path
-- `prefab_path` (string, optional) — Prefab asset path (instantiate from prefab)
-- `components` (string, optional) — Comma-separated components to add
-- `scene` (string, optional) — Scene name (for multi-scene projects)
-
-**Example:**
+`find_objects` is a simple scene-wide filter by name substring, exact tag, exact
+layer name, and/or component type:
 
 ```python
-# Create empty object
-await create_object(name="NewObject")
-
-# Create with primitive mesh
-await create_object(name="Ground", primitive="Plane")
-
-# Create under parent
-await create_object(name="Weapon", parent="Player/WeaponSlot")
-
-# Instantiate from prefab
-await create_object(name="Enemy1", prefab_path="Assets/Prefabs/Enemy.prefab")
-
-# Create multiple (use batch)
-await batch("""
-create_object name=Player primitive=Cube
-create_object name=Enemy primitive=Cube parent=Enemies
-create_object name=Ground primitive=Plane
-""")
+enemies = await find_objects(name="Enemy", component="Health")
 ```
 
----
+It does not support regex, hierarchy-root, or active-state filters. Use
+[`search_scene`](scene.md#search_scene) for those queries.
 
-## delete_object
+## `get_object_detail` {#get_object_detail}
 
-Remove a GameObject from the scene.
-
-**Parameters:**
-- `id` (int, optional) — Instance ID
-- `path` (string, optional) — GameObject path
-- `force` (bool, default=false) — Delete non-empty containers
-
-Provide either `id` or `path`.
-
-**Example:**
+`get_object_detail` serializes every component and value on one GameObject. It is
+heavy; prefer `get_component` for normal reads.
 
 ```python
-# Delete single object by path
-await delete_object(path="Temp")
-
-# Delete multiple (use batch)
-await batch("""
-delete_object path=Temp1
-delete_object path=Temp2
-""")
+# Replace this process-local decimal instance ID with one returned by Unity.
+detail = await get_object_detail(id=123456)
 ```
 
----
+Instance IDs are valid only in the current Editor process. They are not asset GUIDs
+or the compact hierarchy references returned by `get_hierarchy`.
 
-## set_active
+## `get_components_list` {#get_components_list}
 
-Enable or disable a GameObject.
-
-**Parameters:**
-- `path` (string) — GameObject path
-- `active` (bool) — true to enable, false to disable
-
-**Example:**
+This lower-level reader lists component names for a decimal Unity instance ID:
 
 ```python
-# Hide UI panel
-await set_active("UI/PauseMenu", active=False)
-
-# Show it again
-await set_active("UI/PauseMenu", active=True)
-
-# Batch multiple
-await batch("""
-set_active path=Enemy1 active=false
-set_active path=Enemy2 active=false
-""")
+components = await get_components_list(id=123456)
 ```
 
----
+When you already have a path, `inspect(paths="/Player")` is usually clearer.
 
-## manage_component
+## `create_object` {#create_object}
 
-Add or remove components from a scene object.
-
-**Parameters:**
-- `path` (string) — GameObject path
-- `type` (string) — Component type (short name like "Rigidbody" or full namespace like "UnityEngine.UI.Button")
-- `action` (string) — "add" | "remove"
-
-**Example:**
+Create an empty object, a Unity primitive, or a prefab instance:
 
 ```python
-# Add component
-await manage_component(path="Player", type="Rigidbody", action="add")
-
-# Add custom script
-await manage_component(path="Player", type="Health", action="add")
-
-# Remove component
-await manage_component(path="Player", type="AudioSource", action="remove")
-
-# Batch multiple
-await batch("""
-manage_component path=Enemy type=Rigidbody action=add
-manage_component path=Enemy type=Health action=add
-""")
+await create_object(name="SpawnPoints", parent="/Level")
+await create_object(
+    name="Player",
+    primitive="Capsule",
+    components="Rigidbody,PlayerController",
+)
+await create_object(
+    name="GuardA",
+    parent="/Enemies",
+    prefab_path="Assets/Prefabs/Guard.prefab",
+)
 ```
 
----
+`parent` must already exist. Pass `scene="Gameplay"` to `create_object` when the
+new object belongs in a specific loaded scene; use `scene(action="list")` first
+to confirm the loaded scene name.
 
-## set_parent
+## `delete_object` {#delete_object}
 
-Change an object's parent in the hierarchy.
-
-**Parameters:**
-- `path` (string) — GameObject to move
-- `parent` (string, optional) — New parent path (null = move to scene root)
-- `world_position_stays` (bool, default=true) — Preserve world transform; false = stay local to new parent
-
-**Example:**
+Delete by path and verify that the target disappeared:
 
 ```python
-# Parent to container
-await set_parent("Sword", parent="Player/WeaponSlot")
-
-# Unparent (root level)
-await set_parent("Player", parent=None)
-
-# Reparent keeping local position
-await set_parent("Widget", parent="Canvas/Panel", world_position_stays=False)
+await delete_object(path="/TemporaryPreview")
+missing = await search_scene(query="TemporaryPreview")
 ```
 
----
+Deleting a non-empty container requires `force=True` and removes its descendants.
+Use a checkpoint or source control before broad destructive changes.
 
-## wire_event
+## `manage_component` {#manage_component}
 
-See [Component Tools: wire_event](components.md#wire_event).
-
----
-
-## unwire_event
-
-See [Component Tools: unwire_event](components.md#unwire_event).
-
----
-
-## set_material
-
-Set object material color.
-
-**Parameters:**
-- `path` (string) — Object with Renderer
-- `color` (string) — Hex color (e.g., "#FF0000")
-- `shader` (string, optional) — Shader name; auto-selects URP/Standard if omitted
-
-**Example:**
+Add or remove a component by short name or full namespace:
 
 ```python
-# Set color to red
-await set_material("Player", color="#FF0000")
-
-# With explicit shader
-await set_material("Player", color="#0000FF", shader="Universal Render Pipeline/Lit")
+await manage_component(path="/Player", type="Rigidbody", action="add")
+rigidbody = await get_component(path="/Player", type="Rigidbody")
 ```
 
----
+Only `add` and `remove` are supported. To enable or disable a component, set its
+serialized enabled property where the component exposes one.
 
-## find_objects
+## `set_property` {#set_property}
 
-Search for GameObjects by name, component, tag, or layer (Category: `object`). For complex queries use search_scene instead.
-
-**Parameters:**
-- `name` (string, optional) — Name substring filter
-- `tag` (string, optional) — Tag filter
-- `layer` (string, optional) — Layer filter
-- `component` (string, optional) — Component type filter (full namespace)
-
-**Example:**
+Change one serialized field or property and read it back:
 
 ```python
-# Find by name
-enemies = await find_objects(name="Enemy")
-
-# Find all with Rigidbody
-rigidbodies = await find_objects(component="Rigidbody")
-
-# Find all with "Collectible" tag
-items = await find_objects(tag="Collectible")
-
-# Find by layer
-ui = await find_objects(layer="UI")
+await set_property(
+    path="/Player",
+    component="Rigidbody",
+    prop="mass",
+    value="2",
+)
+mass = await get_component(path="/Player", type="Rigidbody", fields="mass")
 ```
 
----
+Values are strings on the wire and are converted according to the serialized
+field: booleans, numbers, vectors, colors, enums, strings, and object references
+are supported. Use `dry_run=True` to preview a supported change.
 
-## get_object_detail
-
-Read full object metadata including components, tags, layers, active state (Category: `object`).
-
-**Parameters:**
-- `id` (int) — Instance ID (use `$a`-style IDs from get_hierarchy)
-- `full` (bool, default=false) — Bypass distillation, return raw response
-
-**Output:**
-```
-Name: Player
-Active: true
-Layer: Default
-Tag: Player
-Components: [Transform, Rigidbody, Health, PlayerController]
-Children: [Body, Head, WeaponSlot]
-```
-
-**Example:**
+For a scene-object reference, pass a scene path; use `ref_component_type` when the
+field expects a particular Component rather than a GameObject:
 
 ```python
-# Get hierarchy first to obtain instance ID
-hier = await get_hierarchy()  # → Player $a
-detail = await get_object_detail(id=<instance_id>)
+await set_property(
+    path="/Spawner",
+    component="Spawner",
+    prop="playerCollider",
+    value="/Player",
+    ref_component_type="CapsuleCollider",
+)
 ```
 
----
+Asset references use `Assets/...`; `"null"` clears an object-reference field.
+Use [`material`](shaders.md#create-and-configure-a-material) for shader properties
+instead of treating `Material` as a component.
 
-## get_components_list
+## `set_property_delta` {#set_property_delta}
 
-List all components on an object (Category: `object`).
-
-**Parameters:**
-- `id` (int) — Instance ID (use `$a`-style IDs from get_hierarchy)
-
-**Output:**
-```
-Transform
-Rigidbody
-PlayerController
-Health
-AudioSource
-```
-
-**Example:**
+Apply an intentional relative numeric or vector change:
 
 ```python
-# Get hierarchy first to obtain instance ID
-hier = await get_hierarchy()  # → Player $a
-components = await get_components_list(id=<instance_id>)
+await set_property_delta(
+    path="/Player",
+    component="Health",
+    prop="maxHealth",
+    delta="+10",
+)
 ```
 
----
+Read the value before and after; repeated delta calls are not idempotent.
 
-## object_diff
+## Hierarchy relationships
 
-Compare two objects' properties (Category: `object`). Supports cross-scene: `"SceneA:/Alice"`.
-
-**Parameters:**
-- `path_a` (string) — First object
-- `path_b` (string) — Second object
-
-**Output:** Diff showing matching/different components and values.
-
-**Example:**
+### `set_active` {#set_active}
 
 ```python
-diff = await object_diff(path_a="PlayerTemplate", path_b="Player")
-# → Transform: MATCH
-# → Health: maxHp=100 vs 85
+await set_active(path="/UI/PauseMenu", active=False)
 ```
 
----
-
-## set_property_delta
-
-Modify a numeric property by adding/subtracting (Category: `object`).
-
-**Parameters:**
-- `path` (string) — GameObject path
-- `component` (string) — Component type
-- `prop` (string) — Property name
-- `delta` (string) — Amount to add as string: `"+10"`, `"-5"`, `"(+1,2,0)"` for vectors
-
-**Example:**
+### `set_parent` {#set_parent}
 
 ```python
-# Add 10 to health
-await set_property_delta("Player", "Health", "hp", delta="+10")
-
-# Subtract 5 from score
-await set_property_delta("Player", "ScoreManager", "score", delta="-5")
+await set_parent(
+    path="/Sword",
+    parent="/Player/WeaponSocket",
+    world_position_stays=True,
+)
 ```
 
----
+Pass `parent=None` to move an object to the scene root. Set
+`world_position_stays=False` only when retaining its local transform is intended.
 
-## transfer_object
-
-Move or copy a GameObject to another loaded scene (Category: `object`).
-
-**Parameters:**
-- `path` (string) — Object to move/copy
-- `action` (string) — "move" | "copy"
-- `target_scene` (string, optional) — Destination scene name (omit = same scene, copy = duplicate)
-- `parent` (string, optional) — Target parent path in destination scene
-- `world_position_stays` (bool, default=true) — Preserve world transform
-
-**Example:**
+### `rename_object` {#rename_object}
 
 ```python
-# Move Player to AdditiveScene
-await transfer_object(path="Player", action="move", target_scene="AdditiveScene")
-
-# Copy Player to same scene
-await transfer_object(path="Player", action="copy")
+new_path = await rename_object(path="/Enemy", name="Guard")
 ```
 
----
+Subsequent calls must use the returned path.
 
-## rename_object
-
-Rename a GameObject. All subsequent MCP calls must use the new path.
-
-**Parameters:**
-- `path` (string) — Current scene path or #instanceID
-- `name` (string) — New name (non-empty)
-
-**Example:**
+### `set_sibling_index` {#set_sibling_index}
 
 ```python
-await rename_object(path="GameObject", name="Player")
-# → Returns new scene path
+await set_sibling_index(path="/UI/Buttons/Play", index=0)
 ```
 
----
+The index is zero-based within the current parent.
 
-## set_sibling_index
+### `transfer_object` {#transfer_object}
 
-Set sibling index of a GameObject within its parent.
-
-**Parameters:**
-- `path` (string) — GameObject path
-- `index` (int) — Target index (0 = first child)
-
-**Example:**
+Move an object to another loaded scene, or copy it in the current or target scene:
 
 ```python
-# Move to first child position
-await set_sibling_index(path="Canvas/Panel/Button3", index=0)
+await transfer_object(
+    path="Main:/Player",
+    action="move",
+    target_scene="Gameplay",
+)
+copy = await transfer_object(path="Gameplay:/Player", action="copy")
 ```
 
----
+When `parent` is supplied, it must resolve in the destination scene.
 
-## get_unity_events
+## `object_diff` {#object_diff}
 
-List all UnityEvent persistent listeners in the active scene.
-
-**Parameters:**
-- `path` (string, optional) — Scene-path prefix filter (e.g., "/UI" to scan only the UI subtree)
-
-**Example:**
+Compare components, properties, and children on two scene objects:
 
 ```python
-# List all events in scene
-events = await get_unity_events()
-
-# List events under UI subtree only
-events = await get_unity_events(path="/UI")
+diff = await object_diff(
+    path_a="/Enemies/GuardTemplate",
+    path_b="/Enemies/GuardA",
+)
 ```
 
----
+Scene-qualified paths allow cross-scene comparison.
 
-## Common Patterns
+## Events
 
-| Task | Tools | Example |
-|------|-------|---------|
-| Verify object exists | get_hierarchy + search_scene | `hier = await get_hierarchy()` |
-| Read object state | get_component + inspect | `health = await get_component("Player", "Health")` |
-| Modify multiple objects | batch + set_property | `await batch("set_property path=Player component=Transform prop=position value=0,1,0\nset_property path=Enemy component=Health prop=maxHp value=50")` |
-| Create + configure | create_object + set_property | `await create_object("Enemy"); await set_property("Enemy", "Health", "maxHp", "50")` |
-| Parent objects | set_parent | `await set_parent("Sword", "Player/Hand")` |
-| Add physics | manage_component | `await manage_component(path="Player", type="Rigidbody", action="add")` |
-| Wire UI events | wire_event | `await wire_event("UI/Button", "Button", "onClick", "Manager", "OnClick")` |
+### `wire_event` {#wire_event}
 
----
+Create a persistent UnityEvent listener, then verify it with `list_events`:
 
-**See also:** [Scene Tools](scene.md) for hierarchy inspection, [Batch](batch.md) for combining operations.
+```python
+await wire_event(
+    path="/UI/StartButton",
+    component="Button",
+    event="onClick",
+    target="/GameManager",
+    method="StartGame",
+    target_component_type="GameManager",
+)
+listeners = await list_events(
+    path="/UI/StartButton",
+    component="Button",
+    event="onClick",
+)
+```
+
+See [Component Events](components.md#wire_event) for overload selection and
+argument types.
+
+### `unwire_event` {#unwire_event}
+
+`unwire_event` removes one zero-based persistent listener with `index`, or all
+persistent listeners on the named event when `index` is omitted. Inspect first;
+the operation is destructive.
+
+### `get_unity_events` {#get_unity_events}
+
+Use `get_unity_events(path="/UI")` to audit persistent listeners across a subtree.
+Use `list_events` for exact verification of one event field.
+
+## `set_material` {#set_material}
+
+`set_material` is a small scene helper that creates a new in-memory Material,
+assigns it to a Renderer, and sets its color:
+
+```python
+await set_material(path="/Marker", color="#FF4D4D")
+```
+
+It does not create a reusable `.mat` asset. For renderer slots, shared-vs-instance
+control, textures, and durable material assets, use
+[Shaders and Materials](shaders.md).
+
+## `references` {#references}
+
+`references` inspects serialized **scene-object** references. It is not an asset
+dependency tool.
+
+```python
+outgoing = await references(
+    action="get",
+    path="/Player",
+    children=True,
+    depth=2,
+)
+incoming = await references(action="find_to", path="/Player/Weapon")
+```
+
+`get` lists outgoing references and can recursively follow them to `depth`.
+`children=True` also scans the source hierarchy. `find_to` searches loaded scene
+components for references to the target.
+
+`remap` is intended for a duplicated root whose components still reference an
+original hierarchy. It scans components on `target` and maps references under
+`source` to the analogous paths under `target`:
+
+```python
+result = await references(
+    action="remap",
+    path="/Enemies/GuardCopy",
+    source="/Enemies/GuardTemplate",
+    target="/Enemies/GuardCopy",
+)
+```
+
+The Python wrapper currently requires `path` for every action; for `remap`, pass
+the same target path even though the Unity remapper uses `source` and `target`.
+Explicit newline-separated `oldPath=newPath` entries in `mappings` override the
+automatic subtree mapping. Inspect the result and references after remapping.
+
+For asset dependencies use
+[`asset(action="get_dependencies")`](assets.md#dependencies-and-importer-settings).
+
+## Related workflows
+
+- [Scene Tools](scene.md) — hierarchy discovery, scenes, and guarded changes.
+- [Component Tools](components.md) — component references and event details.
+- [Batch Operations](batch.md) — combine compatible object operations.
+- [Generated Tool Schema](../tools-schema/index.md) — exhaustive signatures and defaults.

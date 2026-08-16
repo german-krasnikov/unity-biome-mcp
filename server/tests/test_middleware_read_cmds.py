@@ -29,11 +29,9 @@ def test_set_sibling_index_in_write_cmds():
     "alias_status",
     "get_aliases",
     "get_capabilities",
-    "get_changes",
     "get_enabled_tools",
     "get_frame_stats",
     "get_memory",
-    "get_metrics",
     "get_schema",
     "get_selection",
     "get_test_count",
@@ -48,7 +46,6 @@ def test_set_sibling_index_in_write_cmds():
     "object_diff",
     "scene_diff",
     "scene_health",
-    "screenshot_compare",
     "validate_triggers",
     "analyze_lod_culling",
     "check_colliders",
@@ -173,6 +170,100 @@ def test_is_write_get_component():
 def test_is_write_unknown_cmd_is_not_write():
     assert is_write("nonexistent_cmd", {}) is False
 
+
+def test_is_write_uitk_file_read_is_read():
+    assert is_write("uitk_file", {"action": "read"}) is False
+
+
+def test_is_write_uitk_file_mutations_and_unknown_actions_fail_closed():
+    assert is_write("uitk_file", {"action": "write"}) is True
+    assert is_write("uitk_file", {"action": "future_action"}) is True
+    assert is_write("uitk_file", {}) is True
+
+
+@pytest.mark.parametrize("cmd", ["navmesh", "navmesh_query"])
+@pytest.mark.parametrize(
+    "action", ["sample", "path", "raycast", "status", "get_settings"]
+)
+def test_is_write_navmesh_read_actions(cmd, action):
+    assert is_write(cmd, {"action": action}) is False
+
+
+@pytest.mark.parametrize("cmd", ["navmesh", "navmesh_query"])
+@pytest.mark.parametrize(
+    "args",
+    [
+        {},
+        {"action": "bake"},
+        {"action": "clear"},
+        {"action": "set_settings"},
+        {"action": "future_action"},
+        {"action": "STATUS"},
+    ],
+)
+def test_is_write_navmesh_writes_and_unknowns_fail_closed(cmd, args):
+    assert is_write(cmd, args) is True
+
+
+@pytest.mark.parametrize(
+    "args, expected",
+    [
+        ({}, False),
+        ({"abort_on_fail": False}, False),
+        ({"abort_on_fail": "false"}, False),
+        ({"abort_on_fail": True}, True),
+        ({"abort_on_fail": "true"}, True),
+        ({"abort_on_fail": "future"}, True),
+    ],
+)
+def test_is_write_wait_until_depends_on_abort_on_fail(args, expected):
+    assert is_write("wait_until", args) is expected
+
+
+@pytest.mark.parametrize(
+    "cmd, read_args, write_args",
+    [
+        ("get_metrics", {"reset": False}, {"reset": True}),
+        ("get_changes", {"clear": False}, {"clear": True}),
+    ],
+)
+def test_consuming_reads_are_argument_aware(cmd, read_args, write_args):
+    assert is_write(cmd, read_args) is False
+    assert is_write(cmd, write_args) is True
+
+
+def test_get_changes_default_consumes_and_unknowns_fail_closed():
+    assert is_write("get_changes", {}) is True
+    assert is_write("get_changes", {"clear": "future"}) is True
+
+
+def test_asset_export_package_is_a_write():
+    assert is_write("asset", {"action": "export_package"}) is True
+
+
+@pytest.mark.parametrize("action", ["status", "analyze", "compare", "list_sessions"])
+def test_profile_observational_actions_are_reads(action):
+    assert is_write("profile", {"action": action}) is False
+
+
+@pytest.mark.parametrize("args", [{}, {"action": "start"}, {"action": "stop"}, {"action": "future"}])
+def test_profile_stateful_and_unknown_actions_are_writes(args):
+    assert is_write("profile", args) is True
+
+
+def test_is_write_doctor_is_argument_aware():
+    assert is_write("doctor", {}) is False
+    assert is_write("doctor", {"fix": False}) is False
+    assert is_write("doctor", {"fix": True}) is True
+
+
+@pytest.mark.parametrize("cmd", [
+    "test_step", "run_playtest", "run_playtest_suite", "screenshot_baseline",
+    "verify_after_change",
+])
+def test_playtest_and_baseline_side_effect_tools_are_writes(cmd):
+    assert is_write(cmd, {}) is True
+
 # ── is_write: animation ───────────────────────────────────────────────────────
 
 def test_is_write_animation_get_is_read():
@@ -240,8 +331,8 @@ def test_is_write_asset_get_dependencies_is_read():
 def test_is_write_asset_find_dependents_is_read():
     assert is_write("asset", {"action": "find_dependents"}) is False
 
-def test_is_write_asset_export_package_is_read():
-    assert is_write("asset", {"action": "export_package"}) is False
+def test_is_write_asset_export_package_is_not_a_read():
+    assert is_write("asset", {"action": "export_package"}) is True
 
 def test_is_write_asset_delete_is_write():
     assert is_write("asset", {"action": "delete"}) is True

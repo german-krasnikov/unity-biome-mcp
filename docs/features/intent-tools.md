@@ -1,170 +1,167 @@
-# Intent Tools Guide
+# Intent Tools
 
-Convert natural language requests into scene operations automatically.
+Intent tools translate a plain-language request into deterministic Unity tool
+calls. They are useful when the desired result is clear but the exact object or
+tool sequence is not. For known paths and exact changes, prefer the typed tool or
+[`batch`](../tools/batch.md): it is easier to review and reproduce.
 
-## Overview
+Intent tools are direct calls; they cannot run inside `batch`.
 
-Intent tools use Haiku (fast LLM) to translate plain English into structured operations. Costs ~$0.0001 per intent call.
+| Tool | Use it for | Mutates the project? |
+|---|---|---|
+| `ask` | Answer a read-only question about the current scene | No |
+| `do` | Plan and apply a scene change from a broad request | Yes |
+| `animator_intent` | Build Animator parameters, states, and transitions | Yes |
+| `vfx_intent` | Configure a Particle System from a preset or description | Yes |
+| `ui_intent` | Build a Canvas-based UI hierarchy | Yes |
+| [`uitk_intent`](../tools/ui.md#generate-a-panel-from-intent) | Build a UI Toolkit UXML/USS panel | Yes |
 
-**Note:** Intent tools are configurable via **MCP → Settings → LLM Sampling** in the Unity Editor. They are `direct_only` tools and cannot be used in `batch` commands.
+Generated plans are validated, but they still operate on your project. Preview
+ambiguous or wide changes and verify the result with a read tool.
 
-| Tool | Purpose | Example |
-|------|---------|---------|
-| `do` | Create/modify scene objects | "create a cube at position 5,0,0" |
-| `ask` | Query scene state (read-only) | "how many enemies are alive?" |
-| `animator_intent` | Setup animation controller | "movement with idle/walk transition" |
-| `vfx_intent` | Configure particle effects | "fire explosion effect" |
-| `ui_intent` | Create UI layouts | "health bar at top-left" |
+## `ask(question)`
 
-## do(intent, dry_run=False)
-
-Create or modify scene objects from natural language.
-
-```python
-# Execute immediately
-await do("create a cube at position 5,0,0 named Player")
-
-# Preview plan without executing
-plan = await do("create a cube", dry_run=True)
-# → Returns DSL plan; review before running
-```
-
-**How it works:**
-1. Describe what you want in plain English
-2. Haiku generates batch commands (create_object, set_property, etc.)
-3. Commands are validated and executed
-4. Returns success or error details
-
-**Errors:** Returns "INVALID PLAN" if validation fails (e.g., component type not found, path doesn't exist).
-
-## ask(question)
-
-Query scene state without modifying anything.
+Use `ask` for scene questions that would otherwise require several reads.
 
 ```python
-await ask("how many enemies have health > 50?")
-await ask("what components does the Player have?")
-await ask("where is the nearest collectible?")
+answer = await ask("Which enemies have a Health component?")
 ```
 
-**Returns:** Text answer summarized by Haiku if needed. Read-only; no mutations allowed.
+The router gathers read-only scene context and may use configured LLM sampling to
+summarize a complex result. Questions that look mutating are rejected; use `do` or
+a typed mutation tool instead.
 
-**Rejection:** Mutating questions like "add health to player" are rejected — use `do()` instead.
+## `do(intent, dry_run=False)`
 
-## animator_intent(target, intent, dry_run=False) {#animator_intent}
-
-Setup Animator Controller parameters, states, and transitions from natural language.
+Use `do` when the request is broad or the necessary scene paths are not known.
+Preview first when the operation could affect several objects:
 
 ```python
-await animator_intent("Player", "movement with idle/walk transition at speed 0.1")
+plan = await do(
+    "Create three evenly spaced spawn points under /Level/Spawns",
+    dry_run=True,
+)
 
-# Preview first
-await animator_intent("Enemy", "attack animation", dry_run=True)
+# Review the returned DSL. To execute those exact commands, copy the plan after
+# the "DRY RUN plan:" line into a direct batch call.
+result = await batch(commands="""
+create_object name=Spawn1 parent=/Level/Spawns
+set_property path=/Level/Spawns/Spawn1 component=Transform prop=position value=-2,0,0
+create_object name=Spawn2 parent=/Level/Spawns
+set_property path=/Level/Spawns/Spawn2 component=Transform prop=position value=0,0,0
+create_object name=Spawn3 parent=/Level/Spawns
+set_property path=/Level/Spawns/Spawn3 component=Transform prop=position value=2,0,0
+""", on_error="stop")
 ```
 
-**Creates:**
-- Float parameters (e.g., Speed)
-- Animation states with clip assignments
-- Transitions with conditions (Speed > 0.1, etc.)
-- Default state
+`do` reads a compact hierarchy, generates a batch plan, validates the plan, and
+then executes it. A second `do` call samples a new plan; a dry run is advisory,
+not an approval token for the next call. Execution uses `on_error="continue"`.
+After a small partial failure, `do` may sample and run one repair plan, while
+successful earlier operations remain applied. An invalid or unavailable initial
+plan fails without applying commands.
 
-**Supported transitions:** Speed comparisons (`>`, `<`), bool checks, custom conditions.
+When every required command is in its Unity-Undo allowlist, use the
+[guarded scene-change workflow](../tools/scene.md#apply-a-guarded-scene-change)
+for explicit stop-on-error, verification, and save gates.
 
-## vfx_intent(target, intent, kind="auto", dry_run=False) {#vfx_intent}
+## `animator_intent(target, intent, dry_run=False)` {#animator_intent}
 
-Configure particle systems with presets or custom properties.
+Creates Animator parameters, states, a default state, and transitions from a
+description.
 
 ```python
-# Use built-in preset
-await vfx_intent("Explosion", "fire_explosion")
-
-# Use preset by name
-await vfx_intent("Enemy", intent="magic spell effect", kind="magic_burst")
-
-# Custom properties (Haiku generates)
-await vfx_intent("Dust", "small dust particles, slow fade")
+plan = await animator_intent(
+    target="/Player",
+    intent="Idle and Walk states controlled by a Speed float at threshold 0.1",
+    dry_run=True,
+)
 ```
 
-**5 Built-in Presets (no cost):**
+The generated DSL supports float, int, bool, and trigger parameters; states with
+animation clips; a default state; and transition conditions. Confirm that named
+clips exist before applying the plan. Use the typed [`animator`](../tools/animation.md#animator)
+tool when state names and transitions are already known.
 
-| Preset | Effect | Use Case |
-|--------|--------|----------|
-| `fire_explosion` | Red→orange, size 0.5–2.0, speed 3–8 m/s | Explosions, impacts |
-| `magic_burst` | Purple, size 0.2–0.8, speed 2–5 m/s | Magic spells |
-| `dissolve` | White, size 0.1–0.3, fade out | Fade-to-black effects |
-| `glow_outline` | Yellow, size 0.05–0.15, static position | Highlights, auras |
-| `smoke_trail` | Gray, size 0.3–1.0, fade out | Smoke, dust clouds |
+## `vfx_intent(target, intent, kind="auto", dry_run=False)` {#vfx_intent}
 
-**Customization:** If preset name not recognized, Haiku designs custom particle properties (colorOverLifetime, sizeOverLifetime, speed curves).
+Configures a Particle System. `kind` currently accepts `auto` or `particle`;
+shader/material intent is not implemented by this tool.
 
-## ui_intent(intent, parent=None, template=None, dry_run=False) {#ui_intent}
+Five exact preset names bypass LLM generation:
 
-Create UI hierarchies (Canvas, panels, buttons) from natural language.
+- `fire_explosion`
+- `magic_burst`
+- `dissolve`
+- `glow_outline`
+- `smoke_trail`
 
 ```python
-# Use built-in template
-await ui_intent("create a health bar", template="hud")
+# Deterministic preset.
+result = await vfx_intent("/Effects/Explosion", "fire_explosion")
 
-# Custom UI
-await ui_intent("create a pause menu with Resume/Quit buttons")
-
-# Specific parent
-await ui_intent("add score display", parent="UI/HUD")
+# Preview a generated particle plan.
+plan = await vfx_intent(
+    target="/Effects/Dust",
+    intent="A subtle dust puff that fades quickly",
+    kind="particle",
+    dry_run=True,
+)
 ```
 
-**4 Built-in Templates (no cost):**
+The target must already contain the Particle System that the generated `particle`
+commands configure.
 
-| Template | Layout | Contains |
-|----------|--------|----------|
-| `hud` | Top corners | HealthBar (top-left), Score (top-right) |
-| `menu` | Centered | Play, Settings, Quit buttons (vertical) |
-| `dialog` | Center | Message text, OK button |
-| `grid` | Grid layout | Configurable cell grid |
+## `ui_intent(intent, parent=None, template=None, dry_run=False)` {#ui_intent}
 
-**Anchors supported:** `top-left`, `top-right`, `bottom-left`, `bottom-right`, `center`, `stretch`, `top-center`, `bottom-center`.
+Builds Canvas-based (uGUI) elements. It does not create UI Toolkit UXML or USS;
+use [`uitk_intent`](../tools/ui.md#generate-a-panel-from-intent) for that.
 
-## budget_status()
-
-Check daily Haiku usage.
+The deterministic templates are `hud`, `menu`, `dialog`, and `grid`:
 
 ```python
-status = await budget_status()
-# → sess=$0.0450/0.50 (9%) day=$0.1200 skipped=animator_intent:3 vfx_intent:1
+plan = await ui_intent(
+    "Create the standard heads-up display",
+    parent="/UI",
+    template="hud",
+    dry_run=True,
+)
 ```
 
-Budget tracking is enabled by default with a `$0.50` session cap and a `$5.00` daily cap. Override them with `UNITY_MCP_HAIKU_BUDGET` and `UNITY_MCP_HAIKU_DAY_CAP`, or disable tracking with `UNITY_MCP_BUDGET=0`.
-
-## Common Workflow
+Without a template, configured LLM sampling generates a uGUI hierarchy plan:
 
 ```python
-# 1. Ask about scene
-await ask("what enemies are in the level?")
-
-# 2. Do bulk creation
-await do("create 3 platforms in a line, spaced 5 units apart")
-
-# 3. Setup animation
-await animator_intent("Player", "walk/run with speed control")
-
-# 4. Add effects
-await vfx_intent("Explosion", "fire_explosion")
-
-# 5. Create UI
-await ui_intent("health bar at top-left", template="hud")
+plan = await ui_intent(
+    "Create a centered pause panel with Resume and Quit buttons",
+    parent="/UI/Canvas",
+    dry_run=True,
+)
 ```
 
-## Cost Estimate
+See [UI authoring](../tools/ui.md) for typed uGUI and UI Toolkit workflows.
 
-| Operation | Cost | Notes |
-|-----------|------|-------|
-| do() | ~$0.0001 | 1 Haiku call |
-| ask() | ~$0.0001 | 1 Haiku call (if summary needed) |
-| animator_intent() | ~$0.0001 | 1 Haiku call |
-| vfx_intent() preset | Free | Uses built-in (magic_burst, fire_explosion, etc.) |
-| vfx_intent() custom | ~$0.0001 | 1 Haiku call |
-| ui_intent() template | Free | Uses built-in (hud, menu, dialog, grid) |
-| ui_intent() custom | ~$0.0001 | 1 Haiku call |
+## Sampling and budget status
 
----
+Generated intent plans require optional LLM sampling to be enabled and the
+supported Claude CLI backend to be installed and authenticated. Deterministic VFX
+presets and UI templates do not make a generation call. Configure sampling under
+**MCP > Settings > LLM Sampling**; see [Settings](../settings.md#llm-sampling).
 
-**See also:** [Batch Reference](../tools/batch.md) for batch operations, [Getting Started](../getting-started/index.md) for scene hierarchy.
+`budget_status()` reports the current session/day estimate and any features skipped
+by the budget router. Treat it as an estimate, not a provider invoice. Limits and
+model pricing can change, so this guide intentionally does not hard-code a
+per-request price.
+
+<span id="common-workflow"></span>
+
+## Reliable workflow
+
+1. Use a typed tool when the target and operation are known.
+2. Otherwise, call the intent tool with `dry_run=True` when it supports preview.
+3. Check target paths, asset names, and the breadth of the returned plan.
+4. Apply the request.
+5. Verify with `inspect`, `get_hierarchy`, an Animator read, or a screenshot as
+   appropriate.
+
+See also [Tool Decision Guide](tool-guide.md), [Batch Operations](../tools/batch.md),
+and [Screenshots and Visual Comparison](../tools/screenshots.md).

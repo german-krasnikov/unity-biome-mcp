@@ -1,44 +1,12 @@
 # Code Intelligence Tools
 
-Roslyn-based C# code analysis: fast symbol lookup, preflight compilation checks, semantic queries, and compile status monitoring.
+Roslyn-backed C# preflight, execution, and compile-state tools. The current
+public surface in `server/src/unity_mcp/tools/code_intel.py` is
+`compile_preflight`, `await_compile`, and `serialized_field_rename_audit`.
 
-**Phase A (current):** Python tool wrappers. **Phase B (deferred):** C# Roslyn implementation in Unity Editor.
-
-**Pre-Phase-B behavior:** Tools raise ToolError ("Command not registered") if Roslyn not available — fail-safe by design.
-
-## ~~find_references~~ (REMOVED)
-
-**Status:** Removed — no C# handler was ever shipped. Use `grep` or `search_scene` instead.
-
-**Parameters:**
-- `symbol`: Name to search (required)
-- `kind`: Disambiguator — class|field|method|property|param|local|namespace (optional)
-- `scope`: Assembly name (empty = all assemblies)
-
-**Output Format:**
-```
-SYMBOL: MyClass
-  Assets/Scripts/PlayerController.cs:25:10
-  Assets/Scripts/GameManager.cs:40:5
-```
-
-**Responses:**
-- `SYMBOL: X` + file:line:col list
-- `AMBIGUOUS [kind=class, kind=method, ...]` (need kind to disambiguate)
-- `NOT FOUND [candidates: X, Y, Z]` (typo? suggestions provided)
-- `[ROSLYN UNAVAILABLE]` (Phase B C# not yet loaded)
-
-**Cost:** ~200ms if warm Roslyn workspace, first call may cold-start (~1-2s).
-
-**Example:**
-```python
-await find_references("MoveTo", kind="method")
-# → SYMBOL: MoveTo
-#     Assets/Scripts/PlayerController.cs:15:10
-#     Assets/Scripts/GameManager.cs:42:15
-```
-
-**Timeout:** 10s.
+`find_references` and `semantic_at` were removed because no Unity handler was
+ever shipped for them. Use repository source search for code symbols;
+`search_scene` searches Unity scene objects, not C# source.
 
 ## compile_preflight(file_path, new_content)
 
@@ -80,46 +48,36 @@ result = await compile_preflight("Assets/Scripts/Player.cs", new_code)
 # → OK preflight (156ms)
 ```
 
-## ~~semantic_at~~ (REMOVED)
+Preflight can also append Unity-specific `WARN:` hints for unsupported serialized
+dictionaries, interface/abstract serialized fields, and likely field renames
+without `FormerlySerializedAs`.
 
-**Status:** Removed — no C# handler was ever shipped. Use source reading instead.
+## serialized_field_rename_audit(type, old_field, new_field, include=...)
 
-**Parameters:**
-- `file_path`: Assets-relative
-- `line`: 1-based
-- `col`: 1-based
+**Purpose:** Check whether a serialized field rename is ready to finish after
+the new assembly is live. The default `include` value is
+`"prefabs,scenes,scriptable_objects"`; pass a comma-separated subset to limit
+the scan.
 
-**Output Format:**
-```
-kind: method
-name: MoveTo
-signature: public void MoveTo(Vector3 position)
-namespace: UnityMCP.Editor
-decl: Assets/Scripts/PlayerController.cs:15:5
-members: (none for method)
-```
-
-**Responses:**
-- `kind: X` + full info block
-- `NO SYMBOL at file:line:col` (whitespace or comment)
-- `[ROSLYN UNAVAILABLE]`
-
-**Use Case:** Jump-to-definition, hover info, refactoring decisions.
-
-**Timeout:** 10s (cold Roslyn workspace may need longer).
-
-**Example:**
 ```python
-await semantic_at("Assets/Scripts/Player.cs", 15, 10)
-# → kind: class
-#   name: PlayerController
-#   namespace: UnityMCP.Editor.Game
-#   decl: Assets/Scripts/PlayerController.cs:10:5
+await serialized_field_rename_audit(
+    type="PlayerStats",
+    old_field="health",
+    new_field="currentHealth",
+)
 ```
 
-## execute_code(code, undo_label="")
+The response reports `has_formerly_serialized_as`, matching stale assets,
+`safe_to_remove_attribute`, and recommended actions. Results are capped at 100
+asset paths. Scene scanning matches the serialized field name without a type
+filter, so treat scene matches as conservative candidates and inspect them
+before changing the attribute.
 
-**Purpose:** Safely execute inline C# scripts in the Unity Editor with sandbox protection against code generation attacks.
+## execute_code(code, undo_label="execute_code")
+
+**Purpose:** Compile and execute inline C# in the Unity Editor. Bare statements
+are wrapped automatically, and the operation participates in an Undo group.
+The active security level controls source scanning; it is not an OS sandbox.
 
 **Parameters:**
 - `code`: C# code snippet to execute (string, required)
@@ -132,7 +90,7 @@ OK: Operation complete
 
 **On Error:**
 ```
-ERR: Security: blocked pattern 'System.Reflection.Emit'. Only UnityEngine/UnityEditor APIs allowed.
+Security [Standard]: blocked pattern 'System.Reflection.Emit'. Only UnityEngine/UnityEditor APIs allowed.
 ```
 
 **Responses:**
@@ -140,9 +98,10 @@ ERR: Security: blocked pattern 'System.Reflection.Emit'. Only UnityEngine/UnityE
 - `Security: blocked pattern 'X'...` (security check failed; pattern blocked)
 - Other runtime errors from code execution
 
-**Use Case:** Execute editor-only automation, modify scene/objects, trigger recompile, manipulate assets — within sandbox.
+**Use Case:** Execute trusted editor automation when a purpose-built MCP tool is
+not available.
 
-**Timeout:** 30s (typical execution).
+**Timeout:** The tool metadata supplies a 60-second outer deadline.
 
 **Example:**
 ```python
@@ -153,126 +112,19 @@ result = await execute_code("""
 # → OK: Operation complete
 ```
 
-### Security Constraints
+### Security Levels
 
-CodeExecutor enforces **whitelist-only execution model**: all code must compile via Roslyn and pass SecurityScan checks. Three attack classes are blocked:
+`CodeExecutor.SecurityScan` reads the setting from `MCPSettings.GetSecurityLevel()`:
 
-#### 1. **CodeDom Blocking** (Dynamic Code Generation)
+| Level | Behavior |
+|---|---|
+| `AllowAll` | Current default. Skips source-pattern scanning. This is trusted local code execution, not a sandbox. |
+| `Standard` | Blocks process, file, network, dynamic-code, unsafe reflection, editor-exit, and related patterns, including reflective `GetValue`/`SetValue`/`Invoke`. |
+| `Strict` | Applies Standard and additionally blocks field/property reflection lookup. |
 
-**Why blocked:** CodeDom allows runtime compilation and code generation — could compile & execute arbitrary code, bypassing the scanner.
+Standard and Strict strip comments, normalize whitespace, compare patterns case-insensitively, and reject `extern` and `unsafe` as whole words. Error responses name the active level and may include a safer Unity API suggestion. The exact policy is authoritative in `unity-plugin/Editor/CodeExecutor.cs`; user-facing configuration is documented in `docs/features/code-execution.md`.
 
-**Blocked patterns:**
-- `System.CodeDom.*` (any CodeDom type)
-- `System.Reflection.Emit.*` (IL generation)
-- `CSharpCodeProvider`, `CodeDomProvider`, `CompileAssemblyFrom`
-
-**What happens if triggered:** RuntimeError: `"Security: blocked pattern 'System.CodeDom'. Only UnityEngine/UnityEditor APIs allowed."`
-
-**Blocked code example:**
-```csharp
-// BLOCKED — CodeDom code generation
-using System.CodeDom.Compiler;
-var provider = new CSharpCodeProvider();
-var code = "public class X { }";
-provider.CompileAssemblyFromSource(new CompilerParameters(), code);
-```
-
-**Allowed alternative:**
-```csharp
-// OK — use execute_code recursively via Python MCP layer (safe)
-// Python side validates & executes; no dynamic compilation in C#
-```
-
-#### 2. **Reflection.Emit Blocking** (IL Injection)
-
-**Why blocked:** Reflection.Emit builds methods at runtime via IL instructions — attacker could generate any executable bytecode.
-
-**Blocked patterns:**
-- `System.Reflection.Emit.*` namespace
-- `DynamicMethod` constructor
-- `ILGenerator` (IL instruction builder)
-- `OpCodes.*` (IL instruction set)
-- `CreateDelegate` (bind IL to delegate)
-
-**What happens if triggered:** RuntimeError: `"Security: blocked pattern 'System.Reflection.Emit'. Only UnityEngine/UnityEditor APIs allowed."`
-
-**Blocked code example:**
-```csharp
-// BLOCKED — IL generation via Reflection.Emit
-var dm = new DynamicMethod("Hack", typeof(void), Type.EmptyTypes);
-var il = dm.GetILGenerator();
-il.Emit(OpCodes.Ldc_I4, 42);
-var func = (Action)dm.CreateDelegate(typeof(Action));
-func.Invoke(null);
-```
-
-**Allowed alternative:**
-```csharp
-// OK — invoke existing safe methods only
-var obj = new MyClass();
-obj.DoWork();  // safe instance call
-```
-
-#### 3. **GetRuntimeMethod + DynamicInvoke Blocking** (Reflection Tricks)
-
-**Why blocked:** GetRuntimeMethod + DynamicInvoke can invoke hidden/private methods and bypass type safety. Combined with Emit above, could execute arbitrary code.
-
-**Blocked patterns:**
-- `GetRuntimeMethod` (bypass type safety)
-- `DynamicInvoke` (invoke without signature check)
-- `GetMethod()`, `GetMethods()` (reflection enumeration)
-- `Type.GetType()` (dynamic type lookup)
-
-**What happens if triggered:** RuntimeError: `"Security: blocked pattern 'GetRuntimeMethod'. Only UnityEngine/UnityEditor APIs allowed."`
-
-**Blocked code example:**
-```csharp
-// BLOCKED — invoke private method via reflection
-var type = Type.GetType("SomeClass");
-var method = type.GetRuntimeMethod("HiddenMethod", Type.EmptyTypes);
-method.Invoke(null, new object[] { });
-
-// Also BLOCKED
-var obj = GetSomeObject();
-var invoke = obj.GetType().GetMethod("Foo", System.Reflection.BindingFlags.NonPublic);
-invoke.DynamicInvoke();
-```
-
-**Allowed alternative:**
-```csharp
-// OK — call public methods directly
-var obj = GetSomeObject();
-obj.PublicMethod();  // safe, type-checked
-```
-
-#### 4. **Comment/Whitespace Bypass Prevention**
-
-Scanner strips comments and normalizes whitespace to defeat obfuscation:
-
-```csharp
-// BLOCKED — comment split attempt
-System. /* hiding from scanner */
-Reflection.Emit.DynamicMethod
-
-// BLOCKED — newline split
-System.\
-Reflection.Emit
-
-// BLOCKED — using alias
-using E = System.Reflection.Emit;
-E.DynamicMethod
-```
-
-All three are caught by `StripComments()` + `Regex.Replace(@"\s+", "")` + case-insensitive IndexOf.
-
-#### Summary Table
-
-| Attack Class | Blocked | Detection | Error Message |
-|---|---|---|---|
-| CodeDom | `System.CodeDom*`, `CSharpCodeProvider` | StringMatch in SecurityScan | "blocked pattern 'System.CodeDom'" |
-| Reflection.Emit | `System.Reflection.Emit*`, `DynamicMethod`, `OpCodes` | StringMatch in SecurityScan | "blocked pattern 'System.Reflection.Emit'" |
-| GetRuntimeMethod | `GetRuntimeMethod`, `DynamicInvoke`, `GetMethod(` | StringMatch in SecurityScan | "blocked pattern 'GetRuntimeMethod'" |
-| Obfuscation | Comments, whitespace, using-aliases | StripComments + Dense regex | Caught before scan |
+Changing the setting does not turn `execute_code` into process isolation. Treat every call as a scene/code mutation, provide a meaningful `undo_label`, and use purpose-built tools when one exists.
 
 ---
 
@@ -290,7 +142,9 @@ This returns `"still compiling"` for an active compile/reload or the corroborate
 
 ### await_compile(timeout=60.0)
 
-**Purpose:** Block until compile + reload finish, return errors (if any).
+**Purpose:** Observe a compile/reload that another action already started and
+return its terminal errors or clean result. It does not refresh assets or start
+compilation; after writing C# use `sync_unity` instead.
 
 **Timeout Semantics:**
 - `timeout=0` → single check, no loop (immediate return)
@@ -322,7 +176,7 @@ error CS0103: The name 'Projectile' does not exist...
 
 **Example:**
 ```python
-# After writing .cs files:
+# Only when another action already started compilation:
 result = await await_compile(timeout=30.0)
 if "clean" in result:
     print("Ready to test")
@@ -339,7 +193,7 @@ else:
     ↓
 [Write to disk]
     ↓
-[force_refresh → wait 15s → diagnose]
+[sync_unity (refresh, compile wait, and recovery ladder)]
     ↓
 [Cross-check get_console / Editor.log when needed]
     ↓
@@ -353,17 +207,16 @@ triggering a Unity compile cycle.
 
 | Pattern | Tool | Why |
 |---------|------|-----|
-| Find all usages of method X | grep / search_scene | Rename safety |
+| Find all usages of method X | Repository source search | Rename safety; `search_scene` is not a source-code search |
 | Validate .cs before write | compile_preflight(file_path, new_content) | 200ms vs 30s cycle |
-| Reload after script edit | force_refresh → diagnose | Confirms the new assembly loaded |
+| Reload after script edit | sync_unity | Waits until the new assembly is live or returns an actionable stop verdict |
 | Check compile once | await_compile(timeout=0) | Public immediate status path |
 
 ## Errors & Recovery
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| "[ROSLYN UNAVAILABLE]" | Phase B C# not loaded | Write only after source review, then use the reload-recovery workflow |
-| "AMBIGUOUS [kind=...]" | Symbol name matches multiple types | Retry with kind parameter (e.g., kind="method") |
+| "[ROSLYN UNAVAILABLE: ...]" | Roslyn assemblies could not be loaded | Inspect the detailed loader error and the plugin's Roslyn package state |
 | "timeout after 60s" | Very large project or network lag | Increase timeout; check get_compile_errors for actual status |
 | "STALE-DOMAIN: stamp unchanged" | MVID not updated after reload | Unity stalled; see `AI/reload-reference.md` for reload constraints |
 | "CS0246: Type not found" | preflight error in new code | Check import statements; verify assembly references |
@@ -377,14 +230,16 @@ triggering a Unity compile cycle.
 3. `compile_preflight(file_path, new_content)` before writing
 4. If preflight fails, fix the in-memory content and retry
 5. Write to disk
-6. `force_refresh`, wait 15 seconds, then run `diagnose`
-7. If diagnostics disagree with Editor behavior, inspect `get_console`, then
+6. Run `sync_unity` and require a clean result
+7. If the result is unexpected, run `diagnose`, then inspect `get_console` and
    `Editor.log`
 8. Run the focused test filter
 
-Do not run Unity tests between a `.cs` edit and `force_refresh`; that can execute
-the previous DLL.
+Do not run Unity tests between a `.cs` edit and a successful `sync_unity`; that
+can execute the previous DLL.
 
 ---
 
-**Related:** `AI/architecture.md` (Roslyn workspace setup), `AI/reload-reference.md` (reload constraints), `CLAUDE.md` § compile workflow.
+**Related:** `AI/architecture.md` (Roslyn workspace setup),
+`AI/reload-reference.md` (reload constraints), and `CONTRIBUTING.md` (current
+compile/test commands).

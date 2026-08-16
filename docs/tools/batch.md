@@ -1,367 +1,156 @@
-# Batch Command Reference
+# Batch operations
 
-Combine two or more compatible operations into a single MCP call and avoid
-repeating typed-call envelopes.
+Use `batch` when two or more compatible Unity commands can share one call. The
+commands still run in order on Unity's main thread, but the caller pays for only
+one MCP round trip.
 
-## Overview
-
-Prefer `batch()` for two or more compatible reads or writes. Direct-only and
-Python-expanded tools must be called through their typed MCP wrappers.
-
-Instead of:
 ```python
-await create_object("Enemy")          # 1 call
-await set_property("Enemy", ...)      # 2nd call
-await manage_component("Enemy", ...)  # 3rd call
-```
-
-Use:
-```python
-await batch("""
-create_object name=Enemy
-set_property path=Enemy component=Transform prop=position value=0,1,0
-manage_component path=Enemy type=Health action=add
+result = await batch(commands="""
+create_object name=Enemy primitive=Capsule
+manage_component path=/Enemy type=Rigidbody action=add
+set_property path=/Enemy component=Rigidbody prop=mass value=4
+get_component path=/Enemy type=Rigidbody
 """)
 ```
 
-## batch
+Use a typed MCP call for a single operation, for a direct-only tool, or when the
+next call depends on parsing the previous result.
 
-Execute multiple commands in one call.
+<span id="batch"></span>
+<span id="batch-behavior"></span>
 
-**Parameters:**
-- `commands` (string) — Text format: one command per line, `cmd key=value key=value`
-- `on_error` (string, default="continue") — "continue" or "stop"
-- `timeout` (float, default=75.0) — Client-side wait budget. Unity's outer batch execution deadline is 65 seconds.
-- `atomic` (bool, default=False) — On failure, revert changes recorded in the Unity Undo group. File, process, and other external side effects are not guaranteed to roll back.
-- `validate_aliases` (bool, default=False) — Dry-run alias validation before any mutations execute
+## Check whether a tool is batchable
 
-**Command Format:**
-```
-command_name key=value key=value key=value
-another_command key=value key=value
-```
-
-**Example: Simple Batch**
+The installed catalog is authoritative:
 
 ```python
-result = await batch("""
-create_object name=Player
-set_property path=Player component=Transform prop=position value=0,1,0
-manage_component path=Player type=Health action=add
+catalog = await discover_tools(enable=False, structured=True)
+```
+
+An entry with `surfaces=direct,batch` may be used as a batch command. An entry
+with `surfaces=direct` must be called through its typed MCP tool. This avoids a
+duplicated command roster that becomes stale as tools are added.
+
+Async runners, Python orchestrators, intent tools, and tools with special file
+responses are commonly direct-only. If a direct-only command appears in a
+batch, the Python server reports it instead of pretending Unity ran it.
+
+## Write the command text
+
+Put one command on each line using `name key=value` syntax. Blank lines and
+lines beginning with `#` are ignored.
+
+```python
+result = await batch(commands="""
+# Values containing spaces may be quoted.
+create_object name="Boss Arena" primitive=Cube
+set_property path="/Boss Arena" component=Transform \
+prop=m_LocalPosition value=(0, 1.5, 6)
+inspect paths="/Boss Arena" components=Transform
 """)
 ```
 
-## Supported Commands (35+)
+Quoted values support escaped quotes, backslashes, and `\n`, `\r`, or `\t`.
+Parenthesized values may contain spaces but must close on the same line. Use the
+parameter names from the typed tool's generated schema; for example,
+`set_property` uses `prop`, while `manage_component` uses `type`.
 
-| Category | Commands |
-|----------|----------|
-| **Object CRUD** | create_object, delete_object, set_active, set_parent, transfer_object |
-| **Components** | manage_component, wire_event, unwire_event, set_material |
-| **Properties** | set_property, set_property_delta |
-| **Reads** | get_component, get_components_list, get_object_detail, find_objects, inspect |
-| **Scene** | search_scene, get_hierarchy |
-| **Assets** | asset, material, prefab, scriptable_object, project_settings |
-| **Advanced** | object_diff, validate_references, references |
+Commands can address an object created earlier in the same batch by its known
+path. Batch text cannot capture an earlier command's returned value and inject
+it into a later command. Project aliases such as `$player` are expanded before
+each command is parsed.
 
-**Constraints:**
-- ❌ No async commands (wait_until, move_to, run_tests, test_step, run_playtest)
-- ❌ No inter-command references (each op is independent)
-- ❌ No DSL-expansion tools (animator_intent, vfx_intent, ui_intent must be typed MCP calls)
-- ✅ Tool enable/disable checks apply to each command
-- ✅ Play Mode guard: mutating ops blocked (BLOCKED response)
-- ✅ Compile guard: mutations blocked during compilation
-- ✅ Main thread processing only
+## Choose failure behavior
 
-**Key parameter names:**
-- `prop` (not `property`) — for set_property
-- `type` (not `component`) — for manage_component action
-
-## Command Reference
-
-### Object Creation & Deletion
-
-**create_object:**
-```
-create_object name=Enemy primitive=Cube parent=Enemies
-```
-
-**delete_object:**
-```
-delete_object path=Temp
-```
-
-**set_active:**
-```
-set_active path=UI/PauseMenu active=false
-```
-
-**set_parent:**
-```
-set_parent path=Sword parent=Player/Hand
-```
-
-### Component Management
-
-**manage_component:**
-```
-manage_component path=Player type=Rigidbody action=add
-manage_component path=Player type=AudioSource action=remove
-```
-
-**wire_event:**
-```
-wire_event path=UI/Button component=Button event=onClick target=GameManager method=OnClick arg_type=void
-```
-
-**unwire_event:**
-```
-unwire_event path=UI/Button component=Button event=onClick
-```
-
-**set_material:**
-```
-set_material path=Player color=#FF0000
-```
-
-### Property Modification
-
-**set_property (Edit Mode; Play Mode writes are lost on stop):**
-```
-set_property path=Player component=Transform prop=position value=10,5,0
-set_property path=Enemy component=Health prop=maxHp value=100
-set_property path=Light component=Light prop=intensity value=1.5
-```
-
-**set_property_delta:**
-```
-set_property_delta path=Player component=Health prop=hp delta=10
-```
-
-### Reading Data
-
-**get_component:**
-```
-get_component path=Player type=Transform
-```
-
-**inspect:**
-```
-inspect paths=Player,Enemy components=Transform,Health
-```
-
-**get_components_list:**
-```
-get_components_list id=12345
-```
-
-**get_hierarchy:**
-```
-get_hierarchy depth=3 components=true
-```
-
-**search_scene:**
-```
-search_scene query=Enemy
-```
-
-**find_objects:**
-```
-find_objects component=Rigidbody
-```
-
-### Asset Operations
-
-**asset:**
-```
-asset action=find type=Material folder=Assets/UI
-asset action=move source=Assets/Old.mat dest=Assets/Materials/Old.mat
-asset action=delete path=Assets/Temp.prefab
-```
-
-**material:**
-```
-material action=set path=Assets/Mat.mat prop=_Color value=1,0,0,1
-```
-
-**prefab:**
-```
-prefab action=save path=MyPrefab asset_path=Assets/Prefabs/MyPrefab.prefab
-prefab action=edit asset_path=Assets/Prefabs/Player.prefab component=Health prop=MaxHP value=200
-```
-
-**scriptable_object:**
-```
-scriptable_object action=set path=Assets/GameConfig.asset prop=maxLevel value=50
-```
-
-### Advanced Operations
-
-**object_diff:**
-```
-object_diff path_a=PlayerTemplate path_b=Player
-```
-
-**validate_references:**
-
-See [Diagnostics: validate_references](diagnostics.md#validate_references).
-
-```
-validate_references path=Player depth=3
-```
-
-**references:**
-```
-references action=get path=Assets/Prefabs/Player.prefab
-```
-
-## Real-World Examples
-
-### Example 1: Setup Scene with Multiple Objects
+The default `on_error="continue"` runs independent commands after a failure and
+returns a mixed result. Use `on_error="stop"` when later commands would be
+misleading after the first error:
 
 ```python
-await batch("""
-create_object name=Player primitive=Cube
-set_property path=Player component=Transform prop=position value=0,1,0
-manage_component path=Player type=Rigidbody action=add
-set_property path=Player component=Rigidbody prop=mass value=80
-create_object name=Enemy primitive=Cube parent=Enemies
-set_property path=Enemy component=Transform prop=position value=5,1,0
-manage_component path=Enemy type=Health action=add
-set_property path=Enemy component=Health prop=maxHp value=50
-""")
+result = await batch(
+    commands="""
+create_object name=Checkpoint primitive=Sphere
+set_property path=/Checkpoint component=Transform prop=m_LocalPosition value=(2,0,4)
+get_component path=/Checkpoint type=Transform
+""",
+    on_error="stop",
+)
 ```
 
-### Example 2: Modify Multiple UI Elements
+Stopping does not undo commands that already succeeded. Use `atomic=True` when
+the supported Unity mutations must be reverted together:
 
 ```python
-await batch("""
-set_active path=UI/MainMenu active=false
-set_active path=UI/GameUI active=true
-set_property path=UI/HealthBar component=Image prop=fillAmount value=1
-wire_event path=UI/PlayButton component=Button event=onClick target=GameManager method=StartGame arg_type=void
-""")
+result = await batch(
+    commands="""
+create_object name=EnemyA primitive=Capsule
+create_object name=EnemyB primitive=Capsule
+manage_component path=/EnemyB type=MissingComponent action=add
+""",
+    atomic=True,
+)
 ```
 
-### Example 3: Inspect Multiple Objects
+`atomic=True` stops on the first failed, blocked, or timed-out subcommand and
+asks Unity to revert the batch's Undo group. A successful rollback includes an
+`ATOMIC_ROLLBACK` line. It covers only mutations correctly recorded in Unity
+Undo. Asset files, packages, processes, arbitrary filesystem work, and other
+external side effects are not guaranteed to roll back.
+
+## Validate aliases without running commands
+
+Use `validate_aliases=True` to check unresolved `$aliases` before mutation:
 
 ```python
-result = await batch("""
-inspect paths=Player components=Transform,Health,Rigidbody
-inspect paths=Enemy components=Transform,Health
-get_components_list id=<boss_instance_id>
-""")
+check = await batch(
+    commands="""
+set_property path=$player component=Health prop=hp value=100
+set_active path=$hud active=true
+""",
+    validate_aliases=True,
+)
 ```
 
-### Example 4: Asset & Prefab Operations
+This mode executes zero commands. It validates alias expansion only; it is not
+a full schema, object-existence, or component-existence dry run.
 
-```python
-await batch("""
-asset action=find type=Material folder=Assets/Materials
-material action=set path=Assets/NewMat.mat prop=_Color value=1,0,0,1
-prefab action=edit asset_path=Assets/Prefabs/Player.prefab component=Health prop=MaxHP value=200
-""")
+## Understand guards and results
+
+Every subcommand keeps its Unity MCP Settings toggle, read-only, compile-state,
+and Play Mode guards. A disabled Unity handler remains disabled. Deferred
+categories control which typed tools appear in the advertised MCP list; they are
+not an authorization boundary inside `batch`. A write may be blocked while a
+read in the same `continue` batch still runs. Runtime-only commands require Play
+Mode, while ordinary Editor mutations are generally blocked there.
+
+Results preserve the zero-based command index and end with a summary such as:
+
+```text
+[0] Created /Enemy
+[1] err: Component type 'MissingComponent' not found
+[2] skip
+ok:1 err:1
 ```
 
-## Batch Behavior
+Treat `err:`, `BLOCKED:`, `TIMEOUT:`, and `ATOMIC_ROLLBACK` as explicit outcome
+signals. Do not infer success from the MCP call merely returning. The `timeout`
+argument bounds the overall call and supplies Unity with a slightly smaller
+internal deadline; keep batches focused rather than raising it for unrelated
+work.
 
-**Sequential execution:** Commands run in order on the Unity main thread.
+## Reliable pattern
 
-**Error handling:**
-- **continue** (default) — Skip failed operation, continue to next
-- **stop** — Halt batch on first failure (set in tool params)
+For a non-atomic bulk change:
 
-**Atomicity:** Entire batch fails if compile in progress or Play Mode guard triggered.
+1. Read the narrow state you need.
+2. Batch independent mutations with an appropriate failure policy.
+3. Inspect the summary and every failed line.
+4. Read back the changed properties.
+5. Run the relevant compile, reference, runtime, or visual verification.
+6. Save only after verification succeeds.
 
-**Performance:** Single round-trip TCP call, ~5-50ms total (vs 50-500ms for 10 individual calls).
-
-## Typed vs. Batch Commands
-
-**Some tools MUST be called as typed MCP tools (not batch):**
-- `batch` — Can't batch a batch
-- `do`, `ask`, `ask_user` — NL intent tools
-- `run_playtest` — DSL-based testing
-- `run_tests` — NUnit execution
-- `wait_until`, `move_to`, `test_step` — Async operations
-- `animator_intent`, `vfx_intent`, `ui_intent` — DSL-expansion tools
-
-**All others are batchable** (reads, writes, asset ops, etc.)
-
-## Common Mistakes
-
-❌ **WRONG:** 10 separate calls
-```python
-await create_object("Enemy1")
-await create_object("Enemy2")
-await set_property("Enemy1", ...)
-# ... 7 more calls
-```
-
-✅ **RIGHT:** 1 batch call
-```python
-await batch("""
-create_object name=Enemy1
-create_object name=Enemy2
-set_property path=Enemy1 component=Transform prop=position value=0,1,0
-""")
-```
-
-❌ **WRONG:** Async in batch
-```python
-await batch("""
-wait_until path=Player component=Health field=hp value=100
-""")  # ❌ ERROR
-```
-
-✅ **RIGHT:** Typed async call
-```python
-await wait_until(path="Player", component="Health", field="hp", value="100")  # ✅ CORRECT
-```
-
-## Output Format
-
-**Success:**
-```
-ok: 5
-  [0] create_object "Player" → ok
-  [1] set_property "Player" → ok
-  [2] manage_component "Player" → ok
-  [3] get_component "Player" → Transform { position=(0,1,0), ... }
-  [4] search_scene "Enemy" → [Enemy $a, Enemy2 $b]
-```
-
-**Partial failure (continue mode):**
-```
-ok: 3, err: 2
-  [0] create_object "Player" → ok
-  [1] set_property "Player" → err: Component 'Invalid' not found
-  [2] manage_component "Player" → ok
-  [3] get_component "Player" → ok
-  [4] find_objects "Missing" → err: No objects found
-```
-
-## Batch-First Decision Tree
-
-```
-1+ operations needed?
-├─ YES
-│  ├─ All 2+ can be batched? (no async, no intent)
-│  │  ├─ YES → use batch()
-│  │  └─ NO → split into batch + typed calls
-│  └─ Single operation → direct call (ok, no penalty)
-└─ NO → single direct call
-```
-
-## Patterns & Idioms
-
-| Pattern | When | Example |
-|---------|------|---------|
-| **Inspect All** | Snapshot multiple objects | Text DSL: multi-line `inspect` commands |
-| **Setup Scene** | Initialize with multiple objects | `create_object`, `manage_component`, `set_property` in one batch |
-| **Bulk Modify** | Change same property on many objects | Multiple `set_property` lines with different paths |
-| **Read Before/After** | Compare state | `get_component`, mutations, `get_component` in sequence |
-| **Asset Organization** | Move & create folders | `asset` commands in one batch |
-
----
-
-**See also:** Token Optimization Skills for usage patterns and the
-[Batch guide index](index.md#batch-combine-operations-for-token-savings).
+For a guarded scene transaction that owns preflight, atomic apply, verification,
+and save gating, use
+[`scene_change_plan` and `apply_scene_change`](scene.md#apply-a-guarded-scene-change).
+For exact `batch` parameters and installed tool signatures, use the
+[generated schema](../tools-schema/index.md).

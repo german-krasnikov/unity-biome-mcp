@@ -62,6 +62,9 @@ LEGACY_GENERATED_BLOBS = {
         "84b9687dfad788b40f4b8386a4193b7b7dda93ee",
         "c91672efe66b713e7925d982ce60615223d260e0",
     }),
+    ".codex/agents/unity-test-reviewer.toml": frozenset({
+        "08c48d396f7848be5f8f57aaa1c493c6c6dfb3e7",
+    }),
     ".agents/skills/csharp-unity/SKILL.md": frozenset({
         "88a168602fcfb769c77c48bad11f82f9dd0f9088",
         "c29971e791d91962d47fe27c4931255e1e80030f",
@@ -107,7 +110,14 @@ LEGACY_GENERATED_BLOBS = {
         "af3ab25e11f7d3624ae9d5d16dbdfb6dc3c12057",
         "6edd52030796ea3c8b7cbe4f34cd33006cc15213",
     }),
+    ".agents/skills/unity-testing-verification/references/test-authoring.md": frozenset({
+        "a06497388792403ae2e34cef65324140ebad446c",
+        "f6ed9e999cba3f8aefa653fa2013fc40ce53474a",
+    }),
     ".agents/skills/unity-timeline/SKILL.md": frozenset({"fe29a910dd5813089e41c4d96a55c8ee9aea6f2b"}),
+    ".agents/skills/unity-ui-authoring/SKILL.md": frozenset({
+        "ace0723100751e5eec95e58544dd48a560f6ced8",
+    }),
 }
 
 
@@ -581,12 +591,52 @@ def _atomic_write(path: Path, content: bytes) -> None:
             temporary.unlink()
 
 
+def _warn_cleanup_failure(path: Path, error: OSError) -> None:
+    """Report best-effort cleanup failures without changing transaction outcome."""
+    print(f"WARNING cleanup incomplete for {path}: {error}", file=sys.stderr)
+
+
+def _ensure_transaction_directories(
+    repo_root: Path,
+    directory: Path,
+    created_directories: list[Path],
+) -> None:
+    """Create missing parents and journal only directories created by this transaction."""
+    root = repo_root.resolve()
+    missing: list[Path] = []
+    current = directory
+    while current != root and not current.exists():
+        missing.append(current)
+        current = current.parent
+    if current != root and not current.exists():
+        raise ValueError(f"Destination parent escapes repository root: {directory}")
+
+    for candidate in reversed(missing):
+        created_directories.append(candidate)
+        try:
+            candidate.mkdir()
+        except FileExistsError:
+            created_directories.pop()
+            if not candidate.is_dir() or candidate.is_symlink():
+                raise
+
+
+def _remove_empty_managed_directory(directory: Path) -> None:
+    """Remove an empty managed directory, warning when cleanup cannot finish."""
+    try:
+        if not directory.is_symlink() and not any(directory.iterdir()):
+            directory.rmdir()
+    except OSError as cleanup_error:
+        _warn_cleanup_failure(directory, cleanup_error)
+
+
 def apply_sync_plan(
     repo_root: Path,
     plan: SyncPlan,
     manifest_hashes: dict[str, str],
 ) -> None:
     backups: list[tuple[Path, Path | None]] = []
+    created_directories: list[Path] = []
     transaction_root = Path(tempfile.mkdtemp(prefix=".claude-to-codex-", dir=repo_root))
     backup_root = transaction_root / "backup"
     preserve_transaction = False
@@ -602,6 +652,8 @@ def apply_sync_plan(
                 backups.append((target, backup))
             else:
                 backups.append((target, None))
+            _ensure_transaction_directories(repo_root, target.parent, created_directories)
+            assert_safe_path(repo_root, target)
             _atomic_write(target, plan.desired[target])
 
         for target in plan.remove:
@@ -609,8 +661,8 @@ def apply_sync_plan(
             relative = target.relative_to(repo_root)
             backup = backup_root / relative
             backup.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(target, backup)
             backups.append((target, backup))
+            os.replace(target, backup)
 
         manifest_path = assert_safe_path(
             repo_root,
@@ -624,38 +676,64 @@ def apply_sync_plan(
             backups.append((manifest_path, manifest_backup))
         else:
             backups.append((manifest_path, None))
+        _ensure_transaction_directories(repo_root, manifest_path.parent, created_directories)
+        assert_safe_path(repo_root, manifest_path, managed=False)
         _atomic_write(manifest_path, manifest_bytes(manifest_hashes))
-    except Exception:
+    except BaseException as original_error:
         rollback_errors: list[str] = []
         for target, backup in reversed(backups):
             try:
                 if backup is None:
                     if target.exists():
                         target.unlink()
-                else:
+                elif backup.exists():
                     target.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(backup, target)
-            except Exception as rollback_error:
+            except BaseException as rollback_error:
                 rollback_errors.append(f"{target}: {rollback_error}")
+        for directory in reversed(created_directories):
+            try:
+                if (
+                    directory.exists()
+                    and not directory.is_symlink()
+                    and not any(directory.iterdir())
+                ):
+                    directory.rmdir()
+            except BaseException as rollback_error:
+                rollback_errors.append(f"{directory}: {rollback_error}")
         if rollback_errors:
             preserve_transaction = True
             raise RuntimeError(
                 "Codex sync failed and rollback was incomplete. "
                 f"Recovery files remain in {transaction_root}:\n"
                 + "\n".join(rollback_errors)
-            )
+            ) from original_error
         raise
     finally:
         if transaction_root.exists() and not preserve_transaction:
-            shutil.rmtree(transaction_root)
+            try:
+                shutil.rmtree(transaction_root)
+            except OSError as cleanup_error:
+                _warn_cleanup_failure(transaction_root, cleanup_error)
 
-    for prefix in MANAGED_TARGET_PREFIXES:
-        root = repo_root / prefix
-        if not root.exists() or root.is_symlink():
-            continue
-        for directory in sorted((path for path in root.rglob("*") if path.is_dir()), reverse=True):
-            if not directory.is_symlink() and not any(directory.iterdir()):
-                directory.rmdir()
+    cleanup_directories: set[Path] = set()
+    for target in plan.remove:
+        relative = target.relative_to(repo_root)
+        managed_root = next(
+            repo_root / prefix
+            for prefix in MANAGED_TARGET_PREFIXES
+            if relative == prefix or prefix in relative.parents
+        )
+        directory = target.parent
+        while directory != managed_root:
+            cleanup_directories.add(directory)
+            directory = directory.parent
+    for directory in sorted(
+        cleanup_directories,
+        key=lambda path: len(path.parts),
+        reverse=True,
+    ):
+        _remove_empty_managed_directory(directory)
 
 
 def parse_agent_toml_subset(content: str) -> dict[str, str]:

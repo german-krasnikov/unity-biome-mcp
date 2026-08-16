@@ -1,16 +1,18 @@
-# Feature: Animation Support (Phase 7)
+# Feature: Animation Support
 
 ## Overview
 
-1 consolidated MCP tool `animation` with 4 actions (get, create, edit, preview) for reading, creating, editing, and previewing animations in Unity Editor. Integrates with AnimationSerializer (reads clips/curves) and AnimationHelper (creates/edits/previews), following the pattern: Python tool → bridge.send(cmd) → CommandRouter → handler → text response.
+The consolidated `animation` MCP tool reads, creates, edits, samples, and adds
+events to AnimationClips in the Unity Editor. `AnimationSerializer` owns reads;
+`AnimationHelper` owns asset mutations, preview sampling, and event editing.
 
 ## Architecture
 
 ```
 Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Editor Plugin
                             │                              │
-                     animation tool (1)          CommandRouter (1 case)
-                     4 actions                   ExecAnimationConsolidated (switch)
+                     animation tool              CommandRouter.MediaHandlers
+                                                  ExecAnimationConsolidated
                                                          │
                                               ┌──────────┴──────────┐
                                               │                     │
@@ -32,32 +34,40 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 - Keyframe output limited to 50 per curve (shows `,...+N more` if exceeded)
 
 ### Edge Cases
-- No Animator/Animation component: return clear error
+- No Animator/Animation component: `get` returns `No animation clips`; actions
+  that require an existing clip return `Clip not found`
 - AnimationMode already active: check `InAnimationMode()` before starting
 - Legacy Animation vs Animator: support both (check Animator first, then Animation)
 - Invalid component_type (v0.57+): "Component type not found: {typeName}" — check ResolveComponentType logic (searches UnityEngine.*, custom assemblies)
-- Custom component not found: verify type name matches Assembly-CSharp definition exactly (e.g., "Health", not "MyGame.Health" for Assembly-CSharp types)
+- Custom component not found: `ResolveComponentType` checks exact names in
+  loaded assemblies. Use the short name for a global-namespace component and
+  the fully qualified name for a namespaced component.
 
-### Sub-Actions Flattening (Bug Fix)
-- Phase 16 fix: `animation action=edit` was broken — sub-actions (add_key, remove_key, etc.) were passed as separate args but re-extracted, losing the actual sub-action
-- **Solution:** Sub-actions now routed as top-level cases in CommandRouter.ExecAnimationConsolidated() switch statement
-- **New pattern:** `action` param contains the sub-action directly (add_key|remove_key|remove_curve|set_keys|set_loop)
-- See `unity-plugin/Editor/CommandRouter.cs` ExecAnimationConsolidated() for implementation
+### Action Dispatch
+
+Edit operations are top-level `action` values: `add_key`, `remove_key`,
+`remove_curve`, `set_keys`, `set_loop`, `set_wrap`, and `set_framerate`.
+`action="edit"` remains an alias for adding keys. Dispatch lives in
+`unity-plugin/Editor/CommandRouter.MediaHandlers.cs`.
 
 ## Code Locations
 
 - Python tool: `server/src/unity_mcp/tools/animation.py` (animation, timeline, animator, particle)
 - Serializer: `unity-plugin/Editor/AnimationSerializer.cs`
 - Helper: `unity-plugin/Editor/AnimationHelper.cs`
-- Commands: `unity-plugin/Editor/CommandRouter.cs` (ExecAnimationConsolidated case)
-- Python tests: `server/tests/test_server.py` + `test_server_edge_cases.py` + `test_server_animation.py` (13 tests for M11–M14)
-- C# tests: `unity-test-project/Assets/Tests/Editor/MCPPluginTests.cs`
+- Commands: `unity-plugin/Editor/CommandRouter.MediaHandlers.cs`
+- Python tests: `server/tests/test_server_animation.py`
+- C# tests: `unity-plugin/Editor/Tests/SerializerTests.cs`
 
 ## MCP Tools
 
 ### `animation` (single consolidated tool)
 
-**Parameters:** `action` (required), `path` (required), `clip` (optional), `clip_name` (optional), `property` (optional), `keys` (optional), `time` (optional), `component_type` (optional, v0.57+)
+**Parameters:** `action` and `path` are required. Optional fields are `clip`,
+`clip_name`, `property`, `keys`, `time`, `component_type`, `binding_path`,
+`tangent`, `function_name`, `int_param`, `float_param`, and `string_param`.
+Use `resolve_tool_schema(name="animation")` for the current machine-readable
+contract.
 
 #### action=get — List clips or show details
 ```
@@ -98,8 +108,10 @@ Key format: `t:<time> v:<value>` separated by `;`
 - Custom components — full type name or short name if in Assembly-CSharp
 - Error handling: non-existent component type returns "Component type not found" error
 
-#### action=edit (or sub-action directly: add_key|remove_key|remove_curve|set_keys|set_loop|set_wrap|set_framerate|get_clip_path)
-**Params:** `path`, `clip`, `action`, `property` (optional), `keys` (optional), `component_type` (optional, default="Transform")
+#### action=edit (or add_key|remove_key|remove_curve|set_keys|set_loop|set_wrap|set_framerate)
+**Params:** `path`, `clip`, `action`, `property` (optional), `keys` (optional),
+`component_type` (optional, default="Transform"), `binding_path` (optional), and
+`tangent` (`auto`, `smooth`, `linear`, or `constant`)
 
 Modify existing clip. Sub-actions passed as `action` value:
 - `add_key` — insert keyframes (property + keys required); Color properties accept hex (`#FF0000`) as value
@@ -108,18 +120,25 @@ Modify existing clip. Sub-actions passed as `action` value:
 - `set_keys` — replace all keyframes (property + keys required)
 - `set_loop` — toggle clip looping (keys="false" to disable, anything else to enable)
 - `set_wrap` — set clip wrap mode: `loop`, `once`, `pingpong`, `clamp` (clip required)
-- `set_framerate` — set clip sample rate in frames per second (value required)
-- `get_clip_path` — return asset path for the specified clip (clip required)
+- `set_framerate` — set clip sample rate in frames per second (`keys="30"`)
+
+`get_clip_path` is a separate top-level action and requires `path` and `clip`.
 
 **component_type** (v0.57+): Required when editing non-Transform properties (e.g., Light.intensity). Must match the component type used when creating the clip. See create section for full list of examples.
 
-#### action=preview — Preview in Edit Mode
+#### action=preview — Sample in Edit Mode
 **Params:** `path`, `clip`, `time` (optional, default=0.0)
 
-The `action` value is one of: `sample` (default on C# side), `start`, `stop`.
-- `sample` — pose object at time, return sampled values
-- `start` — enter AnimationMode
-- `stop` — exit AnimationMode, restore original pose
+Samples the clip at `time`, poses the object in `AnimationMode`, and returns the
+evaluated curve values. The public dispatcher does not expose the helper's
+internal `start` and `stop` branches as separate actions.
+
+#### Animation events
+
+- `get_events`: list events for `path` and `clip`.
+- `add_event`: add an event at `time`; `function_name` is required and optional
+  `int_param`, `float_param`, and `string_param` are forwarded.
+- `remove_event`: remove the event at `time` from `path` and `clip`.
 
 #### Example: Animate Custom Component (v0.57+)
 ```
@@ -158,49 +177,27 @@ animation(
 → [error] Component type not found: NonExistentComponent
 ```
 
-## TDD Scenarios
+## Tests
 
-### Red Phase
-1. **test_get_animation_calls_bridge**: path only → sends correct command
-2. **test_get_animation_with_clip**: with clip name → sends clip arg
-3. **test_get_animation_with_time**: with time → sends time arg
-4. **test_get_animation_error**: error response → formatted error string
-5. **test_create_animation_calls_bridge**: creates clip → sends all args
-6. **test_edit_animation_calls_bridge**: edits clip → sends correct action
-7. **test_preview_animation_calls_bridge**: preview with time → sends correct args
-8. **test_preview_animation_defaults**: action/time defaults applied
-9. **test_animation_component_type_arg** (v0.57+): component_type param passed to bridge
-10. **test_animation_component_type_defaults** (v0.57+): component_type=None by default
-
-C# tests (8 total):
-1. **CreateAnimation_CreatesClipWithKeyframes**: create → get_animation → verify clip listed
-2. **GetAnimation_ListsAllClips**: list clips → verify names in output
-3. **GetAnimation_ClipDetail_ShowsCurvesAndKeyframes**: clip detail → verify curves + keyframes
-4. **EditAnimation_AddKey_InsertsKeyframe**: add_key → get_animation → verify keyframe added
-5. **EditAnimation_RemoveCurve_DeletesCurve**: remove_curve → verify count reduced
-6. **PreviewAnimation_Sample_ReturnsSampledValues**: sample at time → verify interpolated values
-7. **CreateAnimation_CustomComponent_Light** (v0.57+): create with Light.intensity → verify binding uses Light type
-8. **EditAnimation_CustomComponent_InvalidType_ReturnsError** (v0.57+): non-existent component_type → "Component type not found" error
-
-### Green Phase
-- Python: 1 tool function (`animation`) with 8 params (v0.57: +1 component_type) + 10 tests (v0.57: +2)
-- C#: AnimationSerializer (Serialize, SerializeClipList, SerializeClipDetail, SerializeClipAtTime)
-- C#: AnimationHelper (CreateClip, EditClip, Preview, SetCurvesFromKeys + v0.57: ResolveComponentType helper)
-- CommandRouter: 1 registered command (`animation`) → ExecAnimationConsolidated switch → 4 Exec methods
-- v0.57 addition: ResolveComponentType(typeName) resolves UnityEngine.* types, custom Assembly-CSharp types, or throws "Component type not found"
+- `server/tests/test_server_animation.py` verifies wrapper arguments and actions.
+- `unity-plugin/Editor/Tests/SerializerTests.cs` covers clip serialization and
+  helper behavior.
+- Use [`AI/testing.md`](testing.md) for current commands and acceptance policy.
 
 ## Review Checklist
 
 - [x] Security: no path traversal (GameObject.Find validates), API calls safe
 - [x] Performance: keyframe limit 50/curve prevents token bloat, no unnecessary sampling
 - [x] Token efficiency: compact text format avoids repeated JSON structure
-- [x] Edge cases: no Animator → error, AnimationMode → checked before start, vector expansion → handled
+- [x] Edge cases: missing clips, existing AnimationMode state, and vector
+  expansion are handled explicitly
 
 ## Related
 
 - Tool: `animator_intent` — NL intent tool for animation (See `AI/intent-tools.md`)
-- Skill: `.claude/skills/csharp-unity.md` (Editor API)
-- Knowledge: `AI/architecture.md`
+- Consumer workflow: `unity-plugin/ClientSkills/skills/unity-animation/SKILL.md`
+- Knowledge: [`AI/architecture.md`](architecture.md)
+- Testing: [`AI/testing.md`](testing.md)
 
 ---
 

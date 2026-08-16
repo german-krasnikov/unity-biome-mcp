@@ -38,6 +38,9 @@ namespace UnityMCP.Editor
         public string Message;
         public string[] Queries;
         public string RawLine;
+        // Parse-time-expanded form of RawLine. The Composer uses this only when a
+        // static VAL was resolved but its declaration is not represented as a step.
+        public string ExpandedRawLine;
         public string[] BatchOps;
         public string[] BatchValues;
         public string SimulatorName;
@@ -71,6 +74,7 @@ namespace UnityMCP.Editor
             Query = Query, Op = Op, Value = Value, Timeout = Timeout, HasExplicitTimeout = HasExplicitTimeout,
             Component = Component, Method = Method, Args = Args,
             Message = Message, Queries = Queries, RawLine = RawLine,
+            ExpandedRawLine = ExpandedRawLine,
             BatchOps = BatchOps, BatchValues = BatchValues,
             SimulatorName = SimulatorName, IsOr = IsOr,
             AbortOnFail = AbortOnFail, Label = Label,
@@ -275,7 +279,13 @@ namespace UnityMCP.Editor
                     continue;
                 }
 
-                var step = new PlaytestStep { RawLine = line };
+                // Parsing uses the trimmed line, but the Composer needs the exact source
+                // text to preserve recognised steps it cannot edit visually.
+                var step = new PlaytestStep
+                {
+                    RawLine = sourced.Text,
+                    ExpandedRawLine = line
+                };
 
                 switch (cmd)
                 {

@@ -41,6 +41,22 @@ ASSERT_FRAMES_DIFFER motion
 `INTERVAL` is mandatory and the count must be at least two. A differing frame
 proves pixel change only.
 
+## UI Interaction
+
+Use a hierarchy path for uGUI controls. Address UI Toolkit elements through the
+GameObject that owns `UIDocument`:
+
+```text
+CLICK /Canvas/StartButton
+CLICK /HUD|UIDocument|submit-button
+FILL /HUD|UIDocument|player-name Player1
+FOCUS /HUD|UIDocument|player-name
+```
+
+`CLICK` supports uGUI paths and the UI Toolkit form. `FILL` and `FOCUS` require
+`GameObject|UIDocument|element-name`. Use `inspect_uitk` to confirm element
+names before writing a maintained scenario.
+
 ## Control Rules
 
 - Use `WAIT_UNTIL` or `WAIT_CAPTURED` with a timeout for state transitions.

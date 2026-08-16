@@ -1,59 +1,44 @@
-# Roslyn Foundation — Phase B (Cycle 5c)
+# Roslyn compile preflight
 
-Phase A (Python tool wrappers) shipped in Cycle 5c. This directory is reserved
-for Phase B — Unity-side C# Roslyn workspace + 3 command handlers.
+This directory implements the Unity side of the public `compile_preflight`
+tool. It parses and type-checks proposed C# source in memory before a caller
+writes the file or triggers a Unity compilation.
 
-## Phase B scope (not yet implemented)
+## Components
 
-Files to add:
-- `RoslynLoader.cs` — DRY helper, extract `EnsureRoslyn` + `LoadAssembly` from
-  existing `CodeExecutor.cs` (lines 63-92, 207-238)
-- `RoslynWorkspace.cs` — singleton Compilation cache, lazy-init, drops on
-  `AssemblyReloadEvents.beforeAssemblyReload`
-- `FindReferencesCommand.cs` — `SymbolFinder.FindReferencesAsync` wrapper
-- `CompilePreflightCommand.cs` — in-memory replace + `GetDiagnostics()`
-- `SemanticAtCommand.cs` — `SemanticModel.GetSymbolInfo` at position
-- `RoslynFormat.cs` — text formatters (single source of truth, must match
-  `server/tests/fixtures/roslyn_responses.txt`)
+- `RoslynLoader.cs` locates and lazily loads the Roslyn assemblies bundled with
+  the current Unity installation. `CodeExecutor` uses the same loader.
+- `RoslynWorkspace.cs` builds a reflection-based compilation with references to
+  the currently loaded, allowed assemblies. Its reference cache is discarded
+  on domain reload.
+- `CompilePreflightCommand.cs` validates `file_path` and `new_content`, obtains
+  diagnostics, and appends Unity-specific serialization hints.
+- `RoslynFormat.cs` owns the compact text response.
+- `UnityPreflightHints.cs` warns about unsupported serialized dictionaries,
+  likely non-serializable field types, and removed serialized fields that lack
+  `FormerlySerializedAs`.
 
-## Command names (must match Python wrappers)
+Only `compile_preflight` is registered. Earlier plans mentioned
+`find_references` and `semantic_at`; neither is a public tool or Unity command.
+Object-reference traversal is provided separately by `find_references_to`.
 
-Register in `CommandRouter.RegisterAll()`:
-- `find_references` (NOT `find_references_to` — that's a different existing tool
-  for object-reference traversal)
-- `compile_preflight`
-- `semantic_at`
+## Contract
 
-## Workspace strategy
+The Python wrapper sends a project-relative `file_path` and the complete
+proposed `new_content`. No source file is written. The response is one of:
 
-Per architect spec: use `AdhocWorkspace` + `CompilationPipeline.GetAssemblies()`,
-NOT `MSBuildWorkspace` (Mono incompatibilities under Unity).
+- `OK preflight (<milliseconds>ms)`, optionally followed by `WARN:` lines;
+- `ERR preflight`, followed by compiler diagnostics;
+- `[ROSLYN UNAVAILABLE: <reason>]` when the bundled assemblies cannot be used;
+- `err: ...` for missing required input.
 
-## Output format
+The check reflects the assemblies loaded by the open Editor and is a fast
+preflight, not a substitute for Unity's full compilation and domain reload.
 
-Strict text format defined in `server/tests/fixtures/roslyn_responses.txt`.
-Python tools pass C# text verbatim to agents. Format drift breaks parsing.
+## Tests
 
-## Testing
-
-- C# NUnit: `unity-test-project/Assets/Tests/Editor/RoslynTests.cs` — manual
-  Unity Test Runner. NOT runnable in Python-only CI.
-- Python live: `server/tests/live/test_roslyn.py` — opt-in via `UNITY_MCP_LIVE=1`,
-  smoke tests against actual Unity Editor on :9500.
-
-## Backward compat
-
-- New commands, no breaking changes
-- `CodeExecutor.cs` refactor: extract method only, public surface unchanged
-- 3 tool names already in `gating.py:TIER1` — Phase A enables agent visibility,
-  Phase B enables actual functionality
-
-## Reviewer-noted gotchas
-
-- `compile_preflight` `readOnlyHint=True` may need flip if workspace init has
-  side effects
-- First call cold-start can take 5-30s — Python wrapper timeouts (10-15s) may
-  surface as ToolError on cold workspaces; warm-up before exposing to agents
-- `[ROSLYN UNAVAILABLE: ...]` is the graceful fallback when Roslyn DLLs miss
-  AFTER handler registration. Pre-Phase-B (no handler) raises `ToolError` —
-  acceptable fail-safe.
+Unity coverage lives in
+`unity-plugin/Editor/Tests/Roslyn/CompilePreflightTests.cs`. Python wrapper and
+format fixtures live under `server/tests/`. Run the focused EditMode fixture
+through the repository's durable test runner, then run the relevant Python
+tests when the cross-language contract changes.

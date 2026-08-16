@@ -19,6 +19,8 @@ namespace UnityMCP.Editor.Wizard
                 { "agents/unity-editor-developer.md", Hashes(
                     "cffe4d1b9cfdd586d86db7ef62c8defebc688327",
                     "038c467734bd44fbcba23774d091d3d287fb4250") },
+                { "agents/unity-test-reviewer.md", Hashes(
+                    "0988c9a8ca580951c7fbe70695b15b59a15fc9af") },
                 { "skills/csharp-unity.md", Hashes(
                     "0bcb76fa205de60ccfdb9abe79bbd58363f856df",
                     "656a29142dee25c467a4a146eaaff6bdd7bc7cad") },
@@ -57,7 +59,12 @@ namespace UnityMCP.Editor.Wizard
                 { "skills/unity-testing.md", Hashes(
                     "39650bc93cfd75419863eca1f7f5cd8cb025c144",
                     "2a874bc1e2daa3569d077f8c343282fb51c25a16") },
+                { "skills/unity-testing-verification/references/test-authoring.md", Hashes(
+                    "a06497388792403ae2e34cef65324140ebad446c",
+                    "f6ed9e999cba3f8aefa653fa2013fc40ce53474a") },
                 { "skills/unity-timeline.md", Hashes("622e09329fecdcebda756a7b3bc2ef726333801a") },
+                { "skills/unity-ui-authoring/SKILL.md", Hashes(
+                    "73848d830e8d979b333c5398cd25d57ea0b2bd1d") },
             };
 
         private static IReadOnlyCollection<string> Hashes(params string[] values) =>
@@ -146,11 +153,19 @@ namespace UnityMCP.Editor.Wizard
             string sourceDir,
             string projectRoot,
             bool overwrite,
-            IReadOnlyDictionary<string, IReadOnlyCollection<string>> legacyFileBlobs)
+            IReadOnlyDictionary<string, IReadOnlyCollection<string>> legacyFileBlobs,
+            Action<InstallMutation, string> afterMutation = null,
+            Action<string> cleanupTransaction = null)
         {
             try
             {
-                return InstallCore(sourceDir, projectRoot, overwrite, legacyFileBlobs);
+                return InstallCore(
+                    sourceDir,
+                    projectRoot,
+                    overwrite,
+                    legacyFileBlobs,
+                    afterMutation,
+                    cleanupTransaction);
             }
             catch (Exception ex)
             {
@@ -167,7 +182,9 @@ namespace UnityMCP.Editor.Wizard
             string sourceDir,
             string projectRoot,
             bool overwrite,
-            IReadOnlyDictionary<string, IReadOnlyCollection<string>> legacyFileBlobs)
+            IReadOnlyDictionary<string, IReadOnlyCollection<string>> legacyFileBlobs,
+            Action<InstallMutation, string> afterMutation,
+            Action<string> cleanupTransaction)
         {
             var errors = new List<string>();
             var installableFiles = ListFiles(sourceDir);
@@ -218,6 +235,7 @@ namespace UnityMCP.Editor.Wizard
             var stageRoot = Path.Combine(transactionRoot, "stage");
             var backupRoot = Path.Combine(transactionRoot, "backup");
             var applied = new List<AppliedFile>();
+            var createdDirectories = new List<string>();
             var preserveTransaction = false;
             var stateRestored = true;
 
@@ -239,21 +257,27 @@ namespace UnityMCP.Editor.Wizard
                     if (!IsPathSafe(projectRootFull, dst))
                         throw new IOException($"Unsafe destination changed during install: {rel}");
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(dst));
+                    EnsureTransactionDirectories(
+                        projectRootFull,
+                        Path.GetDirectoryName(dst),
+                        createdDirectories);
                     var staged = Path.Combine(stageRoot, rel.Replace('/', Path.DirectorySeparatorChar));
                     var backup = Path.Combine(backupRoot, rel.Replace('/', Path.DirectorySeparatorChar));
                     if (File.Exists(dst))
                     {
                         Directory.CreateDirectory(Path.GetDirectoryName(backup));
+                        applied.Add(new AppliedFile(dst, backup, staged));
+                        afterMutation?.Invoke(InstallMutation.DestinationJournaled, dst);
                         File.Replace(staged, dst, backup);
-                        applied.Add(new AppliedFile(dst, backup));
                     }
                     else
                     {
+                        applied.Add(new AppliedFile(dst, null, staged));
+                        afterMutation?.Invoke(InstallMutation.DestinationJournaled, dst);
                         File.Move(staged, dst);
-                        applied.Add(new AppliedFile(dst, null));
                     }
                     copied++;
+                    afterMutation?.Invoke(InstallMutation.DestinationApplied, dst);
                 }
 
                 foreach (var path in migratable)
@@ -265,9 +289,11 @@ namespace UnityMCP.Editor.Wizard
                         .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                     var backup = Path.Combine(backupRoot, "removed", relative);
                     Directory.CreateDirectory(Path.GetDirectoryName(backup));
+                    applied.Add(new AppliedFile(path, backup, null));
+                    afterMutation?.Invoke(InstallMutation.LegacyRemovalJournaled, path);
                     File.Move(path, backup);
-                    applied.Add(new AppliedFile(path, backup));
                     removed++;
+                    afterMutation?.Invoke(InstallMutation.LegacyRemoved, path);
                 }
             }
             catch (Exception ex)
@@ -278,8 +304,14 @@ namespace UnityMCP.Editor.Wizard
                     try
                     {
                         var item = applied[i];
+                        var backupExists = item.Backup != null && File.Exists(item.Backup);
+                        var newDestinationApplied = item.Backup == null &&
+                            item.Staged != null &&
+                            !File.Exists(item.Staged);
+                        if (!backupExists && !newDestinationApplied) continue;
+
                         if (File.Exists(item.Destination)) File.Delete(item.Destination);
-                        if (item.Backup != null && File.Exists(item.Backup))
+                        if (backupExists)
                         {
                             Directory.CreateDirectory(Path.GetDirectoryName(item.Destination));
                             File.Move(item.Backup, item.Destination);
@@ -294,6 +326,24 @@ namespace UnityMCP.Editor.Wizard
                             $"Recovery files: {transactionRoot}");
                     }
                 }
+                for (var i = createdDirectories.Count - 1; i >= 0; i--)
+                {
+                    var directory = createdDirectories[i];
+                    try
+                    {
+                        if (Directory.Exists(directory) &&
+                            !Directory.EnumerateFileSystemEntries(directory).Any())
+                            Directory.Delete(directory);
+                    }
+                    catch (Exception rollbackError)
+                    {
+                        preserveTransaction = true;
+                        stateRestored = false;
+                        errors.Add(
+                            $"Rollback failed for {directory}: {rollbackError.Message}. " +
+                            $"Recovery files: {transactionRoot}");
+                    }
+                }
                 if (stateRestored)
                 {
                     copied = 0;
@@ -304,8 +354,19 @@ namespace UnityMCP.Editor.Wizard
             {
                 if (!preserveTransaction && Directory.Exists(transactionRoot))
                 {
-                    try { Directory.Delete(transactionRoot, true); }
-                    catch { }
+                    try
+                    {
+                        if (cleanupTransaction == null)
+                            Directory.Delete(transactionRoot, true);
+                        else
+                            cleanupTransaction(transactionRoot);
+                    }
+                    catch (Exception cleanupError)
+                    {
+                        errors.Add(
+                            $"WARNING: Transaction cleanup incomplete: {cleanupError.Message}. " +
+                            $"Recovery files: {transactionRoot}");
+                    }
                 }
             }
 
@@ -316,6 +377,41 @@ namespace UnityMCP.Editor.Wizard
                 errors.ToArray(),
                 stateRestored,
                 stateRestored ? null : transactionRoot);
+        }
+
+        internal enum InstallMutation
+        {
+            DestinationJournaled,
+            DestinationApplied,
+            LegacyRemovalJournaled,
+            LegacyRemoved,
+        }
+
+        private static void EnsureTransactionDirectories(
+            string projectRoot,
+            string directory,
+            List<string> createdDirectories)
+        {
+            var missing = new Stack<string>();
+            var current = directory;
+            while (!Directory.Exists(current))
+            {
+                if (!IsPathSafe(projectRoot, current))
+                    throw new IOException($"Unsafe destination directory: {current}");
+                missing.Push(current);
+                var parent = Path.GetDirectoryName(current);
+                if (string.IsNullOrEmpty(parent) || parent == current)
+                    throw new IOException($"Destination directory escapes project root: {directory}");
+                current = parent;
+            }
+
+            while (missing.Count > 0)
+            {
+                var path = missing.Pop();
+                if (Directory.Exists(path)) continue;
+                createdDirectories.Add(path);
+                Directory.CreateDirectory(path);
+            }
         }
 
         private static bool IsPathSafe(string rootPath, string candidatePath)
@@ -453,11 +549,13 @@ namespace UnityMCP.Editor.Wizard
         {
             public readonly string Destination;
             public readonly string Backup;
+            public readonly string Staged;
 
-            public AppliedFile(string destination, string backup)
+            public AppliedFile(string destination, string backup, string staged)
             {
                 Destination = destination;
                 Backup = backup;
+                Staged = staged;
             }
         }
     }
@@ -470,7 +568,8 @@ namespace UnityMCP.Editor.Wizard
         public readonly string[] Errors;
         public readonly bool StateRestored;
         public readonly string RecoveryPath;
-        public bool IsSuccess => Errors.Length == 0;
+        public bool IsSuccess => Errors.All(error =>
+            error.StartsWith("WARNING: ", StringComparison.Ordinal));
 
         public InstallResult(
             int copied,

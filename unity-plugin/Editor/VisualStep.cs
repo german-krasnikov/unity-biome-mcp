@@ -23,6 +23,7 @@ namespace UnityMCP.Editor
         public string method      { get => _step.Method ?? "";    set => _step.Method = value; }
         public string args        { get => _step.Args ?? "";      set => _step.Args = value; }
         public string message     { get => _step.Message ?? "";   set => _step.Message = value; }
+        public string rawLine     { get => _step.RawLine ?? "";   set => _step.RawLine = value; }
         public bool abortOnFail   { get => _step.AbortOnFail;     set => _step.AbortOnFail = value; }
 
         public VisualStep() { _step = new PlaytestStep { Timeout = 5f, Op = "==" }; }

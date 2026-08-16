@@ -1,97 +1,85 @@
-# GridTest Scene — MCP Test Polygon
+# GridTest scene
 
-Test sandbox for all Play Mode MCP tools. No game logic beyond the grid.
+`GridTest` is the small Play Mode fixture used to exercise public runtime and
+playtest tools. It contains only deterministic grid movement and collectibles.
 
-## Scene Structure
+## Scene layout
 
-```
-GridTest (scene)
-├── GridPlayer          — MonoBehaviour: GridPlayer.cs
-├── Collectible_1       — MonoBehaviour: Collectible.cs  (pos 3,0.5,3)
-├── Collectible_2       — MonoBehaviour: Collectible.cs  (pos 7,0.5,7)
-├── Collectible_3       — MonoBehaviour: Collectible.cs  (pos 5,0.5,0)
-├── Plane               — 10x10 ground
+```text
+GridTest
+├── GridPlayer          GridPlayer.cs; starts at (0, 0)
+├── Collectible_1       (3, 0.5, 3)
+├── Collectible_2       (7, 0.5, 7)
+├── Collectible_3       (5, 0.5, 0)
+├── Plane               10 × 10 ground
 ├── Directional Light
-└── Main Camera         — orthographic, size 8, position (14,12,14)
+└── Main Camera         orthographic overview
 ```
 
-GridPlayer starts at grid position (0,0). GridSize=10, so valid range is [0..9].
+Valid grid coordinates are `0` through `9` on each axis.
 
-## GridPlayer API
+## GridPlayer contract
 
-### Public Fields (readable via query_state / set_runtime_property)
+`query_state` can read these public fields:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| MoveSpeed | float | Units/sec (default 5) |
-| GridSize | int | Grid dimension (default 10) |
-| PosX | int | Current X position |
-| PosZ | int | Current Z position |
-| Score | int | Collectibles picked up |
-| IsMoving | bool | True while animation runs |
-| MoveCount | int | Total moves made |
+| Field | Type | Initial value or meaning |
+|---|---|---|
+| `MoveSpeed` | `float` | Movement speed; default `5` |
+| `GridSize` | `int` | Grid width and height; default `10` |
+| `PosX`, `PosZ` | `int` | Current grid cell |
+| `Score` | `int` | Collected item count |
+| `IsMoving` | `bool` | Whether movement is in progress |
+| `MoveCount` | `int` | Accepted and started move count |
 
-### Public Methods (invokable via invoke_method)
+`invoke_method` can call:
 
-#### Move(string direction) -> string
-Move one step in cardinal direction.
-- Args: `"north"` | `"south"` | `"east"` | `"west"`
-- Returns: `"ok"` on success
-- Returns: `"error:already_moving"` if IsMoving is true
-- Returns: `"error:invalid_direction:<dir>"` for unknown direction
-- Returns: `"error:out_of_bounds:(<x>,<z>)"` if target outside [0..GridSize)
+- `Move(string direction)`: accepts `north`, `south`, `east`, or `west` and
+  returns `ok`, `error:already_moving`, `error:invalid_direction:<value>`, or
+  `error:out_of_bounds:(x,z)`.
+- `MoveTo(int x, int z)`: moves to a valid cell and returns `ok`,
+  `error:already_moving`, or `error:out_of_bounds:(x,z)`.
+- `ResetState()`: restores position, score, movement, and move count.
 
-#### MoveTo(int x, int z) -> string
-Teleport-style move to grid cell (x,z).
-- Args: `"3,4"` (comma-separated)
-- Returns: `"ok"` on success
-- Returns: `"error:already_moving"` if already in motion
-- Returns: `"error:out_of_bounds:(<x>,<z>)"` if out of range
+## Public-tool examples
 
-#### ResetState() -> void
-Reset player to (0,0), Score=0, MoveCount=0, IsMoving=false.
+Read two fields in one request:
 
-## MCP Tool Coverage
-
-### invoke_method
 ```python
-bridge.send("invoke_method", {
-    "path": "/GridPlayer", "component": "GridPlayer",
-    "method": "Move", "args": "north"
-})
+await query_state(
+    queries="/GridPlayer|GridPlayer|PosX,/GridPlayer|GridPlayer|Score"
+)
 ```
 
-### query_state
+Call a public method:
+
 ```python
-bridge.send("query_state", {
-    "queries": "/GridPlayer|GridPlayer|PosX,/GridPlayer|GridPlayer|Score"
-})
+await invoke_method(
+    path="/GridPlayer",
+    component="GridPlayer",
+    method="Move",
+    args="north",
+)
 ```
 
-### set_runtime_property
+Wait for movement to finish:
+
 ```python
-bridge.send("set_runtime_property", {
-    "path": "/GridPlayer", "component": "GridPlayer",
-    "field": "MoveSpeed", "value": "20"
-})
+await wait_until(
+    path="/GridPlayer",
+    component="GridPlayer",
+    field="IsMoving",
+    value="False",
+    timeout=10,
+)
 ```
 
-### batch
-```python
-bridge.send("batch", {
-    "commands": (
-        "set_runtime_property path=/GridPlayer component=GridPlayer field=MoveSpeed value=50\n"
-        "query_state queries=/GridPlayer|GridPlayer|MoveSpeed"
-    )
-})
-```
+Runtime property writes are part of the playtest DSL, not a public standalone
+MCP tool. For example:
 
-### run_playtest DSL
-```
+```text
 TIMESCALE 10
 SET /GridPlayer GridPlayer MoveSpeed 50
 INVOKE /GridPlayer GridPlayer ResetState
-WAIT 0.1
 INVOKE /GridPlayer GridPlayer Move north
 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 5
 ASSERT /GridPlayer|GridPlayer|PosZ == 1
@@ -99,55 +87,29 @@ ASSERT /GridPlayer|GridPlayer|MoveCount >= 1
 SNAPSHOT /GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX
 TIMESCALE 1
 ASSERT_CONSOLE_CLEAN
-LOG Test complete
 ```
 
-### wait_until
-```python
-bridge.send("wait_until", {
-    "path": "/GridPlayer", "component": "GridPlayer",
-    "field": "IsMoving", "value": "False", "timeout": 10
-})
-```
+`MoveCount` increments when a valid move starts, before its movement coroutine
+finishes. Use `IsMoving == False` or the final position as completion evidence.
 
-### screenshot
-```python
-bridge.send("screenshot", {})
-bridge.send("screenshot", {"camera": "overview"})
-```
+The fixture's in-memory fields, transforms, and collectible state normally reset
+when Play Mode stops. File, asset, and project-setting side effects do not.
 
-## Running Tests
+## Run the fixture tests
+
+Open `unity-test-project` in Unity with the `GridTest` scene loaded, then run
+from the repository root:
 
 ```bash
-# All live tests (requires Unity + GridTest scene open)
-cd server && pytest tests/live/test_gridtest_playmode.py -v -m live
-
-# Single test
-pytest tests/live/test_gridtest_playmode.py::test_invoke_move_north_returns_ok -v -m live
-
-# All unit tests (no Unity required)
-pytest tests/ -m "not live" -q
+export UNITY_MCP_PROJECT_PATH="/absolute/path/to/unity-test-project"
+cd server
+python -m pytest tests/live/test_gridtest_playmode.py -m live -v
 ```
 
-## Expected Behavior
+For one case, append its node ID, for example
+`::test_invoke_move_north_returns_ok`. The live harness rejects a missing or
+invalid `UNITY_MCP_PROJECT_PATH`; it does not silently choose a project.
 
-| Test | Setup | Expected |
-|------|-------|----------|
-| Move north | Reset (0,0) | ok, PosZ=1 |
-| Move west at (0,0) | Reset | error:out_of_bounds |
-| Move with bad dir | any | error:invalid_direction |
-| Second move while moving | low speed | error:already_moving |
-| MoveTo(-1,0) | any | error:out_of_bounds |
-| ResetState after moves | any | PosX=PosZ=Score=MoveCount=0 |
-| MoveSpeed=50 | Play Mode | IsMoving=False within 0.5s for 1 cell |
-| TIMESCALE 10 | DSL | all timers run 10x faster |
-| Collectible at (3,3) | MoveTo 3,3 | Score increments by 1 |
-| Collectible at (7,7) | MoveTo 7,7 | Score increments by 1 |
-| Collectible at (5,0) | MoveTo 5,0 | Score increments by 1 |
-
-## Notes
-
-- `Application.runInBackground = true` is set in `Start()` — animation runs even without Game View focus.
-- `TIMESCALE` + high `MoveSpeed` (50) = fast tests with no sleeps.
-- Collectibles at fixed positions: (3,3), (7,7), (5,0). Pickup radius: 0.4 units (OverlapSphere).
-- All runtime changes (MoveSpeed, etc.) are discarded when Play Mode stops.
+Expected fixture behavior includes out-of-bounds rejection, deterministic
+reset, collection at `(3,3)`, `(7,7)`, and `(5,0)`, and one-cell movement
+completing within 0.5 seconds when `MoveSpeed` is `50`.

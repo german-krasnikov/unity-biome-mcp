@@ -202,7 +202,7 @@ async def test_state_injection_not_before_10(mw):
 
 
 async def test_auto_state_skips_read_cmds(mw):
-    """Reads must never trigger AUTO STATE injection."""
+    """Reads and non-scene screenshot artifacts do not trigger AUTO STATE."""
     fake_send = AsyncMock(return_value="HierarchyData")
     mw.call_count = 10
     mw._last_hierarchy_call = 0
@@ -477,10 +477,30 @@ def test_verification_readonly_batch_no_count(mw):
     assert mw._mutation_count == before
 
 
+def test_screenshot_does_not_advance_scene_mutation_checkpoint(mw):
+    """Capture writes an artifact but does not count as a Unity scene mutation."""
+    mw._mutation_count = 9
+    assert mw.check_verification_needed("screenshot", {}) is None
+    assert mw._mutation_count == 9
+
+    result = mw.check_verification_needed("set_property", {})
+    assert "VERIFICATION" in result
+    assert mw._mutation_count == 10
+
+
 def test_transition_readonly_batch_resets_consecutive_writes(mw):
     mw._consecutive_writes = 2
     mw.transition("batch", {"commands": "get_component path=Foo type=Bar"})
     assert mw._consecutive_writes == 0
+
+
+def test_screenshot_resets_scene_write_sequence_without_counting_as_write(mw):
+    mw._consecutive_writes = 2
+    assert mw.transition("screenshot", {}) is None
+    assert mw._consecutive_writes == 0
+
+    assert mw.transition("set_property", {}) is None
+    assert mw._consecutive_writes == 1
 
 
 # ─── Feature 6 (new): Incremental Verification ───────────────────────────────
@@ -1032,6 +1052,29 @@ async def test_write_command_drops_negative_path_cache():
     wrapped = wrap_send(send_fn, mw)
     await wrapped("create_object", {"name": "Ghost"})
     assert mw._negative_path_cache == {}
+
+
+async def test_screenshot_preserves_scene_state_caches():
+    """Project-local capture output must not invalidate cached Unity scene state."""
+    import time as time_mod
+
+    from unity_mcp.prefetch_cache import PrefetchCache
+
+    mw = Middleware()
+    mw._prefetch_cache = PrefetchCache()
+    component_args = {"path": "/Cube", "type": "Transform"}
+    mw._prefetch_cache.put("get_component", component_args, "cached transform")
+    mw._last_hierarchy_full = "Cube &1"
+    mw._negative_path_cache = {"/Ghost": time_mod.monotonic() + 999}
+
+    async def send_fn(cmd, args, timeout=30.0):
+        return {"ok": True, "data": "Data saved to: ScreenShots/capture.png"}
+
+    await wrap_send(send_fn, mw)("screenshot", {"path": "/Cube"})
+
+    assert mw._prefetch_cache.get("get_component", component_args) is not None
+    assert mw._last_hierarchy_full == "Cube &1"
+    assert "/Ghost" in mw._negative_path_cache
 
 
 # ── Item 9: reset_session must cancel bg tasks ─────────────────────────────

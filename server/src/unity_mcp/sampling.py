@@ -4,6 +4,7 @@ Enable: UNITY_MCP_VISUAL_VERIFY=1
 Uses `claude -p` for cheap/fast verification. Zero API keys needed.
 """
 import asyncio
+import logging
 import os
 
 CLAUDE_CMD = os.environ.get("UNITY_MCP_CLAUDE_CMD", "claude")
@@ -11,6 +12,8 @@ CLAUDE_CMD = os.environ.get("UNITY_MCP_CLAUDE_CMD", "claude")
 import contextlib
 
 from .llm_config import get_profile  # noqa: E402
+
+log = logging.getLogger(__name__)
 
 _budget_tracker = None
 _budget_router = None
@@ -56,6 +59,21 @@ class SamplingService:
     @property
     def enabled(self) -> bool:
         return os.environ.get("UNITY_MCP_VISUAL_VERIFY") == "1"
+
+    @staticmethod
+    def _claude_profile(feature: str):
+        """Return a Claude profile, or fail closed for unsupported backends."""
+        profile = get_profile(feature)
+        backend = str(profile.backend or "claude").strip().lower()
+        if backend != "claude":
+            log.warning(
+                "Sampling feature %s uses unsupported backend %r; "
+                "server-side sampling supports Claude only and was skipped",
+                feature,
+                profile.backend,
+            )
+            return None
+        return profile
 
     async def _run(self, args: list, timeout: float) -> str | None:
         """Spawn subprocess; kill it on timeout/error to prevent zombies."""
@@ -113,7 +131,9 @@ class SamplingService:
             return None
         if not _gate(feature, 0.7):
             return None
-        profile = get_profile(feature)
+        profile = self._claude_profile(feature)
+        if profile is None:
+            return None
         system = "You verify Unity scene changes. Answer: PASS or FAIL + 1 sentence. Nothing else."
         full_prompt = f"{system}\n\n{prompt}"
         if screenshot_path and os.path.isfile(screenshot_path):
@@ -137,7 +157,9 @@ class SamplingService:
             return None
         if not _gate(feature, 0.5):
             return None
-        profile = get_profile(feature)
+        profile = self._claude_profile(feature)
+        if profile is None:
+            return None
         result = await self._run([CLAUDE_CMD, "-p", prompt] + profile.to_cli_args(), profile.timeout)
         if result:
             await _record_async(feature)
@@ -155,7 +177,9 @@ class SamplingService:
             return None
         if not _gate(feature, 0.9):
             return None
-        profile = get_profile(feature)
+        profile = self._claude_profile(feature)
+        if profile is None:
+            return None
         full_prompt = f"Read this image and analyze it.\nImage: {image_path}\n\n{prompt}"
         args = [CLAUDE_CMD, "-p", full_prompt] + profile.to_cli_args() + ["--tools", "Read"]
         result = await self._run(args, profile.timeout)
@@ -178,7 +202,9 @@ class SamplingService:
             return None
         if not _gate(feature, 0.9):
             return None
-        profile = get_profile(feature)
+        profile = self._claude_profile(feature)
+        if profile is None:
+            return None
         full_prompt = f"Read these two images and compare them.\nImage 1 (before): {before}\nImage 2 (after): {after}\n\n{prompt}"
         args = [CLAUDE_CMD, "-p", full_prompt] + profile.to_cli_args() + ["--tools", "Read"]
         result = await self._run(args, profile.timeout)
@@ -197,7 +223,9 @@ class SamplingService:
             return None
         if not _gate(feature, 0.2):
             return None
-        profile = get_profile(feature)
+        profile = self._claude_profile(feature)
+        if profile is None:
+            return None
         full_prompt = f"{instruction}:\n{data[:3000]}"
         result = await self._run([CLAUDE_CMD, "-p", full_prompt] + profile.to_cli_args(), profile.timeout)
         if result:

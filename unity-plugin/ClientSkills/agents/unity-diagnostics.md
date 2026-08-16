@@ -47,3 +47,5 @@ UNVERIFIED:
 - No repeated calls with unchanged inputs after failure.
 - No probabilistic summary of exact failure evidence.
 - A runtime watch may observe state; clear it before completion.
+- `verify_after_change` does not check object references, scan the scene, or
+  capture a screenshot. Run those probes explicitly when the claim needs them.

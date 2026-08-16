@@ -79,7 +79,7 @@ namespace UnityMCP.Editor
             if (summary)
             {
                 var summaryRoot = JsonHelper.ExtractString(args, "root");
-                return HierarchySerializer.SerializeSummary(summaryRoot);
+                return HierarchySerializer.SerializeSummary(summaryRoot, scene);
             }
             var depth = ExtractInt(args, "depth", 99);
             var root = JsonHelper.ExtractString(args, "root");
@@ -175,10 +175,23 @@ namespace UnityMCP.Editor
                 int ok = 0; int fail = 0;
                 foreach (var p in paths)
                 {
-                    try { ObjectManager.SetProperty(p.Trim(), component, prop, value, dryRun); ok++; }
+                    try
+                    {
+                        var itemResult = ObjectManager.SetProperty(
+                            p.Trim(), component, prop, value, dryRun);
+                        if (BatchHelper.IsFailureResult(itemResult)) fail++;
+                        else ok++;
+                    }
                     catch { fail++; }
                 }
                 var prefix = dryRun ? "DRY-RUN bulk" : "bulk set";
+                if (fail > 0)
+                {
+                    var errorPrefix = dryRun
+                        ? "DRY-RUN BULK ERROR"
+                        : "BULK SET ERROR";
+                    return $"{errorPrefix}: {prop}={value}: {ok} ok, {fail} failed / {paths.Length} {findType}";
+                }
                 return $"{prefix} {prop}={value}: {ok} ok, {fail} failed / {paths.Length} {findType}";
             }
             var path = JsonHelper.ExtractString(args, "path");

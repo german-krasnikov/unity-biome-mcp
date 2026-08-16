@@ -13,7 +13,7 @@ _args = None
 
 async def execute_code(code: str, undo_label: str = "execute_code") -> str:
     """Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.
-    Security: no System.IO, System.Net, System.Diagnostics.
+    Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed.
     Bare statements are auto-wrapped in a static class — no boilerplate needed.
     Example: \"var go = new GameObject(\\\"Test\\\"); return go.name;\""""
     return await _send("execute_code", _args(code=code, undo_label=undo_label))
@@ -33,7 +33,8 @@ except ImportError:
 
 
 async def auto_fix(ctx: _Context) -> str:
-    """Auto-detect and fix Unity errors. Uses MCP sampling to ask Claude for fixes."""
+    """Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.
+    This read-only tool does not edit files or apply the suggested change."""
     from .. import editor_log
     console = await _send("get_console", {"count": 10, "level": PROBLEM_LEVELS})
     compile_errors = editor_log.corroborate(await _send("get_compile_errors", {}))

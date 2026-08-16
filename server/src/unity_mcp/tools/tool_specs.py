@@ -19,6 +19,8 @@ class ToolSpec:
     timeout_s: per-command TCP timeout; DEFAULT_TIMEOUT (30s) if unset.
     mutability: 'read' = never mutates scene/state; 'write' = may mutate (default = fail-closed).
     runtime_only: True = Play Mode required; blocked before TCP when is_playing=False.
+    direct_only: True = callable through its typed MCP wrapper, but not inside batch.
+    unity_transport: a direct-only wrapper delegates the same command name to Unity.
     """
     category: str
     core: bool = False
@@ -27,6 +29,7 @@ class ToolSpec:
     mutability: Literal['read', 'write'] = 'write'
     runtime_only: bool = False
     direct_only: bool = False
+    unity_transport: bool = False
 
 
 DEFAULT_TIMEOUT: float = 30.0
@@ -40,7 +43,7 @@ _SPECS: dict[str, ToolSpec] = {
     'apply_scene_change': ToolSpec(category='SCENE', tier1=True, timeout_s=120.0, direct_only=True),
     'apply_template': ToolSpec(category='SYSTEM', direct_only=True),
     'ask': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
-    'ask_user': ToolSpec(category='SYSTEM', timeout_s=300.0, mutability='read'),
+    'ask_user': ToolSpec(category='SYSTEM', timeout_s=300.0, mutability='read', direct_only=True, unity_transport=True),
     'asset': ToolSpec(category='ASSETS'),
     'auto_fix': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'auto_wire': ToolSpec(category='COMPONENTS'),
@@ -53,8 +56,8 @@ _SPECS: dict[str, ToolSpec] = {
     # Public batch() tool always overrides -- see tools/batch.py timeout param.
     'batch': ToolSpec(category='CORE', core=True, timeout_s=120.0),
     'budget_status': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
-    'build': ToolSpec(category='SYSTEM', timeout_s=300.0),
-    'package': ToolSpec(category='ASSETS', timeout_s=60.0),
+    'build': ToolSpec(category='SYSTEM', timeout_s=300.0, direct_only=True, unity_transport=True),
+    'package': ToolSpec(category='ASSETS', timeout_s=60.0, direct_only=True, unity_transport=True),
     'cancel_test_run': ToolSpec(category='TESTS', timeout_s=10.0),
     'check_colliders': ToolSpec(category='SCENE', mutability='read'),
     'checkpoint': ToolSpec(category='SYSTEM'),
@@ -75,7 +78,9 @@ _SPECS: dict[str, ToolSpec] = {
     'diagnose': ToolSpec(category='VERIFY', mutability='read'),
     'discover_tools': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     'do': ToolSpec(category='SYSTEM', direct_only=True),
-    'doctor': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
+    # Conditional: default is observational; fix=True removes stale local files.
+    # middleware_types.is_write() handles the argument-aware classification.
+    'doctor': ToolSpec(category='SYSTEM', direct_only=True),
     'editor': ToolSpec(category='CORE', core=True),
     'execute_code': ToolSpec(category='SYSTEM', core=True, timeout_s=60.0),
     'export_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
@@ -85,7 +90,7 @@ _SPECS: dict[str, ToolSpec] = {
     'get_aliases': ToolSpec(category='_INTERNAL', mutability='read'),
     'get_capabilities': ToolSpec(category='SYSTEM', mutability='read'),
     'get_changeset': ToolSpec(category='VERIFY', tier1=True, timeout_s=5.0, mutability='read'),
-    'get_changes': ToolSpec(category='SYSTEM', mutability='read'),
+    'get_changes': ToolSpec(category='SYSTEM'),
     'get_compile_errors': ToolSpec(category='CORE', core=True, mutability='read'),
     'get_component': ToolSpec(category='CORE', core=True, mutability='read'),
     'get_components_list': ToolSpec(category='SCENE', mutability='read'),
@@ -95,7 +100,7 @@ _SPECS: dict[str, ToolSpec] = {
     'get_frame_stats': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
     'get_hierarchy': ToolSpec(category='CORE', core=True, timeout_s=15.0, mutability='read'),
     'get_memory': ToolSpec(category='RUNTIME', mutability='read'),
-    'get_metrics': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),
+    'get_metrics': ToolSpec(category='RUNTIME', direct_only=True),
     'get_object_detail': ToolSpec(category='SCENE', mutability='read'),
     'get_schema': ToolSpec(category='SYSTEM', mutability='read'),
     'get_selection': ToolSpec(category='SCENE', mutability='read'),
@@ -125,15 +130,15 @@ _SPECS: dict[str, ToolSpec] = {
     'material_audit': ToolSpec(category='ASSETS', mutability='read'),
     'mcp_status': ToolSpec(category='SYSTEM', core=True, mutability='read', direct_only=True),
     'menu': ToolSpec(category='SYSTEM'),
-    'move_to': ToolSpec(category='RUNTIME', runtime_only=True),
-    'navmesh_query': ToolSpec(category='SCENE', mutability='read', direct_only=True),
+    'move_to': ToolSpec(category='RUNTIME', runtime_only=True, direct_only=True, unity_transport=True),
+    'navmesh_query': ToolSpec(category='SCENE', mutability='write', direct_only=True),
     'object_diff': ToolSpec(category='SCENE', mutability='read'),
     'particle': ToolSpec(category='MEDIA'),
     'permission_prompt': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     'ping': ToolSpec(category='_INTERNAL', timeout_s=5.0),
     'ping_object': ToolSpec(category='SCENE', mutability='read'),
     'prefab': ToolSpec(category='ASSETS'),
-    'profile': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
+    'profile': ToolSpec(category='RUNTIME', runtime_only=True),
     'project_settings': ToolSpec(category='ASSETS'),
     'query_state': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
     'recompile': ToolSpec(category='SYSTEM'),
@@ -149,10 +154,10 @@ _SPECS: dict[str, ToolSpec] = {
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
     # timeout+20.0 explicitly.
-    'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, runtime_only=True, mutability='read'),
-    'run_playtest_suite': ToolSpec(category='TESTS', tier1=True, timeout_s=3600.0, mutability='read', direct_only=True),
+    'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, runtime_only=True, mutability='write', direct_only=True, unity_transport=True),
+    'run_playtest_suite': ToolSpec(category='TESTS', tier1=True, timeout_s=3600.0, mutability='write', direct_only=True),
     'runtime_snapshot': ToolSpec(category='RUNTIME', mutability='read'),
-    'run_tests': ToolSpec(category='TESTS', tier1=True, timeout_s=30.0),
+    'run_tests': ToolSpec(category='TESTS', tier1=True, timeout_s=30.0, direct_only=True, unity_transport=True),
     'run_tests_wait': ToolSpec(category='TESTS', tier1=True, timeout_s=1200.0, direct_only=True),
     'save_session': ToolSpec(category='SYSTEM', direct_only=True),
     'save_skill': ToolSpec(category='SYSTEM', direct_only=True),
@@ -163,9 +168,9 @@ _SPECS: dict[str, ToolSpec] = {
     'scene_environment': ToolSpec(category='SCENE'),
     'scene_change_plan': ToolSpec(category='SCENE', tier1=True, timeout_s=30.0, direct_only=True),
     'scene_health': ToolSpec(category='VERIFY', mutability='read'),
-    'screenshot': ToolSpec(category='MEDIA', tier1=True, mutability='read'),
-    'screenshot_baseline': ToolSpec(category='MEDIA', mutability='read', direct_only=True),
-    'screenshot_compare': ToolSpec(category='MEDIA', mutability='read', direct_only=True),
+    'screenshot': ToolSpec(category='MEDIA', tier1=True, direct_only=True, unity_transport=True),
+    'screenshot_baseline': ToolSpec(category='MEDIA', mutability='write', direct_only=True),
+    'screenshot_compare': ToolSpec(category='MEDIA', direct_only=True),
     'scriptable_object': ToolSpec(category='ASSETS'),
     'search_scene': ToolSpec(category='SCENE', tier1=True, timeout_s=15.0, mutability='read'),
     'serialized_field_rename_audit': ToolSpec(category='VERIFY', mutability='read'),
@@ -184,7 +189,7 @@ _SPECS: dict[str, ToolSpec] = {
     'spatial_query': ToolSpec(category='SCENE', mutability='read'),
     'sync_playtest_aliases_from_defs': ToolSpec(category='TESTS'),
     'sync_unity': ToolSpec(category='SYSTEM', tier1=True, direct_only=True),
-    'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='read'),
+    'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='write', direct_only=True, unity_transport=True),
     'timeline': ToolSpec(category='MEDIA'),
     'transfer_object': ToolSpec(category='SCENE'),
     'ui_intent': ToolSpec(category='UGUI', direct_only=True),
@@ -194,16 +199,17 @@ _SPECS: dict[str, ToolSpec] = {
     'validate_triggers': ToolSpec(category='SCENE', mutability='read'),
     'validate_playtest_aliases': ToolSpec(category='TESTS', mutability='read'),
     'validate_references': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
-    'verify_after_change': ToolSpec(category='VERIFY', tier1=True, timeout_s=600.0, mutability='read', direct_only=True),
+    # May run Unity tests/playtests and stop or restart Play Mode.
+    'verify_after_change': ToolSpec(category='VERIFY', tier1=True, timeout_s=600.0, direct_only=True),
     'vfx_intent': ToolSpec(category='MEDIA', direct_only=True),
     'inspect_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),
     'lint_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),
     'uitk_element': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=15.0),
     'attach_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=30.0),
-    'uitk_file': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=30.0),
+    'uitk_file': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=30.0, direct_only=True, unity_transport=True),
     'uitk_intent': ToolSpec(category='UITOOLKIT', direct_only=True, timeout_s=60.0),
     'lint_ugui': ToolSpec(category='UGUI', tier1=False, mutability='read', timeout_s=15.0),
-    'wait_until': ToolSpec(category='RUNTIME', runtime_only=True, mutability='read'),
+    'wait_until': ToolSpec(category='RUNTIME', runtime_only=True, direct_only=True, unity_transport=True),
     'watch': ToolSpec(category='RUNTIME', direct_only=True),
     'wire_event': ToolSpec(category='COMPONENTS'),
 }

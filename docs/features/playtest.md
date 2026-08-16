@@ -26,19 +26,14 @@ finally:
 `run_playtest` requires Play Mode. Successful step details are removed from the
 compact result; failures, snapshots, and logs remain.
 
-## run_playtest Parameters
+<span id="run_playtest-parameters"></span>
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `script` | str \| None | None | Inline DSL text (mutually exclusive with `path`) |
-| `path` | str \| None | None | Assets-relative or project-root-relative path to `.playtest` file |
-| `timeout` | float | 120.0 | Total execution time in seconds |
-| `abort_on_fail` | bool | False | Stop Play Mode on step timeout |
-| `defs` | str \| None | None | VAL definitions prepended to script (one per line) |
-| `snapshot_on_failure` | bool | False | Appends alias values and recent console errors on failure |
-| `fresh` | bool | False | Reload the active scene before the first step |
+## Run one scenario
 
-At least one of `script` or `path` is required; they are mutually exclusive.
+Pass either inline `script` text or a saved `.playtest` `path`, never both.
+Use `defs` for reusable `VAL` definitions, `fresh=True` to reload the active
+scene before the first step, and `snapshot_on_failure=True` when a failure must
+include current alias values and recent console errors.
 
 ```python
 # From file
@@ -53,29 +48,28 @@ await run_playtest(
 )
 ```
 
-## run_playtest_suite
+<span id="run_playtest_suite"></span>
+
+## Run a suite
 
 Run multiple `.playtest` files sequentially with a compact pass/fail matrix.
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `paths` | str \| None | None | Glob pattern or comma-separated list of `.playtest` files |
-| `suite_path` | str \| None | None | Absolute path to a `.suite` file (one path per line, `#` comments) |
-| `timeout_per_test` | float | 120.0 | Timeout per individual test |
-| `stop_on_fail` | bool | False | Abort suite after first failure |
-| `stop_after` | bool | True | Exit Play Mode when suite completes |
-| `auto_play` | bool | False | Enter Play Mode automatically if not playing |
-| `restart_between` | bool | False | Stop+play between each file to reset state |
-
-Exactly one of `paths` or `suite_path` must be provided.
+Provide either `pattern` (a glob or comma/newline-separated paths) or
+`suite_path` (a file listing one scenario per line), never both. Use
+`restart_between=True` only when each case needs a fresh Play Mode session; a
+failed stop or start is a suite failure, not a best-effort warning.
 
 ```python
-await run_playtest_suite(paths="Playtests/*.playtest", stop_on_fail=True)
+await run_playtest_suite(pattern="Playtests/*.playtest", stop_on_fail=True)
 # → SUITE: 5/6 passed (42s)
 #   ✓ movement.playtest (3s)
 #   ✗ combat.playtest (8s) — ASSERT Health > 0 FAIL
 #   ...
 ```
+
+An empty match is a failure: a passing suite always reports a non-zero exact
+ratio such as `SUITE: 5/5 passed`. See the
+[generated schema](../tools-schema/index.md#run_playtest_suite) for every option
+and default.
 
 ## lint_playtest
 
@@ -89,13 +83,13 @@ await lint_playtest(path="Assets/Playtests/combat.playtest")
 # → OK
 ```
 
-`lint_playtest_suite(paths=..., suite_path=...)` lints multiple files at once.
+`lint_playtest_suite(pattern=..., suite_path=...)` lints multiple files at once.
 
 ## Setup and Teardown
 
 Use `SETUP` and `TEARDOWN` blocks to organize initialization and cleanup.
 
-```python
+```text
 SETUP
   # Runs before main steps
   TELEPORT /Player 0,0,0
@@ -106,7 +100,7 @@ SETUP_END
 ASSERT /Player|Score > 0
 
 TEARDOWN
-  # Always runs, even if test failed
+  # Runs after normal completion or a non-aborting failure
   ASSERT_CONSOLE_CLEAN
   LOG Test complete
 TEARDOWN_END
@@ -114,7 +108,10 @@ TEARDOWN_END
 
 **Behavior:**
 - **SETUP** runs before main steps. If any SETUP step fails, the runner skips remaining SETUP steps and jumps directly to TEARDOWN (if present). Main steps do NOT execute.
-- **TEARDOWN** always runs at the end, after main steps (success or failure), for cleanup. All TEARDOWN steps execute in full.
+- **TEARDOWN** runs after normal completion and non-aborting setup or main-step
+  failures. A global `ABORT_ON_FAIL`, a per-step timeout `ABORT`, an external
+  Play Mode stop, a global timeout, or an unhandled runner error can end the run
+  before TEARDOWN completes. Do not use it as the only restoration mechanism.
 - Use SETUP for one-time initialization (spawn objects, set state).
 - Use TEARDOWN for verification of final state and log collection.
 
@@ -190,7 +187,7 @@ TEARDOWN_END
 | `CALL` | Invoke a macro | `CALL check_health` |
 | `INCLUDE` | Import definitions file | `INCLUDE path/to/file.defs` |
 | `FOR` / `END_FOR` | Loop with range | `FOR $i IN 0..5 ... END_FOR` |
-| `ABORT_ON_FAIL` | Stop on first failure | `ABORT_ON_FAIL` |
+| `ABORT_ON_FAIL` | Stop after the first failed step or automatic console failure; remaining steps, including TEARDOWN, are skipped | `ABORT_ON_FAIL` |
 | `SET_DEFAULT_TIMEOUT` | Default timeout for steps | `SET_DEFAULT_TIMEOUT 10` |
 | `PATH_PREFIX` | Prefix for all paths | `PATH_PREFIX /Level1` |
 | `COMMENT` / `END_COMMENT` | Block comment | `COMMENT ... END_COMMENT` |
@@ -250,7 +247,10 @@ ASSERT /Folder\\Path|Component|field == value
 ASSERT /[Zone A/Zone B]/Child|Comp|field == value
 ```
 
-Round-trip guarantee: `GetPath(go)` → parse → `FindObject(path)` always finds the original object.
+`GetPath(go)` round-trips through `FindObject(path)` only when every hierarchy
+segment name identifies a unique child. Duplicate root or sibling names make a
+text path ambiguous; use the transient `$HEX` entity reference reported by the
+ambiguity response for the current Editor process instead.
 
 ## GameObject Property Shorthands
 
@@ -389,7 +389,10 @@ ASSERT /Player|Position != (0,0,0)
 | ERR | Exception | `ASSERT NonExistent/Field — ERR` |
 | TIMEOUT | Deadline exceeded | `WAIT_UNTIL X timeout=5 — TIMEOUT` |
 
-Use `abort_on_fail=True` or the `ABORT_ON_FAIL` directive to stop at first failure.
+Use `abort_on_fail=True` or the global `ABORT_ON_FAIL` directive to stop after
+the first `FAIL`, `ERR`, `TIMEOUT`, or automatic `CONSOLE_ERR`. This skips every
+remaining step, including TEARDOWN. A per-step `ABORT` applies only to that
+`WAIT_UNTIL` timeout and stops Play Mode.
 
 Use `snapshot_on_failure=True` to capture alias values and console errors on failure.
 
@@ -402,7 +405,8 @@ ASSERT_CONSOLE_CLEAN IGNORE "DeprecationWarning", "test_info"
 
 ## Report Compression
 
-Long reports (>300 chars) are auto-summarized by Haiku:
+When sampling is enabled, long reports may be summarized to keep the result
+compact:
 
 ```
 [Compressed] 24/25 passed

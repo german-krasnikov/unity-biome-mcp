@@ -3,12 +3,13 @@ import json as _json
 
 from ..metrics import METRICS
 from ._annotations import RW as _RW
-from ._common import bind
+from ._common import _guard_read_only, bind
 
 
 async def get_metrics(format: str = "text", reset: bool = False) -> str:
     """Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."""
     if reset:
+        _guard_read_only("get_metrics")
         snap = METRICS.snapshot_and_reset()
         if format == "json":
             return _json.dumps(snap, ensure_ascii=False)

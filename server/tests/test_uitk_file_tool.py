@@ -47,3 +47,11 @@ async def test_uitk_file_content_forwarded(mock_bridge):
     # Double-red:
     # 1. Change to args["content"] == "other" → fails
     # 2. Remove content from _args() → KeyError → RED
+
+
+def test_uitk_file_read_doc_promises_verbatim_utf8():
+    from unity_mcp.server import uitk_file
+
+    doc = uitk_file.__doc__ or ""
+    assert "UTF-8 text verbatim" in doc
+    assert "no normalization" in doc

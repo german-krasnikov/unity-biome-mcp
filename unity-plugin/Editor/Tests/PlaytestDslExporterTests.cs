@@ -240,8 +240,92 @@ namespace UnityMCP.Editor.Tests
             var p = new PlaytestStep { Type = StepType.Snapshot, RawLine = "SNAPSHOT hp,pos", Message = null };
             var v = PlaytestDslExporter.FromParsed(p);
             Assert.AreEqual(StepType.Snapshot, v.type);
-            StringAssert.Contains("SNAPSHOT hp,pos", v.message);
+            Assert.AreEqual("SNAPSHOT hp,pos", v.rawLine);
+            Assert.AreEqual("SNAPSHOT hp,pos", PlaytestDslExporter.Export(
+                new List<VisualStep> { v }, false));
         }
+
+        [Test]
+        public void Roundtrip_LoadedUnsupportedStep_PreservesRawLineVerbatim()
+        {
+            const string raw = "  SNAPSHOT hp,pos  ";
+            var parsed = PlaytestParser.Parse(raw);
+            var visual = PlaytestDslExporter.FromParsed(parsed[0]);
+
+            Assert.AreEqual(StepType.Snapshot, visual.type);
+            Assert.AreEqual(raw, visual.rawLine);
+            Assert.AreEqual(raw, PlaytestDslExporter.Export(
+                new List<VisualStep> { visual }, false));
+        }
+
+        [Test]
+        public void Roundtrip_LoadedUnsupportedStep_ExportsResolvedSelfContainedLine()
+        {
+            const string dsl = "VAL $target hp,pos\nSNAPSHOT $target";
+            var parsed = PlaytestParser.Parse(dsl);
+            var visual = PlaytestDslExporter.FromParsed(parsed[0]);
+            var exported = PlaytestDslExporter.Export(
+                new List<VisualStep> { visual }, false);
+            var reparsed = PlaytestParser.Parse(exported);
+
+            Assert.AreEqual("SNAPSHOT hp,pos", visual.rawLine);
+            Assert.AreEqual("SNAPSHOT hp,pos", exported);
+            Assert.IsTrue(reparsed.Warnings == null || reparsed.Warnings.Count == 0);
+            CollectionAssert.AreEqual(parsed[0].Queries, reparsed[0].Queries);
+        }
+
+        [Test]
+        public void Roundtrip_LoadedUnsupportedStep_PreservesPathPrefixSemantics()
+        {
+            const string dsl =
+                "PATH_PREFIX /Level\nVAL $target /Door|DoorState|open\nSNAPSHOT $target";
+            var parsed = PlaytestParser.Parse(dsl);
+            var visual = PlaytestDslExporter.FromParsed(parsed[0]);
+            var exported = PlaytestDslExporter.Export(
+                new List<VisualStep> { visual }, false);
+            var reparsed = PlaytestParser.Parse(exported);
+
+            Assert.AreEqual("SNAPSHOT /Level/Door|DoorState|open", exported);
+            Assert.IsTrue(reparsed.Warnings == null || reparsed.Warnings.Count == 0);
+            CollectionAssert.AreEqual(parsed[0].Queries, reparsed[0].Queries);
+        }
+
+        [Test]
+        public void SelectableTypes_AllValidateAndRoundtrip()
+        {
+            foreach (var type in PlaytestDslExporter.SelectableTypes)
+            {
+                var visual = ValidStep(type);
+                Assert.IsNull(PlaytestStepValidator.GetValidationError(visual), type.ToString());
+
+                var parsed = PlaytestParser.Parse(PlaytestDslExporter.Export(
+                    new List<VisualStep> { visual }, false));
+                Assert.AreEqual(1, parsed.Count, type.ToString());
+                Assert.AreEqual(type, parsed[0].Type, type.ToString());
+            }
+        }
+
+        private static VisualStep ValidStep(StepType type) => type switch
+        {
+            StepType.Move => new VisualStep { type = type, position = Vector3.one },
+            StepType.Teleport => new VisualStep { type = type, path = "/Target", position = Vector3.one },
+            StepType.Wait => new VisualStep { type = type, delay = 1f },
+            StepType.WaitUntil => new VisualStep { type = type, query = "q", op = "==", value = "1", timeout = 5f },
+            StepType.Assert => new VisualStep { type = type, query = "q", op = "==", value = "1" },
+            StepType.AssertConsoleClean => new VisualStep { type = type },
+            StepType.Log => new VisualStep { type = type, message = "message" },
+            StepType.Section => new VisualStep { type = type, message = "section" },
+            StepType.Invoke => new VisualStep { type = type, path = "/Target", component = "Health", method = "Reset" },
+            StepType.TimeScale => new VisualStep { type = type, delay = 1f },
+            StepType.Monitor => new VisualStep { type = type, query = "health" },
+            StepType.Set => new VisualStep { type = type, path = "/Target", component = "Health", method = "value", args = "1" },
+            StepType.Click => new VisualStep { type = type, path = "/UI/Button" },
+            StepType.Invariant => new VisualStep { type = type, query = "q", op = ">=", value = "0" },
+            StepType.Capture => new VisualStep { type = type, message = "capture", query = "q" },
+            StepType.AssertCaptured => new VisualStep { type = type, message = "capture", op = "DELTA" },
+            StepType.AssertNear => new VisualStep { type = type, path = "/A", value = "/B", delay = 1f },
+            _ => throw new System.ArgumentOutOfRangeException(nameof(type), type, null),
+        };
 
         // ── Value quoting ──────────────────────────────────────────────────────────
         [Test]

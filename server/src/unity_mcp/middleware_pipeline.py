@@ -10,7 +10,12 @@ from . import middleware_alias as _alias_hooks  # noqa: F401 — trigger hook re
 from .bridge_result import unwrap_bridge_result
 from .compressor import strip_defaults
 from .middleware_hooks import register_post, run_post_hooks
-from .middleware_types import _READ_CACHEABLE, _STRIP_CMDS, WRITE_CMDS
+from .middleware_types import (
+    _READ_CACHEABLE,
+    _STRIP_CMDS,
+    SCENE_STATE_NEUTRAL_WRITES,
+    WRITE_CMDS,
+)
 from .prefetch_cache import GATE_PRIORS
 
 if TYPE_CHECKING:
@@ -196,7 +201,11 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
             result = mw.dedup_error(cmd, result)
 
         # PrefetchCache: on write, invalidate path + fire background prefetch
-        if cmd in WRITE_CMDS and mw._prefetch_cache is not None:
+        if (
+            cmd in WRITE_CMDS
+            and cmd not in SCENE_STATE_NEUTRAL_WRITES
+            and mw._prefetch_cache is not None
+        ):
             path = args.get("path", "")
             if path:
                 mw._prefetch_cache.invalidate_path(path)
@@ -210,7 +219,7 @@ def wrap_send(send_fn, mw: Optional["Middleware"] = None):
                     t.add_done_callback(mw._bg_tasks.discard)
 
         # HierarchyDiff: reset on writes, apply diff on get_hierarchy reads
-        if cmd in WRITE_CMDS:
+        if cmd in WRITE_CMDS and cmd not in SCENE_STATE_NEUTRAL_WRITES:
             mw._last_hierarchy_full = None
             # F17: a create/rename may make a previously-absent path resolvable
             if mw._negative_path_cache:

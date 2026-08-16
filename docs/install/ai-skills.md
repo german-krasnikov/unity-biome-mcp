@@ -7,8 +7,9 @@ from configuring the MCP connection.
 
 The package currently includes:
 
-- 11 domain skills for MCP operations, scenes, assets and prefabs, materials
-  and shaders, UI, animation, VFX, physics, C# editing, testing, and diagnostics
+- 12 domain skills for MCP operations, scenes, assets and prefabs, materials
+  and shaders, uGUI, UI Toolkit, animation, VFX, physics, C# editing, testing,
+  and diagnostics
 - 4 focused agents: `unity-scene-editor`, `unity-csharp-developer`,
   `playmode-tester`, and `unity-diagnostics`
 - 1 Claude-to-Codex conversion script
@@ -18,13 +19,19 @@ The package currently includes:
 1. Open the Unity project that should receive the guidance.
 2. Select **MCP > Install AI Skills**.
 3. Leave **Overwrite existing files** disabled for the first installation.
-4. Enable **Run Codex sync after install** when this project uses Codex.
+4. Enable **Run Codex sync after install** when this project uses Codex. This
+   optional step requires Python 3.10 or newer on the `PATH` visible to Unity
+   (`python3` on macOS/Linux or `python` on Windows).
 5. Select **Install**, review the log, then select **Finish**.
-6. Restart Claude Code or Codex from the Unity project so it reloads the
-   project-local artifacts.
+6. Start the client from the Unity project. Codex normally detects skill
+   changes automatically; restart either client if the new guidance is not
+   listed.
 
 The Setup Wizard can open the same installation step. The installer writes only
-inside the current Unity project.
+inside the current Unity project. Keep that Wizard page open while Codex sync is
+running. Leaving or closing it does not kill the sync process, but the page
+cannot finalize the installed-version marker; reopen it and run **Install**
+again after the process finishes.
 
 ## Installed Paths
 
@@ -36,9 +43,15 @@ inside the current Unity project.
 | Codex generated agents | `.codex/agents/<agent>.toml` |
 | Codex ownership record | `.codex/.claude-to-codex-manifest.json` |
 
-Claude artifacts are the canonical source for Codex generation. Supporting
-references are copied with their skill, so the folder layout must remain
-intact.
+Claude artifacts are the converter's canonical source for Codex generation.
+Supporting references are copied with their skill, so the folder layout must
+remain intact.
+
+Codex discovers repository skills from `.agents/skills/`. You can invoke one
+explicitly with `/skills` or `$<skill-name>`. See the
+[official Codex skills guide](https://developers.openai.com/codex/skills) for
+client behavior; use this page for Unity Biome MCP's install and ownership
+rules.
 
 ## Safe Updates
 
@@ -55,8 +68,16 @@ Re-run the installer after updating the Unity package.
   overwrite toggle does not bypass Codex ownership checks.
 - Invalid ownership data, unsafe paths, and symlinked managed directories stop
   the operation before files are changed.
-- Writes are staged and rolled back on failure. The installed-version marker is
-  written only after the requested Claude installation and Codex sync succeed.
+- The Claude install and optional Codex sync are separate transactions. A
+  failure handled and reported by either stage rolls back that stage's writes.
+- The installed-version marker is written only after the requested Claude
+  installation and Codex sync both succeed.
+
+If Codex sync fails after the Claude stage succeeds, the updated Claude files
+remain installed, the version marker remains absent, and **Finish** stays
+disabled. Resolve the reported Codex conflict or environment error, then rerun
+the installer; unchanged Claude files are skipped and Codex sync is attempted
+again.
 
 When a conflict is intentional, compare the existing project file with the
 packaged replacement before enabling overwrite. Keep any project-specific
@@ -85,8 +106,14 @@ generated artifacts and ownership record match the installed Claude sources.
    to bypass the check.
 3. If rollback could not restore every file, use the recovery directory printed
    in the installer log.
-4. Run the installation again, then run the Codex `--check` command when Codex
-   sync is enabled.
+4. Run the installation again. When Codex sync is enabled, rerun its `--check`
+   command after the installer succeeds.
+
+An abrupt Unity, Python, or operating-system termination cannot run the normal
+rollback path. Before retrying, inspect any project-root
+`.unity-biome-skills-*` or `.claude-to-codex-*` recovery directory and compare
+its backup files with the managed destinations. Remove a recovery directory
+only after the project state is verified.
 
 The **Finish** action remains unavailable until the requested installation
 steps complete successfully.

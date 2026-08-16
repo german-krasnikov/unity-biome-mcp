@@ -1,111 +1,78 @@
-# Prompting Tips for Unity Biome MCP
+# Prompting Tips
 
-Get the best results when using Unity Biome MCP with AI assistants. These tips follow competitive best practices from CoderGamester and Memory MCP.
+A useful request states the outcome, scope, constraints, and evidence of success.
+You do not need to name every tool; name one only when its behavior matters.
 
-## General Tips
+## Describe the outcome
 
-**Use batch for multiple operations**
-When you need to perform 2+ actions, use `batch` instead of separate calls. Saves tokens and time.
+Start with what should be true when the task is complete:
 
-```
-await batch("""
-create_object name=Player parent=Level1
-create_object name=Enemy parent=Level1
-set_property Player Transform position 0,1,0
-""")
-```
+> Add a Rigidbody to `/Player`, set its mass to 2, and confirm the serialized
+> value. Do not change any other component.
 
-**Use inspect instead of multiple get_component calls**
-To read properties from N objects in one call, use `inspect` instead of N separate `get_component` calls.
+Exact scene paths, asset paths, component names, and field names remove ambiguity.
+If you do not know them, ask the assistant to inspect first:
 
-```
-# AVOID: 3 separate calls
-await get_component("Player", "Health")
-await get_component("Enemy1", "Health")
-await get_component("Enemy2", "Health")
+> Find the active player object and show me the matching paths before changing
+> anything.
 
-# GOOD: 1 call
-await inspect(paths="Player,Enemy1,Enemy2", components="Health")
-```
+## Bound the change
 
-**Always verify after mutations**
-Every `set_property`, `create_object`, or component change should be verified with a read tool to confirm the change succeeded.
+State constraints that affect implementation or safety:
 
-```
-await set_property("Player", "Transform", "position", "0,1,0")
-result = await get_component("Player", "Transform")  # Verify position is (0,1,0)
-```
+- whether Edit Mode or Play Mode state should change;
+- the scene or hierarchy root in scope;
+- assets that may or may not be edited;
+- whether prefab instances, source prefab assets, or shared materials may change;
+- whether a destructive action should be previewed first.
 
-**Use devil's advocate for multi-step plans**
-Before running 3+ mutations, name the failure modes and which tool detects each one.
+For example:
 
-```
-Plan: create object → add component → wire event
-Fail 1: component type typo → get_compile_errors
-Fail 2: event target path wrong → validate_references
-```
+> Under `/Level/Enemies` only, set `Health.maxHealth` to 100. Keep current health
+> unchanged. Preview the affected paths, apply the update, then read the values
+> back.
 
-## Example Prompts by Category
+## Define acceptance evidence
 
-### Scene Setup
-"Create a room with 4 walls, floor, ceiling, and a point light. Walls should have a brown material, floor should be gray, light should be at (5, 3, 0) with intensity 1.5"
+Ask for evidence appropriate to the result:
 
-### Object Editing
-"Find all objects tagged 'Enemy' and set their health to 100. Then verify by reading the Health component from each one"
+- a component or asset read for serialized authoring;
+- compile and Console checks for code changes;
+- a Playtest assertion for runtime behavior;
+- a correlated terminal NUnit result for Unity tests;
+- a screenshot for visible layout or rendering.
 
-### Animation
-"Add an idle-to-walk animator controller to the Player. The idle state should loop, walk state should be 1.5x speed"
+Avoid treating “the command returned successfully” as sufficient evidence when
+the actual requirement is behavioral or visual.
 
-### Testing
-"Run a playtest: teleport player to checkpoint, assert score > 0, check for console errors"
+## Separate exploration from mutation
 
-### Diagnostics
-"Check if there are any broken references in the scene. Use doctor first, then get_console to see what's broken"
+For a broad request, ask for a preview or plan first:
 
-## Token-Saving Patterns
+> Inspect the current HUD and propose the smallest change that adds a pause
+> button. Do not modify the scene yet.
 
-See [Tool Decision Guide](tool-guide.md#when-to-use-batch) and [Tool Decision Guide: inspect](tool-guide.md#when-to-use-inspect) for core patterns like `batch`, `inspect`, and `do`.
+After reviewing it, authorize the exact change and its verification. This is
+especially useful for prefabs, project settings, shared materials, packages, and
+multi-object edits.
 
-## Common Patterns
+## Give runtime tests observable conditions
 
-**Creation with verification**
-```
-await create_object(name="Player")
-result = await get_hierarchy()  # Verify it's in the hierarchy
-```
+Replace vague requests such as “make sure combat works” with initial state,
+action, and expected result:
 
-**Bulk property editing**
-```
-await batch("""
-set_property Enemy1 Health health 50
-set_property Enemy2 Health health 50
-set_property Enemy3 Health health 50
-""")
-await inspect(paths="Enemy1,Enemy2,Enemy3", components="Health")  # Verify all changed
-```
+> In Play Mode, capture `/Enemy|Health|currentHealth`, invoke
+> `Health.TakeDamage(25)` on `/Enemy`, assert that health decreased, and assert
+> that the Console is clean.
 
-**Component addition with error checking**
-```
-await manage_component("Player", "Rigidbody", "add")
-errors = await get_compile_errors()  # Ensure no broken refs
-```
+Use the [Playtest Guide](playtest.md) when you need a reusable scenario.
 
-**Search and modify**
-```
-enemies = await search_scene(query="Enemy*")
-# Then batch modify all found objects
-```
+## Ask for concise reporting
 
-**Multi-view screenshot for verification**
-```
-await screenshot(camera="multi_view")  # See scene from multiple angles at once
-```
+For large tasks, specify what the final report should contain:
 
-## Key Takeaways
+> Report changed files, verification commands and results, and any remaining
+> uncertainty. Do not repeat unchanged schema parameters.
 
-- Use `batch` for 2+ operations
-- Use `inspect` instead of loops
-- Verify every mutation immediately
-- Use `do` when uncertain
-- Always check `get_console` after changes
-- Use `doctor` for diagnostics before digging deeper
+See the [Tool Decision Guide](tool-guide.md) for choosing between typed tools,
+`batch`, `inspect`, and intent tools.

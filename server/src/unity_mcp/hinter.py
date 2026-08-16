@@ -6,6 +6,7 @@ Self-suppressing after 2 consecutive ignores. Cooldown: 8 calls between emits pe
 from collections import deque
 
 from .hinter_patterns import _PATTERNS, Call, Pattern, _key
+from .middleware_types import is_write
 
 # Re-exports for backward compatibility
 __all__ = ["ToolHinter", "Call", "Pattern"]
@@ -58,7 +59,7 @@ class ToolHinter:
         from .metrics import METRICS
         self._check_adoption(cmd)
 
-        call = Call(cmd=cmd, key=_key(cmd, args))
+        call = Call(cmd=cmd, key=_key(cmd, args), mutates=is_write(cmd, args))
 
         hint_result: str | None = None
         for pat in self._patterns:

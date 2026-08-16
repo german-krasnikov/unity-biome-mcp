@@ -45,10 +45,14 @@ namespace UnityMCP.Editor
 
         // Called by ExecLintUITK.
         // path: absolute path to a .uxml or .uss file.
-        // fix: accepted for future use; currently no auto-fix is applied.
+        // fix: retained for API compatibility; auto-fix is not implemented.
         // Returns: "ok: 0 issues" or "warn: N issues\n[AX] ..." text.
         internal static string LintUITK(string path, bool fix)
         {
+            // Fail before probing or reading the path. Silently accepting fix=true would
+            // make callers believe a mutation happened even though this tool is read-only.
+            if (fix)
+                return "err: fix=true is not supported; lint_uitk is read-only. Call with fix=false.";
             if (string.IsNullOrEmpty(path))
                 return "err: path is required";
             if (!File.Exists(path))

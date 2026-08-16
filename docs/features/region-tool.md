@@ -1,149 +1,106 @@
-# Region Selection Tool Guide
+# Scene Region Selection
 
-Draw regions in Scene View to query objects spatially.
+Draw a polygon on the Scene View XZ plane, then reuse it in Chat or a
+`spatial_query`. Regions are an Editor aid: drawing is disabled while Unity is
+entering or running Play Mode.
 
-## Activation
+## Draw and save a region
 
-**Keyboard shortcut:** `Shift+R` in Scene View
+1. Focus the Scene View and press **Shift+R**.
+2. Choose a drawing mode with **Q**, **W**, **E**, or **R**, or use the MCP Scene
+   overlay.
+3. Draw the shape.
+4. Review the highlighted objects and area in the preview.
+5. Press **Enter** to save the region, or **Escape** to discard it.
 
-**Status:** Mode label appears at top-left of viewport. Press `Escape` to cancel/deactivate.
+| Key | Mode | Gesture |
+|---|---|---|
+| **Q** | Lasso | Press and drag a freehand contour; release to preview |
+| **W** | Rectangle | Press at one corner, drag, and release |
+| **E** | Circle | Press at the center, drag the radius, and release |
+| **R** | Point by point | Click vertices; double-click or click near the first vertex to close |
 
-## Drawing Modes (Q/W/E/R)
+Press **G** to toggle the 0.5-unit grid snap. In point-by-point mode, **Escape**
+removes the most recent vertex; use it again at the first vertex to cancel.
 
-| Mode | Key | How It Works |
-|------|-----|--------------|
-| Lasso | Q | Free-hand polygon (any shape) |
-| Rectangle | W | Click two corners; draws axis-aligned box |
-| Circle | E | Click center, drag to set radius |
-| PointByPoint | R | Click each vertex; Space to confirm; Enter to close |
+The preview highlights up to 50 matching scene objects. Saving creates an
+eight-character region ID and, when automatic context is enabled, adds a Region
+chip to MCP Chat.
 
-### Lasso Mode (Q)
-- Click repeatedly to trace outline
-- Preview line follows cursor
-- Enter to close and confirm
+## Query the saved geometry
 
-### Rectangle Mode (W)
-- Click first corner
-- Move mouse to second corner (preview shows quad)
-- Click second corner to finalize
-- Always axis-aligned (no rotation)
-
-### Circle Mode (E)
-- Click once for center
-- Drag outward to set radius
-- Release mouse to confirm
-
-### PointByPoint Mode (R)
-- Click to add vertex
-- **Space** to confirm point (visual feedback)
-- Click again for next vertex
-- **Enter** to close polygon
-- **Escape** to cancel
-
-## Modifiers
-
-| Key | Effect |
-|-----|--------|
-| G | Toggle grid snap (0.5 unit grid) |
-| Shift | Hold for finer control (points snap to 0.1m) |
-| Escape | Cancel current selection and deactivate |
-| Enter | Commit polygon to cache |
-
-## Visual Feedback
-
-**Drawing:**
-- White lines show polygon edges
-- Blue circles mark vertices
-- Red cross at center
-
-**Objects inside:**
-- Green quad highlights objects within region
-- Count shown: "[region_id or inline] (X objects)"
-
-## Querying Regions
-
-### Query from Code
+Use the region ID returned by the chip or saved snapshot:
 
 ```python
-# Get all objects in polygon region (inline vertices)
-result = await spatial_query(action="objects_in_polygon", vertices="x1,z1;x2,z2;x3,z3", cap=50)
-
-# Or use saved region ID
-result = await spatial_query(action="objects_in_polygon", region_id="region-uuid-123", component="Collider", cap=50)
+objects = await spatial_query(
+    action="objects_in_polygon",
+    region_id="a1b2c3d4",
+    component="Collider",
+    cap=50,
+)
 ```
 
-**Parameters:**
-- `action` — must be `"objects_in_polygon"`
-- `vertices` — semicolon-separated pairs "x1,z1;x2,z2;..." (>=3 pairs; optional if using region_id)
-- `region_id` — UUID to load from cache
-- `component` — filter by component type name (empty = all)
-- `cap` — result limit (default 50, max 200)
+`component` is an optional, case-sensitive component-name substring filter. `cap`
+defaults to 50 and is clamped to 200.
 
-### From Chat
+You can run the same query without using the Scene View by supplying at least
+three `x,z` pairs:
 
-Region chips work in the LLM prompt:
-
-```
-[region:region-id-123]Selected Area[/region]
-
-Query this region for all Colliders:
-→ LLM calls query_state internally
-```
-
-Click the chip to frame the region in Scene View.
-
-## Persistence
-
-Regions are automatically saved to `Library/MCP_Regions.json` (gitignored):
-
-- **Max regions:** 20 (older ones auto-evict when limit exceeded)
-- **Survives:** Domain reload, editor restart
-- **Auto-delete:** Regions older than 24h (on next load)
-
-## Common Patterns
-
-**Select enemies for batch edit:**
 ```python
-# 1. Draw region around enemies with Shift+R
-# 2. Query region
-objects = await spatial_query(action="objects_in_polygon", region_id="<saved-id>", component="Enemy")
-# 3. Batch update health (for each object path in results)
-# Use batch for efficiency
-await batch("""
-set_property path=Enemy1 component=Health prop=MaxHP value=100
-set_property path=Enemy2 component=Health prop=MaxHP value=100
-""")
+objects = await spatial_query(
+    action="objects_in_polygon",
+    vertices="0,0;10,0;10,8;0,8",
+    cap=50,
+)
 ```
 
-**Spatial assertions in playtest:**
+If both `vertices` and `region_id` are supplied, the inline vertices are used and
+the ID labels the result. See [Spatial Tools](../tools/spatial.md#spatial_query) for
+other spatial actions.
+
+## Use a region in MCP Chat
+
+A saved region is represented in the prompt as:
+
+```text
+[region:a1b2c3d4]
 ```
-VAL $boss_arena 100,0,0
-# (region drawn previously with Shift+R)
-ASSERT_NEAR Player Boss 10.0  # Within arena bounds
-```
 
-**Visual selection from chat:**
-- Draw region with Shift+R
-- Chat references region chip
-- Click chip to focus in viewport
+The resolved context includes its area, bounds, center, object count, scene name,
+and a bounded list of object paths. Set the chip depth to `full` when the polygon
+vertices or the complete stored path list are needed. A `STALE` marker means the
+hierarchy changed after the region was captured; query the region again before
+making decisions from its object list.
 
-## Limitations
+The Region chip menu can frame the region, copy stored object paths, or remove the
+region.
 
-- Regions are 2D (XZ plane only; Y-independent)
-- Point-in-polygon uses ray-casting (O(n) per query)
-- Component filter is exact match (case-sensitive)
-- Regions are Edit Mode only (Play Mode queries rejected)
+## Persistence and limits
+
+Regions are stored in `Library/MCP_Regions.json`, which is local to the Unity
+project and normally ignored by version control.
+
+- At most 20 regions are retained; the oldest is evicted when the limit is
+  exceeded.
+- Regions survive a domain reload and Editor restart.
+- Entries older than 24 hours are dropped the next time the store loads.
+- Geometry uses world XZ coordinates and ignores object height.
+- Containment tests each GameObject's transform pivot, not its renderer or collider
+  bounds.
+- The stored object-path snapshot is capped at 50, while a later
+  `spatial_query(..., cap=...)` can return up to 200 current matches.
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| "Region not found" | Region evicted (>20 regions); redraw |
-| Polygon won't close | Make sure you press **Enter**, not Escape |
-| Query returns 0 objects | Expand region; lower cap; remove component filter |
-| Stale region | Hierarchy changed; re-query or delete region |
-| Can't draw in Play Mode | Pause/stop; draw regions in Edit Mode |
+| Symptom | What to do |
+|---|---|
+| The shortcut does nothing | Focus the Scene View and stop Play Mode |
+| A point-by-point polygon will not preview | Add at least three vertices, then double-click or click near the first vertex |
+| `Region not found` | The entry expired or was evicted; draw and save it again |
+| The chip is marked `STALE` | The hierarchy changed; rerun `spatial_query` before editing objects |
+| A visible object is missing | Its transform pivot may be outside the XZ polygon; use a larger region or an inline polygon |
+| Too few results are returned | Increase `cap` (up to 200) or remove the component filter |
 
----
-
-**See also:** [Scene Tools](../tools/scene.md) for spatial queries, [Batch Reference](../tools/batch.md) for batch operations.
+For destructive cleanup, use [`region_clear`](../tools/spatial.md#region_clear) with
+its default `dry_run=True`, review the paths, and only then repeat with
+`dry_run=False`.
