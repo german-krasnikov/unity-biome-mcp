@@ -264,3 +264,33 @@ async def test_ping_stall_failures_reset_on_protocol_desync():
     assert bridge._ping_stall_failures == 0, (
         f"_ping_stall_failures must be 0 after ProtocolDesyncError, got {bridge._ping_stall_failures}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — fast poll: reload active + not busy → RELOAD_BACKOFF_S sleep
+# ---------------------------------------------------------------------------
+
+async def test_heartbeat_uses_reload_backoff_when_reload_active_not_busy():
+    """Reload active but probe NOT busy → sleep uses RELOAD_BACKOFF_S (1.0s), not 2.0s.
+
+    This gives near-instant reconnect when Unity finishes compilation and writes
+    state=ready to the state file, instead of waiting the default 2s poll interval.
+    """
+    from unity_mcp.bridge_heartbeat import RELOAD_BACKOFF_S
+
+    bridge = _make_bridge_disconnected(busy=False)
+    bridge._reload.mark()  # active domain reload
+
+    sleep_args: list[float] = []
+
+    async def capture_sleep(t: float) -> None:
+        sleep_args.append(t)
+
+    with patch.object(bridge, "_reconnect", new=AsyncMock()), \
+         patch.object(asyncio, "sleep", new=capture_sleep):
+        await bridge._heartbeat_tick(interval=15.0)
+
+    assert sleep_args, "sleep() was not called in heartbeat tick"
+    assert sleep_args[0] == RELOAD_BACKOFF_S, (
+        f"Expected sleep({RELOAD_BACKOFF_S}) for reload+not-busy, got sleep({sleep_args[0]})"
+    )

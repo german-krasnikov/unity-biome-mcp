@@ -91,5 +91,178 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void GetCssKey_ChatActive_ReturnsChat()
             => Assert.AreEqual("chat", GetCssKey(State.ChatActive));
+
+        // ── GetSubState priority ─────────────────────────────────────────────
+
+        [Test]
+        public void GetSubState_BindFailed_WinsOverAll()
+        {
+            var sub = MCPStatusModel.GetSubState(
+                isCompiling: true, portMismatch: true, bindFailed: true, compileFailed: true);
+            Assert.AreEqual(MCPStatusModel.SubState.BindFailed, sub);
+        }
+
+        [Test]
+        public void GetSubState_CompileFailed_WinsOverCompilingAndMismatch()
+        {
+            var sub = MCPStatusModel.GetSubState(
+                isCompiling: true, portMismatch: true, bindFailed: false, compileFailed: true);
+            Assert.AreEqual(MCPStatusModel.SubState.CompileFailed, sub);
+        }
+
+        [Test]
+        public void GetSubState_Compiling_WinsOverMismatch()
+        {
+            var sub = MCPStatusModel.GetSubState(
+                isCompiling: true, portMismatch: true, bindFailed: false, compileFailed: false);
+            Assert.AreEqual(MCPStatusModel.SubState.Compiling, sub);
+        }
+
+        [Test]
+        public void GetSubState_PortMismatch_WhenOnlyMismatch()
+        {
+            var sub = MCPStatusModel.GetSubState(
+                isCompiling: false, portMismatch: true, bindFailed: false, compileFailed: false);
+            Assert.AreEqual(MCPStatusModel.SubState.PortMismatch, sub);
+        }
+
+        [Test]
+        public void GetSubState_None_WhenAllFalse()
+        {
+            var sub = MCPStatusModel.GetSubState(
+                isCompiling: false, portMismatch: false, bindFailed: false, compileFailed: false);
+            Assert.AreEqual(MCPStatusModel.SubState.None, sub);
+        }
+
+        // ── GetLabel(State, SubState, int) ────────────────────────────────────
+
+        [Test]
+        public void GetLabel_BindFailed_ReturnsBINDFAILED()
+        {
+            var label = MCPStatusModel.GetLabel(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.BindFailed, 9500);
+            Assert.AreEqual("BIND FAILED", label);
+        }
+
+        [Test]
+        public void GetLabel_CompileFailed_ReturnsCOMPILEERROR()
+        {
+            var label = MCPStatusModel.GetLabel(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.CompileFailed, 9500);
+            Assert.AreEqual("COMPILE ERROR", label);
+        }
+
+        [Test]
+        public void GetLabel_None_FallsBackToExistingLabel()
+        {
+            var label = MCPStatusModel.GetLabel(
+                MCPStatusModel.State.Up, MCPStatusModel.SubState.None, 9500);
+            Assert.AreEqual("ONLINE :9500", label);
+        }
+
+        [Test]
+        public void GetLabel_Listen_None_ReturnsLISTENING()
+        {
+            var label = MCPStatusModel.GetLabel(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.None, 9500);
+            Assert.AreEqual("LISTENING", label);
+        }
+
+        // ── GetSub(State, SubState) ───────────────────────────────────────────
+
+        [Test]
+        public void GetSub_BindFailed_ContainsBindKeyword()
+        {
+            var text = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.BindFailed);
+            StringAssert.Contains("bind", text);
+        }
+
+        [Test]
+        public void GetSub_CompileFailed_ContainsCompileKeyword()
+        {
+            var text = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.CompileFailed);
+            StringAssert.Contains("compile", text);
+        }
+
+        [Test]
+        public void GetSub_Compiling_ContainsCompilingKeyword()
+        {
+            var text = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.Compiling);
+            StringAssert.Contains("compil", text);
+        }
+
+        [Test]
+        public void GetSub_PortMismatch_ContainsPortKeyword()
+        {
+            var text = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.PortMismatch);
+            StringAssert.Contains("port", text);
+        }
+
+        [Test]
+        public void GetSub_None_FallsBackToExistingGetSub()
+        {
+            var text = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Up, MCPStatusModel.SubState.None);
+            Assert.AreEqual("client connected", text);
+        }
+
+        // ── GetSub(State, SubState) exact-string coverage ─────────────────────
+
+        [Test]
+        public void GetSub_PortMismatch_ReturnsPortFallbackMessage()
+        {
+            var sub = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.PortMismatch);
+            Assert.AreEqual("port fallback — check config", sub);
+        }
+
+        [Test]
+        public void GetSub_Compiling_ReturnsCompilingMessage()
+        {
+            var sub = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.Compiling);
+            Assert.AreEqual("compiling — clients wait", sub);
+        }
+
+        [Test]
+        public void GetSub_BindFailed_ReturnsBindFailedMessage()
+        {
+            var sub = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Down, MCPStatusModel.SubState.BindFailed);
+            Assert.AreEqual("bind failed — port in use", sub);
+        }
+
+        [Test]
+        public void GetSub_None_DelegatesToState_Listen()
+        {
+            // SubState.None → falls through to GetSub(State) → "no client" for Listen
+            var sub = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.None);
+            Assert.AreEqual("no client", sub);
+        }
+
+        // ── GetPill(State, SubState, port) coverage ───────────────────────────
+
+        [Test]
+        public void GetPill_BindFailed_ReturnsErrSuffix()
+        {
+            var pill = MCPStatusModel.GetPill(
+                MCPStatusModel.State.Down, MCPStatusModel.SubState.BindFailed, 9500);
+            StringAssert.EndsWith(" err", pill,
+                "BindFailed pill must end with ' err' to indicate error state");
+        }
+
+        [Test]
+        public void GetPill_None_DelegatesToStatePill_ContainsPort()
+        {
+            var pill = MCPStatusModel.GetPill(
+                MCPStatusModel.State.Up, MCPStatusModel.SubState.None, 9500);
+            StringAssert.Contains(":9500", pill,
+                "None sub-state must fall through to GetPill(State, port) which includes the port");
+        }
     }
 }

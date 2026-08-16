@@ -136,5 +136,27 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("Claude Code session", code,
                 "RoleToLabel must map 'mcp' to 'Claude Code session'");
         }
+
+        // ---------------------------------------------------------------------------
+        // Windows port stability — TIME_WAIT mitigation (Phase 4)
+        // ---------------------------------------------------------------------------
+
+        [Test]
+        public void MCPServer_WindowsHasMoreBindRetries()
+        {
+            var src = ReadRequiredPackageSource(typeof(MCPServer), "Editor/MCPServer.cs");
+            Assert.That(src, Does.Contain("#if UNITY_EDITOR_WIN"),
+                "MCPServer must have Windows-specific bind retry count");
+            Assert.That(src, Does.Contain("maxAttempts = 6"),
+                "Windows must have 6 bind retry attempts to cover longer TIME_WAIT window");
+        }
+
+        [Test]
+        public void MCPServer_SetsLingerBeforeTeardown()
+        {
+            var src = ReadRequiredPackageSource(typeof(MCPServer), "Editor/MCPServer.cs");
+            Assert.That(src, Does.Contain("LingerOption(true, 0)"),
+                "MCPServer must set linger=0 before teardown to avoid TIME_WAIT on Windows");
+        }
     }
 }

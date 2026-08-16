@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [v1.37.2] — 2026-08-16
+
+### Fixed
+
+- **Port lifecycle reliability**: Domain reload (PlayMode enter/exit) now reconnects with 1-second backoff instead of 5–60-second exponential cooldown, reducing reconnect latency. Windows socket teardown uses `SO_LINGER(0)` to send RST and avoid TIME_WAIT accumulation. Windows port bind retry increased from 4 to 6 attempts with 600ms base delay to reduce fallback-port drift during longer TIME_WAIT windows. Port persistence (`SaveRuntimePorts`) now thread-safe for async bind-retry loops via pre-cached path parameters. Server status display adds `SubState` enum (BindFailed, CompileFailed, Compiling, PortMismatch) for more accurate failure reporting in the UI.
+
 ## [v1.37.1] — 2026-08-16
 
 ### Fixed
@@ -3329,7 +3337,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.1...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.2...HEAD
+[v1.37.2]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.1...v1.37.2
 [v1.37.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.0...v1.37.1
 [v1.37.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.36.0...v1.37.0
 [v1.36.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.35.1...v1.36.0

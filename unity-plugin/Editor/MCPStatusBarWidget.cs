@@ -118,7 +118,8 @@ namespace UnityMCP.Editor
 
         private static void RefreshLabel(MCPStatusModel.State state)
         {
-            var text = MCPStatusModel.GetPill(state, MCPServer.ServerPort);
+            var sub  = MCPServer.CurrentSubState;
+            var text = MCPStatusModel.GetPill(state, sub, MCPServer.ServerPort);
             if (_pill.text == text && state == _lastTickState) return;
             _pill.text = text;
             ApplyColors(state);

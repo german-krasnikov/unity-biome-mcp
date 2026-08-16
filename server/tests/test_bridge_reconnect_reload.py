@@ -235,3 +235,27 @@ async def test_heartbeat_marks_reload_on_domain_reload_error_ping():
 
     assert bridge._reload.is_active() is True, "_reload must be marked after DomainReloadError"
     bridge._probe.mark_recompile_issued.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — fast reconnect: backoff reset on DomainReloadError
+# ---------------------------------------------------------------------------
+
+def test_backoff_reset_on_domain_reload_error():
+    """DomainReloadError in should_retry() resets _reconnect_backoff to RELOAD_BACKOFF_S.
+
+    Expected reloads (PlayMode enter) should reconnect fast (1s), not at the
+    standard exponential backoff ceiling (5-60s for unexpected disconnects).
+    """
+    from unity_mcp.bridge_heartbeat import RELOAD_BACKOFF_S
+
+    bridge = _make_bridge_disconnected()
+    bridge._reconnect_backoff = 30.0  # simulating high backoff from previous failures
+
+    deadline = time.monotonic() + 60.0
+    bridge.should_retry(DomainReloadError("domain reload test"), 0, deadline)
+
+    assert bridge._reconnect_backoff == RELOAD_BACKOFF_S, (
+        f"Expected _reconnect_backoff == {RELOAD_BACKOFF_S} after DomainReloadError, "
+        f"got {bridge._reconnect_backoff}"
+    )

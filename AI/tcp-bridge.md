@@ -106,8 +106,9 @@ Current invariants:
   process use the bounded stall policy.
 - A disconnected heartbeat polls after 5 seconds when Unity is busy and 2
   seconds otherwise. Reconnect attempts have a separate 5-to-60-second
-  exponential cooldown with jitter. `DORMANT` disables heartbeat reconnect;
-  the next request transitions through `WAKING`.
+  exponential cooldown with jitter, except for expected domain reloads (PlayMode
+  enter/exit), which use 1-second backoff for faster reconnect. `DORMANT`
+  disables heartbeat reconnect; the next request transitions through `WAKING`.
 - Reconnect candidates must prove the expected project and protocol version.
   A live PID/port pin is reused only while it still identifies that project;
   refusal or identity mismatch returns to project-aware discovery.
@@ -193,9 +194,13 @@ the original parent clears the orphan timer. Environment overrides are owned by
 - Socket shutdown: `Shutdown(Both)` before `Stop()` in OnBeforeReload and Stop (TCP_NODELAY + shutdown both directions → faster port release)
 
 **Bind retry:**
-- Up to 4 attempts (3 on same port, 1 fallback to free port)
-- Linear backoff: 400ms × (attempt + 1)
+- Windows: up to 6 attempts (5 on same port, 1 fallback); 600ms base delay. Extra
+  retries reduce fallback-port drift during longer Windows TIME_WAIT windows.
+- macOS/Linux: up to 4 attempts (3 on same port, 1 fallback); 400ms base delay.
+- Linear backoff: `delay × (attempt + 1)`
 - Re-registration of watchdog + heartbeat callback on success
+- Socket teardown uses `SO_LINGER(0)` to send RST instead of FIN, avoiding
+  TIME_WAIT on Windows (prevents rebind failures during rapid reload cycles)
 
 **KillPhantoms:** `MCPServer.KillPhantoms()` is an explicit status-menu action.
 It asks each `ClientSlot` to close inactive client entries while holding the
@@ -277,7 +282,7 @@ uncorrelated latest result is never acceptance evidence.
 - Python crash log: `server/src/unity_mcp/crash_log.py`
 - Python server filtering: `server/src/unity_mcp/server_filtering.py` (with v0.23.0 TCP probe)
 - Python server wrapper: `server/src/unity_mcp/server.py` (main() crash handler)
-- C#: `unity-plugin/Editor/CommandRouter.cs`, `unity-plugin/Editor/MCPServer.cs`, `unity-plugin/Editor/BatchHelper.cs` (atomic timeout rollback v0.57.0), `unity-plugin/Editor/MCPSettings.cs` (OnWantsToQuit flush v0.57.0)
+- C#: `unity-plugin/Editor/CommandRouter.cs`, `unity-plugin/Editor/MCPServer.cs` (bind-retry with cached paths, SO_LINGER(0), SubState tracking), `unity-plugin/Editor/PortFileManager.cs` (thread-safe SaveRuntimePorts overload), `unity-plugin/Editor/BatchHelper.cs` (atomic timeout rollback v0.57.0), `unity-plugin/Editor/MCPSettings.cs` (OnWantsToQuit flush v0.57.0)
 - Tests: see the source-backed [Tests](#tests) section and `AI/testing.md`.
 
 ## Reconnection Strategy
