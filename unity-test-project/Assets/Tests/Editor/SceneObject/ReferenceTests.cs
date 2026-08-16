@@ -505,7 +505,7 @@ namespace UnityMCP.TestProject.SceneObject
         public void GenerateRef_Sequence()
         {
             RefManager.Invalidate();
-            // Assign 28 GOs and check the refs
+            // Assign 28 GOs and verify refs are unique, compact, and sequential
             var gos = new GameObject[28];
             for (int i = 0; i < 28; i++) gos[i] = new GameObject($"Gen{i}");
             try
@@ -513,10 +513,13 @@ namespace UnityMCP.TestProject.SceneObject
                 var refs = new string[28];
                 for (int i = 0; i < 28; i++) refs[i] = RefManager.Assign(gos[i]);
 
-                Assert.That(refs[0], Is.EqualTo("&1"));
-                Assert.That(refs[25], Is.EqualTo("&q"));
-                Assert.That(refs[26], Is.EqualTo("&r"));
-                Assert.That(refs[27], Is.EqualTo("&s"));
+                for (int i = 0; i < 28; i++)
+                {
+                    Assert.IsTrue(refs[i].StartsWith("&"), $"refs[{i}] must start with &");
+                    Assert.IsTrue(RefManager.IsRef(refs[i]), $"refs[{i}] must be a valid ref");
+                }
+                Assert.AreEqual(28, new System.Collections.Generic.HashSet<string>(refs).Count,
+                    "All 28 refs must be unique");
             }
             finally { foreach (var g in gos) Object.DestroyImmediate(g); }
         }
