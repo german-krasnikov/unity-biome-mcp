@@ -3490,17 +3490,18 @@ Compilation errors with file:line:column. Not lost on Console.Clear(). Structure
 
 🟢 83/100 · Risk: 🟡 medium
 
-Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.     fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name.     full=True: bypass distillation, return raw response. compress=True: strip default values before transfer.
+Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.     fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name.     full=True: bypass distillation, return raw response. compress=True: strip default values before transfer.     component: alias for type= (backward-compat with set_property naming). type= wins when both provided.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `component` | any |  | Component type name on the target object |
 | `compress` | boolean |  | Strip fields at their default value before TCP transfer — reduces response size (default: `False`) |
 | `fields` | any |  | Comma-separated fields to return (e.g. 'mass,localPosition') — skips all others, saves tokens |
 | `full` | boolean |  | Return raw uncompressed response (bypass distillation) (default: `False`) |
 | `path` | string | ✓ | Scene path to the GameObject (e.g. /Player or /World/Enemy) |
-| `type` | string | ✓ | Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer') |
+| `type` | string |  | Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer') (default: ``) |
 
 <details>
 <summary>5 quality issues</summary>
@@ -3525,6 +3526,7 @@ Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,
       "description": "Scene path to the GameObject (e.g. /Player or /World/Enemy)"
     },
     "type": {
+      "default": "",
       "title": "Type",
       "type": "string",
       "description": "Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer')"
@@ -3553,11 +3555,23 @@ Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,
       "title": "Compress",
       "type": "boolean",
       "description": "Strip fields at their default value before TCP transfer \u2014 reduces response size"
+    },
+    "component": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Component",
+      "description": "Component type name on the target object"
     }
   },
   "required": [
-    "path",
-    "type"
+    "path"
   ],
   "title": "get_componentArguments",
   "type": "object",
@@ -7982,7 +7996,7 @@ Pre-flight + plan for safe scene edit.     1. Check Play Mode — reject if play
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `dry_run` | boolean |  | Preview changes without applying them (default: `True`) |
+| `dry_run` | boolean |  | False (default) = create plan_id. True = probe pre-flights only, no plan created. (default: `False`) |
 | `goal` | string | ✓ |  |
 | `targets` | string |  |  (default: ``) |
 
@@ -8015,10 +8029,10 @@ Pre-flight + plan for safe scene edit.     1. Check Play Mode — reject if play
       "type": "string"
     },
     "dry_run": {
-      "default": true,
+      "default": false,
       "title": "Dry Run",
       "type": "boolean",
-      "description": "Preview changes without applying them"
+      "description": "False (default) = create plan_id. True = probe pre-flights only, no plan created."
     }
   },
   "required": [
