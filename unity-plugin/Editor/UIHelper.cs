@@ -350,25 +350,30 @@ namespace UnityMCP.Editor
                 created.Add(root);
                 root.transform.SetParent(parentGo.transform, false);
                 ApplyRect(root.GetComponent<RectTransform>(), anchor, pos, size, pivot, null, null);
-                Undo.AddComponent<Image>(root);
-                Undo.AddComponent<Mask>(root);
+                var rootImg = Undo.AddComponent<Image>(root);
+                if (!string.IsNullOrEmpty(color))
+                    rootImg.color = ValueParser.ParseColor(color);
                 var scrollRect = Undo.AddComponent<ScrollRect>(root);
 
-                // Viewport
+                // Viewport — must be full-stretch so scroll area fills root.
                 var viewport = new GameObject("Viewport", typeof(RectTransform));
                 created.Add(viewport);
                 viewport.transform.SetParent(root.transform, false);
                 Undo.AddComponent<Image>(viewport);
                 Undo.AddComponent<Mask>(viewport);
+                ApplyRect(viewport.GetComponent<RectTransform>(), "stretch", null, null, null, null, null);
 
-                // Content
+                // Content — top-left anchor so it grows downward.
                 var content = new GameObject("Content", typeof(RectTransform));
                 created.Add(content);
                 content.transform.SetParent(viewport.transform, false);
                 var contentRt = content.GetComponent<RectTransform>();
-                contentRt.anchorMin = Vector2.zero;
-                contentRt.anchorMax = Vector2.one;
-                contentRt.sizeDelta = Vector2.zero;
+                contentRt.anchorMin = new Vector2(0, 1);
+                contentRt.anchorMax = new Vector2(0, 1);
+                contentRt.pivot     = new Vector2(0, 1);
+                contentRt.sizeDelta = new Vector2(0, 300);
+                var csf = Undo.AddComponent<ContentSizeFitter>(content);
+                csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
                 Undo.RecordObject(scrollRect, $"Wire ScrollRect {name}");
                 scrollRect.viewport = viewport.GetComponent<RectTransform>();

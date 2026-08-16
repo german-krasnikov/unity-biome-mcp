@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.38.0] — 2026-08-16
+
+### Fixed
+
+- **Tool contracts and surface integrity**: `discover_tools` now exposes CORE tools separately, removing direct-only tools from themed categories to prevent batch-validation errors. CommandRouter registers Python-only tools (checkpoint_create, checkpoint_restore, brief_build, get_changeset) so batch dispatch rejects them with clear errors. `get_component` accepts `component=` as an alias for `type=` for backward compatibility with set_property naming.
+- **UI creation robustness**: `create_ui(type="ScrollView")` now creates a canonical hierarchy with full-stretch Viewport, top-left-anchored Content, and ContentSizeFitter for proper growth. Root Image color is applied if supplied; omitted PanelSettings fields remain unset during `attach_uitk`.
+- **UI validation**: `lint_ugui` detects eight issues: [S1-S5] ScrollRect structural problems (missing viewport/content, anchor mismatch, no growth mechanism, duplicate Masks, unwired Scrollbars) and [G1-G3] general layout issues (zero-size active RectTransforms, raycast-blocking Images, LayoutGroups with no active children).
+- **Batch undo safety**: Non-atomic root batches now open a named undo group (`MCP Batch`) capturing all sub-command mutations; tracked mutations populate UndoGroupStack for undo_last targeting. Nested batches propagate mutation state so the root captures the full transaction.
+- **Server status accuracy**: TCP bind fallback is now tracked with `_portFallback` and exposed in `FormatStatusResponse` as `port_fallback` and `bind_failed` fields. `SO_REUSEPORT` socket option is applied on macOS only (removed from Linux conditional).
+- **Verify gate reporting**: `verify_after_change` now appends `| SKIPPED: gate1, gate2` suffix when optional gates are omitted, so test plans clearly show which gates were not run.
+- **Scene transaction improvements**: `scene_change_plan(dry_run=False)` is now the default, creating a checkpoint and plan on success. Console errors are now filtered to the time window since plan creation in `apply_scene_change`, reducing false positives from pre-existing log noise.
+- **Text filtering robustness**: `_short_description` now checks for both sentence terminators (`'. '` and `'.\n'`) to extract the first complete sentence.
+
 ## [v1.37.2] — 2026-08-16
 
 ### Fixed
@@ -3337,7 +3350,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.2...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.38.0...HEAD
+[v1.38.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.2...v1.38.0
 [v1.37.2]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.1...v1.37.2
 [v1.37.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.0...v1.37.1
 [v1.37.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.36.0...v1.37.0

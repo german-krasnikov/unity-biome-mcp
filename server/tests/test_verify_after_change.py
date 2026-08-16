@@ -253,6 +253,7 @@ async def test_verify_skips_disabled_gates():
     ):
         result = await _v.verify_after_change()
     assert result.startswith("PASS:")
+    assert "SKIPPED: console, tests, playtests" in result
     mock_con.assert_not_called()
     mock_tests.assert_not_called()
     mock_suite.assert_not_called()
@@ -266,7 +267,37 @@ async def test_verify_compile_only():
         patch(_GET_ERRORS, AsyncMock(return_value="")),
     ):
         result = await _v.verify_after_change()
-    assert result == "PASS: compile + errors_clean"
+    assert result == "PASS: compile + errors_clean | SKIPPED: console, tests, playtests"
+
+
+@pytest.mark.asyncio
+async def test_verify_partial_optional_shows_remaining_skipped():
+    """A4: Only mark_id → SKIPPED must list tests and playtests."""
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_GET_CONSOLE_SINCE, AsyncMock(return_value="")),
+    ):
+        result = await _v.verify_after_change(mark_id=MARK)
+    assert "SKIPPED: tests, playtests" in result
+    assert "SKIPPED: console" not in result
+
+
+@pytest.mark.asyncio
+async def test_verify_all_gates_no_skipped_suffix():
+    """A4: All 3 optional gates enabled → no SKIPPED section."""
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_GET_CONSOLE_SINCE, AsyncMock(return_value="")),
+        patch(_RUN_TESTS_WAIT, AsyncMock(return_value=_run_snapshot())),
+        patch(_RUN_SUITE, AsyncMock(return_value="SUITE: 3/3 passed (12s)")),
+    ):
+        result = await _v.verify_after_change(
+            mark_id=MARK, run_tests_mode="EditMode", playtests="*.playtest"
+        )
+    assert "SKIPPED" not in result
+    assert result.startswith("PASS:")
 
 
 @pytest.mark.asyncio

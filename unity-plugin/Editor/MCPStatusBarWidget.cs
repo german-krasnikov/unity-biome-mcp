@@ -168,11 +168,16 @@ namespace UnityMCP.Editor
 
         private static void ApplyColors(MCPStatusModel.State state)
         {
-            var pal = MCPStatusBarPalette.Get(state, EditorGUIUtility.isProSkin);
+            var sub = MCPServer.CurrentSubState;
+            bool isErrorSub = sub is MCPStatusModel.SubState.CompileFailed
+                                   or MCPStatusModel.SubState.BindFailed;
+            var pal = isErrorSub
+                ? MCPStatusBarPalette.GetError(EditorGUIUtility.isProSkin)
+                : MCPStatusBarPalette.Get(state, EditorGUIUtility.isProSkin);
             _pillContainer.style.backgroundColor = pal.ChipBg;
-            _pillContainer.style.borderTopColor = _pillContainer.style.borderBottomColor =
+            _pillContainer.style.borderTopColor  = _pillContainer.style.borderBottomColor =
             _pillContainer.style.borderLeftColor = _pillContainer.style.borderRightColor = pal.ChipBorder;
-            _dot.style.backgroundColor = pal.Dot;
+            _dot.style.backgroundColor  = pal.Dot;
             _halo.style.backgroundColor = new Color(pal.HaloRgb.r, pal.HaloRgb.g, pal.HaloRgb.b, 1f); // visibility via style.opacity, not bg alpha
             _pill.style.color = pal.Text;
         }

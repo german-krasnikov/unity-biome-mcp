@@ -264,5 +264,41 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains(":9500", pill,
                 "None sub-state must fall through to GetPill(State, port) which includes the port");
         }
+
+        // ── GetSub(State, SubState, double compileElapsed) ────────────────────
+
+        [Test]
+        public void GetSub_Compiling_WithElapsed_IncludesSeconds()
+        {
+            var text = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.Compiling, 3.2);
+            Assert.AreEqual("compiling — 3.2s", text);
+        }
+
+        [Test]
+        public void GetSub_Compiling_ZeroElapsed_FallsBackToWait()
+        {
+            var text = MCPStatusModel.GetSub(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.Compiling, 0.0);
+            Assert.AreEqual("compiling — clients wait", text);
+        }
+
+        // ── GetPill(State, SubState, int) — Compiling and PortMismatch ────────
+
+        [Test]
+        public void GetPill_Compiling_ReturnsArrow()
+        {
+            var pill = MCPStatusModel.GetPill(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.Compiling, 9500);
+            StringAssert.Contains("⟳", pill);
+        }
+
+        [Test]
+        public void GetPill_PortMismatch_IncludesPort()
+        {
+            var pill = MCPStatusModel.GetPill(
+                MCPStatusModel.State.Listen, MCPStatusModel.SubState.PortMismatch, 9501);
+            StringAssert.Contains(":9501", pill);
+        }
     }
 }

@@ -678,6 +678,17 @@ def test_short_description_noop_when_already_short():
     assert _short_description(short) == short
 
 
+def test_short_description_truncates_at_newline_boundary():
+    from unity_mcp.server_filtering import _short_description
+    desc = (
+        "Single verification gate after code/scene changes.\n"
+        "Gates are additive — only enabled ones run:\n"
+        "1. await_compile (always)\n"
+        "2. console_since (opt-in)\n"
+    )
+    assert _short_description(desc) == "Single verification gate after code/scene changes."
+
+
 def test_strip_deferred_details_shortens_description_for_non_core_tool():
     """Non-core, non-keep-full tool: description shortened AND schema stubbed, same pass."""
     from unity_mcp.server_filtering import _strip_deferred_schemas, _short_description

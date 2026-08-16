@@ -55,9 +55,10 @@ namespace UnityMCP.Editor
         internal static readonly HashSet<string> _PythonOnlyTools = new HashSet<string>
         {
             "animator_intent", "apply_scene_change", "apply_template", "ask",
-            "auto_fix", "await_compile", "budget_status", "configure_objects",
+            "auto_fix", "await_compile", "brief_build", "budget_status",
+            "checkpoint_create", "checkpoint_restore", "configure_objects",
             "console_mark", "debug", "discover_tools", "do", "doctor",
-            "get_console_since", "get_metrics", "lint_playtest_suite",
+            "get_changeset", "get_console_since", "get_metrics", "lint_playtest_suite",
             "list_connections", "list_skills", "list_templates", "load_session",
             "mcp_status", "navmesh_query", "permission_prompt", "reconnect_unity",
             "release_smoke", "resolve_tool_schema", "run_playtest_suite",

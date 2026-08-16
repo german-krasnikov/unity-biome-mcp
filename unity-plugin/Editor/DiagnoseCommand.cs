@@ -95,6 +95,16 @@ namespace UnityMCP.Editor
             // all_errors= — FIX-1: cross-asmdef compile errors with explicit CS codes
             sb.AppendLine($"all_errors={SessionState.GetString(SyncHelper.AllAsmErrKey, "")}");
 
+            // substate= / port= / port_fallback= — WP8 Gap 4: status UX signals for agent diagnosis
+            var subState = MCPStatusModel.GetSubState(
+                isCompiling:   MCPServer.IsReallyCompiling,
+                portMismatch:  MCPServer._portFallback,
+                bindFailed:    MCPServer._lastWrittenState == "bind_failed",
+                compileFailed: MCPServer._lastWrittenState == "compile_failed");
+            sb.AppendLine($"substate={subState}");
+            sb.AppendLine($"port={MCPServer.ServerPort}");
+            sb.AppendLine($"port_fallback={MCPServer._portFallback.ToString().ToLower()}");
+
             return sb.ToString().TrimEnd();
         }
 

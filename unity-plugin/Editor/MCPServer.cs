@@ -44,10 +44,12 @@ namespace UnityMCP.Editor
         internal static DateTime _compileStartTime;
         // Last state written to the state file — used by StatusModel SubState computation.
         internal static volatile string _lastWrittenState = "";
+        // Set when TCP bind falls back to a non-configured port; cleared on each StartAsync entry.
+        internal static volatile bool _portFallback;
 
         public static MCPStatusModel.SubState CurrentSubState => MCPStatusModel.GetSubState(
             isCompiling: _isCompiling,
-            portMismatch: false,  // TODO: wire up when port-mismatch detection is added
+            portMismatch: _portFallback,
             bindFailed: _lastWrittenState == "bind_failed",
             compileFailed: _lastWrittenState == "compile_failed");
 
@@ -260,6 +262,7 @@ namespace UnityMCP.Editor
             // → duplicate _cts/accept-loop churn.
             if (IsRunning || _starting) return;
             _starting = true;
+            _portFallback = false;
             _shuttingDown = false;
             _domainStamp = SyncHelper.CurrentDomainStamp;  // cache on main thread — safe here, ThreadPool reads below
             _cachedDataPath = Application.dataPath;         // cache on main thread — ThreadPool reads via client_hello
@@ -312,7 +315,7 @@ namespace UnityMCP.Editor
                             _listener.Server.ExclusiveAddressUse = true;
 #else
                             _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-#if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
+#if UNITY_EDITOR_OSX
                             try { _listener.Server.SetSocketOption(SocketOptionLevel.Socket, (SocketOptionName)0x0200, true); } catch { }
 #endif
 #endif
@@ -325,6 +328,7 @@ namespace UnityMCP.Editor
                             // Preserves user intent so next reload retries the configured port, no cascade drift.
                             // Thread-safe overload: bind-retry may hop to ThreadPool via ConfigureAwait(false).
                             PortFileManager.SaveRuntimePorts(bindPort, PortFileManager.ChatPort, _cachedDataPath, _cachedTempCachePath);
+                            _portFallback = true;
                         }
                         var boundPort = PortFileManager.Port;
                         if (attempt == 0)
@@ -362,7 +366,7 @@ namespace UnityMCP.Editor
                             _chatListener.Server.ExclusiveAddressUse = true;
 #else
                             _chatListener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-#if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
+#if UNITY_EDITOR_OSX
                             try { _chatListener.Server.SetSocketOption(SocketOptionLevel.Socket, (SocketOptionName)0x0200, true); } catch { }
 #endif
 #endif
@@ -525,7 +529,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "1.37.2";
+        internal static string PluginVersion => "1.38.0";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {
@@ -537,9 +541,14 @@ namespace UnityMCP.Editor
 
         internal static string FormatStatusResponse(string msgId, bool isCompiling, double elapsed)
         {
-            var state = isCompiling ? $"compiling|{elapsed.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}" : "idle|0";
-            var compile = isCompiling ? "true" : "false";
-            return $"{{\"id\":\"{msgId}\",\"ok\":true,\"data\":\"{state}\",\"compile\":{compile}}}";
+            var state    = isCompiling ? $"compiling|{elapsed.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}" : "idle|0";
+            var compile  = isCompiling ? "true" : "false";
+            var portVal  = ServerPort;
+            var bindFail = _lastWrittenState == "bind_failed" ? "true" : "false";
+            var fallback = _portFallback ? "true" : "false";
+            return $"{{\"id\":\"{msgId}\",\"ok\":true,\"data\":\"{state}\"," +
+                   $"\"compile\":{compile},\"port\":{portVal}," +
+                   $"\"bind_failed\":{bindFail},\"port_fallback\":{fallback}}}";
         }
 
         // T19: stable project identity — main-thread-only (PlayerSettings + Application APIs).

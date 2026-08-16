@@ -502,7 +502,7 @@ namespace UnityMCP.Editor
             var state = MCPStatusModel.GetState(run, cli, chat);
             var s     = MCPStatusModel.GetCssKey(state);
 
-            foreach (var k in new[] { "up", "listen", "down", "chat" })
+            foreach (var k in new[] { "up", "listen", "down", "chat", "error" })
             {
                 _orb.RemoveFromClassList("orb--" + k);
                 _halo.RemoveFromClassList("halo--" + k);
@@ -514,9 +514,18 @@ namespace UnityMCP.Editor
             _word.AddToClassList("status-word--" + s);
             _statusParticles?.SetState(s);
 
-            var sub    = MCPServer.CurrentSubState;
+            var sub = MCPServer.CurrentSubState;
+            bool isErrorSub = sub is MCPStatusModel.SubState.CompileFailed
+                                   or MCPStatusModel.SubState.BindFailed;
+            if (isErrorSub && state != MCPStatusModel.State.Down)
+            {
+                _orb.AddToClassList("orb--error");
+                _halo.AddToClassList("halo--error");
+                _word.AddToClassList("status-word--error");
+            }
+
             _word.text = MCPStatusModel.GetLabel(state, sub, MCPServer.ServerPort);
-            _sub.text  = MCPStatusModel.GetSub(state, sub);
+            _sub.text  = MCPStatusModel.GetSub(state, sub, MCPServer.CompileElapsedSeconds);
 
             if (EditorPrefs.GetBool(PrefKeys.ShowLastCommand, true)
                 && !string.IsNullOrEmpty(CommandRouter.LastCommandName)

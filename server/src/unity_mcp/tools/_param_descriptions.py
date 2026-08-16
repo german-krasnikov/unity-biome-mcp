@@ -138,6 +138,10 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "path": "Assets/ path to a .uxml or .uss project file; Library/ and Packages/ are rejected",
     },
 
+    "scene_change_plan": {
+        "dry_run": "False (default) = create plan_id. True = probe pre-flights only, no plan created.",
+    },
+
     "apply_template": {
         "name": "Saved scene-template identifier from .claude/templates (without .cs)",
     },

@@ -26,6 +26,36 @@ async def test_get_hierarchy_filter_passed(mock_bridge):
 
 
 # --- get_component edge cases ---
+async def test_get_component_no_type_returns_error(mock_bridge):
+    """get_component with no type= or component= returns error without calling bridge."""
+    result = await get_component(path="/X")
+    assert "error" in result.lower()
+    assert "type" in result.lower() or "component" in result.lower()
+    mock_bridge.send.assert_not_called()
+
+
+async def test_get_component_accepts_component_alias(mock_bridge):
+    """get_component accepts component= as alias for type=."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await get_component(path="/X", component="Health")
+    mock_bridge.send.assert_called_once_with("get_component", {"path": "/X", "type": "Health"}, timeout=30.0)
+
+
+async def test_get_component_type_wins_over_component(mock_bridge):
+    """type= takes precedence over component= when both provided."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await get_component(path="/X", type="Rigidbody", component="Health")
+    args = mock_bridge.send.call_args[0][1]
+    assert args["type"] == "Rigidbody"
+
+
+async def test_get_component_original_type_still_works(mock_bridge):
+    """type= still works unchanged (no regression)."""
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    await get_component(path="/X", type="Transform")
+    mock_bridge.send.assert_called_once_with("get_component", {"path": "/X", "type": "Transform"}, timeout=30.0)
+
+
 async def test_get_component_empty_path(mock_bridge):
     """get_component accepts empty path."""
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "root"})

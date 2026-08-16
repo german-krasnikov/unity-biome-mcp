@@ -1,5 +1,6 @@
 """Tests for scene_change_plan + apply_scene_change (P1.4 transaction tools)."""
 import time
+import time as _time
 from unittest.mock import AsyncMock
 
 import pytest
@@ -46,23 +47,19 @@ class TestSceneChangePlan:
         assert result.startswith("FAIL:")
         assert not tr._plans  # plan not created
 
-    async def test_console_errors_block_plan_before_checkpoint(self, monkeypatch):
-        calls: list[str] = []
-
-        async def console_error_send(cmd, args, **kw):
-            calls.append(cmd)
+    async def test_preexisting_console_errors_no_longer_block_plan(self, monkeypatch):
+        """WP6: pre-existing console errors must NOT block plan creation."""
+        async def noisy_send(cmd, args, **kw):
             if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "get_compile_errors": return "compile clean"
-            if cmd == "get_console": return "[Error] NullReferenceException: existing"
-            raise AssertionError(f"unexpected call after console gate: {cmd}")
+            if cmd == "checkpoint": return "cp_ok"
+            return ""
 
-        monkeypatch.setattr(tr, "_send", console_error_send)
-        result = await tr.scene_change_plan("wire unlock")
+        monkeypatch.setattr(tr, "_send", noisy_send)
+        result = await tr.scene_change_plan("wire unlock", dry_run=False)
 
-        assert result.startswith("FAIL: console errors")
-        assert "plan not created" in result
-        assert "checkpoint" not in calls
-        assert not tr._plans
+        assert "plan_id=" in result
+        assert tr._plans
 
     async def test_target_miss(self, monkeypatch):
         async def miss_send(cmd, args, **kw):
@@ -112,6 +109,47 @@ class TestSceneChangePlan:
         result = await tr.scene_change_plan("test goal")
         assert "plan_id=" in result, f"plan not created: {result}"
         assert "compile=clean" in result
+
+    async def test_dry_run_true_returns_preflight_no_plan_id(self):
+        result = await tr.scene_change_plan("wire unlock", dry_run=True)
+        assert "preflight=clean" in result
+        assert "plan_id=" not in result
+        assert "dry_run=true" in result
+        assert not tr._plans
+
+    async def test_dry_run_true_does_not_call_checkpoint(self, monkeypatch):
+        calls: list[str] = []
+
+        async def tracking_send(cmd, args, **kw):
+            calls.append(cmd)
+            return await _default_send(cmd, args, **kw)
+
+        monkeypatch.setattr(tr, "_send", tracking_send)
+        await tr.scene_change_plan("goal", dry_run=True)
+        assert "checkpoint" not in calls
+
+    async def test_dry_run_true_still_runs_all_preflights(self, monkeypatch):
+        calls: list[str] = []
+
+        async def tracking_send(cmd, args, **kw):
+            calls.append(cmd)
+            return await _default_send(cmd, args, **kw)
+
+        monkeypatch.setattr(tr, "_send", tracking_send)
+        await tr.scene_change_plan("goal", dry_run=True)
+        assert "editor" in calls
+        assert "get_compile_errors" in calls
+        # get_console removed from plan pre-flight (WP6: noise filtering moved to apply-time)
+
+    async def test_dry_run_false_creates_plan_and_checkpoint(self):
+        result = await tr.scene_change_plan("wire unlock", dry_run=False)
+        assert "plan_id=" in result
+        assert tr._plans
+
+    async def test_dry_run_true_resolves_targets_in_response(self):
+        result = await tr.scene_change_plan("goal", targets="$target", dry_run=True)
+        assert "resolved_targets=" in result
+        assert not tr._plans
 
 
 class TestApplySceneChange:
@@ -576,3 +614,100 @@ class TestApplySceneChange:
         assert result.startswith("state=FAILED")
         assert "editor state check failed (ConnectionError)" in result
         assert calls == ["editor"]
+
+
+class TestConsoleNoiseFiltering:
+    """WP6: scene_change_plan must ignore pre-existing console noise."""
+
+    def _insert_plan_with_mark(self) -> str:
+        plan_id = "wp6test"
+        tr._plans[plan_id] = {
+            "goal": "test", "targets": "", "checkpoint": "cp",
+            "created_at": _time.time(), "resolved": {},
+        }
+        return plan_id
+
+    async def test_scene_change_plan_ignores_preexisting_console_noise(self, monkeypatch):
+        """Plan must be created even when get_console returns 1000 error lines."""
+        async def noisy_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
+            if cmd == "get_compile_errors": return "compile clean"
+            if cmd == "get_console": return "\n".join(f"[Error] old noise {i}" for i in range(1000))
+            if cmd == "checkpoint": return "cp_ok"
+            if cmd == "resolve_scene_refs": return ""
+            return ""
+        monkeypatch.setattr(tr, "_send", noisy_send)
+
+        result = await tr.scene_change_plan("wire unlock", dry_run=False)
+
+        assert "plan_id=" in result, f"plan not created despite noisy console: {result}"
+        assert tr._plans
+
+    async def test_scene_change_plan_no_console_tcp_call(self, monkeypatch):
+        """scene_change_plan must NOT call get_console at all."""
+        calls: list[str] = []
+
+        async def tracking_send(cmd, args, **kw):
+            calls.append(cmd)
+            return await _default_send(cmd, args, **kw)
+
+        monkeypatch.setattr(tr, "_send", tracking_send)
+        await tr.scene_change_plan("goal", dry_run=False)
+
+        assert "get_console" not in calls, f"get_console was called: {calls}"
+
+    async def test_apply_uses_time_scoped_console_check(self, monkeypatch):
+        """apply_scene_change must pass since= to get_console (time-scoped, not all-time)."""
+        plan_id = self._insert_plan_with_mark()
+        console_args_seen: list[dict] = []
+
+        async def tracking_send(cmd, args, **kw):
+            if cmd == "get_console":
+                console_args_seen.append(dict(args))
+            return await _default_send(cmd, args, **kw)
+
+        monkeypatch.setattr(tr, "_send", tracking_send)
+        await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        assert console_args_seen, "get_console was not called during verify"
+        assert "since" in console_args_seen[0], (
+            f"get_console called without 'since' arg: {console_args_seen[0]}"
+        )
+
+    async def test_apply_clean_with_preexisting_noise(self, monkeypatch):
+        """Pre-plan noise ignored; zero new errors after apply → verified=true, saved=true."""
+        plan_id = self._insert_plan_with_mark()
+
+        async def noisy_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
+            if cmd == "batch": return "ok:1"
+            if cmd == "validate_references": return "0 broken"
+            # Simulated: no NEW errors since plan creation
+            if cmd == "get_console": return ""
+            if cmd == "scene": return "saved"
+            if cmd == "get_status": return "dirty=False"
+            return ""
+        monkeypatch.setattr(tr, "_send", noisy_send)
+
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        assert "console=clean" in result
+        assert "verified=true" in result
+
+    async def test_apply_detects_new_errors_via_since(self, monkeypatch):
+        """New errors that appear after plan creation must block save."""
+        plan_id = self._insert_plan_with_mark()
+
+        async def new_error_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
+            if cmd == "batch": return "ok:1"
+            if cmd == "validate_references": return "0 broken"
+            # One new error appeared after plan creation
+            if cmd == "get_console": return "NullReferenceException: just happened"
+            raise AssertionError(f"save must not run after new error: {cmd}")
+        monkeypatch.setattr(tr, "_send", new_error_send)
+
+        result = await tr.apply_scene_change(plan_id, "create_object name=A")
+
+        assert "console=1 errors" in result
+        assert "saved=false (verification failed)" in result
