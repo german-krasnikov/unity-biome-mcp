@@ -514,8 +514,9 @@ namespace UnityMCP.Editor
             _word.AddToClassList("status-word--" + s);
             _statusParticles?.SetState(s);
 
-            _word.text = MCPStatusModel.GetLabel(state, MCPServer.ServerPort);
-            _sub.text  = MCPStatusModel.GetSub(state);
+            var sub    = MCPServer.CurrentSubState;
+            _word.text = MCPStatusModel.GetLabel(state, sub, MCPServer.ServerPort);
+            _sub.text  = MCPStatusModel.GetSub(state, sub);
 
             if (EditorPrefs.GetBool(PrefKeys.ShowLastCommand, true)
                 && !string.IsNullOrEmpty(CommandRouter.LastCommandName)

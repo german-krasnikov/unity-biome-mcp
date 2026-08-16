@@ -8,6 +8,17 @@ namespace UnityMCP.Editor
     {
         public enum State { Down, Listen, Up, ChatActive }
 
+        public enum SubState { None, Compiling, PortMismatch, BindFailed, CompileFailed }
+
+        public static SubState GetSubState(bool isCompiling, bool portMismatch, bool bindFailed, bool compileFailed)
+        {
+            if (bindFailed)    return SubState.BindFailed;
+            if (compileFailed) return SubState.CompileFailed;
+            if (isCompiling)   return SubState.Compiling;
+            if (portMismatch)  return SubState.PortMismatch;
+            return SubState.None;
+        }
+
         public static State GetState(bool isRunning, bool isClientConnected)
             => GetState(isRunning, isClientConnected, false);
 
@@ -64,6 +75,31 @@ namespace UnityMCP.Editor
             State.Listen     => $"{BiomeLabel.DisplayName} ...",
             State.ChatActive => $"{BiomeLabel.DisplayName} Chat",
             _                => $"{BiomeLabel.DisplayName} off",
+        };
+
+        // ── SubState-aware overloads ──────────────────────────────────────────
+
+        public static string GetLabel(State state, SubState sub, int port) => sub switch
+        {
+            SubState.BindFailed    => "BIND FAILED",
+            SubState.CompileFailed => "COMPILE ERROR",
+            _                      => GetLabel(state, port),
+        };
+
+        public static string GetSub(State state, SubState sub) => sub switch
+        {
+            SubState.BindFailed    => "bind failed — port in use",
+            SubState.CompileFailed => "compile failed",
+            SubState.Compiling     => "compiling — clients wait",
+            SubState.PortMismatch  => "port fallback — check config",
+            _                      => GetSub(state),
+        };
+
+        public static string GetPill(State state, SubState sub, int port) => sub switch
+        {
+            SubState.BindFailed    => $"{BiomeLabel.DisplayName} err",
+            SubState.CompileFailed => $"{BiomeLabel.DisplayName} err",
+            _                      => GetPill(state, port),
         };
     }
 }

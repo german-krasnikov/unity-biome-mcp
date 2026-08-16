@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 # Exponential backoff bounds for reconnect attempts.
 BACKOFF_MIN_S: float = 5.0
 BACKOFF_MAX_S: float = 60.0
+# Fast reconnect backoff for expected domain reloads (PlayMode enter/exit).
+# Keep separate from BACKOFF_MIN_S so unexpected disconnects still back off at 5s.
+RELOAD_BACKOFF_S: float = 1.0
 
 _hard_exit_scheduled: bool = False
 
@@ -114,7 +117,14 @@ class HeartbeatMixin:
             busy = self._probe_busy()
             if busy:
                 self._reconnect_started_at = time.monotonic()
-            wait = 5.0 if busy else 2.0
+            reload_active = self._reload.is_active()
+            if reload_active and not busy:
+                wait = RELOAD_BACKOFF_S
+                self._reconnect_backoff = min(self._reconnect_backoff, RELOAD_BACKOFF_S)
+            elif busy:
+                wait = 5.0
+            else:
+                wait = 2.0
             await asyncio.sleep(wait)
 
             elapsed = time.monotonic() - self._reconnect_started_at

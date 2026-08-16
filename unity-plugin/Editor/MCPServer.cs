@@ -32,6 +32,9 @@ namespace UnityMCP.Editor
         // Cached Application.dataPath — read on main thread, used by client_hello fast-path
         // on ThreadPool (Application.dataPath is main-thread-only).
         internal static volatile string _cachedDataPath = "";
+        // Cached Application.temporaryCachePath — bind-retry loop may hop to ThreadPool
+        // via ConfigureAwait(false), where this API throws.
+        internal static volatile string _cachedTempCachePath = "";
         // T19: stable project identity — cloudProjectId or sha256(project root)[:12].
         // Cached on main thread; ThreadPool reads via client_hello fast-path.
         internal static volatile string _cachedProjectId = "";
@@ -39,6 +42,14 @@ namespace UnityMCP.Editor
         // from post-domain-reload stale EditorApplication.isCompiling on Windows.
         private static volatile bool _compileStartedThisDomain;
         internal static DateTime _compileStartTime;
+        // Last state written to the state file — used by StatusModel SubState computation.
+        internal static volatile string _lastWrittenState = "";
+
+        public static MCPStatusModel.SubState CurrentSubState => MCPStatusModel.GetSubState(
+            isCompiling: _isCompiling,
+            portMismatch: false,  // TODO: wire up when port-mismatch detection is added
+            bindFailed: _lastWrittenState == "bind_failed",
+            compileFailed: _lastWrittenState == "compile_failed");
 
         public static void SavePorts(int port, int chatPort) => PortFileManager.SavePorts(port, chatPort);
 
@@ -252,6 +263,7 @@ namespace UnityMCP.Editor
             _shuttingDown = false;
             _domainStamp = SyncHelper.CurrentDomainStamp;  // cache on main thread — safe here, ThreadPool reads below
             _cachedDataPath = Application.dataPath;         // cache on main thread — ThreadPool reads via client_hello
+            _cachedTempCachePath = Application.temporaryCachePath; // cache on main thread — bind-retry loop may hop to ThreadPool
             _cachedProjectId = GetStableProjectId();        // T19: cache on main thread (PlayerSettings + Application)
             OpenBootstrapSceneFromEnvironment();
             // Ensure commands are registered BEFORE TCP bind.
@@ -271,15 +283,22 @@ namespace UnityMCP.Editor
                 _cts = cts;
                 var token = cts.Token; // local copy — safe from null after Stop()/OnBeforeReload()
 
-                // Main listener: 3 fast retries on same port, then fall back to a free port.
+                // Main listener: fast retries on same port, then fall back to a free port.
                 // On Windows, ExclusiveAddressUse prevents TIME_WAIT reuse by the same process;
-                // falling back to a new port avoids the full TIME_WAIT window.
-                for (int attempt = 0; attempt < 4; attempt++)
+                // more retries reduce fallback risk during the longer Windows TIME_WAIT window.
+#if UNITY_EDITOR_WIN
+                const int maxAttempts = 6;  // Windows TIME_WAIT can last 2+ minutes; more retries reduce fallback risk
+                const int retryDelayMs = 600;
+#else
+                const int maxAttempts = 4;
+                const int retryDelayMs = 400;
+#endif
+                for (int attempt = 0; attempt < maxAttempts; attempt++)
                 {
                     int bindPort = PortFileManager.Port;
                     try
                     {
-                        if (attempt == 3)
+                        if (attempt == maxAttempts - 1)
                         {
                             // BindFreePort: atomic scan+bind, eliminates TOCTOU. Handles socket opts internally.
                             _listener = PortResolver.BindFreePort(PortFileManager.Port + 1, skipPort: PortFileManager.ChatPort, skipPort2: PortFileManager.ReloadPort);
@@ -304,7 +323,8 @@ namespace UnityMCP.Editor
                             var bp = bindPort; var origPort = PortFileManager.Port; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {origPort} unavailable (address in use), switched to {bp}"));
                             // SaveRuntimePorts: updates MCP_Port.json + {pid}.port but NOT MCPSettings.json.
                             // Preserves user intent so next reload retries the configured port, no cascade drift.
-                            PortFileManager.SaveRuntimePorts(bindPort, PortFileManager.ChatPort);
+                            // Thread-safe overload: bind-retry may hop to ThreadPool via ConfigureAwait(false).
+                            PortFileManager.SaveRuntimePorts(bindPort, PortFileManager.ChatPort, _cachedDataPath, _cachedTempCachePath);
                         }
                         var boundPort = PortFileManager.Port;
                         if (attempt == 0)
@@ -316,9 +336,9 @@ namespace UnityMCP.Editor
                     {
                         try { _listener?.Stop(); } catch { }
                         _listener = null;
-                        if (attempt == 3) throw;
-                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {bp2} busy, retry {at + 1}/3..."));
-                        await Task.Delay(400 * (attempt + 1), token).ConfigureAwait(false);
+                        if (attempt == maxAttempts - 1) throw;
+                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {bp2} busy, retry {at + 1}/{maxAttempts - 1}..."));
+                        await Task.Delay(retryDelayMs * (attempt + 1), token).ConfigureAwait(false);
                     }
                 }
 
@@ -351,7 +371,7 @@ namespace UnityMCP.Editor
                         if (bindPort != PortFileManager.ChatPort)
                         {
                             var bp = bindPort; var origChatPort = PortFileManager.ChatPort; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {origChatPort} unavailable (address in use), switched to {bp}"));
-                            PortFileManager.SaveRuntimePorts(chatMainPort, bindPort);
+                            PortFileManager.SaveRuntimePorts(chatMainPort, bindPort, _cachedDataPath, _cachedTempCachePath);
                         }
                         break;
                     }
@@ -444,10 +464,18 @@ namespace UnityMCP.Editor
             MainThreadDispatcher.Clear();  // prevent queued actions after domain tear-down
         }
 
+        // Sends RST instead of FIN on teardown — avoids TIME_WAIT on Windows.
+        private static void SetLingerZero()
+        {
+            try { var s = _listener?.Server; if (s != null) s.LingerState = new System.Net.Sockets.LingerOption(true, 0); } catch { }
+            try { var s = _chatListener?.Server; if (s != null) s.LingerState = new System.Net.Sockets.LingerOption(true, 0); } catch { }
+        }
+
         public static void Stop()
         {
             Debug.Log($"{BiomeLabel.Tag} Server stopping");
             _shuttingDown = true;
+            SetLingerZero();
             TeardownCore();  // already drains queue
             PortFileManager.DeletePortFile();
         }
@@ -467,6 +495,7 @@ namespace UnityMCP.Editor
             // Send going_away FIRST — streams still alive, handlers still running
             _mainSlot.ForEach(c => SendGoingAwaySync(c.GetStream()));
             _chatSlot.ForEach(c => SendGoingAwaySync(c.GetStream()));
+            SetLingerZero();
             TeardownCore();
             // Do NOT delete port file — port stays the same after reload, Python needs it
         }
@@ -481,7 +510,11 @@ namespace UnityMCP.Editor
         }
 #endif
 
-        internal static void WriteStateFile(string state) => PortFileManager.WriteStateFile(state);
+        internal static void WriteStateFile(string state)
+        {
+            _lastWrittenState = state;
+            PortFileManager.WriteStateFile(state);
+        }
 
         internal static void DeleteStateFile() => PortFileManager.DeleteStateFile();
 

@@ -85,6 +85,28 @@ namespace UnityMCP.Editor
                 Debug.LogWarning($"{BiomeLabel.Tag} Runtime port persistence failed; keeping the previous resolved ports.");
         }
 
+        // Thread-safe overload: uses pre-cached paths instead of main-thread-only Unity APIs.
+        // Called from MCPServer.StartAsync() bind-retry loop which may run on ThreadPool
+        // after ConfigureAwait(false).
+        internal static void SaveRuntimePorts(int port, int chatPort, string cachedDataPath, string cachedTempCachePath)
+        {
+            var projectPath = Path.GetDirectoryName(cachedDataPath);
+            var persisted = SaveRuntimePortsCore(
+                port,
+                chatPort,
+                PortFilePath,
+                Path.Combine(cachedTempCachePath, "mcp_port.txt"),
+                DefaultDiscoveryDirectory(),
+                System.Diagnostics.Process.GetCurrentProcess().Id,
+                projectPath,
+                Path.GetFileName(projectPath),
+                File.WriteAllText,
+                CommitResolvedPorts);
+            if (!persisted)
+                MainThreadDispatcher.Enqueue(() =>
+                    Debug.LogWarning($"{BiomeLabel.Tag} Runtime port persistence failed; keeping the previous resolved ports."));
+        }
+
         // Path-injected persistence core. Tests exercise runtime persistence through this
         // method so they cannot overwrite the live editor's cache or discovery endpoint.
         internal static bool SaveRuntimePortsCore(

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 import contextlib
 
-from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, HeartbeatMixin
+from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, RELOAD_BACKOFF_S, HeartbeatMixin
 from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
 from unity_mcp.bridge_retry import RetryPolicy
 from unity_mcp.bridge_socket import (
@@ -277,6 +277,7 @@ class UnityBridge(HeartbeatMixin):
         """
         if isinstance(error, DomainReloadError):
             self._state = BridgeState.DOMAIN_RELOADING
+            self._reconnect_backoff = RELOAD_BACKOFF_S  # fast reconnect for expected reloads
         return self._retry_policy.decide(error, attempt, session_deadline, cmd=cmd)
 
     def _probe_busy(self) -> bool:
