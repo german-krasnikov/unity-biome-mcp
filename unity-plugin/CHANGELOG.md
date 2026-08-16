@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.38.0] — 2026-08-16
+
 ### Fixed
 
 - **Tool contracts and surface integrity**: `discover_tools` now exposes CORE tools separately, removing direct-only tools from themed categories to prevent batch-validation errors. CommandRouter registers Python-only tools (checkpoint_create, checkpoint_restore, brief_build, get_changeset) so batch dispatch rejects them with clear errors. `get_component` accepts `component=` as an alias for `type=` for backward compatibility with set_property naming.
@@ -3348,7 +3350,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.2...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.38.0...HEAD
+[v1.38.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.2...v1.38.0
 [v1.37.2]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.1...v1.37.2
 [v1.37.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.0...v1.37.1
 [v1.37.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.36.0...v1.37.0
