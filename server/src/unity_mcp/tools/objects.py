@@ -11,11 +11,16 @@ _send = None
 _args = None
 
 
-async def get_component(path: str, type: str, fields: str | None = None, full: bool = False, compress: bool = False) -> str:
+async def get_component(path: str, type: str = "", fields: str | None = None, full: bool = False, compress: bool = False,
+                        component: str | None = None) -> str:
     """Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.
     fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name.
-    full=True: bypass distillation, return raw response. compress=True: strip default values before transfer."""
-    args: dict = {"path": path, "type": type}
+    full=True: bypass distillation, return raw response. compress=True: strip default values before transfer.
+    component: alias for type= (backward-compat with set_property naming). type= wins when both provided."""
+    effective_type = type or component or ""
+    if not effective_type:
+        return "error: type= or component= required"
+    args: dict = {"path": path, "type": effective_type}
     if full:
         args["_no_distill"] = True
     if fields:

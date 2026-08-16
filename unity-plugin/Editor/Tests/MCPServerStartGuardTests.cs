@@ -158,5 +158,27 @@ namespace UnityMCP.Editor.Tests
             Assert.That(src, Does.Contain("LingerOption(true, 0)"),
                 "MCPServer must set linger=0 before teardown to avoid TIME_WAIT on Windows");
         }
+
+        // ---------------------------------------------------------------------------
+        // WP9: SO_REUSEPORT must be macOS-only (Linux uses different constant = 15)
+        // ---------------------------------------------------------------------------
+
+        [Test]
+        public void MCPServer_SoReusePortOnlyMacOS()
+        {
+            var src = ReadRequiredPackageSource(typeof(MCPServer), "Editor/MCPServer.cs");
+            Assert.That(src, Does.Not.Contain("UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX"),
+                "SO_REUSEPORT (0x0200) is the macOS value; Linux uses 15 — guard must be macOS-only");
+            Assert.That(src, Does.Contain("UNITY_EDITOR_OSX"),
+                "MCPServer must still apply SO_REUSEPORT on macOS");
+        }
+
+        [Test]
+        public void PortResolver_SoReusePortOnlyMacOS()
+        {
+            var src = ReadRequiredPackageSource(typeof(PortResolver), "Editor/PortResolver.cs");
+            Assert.That(src, Does.Not.Contain("UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX"),
+                "SO_REUSEPORT (0x0200) is the macOS value; Linux uses 15 — guard must be macOS-only");
+        }
     }
 }

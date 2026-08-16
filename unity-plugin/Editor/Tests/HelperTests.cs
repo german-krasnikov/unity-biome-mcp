@@ -541,5 +541,61 @@ namespace UnityMCP.Editor.Tests
                 as System.Collections.Concurrent.ConcurrentQueue<System.Action>;
             Assert.IsNotNull(queue, "MainThreadDispatcher._queue must be ConcurrentQueue<Action>");
         }
+
+        // ── WP8 Gap 1 + Gap 3: _portFallback and extended FormatStatusResponse ──
+
+        private string _savedLastWrittenState;
+        private bool   _savedPortFallback;
+        private bool   _savedIsCompiling;
+
+        [SetUp]
+        public void SavePortFallbackState()
+        {
+            _savedLastWrittenState = MCPServer._lastWrittenState;
+            _savedPortFallback     = MCPServer._portFallback;
+            _savedIsCompiling      = MCPServer._isCompiling;
+        }
+
+        [TearDown]
+        public void RestorePortFallbackState()
+        {
+            MCPServer._lastWrittenState = _savedLastWrittenState;
+            MCPServer._portFallback     = _savedPortFallback;
+            MCPServer._isCompiling      = _savedIsCompiling;
+        }
+
+        [Test]
+        public void PortFallback_DefaultIsFalse()
+            => Assert.IsFalse(MCPServer._portFallback,
+                "_portFallback must default false so CurrentSubState doesn't show PortMismatch on startup");
+
+        [Test]
+        public void FormatStatusResponse_ContainsPortField()
+            => StringAssert.Contains("\"port\":", MCPServer.FormatStatusResponse("x", false, 0.0));
+
+        [Test]
+        public void FormatStatusResponse_ContainsBindFailedField()
+            => StringAssert.Contains("\"bind_failed\":", MCPServer.FormatStatusResponse("x", false, 0.0));
+
+        [Test]
+        public void FormatStatusResponse_ContainsPortFallbackField()
+            => StringAssert.Contains("\"port_fallback\":", MCPServer.FormatStatusResponse("x", false, 0.0));
+
+        [Test]
+        public void FormatStatusResponse_PortFallback_True_WhenFlagSet()
+        {
+            MCPServer._portFallback = true;
+            StringAssert.Contains("\"port_fallback\":true", MCPServer.FormatStatusResponse("x", false, 0.0));
+        }
+
+        [Test]
+        public void CurrentSubState_PortMismatch_WhenPortFallbackTrue()
+        {
+            MCPServer._portFallback     = true;
+            MCPServer._lastWrittenState = "";
+            MCPServer._isCompiling      = false;   // ensure Compiling doesn't shadow PortMismatch
+            Assert.AreEqual(MCPStatusModel.SubState.PortMismatch, MCPServer.CurrentSubState,
+                "CurrentSubState must return PortMismatch when _portFallback is true");
+        }
     }
 }

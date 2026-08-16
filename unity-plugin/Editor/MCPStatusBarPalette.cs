@@ -78,5 +78,20 @@ namespace UnityMCP.Editor
                             HaloRgb    = new Color(0.75f, 0.14f, 0.22f, 0f) };
             }
         }
+
+        /// <summary>Amber palette for CompileFailed/BindFailed error sub-states.</summary>
+        public static Entry GetError(bool pro) => pro
+            ? new Entry {
+                Text       = new Color(1.00f, 0.65f, 0.30f, 1f),
+                ChipBg     = new Color(0.32f, 0.22f, 0.08f, 1f),
+                ChipBorder = new Color(0.90f, 0.55f, 0.20f, 0.55f),
+                Dot        = new Color(1.00f, 0.55f, 0.20f, 1f),
+                HaloRgb    = new Color(1.00f, 0.55f, 0.20f, 1f) }
+            : new Entry {
+                Text       = new Color(0.52f, 0.28f, 0.02f, 1f),
+                ChipBg     = new Color(0.99f, 0.92f, 0.80f, 1f),
+                ChipBorder = new Color(0.70f, 0.42f, 0.08f, 0.55f),
+                Dot        = new Color(0.75f, 0.40f, 0.08f, 1f),
+                HaloRgb    = new Color(0.75f, 0.40f, 0.08f, 1f) };
     }
 }

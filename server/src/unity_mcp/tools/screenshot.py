@@ -29,7 +29,8 @@ async def screenshot(width: int = 640, height: int = 480, camera: str | None = N
     camera: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game. angle (single_view): front|left|top|iso|ex,ey,ez.
     zoom: higher=closer. angles: per-view Euler "ex,ey,ez|..." (_=skip). supersample 1-4. offset/fixed_size: framing.
     highlight: paths[:#RRGGBB] for bbox. show_colliders: wireframes.
-    annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame)."""
+    annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame).
+    Note: Screen-Space-Overlay canvases are not captured in Edit Mode; switch canvas render mode to Screen Space - Camera or use Play Mode."""
     if annotation_id is not None:
         camera = "annotation_frame"
     result = await _send("screenshot", _args(width=width, height=height, camera=camera,

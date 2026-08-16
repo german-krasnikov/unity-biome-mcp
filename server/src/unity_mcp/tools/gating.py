@@ -219,15 +219,19 @@ async def discover_tools(category: str | None = None, enable: bool = True,
     Legacy aliases (object, animation, etc.) available with include_legacy=True.
     structured=True adds surface/mutability info per tool. enable=False to browse only."""
     if category is None:
-        keys = list(CATEGORIES.keys()) if include_legacy else list(_THEMED_CATEGORY_KEYS)
+        core_tools = sorted(_CORE_TOOLS - _DIRECT_ONLY)
+        keys = [k for k in (CATEGORIES.keys() if include_legacy else _THEMED_CATEGORY_KEYS)
+                if k != "CORE"]
         if structured:
-            parts = []
+            parts = ["CORE:"]
+            parts.extend(_tool_surface_line(t) for t in core_tools)
             for k in keys:
                 tools = sorted(CATEGORIES.get(k, []))
                 parts.append(f"{k}:")
                 parts.extend(_tool_surface_line(t) for t in tools)
             return "\n".join(parts)
-        lines = [f"{k}: {', '.join(sorted(CATEGORIES.get(k, [])))}" for k in keys]
+        lines = [f"CORE: {', '.join(core_tools)}"]
+        lines += [f"{k}: {', '.join(sorted(CATEGORIES.get(k, [])))}" for k in keys]
         return "\n".join(lines)
     if category not in CATEGORIES:
         raise ValueError(f"Unknown category: '{category}'. Valid: {sorted(CATEGORIES)}")

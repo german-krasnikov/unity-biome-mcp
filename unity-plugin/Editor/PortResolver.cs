@@ -154,7 +154,7 @@ namespace UnityMCP.Editor
             l.Server.ExclusiveAddressUse = true;
 #else
             l.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-#if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
+#if UNITY_EDITOR_OSX
             try { l.Server.SetSocketOption(SocketOptionLevel.Socket, (SocketOptionName)0x0200, true); } catch { }
 #endif
 #endif

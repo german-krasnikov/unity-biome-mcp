@@ -39,9 +39,99 @@ namespace UnityMCP.Editor
                                "add it for raycast-based interaction");
             }
 
+            CheckScrollRects(issues, rootGO);
+            CheckGeneralLayout(issues, rootGO);
+
             if (issues.Count == 0) return "ok: 0 issues";
             return string.Join("\n", issues);
         }
+
+        // SR1-SR5: ScrollRect structural checks.
+        private static void CheckScrollRects(List<string> issues, GameObject rootGO)
+        {
+            var scrollRects = UnityEngine.Object.FindObjectsByType<ScrollRect>(FindObjectsSortMode.None);
+            foreach (var sr in scrollRects)
+            {
+                if (!InScope(sr, rootGO)) continue;
+                string n = sr.gameObject.name;
+
+                if (sr.content == null)
+                    issues.Add($"[S5] ScrollRect '{n}': content is null — assign a RectTransform to ScrollRect.content");
+
+                if (sr.viewport == null)
+                {
+                    issues.Add($"[S1] ScrollRect '{n}': viewport is null — wire viewport before checking anchors");
+                }
+                else
+                {
+                    var vp = sr.viewport;
+                    if (vp.anchorMin != Vector2.zero || vp.anchorMax != Vector2.one)
+                        issues.Add($"[S1] ScrollRect '{n}': Viewport anchors are not full-stretch " +
+                                   $"(anchorMin={vp.anchorMin}, anchorMax={vp.anchorMax}) — set to stretch (0,0)→(1,1)");
+                }
+
+                bool contentCanGrow = sr.content != null &&
+                    (sr.content.GetComponent<ContentSizeFitter>() != null
+                     || sr.content.GetComponent<LayoutGroup>() != null
+                     || sr.content.sizeDelta.x > 0.1f
+                     || sr.content.sizeDelta.y > 0.1f);
+                if (sr.content != null && !contentCanGrow)
+                    issues.Add($"[S2] ScrollRect '{n}': Content has no ContentSizeFitter/LayoutGroup " +
+                               "and sizeDelta is zero — content cannot grow");
+
+                bool rootHasMask = sr.GetComponent<Mask>() != null;
+                bool vpHasMask   = sr.viewport != null && sr.viewport.GetComponent<Mask>() != null;
+                if (rootHasMask && vpHasMask)
+                    issues.Add($"[S3] ScrollRect '{n}': Mask on both root and Viewport — " +
+                               "remove Mask from root; Viewport Mask is sufficient");
+
+                bool hasScrollbarObj = sr.GetComponentInChildren<Scrollbar>() != null;
+                if (hasScrollbarObj && sr.horizontalScrollbar == null && sr.verticalScrollbar == null)
+                    issues.Add($"[S4] ScrollRect '{n}': Scrollbar found in children but not wired — " +
+                               "set ScrollRect.horizontalScrollbar or verticalScrollbar");
+            }
+        }
+
+        // G1-G3: General uGUI layout checks.
+        private static void CheckGeneralLayout(List<string> issues, GameObject rootGO)
+        {
+            // G1: Active RectTransform with point anchor and zero size.
+            foreach (var rt in UnityEngine.Object.FindObjectsByType<RectTransform>(FindObjectsSortMode.None))
+            {
+                if (!InScope(rt, rootGO)) continue;
+                if (!rt.gameObject.activeSelf) continue;
+                bool isPointAnchor = rt.anchorMin == rt.anchorMax;
+                if (isPointAnchor && rt.sizeDelta.x <= 0f && rt.sizeDelta.y <= 0f)
+                    issues.Add($"[G1] '{ComponentSerializer.GetPath(rt.gameObject)}': " +
+                               "active RectTransform has zero size — set size or use stretch anchor");
+            }
+
+            // G2: Image without sprite + raycastTarget=true + no interactable ancestor.
+            foreach (var img in UnityEngine.Object.FindObjectsByType<Image>(FindObjectsSortMode.None))
+            {
+                if (!InScope(img, rootGO)) continue;
+                if (img.sprite != null || !img.raycastTarget) continue;
+                if (img.GetComponentInParent<Selectable>() == null)
+                    issues.Add($"[G2] Image '{ComponentSerializer.GetPath(img.gameObject)}': " +
+                               "no sprite + raycastTarget=true with no interactable ancestor — blocks raycasts invisibly");
+            }
+
+            // G3: LayoutGroup with no active children.
+            foreach (var lg in UnityEngine.Object.FindObjectsByType<LayoutGroup>(FindObjectsSortMode.None))
+            {
+                if (!InScope(lg, rootGO)) continue;
+                int activeChildren = 0;
+                for (int i = 0; i < lg.transform.childCount; i++)
+                    if (lg.transform.GetChild(i).gameObject.activeSelf) activeChildren++;
+                if (activeChildren == 0)
+                    issues.Add($"[G3] LayoutGroup '{ComponentSerializer.GetPath(lg.gameObject)}': " +
+                               "no active children — remove or populate the layout group");
+            }
+        }
+
+        // Returns true when component c is within rootGO scope (or scope is null = all scenes).
+        private static bool InScope(Component c, GameObject rootGO) =>
+            rootGO == null || c.transform.IsChildOf(rootGO.transform);
 
         // Called by ExecLintUITK.
         // path: absolute path to a .uxml or .uss file.

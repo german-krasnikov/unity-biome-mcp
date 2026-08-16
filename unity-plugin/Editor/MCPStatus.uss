@@ -91,6 +91,20 @@
 .status-word--listen { color: #e8a23a; }
 .status-word--down   { color: var(--unity-colors-error-text); }
 
+/* Error modifier — SubState error on non-Down state (amber overrides state color) */
+.orb--error {
+    background-color: #e8803a;
+}
+
+.halo--error {
+    border-color: #e8803a;
+    background-color: rgba(232, 128, 58, 0.06);
+}
+
+.status-word--error {
+    color: #e8803a;
+}
+
 .status-sub {
     font-size: 11px;
     -unity-font-style: italic;

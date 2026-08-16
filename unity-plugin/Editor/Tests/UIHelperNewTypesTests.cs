@@ -96,5 +96,60 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNotNull(scrollRect.viewport, "ScrollRect.viewport must be wired");
             Assert.IsNotNull(scrollRect.content, "ScrollRect.content must be wired");
         }
+
+        [Test]
+        public void CreateUI_ScrollView_NoMaskOnRoot()
+        {
+            UIHelper.CreateUI("ScrollView", "TestSV_NoMaskRoot", "UHNT_Canvas",
+                null, null, null, null, null, null, null);
+            var go = GameObject.Find("TestSV_NoMaskRoot");
+            Assert.IsNotNull(go, "ScrollView not found");
+            TrackOwnedObject(go);
+            Assert.IsNull(go.GetComponent<Mask>(), "Root must NOT have Mask component");
+        }
+
+        [Test]
+        public void CreateUI_ScrollView_ViewportStretched()
+        {
+            UIHelper.CreateUI("ScrollView", "TestSV_VPStretch", "UHNT_Canvas",
+                null, null, null, null, null, null, null);
+            var go = GameObject.Find("TestSV_VPStretch");
+            Assert.IsNotNull(go, "ScrollView not found");
+            TrackOwnedObject(go);
+            var viewport = go.transform.Find("Viewport");
+            Assert.IsNotNull(viewport, "Viewport child not found");
+            var rt = viewport.GetComponent<RectTransform>();
+            Assert.AreEqual(Vector2.zero, rt.anchorMin, "Viewport anchorMin must be (0,0)");
+            Assert.AreEqual(Vector2.one, rt.anchorMax, "Viewport anchorMax must be (1,1)");
+        }
+
+        [Test]
+        public void CreateUI_ScrollView_ContentHasContentSizeFitter()
+        {
+            UIHelper.CreateUI("ScrollView", "TestSV_CSF", "UHNT_Canvas",
+                null, null, null, null, null, null, null);
+            var go = GameObject.Find("TestSV_CSF");
+            Assert.IsNotNull(go, "ScrollView not found");
+            TrackOwnedObject(go);
+            var viewport = go.transform.Find("Viewport");
+            Assert.IsNotNull(viewport, "Viewport not found");
+            var content = viewport.Find("Content");
+            Assert.IsNotNull(content, "Content not found");
+            Assert.IsNotNull(content.GetComponent<ContentSizeFitter>(),
+                "Content must have ContentSizeFitter");
+        }
+
+        [Test]
+        public void CreateUI_ScrollView_ColorApplied()
+        {
+            UIHelper.CreateUI("ScrollView", "TestSV_Color", "UHNT_Canvas",
+                null, null, null, null, "#FF0000", null, null);
+            var go = GameObject.Find("TestSV_Color");
+            Assert.IsNotNull(go, "ScrollView not found");
+            TrackOwnedObject(go);
+            var img = go.GetComponent<Image>();
+            Assert.IsNotNull(img, "Root must have Image");
+            Assert.AreEqual(Color.red, img.color, "Root Image color must be red");
+        }
     }
 }

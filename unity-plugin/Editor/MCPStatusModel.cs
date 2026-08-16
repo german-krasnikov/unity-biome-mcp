@@ -86,11 +86,13 @@ namespace UnityMCP.Editor
             _                      => GetLabel(state, port),
         };
 
-        public static string GetSub(State state, SubState sub) => sub switch
+        public static string GetSub(State state, SubState sub, double compileElapsed = 0.0) => sub switch
         {
             SubState.BindFailed    => "bind failed — port in use",
             SubState.CompileFailed => "compile failed",
-            SubState.Compiling     => "compiling — clients wait",
+            SubState.Compiling     => compileElapsed > 0
+                                       ? $"compiling — {compileElapsed:F1}s"
+                                       : "compiling — clients wait",
             SubState.PortMismatch  => "port fallback — check config",
             _                      => GetSub(state),
         };
@@ -99,6 +101,8 @@ namespace UnityMCP.Editor
         {
             SubState.BindFailed    => $"{BiomeLabel.DisplayName} err",
             SubState.CompileFailed => $"{BiomeLabel.DisplayName} err",
+            SubState.Compiling     => $"{BiomeLabel.DisplayName} ⟳",
+            SubState.PortMismatch  => $"{BiomeLabel.DisplayName} :{port}",
             _                      => GetPill(state, port),
         };
     }

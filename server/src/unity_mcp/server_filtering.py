@@ -50,9 +50,10 @@ def _short_description(desc: str) -> str:
     """First sentence or hard-truncate at _SHORT_DESC_MAX_LEN."""
     if not desc or len(desc) <= _SHORT_DESC_MAX_LEN:
         return desc
-    dot = desc.find('. ')
-    if 0 < dot < _SHORT_DESC_MAX_LEN:
-        return desc[:dot + 1]
+    bounds = [p for p in (desc.find('.\n'), desc.find('. '))
+              if 0 < p < _SHORT_DESC_MAX_LEN]
+    if bounds:
+        return desc[:min(bounds) + 1]
     return desc[:_SHORT_DESC_MAX_LEN] + '…'
 
 

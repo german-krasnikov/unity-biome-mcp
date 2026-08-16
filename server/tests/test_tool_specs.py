@@ -140,3 +140,14 @@ def test_conditional_and_file_side_effect_tools_fail_closed_as_write():
         "screenshot_compare", "profile",
     ):
         assert _SPECS[name].mutability == "write", name
+
+
+def test_python_only_tools_without_c_handler_are_direct_only():
+    """B1/B2: checkpoint_create, checkpoint_restore, brief_build, get_changeset have no
+    C# handler — must be direct_only=True so batch rejects them before forwarding to C#."""
+    from unity_mcp.tools.tool_specs import _SPECS
+    for name in ("checkpoint_create", "checkpoint_restore", "brief_build", "get_changeset"):
+        assert _SPECS[name].direct_only, (
+            f"{name} has no C# handler but direct_only=False — "
+            "batch will forward it to C# and get 'Unknown command'"
+        )

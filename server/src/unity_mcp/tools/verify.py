@@ -261,7 +261,10 @@ async def verify_after_change(
         else:
             return _fail("playtests", suite_result, [])
 
-    return "PASS: " + " + ".join(passed)
+    _ALL_OPTIONAL = ("console", "tests", "playtests")
+    skipped = [g for g in _ALL_OPTIONAL if g not in set(optional_gates)]
+    suffix = f" | SKIPPED: {', '.join(skipped)}" if skipped else ""
+    return "PASS: " + " + ".join(passed) + suffix
 
 
 def register(mcp, send, args):

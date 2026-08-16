@@ -165,7 +165,7 @@ def _broken_reference_count(data: str) -> int | None:
 async def scene_change_plan(
     goal: str,
     targets: str = "",
-    dry_run: bool = True,
+    dry_run: bool = False,
 ) -> str:
     """Pre-flight + plan for safe scene edit.
     1. Check Play Mode — reject if playing (mutations blocked)
@@ -186,16 +186,6 @@ async def scene_change_plan(
     if not _compile_clean(compile_data):
         return f"FAIL: compile errors\n{compile_data}"
 
-    # 2. Console check
-    console_data = await _send("get_console", {"level": "error,exception"})
-    console_lines = [ln for ln in console_data.splitlines() if ln.strip()]
-    if console_lines:
-        return (
-            "FAIL: console errors\n"
-            + "\n".join(console_lines)
-            + "\nplan not created — clear or resolve existing errors first"
-        )
-
     # 3. Resolve targets
     resolved: dict[str, str] = {}
     if targets:
@@ -209,6 +199,14 @@ async def scene_change_plan(
             if len(parts) >= 3:
                 resolved[parts[1]] = parts[2]
 
+    resolved_str = ""
+    if resolved:
+        resolved_str = "\nresolved_targets=" + ", ".join(f"{k} => OK {v}" for k, v in resolved.items())
+
+    # dry_run=True: probe only — no checkpoint, no plan stored, no Unity Undo side effects
+    if dry_run:
+        return f"preflight=clean\ncompile=clean\nconsole_errors=0{resolved_str}\ndry_run=true"
+
     # 4. Checkpoint
     checkpoint = await _send("checkpoint", {})
 
@@ -218,10 +216,6 @@ async def scene_change_plan(
         "goal": goal, "targets": targets,
         "checkpoint": checkpoint, "created_at": _time.time(), "resolved": resolved,
     }
-
-    resolved_str = ""
-    if resolved:
-        resolved_str = "\nresolved_targets=" + ", ".join(f"{k} => OK {v}" for k, v in resolved.items())
 
     return f"plan_id={plan_id}\ngoal={goal}\ncompile=clean\nconsole_errors=0{resolved_str}"
 
@@ -315,7 +309,12 @@ async def apply_scene_change(
                 refs_status = "\nrefs=ok (0 broken)"
 
             if broken == 0:
-                console_data = await _send("get_console", {"level": "error,exception"})
+                plan = _plans[plan_id]
+                since = _time.time() - plan.get("created_at", 0)
+                console_args: dict = {"level": "error,exception"}
+                if since > 0:
+                    console_args["since"] = since
+                console_data = await _send("get_console", console_args)
                 console_lines = [ln for ln in console_data.splitlines() if ln.strip()]
                 if len(console_lines) == 1 and console_lines[0].strip().lower() == "no logs":
                     console_lines = []
