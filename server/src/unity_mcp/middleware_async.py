@@ -25,6 +25,9 @@ class MiddlewareAsyncMixin:
         from .middleware_types import is_write
         if os.environ.get("UNITY_MCP_AUTO_STATE", "1") == "0":
             return result
+        # A capture writes a PNG but does not make the hierarchy stale.
+        if cmd == "screenshot":
+            return result
         if cmd and not is_write(cmd, args):
             return result
         if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):

@@ -33,6 +33,46 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNull(SessionAuthorization.Check("ask", "get_hierarchy"));
         }
 
+        [TestCase("wait_until", "{\"abort_on_fail\":\"false\"}")]
+        [TestCase("get_changes", "{\"clear\":\"false\"}")]
+        [TestCase("profile", "{\"action\":\"status\"}")]
+        [TestCase("profile", "{\"action\":\"analyze\"}")]
+        public void Check_AskMode_AllowsConditionalReads(string cmd, string argsJson)
+        {
+            Assert.IsNull(SessionAuthorization.Check("ask", cmd, argsJson));
+        }
+
+        [TestCase("execute_code", "{\"code\":\"return null;\"}")]
+        [TestCase("screenshot", "{}")]
+        [TestCase("wait_until", "{\"abort_on_fail\":\"true\"}")]
+        [TestCase("get_changes", "{\"clear\":\"true\"}")]
+        [TestCase("profile", "{\"action\":\"start\"}")]
+        [TestCase("profile", "{\"action\":\"stop\"}")]
+        public void Check_AskMode_BlocksConditionalAndFileMutations(string cmd, string argsJson)
+        {
+            StringAssert.Contains(
+                "requires agent mode",
+                SessionAuthorization.Check("ask", cmd, argsJson));
+        }
+
+#if UNITY_MODULE_AI || UNITY_AI_NAVIGATION
+        [TestCase("sample", false)]
+        [TestCase("path", false)]
+        [TestCase("raycast", false)]
+        [TestCase("status", false)]
+        [TestCase("get_settings", false)]
+        [TestCase("bake", true)]
+        [TestCase("clear", true)]
+        [TestCase("set_settings", true)]
+        [TestCase("future", true)]
+        public void Check_AskMode_NavMeshUsesActionMutability(string action, bool blocked)
+        {
+            var result = SessionAuthorization.Check(
+                "ask", "navmesh", $"{{\"action\":\"{action}\"}}");
+            Assert.AreEqual(blocked, result != null, result);
+        }
+#endif
+
         [Test]
         public void Check_AskMode_AllowsUitkFileRead()
         {

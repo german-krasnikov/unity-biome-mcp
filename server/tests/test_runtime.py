@@ -68,6 +68,29 @@ async def test_wait_until_abort_on_fail_default_omits(mock_bridge):
     assert "abort_on_fail" not in sent
 
 
+async def test_wait_until_abort_on_fail_blocked_before_tcp_in_read_only(
+    mock_bridge, monkeypatch
+):
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await wait_until("/P", "C", "f", "v", abort_on_fail=True)
+
+    mock_bridge.send.assert_not_awaited()
+
+
+async def test_wait_until_observational_form_allowed_in_read_only(
+    mock_bridge, monkeypatch
+):
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    mock_bridge.send.return_value = {"ok": True, "data": "matched"}
+
+    result = await wait_until("/P", "C", "f", "v", abort_on_fail=False)
+
+    assert result == "matched"
+    mock_bridge.send.assert_awaited_once()
+
+
 async def test_run_playtest_abort_on_fail_passes_arg(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
     await run_playtest("ASSERT_CONSOLE_CLEAN", abort_on_fail=True)

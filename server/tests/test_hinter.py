@@ -89,6 +89,22 @@ def test_screenshot_spam_with_intervening_write_no_hint():
     assert results[3] is None
 
 
+def test_screenshot_spam_restarts_after_intervening_write():
+    """A write resets the sequence; three later captures still produce the hint."""
+    h = make_hinter()
+    results = observe_seq(h, [
+        sp("/A", "Health", "value"),
+        ("screenshot", {}),
+        ("screenshot", {}),
+        ("screenshot", {}),
+    ])
+    assert results[0] is None
+    assert results[1] is None
+    assert results[2] is None
+    assert results[3] is not None
+    assert "fingerprint" in results[3]
+
+
 # ── Test 5: cooldown prevents repeated emit ───────────────────────────────────
 
 def test_cooldown_prevents_repeated_emit():
@@ -323,6 +339,19 @@ def test_screenshot_animation_screenshot_no_hint():
     assert results[3] is None
 
 
+def test_conditional_read_does_not_reset_screenshot_sequence():
+    """An action-aware read between captures does not masquerade as a write."""
+    h = make_hinter()
+    results = observe_seq(h, [
+        ("screenshot", {}),
+        ("screenshot", {}),
+        ("animation", {"action": "get", "path": "/A"}),
+        ("screenshot", {}),
+    ])
+    assert results[3] is not None
+    assert "fingerprint" in results[3]
+
+
 # ── Test 16: suppression metric recorded ─────────────────────────────────────
 
 def test_suppression_metric_recorded():
@@ -358,7 +387,7 @@ def test_format_report_includes_suppressed():
 # ── Test 18: screenshot-spam fires on third consecutive ──────────────────────
 
 def test_screenshot_spam_fires():
-    """3 consecutive screenshots with no writes → third returns hint containing 'fingerprint'."""
+    """Three captures without a scene write suggest a cheaper fingerprint."""
     h = make_hinter()
     r1 = h.observe("screenshot", {})
     r2 = h.observe("screenshot", {})

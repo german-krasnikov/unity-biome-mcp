@@ -1,4 +1,6 @@
 """AI-assisted debugging: gather diagnostic context based on symptom."""
+from mcp.server.fastmcp.exceptions import ToolError
+
 from ._annotations import RO as _RO
 from ._common import bind
 
@@ -65,7 +67,7 @@ async def debug(symptom: str = "", path: str = "", gather: str = "") -> str:
 
     symptom: Natural language description ("enemy doesn't move", "button not clickable")
     path: Optional target object path ("/Enemy_01")
-    gather: Override comma-separated tool names ("inspect,get_console,screenshot")
+    gather: Override comma-separated batch-safe tool names ("inspect,get_console")
 
     Returns structured diagnostic text for LLM analysis.
     """
@@ -74,6 +76,11 @@ async def debug(symptom: str = "", path: str = "", gather: str = "") -> str:
         components: list[str] = []
     else:
         tools, components = classify_symptom(symptom)
+    if "screenshot" in tools:
+        raise ToolError(
+            "debug gather does not support screenshot because screenshots require "
+            "a direct typed call; call screenshot separately"
+        )
     commands = build_commands(tools, path, components)
     result = await _send("batch", {"commands": commands, "on_error": "continue"})
     return format_diagnostic(result, symptom, path)

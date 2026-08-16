@@ -13,7 +13,7 @@ _args = None
 
 async def execute_code(code: str, undo_label: str = "execute_code") -> str:
     """Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.
-    Security: no System.IO, System.Net, System.Diagnostics.
+    Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed.
     Bare statements are auto-wrapped in a static class — no boilerplate needed.
     Example: \"var go = new GameObject(\\\"Test\\\"); return go.name;\""""
     return await _send("execute_code", _args(code=code, undo_label=undo_label))

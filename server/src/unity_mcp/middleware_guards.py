@@ -2,7 +2,14 @@
 import json
 import time
 
-from .middleware_types import _RUNTIME_ONLY_CMDS, ACTION_READS, BLAST_RADIUS, READ_CMDS, is_write
+from .middleware_types import (
+    _RUNTIME_ONLY_CMDS,
+    ACTION_READS,
+    BLAST_RADIUS,
+    READ_CMDS,
+    SCENE_STATE_NEUTRAL_WRITES,
+    is_write,
+)
 from .utils import parse_kv_line
 
 
@@ -32,6 +39,11 @@ class MiddlewareGuardsMixin:
     # ── Feature 1: Retry Watchdog ─────────────────────────────────────────
 
     def check_retry(self, cmd: str, args: dict) -> str | None:
+        # Captures are filesystem writes for authorization, but identical
+        # arguments can intentionally observe a later frame and must remain
+        # repeatable.
+        if cmd == "screenshot":
+            return None
         if not is_write(cmd, args):
             return None
         h = hash((cmd, json.dumps(args, sort_keys=True)))
@@ -115,7 +127,7 @@ class MiddlewareGuardsMixin:
     def check_verification_needed(self, cmd: str, args: dict | None = None) -> str | None:
         if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
             return None
-        if is_write(cmd, args):
+        if is_write(cmd, args) and cmd not in SCENE_STATE_NEUTRAL_WRITES:
             self._mutation_count += 1
             if self._mutation_count % 10 == 0:
                 return f"⚡ VERIFICATION CHECKPOINT ({self._mutation_count} mutations): verify state is consistent with goal before continuing."
@@ -173,13 +185,17 @@ class MiddlewareGuardsMixin:
     # ── Feature 12: Workflow Phase FSM ───────────────────────────────────────
 
     def transition(self, cmd: str, args: dict | None = None) -> str | None:
-        if not is_write(cmd, args) or (cmd == "batch" and args and _is_batch_readonly(args.get("commands", ""))):
+        changes_scene_state = (
+            is_write(cmd, args) and cmd not in SCENE_STATE_NEUTRAL_WRITES
+        )
+        if not changes_scene_state or (
+            cmd == "batch" and args and _is_batch_readonly(args.get("commands", ""))
+        ):
             self._consecutive_writes = 0
             return None
-        if is_write(cmd, args):
-            self._consecutive_writes += 1
-            if self._consecutive_writes >= 3:
-                return f"⚡ {self._consecutive_writes} consecutive writes without reading. Consider verifying state."
+        self._consecutive_writes += 1
+        if self._consecutive_writes >= 3:
+            return f"⚡ {self._consecutive_writes} consecutive writes without reading. Consider verifying state."
         return None
 
     # ── Feature: Batch Conflict Scan ─────────────────────────────────────────

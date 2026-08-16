@@ -23,6 +23,10 @@ _PYTHON_ONLY_PARAMS: dict[str, set[str]] = {
 }
 
 _STRIP_RE = re.compile(r'\b({keys})=\S+\s*')
+_SUMMARY_RE = re.compile(
+    r"(?m)^ok:(?P<ok>\d+)(?: err:(?P<err>\d+))?"
+    r"(?P<timeout> timeout:\d+)?[ \t\r\n]*\Z"
+)
 
 
 def _strip_python_params(line: str) -> str:
@@ -39,15 +43,37 @@ def _strip_python_params(line: str) -> str:
     return f"{cmd} {rest}".rstrip()
 
 
+def _add_preflight_errors_to_summary(result: str, count: int) -> str:
+    """Merge Python-side filtered errors into Unity's terminal summary."""
+    if count <= 0:
+        return result
+
+    def _replace(match: re.Match[str]) -> str:
+        total_errors = int(match.group("err") or "0") + count
+        return f"ok:{match.group('ok')} err:{total_errors}{match.group('timeout') or ''}"
+
+    return _SUMMARY_RE.sub(_replace, result)
+
+
 async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
                 atomic: bool = False, validate_aliases: bool = False) -> str:
-    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: True reverts ALL prior ops on first failure (Unity Undo); execute_code fs side-effects NOT reverted. PREFER over individual tool calls."""
+    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: on failure, reverts prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
     pre_errors: list[str] = []
-    orig_indices: list[int] = []  # filtered-line j (1-based) → original line number
+    # Unity indexes parsed commands from zero after ignoring blank/comment lines.
+    # Keep the original command ordinal so Python-side filtering does not change
+    # the indices reported to callers.
+    orig_indices: list[int] = []
     if on_error == "continue":
         clean: list[str] = []
-        for i, line in enumerate(commands.splitlines(), 1):
-            cmd = line.strip().split()[0] if line.strip() else ""
+        command_index = 0
+        for line in commands.splitlines():
+            stripped_line = line.strip()
+            if not stripped_line or stripped_line.startswith("#"):
+                clean.append(line)
+                continue
+            i = command_index
+            command_index += 1
+            cmd = stripped_line.split()[0]
             if cmd in _dsl_tools:
                 pre_errors.append(f"[{i}] err: '{cmd}' requires typed MCP tool, not batch")
                 continue
@@ -92,8 +118,9 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
         if orig_indices:
             def _remap(m):
                 n = int(m.group(1))
-                return f"[{orig_indices[n-1]}]" if 1 <= n <= len(orig_indices) else m.group(0)
+                return f"[{orig_indices[n]}]" if 0 <= n < len(orig_indices) else m.group(0)
             result = re.sub(r'\[(\d+)\]', _remap, result)
+        result = _add_preflight_errors_to_summary(result, len(pre_errors))
         return "\n".join(pre_errors) + "\n" + result
     return result
 

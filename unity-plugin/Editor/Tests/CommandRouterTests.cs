@@ -81,6 +81,11 @@ namespace UnityMCP.Editor.Tests
         [TestCase("manage_component", ExpectedResult = true)]
         [TestCase("wire_event",     ExpectedResult = true)]
         [TestCase("set_active",     ExpectedResult = true)]
+        [TestCase("execute_code",   ExpectedResult = true)]
+        [TestCase("screenshot",     ExpectedResult = true)]
+        [TestCase("wait_until",     ExpectedResult = true)]
+        [TestCase("get_changes",    ExpectedResult = true)]
+        [TestCase("profile",        ExpectedResult = true)]
         public bool Registry_IsMutating_MutatingCommands(string cmd)
             => CommandRegistry.IsMutating(cmd);
 
@@ -88,7 +93,6 @@ namespace UnityMCP.Editor.Tests
         [TestCase("get_hierarchy", ExpectedResult = false)]
         [TestCase("get_component", ExpectedResult = false)]
         [TestCase("get_console",   ExpectedResult = false)]
-        [TestCase("execute_code",  ExpectedResult = false)]
         public bool Registry_IsMutating_ReadCommands_ReturnFalse(string cmd)
             => CommandRegistry.IsMutating(cmd);
 
@@ -101,6 +105,40 @@ namespace UnityMCP.Editor.Tests
         [TestCase("{\"action\":\"unknown\"}", ExpectedResult = true)]
         public bool Registry_IsMutating_UitkFile_DependsOnAction(string argsJson)
             => CommandRegistry.IsMutating("uitk_file", argsJson);
+
+        [TestCase("{}", ExpectedResult = false)]
+        [TestCase("{\"abort_on_fail\":\"false\"}", ExpectedResult = false)]
+        [TestCase("{\"abort_on_fail\":\"true\"}", ExpectedResult = true)]
+        [TestCase("{\"abort_on_fail\":\"future\"}", ExpectedResult = true)]
+        public bool Registry_IsMutating_WaitUntil_DependsOnAbort(string argsJson)
+            => CommandRegistry.IsMutating("wait_until", argsJson);
+
+        [TestCase("{}", ExpectedResult = true)]
+        [TestCase("{\"clear\":\"false\"}", ExpectedResult = false)]
+        [TestCase("{\"clear\":\"true\"}", ExpectedResult = true)]
+        [TestCase("{\"clear\":\"future\"}", ExpectedResult = true)]
+        public bool Registry_IsMutating_GetChanges_DependsOnClear(string argsJson)
+            => CommandRegistry.IsMutating("get_changes", argsJson);
+
+        [TestCase("{\"action\":\"status\"}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"analyze\"}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"compare\"}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"list_sessions\"}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"start\"}", ExpectedResult = true)]
+        [TestCase("{\"action\":\"stop\"}", ExpectedResult = true)]
+        [TestCase("{\"action\":\"future\"}", ExpectedResult = true)]
+        [TestCase("{}", ExpectedResult = true)]
+        public bool Registry_IsMutating_Profile_DependsOnAction(string argsJson)
+            => CommandRegistry.IsMutating("profile", argsJson);
+
+        [TestCase("profile", "{\"action\":\"start\"}", ExpectedResult = true)]
+        [TestCase("profile", "{\"action\":\"stop\"}", ExpectedResult = true)]
+        [TestCase("profile", "{\"action\":\"future\"}", ExpectedResult = false)]
+        [TestCase("wait_until", "{\"abort_on_fail\":\"true\"}", ExpectedResult = true)]
+        [TestCase("execute_code", "{}", ExpectedResult = true)]
+        [TestCase("screenshot", "{}", ExpectedResult = true)]
+        public bool PlayMutationAllowance_IsNarrowAndArgumentAware(string cmd, string argsJson)
+            => CommandRouter.IsAllowedMutationInPlayMode(cmd, argsJson);
 
         [TestCase("invoke_method",          ExpectedResult = true)]
         [TestCase("set_runtime_property",   ExpectedResult = true)]
@@ -322,6 +360,51 @@ namespace UnityMCP.Editor.Tests
             {
                 CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
                 CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
+            }
+        }
+
+        [Test]
+        public void Process_InPlayMode_ExecuteCode_ReachesValidationInsteadOfPlayGuard()
+        {
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode = () => true;
+            try
+            {
+                var result = CommandRouter.Process(
+                    "{\"id\":\"play-code\",\"cmd\":\"execute_code\",\"args\":" +
+                    "{\"code\":\"return \\\"play-ok\\\";\"}}");
+
+                StringAssert.DoesNotContain("Play mode active", result, result);
+                StringAssert.Contains("play-ok", result, result);
+            }
+            finally
+            {
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+            }
+        }
+
+        [Test]
+        public async Task ProcessAsync_InPlayMode_ExecuteCode_ReachesValidationInsteadOfPlayGuard()
+        {
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode = () => true;
+            try
+            {
+                var tcs = new TaskCompletionSource<string>();
+                CommandRouter.ProcessAsync(
+                    "{\"id\":\"play-code-async\",\"cmd\":\"execute_code\",\"args\":" +
+                    "{\"code\":\"return \\\"play-ok\\\";\"}}",
+                    tcs);
+                var result = await tcs.Task;
+
+                StringAssert.DoesNotContain("Play mode active", result, result);
+                StringAssert.Contains("play-ok", result, result);
+            }
+            finally
+            {
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
             }
         }
 
@@ -687,6 +770,34 @@ namespace UnityMCP.Editor.Tests
                 CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
                 CommandRouter.RegisterAll();  // restore registry, removes test_file_cmd
             }
+        }
+
+        [TestCase(".cs")]
+        [TestCase(".jpg")]
+        [TestCase(".txt")]
+        public void FileOutputHelper_NonPngPath_IsRejectedBeforeOverwrite(string extension)
+        {
+            var path = System.IO.Path.Combine(
+                FileOutputHelper.OutputDir, "screenshot-non-png" + extension);
+            System.IO.File.WriteAllText(path, "keep-me");
+            try
+            {
+                var error = Assert.Throws<System.ArgumentException>(() =>
+                    FileOutputHelper.WritePng(new byte[] { 1, 2, 3 }, outputPath: path));
+
+                StringAssert.Contains(".png", error.Message);
+                Assert.AreEqual("keep-me", System.IO.File.ReadAllText(path));
+            }
+            finally
+            {
+                if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+            }
+        }
+
+        [Test]
+        public void Registry_UitkFile_IsNotBatchable()
+        {
+            Assert.IsFalse(CommandRegistry.IsBatchable("uitk_file"));
         }
 
         // ── WIN-1: post-reload stale isCompiling — MCPServer.IsReallyCompiling=false because

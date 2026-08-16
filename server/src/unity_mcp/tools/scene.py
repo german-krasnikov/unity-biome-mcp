@@ -231,5 +231,5 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW)(save_session)
     mcp.tool(annotations=_RO)(load_session)
     mcp.tool(annotations=_RW)(screenshot_baseline)
-    mcp.tool(annotations=_RO)(screenshot_compare)
-    mcp.tool(annotations=_RO)(get_changes)
+    mcp.tool(annotations=_RW)(screenshot_compare)
+    mcp.tool(annotations=_RW)(get_changes)

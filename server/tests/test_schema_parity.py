@@ -167,18 +167,21 @@ def test_python_only_entries_have_no_csharp_command():
 
 
 def test_direct_only_tools_covered_by_csharp_guard():
-    """Every direct_only tool must be in CommandRouter._PythonOnlyTools (C#).
+    """Every Python-only direct tool must be in CommandRouter's C# guard.
 
-    The C# HashSet acts as a guard — direct TCP callers get an actionable
-    error instead of InvalidOperationException. If a new tool gets
-    direct_only=True in Python, it must be added to the C# guard too.
+    Direct-only tools with unity_transport=True have real C# handlers and are
+    excluded only from batch. The remaining subset needs an actionable direct
+    TCP error instead of InvalidOperationException.
     """
-    direct_only = {name for name, spec in _specs().items() if spec.direct_only}
+    python_only = {
+        name for name, spec in _specs().items()
+        if spec.direct_only and not spec.unity_transport
+    }
     guard_path = _EDITOR / "CommandRouter.cs"
     text = guard_path.read_text(encoding="utf-8")
-    for tool in sorted(direct_only):
+    for tool in sorted(python_only):
         assert f'"{tool}"' in text, (
-            f"direct_only tool '{tool}' missing from CommandRouter._PythonOnlyTools — "
+            f"Python-only tool '{tool}' missing from CommandRouter._PythonOnlyTools — "
             "add it so direct TCP callers get a clear error."
         )
 

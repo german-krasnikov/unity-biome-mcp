@@ -385,7 +385,7 @@ async def uitk_intent(
     dry_run: bool = False,
 ) -> str:
     """Generate a UXML + USS file pair from a natural-language UI description.
-    Side effects: unless dry_run=True, writes both project assets; attach_to also adds a
+    Side effect: unless dry_run=True, writes both project assets; attach_to also adds a
     UIDocument scene component. Completed steps are not rolled back if a later
     step fails. Failure output distinguishes retained files, confirmed Unity
     auto-reverts, and attempted files whose cleanup is uncertain. Without

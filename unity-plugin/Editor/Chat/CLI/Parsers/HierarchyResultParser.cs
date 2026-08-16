@@ -3,18 +3,19 @@
 // Format: HierarchySerializer.Serialize() text-tree output.
 // Depth = number of 3-char ancestor groups (│   or   ) before the branch connector.
 // REAL FORMAT (from HierarchySerializer.AppendIndent):
-//   Root: "Name $HexRef [flags]"  (no connector)
-//   Depth 1: "│  └─ Name $HexRef" or "   └─ Name $HexRef" (3-char group + connector)
+//   Root: "Name &Base62Ref [flags]"  (no connector)
+//   Depth 1: "│  └─ Name &Base62Ref" or "   └─ Name &Base62Ref" (3-char group + connector)
 //   Depth N: N groups + connector
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace UnityMCP.Editor.Chat.Parsers
 {
     internal struct HierarchyNode
     {
         internal string Name;          // display name (trimmed)
-        internal string HexRef;        // "$A1B2" format, passed to NavTarget
+        internal string Reference;     // canonical "&base62" reference, passed to NavTarget
         internal int    Depth;         // 0 = root, 1 = child of root, etc.
         internal bool   IsInactive;    // has " !" suffix
         internal int    HiddenCount;   // N from " +N" suffix; 0 if none
@@ -28,7 +29,7 @@ namespace UnityMCP.Editor.Chat.Parsers
         private const string TruncationPrefix = "... truncated at";
 
         // Never throws. Returns [] on empty / NO_CHANGE / error.
-        internal static HierarchyNode[] Parse(string resultText)
+        internal static HierarchyNode[] Parse(string resultText, bool parseComponents = false)
         {
             if (string.IsNullOrEmpty(resultText) || resultText == "NO_CHANGE")
                 return Array.Empty<HierarchyNode>();
@@ -54,24 +55,24 @@ namespace UnityMCP.Editor.Chat.Parsers
                 var content = line.Substring(contentStart);
                 if (string.IsNullOrEmpty(content)) continue;
 
-                if (TryParseNode(content, depth, out var node))
+                if (TryParseNode(content, depth, parseComponents, out var node))
                     nodes.Add(node);
             }
 
             return nodes.ToArray();
         }
 
-        // Scene header: starts with '[', ends with ']', no '$' (not a component list).
+        // A serializer scene header is the entire line. A bracket-named object still has
+        // its trailing reference (for example "[Gameplay] &1") and is parsed as a node.
         private static bool TryParseSceneHeader(string line, out HierarchyNode node)
         {
             node = default;
             if (line.Length < 3 || line[0] != '[' || line[line.Length - 1] != ']') return false;
-            if (line.IndexOf('$') >= 0) return false;
             node = new HierarchyNode
             {
                 IsSceneHeader = true,
                 SceneName     = line.Substring(1, line.Length - 2),
-                HexRef        = ""
+                Reference     = ""
             };
             return true;
         }
@@ -101,49 +102,46 @@ namespace UnityMCP.Editor.Chat.Parsers
             return 0;
         }
 
-        // Parses "Name [Comp1,Comp2] $HexRef ! +N" → HierarchyNode.
-        // Returns false for truncated / invalid lines (no hex ref).
-        private static bool TryParseNode(string content, int depth, out HierarchyNode node)
+        // Parses "Name [Comp1,Comp2] &base62 ! +N" → HierarchyNode.
+        // v1.32-format result text used the immediately preceding $HEX shape, so that
+        // exact transient-ID form remains readable. Other '$' tokens are rejected.
+        private static bool TryParseNode(
+            string content, int depth, bool parseComponents, out HierarchyNode node)
         {
             node = default;
 
-            int hexSep = content.LastIndexOf(" $");
-            if (hexSep < 0) return false;   // truncated or malformed line → skip
+            int end = content.Length;
+            int hidden = 0;
+            bool inactive = false;
 
-            // Split: everything before " $" is name+components; after " $" is "$HexRef [flags]"
-            var afterHexSep = content.Substring(hexSep + 1);   // "$HexRef ! +N"
-            int spaceAfterHex = afterHexSep.IndexOf(' ', 1);
-            string hexRef, flags;
-            if (spaceAfterHex < 0)
+            // Serializer order is reference, inactive marker, hidden count. Peel those
+            // exact trailing tokens before locating the final reference token.
+            if (TryReadLastToken(content, end, out int tokenStart, out var token) &&
+                token.Length > 1 && token[0] == '+' &&
+                int.TryParse(token.Substring(1), NumberStyles.None,
+                    CultureInfo.InvariantCulture, out hidden))
             {
-                hexRef = afterHexSep;
-                flags  = "";
-            }
-            else
-            {
-                hexRef = afterHexSep.Substring(0, spaceAfterHex);
-                flags  = afterHexSep.Substring(spaceAfterHex);
+                end = tokenStart - 1;
             }
 
-            bool inactive = flags.Contains(" !");
-            int  hidden   = 0;
-            int  plusIdx  = flags.IndexOf(" +", StringComparison.Ordinal);
-            if (plusIdx >= 0)
+            if (TryReadLastToken(content, end, out tokenStart, out token) && token == "!")
             {
-                var numStr = flags.Substring(plusIdx + 2);
-                int sp = numStr.IndexOf(' ');
-                if (sp > 0) numStr = numStr.Substring(0, sp);
-                int.TryParse(numStr, out hidden);
+                inactive = true;
+                end = tokenStart - 1;
             }
 
-            var nameSection = content.Substring(0, hexSep);
+            if (!TryReadLastToken(content, end, out int referenceStart, out var reference) ||
+                (!IsCanonicalReference(reference) && !IsLegacyHexReference(reference)))
+                return false;
+
+            var nameSection = content.Substring(0, referenceStart - 1);
             string name, components = null;
 
-            int compStart = nameSection.LastIndexOf(" [");
+            int compStart = parseComponents ? nameSection.LastIndexOf(" [") : -1;
             if (compStart >= 0)
             {
                 int compEnd = nameSection.LastIndexOf(']');
-                if (compEnd > compStart)
+                if (compEnd == nameSection.Length - 1)
                 {
                     components = nameSection.Substring(compStart + 2, compEnd - compStart - 2);
                     name       = nameSection.Substring(0, compStart).Trim();
@@ -161,12 +159,59 @@ namespace UnityMCP.Editor.Chat.Parsers
             node = new HierarchyNode
             {
                 Name        = name,
-                HexRef      = hexRef,
+                Reference   = reference,
                 Depth       = depth,
                 IsInactive  = inactive,
                 HiddenCount = hidden,
                 Components  = components
             };
+            return true;
+        }
+
+        private static bool TryReadLastToken(
+            string content, int end, out int tokenStart, out string token)
+        {
+            tokenStart = -1;
+            token = null;
+            if (end <= 0 || end > content.Length) return false;
+
+            int separator = content.LastIndexOf(' ', end - 1, end);
+            if (separator < 0 || separator == end - 1) return false;
+
+            tokenStart = separator + 1;
+            token = content.Substring(tokenStart, end - tokenStart);
+            return true;
+        }
+
+        private static bool IsCanonicalReference(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length < 2 || value[0] != '&')
+                return false;
+
+            for (int i = 1; i < value.Length; i++)
+            {
+                char c = value[i];
+                if (!((c >= '0' && c <= '9') ||
+                      (c >= 'A' && c <= 'Z') ||
+                      (c >= 'a' && c <= 'z')))
+                    return false;
+            }
+            return true;
+        }
+
+        private static bool IsLegacyHexReference(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length < 2 || value[0] != '$')
+                return false;
+
+            for (int i = 1; i < value.Length; i++)
+            {
+                char c = value[i];
+                if (!((c >= '0' && c <= '9') ||
+                      (c >= 'A' && c <= 'F') ||
+                      (c >= 'a' && c <= 'f')))
+                    return false;
+            }
             return true;
         }
     }

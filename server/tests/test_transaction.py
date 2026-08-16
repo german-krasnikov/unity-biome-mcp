@@ -6,6 +6,9 @@ import pytest
 import unity_mcp.tools.transaction as tr
 
 
+_EDIT_MODE_STATE = "playing:False\npaused:False\ncompiling:False"
+
+
 async def _default_send(cmd, args, **kw):
     if cmd == "get_compile_errors": return "compile clean"
     if cmd == "get_console": return ""
@@ -14,7 +17,7 @@ async def _default_send(cmd, args, **kw):
     if cmd == "batch": return "ok:3"
     if cmd == "validate_references": return "0 broken"
     if cmd == "scene": return "saved"
-    if cmd == "editor": return "state: editing"
+    if cmd == "editor": return _EDIT_MODE_STATE
     return ""
 
 
@@ -48,7 +51,7 @@ class TestSceneChangePlan:
 
         async def console_error_send(cmd, args, **kw):
             calls.append(cmd)
-            if cmd == "editor": return "state: editing"
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "get_compile_errors": return "compile clean"
             if cmd == "get_console": return "[Error] NullReferenceException: existing"
             raise AssertionError(f"unexpected call after console gate: {cmd}")
@@ -141,6 +144,7 @@ class TestApplySceneChange:
         await tr.apply_scene_change(plan_id, "create_object name=A")
 
         batch_args = next(args for cmd, args in calls if cmd == "batch")
+        assert [cmd for cmd, _ in calls[:2]] == ["editor", "batch"]
         assert batch_args == {
             "commands": "create_object name=A",
             "atomic": "true",
@@ -159,6 +163,8 @@ class TestApplySceneChange:
 
         async def adversarial_send(cmd, args, **kw):
             calls.append(cmd)
+            if cmd == "editor":
+                return _EDIT_MODE_STATE
             if cmd == "batch":
                 return batch_data
             raise AssertionError(f"unexpected call after unproven batch result: {cmd}")
@@ -169,7 +175,7 @@ class TestApplySceneChange:
         assert result.startswith("state=FAILED")
         assert "verified=false" in result
         assert "saved=false" in result
-        assert calls == ["batch"]
+        assert calls == ["editor", "batch"]
 
     def test_batch_state_accepts_only_current_positive_terminal_summary(self):
         assert tr._batch_state("created A\nok:1") == "APPLIED"
@@ -261,6 +267,7 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def broken_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "validate_references": return "5 broken refs"
             if cmd == "batch": return "ok:3"
             return ""
@@ -277,6 +284,7 @@ class TestApplySceneChange:
 
         async def tracking_send(cmd, args, **kw):
             calls.append(cmd)
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "batch": return "ok:1"
             return "saved"
         monkeypatch.setattr(tr, "_send", tracking_send)
@@ -294,6 +302,7 @@ class TestApplySceneChange:
 
         async def tracking_send(cmd, args, **kw):
             calls.append(cmd)
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "validate_references": return "0 broken"
             if cmd == "batch": return "ok:1"
             return ""
@@ -309,6 +318,7 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def failing_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "batch": return "ok:2"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
@@ -324,6 +334,7 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def tracking_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
@@ -339,6 +350,7 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def ok_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
@@ -353,6 +365,7 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def clean_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "validate_references": return "0 broken"
             if cmd == "batch": return "ok:2"
             return ""
@@ -368,6 +381,7 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def err_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "batch": return "ok:2"
             if cmd == "validate_references": raise Exception("NullReferenceException: verify phase")
             if cmd == "scene": return "saved"
@@ -385,6 +399,8 @@ class TestApplySceneChange:
 
         async def rollback_send(cmd, args, **kw):
             calls.append(cmd)
+            if cmd == "editor":
+                return _EDIT_MODE_STATE
             if cmd == "batch":
                 return "[0] ok\n[1] err: missing target\nATOMIC_ROLLBACK: reverted ops 0..0\nok:1 err:1"
             raise AssertionError(f"unexpected call after rollback: {cmd}")
@@ -395,7 +411,7 @@ class TestApplySceneChange:
         assert result.startswith("state=ROLLED_BACK")
         assert "verified=false" in result
         assert "saved=false" in result
-        assert calls == ["batch"]
+        assert calls == ["editor", "batch"]
 
     async def test_batch_failure_without_rollback_is_not_reported_as_applied(self, monkeypatch):
         plan_id = self._insert_plan()
@@ -403,6 +419,8 @@ class TestApplySceneChange:
 
         async def failed_send(cmd, args, **kw):
             calls.append(cmd)
+            if cmd == "editor":
+                return _EDIT_MODE_STATE
             if cmd == "batch":
                 return "[0] err: READ_ONLY_BLOCKED\nok:0 err:1"
             raise AssertionError(f"unexpected call after failure: {cmd}")
@@ -411,7 +429,7 @@ class TestApplySceneChange:
         result = await tr.apply_scene_change(plan_id, "create_object name=A")
 
         assert result.startswith("state=FAILED")
-        assert calls == ["batch"]
+        assert calls == ["editor", "batch"]
 
     async def test_multiline_handler_error_is_classified_as_failed(self, monkeypatch):
         """A warning line cannot hide a later handler-returned err: line."""
@@ -420,6 +438,8 @@ class TestApplySceneChange:
 
         async def failed_send(cmd, args, **kw):
             calls.append(cmd)
+            if cmd == "editor":
+                return _EDIT_MODE_STATE
             if cmd == "batch":
                 return (
                     "[0] warn: import emitted a warning\n"
@@ -433,7 +453,7 @@ class TestApplySceneChange:
 
         assert result.startswith("state=FAILED")
         assert "ROLLED_BACK" not in result
-        assert calls == ["batch"]
+        assert calls == ["editor", "batch"]
 
     async def test_console_errors_block_save(self, monkeypatch):
         plan_id = self._insert_plan()
@@ -441,6 +461,7 @@ class TestApplySceneChange:
 
         async def console_error_send(cmd, args, **kw):
             calls.append(cmd)
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "0 ERROR, 4 OK"
             if cmd == "get_console": return "NullReferenceException: boom"
@@ -459,6 +480,7 @@ class TestApplySceneChange:
 
         async def unknown_send(cmd, args, **kw):
             calls.append(cmd)
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "validation finished"
             raise AssertionError(f"no later call expected: {cmd}")
@@ -468,13 +490,14 @@ class TestApplySceneChange:
 
         assert "refs=unchecked (unrecognized response)" in result
         assert "saved=false (verification failed)" in result
-        assert calls == ["batch", "validate_references"]
+        assert calls == ["editor", "batch", "validate_references"]
 
     async def test_dirty_flag_verified_partial_after_save(self, monkeypatch):
         """P-414: saved=PARTIAL dirty=true when scene stays dirty post-save."""
         plan_id = self._insert_plan()
 
         async def fake_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
@@ -493,6 +516,7 @@ class TestApplySceneChange:
         plan_id = self._insert_plan()
 
         async def fake_send(cmd, args, **kw):
+            if cmd == "editor": return _EDIT_MODE_STATE
             if cmd == "batch": return "ok:1"
             if cmd == "validate_references": return "0 broken"
             if cmd == "get_console": return ""
@@ -505,3 +529,50 @@ class TestApplySceneChange:
             plan_id, "create_object name=A", save=True
         )
         assert "saved=true dirty=false" in result, f"Expected clean but got: {result}"
+
+    @pytest.mark.parametrize(
+        "editor_state",
+        [
+            "playing:True\npaused:False\ncompiling:False",
+            "",
+            "state: editing",
+            "playing:maybe",
+            "err: disconnected",
+        ],
+    )
+    async def test_fresh_editor_state_blocks_apply_before_batch(
+        self, monkeypatch, editor_state
+    ):
+        """A valid Edit-Mode plan cannot be applied after state changes or goes unknown."""
+        plan_id = self._insert_plan()
+        calls: list[str] = []
+
+        async def state_send(cmd, args, **kw):
+            calls.append(cmd)
+            if cmd == "editor":
+                return editor_state
+            raise AssertionError(f"batch/verify/save must not run: {cmd}")
+
+        monkeypatch.setattr(tr, "_send", state_send)
+        result = await tr.apply_scene_change(plan_id, "set_parent path=/A parent=/B")
+
+        assert result.startswith("state=FAILED")
+        assert "mutations=not attempted" in result
+        assert "verified=false (batch was not sent)" in result
+        assert "saved=false" in result
+        assert calls == ["editor"]
+
+    async def test_fresh_editor_state_exception_blocks_apply(self, monkeypatch):
+        plan_id = self._insert_plan()
+        calls: list[str] = []
+
+        async def failed_state(cmd, args, **kw):
+            calls.append(cmd)
+            raise ConnectionError("Unity disconnected")
+
+        monkeypatch.setattr(tr, "_send", failed_state)
+        result = await tr.apply_scene_change(plan_id, "set_parent path=/A parent=/B")
+
+        assert result.startswith("state=FAILED")
+        assert "editor state check failed (ConnectionError)" in result
+        assert calls == ["editor"]

@@ -104,7 +104,8 @@ namespace UnityMCP.Editor
                 return JsonHelper.FormatResponse(id, false, null, authError);
             if (IsCompiling() && !IsAllowedDuringCompile(cmd))
                 return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
-            if (IsPlayMode() && IsMutatingCommand(cmd, argsJson) && cmd != "set_parent")
+            if (IsPlayMode() && IsMutatingCommand(cmd, argsJson)
+                && !IsAllowedMutationInPlayMode(cmd, argsJson))
                 return JsonHelper.FormatResponse(id, false, null,
                     "Play mode active — changes will be lost. Stop play mode first.");
             if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))
@@ -120,6 +121,18 @@ namespace UnityMCP.Editor
         // editor excluded: play/stop/select don't corrupt scene data
         private static bool IsMutatingCommand(string cmd, string argsJson) =>
             CommandRegistry.IsMutating(cmd, argsJson);
+
+        // These mutations intentionally target the live Play Mode context. Keep
+        // this permission separate from read/write classification.
+        internal static bool IsAllowedMutationInPlayMode(string cmd, string argsJson = null)
+        {
+            if (cmd == "set_parent" || cmd == "execute_code" || cmd == "screenshot" ||
+                cmd == "wait_until")
+                return true;
+            if (cmd != "profile") return false;
+            var action = JsonHelper.ExtractString(argsJson, "action");
+            return action == "start" || action == "stop";
+        }
 
         public static string Process(string json)
         {

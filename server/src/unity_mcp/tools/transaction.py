@@ -12,6 +12,7 @@ import time as _time
 from ._annotations import RW as _RW
 from ._common import bind
 from .editor_state import is_play_mode as _is_play_mode
+from .editor_state import parse_editor_field as _parse_editor_field
 
 _send = None
 _args = None
@@ -138,6 +139,19 @@ def _preflight_atomic_commands(commands: str) -> str | None:
     return None
 
 
+def _fresh_edit_mode_error(data: str | None) -> str | None:
+    """Return a fail-closed reason unless a fresh state proves Edit Mode."""
+    playing = _parse_editor_field(data, "playing")
+    if playing is None:
+        return "editor state did not report playing=true|false"
+    normalized = playing.lower()
+    if normalized == "true":
+        return "Play Mode active"
+    if normalized != "false":
+        return f"unrecognized playing state '{playing}'"
+    return None
+
+
 def _broken_reference_count(data: str) -> int | None:
     """Parse current and legacy validate_references summaries; None means unchecked."""
     current = re.search(r"(\d+)\s+ERROR\b", data or "", re.IGNORECASE)
@@ -240,6 +254,23 @@ async def apply_scene_change(
         return (
             "state=FAILED\n"
             f"mutations=not attempted ({rejection})\n"
+            "verified=false (batch was not sent)\n"
+            "saved=false"
+        )
+
+    # A plan is only a snapshot. Re-check immediately before transport so an
+    # Edit→Play transition between planning and applying cannot mutate runtime
+    # state. Missing, malformed, or failed state responses are not proof of
+    # Edit Mode and therefore fail closed.
+    try:
+        editor_state = await _send("editor", {"action": "state"})
+        state_error = _fresh_edit_mode_error(editor_state)
+    except Exception as exc:
+        state_error = f"editor state check failed ({type(exc).__name__})"
+    if state_error:
+        return (
+            "state=FAILED\n"
+            f"mutations=not attempted ({state_error})\n"
             "verified=false (batch was not sent)\n"
             "saved=false"
         )

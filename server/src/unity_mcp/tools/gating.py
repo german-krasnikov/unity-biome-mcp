@@ -51,7 +51,7 @@ TIER1: set[str] = {name for name, spec in _SPECS.items() if spec.core or spec.ti
 _ALL_KNOWN: set[str] = {name for name, spec in _SPECS.items()
                         if spec.category != "_INTERNAL"}
 
-# Python-only tools: have no C# CommandRegistry handler; never sent to Unity.
+# Direct-call tools: exposed through typed MCP wrappers but rejected inside batch.
 _DIRECT_ONLY: frozenset[str] = frozenset(
     name for name, spec in _SPECS.items() if spec.direct_only
 )
@@ -234,6 +234,11 @@ async def discover_tools(category: str | None = None, enable: bool = True,
     names = sorted(CATEGORIES[category])
     if enable:
         _session_enabled.update(CATEGORIES[category])
+    if structured:
+        return "\n".join(
+            [f"Category '{category}':"]
+            + [_tool_surface_line(name) for name in names]
+        )
     return f"Category '{category}': {', '.join(names)}"
 
 

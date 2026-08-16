@@ -39,6 +39,7 @@ namespace UnityMCP.Editor
             // screenshot is intercepted in Process/ProcessAsync for file response formatting;
             // registered here only for IsRegistered/IsMutating queries
             CommandRegistry.Register("screenshot", _ => throw new InvalidOperationException("screenshot intercepted before ExecuteCommand"),
+                mutating: true,
                 required: "", optional: "width,height,camera,path,output_path,supersample,angles,zoom,offset,fixed_size,highlight,show_colliders,angle,annotation_id",
                 fileHandler: BuildScreenshotResponse,
                 specialDispatch: true, allowedDuringCompile: true);
@@ -317,6 +318,7 @@ namespace UnityMCP.Editor
                 required: "", optional: "type");
             CommandRegistry.Register("get_changes", args => ChangeWatcher.GetChanges(
                 JsonHelper.ExtractString(args, "clear") != "false"),
+                mutating: true,
                 required: "", optional: "clear");
             CommandRegistry.Register("resolve_test_request", args => TestRunner.ResolveRequest(
                     JsonHelper.ExtractString(args, "request_id")),
@@ -346,7 +348,7 @@ namespace UnityMCP.Editor
                 required: "queries", optional: "");
             CommandRegistry.Register("get_frame_stats", _ => ProfilerHelper.GetFrameStats(), runtime: true,
                 required: "", optional: "");
-            CommandRegistry.RegisterAction("profile", Profiling.ProfileRecorder.Dispatch, runtime: true,
+            CommandRegistry.RegisterAction("profile", Profiling.ProfileRecorder.Dispatch, mutating: true, runtime: true,
                 required: "", optional: "mode,duration,session,focus,compare_with");
             // NOTE: NOT runtime:true — sessions persist after Play Mode ends
             CommandRegistry.Register("get_profile_context", args =>
@@ -394,16 +396,19 @@ namespace UnityMCP.Editor
                 required: "action", optional: "path,target,distance,radius,component,cell_size,layer_mask,center,vertices,region_id,cap");
 #if UNITY_MODULE_AI || UNITY_AI_NAVIGATION
             CommandRegistry.Register("navmesh", NavMeshHelper.Execute,
+                mutating: true,
                 required: "action", optional: "center,max_distance,area_mask,from,to,agentRadius,agentHeight,agentClimb,agentSlope");
 #endif
 
-            // Code execution via Roslyn (non-mutating: allowed in Play Mode).
+            // Code execution via Roslyn can mutate arbitrary Unity/editor state. Its
+            // explicit Play Mode allowance is enforced separately from mutability.
             // execute_code only ever accepts "code" (required) + "undo_label" (optional) —
             // a structured contract, not free-form (Issue 23 review M7). The code BODY the
             // user submits is arbitrary C#, but the command's own args are fixed.
             CommandRegistry.Register("execute_code", args => CodeExecutor.Execute(
                 JsonHelper.ExtractString(args, "code"),
                 JsonHelper.ExtractString(args, "undo_label") ?? "execute_code"),
+                mutating: true,
                 required: "code", optional: "undo_label",
                 allowedDuringCompile: true);  // T2.5: ReloadGuard probe must work when wedged
             // Both file_path and new_content are required — a preflight check needs the file
@@ -613,7 +618,7 @@ namespace UnityMCP.Editor
                 required: "request_id", optional: "mode,filter,group");
             CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "", optional: "questions",
                 alwaysAllowed: true, allowedDuringCompile: true);  // UI-only card, no assembly access
-            CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, runtime: true,
+            CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, mutating: true, runtime: true,
                 required: "path,component,field,value", optional: "timeout,negate,abort_on_fail");
             CommandRegistry.RegisterAsync("move_to", AsyncMoveTo, runtime: true,
                 required: "path,position", optional: "timeout");

@@ -155,6 +155,20 @@ async def test_debug_gather_strips_whitespace():
 
 
 @pytest.mark.asyncio
+async def test_debug_rejects_screenshot_gather_before_transport():
+    from mcp.server.fastmcp.exceptions import ToolError
+    import unity_mcp.tools.debug_tool as mod
+
+    mock_send = AsyncMock(return_value="must not be reached")
+    mod._send = mock_send
+
+    with pytest.raises(ToolError, match="direct typed call"):
+        await mod.debug(gather="inspect, screenshot", path="/Player")
+
+    mock_send.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_debug_returns_string():
     import unity_mcp.tools.debug_tool as mod
     mod._send = AsyncMock(return_value="data")

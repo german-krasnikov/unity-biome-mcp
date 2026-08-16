@@ -48,7 +48,7 @@ namespace UnityMCP.Editor.Chat.Tests
 
             // Second call: result arrived — must still render
             card.OnUpdate(chip, new ToolCallRecord("get_hierarchy", "id-1", "{}",
-                resultText: "PlayerShip $A1B2C3"));
+                resultText: "PlayerShip &1"));
             Assert.IsTrue(chip.ClassListContains("hierarchy-rendered"),
                 "Marker set after render");
             Assert.IsTrue(chip.childCount > 0,
@@ -75,11 +75,11 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void OnUpdate_SingleNode_OneRowWithHierarchyNodeClass()
         {
-            // "Main Camera $AABBCC" — typical root node from a Unity scene
+            // Typical root node from a Unity scene.
             var card = new HierarchyCard();
             var chip = new VisualElement();
             var rec  = new ToolCallRecord("get_hierarchy", "id-3", "{}",
-                resultText: "Main Camera $AABBCC");
+                resultText: "Main Camera &1");
             card.OnUpdate(chip, rec);
             Assert.AreEqual(1, chip.childCount, "Exactly one child for single node");
             Assert.IsTrue(chip[0].ClassListContains("hierarchy-node"),
@@ -92,12 +92,12 @@ namespace UnityMCP.Editor.Chat.Tests
             var card = new HierarchyCard();
             var chip = new VisualElement();
             var rec  = new ToolCallRecord("get_hierarchy", "id-4", "{}",
-                resultText: "Directional Light $D1E2F3");
+                resultText: "Directional Light &2");
             card.OnUpdate(chip, rec);
             var label = chip[0].Q<Label>();
             Assert.IsNotNull(label, "Node row must contain a Label");
             Assert.AreEqual("Directional Light", label.text,
-                "Label text must match object name (no hex ref or flags)");
+                "Label text must match object name (no reference or flags)");
         }
 
         // ── Inactive object styling ────────────────────────────────────────────
@@ -108,7 +108,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var card = new HierarchyCard();
             var chip = new VisualElement();
             var rec  = new ToolCallRecord("get_hierarchy", "id-5", "{}",
-                resultText: "DisabledEnemy $E3F4G5 !");
+                resultText: "DisabledEnemy &3 !");
             card.OnUpdate(chip, rec);
             Assert.IsTrue(chip[0].ClassListContains("hierarchy-inactive"),
                 "Inactive object row must have 'hierarchy-inactive' CSS class");
@@ -123,21 +123,62 @@ namespace UnityMCP.Editor.Chat.Tests
             var card = new HierarchyCard();
             var chip = new VisualElement();
             var rec  = new ToolCallRecord("get_hierarchy", "id-6", "{}",
-                resultText: "[GameLevel]\nPlayerObject $F5G6H7");
+                resultText: "[GameLevel]\nPlayerObject &4");
             card.OnUpdate(chip, rec);
             Assert.GreaterOrEqual(chip.childCount, 1, "At least the header row");
             Assert.IsTrue(chip[0].ClassListContains("hierarchy-scene-header"),
                 "Scene header row must have 'hierarchy-scene-header' CSS class");
         }
 
-        // ── 20-node truncation ─────────────────────────────────────────────────
+        [Test]
+        public void OnUpdate_SingleSceneSummary_RendersRawSummary()
+        {
+            const string result =
+                "SampleScene (1 nodes)\n" +
+                "  Player &1\n";
+            var card = new HierarchyCard();
+            var chip = new VisualElement();
+            var rec = new ToolCallRecord("get_hierarchy", "summary-1",
+                "{\"summary\":true}", resultText: result);
+
+            card.OnUpdate(chip, rec);
+
+            var summary = chip.Q<Label>(className: "hierarchy-summary");
+            Assert.IsNotNull(summary, "A summary response must not render as a blank card");
+            Assert.AreEqual(result.TrimEnd(), summary.text);
+        }
+
+        [Test]
+        public void OnUpdate_MultiSceneSummary_RendersAllScenesRaw()
+        {
+            const string result =
+                "[SceneA] (1 nodes)\n" +
+                "  RootA\n" +
+                "[SceneB] (1 nodes)\n" +
+                "  RootB\n";
+            var card = new HierarchyCard();
+            var chip = new VisualElement();
+            var rec = new ToolCallRecord("get_hierarchy", "summary-2",
+                "{\"summary\":\"true\"}", resultText: result);
+
+            card.OnUpdate(chip, rec);
+
+            var summary = chip.Q<Label>(className: "hierarchy-summary");
+            Assert.IsNotNull(summary, "A multi-scene summary must not render as a blank card");
+            StringAssert.Contains("[SceneA]", summary.text);
+            StringAssert.Contains("RootA", summary.text);
+            StringAssert.Contains("[SceneB]", summary.text);
+            StringAssert.Contains("RootB", summary.text);
+        }
+
+        // ── 20-entry truncation ────────────────────────────────────────────────
 
         [Test]
         public void OnUpdate_TwentyFiveNodes_Shows20RowsPlusShowMore()
         {
             var sb = new System.Text.StringBuilder();
             for (int i = 0; i < 25; i++)
-                sb.AppendLine($"Object{i:D2} $A{i:D6}");
+                sb.AppendLine($"Object{i:D2} &{i + 1}");
 
             var card = new HierarchyCard();
             var chip = new VisualElement();
@@ -158,7 +199,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var sb = new System.Text.StringBuilder();
             for (int i = 0; i < 25; i++)
-                sb.AppendLine($"Object{i:D2} $A{i:D6}");
+                sb.AppendLine($"Object{i:D2} &{i + 1}");
 
             var card = new HierarchyCard();
             var chip = new VisualElement();
@@ -168,8 +209,36 @@ namespace UnityMCP.Editor.Chat.Tests
 
             var showMore = chip.Q<Label>(className: "hierarchy-show-more");
             Assert.IsNotNull(showMore, "show-more label must exist");
-            Assert.IsTrue(showMore.text.Contains("5"),
-                "Label text must mention '5' (the remaining count)");
+            StringAssert.Contains("5 more entries", showMore.text,
+                "Label must describe the remaining capped hierarchy entries");
+        }
+
+        [Test]
+        public void OnUpdate_MultiSceneCap_CountsHeadersAndObjectsAsEntries()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("[SceneA]");
+            for (int i = 0; i < 10; i++)
+                sb.AppendLine($"SceneAObject{i:D2} &A{i}");
+            sb.AppendLine("[SceneB]");
+            for (int i = 0; i < 11; i++)
+                sb.AppendLine($"SceneBObject{i:D2} &B{i}");
+
+            var card = new HierarchyCard();
+            var chip = new VisualElement();
+            var rec = new ToolCallRecord("get_hierarchy", "id-multi-cap", "{}",
+                resultText: sb.ToString());
+            card.OnUpdate(chip, rec);
+
+            Assert.AreEqual(2,
+                chip.Query(className: "hierarchy-scene-header").ToList().Count,
+                "Both scene headers are among the first 20 entries");
+            Assert.AreEqual(18, chip.Query(className: "hierarchy-node").ToList().Count,
+                "The entry cap includes two headers and eighteen object rows");
+            var showMore = chip.Q<Label>(className: "hierarchy-show-more");
+            Assert.IsNotNull(showMore);
+            StringAssert.Contains("3 more entries", showMore.text,
+                "The remaining count includes every hidden hierarchy entry");
         }
 
         // ── Idempotency ────────────────────────────────────────────────────────
@@ -180,7 +249,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var card = new HierarchyCard();
             var chip = new VisualElement();
             var rec  = new ToolCallRecord("get_hierarchy", "id-9", "{}",
-                resultText: "RootObject $G6H7I8");
+                resultText: "RootObject &5");
             card.OnUpdate(chip, rec);
             card.OnUpdate(chip, rec); // second call must be no-op
             Assert.AreEqual(1, chip.childCount,
@@ -205,19 +274,19 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Nav binding ────────────────────────────────────────────────────────
 
         [Test]
-        public void OnUpdate_NodeWithHexRef_HasNavBinding_NoNoNavClass()
+        public void OnUpdate_NodeWithCompactReference_HasNavBinding_NoNoNavClass()
         {
-            // Node with valid hex ref → click handler wired, no --no-nav class.
+            // Node with a canonical reference → click handler wired, no --no-nav class.
             // RED B: if NavBindingHelper.Attach is removed, the --no-nav class would be added.
             var card = new HierarchyCard();
             var chip = new VisualElement();
             var rec  = new ToolCallRecord("get_hierarchy", "id-11", "{}",
-                resultText: "PlayerCharacter $A1B2C3");
+                resultText: "PlayerCharacter &6");
             card.OnUpdate(chip, rec);
             var row = chip.Q(className: "hierarchy-node");
             Assert.IsNotNull(row, "Node row must exist");
             Assert.IsFalse(row.ClassListContains("hierarchy-node--no-nav"),
-                "Node with hex ref must have nav binding (no --no-nav class)");
+                "Node with compact reference must have nav binding (no --no-nav class)");
         }
 
         // ── Grouper bypass: real HierarchyCard triggers card-chip ─────────────
@@ -232,7 +301,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void OnUpdate_TruncatedResultMidLine_DoesNotCrash_RendersAvailableNodes()
         {
             // Simulate T0.1 truncation cutting mid-line before a valid node
-            var input = "Main Camera $AABBCC\nDirectional Light $DDEEFF\n│  └─ Partial";
+            var input = "Main Camera &1\nDirectional Light &2\n│  └─ Partial";
             var card  = new HierarchyCard();
             var chip  = new VisualElement();
             var rec   = new ToolCallRecord("get_hierarchy", "id-12", "{}",

@@ -61,7 +61,9 @@ namespace UnityMCP.Editor
         {
             _refToObj.Clear();
             _objectToRef.Clear();
-            _counter = 0;
+            // Compact references can outlive this cache in rendered chat results. Keep
+            // the counter monotonic so an invalidated reference cannot alias a newly
+            // assigned object later in the same Editor process.
         }
 
         public static void Prune()

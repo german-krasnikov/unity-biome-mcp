@@ -50,11 +50,7 @@ namespace UnityMCP.Editor
         {
             if (!string.IsNullOrEmpty(outputPath))
             {
-                var fullPath = Path.GetFullPath(outputPath);
-                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."))
-                    + Path.DirectorySeparatorChar;
-                if (!fullPath.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
-                    throw new ArgumentException($"outputPath must be within project (e.g. 'ScreenShots/my.png'): {outputPath}");
+                var fullPath = ValidatePngOutputPath(outputPath);
                 var dir = Path.GetDirectoryName(fullPath);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
@@ -65,6 +61,19 @@ namespace UnityMCP.Editor
             var path = Path.Combine(ScreenshotsDir, $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{prefix}.png");
             File.WriteAllBytes(path, pngData);
             return path;
+        }
+
+        internal static string ValidatePngOutputPath(string outputPath)
+        {
+            if (string.IsNullOrEmpty(outputPath)) return null;
+            if (!Path.GetExtension(outputPath).Equals(".png", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException($"outputPath must end in .png: {outputPath}");
+            var fullPath = Path.GetFullPath(outputPath);
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."))
+                + Path.DirectorySeparatorChar;
+            if (!fullPath.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException($"outputPath must be within project (e.g. 'ScreenShots/my.png'): {outputPath}");
+            return fullPath;
         }
 
         public static void CleanupScreenshots(int keepCount = 20)

@@ -37,6 +37,15 @@ _RUNTIME_ONLY_CMDS.add("watch_add")
 _RUNTIME_ONLY_CMDS.add("set_runtime_property")
 WRITE_CMDS.add("set_runtime_property")
 
+# navmesh_query delegates to the conditional C# command name "navmesh".
+# Keep the raw transport alias fail-closed as a write-capable command too.
+WRITE_CMDS.add("navmesh")
+
+# These commands require write authorization because they create project-local
+# artifacts, but they do not change Unity scene state. Keep that distinction
+# explicit for scene-cache invalidation and scene-mutation guidance.
+SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = frozenset({"screenshot"})
+
 # editor actions that are reads; all others (play/stop/pause/step/select) are writes
 _EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})
 
@@ -53,7 +62,7 @@ ACTION_READS: dict[str, frozenset[str]] = {
     "prefab":            frozenset({"get_overrides"}),
     "scriptable_object": frozenset({"get", "list_types", "find"}),
     "asset":             frozenset({"find", "get_info", "validate_move", "get_dependencies",
-                                    "find_dependents", "export_package"}),
+                                    "find_dependents"}),
     "scene":             frozenset({"list"}),
     "project_settings":  frozenset({"get"}),
     "menu":              frozenset({"list"}),
@@ -62,6 +71,9 @@ ACTION_READS: dict[str, frozenset[str]] = {
     "package":           frozenset({"list", "search"}),
     "scene_environment": frozenset({"get"}),
     "uitk_file":         frozenset({"read"}),
+    "navmesh":           frozenset({"sample", "path", "raycast", "status", "get_settings"}),
+    "navmesh_query":     frozenset({"sample", "path", "raycast", "status", "get_settings"}),
+    "profile":           frozenset({"status", "analyze", "compare", "list_sessions"}),
 }
 
 
@@ -78,6 +90,16 @@ def is_write(cmd: str, args: dict | None = None) -> bool:
     # discovery files. Treat unknown truthy values conservatively as writes.
     if cmd == "doctor":
         return bool((args or {}).get("fix", False))
+    if cmd == "wait_until":
+        # Missing/false is observational. Any other value is conservative: the
+        # Unity handler may stop Play Mode after a timeout.
+        return (args or {}).get("abort_on_fail", False) not in (False, "false")
+    if cmd == "get_metrics":
+        # Python-local counter consumption; malformed values fail closed.
+        return (args or {}).get("reset", False) not in (False, "false")
+    if cmd == "get_changes":
+        # Unity defaults clear=True. Only an explicit false is non-consuming.
+        return (args or {}).get("clear", True) not in (False, "false")
     reads = ACTION_READS.get(cmd)
     if reads is None:
         return True  # plain write cmd, no action map

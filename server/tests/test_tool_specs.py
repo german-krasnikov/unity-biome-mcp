@@ -9,6 +9,8 @@ def test_tool_spec_is_frozen_dataclass_with_defaults():
     assert spec.core is False
     assert spec.tier1 is False
     assert spec.timeout_s == 30.0
+    assert spec.direct_only is False
+    assert spec.unity_transport is False
     with pytest.raises(Exception):  # frozen dataclass rejects mutation
         spec.category = "OTHER"
 
@@ -108,5 +110,32 @@ def test_side_effecting_playtest_and_baseline_tools_are_writes():
 
     for name in (
         "test_step", "run_playtest", "run_playtest_suite", "screenshot_baseline",
+    ):
+        assert _SPECS[name].mutability == "write", name
+
+
+def test_navmesh_query_is_mixed_but_fail_closed_as_write():
+    from unity_mcp.tools.tool_specs import _SPECS
+
+    assert _SPECS["navmesh_query"].mutability == "write"
+
+
+def test_non_batchable_unity_wrappers_are_direct_transport_tools():
+    from unity_mcp.tools.tool_specs import _SPECS
+
+    for name in (
+        "ask_user", "run_tests", "wait_until", "move_to", "test_step",
+        "run_playtest", "build", "package", "screenshot", "uitk_file",
+    ):
+        assert _SPECS[name].direct_only, name
+        assert _SPECS[name].unity_transport, name
+
+
+def test_conditional_and_file_side_effect_tools_fail_closed_as_write():
+    from unity_mcp.tools.tool_specs import _SPECS
+
+    for name in (
+        "wait_until", "get_metrics", "get_changes", "screenshot",
+        "screenshot_compare", "profile",
     ):
         assert _SPECS[name].mutability == "write", name

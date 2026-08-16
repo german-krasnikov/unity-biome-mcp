@@ -225,6 +225,54 @@ async def test_pipeline_raises_tool_error_on_readonly_write():
         await wrapped("set_property", {"path": "/A", "component": "C", "prop": "x", "value": "1"})
 
 
+@pytest.mark.parametrize(
+    "cmd,args",
+    [
+        ("navmesh", {"action": "bake"}),
+        ("navmesh", {"action": "clear"}),
+        ("navmesh", {"action": "set_settings"}),
+        ("wait_until", {"abort_on_fail": "true"}),
+        ("get_changes", {"clear": "true"}),
+        ("asset", {"action": "export_package", "output": "Assets/x.unitypackage"}),
+        ("screenshot", {"output_path": "ScreenShots/probe.png"}),
+        ("screenshot_compare", {"name": "baseline"}),
+        ("profile", {"action": "start"}),
+        ("profile", {"action": "stop"}),
+    ],
+)
+async def test_pipeline_blocks_conditional_or_file_writes_before_transport(cmd, args):
+    send = AsyncMock(return_value="ok")
+    mw = Middleware()
+    mw.is_read_only = True
+    wrapped = wrap_send(send, mw)
+
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await wrapped(cmd, args)
+
+    send.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "cmd,args",
+    [
+        ("navmesh", {"action": "status"}),
+        ("wait_until", {"abort_on_fail": "false"}),
+        ("get_changes", {"clear": "false"}),
+        ("profile", {"action": "status"}),
+        ("profile", {"action": "analyze"}),
+    ],
+)
+async def test_pipeline_allows_conditional_reads(cmd, args):
+    send = AsyncMock(return_value="ok")
+    mw = Middleware()
+    mw.is_read_only = True
+    wrapped = wrap_send(send, mw)
+
+    await wrapped(cmd, args)
+
+    send.assert_awaited_once()
+
+
 async def test_send_raw_allows_read_action_in_readonly_env():
     """P-420: _send_raw must allow scene_environment(action=get) in RO mode."""
     bridge = _make_bridge()
@@ -233,6 +281,24 @@ async def test_send_raw_allows_read_action_in_readonly_env():
         with patch.dict(os.environ, {"UNITY_MCP_READ_ONLY": "1"}):
             await _send_raw("scene_environment", {"action": "get"})
     bridge.send.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "cmd,args",
+    [
+        ("asset", {"action": "export_package", "output": "Assets/x.unitypackage"}),
+        ("navmesh", {"action": "bake"}),
+        ("screenshot", {"output_path": "ScreenShots/probe.png"}),
+    ],
+)
+async def test_send_raw_blocks_newly_classified_writes_in_readonly_env(cmd, args):
+    bridge = _make_bridge()
+    slot = _make_slot(bridge)
+    with patch("unity_mcp.server.slot", slot):
+        with patch.dict(os.environ, {"UNITY_MCP_READ_ONLY": "1"}):
+            with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+                await _send_raw(cmd, args)
+    bridge.send.assert_not_called()
 
 
 # ── P-422: Python-local file writes must respect read-only ───────────────────

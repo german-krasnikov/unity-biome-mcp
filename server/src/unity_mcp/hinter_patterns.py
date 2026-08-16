@@ -4,13 +4,12 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .middleware import WRITE_CMDS as _WRITE_CMDS
-
 
 @dataclass(frozen=True)
 class Call:
     cmd: str
     key: tuple
+    mutates: bool
 
 
 @dataclass(frozen=True)
@@ -37,11 +36,6 @@ def _key(cmd: str, args: dict) -> tuple:
     if cmd in ("get_console", "recompile", "get_compile_errors"):
         return (cmd,)
     return (cmd,)
-
-
-def _write_between(recent: deque) -> bool:
-    """True if any write cmd appears in recent."""
-    return any(c.cmd in _WRITE_CMDS for c in recent)
 
 
 def _count_cmd_in_window(recent: deque, cmd: str, n: int) -> int:
@@ -83,10 +77,21 @@ def _pred_screenshot_spam(recent: deque, call: Call) -> bool:
     if call.cmd != "screenshot":
         return False
     window = list(recent)[-8:]
-    if sum(1 for c in window if c.cmd == "screenshot") < 2:
-        return False
-    # No write between screenshots
-    return not _write_between(deque(window))
+    # Screenshot writes an artifact but does not change the scene whose visual
+    # state this hint tracks. A non-capture write resets the sequence, so only
+    # screenshots after the most recent such write contribute to the hint.
+    last_write = max(
+        (
+            index
+            for index, recent_call in enumerate(window)
+            if recent_call.mutates and recent_call.cmd != "screenshot"
+        ),
+        default=-1,
+    )
+    return sum(
+        1 for recent_call in window[last_write + 1 :]
+        if recent_call.cmd == "screenshot"
+    ) >= 2
 
 
 def _pred_console_poll(recent: deque, call: Call) -> bool:

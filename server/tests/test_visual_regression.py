@@ -69,6 +69,21 @@ async def test_screenshot_compare_no_baseline(tmp_path, mock_bridge):
     assert "screenshot_baseline" in result
 
 
+async def test_screenshot_compare_blocks_capture_in_read_only(
+    tmp_path, mock_bridge, monkeypatch
+):
+    baseline_dir = tmp_path / ".claude" / "baselines"
+    baseline_dir.mkdir(parents=True)
+    Image.new("RGB", (2, 2), (0, 0, 0)).save(baseline_dir / "default.png")
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+
+    with patch("unity_mcp.tools.scene.os.getcwd", return_value=str(tmp_path)):
+        with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+            await screenshot_compare("default")
+
+    mock_bridge.send.assert_not_awaited()
+
+
 @pytest.mark.parametrize("name", ["", "../outside", "folder/name", r"folder\name"])
 async def test_screenshot_baseline_rejects_unsafe_name_before_capture(name, mock_bridge):
     with pytest.raises(ToolError, match="Invalid baseline name"):

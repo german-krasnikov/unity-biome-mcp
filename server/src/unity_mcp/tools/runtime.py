@@ -120,7 +120,8 @@ async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
     ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value |
     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |
     CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED.
-    defs: inline VAL definitions prepended to script."""
+    defs: inline VAL definitions prepended to script.
+    abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown."""
     if script and path:
         raise ValueError("script and path are mutually exclusive")
     if not script and not path:

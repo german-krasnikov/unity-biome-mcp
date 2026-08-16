@@ -99,7 +99,8 @@ namespace UnityMCP.Editor
                 }
 
                 // Play Mode guards
-                if (IsPlayMode() && CommandRegistry.IsMutating(cmd, argsJson) && cmd != "set_parent")
+                if (IsPlayMode() && CommandRegistry.IsMutating(cmd, argsJson)
+                    && !CommandRouter.IsAllowedMutationInPlayMode(cmd, argsJson))
                 {
                     sb.AppendLine($"[{i}] BLOCKED: '{cmd}' is mutating, skipped in Play Mode");
                     if (AtomicFail(i)) break; else continue;

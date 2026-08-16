@@ -11,17 +11,20 @@ namespace UnityMCP.Editor.Tests
     public class CommandRouterReadOnlyTests : SceneTestBase
     {
         private Func<bool> _savedIsReadOnly;
+        private Func<bool> _savedIsPlayMode;
 
         [SetUp]
         public void SetUpReadOnly()
         {
             _savedIsReadOnly = CommandRouter.IsReadOnly;
+            _savedIsPlayMode = CommandRouter.IsPlayMode;
         }
 
         [TearDown]
         public void TearDownReadOnly()
         {
             CommandRouter.IsReadOnly = _savedIsReadOnly;
+            CommandRouter.IsPlayMode = _savedIsPlayMode;
         }
 
         [Test]
@@ -88,6 +91,98 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("file not found", read, read);
             StringAssert.Contains("READ_ONLY_BLOCKED", write, write);
         }
+
+        [TestCase("execute_code", "{\"code\":\"return null;\"}")]
+        [TestCase("screenshot", "{\"output_path\":\"ScreenShots/ReadOnlyProbe.png\"}")]
+        [TestCase("wait_until", "{\"path\":\"/A\",\"component\":\"C\",\"field\":\"f\",\"value\":\"v\",\"abort_on_fail\":\"true\"}")]
+        [TestCase("get_changes", "{\"clear\":\"true\"}")]
+        [TestCase("profile", "{\"action\":\"start\"}")]
+        [TestCase("profile", "{\"action\":\"stop\"}")]
+        public void Process_ReadOnly_BlocksConditionalAndFileMutations(string cmd, string argsJson)
+        {
+            CommandRouter.IsReadOnly = () => true;
+            // Runtime mutations need Play Mode to reach the read-only guard. get_changes
+            // is editor state, so keep it in Edit Mode and avoid the earlier Play guard.
+            CommandRouter.IsPlayMode = () => cmd != "get_changes";
+
+            var result = CommandRouter.Process(
+                $"{{\"id\":\"ro-conditional\",\"cmd\":\"{cmd}\",\"args\":{argsJson}}}");
+
+            StringAssert.Contains("READ_ONLY_BLOCKED", result, result);
+        }
+
+        [TestCase("wait_until", "{\"path\":\"/A\",\"component\":\"C\",\"field\":\"f\",\"value\":\"v\",\"abort_on_fail\":\"false\"}")]
+        [TestCase("get_changes", "{\"clear\":\"false\"}")]
+        [TestCase("profile", "{\"action\":\"status\"}")]
+        public void Process_ReadOnly_DoesNotBlockConditionalReads(string cmd, string argsJson)
+        {
+            CommandRouter.IsReadOnly = () => true;
+            CommandRouter.IsPlayMode = () => true;
+
+            if (cmd == "wait_until")
+                UnityEngine.TestTools.LogAssert.Expect(
+                    UnityEngine.LogType.Error,
+                    new System.Text.RegularExpressions.Regex(
+                        "Command failed: STATE: wait_until requires async dispatch"));
+
+            var result = CommandRouter.Process(
+                $"{{\"id\":\"ro-read\",\"cmd\":\"{cmd}\",\"args\":{argsJson}}}");
+
+            StringAssert.DoesNotContain("READ_ONLY_BLOCKED", result, result);
+        }
+
+        [TestCase("execute_code", "{\"code\":\"return null;\"}")]
+        [TestCase("screenshot", "{\"output_path\":\"ScreenShots/ReadOnlyAsyncProbe.png\"}")]
+        [TestCase("wait_until", "{\"path\":\"/A\",\"component\":\"C\",\"field\":\"f\",\"value\":\"v\",\"abort_on_fail\":\"true\"}")]
+        public async Task ProcessAsync_ReadOnly_BlocksBeforeDispatch(string cmd, string argsJson)
+        {
+            CommandRouter.IsReadOnly = () => true;
+            CommandRouter.IsPlayMode = () => true;
+            var tcs = new TaskCompletionSource<string>();
+
+            CommandRouter.ProcessAsync(
+                $"{{\"id\":\"ro-async\",\"cmd\":\"{cmd}\",\"args\":{argsJson}}}",
+                tcs);
+            var result = await tcs.Task;
+
+            StringAssert.Contains("READ_ONLY_BLOCKED", result, result);
+        }
+
+#if UNITY_MODULE_AI || UNITY_AI_NAVIGATION
+        [TestCase("sample", false)]
+        [TestCase("path", false)]
+        [TestCase("raycast", false)]
+        [TestCase("status", false)]
+        [TestCase("get_settings", false)]
+        [TestCase("bake", true)]
+        [TestCase("clear", true)]
+        [TestCase("set_settings", true)]
+        [TestCase("future", true)]
+        public void Process_ReadOnly_NavMeshUsesActionMutability(string action, bool blocked)
+        {
+            CommandRouter.IsReadOnly = () => true;
+            var result = CommandRouter.Process(
+                $"{{\"id\":\"ro-nav\",\"cmd\":\"navmesh\",\"args\":{{\"action\":\"{action}\"}}}}");
+
+            Assert.AreEqual(blocked, result.Contains("READ_ONLY_BLOCKED"), result);
+        }
+
+        [TestCase("status", false)]
+        [TestCase("bake", true)]
+        [TestCase("future", true)]
+        public async Task ProcessAsync_ReadOnly_NavMeshUsesActionMutability(
+            string action, bool blocked)
+        {
+            CommandRouter.IsReadOnly = () => true;
+            var tcs = new TaskCompletionSource<string>();
+            CommandRouter.ProcessAsync(
+                $"{{\"id\":\"ro-nav-async\",\"cmd\":\"navmesh\",\"args\":{{\"action\":\"{action}\"}}}}",
+                tcs);
+            var result = await tcs.Task;
+
+            Assert.AreEqual(blocked, result.Contains("READ_ONLY_BLOCKED"), result);
+        }
+#endif
 
         [Test]
         public void GetStatus_ContainsReadOnlyField()

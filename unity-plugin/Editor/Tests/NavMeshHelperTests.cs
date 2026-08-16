@@ -60,6 +60,29 @@ namespace UnityMCP.Editor.Tests
             Assert.That(raycast, Does.Not.StartWith("ERR"));
         }
 
+        [TestCase("sample", false)]
+        [TestCase("path", false)]
+        [TestCase("raycast", false)]
+        [TestCase("status", false)]
+        [TestCase("get_settings", false)]
+        [TestCase("bake", true)]
+        [TestCase("clear", true)]
+        [TestCase("set_settings", true)]
+        [TestCase("future", true)]
+        [TestCase("STATUS", true)]
+        public void RegistryMutability_IsActionAwareAndConservative(string action, bool expected)
+        {
+            Assert.AreEqual(
+                expected,
+                CommandRegistry.IsMutating("navmesh", $"{{\"action\":\"{action}\"}}"));
+        }
+
+        [Test]
+        public void RegistryMutability_MissingAction_IsMutating()
+        {
+            Assert.IsTrue(CommandRegistry.IsMutating("navmesh", "{}"));
+        }
+
         // ── Pipeline gap: get_settings / set_settings ─────────────────────────
 
         [Test]

@@ -4,7 +4,11 @@ import pytest
 import unity_mcp.tools.transaction as tr
 
 
+_EDIT_MODE_STATE = "playing:False\npaused:False\ncompiling:False"
+
+
 async def _ok_send(cmd, args, **kw):
+    if cmd == "editor": return _EDIT_MODE_STATE
     if cmd == "batch": return "ok:3"
     if cmd == "validate_references": return "0 broken"
     if cmd == "get_console": return ""

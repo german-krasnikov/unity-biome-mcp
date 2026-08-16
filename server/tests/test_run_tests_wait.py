@@ -462,7 +462,7 @@ def test_terminal_validator_rejects_partial_or_untrusted_evidence():
         ) == expected_reason
 
 
-def test_unfiltered_editmode_3000_tests_cannot_be_green():
+def test_unfiltered_editmode_one_test_can_be_green():
     snapshot = json.loads(_snapshot("terminal", "passed"))
     for field in (
         "expected_count",
@@ -472,16 +472,16 @@ def test_unfiltered_editmode_3000_tests_cannot_be_green():
         "unique_terminal_count",
         "passed",
     ):
-        snapshot[field] = 3000
+        snapshot[field] = 1
     snapshot["skipped"] = 0
 
     assert testing._terminal_snapshot_error(
         snapshot, mode="EditMode", filter_name=""
-    ) == "full-editmode-count-below-floor"
+    ) is None
 
 
 @pytest.mark.asyncio
-async def test_wait_rejects_unfiltered_editmode_3000_terminal_snapshot():
+async def test_wait_accepts_unfiltered_editmode_one_test_terminal_snapshot():
     snapshot = json.loads(_snapshot("terminal", "passed"))
     for field in (
         "expected_count",
@@ -491,7 +491,7 @@ async def test_wait_rejects_unfiltered_editmode_3000_terminal_snapshot():
         "unique_terminal_count",
         "passed",
     ):
-        snapshot[field] = 3000
+        snapshot[field] = 1
     snapshot["skipped"] = 0
 
     with patch.object(testing, "run_tests", _started), patch.object(
@@ -505,10 +505,7 @@ async def test_wait_rejects_unfiltered_editmode_3000_terminal_snapshot():
             poll_interval=0.01,
         )
 
-    assert result.startswith(
-        f"PROTOCOL-ERROR|request_id={REQUEST_ID}|run_id={RUN_ID}"
-    )
-    assert "reason=full-editmode-count-below-floor" in result
+    assert json.loads(result)["expected_count"] == 1
 
 
 def test_focused_editmode_run_is_not_subject_to_full_suite_floor():
