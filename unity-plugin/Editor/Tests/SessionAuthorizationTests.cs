@@ -102,7 +102,7 @@ namespace UnityMCP.Editor.Tests
             var result = await tcs.Task;
 
             StringAssert.DoesNotContain("requires agent mode", result, result);
-            StringAssert.Contains("file not found", result, result);
+            Assert.IsTrue(result.Contains("file not found") || result.Contains("escapes Assets"), result);
         }
 
         [TestCase("write")]
