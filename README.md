@@ -202,7 +202,7 @@ The external path is `MCP client -> Python MCP server -> localhost TCP -> Unity 
 
 ## AI Skills
 
-The Unity package includes 11 reusable domain skills and 4 focused agents for
+The Unity package includes 12 reusable domain skills and 4 focused agents for
 Claude Code and Codex. They cover efficient MCP tool selection, batching,
 Unity authoring, playtesting, diagnostics, and evidence-based verification.
 
@@ -221,13 +221,13 @@ The values below are generated from registrations, pytest collection, Unity test
 
 ## Unity MCP Product Comparison
 
-Verified July 29, 2026:
+Verified August 16, 2026:
 
-- **Unity Biome MCP:** deterministic PlayTest DSL and visual baseline/diff workflows.
-- **Unity MCP Server:** first-party local bridge, connection approval, and multi-client support.
-- **MCP for Unity:** Unity 2021.3 compatibility and authenticated remote hosting.
-- **AI Game Developer:** compiled-player runtime support plus local, HTTP, cloud, and Docker deployment.
-- **MCP Unity:** optional Unity Undo rollback for batch operations and an interactive MCP App dashboard.
+- **Unity Biome MCP:** 160 registered tools, deterministic PlayTest DSL, and visual baseline/diff workflows.
+- **Unity MCP Server 2.17:** first-party local bridge, connection approval, and multi-client support.
+- **MCP for Unity 10.1.2:** Unity 2021.3 compatibility, 47 tool entrypoints, and authenticated remote hosting.
+- **AI Game Developer 0.87.0:** compiled-player runtime plus local, HTTP, cloud, and Docker deployment.
+- **MCP Unity:** 33 listed tools, optional Undo rollback for batches, and an MCP App dashboard.
 
 The detailed matrix cites exact source commits or versioned official documentation
 and records constraints as well as strengths.

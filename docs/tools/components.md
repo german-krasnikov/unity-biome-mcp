@@ -1,199 +1,141 @@
-# Event Wiring Tools
+# Component events
 
-Connect and disconnect UnityEvent persistent listeners. Wire UI buttons to methods, trigger events, and manage event callbacks without manual serialization.
+`wire_event`, `list_events`, and `unwire_event` manage **persistent listeners on
+serialized `UnityEvent` fields**. They do not turn ordinary Unity callbacks such
+as `OnTriggerEnter` into events.
 
-## list_events
+Enable the `COMPONENTS` category before using these tools.
 
-List all UnityEvent persistent listeners on a component.
+<span id="list_events"></span>
 
-**Parameters:**
-- `path` (string) — Scene path to GameObject
-- `component` (string) — Component type (e.g., "Button", "Toggle", "MyScript")
-- `event` (string) — Event field name (e.g., "onClick", "onValueChanged")
+## Inspect listeners first
 
-**Output:** Array of persistent listeners with target GameObject, method name, and parameter details.
-
-**Example:**
+Read the current listener list before changing it:
 
 ```python
-# List Button click listeners
-listeners = await list_events(path="Canvas/PlayButton", component="Button", event="onClick")
-
-# List Toggle value change listeners
-listeners = await list_events(path="Canvas/SoundToggle", component="Toggle", event="onValueChanged")
-
-# Check custom script events
-listeners = await list_events(path="GameManager", component="GameManager", event="onGameStart")
+listeners = await list_events(
+    path="/Canvas/StartButton",
+    component="Button",
+    event="onClick",
+)
 ```
 
----
+The response includes the zero-based listener index, target path and type,
+method, call state, and any static argument. An empty event reports zero
+listeners.
 
-## wire_event
+Use the serialized event-field name. Built-in components commonly use names
+such as `onClick` and `onValueChanged`; custom scripts may expose fields such as
+`_onCompleted`.
 
-Connect a button, trigger, or other event to a method.
+<span id="wire_event"></span>
 
-**Parameters:**
-- `path` (string) — Object with the event
-- `component` (string) — Component type owning the event field
-- `event` (string) — Serialized field name (e.g., "onClick", "_onComplete", "onTriggerEnter")
-- `target` (string) — Target scene path or asset path
-- `method` (string) — Method name (e.g., "SetActive", "Play", "TakeDamage")
-- `arg_type` (string, default="void") — "void" | "bool" | "int" | "float" | "string" | "object"
-- `arg_value` (string, optional) — Required when arg_type != void
-- `target_component_type` (string, optional) — Disambiguate when target has multiple components with the same method name
-- `parameter_types` (string, optional) — Specify parameter types when method is overloaded (e.g., "string" or "int,float")
+## Add a persistent listener
 
-**Example:**
+For a no-argument method:
 
 ```python
-# Connect button click
-await wire_event(path="UI/StartButton", component="Button", event="onClick", 
-                target="GameManager", method="StartGame")
-
-# Connect trigger with damage argument
-await wire_event(path="Spike", component="Collider", event="onTriggerEnter",
-                target="Player", method="TakeDamage", arg_type="int", arg_value="10")
-
-# Connect UI event with string argument
-await wire_event(path="UI/QuitButton", component="Button", event="onClick",
-                target="GameManager", method="QuitGame")
-
-# Disambiguate when target has multiple components with same method
-# (e.g., both Animator and NavMeshAgent have SetDestination)
-await wire_event(path="Button", component="Button", event="onClick",
-                target="Character", method="SetDestination",
-                arg_type="object", target_component_type="NavMeshAgent")
-
-# Disambiguate overloaded method by parameter type
-# (e.g., Animator.SetTrigger has multiple overloads)
-await wire_event(path="Button", component="Button", event="onClick",
-                target="Character", method="SetTrigger",
-                arg_type="string", arg_value="Attack",
-                target_component_type="Animator", parameter_types="string")
+await wire_event(
+    path="/Canvas/StartButton",
+    component="Button",
+    event="onClick",
+    target="/GameManager",
+    method="StartGame",
+)
 ```
 
-**Common Patterns:**
-
-| Pattern | Example |
-|---------|---------|
-| Button → Activate/Deactivate | `wire_event(path="Button", component="Button", event="onClick", target="Panel", method="SetActive", arg_type="bool", arg_value="true")` |
-| Trigger → Damage | `wire_event(path="Spike", component="Collider", event="onTriggerEnter", target="Player", method="TakeDamage", arg_type="int", arg_value="10")` |
-| Input → Method Call | `wire_event(path="Canvas/Input", component="InputField", event="onEndEdit", target="Handler", method="ProcessInput", arg_type="string", arg_value="...")` |
-| UI → Animation | `wire_event(path="Button", component="Button", event="onClick", target="Character", method="PlayAnimation", arg_type="string", arg_value="Attack")` |
-
-## unwire_event
-
-Disconnect an event listener from a UnityEvent.
-
-**Parameters:**
-- `path` (string) — Event source GameObject
-- `component` (string) — Component type owning the event field
-- `event` (string) — Serialized field name (e.g., "onClick")
-- `index` (int, optional) — Remove specific entry (0-based). Omit to clear all.
-
-**Example:**
+For a static argument, set both its type and value:
 
 ```python
-# Clear all listeners on onClick
-await unwire_event(path="UI/Button", component="Button", event="onClick")
-
-# Remove specific listener at index 0
-await unwire_event(path="UI/Button", component="Button", event="onClick", index=0)
+await wire_event(
+    path="/Canvas/DifficultyButton",
+    component="Button",
+    event="onClick",
+    target="/GameManager",
+    method="SetDifficulty",
+    arg_type="int",
+    arg_value="2",
+    target_component_type="GameManager",
+    parameter_types="int",
+)
 ```
 
----
+Supported static argument types are `void`, `bool`, `int`, `float`, `string`,
+and `object`. An object argument resolves from a scene path or asset path.
 
-## Workflow: Complete Event Setup
+When several target components expose the method, pass
+`target_component_type`. When the selected component has overloads, also pass
+comma-separated `parameter_types`, for example `"string"` or `"int,float"`.
+The tool rejects an unresolved ambiguity instead of choosing silently.
 
-**Scenario:** Create a button that pauses the game on click.
+The target can be a scene object or an asset. For scene objects, a component
+owning the method is selected; `GameObject` itself remains a fallback for
+methods such as `SetActive`.
 
-1. **Create UI**
-   ```python
-   await create_ui(type="Button", name="PauseButton", anchor="top-right",
-                  text="Pause", font_size="24")
-   ```
+<span id="unwire_event"></span>
 
-2. **Wire to game controller**
-   ```python
-   await wire_event(path="Canvas/PauseButton", component="Button",
-                   event="onClick", target="GameController",
-                   method="TogglePause")
-   ```
+## Remove listeners
 
-3. **Verify connection**
-   ```python
-   button = await get_component(path="Canvas/PauseButton", type="Button")
-   print(button)  # Should show onClick listener
-   ```
+Remove one listener by the index returned from `list_events`:
 
-4. **Test in play mode**
-   ```python
-   await editor("play")
-   await run_playtest(script="CLICK /Canvas/PauseButton")
-   await wait_until(path="GameController", component="GameController",
-                    field="IsPaused", value="true", timeout=10)
-   await editor("stop")
-   ```
-
-5. **If needed, clear listeners**
-   ```python
-   await unwire_event(path="Canvas/PauseButton", component="Button",
-                     event="onClick")
-   ```
-
----
-
-## Advanced Patterns
-
-### Multi-Listener Event Chain
 ```python
-# Wire multiple listeners to same event
-await wire_event(path="Button", component="Button", event="onClick",
-                target="AudioManager", method="PlaySound", 
-                arg_type="string", arg_value="click")
-
-await wire_event(path="Button", component="Button", event="onClick",
-                target="UI", method="ShowMessage",
-                arg_type="string", arg_value="Button pressed!")
-
-await wire_event(path="Button", component="Button", event="onClick",
-                target="Analytics", method="LogEvent",
-                arg_type="string", arg_value="button_clicked")
+await unwire_event(
+    path="/Canvas/StartButton",
+    component="Button",
+    event="onClick",
+    index=0,
+)
 ```
 
-### Conditional Wiring Based on State
+Omit `index` to clear all persistent listeners from that one event:
+
 ```python
-# Check if already wired
-comp = await get_component(path="Button", type="Button")
-if "onClick" not in comp:
-    await wire_event(path="Button", component="Button", event="onClick",
-                    target="Handler", method="OnClick")
+await unwire_event(
+    path="/Canvas/StartButton",
+    component="Button",
+    event="onClick",
+)
 ```
 
-### Toggle Active State
+Clearing is intentionally broad. Inspect first when existing listeners may
+belong to another system.
+
+## Verify the complete workflow
+
 ```python
-# Button activates panel
-await wire_event(path="OpenButton", component="Button", event="onClick",
-                target="MenuPanel", method="SetActive",
-                arg_type="bool", arg_value="true")
+before = await list_events(
+    path="/Canvas/StartButton", component="Button", event="onClick"
+)
 
-# Close button deactivates
-await wire_event(path="CloseButton", component="Button", event="onClick",
-                target="MenuPanel", method="SetActive",
-                arg_type="bool", arg_value="false")
+await wire_event(
+    path="/Canvas/StartButton",
+    component="Button",
+    event="onClick",
+    target="/GameManager",
+    method="StartGame",
+    target_component_type="GameManager",
+)
+
+after = await list_events(
+    path="/Canvas/StartButton", component="Button", event="onClick"
+)
 ```
 
----
+Require `after` to contain the expected target type and method. Then enter Play
+Mode and exercise the control if runtime behavior matters:
 
-## Common Errors & Solutions
+```python
+await editor(action="play")
+try:
+    result = await run_playtest(
+        script="CLICK /Canvas/StartButton WAIT 0.5\nASSERT_CONSOLE_CLEAN"
+    )
+finally:
+    await editor(action="stop")
+```
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "Method not found" | Typo or wrong component | Verify method name and component type match |
-| "Target not found" | Wrong path | Use `search_scene()` to find target path |
-| "Listener not added" | Event field name wrong | Check serialized field name (e.g., onClick, onValueChanged) |
-| Multiple listeners | Wired same event twice | Use `unwire_event()` to clear first |
+`wire_event` and `unwire_event` participate in Unity Undo for scene components.
+Save the scene only after readback and runtime verification succeed.
 
----
-
-**See also:** [Objects Tools](objects.md) for component management, [UI Tools](ui.md) for creating UI elements, [Scene Tools](scene.md) for editor control.
+See [UI Tools](ui.md) for creating controls and the
+[generated schema](../tools-schema/index.md) for exact parameters.

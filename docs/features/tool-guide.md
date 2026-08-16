@@ -1,99 +1,93 @@
 # Tool Decision Guide
 
-Quick reference: "Which tool should I use?" — based on Firecrawl MCP's decision matrix pattern.
+Choose the narrowest tool that expresses the task. Typed tools are predictable,
+easy to verify, and preferred when you know the object path and desired value.
+Use intent tools only when the request is genuinely ambiguous.
 
-## Decision Table
+## Choose by task
 
-| I want to... | Use this tool | Why | Example |
-|---|---|---|---|
-| See everything in my scene | `get_hierarchy` | Shows all objects, their structure, and active/inactive status | `await get_hierarchy()` |
-| Find specific objects | `search_scene` | Searches by name pattern, tag, or type | `await search_scene(query="Enemy*")` |
-| Check object properties | `get_component` | Read a single component's properties | `await get_component("Player", "Transform")` |
-| Check many objects at once | `inspect` | Bulk read multiple objects/components in 1 call | `await inspect(paths="Player,Enemy1", components="Health")` |
-| Change a property | `set_property` | Update one value on a component | `await set_property("Player", "Transform", "position", "0,1,0")` |
-| Create an object | `create_object` | Spawn a new GameObject | `await create_object(name="Cube")` |
-| Delete an object | `delete_object` | Remove an object from the scene | `await delete_object("Cube")` |
-| Add/remove components | `manage_component` | Add or remove a component type | `await manage_component("Player", "Rigidbody", "add")` |
-| Wire up events | `wire_event` | Connect a button click or event to a method | `await wire_event("StartButton", "Button", "onClick", "GameManager", "StartGame")` |
-| Run automated tests | `run_playtest` | Execute a test script in play mode | `await run_playtest(script="ASSERT Player/Health > 0")` |
-| Take a screenshot | `screenshot` | Capture the scene from one or more cameras | `await screenshot(camera="multi_view")` |
-| Debug compilation issues | `get_compile_errors` | Check if there are C# compilation errors | `await get_compile_errors()` |
-| Read console output | `get_console` | See all Debug.Log messages and errors | `await get_console()` |
-| Run diagnostics | `doctor` | Check MCP health, connections, and common issues | `await doctor()` |
-| Bake lighting or occlusion | `bake` | Bake lights (async) or precalculated occlusion culling | `await bake(target="lighting", action="start")` |
-| Build a player | `build` | Create a standalone player for Windows, macOS, Android, iOS, or WebGL | `await build(action="build", target="StandaloneOSX", dev=True)` |
-| Manage UPM packages | `package` | List, search, add, or remove UPM packages | `await package(action="add", name="com.unity.cinemachine")` |
-| Do multiple things at once | `batch` | Chain 2+ operations in a single call | `await batch("create_object name=A\ncreate_object name=B")` |
-| Give a vague instruction | `do` | Natural language → automatic tool selection | `await do("create a red cube at the origin")` |
+| Task | Start with | Follow with |
+|---|---|---|
+| Understand the scene | `get_hierarchy` | `search_scene` to narrow the result |
+| Read one component | `get_component` | Read only the fields you need |
+| Read several objects | `inspect` | Use one call for related state |
+| Create or remove an object | `create_object` / `delete_object` | `get_hierarchy` or `search_scene` |
+| Change a serialized value | `set_property` | `get_component` |
+| Add or remove a component | `manage_component` | `get_component` |
+| Connect a UnityEvent | `wire_event` | `list_events` |
+| Change an asset | `asset`, `material`, `shader`, or `prefab` | Re-read the asset and check the Console |
+| Exercise live behavior | `run_playtest` | Inspect its assertions and console evidence |
+| Run NUnit tests | `run_tests_wait` | Accept only its correlated terminal result |
+| Diagnose a broken session | `doctor` | Use the specific recovery action it recommends |
+| Apply several compatible calls | `batch` | Verify the important resulting state |
+| Plan a broad scene request | `do(..., dry_run=True)` | Review, apply, then verify |
 
-## When to Use `batch`
+The [generated tool schema](../tools-schema/index.md) is the exhaustive source for
+parameters and defaults. The task guides under [Tools](../tools/index.md) explain
+safe workflows.
 
-Use `batch` whenever you need 2+ operations:
+## Batch compatible operations
 
-```python
-# Good: 1 batch call for 4 operations
-await batch("""
-create_object name=Player
-create_object name=Enemy
-set_property Player Transform position 0,1,0
-manage_component Player Rigidbody add
-""")
-
-# Avoid: 4 separate calls
-await create_object(name="Player")
-await create_object(name="Enemy")
-await set_property(...)
-await manage_component(...)
-```
-
-## When to Use `inspect`
-
-Use `inspect` when reading from 3+ objects or 3+ components:
+Use `batch` when several tools support the batch surface and belong to one logical
+change. Every command uses `key=value` arguments:
 
 ```python
-# Good: 1 inspect call for all reads
-await inspect(paths="Player,Enemy1,Enemy2", components="Health,Damage")
-
-# Avoid: 6 get_component calls
-await get_component("Player", "Health")
-await get_component("Player", "Damage")
-# ... etc
+result = await batch(
+    """
+create_object name=Player primitive=Capsule
+manage_component path=/Player type=Rigidbody action=add
+set_property path=/Player component=Transform prop=position value=0,1,0
+get_component path=/Player type=Transform
+""",
+    on_error="stop",
+)
 ```
 
-## When to Use `do`
+Do not assume every tool can be batched. Check `surfaces` in `discover_tools` or
+the generated schema. Intent tools, test runners, and other direct-only tools must
+be called through their typed interface. See [Batch Operations](../tools/batch.md)
+for atomic and failure behavior.
 
-Use `do` for natural language tasks — it picks the best tools automatically:
+## Read several objects together
+
+Prefer one `inspect` call when the reads form a single snapshot:
 
 ```python
-# Good: Let 'do' figure out the tools
-await do("create a red cube 2 meters in front of the player")
-
-# vs: manual tool selection (longer)
-await create_object(name="Cube")
-await set_property("Cube", "Renderer", "material.color", "1,0,0,1")
-await set_property("Cube", "Transform", "position", "2,0,0")
+state = await inspect(
+    paths="/Player,/EnemyA,/EnemyB",
+    components="Transform,Health",
+    fields="position,currentHealth",
+)
 ```
 
-## Verification Checklist
+Use separate `get_component` calls when each result drives a different decision or
+when a bulk response would be harder to review.
 
-After any mutation, verify:
+## Use intent tools deliberately
 
-| Mutation | Verify with |
-|---|---|
-| `set_property` | `get_component` — value matches |
-| `create_object` | `get_hierarchy` — object appears |
-| `delete_object` | `get_hierarchy` — object gone |
-| `manage_component add` | `get_component` — component exists |
-| `wire_event` | `get_component` — event connected |
-| `batch` (3+ ops) | verify last mutation in chain |
+Preview a broad request before it mutates the scene:
 
-## Quick Flow
+```python
+plan = await do(
+    "Create three evenly spaced spawn points under /Level/Spawns",
+    dry_run=True,
+)
+```
 
-1. **See the scene?** → `get_hierarchy`
-2. **Find something?** → `search_scene` + `get_component`
-3. **Change something?** → `set_property` or `manage_component` + verify with `get_component`
-4. **Create/delete?** → `create_object`/`delete_object` + verify with `get_hierarchy`
-5. **Multiple ops?** → use `batch`
-6. **Confused?** → use `do` (natural language)
-7. **Tests pass?** → `run_playtest`
-8. **Something broken?** → `get_console` + `get_compile_errors` + `doctor`
+For an exact operation such as setting `/Player`'s Rigidbody mass, use
+`set_property` directly. See [Intent Tools](intent-tools.md) for sampling and
+deterministic-template behavior.
+
+## Verify the outcome
+
+Verification should test the user-visible contract, not merely repeat the write:
+
+- Read serialized state after object, component, asset, or event changes.
+- Check `get_compile_errors` and relevant Console entries after C# changes.
+- Use `run_playtest` for runtime behavior and `run_tests_wait` for NUnit coverage.
+- Capture a screenshot only when appearance is part of acceptance. A multi-view
+  capture needs a target, for example
+  `await screenshot(camera="multi_view", path="/Player")`.
+
+For multi-step production changes, use the
+[guarded scene-change workflow](../tools/scene.md#apply-a-guarded-scene-change).

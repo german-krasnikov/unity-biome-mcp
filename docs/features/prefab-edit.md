@@ -1,156 +1,133 @@
-# Prefab Editing Guide
+# Edit prefab assets
 
-Modify prefab assets directly without unpacking to scene.
+Use `prefab(action="edit")` to change a prefab asset without unpacking an
+instance into the open scene. The change affects future instances and existing
+instances that have not overridden the edited property.
 
-## Overview
+## Choose the target
 
-The `edit` action lets you modify prefab component properties, add/remove components, all without instantiating the prefab in the scene. Available since v0.56.0.
+| Goal | Tool |
+|---|---|
+| Change the prefab asset | `prefab(action="edit")` |
+| Change one scene instance | `set_property` or `manage_component` |
+| Push instance overrides to its prefab | `prefab(action="apply")` |
+| Discard instance overrides | `prefab(action="revert")` |
 
-## When to Use Prefab Edit vs set_property
+Keep prefab assets under version control. Asset editing is durable and does not
+have the same recovery guarantees as a scene-only Unity Undo operation.
 
-| Task | Use | Why |
-|------|-----|-----|
-| Modify prefab template | `prefab(action=edit)` | Changes all future instances |
-| Modify scene instance | `set_property` | Only affects that object |
-| Add component to prefab | `prefab(action=edit, add_component=...)` | All instances inherit |
-| Add to scene object | `manage_component` | Only that object |
-
-## Syntax
-
-```python
-# Edit property
-await prefab("edit", 
-             asset_path="Assets/Prefabs/Player.prefab",
-             component="Health",
-             prop="MaxHP",
-             value="200")
-
-# Add component
-await prefab("edit",
-             asset_path="Assets/Prefabs/Enemy.prefab",
-             add_component="Rigidbody")
-
-# Remove component
-await prefab("edit",
-             asset_path="Assets/Prefabs/Projectile.prefab",
-             remove_component="AudioSource")
-```
-
-## Examples
-
-**Change max health for all Player instances:**
-```python
-await prefab("edit",
-             asset_path="Assets/Prefabs/Player.prefab",
-             component="Health",
-             prop="MaxHP",
-             value="150")
-# → All spawned Player prefabs now have MaxHP=150
-```
-
-**Add rigid body to bomb prefab:**
-```python
-await prefab("edit",
-             asset_path="Assets/Prefabs/Bomb.prefab",
-             add_component="Rigidbody")
-```
-
-**Remove audio from silent enemy variant:**
-```python
-await prefab("edit",
-             asset_path="Assets/Prefabs/SilentEnemy.prefab",
-             remove_component="AudioSource")
-```
-
-## Workflow: Design → Save → Edit
-
-1. **Design in scene first:**
-   ```python
-   await create_object(name="MyPrefab", parent="")
-   await manage_component(path="MyPrefab", type="Health", action="add")
-   await set_property(path="MyPrefab", component="Health", prop="MaxHP", value="100")
-   ```
-
-2. **Save as prefab:**
-   ```python
-   await prefab("save", path="MyPrefab", asset_path="Assets/Prefabs/MyPrefab.prefab")
-   ```
-
-3. **Edit prefab directly (no unpacking):**
-   ```python
-   await prefab("edit",
-                asset_path="Assets/Prefabs/MyPrefab.prefab",
-                component="Health",
-                prop="MaxHP",
-                value="150")
-   ```
-
-4. **Spawn instances:**
-   ```python
-   await create_object(name="Enemy1", parent="", prefab_path="Assets/Prefabs/MyPrefab.prefab")
-   # → Enemy1 inherits MaxHP=150 from prefab
-   ```
-
-## instantiate
-
-Instantiate a prefab as a scene object with optional parent assignment.
-
-**Parameters:**
-- `asset_path` (string) — Path to prefab asset (e.g., "Assets/Prefabs/Enemy.prefab")
-- `name` (string, optional) — Name for the spawned object; defaults to prefab name
-- `parent` (string, optional) — Parent GameObject path; if omitted, spawns at scene root
-- `scene` (string, optional) — Scene name (for multi-scene projects)
-
-**Example:**
+## Change a serialized property
 
 ```python
-# Spawn at scene root
-await prefab("instantiate", asset_path="Assets/Prefabs/Enemy.prefab")
-
-# Spawn under a parent with custom name
-await prefab("instantiate",
-             asset_path="Assets/Prefabs/Enemy.prefab",
-             name="Enemy1",
-             parent="Enemies")
-
-# Equivalent to:
-await create_object(name="Enemy1", parent="Enemies", prefab_path="Assets/Prefabs/Enemy.prefab")
+result = await prefab(
+    action="edit",
+    asset_path="Assets/Prefabs/Player.prefab",
+    component="Health",
+    prop="MaxHP",
+    value="150",
+)
 ```
 
-**Difference from create_object:** The `prefab` instantiate action is optimized for prefab workflows; `create_object` with `prefab_path` is equivalent and more general-purpose.
+The component must exist on the selected prefab object and `prop` must resolve
+to a Unity-serialized property. Use the serialized property name shown by the
+component/schema tools; ordinary C# reflection-only properties are not edited.
 
----
-
-## Supported Operations (edit)
-
-✅ **Can edit:**
-- Public properties (int, float, string, bool, Vector3, Quaternion)
-- ObjectReferences (assign by path or GUID)
-- Color, Bounds, Rect
-- Collections (arrays, lists)
-
-❌ **Cannot edit:**
-- Private fields (reflection not allowed)
-- Non-serializable types
-- Nested ScriptableObjects (use scriptable_object tool instead)
-
-## Verification
-
-After editing, verify the change persisted:
+To target a child, pass its path relative to the prefab root through `path`:
 
 ```python
-await prefab("edit",
-             asset_path="Assets/Prefabs/Player.prefab",
-             component="Health",
-             prop="MaxHP",
-             value="200")
-
-# Verify by spawning instance
-await create_object(name="TestPlayer", prefab_path="Assets/Prefabs/Player.prefab")
-health = await get_component("TestPlayer", "Health")
-# → Should show MaxHP: 200
+await prefab(
+    action="edit",
+    asset_path="Assets/Prefabs/Player.prefab",
+    path="Visual/Nameplate",
+    component="TextMeshProUGUI",
+    prop="m_text",
+    value="Player",
+)
 ```
 
----
+## Add or remove a component
 
-**See also:** [Asset Management](../tools/assets.md) for asset operations, [Object Tools](../tools/objects.md) for scene instances.
+```python
+await prefab(
+    action="edit",
+    asset_path="Assets/Prefabs/Bomb.prefab",
+    add_component="Rigidbody",
+)
+
+await prefab(
+    action="edit",
+    asset_path="Assets/Prefabs/SilentEnemy.prefab",
+    remove_component="AudioSource",
+)
+```
+
+The operation is idempotent when the requested component is already present or
+absent. Pass `path` as well to operate on a prefab child.
+
+## Create, save, and instantiate
+
+A common workflow is:
+
+```python
+# 1. Design a scene object.
+await create_object(name="EnemyTemplate", components="Health")
+await set_property(
+    path="/EnemyTemplate",
+    component="Health",
+    prop="MaxHP",
+    value="100",
+)
+
+# 2. Save and connect it as a prefab asset.
+await prefab(
+    action="save",
+    path="/EnemyTemplate",
+    asset_path="Assets/Prefabs/Enemy.prefab",
+    mode="new",
+)
+
+# 3. Edit the asset without opening Prefab Mode.
+await prefab(
+    action="edit",
+    asset_path="Assets/Prefabs/Enemy.prefab",
+    component="Health",
+    prop="MaxHP",
+    value="150",
+)
+
+# 4. Instantiate with an explicit scene name, parent, or object name.
+await create_object(
+    name="Enemy_01",
+    parent="/Enemies",
+    prefab_path="Assets/Prefabs/Enemy.prefab",
+    scene="Level01",
+)
+```
+
+`prefab(action="instantiate", asset_path=...)` is the minimal shortcut for an
+unrenamed instance in the active scene. Its public wrapper does not accept
+`name`, `parent`, or `scene`; use `create_object(prefab_path=...)` when any of
+those controls is required.
+
+## Verify the asset change
+
+Instantiate a disposable scene copy and read the exact property:
+
+```python
+await create_object(
+    name="PrefabVerification",
+    prefab_path="Assets/Prefabs/Player.prefab",
+)
+actual = await get_component(
+    path="/PrefabVerification",
+    type="Health",
+    fields="MaxHP",
+)
+```
+
+Delete the verification object after checking the result. For instance
+overrides, use `prefab(action="get_overrides", path=..., format="structured")`
+before applying or reverting them.
+
+See [Asset Tools](../tools/assets.md#prefab) for the full prefab action overview
+and [Object Tools](../tools/objects.md) for scene-object editing.

@@ -1,249 +1,140 @@
-# Session Skills & Templates Guide
+# Reusable Skills, Templates, and Session Context
 
-Reuse automation scripts and scene templates across sessions.
+Unity Biome MCP can store small project-local automations under `.claude/`:
 
-## Overview
+- a **learned skill** is saved C# or batch text plus a description;
+- a **template** is a saved C# snippet for recreating scene content;
+- **session context** is a compact hierarchy summary for comparison after a
+  reconnect or restart.
 
-- **Skills:** Parameterizable C# or batch code snippets you save and replay
-- **Templates:** Pre-built scene layouts you instantiate with parameters
-- **Sessions:** Snapshots of scene state for recovery after disconnect
+These helpers are different from the agent instruction skills installed by the
+Unity setup wizard. Treat learned skills and templates as executable project code:
+review them before reuse and keep only trusted content.
 
-## Skills: Save & Reuse
+## Save and run a learned skill
 
-### Saving a Skill
+### Batch skill
+
+Batch text is a good fit for a short sequence of existing MCP commands:
 
 ```python
 await save_skill(
-    name="damage_enemy",
-    description="Damage closest enemy by 10 HP",
-    code="""
-    var enemies = FindObjectsOfType<Enemy>();
-    if (enemies.Length > 0) {
-        var closest = enemies[0];
-        closest.TakeDamage(10);
-    }
-    """
+    name="create_marker",
+    description="Create a positioned cube under /Markers",
+    code=(
+        "create_object name=${name} primitive=Cube parent=/Markers\n"
+        "set_property path=/Markers/${name} component=Transform "
+        "prop=m_LocalPosition value=${position}"
+    ),
 )
-# → Skill saved: damage_enemy
+
+result = await use_skill(
+    "create_marker",
+    params="name=SpawnA,position=(1,0,2)",
+)
 ```
 
-**Auto-detection:**
-- C# keywords (`var`, `new`, `GameObject`) → kind=csharp
-- Batch keywords (`echo`, `if`) → kind=batch
+### C# skill
 
-### Using a Skill
+Code containing common C# tokens is stored as a C# skill and later runs through
+`execute_code`:
 
 ```python
-# No parameters
-await use_skill("damage_enemy")
-
-# With parameters
 await save_skill(
-    name="damage_by_amount",
-    description="Damage closest enemy",
-    code="FindObjectsOfType<Enemy>()[0].TakeDamage(${amount});"
+    name="reset_player_position",
+    description="Move /Player to the origin",
+    code='''
+var player = GameObject.Find("Player");
+if (player == null) throw new System.Exception("Player not found");
+UnityEditor.Undo.RecordObject(player.transform, "Reset Player Position");
+player.transform.position = Vector3.zero;
+return player.transform.position.ToString();
+''',
 )
-await use_skill("damage_by_amount", params="amount=25")
+
+result = await use_skill("reset_player_position")
 ```
 
-**Parameter syntax:**
-- Define: `${key}` in code
-- Pass: `key1=value1,key2=value2`
+Placeholders use `${key}`. Pass replacements as comma-separated `key=value`
+pairs. Commas inside parentheses are kept together, so Vector values such as
+`(1,0,2)` work. Substitution is textual and does not validate C# or escape values;
+do not pass untrusted text into executable templates.
 
-### List All Skills
+Use `list_skills()` to see each saved skill's kind, description, and use count.
+Names cannot contain `/`, `\\`, or `..`.
 
-```python
-await list_skills()
-# → damage_enemy [csharp]: Damage closest enemy (used 3x)
-#   heal_player [csharp]: Restore 20 HP (used 1x)
-#   spawn_platforms [batch]: Create platform grid (used 12x)
-```
+## Save and apply a scene template
 
-## Templates: Scene Layouts
-
-### Creating a Template
+A template is always C# and is stored as a `.cs` snippet:
 
 ```python
 await save_template(
-    name="spawn_room",
-    code="""
-    var room = new GameObject("Room");
-    for (int x = 0; x < 3; x++) {
-        var platform = Instantiate(platformPrefab, 
-                                   new Vector3(x * 2, 0, 0), 
-                                   Quaternion.identity);
-        platform.transform.parent = room.transform;
-    }
-    return room;
-    """
+    name="marker_row",
+    code='''
+var root = new GameObject("${name}");
+for (int i = 0; i < ${count}; i++)
+{
+    var marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+    marker.name = $"Marker_{i}";
+    marker.transform.SetParent(root.transform);
+    marker.transform.localPosition = new Vector3(i * ${spacing}, 0, 0);
+}
+return root.name;
+''',
+)
+
+result = await apply_template(
+    "marker_row",
+    params="name=SpawnMarkers,count=4,spacing=2.5",
 )
 ```
 
-### Applying a Template
+`list_templates()` returns the available template names. `apply_template` executes
+the substituted snippet with an Undo label, but only operations that explicitly
+use Unity Undo APIs are guaranteed to participate in Undo. Verify the hierarchy
+after applying a template.
+
+## Save session context
 
 ```python
-# Basic
-await apply_template("spawn_room")
-
-# With parameters
-await apply_template(
-    "spawn_room",
-    params="platform_count=5,spacing=3.0,height=2.0"
-)
+saved = await save_session()
+# ...reconnect or restart the MCP client...
+comparison = await load_session()
 ```
 
-### List Templates
+`save_session` stores a timestamp and compact hierarchy summary.
+`load_session` prints that previous summary beside a fresh current summary. It
+does **not** reopen scenes, restore object values, or roll back changes. Use it as
+cold-start orientation, then inspect the relevant subtree before editing.
 
-```python
-await list_templates()
-# → spawn_room: Spawn dungeon room with platforms
-#   boss_arena: Large circular arena
-```
+For restorable file/scene checkpoints and recovery constraints, use
+[System Tools](../tools/system.md#create-a-recovery-boundary).
 
-## Session Management
+## Track and compare changes
 
-### Save Current State
+Cross-cutting state helpers have canonical documentation elsewhere:
 
-```python
-await save_session()
-# → Session saved to .claude/session-context.json
-```
+- [`get_changes`](../tools/system.md#create-a-recovery-boundary) returns editor
+  events since the previous read; `clear=False` keeps them for the next call.
+- [`fingerprint`](../tools/system.md#create-a-recovery-boundary) provides a cheap
+  hash for “did this subtree change?” checks.
+- [`scene_diff`](../tools/scene.md#scene_diff) compares serialized hierarchy lines
+  with its previous snapshot.
+- [`screenshot_baseline` and `screenshot_compare`](../tools/screenshots.md) provide
+  visual regression evidence.
 
-**Saved info:**
-- Hierarchy snapshot
-- Active GameObjects
-- Component list
-- Timestamp
+These mechanisms answer different questions; none is a replacement for a saved
+Unity scene or source control.
 
-### Load Previous Session
+## Storage
 
-```python
-await load_session()
-# → Previous (2024-06-24 10:30:45):
-#   Scene (Root)
-#     Player (active)
-#   
-#   Current:
-#   Scene (Root)
-#     Player (inactive)  ← changed
-```
+| Item | Project-relative location | Contents |
+|---|---|---|
+| Learned skills | `.claude/skills/learned/*.json` | Description, executable text, kind, usage metadata |
+| Templates | `.claude/templates/*.cs` | Executable C# snippets |
+| Session context | `.claude/session-context.json` | Timestamp and compact hierarchy summary |
+| Screenshot baselines | `.claude/baselines/*.png` | Images used by visual comparison |
 
-**Use case:** Recover after MCP disconnect or PC crash.
-
-## Tracking Changes
-
-### Get Editor Events Since Last Call
-
-```python
-changes = await get_changes(clear=True)
-# → [timestamp] HierarchyChanged: Player spawned
-#   [timestamp] SelectionChanged: Enemy selected
-#   [timestamp] PlayModeChanged: entered PlayMode
-
-# Next call returns NO_CHANGES (log cleared)
-```
-
-**Event types:**
-- `HierarchyChanged` — Object created/deleted/reparented
-- `SelectionChanged` — User selected object
-- `PlayModeChanged` — Entered/exited Play Mode
-- `UndoRedoPerformed` — Undo/Redo executed
-- `SceneOpened` — Scene loaded
-- `SceneSaved` — Scene saved
-
-### Keep Log Without Clearing
-
-```python
-changes = await get_changes(clear=False)  # Read but don't clear
-```
-
-## Fingerprint & Regression Testing
-
-### Get Scene Hash
-
-```python
-fp = await fingerprint()
-# → "fp:A1B2C3D4"
-```
-
-**Use case:** Quick "did scene change?" check without full snapshot.
-
-### Compare Two States
-
-```python
-# First call saves a snapshot of the current scene state
-await scene_diff()
-# → "Snapshot saved."
-
-# ... perform edits ...
-
-# Second call compares current state against the saved snapshot
-diff = await scene_diff()
-# → Changes:
-#   Player/Health: 100 → 50
-#   Enemy count: 3 → 5
-```
-
-`scene_diff()` takes no arguments. The first call saves an internal snapshot; subsequent calls diff against it.
-
-## Complete Workflow
-
-```python
-# 1. Save skill for future use
-await save_skill(
-    name="setup_combat",
-    description="Spawn player + enemy",
-    code="/* setup code */"
-)
-
-# 2. Save template
-await save_template(
-    name="combat_arena",
-    code="use_skill('setup_combat')"
-)
-
-# 3. Snapshot current state
-await fingerprint()  # quick hash check
-await scene_diff()   # save snapshot for later comparison
-await save_session()
-
-# 4. Later: Recover state
-await load_session()
-diff = await scene_diff()  # compare against saved snapshot
-
-# 5. Recreate from template
-await apply_template("combat_arena")
-```
-
-## Visual Regression Testing
-
-### Create Baseline
-
-```python
-await screenshot_baseline("menu_screen", width=1280, height=720)
-# → Baseline saved: <project>/.claude/baselines/menu_screen.png
-```
-
-### Compare Current vs Baseline
-
-```python
-result = await screenshot_compare("menu_screen", mode="auto")
-# → IDENTICAL (pixel diff only)
-# or
-# → DIFFERENT: button layout shifted 10px left
-```
-
-For comparison modes and budget behavior, see [Screenshot & Visual Diff Tools](../tools/screenshots.md#screenshot_compare).
-
-## Storage Locations
-
-| Item | Location | Survives Reload? |
-|------|----------|-----------------|
-| Skills | `.claude/skills/learned/` | Yes |
-| Templates | `.claude/templates/` | Yes |
-| Session | `.claude/session-context.json` | Yes |
-| Baselines | `.claude/baselines/` | Yes |
-
----
-
-**See also:** [Getting Started](../getting-started/index.md) for initial setup, [Batch Reference](../tools/batch.md) for efficient batching.
+Decide explicitly whether these local automation files belong in version control.
+They can contain project paths and executable code, and the `.claude` directory is
+commonly ignored.

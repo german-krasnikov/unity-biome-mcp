@@ -1,87 +1,115 @@
 # Security Policy
 
-## Reporting Vulnerabilities
+Unity Biome MCP is a local developer tool with broad access to an open Unity
+project. Treat every connected MCP client as trusted code running with your OS
+account's permissions.
 
-If you discover a security vulnerability in Unity Biome MCP, please report it responsibly:
+## Report a vulnerability
 
-1. **GitHub Security Advisory** (preferred): Visit the [Security tab](https://github.com/german-krasnikov/unity-biome-mcp/security/advisories) and report privately.
-2. **Email**: [german.krasnikov@gmail.com](mailto:german.krasnikov@gmail.com)
+Please report security issues privately:
 
-Please do not open public GitHub issues for security vulnerabilities.
+1. Use a [GitHub Security Advisory](https://github.com/german-krasnikov/unity-biome-mcp/security/advisories/new).
+2. If GitHub is unavailable, email
+   [german.krasnikov@gmail.com](mailto:german.krasnikov@gmail.com).
 
----
+Do not include secrets or private project assets in a public issue. A useful
+report includes the affected version, operating system, reproduction steps,
+impact, and any proposed mitigation.
 
-## Security Model
+## Trust model
 
-Unity Biome MCP is a **developer tool** designed for local, interactive use. The security model assumes the OS user as the trust boundary.
+The Unity plugin listens only on loopback (`127.0.0.1`) and the Python server
+connects to that local endpoint. Loopback prevents connections from another
+machine, but it is **not authentication** and it is not a same-user boundary.
+Any process on the same host that can reach the selected port may attempt to
+send protocol commands.
 
-### Network Isolation
-- **Localhost-only**: TCP binds to `127.0.0.1:9500` — no remote connections possible.
-- **No authentication**: The protocol is raw JSON over TCP. Any local process can send commands (same-user only).
+The bridge supports multiple simultaneous local clients. Project selection and
+port metadata help clients find the intended Unity instance; they do not create
+an authorization boundary between projects or users.
 
-### Code Execution Safety
-- **SecurityScan**: The `execute_code` MCP tool runs a static analysis pass before executing C# code, blocking known dangerous patterns:
-  - Application exit (`EditorApplication.Exit`, `Application.Quit`)
-  - Process spawning (`System.Diagnostics`)
-  - Network I/O (`System.Net`)
-  - Assembly manipulation (`System.Reflection`)
-  - File system access (`System.IO`) — **blocked outright** by SecurityScan (no bypass path)
-- **Permission gating**: High-risk operations (`execute_code`, file write, asset import/export) require user confirmation via permission prompt dialog.
+Tool controls have distinct, limited purposes:
 
-### Data Privacy
-- **No cloud services**: The server runs entirely on your machine.
-- **No external data transmission**: All communication is localhost TCP only.
-- **No telemetry**: No usage tracking, error reporting, or analytics.
+- The MCP Hub can enable or disable Unity command handlers in its catalog.
+  Those handlers are enabled by default unless you change their setting.
+- Python capability discovery controls which deferred typed MCP tools are
+  visible in the current server session.
+- The in-Editor chat permission deny-set limits which MCP tools a spawned chat
+  backend receives. It does not authenticate arbitrary loopback clients.
 
----
+These controls are not one universal authorization layer. Always-allowed
+protocol commands and Python-only orchestration do not all pass through the
+MCP Hub's Unity-handler toggle.
+
+There is no universal confirmation dialog before every write. Review the
+permissions and approval behavior of the MCP client you use as well as the
+settings in Unity.
+
+## Code execution
+
+`execute_code` compiles and runs C# inside the Unity Editor process. Its
+Security Level is configurable in the MCP Hub:
+
+- `AllowAll` is the default and skips the pattern scan.
+- `Standard` and `Strict` reject progressively broader sets of known-dangerous
+  source patterns.
+
+The scan is defense in depth, not a sandbox. Pattern matching cannot prove that
+arbitrary C# is safe, and allowed Unity APIs can still modify scenes, assets,
+project settings, or files. Only expose `execute_code` to clients you trust.
+
+Other write tools can also make durable changes. Unity Undo covers many scene
+mutations, but not every asset, package, generated-file, or external-process
+side effect.
+
+## Network and data flows
+
+Core MCP traffic between the Python server and Unity stays on loopback. Some
+optional features communicate beyond that boundary:
+
+- in-Editor chat and configured agent backends start external CLI/provider
+  processes, which may send prompts, selected context, and attachments to
+  their provider;
+- sampling-assisted features can invoke a configured external CLI;
+- update checks contact the project's GitHub release endpoint, and update
+  actions can invoke package or process tooling;
+- installing packages or dependencies uses their normal remote registries.
+
+The project does not promise that all features are offline. Review provider
+privacy terms and the exact context attached to a request before using chat or
+sampling with confidential projects. Local metrics exposed by `get_metrics`
+are operational counters; do not treat that as proof that third-party clients
+or providers collect no telemetry of their own.
+
+## Safe operation
+
+- Use the plugin only on a trusted local machine and OS account.
+- Do not expose, proxy, or port-forward the Unity listener.
+- Keep untrusted local processes and shared users away from sensitive projects.
+- Disable tools you do not need; use `Strict` for `execute_code` when its
+  restrictions are compatible with your workflow.
+- Keep work under version control and review changes before committing them.
+- Pin or review plugin, Python server, and third-party provider updates.
+- When several Unity projects are open, set `UNITY_MCP_PROJECT_DIR` for the MCP
+  server and verify the selected instance before a destructive operation.
+- Stop the Unity listener or close the project when it should not accept local
+  commands.
+
+## Supported versions
+
+| Version | Support |
+|---|---|
+| Latest release | Supported |
+| Previous release | Best effort |
+| Older releases | Unsupported |
+
+Security fixes may require updating both the Unity package and Python server.
 
 ## Scope
 
-**In scope for security reporting:**
-- TCP protocol vulnerabilities
-- Code execution bypass techniques
-- Privilege escalation pathways
-- Data leakage or unintended information disclosure
-- Denial-of-service within the MCP protocol
-
-**Out of scope:**
-- Social engineering / phishing attacks
-- General Unity Editor security issues (report to Unity)
-- Third-party dependencies with known CVEs (file issue with detailed reproduction)
-
----
-
-## Supported Versions
-
-| Version | Status |
-|---------|--------|
-| Latest release | ✅ Supported |
-| Previous release | ⚠️ Limited support |
-| Older releases | ❌ Not supported |
-
----
-
-## Known Limitations
-
-1. **execute_code SecurityScan is pattern-based, not exhaustive**: Sophisticated reflection techniques or assembly loading from encoded bytes may bypass checks. The real control is that only the authenticated Claude session (stdio connection) can invoke this tool.
-
-2. **Port discovery race on domain reload**: If multiple Unity projects are open and one crashes, port discovery may temporarily pick the wrong project. Mitigation: set `UNITY_MCP_PROJECT_DIR` environment variable explicitly.
-
-3. **No cross-project asset isolation at the MCP protocol level**: The assumption is one MCP process per session. Asset operations are scoped to the connected Unity instance.
-
----
-
-## Best Practices
-
-When using Unity Biome MCP in development:
-
-- **Run only one MCP session per project** (one MCP process per Unity instance).
-- **Use `UNITY_MCP_PROJECT_DIR` env var** when managing multiple projects simultaneously.
-- **Review `execute_code` outputs** before running complex scripts.
-- **Keep Python and plugin versions in sync** — mismatches may cause unexpected behavior.
-
----
-
-## Attribution
-
-Security reports that result in a fix are credited in the changelog. Thank you for helping keep Unity Biome MCP secure.
+Examples of in-scope reports include unauthenticated access beyond the stated
+loopback boundary, command-gating bypasses, code-scan bypasses with meaningful
+additional impact, unsafe path handling, unintended disclosure, and
+cross-project command routing. General Unity vulnerabilities should be reported
+to Unity; vulnerabilities in a third-party provider or dependency should also
+be reported to that upstream project.

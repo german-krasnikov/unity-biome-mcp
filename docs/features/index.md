@@ -19,3 +19,4 @@ Guides for common tasks and advanced patterns.
 | [Region Selection](region-tool.md) | Spatial queries and selection |
 | [Code Execution](code-execution.md) | Run C# in the editor at runtime |
 | [Skills & Templates](session-skills.md) | Reusable session-level guidance |
+| [Test Reliability](../testing-reliability.md) | Run NUnit tests with durable identity and recover safely |

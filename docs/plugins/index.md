@@ -1,161 +1,228 @@
-# Create Your First Unity Biome MCP Plugin
+# Create a Plugin
+
+A Unity Biome MCP tool has two halves:
+
+- a Python tool that defines the MCP schema and sends a named command
+- a Unity Editor handler that receives that command and performs the work
+
+Use a plugin when a project needs a stable domain-specific tool. For one-off
+scene changes, use the existing tools or `execute_code` instead.
 
 ## Prerequisites
 
-- unity-biome-mcp installed (pip + UPM)
-- Python 3.10+, Unity 6000.0+
+- Unity Biome MCP installed in the target Unity 6 project
+- Python 3.10 or newer for plugin development
+- an Editor folder or Unity package for the C# integration
 
-## 1. Scaffold (Python side)
+## 1. Create the Python Package
 
-```
+```text
 my-unity-plugin/
-  python/
-    pyproject.toml
-    src/my_plugin/
-      plugins/
-        __init__.py
-        my_tools.py
-  unity/
-    Editor/
-      MyMCPPlugin.cs
+├── python/
+│   ├── pyproject.toml
+│   └── src/my_plugin/
+│       ├── __init__.py
+│       └── my_tools.py
+└── unity/
+    └── Editor/
+        └── MyMcpPlugin.cs
 ```
 
-### pyproject.toml
+Declare the server package and plugin entry point:
 
 ```toml
 [project]
 name = "my-unity-plugin"
 version = "0.1.0"
+requires-python = ">=3.10"
 dependencies = ["unity-biome-mcp"]
 
 [project.entry-points."unity_mcp.plugins"]
-my_tools = "my_plugin.plugins.my_tools"
+my_tools = "my_plugin.my_tools"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/my_plugin"]
 ```
 
-### my_tools.py
+Register the MCP tool, its capability category, and its middleware mutability:
 
 ```python
-from unity_mcp.plugin_api import RO, register_tools
+from unity_mcp.plugin_api import RO, register_read_cmds, register_tools
 
-_MY_TOOLS = {"my_count_objects"}
+_TOOLS = {"my_count_objects"}
+
 
 def register(mcp, send, args):
     @mcp.tool(annotations=RO)
     async def my_count_objects(name_filter: str = "") -> str:
-        """Count GameObjects matching a name filter."""
-        return await send("my_count_objects", args(name_filter=name_filter))
+        """Count loaded GameObjects whose names contain the filter."""
+        return await send(
+            "my_count_objects",
+            args(name_filter=name_filter),
+        )
 
-    register_tools("my_plugin", _MY_TOOLS)
+    register_tools("my_plugin", _TOOLS)
+    register_read_cmds(*_TOOLS)
 ```
 
-## 2. Scaffold (C# side)
+`register_tools` makes the capability discoverable under the chosen category.
+`register_read_cmds` is independent: it tells middleware that forwarding this
+Unity command is read-only. Use `register_write_cmds` for mutations.
 
-### MyMCPPlugin.cs
+## 2. Register the Unity Command
+
+Add `MyMcpPlugin.cs` to `Assets/MyPlugin/Editor/` in the target project, or ship
+it in an Editor-only assembly that references `UnityMCP.Editor`.
 
 ```csharp
+using System;
 using UnityEditor;
+using UnityEngine;
 using UnityMCP.Editor;
 
 namespace MyPlugin.Editor
 {
     [InitializeOnLoad]
-    public class MyMCPPlugin : IMCPPlugin
+    public sealed class MyMcpPlugin : IMCPPlugin
     {
-        public string Name => "MyPlugin";
-        public string CommandPrefix => "my_";
+        static MyMcpPlugin()
+        {
+            PluginRegistry.Register(new MyMcpPlugin());
+        }
 
-        static MyMCPPlugin() => PluginRegistry.Register(new MyMCPPlugin());
+        public string Name => "MyPlugin";
+
+        // Canonical form omits the separator. The command boundary is `my_`.
+        public string CommandPrefix => "my";
 
         public void RegisterCommands()
         {
             CommandRegistry.Register("my_count_objects", args =>
             {
-                var filter = JsonHelper.ExtractString(args, "name_filter");
-                var objects = string.IsNullOrEmpty(filter)
-                    ? UnityEngine.Object.FindObjectsOfType<UnityEngine.GameObject>()
-                    : System.Array.FindAll(
-                        UnityEngine.Object.FindObjectsOfType<UnityEngine.GameObject>(),
-                        go => go.name.Contains(filter));
-                // Build response manually — JsonHelper.FormatResponse is internal.
-                // Return plain text; the framework wraps it in the wire protocol.
-                return $"count: {objects.Length}";
+                var filter = JsonHelper.ExtractString(args, "name_filter") ?? "";
+                var objects = UnityEngine.Object.FindObjectsByType<GameObject>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None);
+
+                var count = 0;
+                foreach (var gameObject in objects)
+                {
+                    if (gameObject.name.IndexOf(
+                            filter,
+                            StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        count++;
+                    }
+                }
+
+                // Return command data. The transport wraps the response.
+                return $"count: {count}";
             });
         }
 
         public void OnDomainReload() { }
 
-        // Organize tools into subcategories (v0.56.0+)
-        public string GetToolSubcategory(string toolName)
+        public string GetToolSubcategory(string command)
         {
-            return toolName switch
-            {
-                "my_count_objects" => "Scene",
-                _ => null  // Top-level placement
-            };
+            return command == "my_count_objects" ? "Scene" : null;
         }
     }
 }
 ```
 
-## 3. Install and Test
+Use a prefix without a trailing underscore. Legacy prefixes such as `my_` are
+still normalized for compatibility, but new plugins should use `my`. Prefix
+matching occurs at the command boundary, so `my` owns `my_count_objects` but
+does not claim `myth_query`.
+
+## 3. Install and Verify
+
+Install the Python package into the same environment that launches the MCP
+server. From the plugin repository root, an editable install is:
 
 ```bash
-# Python (make it discoverable)
-cd my-unity-plugin/python && pip install -e .
-
-# C# — symlink into game project (Unix/macOS)
-ln -s /path/to/my-unity-plugin/unity/Editor /path/to/game-project/Assets/MyPlugin/Editor
-
-# Windows: use mklink (run as Administrator in cmd.exe)
-# mklink /D "C:\path\to\game-project\Assets\MyPlugin\Editor" "C:\path\to\my-unity-plugin\unity\Editor"
-# Or just copy the Editor folder directly instead of symlinking.
-
-# Force MCP server reload
-# Open MCP > Status in Unity and select Restart, then restart the Claude Code CLI session
+python -m pip install -e ./python
 ```
 
-**Plugin Discovery:** Plugins are discovered from 3 sources in order: (1) built-in plugins, (2) pip entry points in `pyproject.toml`, (3) `UNITY_MCP_PLUGIN_DIRS` environment variable. Restart the MCP server process after installing or changing a Python plugin.
+That command is sufficient only when the MCP client launches the server with
+that Python environment. The standard generated configuration uses an isolated
+`uvx` tool environment. Include a released plugin distribution in that launch
+with `--with`:
 
-**Important:** Always call `register_tools()` to declare your plugin's tools. If you use `@mcp.tool()` without declaring the tool via `register_tools()`, it will be automatically hidden in the `"plugins"` category (visible only via `discover_tools(category="plugins")`). This prevents undeclared tools from cluttering the budget.
+```bash
+uvx --with my-unity-plugin \
+  --from git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server \
+  unity-biome-mcp
+```
 
-From any connected MCP client, call `my_count_objects`. A successful response
-contains `count: <number>`. If the tool does not appear, open
-**MCP > Status > Diagnose**.
+For a local plugin checkout, replace `--with my-unity-plugin` with
+`--with-editable ./python`. A package installed only into an unrelated system
+Python environment is not visible to `uvx`.
 
-## 4. Testing Your Plugin
+Then:
+
+1. Copy or package the `unity/Editor` code into the target Unity project.
+2. Wait for a clean Unity compile.
+3. Open **MCP > Status**, select **Restart**, and restart the external MCP
+   client so the Python entry point is loaded again.
+4. Ask the client to call `my_count_objects(name_filter="Player")`.
+
+A successful response contains `count: <number>`. If the tool is absent, run
+**MCP > Status > Diagnose**, confirm that the Python distribution is installed
+in the environment that launches the server, and inspect the Unity Console for
+plugin registration errors.
+
+## 4. Test the Python Wrapper
 
 ```python
-# tests/test_my_tools.py
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+
 
 @pytest.mark.asyncio
-async def test_count_objects():
+async def test_count_objects_forwards_filter():
+    registered = {}
     mcp = MagicMock()
-    tools = {}
-    mcp.tool = lambda **kw: lambda fn: tools.update({fn.__name__: fn}) or fn
+    mcp.tool = lambda **_: lambda fn: registered.setdefault(fn.__name__, fn)
+    send = AsyncMock(return_value="count: 2")
+    args = lambda **values: {
+        key: value for key, value in values.items() if value is not None
+    }
 
-    send = AsyncMock(return_value="count: 42")
-    args = lambda **kw: {k: v for k, v in kw.items() if v is not None}
+    from my_plugin.my_tools import register
 
-    from my_plugin.plugins.my_tools import register
     register(mcp, send, args)
+    result = await registered["my_count_objects"](name_filter="Player")
 
-    result = await tools["my_count_objects"](name_filter="Player")
-    send.assert_awaited_once_with("my_count_objects", {"name_filter": "Player"})
-    assert "42" in result
+    send.assert_awaited_once_with(
+        "my_count_objects",
+        {"name_filter": "Player"},
+    )
+    assert result == "count: 2"
 ```
 
-## 5. Distribution
+Also add a Unity EditMode test for the handler's filtering behavior. Test the
+Python schema and C# operation independently before a live connection test.
 
-| Method | Command | When |
-|--------|---------|------|
-| Dev (editable) | `pip install -e .` | Local development |
-| Git | `pip install git+https://...` | Team sharing |
-| Local dir | `UNITY_MCP_PLUGIN_DIRS=/path` | Quick prototyping |
-| Skip | `UNITY_MCP_SKIP_PLUGINS=my_` | Disable temporarily |
+## Discovery and Distribution
+
+Python plugins load at server startup. Restart the Python MCP process after
+installing or changing one. See
+[Python Discovery Controls](api-reference.md#python-discovery-controls) for the
+supported sources, load order, and skip behavior.
+
+For a team release, distribute the Python package and the Unity Editor package
+at compatible versions. Do not rely on an editable install or a local absolute
+path outside development.
 
 ## Next Steps
 
-- [Plugin API Reference](api-reference.md) — full API surface
-- For a new command checklist: register C# handler → register Python tool → add test → verify with `my_count_objects` in Claude Code
+- [Plugin API Reference](api-reference.md) covers annotations, registration,
+  command options, lifecycle, and settings UI.
+- [Extend Chat Context Chips](../chat/extending-chips.md) adds custom Chat
+  context types without creating an MCP tool.

@@ -38,7 +38,7 @@ fails, open **MCP > Status > Diagnose**.
 ## Optional AI Skills
 
 Open **MCP > Install AI Skills** to install the bundled project-local guidance
-for Claude Code and Codex. The package contains 11 domain skills, 4 focused
+for Claude Code and Codex. The package contains 12 domain skills, 4 focused
 agents, and a Claude-to-Codex conversion script.
 
 The installer checks ownership and conflicts before replacement, preserves

@@ -1,210 +1,165 @@
-# Screenshot & Visual Diff Tools
+# Screenshots and visual diffs
 
-Capture game view, save visual baselines, and compare screenshots for regression testing. Use these tools for visual verification and automated visual testing.
+Use `screenshot` to capture a Unity view, then optionally save a named baseline
+and compare later captures. These tools are useful for visual verification, but
+a model-generated description is not a pixel-perfect assertion.
 
-## screenshot
+<span id="screenshot"></span>
 
-Capture the current game view as a PNG image with optional object annotations and AI description.
+## Capture an image
 
-**Parameters:**
-- `width` (int, default=640) — Image width in pixels
-- `height` (int, default=480) — Image height in pixels
-- `camera` (string, optional) — Camera preset: "scene_view" | "scene_view_frame" | "multi_view" | "single_view" | "overview" | "overview_game" | custom camera name
-- `path` (string, optional) — Scene path to target object (for framing)
-- `output_path` (string, optional) — Save path (default: auto-generated in Screenshots/)
-- `describe` (string, optional) — AI description mode: `"haiku"`
-- `raw` (bool, default=false) — Force path output instead of description
-- `zoom` (float, optional) — Zoom level (higher = closer)
-- `angles` (string, optional) — Per-view rotation (Euler angles): "ex,ey,ez|..." (use "_" to skip)
-- `supersample` (int, optional) — Antialiasing level (1-4)
-- `offset` (string, optional) — Framing offset (x,y)
-- `fixed_size` (float, optional) — Fixed framing size
-- `highlight` (string, optional) — Object paths to highlight with bounding box: "path1:path2:#RRGGBB"
-- `show_colliders` (bool, optional) — Overlay collider wireframes
-- `angle` (string, optional) — Camera angle for single_view: "front" | "left" | "top" | "iso" | "ex,ey,ez"
-- `annotation_id` (string, optional) — Draw object path labels (auto sets camera=annotation_frame)
-
-**Camera Presets:**
-
-| Camera | Purpose | Use Case |
-|--------|---------|----------|
-| scene_view | Standard editor scene view | General screenshots |
-| scene_view_frame | Frame around target | Focused object capture |
-| multi_view | 4-view layout (top/front/left/perspective) | Debugging spatial issues |
-| single_view | Single perspective camera | Player POV |
-| overview | Top-down orthographic | Level layout overview |
-| overview_game | Game view top-down | Build playable perspective |
-
-**Output:** File saved under `<project>/ScreenShots/` with an optional AI description appended.
-
-**Example:**
+The default capture is 640 × 480 and is saved under the project-local
+`ScreenShots/` directory:
 
 ```python
-# Basic screenshot
-img = await screenshot()
-
-# Custom size and camera
-img = await screenshot(width=1280, height=720, camera="scene_view")
-
-# Multi-view for debugging
-img = await screenshot(camera="multi_view", zoom=1.5)
-
-# With object highlighting (bounding box)
-img = await screenshot(highlight="Player:Enemy:#FF0000",
-                      camera="scene_view")
-
-# Show colliders
-img = await screenshot(camera="scene_view", show_colliders=True)
-
-# Haiku AI description (token-efficient)
-desc = await screenshot(describe="haiku", camera="scene_view")
-# → "[AI analysis] Player standing at position (0,5,0), health UI visible..."
-# → "[img:<project>/ScreenShots/2026-07-29_12-00-00_screenshot.png]"
-
-# With annotation ID (labels on objects)
-img = await screenshot(annotation_id="Player", camera="annotation_frame")
-
-# Single-view with specific angle
-img = await screenshot(camera="single_view", angle="front", width=800, height=600)
+image = await screenshot(camera="scene_view", width=1280, height=720)
 ```
 
-**Use Cases:**
-- Visual regression testing (compare with baseline)
-- Playtest documentation
-- Debugging spatial/rendering issues
-- CI/CD visual verification
+Common camera modes are:
 
----
+| Camera | Result |
+|---|---|
+| `scene_view` | Current Editor Scene view |
+| `scene_view_frame` | Scene view framed around Unity's current selection |
+| `multi_view` | Combined diagnostic views of the object required by `path` |
+| `single_view` | One generated view of the object required by `path`, using `angle` |
+| `overview` | Top-down scene overview |
+| `overview_game` | Orthographic overview aligned to the main camera, or a default perspective when none exists |
 
-## screenshot_baseline
-
-Save current screenshot as reference for visual regression testing.
-
-**Parameters:**
-- `name` (string, default="default") — Baseline identifier
-- `width` (int, default=640) — Image width
-- `height` (int, default=480) — Image height
-- `camera` (string, optional) — Camera preset (same as screenshot)
-
-**Output:** Baseline saved to `.claude/baselines/{name}.png`
-
-**Example:**
+For a focused capture:
 
 ```python
-# Save main menu baseline
-baseline = await screenshot_baseline(name="main_menu", camera="scene_view")
-
-# Save gameplay baseline at specific resolution
-baseline = await screenshot_baseline(name="combat_start", 
-                                    width=1920, height=1080,
-                                    camera="overview")
+image = await screenshot(
+    camera="single_view",
+    path="/Player",
+    angle="iso",
+    width=800,
+    height=600,
+    zoom=1.4,
+    highlight="/Player:#00FF88",
+    show_colliders=True,
+)
 ```
 
-**Use Cases:**
-- Establish visual reference before changes
-- Create regression testing suite
-- Document expected visual state
-
----
-
-## screenshot_compare
-
-Compare current screenshot with saved baseline. Highlights differences and calculates similarity.
-
-**Parameters:**
-- `name` (string, default="default") — Baseline identifier
-- `width` (int, default=640) — Image width
-- `height` (int, default=480) — Image height
-- `camera` (string, optional) — Camera preset (same as screenshot)
-- `mode` (string, default="auto") — Comparison algorithm: "auto" | "pixel" | "structural" | "targeted" | "ui_layout" | "animation" | "color" | "position"
-- `question` (string, optional) — Custom question for "targeted" mode (e.g., "Did the health bar change?")
-
-**Comparison Modes:**
-
-| Mode | Detects | Use Case |
-|------|---------|----------|
-| auto | Pixel diffs → structural escalation | Default, comprehensive |
-| pixel | Direct pixel comparison | Quick pixel-perfect tests |
-| structural | General layout analysis | Layout/composition changes |
-| targeted | Answer specific question | "Did button move?" |
-| ui_layout | UI element positioning | HUD layout changes |
-| animation | Motion/frame differences | Animation state verification |
-| color | Color/appearance changes | Color/material changes |
-| position | Object position differences | Spatial/transform changes |
-
-`pixel` comparison is local. Modes that use image analysis consume the configured LLM budget according to the actual image and token usage; `auto` consumes budget only when it escalates beyond the pixel comparison.
-
-**Output:** Comparison report with diff image and similarity percentage.
-
-**Example:**
+`single_view` accepts `front`, `left`, `top`, `iso`, or explicit Euler angles:
 
 ```python
-# Setup: save baseline
-await screenshot_baseline(name="level_1", camera="overview")
-
-# Later: verify unchanged
-result = await screenshot_compare(name="level_1", camera="overview")
-# → "Similarity: 99.8% (5 pixels different)"
-
-# Detect layout changes
-result = await screenshot_compare(name="main_menu", mode="ui_layout")
-
-# Targeted question
-result = await screenshot_compare(name="hud", mode="targeted",
-                                 question="Did the health bar color change?")
-
-# Color detection
-result = await screenshot_compare(name="environment", mode="color")
-
-# Auto mode (starts with pixel, escalates if needed)
-result = await screenshot_compare(name="gameplay", mode="auto")
+image = await screenshot(
+    camera="single_view",
+    path="/Vehicle",
+    angle="front",
+    supersample=2,
+)
 ```
 
-**Workflow:**
+`output_path` may choose a different destination inside the Unity project. The
+plugin rejects paths outside the project. Old automatic captures are pruned by
+the plugin, so copy or baseline an image that must be retained.
 
-1. **Baseline Setup** (first run)
-   ```python
-   await screenshot_baseline(name="gameplay", camera="overview")
-   ```
+### Request a description
 
-2. **Make Changes**
-   - Modify game state, UI, objects, etc.
+Set `describe` to a built-in prompt key or a short custom question. Built-in
+keys include `auto`, `scene_overview`, `verify_position`, `verify_color`,
+`verify_visible`, `ui_check`, `animation`, `particle`, and `multi_view`.
 
-3. **Verify Changes**
-   ```python
-   result = await screenshot_compare(name="gameplay", mode="auto")
-   # → Report differences
-   ```
+```python
+await editor(action="select", path="/Player")
+description = await screenshot(
+    camera="scene_view_frame",
+    describe="verify_visible",
+)
 
-4. **Update Baseline** (when intended)
-   ```python
-   await screenshot_baseline(name="gameplay", camera="overview")
-   ```
+custom = await screenshot(
+    camera="scene_view",
+    describe="Is the pause menu clipped at any edge?",
+)
+```
 
-**Use Cases:**
-- Automated visual regression testing
-- Verify UI doesn't shift unexpectedly
-- Detect animation state changes
-- Validate color/material updates
-- CI/CD visual quality gates
+Description requires configured sampling. If sampling is disabled, unavailable,
+or refuses the image, the tool degrades to the capture result. Use `raw=True`
+when the caller needs the image path even if `describe` is also supplied.
+`scene_view_frame` frames Unity's current selection; select the target first as
+shown above. With `scene_view` or `scene_view_frame`, `path` is treated as an
+output path for compatibility, so prefer the unambiguous `output_path`
+parameter.
 
----
+`annotation_id` switches to the annotation frame and frames a saved Region Tool
+selection with that ID. Multi-object marks and chat annotation are covered in
+[Screenshot annotation](../chat/annotation.md).
 
-## Common Patterns
+<span id="screenshot_baseline"></span>
 
-| Task | Tools | Example |
-|------|-------|---------|
-| Capture scene | screenshot() | `await screenshot(camera="scene_view")` |
-| Capture with colliders | screenshot() | `await screenshot(show_colliders=True)` |
-| Multi-view for debugging | screenshot() | `await screenshot(camera="multi_view", zoom=1.5)` |
-| Highlight objects | screenshot() | `await screenshot(highlight="Player:Enemy:#FF0000")` |
-| Get AI description | screenshot() | `await screenshot(describe="haiku")` |
-| Save baseline | screenshot_baseline() | `await screenshot_baseline(name="gameplay")` |
-| Compare with baseline | screenshot_compare() | `await screenshot_compare(name="gameplay", mode="auto")` |
-| Detect color changes | screenshot_compare() | `await screenshot_compare(name="hud", mode="color")` |
-| Verify layout | screenshot_compare() | `await screenshot_compare(name="menu", mode="ui_layout")` |
-| Custom diff question | screenshot_compare() | `await screenshot_compare(name="x", mode="targeted", question="Did button move?")` |
+## Save a baseline
 
----
+`screenshot_baseline` captures the requested view and copies it to
+`.claude/baselines/<name>.png`:
 
-**See also:** [Scene Tools](scene.md) for screenshot variants and editor control, [UI Tools](ui.md) for object positioning verification via `get_spatial_context`.
+```python
+baseline = await screenshot_baseline(
+    name="main-menu-1280x720",
+    camera="scene_view",
+    width=1280,
+    height=720,
+)
+```
+
+Baseline creation writes a project-local file. Choose stable camera state,
+resolution, scene state, and render settings; otherwise later comparisons can
+measure capture drift rather than the change under test. Baseline names become
+file names: they must be non-empty and cannot contain `/`, `\\`, or `..`.
+
+<span id="screenshot_compare"></span>
+
+## Compare with a baseline
+
+Use the same capture settings as the baseline:
+
+```python
+result = await screenshot_compare(
+    name="main-menu-1280x720",
+    camera="scene_view",
+    width=1280,
+    height=720,
+    mode="auto",
+)
+```
+
+Modes have different evidence and cost:
+
+| Mode | Behavior |
+|---|---|
+| `pixel` | Local pixel comparison only |
+| `auto` | Pixel comparison, then configured analysis when escalation is useful |
+| `structural` | General model-assisted composition analysis |
+| `targeted` | Model-assisted answer to the required `question` |
+| `ui_layout` | UI alignment and layout analysis |
+| `animation` | Pose or frame-state analysis |
+| `color` | Color and appearance analysis |
+| `position` | Relative object-position analysis |
+| `regression` | Model-assisted pass/fail check for removed, broken, or corrupted content |
+
+```python
+result = await screenshot_compare(
+    name="hud",
+    mode="targeted",
+    question="Did the health bar move or change color?",
+)
+```
+
+`pixel` is deterministic and local. Model-assisted modes require sampling and
+consume its configured budget; treat their prose as supporting evidence. The
+result can include a diff image and similarity data depending on mode.
+
+## Reliable workflow
+
+1. Put the scene and camera into a deterministic state.
+2. Capture once with `raw=True` and inspect framing.
+3. Save a versioned, clearly named baseline.
+4. Recreate the same state after the change.
+5. Run `pixel` for strict regression evidence or an appropriate assisted mode
+   for semantic evidence.
+6. Update the baseline only when the visual change is intentional and reviewed.
+
+For UI authoring, combine this workflow with [UI linting](ui.md). For runtime
+state setup and deterministic assertions, see the
+[Playtest guide](../features/playtest.md).

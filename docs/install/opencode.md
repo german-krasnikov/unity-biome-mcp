@@ -5,7 +5,13 @@ Prerequisite: complete the
 
 ## Install and Authenticate
 
-Install OpenCode and configure a model provider using the [official OpenCode documentation](https://opencode.ai/docs).
+Install the stable OpenCode CLI (`opencode`) and configure a model provider
+using the [official OpenCode documentation](https://opencode.ai/docs).
+
+Unity Biome MCP does not currently support the separate OpenCode 2.0 beta
+executable (`opencode2`). The beta can be installed alongside stable OpenCode
+and has evolving contracts; see the
+[official V2 migration status](https://opencode.ai/v2/docs/migrate-v1).
 
 Restart Unity if the CLI was installed while the Editor was open.
 
@@ -27,10 +33,16 @@ the Setup Wizard's standard `mcpServers` clipboard JSON into OpenCode. Use the
 with client key `opencode` so the packaged CLI applies OpenCode's
 client-specific root and command-array transformation.
 
+The resulting stable configuration follows OpenCode's `mcp.<server>` local
+server shape. Run `opencode mcp list` to confirm that `unity-biome-mcp` is
+enabled. See the [stable OpenCode MCP guide](https://opencode.ai/docs/mcp-servers/)
+for client-side controls.
+
 ## Client-specific Troubleshooting
 
 | Symptom | Action |
 |---|---|
 | OpenCode is not found | Make `opencode` available on the login-shell `PATH`, then restart Unity |
 | Provider or model is rejected | Verify the provider and model with OpenCode before using the same model ID in Chat |
-| External MCP server is absent | Inspect the global OpenCode config written by the CLI and check the client's MCP status |
+| External MCP server is absent | Inspect the global config written by the CLI, then run `opencode mcp list` |
+| Only `opencode2` is installed | Install stable `opencode`; the V2 beta backend is not currently supported |

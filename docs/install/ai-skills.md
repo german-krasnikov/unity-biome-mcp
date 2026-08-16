@@ -7,8 +7,9 @@ from configuring the MCP connection.
 
 The package currently includes:
 
-- 11 domain skills for MCP operations, scenes, assets and prefabs, materials
-  and shaders, UI, animation, VFX, physics, C# editing, testing, and diagnostics
+- 12 domain skills for MCP operations, scenes, assets and prefabs, materials
+  and shaders, uGUI, UI Toolkit, animation, VFX, physics, C# editing, testing,
+  and diagnostics
 - 4 focused agents: `unity-scene-editor`, `unity-csharp-developer`,
   `playmode-tester`, and `unity-diagnostics`
 - 1 Claude-to-Codex conversion script
@@ -20,8 +21,9 @@ The package currently includes:
 3. Leave **Overwrite existing files** disabled for the first installation.
 4. Enable **Run Codex sync after install** when this project uses Codex.
 5. Select **Install**, review the log, then select **Finish**.
-6. Restart Claude Code or Codex from the Unity project so it reloads the
-   project-local artifacts.
+6. Start the client from the Unity project. Codex normally detects skill
+   changes automatically; restart either client if the new guidance is not
+   listed.
 
 The Setup Wizard can open the same installation step. The installer writes only
 inside the current Unity project.
@@ -36,9 +38,15 @@ inside the current Unity project.
 | Codex generated agents | `.codex/agents/<agent>.toml` |
 | Codex ownership record | `.codex/.claude-to-codex-manifest.json` |
 
-Claude artifacts are the canonical source for Codex generation. Supporting
-references are copied with their skill, so the folder layout must remain
-intact.
+Claude artifacts are the converter's canonical source for Codex generation.
+Supporting references are copied with their skill, so the folder layout must
+remain intact.
+
+Codex discovers repository skills from `.agents/skills/`. You can invoke one
+explicitly with `/skills` or `$<skill-name>`. See the
+[official Codex skills guide](https://developers.openai.com/codex/skills) for
+client behavior; use this page for Unity Biome MCP's install and ownership
+rules.
 
 ## Safe Updates
 

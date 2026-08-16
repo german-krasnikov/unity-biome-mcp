@@ -1,175 +1,158 @@
 # Contributing to Unity Biome MCP
 
-Thank you for your interest in contributing! This guide walks you through setting up a development environment and running the test suite.
+Thank you for contributing. This guide covers repository setup, the tests that
+protect each part of the project, and the documentation contract.
 
-## Quick Start for Contributors
+## Set up the repository
+
+Requirements:
+
+- Python 3.10 or newer (CI also exercises 3.11 and 3.12)
+- Unity 6000.0 or newer for Unity and live tests
+- macOS, Linux, or Windows
+
+Clone the repository and create the managed Python environment:
 
 ```bash
-# Clone the repo
 git clone https://github.com/german-krasnikov/unity-biome-mcp.git
 cd unity-biome-mcp
-
-# Install (Python + venv + dependencies + auto-generates .mcp.json)
 python install.py setup
-
-# Verify installation
 python install.py doctor
-
-# Configure your AI tool (Claude Code, Cursor, etc.)
-python install.py configure --tool claude-code
 ```
 
-## Development Setup
+Run server commands from `server/`; run installer, scripts, documentation, and
+Unity runner commands from the repository root.
 
-### Requirements
-- **Python 3.10+** (tested on 3.12)
-- **Unity 6000.0+** (for integration tests only)
-- **TCP port 9500** available (default MCP port)
-- **macOS, Linux, or Windows** (all platforms supported)
+## Run tests
 
-### Working Directory
+Start with the smallest suite that covers your change, then run the broader
+non-live suites before opening a pull request.
+
+### Python, installer, and scripts
+
 ```bash
-cd server  # All Python work happens here
-```
-
-### Local Testing (No Unity Required)
-```bash
-# Unit tests only — fast, $0, no Unity needed
+# From server/
 PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ \
-  -m "not live and not live_cli and not live_chat and not monkey" \
-  --ignore=tests/live --strict-markers -q
+  -m "not live and not monkey" -q --tb=short
 
-# Expected: command exits successfully
+# From the repository root
+PYTHONWARNDEFAULTENCODING=1 python -m pytest install/tests/ -q --tb=short
+PYTHONWARNDEFAULTENCODING=1 python -m pytest scripts/tests/ -q --tb=short
 ```
 
-Run the `monkey` stress suite separately; it is intentionally excluded from the
-fast unit command.
+The `monkey` stress suite is intentionally separate:
 
-### Integration Testing (Requires Running Unity)
+```bash
+cd server
+PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ \
+  -m "monkey and not live" -q --tb=short
+```
 
-1. **Start Unity** — the plugin auto-assigns a port and writes it to `~/.unity-biome-mcp/ports/`:
-   ```bash
-   open -a Unity  # macOS; or launch Unity manually
-   ```
+### Unity EditMode and PlayMode tests
 
-2. **Select the project and run Python live tests:**
-   ```bash
-   export UNITY_MCP_PROJECT_DIR="/absolute/path/to/your/UnityProject"
-   PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "live and not live_cli" -q
-   ```
-   The server selects the live port whose recorded project path best matches
-   `UNITY_MCP_PROJECT_DIR`. Set `UNITY_MCP_PORT` only when you need to override
-   that selection. Expected: command exits successfully.
+Open `unity-test-project` in Unity and wait for compilation to finish. The
+durable runner is the preferred local entry point because it preserves request
+identity through a domain reload:
 
-3. **Open Unity Test Runner** (EditMode only):
-   - `Window → Testing → Test Runner`
-   - Click **EditMode**
-   - Click **Run All**
-   - Expected: the EditMode run completes without failures
+```bash
+python3 run_unity_tests.py EditMode --project unity-test-project
+python3 run_unity_tests.py PlayMode --project unity-test-project
+```
 
-## Test Execution Order
+Use `--filter Namespace.Fixture.TestName` for a focused run. An unfiltered
+EditMode run enforces the repository's minimum discovered-test count; do not
+use `--allow-empty` or lower the minimum to hide discovery failures.
 
-Always run tests in this order to catch issues early:
+After changing C# code, call the public `sync_unity` tool and require a clean
+result before trusting test output. If synchronization fails, inspect
+`get_console` and `Editor.log`, then follow the recovery steps in
+[`AI/reload-reference.md`](AI/reload-reference.md).
 
-| Tier | Tests | Command | Requirement |
-|------|-------|---------|-------------|
-| **1. Reload Stability** | Focused bridge stability | `pytest tests/test_reload_stability.py -v` | Python environment |
-| **2. Unit (Python)** | Non-live, non-stress Python suite | `pytest tests/ -m "not live and not live_cli and not live_chat and not monkey" --ignore=tests/live --strict-markers` | Python environment |
-| **3. Stress (Python)** | Monkey/property stress suite | `pytest tests/ -m "monkey and not live and not live_cli and not live_chat" --ignore=tests/live --strict-markers` | Python environment |
-| **4. EditMode (C#)** | Unity EditMode suite | Unity Test Runner → EditMode → Run All | Running Unity project |
-| **5. PlayMode (C#)** | Unity PlayMode suite | Unity Test Runner → PlayMode → Run All | Running Unity project |
-| **6. Python Live** | Unity-connected Python suite | `pytest tests/ -m "live and not live_cli"` | Running target Unity project |
-| **7. Live Chat** | Standalone `live_chat` suite | `pytest tests/ -m "live_chat" -v` | Authenticated CLI and target Unity project |
-| **8. Real CLI** | `live_cli` suite | `pytest tests/ -m "live_cli" -v` | Authenticated CLI and target Unity project |
+### Live Python tests
 
-Stop at the first failure — don't run all tiers if an earlier tier fails.
+Live tests require the target Unity project to be open:
 
-### After C# Changes
+```bash
+cd server
+export UNITY_MCP_PROJECT_PATH="/absolute/path/to/unity-test-project"
+PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/live/ -m live -q
+```
 
-Always reload before running Unity tests:
+`UNITY_MCP_PROJECT_PATH` is mandatory for the live harness. Use
+`UNITY_MCP_PORT` only when you deliberately need to override project-based port
+selection. The `live_cli` and `live_chat` suites also require their external
+CLI/provider authentication and should be run separately.
 
-1. Call `force_refresh`.
-2. Wait at least 15 seconds.
-3. Call `diagnose` and require a clean verdict.
-4. If the verdict and Editor behavior disagree, inspect `get_console`, then
-   `Editor.log`.
-5. Run the focused EditMode or PlayMode tests.
+### What to run
 
-Do not use `get_compile_errors` alone as proof that the new assembly loaded. See
-the [reload reference](AI/reload-reference.md) for the underlying Unity
-lifecycle and recovery constraints.
+| Change | Minimum evidence |
+|---|---|
+| Python server | Focused tests, then non-live server tests |
+| Installer or converter | `install/tests/` and affected ClientSkills tests |
+| Repository scripts or generators | `scripts/tests/` and the relevant check mode |
+| Unity C# | Focused EditMode/PlayMode tests, then the applicable full mode |
+| TCP or cross-language contract | Python tests, Unity tests, and relevant live tests |
+| Documentation | Documentation tests, generator checks, and strict MkDocs build |
 
-## Code Style
+Stop after a failing prerequisite and fix it before interpreting downstream
+results.
 
-Follow these principles for all contributions:
+## Code changes
 
-- **SOLID principles**: Single responsibility, Open/closed, Liskov substitution, Interface segregation, Dependency inversion
-- **DRY** (Don't Repeat Yourself): Extract patterns into shared utilities
-- **KISS** (Keep It Simple, Stupid): Prefer straightforward code over clever abstractions
-- **TDD**: Write tests before implementation
-- **File size**: Keep files under 300 lines to maintain readability and testability
-- **No "future-proofing"**: Only add abstractions when refactoring existing code, never preemptively
+Prefer the smallest change that makes the behavior explicit and testable.
 
-### Python style
-- Use type hints for function signatures
-- Async functions preferred for I/O-bound operations
-- 100-character line limit (flexible for URLs/long strings)
-- Use f-strings for formatting
+- Keep one source of truth for each fact or contract.
+- Add regression tests for bug fixes and meaningful behavior changes.
+- Use type hints for Python APIs and `Assert.That(...)` in new NUnit tests.
+- Follow the existing style near the code you change.
+- Avoid speculative abstractions and unrelated formatting churn.
+- Treat file size as a review signal, not an absolute pass/fail rule; split a
+  file when doing so makes ownership or testing clearer.
 
-### C# style
-- Follow [C# Coding Conventions](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions)
-- `ConfigureAwait(false)` on all async calls in non-UI code
-- Use `readonly` and immutable types where possible
-- NUnit assertions with `Assert.That()` (fluent style)
+The public tool catalog is defined in
+`server/src/unity_mcp/tools/tool_specs.py`. Unity command registration and the
+Python wrapper must agree on command name, arguments, mutability, mode guards,
+timeout, and response semantics.
 
-## Pull Request Process
+## Documentation changes
 
-1. **Branch from `master`**:
-   ```bash
-   git checkout -b feature/my-feature
-   ```
+Documentation ships with the code:
 
-2. **Make changes**. Test locally at each tier (unit → EditMode → live).
+- `README.md` is the concise project entry point.
+- `docs/` teaches user tasks and troubleshooting.
+- `AI/` records developer and agent implementation constraints.
+- `CHANGELOG.md` records user-visible changes; the package mirror is generated
+  from it.
+- generated tool schemas, quality data, counts, and README fact blocks must be
+  changed through their generators.
 
-3. **Push and open PR**:
-   ```bash
-   git push origin feature/my-feature
-   ```
+Update the canonical page that owns a fact and link to it elsewhere. User
+guides should explain prerequisites, a copyable example, expected result, and
+recovery without duplicating the generated parameter reference.
 
-4. **Open a PR** — maintainer will review and run the test suite.
-   Run all applicable test tiers locally before requesting review.
+Before committing generated facts, run:
 
-5. **Merge strategy**: Squash commits onto `master` for a clean history.
+```bash
+python scripts/update_readme.py --check-facts
+python scripts/update_readme.py --check
+mkdocs build --strict
+```
 
-## Architecture
+See [`docs/index.md`](docs/index.md) for the public documentation map and
+[`AI/README.md`](AI/README.md) for internal documentation ownership.
 
-For architectural decisions and design patterns, see [`AI/architecture.md`](AI/architecture.md).
+## Pull requests
 
-Key concepts:
-- **Tool catalog**: `tools/tool_specs.py` owns public tool metadata; tool modules register their wrappers during server composition
-- **Serialization**: purpose-specific Unity helpers such as `HierarchySerializer` and `ComponentSerializer` own wire-safe output
-- **CommandRouter**: Async dispatch with permission gating and security scanning
-- **TCP bridge**: 4-byte length-prefixed JSON, localhost-only, heartbeat recovery
+1. Create a focused branch from `master`.
+2. Keep unrelated edits out of the diff.
+3. Add tests and documentation with the implementation they describe.
+4. Record the exact commands and results in the pull request.
+5. Update `CHANGELOG.md` for user-visible behavior.
+6. Request review only after all applicable local checks pass.
 
-## Documentation
+Maintainers normally squash the pull request into `master`. Never include API
+keys, credentials, private project data, `.env` files, or generated local
+client configuration.
 
-Documentation is maintained with code:
-- Release notes go in `CHANGELOG.md`
-- User workflows go in `docs/`
-- Agent implementation constraints go in `AI/`
-- Generated README facts are updated with `python scripts/update_readme.py --all`
-- Before committing generated facts, run `python scripts/update_readme.py --check-facts`
-  and `python scripts/update_readme.py --check`
-
-Update the smallest canonical page that owns the behavior. Avoid copying the
-same workflow into several files.
-
-## Getting Help
-
-- Check [`docs/README.md`](docs/README.md) for troubleshooting
-- Open an issue with reproduction steps and test output
-- Reference relevant test files as examples
-
----
-
-**Thank you for contributing!** Every test, fix, and feature makes Unity Biome MCP more reliable for everyone.
+For architecture and repository conventions, start with
+[`AI/architecture.md`](AI/architecture.md) and [`AI/testing.md`](AI/testing.md).

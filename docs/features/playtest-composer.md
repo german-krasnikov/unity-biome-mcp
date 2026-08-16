@@ -1,170 +1,133 @@
 # Playtest Composer
 
-Visual drag-and-drop panel for building Playtest DSL scripts without writing raw text. Create, reorder, and run steps directly in the Unity Editor.
+Playtest Composer is a visual editor for the Playtest DSL. Use it to assemble,
+validate, save, and run common runtime checks without writing every DSL line by
+hand.
 
-## Opening the Panel
+## Open the Composer
 
-- **Menu:** `MCP / Playtest Composer` — shortcut `Shift+Alt+P`
-- **Chat toolbar:** "Composer" button
+- Choose **🧬MCP > Playtest Composer** or press **Shift+Alt+P**.
+- Or select **Composer** in the MCP Chat toolbar.
 
-State persists across Unity sessions in `<ProjectRoot>/Library/PlaytestComposerState.json`.
+The current step list, timeout, abort setting, and last file path persist in
+`Library/PlaytestComposerState.json`. The `Library` copy is local editor state;
+save reusable scenarios as `.playtest` files under version control.
 
-## Building a Playtest
+## Build and run a playtest
 
-### Toolbar
+Use **+** to add a step, the left handle to reorder it, and the row menu to
+duplicate or delete it. The editor exposes the fields relevant to the selected
+step type. A red row has a validation error; hover it for the reason.
 
-| Control | Action |
-|---------|--------|
-| **▶ Run** | Enters Play Mode and runs the step list; disabled when any step has a validation error |
-| **Save** | Saves to a `.playtest` file (default folder: `<ProjectRoot>/Playtests/`) |
-| **Load** | Opens a `.playtest` file; macros and aliases are expanded on load |
-| **Copy DSL** | Copies raw DSL text to clipboard |
-| **Copy for AI** | Copies a ` ```playtest ``` ` fenced block — paste directly into Claude chat |
-| **＋ Smart Command** | Opens natural language → steps window |
-| **TO: [float]** | Global timeout in seconds (default 60s) |
-| **Abort [toggle]** | Prepends `ABORT_ON_FAIL` when checked |
+The visual editor supports the most common steps: movement, waits, assertions,
+logging and sections, method invocation, runtime field changes, clicks, captures,
+invariants, and proximity checks. The [Playtest Guide](playtest.md) remains the
+canonical reference for the complete DSL.
 
-### Adding Steps
+Toolbar controls:
 
-Click **＋** in the footer to add a new step (defaults to `WAIT 1s`). Remove with **−** or right-click → Delete. Duplicate via right-click → Duplicate.
+| Control | Result |
+|---|---|
+| **Run** | Runs the validated list against the current Play Mode scene |
+| **Save / Load** | Writes or reads a `.playtest` file; the default folder is `Playtests/` |
+| **Copy DSL** | Copies the raw script |
+| **Copy for AI** | Copies a fenced `playtest` block with timeout and abort metadata |
+| **Smart Command** | Converts a description into candidate steps |
+| **TO** | Sets the run timeout in seconds |
+| **Abort** | Prepends `ABORT_ON_FAIL` and enables fail-fast execution |
 
-Drag the handle on the left of any row to reorder. Invalid steps show a red border — hover to see the error.
+**Run does not enter Play Mode.** Enter Play Mode first, wait for the scene to be
+ready, then run the script. The button remains disabled for an empty or invalid
+step list.
 
-### Step Types and Fields
+## Use hierarchy drag and drop
 
-Select a type from the dropdown. Each type exposes relevant fields:
+Drop a GameObject onto the list to create a movement, assertion, wait, invocation,
+monitor, runtime set, click, capture, or proximity step. Actions that need a
+component open a component/field picker.
 
-| Type | Fields |
-|------|--------|
-| Move, Teleport | Path, Position (Vector3), ⊙ eyedropper |
-| Wait | Delay (seconds) |
-| TimeScale | Scale multiplier |
-| WaitUntil | Query, Op, Value, Timeout, Abort toggle |
-| Assert, Invariant | Query, Op, Value |
-| Section, Log | Message text |
-| Invoke | Path, Component, Method, Args |
-| Set | Path, Component, Field, Value |
-| Monitor | Query |
-| Click | Path, Wait delay |
-| Capture | Label, Query |
-| AssertCaptured | Label, Mode (`INCREASED` / `DECREASED` / `UNCHANGED` / `INCREASED_BY` / `DECREASED_BY`) |
-| AssertNear | Path A, Path B, Distance threshold |
-| AssertConsoleClean | Ignore patterns (comma-separated) |
+You can also drop a GameObject or Component onto a row:
 
-### Drag & Drop from Hierarchy
+- A path field can take the object path, its current position, or both.
+- A query field opens a serialized field picker and fills the query.
+- Dropping a Component skips the component-selection step.
+- The eyedropper on Move and Teleport uses the current Scene selection.
 
-Drag one or more GameObjects from the Hierarchy directly onto the step list. For each object, a menu appears:
+Review generated paths after renaming or reparenting objects. Saved DSL contains
+paths, not durable links to scene objects.
 
-| Action | Step created |
-|--------|-------------|
-| Move `'Name'` | Move step with current position |
-| Teleport `'Name'` | Teleport step with current position |
-| Assert field on `'Name'` | Assert step; opens field picker |
-| WaitUntil field on `'Name'` | WaitUntil step (10s timeout); opens field picker |
-| Invoke method on `'Name'` | Invoke step; opens method picker |
-| Monitor field on `'Name'` | Monitor step; opens field picker |
-| Set field on `'Name'` | Set step; pre-fills current value |
-| Click `'Name'` | Click step with path |
-| Capture field on `'Name'` | Capture step; opens field picker |
-| AssertNear `'Name'` | AssertNear step with path |
+## Use Smart Command
 
-You can also **drop a GameObject or Component directly onto a Path or Query field** inside a step row:
+Smart Command accepts English or Russian descriptions. Dragging a GameObject into
+the input can insert its `[/path]`, coordinates, or a complete Move/Teleport line.
 
-- **Path field:** choose "Set path + position", "Set path only", or "Set position only"
-- **Query field:** opens field picker; auto-fills query and value from the current runtime value
-- **Drop a Component** directly onto a Query field → skips the GameObject step, goes straight to field picker
-- **⊙ Eyedropper** on Move/Teleport rows: fills path and position from the current Scene Selection
+1. Enter one or more desired steps.
+2. Leave **Use AI** enabled to use the configured sampling backend. If generation
+   is unavailable or fails, the Composer falls back to its heuristic parser.
+3. Disable **Use AI** for heuristic-only parsing.
+4. Select **Parse** and review every candidate line.
+5. Select **OK** to append parseable lines. Invalid syntax is skipped;
+   `LOG # UNPARSED` becomes a visible Log step, so replace or delete it before
+   treating the script as runnable evidence.
 
-## Smart Command
-
-Click **＋ Smart Command** to open the natural language window (400×360).
-
-1. Type what you want — in English or Russian, one step per line or a paragraph.
-2. Optionally drag GameObjects into the text field to insert `[/path]` references or `(x,y,z)` coordinates. The panel auto-converts these to `MOVE`/`TELEPORT` DSL lines.
-3. Turn **Use AI** on or off:
-   - **On** — sends text to LLM; falls back to heuristic on failure
-   - **Off** — heuristic parser only (no LLM call, instant)
-4. Click **Parse ▶**. Preview pane shows each line:
-   - Green = valid DSL step
-   - Red = `LOG # UNPARSED: <original text>` — could not convert
-5. Click **OK** — all valid steps are appended to the Composer list.
-
-## DSL Extensions
-
-Two constructs are available in `.playtest` files but are expanded into individual steps when the file is loaded:
-
-**MACRO / CALL** — define reusable step blocks with parameters:
-
-```
-MACRO check_health $path $expected
-  ASSERT $path|HealthComponent|CurrentHealth == $expected
-END_MACRO
-
-CALL check_health /Player 100
-CALL check_health /Enemy 50
-```
-
-**SECTION** — a group header shown in the results report:
-
-```
-SECTION "Setup"
-TELEPORT /Player 0,0,0
-SECTION "Combat"
-INVOKE /Enemy HealthComponent TakeDamage 50
-SECTION "Teardown"
-ASSERT_CONSOLE_CLEAN
-```
-
-For the full DSL reference (all 30 step types, operators, parsing rules), see [Playtest Guide](playtest.md).
+Smart Command is a drafting aid. Confirm object paths, component fields, expected
+values, and timeouts before running the result.
 
 ## Examples
 
-### 1. Respawn sanity check
+### Respawn check
 
-Drag `/Player` onto the list → "Assert field on 'Player'" → pick `HealthComponent / currentHealth`. Add a Teleport to a death zone, wait, then assert that health has recovered.
-
-```
+```text
 SECTION "Kill"
 TELEPORT /Player 0,-100,0
-WAIT 1.0
+WAIT 1
 SECTION "Respawn"
 WAIT_UNTIL /Player|HealthComponent|currentHealth > 0 TIMEOUT 10
 ASSERT /Player|HealthComponent|currentHealth == 100
 ASSERT_CONSOLE_CLEAN
 ```
 
-### 2. UI button flow
+### UI transition
 
-```
+```text
 SECTION "Main Menu"
 ASSERT_CTA VISIBLE
 CLICK /UI/Canvas/StartButton WAIT 0.5
 SECTION "Gameplay"
 WAIT_UNTIL /GameManager|GameManager|IsPlaying == true TIMEOUT 5
 ASSERT /GameManager|GameManager|IsPlaying == true
-```
-
-### 3. Combat with before/after snapshot
-
-```
-CAPTURE hp_before /Player|HealthComponent|currentHealth
-INVOKE /Enemy HealthComponent TakeDamage 25
-WAIT 0.2
-ASSERT_CAPTURED hp_before DECREASED
-ASSERT /Player|HealthComponent|currentHealth > 0
 ASSERT_CONSOLE_CLEAN
 ```
 
-After building the script, click **Copy for AI** and paste it into Claude chat to run it programmatically.
+### Damage check with captured state
 
-## Tips
+```text
+CAPTURE hp_before /Enemy|HealthComponent|currentHealth
+INVOKE /Enemy HealthComponent TakeDamage 25
+WAIT 0.2
+ASSERT_CAPTURED hp_before DECREASED
+ASSERT /Enemy|HealthComponent|currentHealth > 0
+ASSERT_CONSOLE_CLEAN
+```
 
-- **Save early** — `.playtest` files are plain text and diff cleanly in git.
-- **Sections pay off** — in long scripts, `SECTION` headers make the results report scannable at a glance.
-- **Copy for AI → paste into chat** — the fenced block is picked up by Claude and run via `run_playtest` automatically. No manual DSL typing needed.
-- **Validation before Run** — fix all red-bordered steps first; the Run button stays disabled until every step is valid.
-- **PlaytestConfig ScriptableObject** — create one at `Assets > Create > MCP > Playtest Config` to set your player path, movement component, and query aliases once for the whole project.
+These component and field names are examples; use the names in your project.
 
----
+## Save maintainable scenarios
 
-**See also:** [Playtest Guide](playtest.md) — full DSL reference, operators, timeout config, and error handling.
+- Loading is semantic, not a source-format round trip. The parser expands
+  macros and static directives before the visual list is built. A recognized
+  step that Composer cannot edit remains visible and keeps its source line;
+  when that line used `VAL` or `PATH_PREFIX`, saving writes the resolved,
+  self-contained command so it does not contain an unresolved sigil. Directive
+  formatting and comments are not preserved. Use a text editor when their
+  original structure matters.
+- Keep one behavioral purpose per `.playtest` file.
+- Add `SECTION` and `DESC` labels where they improve failure reports.
+- Prefer observable conditions over long fixed waits.
+- End acceptance scenarios with relevant state assertions and
+  `ASSERT_CONSOLE_CLEAN`.
+- Create **Assets > Create > 🧬MCP > Playtest Config** when the project needs a
+  shared player path, movement method, or query aliases.
+
+See [Wait Conditions](wait-conditions.md) for polling semantics and
+[Playtest Guide](playtest.md) for aliases, suites, hooks, and the full language.

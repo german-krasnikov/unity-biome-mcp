@@ -1,408 +1,302 @@
-# UI Tools
+# UI tools
 
-Two UI systems available in Unity. Use **uGUI** for Canvas-based UI; use **UI Toolkit** for UXML/USS panels.
+Unity Biome MCP supports both Unity UI systems:
 
----
+- Use **uGUI** (`UGUI`) for Canvas, RectTransform, and GameObject-based UI.
+- Use **UI Toolkit** (`UITOOLKIT`) for UXML, USS, `UIDocument`, and live
+  `VisualElement` trees.
 
-## uGUI (Canvas-based UI)
-
-### create_ui
-
-Create UI elements with smart defaults. Automatically creates Canvas if needed.
-
-**Parameters:**
-- `type` (string) — "Canvas" | "Panel" | "Button" | "Text" | "Image" | "Toggle" | "Slider" | "InputField" | "ScrollView"
-- `name` (string, optional) — Element name
-- `parent` (string, optional) — Parent path (default: new Canvas root)
-- `anchor` (string, optional) — Anchor preset: "stretch" | "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right"
-- `pos` (string, optional) — Position (x,y)
-- `size` (string, optional) — Size (width,height)
-- `pivot` (string, optional) — Pivot point (x,y)
-- `color` (string, optional) — Color (hex #RRGGBB or named)
-- `text` (string, optional) — Text content (for Text/Button/Toggle/InputField)
-- `font_size` (string, optional) — Font size (points)
-- `render_mode` (string, optional) — Canvas render mode: "SSO" (ScreenSpaceOverlay, default) | "SSC" (ScreenSpaceCamera) | "WorldSpace"
-- `font_min` (string, optional) — TextMeshPro minimum font size (enables auto-sizing for Text)
-- `font_max` (string, optional) — TextMeshPro maximum font size (enables auto-sizing for Text)
-
-**Example:**
+Enable the category that matches the project. The systems use different
+hierarchies and tools; a `VisualElement` is not a scene GameObject.
 
 ```python
-# Create button in new Canvas
-await create_ui(type="Button", name="PlayButton", 
-               anchor="center", size="200,60", text="Play", font_size="32")
-
-# Create text in existing hierarchy
-await create_ui(type="Text", name="Score", parent="Canvas/HUD",
-               anchor="top-right", pos="20,-20", size="120,40",
-               text="0", font_size="24")
-
-# Create image panel
-await create_ui(type="Image", name="HealthBar", parent="Canvas/HUD",
-               anchor="top-left", pos="20,-20", size="200,30", color="#cc3333")
+await discover_tools(category="UGUI", enable=True)
+# or
+await discover_tools(category="UITOOLKIT", enable=True)
 ```
 
----
+The [generated schema](../tools-schema/index.md) is the exhaustive parameter
+reference. This page owns the authoring workflow, persistence rules, and
+recovery guidance.
 
-### set_rect
+## uGUI workflow
 
-Configure RectTransform anchor, position, size, and offsets. Fine-tune UI element layout.
+### Create a Canvas hierarchy
 
-**Parameters:**
-- `path` (string) — Scene path to UI element
-- `anchor` (string, optional) — Anchor preset: "stretch" | "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right" | etc.
-- `pos` (string, optional) — Position (x,y)
-- `pos3` (string, optional) — Position with depth (x,y,z) — useful for WorldSpace Canvas
-- `size` (string, optional) — Size (width,height)
-- `pivot` (string, optional) — Pivot (x,y)
-- `offset_min` (string, optional) — Min corner offset (x,y)
-- `offset_max` (string, optional) — Max corner offset (x,y)
-
-**Example:**
+`create_ui` creates `Canvas`, `Panel`, `Button`, `Text`, `Image`, `Toggle`,
+`Slider`, `InputField`, or `ScrollView` objects. It creates a Canvas when a
+non-Canvas element has no suitable parent.
 
 ```python
-# Set button to center of screen, 200x60
-await set_rect(path="Canvas/PlayButton",
-              anchor="center", size="200,60")
-
-# Top-left HUD element with padding
-await set_rect(path="Canvas/HUD/HealthBar",
-              anchor="top-left", pos="20,-20", size="200,30")
-
-# Stretch to fill parent with margins
-await set_rect(path="Canvas/Background",
-              anchor="stretch", offset_min="10,10", offset_max="-10,-10")
+await create_ui(type="Canvas", name="HUD", render_mode="SSO")
+await create_ui(
+    type="Text",
+    name="Score",
+    parent="/HUD",
+    anchor="top-right",
+    pos="-24,-24",
+    size="160,48",
+    text="Score: 0",
+    font_size="24",
+    font_min="18",
+    font_max="30",
+)
+await create_ui(
+    type="Button",
+    name="PauseButton",
+    parent="/HUD",
+    anchor="top-left",
+    pos="24,-24",
+    size="160,48",
+    text="Pause",
+)
 ```
 
----
+Canvas render modes are `SSO` (Screen Space Overlay), `SSC` (Screen Space
+Camera), and `WorldSpace`. Camera assignment and project-specific components
+can be configured afterward with the normal component tools. `font_min` and
+`font_max` enable TextMeshPro auto-sizing; the legacy `Text` fallback ignores
+them when TextMeshPro is unavailable.
 
-### lint_ugui
+### Refine RectTransform layout
 
-Validate uGUI Canvas structure, RectTransform consistency, and persistent event listeners.
-
-**Parameters:**
-- `root` (string, optional) — Root path to scan for Canvas elements (default: "/" scans whole scene)
-
-**Output:** Report of missing EventSystem, broken Button listeners, constraint mismatches, or "OK" if clean.
-
-**Example:**
+Use `set_rect` for an existing uGUI object. `pos3` sets
+`anchoredPosition3D` and wins when both `pos` and `pos3` are provided.
 
 ```python
-# Validate all Canvas in scene
-issues = await lint_ugui()
+await set_rect(
+    path="/HUD/PauseButton",
+    anchor="top-left",
+    pos="24,-24",
+    size="160,48",
+    pivot="0,1",
+)
 
-# Check specific Canvas subtree
-issues = await lint_ugui(root="/MenuCanvas")
+# Fill the parent with a 12-pixel inset.
+await set_rect(
+    path="/HUD/Background",
+    anchor="stretch",
+    offset_min="12,12",
+    offset_max="-12,-12",
+)
 ```
 
----
-
-### list_events
-
-List all UnityEvent persistent listeners on a component in the scene.
-
-**Parameters:**
-- `path` (string) — Scene path to GameObject
-- `component` (string) — Component type (e.g., "Button", "Toggle", "MyScript")
-- `event` (string) — Event name (e.g., "onClick", "onValueChanged")
-
-**Output:** Array of persistent listeners with target GameObject, method, and parameters.
-
-**Example:**
+Use `pos3` for the depth of a World Space Canvas element:
 
 ```python
-# List Button click listeners
-listeners = await list_events(path="/Canvas/PlayButton", component="Button", event="onClick")
-
-# List Toggle change listeners
-listeners = await list_events(path="/Canvas/SoundToggle", component="Toggle", event="onValueChanged")
+await set_rect(path="/WorldCanvas/Label", pos3="0,0,0.02")
 ```
 
----
+### Validate interaction infrastructure
 
-### ui_intent
-
-Natural language → UI DSL → batch create_ui commands. Convert NL descriptions into complete UI hierarchies.
-
-**Parameters:**
-- `intent` (string) — Natural language description (e.g., "Create a health bar at top-left, score at top-right")
-- `parent` (string, optional) — Parent path (default: new Canvas)
-- `template` (string, optional) — Preset: "hud" | "menu" | "dialog" | "grid"
-- `dry_run` (bool, optional) — If True, return DSL without executing (default: False)
-
-**Templates:**
-
-| Template | Usage |
-|----------|-------|
-| hud | Health bar + score display |
-| menu | Button menu with title |
-| dialog | Message box with OK button |
-| grid | Grid of image cells |
-
-**Example:**
+`lint_ugui` checks for a scene `EventSystem` and for a `GraphicRaycaster` on
+each Canvas in scope. It does not validate layout geometry or listener method
+signatures.
 
 ```python
-# Create HUD from description
-result = await ui_intent(intent="Create a health bar at the top-left showing red, and score counter at top-right showing white text")
-
-# Use preset template
-result = await ui_intent(intent="Create HUD", template="hud", parent="Canvas")
-
-# Create menu from intent
-result = await ui_intent(intent="Main menu with Play, Settings, Quit buttons centered on screen")
-
-# Create dialog
-result = await ui_intent(intent="Confirmation dialog with message and OK button", parent="Canvas")
+report = await lint_ugui(root="/HUD")
 ```
 
----
+An `ok: 0 issues` result means those structural checks passed. Use
+[`list_events`](components.md#list_events) to inspect persistent UnityEvent
+listeners and the screenshot workflow to verify the rendered result.
 
-## UI Toolkit (UXML/USS panels)
+<span id="ui_intent"></span>
 
-For UXML/USS authoring and UIDocument inspection. Enable the `UITOOLKIT` tool category when using these tools.
+### Generate a uGUI layout from intent
 
-### inspect_uitk
-
-Inspect the VisualElement tree of a UIDocument panel. Returns compact text tree with element references.
-
-**Parameters:**
-- `path` (string, optional) — Scene path to UIDocument GameObject (e.g., "/HUD"), or "scene" to list all UIDocuments
-- `depth` (int, optional) — Max traversal depth (default: 4)
-- `selector` (string, optional) — Start tree from first matching element (name, .class, TypeName, or ~refid)
-- `filter` (string, optional) — Show only elements whose name or classes contain this substring
-- `show_unity_private` (bool, optional) — Include #unity-* prefixed elements (normally hidden)
-- `show_style` (bool, optional) — Include computed style values per element
-
-**Output:** Compact text tree with refid markers (~N) for use with uitk_element.
-
-**Example:**
+`ui_intent` converts a description into `create_ui`, `set_rect`, and component
+operations. Preview first when the hierarchy matters:
 
 ```python
-# Inspect HUD UIDocument
-tree = await inspect_uitk(path="/HUD", depth=5)
-
-# List all UIDocuments in scene
-tree = await inspect_uitk(path="scene")
-
-# Focus on a subtree by selector
-tree = await inspect_uitk(path="/HUD", selector=".panel__header")
+plan = await ui_intent(
+    intent="A compact pause menu with Resume, Settings, and Quit buttons",
+    parent="/HUD",
+    dry_run=True,
+)
 ```
 
----
-
-### lint_uitk
-
-Validate UXML/USS file structure and references.
-
-**Parameters:**
-- `path` (string) — Assets/ path to UXML or USS file
-- `fix` (bool, optional) — Auto-remove unsupported CSS properties and normalize format
-
-**Checks:** Well-formed XML, broken `<Style src>` references, missing `<Template src>` dependencies, CamelCase class names, star selectors, duplicate CSS variables.
-
-**Example:**
+Templates `hud`, `menu`, `dialog`, and `grid` are deterministic and do not use
+sampling:
 
 ```python
-# Validate UXML layout file
-issues = await lint_uitk(path="Assets/UI/HUD.uxml")
-
-# Validate stylesheet
-issues = await lint_uitk(path="Assets/UI/styles.uss", fix=True)
+result = await ui_intent(
+    intent="Create the standard HUD",
+    template="hud",
+    dry_run=False,
+)
 ```
 
----
+Review the created hierarchy, run `lint_ugui`, and capture a screenshot. For
+general intent-tool behavior, see [Intent Tools](../features/intent-tools.md).
 
-### uitk_element
+## UI Toolkit workflow
 
-Query or mutate a VisualElement in a UIDocument.
+### Author UXML and USS
 
-**Parameters:**
-- `action` (string) — "query" | "get" | "set_style" | "add_class" | "remove_class" | "get_style" | "enable" | "disable"
-- `path` (string, optional) — Scene path to UIDocument GameObject (e.g., "/HUD")
-- `ref` (string, optional) — ~N refid from inspect_uitk (highest priority, stale after re-inspect)
-- `selector` (string, optional) — CSS selector: .class-name, TypeName, or element name
-- `name` (string, optional) — Element name (equivalent to bare name in selector)
-- `value` (string, optional) — Value to write (for set_style/add_class)
-- `property` (string, optional) — CSS property name for set_style/get_style
-- `class_name` (string, optional) — USS class name for add_class/remove_class (no leading dot)
-
-**Actions:**
-
-| Action | Purpose |
-|--------|---------|
-| query | Find elements matching selector |
-| get | Read text or value of element |
-| set_style | Write CSS property value |
-| add_class | Add USS class to element |
-| remove_class | Remove USS class from element |
-| get_style | Read computed CSS property |
-| enable | Show element |
-| disable | Hide element |
-
-**Example:**
+`uitk_file` reads and edits project-local `.uxml` and `.uss` files under
+`Assets/`. It rejects `Packages/`, `Library/`, and other file types.
 
 ```python
-# Query health label
-result = await uitk_element(action="query", path="/HUD", selector=".health-label")
-
-# Get health text value
-value = await uitk_element(action="get", path="/HUD", ref="~3")
-
-# Set style property
-await uitk_element(action="set_style", path="/HUD", selector=".health-bar",
-                   property="width", value="50%")
-
-# Add critical state class
-await uitk_element(action="add_class", path="/HUD", name="health-bar",
-                   class_name="health-bar--critical")
+await uitk_file(
+    action="create_uss",
+    path="Assets/UI/PauseMenu.uss",
+    content=".pause-menu { padding: 24px; }",
+)
+await uitk_file(
+    action="create_uxml",
+    path="Assets/UI/PauseMenu.uxml",
+    content=(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<ui:UXML xmlns:ui="UnityEngine.UIElements">\n'
+        '    <Style src="PauseMenu.uss" />\n'
+        '    <ui:Button name="resume" text="Resume" class="pause-menu" />\n'
+        '</ui:UXML>'
+    ),
+)
 ```
 
----
+Supported actions are:
 
-### attach_uitk
+- whole-file `read` and `write`;
+- `create_uxml` and `create_uss`;
+- UXML `set-attr`, `add-class`, `remove-class`, `add-element`, and
+  `remove-element`;
+- USS `set-rule` and `remove-rule`;
+- single-level `revert` for a previously existing file, available only until
+  the Unity domain reloads. A newly created file has no prior content to restore
+  and must be removed with an asset/file workflow instead.
 
-Attach a UIDocument (UXML) to a GameObject at runtime or in Edit Mode.
-
-**Parameters:**
-- `path` (string) — Scene path to target GameObject
-- `uxml_path` (string) — Assets/ path to UXML file
-- `sort_order` (int, optional) — Sort order for panel layering (default: 0)
-
-**Example:**
+`read` returns the UTF-8 source verbatim and remains available on a read-only
+worker. Every other or unknown action is treated as a write. Mutating actions
+import the asset. Prefer the structural actions for small edits and `write`
+when replacing the whole file is deliberate.
 
 ```python
-# Attach HUD panel to camera GameObject
-await attach_uitk(path="/Main Camera", uxml_path="Assets/UI/HUD.uxml", sort_order=10)
+source = await uitk_file(action="read", path="Assets/UI/PauseMenu.uxml")
+await uitk_file(
+    action="set-rule",
+    path="Assets/UI/PauseMenu.uss",
+    selector=".pause-menu",
+    prop="margin-top",
+    value="12px",
+)
 ```
 
----
+### Lint source files
 
-### uitk_file
+`lint_uitk` is validation-only. It performs six checks:
 
-Create or modify UXML/USS files programmatically.
-
-**Parameters:**
-- `action` (string) — "create_uxml" | "create_uss" | "create_style_sheet" | "add_element" | "add_style"
-- `path` (string) — Assets/ destination path
-- `name` (string, optional) — Element or class name
-- `template` (string, optional) — Template name (for create actions)
-
-**Example:**
+1. malformed UXML;
+2. broken `<Style src>` references;
+3. missing `<Template src>` references;
+4. unnamed interactive elements;
+5. duplicate USS selectors;
+6. empty USS rules.
 
 ```python
-# Create new UXML file
-await uitk_file(action="create_uxml", path="Assets/UI/NewPanel.uxml")
-
-# Create new stylesheet
-await uitk_file(action="create_uss", path="Assets/UI/panel.uss")
+report = await lint_uitk(path="Assets/UI/PauseMenu.uxml")
 ```
 
----
+The compatibility parameter `fix` is reserved. `fix=True` fails explicitly and
+does not change the file; apply a reported correction with `uitk_file`, then
+lint again.
 
-### uitk_intent
+### Attach a UIDocument
 
-Natural language → UXML/USS code. Convert NL descriptions into UI Toolkit panel definitions.
-
-**Parameters:**
-- `intent` (string) — Natural language description
-- `style` (bool, optional) — Include generated USS stylesheet
-- `dry_run` (bool, optional) — Return code without writing files
-
-**Example:**
+`attach_uitk` adds one `UIDocument` component to a scene GameObject and can
+assign existing UXML and `PanelSettings` assets:
 
 ```python
-# Generate health bar panel from description
-result = await uitk_intent(intent="Create a health bar with label and background")
+await attach_uitk(
+    path="/UIRoot",
+    uxml="Assets/UI/PauseMenu.uxml",
+    panel_settings="Assets/UI/GamePanel.asset",
+    sort_order=10,
+)
 ```
 
----
+All supplied assets are validated before the component is added. Omitting
+`uxml` or `panel_settings` leaves that field unassigned; the tool does not
+create a `PanelSettings` asset. It refuses to add a second `UIDocument` to the
+same GameObject.
 
-## menu
+### Inspect and change the live tree
 
-Execute or list Unity Editor menu items. Access editor menus programmatically.
-
-**Parameters:**
-- `action` (string) — "execute" | "list"
-- `path` (string, optional) — Menu path (e.g., "File/Save Scene"). Required for execute.
-
-**Actions:**
-
-| Action | Purpose | Example |
-|--------|---------|---------|
-| list | Show all menu items (or sub-items) | `menu("list")` or `menu("list", path="File")` |
-| execute | Run menu item | `menu("execute", path="File/Save")` |
-
-**Menu Hierarchy Example:**
-```
-File/
-  New
-  Open
-  Save
-  Save Scene As...
-Edit/
-  Undo
-  Redo
-Tools/
-  Profiler
-  Debugger
-Assets/
-  Create
-  Import Package
-```
-
-**Note:** Edit/ menu items are NOT supported by Unity API (restrictions by Unity).
-
-**Example:**
+`inspect_uitk` serializes a live `UIDocument.rootVisualElement` tree and assigns
+compact `~N` references:
 
 ```python
-# List top-level menus
-menus = await menu("list")
-
-# List File menu items
-file_items = await menu("list", path="File")
-
-# Save the scene
-await menu("execute", path="File/Save")
-
-# Create new scene
-await menu("execute", path="File/New")
-
-# Open Profiler
-await menu("execute", path="Tools/Profiler")
+tree = await inspect_uitk(path="/UIRoot", depth=5)
+focused = await inspect_uitk(path="/UIRoot", selector=".pause-menu")
+all_documents = await inspect_uitk(path="scene")
 ```
 
-**Use Cases:**
-- Programmatically save scenes
-- Trigger import/export operations
-- Launch editor tools
-- Automate repetitive menu actions
+If the live root is unavailable in Edit Mode, enter Play Mode or inspect the
+UXML source with `uitk_file`. References expire after another inspect or a
+domain reload; on `err: stale ref`, inspect again.
 
----
+Use `uitk_element` to query controls or make live changes:
 
-## Common Patterns
+```python
+matches = await uitk_element(
+    action="query",
+    path="/UIRoot",
+    selector=".pause-menu",
+)
+text = await uitk_element(action="get", ref="~3", property="text")
+await uitk_element(action="add_class", ref="~3", class_name="is-paused")
+await uitk_element(action="set_style", ref="~3", property="opacity", value="0.5")
+```
 
-**uGUI (Canvas-based):**
+Addressing priority is `ref`, then `name`, then `selector`. `get` supports
+`text`, `value`, `visible`, `name`, and `enabled`. Inline `set_style` supports
+only `display`, `opacity`, and `visibility`; edit other properties in USS with
+`uitk_file`. These actions change the current live tree and never edit UXML or
+USS. Treat them as transient—Play Mode mutations also return an explicit
+non-persistence warning—and use `uitk_file` for a durable source change.
 
-| Task | Tools | Example |
-|------|-------|---------|
-| Create simple button | create_ui | `await create_ui(type="Button", text="Play", anchor="center")` |
-| Create HUD layout | create_ui (multiple) | Create Canvas, then Panel, then Image/Text children |
-| Fine-tune UI position | set_rect | `await set_rect(path="Canvas/Button", anchor="top-left", pos="10,-10")` |
-| Generate UI from description | ui_intent | `await ui_intent(intent="Health bar and score counter")` |
-| Validate Canvas setup | lint_ugui | `await lint_ugui()` |
-| Check event listeners | list_events | `await list_events(path="/Button", component="Button", event="onClick")` |
+<span id="uitk_intent"></span>
 
-**UI Toolkit (UXML/USS):**
+### Generate a panel from intent
 
-| Task | Tools | Example |
-|------|-------|---------|
-| Inspect UIDocument tree | inspect_uitk | `await inspect_uitk(path="/HUD")` |
-| Validate UXML/USS file | lint_uitk | `await lint_uitk(path="Assets/UI/HUD.uxml")` |
-| Query or mutate element | uitk_element | `await uitk_element(action="get", path="/HUD", selector=".health-label")` |
-| Attach UXML at runtime | attach_uitk | `await attach_uitk(path="/Camera", uxml_path="Assets/UI/HUD.uxml")` |
-| Create UXML/USS file | uitk_file | `await uitk_file(action="create_uxml", path="Assets/UI/Panel.uxml")` |
-| Generate UI from description | uitk_intent | `await uitk_intent(intent="Create a health bar panel")` |
+`uitk_intent` requires a base `name` and writes a paired `.uss` then `.uxml`.
+Templates `hud`, `menu`, `dialog`, `settings`, and `editor_window` bypass
+sampling.
 
----
+```python
+preview = await uitk_intent(
+    intent="A settings panel with sound and music toggles",
+    name="AudioSettings",
+    template="settings",
+    dry_run=True,
+)
 
-**See also:** [Scene Tools](scene.md) for screenshot with UI, [Spatial Tools](spatial.md) for collision and trigger analysis, [Objects Tools](objects.md) for component management.
+result = await uitk_intent(
+    intent="A settings panel with sound and music toggles",
+    name="AudioSettings",
+    path="Assets/UI",
+    template="settings",
+    attach_to="/UIRoot",
+)
+```
+
+The generated-file steps are sequential, not a cross-tool transaction. If a
+file or attach step fails, the result separates completed operations from paths
+that may have been created or modified before the failure. Unity removes a
+brand-new asset when its own post-import validation fails, but a transport
+failure can leave the outcome uncertain and earlier successful writes remain.
+Inspect every reported path before retrying.
+
+## Verification checklist
+
+For either UI system:
+
+1. Inspect the created hierarchy or live tree.
+2. Run `lint_ugui` or `lint_uitk` as appropriate.
+3. Inspect persistent events for interactive uGUI controls.
+4. Capture the target view and compare it with the intended layout.
+5. Save the scene only after structural and visual verification pass.
+
+See [Screenshots and visual diffs](screenshots.md) for the visual step and
+[System and orchestration](system.md) for synchronization and recovery tools.

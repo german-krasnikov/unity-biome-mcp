@@ -26,19 +26,14 @@ finally:
 `run_playtest` requires Play Mode. Successful step details are removed from the
 compact result; failures, snapshots, and logs remain.
 
-## run_playtest Parameters
+<span id="run_playtest-parameters"></span>
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `script` | str \| None | None | Inline DSL text (mutually exclusive with `path`) |
-| `path` | str \| None | None | Assets-relative or project-root-relative path to `.playtest` file |
-| `timeout` | float | 120.0 | Total execution time in seconds |
-| `abort_on_fail` | bool | False | Stop Play Mode on step timeout |
-| `defs` | str \| None | None | VAL definitions prepended to script (one per line) |
-| `snapshot_on_failure` | bool | False | Appends alias values and recent console errors on failure |
-| `fresh` | bool | False | Reload the active scene before the first step |
+## Run one scenario
 
-At least one of `script` or `path` is required; they are mutually exclusive.
+Pass either inline `script` text or a saved `.playtest` `path`, never both.
+Use `defs` for reusable `VAL` definitions, `fresh=True` to reload the active
+scene before the first step, and `snapshot_on_failure=True` when a failure must
+include current alias values and recent console errors.
 
 ```python
 # From file
@@ -53,29 +48,28 @@ await run_playtest(
 )
 ```
 
-## run_playtest_suite
+<span id="run_playtest_suite"></span>
+
+## Run a suite
 
 Run multiple `.playtest` files sequentially with a compact pass/fail matrix.
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `paths` | str \| None | None | Glob pattern or comma-separated list of `.playtest` files |
-| `suite_path` | str \| None | None | Absolute path to a `.suite` file (one path per line, `#` comments) |
-| `timeout_per_test` | float | 120.0 | Timeout per individual test |
-| `stop_on_fail` | bool | False | Abort suite after first failure |
-| `stop_after` | bool | True | Exit Play Mode when suite completes |
-| `auto_play` | bool | False | Enter Play Mode automatically if not playing |
-| `restart_between` | bool | False | Stop+play between each file to reset state |
-
-Exactly one of `paths` or `suite_path` must be provided.
+Provide either `pattern` (a glob or comma/newline-separated paths) or
+`suite_path` (a file listing one scenario per line), never both. Use
+`restart_between=True` only when each case needs a fresh Play Mode session; a
+failed stop or start is a suite failure, not a best-effort warning.
 
 ```python
-await run_playtest_suite(paths="Playtests/*.playtest", stop_on_fail=True)
+await run_playtest_suite(pattern="Playtests/*.playtest", stop_on_fail=True)
 # → SUITE: 5/6 passed (42s)
 #   ✓ movement.playtest (3s)
 #   ✗ combat.playtest (8s) — ASSERT Health > 0 FAIL
 #   ...
 ```
+
+An empty match is a failure: a passing suite always reports a non-zero exact
+ratio such as `SUITE: 5/5 passed`. See the
+[generated schema](../tools-schema/index.md#run_playtest_suite) for every option
+and default.
 
 ## lint_playtest
 
@@ -89,13 +83,13 @@ await lint_playtest(path="Assets/Playtests/combat.playtest")
 # → OK
 ```
 
-`lint_playtest_suite(paths=..., suite_path=...)` lints multiple files at once.
+`lint_playtest_suite(pattern=..., suite_path=...)` lints multiple files at once.
 
 ## Setup and Teardown
 
 Use `SETUP` and `TEARDOWN` blocks to organize initialization and cleanup.
 
-```python
+```text
 SETUP
   # Runs before main steps
   TELEPORT /Player 0,0,0
@@ -402,7 +396,8 @@ ASSERT_CONSOLE_CLEAN IGNORE "DeprecationWarning", "test_info"
 
 ## Report Compression
 
-Long reports (>300 chars) are auto-summarized by Haiku:
+When sampling is enabled, long reports may be summarized to keep the result
+compact:
 
 ```
 [Compressed] 24/25 passed

@@ -1,21 +1,29 @@
 ## What
 
-<!-- One sentence: what changed? -->
+<!-- Summarize the change and its user-visible result. -->
 
 ## Why
 
-<!-- Why is this change needed? Link issues: Fixes #123 -->
+<!-- Explain the problem or link the issue, for example: Fixes #123. -->
 
-## Test Evidence
+## Test evidence
 
-- [ ] Python unit tests (`cd server && PYTHONWARNDEFAULTENCODING=1 python -m pytest tests/ -m "not live and not monkey" -q`)
-- [ ] C# EditMode tests (Unity Test Runner)
-- [ ] Live integration tests (`pytest tests/ -m "live and not live_cli" -q`) — if TCP/protocol changed
-- [ ] Manual verification — describe below if applicable
+<!-- List only commands you ran, with their result. Add focused tests first. -->
+
+- [ ] Applicable Python server tests
+- [ ] Installer and scripts tests, if affected
+- [ ] Applicable Unity EditMode or PlayMode tests
+- [ ] Live tests, if a cross-language or transport contract changed
+- [ ] Documentation and generator checks, if affected
+
+```text
+command — result
+```
 
 ## Checklist
 
-- [ ] No file exceeds 300 lines (utility/static-only classes exempt)
-- [ ] No new dependencies without justification
-- [ ] CHANGELOG.md updated (if user-facing change)
-- [ ] No secrets, credentials, or .env files included
+- [ ] The diff is focused and includes regression coverage where appropriate.
+- [ ] Public behavior and `CHANGELOG.md` are updated where appropriate.
+- [ ] Generated files were updated through their owning generator.
+- [ ] No secrets, credentials, private assets, or local configuration are included.
+- [ ] Breaking changes and new dependencies are called out explicitly.

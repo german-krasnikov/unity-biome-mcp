@@ -114,9 +114,10 @@ player.health = 50;
 """, undo_label="set health")
 ```
 
-**undo_label:** Optional. Groups changes into one undo action with custom name.
-
-**Automatic undo:** Any script changes are batched under "execute_code" label if not specified.
+`undo_label` names the Unity Undo group. The wrapper does not automatically make
+arbitrary C# reversible: the script must use `Undo.RecordObject`,
+`Undo.RegisterCreatedObjectUndo`, or another appropriate Unity Undo API before
+each mutation. File, package, and external-process side effects are not covered.
 
 ## Error Handling
 
@@ -132,7 +133,7 @@ await execute_code("Player.SetActive(false)")
 
 ```python
 # Correct
-await execute_code("GameObject.Find('Player').SetActive(false)")
+await execute_code('GameObject.Find("Player").SetActive(false);')
 ```
 
 ## Common Patterns
@@ -169,7 +170,8 @@ foreach (var col in colliders) {
 
 ## Return Values
 
-Return strings or serializable types:
+The static wrapper returns an object and the bridge sends its `ToString()` value
+(`null` becomes the string `null`):
 
 ```python
 result = await execute_code("""
@@ -179,33 +181,36 @@ return obj.transform.position.ToString();
 # → "(5.0, 0.0, 3.0)"
 ```
 
-**Types that serialize:**
-- int, float, bool, string, Vector3, Quaternion
-- Color, Bounds, Rect
-- GameObject (as instance ID)
+Return an explicit string when the output format matters. Complex objects are
+not JSON-serialized automatically.
 
 ## Play Mode Notes
 
-`execute_code()` works in both Edit and Play Mode. For structured runtime field changes, prefer `set_property()` instead of inline code—it works in both modes and handles Play Mode via reflection automatically.
+`execute_code()` is callable in both Edit and Play Mode. Changes made in Play
+Mode are runtime changes and normally disappear when Play Mode stops. Prefer a
+runtime-specific tool or the Playtest DSL for gameplay state.
 
 ```python
 # Edit Mode: full access
 await execute_code("GameObject.Find('Player').SetActive(false)")
 
-# Play Mode: structured tool preferred
+# Play Mode: structured runtime method preferred
 await invoke_method("/Player", "PlayerController", "SetHealth", args="50")  # runtime reflection
 ```
 
 ## Timeout & Performance
 
-- **Timeout:** Unity enforces a 25-second execution ceiling
-- **Long operations:** Split into multiple calls
+- **MCP request timeout:** 60 seconds
+- **Editor impact:** execution is synchronous in the Unity Editor; avoid long or
+  unbounded work
 - **Compilation:** First call warm (~500ms); cached after
 
 ```python
-# Time-consuming: split it
-for i in range(100):
-    await execute_code(f'/* process batch {i} */')
+# Keep the work bounded and return a compact result.
+result = await execute_code("""
+var count = Object.FindObjectsByType<Collider>(FindObjectsSortMode.None).Length;
+return $"colliders={count}";
+""")
 ```
 
 ---
