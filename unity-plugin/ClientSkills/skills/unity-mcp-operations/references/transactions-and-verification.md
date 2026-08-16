@@ -16,10 +16,16 @@ or runtime values.
 7. Run `get_console_since(mark_id="<exact token>")`.
 8. Save only after the evidence is clean.
 
-`scene_change_plan` creates a checkpoint but does not guarantee automatic
-rollback. Its `dry_run` argument does not currently change execution.
-`apply_scene_change` must not replace explicit reference and console checks
-unless its current resolved schema provides the required verification root.
+`scene_change_plan` performs preflight and creates a checkpoint; it does not
+apply a mutation. `apply_scene_change` runs its synchronous batch with
+`atomic=True` and `on_error="stop"`. A batch failure stops verification and
+saving. With `verify=True`, broken references, console errors, or an
+unavailable verification result also prevent saving. With `verify=False`, an
+explicitly requested save may follow a successful batch.
+
+Atomic batch rollback covers compatible Unity scene commands. It cannot undo
+external filesystem or process side effects caused by commands such as
+`execute_code`; keep those operations outside the transaction.
 
 ## `verify_after_change`
 

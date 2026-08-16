@@ -32,6 +32,7 @@ Do not return a transcript of every tool call.
    - `.claude/skills/unity-assets-prefabs/SKILL.md`
    - `.claude/skills/unity-materials-shaders/SKILL.md`
    - `.claude/skills/unity-ugui-authoring/SKILL.md`
+   - `.claude/skills/unity-uitoolkit-authoring/SKILL.md`
    - `.claude/skills/unity-animation/SKILL.md`
    - `.claude/skills/unity-particles-vfx/SKILL.md`
    - `.claude/skills/unity-physics-spatial/SKILL.md`
@@ -66,9 +67,14 @@ Do not return a transcript of every tool call.
 | Ordinary multi-object creation | `setup_objects` |
 | Properties across objects | `configure_objects` |
 | Compatible synchronous commands | atomic `batch` |
-| Safe multi-object mutation | `scene_change_plan` + `apply_scene_change` |
+| Safe compatible multi-object mutation | `scene_change_plan` + `apply_scene_change` |
 | Highlight and select | `ping_object` |
 | Risky scene mutation | explicit preflight, mutation, readback, references, console |
 | Exact visual acceptance | screenshot after data verification |
 | Persistent C# behavior | hand off to `unity-csharp-developer` |
 | Play Mode acceptance | hand off to `playmode-tester` |
+
+`apply_scene_change` uses an atomic, stop-on-error synchronous batch and does
+not save after batch or verification failure. It rejects commands without
+proven Unity Undo coverage, including asset/file work, `execute_code`, nested
+batches, plugins, and unknown commands; run those outside the transaction.

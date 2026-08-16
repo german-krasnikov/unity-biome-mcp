@@ -62,6 +62,9 @@ LEGACY_GENERATED_BLOBS = {
         "84b9687dfad788b40f4b8386a4193b7b7dda93ee",
         "c91672efe66b713e7925d982ce60615223d260e0",
     }),
+    ".codex/agents/unity-test-reviewer.toml": frozenset({
+        "08c48d396f7848be5f8f57aaa1c493c6c6dfb3e7",
+    }),
     ".agents/skills/csharp-unity/SKILL.md": frozenset({
         "88a168602fcfb769c77c48bad11f82f9dd0f9088",
         "c29971e791d91962d47fe27c4931255e1e80030f",
@@ -107,7 +110,14 @@ LEGACY_GENERATED_BLOBS = {
         "af3ab25e11f7d3624ae9d5d16dbdfb6dc3c12057",
         "6edd52030796ea3c8b7cbe4f34cd33006cc15213",
     }),
+    ".agents/skills/unity-testing-verification/references/test-authoring.md": frozenset({
+        "a06497388792403ae2e34cef65324140ebad446c",
+        "f6ed9e999cba3f8aefa653fa2013fc40ce53474a",
+    }),
     ".agents/skills/unity-timeline/SKILL.md": frozenset({"fe29a910dd5813089e41c4d96a55c8ee9aea6f2b"}),
+    ".agents/skills/unity-ui-authoring/SKILL.md": frozenset({
+        "ace0723100751e5eec95e58544dd48a560f6ced8",
+    }),
 }
 
 

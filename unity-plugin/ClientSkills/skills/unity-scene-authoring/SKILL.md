@@ -84,12 +84,18 @@ wire_event(
   target="/Game",
   method="StartGame"
 )
+list_events(
+  path="/HUD/StartButton",
+  component="Button",
+  event="onClick"
+)
 validate_references(path="/HUD", depth=3)
 ```
 
 Apply `auto_wire(..., dry_run=False)` only when every proposed match is
 unambiguous. Use `unwire_event` with an explicit listener index unless clearing
-the entire event is intended.
+the entire event is intended. Verify persistent listeners with `list_events`;
+do not infer them from a screenshot or an enabled component.
 
 ## Transactional Scene Edits
 
@@ -107,8 +113,16 @@ manage_component path=/Checkpoint/Spawner type=ParticleSystem action=add
 )
 ```
 
-`scene_change_plan` declares intent and returns a plan ID. `apply_scene_change`
-executes the commands with built-in rollback on failure.
+`scene_change_plan` preflights the targets, creates a checkpoint, and returns a
+plan ID. `apply_scene_change` runs compatible synchronous commands as an atomic,
+stop-on-error batch. It does not verify or save after batch failure. With
+verification enabled, broken references, console errors, or an unavailable
+verification result also prevent saving.
+
+Use only the apply tool's documented Unity-Undo-backed scene commands. Keep
+filesystem and asset operations, `execute_code`, nested batches, plugins, and
+unknown commands outside the transaction; the tool rejects them before dispatch.
+Verify their partial-failure behavior separately.
 
 ## Safety Rules
 
@@ -117,8 +131,8 @@ executes the commands with built-in rollback on failure.
 - Pass `set_property.value` as a string.
 - Use dry-run forms for destructive spatial operations when available.
 - Do not use a screenshot to prove component values or references.
-- A checkpoint is not automatic rollback; use an atomic batch for compatible
-  destructive commands.
+- A checkpoint alone is not rollback; use `apply_scene_change` or an explicit
+  atomic batch for compatible destructive commands.
 - In multi-scene workflows, verify the target object's owning scene after
   transfer and before saving.
 

@@ -263,6 +263,78 @@ def test_legacy_prune_skips_current_generated_target(
     assert target.read_text() == "new current content"
 
 
+def test_prune_removes_retired_agent_and_resource_owned_by_manifest(
+    tmp_path: pathlib.Path,
+    repo_root: pathlib.Path,
+) -> None:
+    converter = load_converter(repo_root)
+    reviewer = tmp_path / ".codex" / "agents" / "unity-test-reviewer.toml"
+    policy = (
+        tmp_path
+        / ".agents"
+        / "skills"
+        / "unity-testing-verification"
+        / "references"
+        / "test-authoring.md"
+    )
+    reviewer.parent.mkdir(parents=True)
+    policy.parent.mkdir(parents=True)
+    reviewer.write_text("managed reviewer")
+    policy.write_text("managed repository policy")
+    converter.write_manifest(
+        tmp_path,
+        {
+            reviewer.relative_to(tmp_path).as_posix(): converter.file_hash(reviewer),
+            policy.relative_to(tmp_path).as_posix(): converter.file_hash(policy),
+        },
+    )
+
+    plan = converter.build_sync_plan(tmp_path, [], [], prune=True)
+    converter.apply_sync_plan(tmp_path, plan, {})
+
+    assert set(plan.remove) == {reviewer, policy}
+    assert not reviewer.exists()
+    assert not policy.exists()
+    assert converter.load_manifest(tmp_path) == {}
+
+
+def test_modified_retired_manifest_file_blocks_prune_without_partial_changes(
+    tmp_path: pathlib.Path,
+    repo_root: pathlib.Path,
+) -> None:
+    converter = load_converter(repo_root)
+    reviewer = tmp_path / ".codex" / "agents" / "unity-test-reviewer.toml"
+    policy = (
+        tmp_path
+        / ".agents"
+        / "skills"
+        / "unity-testing-verification"
+        / "references"
+        / "test-authoring.md"
+    )
+    replacement = tmp_path / ".agents" / "skills" / "current" / "SKILL.md"
+    reviewer.parent.mkdir(parents=True)
+    policy.parent.mkdir(parents=True)
+    reviewer.write_text("managed reviewer")
+    policy.write_text("managed policy")
+    converter.write_manifest(
+        tmp_path,
+        {
+            reviewer.relative_to(tmp_path).as_posix(): converter.file_hash(reviewer),
+            policy.relative_to(tmp_path).as_posix(): converter.file_hash(policy),
+        },
+    )
+    policy.write_text("user customization")
+    generated = [converter.GeneratedFile(replacement, "current skill")]
+
+    with pytest.raises(ValueError, match="modified generated file"):
+        converter.build_sync_plan(tmp_path, generated, [], prune=True)
+
+    assert reviewer.read_text() == "managed reviewer"
+    assert policy.read_text() == "user customization"
+    assert not replacement.exists()
+
+
 def test_read_only_agent_maps_to_codex_sandbox(
     tmp_path: pathlib.Path,
     repo_root: pathlib.Path,

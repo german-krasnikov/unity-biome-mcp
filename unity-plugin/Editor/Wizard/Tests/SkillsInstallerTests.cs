@@ -185,6 +185,27 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Install_SecondRunIsIdempotent()
+        {
+            var src = Path.Combine(_tmp, "idempotent-src");
+            var dst = Path.Combine(_tmp, "idempotent-dst");
+            Directory.CreateDirectory(Path.Combine(src, "skills", "sample"));
+            Directory.CreateDirectory(Path.Combine(src, "agents"));
+            File.WriteAllText(Path.Combine(src, "skills", "sample", "SKILL.md"), "skill");
+            File.WriteAllText(Path.Combine(src, "agents", "sample.md"), "agent");
+
+            var first = SkillsInstaller.Install(src, dst);
+            var second = SkillsInstaller.Install(src, dst);
+
+            Assert.IsTrue(first.IsSuccess);
+            Assert.AreEqual(2, first.Copied);
+            Assert.IsTrue(second.IsSuccess);
+            Assert.AreEqual(0, second.Copied);
+            Assert.AreEqual(2, second.Skipped);
+            Assert.AreEqual(0, second.Removed);
+        }
+
+        [Test]
         public void Install_OverwritesWhenFlagSet()
         {
             var src = Path.Combine(_tmp, "src5");
@@ -276,6 +297,99 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("user edit", File.ReadAllText(legacy));
             Assert.IsFalse(File.Exists(Path.Combine(
                 dst, ".claude", "skills", "new-skill", "SKILL.md")));
+        }
+
+        [Test]
+        public void Install_RetiredFilesAreRemovedInSameTransactionAsReplacementSkills()
+        {
+            var src = Path.Combine(_tmp, "retired-src");
+            var dst = Path.Combine(_tmp, "retired-dst");
+            Directory.CreateDirectory(Path.Combine(src, "skills", "unity-ugui-authoring"));
+            Directory.CreateDirectory(Path.Combine(src, "skills", "unity-uitoolkit-authoring"));
+            File.WriteAllText(Path.Combine(
+                src, "skills", "unity-ugui-authoring", "SKILL.md"), "ugui");
+            File.WriteAllText(Path.Combine(
+                src, "skills", "unity-uitoolkit-authoring", "SKILL.md"), "uitk");
+
+            var oldUi = Path.Combine(
+                dst, ".claude", "skills", "unity-ui-authoring", "SKILL.md");
+            var oldReviewer = Path.Combine(
+                dst, ".claude", "agents", "unity-test-reviewer.md");
+            var oldPolicy = Path.Combine(
+                dst, ".claude", "skills", "unity-testing-verification",
+                "references", "test-authoring.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(oldUi));
+            Directory.CreateDirectory(Path.GetDirectoryName(oldReviewer));
+            Directory.CreateDirectory(Path.GetDirectoryName(oldPolicy));
+            File.WriteAllText(oldUi, "old ui");
+            File.WriteAllText(oldReviewer, "old reviewer");
+            File.WriteAllText(oldPolicy, "old policy");
+
+            var legacyFiles =
+                new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyCollection<string>>
+            {
+                {
+                    "skills/unity-ui-authoring/SKILL.md",
+                    new[] { SkillsInstaller.ComputeGitBlobSha1(oldUi) }
+                },
+                {
+                    "agents/unity-test-reviewer.md",
+                    new[] { SkillsInstaller.ComputeGitBlobSha1(oldReviewer) }
+                },
+                {
+                    "skills/unity-testing-verification/references/test-authoring.md",
+                    new[] { SkillsInstaller.ComputeGitBlobSha1(oldPolicy) }
+                },
+            };
+
+            var result = SkillsInstaller.Install(src, dst, false, legacyFiles);
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(2, result.Copied);
+            Assert.AreEqual(3, result.Removed);
+            Assert.IsFalse(File.Exists(oldUi));
+            Assert.IsFalse(File.Exists(oldReviewer));
+            Assert.IsFalse(File.Exists(oldPolicy));
+            Assert.IsTrue(File.Exists(Path.Combine(
+                dst, ".claude", "skills", "unity-ugui-authoring", "SKILL.md")));
+            Assert.IsTrue(File.Exists(Path.Combine(
+                dst, ".claude", "skills", "unity-uitoolkit-authoring", "SKILL.md")));
+        }
+
+        [Test]
+        public void Install_ModifiedRetiredFileBlocksEveryRemovalAndCopy()
+        {
+            var src = Path.Combine(_tmp, "retired-conflict-src");
+            var dst = Path.Combine(_tmp, "retired-conflict-dst");
+            Directory.CreateDirectory(Path.Combine(src, "skills", "replacement"));
+            File.WriteAllText(Path.Combine(src, "skills", "replacement", "SKILL.md"), "new");
+
+            var unchanged = Path.Combine(dst, ".claude", "agents", "old-agent.md");
+            var modified = Path.Combine(dst, ".claude", "skills", "old", "SKILL.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(unchanged));
+            Directory.CreateDirectory(Path.GetDirectoryName(modified));
+            File.WriteAllText(unchanged, "managed agent");
+            File.WriteAllText(modified, "managed skill");
+            var unchangedHash = SkillsInstaller.ComputeGitBlobSha1(unchanged);
+            var modifiedHash = SkillsInstaller.ComputeGitBlobSha1(modified);
+            File.WriteAllText(modified, "user customization");
+
+            var legacyFiles =
+                new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyCollection<string>>
+            {
+                { "agents/old-agent.md", new[] { unchangedHash } },
+                { "skills/old/SKILL.md", new[] { modifiedHash } },
+            };
+
+            var result = SkillsInstaller.Install(src, dst, false, legacyFiles);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, result.Copied);
+            Assert.AreEqual(0, result.Removed);
+            Assert.AreEqual("managed agent", File.ReadAllText(unchanged));
+            Assert.AreEqual("user customization", File.ReadAllText(modified));
+            Assert.IsFalse(File.Exists(Path.Combine(
+                dst, ".claude", "skills", "replacement", "SKILL.md")));
         }
 
         // ── Version file ──────────────────────────────────────────────────────

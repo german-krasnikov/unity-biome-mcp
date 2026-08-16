@@ -19,6 +19,8 @@ namespace UnityMCP.Editor.Wizard
                 { "agents/unity-editor-developer.md", Hashes(
                     "cffe4d1b9cfdd586d86db7ef62c8defebc688327",
                     "038c467734bd44fbcba23774d091d3d287fb4250") },
+                { "agents/unity-test-reviewer.md", Hashes(
+                    "0988c9a8ca580951c7fbe70695b15b59a15fc9af") },
                 { "skills/csharp-unity.md", Hashes(
                     "0bcb76fa205de60ccfdb9abe79bbd58363f856df",
                     "656a29142dee25c467a4a146eaaff6bdd7bc7cad") },
@@ -57,7 +59,12 @@ namespace UnityMCP.Editor.Wizard
                 { "skills/unity-testing.md", Hashes(
                     "39650bc93cfd75419863eca1f7f5cd8cb025c144",
                     "2a874bc1e2daa3569d077f8c343282fb51c25a16") },
+                { "skills/unity-testing-verification/references/test-authoring.md", Hashes(
+                    "a06497388792403ae2e34cef65324140ebad446c",
+                    "f6ed9e999cba3f8aefa653fa2013fc40ce53474a") },
                 { "skills/unity-timeline.md", Hashes("622e09329fecdcebda756a7b3bc2ef726333801a") },
+                { "skills/unity-ui-authoring/SKILL.md", Hashes(
+                    "73848d830e8d979b333c5398cd25d57ea0b2bd1d") },
             };
 
         private static IReadOnlyCollection<string> Hashes(params string[] values) =>
