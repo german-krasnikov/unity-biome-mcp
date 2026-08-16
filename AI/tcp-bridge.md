@@ -304,7 +304,7 @@ uncorrelated latest result is never acceptance evidence.
 - Python server filtering: `server/src/unity_mcp/server_filtering.py` (with v0.23.0 TCP probe)
 - Python server wrapper: `server/src/unity_mcp/server.py` (main() crash handler)
 - C#: `unity-plugin/Editor/CommandRouter.cs`, `unity-plugin/Editor/MCPServer.cs`, `unity-plugin/Editor/BatchHelper.cs` (atomic timeout rollback v0.57.0), `unity-plugin/Editor/MCPSettings.cs` (OnWantsToQuit flush v0.57.0)
-- Tests: `server/tests/test_bridge.py` (37 base + new tests v0.36.0), `server/tests/test_bridge_edge_cases.py` (expanded, includes Windows SHUT_WR + pin reset tests), `server/tests/test_bridge_port_rediscovery.py` (pin reset on ConnectionRefusedError; 300 lines), `server/tests/test_bridge_reload_state.py` (8 new DomainReloadTracker tests, v0.36.0), `server/tests/test_bridge_should_retry.py` (8 new should_retry() tests, v0.36.0), `server/tests/test_bridge_reload_gate.py` (reload gate asyncio.Event tests), `server/tests/test_bridge_role.py` (client role in ping tests), `server/tests/test_heartbeat.py` (4 new P3+P5 tests: double-check + graceful stop), `server/tests/test_connection_slot.py` (8), `server/tests/test_lockfile.py` (17), `server/tests/test_crash_log.py` (10), `server/tests/test_server.py` (4 new main() crash tests), `server/tests/test_parent_death.py` (updated for P3+P5), `server/tests/test_package_json.py` (package.json schema validation)
+- Tests: see the source-backed [Tests](#tests) section and `AI/testing.md`.
 
 ## Reconnection Strategy
 
@@ -358,97 +358,16 @@ On Exception (ConnectionReset / OSError / dead TCP):
   → close immediately → heartbeat picks up disconnected state → reconnect on next poll
 ```
 
-## TDD Scenarios (for Developer)
+## Tests
 
-### Python Client (37 tests in test_bridge.py + 16 new tests in v0.36.0)
+Python coverage is split by responsibility under `server/tests/test_bridge*.py`,
+with focused lifecycle coverage in `test_connection_slot.py`, `test_heartbeat.py`,
+`test_lockfile.py`, and `test_parent_death.py`. Unity-side framing, connection,
+and startup behavior is covered by `unity-plugin/Editor/Tests/ClientConnectionHandlerTests.cs`,
+`MCPServerSplitTests.cs`, and `MCPServerStartGuardTests.cs`.
 
-**Protocol / framing:**
-- `test_send_encodes_header_as_big_endian_uint32`, `test_send_encodes_payload_as_utf8_json`
-- `test_send_includes_incremental_id`, `test_read_response_decodes_json`
-- `test_message_too_large_raises_error`, `test_send_concurrent_unique_ids`
-- `test_close_cleans_up_writer`
-
-**Port config:**
-- `test_bridge_default_port`, `test_bridge_custom_port`, `test_bridge_env_port`
-- `test_bridge_explicit_port_overrides_env`, `test_bridge_invalid_env_port_falls_back_to_default`
-
-**Retry / error handling:**
-- `test_send_fails_fast_on_connection_error`, `test_send_raises_on_connection_error`
-- `test_bridge_auto_retry_on_retry_hint`, `test_bridge_no_retry_on_normal_error`
-- `test_send_raises_timeout_error_after_max_retries`, `test_bridge_retry_respects_max_retries`
-- `test_idle_retry_gets_one_grace_attempt`
-- `test_domain_reload_pins_busy_for_all_retries` — DomainReloadError sets `domain_reload_in_progress=True` flag which persists across retries, preventing `_probe_busy()` from returning False early when Editor.log clears "compiling" status before TCP port 9700 is restored
-- `test_non_domain_reload_still_re_evaluates_probe` — Non-DomainReloadError exceptions still allow `_probe_busy()` re-evaluation per attempt (existing behavior)
-
-**P0 + P2 (Cycle 17+) — Edge case fixes:**
-- `test_domain_reload_flag_auto_expires` — flag clears after DOMAIN_RELOAD_EXPIRY_S=30s even if domain reload never completes
-- `test_startup_grace_latch_recovery` — send() retries reconnect instead of immediate failure when grace period expired
-- `test_reconnect_clears_domain_reload_flags` — successful reconnect clears both `_domain_reload_in_progress` and `_domain_reload_since`
-
-**Heartbeat:**
-- `test_heartbeat_default_interval_is_15`, `test_heartbeat_detects_zombie_connection`
-- `test_heartbeat_reconnects_when_disconnected`, `test_heartbeat_reconnects_when_busy`
-- `test_heartbeat_stops_on_close`, `test_heartbeat_immediate_close_when_pid_dead`
-- `test_heartbeat_immediate_close_on_domain_reload_error`
-- `test_heartbeat_respects_reconnect_cooldown`
-- `test_heartbeat_survives_tick_exception`
-
-**P3 (Cycle 17+) — Parent Death Double-Check:**
-- `test_ppid_mismatch_requires_two_checks` — single PPID change doesn't exit
-- `test_ppid_mismatch_counter_resets_on_match` — counter zeroes if PPID matches next check
-- `test_ppid_mismatch_exits_on_second_mismatch` — raises SystemExit(0) on consecutive mismatches
-- `test_ppid_mismatch_allows_cleanup` — SystemExit permits finally blocks and atexit handlers
-
-**Raw ping:**
-- `test_raw_ping_bypasses_send_retry`, `test_raw_ping_raises_on_disconnected`
-
-**Reconnect cooldown:**
-- `test_reconnect_cooldown_default_2s`, `test_reconnect_cooldown_blocks_rapid_reconnect`
-- `test_reconnect_cooldown_allows_after_interval`
-- `test_reconnect_callback_debounce_skips_rapid_calls`, `test_reconnect_callback_debounce_allows_after_cooldown`
-
-**Failure description:**
-- `test_describe_failure_reports_crash_when_pid_dead`
-
-### v0.36.0 Refactoring (16 new tests across 2 files)
-
-**test_bridge_reload_state.py (8 tests for DomainReloadTracker):**
-- `test_tracker_not_active_initially` — new instance has is_active()=False
-- `test_tracker_mark_activates` — mark() sets _active=True
-- `test_tracker_elapsed_increases` — elapsed() returns monotonic delta from mark time
-- `test_tracker_is_active_true_while_within_expiry` — is_active()=True while < 90s (v0.42.1: increased from 30s)
-- `test_tracker_is_active_false_after_expiry` — is_active()=False after 90s+ elapsed (v0.42.1: increased from 30s)
-- `test_tracker_clear_deactivates` — clear() sets _active=False, _since=None
-- `test_tracker_clear_without_mark_safe` — clear() on unmarked tracker is safe
-- `test_tracker_elapsed_zero_when_unmarked` — elapsed()=0.0 when _since is None
-
-**test_bridge_reload_gate.py (reload gate asyncio.Event):**
-- Gate cleared on disconnect during domain reload, set on successful reconnect
-- Retry wakes immediately when gate is set instead of sleeping full backoff window
-
-**test_bridge_role.py (client role in ping):**
-- `UNITY_MCP_CLIENT` env var present → sent as `role` field in ping payload
-- `UNITY_MCP_CLIENT` empty or absent → `role` defaults to `"mcp"`
-
-**test_bridge_should_retry.py (8 tests for should_retry() decision logic):**
-- `test_should_retry_max_retries_gate` — attempt >= MAX_RETRIES returns (False, 0.0, "max_retries")
-- `test_should_retry_deadline_gate` — time.monotonic() >= deadline returns (False, 0.0, "deadline")
-- `test_should_retry_domain_reload_error_marks_reload` — DomainReloadError sets state→DOMAIN_RELOADING (90s window as of v0.42.1)
-- `test_should_retry_domain_reload_gets_backoff` — DomainReloadError attempt<MAX_RETRIES returns (True, 2^attempt≤8, "domain_reload") within 90s window (v0.42.1)
-- `test_should_retry_reload_active_retries` — reload.is_active()=True gets backoff within 90s window (v0.42.1), attempt < MAX_RETRIES
-- `test_should_retry_probe_busy_retries` — probe_busy()=True gets backoff
-- `test_should_retry_transient_attempt_0` — attempt < 1 with no busy returns (True, 1.0, "transient")
-- `test_should_retry_grace_expired_attempt_1_plus` — attempt ≥ 1 with no busy returns (False, 0.0, "grace_expired")
-
-### C# Server
-
-1. **Test_AcceptsConnection**: start → client connects successfully
-2. **Test_ParsesMessage**: receive bytes → command extracted
-3. **Test_DispatchesToMainThread**: command → processed on main thread
-4. **Test_GoingAwayOnDomainReload**: assembly reload → event frame sent
-5. **Test_StateFileUpdated**: compile/reload → state file written
-6. **Test_FastPathBypassesMainThread**: ping → response without main thread dispatch
-
+Use [`AI/testing.md`](testing.md) for current commands and acceptance policy.
+Do not copy test names or counts into this protocol document.
 ## Review Checklist (for Reviewer)
 
 - [ ] Big-endian byte order (4-byte prefix)
@@ -469,6 +388,6 @@ On Exception (ConnectionReset / OSError / dead TCP):
 
 ## Related
 
-- Skill: `.claude/skills/tcp-protocol.md`
+- Server composition: `AI/mcp-server.md`
 - MCP Server: `AI/mcp-server.md`
 - Architecture: `AI/architecture.md`

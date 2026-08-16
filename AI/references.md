@@ -1,15 +1,16 @@
-# Feature: Deep Reference Analysis & Remapping (Phase 13)
+# Deep Reference Analysis and Remapping
 
 ## Overview
 Track and remap ObjectReferences within scenes. Provides outgoing reference analysis, reverse search, and automatic/explicit remapping.
 
 ## Architecture (for Architect)
-- `ReferenceHelper.cs` (374 lines) — Core reference traversal and remapping logic
+- `ReferenceHelper.cs` — outgoing and reverse reference traversal
+- `RemapReferencesHelper.cs` — reference remapping
 - Three entry points: `GetReferences` (outgoing), `FindReferencesTo` (reverse), `RemapReferences` (mutate)
 - Data flow:
-  1. MCP client calls `get_references(path)` → Python → C# CommandRouter → ReferenceHelper.GetReferences
+  1. MCP client calls `references(action="get", path=...)` → Python → C# CommandRouter → ReferenceHelper.GetReferences
   2. Returns list of `RefEntry` objects (target object path, component type, field name, relation type)
-  3. For remapping: `remap_references(source, target, mappings)` → traverses all objects, replaces refs
+  3. For remapping: `references(action="remap", source=..., target=..., mappings=...)` replaces matching refs
 - RefEntry struct contains: ComponentType, PropertyPath, ReferencedPath, Relation, ReferencedId, ReferencedObject
 - Relation types: `"self"`, `"child"` (in hierarchy), `"parent"`, `"sibling"` (same root), `"external"` (different root), `"asset"` (Material/Texture), `"null"`
 - Cycle protection: `HashSet<int> visited` tracks processed objects
@@ -27,7 +28,11 @@ Track and remap ObjectReferences within scenes. Provides outgoing reference anal
 - Array elements capped at 100 per field (safety limit)
 - Asset references (no mapping match) kept unchanged, marked "keep"
 - Missing target in remap → output status "MISSING"
-- ObjectReference serialized as "$hexId (TypeName)" (e.g. "$3E8 (Transform)") in get_component output; accepts #decimal format for backward compatibility in inputs
+- `ReferenceHelper` output includes the referenced path plus a process-local
+  `#<unsigned-decimal>` instance ID. Treat it as transient and prefer paths for
+  durable examples. Other serializers may expose `$<hex>` transient IDs; see
+  [`AI/hierarchy-serializer.md`](hierarchy-serializer.md#boundaries)
+  for the format boundaries.
 
 **Edge cases:**
 - Null references → shown as "fieldName: null" (no RefEntry generated)
@@ -41,62 +46,44 @@ Track and remap ObjectReferences within scenes. Provides outgoing reference anal
 - `validate_references(path, depth, verbose, ignore_optional)` — deep ObjectReference integrity check
   - `verbose=true` includes [OK] lines (off by default to save tokens)
   - `ignore_optional=true` skips [Optional]-marked fields (reduces noise)
-  - **RefManager internals (v1.28.0: $HEX format):** Outputs object IDs as `$HEX` (e.g. `$3E8`). Accepts `$HEX` and `#decimal` formats in inputs for backward compatibility.
+  - Output IDs are diagnostic, process-local instance references; they are not
+    the short-lived `&<base62>` hierarchy IDs.
 
 **API (Python tools / C# commands):**
 ```
-get_references(path, children=false, depth=1)
+references(action="get", path=path, children=false, depth=1)
   → returns list of RefEntry objects (outgoing refs from path)
 
-find_references_to(path)
+references(action="find_to", path=path)
   → reverse search: all objects in scene referencing path
 
-remap_references(source, target, mappings=null)
+references(action="remap", path=source, source=source, target=target, mappings=null)
   → source: path to remap from
   → target: path to remap to
   → mappings: null (auto prefix-replace) or explicit "old=new\nold2=new2"
   → returns refMap with status per remapped reference
 
-set_property enhancement:
-  → now accepts ObjectReference: null, $hexId (e.g. $3E8), #id (legacy), or /path
+set_property ObjectReference inputs:
+  → prefer null or /path; transient $hex and legacy #decimal forms are accepted by compatible resolvers
 ```
 
 ## Code Locations
 - Python: `server/src/unity_mcp/tools/batch.py` (`references`, `validate_references`)
-- C#: `unity-plugin/Editor/ReferenceHelper.cs`
-- C# Router: `unity-plugin/Editor/CommandRouter.cs` (consolidated action dispatch via `ExecReferencesConsolidated`)
+- C#: `unity-plugin/Editor/ReferenceHelper.cs` and `RemapReferencesHelper.cs`
+- C# Router: `unity-plugin/Editor/CommandRouter.MediaHandlers.cs` (`ExecReferencesConsolidated`)
 - C# ObjectManager: `unity-plugin/Editor/ObjectManager.cs` (set_property enhanced)
 - C# ComponentSerializer: `unity-plugin/Editor/ComponentSerializer.cs` (ObjectReference output)
-- Tests Python: `server/tests/test_server_references.py` (15 tests)
-- Tests C#: `unity-test-project/Assets/Tests/Editor/MCPReferenceTests.cs` (19 tests)
+- Tests Python: `server/tests/test_server_references.py`
+- Tests C#: `unity-plugin/Editor/Tests/ReferenceHelperTests.cs` and `ValidateReferencesHelperTests.cs`
 
-## TDD Scenarios (for Developer)
+## Tests
 
-### Red Phase (write failing tests first)
-1. **get_references from object with single field ref**: Input path, depth=1 → expect RefEntry for each field containing ObjectReference
-2. **get_references with children=true**: Input path, children=true → expect refs from target AND all children
-3. **find_references_to**: Input path → expect all objects in scene that reference that path
-4. **remap_references auto-prefix**: source="/A/B", target="/C/D" → all refs to "/A/B/*" become "/C/D/*"
-5. **remap_references explicit mapping**: mappings="old_path=new_path" → exact replacements applied
-6. **remap_references with missing target**: target doesn't exist → marked "MISSING", original ref unchanged
-7. **Cycle detection**: Object A refs B, B refs A → no infinite loop, both found
-8. **Array iteration**: Field is array[10] → all 10 elements iterated (or capped at 100)
-9. **Null reference handling**: Field is null → no RefEntry, but field still appears in output as "null"
-10. **External references (assets)**: Material/Texture references → marked "asset", skipped in remap
-
-### Green Phase (minimal implementation)
-- SerializedProperty.GetValue() → iterate through properties recursively
-- Detect ObjectReference by type check (obj is GameObject/Component)
-- Build RefEntry with source path and target path
-- For find_references_to: full scene traversal with visited set
-- For remap_references: Undo.RecordObject, iterate detected refs, SerializedProperty.SetValue(newRef)
-- Mark results as "success", "keep" (external), or "MISSING"
-
-### Refactor Phase
-- Extract common path manipulation to utility function
-- Cache relation type detection (child vs external vs asset)
-- Consider batch entry point for multiple source paths
-
+- `server/tests/test_server_references.py` verifies the public wrappers.
+- `unity-plugin/Editor/Tests/ReferenceHelperTests.cs` covers traversal and
+  multi-scene relation classification.
+- `unity-plugin/Editor/Tests/ValidateReferencesHelperTests.cs` covers integrity
+  diagnostics.
+- Use [`AI/testing.md`](testing.md) for current commands and acceptance policy.
 ## Review Checklist (for Reviewer)
 - [ ] Security: Undo.RecordObject called before mutations
 - [ ] Performance: MAX_SCAN and MAX_ARRAY limits prevent hangs on large scenes/arrays
@@ -124,7 +111,7 @@ In-Unity Chat messages can embed reference links with special syntax:
 **Token savings:** No new MCP tools — reuses get_component/set_property. Chat just makes refs clickable.
 
 ## Related
-- Skill: `.claude/skills/csharp-unity.md` (SerializedProperty API)
-- Knowledge: `AI/architecture.md` (CommandRouter routing)
-- Knowledge: `AI/batch.md` (batch remapping pattern)
-- Knowledge: `AI/agent-chat.md` (Chat interactive refs implementation)
+- Consumer editing workflow: `unity-plugin/ClientSkills/skills/unity-csharp-editing/SKILL.md`
+- Knowledge: [`AI/architecture.md`](architecture.md) (CommandRouter routing)
+- Knowledge: [`AI/batch.md`](batch.md) (batch remapping pattern)
+- Knowledge: [`AI/agent-chat.md`](agent-chat.md) (Chat interactive refs implementation)

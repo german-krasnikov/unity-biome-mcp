@@ -330,4 +330,6 @@ Connection-state animation in the chat window header.
 
 ---
 
-**Related:** `.claude/skills/encoding.md` (UTF-8 safety in markup), `AI/batch.md` (tool result formatting), `CLAUDE.md` § chat-features research.
+**Related:** `AI/api-design-standards.md` (UTF-8 and response contracts),
+`AI/batch.md` (tool result formatting), and `AI/agent-chat.md` (backend and
+feature architecture).

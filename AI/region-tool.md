@@ -1,282 +1,207 @@
-# Region Tool & Scene Selection
+# Scene Regions and Annotations
 
-Multi-mode region selection in Scene View: draw polygons (Lasso/Rectangle/Circle/PointByPoint), query objects inside, persist regions, integrate with Chat.
+The Region Tool is an Editor-only Scene View feature for selecting XZ polygons
+and attaching compact spatial context to chat. The same persistence model also
+stores point, polyline, and measurement annotations.
 
-**Activation:** Shift+R in Scene View. **Mode switches:** Q/W/E/R. **Grid snap:** G. **Confirm point:** Space. **Commit:** Enter. **Cancel:** Escape.
+## Entry Points
 
-## SceneRegionTool (Main Tool)
+| Tool | Shortcut | Modes |
+|---|---|---|
+| `SceneRegionTool` | Shift+R | Lasso, Rectangle, Circle, PointByPoint |
+| `SceneAnnotationTool` | Shift+A | Point, Polyline, Measurement |
 
-**Purpose:** EditorTool for polygon-based scene selection with multiple drawing modes.
+Both tools are disabled while Unity is entering or running Play Mode. The Scene
+View overlay exposes mode, grid-snap, label, confirm, commit, and cancel controls.
 
-**Lifecycle:**
-1. OnActivated() — Register shortcuts, init state (Idle)
-2. OnToolGUI() — Handle input, dispatch to drawing mode
-3. OnWillBeDeactivated() — Cleanup, unregister handlers
+Region mode keys are `Q`, `W`, `E`, and `R`; `G` toggles grid snap. Annotation
+mode keys are `1`, `2`, and `3`; `G` toggles grid snap. Enter commits a completed
+shape and Escape cancels. Mode-specific mouse and point-confirm behavior lives
+in the classes under `RegionTool/Drawing/` and should not be reimplemented by
+the overlay.
 
-**State Machine:**
-- `Idle` — No selection in progress
-- `Drawing` — User adding points (calls IDrawingMode.OnMouseDown/Move)
-- `Preview` — Polygon complete, user can confirm or adjust
+## Drawing Contracts
 
-**Drawing Modes:**
-- `Lasso` — Free-hand polygon (any point order)
-- `Rectangle` — Axis-aligned bounding box (2 corners)
-- `Circle` — Click center, drag radius
-- `PointByPoint` — Click each vertex; Space to confirm point; Enter to close
+Closed polygon modes implement `IDrawingMode`:
 
-**Mode Switching:** Q/W/E/R keybinds → SetModeAction() → recreate _activeMode via DrawingModeFactory.
-
-**Grid Snap:** Toggle G → snaps drawn points to 0.5 grid (editor pref persisted).
-
-## Drawing Modes (IDrawingMode)
-
-**Interface:**
 ```csharp
-interface IDrawingMode
+internal interface IDrawingMode
 {
     DrawingModeId Id { get; }
+    void Begin(Vector2 startXZ, bool gridSnap);
+    bool OnEvent(Event e, Vector2 currentXZ);
+    IReadOnlyList<Vector2> PreviewVertices { get; }
     bool IsComplete { get; }
+    bool IsActive { get; }
+    Polygon2D? Finalize();
+    void Reset();
     bool CanConfirm { get; }
-    void OnMouseDown(Vector2 cursorXZ);
-    void OnMouseMove(Vector2 cursorXZ);
     void ConfirmPending();
-    Polygon2D GetPolygon(bool simplified);
 }
 ```
 
-**Lasso Mode:**
-- Tracks mouse position continuously
-- Each MouseDown adds point to array
-- MouseMove extends line
-- Simplified via Douglas-Peucker (fewer vertices for display)
+Annotation modes use the parallel `IAnnotationMode` contract and expose
+`FinalizedPoints` rather than a closed polygon. Point requires one point;
+Polyline and Measurement require at least two.
 
-**Rectangle Mode:**
-- First click = corner 1
-- Mouse move shows preview quad
-- Second click = corner 2 (finalize)
-- IsComplete → true after corner 2
+`SceneRegionTool` preserves the raw polygon, applies the configured
+`PolygonDetailLevel`, rejects fewer than three vertices or area below `0.01`,
+and queries at most 50 matching GameObjects for the stored snapshot.
 
-**Circle Mode:**
-- Click center
-- Drag defines radius (visual feedback)
-- MouseUp finalizes
-- IsComplete → true after release
+## Polygon Geometry
 
-**PointByPoint Mode:**
-- Click to add vertex
-- Space key → Confirm this point (visual feedback)
-- Click again to add next
-- Enter → close polygon (IsComplete)
-- Escape → cancel (revert to Idle)
+`Polygon2D` is an immutable defensive copy of at least three XZ vertices.
 
-## SceneRegionState (Persistence)
+- World X maps to `Vector2.x`; world Z maps to `Vector2.y`.
+- A repeated closing vertex is stripped.
+- `Contains` uses a non-zero winding-number test.
+- `ContainsBatch` performs an AABB rejection before point-in-polygon tests.
+- `Area`, `Centroid`, `ComputeBounds`, `Simplify`, and CSV parsing share the
+  same invariant-culture representation.
 
-**Purpose:** In-memory + file-persisted region registry.
+Do not refer to the algorithm as ray casting: the implementation is winding
+number and intentionally supports concave and self-intersecting input.
 
-**Storage:** `Library/MCP_Regions.json` (gitignored, survives domain reload + restart).
+## Persistence
 
-**Data Structure:**
-```csharp
-RegionSnapshot
-{
-    string Id;              // UUID
-    float CenterX, CenterZ;
-    float MinX, MaxX, MinZ, MaxZ;  // Bounding box
-    float[] VerticesX, VerticesZ;  // Raw polygon points
-    int SnapshotVersion;           // For staleness detection
-    long CreatedTicks, ModifiedTicks;
-}
+`SceneRegionState` keeps snapshots in memory and writes
+`Library/MCP_Regions.json`. It also maintains a SessionState shadow so a domain
+reload can recover the current set.
+
+- Maximum retained snapshots: 20 by default.
+- Load discards entries older than 24 hours.
+- Insertion above the limit evicts the oldest snapshots.
+- `EditorApplication.hierarchyChanged` increments a process-local version;
+  `IsStale(id)` compares that version with the snapshot version.
+- `FrameRegion` frames the stored bounds in the last active Scene View.
+- All access is main-thread only.
+
+The current persisted schema is `SchemaVersion = 2`:
+
+```text
+Id, SchemaVersion
+VerticesFlat                         # [x0,z0,x1,z1,...]
+Area, CenterX, CenterZ
+MinX, MinZ, MaxX, MaxZ
+SceneName, PlaneY
+ObjectPaths, ObjectIds, TotalCount, Truncated
+DetailLevel
+SnapshotVersion, CreatedTicks
+AnnotationType, Label, LengthOrDistance, Direction
 ```
 
-**API:**
-- `SetRegion(snap)` → Add/replace; auto-evict oldest if > MaxRegions (default 20)
-- `GetById(id)` → Retrieve snapshot
-- `Remove(id)` → Delete
-- `All` → IReadOnlyCollection<RegionSnapshot>
-- `IsStale(id)` → SnapshotVersion != _globalVersion (hierarchy changed)
+`ObjectPaths` and `ObjectIds` are parallel and capped at 50; `TotalCount` is the
+pre-cap count. `CreatedTicks` is Unix time in seconds. There is no
+`ModifiedTicks` field and no separate `VerticesX`/`VerticesZ` arrays.
 
-**Eviction Policy:** FIFO when count > MaxRegions (20 default). Max age: 24h (implementation deferred).
+## Spatial Query Contract
 
-**Thread Safety:** Main thread only (Editor API).
+The public entry point is:
 
-**Version Tracking:** _globalVersion increments on hierarchy change (EditorApplication.hierarchyChanged) — detects stale regions.
-
-**Navigation:**
-- `FrameRegion(id)` → SceneView.Frame(bounds)
-- `HighlightRegion(id)` → Alias for FrameRegion (visual feedback)
-
-## SceneRegionQuery (Polygon Queries)
-
-**Purpose:** Find GameObjects inside polygon (spatial query).
-
-**Query Execution:** `Execute(args)` → JSON string with:
-- `vertices` — CSV "x1,z1;x2,z2;..." (optional; use region_id instead)
-- `region_id` — UUID to load from cache (optional)
-- `component` — Filter by component type (optional; empty = all)
-- `cap` — Result limit (default 50, hard max 200)
-
-**Query Pipeline:**
-
-```
-1. AABB pre-filter (cheap)
-   ↓
-2. Component filter (if specified)
-   ↓
-3. Point-in-polygon (Polygon2D.Contains)
-   ↓
-4. Cap at result limit
-   ↓
-5. Format + return
+```python
+await spatial_query(
+    action="objects_in_polygon",
+    region_id="a1b2c3d4",
+    component="Collider",
+    cap=50,
+)
 ```
 
-**Output Format:**
-```
-[region_id or inline] (X objects)
-  /GameObject1 (Component1)
-  /GameObject2 (Component2)
-```
+Callers provide either:
 
-**Point-in-Polygon:** Uses Polygon2D.Contains (ray-casting algorithm, O(n) per point, O(m*n) total).
+- `vertices="x1,z1;x2,z2;x3,z3"`; or
+- `region_id` for a persisted polygon region.
 
-**Optimization:**
-- AABB bounds check first (early exit for distant objects)
-- Component filter reduces search space
-- Cap=50 prevents huge result sets (user can paginate)
+When both are present, supplied vertices are used and `region_id` supplies the
+result label. The Python wrapper validates supplied vertices (3-256 pairs,
+numeric coordinates within the supported range) but does not require
+`vertices` when `region_id` is present. The Unity query clamps `cap` to 1-200;
+the default is 50.
 
-**Error Cases:**
-- region_id not found → "Region 'X' not found. Draw with Shift+R first."
-- Polygon < 3 vertices → ArgumentException
-- No vertices + no region_id → ArgumentException
+The query pipeline is:
 
-## Polygon2D Utilities
-
-**Methods:**
-- `FromCsv(string)` — Parse "x1,z1;x2,z2;..." → Polygon2D
-- `Contains(Vector2)` → bool (ray-casting PIP)
-- `Area()` → float (shoelace formula)
-- `ComputeBounds()` → Rect (min/max x/z)
-- `Simplify(epsilon)` → Polygon2D (Douglas-Peucker)
-
-**Precision:** Uses Vector2 (float, ~6 decimal places). Sufficient for scene queries.
-
-## SceneMcpOverlay (Visual Feedback)
-
-**Purpose:** Draw region polygons in Scene View (gizmos).
-
-**Elements:**
-- Region outline (white lines)
-- Selected points (blue circles)
-- Center point (red cross)
-- Grid overlay (if snap enabled)
-- Mode name label (top-left)
-
-**Gizmo Drawing:**
-- OnSceneGUI → check _state
-- Drawing → draw partial polygon + cursor line
-- Preview → draw complete polygon + matched objects (green quads)
-
-**Performance:** Cull to visible viewport (SceneView frustum).
-
-## Integration with Chat
-
-**Chip Provider:** RegionChipProvider registers via ChipKindRegistry.
-
-**Chip Markup:** `[region:id]Label[/region]` in LLM responses.
-
-**Chip Behavior:**
-- Click → FrameRegion(id) in Scene View
-- Right-click → Show region context menu (navigate, delete, export)
-
-**Query from Chat:**
-```
-@region query_state(region_id, component="Collider", cap=50)
-# → LLM calls SceneRegionQuery.Execute internally
+```text
+resolve polygon -> AABB filter -> optional component-name filter
+                -> winding-number containment -> cap and format
 ```
 
-## Common Patterns
+Objects are tested by their Transform pivot projected onto XZ, not by renderer
+or collider bounds. Component matching is a type-name substring comparison.
+Output paths come from `ComponentSerializer.GetPath` and include a transient
+object identity.
 
-| Pattern | Method | Why |
-|---------|--------|-----|
-| Draw region | Shift+R + Q/W/E/R + Enter | Multi-mode; persistent cache |
-| Query inside | query_state with region_id | One call; efficient AABB+PIP |
-| Load last region | SceneRegionState.GetById(id) | Survives domain reload |
-| Check staleness | IsStale(id) | Hierarchy changed; re-query if true |
-| Frame in viewport | FrameRegion(id) | Visual focus from Chat |
+`region_clear` is a separate mutation tool. It always requires inline vertices
+and defaults to `dry_run=True`; it does not accept `region_id`.
 
-## Errors & Recovery
+## Chat Integration
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| "Region not found" | ID typo or evicted (>20 regions) | Redraw region; check SceneRegionState.All |
-| Polygon corrupt (< 3 verts) | Interrupted draw (Escape before Enter) | Redraw; confirm with Enter, not Escape |
-| Query returns 0 objects | No GameObjects in polygon | Expand region; lower cap; remove component filter |
-| "Cannot query in Play Mode" | Called during play session | Pause/stop; then draw region in Edit Mode |
-| Stale region (hierarchy changed) | Objects added/removed/moved | IsStale() returns true; re-query or delete region |
+`RegionChipProvider` is registered under the `region` chip kind. Its wire
+markup is a single token:
 
-## Performance Characteristics
-
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Draw polygon (Lasso, 50 pts) | Instant (< 16ms) | Real-time gizmo draw |
-| Simplify (Douglas-Peucker ε=0.1) | <1ms | 50 pts → ~20 pts |
-| Query 100 GameObjects | ~5ms | AABB + PIP |
-| Persist to JSON | <1ms | 20 regions, ~40KB |
-| Load from JSON | <1ms | Deserialization |
-
-## Data Format (MCP_Regions.json)
-
-```json
-{
-  "Regions": [
-    {
-      "Id": "region-uuid-1",
-      "CenterX": 5.0, "CenterZ": -3.0,
-      "MinX": 0.0, "MaxX": 10.0, "MinZ": -8.0, "MaxZ": 2.0,
-      "VerticesX": [0, 5, 10, 5],
-      "VerticesZ": [-8, -8, 2, 2],
-      "SnapshotVersion": 42,
-      "CreatedTicks": 1234567890,
-      "ModifiedTicks": 1234567891
-    }
-  ]
-}
+```text
+[region:a1b2c3d4]
 ```
 
-## GdSnapshotSerializer (Playtest Integration)
+There is no closing `[/region]` tag. A click frames the region; the provider
+formats stored region or annotation context for the model. Missing IDs remain
+representable so reload and stale-reference behavior can be diagnosed.
 
-**Purpose:** Convert `RegionSnapshot` instances to DSL `VAL $label` preamble lines for playtest scripts (updated v0.92.x from ALIAS to VAL format). Bridges the region annotation system with the playtest DSL.
+`SceneRegionTool.OnRegionCommitted` and
+`SceneAnnotationTool.OnAnnotationCommitted` pass `(id, shortLabel)` to the chat
+window. Event handlers must be detached during window/test cleanup.
 
-**API:**
-- `ToAliasLines(snap)` → one or more `VAL $label x,y,z` lines (no trailing newline)
-- `ToPlaytestPreamble(snapshots)` → full preamble block from a collection
+## Playtest Preamble
 
-**Label format:** `$<sanitized_label>` — lowercase, underscores, stripped special chars; fallback to `gd_<id>` if label empty.
+`GdSnapshotSerializer` converts stored geometry to `VAL` lines:
 
-**Annotation type mapping:**
+| Snapshot type | Output |
+|---|---|
+| `region` or `point` | one value at the center |
+| `polyline` | one value per vertex with `_0`, `_1`, ... suffixes |
+| `measurement` | `_start` and `_end` values |
 
-| AnnotationType | Output |
-|----------------|--------|
-| `point` / `region` | `VAL $label cx,cy,cz` (center) |
-| `polyline` | `VAL $label_0 x,y,z` … `VAL $label_N x,y,z` (per vertex) |
-| `measurement` | `VAL $label_start x,y,z` + `VAL $label_end x,y,z` |
-
-**Example output:**
-```
+```text
 VAL $spawn_zone 5.00,0.00,3.00
 VAL $patrol_0 1.00,0.00,0.00
 VAL $patrol_1 10.00,0.00,0.00
 ```
 
-**Usage in playtest scripts:**
-```
-# Include preamble from GdSnapshotSerializer.ToPlaytestPreamble(regions)
-TELEPORT Player $spawn_zone
-MOVE_PATH $patrol_0 > $patrol_1
-```
+Labels are lowercase, spaces become underscores, and other non-ASCII-letter or
+non-digit characters are stripped. An empty label falls back to `gd_<id>`.
 
-**File:** `unity-plugin/Editor/RegionTool/GdSnapshotSerializer.cs`  
-**Tests:** `unity-plugin/Editor/Tests/RegionTool/GdSnapshotSerializerTests.cs`
+## Primary Files
 
----
+- `unity-plugin/Editor/RegionTool/SceneRegionTool.cs`
+- `unity-plugin/Editor/RegionTool/SceneAnnotationTool.cs`
+- `unity-plugin/Editor/RegionTool/SceneRegionState.cs`
+- `unity-plugin/Editor/RegionTool/RegionSnapshot.cs`
+- `unity-plugin/Editor/RegionTool/Polygon2D.cs`
+- `unity-plugin/Editor/RegionTool/SceneRegionQuery.cs`
+- `unity-plugin/Editor/RegionTool/GdSnapshotSerializer.cs`
+- `unity-plugin/Editor/Chat/CLI/RegionChipProvider.cs`
+- `server/src/unity_mcp/tools/spatial.py`
 
-**Related:** `AI/chat-view.md` (chip registration), `AI/playtest-dsl.md` (GD Integration section), `CLAUDE.md` § verification-gates (validate spatial queries), `.claude/skills/token-optimization.md` (query batching).
+## Verification
+
+Region fixtures must use isolated persistence paths and restore SessionState;
+they must never clear the production region store. Follow `AI/testing.md`.
+Coverage lives under `unity-plugin/Editor/Tests/RegionTool/`, chat CLI tests,
+and `server/tests/test_region.py` / `test_spatial_polygon.py`.
+
+Review changes for:
+
+- XZ rather than XY/XYZ containment semantics;
+- `vertices`-or-`region_id` wrapper behavior;
+- schema-v2 field names and caps;
+- 24-hour load expiry and deterministic eviction;
+- handler cleanup across domain reload and fixture teardown;
+- exact `[region:id]` chip markup;
+- safe dry-run defaults for `region_clear`.
+
+## Related
+
+- `AI/spatial.md`
+- `AI/chat-view.md`
+- `AI/playtest-dsl.md`
+- `AI/testing.md`
+- `unity-plugin/ClientSkills/skills/unity-physics-spatial/SKILL.md`

@@ -295,7 +295,9 @@ Hard constraint: C# command handlers are synchronous → **the wait-loop lives P
 - C# keepalive (`MCPServer.cs:205-224`): per-OS `#if` branches for macOS/Win/Linux present — OK.
 - Windows deltas to fix: `ReuseAddress` → `ExclusiveAddressUse`; `File.Delete+Move` non-atomic state-file write; no MAX_PATH guard for project paths (T11 140-char package cap — doc-level concern only).
 - Linux deltas unhandled anywhere: case-sensitive FS (case-twin infinite-import loop), 6000.3.6–.8 Auto-Refresh regression (UUM-133944), ulimit refresh freeze (UUM-79033) — relevant only for docs/watchdog heuristics.
-- Workflow docs are macOS-only: project `CLAUDE.md` `osascript … activate` recipe is unsupported folklore per T5 — the in-process `recompile` command (once semantics fixed) is the portable replacement.
+- Legacy macOS-only `osascript … activate` recipes are unsupported folklore
+  per T5; the in-process `recompile` command (once semantics are verified) is
+  the portable replacement.
 
 ## §15 Open questions & provisional-beta empirical tests (target: 6000.3.0b7)
 

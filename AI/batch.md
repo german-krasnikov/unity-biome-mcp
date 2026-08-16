@@ -1,4 +1,4 @@
-# Feature: Batch Commands (Phase 10-11)
+# Feature: Batch Commands
 
 ## Overview
 
@@ -24,18 +24,18 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 ## Implementation Notes
 
 ### Validation Layer (Anti-Hallucination)
-- **CommandValidator.cs** (119 lines): Pure validation functions over CommandRegistry's per-command contract
+- **CommandValidator.cs**: Pure validation functions over CommandRegistry's per-command contract
   - `Validate(cmd, argsJson)` checks: command exists, required params present, unknown params detected
   - Contract declared at `CommandRegistry.Register()` call site via `required:` and `optional:` CSV params (not a separate schema dict)
   - Returns error message with sigil grammar: `!param` (missing), `?param→closest` (unknown with suggestion), or `?param` (unknown, no suggestion)
   - `AutoUsage()` computes usage string (e.g. `wire_event path=... component=... [mode=...]`), never hand-written
-- **StringDistance.cs** (48 lines): Levenshtein distance + ClosestMatch for fuzzy suggestion matching
+- **StringDistance.cs**: Levenshtein distance + ClosestMatch for fuzzy suggestion matching
 - **What it catches**:
   - Wrong command names: `move_object` → "Unknown command 'move_object'. Did you mean 'create_object'?"
   - Missing required params: `set_property path=/A` → "set_property !component !prop !value Unknown param.\n  set_property path=... component=... prop=... value=..."
   - Wrong param names (typo): `set_property path=/A ?valuee→value` → "set_property ?valuee→value Unknown param.\n  set_property path=... component=... prop=... value=..."
 
-### Data Format (Text-based, Phase 11+)
+### Data Format
 - Commands as text, one per line: `cmd key=value key=value`
 - Python forwards raw text to Unity (no JSON parsing)
 - C# pipeline: `ParseLines()` → `JsonHelper.UnescapeJsonString()` → split lines → `ParseLine()` → `ParseKeyValuePairs()` → `BuildJsonObject()` (values escaped via `JsonHelper.EscapeJson()`)
@@ -63,7 +63,7 @@ ToolError: <tool_name> requires typed MCP tool (Python DSL expansion), not batch
 
 Example: A hypothetical `Python-only_flag=true` parameter would be stripped from the text before TCP dispatch, allowing downstream C# validators to succeed.
 
-**direct_only tools (v0.87.0):** Tools with `direct_only=True` in ToolSpec are also rejected by `batch()`. These tools have complex return values or side-effects incompatible with batch's line-indexed output format. 31 tools are direct_only: `animator_intent`, `ask`, `await_compile`, `budget_status`, `configure_objects`, `console_mark`, `debug`, `discover_tools`, `do`, `doctor`, `get_console_since`, `get_metrics`, `lint_playtest_suite`, `list_connections`, `list_skills`, `list_templates`, `mcp_status`, `navmesh_query`, `release_smoke`, `resolve_tool_schema`, `run_playtest_suite`, `run_tests_wait`, `screenshot_baseline`, `screenshot_compare`, `set_properties`, `setup_objects`, `snapshot`, `ui_intent`, `validate_playtest_aliases`, `vfx_intent`, `watch`.
+**Direct-only tools:** `batch()` rejects every tool whose `ToolSpec` has `direct_only=True`; these tools require typed arguments, Python-side orchestration, or result handling that the line DSL cannot preserve. The authoritative set is `server/src/unity_mcp/tools/tool_specs.py` and can change without this document changing.
 
 With `on_error=continue` (the default), direct_only lines are filtered out before TCP dispatch. Their errors are prepended to the final result with original line numbers remapped correctly. With `on_error=stop`, a ToolError is raised immediately before any dispatch.
 
@@ -92,7 +92,11 @@ ok:1 err:1
 
 `_is_batch_readonly(commands)` helper (`middleware_guards.py`) checks if every non-blank, non-comment line in the batch text is a read command. When true, `check_blast_radius()`, `check_verification_needed()`, and `transition()` all return `None` immediately — no blast-radius warning, no verification nudge, no FSM write counter increment. Read-only batches (`get_hierarchy`, `get_component`, `inspect`, etc.) pass through middleware cleanly without any guard noise.
 
-`editor` is special-cased: only `action=state` and `action=project_path` count as reads (`_EDITOR_READ_ACTIONS` constant); absent or any other action (play/stop/pause/step/select) is treated conservatively as a write. All other commands are checked against `READ_CMDS` (43 entries as of v0.78.11; was 15 before the v0.78.11 audit).
+`editor` is special-cased: only `action=state` and `action=project_path` count
+as reads (`_EDITOR_READ_ACTIONS` constant); absent or any other action
+(`play`, `stop`, `pause`, `step`, or `select`) is treated conservatively as a
+write. All other commands are checked against the source-owned `READ_CMDS` set;
+do not copy its changing membership into documentation.
 
 ### C# Command Filtering Options
 
@@ -128,9 +132,9 @@ inspect paths=/Player,/Enemy components=Rigidbody compress=true
 - Command registry: `unity-plugin/Editor/CommandRegistry.cs` (Register/RegisterAction — declares required/optional params via CSV, contract source of truth)
 - Command dispatch: `unity-plugin/Editor/CommandRouter.cs` (batch case, timeout_ms support)
 - Python tests: `server/tests/test_batch.py`, `test_batch_conflict.py`, `test_batch_timeout.py`, `test_autobatch.py`
-- C# tests: `unity-test-project/Assets/Tests/Editor/MCPBatchTests.cs` (EditMode tests)
+- C# tests: `unity-plugin/Editor/Tests/MCPBatchAtomicTests.cs`, `BatchHelperParserTests.cs`, and `BatchHelperReadOnlyTests.cs`
 - Batch rejection tests: `unity-plugin/Editor/Tests/BatchRejectionTests.cs` (async, specialDispatch, runtime-only, atomic rollback)
-- Validation tests: `unity-test-project/Assets/Tests/Editor/CommandValidatorOptionalParamsTests.cs`
+- Validation tests: `unity-plugin/Editor/Tests/CommandValidatorOptionalParamsTests.cs`
 
 ## Atomic Mode (F27, Transactional Batches)
 
@@ -153,11 +157,11 @@ batch(
   commands="create_object name=A\nset_material path=/A color=#FF0000\nUNKNOWNCMD",
   atomic=True
 )
-→ [0] ok: created /A
-→ [1] ok
-→ [2] err: Unknown command 'UNKNOWNCMD'. Did you mean 'get_console'?
-→ ATOMIC_ROLLBACK: reverted ops 0..1
-→ err:1
+# → [0] ok: created /A
+# → [1] ok
+# → [2] err: Unknown command 'UNKNOWNCMD'. Did you mean 'get_console'?
+# → ATOMIC_ROLLBACK: reverted ops 0..1
+# → err:1
 ```
 
 ## MCP Tool
@@ -177,7 +181,7 @@ batch(
   commands="create_object name=A primitive=Cube\nset_material path=/A color=#FF0000",
   on_error="continue"
 )
-→ ok:2
+# → ok:2
 ```
 
 ```python
@@ -185,8 +189,8 @@ batch(
   commands="create_object name=A\nset_material path=/A color=#FF0000\nBADCMD",
   atomic=True
 )
-→ ATOMIC_ROLLBACK: reverted ops 0..1
-→ err:1
+# → ATOMIC_ROLLBACK: reverted ops 0..1
+# → err:1
 ```
 
 Note: commands returning `"ok"` are suppressed from output. Only data responses and errors get `[N]` lines.
@@ -246,7 +250,7 @@ ok:N err:M timeout:K  # when timeout hit
 
 ## Related
 
-- Skill: `.claude/skills/python-mcp.md` (MCP tool patterns)
-- Skill: `.claude/skills/tcp-protocol.md` (message format)
-- Skill: `.claude/skills/token-optimization.md` (batch-first patterns)
+- Standards: `AI/api-design-standards.md` (MCP tool patterns)
+- Protocol: `AI/tcp-bridge.md` (message format)
+- Consumer workflow: `unity-plugin/ClientSkills/skills/unity-mcp-operations/references/batching.md`
 - Knowledge: `AI/mcp-server.md` (auto-batch tools: setup_objects, set_properties, configure_objects)

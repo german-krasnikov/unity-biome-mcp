@@ -1,16 +1,20 @@
-# Feature: Particle System Management (Phase 17)
+# Feature: Particle System Management
 
 ## Overview
 
-1 consolidated MCP tool `particle` with 4 actions for reading/creating/modifying ParticleSystem components. Supports 11 module types and 10 built-in presets (fire, smoke, sparks, rain, snow, explosion, magic, dust, blood, trail). Uses ParticleSerializer (read-only) and ParticleHelper (write/CRUD).
+The consolidated `particle` MCP tool reads, creates, edits, applies presets to,
+and controls ParticleSystem components. It supports the documented modules and the
+built-in `fire`, `smoke`, `sparks`, `rain`, `snow`, `explosion`, `magic`, `dust`,
+`blood`, and `trail` presets. `ParticleSerializer` owns reads; `ParticleHelper`
+owns mutations and playback.
 
 ## Architecture
 
 ```
 Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Editor Plugin
                             │                              │
-                     particle tool               CommandRouter (1 case)
-                     4 actions                   ExecParticleConsolidated
+                     particle tool               CommandRouter.MediaHandlers
+                                                 ExecParticleConsolidated
                                                          │
                                               ┌──────────┴──────────┐
                                               │                     │
@@ -23,14 +27,14 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 | Action | Description |
 |--------|-------------|
 | `get` | Read particle system: overview all modules or specific module detail |
-| `create` | Create empty ParticleSystem or with preset (name required, path optional, preset optional) |
+| `create` | Create an empty or preset ParticleSystem (`path` required by the public schema; `name` and `preset` optional) |
 | `set` | Set single module property (module, prop, value required) |
 | `apply` | Apply preset to existing ParticleSystem (overrides current settings) |
 | `play` | Start particle system playback (calls `ParticleSystem.Play()`) |
 | `stop` | Stop particle system playback (calls `ParticleSystem.Stop()`) |
 | `pause` | Pause particle system playback (calls `ParticleSystem.Pause()`) |
 
-## Modules (11 total)
+## Modules
 
 | Module | Type | Readable | Writable | Use Case |
 |--------|------|----------|----------|----------|
@@ -46,7 +50,7 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 | `collision` | Physics | ✓ | ✓ | Bounce, lifetime on hit |
 | `rotationOverLifetime` | Rotation | ✓ | ✓ | Angular velocity curves |
 
-## Presets (10 total)
+## Presets
 
 | Preset | Main | Emission | Shape | Color | Size | Use Case |
 |--------|------|----------|-------|-------|------|----------|
@@ -64,13 +68,15 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 ## Key Implementation Details
 
 ### Create
-- Auto-creates GameObject with ParticleSystem if path doesn't exist
+- When `path` does not resolve, it is interpreted as the desired new object path.
+  When it resolves, it is used as the parent and `name` names the new object.
 - If preset provided, applies all preset values immediately
-- Returns overview text showing module settings
+- Returns the created object's path
 - Empty ParticleSystem has sensible defaults (duration=5, loop=true, 10 particles/s)
 
 ### Get
-- Without `module` parameter: returns all 11 modules in overview format (1-line summary each)
+- Without `module` parameter: returns every supported module in overview format
+  (one-line summary each)
 - With `module` parameter: returns detailed properties for that module
 - Read-only, no state changes
 - Handles missing ParticleSystem gracefully (error message with suggestion)
@@ -82,11 +88,13 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 - Returns updated module state for verification
 
 ### Apply
-- Replaces all 11 modules with preset values
+- Updates the modules and properties defined by the selected preset
 - Works on existing ParticleSystem only
-- Creates/enables modules as needed (e.g., trails, collision)
+- Enables modules used by that preset as needed
+- Does not reset unrelated modules first; values from an earlier configuration
+  may remain unless the preset explicitly overwrites them
 - All changes recorded with single Undo action
-- Returns final state showing all applied values
+- Returns a concise preset-applied confirmation
 
 ## Text Output Format
 
@@ -107,23 +115,22 @@ renderer: Billboard
 
 ## Files
 
-| File | Lines | Role |
-|------|-------|------|
-| `ParticleSerializer.cs` | 175 | Read ParticleSystem → text (all 11 modules) |
-| `ParticleHelper.cs` | 377 | CRUD: create/set/apply + 10 presets + defaults |
-| `tools/animation.py` | +26 | Python tool definition (4 actions) |
-| `CommandRouter.cs` | +18 | Routing + ExecParticleConsolidated handler |
-| `MCPSettings.cs` | +1 | Tool toggle (particle enabled by default) |
+| File | Role |
+|------|------|
+| `unity-plugin/Editor/ParticleSerializer.cs` | ParticleSystem text serialization |
+| `unity-plugin/Editor/ParticleHelper.cs` | Creation, property edits, and playback |
+| `unity-plugin/Editor/ParticleHelper.Presets.cs` | Built-in preset definitions |
+| `unity-plugin/Editor/CommandRouter.MediaHandlers.cs` | C# action dispatch |
+| `server/src/unity_mcp/tools/animation.py` | Public `particle` wrapper |
 
-## Test Coverage (Phase 18)
+## Tests
 
-| Test Suite | Count | Coverage |
-|------------|-------|----------|
-| `test_server_particle.py` (Python) | 18 tests | get/create/set workflows, hex startcolor, noise strength+frequency, shape radius, startsize normalization, play/stop/pause |
-| `MCPParticleTests.cs` (C#) | 29 tests | toggle modules (color/trails/size), workflow (create→set→get), presets, renderer stretch, shape collider |
-| Live scenarios (25-29) | 5 scenarios | Fire preset + variations, smoke with noise, sparks color override, rain shape config, snow trails |
+- `server/tests/test_server_particle.py` verifies the Python wrapper contract.
+- `unity-plugin/Editor/Tests/SerializerTests.cs` covers particle serialization.
+- `unity-plugin/Editor/Tests/BiomeParticleBurstTests.cs` covers the separate Editor UI particle system below.
 
-**Total:** See AI/structure.md for current test counts (project-wide). Particle-specific tests in both suites.
+Use [`AI/testing.md`](testing.md) for current commands, ownership, and acceptance
+criteria rather than copying volatile test counts here.
 
 ## Error Handling
 
@@ -139,17 +146,17 @@ renderer: Billboard
 - ParticleHelper uses explicit switch statements for module property dispatch
 - Presets stored as static methods within ParticleHelper class
 - Create uses Undo.RegisterCreatedObjectUndo(), Set/Apply use Undo.RecordObject()
-- Batch presets update all 11 modules in single Undo action
+- A preset application uses one Undo record for the ParticleSystem
 
 ### Architect
-- Consolidation reduces MCP tools from 32→19 (Phase 17)
 - Particle system is read-lightweight (inspecting costs nothing)
 - Presets enable quick scene setup (fire effect in 1 call vs 10+ manual sets)
 - Module structure mirrors Unity ParticleSystem API hierarchy
 
 ### Code Reviewer
 - Check ParticleSerializer handles all 11 modules consistently
-- Verify ParticleHelper apply() disables unused modules (keeps scene clean)
+- Verify preset changes remain explicit; do not assume unrelated modules are
+  disabled or reset
 - Confirm presets have sensible defaults (visible, useful, not extreme)
 - Ensure text output format matches architecture.md for consistency
 
@@ -157,6 +164,7 @@ renderer: Billboard
 
 - Tool: `vfx_intent` — NL intent tool for visual effects (See `AI/intent-tools.md`)
 - Architecture: `AI/architecture.md` — System-wide structure
+- Consumer workflow: `unity-plugin/ClientSkills/skills/unity-particles-vfx/SKILL.md`
 
 ---
 
@@ -201,10 +209,10 @@ renderer: Billboard
 
 ### Files
 
-| File | Lines | Role |
-|------|-------|------|
-| `unity-plugin/Editor/BiomeParticleBurst.cs` | 351 | Both classes + `BiomeParticlePattern` enum |
-| `unity-plugin/Editor/Tests/BiomeParticleBurstTests.cs` | 57 | 4 NUnit tests: pooling (burst + ambient), particle count, CSS class |
+| File | Role |
+|------|------|
+| `unity-plugin/Editor/BiomeParticleBurst.cs` | Both classes and `BiomeParticlePattern` enum |
+| `unity-plugin/Editor/Tests/BiomeParticleBurstTests.cs` | Pooling, particle-count, and CSS-class tests |
 
 ### Key Design Constraints
 

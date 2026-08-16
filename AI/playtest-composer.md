@@ -19,7 +19,7 @@ State persists across Unity sessions in `<ProjectRoot>/Library/PlaytestComposerS
 | **Save** | SaveFilePanel → `.playtest` file; default folder `<ProjectRoot>/Playtests/` (auto-created) |
 | **Load** | OpenFilePanel → parses DSL via PlaytestParser → repopulates step list (macros/aliases are expanded and flattened) |
 | **Copy DSL** | Copies raw DSL text to clipboard |
-| **Copy for AI** | Copies a fenced ` ```playtest timeout=N abort_on_fail=true/false ``` ` block — paste directly into Claude chat |
+| **Copy for AI** | Copies a fenced ` ```playtest timeout=N abort_on_fail=true/false ``` ` block for an agent chat |
 | **＋ Smart Command** | Opens the NL→DSL entry window (see below) |
 | **TO: [float]** | Global timeout in seconds (default 60s); passed as `globalTimeout` to `PlaytestRunner.Run` |
 | **Abort [toggle]** | Prepends `ABORT_ON_FAIL` to the generated DSL when checked |
@@ -145,7 +145,13 @@ Modal 400×360 window for entering steps in natural language.
 - Extension: `.playtest` (plain UTF-8 text, raw DSL)
 - Default folder: `<ProjectRoot>/Playtests/` (auto-created on first Save)
 - Last used path is remembered per session
-- **Load round-trip note:** MACRO/VAL/MOVE_PATH directives are expanded by the parser; the loaded step list shows the flattened result, not the original macro structure (ALIAS removed v0.92.x)
+- **Load round-trip note:** Parser-only structure such as macros, static
+  `VAL`/`PATH_PREFIX` directives, and comments is not reconstructed from the
+  loaded step list. An ordinary step type that the Composer cannot edit
+  visually keeps its exact source `RawLine`. If static `VAL` or `PATH_PREFIX`
+  processing changed that line, export uses `ExpandedRawLine` instead so the
+  saved step is self-contained. Runtime `VAR` sigils are not statically
+  expanded and remain intact.
 
 ---
 
@@ -263,4 +269,6 @@ Below the list, a live preview shows the full `VAL` block that will be generated
 
 ---
 
-**See also:** `AI/playtest-dsl.md` for full DSL syntax reference; `.claude/skills/playmode-verification.md` for assertion patterns.
+**See also:** `AI/playtest-dsl.md` for the full DSL contract and
+`unity-plugin/ClientSkills/skills/unity-testing-verification/SKILL.md` for the
+consumer-agent verification workflow.

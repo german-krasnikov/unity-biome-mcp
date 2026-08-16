@@ -982,4 +982,7 @@ MOVE_PATH $patrol_start_0 > $patrol_start_1
 
 ---
 
-**See also:** `run_playtest` (inline `script=` or file `path=`) in `AI/runtime-playtest.md`; `AI/playtest-composer.md` for the visual editor; `.claude/skills/playmode-verification.md` for assertion patterns.
+**See also:** `run_playtest` (inline `script=` or file `path=`) in
+`AI/runtime-playtest.md`, `AI/playtest-composer.md` for the visual editor, and
+`unity-plugin/ClientSkills/skills/unity-testing-verification/references/playtest-dsl.md`
+for the concise installed-agent workflow.

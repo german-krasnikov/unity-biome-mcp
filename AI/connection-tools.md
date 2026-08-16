@@ -10,24 +10,28 @@ TCP connection management, port discovery, health checks.
 
 ```python
 await list_connections()
-# → "port 9500 (connected)"
-# → "port 9500 (reconnecting)"
-# → "port 9500 (domain-reloading)"
-# → "port 9500 (disconnected)"
+# → "port 9500 | tcp:connected | stdio:alive"
 ```
 
-**Returns:** Single-line `"port {N} ({status})"`. Status comes from `ConnectionSlot.status → UnityBridge.status`:
+**Returns:** `"port {N} | {tcp-status} | {stdio-status}"`. The two status
+fields distinguish the Unity socket from the MCP client's stdio transport:
 
 | Status | Meaning |
-|--------|---------|
-| `connected` | Writer open, not closing |
-| `reconnecting` | Heartbeat loop attempting reconnect |
-| `domain-reloading` | Unity domain reload in progress (`BridgeState.DOMAIN_RELOADING`) |
-| `disconnected` | Startup grace expired (`BridgeState.FAILED`) |
+|---|---|
+| `tcp:none` | The session slot has no bridge instance |
+| `tcp:connected` | Unity TCP writer is live |
+| `tcp:reconnecting` | No live writer; the bridge may retry |
+| `tcp:failed` | Startup/reconnect grace expired |
+| `tcp:dormant` / `tcp:waking` | Idle suspension or its reconnect transition |
+| `stdio:alive` / `stdio:dead` | MCP client transport health |
 
 ---
 
-### reconnect_unity(port: int = 0)
+### reconnect_unity
+
+```python
+await reconnect_unity(port=0)
+```
 
 **Write-idempotent.** Reconnect to Unity via TCP.
 
@@ -82,10 +86,14 @@ Internal connection-identification command:
 
 | Role string | Label |
 |-------------|-------|
+| `mcp` | Claude Code session |
+| `chat-relay` | Chat relay |
 | `codex` | Codex session |
 | `cursor` | Cursor session |
 | `windsurf` | Windsurf session |
 | `claude-desktop` | Claude Desktop session |
+
+Unrecognized non-empty role strings are used as their own label.
 
 ---
 
@@ -97,7 +105,7 @@ Internal connection-identification command:
 # Diagnosis only
 result = await doctor()
 
-# Remove confirmed stale discovery files and retry connection
+# Remove confirmed stale discovery/lock files while running the health checks
 result = await doctor(fix=True)
 ```
 
@@ -106,10 +114,10 @@ result = await doctor(fix=True)
 | Check | Tests | Auto-fix? |
 |-------|-------|-----------|
 | `python_version` | Python ≥ 3.10 | ❌ Manual: Install Python 3.10+ |
-| `port_file` | ~/.unity-biome-mcp/ports/*.port exist + PIDs alive | ✅ Remove stale files, signal if none live |
+| `port_file` | ~/.unity-biome-mcp/ports/*.port exist + PIDs alive | ✅ Remove stale files, report if none live |
 | `lockfile` | ~/.unity-biome-mcp/*.lock holds live PID | ✅ Clean stale files |
-| `tcp_connection` | 127.0.0.1:port reachable + responds to heartbeat | ⚠️ Reconnect attempt only |
-| `unity_state` | Editor.log accessible + recent activity | ⚠️ Diagnose compile/domain-reload wedge |
+| `tcp_connection` | A TCP connection to the discovered port can be opened | ❌ Diagnostic only |
+| `unity_state` | The direct TCP `diagnose` response reports a healthy editor state | ❌ Diagnostic only |
 
 **Returns:** Formatted report with summary + details.
 
@@ -118,7 +126,7 @@ result = await doctor(fix=True)
 ## Port Discovery
 
 The canonical order is documented once under
-[`reconnect_unity`](#reconnect_unityport-int--0). Discovery files contain the
+[`reconnect_unity`](#reconnect_unity). Discovery files contain the
 port and project identity recorded by Unity; do not select the first file from
 the directory when multiple Editors are open.
 
@@ -134,12 +142,12 @@ the directory when multiple Editors are open.
    ```
 
 2. **Plugin installed?**
-   - Open Unity → `MCP → Setup Wizard` → confirm plugin loaded
-   - Check `Assets/Plugins/UnityMCP/` exists in project
+   - Open Unity → `🧬MCP → Setup Wizard` and confirm the package is loaded
+   - Check the project Package Manager entry for `com.unity-biome-mcp.editor`
 
 3. **Port file stale?**
-   ```bash
-   doctor(fix=True)  # auto-clean
+   ```python
+   await doctor(fix=True)  # removes confirmed stale discovery files
    ```
 
 4. **Firewall blocking?**
@@ -161,7 +169,7 @@ the directory when multiple Editors are open.
 
 2. **Cross-check errors if the verdict is unexpected:**
    ```python
-   await get_console(severity='error')
+   await get_console(level='error')
    ```
 
 3. **Reconnect only when diagnostics identify a connection problem:**
@@ -174,17 +182,19 @@ the directory when multiple Editors are open.
 Use the canonical reload sequence:
 
 ```python
-await force_refresh()
-# Wait 15 seconds, then:
-await diagnose()
+await sync_unity()
 ```
 
-Run tests only after the verdict is clean. If the assembly MVID is unchanged,
-continue with the recovery constraints in `AI/reload-reference.md`.
+`sync_unity` refreshes assets, waits for compilation/domain reload, and invokes
+the recovery ladder when the assembly stays stale. Run tests only after it
+returns a clean result. If it returns `STOP:`, `REIMPORT-NEEDED:`, or
+`MANUAL-REQUIRED:`, continue with the constraints in
+`AI/reload-reference.md`.
 
-### "Reconnect spam (9 failed attempts)"
+### "Repeated reconnect failures"
 
-**Root cause:** PID file alive but editor crashed → socket orphaned.
+One common cause is a stale discovery entry after the Editor exits. Confirm the
+diagnosis before deleting discovery files.
 
 **Fix:** Confirm the discovery entries are stale, then use:
 
@@ -222,9 +232,12 @@ await reconnect_unity()
 - Heartbeat every 15s (via `_raw_ping()`) to detect stale connections; fast-path bypass of retry machinery
 - Graceful shutdown: closes socket + cleanup on MCP exit
 
-The Unity listener independently accepts up to eight client slots. Each slot has a human-readable label set by the internal identification flow and cleared on reset.
+Each Unity main/chat listener owns a `ClientSlot` with capacity for eight
+simultaneous clients. Each entry has a human-readable label set by the internal
+identification flow and cleared on reset.
 
-**Blocking behavior:** All MCP tool calls block on socket I/O (TCP call-response).
+**Blocking behavior:** Unity-bound tool calls wait for a TCP response. Pure
+Python discovery and session helpers do not necessarily touch the Unity socket.
 
 **Timeouts:** The bridge provides the shared transport timeout. Tool-specific limits come from `ToolSpec` metadata or the typed wrapper, which adds operation-specific buffers for long-running calls.
 
@@ -232,10 +245,12 @@ The Unity listener independently accepts up to eight client slots. Each slot has
 
 ## Integration with Tools
 
-**Every tool uses the shared connection slot:**
+**Unity-bound tools use the shared connection slot:**
 - Tool calls check the shared connection before executing; they do not invoke `list_connections()`
-- Disconnected state → auto-reconnect attempt
-- 3 failed attempts → raise ToolError (user must `reconnect_unity()` explicitly)
+- Disconnected state → bounded retry according to command safety, session
+  deadline, and `UNITY_MCP_MAX_RETRIES`
+- Exhausted or unsafe retry → surface the connection error; use
+  `reconnect_unity()` only after diagnosing the target port
 
 **Force-reconnect in scripts:**
 
@@ -243,8 +258,6 @@ The Unity listener independently accepts up to eight client slots. Each slot has
 await reconnect_unity(port=0)  # auto-discover
 result = await get_hierarchy()  # now connected
 ```
-
----
 
 ---
 
@@ -263,4 +276,5 @@ export UNITY_MCP_CLIENT=codex  # set before bridge launch
 ```
 Bridge reads it in `_reconnect()` and includes `"role": "codex"` in the ping payload. C# `RoleToLabel` maps it to `"Codex session"` and stores on the slot.
 
-**See also:** CLAUDE.md § "Run MCP server", `AI/reload-reference.md` (domain reload strategy).
+**See also:** `CONTRIBUTING.md` (server and test commands) and
+`AI/reload-reference.md` (domain reload strategy).

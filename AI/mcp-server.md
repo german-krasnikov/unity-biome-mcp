@@ -2,9 +2,15 @@
 
 ## Overview
 
-Python MCP server with 142 MCP tools for controlling Unity Editor. `_UnstructuredMCP(FastMCP)` subclass (v0.50.3) + ConnectionSlot + capability gating + 23 middleware layers. External plugins can add more tools dynamically. Structured output disabled on all tools to eliminate duplicate `content` + `structuredContent` in MCP responses (reduces size & parsing overhead).
+Python MCP server for controlling Unity Editor. `_UnstructuredMCP(FastMCP)` +
+ConnectionSlot + capability gating + the middleware pipeline. External plugins
+can add tools dynamically. Structured output is disabled on all tools to avoid
+duplicating `content` and `structuredContent` in MCP responses. Derive the
+current tool and middleware counts from code/tests; do not preserve them here.
 
 ## Architecture (for Architect)
+
+Selected files and ownership boundaries (not an exhaustive generated tree):
 
 ```
 server/src/unity_mcp/
@@ -22,20 +28,21 @@ server/src/unity_mcp/
 │   ├── __init__.py     # Tool module registry
 │   ├── _annotations.py # MCP ToolAnnotations constants (RO, RW, RW_IDEM, DEL)
 │   ├── _common.py      # bind() helper — uniform binding across register() functions
-│   ├── tool_specs.py   # 148 ToolSpec entries (142 user-visible + 6 _INTERNAL) — single source of truth for categories, tiers, timeouts
+│   ├── tool_specs.py   # single source of truth for categories, tiers, timeouts, mutability and surfaces
 │   ├── gating.py       # Capability gating: CORE, TIER1, category-based filtering, catalog
 │   ├── schema_registry.py  # Tool schema lazy-loading
 │   ├── objects.py      # get_component/inspect/find/set_property/create/delete/manage_component/set_active/rename_object/wire_event/unwire_event/set_material/set_parent/set_property_delta/transfer_object/object_diff
 │   ├── scene.py        # get_hierarchy, scene, search_scene, fingerprint, scene_diff, scene_environment, save/load_session, screenshot_baseline/compare, get_changes
 │   ├── console.py      # get_console, get_compile_errors (B2: split from scene.py)
-│   ├── screenshot.py   # screenshot + optional Haiku description (B2: split from scene.py)
+│   ├── screenshot.py   # screenshot + optional configured sampling description
 │   ├── editor_control.py  # editor (play/pause/stop/select), ping_object, undo_last, checkpoint, get_capabilities (B2: split from scene.py)
 │   ├── testing.py      # run_tests, get_test_results, get_test_count, get_test_progress (B2: split from scene.py)
 │   ├── code_intel.py   # compile_preflight, await_compile
-│   ├── runtime.py      # invoke_method, set_runtime_property, wait_until, move_to, query_state, test_step, run_playtest (script|path)
+│   ├── runtime.py      # invocation, waits, state queries, movement and playtest execution
 │   ├── batch.py        # batch, references, validate_references + DRY serialization
 │   ├── spatial.py      # spatial_query, validate_triggers, get_spatial_context, scan_scene, check_colliders
-│   ├── ui.py           # create_ui, set_rect, menu, shader
+│   ├── ui.py           # uGUI, menu and shader wrappers
+│   ├── uitk.py         # UI Toolkit inspection, files, attachment and live elements
 │   ├── codegen.py      # execute_code, get_schema, auto_fix, smart_build
 │   ├── skills.py       # save_skill, use_skill, list_skills, apply_template, save_template, list_templates
 │   ├── animation.py    # animation, timeline, animator, particle
@@ -43,15 +50,15 @@ server/src/unity_mcp/
 │   ├── connection.py   # list_connections, reconnect_unity
 │   ├── autobatch.py    # setup_objects, set_properties, configure_objects
 │   ├── auto_wire.py    # auto_wire — fill null ObjectReference fields by name/type matching
-│   ├── do_tool.py      # NL intent → Haiku plan → batch execute
-│   ├── ask_tool.py     # NL read-only question → route → Haiku summarize
+│   ├── do_tool.py      # sampled NL intent → validated plan → batch execute
+│   ├── ask_tool.py     # read-only question → route → optional sampled summary
 │   ├── ask_user_tool.py     # ask_user — interactive question shown as Unity UI card
 │   ├── animator_intent_tool.py  # Domain-specific animator NL
 │   ├── vfx_intent_tool.py       # Domain-specific VFX NL
 │   ├── ui_intent_tool.py        # Domain-specific UI NL
 │   ├── intent_common.py         # Shared intent infrastructure
 │   ├── permission_prompt_tool.py  # --permission-prompt-tool MCP handler for Claude CLI
-│   ├── budget_tool.py           # budget_status tool (Haiku spend tracking)
+│   ├── budget_tool.py           # budget_status tool (sampling spend tracking)
 │   ├── metrics_tool.py          # Performance metrics
 │   ├── meta.py         # discover_tools, doctor, resolve_tool_schema, set_llm_config, alias_status
 │   ├── diagnose.py     # Python wrapper for C# diagnose command
@@ -69,51 +76,32 @@ server/src/unity_mcp/
     └── __init__.py              # 3-source auto-discovery (pkgutil, entry_points, UNITY_MCP_PLUGIN_DIRS)
 ```
 
-### Tools (142 total)
+### Tool surface
 
-**TIER1 — always visible (45 tools):**
+The complete roster is derived from `tool_specs.py` and the registration tests;
+it is not maintained in this architecture document. `AI/tools-reference.md`
+owns visibility and schema-loading behavior, while generated
+`docs/tools-schema/index.md` owns exhaustive public parameters.
 
-Core (15): apply_scene_change, batch, create_object, editor, execute_code, get_compile_errors, get_component, get_console, get_hierarchy, inspect, manage_component, resolve_scene_refs, scene_change_plan, set_property, verify_after_change
-
-Other tier1 (30): alias_status, ask, ask_user, await_compile, compile_preflight, configure_objects, console_mark, delete_object, discover_tools, get_console_since, get_test_results, lint_playtest, lint_scene_refs, mcp_status, permission_prompt, reconnect_unity, release_smoke, resolve_tool_schema, run_playtest, run_tests, run_tests_wait, scene, screenshot, search_scene, set_active, set_parent, setup_objects, sync_unity, undo_last, validate_references
+The canonical discoverable categories are SCENE, COMPONENTS, ASSETS, UGUI,
+UITOOLKIT, MEDIA, VERIFY, RUNTIME, TESTS, and SYSTEM. CORE is a catalog group,
+not another discoverable category. `direct_only` and full-schema exception sets
+are also derived/verified from metadata rather than copied here.
 
 ### Compile-Tool Corroboration (v0.7.0+)
 
 `get_compile_errors`, `await_compile`, `auto_fix`, and `ask` now cross-verify clean responses via `editor_log.py`: an out-of-band reader of Unity's `Editor.log` that catches cases where the in-plugin C# reporter is itself broken (stale bytecode, unsafe to trust). Only overrides when both signals agree: log shows errors AND dll is stale. Zero false positives (fresh dll trusted). Resolves P0 silent-blindness bug where plugin compile failures masked themselves.
 
-**Category-gated (enabled via `discover_tools`):**
-
-| Category | Tier2 Tools |
-|----------|-------------|
-| SCENE | autofit_collider, check_colliders, find_objects, get_components_list, get_object_detail, get_selection, get_spatial_context, get_unity_events, navmesh_query, object_diff, ping_object, region_clear, rename_object, scene_diff, scene_environment, set_material, set_properties, set_property_delta, set_sibling_index, spatial_query, transfer_object |
-| COMPONENTS | auto_wire, references, unwire_event, wire_event |
-| ASSETS | asset, material, material_audit, prefab, project_settings, scriptable_object, shader |
-| MEDIA | analyze_lod_culling, animation, animator, create_ui, particle, render_analyze, screenshot_baseline, screenshot_compare, set_rect, timeline, ui_intent, validate_triggers, vfx_intent |
-| VERIFY | diagnose, scan_scene, scene_health, serialized_field_rename_audit |
-| RUNTIME | debug, debug_animator, debug_physics, get_frame_stats, get_memory, get_metrics, get_watches, invoke_method, move_to, profile, query_state, runtime_snapshot, set_runtime_property, snapshot, wait_until, watch |
-| TESTS | export_playtest_aliases_to_defs, get_test_count, get_test_progress, lint_playtest_suite, run_playtest_suite, sync_playtest_aliases_from_defs, test_step, validate_playtest_aliases |
-| SYSTEM | animator_intent, apply_template, auto_fix, budget_status, checkpoint, do, doctor, fingerprint, get_capabilities, get_changes, get_enabled_tools, get_schema, list_connections, list_skills, list_templates, load_session, menu, recompile, save_session, save_skill, save_template, set_llm_config, smart_build, use_skill |
-
 **get_unity_events:** Returns all UnityEvent fields on a component with fully-qualified
 target paths. Replaces manual `get_component` + parsing when auditing event wiring.
 
-**direct_only tools (v0.91.0 additions):** 7 more tools marked `direct_only=True` (Python-side only, never sent to Unity TCP): `console_mark`, `discover_tools`, `get_console_since`, `mcp_status`, `release_smoke`, `resolve_tool_schema`, `run_tests_wait`. These remain TIER1 and visible to the LLM; they just don't go through `get_enabled_tools` catalog sent to Unity. Total direct_only tools now 31.
-
-**Full schemas kept for (v0.91.0):** `_SCHEMA_KEEP_FULL_EXTRA` adds `run_playtest`, `run_tests`, `run_tests_wait`, `resolve_tool_schema` to the full-schema set (always served with complete inputSchema, not stubs). v0.92.0 adds `sync_unity`.
-
-**discover_tools (v0.92.0):** `include_legacy=False` is now the default — only canonical category names (SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM) are listed unless `include_legacy=True` is passed. `structured=True` mode returns per-tool surface/mutability info.
-
-**screenshot (v0.92.0):** `output_path` is an alias for `path`; `output_path` wins when both are provided.
-
-**serialized_field_rename_audit (NEW, v0.92.0):** Scans prefabs, scenes, SOs for stale YAML field data after a rename without `[FormerlySerializedAs]`. VERIFY category, read-only. Backed by `SerializedFieldRenameAudit.cs` + `UnityPreflightHints.cs` (compile-time checks injected into `compile_preflight`).
-
 ### Capability Gating (gating.py)
 
-- TIER1 tools (45) always visible to LLM
+- CORE and `tier1=True` tools are always visible to the MCP client
 - Categories enabled per-session via `discover_tools(category, enable=True)`
 - Double-filtered: Python gating × Unity-side MCPSettings (tool cache from `get_enabled_tools`)
-- Unknown (plugin) tools auto-gated to hidden `plugins` category by default
-- Plugin self-registration: `gating.register_tools("category", tools_set)` adds tools to Tier2 category (no tier1 escape hatch — platform controls TIER1 membership)
+- Plugin self-registration: `gating.register_tools("category", tools_set)` adds
+  tools to the category-gated surface; plugins have no tier1 escape hatch
 
 **Tool Visibility Logic (v0.57.0, commit 2fac0bd)** — fixed AND logic in `server_filtering.py`:
 - Previously: tool visibility had OR bug; disabled tools remained visible
@@ -247,9 +235,10 @@ errors = await get_console_since(mark, keyword="NullRef", count_only=True)
 
 ### Intent Meta-Tools
 
-- `do(intent, dry_run)` — NL → Haiku plan → validate → batch execute
-- `ask(question)` — NL read-only question → deterministic route → Haiku summarize
-- `animator_intent`, `vfx_intent`, `ui_intent` — domain-specific NL intent tools (Tier2, discoverable via discover_tools)
+- `do(intent, dry_run)` — sampled NL → plan → validate → batch execute
+- `ask(question)` — read-only deterministic route with optional sampled summary
+- `animator_intent`, `vfx_intent`, `ui_intent`, `uitk_intent` — constrained
+  domain-specific intent tools; deterministic templates bypass sampling where supported
 
 ### MCP Resources (resources.py)
 
@@ -289,7 +278,7 @@ sampling_service = SamplingService()
 - Centralized concurrency control: UNITY_MCP_VISUAL_CONCURRENCY (default 4) enforced globally
 - Clean shared state: no instance passing required
 - Testability: pytest can mutate module-level `sampling_service` directly (no dependency injection)
-- Memory efficiency: single instance, reused for all claude CLI calls
+- Memory efficiency: one shared service instance for configured sampling calls
 
 **Related:** Budget tracking in `sampling.py` (metrics, latency tracking) — wired from server.py lifespan.
 
@@ -316,7 +305,10 @@ Non-core tools return a **stub inputSchema** `{"type":"object"}` from `list_tool
 resolve_tool_schema(tools: "comma,separated,names") -> plain text
 ```
 
-Returns a plain-text schema block (no JSON), one tool per section. Backwards-compatible: MCP dispatch doesn't validate against inputSchema, so stubbed tools execute normally. Environment escape hatch: `UNITY_MCP_FULL_SCHEMAS=1` disables stripping (default off).
+Returns a plain-text schema block (no JSON), one tool per section. Filtering
+changes only the `ListTools` response object; the FastMCP manager retains the
+real schema and dispatch rejects unknown arguments. Environment escape hatch:
+`UNITY_MCP_FULL_SCHEMAS=1` disables stripping (default off).
 
 This reduces the schema payload exposed on each turn. It is enabled by default;
 discovery-gated tools show a stub until explicitly enabled in session.
@@ -333,15 +325,22 @@ ACP (Agent Communication Protocol) backend events are normalized server-side in 
 
 Do not add backend-native JSON-RPC or stream parsers to the C# window. The canonical architecture is `AI/architecture.md` under **Chat Relay System**.
 
-### Middleware (23 layers, `UNITY_MCP_MIDDLEWARE=1`)
+### Middleware (`UNITY_MCP_MIDDLEWARE=1`)
 
-Retry Watchdog, Confidence Decay (gated <0.5), Taint Tracking, Periodic State Injection (staleness-gated), Path Cache, Dead Write Elimination, Starvation Monitor, Blast Radius Tags, Incremental Verification, Workflow Phase FSM, Visual Verification (Haiku), Play Mode Auto-Routing, find_objects Cache Bypass, Batch Conflict Scan, Post-mutation Snapshot, Component Cache, Console Error Categorization, PrefetchCache (TTL 12s), HierarchyDiff, Distiller, Disambiguator, SchemaGuard, Asymmetric Reflection
+The current layers and order are defined by `middleware_pipeline.py` and its
+focused tests. They cover retry/circuit behavior, taint and dead-write guards,
+path/alias resolution, blast-radius and batch checks, optional configured
+sampling verification, Play Mode routing, caching/distillation, and
+post-mutation evidence. Do not maintain a numeric layer count here.
 
 **Alias Resolution (middleware_alias.py):**
 
 Two hooks wired into `wrap_send()` (middleware_pipeline.py):
 - **Hook 1 (pre-call):** resolve `$name` in arg values using `_alias_cache` before the call reaches Unity. Whole-value only: `"$hp"` resolves, `"/prefix/$hp"` does NOT (define a VAL alias for the full path instead). Per-key extraction from pipe format: `path`/`paths` → `segment[0]`, `component` → `segment[1]`, `field`/`prop` → `segment[2]`, all others → full pipe value. Comma-separated keys (`paths`, `queries`, `checks_before`, `checks_after`) are split, each token resolved, rejoined.
-- **Hook 2 (post-call):** after `get_hierarchy`, parse `--- ALIASES ---` block → populate `_alias_cache`; strip block from result (LLM never sees it). After `get_aliases`, populate `_alias_cache` from bare `name=value` lines.
+- **Hook 2 (post-call):** `get_aliases` populates `_alias_cache` from bare
+  `name=value` lines. The `get_hierarchy` alias-block parser/stripper is a
+  compatibility safety net; current Unity hierarchy responses do not emit that
+  block.
 - Cache format: `{name: "path|comp|field"}` — keys WITHOUT `$` prefix.
 - Cache cleared on `reset_session()`.
 - **Batch $alias guard (REMOVED v0.78.8):** `$alias` in batch DSL IS supported — `BatchHelper.cs` calls `AliasExpander.ExpandText()` C#-side before key=value parsing. No Python-side guard. Python pre-call alias hook still resolves `$name` in direct (non-batch) tool args.
@@ -359,11 +358,9 @@ Guard conditions and reroute logic have been reordered for correctness:
 5. **Tier C features** (speculation tracking, lessons, inference)
 6. **Command execution** (actual send to Unity)
 
-**READ_CMDS / WRITE_CMDS audit (v0.78.11, `middleware_types.py`):**
-- `READ_CMDS` expanded from 15 → 40 entries (removed `get_metrics` in v1.22.0): added `screenshot_compare`, `get_selection`, `get_capabilities`, `alias_status`, `get_aliases`, `list_connections`, `get_enabled_tools`, `budget_status`, `permission_prompt`, `get_test_results`, `get_test_progress`, `get_test_count`, `get_frame_stats`, `get_memory`, `get_watches`, `debug`, `debug_animator`, `debug_physics`, `profile`, `object_diff`, `scene_diff`, `scene_health`, `material_audit`, `analyze_lod_culling`, `render_analyze`, `fingerprint`, `validate_triggers`, `check_colliders`, `spatial_query`, `get_schema`, `get_changes`, `compile_preflight`, `await_compile`, `auto_fix`, `diagnose`, `list_skills`, `list_templates`, `load_session`, `ask`, `ask_user`
-- `compress_hierarchy` removed from `READ_CMDS` (dead command — does not exist in Unity plugin)
-- `WRITE_CMDS` gains `get_metrics` (v1.22.0 — now mutating when reset=True), `rename_object`, and `set_sibling_index`
-- `_EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})` — `editor` cmd is dual-use; only these two actions are reads; all others (play/stop/pause/step/select) are writes. Used by `_is_batch_readonly()` and `transition()` to avoid misclassifying editor state queries as mutations.
+**Read/write classification:** `middleware_types.py` owns command-level
+classification, including dual-use `editor` actions. The exact sets are tested
+against `ToolSpec`; do not duplicate their roster in documentation.
 
 **The fix:** Previously reroute was applied BEFORE guards, allowing Play Mode reroutes to bypass safety checks (taint, dead-write detection). Now guards check original command intent, then reroute applies. Example: `update_player_pos` in Play Mode would reroute to `set_runtime_property`, but taint checks now see `update_player_pos` intention first.
 
@@ -372,7 +369,7 @@ Guard conditions and reroute logic have been reordered for correctness:
 | Env Var | Default | Feature |
 |---------|---------|---------|
 | `UNITY_MCP_HINTS` | `1` (on) | ToolHinter — suggests underused tools. Set `=0` to disable |
-| `UNITY_MCP_BUDGET` | `1` (on) | CostTracker/BudgetRouter — Haiku spend tracking. Set `=0` to disable |
+| `UNITY_MCP_BUDGET` | `1` (on) | CostTracker/BudgetRouter — configured sampling spend tracking. Set `=0` to disable |
 | `UNITY_MCP_SCENE_BRIEF` | off | SceneBrief — injects scene context on first call |
 | `UNITY_MCP_SPECULATION` | off | SpeculativeLayer — speculative prefetch |
 | `UNITY_MCP_LESSONS` | off | LessonStore/LessonRecorder — learns from usage patterns |
@@ -402,9 +399,9 @@ per-command request deadlines; use the canonical table in
 
 ```python
 @mcp.tool()
-async def animation(action: str, path: str, clip: str = "", ...) -> str:
-    """Animation CRUD. Actions: get|create|edit|add_key|remove_key|set_keys|set_loop|preview"""
-    return await _send("animation", {"action": action, "path": path, "clip": clip, ...})
+async def animation(action: str, path: str, clip: str | None = None) -> str:
+    """Animation clips. Actions include get, create, edit/key operations, preview, events, wrap/framerate, and get_clip_path."""
+    return await _send("animation", {"action": action, "path": path, "clip": clip})
 ```
 
 ### Plugin Registration
@@ -442,7 +439,10 @@ Tests organized by module in `server/tests/`:
 - `test_compile_state.py` — probe signals, estimated remaining
 - `test_middleware.py` — each middleware layer independently
 - `test_middleware_play_guard.py` — play mode fail-fast guard: state-unknown passthrough, edit-mode block, watch_remove exclusion
-- `test_middleware_read_cmds.py` — 57 tests: READ_CMDS membership for all 41 entries, `_is_batch_readonly()` edge cases (empty, comments, editor dual-use, mixed read/write), readonly batch skips blast/verif/FSM guards
+- `test_middleware_read_cmds.py` — `READ_CMDS`/`WRITE_CMDS` classification,
+  `_is_batch_readonly()` edge cases (empty, comments, editor dual-use, mixed
+  read/write), and read-only batch guard bypasses. Keep changing set membership
+  and test counts in source and run evidence, not this guide.
 - `test_tool_descriptions.py` — all TIER1 tools have `[Play Mode]` prefix where runtime=true
 - `test_docstring_crossrefs.py` — all `use \`tool\`` cross-references in docstrings name real tools in _SPECS
 - `test_gating.py` — tier filtering, category enable/disable
@@ -471,7 +471,7 @@ Tests organized by module in `server/tests/`:
 
 ## Related
 
-- Skill: `.claude/skills/python-mcp.md`
+- API rules: `AI/api-design-standards.md`
 - Bridge: `AI/tcp-bridge.md`
 - Architecture: `AI/architecture.md`
 - Batch: `AI/batch.md`

@@ -8,11 +8,11 @@ unity-biome-mcp/
 │   ├── ui.py                   # Terminal UI (prompt, confirm, boxes, colors)
 │   ├── commands.py             # Subcommand implementations (setup, update [uvx --reinstall + reconfigure], doctor, configure, uninstall, connect, disconnect, pull)
 │   └── tests/                  # Bootstrap + UI + install tests
-├── server/                     # Python MCP Server (see CLAUDE.md Commands section for current test count; v0.70.0: tools/ split console/screenshot/testing/editor_control, bridge split retry/result; v0.66.0: +27 diagnose/reload stability tests; v0.65.0: +8 run_tests pre-flight gate tests; v0.64.0: +75 polyline/scene tests; v0.54.1: +54 connection/focus-loss stability tests; v0.47.1: +151 config validation tests)
+├── server/                     # Python MCP server (test workflow and policy: AI/testing.md)
 │   ├── src/unity_mcp/
 │   │   ├── cli.py              # CLI dispatcher: configure/doctor/version/uninstall subcommands (v0.68.0)
 │   │   ├── _preflight.py       # Import-time guard: one-line stderr on Python/SDK errors, not traceback (v0.68.0)
-│   │   ├── server.py           # _UnstructuredMCP(FastMCP) instance, lifespan, 148 registered MCP tools, idle watchdog (useful/transport split, in-flight guard, T4, T6: dormant scheduling + TOCTOU guard + parent-alive check)
+│   │   ├── server.py           # _UnstructuredMCP(FastMCP) composition root, lifespan, tool registration, and idle watchdog
 │   │   ├── timeout_categories.py # Per-command TCP timeouts; dict + get_timeout(cmd) derived from tools.tool_specs._SPECS (v0.69.0)
 │   │   ├── bridge.py           # UnityBridge (TCP, heartbeat, SO_KEEPALIVE, RetryPolicy extracted v0.70.0); T5: ClientHelloPayload dataclass, _session_id/_lock_token/_started_at_utc set in __init__, session_id/lock_token read-only properties, _build_hello(msg_id), _check_version_from_hello/_fetch_and_check_version split for new→old fallback; T6: BridgeState.DORMANT/WAKING, suspend() method (CONNECTED→DORMANT, guards: queue empty + state check, resets cooldown/backoff)
 │   │   ├── bridge_retry.py     # RetryPolicy class + unwrap_bridge_result() extracted (v0.70.0)
@@ -37,7 +37,6 @@ unity-biome-mcp/
 │   │   ├── paths.py            # Canonical path helpers for ~/.unity-biome-mcp layout (v0.70.0: unity_mcp_dir(); v0.96.1: iter_port_files() — yields port files from primary + legacy ~/.unity-mcp/ports/, dedup by filename)
 │   │   ├── server_control.py   # Graceful shutdown: list_servers, stop_server SIGTERM/taskkill (v0.55.10)
 │   │   ├── lockfile.py         # Cross-platform exclusive locking + zombie detection (v0.23.0); T5: write_lock_metadata/read_lock_metadata for session identity (sessionId, lockToken) on lockfile line 2 (JSON); acquire_lock() gains metadata kwarg
-│   │   ├── diagnose.py         # Shared diagnose parser + verdict logic (_parse_diagnose, _verdict, _DiagnoseFields)
 │   │   ├── _update_check.py    # Version checker — GitHub releases API (v0.47.1: switched from PyPI), 24h cache, includes --reinstall flag in banner
 │   │   ├── compile_state.py    # CompileStateProbe (heuristic Unity compile detection)
 │   │   ├── editor_log.py       # High-level Editor.log corroboration: is_compiling_from_log(), dll_info() (148L after v0.80.0 split)
@@ -143,9 +142,9 @@ unity-biome-mcp/
 │   │   │   ├── store.py        # HistoryStore: JSONL-based conversation persistence
 │   │   │   ├── manager.py      # HistoryManager: store + model lifecycle + retention coordination
 │   │   │   └── retention.py    # Retention policies: time-based, count-based, TTL eviction
-│   │   ├── tools/              # Tool modules (50 files + __init__, Chat Core: +brief_tool.py, +changeset_tool.py, +checkpoint_tool.py; pipeline-gap sprint: +build.py, +packages.py; playtests ROI sprint: +transaction.py, +verify.py; v0.79.1: -scenarios.py -scene_session.py merged into scene.py; v0.70.0: +console.py, screenshot.py, testing.py, editor_control.py split from scene.py; v0.69.0: +tool_specs.py, _common.py, meta.py; v0.60.0: +profiling.py, rendering.py; v0.62.0: +auto_wire.py, scene_health.py)
+│   │   ├── tools/              # MCP tool implementations and shared orchestration helpers
 │   │   │   ├── __init__.py     # Tool module registry
-│   │   │   ├── tool_specs.py   # Single source of truth: ToolSpec dataclass with category/core/tier1/timeout_s/mutability/runtime_only fields (v0.83.0: +mutability: Literal['read','write'], +runtime_only: bool — drives middleware_types derivation); _SPECS dict: 154 entries (148 user-visible + 6 _INTERNAL)
+│   │   │   ├── tool_specs.py   # Authoritative ToolSpec registry: category, core/tier1 visibility, timeout, mutability, runtime_only, and direct_only
 │   │   │   ├── _common.py      # Shared registration helper: bind(module_globals, send, args) for uniform _send/_args binding (v0.69.0)
 │   │   │   ├── meta.py         # Meta tools: discover_tools, doctor, resolve_tool_schema, set_llm_config, alias_status in register(mcp, send, args) pattern (v0.69.0, v0.78.9: +alias_status)
 │   │   │   ├── profiling.py    # Profile MCP tool: session-based profiling, frame stats, performance analysis (v0.60.0, 412 LOC)
@@ -154,6 +153,7 @@ unity-biome-mcp/
 │   │   │   ├── scene_health.py # Scene health audit: hierarchy depth, naming, duplicates, origins, missing scripts (v0.62.0)
 │   │   │   ├── build.py        # BuildPipeline player builder (async via MainThreadDispatcher, pipeline-gap sprint)
 │   │   │   ├── packages.py     # PackageManager async operations via EditorApplication.update pump (pipeline-gap sprint)
+│   │   │   ├── diagnose.py     # Shared diagnose parser + verdict logic (_parse_diagnose, _verdict, _DiagnoseFields)
 │   │   │   ├── reload_ladder.py # Reload recovery T0-T5 ladder (MVID-delta healing proof)
 │   │   │   ├── transaction.py  # scene_change_plan + apply_scene_change: pre-flight (compile/console/resolve_scene_refs/checkpoint) → plan_id (TTL 600s) → guarded apply with verify + save (playtests ROI sprint)
 │   │   │   ├── verify.py       # verify_after_change: 5-gate additive pipeline (await_compile → get_compile_errors → console_since → run_tests_wait → run_playtest_suite); returns PASS or FAIL with skipped gates listed (playtests ROI sprint)
@@ -177,7 +177,7 @@ unity-biome-mcp/
 │   │   │   ├── asset.py        # asset, material, prefab, scriptable_object, project_settings, validate_move (v0.30.4); pipeline-gap sprint: +read_text, +write_text, +reimport, +create AnimatorController/ScriptableObject, +project_settings graphics|audio|input targets, +build_target
 │   │   │   ├── connection.py   # list_connections, reconnect_unity
 │   │   │   ├── autobatch.py    # setup_objects, set_properties, configure_objects (v0.55.10: _quote_if_spaces, _DOTTED_KV_RE lookahead)
-│   │   │   ├── gating.py       # TIER1 + category-based capability filtering (v0.29.37; v0.83.0: _THEMED_CATEGORY_KEYS reduced 18→8 — SCENE/COMPONENTS/ASSETS/MEDIA/VERIFY/RUNTIME/TESTS/SYSTEM; v1.34.0: +UGUI, +UITOOLKIT categories — 10 total; _CATEGORY_ALIAS dict for backward-compat legacy name mapping; register_tools() resolves aliases before populating themed groups; FORCE_VISIBLE removed v0.70.0)
+│   │   │   ├── gating.py       # Capability filtering derived from ToolSpec; current public categories and backward-compatible aliases
 │   │   │   ├── do_tool.py      # NL intent → Haiku plan → batch execute
 │   │   │   ├── ask_tool.py     # NL read-only → route → Haiku summarize
 │   │   │   ├── ask_user_tool.py # ask_user MCP tool (ask_user AskUserCard routing, v0.29.11)
@@ -196,7 +196,7 @@ unity-biome-mcp/
 │   │   │   └── _annotations.py          # Tool annotations
 │   │   └── plugins/            # Plugin system — 3-source auto-discovery (auto-disabled via UNITY_MCP_SKIP_PLUGINS env)
 │   │       └── __init__.py     # load_plugins(mcp, send_fn, args_fn), 3-source discovery, UNITY_MCP_SKIP_PLUGINS filtering
-│   └── tests/                  # Test suite (see CLAUDE.md Commands section for current count; v0.91.0: +test_surface_parity, test_tools_verify, test_schema_parity, test_registration_parity, test_gating, test_catalog, test_deferred_schema; v0.92.0: +test_result_envelope, test_compile_workflow; playtests ROI sprint: +11 new test files for transaction/verify/watermarks/suite runner/scene refs; v0.78.11: +test_middleware_read_cmds + test_tool_schema_coverage; v0.78.x: +alias middleware tests; v0.77.0: +8 domain test files for tools gap sprint; v0.66.0: +relay/stream_transform tests; v0.59.0: +11 debug tests; v0.26.0 quality audit, v0.30.4: +2 asset validate_move baseline, v0.42.0: +25 config/TOML tests, v0.47.1: +151 config validation tests)
+│   └── tests/                  # Python test suite (commands and ownership: AI/testing.md)
 │       ├── helpers.py                  # DRY: make_mock_bridge() + shared test utilities (v0.26.0)
 │       ├── test_server*.py             # Core + edge cases + tools
 │       ├── test_bridge*.py             # TCP bridge + reconnect + resilience
@@ -251,8 +251,8 @@ unity-biome-mcp/
 │       │   ├── test_checkpoint_restore.py  # State rollback + recovery
 │       │   ├── test_checkpoint_store.py    # Checkpoint save/load/list
 │       │   ├── test_checkpoint_tool.py     # checkpoint MCP tool integration
-│       │   ├── test_get_changeset_tool.py  # changeset MCP tool integration
-│       │   └── test_session_identity.py    # SessionIdentity: session_id, lock_token, agent_id tracking
+│       │   └── test_get_changeset_tool.py  # changeset MCP tool integration
+│       ├── test_session_identity.py    # SessionIdentity: session_id, lock_token, agent_id tracking
 │       ├── test_brief.py                   # Brief context envelope model
 │       ├── test_brief_builder.py           # BriefBuilder: on-demand context assembly
 │       ├── test_brief_tool.py              # brief MCP tool integration
@@ -277,7 +277,7 @@ unity-biome-mcp/
 │       ├── test_server_animation.py      # M11–M14 animation actions: color curves hex, set_wrap, set_framerate, get_clip_path (13 tests)
 │       ├── test_server_particle.py       # M16–M17 particle actions: trails module, play/stop/pause (18 tests)
 │       ├── test_server_material.py       # Material actions: get_errors, list_shaders, set_fields
-│       ├── test_server_shader.py         # ShaderGraphHelper mutations: graph_set_value, graph_connect, graph_add_node, graph_get_layout, graph_set_layout, graph_auto_layout
+│       ├── test_server_shader.py         # Shader and Shader Graph get/create/node/edge/property/layout wrapper contracts
 │       ├── test_server_objects_extra.py  # clone_object action tests
 │       ├── test_objects.py               # objects tool: find_type param, IsNullOrEmpty guard (v0.90.0)
 │       ├── test_console.py               # console tool: get_console watermark, get_console_since keyword/count_only (v0.90.0)
@@ -298,7 +298,7 @@ unity-biome-mcp/
 │       ├── test_stream_transform.py      # 5 transform functions: plain-text, codex, kimi, opencode, claude stream-json (v0.67.0: +_transform_plain_text_line, +_transform_codex_line, +_transform_opencode_line, +_transform_kimi_line; 327+ new lines)
 │       ├── test_stream_transform_mute.py # Stream transformer muting behavior (v0.66.0+)
 │       ├── relay_helpers.py              # DRY relay test utilities (v0.66.0+); live/relay_test_helpers.py (v0.67.0: session spawn helpers)
-│       ├── live/test_chat_backends.py    # Live chat backends integration (v0.67.0: +137 tests for 5 backends via relay)
+│       ├── live/test_live_chat_backends.py # Live chat backends integration
 │       ├── live/test_chat_ui_monkey.py   # Chat UI monkey tests with live relay (v0.66.0+)
 │       ├── live/chat_ui_helpers.py       # Chat UI test helpers (v0.66.0+)
 │       ├── test_editor_ui_styles.py      # Editor UI style validation: USS class coverage, theme parity, Biome component styles (docs-critical-review)
@@ -331,7 +331,7 @@ unity-biome-mcp/
 │   │   ├── ReloadMiniServer.cs               # Mini TCP server (async accept + handler)
 │   │   ├── ReloadPlugin.cs                   # Entry point (AssetImportWorker gate)
 │   │   ├── ReloadPortResolver.cs             # Atomic Delete+Move port persistence
-│   │   └── Tests/                            # 7 NUnit test files (asmdef: UnityMCP.Reload.Tests)
+│   │   ├── Tests/                            # Reload package NUnit tests
 │   │       ├── ReloadCommandsTests.cs
 │   │       ├── ReloadCompileNotifierTests.cs
 │   │       ├── ReloadDiagnoseTests.cs
@@ -339,13 +339,13 @@ unity-biome-mcp/
 │   │       ├── ReloadMiniServerTests.cs
 │   │       ├── ReloadPluginTests.cs
 │   │       └── ReloadPortResolverTests.cs
-│   ├── UnityMCP.Reload.asmdef                # Core assembly (no references)
+│   │   └── UnityMCP.Reload.asmdef            # Core assembly (no references)
 │   ├── package.json                          # v0.1.4, "com.unity-biome-mcp.reload"
 │   └── package.json.meta
 ├── unity-plugin/               # Unity Editor plugin; generated inventory totals live in docs/assets/_meta.json
 │   ├── ClientSkills/           # Consumer skills shipped with the plugin and installed via Setup Wizard
-│   │   ├── agents/             # 4 focused agents: scene editing, C# development, playtesting, diagnostics
-│   │   ├── skills/             # 11 folder skills with SKILL.md and optional references/resources
+│   │   ├── agents/             # Focused consumer-agent role prompts
+│   │   ├── skills/             # Canonical folder skills with SKILL.md and optional references/resources
 │   │   └── scripts/            # claude_to_codex.py — ownership-checked Claude-to-Codex sync
 │   └── Editor/
 │       ├── MCPServer.cs                    # Dual TCP listeners (main + chat), port auto-assign, ClientSlot pattern; **T1: ConnectedClientCount** property (sum of active clients from both slots)
@@ -471,9 +471,9 @@ unity-biome-mcp/
 │       ├── HubCardButton.cs               # Launcher card buttons for each settings window (F26)
 │       ├── MCPHubDivider.cs               # Visual divider component for hub sections (F26)
 │       ├── MCPHub.uss                     # Stylesheet for hub + animation classes `han-*` (F26)
-│       ├── MCPToolSettingsWindow.cs       # MCP/Tool Settings window (toggles + presets + plugins)
+│       ├── MCPSettingsUI.cs               # Tools page builder (presets, search, categories, and plugins)
 │       ├── ToolsHeaderAnim.cs             # 5 toggle-sweep animation (400ms) — connection-aware colors (F25)
-│       ├── MCPPermissionsWindow.cs        # MCP/Permissions window (deny-set config)
+│       ├── MCPSettingsPermUI.cs           # Agent-tool permissions page builder
 │       ├── PermissionsHeaderAnim.cs       # Shield + lock pulse (150ms) — connection-aware colors (F25)
 │       ├── ChatSettingsHook.cs            # Event hook: OnBuildConnection fired when Connection window builds
 │       ├── ArcadePalette.cs               # Centralized color constants (Up, Listen, Down, Accent) + StateClass seam (v0.52.0)
@@ -487,7 +487,7 @@ unity-biome-mcp/
 │       ├── BiomeUI.cs                     # Biome section UI orchestrator (docs-critical-review)
 │       ├── UI/                             # UI design system (v0.55.10)
 │       │   └── IconCanvas.cs              # Procedural icon builder (18×18, 2px stroke, theme-agnostic)
-│       ├── MCPStatusWindow.cs             # Connection status monitor: server list with Kill buttons, refresh on tick, changelog via MarkdownInlineFormatter (v1.31.0: changelog DRY rendering); **T7: hierarchical server list** — per-port tree view with live TCP connections (via TakeSnapshot()) and dormant bridges (via DormantBridgeScanner.Scan), per-connection metadata rows (kind, state, idle, uptime), kill buttons with multi-bridge confirmation
+│       ├── Wizard/MCPStatusWindow.cs      # Connection status monitor with live connection and dormant-bridge controls
 │       ├── MCPStatus.uss                  # Stylesheet for Status window (T7: +25 lines for connection hierarchy: .server-entry, .server-header, .connection-row, .conn-state, .dormant-section, etc.)
 │       ├── McpServerScanner.cs            # Port/lock file scanner: detects alive/phantom servers, CleanPhantomFiles orphan cleanup (v1.31.0); **T1: multi-lock support** — `ScanDetailed()` returns `UnityServerInfo[]` with per-port `McpConnectionInfo[]` list + `LiveTcpCount`; `Scan()` backward-compat wrapper; `FindConnections(port)` enumerates all server-{port}-*.lock files; test seam `OverrideLiveTcpCountGetter`
 │       ├── MCPActions.cs                  # Shared actions: KillCurrent/KillAll/KillByPort + multi-bridge TerminateByPid/StopAllOnPort/CountBridgesOnPort (v1.31.0: KillByPort; T2: TerminateResult enum, multi-bridge termination with selective cleanup)
@@ -1076,9 +1076,6 @@ unity-biome-mcp/
 │   ├── quality_delta.py        # Parse linter reports, compute metrics delta, write quality data (v1.17.0+)
 │   ├── check_skills_freshness.py # Static validation: skills refs, agent versions, tool parity (v1.17.0+)
 │   └── tests/                  # pytest suite for scripts/ (test_facts.py, test_render.py, test_update_readme.py, test_gen_changelog_svg.py, test_conformance_runner.py, test_fault_proxy.py, test_minimize_repro.py, test_quality_delta.py)
-├── AI/                         # Feature knowledge docs + changelog
-├── .claude/
-│   ├── skills/                 # Technical references
-│   └── agents/                 # Agent specifications
-└── CLAUDE.md
+├── AI/                         # Developer architecture and implementation documentation
+└── README.md                   # Repository entry point
 ```

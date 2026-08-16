@@ -1,271 +1,247 @@
-# API Design Standards — Unity Biome MCP
+# API Design Standards
 
-Reference for Architects, Developers, and Reviewers. Read before designing or reviewing any MCP tool.
+Use this reference when adding or changing an MCP tool or a Unity TCP command.
+The executable contract remains the Python signature, its generated MCP
+schema, `ToolSpec`, the Unity command registration, and parity tests.
 
-**Companion skill:** `.claude/skills/api-design-standards.md` (compact DO/DON'T, auto-loaded when editing tool files).
+Consumer-agent workflow guidance lives in `unity-plugin/ClientSkills/`; do not
+link developer documentation to an installed `.claude/` copy.
 
----
+## Scope and Sources of Truth
 
-## 1. Scope
+| Concern | Canonical source |
+|---|---|
+| Public Python signature and description | `server/src/unity_mcp/tools/*.py` |
+| Category, visibility, timeout, mutability, runtime and batch surface | `server/src/unity_mcp/tools/tool_specs.py` |
+| Canonical category membership | derived by `tools/gating.py` from `ToolSpec` |
+| Deferred schema registry | `tools/schema_registry.py` and `server_filtering.py` |
+| Unity command and argument behavior | `unity-plugin/Editor/CommandRouter*.cs` and helpers |
+| Published exhaustive schema | generated `docs/tools-schema/index.md` |
+| Cross-language conformance | parity and API-standard tests under `server/tests/` |
 
-Covers all 148+ MCP tools: Python-side definition (`server/src/unity_mcp/tools/`) and C#-side command registration (`unity-plugin/Editor/Commands/`).
+Do not put a total tool count in authored documentation. It is volatile and
+derivable from the runtime/generator.
 
-**No backward compatibility.** Deprecated tools are deleted — not shimmed, not aliased, not marked legacy. The API surface must contain only actively used, non-redundant tools. When a tool is identified as a duplicate or anti-pattern, it is removed from both Python and C# sides in the same PR.
+## Public Names
 
----
+Use `verb_noun` snake case for a new standalone tool. Action-based tools may use
+a Unity-domain noun (`asset`, `scene`, `shader`) when `action` is the verb.
 
-## 2. Tool Naming
-
-**Rule:** `verb_noun` snake_case. Verb = action. Noun = Unity concept.
-
-```
-DO:   get_hierarchy, set_property, create_object, manage_component, wire_event
-DON'T: hierarchy_get, setProperty, CreateObject, object_manager, hierarchyTool
-```
-
-**Check:** `grep -rn "async def " server/src/unity_mcp/tools/ --include="*.py" | grep -v "_"`
-
----
-
-## 3. Parameter Naming
-
-Same concept → same name across ALL tools. Inconsistency forces callers to memorize per-tool differences.
-
-| Canonical | BANNED aliases | Semantics |
-|-----------|---------------|-----------|
-| `path` | `object_path`, `go_path` | Scene path to GameObject |
-| `component` | `comp`, `comp_type` | Component type (string) |
-| `field` | `prop`, `property`, `field_name` | Field/property name on component |
-| `value` | `val`, `new_value` | Value to set |
-| `pattern` | `paths`, `search` | Search pattern |
-| `scene` | `scene_name`, `scene_path` | Scene name |
-| `mode` | `type`, `action_type` | Operation mode (enum string) |
-| `fields` | `field_filter`, `props` | Filter list (comma-sep string) |
-| `parent` | `new_parent` | Target parent path |
-| `action` | — | Verb for multi-action tools (enum) |
-
-**Resolved:** `set_runtime_parent` removed from Python tools (§7 resolution complete).
-
-**Known violation:** `set_property` uses `prop`; `set_runtime_property` uses `field` for the same concept. Unification in progress via middleware auto-rerouting.
-
-**Check:** `grep -rn '"new_parent"' server/src/unity_mcp/tools/` — must return 0 hits.
-
----
-
-## 4. Boolean Encoding
-
-**THE ONE RULE:** Python booleans never cross the TCP boundary as Python objects. Encode them as strings.
-
-### Pattern A — Optional flag, C# default is `false`
-
-Send `"true"` when set; omit (`None`) when not set. `_args()` strips `None` — this is the designed mechanism.
-
-```python
-# DO — delete_object(force=)
-if force:
-    args["force"] = "true"
-
-# DO — wait_until(negate=)
-negate="true" if negate else None,
+```text
+Good: get_hierarchy, set_property, create_object, manage_component
+Avoid: hierarchy_get, setProperty, CreateObject, object_manager
 ```
 
-### Pattern A′ — Optional flag, C# default is `true`
+Before adding a tool, search both surfaces:
 
-Send `"false"` when overriding to False; omit (`None`) when True.
-
-```python
-# DO — transfer_object(world_position_stays=)
-wps = None if world_position_stays else "false"
-
-# DON'T — set_parent (inconsistent — always sends both values)
-args["world_position_stays"] = "true" if world_position_stays else "false"  # always sends
-```
-
-### Pattern B — Required bool (no default; the bool IS the payload)
-
-Always send `"true"/"false"`. Use only when the sole purpose of the call is to set the boolean (e.g. `set_active`).
-
-```python
-# DO — set_active(active=)
-return await _send("set_active", {"path": path, "active": "true" if active else "false"})
-```
-
-### P0 bug — raw Python bool through `_args()`
-
-`_args()` receives a Python bool and serializes it as `"True"`/`"False"` (capital letter) — C# `bool.Parse` fails silently.
-
-```python
-# WRONG — animator tool, _args() call
-has_exit_time=has_exit_time  # if True → "True" over TCP, not "true"
-
-# RIGHT
-has_exit_time="true" if has_exit_time else None,  # Pattern A
-```
-
-**Check violations:** `grep -rn ': True\b\|: False\b' server/src/unity_mcp/tools/` inside `_args(...)` calls.
-
----
-
-## 5. Response Format
-
-**R1: Text over JSON.** C# serializes to text; Python forwards the string. Never re-parse and re-serialize on the Python side.
-
-**R2: Token budget targets.**
-
-| Response | Max tokens | Format |
-|----------|-----------|--------|
-| Hierarchy (50 objects) | ~350 | indented text tree |
-| Component read | ~100 | `Key: Value\n` |
-| Error | ~30 | plain string |
-| Success | ~10 | `ok` or `saved` |
-
-**R3: `err:` prefix is the error contract.** Every error response from a TCP command starts with `err:`. No bare error strings. Callers check `result.startswith("err:")`.
-
-**R4: Sentinels must be machine-parseable.** Fixed prefix + delimited fields. No trailing prose in the parseable part.
-
-```python
-# WRONG — prose and no durable identity
-return f"tests-started|{mode}|check back later"
-# prose tail leaks into sentinel
-
-# RIGHT
-return (
-    f"tests-started|request_id={request_id}|run_id={run_id}"
-    f"|utf_guid={utf_guid}|state=dispatched"
-)
-# callers retain every identity and query only the exact run
-```
-
-**R5: Wrapper tools must say "wrapper".** When one tool polls another, its docstring must call out the relationship.
-
-```python
-# DO — run_tests_wait docstring
-async def run_tests_wait(...) -> str:
-    """Consumer wrapper around the durable direct protocol.
-
-    Resolves one request identity and waits for its exact run to reconcile.
-    Timeout is observational and does not mark the Unity run complete.
-    """
-```
-
-**R12: Action enum tools must validate and redirect.** When a tool accepts an `action: str` param with a closed enum, the docstring must list valid values. Invalid values must return `err:invalid action '<value>'`, NOT a silent no-op.
-
-```
-Example: manage_component accepts `add|remove` only.
-LLMs consistently try `enable`/`disable`.
-The docstring bans them but C# must also return:
-  err:invalid action 'enable' — use set_property(field='m_Enabled', value='true'/'false') instead
-```
-
----
-
-## 6. Tool Gating & Tier
-
-Canonical source: `server/src/unity_mcp/tools/tool_specs.py`.
-
-| Tier | When | Token cost |
-|------|------|-----------|
-| `core=True` | Must-have for baseline (read+write+verify). Example: `get_hierarchy`, `get_compile_errors` | Always in context |
-| `tier1=True` | Always-visible, moderate frequency. Example: `delete_object` | Always in context |
-| Default (TIER2) | Gated by category. Example: `animation`, `animator` | On-demand only |
-
-**Rule:** New tools default to TIER2. Elevation to TIER1/CORE requires explicit justification of token cost. Every new tool needs a `ToolSpec` entry in `_SPECS` before merge — `gating.py` crashes at import otherwise.
-
-```python
-# DO
-'my_tool': ToolSpec(category='SCENE', mutability='write'),  # TIER2 by default
-
-# MUST justify
-'my_tool': ToolSpec(category='SCENE', tier1=True),  # justify in PR why always-visible
-```
-
----
-
-## 7. Tool Deduplication & Deletion
-
-**Rule:** Duplicate tools are deleted, not deprecated. No aliases, no shims, no "call the other one internally."
-
-**Resolved (v0.x): `set_parent`/`set_runtime_parent` twins.** `set_runtime_parent` deleted from Python MCP tools. `set_parent` unified to work in both Edit and Play Mode (no `runtime_only` restriction). Middleware auto-reroutes `set_property` → `set_runtime_property` in Play Mode.
-
-**Ongoing:** `set_runtime_property` C# handler retained (middleware depends on it). Python MCP tool stays exposed for Play Mode reflection-based field writes. Future: unify parameter names (`prop` vs `field`).
-
-**Before adding a new tool, grep:**
 ```bash
-grep -rn "async def " server/src/unity_mcp/tools/ --include="*.py" | grep -i "<keyword>"
-grep -rn "'<cmd>'" server/src/unity_mcp/tools/tool_specs.py
+rg 'async def .*keyword' server/src/unity_mcp/tools
+rg "'[^']*keyword[^']*': ToolSpec" server/src/unity_mcp/tools/tool_specs.py
+rg 'Register\("[^\"]*keyword' unity-plugin/Editor
 ```
 
-If an existing tool can be extended with a `mode` or `action` param — extend it. New tool is the last resort.
+Prefer extending a cohesive action-based tool when the new operation shares its
+target, validation, and response model. Do not force unrelated operations into
+one action enum merely to reduce the count.
 
----
+## Parameters
 
-## 8. Intent Tools — Delete, Don't Add
+Reuse established names when semantics are identical, but do not rename an
+existing public parameter solely to satisfy an aspirational vocabulary. Current
+intentional contracts include:
 
-**Intent tools** (`do`, `ui_intent`, `vfx_intent`, `animator_intent`) call a sub-LLM (Haiku) for planning. This creates double latency and double token spend. All are marked `direct_only=True` in `tool_specs.py`.
+- `path` for one scene or asset path and `paths` for a comma-separated set;
+- `component` for a component type;
+- `type` where the underlying Unity operation selects a type;
+- `prop` in serialized-property mutation tools;
+- `field` in reflection/query protocols;
+- `pattern` for a glob/search expression;
+- `action` for a closed action enum.
 
-**Policy:** These tools are **scheduled for deletion**. New domains (terrain, physics, etc.) must use `batch` directly or `configure_objects`. Do not add new intent tools.
+A Python-friendly name may map to a different legacy TCP key only when the
+mapping is explicit and covered by tests. Examples include
+`show_unity_private -> include_internal` and `watch_id -> id`.
 
-**Exception:** `ask` tool uses Haiku as summarizer (read-only, no planning). This pattern is acceptable.
+Closed enums should use `Literal[...]` when practical. Otherwise the docstring
+must list the values and the Unity handler must reject an invalid value with a
+useful error; a silent no-op is never valid.
 
----
+## Optional Arguments and Booleans
 
-## 9. Compile Health — Which Tool When
+`server._args()` removes only values equal to `None`. It does not normalize
+types. Unity handlers commonly read scalar arguments through string-oriented
+`JsonHelper` methods, so wrappers must deliberately encode optional booleans.
 
-| Tool | Use case |
-|------|---------|
-| `get_compile_errors` | Check error list right now (TCP-based, always current — never use Editor.log) |
-| `compile_preflight` | Before mutation: is compile clean? Blocks if not |
-| `await_compile` | After writing a `.cs` file: wait for recompile to finish |
-| `verify_after_change` | After multi-step mutation: 5-gate check in one call (compile + refs + console + scan + screenshot) |
+For a Unity default of `false`, send `"true"` when enabled and omit the key when
+disabled:
 
-**Anti-pattern:** Do not call `get_compile_errors` in a poll loop — it is a point-in-time check, not a wait mechanism. Use `await_compile` for that.
-
----
-
-## 10. Component Read — Which Tool When
-
-| Tool | Use case |
-|------|---------|
-| `get_component` | One object, full field list. Use `fields=` and `compress=True` to reduce tokens |
-| `inspect` | N objects in one TCP call. `inspect(paths='a,b,c', compress=True)` |
-| `configure_objects` | Read + write in one call (batch mutate pattern) |
-
-**Anti-pattern:** Never call `get_component` in a loop over N objects — that is N TCP round-trips. Use `inspect(paths='...')`.
-
----
-
-## 11. Screenshot / Media Token Budget
-
-`screenshot` tool находится в `_SCHEMA_KEEP_FULL_EXTRA` (`server_filtering.py`), что означает его полная schema всегда сериализуется (не deferred).
-
-**Criteria for `_SCHEMA_KEEP_FULL_EXTRA`** — добавлять tool только если:
-1. Схема меняется чаще чем раз в месяц, ИЛИ
-2. Параметры критичны для первого вызова (нет safe defaults)
-
-**Rule:** Новые tools НЕ добавлять в `_SCHEMA_KEEP_FULL_EXTRA` без обоснования в PR.
-
----
-
-## 12. Compliance Checklist
-
-For every new or modified tool — PASS/FAIL:
-
-```
-[ ] Tool name: verb_noun snake_case
-[ ] Parameters: canonical names from §3 table (no new_parent, no prop for field)
-[ ] Booleans: Pattern A/A′/B — no raw Python bool in _args() (no ": True" or ": False")
-[ ] Response: text format, err: prefix on errors
-[ ] Sentinel: no prose after the second | delimiter
-[ ] Tier: TIER2 by default; TIER1/CORE requires PR justification
-[ ] No new intent tools (do/ui_intent pattern); delete existing when opportunity arises
-[ ] No new *_runtime_* twin tools; extend with mode param or delete old twin
-[ ] _SCHEMA_KEEP_FULL_EXTRA: not added without documented reason (schema changes >monthly OR no safe defaults)
-[ ] ToolSpec entry exists in tool_specs.py before merge
-[ ] fields= and compress= supported in any tool returning component data
-[ ] compress= means C#-side stripping only — no Python-side filtering under that name
-[ ] Wrapper tools: docstring contains "wrapper" and names the wrapped tool
-[ ] Mode-scoped twin tools cross-reference each other in docstrings
-[ ] Duplicate check: grep tool_specs.py + tools/ before adding
+```python
+negate="true" if negate else None
 ```
 
-**Auto-checks (pytest):** `server/tests/test_api_standards.py` — bool Pattern A, ToolSpec coverage, arg-name parity. Run with `pytest tests/test_api_standards.py -v`.
+For a Unity default of `true`, omit the key for the normal case and send
+`"false"` for the override:
+
+```python
+world_position_stays=None if world_position_stays else "false"
+```
+
+When the boolean is the operation's required payload, send both values
+explicitly as lowercase strings:
+
+```python
+{"active": "true" if active else "false"}
+```
+
+Do not pass a raw Python `bool` to `_args()` and assume it will be converted.
+The API-standard AST tests enforce the supported patterns and maintain a small,
+reviewed exception set.
+
+## Responses and Errors
+
+Prefer compact text across the Unity TCP boundary. Python wrappers should not
+parse and reserialize a response unless they are explicitly composing,
+projecting, validating, or correlating a higher-level contract.
+
+Rules:
+
+- Unity command failures use a stable `err:`/`error:` form or a failed response
+  envelope; Python-only validation raises `ToolError` or returns an equally
+  explicit error contract.
+- Machine-readable sentinels use stable keys and delimiters. Durable operations
+  retain all identities (`request_id`, `run_id`, `utf_guid`) rather than asking
+  callers to infer the latest run.
+- A wrapper that waits, retries, or composes another tool states that fact in its
+  docstring and distinguishes caller timeout from terminal operation state.
+- Never claim rollback, persistence, or verification unless the implementation
+  observed it. Report partial and unknown states explicitly.
+- Avoid hard token limits in prose. Response distillation, compression, and
+  schema deferral are separate mechanisms and should be named precisely.
+
+## Tool Metadata and Visibility
+
+Every public tool has one `ToolSpec` entry. `_SPECS` drives the category catalog,
+core/tier visibility, TCP timeout, read/write fail-closed behavior, Play Mode
+guard, and `direct_only` surface.
+
+```python
+_SPECS = {
+    "my_tool": ToolSpec(category="SCENE", mutability="read"),
+}
+```
+
+- `core=True`: always visible with a full schema; reserve for the minimum
+  cross-domain workflow.
+- `tier1=True`: always visible, but not core.
+- neither: category-gated and enabled through `discover_tools`.
+- `direct_only=True`: may be called as a typed MCP tool but is rejected inside
+  the batch DSL.
+- `runtime_only=True`: the Python guard requires cached Play Mode state before
+  sending the command.
+
+New tools default to category-gated. Promotion requires a documented use case
+and schema/token-budget review. Plugin tools remain dynamically registered and
+must not be copied into the built-in catalog.
+
+The canonical authored categories are SCENE, COMPONENTS, ASSETS, UGUI,
+UITOOLKIT, MEDIA, VERIFY, RUNTIME, TESTS, and SYSTEM. CORE is a catalog group,
+not an additional `discover_tools` category. Legacy aliases are compatibility
+metadata in `gating.py`; do not add an alias casually.
+
+## Deferred Schemas
+
+`server_filtering.py` keeps full schemas for core tools and for an explicit
+`_SCHEMA_KEEP_FULL_EXTRA` allowlist. The allowlist contains non-core tools whose
+required arguments must remain constructible before a deferred-schema fetch.
+
+Most non-core schemas are replaced in `ListTools` by a stub and are retrieved
+with `resolve_tool_schema`. Adding to the allowlist requires evidence that the
+initial call cannot be constructed reliably through discovery plus schema
+resolution, as well as updates to filtering/schema tests. It is not a general
+"frequently changing schema" list.
+
+## Compatibility and Removal
+
+There is no blanket "never preserve compatibility" rule. The repository
+currently supports deliberate compatibility paths, including legacy category
+aliases and selected wire-format parsers. Conversely, keeping every duplicate
+forever produces an unsafe and confusing surface.
+
+For a removal or rename:
+
+1. identify public Python, ToolSpec, Unity command, generated schema, docs,
+   ClientSkills, tests, and migration impact;
+2. decide explicitly whether a compatibility window is required;
+3. update both language surfaces and parity tests in one change;
+4. document the migration in `CHANGELOG.md`;
+5. remove stale examples and installed-skill source references.
+
+The internal C# `set_runtime_property` command is a current example: it remains
+for optional middleware routing, but no public Python MCP tool exposes that
+name. Public docs must not advertise it as a typed tool.
+
+## Intent Tools
+
+`do`, `ui_intent`, `uitk_intent`, `vfx_intent`, and `animator_intent` are active
+composition tools. Natural-language paths use configured sampling profiles;
+several also provide deterministic templates that bypass sampling. Do not name
+a specific provider model as part of their contract.
+
+Before adding another intent tool, prefer a deterministic public API, batch, or
+`configure_objects`. A new intent surface needs a constrained intermediate
+format, validation, safe dry-run behavior, partial-failure reporting, sampling
+profile configuration, and tests for unavailable sampling. Intent tools that
+compose complex results remain `direct_only`.
+
+`ask` is read-only sampled analysis. `ask_user` is a separate interactive user
+input path; do not conflate them.
+
+## Common Workflow Boundaries
+
+### Compile and verification
+
+| Tool | Contract |
+|---|---|
+| `get_compile_errors` | Current corroborated compile-error view |
+| `compile_preflight` | Check proposed C# content before applying it |
+| `await_compile` | Wait for compilation/reload reconciliation |
+| `verify_after_change` | Additive compile, error, console, NUnit, and playtest gates |
+
+Do not describe `verify_after_change` as running reference, scene-scan, or
+screenshot gates: those are not part of its current implementation.
+
+### Component reads
+
+| Tool | Contract |
+|---|---|
+| `get_component` | One object and component type; optional field projection |
+| `inspect` | Multiple paths or a component-type search in one call |
+| `configure_objects` | Compact multi-object mutation DSL, not a read result |
+
+Do not loop `get_component` over many known paths when one `inspect` call can
+preserve the same evidence. `compress=True` asks Unity to strip defaults before
+transfer; `fields=` is a Python-side projection and intentionally bypasses
+distillation.
+
+## Review Checklist
+
+- [ ] Existing Python, ToolSpec, Unity, docs, and ClientSkills surfaces were searched.
+- [ ] The public signature uses established names or documents a tested mapping.
+- [ ] Optional values and booleans are encoded deliberately.
+- [ ] A closed action enum validates invalid input.
+- [ ] Errors, sentinels, partial states, and timeout semantics are unambiguous.
+- [ ] `ToolSpec` category, mutability, timeout, runtime, and direct-only flags match behavior.
+- [ ] Visibility or full-schema promotion is justified.
+- [ ] Compatibility/removal impact is explicit and changelogged when public.
+- [ ] Composition and intent tools report partial application and sampling failure.
+- [ ] Tests cover signature/schema and Python-to-Unity argument parity.
+- [ ] Authored docs do not copy volatile tool totals or complete rosters.
+
+Run the focused policy checks from `server/`:
+
+```bash
+uv run pytest tests/test_api_standards.py tests/test_toolspec_v2_parity.py \
+  tests/test_schema_parity.py tests/test_registration_parity.py -q
+```
+
+Follow the repository-wide evidence requirements in `AI/testing.md`.
