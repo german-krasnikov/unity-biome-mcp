@@ -3,8 +3,8 @@
 No FastMCP, no Unity, no mocks — all inputs are plain dicts.
 """
 import pytest
-from unity_mcp.tools._schema_postprocessor import _inject_description, postprocess_schema
-from unity_mcp.tools._param_descriptions import _COMMON, PARAM_DESCRIPTIONS
+from unity_mcp.tools._schema_postprocessor import _inject_description, _inject_extras, postprocess_schema
+from unity_mcp.tools._param_descriptions import _COMMON, PARAM_DESCRIPTIONS, PARAM_SCHEMA_EXTRAS
 
 
 # ─── _inject_description ──────────────────────────────────────────────────────
@@ -147,3 +147,50 @@ class TestIntegerPreserved:
         schema = {"properties": {"count": {"type": "integer"}}}
         postprocess_schema("unknown_tool", schema)
         assert schema["properties"]["count"]["type"] == "integer"
+
+
+# ─── _inject_extras ───────────────────────────────────────────────────────────
+
+class TestInjectExtras:
+    def test_pattern_injected(self):
+        pdef = {"type": "string"}
+        _inject_extras("code", pdef, {"code": {"pattern": r"^[\s\S]+$"}})
+        assert pdef["pattern"] == r"^[\s\S]+$"
+
+    def test_existing_key_not_overwritten(self):
+        pdef = {"type": "string", "pattern": "existing"}
+        _inject_extras("code", pdef, {"code": {"pattern": r"^[\s\S]+$"}})
+        assert pdef["pattern"] == "existing"
+
+    def test_unknown_param_no_op(self):
+        pdef = {"type": "string"}
+        _inject_extras("other", pdef, {"code": {"pattern": r"^[\s\S]+$"}})
+        assert "pattern" not in pdef
+
+    def test_empty_extras_no_op(self):
+        pdef = {"type": "string"}
+        _inject_extras("code", pdef, {})
+        assert "pattern" not in pdef
+
+
+class TestSchemaExtrasIntegration:
+    @pytest.mark.parametrize("tool", ["execute_code", "save_skill", "save_template"])
+    def test_code_param_gets_pattern(self, tool):
+        """COMMAND_PARAMETER_UNCONSTRAINED suppression: code param must have a pattern."""
+        schema = {"properties": {"code": {"type": "string"}}}
+        postprocess_schema(tool, schema)
+        assert "pattern" in schema["properties"]["code"]
+        # Pattern must not be in the linter's PERMISSIVE_PATTERNS set
+        permissive = {".*", "^.*$", ".+", "^.+$", r"[\s\S]*", r"^[\s\S]*$"}
+        assert schema["properties"]["code"]["pattern"] not in permissive
+
+    def test_execute_code_existing_pattern_preserved(self):
+        schema = {"properties": {"code": {"type": "string", "pattern": "custom"}}}
+        postprocess_schema("execute_code", schema)
+        assert schema["properties"]["code"]["pattern"] == "custom"
+
+    def test_param_schema_extras_covers_all_constrained_tools(self):
+        """All tools with 'code' in PARAM_SCHEMA_EXTRAS must have a pattern entry."""
+        for tool_name, params in PARAM_SCHEMA_EXTRAS.items():
+            for param_name, extras in params.items():
+                assert "pattern" in extras, f"{tool_name}.{param_name} missing pattern"

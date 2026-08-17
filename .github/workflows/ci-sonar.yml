@@ -24,19 +24,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for blame
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Install and run tests with coverage
+        working-directory: server
         run: |
-          pip install "./server[dev]"
-          cd server && PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q --cov=unity_mcp --cov-report=xml:../coverage.xml --cov-config=pyproject.toml
+          pip install ".[dev]"
+          PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q --cov=unity_mcp --cov-report=xml:coverage.xml --cov-config=pyproject.toml
         continue-on-error: true
+
+      - name: Fix coverage paths for SonarCloud
+        run: |
+          if [ -f server/coverage.xml ]; then
+            sed -i 's|<source>.*</source>|<source>.</source>|g' server/coverage.xml
+            sed -i 's|filename="src/|filename="server/src/|g' server/coverage.xml
+            echo "Patched coverage.xml for SonarCloud"
+          fi
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
