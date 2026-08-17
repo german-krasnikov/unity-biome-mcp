@@ -120,3 +120,22 @@ async def test_queue_consumer_stops_on_close():
     assert task is None or task.done(), (
         "close() should stop the queue consumer task"
     )
+
+
+async def test_queue_consumer_cancelled_error_propagates():
+    """Bug 3 regression: CancelledError in _queue_consumer must propagate, not be swallowed.
+
+    Pre-fix: `except asyncio.CancelledError: break` silently exited the loop
+    (task completed normally).  Post-fix: `raise` → task is properly cancelled.
+    """
+    bridge = _make_bridge()
+    # Start consumer directly — it blocks waiting on the empty queue.
+    consumer = asyncio.ensure_future(bridge._queue_consumer())
+    await asyncio.sleep(0)  # yield so consumer enters await get()
+
+    consumer.cancel()
+    await asyncio.sleep(0)  # let cancellation propagate
+
+    assert consumer.cancelled(), (
+        "Bug 3: _queue_consumer must re-raise CancelledError (not break)"
+    )

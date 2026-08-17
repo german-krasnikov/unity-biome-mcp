@@ -326,7 +326,7 @@ class UnityBridge(HeartbeatMixin):
                     await self._send_queue.get()
                 )
             except asyncio.CancelledError:
-                break
+                raise
             try:
                 result = await self._send_with_retry(cmd, payload, msg_id, timeout, deadline, op_id)
                 if not future.done():
