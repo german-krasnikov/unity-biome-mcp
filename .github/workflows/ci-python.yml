@@ -91,6 +91,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        continue-on-error: true
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac  # v5
         with:
           files: server/coverage.xml
@@ -135,10 +136,12 @@ jobs:
 
       - name: Upload test analytics to Codecov
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest' && !cancelled()
+        continue-on-error: true
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac  # v5
         with:
           files: server/reports/server-junit.xml,server/reports/install-junit.xml,server/reports/scripts-junit.xml
           flags: python
+          fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
           report_type: test_results
 
