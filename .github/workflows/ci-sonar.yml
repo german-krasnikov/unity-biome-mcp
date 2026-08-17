@@ -31,10 +31,9 @@ jobs:
           python-version: '3.12'
 
       - name: Install and run tests with coverage
-        working-directory: server
         run: |
-          pip install ".[dev]"
-          PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q --cov=unity_mcp --cov-report=xml:coverage.xml
+          pip install "./server[dev]"
+          cd server && PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q --cov=unity_mcp --cov-report=xml:../coverage.xml --cov-config=pyproject.toml
         continue-on-error: true
 
       - name: SonarCloud Scan
