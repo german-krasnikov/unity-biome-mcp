@@ -3,6 +3,7 @@ import re
 from collections.abc import Awaitable, Callable
 
 from . import Mismatch, _parse_snapshot, _values_close, register_rule
+from .factory import _has_error
 
 # ── set_property ──────────────────────────────────────────────────────────────
 
@@ -51,6 +52,8 @@ async def _rule_set_property_delta(
 async def _rule_set_active(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
 ) -> Mismatch | None:
+    if _has_error(response):
+        return Mismatch(f"set_active: error in response: {response[:80]!r}")
     m = re.search(r"active=(\w+)", response, re.IGNORECASE)
     if not m:
         return None  # no active= token in response — cannot verify
@@ -72,7 +75,7 @@ async def _rule_create_object(
     parent = args.get("parent", "")
 
     # Parse "Created <name> at <path>" or "Created <path>"
-    m = re.search(r"Created\s+\S+\s+at\s+(\S+)", response)
+    m = re.search(r"Created\s+.+?\s+at\s+(.+?)(?:\s+\[|\Z)", response)
     if not m:
         m2 = re.search(r"^Created\s+(\S+)", response, re.MULTILINE)
         if not m2:
@@ -95,6 +98,8 @@ async def _rule_delete_object(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
 ) -> Mismatch | None:
     # C# ExecDeleteObject takes id (int) and returns "Deleted #12345" — path never echoed.
+    if _has_error(response):
+        return Mismatch(f"delete_object: error in response: {response[:80]!r}")
     if "deleted" not in response.lower():
         return Mismatch("delete_object: response does not confirm deletion")
     return None
@@ -114,8 +119,11 @@ async def _rule_manage_component(
     leaf = component.split(".")[-1].lower() if component else ""
     low = response.lower()
 
+    if _has_error(response):
+        return None  # error response — can't verify
+
     if action == "add":
-        if leaf and leaf not in low:
+        if leaf and not re.search(rf"\b{re.escape(leaf)}\b", low):
             return Mismatch(f"manage_component add: '{component}' not confirmed in response")
     elif action == "remove" and "removed:" not in low:
         return Mismatch("manage_component remove: expected 'Removed:' in response")

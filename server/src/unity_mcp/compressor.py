@@ -64,6 +64,30 @@ def project_fields(text: str, fields: str) -> str:
     return result
 
 
+def collapse_empty_sections(text: str) -> str:
+    """Remove [Header] section lines whose body is empty (next line is another header or EOF)."""
+    lines = text.splitlines()
+    result = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]") and stripped != "---":
+            # Look ahead: skip blank lines, check if next non-blank is another header or EOF
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            next_stripped = lines[j].strip() if j < len(lines) else ""
+            is_empty = (j >= len(lines) or
+                        (next_stripped.startswith("[") and next_stripped.endswith("]")))
+            if is_empty:
+                i += 1
+                continue
+        result.append(line)
+        i += 1
+    return "\n".join(result)
+
+
 def strip_defaults(text: str) -> str:
     """Remove lines whose value is a known default. Keep headers, separators, errors."""
     if not text:

@@ -1,3 +1,4 @@
+from unity_mcp.compressor import collapse_empty_sections as _collapse_empty_sections
 from unity_mcp.compressor import project_fields as _project_fields
 from unity_mcp.input_normalizer import normalize_value as _normalize_value
 
@@ -30,6 +31,8 @@ async def get_component(path: str, type: str = "", fields: str | None = None, fu
         return _project_fields(result, fields)
     if compress:
         args["compress"] = "true"
+        result = await _send("get_component", args)
+        return _collapse_empty_sections(result)
     return await _send("get_component", args)
 
 
@@ -44,6 +47,8 @@ async def inspect(paths: str | None = None, components: str | None = None, field
         return _project_fields(result, fields)
     if compress:
         extra["compress"] = "true"
+        result = await _send("inspect", _args(paths=paths, find_type=find_type, components=components, **extra))
+        return _collapse_empty_sections(result)
     return await _send("inspect", _args(paths=paths, find_type=find_type, components=components, **extra))
 
 

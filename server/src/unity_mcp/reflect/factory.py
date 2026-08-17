@@ -4,7 +4,7 @@ All rules are fail-open: return None on unexpected response format.
 """
 from . import Mismatch, ReflectFn, register_rule
 
-_ERROR_TOKENS = ("Error", "Failed", "err:", "Exception")
+_ERROR_TOKENS = ("Error:", "Failed", "err:", "Exception")
 
 
 def _has_error(response: str) -> bool:

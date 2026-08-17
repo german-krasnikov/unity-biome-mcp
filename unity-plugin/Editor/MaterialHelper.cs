@@ -38,6 +38,7 @@ namespace UnityMCP.Editor
                 ?? throw new InvalidOperationException($"Shader not found: {shaderName}");
 
             var mat = new Material(shader);
+            UndoGroupStack.StageAsset(path);
             AssetDatabase.CreateAsset(mat, path);
             AssetDatabase.SaveAssets();
             return $"ok: {path}";

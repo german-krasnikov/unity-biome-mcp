@@ -85,7 +85,8 @@ namespace UnityMCP.Editor
             var outputPath = JsonHelper.ExtractString(args, "output_path")
                           ?? JsonHelper.ExtractString(args, "path");
             var fpath = ScreenshotCapture.CaptureToFile(width, height, camera, outputPath);
-            return JsonHelper.FormatFileResponse(id, fpath);
+            var overlayWarn = ScreenshotCapture.OverlayCanvasWarning();
+            return JsonHelper.FormatFileResponse(id, fpath + (overlayWarn ?? ""));
         }
     }
 }

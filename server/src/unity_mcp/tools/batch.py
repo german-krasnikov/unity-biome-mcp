@@ -143,7 +143,7 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
             def _remap(m):
                 n = int(m.group(1))
                 return f"[{orig_indices[n]}]" if 0 <= n < len(orig_indices) else m.group(0)
-            result = re.sub(r'\[(\d+)\]', _remap, result)
+            result = re.sub(r'(?m)^\[(\d+)\]', _remap, result)
         result = _add_preflight_errors_to_summary(result, len(pre_errors))
         return "\n".join(pre_errors) + "\n" + result
     return result

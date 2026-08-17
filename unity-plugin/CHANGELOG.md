@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.41.0] — 2026-08-17
+
+### Fixed
+
+- **S3**: `compress=true` now wired to bridge args + empty section collapse
+- **D4**: `discover_tools(enable=true)` notification fires even without ctx (fallback to active session)
+- **R2**: Undo response warns about persistent asset files (`warn: N asset file(s) not reverted`)
+- **U19**: Screenshot detects ScreenSpaceOverlay canvases and warns in response
+- **Batch Bug A**: `IsFailureResult` checks first line only (prevents false positive on multi-line output)
+- **Batch Bug C**: `[N]` remap regex anchored to line start (prevents data corruption in hierarchy)
+- **5 reflect logic bugs**: manage_component Error/substring match, create_object path spaces, delete_object/set_active error masking
+
 ## [v1.40.0] — 2026-08-17
 
 ### Added
@@ -3386,7 +3398,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.40.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.41.0...HEAD
+[v1.41.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.40.0...v1.41.0
 [v1.40.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.39.0...v1.40.0
 [v1.39.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.38.0...v1.39.0
 [v1.38.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.2...v1.38.0

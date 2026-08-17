@@ -85,6 +85,7 @@ async def get_hierarchy(depth: int = 2, root: str | None = None, filter: str | N
         depth=depth, root=root, filter=filter,
         components="true" if components else None,
         incremental="true" if incremental else None,
+        compress="true" if compress else None,
         scene=scene,
         **no_distill))
     if compress:

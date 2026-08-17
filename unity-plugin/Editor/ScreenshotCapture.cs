@@ -189,6 +189,21 @@ namespace UnityMCP.Editor
             return max < 0.01f;
         }
 
+        /// <summary>
+        /// Returns a warning string if a ScreenSpaceOverlay canvas is active in Edit Mode,
+        /// because it won't be captured in off-screen renders. Returns null otherwise.
+        /// </summary>
+        internal static string OverlayCanvasWarning()
+        {
+            if (EditorApplication.isPlaying) return null;
+            var canvases = UnityEngine.Object.FindObjectsByType<Canvas>(
+                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            foreach (var c in canvases)
+                if (c.renderMode == RenderMode.ScreenSpaceOverlay)
+                    return "\nwarn:ScreenSpaceOverlay canvas present — not captured in Edit Mode screenshot";
+            return null;
+        }
+
         internal static Camera FindCamera(string cameraName)
         {
             if (!string.IsNullOrEmpty(cameraName))
