@@ -1,5 +1,7 @@
 """Read/cache methods for Middleware (mixin)."""
 
+import time as _time
+
 from .middleware_types import is_write
 from .tools.editor_state import (
     is_paused as _is_paused,
@@ -10,6 +12,8 @@ from .tools.editor_state import (
 from .tools.editor_state import (
     parse_editor_field as _parse_editor_field,
 )
+
+_NON_EDITOR_PLAY_TTL = 5.0  # seconds
 
 
 class MiddlewareReadsMixin:
@@ -116,22 +120,29 @@ class MiddlewareReadsMixin:
         """Update is_playing from editor responses (state AND action results)."""
         if cmd in ("recompile", "scene") and self.schema_cache is not None:
             self.schema_cache.invalidate_all()
-        if cmd != "editor":
-            return
-        # Fast-path: action results that unambiguously indicate play state
-        if result in ("entered", "already_playing"):
-            self._play_state_known = True
-            self.is_playing = True
-            return
-        action = (args or {}).get("action", "")
-        if action == "stop" and result == "ok":
-            self._play_state_known = True
-            self.is_playing = False
-            return
-        # Full-state response from editor(action="state")
+        if cmd == "editor":
+            # Fast-path: action results that unambiguously indicate play state
+            if result in ("entered", "already_playing", "requested"):
+                self._play_state_known = True
+                self.is_playing = True
+                return
+            action = (args or {}).get("action", "")
+            if action == "stop" and result == "ok":
+                self._play_state_known = True
+                self.is_playing = False
+                return
+            # Full-state response from editor(action="state")
+            if _parse_editor_field(result, "playing") is not None:
+                self._play_state_known = True
+                self.is_playing = _is_play_mode(result) or _is_paused(result)
+            return  # editor branch complete
+        # Non-editor: update from any response containing `playing:` field, with TTL
         if _parse_editor_field(result, "playing") is not None:
-            self._play_state_known = True
-            self.is_playing = _is_play_mode(result) or _is_paused(result)
+            now = _time.monotonic()
+            if now - self._play_state_ts > _NON_EDITOR_PLAY_TTL:
+                self._play_state_known = True
+                self.is_playing = _is_play_mode(result) or _is_paused(result)
+                self._play_state_ts = now
 
     def reroute_cmd(self, cmd: str, args: dict) -> tuple[str, dict]:
         """Rewrite set_property↔set_runtime_property based on play mode."""

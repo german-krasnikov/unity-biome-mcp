@@ -172,7 +172,7 @@ class PathResolverMixin:
             result = await send_fn("search_scene", {"query": f"name {leaf}"})
             search_ok = True
             candidates = [
-                line.split(" #", 1)[0].rstrip()
+                re.sub(r"\s+[#$&].*", "", line).strip()
                 for line in result.strip().split("\n")
                 if line.strip() and leaf.lower() in line.lower()
             ]

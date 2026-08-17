@@ -182,7 +182,7 @@ async def test_verify_all_pass():
         result = await _v.verify_after_change(
             mark_id=MARK, run_tests_mode="EditMode", playtests="Tests/*.playtest"
         )
-    assert result.startswith("PASS:")
+    assert result.startswith("PASS("), f"Expected PASS(N/5): prefix, got: {result!r}"
     assert "compile" in result
     assert "tests(10/10)" in result
     assert "playtests(3/3)" in result
@@ -252,7 +252,7 @@ async def test_verify_skips_disabled_gates():
         patch(_RUN_SUITE, AsyncMock()) as mock_suite,
     ):
         result = await _v.verify_after_change()
-    assert result.startswith("PASS:")
+    assert result.startswith("PASS("), f"Expected PASS(N/5): prefix, got: {result!r}"
     assert "SKIPPED: console, tests, playtests" in result
     mock_con.assert_not_called()
     mock_tests.assert_not_called()
@@ -267,7 +267,7 @@ async def test_verify_compile_only():
         patch(_GET_ERRORS, AsyncMock(return_value="")),
     ):
         result = await _v.verify_after_change()
-    assert result == "PASS: compile + errors_clean | SKIPPED: console, tests, playtests"
+    assert result == "PASS(2/5): compile + errors_clean | SKIPPED: console, tests, playtests"
 
 
 @pytest.mark.asyncio
@@ -297,7 +297,7 @@ async def test_verify_all_gates_no_skipped_suffix():
             mark_id=MARK, run_tests_mode="EditMode", playtests="*.playtest"
         )
     assert "SKIPPED" not in result
-    assert result.startswith("PASS:")
+    assert result.startswith("PASS("), f"Expected PASS(N/5): prefix, got: {result!r}"
 
 
 @pytest.mark.asyncio
@@ -439,3 +439,32 @@ async def test_verify_overflow_skips_remaining_gates():
         result = await _v.verify_after_change(mark_id=MARK, run_tests_mode="EditMode")
     assert "tests" in result  # reported as skipped gate
     mock_tests.assert_not_called()
+
+
+# V7: PASS fraction — Phase 0
+
+@pytest.mark.asyncio
+async def test_pass_includes_gate_fraction_compile_only():
+    """PASS(2/5) when only compile + errors_clean gates run (no optional gates)."""
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (1s)")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+    ):
+        result = await _v.verify_after_change()
+    assert result.startswith("PASS(2/5):"), f"Expected PASS(2/5): prefix, got: {result!r}"
+
+
+@pytest.mark.asyncio
+async def test_pass_includes_gate_fraction_all_gates():
+    """PASS(5/5) when all 5 gates run."""
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (1s)")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_GET_CONSOLE_SINCE, AsyncMock(return_value="")),
+        patch(_RUN_TESTS_WAIT, AsyncMock(return_value=_run_snapshot())),
+        patch(_RUN_SUITE, AsyncMock(return_value="SUITE: 3/3 passed (12s)")),
+    ):
+        result = await _v.verify_after_change(
+            mark_id=MARK, run_tests_mode="EditMode", playtests="Tests/*.playtest"
+        )
+    assert result.startswith("PASS(5/5):"), f"Expected PASS(5/5): prefix, got: {result!r}"

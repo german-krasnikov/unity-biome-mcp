@@ -300,3 +300,53 @@ async def test_batch_preserves_non_python_params(mock_bridge, bridge_response):
     await batch(commands="get_component path=/A type=Transform compress=true")
     sent = mock_bridge.send.call_args[0][1]["commands"]
     assert "compress=true" in sent
+
+
+# G2: skip count in summary — Phase 0
+
+def test_summary_re_parses_skip():
+    """_SUMMARY_RE must capture skip:N group."""
+    from unity_mcp.tools.batch import _SUMMARY_RE
+    m = _SUMMARY_RE.search("ok:1 err:1 skip:3")
+    assert m is not None, "_SUMMARY_RE did not match ok:1 err:1 skip:3"
+    assert m.group("skip") == "3"
+
+
+def test_summary_re_parses_skip_without_err():
+    """_SUMMARY_RE captures skip:N even when err is absent."""
+    from unity_mcp.tools.batch import _SUMMARY_RE
+    m = _SUMMARY_RE.search("ok:2 skip:1")
+    assert m is not None
+    assert m.group("skip") == "1"
+
+
+def test_add_preflight_errors_preserves_skip():
+    """_add_preflight_errors_to_summary must keep skip:3 in replacement."""
+    from unity_mcp.tools.batch import _add_preflight_errors_to_summary
+    result = _add_preflight_errors_to_summary("ok:2 err:0 skip:3", count=1)
+    assert "skip:3" in result
+    assert "err:1" in result
+
+
+def test_check_completeness_warns_when_mismatch():
+    """3 commands sent but summary only claims ok:1 → [BATCH_INCOMPLETE] prepended."""
+    from unity_mcp.tools.batch import _check_completeness
+    cmds = "create_object name=A\ncreate_object name=B\ncreate_object name=C"
+    result = _check_completeness(cmds, "ok:1")
+    assert "[BATCH_INCOMPLETE:" in result
+
+
+def test_check_completeness_ok_when_counts_match():
+    """ok+err == n_sent → no warning."""
+    from unity_mcp.tools.batch import _check_completeness
+    cmds = "create_object name=A\ncreate_object name=B"
+    result = _check_completeness(cmds, "ok:1 err:1")
+    assert "[BATCH_INCOMPLETE" not in result
+
+
+def test_check_completeness_counts_skip():
+    """ok+err+skip == n_sent → no warning."""
+    from unity_mcp.tools.batch import _check_completeness
+    cmds = "a\nb\nc\nd\ne"
+    result = _check_completeness(cmds, "ok:1 err:1 skip:3")
+    assert "[BATCH_INCOMPLETE" not in result

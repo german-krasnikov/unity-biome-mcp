@@ -65,6 +65,8 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/adapters/` | Chat backend protocol adapters. |
 | `server/src/unity_mcp/chat_relay.py` | Chat relay process and backend lifecycle. |
 | `server/tests/` | Python unit, integration, conformance, and live tests. |
+| `server/tests/seams/` | Live conformance seam tests (round-trip, batch, surface, differential). |
+| `server/tests/wire/` | Protocol-level wire tests (no Unity, FakeServer, MITM, cassettes). |
 
 Do not maintain a tool roster in this file. Derive it from `tool_specs.py` and
 the registration/parity tests. Public parameter documentation is generated into

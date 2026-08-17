@@ -43,7 +43,7 @@ namespace UnityMCP.Editor
             var sw = System.Diagnostics.Stopwatch.StartNew();
             elapsedMilliseconds ??= () => sw.ElapsedMilliseconds;
             bool stopped = false;
-            int okCount = 0, errCount = 0, timeoutCount = 0;
+            int okCount = 0, errCount = 0, timeoutCount = 0, skipCount = 0;
 
             _batchDepth++;
             // Outermost call (depth==1) always opens a named group so sub-command
@@ -82,6 +82,7 @@ namespace UnityMCP.Editor
                 if (stopped)
                 {
                     sb.AppendLine($"[{i}] skip");
+                    skipCount++;
                     continue;
                 }
 
@@ -187,9 +188,10 @@ namespace UnityMCP.Editor
             }
 
             // Summary line
-            var summary = errCount > 0 || timeoutCount > 0
-                ? $"ok:{okCount} err:{errCount}" + (timeoutCount > 0 ? $" timeout:{timeoutCount}" : "")
-                : $"ok:{okCount}";
+            var summary = new System.Text.StringBuilder($"ok:{okCount}");
+            if (errCount > 0) summary.Append($" err:{errCount}");
+            if (skipCount > 0) summary.Append($" skip:{skipCount}");
+            if (timeoutCount > 0) summary.Append($" timeout:{timeoutCount}");
             sb.Append(summary);
 
             } // end try

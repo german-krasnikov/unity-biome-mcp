@@ -376,5 +376,47 @@ namespace UnityMCP.TestProject.Batch
                 Object.DestroyImmediate(go);
             }
         }
+
+        // G2: skip counter — Phase 0
+
+        [Test]
+        public void BatchOnErrorStop_ProducesSkipCount()
+        {
+            // 5 commands: cmd 0 ok, cmd 1 err, cmds 2-4 skip
+            var commands =
+                "create_object name=SkipA primitive=Cube\n" +
+                "get_component path=/NONEXISTENT component=Transform\n" +
+                "create_object name=SkipB primitive=Cube\n" +
+                "create_object name=SkipC primitive=Cube\n" +
+                "create_object name=SkipD primitive=Cube";
+            var result = ExecuteOwned(commands, "stop");
+            StringAssert.Contains("skip:3", result,
+                $"Expected skip:3 in summary. Got: {result}");
+            StringAssert.Contains("ok:1", result);
+            StringAssert.Contains("err:1", result);
+        }
+
+        [Test]
+        public void BatchStopInvariant_CountsAddUp()
+        {
+            var commands =
+                "create_object name=InvA primitive=Cube\n" +
+                "get_component path=/NONEXISTENT component=Transform\n" +
+                "create_object name=InvB primitive=Cube\n" +
+                "create_object name=InvC primitive=Cube";
+            var result = ExecuteOwned(commands, "stop");
+            // Parse summary: ok:N err:M skip:K (+ optional timeout:T)
+            var m = System.Text.RegularExpressions.Regex.Match(
+                result,
+                @"ok:(\d+)(?: err:(\d+))?(?: skip:(\d+))?(?: timeout:(\d+))?$",
+                System.Text.RegularExpressions.RegexOptions.Multiline);
+            Assert.IsTrue(m.Success, $"No summary found in: {result}");
+            int ok = int.Parse(m.Groups[1].Value);
+            int err = m.Groups[2].Success ? int.Parse(m.Groups[2].Value) : 0;
+            int skip = m.Groups[3].Success ? int.Parse(m.Groups[3].Value) : 0;
+            int timeout = m.Groups[4].Success ? int.Parse(m.Groups[4].Value) : 0;
+            Assert.AreEqual(4, ok + err + skip + timeout,
+                $"Invariant violated: ok={ok} err={err} skip={skip} timeout={timeout}");
+        }
     }
 }

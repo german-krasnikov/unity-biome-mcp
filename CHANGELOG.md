@@ -12,6 +12,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.39.0] — 2026-08-17
+
+### Fixed
+
+- **G2**: Batch silent command dropping — `skipCount` tracking with `skip:K` in summary; completeness invariant `ok+err+skip==N`
+- **G1**: Path resolver strips `$ref` suffixes correctly instead of substituting scene summary
+- **V6**: `is_playing` cache updates from `mcp_status` responses with 5s TTL
+- **V7**: `verify_after_change` reports `PASS(N/5)` gate fraction instead of bare `PASS`
+- **X4**: `editor(action=play)` returns `"requested"` immediately instead of blocking with Thread.Sleep
+- **X10**: `count_only=true` preserves overflow warning in console gate
+
+### Added
+
+- **Seam test framework** (`server/tests/seams/`): 113 live conformance tests — round-trip verification, batch completeness, surface consistency, differential batch-vs-sequential
+- **Wire contract tests** (`server/tests/wire/`): 26 CI tests without Unity — FakeUnityServer, MITM fault injection, protocol shape validation
+- New pytest marker: `wire` for protocol-level tests
+
 ## [v1.38.0] — 2026-08-16
 
 ### Fixed
@@ -3350,7 +3367,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.38.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.39.0...HEAD
+[v1.39.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.38.0...v1.39.0
 [v1.38.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.2...v1.38.0
 [v1.37.2]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.1...v1.37.2
 [v1.37.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.0...v1.37.1

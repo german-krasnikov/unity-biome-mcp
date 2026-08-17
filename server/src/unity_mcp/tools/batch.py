@@ -25,6 +25,7 @@ _PYTHON_ONLY_PARAMS: dict[str, set[str]] = {
 _STRIP_RE = re.compile(r'\b({keys})=\S+\s*')
 _SUMMARY_RE = re.compile(
     r"(?m)^ok:(?P<ok>\d+)(?: err:(?P<err>\d+))?"
+    r"(?: skip:(?P<skip>\d+))?"
     r"(?P<timeout> timeout:\d+)?[ \t\r\n]*\Z"
 )
 
@@ -50,9 +51,31 @@ def _add_preflight_errors_to_summary(result: str, count: int) -> str:
 
     def _replace(match: re.Match[str]) -> str:
         total_errors = int(match.group("err") or "0") + count
-        return f"ok:{match.group('ok')} err:{total_errors}{match.group('timeout') or ''}"
+        skip = match.group("skip")
+        skip_part = f" skip:{skip}" if skip else ""
+        return f"ok:{match.group('ok')} err:{total_errors}{skip_part}{match.group('timeout') or ''}"
 
     return _SUMMARY_RE.sub(_replace, result)
+
+
+def _check_completeness(commands: str, result: str) -> str:
+    """Prepend warning if summary counts don't cover all sent commands."""
+    n_sent = sum(
+        1 for line in commands.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    )
+    m = _SUMMARY_RE.search(result)
+    if not m:
+        return result
+    ok = int(m.group("ok") or 0)
+    err = int(m.group("err") or 0)
+    skip = int(m.group("skip") or 0)
+    timeout_part = (m.group("timeout") or "").strip()
+    timeout_val = int(timeout_part.split(":")[-1]) if timeout_part else 0
+    if ok + err + skip + timeout_val != n_sent:
+        unaccounted = n_sent - (ok + err + skip + timeout_val)
+        return f"[BATCH_INCOMPLETE: {unaccounted} unaccounted]\n{result}"
+    return result
 
 
 async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
@@ -114,6 +137,7 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
     if validate_aliases:
         args["validate_aliases"] = "true"
     result = await _send("batch", args, timeout=timeout)
+    result = _check_completeness(commands, result)
     if pre_errors:
         if orig_indices:
             def _remap(m):

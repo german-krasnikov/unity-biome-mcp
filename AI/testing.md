@@ -138,6 +138,24 @@ same requirement. Prefer class-level NUnit categories and category constants.
 Do not duplicate a category already applied by an attribute such as
 `BiomeWorkerOnly` or `RequiresGraphicsDevice`.
 
+## Test Layers
+
+The repository uses two specialized test layers to verify protocol contracts and
+conformance invariants:
+
+**Seam tests** (`server/tests/seams/`, markers: `live + conformance`) — Live
+round-trip conformance tests that verify batch completeness, surface consistency,
+differential behavior (batch vs. sequential), and invariants against a running
+Unity endpoint. ~113 tests covering core tool contracts.
+
+**Wire tests** (`server/tests/wire/`, marker: `wire`) — Protocol-level CI tests
+without a running Unity process. Use `FakeUnityServer`, MITM fault injection, and
+cassette playback to validate TCP shape, timeout behavior, command ordering, and
+error recovery. ~26 tests; run in `ci-python.yml` without editor dependency.
+
+See `.claude/skills/testing-tdd.md` section "Cross-Boundary Test Layers" for
+implementation patterns, fixture usage, and conformance gating details.
+
 ## Documentation and Skill Checks
 
 Run `python scripts/check_skills_freshness.py --strict` after changing bundled

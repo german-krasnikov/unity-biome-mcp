@@ -1,0 +1,2 @@
+# Fault scenarios: going_away is injected as an event frame (not a cassette response).
+# Unknown commands return ok:false via ScriptedUnityPeer default — no cassette needed.

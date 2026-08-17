@@ -109,6 +109,22 @@ async def test_resolve_path_live_spaced_name_candidate_extracted_correctly(mw):
     assert path == "/[NAME WITH SPACE]/Child"
 
 
+async def test_resolve_path_live_strips_dollar_suffix(mw):
+    """G1: search_scene line with $ref suffix — only path returned, not $ref."""
+    mw.known_paths = {"/Root/SomethingElse"}
+    send_fn = AsyncMock(return_value="/Root/Player $ref_123")
+    path, marker = await mw.resolve_path_live("/Player", send_fn)
+    assert path == "/Root/Player"
+
+
+async def test_resolve_path_live_strips_combined_suffix(mw):
+    """G1: search_scene line with '& ref # comment' — only path token returned."""
+    mw.known_paths = {"/Root/SomethingElse"}
+    send_fn = AsyncMock(return_value="/Root/Player &456 # Transform")
+    path, marker = await mw.resolve_path_live("/Player", send_fn)
+    assert path == "/Root/Player"
+
+
 async def test_resolve_path_live_bracket_name_leaf_extracted_correctly(mw):
     """P2: rsplit('/') was bracket-blind — leaf of '/Root/[Zone_A/B]' should be '[Zone_A/B]'."""
     mw.known_paths = {"/Root/Other"}

@@ -1,11 +1,11 @@
 {
   "tools": 160,
-  "tests_total": 13773,
-  "tests_python": 5561,
+  "tests_total": 13925,
+  "tests_python": 5603,
   "tests_stress": 511,
   "tests_unity": 7367,
   "tests_unity_source": "static_grep",
-  "tests_live": 334,
-  "server_version": "1.38.0",
-  "plugin_version": "1.38.0"
+  "tests_live": 444,
+  "server_version": "1.39.0",
+  "plugin_version": "1.39.0"
 }

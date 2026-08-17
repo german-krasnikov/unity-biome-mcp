@@ -139,7 +139,7 @@ namespace UnityMCP.Editor
                     selected = ConsoleRingBuffer.FilterByKeyword(selected, keyword);
 
                 if (countOnly)
-                    return selected.Count.ToString();
+                    return AppendDroppedSuffix(selected.Count.ToString());
 
                 var sb = new StringBuilder();
                 // Single-pass: output each unique run once with a repeat count suffix

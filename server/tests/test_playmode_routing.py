@@ -21,9 +21,10 @@ def test_track_state_stopped_from_editor_response(mw):
     assert mw.is_playing is False
 
 
-def test_track_state_ignores_non_editor_cmd(mw):
+def test_track_state_updates_from_non_editor_with_playing_field(mw):
+    """V6: non-editor cmd with playing: field updates is_playing (TTL-gated)."""
     mw.track_editor_state("get_hierarchy", "playing:True\npaused:False\n")
-    assert mw.is_playing is False  # non-editor cmd ignored
+    assert mw.is_playing is True  # V6: playing: field updates state even from non-editor cmd
 
 
 def test_track_state_paused_counts_as_playing(mw):

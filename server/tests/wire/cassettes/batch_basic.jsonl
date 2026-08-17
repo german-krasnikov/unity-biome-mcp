@@ -1,0 +1,2 @@
+# Batch cassette: scripted responses for batch command wire tests.
+{"cmd": "batch", "response": {"ok": true, "data": "[0] ok: /Cube\n[1] ok"}}

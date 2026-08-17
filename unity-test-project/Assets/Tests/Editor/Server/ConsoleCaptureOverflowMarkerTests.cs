@@ -58,5 +58,22 @@ namespace UnityMCP.TestProject.Server
 
             Assert.IsTrue(DroppedMarker.IsMatch(result), $"Expected persisted-list overflow marker in: {result}");
         }
+
+        // X10: countOnly=true must include overflow marker when _droppedProblemCount > 0
+        [Test]
+        public void CountOnly_WithDroppedEntries_IncludesOverflowSuffix()
+        {
+            // Inject enough errors to saturate ring + persisted list
+            for (int i = 0; i < OVERFLOW_INJECT_COUNT; i++)
+                ConsoleCapture.InjectForTest($"count-overflow-{i}", LogType.Error);
+
+            var result = ConsoleCapture.GetLogs(countOnly: true);
+
+            // Result must start with a digit (the count) and include the overflow marker
+            Assert.IsTrue(result.Length > 0 && char.IsDigit(result[0]),
+                $"Expected count prefix in: {result}");
+            Assert.IsTrue(DroppedMarker.IsMatch(result),
+                $"Expected overflow marker in countOnly result: {result}");
+        }
     }
 }
