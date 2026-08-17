@@ -543,7 +543,7 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW)(test_step)
     mcp.tool(annotations=_RW)(run_playtest)
     mcp.tool(annotations=_RW)(run_playtest_suite)
-    mcp.tool(annotations=_RO)(lint_playtest)
+    mcp.tool(annotations=_RW_IDEM)(lint_playtest)
     mcp.tool(annotations=_RO)(lint_playtest_suite)
     mcp.tool(annotations=_RO)(validate_playtest_aliases)
     mcp.tool(annotations=_RW)(sync_playtest_aliases_from_defs)
