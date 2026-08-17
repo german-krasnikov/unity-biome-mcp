@@ -39,6 +39,7 @@ namespace UnityMCP.Editor
                 throw new InvalidOperationException($"Prefab already exists: {assetPath}");
 
             AssetHelper.EnsureDirectory(assetPath);
+            UndoGroupStack.StageAsset(assetPath);
             PrefabUtility.SaveAsPrefabAssetAndConnect(go, assetPath, InteractionMode.AutomatedAction);
             AssetDatabase.SaveAssets();
             var srcPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(go) ?? "";
@@ -59,6 +60,7 @@ namespace UnityMCP.Editor
             try
             {
                 AssetHelper.EnsureDirectory(variantPath);
+                UndoGroupStack.StageAsset(variantPath);
                 PrefabUtility.SaveAsPrefabAsset(instance, variantPath);
                 AssetDatabase.SaveAssets();
                 return $"ok: {variantPath}";
@@ -229,6 +231,7 @@ namespace UnityMCP.Editor
                     ValueParser.SetPropertyValue(sp, InputNormalizer.NormalizeValue(value));
                     so.ApplyModifiedPropertiesWithoutUndo();
                 }
+                UndoGroupStack.StageAsset(assetPath);
                 PrefabUtility.SaveAsPrefabAsset(contents, assetPath);
                 AssetDatabase.SaveAssets();
                 return $"ok: {assetPath}";

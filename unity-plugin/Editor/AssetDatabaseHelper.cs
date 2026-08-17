@@ -150,6 +150,7 @@ namespace UnityMCP.Editor
                     if (found == null)
                         throw new System.Exception($"ScriptableObject type not found: {className}");
                     var so = ScriptableObject.CreateInstance(found);
+                    UndoGroupStack.StageAsset(path);
                     AssetDatabase.CreateAsset(so, path);
                     AssetDatabase.SaveAssets();
                     return "ok: " + path;
@@ -158,6 +159,7 @@ namespace UnityMCP.Editor
                     throw new System.Exception($"Unsupported create type '{type}'. Valid: Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject");
             }
 
+            UndoGroupStack.StageAsset(path);
             AssetDatabase.CreateAsset(asset, path);
             AssetDatabase.SaveAssets();
             return "ok: " + path;

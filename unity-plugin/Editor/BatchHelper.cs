@@ -413,8 +413,11 @@ namespace UnityMCP.Editor
             return _failureCountRe.IsMatch(lastLine);
         }
 
-        internal static bool IsFailureResult(string result) =>
-            !string.IsNullOrEmpty(result) && _failureLineRe.IsMatch(result);
+        internal static bool IsFailureResult(string result)
+        {
+            if (string.IsNullOrEmpty(result)) return false;
+            return _failureLineRe.IsMatch(result);
+        }
 
     }
 }

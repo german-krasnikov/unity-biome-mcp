@@ -424,6 +424,7 @@ namespace UnityMCP.Editor
                 throw new ArgumentException($"clipName must not contain path separators: {name}");
             var assetPath = $"{AssetDirectory}/{name}.anim";
             AssetHelper.EnsureDirectory(assetPath);
+            UndoGroupStack.StageAsset(assetPath);
             AssetDatabase.CreateAsset(clip, assetPath);
             AssetDatabase.SaveAssets();
             return assetPath;

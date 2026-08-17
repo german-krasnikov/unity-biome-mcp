@@ -27,8 +27,13 @@ async def discover_tools(category: str | None = None, enable: bool = True,
     include_legacy=True adds legacy aliases (object, animation, etc.).
     structured=True adds surface/mutability info. enable=False to browse only."""
     result = await _discover_tools_impl(category, enable, include_legacy, structured)
-    if enable and category and ctx:
-        await ctx.session.send_tool_list_changed()
+    if enable and category:
+        session = ctx.session if ctx else None
+        if session is None:
+            from ..server_filtering import get_active_session
+            session = get_active_session()
+        if session is not None:
+            await session.send_tool_list_changed()
     return result
 
 

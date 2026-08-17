@@ -39,6 +39,7 @@ namespace UnityMCP.Editor
 
             AssetHelper.EnsureDirectory(path);
             var asset = ScriptableObject.CreateInstance(type);
+            UndoGroupStack.StageAsset(path);
             AssetDatabase.CreateAsset(asset, path);
             try
             {
