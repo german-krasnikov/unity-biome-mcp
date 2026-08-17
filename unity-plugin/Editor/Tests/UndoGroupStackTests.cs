@@ -84,5 +84,44 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("reverted 1", msg);
             Assert.AreEqual(0, UndoGroupStack.Count);
         }
+
+        // R3: RevertLast includes mutation count in response message.
+
+        [Test]
+        public void RevertLast_IncludesMutationCount_SingleTurn()
+        {
+            // Double-red:
+            // 1. Change "mutation(s)" check to "wrong(s)" → assertion fails
+            // 2. Remove mutations param from Push → CS error → RED
+            UndoGroupStack.Push(10, mutations: 3);
+
+            var msg = UndoGroupStack.RevertLast(1);
+
+            StringAssert.Contains("reverted 1 turn(s)", msg);
+            StringAssert.Contains("3 mutation(s)", msg);
+        }
+
+        [Test]
+        public void RevertLast_IncludesMutationCount_MultiTurn()
+        {
+            UndoGroupStack.Push(10, mutations: 2);
+            UndoGroupStack.Push(20, mutations: 5);
+
+            var msg = UndoGroupStack.RevertLast(2);
+
+            // 2 turns, 2+5=7 mutations total
+            StringAssert.Contains("reverted 2 turn(s)", msg);
+            StringAssert.Contains("7 mutation(s)", msg);
+        }
+
+        [Test]
+        public void RevertLast_ZeroMutations_IncludesZeroInMessage()
+        {
+            UndoGroupStack.Push(99, mutations: 0);
+
+            var msg = UndoGroupStack.RevertLast(1);
+
+            StringAssert.Contains("0 mutation(s)", msg);
+        }
     }
 }

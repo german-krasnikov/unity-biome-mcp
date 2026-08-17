@@ -369,16 +369,16 @@ namespace UnityMCP.Editor
                 content.transform.SetParent(viewport.transform, false);
                 var contentRt = content.GetComponent<RectTransform>();
                 contentRt.anchorMin = new Vector2(0, 1);
-                contentRt.anchorMax = new Vector2(0, 1);
+                contentRt.anchorMax = new Vector2(1, 1);   // full-width horizontal stretch
                 contentRt.pivot     = new Vector2(0, 1);
-                contentRt.sizeDelta = new Vector2(0, 300);
+                contentRt.sizeDelta = new Vector2(0, 0);  // zero delta — CSF drives height
                 var csf = Undo.AddComponent<ContentSizeFitter>(content);
                 csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
                 Undo.RecordObject(scrollRect, $"Wire ScrollRect {name}");
                 scrollRect.viewport = viewport.GetComponent<RectTransform>();
                 scrollRect.content = contentRt;
-                scrollRect.horizontal = true;
+                scrollRect.horizontal = false;   // content stretches full width; no horizontal scroll
                 scrollRect.vertical = true;
 
                 foreach (var go in created) Undo.RegisterCreatedObjectUndo(go, $"Create UI {name}");

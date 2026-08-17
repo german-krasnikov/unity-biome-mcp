@@ -81,9 +81,23 @@ namespace UnityMCP.Editor
 
                 bool rootHasMask = sr.GetComponent<Mask>() != null;
                 bool vpHasMask   = sr.viewport != null && sr.viewport.GetComponent<Mask>() != null;
-                if (rootHasMask && vpHasMask)
-                    issues.Add($"[S3] ScrollRect '{n}': Mask on both root and Viewport — " +
-                               "remove Mask from root; Viewport Mask is sufficient");
+                // S3a: Mask on root is always wrong (clipping belongs on Viewport only)
+                if (rootHasMask)
+                    issues.Add($"[S3] ScrollRect '{n}': Mask on root — remove it; Mask belongs on Viewport only");
+                // S3b: Viewport missing Mask → content won't be clipped
+                if (sr.viewport != null && !vpHasMask)
+                    issues.Add($"[S3b] ScrollRect '{n}': Viewport missing Mask — content will not be clipped");
+
+                // S6: horizontal=true but Content has no effective width
+                if (sr.content != null && sr.viewport != null && sr.horizontal)
+                {
+                    var ct = sr.content;
+                    bool horizontalStretch = UnityEngine.Mathf.Approximately(ct.anchorMin.x, 0f)
+                                         && UnityEngine.Mathf.Approximately(ct.anchorMax.x, 1f);
+                    if (!horizontalStretch && ct.sizeDelta.x <= 0.1f)
+                        issues.Add($"[S6] ScrollRect '{n}': horizontal=true but Content has no width " +
+                                   "(anchorMax.x=0 and sizeDelta.x=0) — set anchorMax.x=1 or sizeDelta.x>0");
+                }
 
                 bool hasScrollbarObj = sr.GetComponentInChildren<Scrollbar>() != null;
                 if (hasScrollbarObj && sr.horizontalScrollbar == null && sr.verticalScrollbar == null)

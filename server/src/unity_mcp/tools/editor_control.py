@@ -32,7 +32,9 @@ async def checkpoint(label: str = "checkpoint") -> str:
 
 
 async def undo_last(turns: int = 1) -> str:
-    """Undo the last N AI turns in the Unity Undo stack. Default: 1."""
+    """Undo the last N AI turns in the Unity Undo stack. Default: 1.
+    warn: file-system operations (asset creation/deletion via asset tool) are
+    not reversed by undo. Only scene-object and component mutations are undoable."""
     return await _send("undo_last", _args(turns=turns))
 
 

@@ -141,7 +141,10 @@ namespace UnityMCP.Editor
             EditorUtility.SetDirty(doc);
 
             var uxmlHint = !string.IsNullOrEmpty(uxmlPath) ? $" (vta={uxmlPath})" : " (no vta)";
-            return $"ok: UIDocument added to {path}{uxmlHint}";
+            var psHint = settings != null
+                ? $" ps={panelSettings}"
+                : " warn:panelSettings=null — UI Toolkit will not render; supply panel_settings param";
+            return $"ok: UIDocument added to {path}{uxmlHint}{psHint}";
         }
 
         // ── Phase 2 private helpers ──────────────────────────────────────────────
@@ -215,7 +218,10 @@ namespace UnityMCP.Editor
                     ve.style.visibility = value == "hidden" ? Visibility.Hidden : Visibility.Visible;
                     break;
                 default:
-                    return $"err: unknown style property \"{prop}\" — use uitk_file to edit USS rules";
+                    return $"err: unknown style property \"{prop}\" — " +
+                           "to change inline styles use only valid Unity USS properties. " +
+                           "For custom rules: call inspect_uitk to find the panel's stylesheet path, " +
+                           "then uitk_file action=set-rule on that .uss file.";
             }
             return $"ok: set style.{prop}={value} on {ve.name}";
         }

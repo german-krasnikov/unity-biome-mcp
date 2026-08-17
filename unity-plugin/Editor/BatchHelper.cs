@@ -13,9 +13,9 @@ namespace UnityMCP.Editor
         // (and fire Physics.Sync) while the outer batch is still running. Sync once, at depth 0.
         private static int _batchDepth;
         internal static bool InBatch => _batchDepth > 0;
-        // Tracks whether any mutating sub-command succeeded anywhere in the batch tree.
-        // Reset by the outermost (depth==1) entry; set by any depth so nested batches propagate.
-        private static bool _batchRootHadMutations;
+        // Tracks mutation count across all sub-commands in the batch tree.
+        // Reset by the outermost (depth==1) entry; accumulated by any depth.
+        private static int _batchRootMutationCount;
 
         // Testable seam — delegates to CommandRouter.IsCompiling so tests can inject false.
         internal static Func<bool> IsCompiling = () => CommandRouter.IsCompiling();
@@ -54,7 +54,7 @@ namespace UnityMCP.Editor
             if (isRoot)
             {
                 gid = UndoGroupHelper.OpenNamedGroup(atomic ? "MCP Atomic Batch" : "MCP Batch");
-                _batchRootHadMutations = false;
+                _batchRootMutationCount = 0;
             }
 
             // Returns true when caller should break out of the op loop.
@@ -177,7 +177,7 @@ namespace UnityMCP.Editor
                     if (CommandRegistry.IsMutating(cmd, argsJson))
                     {
                         ChangeWatcher.RecordMutation($"MCP_BATCH_{cmd.ToUpper()}");
-                        _batchRootHadMutations = true;
+                        _batchRootMutationCount++;
                     }
                 }
                 catch (Exception e)
@@ -202,9 +202,9 @@ namespace UnityMCP.Editor
                     UndoGroupHelper.CloseNamedGroup(gid);
                 // Non-atomic root batches push to UndoGroupStack so undo_last can target them.
                 // Atomic batches self-revert via AtomicFail — never mix with undo_last targeting.
-                // _batchRootHadMutations captures mutations from nested batches too.
-                if (isRoot && !atomic && _batchRootHadMutations)
-                    UndoGroupStack.Push(gid);
+                // _batchRootMutationCount captures mutations from nested batches too.
+                if (isRoot && !atomic && _batchRootMutationCount > 0)
+                    UndoGroupStack.Push(gid, _batchRootMutationCount);
 
                 // Only the outermost batch flushes physics — once, after all nested ops settle.
                 if (--_batchDepth == 0 && !IsPlayMode())
