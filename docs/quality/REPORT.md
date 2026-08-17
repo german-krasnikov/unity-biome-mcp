@@ -1,13 +1,13 @@
 # Quality Report
 
-> Auto-generated on **2026-08-17** from commit `0f56eb6` (v1.41.0)
+> Auto-generated on **2026-08-17** from commit `69b2262` (v1.41.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
 | Version | v1.41.0 |
-| Commit | `0f56eb6` |
+| Commit | `69b2262` |
 | Date | 2026-08-17 |
 | MCP Tools | 160 |
 
@@ -15,7 +15,7 @@
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.12) | 5746 | 0 | 3 | 5749 | ✅ |
+| Python Server (3.12) | 5755 | 0 | 3 | 5758 | ✅ |
 | Python Install | 76 | 0 | 0 | 76 | ✅ |
 | Python Scripts | 939 | 0 | 0 | 939 | ✅ |
 | C# EditMode (Linux) | 8188 | 0 | 178 | 8366 | ✅ |
@@ -26,7 +26,7 @@
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 4 | 412 | 83.44/100 |
+| mcp-tool-card-linter | 0 | 412 | 83.81/100 |
 
 ### Per-Tool Scores
 
@@ -42,11 +42,9 @@
 | `create_ui` | 65 | 0 | 5 | medium |
 | `screenshot` | 65 | 0 | 7 | medium |
 | `uitk_file` | 67 | 0 | 5 | high |
-| `execute_code` | 68 | 1 | 3 | high |
 | `run_tests_wait` | 68 | 0 | 6 | high |
 | `screenshot_compare` | 68 | 0 | 5 | medium |
 | `watch` | 68 | 0 | 4 | high |
-| `lint_playtest` | 69 | 1 | 3 | high |
 | `profile` | 69 | 0 | 4 | low |
 | `wait_until` | 69 | 0 | 5 | medium |
 | `navmesh_query` | 70 | 0 | 4 | high |
@@ -60,7 +58,6 @@
 | `set_sibling_index` | 74 | 0 | 5 | medium |
 | `vfx_intent` | 74 | 0 | 4 | medium |
 | `run_playtest` | 75 | 0 | 5 | high |
-| `save_skill` | 75 | 1 | 1 | medium |
 | `screenshot_baseline` | 75 | 0 | 4 | medium |
 | `set_property_delta` | 75 | 0 | 4 | medium |
 | `attach_uitk` | 76 | 0 | 4 | high |
@@ -70,7 +67,6 @@
 | `set_property` | 76 | 0 | 4 | medium |
 | `get_console` | 77 | 0 | 4 | low |
 | `manage_component` | 77 | 0 | 4 | high |
-| `save_template` | 77 | 1 | 1 | medium |
 | `set_properties` | 77 | 0 | 4 | medium |
 | `wire_event` | 77 | 0 | 2 | high |
 | `checkpoint` | 78 | 0 | 4 | medium |
@@ -99,6 +95,7 @@
 | `cancel_test_run` | 83 | 0 | 3 | medium |
 | `debug_physics` | 83 | 0 | 3 | medium |
 | `do` | 83 | 0 | 3 | medium |
+| `execute_code` | 83 | 0 | 3 | high |
 | `get_component` | 83 | 0 | 3 | medium |
 | `get_spatial_context` | 83 | 0 | 3 | medium |
 | `invoke_method` | 83 | 0 | 2 | medium |
@@ -112,6 +109,7 @@
 | `apply_scene_change` | 84 | 0 | 2 | high |
 | `create_object` | 84 | 0 | 3 | medium |
 | `get_console_since` | 84 | 0 | 2 | low |
+| `lint_playtest` | 84 | 0 | 3 | high |
 | `menu` | 84 | 0 | 3 | medium |
 | `scene_environment` | 84 | 0 | 3 | medium |
 | `scriptable_object` | 84 | 0 | 3 | medium |
@@ -164,11 +162,13 @@
 | `inspect` | 90 | 0 | 2 | low |
 | `lint_ugui` | 90 | 0 | 2 | medium |
 | `render_analyze` | 90 | 0 | 1 | medium |
+| `save_skill` | 90 | 0 | 1 | medium |
 | `checkpoint_restore` | 91 | 0 | 1 | medium |
 | `apply_template` | 92 | 0 | 1 | medium |
 | `bake` | 92 | 0 | 1 | low |
 | `configure_objects` | 92 | 0 | 1 | medium |
 | `resolve_tool_schema` | 92 | 0 | 1 | low |
+| `save_template` | 92 | 0 | 1 | medium |
 | `smart_build` | 92 | 0 | 1 | low |
 | `ask` | 93 | 0 | 1 | low |
 | `ask_user` | 93 | 0 | 1 | low |

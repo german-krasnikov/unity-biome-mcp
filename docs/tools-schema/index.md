@@ -7,7 +7,7 @@ hide:
 
 > **160 registered tools** — auto-generated from server tool definitions.
 
-> Quality: **83.4/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
+> Quality: **83.8/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
 
 ## Overview
 
@@ -52,7 +52,7 @@ hide:
 | [`do`](#do) | 🟢 83/100 | 🟡 medium | Convert natural language intent into Unity scene operations. Use when scene s... |
 | [`doctor`](#doctor) | 🟡 79/100 | 🟡 medium | Run health diagnostics. fix=True removes safe stale port/lock files. |
 | [`editor`](#editor) | 🟢 87/100 | 🟡 medium | Editor state/control. action: state|play|pause|stop|select|project_path. |
-| [`execute_code`](#execute_code) | 🟡 68/100 | 🔴 high | Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. |
+| [`execute_code`](#execute_code) | 🟢 83/100 | 🔴 high | Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. |
 | [`export_playtest_aliases_to_defs`](#export_playtest_aliases_to_defs) | 🟢 85/100 | 🟡 medium | Export PlaytestConfig.asset aliases to a readable .defs text file. |
 | [`find_objects`](#find_objects) | 🟢 88/100 | 🟡 medium | Find objects by criteria. Use search_scene for complex queries. Does NOT supp... |
 | [`fingerprint`](#fingerprint) | 🟢 85/100 | 🟡 medium | Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens. |
@@ -82,7 +82,7 @@ hide:
 | [`inspect`](#inspect) | 🟢 90/100 | 🟢 low | Get components for multiple objects at once. paths: comma-separated. componen... |
 | [`inspect_uitk`](#inspect_uitk) | 🟢 87/100 | 🟡 medium | Inspect the VisualElement tree of a UIDocument panel |
 | [`invoke_method`](#invoke_method) | 🟢 83/100 | 🟡 medium | [Play Mode] Call public method on a component via reflection. |
-| [`lint_playtest`](#lint_playtest) | 🟡 69/100 | 🔴 high | Static validation for playtest DSL. Read-only — no scene changes. Returns war... |
+| [`lint_playtest`](#lint_playtest) | 🟢 84/100 | 🔴 high | Static validation for playtest DSL. Read-only — no scene changes. Returns war... |
 | [`lint_playtest_suite`](#lint_playtest_suite) | 🟢 88/100 | 🟡 medium | Read-only preflight check across multiple .playtest files. |
 | [`lint_scene_refs`](#lint_scene_refs) | 🟢 89/100 | 🔴 high | Read-only linter for scene references in DSL scripts or batch commands. |
 | [`lint_ugui`](#lint_ugui) | 🟢 90/100 | 🟡 medium | Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster.... |
@@ -125,8 +125,8 @@ hide:
 | [`run_tests_wait`](#run_tests_wait) | 🟡 68/100 | 🔴 high | Dispatch tests and wait for the exact run to become terminal. Dispatches test... |
 | [`runtime_snapshot`](#runtime_snapshot) | 🟢 89/100 | 🟢 low | Snapshot all runtime objects of a given component type. Returns per-object fi... |
 | [`save_session`](#save_session) | 🟢 94/100 | 🟢 low | Save current scene state to .claude/session-context.json for cold-start recov... |
-| [`save_skill`](#save_skill) | 🟡 75/100 | 🟡 medium | Save a learned skill (C# code or batch commands) for reuse across sessions. |
-| [`save_template`](#save_template) | 🟡 77/100 | 🟡 medium | Save C# code as a reusable scene template in .claude/templates/. |
+| [`save_skill`](#save_skill) | 🟢 90/100 | 🟡 medium | Save a learned skill (C# code or batch commands) for reuse across sessions. |
+| [`save_template`](#save_template) | 🟢 92/100 | 🟡 medium | Save C# code as a reusable scene template in .claude/templates/. |
 | [`scan_scene`](#scan_scene) | 🟢 95/100 | 🟢 low | Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, can... |
 | [`scene`](#scene) | 🟢 88/100 | 🟡 medium | Scene management. action: new|open|save|discard|open_additive|close|set_activ... |
 | [`scene_change_plan`](#scene_change_plan) | 🟢 81/100 | 🟡 medium | Pre-flight + plan for safe scene edit. |
@@ -3139,7 +3139,7 @@ Editor state/control. action: state|play|pause|stop|select|project_path.     sel
 
 ### `execute_code`
 
-🟡 68/100 · Risk: 🔴 high
+🟢 83/100 · Risk: 🔴 high
 
 Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.     Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed.     Bare statements are auto-wrapped in a static class — no boilerplate needed.     Example: "var go = new GameObject(\"Test\"); return go.name;"
 
@@ -3151,12 +3151,11 @@ Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.     Se
 | `undo_label` | string |  | Label for the Undo group entry (default 'execute_code') (default: `execute_code`) |
 
 <details>
-<summary>6 quality issues</summary>
+<summary>5 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
 - **info**: Free-form string parameter 'code' has no maxLength.
-- **error**: Execution-like parameter 'code' accepts unconstrained free-form text.
 - **info**: Free-form string parameter 'undo_label' has no maxLength.
 - **warning**: outputSchema is missing.
 
@@ -3171,7 +3170,8 @@ Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.     Se
     "code": {
       "title": "Code",
       "type": "string",
-      "description": "C# code to execute in the Unity Editor context"
+      "description": "C# code to execute in the Unity Editor context",
+      "pattern": "^[\\s\\S]+$"
     },
     "undo_label": {
       "default": "execute_code",
@@ -4784,7 +4784,7 @@ Inspect the VisualElement tree of a UIDocument panel     (UI Toolkit only — us
 
 ### `lint_playtest`
 
-🟡 69/100 · Risk: 🔴 high
+🟢 84/100 · Risk: 🔴 high
 
 Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list.     Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN.     path: project-relative path to .playtest file.     script: inline DSL (mutually exclusive with path).
 
@@ -4796,13 +4796,12 @@ Static validation for playtest DSL. Read-only — no scene changes. Returns warn
 | `script` | any |  |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Object schema has properties but no required list.
 - **info**: Parameter 'script' has no description.
 - **warning**: outputSchema is missing.
-- **error**: Tool appears to have side effects but is annotated as read-only.
 
 </details>
 
@@ -7774,7 +7773,7 @@ Save current scene state to .claude/session-context.json for cold-start recovery
 
 ### `save_skill`
 
-🟡 75/100 · Risk: 🟡 medium
+🟢 90/100 · Risk: 🟡 medium
 
 Save a learned skill (C# code or batch commands) for reuse across sessions.     name: skill identifier. description: what it does. code: C# or batch commands.
 
@@ -7787,13 +7786,12 @@ Save a learned skill (C# code or batch commands) for reuse across sessions.     
 | `name` | string | ✓ | File-safe identifier for the learned skill |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **info**: Free-form string parameter 'name' has no maxLength.
 - **info**: Parameter 'description' has no description.
 - **info**: Free-form string parameter 'description' has no maxLength.
 - **info**: Free-form string parameter 'code' has no maxLength.
-- **error**: Execution-like parameter 'code' accepts unconstrained free-form text.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
@@ -7817,7 +7815,8 @@ Save a learned skill (C# code or batch commands) for reuse across sessions.     
     "code": {
       "title": "Code",
       "type": "string",
-      "description": "C# code or batch commands to save as a reusable skill"
+      "description": "C# code or batch commands to save as a reusable skill",
+      "pattern": "^[\\s\\S]+$"
     }
   },
   "required": [
@@ -7837,7 +7836,7 @@ Save a learned skill (C# code or batch commands) for reuse across sessions.     
 
 ### `save_template`
 
-🟡 77/100 · Risk: 🟡 medium
+🟢 92/100 · Risk: 🟡 medium
 
 Save C# code as a reusable scene template in .claude/templates/.
 
@@ -7849,11 +7848,10 @@ Save C# code as a reusable scene template in .claude/templates/.
 | `name` | string | ✓ | File-safe identifier for the reusable scene template |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **info**: Free-form string parameter 'name' has no maxLength.
 - **info**: Free-form string parameter 'code' has no maxLength.
-- **error**: Execution-like parameter 'code' accepts unconstrained free-form text.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
@@ -7873,7 +7871,8 @@ Save C# code as a reusable scene template in .claude/templates/.
     "code": {
       "title": "Code",
       "type": "string",
-      "description": "C# code or batch commands to save as a scene template"
+      "description": "C# code or batch commands to save as a scene template",
+      "pattern": "^[\\s\\S]+$"
     }
   },
   "required": [
