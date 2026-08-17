@@ -162,7 +162,7 @@ hide:
 | [`uitk_element`](#uitk_element) | 🟢 80/100 | 🔴 high | Mutate or query a VisualElement in a UIDocument |
 | [`uitk_file`](#uitk_file) | 🟡 67/100 | 🔴 high | Read or edit a UXML or USS asset file. |
 | [`uitk_intent`](#uitk_intent) | 🟡 79/100 | 🔴 high | Generate a UXML + USS file pair from a natural-language UI description. |
-| [`undo_last`](#undo_last) | 🟢 83/100 | 🟢 low | Undo the last N AI turns in the Unity Undo stack. Default: 1. |
+| [`undo_last`](#undo_last) | 🟢 83/100 | 🟡 medium | Undo the last N AI turns in the Unity Undo stack. Default: 1. |
 | [`unwire_event`](#unwire_event) | 🟢 86/100 | 🔴 high | Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation... |
 | [`use_skill`](#use_skill) | 🟢 83/100 | 🟡 medium | Execute a previously saved skill. params: comma-separated key=value for subst... |
 | [`validate_playtest_aliases`](#validate_playtest_aliases) | 🟢 86/100 | 🟡 medium | Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/... |
@@ -8184,7 +8184,7 @@ Scene hierarchy/health audit.     focus: all | hierarchy | naming | duplicates |
 
 🟡 65/100 · Risk: 🟡 medium
 
-Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path.     camera: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game. angle (single_view): front|left|top|iso|ex,ey,ez.     zoom: higher=closer. angles: per-view Euler "ex,ey,ez|..." (_=skip). supersample 1-4. offset/fixed_size: framing.     highlight: paths[:#RRGGBB] for bbox. show_colliders: wireframes.     annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame).
+Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path.     camera: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game. angle (single_view): front|left|top|iso|ex,ey,ez.     zoom: higher=closer. angles: per-view Euler "ex,ey,ez|..." (_=skip). supersample 1-4. offset/fixed_size: framing.     highlight: paths[:#RRGGBB] for bbox. show_colliders: wireframes.     annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame).     warn:ScreenSpaceOverlay canvas not captured in Edit Mode (bypasses camera pipeline).     Workarounds: switch to ScreenSpace-Camera, use Play Mode, or camera=scene_view.
 
 **Parameters:**
 
@@ -8216,7 +8216,7 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
 - **warning**: Numeric parameter 'width' has no bounds.
 - **warning**: Numeric parameter 'height' has no bounds.
 - **warning**: outputSchema is missing.
-- **warning**: Tool card is about 3306 characters.
+- **warning**: Tool card is about 3481 characters.
 
 </details>
 
@@ -11425,9 +11425,9 @@ Generate a UXML + USS file pair from a natural-language UI description.     Side
 
 ### `undo_last`
 
-🟢 83/100 · Risk: 🟢 low
+🟢 83/100 · Risk: 🟡 medium
 
-Undo the last N AI turns in the Unity Undo stack. Default: 1.
+Undo the last N AI turns in the Unity Undo stack. Default: 1.     warn: file-system operations (asset creation/deletion via asset tool) are     not reversed by undo. Only scene-object and component mutations are undoable.
 
 **Parameters:**
 

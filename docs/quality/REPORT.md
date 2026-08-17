@@ -1,26 +1,26 @@
 # Quality Report
 
-> Auto-generated on **2026-08-16** from commit `b7dfa1d` (v1.38.0)
+> Auto-generated on **2026-08-17** from commit `d3fc6c9` (v1.41.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.38.0 |
-| Commit | `b7dfa1d` |
-| Date | 2026-08-16 |
+| Version | v1.41.0 |
+| Commit | `d3fc6c9` |
+| Date | 2026-08-17 |
 | MCP Tools | 160 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.12) | 5558 | 0 | 3 | 5561 | ✅ |
+| Python Server (3.12) | 5746 | 0 | 3 | 5749 | ✅ |
 | Python Install | 76 | 0 | 0 | 76 | ✅ |
-| Python Scripts | 863 | 0 | 0 | 863 | ✅ |
-| C# EditMode (Linux) | 8128 | 0 | 178 | 8306 | ✅ |
-| C# EditMode (Windows) | 8014 | 0 | 292 | 8306 | ✅ |
-| C# EditMode (macOS) | 8128 | 0 | 178 | 8306 | ✅ |
+| Python Scripts | 939 | 0 | 0 | 939 | ✅ |
+| C# EditMode (Linux) | 8179 | 0 | 178 | 8357 | ✅ |
+| C# EditMode (Windows) | 8065 | 0 | 292 | 8357 | ✅ |
+| C# EditMode (macOS) | 8179 | 0 | 178 | 8357 | ✅ |
 
 ## Tool Quality
 
@@ -106,7 +106,7 @@
 | `serialized_field_rename_audit` | 83 | 0 | 2 | low |
 | `set_llm_config` | 83 | 0 | 3 | medium |
 | `setup_objects` | 83 | 0 | 3 | medium |
-| `undo_last` | 83 | 0 | 3 | low |
+| `undo_last` | 83 | 0 | 3 | medium |
 | `use_skill` | 83 | 0 | 3 | medium |
 | `validate_triggers` | 83 | 0 | 3 | medium |
 | `apply_scene_change` | 84 | 0 | 2 | high |
