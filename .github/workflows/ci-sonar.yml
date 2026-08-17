@@ -112,6 +112,9 @@ jobs:
       - name: Install dotnet-sonarscanner
         run: dotnet tool install --global dotnet-sonarscanner
 
+      - name: Hide sonar-project.properties from dotnet scanner
+        run: mv sonar-project.properties sonar-project.properties.bak
+
       - name: SonarScanner begin
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -121,7 +124,15 @@ jobs:
             /k:"german-krasnikov_unity-biome-mcp" \
             /o:"german-krasnikov" \
             /d:sonar.token="${SONAR_TOKEN}" \
-            /d:sonar.host.url="https://sonarcloud.io"
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.python.version="3.10,3.11,3.12" \
+            /d:sonar.python.coverage.reportPaths="server/coverage.xml" \
+            /d:sonar.sources="server/src/unity_mcp,unity-plugin/Editor,unity-plugin-reload/Editor" \
+            /d:sonar.tests="server/tests,unity-plugin/Editor/Tests" \
+            /d:sonar.exclusions="**/*.meta,unity-test-project/**,**/__pycache__/**" \
+            /d:sonar.test.exclusions="server/tests/**,unity-plugin/Editor/Tests/**,scripts/tests/**" \
+            /d:sonar.sourceEncoding="UTF-8" \
+            /d:sonar.cs.file.suffixes=".cs"
 
       - name: Build C# solution
         run: |
@@ -138,3 +149,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+
+      - name: Restore sonar-project.properties
+        if: always()
+        run: mv sonar-project.properties.bak sonar-project.properties 2>/dev/null || true
