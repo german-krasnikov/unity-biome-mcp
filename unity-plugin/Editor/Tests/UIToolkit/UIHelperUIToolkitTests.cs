@@ -8,6 +8,54 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class UIHelperUIToolkitTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        // ── U11: AttachUITK no PanelSettings → warn in response ──────────────
+
+        [Test]
+        public void AttachUITK_NoPanelSettings_ResponseContainsWarn()
+        {
+            var go = TrackOwnedObject(new UnityEngine.GameObject("UIHost_U11"));
+            var result = UIHelper.AttachUITK("/" + go.name, null, null, 0);
+            Assert.That(result, Does.Contain("warn:panelSettings=null"),
+                $"Expected warn:panelSettings=null in response, got: {result}");
+        }
+
+        [Test]
+        public void AttachUITK_NoPanelSettings_ResponseStartsWithOk()
+        {
+            var go = TrackOwnedObject(new UnityEngine.GameObject("UIHost_U11b"));
+            var result = UIHelper.AttachUITK("/" + go.name, null, null, 0);
+            Assert.That(result, Does.StartWith("ok:"),
+                $"AttachUITK must still return ok: even with warn, got: {result}");
+        }
+
+        // ── U14: set_style unknown prop → error mentions inspect_uitk ────────
+
+        [Test]
+        public void UitkSetStyle_UnknownProp_MentionsInspectUITK()
+        {
+            var go = TrackOwnedObject(new UnityEngine.GameObject("UIHost_U14"));
+            var method = typeof(UIHelper).GetMethod("UitkSetStyle",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(method, "UitkSetStyle private method must exist");
+            var ve = new Label { name = "testLabel" };
+            var result = (string)method.Invoke(null, new object[] { go, ve, "not-a-real-property", "red" });
+            Assert.That(result, Does.Contain("inspect_uitk"),
+                $"Expected 'inspect_uitk' in error for unknown style prop, got: {result}");
+        }
+
+        [Test]
+        public void UitkSetStyle_UnknownProp_ReturnsErrResponse()
+        {
+            var go = TrackOwnedObject(new UnityEngine.GameObject("UIHost_U14b"));
+            var method = typeof(UIHelper).GetMethod("UitkSetStyle",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(method);
+            var ve = new Label { name = "label" };
+            var result = (string)method.Invoke(null, new object[] { go, ve, "invalid-css-prop", "blue" });
+            Assert.That(result, Does.StartWith("err:"),
+                $"Unknown prop must return err:, got: {result}");
+        }
+
         // Test 1: path=null → ListAllUIDocuments → "no UIDocument" when scene is empty
         [Test]
         public async Task InspectUITK_NullPath_NoDocuments_ReturnsNoUIDocumentMessage()

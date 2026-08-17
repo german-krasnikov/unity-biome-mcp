@@ -141,6 +141,22 @@ namespace UnityMCP.Editor.Tests
             Assert.That(document.sortingOrder, Is.EqualTo(17));
         }
 
+        // U11: When panelSettings arg is omitted, ok response includes warn:panelSettings=null
+        [Test]
+        public async Task AttachUITK_NoPanelSettings_WarnsSuffix()
+        {
+            // Double-red:
+            // 1. Change "warn:panelSettings=null" to "warn:nothere" → assertion fails
+            // 2. Remove the warn suffix code from AttachUITK → no warning → RED
+            var path = ComponentSerializer.GetPath(_testGO);
+            var result = UIHelper.AttachUITK(path, null, null, 0);
+
+            Assert.That(result, Does.StartWith("ok:"),
+                "AttachUITK without panelSettings must succeed");
+            Assert.That(result, Does.Contain("warn:panelSettings=null"),
+                "Response must contain warn:panelSettings=null when no PanelSettings provided");
+        }
+
         // Test 5: Undo restores state — UIDocument removed after undo
         [Test]
         public async Task AttachUITK_UndoCreatesRestorePoint()

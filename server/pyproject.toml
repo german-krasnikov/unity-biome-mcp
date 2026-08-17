@@ -1,6 +1,6 @@
 [project]
 name = "unity-biome-mcp"
-version = "1.39.0"
+version = "1.40.0"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]
@@ -28,12 +28,14 @@ Issues = "https://github.com/german-krasnikov/unity-biome-mcp/issues"
 
 [project.optional-dependencies]
 dev = [
-    "hypothesis>=6.0",
+    "hypothesis>=6.1",
+    "hypothesis-jsonschema>=0.23",
     "packaging>=24.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=6.0",
     "pytest-timeout>=2.4.0",
+    "pyyaml>=6.0",
 ]
 # acp-sdk omitted: requires Python>=3.11, project supports >=3.10; runtime parsing uses stdlib json
 
@@ -60,6 +62,7 @@ markers = [
     "requires_graphics: requires a Unity worker with graphics/screenshot support",
     "cross_project: requires two running Unity editors on different ports",
     "slow: tests that take >5s (reload stability, property-based)",
+    "stateful: Hypothesis RuleBasedStateMachine tests — no Unity, finds sequence bugs",
     "asyncio: mark test as asyncio (auto-registered by pytest-asyncio; explicit here for --strict-markers)",
     "wire: wire-protocol contract tests — no Unity, no live marker, runs in ci-python.yml",
 ]

@@ -206,7 +206,7 @@ namespace UnityMCP.Editor
                 if (mutating)
                 {
                     UndoGroupHelper.CloseNamedGroup(groupId);
-                    UndoGroupStack.Push(groupId);
+                    UndoGroupStack.Push(groupId, mutations: 1);
                     ChangeWatcher.RecordMutation($"MCP_{cmd.ToUpper()}");
                     var errors = ConsoleCapture.GetErrorsSince(before);
                     if (errors != null) data += "\n⚠ CONSOLE ERRORS:\n" + errors;

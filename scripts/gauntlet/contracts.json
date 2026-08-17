@@ -1,20 +1,1641 @@
 {
   "schema_version": 2,
-  "catalog_version": "1.0.0",
+  "catalog_version": "1.0.1",
   "scope": "builtin",
   "owner": null,
   "contracts": [
     {
       "id": "mcp-status-read",
       "action": "mcp_status",
-      "effects": ["pure_read"],
+      "effects": [
+        "pure_read"
+      ],
       "retry": "blind_safe",
       "arguments": {},
       "preconditions": {
         "connected": true
       },
       "expect_error": false,
-      "forbidden_success_patterns": ["^error:"]
+      "forbidden_success_patterns": [
+        "^error:"
+      ]
+    },
+    {
+      "id": "route.alias_status",
+      "action": "alias_status",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.analyze_lod_culling",
+      "action": "analyze_lod_culling",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.animation",
+      "action": "animation",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/Main",
+        "Camera": "",
+        "action": "list"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.animator",
+      "action": "animator",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/Main",
+        "Camera": ""
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.asset",
+      "action": "asset",
+      "effects": [
+        "filesystem"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "action": "list"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.attach_uitk",
+      "action": "attach_uitk",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.auto_wire",
+      "action": "auto_wire",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.autofit_collider",
+      "action": "autofit_collider",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.bake",
+      "action": "bake",
+      "effects": [
+        "filesystem"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.batch",
+      "action": "batch",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "commands": "get_status"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.cancel_test_run",
+      "action": "cancel_test_run",
+      "effects": [
+        "observer_state"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "run_id": "__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.check_colliders",
+      "action": "check_colliders",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.checkpoint",
+      "action": "checkpoint",
+      "effects": [
+        "observer_state"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "action": "list"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.compile_preflight",
+      "action": "compile_preflight",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.create_object",
+      "action": "create_object",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "name": "__seam_surface_probe"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.create_ui",
+      "action": "create_ui",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "type": "Button",
+        "parent": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.delete_object",
+      "action": "delete_object",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.diagnose",
+      "action": "diagnose",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.editor",
+      "action": "editor",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "action": "status"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.execute_code",
+      "action": "execute_code",
+      "effects": [
+        "observer_state"
+      ],
+      "retry": "reconcile",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.export_playtest_aliases_to_defs",
+      "action": "export_playtest_aliases_to_defs",
+      "effects": [
+        "observer_state"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent.defs"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.find_objects",
+      "action": "find_objects",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "name": "__seam_surface_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.fingerprint",
+      "action": "fingerprint",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_capabilities",
+      "action": "get_capabilities",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_changes",
+      "action": "get_changes",
+      "effects": [
+        "observer_state"
+      ],
+      "retry": "reconcile",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_compile_errors",
+      "action": "get_compile_errors",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_component",
+      "action": "get_component",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "type": "Transform"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_components_list",
+      "action": "get_components_list",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_console",
+      "action": "get_console",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_enabled_tools",
+      "action": "get_enabled_tools",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_hierarchy",
+      "action": "get_hierarchy",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "depth": "1"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_memory",
+      "action": "get_memory",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_object_detail",
+      "action": "get_object_detail",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_schema",
+      "action": "get_schema",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "cmd": "get_status"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_selection",
+      "action": "get_selection",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_spatial_context",
+      "action": "get_spatial_context",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_test_count",
+      "action": "get_test_count",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_test_progress",
+      "action": "get_test_progress",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "run_id": "__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_test_results",
+      "action": "get_test_results",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "run_id": "__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_test_run",
+      "action": "get_test_run",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "run_id": "__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_unity_events",
+      "action": "get_unity_events",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.get_watches",
+      "action": "get_watches",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.inspect",
+      "action": "inspect",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "paths": "/Main",
+        "Camera": ""
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.inspect_uitk",
+      "action": "inspect_uitk",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.lint_playtest",
+      "action": "lint_playtest",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "script": "ASSERT_CONSOLE_CLEAN"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.lint_scene_refs",
+      "action": "lint_scene_refs",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.lint_ugui",
+      "action": "lint_ugui",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.lint_uitk",
+      "action": "lint_uitk",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.list_events",
+      "action": "list_events",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.list_test_runs",
+      "action": "list_test_runs",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.manage_component",
+      "action": "manage_component",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "type": "Rigidbody",
+        "action": "add"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.material",
+      "action": "material",
+      "effects": [
+        "filesystem"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "action": "get"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.material_audit",
+      "action": "material_audit",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.menu",
+      "action": "menu",
+      "effects": [
+        "observer_state"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "name": "File/Save"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.object_diff",
+      "action": "object_diff",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.particle",
+      "action": "particle",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.ping_object",
+      "action": "ping_object",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.prefab",
+      "action": "prefab",
+      "effects": [
+        "filesystem"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "action": "list"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.project_settings",
+      "action": "project_settings",
+      "effects": [
+        "filesystem"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "ProjectSettings/TagManager"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.recompile",
+      "action": "recompile",
+      "effects": [
+        "observer_state"
+      ],
+      "retry": "reconcile",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.references",
+      "action": "references",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "action": "get",
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.region_clear",
+      "action": "region_clear",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "region": "__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.rename_object",
+      "action": "rename_object",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "name": "__seam_renamed"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.render_analyze",
+      "action": "render_analyze",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.resolve_scene_refs",
+      "action": "resolve_scene_refs",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.resolve_test_request",
+      "action": "resolve_test_request",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "request_id": "__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.runtime_snapshot",
+      "action": "runtime_snapshot",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.scan_scene",
+      "action": "scan_scene",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.scene",
+      "action": "scene",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "action": "get"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.scene_diff",
+      "action": "scene_diff",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.scene_environment",
+      "action": "scene_environment",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "action": "get"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.scene_health",
+      "action": "scene_health",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.scriptable_object",
+      "action": "scriptable_object",
+      "effects": [
+        "filesystem"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "action": "list"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.search_scene",
+      "action": "search_scene",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "query": "__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.serialized_field_rename_audit",
+      "action": "serialized_field_rename_audit",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "from": "OldField",
+        "to": "NewField"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.set_active",
+      "action": "set_active",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "active": "false"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.set_material",
+      "action": "set_material",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "material": "Default-Material"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.set_parent",
+      "action": "set_parent",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "parent": "/"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.set_property",
+      "action": "set_property",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "component": "Transform",
+        "prop": "m_LocalPosition",
+        "value": "0,0,0"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.set_property_delta",
+      "action": "set_property_delta",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "component": "Transform",
+        "prop": "m_LocalPosition.x",
+        "delta": "1"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.set_rect",
+      "action": "set_rect",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.set_sibling_index",
+      "action": "set_sibling_index",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "index": "0"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.shader",
+      "action": "shader",
+      "effects": [
+        "filesystem"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.spatial_query",
+      "action": "spatial_query",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.sync_playtest_aliases_from_defs",
+      "action": "sync_playtest_aliases_from_defs",
+      "effects": [
+        "observer_state"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent.defs"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.timeline",
+      "action": "timeline",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.transfer_object",
+      "action": "transfer_object",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "to": "/__seam_target"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.uitk_element",
+      "action": "uitk_element",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "action": "get"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.undo_last",
+      "action": "undo_last",
+      "effects": [
+        "observer_state"
+      ],
+      "retry": "reconcile",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.unwire_event",
+      "action": "unwire_event",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "event": "onClick"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.validate_playtest_aliases",
+      "action": "validate_playtest_aliases",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {},
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.validate_references",
+      "action": "validate_references",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.validate_triggers",
+      "action": "validate_triggers",
+      "effects": [
+        "pure_read"
+      ],
+      "retry": "blind_safe",
+      "arguments": {
+        "path": "/__seam_nonexistent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "route.wire_event",
+      "action": "wire_event",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam_nonexistent",
+        "event": "onClick",
+        "target": "/__seam_tgt",
+        "method": "SetActive"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "rt.create-object.hierarchy",
+      "action": "create_object",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "name": "__seam-ns_rt_create"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "rt.delete-object.hierarchy-absent",
+      "action": "delete_object",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam-ns_rt_del"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "rt.manage-component-add.get-component",
+      "action": "manage_component",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam-ns_rt_comp",
+        "type": "Rigidbody",
+        "action": "add"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "rt.rename-object.hierarchy",
+      "action": "rename_object",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam-ns_rt_old",
+        "name": "__seam-ns_rt_new"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "rt.set-active-false.hierarchy-inactive-marker",
+      "action": "set_active",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam-ns_rt_active",
+        "active": "false"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "rt.set-parent.hierarchy-nesting",
+      "action": "set_parent",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam-ns_rt_child",
+        "parent": "/__seam-ns_rt_parent"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "rt.set-property-delta.get-component",
+      "action": "set_property_delta",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam-ns_rt_delta",
+        "component": "Transform",
+        "prop": "m_LocalPosition.x",
+        "delta": "5"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
+    },
+    {
+      "id": "rt.set-property.get-component",
+      "action": "set_property",
+      "effects": [
+        "unity_persistent"
+      ],
+      "retry": "reconcile",
+      "arguments": {
+        "path": "/__seam-ns_rt_prop",
+        "component": "Transform",
+        "prop": "m_LocalPosition",
+        "value": "3,5,7"
+      },
+      "preconditions": {
+        "connected": true
+      },
+      "expect_error": false,
+      "forbidden_success_patterns": []
     }
   ]
 }

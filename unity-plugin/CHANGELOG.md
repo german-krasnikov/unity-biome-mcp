@@ -12,6 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.40.0] — 2026-08-17
+
+### Added
+
+- **Reflect rules expansion** (9→40+): factory pattern, 83.6% coverage of mutating commands — `rules_scene.py`, `rules_assets.py`, `rules_system.py`, `factory.py`, `coverage.py`
+- **Conformance test generator** (`scripts/gen_conformance.py`): 190 YAML test cases from tool schemas (94 valid, 82 invalid, 6 seam, 8 batch)
+- **Gauntlet contract generator** (`scripts/gen_gauntlet_contracts.py`): 1→103 formal contracts (94 routing + 8 mutation + 1 existing)
+- **Hypothesis StateMachine** (`server/tests/stateful/`): `UnitySessionMachine` with 7 rules, 2 invariants, 50×15 step sequences against `StatefulFakeServer`
+- New pytest marker: `stateful`
+
+### Fixed
+
+- **U3**: ScrollView creates scrollable structure (anchors + horizontal disabled)
+- **V8**: UILinter detects broken ScrollRect (S3/S6 checks)
+- **R3**: Undo response includes mutation count
+- **U11**: `attach_uitk` warns when `PanelSettings=null`
+- **U14**: Error message redirects to `inspect_uitk` instead of unreachable `uitk_file`
+- **R2/U19**: Documentation warnings for undo asset limitation and SSO canvas
+
 ## [v1.39.0] — 2026-08-17
 
 ### Fixed
@@ -3367,7 +3386,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.39.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.40.0...HEAD
+[v1.40.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.39.0...v1.40.0
 [v1.39.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.38.0...v1.39.0
 [v1.38.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.2...v1.38.0
 [v1.37.2]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.37.1...v1.37.2

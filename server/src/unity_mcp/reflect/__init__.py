@@ -111,4 +111,4 @@ async def reflect(
 
 
 # ── Auto-discovery: trigger rule registration ─────────────────────────────────
-from . import rules_batch, rules_objects, rules_runtime  # noqa: E402,F401
+from . import rules_assets, rules_batch, rules_objects, rules_runtime, rules_scene, rules_system  # noqa: E402,F401

@@ -139,6 +139,37 @@ namespace UnityMCP.Editor.Tests
                 "Content must have ContentSizeFitter");
         }
 
+        // ── U3: Content horizontal stretch + vertical-only ────────────────────
+
+        [Test]
+        public void CreateUI_ScrollView_ContentStretchesHorizontally()
+        {
+            UIHelper.CreateUI("ScrollView", "TestSV_HStretch", "UHNT_Canvas",
+                null, null, null, null, null, null, null);
+            var go = GameObject.Find("TestSV_HStretch");
+            Assert.IsNotNull(go, "ScrollView not found");
+            TrackOwnedObject(go);
+            var content = go.transform.Find("Viewport/Content");
+            Assert.IsNotNull(content, "Viewport/Content not found");
+            var rt = content.GetComponent<RectTransform>();
+            Assert.AreEqual(1f, rt.anchorMax.x, 0.001f,
+                "Content anchorMax.x must be 1 for full-width horizontal stretch");
+        }
+
+        [Test]
+        public void CreateUI_ScrollView_IsVerticalOnly()
+        {
+            UIHelper.CreateUI("ScrollView", "TestSV_VertOnly", "UHNT_Canvas",
+                null, null, null, null, null, null, null);
+            var go = GameObject.Find("TestSV_VertOnly");
+            Assert.IsNotNull(go, "ScrollView not found");
+            TrackOwnedObject(go);
+            var sr = go.GetComponent<ScrollRect>();
+            Assert.IsFalse(sr.horizontal,
+                "ScrollView must default to vertical-only (horizontal=false)");
+            Assert.IsTrue(sr.vertical, "ScrollView must have vertical=true");
+        }
+
         [Test]
         public void CreateUI_ScrollView_ColorApplied()
         {

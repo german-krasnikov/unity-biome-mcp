@@ -12,7 +12,8 @@ from unity_mcp.tools._param_descriptions import PARAM_DESCRIPTIONS
 
 def test_screenshot_doc_terse_keeps_enums():
     doc = screenshot.__doc__
-    assert len(doc) < 520, f"screenshot doc creeping back to bloat: {len(doc)} chars"
+    # Limit raised to 750 to accommodate the SSO canvas limitation note (U19 fix).
+    assert len(doc) < 750, f"screenshot doc creeping back to bloat: {len(doc)} chars"
     for token in ("scene_view", "multi_view", "single_view", "overview_game",
                   "front|left|top|iso", "supersample", "highlight", "show_colliders"):
         assert token in doc, f"screenshot doc lost anti-hallucination token: {token}"
