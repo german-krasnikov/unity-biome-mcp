@@ -34,8 +34,26 @@ jobs:
         working-directory: server
         run: |
           pip install ".[dev]"
-          PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q --cov=src/unity_mcp --cov-report=xml:coverage.xml --cov-config=pyproject.toml
+          PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q --cov=unity_mcp --cov-report=xml:coverage.xml --cov-config=pyproject.toml
         continue-on-error: true
+
+      - name: Fix coverage source paths for SonarCloud
+        run: |
+          if [ -f server/coverage.xml ]; then
+            python3 -c "
+import xml.etree.ElementTree as ET, pathlib
+tree = ET.parse('server/coverage.xml')
+for src in tree.findall('.//sources/source'):
+    src.text = '.'
+for pkg in tree.findall('.//package'):
+    for cls in pkg.findall('.//class'):
+        fn = cls.get('filename', '')
+        if fn.startswith('src/'):
+            cls.set('filename', 'server/' + fn)
+tree.write('server/coverage.xml', xml_declaration=True, encoding='UTF-8')
+print('Patched coverage.xml: source=. filenames=server/src/...')
+"
+          fi
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v3
