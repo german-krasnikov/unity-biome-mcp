@@ -289,7 +289,7 @@ namespace UnityMCP.Editor.Tests
                 elapsedMilliseconds: () => elapsed.Dequeue());
 
             StringAssert.Contains("TIMEOUT: batch deadline", result, result);
-            StringAssert.Contains("ok:1 err:0 timeout:1", result, result);
+            StringAssert.Contains("ok:1 timeout:1", result, result);
             Assert.IsTrue(BatchHelper.HasErrors(result), result);
         }
     }
