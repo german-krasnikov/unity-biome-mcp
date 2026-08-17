@@ -34,15 +34,8 @@ jobs:
         working-directory: server
         run: |
           pip install ".[dev]"
-          PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q --cov=unity_mcp --cov-report=xml:coverage.xml --cov-config=pyproject.toml
+          PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q --cov=src/unity_mcp --cov-report=xml:coverage.xml --cov-config=pyproject.toml
         continue-on-error: true
-
-      - name: Fix coverage source paths
-        run: |
-          if [ -f server/coverage.xml ]; then
-            sed -i "s|<source>.*</source>|<source>${GITHUB_WORKSPACE}/server</source>|g" server/coverage.xml
-            echo "Coverage XML patched with workspace path"
-          fi
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v3

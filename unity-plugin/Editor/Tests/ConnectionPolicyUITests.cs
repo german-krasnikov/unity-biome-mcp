@@ -1,5 +1,5 @@
 // TDD: ConnectionPolicyUI builds config controls and wires pref persistence.
-// UIElements value-change callbacks require a real panel — tests use ShowUtility().
+// UIElements value-change callbacks require a real panel — those tests use ShowUtility().
 using System.IO;
 using NUnit.Framework;
 using UnityEditor;
@@ -8,11 +8,10 @@ using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.Tests
 {
-    [TestFixture, UnityMCP.Editor.Testing.RequiresGraphicsDevice]
+    [TestFixture]
     public class ConnectionPolicyUITests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private string _tempDir;
-        private EditorWindow _win;
 
         [SetUp]
         public void SetupContext()
@@ -21,9 +20,6 @@ namespace UnityMCP.Editor.Tests
             Directory.CreateDirectory(_tempDir);
             GlobalConfigSync.ConfigPathOverride = Path.Combine(_tempDir, "global-config.json");
 
-            _win = CreateOwnedEditorWindow<EditorWindow>();
-            _win.ShowUtility();
-
             RegisterCleanup(() =>
             {
                 GlobalConfigSync.ConfigPathOverride = null;
@@ -31,6 +27,13 @@ namespace UnityMCP.Editor.Tests
                 if (Directory.Exists(_tempDir))
                     Directory.Delete(_tempDir, recursive: true);
             });
+        }
+
+        private EditorWindow CreateAttachedWindow()
+        {
+            var win = CreateOwnedEditorWindow<EditorWindow>();
+            win.ShowUtility();
+            return win;
         }
 
         [Test]
@@ -82,7 +85,7 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(graceField.enabledSelf, "Grace field must be disabled when terminate orphan is off");
         }
 
-        [Test]
+        [Test, UnityMCP.Editor.Testing.RequiresGraphicsDevice]
         public void ToggleChange_CallsSaveToDisk()
         {
             ProtectEditorPrefBool(PrefKeys.IdleAutoSuspend);
@@ -90,8 +93,9 @@ namespace UnityMCP.Editor.Tests
             var saveCount = 0;
             ConnectionPolicyUI.SaveAction = () => saveCount++;
 
+            var win = CreateAttachedWindow();
             var root = ConnectionPolicyUI.Build();
-            _win.rootVisualElement.Add(root);  // attach to panel so callbacks fire
+            win.rootVisualElement.Add(root);  // attach to panel so callbacks fire
 
             Toggle suspendToggle = null;
             root.Query<Toggle>().ForEach(t =>
@@ -106,14 +110,15 @@ namespace UnityMCP.Editor.Tests
             Assert.GreaterOrEqual(saveCount, 1, "SaveToDisk must be called on toggle change");
         }
 
-        [Test]
+        [Test, UnityMCP.Editor.Testing.RequiresGraphicsDevice]
         public void IntField_ClampsToRange()
         {
             SetEditorPrefBool(PrefKeys.IdleAutoSuspend, true);
             SetEditorPrefInt(PrefKeys.IdleTimeoutMin, 30);
 
+            var win = CreateAttachedWindow();
             var root = ConnectionPolicyUI.Build();
-            _win.rootVisualElement.Add(root);  // attach to panel
+            win.rootVisualElement.Add(root);  // attach to panel
 
             IntegerField timeoutField = null;
             root.Query<IntegerField>().ForEach(f =>
