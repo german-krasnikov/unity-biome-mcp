@@ -1,0 +1,43 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "server/src/**"
+      - "unity-plugin/**"
+      - "sonar-project.properties"
+  pull_request:
+    branches: [master]
+    paths:
+      - "server/src/**"
+      - "unity-plugin/**"
+      - "sonar-project.properties"
+  workflow_dispatch:
+
+permissions:
+  pull-requests: read
+
+jobs:
+  sonarcloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for blame
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install and run tests with coverage
+        working-directory: server
+        run: |
+          pip install ".[dev]"
+          PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q --cov=unity_mcp --cov-report=xml:coverage.xml
+        continue-on-error: true
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
