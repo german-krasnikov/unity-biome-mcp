@@ -86,6 +86,87 @@ def test_check_prefetch_cache_hit_returns_cached():
     assert "cached hierarchy data" in result
 
 
+# ── TestServeCachedPrefetch ───────────────────────────────────────────────────
+
+class TestServeCachedPrefetch:
+    def test_returns_as_is_when_cached_prefix(self):
+        """[CACHED:...] prefix → returned unchanged."""
+        from unity_mcp.middleware_pipeline import _serve_cached_prefetch
+        mw = MagicMock()
+        mw.circuit.state = object()
+        mw.circuit.HALF_OPEN = object()  # different sentinel → not half_open
+        result = _serve_cached_prefetch("[CACHED: get_hierarchy]data", mw)
+        assert result == "[CACHED: get_hierarchy]data"
+        mw.circuit.record_success.assert_not_called()
+
+    def test_wraps_without_prefix(self):
+        """No [CACHED: prefix → prepend [CACHED]\\n."""
+        from unity_mcp.middleware_pipeline import _serve_cached_prefetch
+        mw = MagicMock()
+        mw.circuit.state = object()
+        mw.circuit.HALF_OPEN = object()
+        result = _serve_cached_prefetch("hierarchy data", mw)
+        assert result == "[CACHED]\nhierarchy data"
+
+    def test_records_success_when_half_open(self):
+        """HALF_OPEN state → record_success called."""
+        from unity_mcp.middleware_pipeline import _serve_cached_prefetch
+        sentinel = object()
+        mw = MagicMock()
+        mw.circuit.state = sentinel
+        mw.circuit.HALF_OPEN = sentinel  # same object → is half_open
+        _serve_cached_prefetch("data", mw)
+        mw.circuit.record_success.assert_called_once()
+
+    def test_no_record_success_when_not_half_open(self):
+        """Non-HALF_OPEN state → record_success NOT called."""
+        from unity_mcp.middleware_pipeline import _serve_cached_prefetch
+        mw = MagicMock()
+        mw.circuit.state = object()
+        mw.circuit.HALF_OPEN = object()  # distinct sentinel
+        _serve_cached_prefetch("data", mw)
+        mw.circuit.record_success.assert_not_called()
+
+
+# ── TestFindObjectsCache ──────────────────────────────────────────────────────
+
+class TestFindObjectsCache:
+    def test_returns_none_for_non_find_objects_cmd(self):
+        """Non-find_objects cmd → None immediately, no cache call."""
+        from unity_mcp.middleware_pipeline import _check_find_objects_cache
+        mw = MagicMock()
+        assert _check_find_objects_cache("get_hierarchy", {}, mw) is None
+        mw.find_from_cache.assert_not_called()
+
+    def test_returns_none_when_tag_set(self):
+        """find_objects with tag filter → None (bypass disabled)."""
+        from unity_mcp.middleware_pipeline import _check_find_objects_cache
+        mw = MagicMock()
+        assert _check_find_objects_cache("find_objects", {"tag": "Enemy"}, mw) is None
+        mw.find_from_cache.assert_not_called()
+
+    def test_returns_none_when_layer_set(self):
+        """find_objects with layer filter → None."""
+        from unity_mcp.middleware_pipeline import _check_find_objects_cache
+        mw = MagicMock()
+        assert _check_find_objects_cache("find_objects", {"layer": "Default"}, mw) is None
+
+    def test_returns_cached_when_cache_hit(self):
+        """find_objects, no filters, cache hit → returns cached string."""
+        from unity_mcp.middleware_pipeline import _check_find_objects_cache
+        mw = MagicMock()
+        mw.find_from_cache.return_value = "/Player"
+        result = _check_find_objects_cache("find_objects", {"name": "Player"}, mw)
+        assert result == "/Player"
+
+    def test_returns_none_when_cache_miss(self):
+        """find_objects, no filters, cache miss → None."""
+        from unity_mcp.middleware_pipeline import _check_find_objects_cache
+        mw = MagicMock()
+        mw.find_from_cache.return_value = None
+        assert _check_find_objects_cache("find_objects", {}, mw) is None
+
+
 # ── Item 2: guards see ORIGINAL cmd, speculation sees REROUTED cmd ────────────
 
 async def test_guards_see_original_cmd_before_reroute(monkeypatch):

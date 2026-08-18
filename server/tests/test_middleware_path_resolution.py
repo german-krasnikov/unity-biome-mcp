@@ -246,3 +246,105 @@ async def test_wrap_send_categorizes_errors(mw):
     wrapped = wrap_send(fake_send, mw)
     result = await wrapped("set_property", {"path": "/A", "component": "C", "prop": "x", "value": "1"})
     assert "[HINT:" in result
+
+
+# ── TestResolvePathAndValidate ────────────────────────────────────────────────
+
+import pytest
+
+
+class TestResolvePathAndValidate:
+    """Unit tests for the extracted _resolve_path_and_validate helper."""
+
+    @pytest.mark.asyncio
+    async def test_no_path_in_args_returns_empty_marker(self):
+        """No 'path' key in args → returns (args, '') without calling resolve."""
+        from unity_mcp.middleware_pipeline import _resolve_path_and_validate
+        mw = MagicMock()
+        mw.schema_guard = None
+        flags = {"_explicit_path": False, "_no_validate": True}
+        args = {"value": "42"}
+        result = await _resolve_path_and_validate("set_property", args, mw, AsyncMock(), flags)
+        assert isinstance(result, tuple)
+        assert result[0] == args
+        assert result[1] == ""
+        mw.resolve_path_live.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_explicit_path_skips_resolution(self):
+        """_explicit_path=True → path not resolved."""
+        from unity_mcp.middleware_pipeline import _resolve_path_and_validate
+        mw = MagicMock()
+        mw.schema_guard = None
+        flags = {"_explicit_path": True, "_no_validate": True}
+        result = await _resolve_path_and_validate(
+            "get_component", {"path": "/Player"}, mw, AsyncMock(), flags
+        )
+        assert isinstance(result, tuple)
+        mw.resolve_path_live.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_disambig_block_returns_block_string(self):
+        """Disambig block from resolve → returns the block text (early exit)."""
+        from unity_mcp.middleware_pipeline import _resolve_path_and_validate
+        mw = MagicMock()
+        mw.resolve_path_live = AsyncMock(
+            return_value=("__DISAMBIG_BLOCK__\nChoose: /A or /B", "")
+        )
+        mw.schema_guard = None
+        flags = {"_explicit_path": False, "_no_validate": True}
+        result = await _resolve_path_and_validate(
+            "get_component", {"path": "/P"}, mw, AsyncMock(), flags
+        )
+        assert isinstance(result, str)
+        assert "Choose:" in result
+
+    @pytest.mark.asyncio
+    async def test_schema_guard_block_returns_block(self):
+        """Schema guard validation fails → returns block string."""
+        from unity_mcp.middleware_pipeline import _resolve_path_and_validate
+        from unittest.mock import patch
+        mw = MagicMock()
+        mw.resolve_path_live = AsyncMock(return_value=("/Player", ""))
+        mw.schema_guard = MagicMock()
+        mw.schema_guard.validate = AsyncMock(return_value="schema error")
+        flags = {"_explicit_path": False, "_no_validate": False}
+        with patch("unity_mcp.metrics.METRICS", MagicMock()):
+            result = await _resolve_path_and_validate(
+                "set_property", {"path": "/Player"}, mw, AsyncMock(), flags
+            )
+        assert result == "schema error"
+
+    @pytest.mark.asyncio
+    async def test_component_absent_returns_warn(self):
+        """Component not in cache → returns comp_warn string."""
+        from unity_mcp.middleware_pipeline import _resolve_path_and_validate
+        mw = MagicMock()
+        mw.resolve_path_live = AsyncMock(return_value=("/Player", ""))
+        mw.schema_guard = None
+        mw.check_component_exists.return_value = "Component 'Rigidbody' not found"
+        flags = {"_explicit_path": False, "_no_validate": True}
+        result = await _resolve_path_and_validate(
+            "set_property",
+            {"path": "/Player", "component": "Rigidbody"},
+            mw, AsyncMock(), flags,
+        )
+        assert result == "Component 'Rigidbody' not found"
+
+    @pytest.mark.asyncio
+    async def test_all_pass_returns_resolved_args_and_marker(self):
+        """All guards pass → (updated_args, resolve_marker) tuple."""
+        from unity_mcp.middleware_pipeline import _resolve_path_and_validate
+        mw = MagicMock()
+        mw.resolve_path_live = AsyncMock(
+            return_value=("/Player_found", "[RESOLVED: /Player → /Player_found]")
+        )
+        mw.schema_guard = None
+        flags = {"_explicit_path": False, "_no_validate": True}
+        result = await _resolve_path_and_validate(
+            "get_component", {"path": "/Player"}, mw, AsyncMock(), flags
+        )
+        assert isinstance(result, tuple)
+        args, marker = result
+        assert args["path"] == "/Player_found"
+        assert "RESOLVED" in marker

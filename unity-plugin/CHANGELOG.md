@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.42.1] — 2026-08-18
+
+### Fixed
+
+- Reduce cognitive complexity: `middleware_pipeline.py` (31→12, 18→10, 45→8), `reload_ladder.py` (19→6)
+- Fix `doctor.py` exception order — `TimeoutError` was dead code, now correctly shows "frozen" message
+- Fix `compile_state.py` try/except structure for static analysis clarity
+- Fix `server_filtering.py` `_strip_deferred_schemas` return type (S3516)
+- Remove redundant exception classes in `bridge.py`, `connection_slot.py` (S5713)
+- Update `sonar-project.properties` python version to 3.14
+- 24 new unit tests for extracted helpers
+
 ## [v1.42.0] — 2026-08-18
 
 ### Breaking
@@ -3430,7 +3442,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.1...HEAD
+[v1.42.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.0...v1.42.1
 [v1.42.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.41.0...v1.42.0
 [v1.41.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.40.0...v1.41.0
 [v1.40.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.39.0...v1.40.0

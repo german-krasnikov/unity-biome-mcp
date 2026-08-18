@@ -117,7 +117,8 @@ def filter_tools(tools: list, disabled: set | None) -> list:
     result = _apply_gating(tools)
     if disabled is not None:
         result = [t for t in result if t.name not in disabled or t.name in _CORE_TOOLS]
-    return _strip_deferred_schemas(result)
+    _strip_deferred_schemas(result)
+    return result
 
 
 

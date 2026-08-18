@@ -144,17 +144,17 @@ async def check_tcp_connection(port: int = 0) -> CheckResult:
     try:
         async with _tcp_connect(port):
             return CheckResult("tcp_connection", True, f"Connected to :{port}")
-    except (ConnectionRefusedError, OSError):
-        return CheckResult(
-            "tcp_connection", False,
-            f"Cannot connect to :{port} — Unity Biome MCP plugin not running",
-            fix_cmd=USER_MESSAGES["disconnected"],
-        )
     except TimeoutError:
         return CheckResult(
             "tcp_connection", False,
             f"Timeout connecting to :{port}",
             fix_cmd=USER_MESSAGES["frozen"],
+        )
+    except (ConnectionRefusedError, OSError):
+        return CheckResult(
+            "tcp_connection", False,
+            f"Cannot connect to :{port} — Unity Biome MCP plugin not running",
+            fix_cmd=USER_MESSAGES["disconnected"],
         )
 
 

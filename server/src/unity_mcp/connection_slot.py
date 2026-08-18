@@ -62,7 +62,7 @@ class ConnectionSlot:
             self._host = host
             self._bridge.start_heartbeat()
             return f"Connected to Unity on port {port}"
-        except (TimeoutError, OSError):
+        except OSError:
             return f"Registered Unity on port {port} (not yet available)"
 
     async def close(self):

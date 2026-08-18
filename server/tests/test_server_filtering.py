@@ -365,8 +365,9 @@ async def test_handler_preserves_core_full_schema():
     tool = _tool("batch")
     tool.inputSchema = full
 
-    result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == full
+    tools = [tool]
+    _strip_deferred_schemas(tools)
+    assert tools[0].inputSchema == full
 
 
 # ---------------------------------------------------------------------------
@@ -481,8 +482,9 @@ def test_strip_uses_canonical_stub():
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
 
     tool = SimpleNamespace(name="lighting", description="Control scene lighting.", inputSchema={"type": "object", "properties": {}})
-    result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema is STUB_SCHEMA
+    tools = [tool]
+    _strip_deferred_schemas(tools)
+    assert tools[0].inputSchema is STUB_SCHEMA
 
 
 # ---------------------------------------------------------------------------
@@ -700,10 +702,11 @@ def test_strip_deferred_details_shortens_description_for_non_core_tool():
     )
     tool = SimpleNamespace(name="lighting", description=long_desc,
                            inputSchema={"type": "object", "properties": {"clip": {"type": "string"}}})
-    result = _strip_deferred_schemas([tool])
-    assert result[0].description == _short_description(long_desc)
-    assert result[0].description != long_desc
-    assert result[0].inputSchema is STUB_SCHEMA
+    tools = [tool]
+    _strip_deferred_schemas(tools)
+    assert tools[0].description == _short_description(long_desc)
+    assert tools[0].description != long_desc
+    assert tools[0].inputSchema is STUB_SCHEMA
 
 
 def test_strip_deferred_details_preserves_full_description_for_core_tool():
@@ -715,9 +718,10 @@ def test_strip_deferred_details_preserves_full_description_for_core_tool():
     )
     full_schema = {"type": "object", "properties": {"path": {"type": "string"}}}
     tool = SimpleNamespace(name="get_hierarchy", description=long_desc, inputSchema=full_schema)
-    result = _strip_deferred_schemas([tool])
-    assert result[0].description == long_desc
-    assert result[0].inputSchema == full_schema
+    tools = [tool]
+    _strip_deferred_schemas(tools)
+    assert tools[0].description == long_desc
+    assert tools[0].inputSchema == full_schema
 
 
 async def test_schema_registry_capture_stores_full_description_before_truncation():

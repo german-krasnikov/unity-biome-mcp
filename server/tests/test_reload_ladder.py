@@ -1159,6 +1159,120 @@ async def test_t5_max_polls_none_respects_deadline_not_count():
 
 # ── _probe_diagnose helper ────────────────────────────────────────────────────
 
+# ── TestRunTiersT1T2 ─────────────────────────────────────────────────────────
+
+class TestRunTiersT1T2:
+    @pytest.mark.asyncio
+    async def test_t1_heals_when_start_tier_1(self):
+        """start_tier=1: T1 heals → returns T1 result immediately."""
+        with patch.object(_ladder, "_t1", AsyncMock(return_value=MVID_B)):
+            result = await _ladder._run_tiers_T1_T2(AsyncMock(), MVID_A, start_tier=1)
+        assert result is not None
+        assert "HEALED: T1" in result
+        assert MVID_B in result
+
+    @pytest.mark.asyncio
+    async def test_t1_skipped_when_start_tier_2(self):
+        """start_tier=2: T1 not called, T2 heals."""
+        with patch.object(_ladder, "_t1", AsyncMock(return_value=MVID_B)) as mock_t1, \
+             patch.object(_ladder, "_t2", AsyncMock(return_value=MVID_B)):
+            result = await _ladder._run_tiers_T1_T2(AsyncMock(), MVID_A, start_tier=2)
+        mock_t1.assert_not_called()
+        assert result is not None
+        assert "HEALED: T2" in result
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_both_fail(self):
+        """Both T1 and T2 return None → returns None to continue."""
+        with patch.object(_ladder, "_t1", AsyncMock(return_value=None)), \
+             patch.object(_ladder, "_t2", AsyncMock(return_value=None)):
+            result = await _ladder._run_tiers_T1_T2(AsyncMock(), MVID_A, start_tier=1)
+        assert result is None
+
+
+# ── TestRunTiersT3T4T5 ────────────────────────────────────────────────────────
+
+class TestRunTiersT3T4T5:
+    @pytest.mark.asyncio
+    async def test_t3_skipped_when_main_dead(self):
+        """main_dead=True → T3 not called."""
+        with patch.object(_ladder, "_t3", AsyncMock(return_value=MVID_B)) as mock_t3:
+            result = await _ladder._run_tiers_T3_T4_T5(
+                AsyncMock(), MVID_A,
+                bump_file=None, osascript_runner=None,
+                play_stop_consent=False, main_dead=True,
+            )
+        mock_t3.assert_not_called()
+        assert "MANUAL-REQUIRED" in result
+
+    @pytest.mark.asyncio
+    async def test_t4_skipped_when_no_runner(self):
+        """osascript_runner=None → T4 not called."""
+        with patch.object(_ladder, "_t3", AsyncMock(return_value=None)), \
+             patch.object(_ladder, "_t4", AsyncMock(return_value=(MVID_B, True))) as mock_t4:
+            result = await _ladder._run_tiers_T3_T4_T5(
+                AsyncMock(), MVID_A,
+                bump_file=None, osascript_runner=None,
+                play_stop_consent=False, main_dead=False,
+            )
+        mock_t4.assert_not_called()
+        assert "MANUAL-REQUIRED" in result
+
+    @pytest.mark.asyncio
+    async def test_accessibility_denied_returns_reimport(self):
+        """T4 ok=False → REIMPORT-NEEDED."""
+        async def denied_runner(action: str) -> int:
+            return 0 if action == "activate" else 1002
+
+        with patch.object(_ladder, "_t3", AsyncMock(return_value=None)):
+            result = await _ladder._run_tiers_T3_T4_T5(
+                AsyncMock(), MVID_A,
+                bump_file=None, osascript_runner=denied_runner,
+                play_stop_consent=False, main_dead=False,
+            )
+        assert "REIMPORT-NEEDED" in result
+
+    @pytest.mark.asyncio
+    async def test_t5_skipped_without_consent(self):
+        """play_stop_consent=False → MANUAL-REQUIRED before T5."""
+        with patch.object(_ladder, "_t3", AsyncMock(return_value=None)), \
+             patch.object(_ladder, "_t5", AsyncMock(return_value=MVID_B)) as mock_t5:
+            result = await _ladder._run_tiers_T3_T4_T5(
+                AsyncMock(), MVID_A,
+                bump_file=None, osascript_runner=None,
+                play_stop_consent=False, main_dead=False,
+            )
+        mock_t5.assert_not_called()
+        assert "MANUAL-REQUIRED" in result
+
+    @pytest.mark.asyncio
+    async def test_t5_heals_with_consent(self):
+        """consent=True, T5 heals → HEALED: T5."""
+        with patch.object(_ladder, "_t3", AsyncMock(return_value=None)), \
+             patch.object(_ladder, "_t5", AsyncMock(return_value=MVID_B)):
+            result = await _ladder._run_tiers_T3_T4_T5(
+                AsyncMock(), MVID_A,
+                bump_file=None, osascript_runner=None,
+                play_stop_consent=True, main_dead=False,
+            )
+        assert "HEALED: T5" in result
+        assert MVID_B in result
+
+    @pytest.mark.asyncio
+    async def test_t5_fails_returns_manual_required(self):
+        """consent=True, T5 returns None → MANUAL-REQUIRED fallback."""
+        with patch.object(_ladder, "_t3", AsyncMock(return_value=None)), \
+             patch.object(_ladder, "_t5", AsyncMock(return_value=None)):
+            result = await _ladder._run_tiers_T3_T4_T5(
+                AsyncMock(), MVID_A,
+                bump_file=None, osascript_runner=None,
+                play_stop_consent=True, main_dead=False,
+            )
+        assert "MANUAL-REQUIRED" in result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 @pytest.mark.asyncio
 async def test_probe_diagnose_main_success():
     """Main send succeeds → returns (raw, False)."""
