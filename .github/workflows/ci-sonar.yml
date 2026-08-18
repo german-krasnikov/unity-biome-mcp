@@ -24,9 +24,9 @@ jobs:
   python-coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -44,7 +44,7 @@ jobs:
             sed -i 's|filename="src/|filename="server/src/|g' server/coverage.xml
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-xml
           path: server/coverage.xml
@@ -54,16 +54,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: python-coverage
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: coverage-xml
           path: server
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -71,7 +71,7 @@ jobs:
         id: upm-path
         run: echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ${{ steps.upm-path.outputs.path }}
           key: upm-Linux-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
@@ -100,7 +100,7 @@ jobs:
           project-path: unity-test-project
           args: -batchmode -nographics -executeMethod Packages.Rider.Editor.RiderScriptEditor.SyncSolution -quit
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
 
