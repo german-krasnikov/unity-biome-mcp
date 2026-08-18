@@ -127,14 +127,8 @@ jobs:
             /o:"german-krasnikov" \
             /d:sonar.token="${SONAR_TOKEN}" \
             /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.projectBaseDir="${GITHUB_WORKSPACE}" \
             /d:sonar.python.version="3.10,3.11,3.12" \
-            /d:sonar.python.coverage.reportPaths="server/coverage.xml" \
-            /d:sonar.sources="server/src/unity_mcp,unity-plugin/Editor,unity-plugin-reload/Editor" \
-            /d:sonar.tests="server/tests,unity-plugin/Editor/Tests" \
-            /d:sonar.exclusions="**/*.meta,unity-test-project/**,**/__pycache__/**" \
-            /d:sonar.test.exclusions="server/tests/**,unity-plugin/Editor/Tests/**,scripts/tests/**" \
-            /d:sonar.sourceEncoding="UTF-8"
+            /d:sonar.python.coverage.reportPaths="server/coverage.xml"
 
       - name: Build C# solution
         run: |
