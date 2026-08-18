@@ -12,6 +12,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.42.0] — 2026-08-18
+
+### Breaking
+
+- **Python 3.14+ required** — dropped support for Python 3.10, 3.11, 3.12, 3.13
+
+### Changed
+
+- Remove `from __future__ import annotations` from 227 files (PEP 649 native)
+- Replace `asyncio.get_event_loop()` → `get_running_loop()` across codebase
+- Replace `asyncio.ensure_future()` → `create_task()` across codebase
+- Replace `asyncio.iscoroutinefunction()` → `inspect.iscoroutinefunction()`
+- Replace `asyncio.TimeoutError` → builtin `TimeoutError` across codebase
+- Replace `Optional[X]` → `X | None`, `typing.AsyncGenerator` → `collections.abc`
+- Fix PEP 649 TYPE_CHECKING regression: runtime-needed imports restored with `# noqa: TC`
+- Fix `test_resolve_binary_does_not_block_event_loop` timing race on Python 3.14
+- All CI workflows, Dockerfile, release-policy updated to Python 3.14
+- `ruff target-version` updated to `py314`
+
+### Added
+
+- `AI/python-guidelines.md` — comprehensive Python 3.14 best practices reference
+- 11 fence tests in `test_python314_compat.py` preventing regression to deprecated patterns
+- `install/tests/test_version_check.py` — version guard validation
+- Version guard in `install.py` for friendly error on Python < 3.14
+
+### Removed
+
+- `hypothesis-jsonschema` dependency (unused)
+- `tomllib` try/except fallbacks (stdlib since 3.11)
+- `from __future__ import annotations` across entire codebase
+
 ## [v1.41.0] — 2026-08-17
 
 ### Fixed
@@ -3398,7 +3430,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.41.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.0...HEAD
+[v1.42.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.41.0...v1.42.0
 [v1.41.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.40.0...v1.41.0
 [v1.40.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.39.0...v1.40.0
 [v1.39.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.38.0...v1.39.0
