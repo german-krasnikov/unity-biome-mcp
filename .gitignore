@@ -41,6 +41,10 @@ unity-plugin/Temp/
 unity-plugin/Obj/
 unity-plugin/Build/
 unity-plugin/Builds/
+# Sonar CI: UnityMCP .csproj copies relocated to repo root for correct module base dirs
+/sonar.sln
+/sonar-*.csproj
+
 unity-plugin/Logs/
 unity-plugin/UserSettings/
 unity-plugin/*.csproj

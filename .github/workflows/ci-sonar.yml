@@ -1,0 +1,200 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "server/src/**"
+      - "unity-plugin/**"
+      - "sonar-project.properties"
+      - ".github/workflows/ci-sonar.yml"
+      - "scripts/inspectcode_to_sonar.py"
+  pull_request:
+    branches: [master]
+    paths:
+      - "server/src/**"
+      - "unity-plugin/**"
+      - "sonar-project.properties"
+      - ".github/workflows/ci-sonar.yml"
+  workflow_dispatch:
+
+permissions:
+  pull-requests: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      csharp: ${{ steps.filter.outputs.csharp }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            csharp:
+              - 'unity-plugin/**'
+              - 'scripts/inspectcode_to_sonar.py'
+
+  python-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install and run tests with coverage
+        run: |
+          pip install "./server[dev]"
+          cd server && PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q \
+            --cov=unity_mcp --cov-report=xml:coverage.xml --cov-config=pyproject.toml
+        continue-on-error: true
+
+      - name: Fix coverage paths
+        run: |
+          if [ -f server/coverage.xml ]; then
+            sed -i 's|<source>.*</source>|<source>.</source>|g' server/coverage.xml
+            sed -i 's|filename="src/|filename="server/src/|g' server/coverage.xml
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: server/coverage.xml
+          retention-days: 1
+
+  csharp-inspect:
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.csharp == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check InspectCode cache
+        id: ic-cache
+        uses: actions/cache@v4
+        with:
+          path: sonarqube-csharp.json
+          key: inspectcode-${{ hashFiles('unity-plugin/**/*.cs', 'scripts/inspectcode_to_sonar.py') }}
+
+      - name: Set UPM cache path
+        if: steps.ic-cache.outputs.cache-hit != 'true'
+        id: upm-path
+        run: echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        if: steps.ic-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.upm-path.outputs.path }}
+          key: upm-Linux-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
+          restore-keys: upm-Linux-
+
+      - uses: actions/cache@v4
+        if: steps.ic-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.dotnet/tools
+          key: dotnet-tools-jb-${{ runner.os }}
+
+      - uses: actions/cache@v4
+        if: steps.ic-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.cache/jb-inspectcode
+          key: jb-cache-${{ hashFiles('unity-plugin/**/*.cs') }}
+          restore-keys: jb-cache-
+
+      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b
+        if: steps.ic-cache.outputs.cache-hit != 'true'
+        id: unity-setup
+        timeout-minutes: 15
+        with:
+          unity-version: 6000.0.65f1
+          build-targets: StandaloneLinux64
+          cache-installation: true
+          hub-version: '3.19.5'
+
+      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af
+        if: steps.ic-cache.outputs.cache-hit != 'true'
+        with:
+          license: 'Personal'
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Generate .sln
+        if: steps.ic-cache.outputs.cache-hit != 'true'
+        uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a
+        with:
+          build-target: StandaloneLinux64
+          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
+          project-path: unity-test-project
+          args: -batchmode -nographics -executeMethod Packages.Rider.Editor.RiderScriptEditor.SyncSolution -quit
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.ic-cache.outputs.cache-hit != 'true'
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run InspectCode and convert to SonarQube format
+        if: steps.ic-cache.outputs.cache-hit != 'true'
+        run: |
+          dotnet tool list -g | grep -q JetBrains.ReSharper.GlobalTools || \
+            dotnet tool install -g JetBrains.ReSharper.GlobalTools
+          SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*.sln" 2>/dev/null | head -1)
+          SLN_DIR=$(dirname "$SLN")
+          if [ -n "$SLN" ]; then
+            jb inspectcode "$SLN" \
+              --output=inspectcode-report.xml \
+              --format=Xml \
+              --severity=WARNING \
+              --no-build \
+              --no-swea \
+              --caches-home="$HOME/.cache/jb-inspectcode" 2>&1 | tail -5
+            echo "InspectCode report: $(wc -c < inspectcode-report.xml) bytes"
+            echo "--- Sample issues (first 5 File attrs) ---"
+            grep -oP 'File="[^"]+"' inspectcode-report.xml | head -5
+            python3 scripts/inspectcode_to_sonar.py inspectcode-report.xml \
+              -o sonarqube-csharp.json --base-dir "$SLN_DIR"
+          fi
+          if [ ! -f sonarqube-csharp.json ]; then
+            echo '{"rules":[],"issues":[]}' > sonarqube-csharp.json
+          fi
+          echo "Final: $(wc -c < sonarqube-csharp.json) bytes, $(python3 -c "import json; d=json.load(open('sonarqube-csharp.json')); print(len(d.get('issues',[])), 'issues,', len(d.get('rules',[])), 'rules')")"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: csharp-issues
+          path: sonarqube-csharp.json
+          retention-days: 1
+
+  sonar-scan:
+    runs-on: ubuntu-latest
+    needs: [python-coverage, csharp-inspect]
+    if: |
+      always() &&
+      needs.python-coverage.result == 'success' &&
+      (needs.csharp-inspect.result == 'success' || needs.csharp-inspect.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-xml
+          path: server
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: csharp-issues
+          path: .
+        continue-on-error: true
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
+        with:
+          args: >
+            ${{ hashFiles('sonarqube-csharp.json') != '' && '-Dsonar.externalIssuesReportPaths=sonarqube-csharp.json' || '' }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,22 @@
+root = true
+
+[*.cs]
+# Unity false positives for InspectCode static analysis
+
+# [SerializeField] fields: set by Inspector, appear unassigned/constant/readonly
+resharper_field_can_be_made_read_only_local_highlighting = none
+resharper_convert_to_constant_local_highlighting = none
+resharper_not_accessed_field_local_highlighting = none
+
+# Unity overloads == on UnityEngine.Object — null analysis is wrong
+resharper_condition_is_always_true_or_false_highlighting = none
+resharper_possible_null_reference_exception_highlighting = none
+
+# [MenuItem], [InitializeOnLoadMethod] entry points called by Unity reflection
+resharper_member_can_be_private_local_highlighting = none
+
+# _camelCase field naming is Unity convention
+resharper_inconsistent_naming_highlighting = none
+
+# Properties wired to Inspector (e.g. on ScriptableObject)
+resharper_unused_auto_property_accessor_local_highlighting = none
