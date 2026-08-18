@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 _PLUGIN_RE = re.compile(r"^UnityMCP\.")
+_SKIP_RE = re.compile(r"TestProject|PlayerPlaytest|Runtime\.TestHelpers$")
 _PROJECT_LINE = re.compile(
     r'Project\("[^"]+"\)\s*=\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"'
 )
@@ -40,7 +41,7 @@ def main(dedup_sln: str, output_sln: str = "sonar.sln") -> int:
         if not m:
             continue
         name, rel_path, guid = m.group(1), m.group(2), m.group(3)
-        if not _PLUGIN_RE.match(name):
+        if not _PLUGIN_RE.match(name) or _SKIP_RE.search(name):
             continue
         src = sln_dir / rel_path
         if not src.exists():
