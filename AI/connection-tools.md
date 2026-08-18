@@ -113,7 +113,7 @@ result = await doctor(fix=True)
 
 | Check | Tests | Auto-fix? |
 |-------|-------|-----------|
-| `python_version` | Python ≥ 3.10 | ❌ Manual: Install Python 3.10+ |
+| `python_version` | Python ≥ 3.14 | ❌ Manual: Install Python 3.14+ |
 | `port_file` | ~/.unity-biome-mcp/ports/*.port exist + PIDs alive | ✅ Remove stale files, report if none live |
 | `lockfile` | ~/.unity-biome-mcp/*.lock holds live PID | ✅ Clean stale files |
 | `tcp_connection` | A TCP connection to the discovered port can be opened | ❌ Diagnostic only |
