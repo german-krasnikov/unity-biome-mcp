@@ -50,10 +50,22 @@ jobs:
           path: server/coverage.xml
           retention-days: 1
 
-  csharp-build:
+  sonar-unified:
     runs-on: ubuntu-latest
+    needs: python-coverage
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-xml
+          path: server
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Set UPM cache path
         id: upm-path
@@ -92,54 +104,18 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Deduplicate .sln and build
+      - name: Install dotnet-sonarscanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Deduplicate .sln
         run: |
           SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*.sln" 2>/dev/null | head -1)
-          if [ -z "$SLN" ]; then
-            echo "::warning::No .sln found"
-            exit 0
+          if [ -n "$SLN" ]; then
+            python3 scripts/dedup_sln.py "$SLN" "${SLN%.sln}-dedup.sln"
           fi
-          DEDUP="${SLN%.sln}-dedup.sln"
-          python3 scripts/dedup_sln.py "$SLN" "$DEDUP"
-          dotnet build "$DEDUP" || echo "::warning::dotnet build failed (some projects may have issues)"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: csharp-sln
-          path: |
-            unity-test-project/*.sln
-            unity-test-project/*.csproj
-            unity-test-project/.sonarqube/
-          retention-days: 1
-
-  sonar-scan:
-    runs-on: ubuntu-latest
-    needs: [python-coverage, csharp-build]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: coverage-xml
-          path: server
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: csharp-sln
-          path: unity-test-project
-        continue-on-error: true
 
       - name: Hide sonar-project.properties
         run: mv sonar-project.properties sonar-project.properties.bak
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Install dotnet-sonarscanner
-        run: dotnet tool install --global dotnet-sonarscanner
 
       - name: SonarScanner begin
         env:
@@ -160,13 +136,17 @@ jobs:
             /d:sonar.test.exclusions="server/tests/**,unity-plugin/Editor/Tests/**,scripts/tests/**" \
             /d:sonar.sourceEncoding="UTF-8"
 
-      - name: Build with sonar hooks (if .sln available)
+      - name: Build C# solution
         run: |
-          SLN=$(find unity-test-project -maxdepth 1 -name "*-dedup.sln" -o -name "*.sln" 2>/dev/null | head -1)
+          SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*-dedup.sln" 2>/dev/null | head -1)
+          if [ -z "$SLN" ]; then
+            SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*.sln" 2>/dev/null | head -1)
+          fi
           if [ -n "$SLN" ]; then
-            dotnet build "$SLN" || echo "::warning::Build partial"
+            echo "Building: $SLN"
+            dotnet build "$SLN" || echo "::warning::Build had errors (partial C# analysis)"
           else
-            echo "::warning::No .sln — C# analysis limited to source scanning"
+            echo "::warning::No .sln found"
           fi
         continue-on-error: true
 
