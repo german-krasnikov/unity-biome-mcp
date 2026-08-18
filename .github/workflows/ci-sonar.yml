@@ -91,7 +91,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: |
+            6.0.x
+            8.0.x
 
       - name: Run InspectCode and convert to SonarQube format
         run: |
