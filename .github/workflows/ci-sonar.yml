@@ -108,8 +108,9 @@ jobs:
               --no-build \
               --no-swea \
               --absolute-paths 2>&1 | tail -5
-            dotnet-reqube -i inspectcode-report.xml -o sonarqube-csharp.json
-          else
+            dotnet-reqube -i inspectcode-report.xml -o sonarqube-csharp.json || true
+          fi
+          if [ ! -f sonarqube-csharp.json ]; then
             echo '{"issues":[]}' > sonarqube-csharp.json
           fi
 
