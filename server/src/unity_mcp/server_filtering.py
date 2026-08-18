@@ -263,6 +263,7 @@ async def discover_port_with_retry(
 # to the client outside of a request context (e.g. from a manual reconnect).
 _active_session = None
 _labeled_sessions: weakref.WeakSet = weakref.WeakSet()
+_background_tasks: set = set()  # strong refs to fire-and-forget tasks (S7502)
 
 
 def get_active_session():
@@ -324,4 +325,6 @@ def _schedule_client_label(session, get_slot) -> None:
             _labeled_sessions.discard(session)
             logger.debug("set_client_label failed for %r: %s", name, e)
 
-    asyncio.create_task(_send())
+    task = asyncio.create_task(_send())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)

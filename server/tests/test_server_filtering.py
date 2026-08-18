@@ -815,3 +815,12 @@ async def test_schedule_client_label_retries_after_send_failure():
     await asyncio.sleep(0)
 
     assert bridge.send.await_count == 2
+
+
+# ── Bug 2 regression: fire-and-forget task strong ref (SonarCloud S7502) ──────
+
+def test_background_tasks_is_module_level_set():
+    """Bug 2: _background_tasks must be a module-level set so GC cannot collect tasks."""
+    import unity_mcp.server_filtering as sf
+    assert hasattr(sf, "_background_tasks")
+    assert isinstance(sf._background_tasks, set)

@@ -219,7 +219,7 @@ async def _transition_play_state(expected: bool) -> None:
 
 def _is_playtest_pass(result: str) -> bool:
     """Require a non-empty, complete PLAYTEST ratio and no failure signals."""
-    first_line = (result or "").splitlines()[0] if result else ""
+    first_line = result.splitlines()[0] if result else ""
     match = re.match(r"PLAYTEST:\s*(\d+)\s*/\s*(\d+)\b", first_line)
     if not match:
         return False

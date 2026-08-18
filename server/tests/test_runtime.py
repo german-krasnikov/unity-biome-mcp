@@ -818,3 +818,35 @@ async def test_run_playtest_suite_auto_play_cleanup_on_send_error(monkeypatch):
         pass
 
     assert stop_called, "DEF-1: Play Mode not stopped after auto_play + send error"
+
+
+# ── Bug 1 regression: _is_playtest_pass redundant-or fix (SonarCloud S1871) ───
+
+def test_is_playtest_pass_empty_string_returns_false():
+    """Bug 1: _is_playtest_pass('') must return False without raising IndexError."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    assert _is_playtest_pass("") is False
+
+
+def test_is_playtest_pass_valid_full_pass():
+    """_is_playtest_pass returns True for complete passing ratio."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    assert _is_playtest_pass("PLAYTEST: 3/3 (1.0s) OK") is True
+
+
+def test_is_playtest_pass_partial_fail():
+    """_is_playtest_pass returns False when not all assertions pass."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    assert _is_playtest_pass("PLAYTEST: 1/3 (1.0s)\n[2] FAIL") is False
+
+
+def test_is_playtest_pass_console_err_token():
+    """_is_playtest_pass returns False when CONSOLE_ERR appears in result."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    assert _is_playtest_pass("PLAYTEST: 2/2 (1.0s)\n[1] CONSOLE_ERR msg") is False
+
+
+def test_is_playtest_pass_zero_total():
+    """_is_playtest_pass returns False for 0/0 (no assertions)."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    assert _is_playtest_pass("PLAYTEST: 0/0 (0.0s) OK") is False
